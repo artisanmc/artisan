@@ -14,7 +14,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryCloseEvent
 import kotlin.test.*
 
-/** Fermer un menu sans ouvrir d'autre écran termine la navigation. */
+/** Closing a menu without opening another screen ends the navigation. */
 class MenuListenerHistoryTest {
     @BeforeTest fun setup() { MockBukkit.mock() }
     @AfterTest fun teardown() { MockBukkit.unmock() }
@@ -47,7 +47,7 @@ class MenuListenerHistoryTest {
         return MenuListener(plugin, sessions, executor, history = history)
     }
 
-    /** Menu `id` affiché après `previous` : l'état que laisse un `open_menu`. */
+    /** Menu `id` shown after `previous`: the state an `open_menu` leaves. */
     private fun showMenu(p: Player, history: NavigationHistoryStore, id: String, previous: String?, escapeGoesBack: Boolean = false) {
         if (previous != null) {
             history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, previous))

@@ -16,10 +16,9 @@ interface DataSourceEditorProps {
 }
 
 /**
- * Project-source detail — form-only editing (the YAML pane died with the
- * declared-schema refactor, ADR `project-sources-and-data-models`): schema
- * section (Data model / config fields), then the rows table (table) or the
- * value form (config), then the Sets section (unchanged).
+ * Project-source detail: schema section (Data model / config fields), then
+ * the rows table (table) or the value form (config), then the Sets section.
+ * ADR `project-sources-and-data-models`.
  */
 export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   const { t } = useTranslation();
@@ -27,8 +26,8 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   const removeDataSource = useAccountStore((s) => s.removeProjectDataSource);
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [schemaOpen, setSchemaOpen] = useState(true);
-  // Deux modes sur le MÊME fichier (ADR yaml-assisted-editing ⑦/⑧) : le
-  // panneau Données et l'écran de config parlent le même langage.
+  // Two modes on the SAME file (ADR yaml-assisted-editing ⑦/⑧): the data panel
+  // and the config screen speak the same language.
   const [mode, setMode] = useState<"form" | "yaml">("form");
   const [draft, setDraft] = useState<SourceFile[] | null>(null);
   const [selectedFile, setSelectedFile] = useState("");
@@ -41,7 +40,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
     setNameError(null);
   }, [source.name]);
 
-  // Une autre source est un autre fichier : ni brouillon ni mode hérités.
+  // Another source is another file: neither draft nor mode is inherited.
   useEffect(() => {
     setDraft(null);
     setMode("form");
@@ -52,16 +51,16 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   const yamlErrors = draft ? yamlErrorsOf(draft) : [];
 
   /**
-   * Réinjecte le texte dans le project. Un YAML cassé n'est PAS appliqué (on
-   * ne détruit pas le domaine avec), mais le texte reste à l'écran, éditable.
+   * Writes the text back into the project. Broken YAML is NOT applied (the
+   * domain is not destroyed with it), but the text stays on screen, editable.
    */
   const applyDraft = () => {
     if (!draft || yamlErrors.length > 0) return;
     const next = applySourceYaml(project, draft);
     if (!next) return;
     replaceProject(next);
-    // Canonicalisation immédiate : le texte réaffiché est celui que le writer
-    // vient de produire, pas le brouillon.
+    // Immediate canonicalisation: the text shown again is what the writer just
+    // produced, not the draft.
     const reparsed = next.dataSources.find((d) => String(d.id) === String(source.id));
     setDraft(reparsed ? sourceYamlFiles(next, reparsed) : null);
   };
@@ -112,9 +111,8 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
               key={m}
               type="button"
               onClick={() => {
-                // Le brouillon ne survit JAMAIS à un changement d'onglet : le
-                // garder ferait réapparaître un texte périmé et écraserait les
-                // éditions faites entre-temps dans le formulaire.
+                // The draft NEVER survives a tab change: keeping it would bring back stale
+                // text and overwrite the edits made in the form in the meantime.
                 if (m === "form") {
                   applyDraft();
                   setDraft(null);
@@ -213,8 +211,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
           )}
         </section>
 
-        {/* Sets d'items live at the MENU level now ("Données du menu") —
-            no data-level creation surface (user feedback 2026-07-26). */}
+        {/* Item sets live at the MENU level — no data-level creation surface. */}
       </div>
       )}
     </div>

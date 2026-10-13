@@ -4,11 +4,11 @@ import { planWrite, applyRenames } from "./diskSave";
 const BASE = { "menus/ancien.yaml": "title: A\n", "lang/fr.yaml": "x: y\n" };
 
 /**
- * Renommer est un déplacement. L'arbre seul montre une disparition et une
- * apparition — seul l'éditeur sait que c'est le même Document.
+ * Renaming is a move. The tree alone shows a disappearance and an
+ * appearance — only the editor knows it is the same Document.
  */
 describe("applyRenames", () => {
-  it("remplace supprimer+créer par un déplacement", async () => {
+  it("replaces delete+create with a move", async () => {
     const tree = { "menus/nouveau.yaml": "title: A\n", "lang/fr.yaml": "x: y\n" };
     const plan = await applyRenames(
       await planWrite(BASE, tree),
@@ -19,12 +19,12 @@ describe("applyRenames", () => {
     expect(plan.renames).toEqual([
       { from: "menus/ancien.yaml", to: "menus/nouveau.yaml", base_hash: expect.stringMatching(/^[0-9a-f]{64}$/) },
     ]);
-    // Ni suppression de l'ancien, ni création du nouveau : le fichier bouge.
+    // Neither a delete of the old one nor a create of the new one: the file moves.
     expect(plan.deletes).toEqual([]);
     expect(plan.files).toEqual([]);
   });
 
-  it("renommer ET modifier : le déplacement, puis une écriture basée sur l'ancien contenu", async () => {
+  it("rename AND modify: the move, then a write based on the old content", async () => {
     const tree = { "menus/nouveau.yaml": "title: A modifié\n", "lang/fr.yaml": "x: y\n" };
     const plan = await applyRenames(
       await planWrite(BASE, tree),
@@ -35,12 +35,12 @@ describe("applyRenames", () => {
     expect(plan.renames).toHaveLength(1);
     expect(plan.deletes).toEqual([]);
     expect(plan.files).toHaveLength(1);
-    // Après le déplacement, la destination porte l'ancien contenu : c'est lui
-    // que le compare-and-swap doit attendre, et non « aucun fichier ».
+    // After the move, the destination holds the old content: that is what the
+    // compare-and-swap must expect, not "no file".
     expect(plan.files[0]!.base_hash).toBe(plan.renames[0]!.base_hash);
   });
 
-  it("un renommage dont la source est inconnue de la base retombe en création", async () => {
+  it("a rename whose source is unknown to the base falls back to a create", async () => {
     const tree = { "menus/nouveau.yaml": "title: N\n", ...BASE };
     const plan = await applyRenames(
       await planWrite(BASE, tree),
@@ -53,7 +53,7 @@ describe("applyRenames", () => {
     expect(plan.files[0]!.base_hash).toBeNull();
   });
 
-  it("sans renommage déclaré, le plan est inchangé", async () => {
+  it("with no declared rename, the plan is unchanged", async () => {
     const tree = { "menus/ancien.yaml": "title: B\n", "lang/fr.yaml": "x: y\n" };
     const before = await planWrite(BASE, tree);
     const after = await applyRenames(before, [], BASE);

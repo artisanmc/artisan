@@ -1,6 +1,6 @@
 import type { ImportChoice, ImportConflict } from "./importMerge";
 
-/** Fixe le choix d'un fichier en conflit. */
+/** Sets the choice for one conflicting file. */
 export function withChoice(
   choices: Record<string, ImportChoice>,
   path: string,
@@ -10,8 +10,8 @@ export function withChoice(
 }
 
 /**
- * Étend un choix à tous les conflits à partir de `index` (le fichier courant
- * inclus) — la case « garder ce choix pour tous les fichiers suivants ».
+ * Extends a choice to every conflict from `index` on (current file included)
+ * — the "keep this choice for all following files" checkbox.
  */
 export function withChoiceForRemaining(
   choices: Record<string, ImportChoice>,
@@ -24,7 +24,7 @@ export function withChoiceForRemaining(
   return next;
 }
 
-/** Tous les conflits sont tranchés — l'import peut être appliqué. */
+/** Every conflict is resolved — the import can be applied. */
 export function allConflictsResolved(
   choices: Record<string, ImportChoice>,
   conflicts: ImportConflict[],

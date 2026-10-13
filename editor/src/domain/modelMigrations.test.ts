@@ -101,7 +101,7 @@ describe("applyModelMigrations", () => {
   });
 });
 
-// ─── injection at load (declared models + pending migrations) ────────────────
+// Injection at load (declared models + pending migrations)
 import { injectDeclaredModels } from "./dataModels";
 import type { Project } from "./types";
 

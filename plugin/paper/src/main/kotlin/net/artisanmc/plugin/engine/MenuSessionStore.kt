@@ -9,7 +9,7 @@ data class MenuSession(
     val ctx: ExecutionContext,
     val activeClicks: Map<Int, Map<ClickType, ClickHandler>>,
     val slotArgs: Map<Int, Map<String, Any>> = emptyMap(),
-    /** Contenu de la fenêtre (l'ancre Bukkit reste vide). */
+    /** The window's contents (the Bukkit anchor stays empty). */
     val slots: net.artisanmc.plugin.render.MenuSlots = net.artisanmc.plugin.render.MenuSlots(0),
     val escapeGoesBack: Boolean = false,
 )

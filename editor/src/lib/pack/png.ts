@@ -2,13 +2,13 @@ import { unzlibSync } from "fflate";
 import { deflateRle } from "./deflateRle";
 
 /**
- * PNG minimal, remplaçant navigateur de `pngjs` pour imageButtons et vanillaGui.
+ * Minimal PNG, browser replacement for `pngjs` for imageButtons and vanillaGui.
  *
- * Décodage : mêmes règles que `PNG.sync.read` de pngjs 7 — tous les types de
- * couleur, profondeurs 1/2/4/8/16, tRNS, Adam7 — vers du RGBA 8 bits.
- * Encodage : celui de `PNG.sync.write` (RGBA 8 bits, filtre choisi ligne par
- * ligne à la plus petite somme absolue, un seul IDAT, pas de gAMA) compressé
- * comme zlib le fait pour pngjs (deflateRle.ts) : les octets sont les mêmes.
+ * Decoding: same rules as pngjs 7's `PNG.sync.read` — every colour type,
+ * depths 1/2/4/8/16, tRNS, Adam7 — to 8-bit RGBA.
+ * Encoding: that of `PNG.sync.write` (8-bit RGBA, filter chosen row by row by
+ * smallest absolute sum, a single IDAT, no gAMA) compressed the way zlib does
+ * for pngjs (deflateRle.ts): the bytes are the same.
  */
 export interface RgbaImage {
   width: number;
@@ -24,7 +24,7 @@ const IDAT = 0x49444154;
 const IEND = 0x49454e44;
 const TRNS = 0x74524e53;
 
-// Adam7 : départ et pas, en x puis en y, pour chacune des 7 passes.
+// Adam7: start and step, in x then y, for each of the 7 passes.
 const ADAM7 = [
   [0, 8, 0, 8],
   [4, 8, 0, 8],
@@ -57,7 +57,7 @@ export function createImage(width: number, height: number): RgbaImage {
   return { width, height, data: new Uint8Array(4 * width * height) };
 }
 
-/** `PNG.bitblt` de pngjs : copie d'un rectangle, mêmes contrôles de bornes. */
+/** pngjs's `PNG.bitblt`: copies a rectangle, same bounds checks. */
 export function bitblt(
   src: RgbaImage,
   dst: RgbaImage,
@@ -197,7 +197,7 @@ export function decodePng(bytes: Uint8Array): RgbaImage {
   const raw = unzlibSync(compressed);
 
   const channels = CHANNELS[colorType] as number;
-  // Écart en octets avec le pixel de gauche : un pixel entier, ou un octet sous 8 bits.
+  // Byte offset to the left pixel: a whole pixel, or one byte below 8 bits.
   const left = depth >= 8 ? (channels * depth) / 8 : 1;
   const maxSample = 2 ** depth - 1;
   const samples = new Uint16Array(width * height * 4);
@@ -252,7 +252,7 @@ export function decodePng(bytes: Uint8Array): RgbaImage {
       }
     }
   }
-  // pngjs ignore un reste après la dernière ligne sans entrelacement, pas avec.
+  // pngjs ignores trailing data after the last row without interlacing, not with it.
   if (interlace && rawPos !== raw.length) throw new Error("unrecognised content at end of stream");
 
   const out = createImage(width, height);

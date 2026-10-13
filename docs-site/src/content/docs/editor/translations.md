@@ -1,6 +1,8 @@
 ---
 title: Translations
 description: Translate your menus, and choose whether the files hold plain text or translation keys.
+sidebar:
+  order: 10
 ---
 
 Every text your players read — menu titles, item names and lores, chat messages, dialog labels — is translatable. The editor's **Translations** panel lists them all, with the source text on one side and the language you're translating into on the other.

@@ -8,9 +8,8 @@ import org.bukkit.inventory.meta.SkullMeta
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Applique AppearanceYaml.head (déjà résolu par ArgResolver) sur un item
- * PLAYER_HEAD. Source indisponible ou valeur invalide → tête nue + un seul
- * WARN par clé (post-mortem, pas de théâtre).
+ * Applies AppearanceYaml.head (already interpolated) to a PLAYER_HEAD item.
+ * Unavailable source or invalid value → bare head + a single WARN per key.
  */
 object HeadApplier {
     private val warned = ConcurrentHashMap.newKeySet<String>()

@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// Types
 
 interface ModelFace {
   texture: string;
@@ -32,7 +32,7 @@ export interface ResolvedModel {
   guiLight: "front" | "side";
 }
 
-// ── Singleton renderer + camera ────────────────────────────────────────────────
+// Singleton renderer + camera
 
 let _renderer: THREE.WebGLRenderer | null = null;
 let _camera: THREE.OrthographicCamera | null = null;
@@ -57,50 +57,43 @@ function getCamera(): THREE.OrthographicCamera {
   return _camera;
 }
 
-// ── Caches ─────────────────────────────────────────────────────────────────────
+// Caches
 
 const renderCache = new Map<string, Promise<string | null>>();
 
 // Pre-resolved models loaded in one shot from /api/v1/model-bundle — eliminates
-// per-item HTTP round-trips for model JSON + parent chain resolution.
+// per-item HTTP round-trips for model JSON + parent chain resolution. Only the
+// offline icon generator (tools/minecraft-assets/gen-icons.ts) serves the model
+// routes: the editor's catalog ships pre-rendered icons, and custom items are
+// names only (no textures, no models).
 const resolvedModelCache = new Map<string, ResolvedModel>();
 
-function cacheKey(modelPath: string, version: string, isCustom: boolean, serverKeyId?: string): string {
-  return isCustom ? `custom:${serverKeyId}:${modelPath}` : `${version}:${modelPath}`;
+function cacheKey(modelPath: string, version: string): string {
+  return `${version}:${modelPath}`;
 }
 
-// ── Bundle preload ─────────────────────────────────────────────────────────────
+// Bundle preload
 
-export async function preloadModels(
-  version: string,
-  isCustom = false,
-  serverKeyId?: string,
-): Promise<void> {
-  const url = isCustom && serverKeyId
-    ? `${API_URL}/api/v1/model-bundle/custom/${serverKeyId}?version=${version}`
-    : `${API_URL}/api/v1/model-bundle/${version}`;
+export async function preloadModels(version: string): Promise<void> {
+  const url = `${API_URL}/api/v1/model-bundle/${version}`;
   try {
     const res = await fetch(url);
     if (!res.ok) return;
     const bundle = await res.json() as Record<string, ResolvedModel>;
     for (const [path, model] of Object.entries(bundle)) {
-      resolvedModelCache.set(cacheKey(path, version, isCustom, serverKeyId), model);
+      resolvedModelCache.set(cacheKey(path, version), model);
     }
   } catch { /* silently degrade — individual fetches will handle it */ }
 }
 
-// ── Model fetching + resolution ────────────────────────────────────────────────
+// Model fetching + resolution
 
 // Model JSON cache — block/orientable, block/cube_all etc. are shared by hundreds
 // of items; without this every render re-fetches the full parent chain.
 const modelJsonCache = new Map<string, Promise<Record<string, unknown> | null>>();
 
-function fetchModel(
-  modelPath: string, version: string, isCustom: boolean, serverKeyId?: string,
-): Promise<Record<string, unknown> | null> {
-  const url = isCustom
-    ? `${API_URL}/api/v1/models/custom/${serverKeyId}/${modelPath}`
-    : `${API_URL}/api/v1/models/${version}/${modelPath}`;
+function fetchModel(modelPath: string, version: string): Promise<Record<string, unknown> | null> {
+  const url = `${API_URL}/api/v1/models/${version}/${modelPath}`;
   if (modelJsonCache.has(url)) return modelJsonCache.get(url)!;
   const promise = fetch(url)
     .then(res => res.ok ? res.json() as Promise<Record<string, unknown>> : null)
@@ -112,22 +105,20 @@ function fetchModel(
 export async function resolveModel(
   modelPath: string,
   version: string,
-  isCustom = false,
-  serverKeyId?: string,
   depth = 0,
 ): Promise<ResolvedModel | null> {
   if (depth > 8) return null;
   // Fast path: bundle was pre-loaded by preloadModels()
-  const key = cacheKey(modelPath, version, isCustom, serverKeyId);
+  const key = cacheKey(modelPath, version);
   if (resolvedModelCache.has(key)) return resolvedModelCache.get(key)!;
-  const m = await fetchModel(modelPath, version, isCustom, serverKeyId);
+  const m = await fetchModel(modelPath, version);
   if (!m) return null;
 
   let result: ResolvedModel = { elements: [], textures: {}, guiLight: "side" };
 
   if (typeof m.parent === "string") {
     const parentPath = (m.parent as string).replace(/^minecraft:/, "");
-    const parentResult = await resolveModel(parentPath, version, false, undefined, depth + 1);
+    const parentResult = await resolveModel(parentPath, version, depth + 1);
     if (parentResult) result = { ...parentResult };
   }
 
@@ -146,7 +137,7 @@ export async function resolveModel(
   return result;
 }
 
-// ── Texture variable resolution ────────────────────────────────────────────────
+// Texture variable resolution
 
 function resolveVar(textures: Record<string, string>, key: string, depth = 0): string | null {
   if (depth > 8) return null;
@@ -156,7 +147,7 @@ function resolveVar(textures: Record<string, string>, key: string, depth = 0): s
   return v.replace(/^minecraft:/, "");
 }
 
-// ── Flat 2D layer compositing (item/generated multi-layer items) ───────────────
+// Flat 2D layer compositing (item/generated multi-layer items)
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
   return new Promise(resolve => {
@@ -171,17 +162,13 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
 async function renderFlat(
   model: ResolvedModel,
   version: string,
-  isCustom: boolean,
-  serverKeyId?: string,
   tints?: Record<number, string>,
 ): Promise<string | null> {
   const layers: Array<{ url: string; tint?: string }> = [];
   for (let i = 0; ; i++) {
     const texPath = resolveVar(model.textures, `layer${i}`);
     if (!texPath) break;
-    const url = isCustom && serverKeyId
-      ? `${API_URL}/api/v1/textures/custom/${serverKeyId}/${texPath}`
-      : `${API_URL}/api/v1/textures/${version}/${texPath}`;
+    const url = `${API_URL}/api/v1/textures/${version}/${texPath}`;
     layers.push({ url, tint: tints?.[i] });
   }
   if (layers.length === 0) return null;
@@ -214,7 +201,7 @@ async function renderFlat(
   return canvas.toDataURL("image/png");
 }
 
-// ── Entity model rendering ────────────────────────────────────────────────────
+// Entity model rendering
 
 interface EntityBox {
   origin: [number, number, number];
@@ -438,7 +425,7 @@ async function renderEntityItem(itemId: string, version: string): Promise<string
   } catch { return null; }
 }
 
-// ── Texture loading ─────────────────────────────────────────────────────────────
+// Texture loading
 
 const texCache = new Map<string, THREE.Texture | null>();
 
@@ -469,7 +456,7 @@ function loadTex(url: string): Promise<THREE.Texture | null> {
 }
 
 async function loadModelTextures(
-  model: ResolvedModel, version: string, isCustom: boolean, serverKeyId?: string,
+  model: ResolvedModel, version: string,
 ): Promise<Map<string, THREE.Texture>> {
   const resolved = new Map<string, string>();
   for (const key of Object.keys(model.textures)) {
@@ -479,16 +466,14 @@ async function loadModelTextures(
 
   const out = new Map<string, THREE.Texture>();
   await Promise.all([...resolved.entries()].map(async ([key, path]) => {
-    const url = isCustom
-      ? `${API_URL}/api/v1/textures/custom/${serverKeyId}/${path}`
-      : `${API_URL}/api/v1/textures/${version}/${path}`;
+    const url = `${API_URL}/api/v1/textures/${version}/${path}`;
     const tex = await loadTex(url);
     if (tex) out.set(key, tex);
   }));
   return out;
 }
 
-// ── Scene building ─────────────────────────────────────────────────────────────
+// Scene building
 
 // Face vertex positions in 0-16 space (viewed from outside, CCW winding):
 export function faceVerts(
@@ -681,16 +666,14 @@ function buildScene(model: ResolvedModel, textures: Map<string, THREE.Texture>):
   return scene;
 }
 
-// ── Public API ─────────────────────────────────────────────────────────────────
+// Public API
 
 export function renderToCanvas(
   modelPath: string,
   version: string,
-  isCustom = false,
-  serverKeyId?: string,
   tints?: Record<number, string>,
 ): Promise<string | null> {
-  const key = cacheKey(modelPath, version, isCustom, serverKeyId);
+  const key = cacheKey(modelPath, version);
   if (renderCache.has(key)) return renderCache.get(key)!;
 
   const promise = (async (): Promise<string | null> => {
@@ -703,15 +686,15 @@ export function renderToCanvas(
       return renderEntityFlat(modelPath.slice("__entity_flat__/".length), version);
     }
 
-    const model = await resolveModel(modelPath, version, isCustom, serverKeyId);
+    const model = await resolveModel(modelPath, version);
     if (!model) return null;
     if (model.elements.length === 0) {
       // Flat multi-layer item (item/generated): composite layers with tints
-      if (model.guiLight === "front") return renderFlat(model, version, isCustom, serverKeyId, tints);
+      if (model.guiLight === "front") return renderFlat(model, version, tints);
       return null;
     }
 
-    const textures = await loadModelTextures(model, version, isCustom, serverKeyId);
+    const textures = await loadModelTextures(model, version);
     if (textures.size === 0) return null;
 
     const scene = buildScene(model, textures);

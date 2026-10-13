@@ -1,10 +1,7 @@
 import type { FrontendModule } from "@artisan/editor-sdk";
 import { QuestsScreen } from "./QuestsScreen";
 
-/**
- * Tracer-bullet external module. Lives in its own package, consumes the SDK as
- * a dependency. P1c promotes this to a separate repo + published packages.
- */
+/** External module living in its own package, consuming the SDK as a dependency. */
 const questsModule: FrontendModule = {
   id: "quests",
   displayName: "Quests",

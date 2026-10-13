@@ -11,7 +11,7 @@ import type { MenuTitleLayer } from "@/domain/types";
  *   positioned glyph with explicit x/y.
  * - `text` mirrors runtime text minus the deprecated `color` field; coloring
  *   is expressed via MiniMessage tags inside the LText value.
- * - `external` is a passthrough for runtime `external_glyph` layers (SP5).
+ * - `external` is a passthrough for runtime `external_glyph` layers.
  *   No editable side panel; rendered as a dashed placeholder.
  */
 export type UiLayer =

@@ -317,7 +317,7 @@ export function normalizeDataSources(project: Project): void {
   if (!project.dataModels) project.dataModels = [];
 }
 
-// ── Field edits: schema change + synchronous value migration ─────────────────
+// Field edits: schema change + synchronous value migration.
 // "Data migrated, references dangled" (ADR project-sources-and-data-models):
 // the editor owns models, rows, and config values — one edit rewrites them all
 // in the same transaction. Consumers of a changed field ({alias.field}
@@ -651,7 +651,7 @@ export function applyFieldEdit(project: Project, target: FieldEditTarget, edit: 
   applyEditToFields(ownerFields, edit);
 }
 
-// ─── module-declared models (ADR composable-data-models §4/§5) ───────────────
+// Module-declared models (ADR composable-data-models §4/§5)
 
 /** model/v1 document (as reported at Presence) → DataModel, provenance "module". */
 export function declaredModelToDomain(doc: Record<string, unknown>): DataModel | null {

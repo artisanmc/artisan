@@ -25,7 +25,7 @@ class DialogYamlParserTest {
         assertEquals(1, d.buttons.size)
         assertEquals("btn_ok", d.buttons[0].id)
         assertEquals("OK", d.buttons[0].label?.forLang("en", "en"))
-        // Button actions are an Action DSL string since Phase 2 (ADR action-dsl).
+        // Button actions are an Action DSL string (ADR action-dsl).
         assertEquals("close_dialog", d.buttons[0].actions)
     }
 

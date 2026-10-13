@@ -34,13 +34,12 @@ describe("authStore.hydrate", () => {
   });
 
   /**
-   * Un backend injoignable n'est PAS une déconnexion : `/me` qui répond 502 (ou
-   * ne répond pas) ne dit rien de la session. Répondre « anonyme » renvoyait
-   * l'utilisateur sur /login pendant que la sidebar restait là — l'app se
-   * contredisait elle-même. Tant qu'on ne sait pas, on reste en chargement et
-   * on réessaye.
+   * An unreachable hub is NOT a sign-out: a `/me` answering 502 (or not
+   * answering) says nothing about the session. Answering "anonymous" sent the
+   * user to /login while the sidebar stayed there — the app contradicted
+   * itself. As long as we do not know, stay loading and retry.
    */
-  test("un /me en 502 ne déconnecte pas : réessaye puis charge l'utilisateur", async () => {
+  test("a /me returning 502 does not sign out: retries then loads the user", async () => {
     vi.useFakeTimers();
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -53,7 +52,7 @@ describe("authStore.hydrate", () => {
       );
     const done = useAuthStore.getState().hydrate(API);
     await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
-    // Encore en chargement : aucune route ne doit rebondir vers /login.
+    // Still loading: no route may bounce to /login.
     expect(useAuthStore.getState().isLoading).toBe(true);
     expect(useAuthStore.getState().currentUser).toBeNull();
     await vi.advanceTimersByTimeAsync(60_000);
@@ -64,7 +63,7 @@ describe("authStore.hydrate", () => {
     vi.useRealTimers();
   });
 
-  test("garde l'utilisateur en place si /me devient injoignable en cours de session", async () => {
+  test("keeps the user in place if /me becomes unreachable mid-session", async () => {
     vi.useFakeTimers();
     useAuthStore.setState({
       currentUser: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null },
@@ -72,8 +71,8 @@ describe("authStore.hydrate", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
     void useAuthStore.getState().hydrate(API);
     await vi.advanceTimersByTimeAsync(60_000);
-    // L'utilisateur connu reste connu, et l'app reste utilisable : on ne bloque
-    // que ceux dont on n'a jamais rien su.
+    // The known user stays known, and the app stays usable: only those we never
+    // knew anything about are blocked.
     expect(useAuthStore.getState().currentUser?.id).toBe("u1");
     expect(useAuthStore.getState().isLoading).toBe(false);
     fetchSpy.mockResolvedValue(
@@ -87,12 +86,12 @@ describe("authStore.hydrate", () => {
   });
 
   /**
-   * Le mode anonyme n'existe plus (accounts-only) : soit on sait qui tu es,
-   * soit tu vas sur /login. Un backend injoignable n'autorise donc AUCUNE
-   * conclusion — surtout pas « déconnecté », puisque /login serait tout aussi
-   * inutilisable. On reste en « inconnu » et on réessaye, indéfiniment.
+   * Anonymous mode no longer exists (accounts-only): either we know who you
+   * are, or you go to /login. An unreachable hub therefore allows NO
+   * conclusion — least of all "signed out", since /login would be just as
+   * unusable. Stay "unknown" and retry, indefinitely.
    */
-  test("ne conclut jamais à une déconnexion tant que le backend est injoignable", async () => {
+  test("never concludes a sign-out while the backend is unreachable", async () => {
     vi.useFakeTimers();
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -102,7 +101,7 @@ describe("authStore.hydrate", () => {
     expect(useAuthStore.getState().sessionStatus).toBe("unknown");
     expect(useAuthStore.getState().currentUser).toBeNull();
     expect(fetchSpy.mock.calls.length).toBeGreaterThan(2);
-    // On rend le backend joignable pour que la boucle de réessai s'arrête.
+    // Make the hub reachable so the retry loop stops.
     fetchSpy.mockResolvedValue(new Response(null, { status: 401 }));
     await vi.advanceTimersByTimeAsync(20_000);
     expect(useAuthStore.getState().sessionStatus).toBe("signed-out");
@@ -110,12 +109,12 @@ describe("authStore.hydrate", () => {
   });
 
   /**
-   * Un 200 au corps illisible (page d'erreur HTML d'un proxy, réponse tronquée)
-   * n'est pas une réponse non plus. Le laisser remonter en exception laissait
-   * `hydrate` mourir en silence : `isLoading` restait vrai pour toujours, donc
-   * app blanche sans la moindre explication.
+   * A 200 with an unreadable body (a proxy's HTML error page, a truncated
+   * response) is not an answer either. Letting it surface as an exception let
+   * `hydrate` die silently: `isLoading` stayed true forever, hence a blank app
+   * with no explanation.
    */
-  test("un /me au corps illisible est traité comme injoignable, pas comme une panne fatale", async () => {
+  test("a /me with an unreadable body is treated as unreachable, not as a fatal failure", async () => {
     vi.useFakeTimers();
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -140,12 +139,11 @@ describe("authStore.hydrate", () => {
   });
 
   /**
-   * Onglet caché : personne ne regarde, et le backend est peut-être en train de
-   * redémarrer. Marteler toutes les 10 s un serveur à genoux depuis N onglets
-   * ouverts n'aide personne — on attend le retour de l'onglet, qui est de toute
-   * façon le moment où la réponse compte.
+   * Hidden tab: nobody is looking, and the hub may be restarting. Hammering a
+   * struggling server every 10 s from N open tabs helps no one — wait for the
+   * tab to come back, which is anyway when the answer matters.
    */
-  test("suspend les réessais quand l'onglet est caché, et reprend à son retour", async () => {
+  test("suspends retries while the tab is hidden, and resumes when it returns", async () => {
     vi.useFakeTimers();
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
@@ -174,7 +172,7 @@ describe("authStore.hydrate", () => {
     vi.useRealTimers();
   });
 
-  test("un 401 dit « non connecté », lui, et ne réessaye pas", async () => {
+  test("a 401 does say 'not signed in', and does not retry", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(null, { status: 401 }));
@@ -311,7 +309,7 @@ describe("authStore.hydrate — theme sync", () => {
 
     await useAuthStore.getState().hydrate(API);
 
-    // localStorage had "dark" — backend "light" must NOT override it
+    // localStorage had "dark" — the server's "light" must NOT override it
     expect(document.documentElement.dataset.theme).toBe("dark");
 
     localStorage.removeItem("artisan.theme");

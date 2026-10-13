@@ -36,9 +36,7 @@ import { CLICK_TYPE_ORDER, actionTypeLabel, clickTypeLabel, conditionsSummary } 
 
 const INDENT = 16;
 
-// ────────────────────────────────────────────────────────────────────────────
 // Drag-and-drop wiring
-// ────────────────────────────────────────────────────────────────────────────
 
 /**
  * Listeners + attributes from the nearest @dnd-kit/sortable wrapper. The
@@ -124,9 +122,7 @@ export function useStepIds(steps: Step[]): string[] {
   }, [steps]);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Element click handlers (parallel to ClickHandlersGrid in FlowCanvas)
-// ────────────────────────────────────────────────────────────────────────────
 
 interface ElementClickHandlersPseudocodeProps {
   projectId: ProjectId;
@@ -223,9 +219,7 @@ export function ElementClickHandlersPseudocode({
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Recursive step tree (element)
-// ────────────────────────────────────────────────────────────────────────────
 
 interface ElementStepTreeProps {
   projectId: ProjectId;
@@ -454,9 +448,7 @@ function ElementStepLine({
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Command step tree (parallel to CommandStepFlow in FlowCanvas)
-// ────────────────────────────────────────────────────────────────────────────
 
 interface CommandStepPseudocodeProps {
   projectId: ProjectId;
@@ -646,9 +638,7 @@ function CommandStepLine({
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Action / If shared primitives
-// ────────────────────────────────────────────────────────────────────────────
 
 export function ActionLine({
   action,
@@ -916,9 +906,7 @@ export function AddStepLine({
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Visual primitives
-// ────────────────────────────────────────────────────────────────────────────
 
 function Row({
   indent,
@@ -1034,9 +1022,7 @@ function HandleButton({
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Helpers
-// ────────────────────────────────────────────────────────────────────────────
 
 /**
  * Inline summary of an action's args. MiniMessage-bearing actions
@@ -1144,10 +1130,8 @@ function summarizeConditions(
   return conditionsSummary(conditions, joins);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Dialog button step pseudocode — mirrors CommandStepPseudocode but scoped
 // to a dialog button's `steps` (`project.dialogs[d].buttons[b].steps`).
-// ────────────────────────────────────────────────────────────────────────────
 
 interface DialogButtonStepPseudocodeProps {
   projectId: ProjectId;

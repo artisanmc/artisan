@@ -6,7 +6,7 @@ export interface UserProjectLoadResult {
     id: string;
     name: string;
     slug?: string | null;
-    /** Id disque du project côté serveur propriétaire (cf. `Project.diskId`). */
+    /** The project's disk id on the owning server (cf. `Project.diskId`). */
     externalId?: string | null;
     serverKeyId?: string | null;
   };
@@ -35,12 +35,16 @@ export async function loadUserProject(
   if (serverRef) query.set("server", serverRef);
   if (networkRef) query.set("network", networkRef);
   const qs = query.size ? `?${query}` : "";
-  const res = await projectFetch(projectRef, `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectRef)}${qs}`, {
-    credentials: "include",
-  });
+  const res = await projectFetch(
+    projectRef,
+    `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectRef)}${qs}`,
+    {
+      credentials: "include",
+    },
+  );
   if (!res.ok) {
-    // Serveur hors ligne ou plugin à mettre à jour : le code remonte tel quel pour
-    // que l'éditeur l'explique au lieu d'afficher un statut HTTP.
+    // Server offline or plugin to update: the code is passed up as is so the
+    // editor explains it instead of showing an HTTP status.
     const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
     if (body?.error === "server_offline" || body?.error === "plugin_update_required")
       throw new Error(body.error);
@@ -58,13 +62,20 @@ export async function getNetworkOfProject(projectId: string): Promise<string | n
   }
 }
 
-/** DELETE /api/v1/user/projects/:projectId. */
+/** DELETE /api/v1/user/projects/:projectId — the server moves the folder to its trash. Rejects with the error code. */
 export async function deleteUserProject(projectId: string): Promise<void> {
-  const res = await projectFetch(projectId, `${API_URL}/api/v1/user/projects/${projectId}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error(`deleteUserProject failed: ${res.status}`);
+  const res = await projectFetch(
+    projectId,
+    `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    },
+  );
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    throw new Error(typeof body?.error === "string" ? body.error : "delete_failed");
+  }
 }
 
 // User-auth-mode item bundle endpoints. The vanilla bundle falls back to the

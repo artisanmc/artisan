@@ -65,13 +65,11 @@ export function ProjectSidebar() {
   const reorderProjects = useAccountStore((s) => s.reorderProjects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   const serverScreens = useServerScreensStore((s) => s.screens);
-  // distance: 5 — small movement before drag activates.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
-  // Trois états, comme la page d'un serveur : on lit, on a lu, on n'a pas pu
-  // lire. Une liste vide affirmée pendant la lecture se lit comme un serveur
-  // sans Projects, et le bouton de création invite alors à écrire sur un
-  // disque qu'on ne joint pas.
+  // Three states, like a server page: reading, read, could not read. An empty
+  // list asserted while reading reads as a server without Projects, and the
+  // create button then invites writing to a disk that cannot be reached.
   const [projectsStatus, setProjectsStatus] = useState<"loading" | "ready" | "unavailable">(
     "loading",
   );
@@ -85,9 +83,8 @@ export function ProjectSidebar() {
   }, []);
 
   // Active network + server: URL params first, then persisted selection.
-  // Since the slug routes (phase 4a), URL params may carry slugs instead of
-  // ids — resolve them to real ids here so all downstream matching (project
-  // filtering, link building) stays id-based.
+  // URL params may carry slugs instead of ids — resolve them to real ids here
+  // so all downstream matching (project filtering, link building) stays id-based.
   // Routes without params (settings, credits…) fall back to the persisted
   // selection (stores) so navigating there doesn't silently "deselect" the
   // server while the project list stays scoped to it.
@@ -149,10 +146,10 @@ export function ProjectSidebar() {
     }
   }, [urlParams.networkId, urlParams.serverId, activeNetworkId, networks, allServerEntries]);
 
-  // `networks.length` est lu comme condition, pas comme déclencheur : l'ajouter
-  // en dépendance relancerait le fetch au retour de `setNetworks`, en boucle dès
-  // que le refresh token est levé. Seul le bump doit déclencher.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: déclencheur volontairement limité au bump
+  // `networks.length` is read as a condition, not a trigger: adding it as a
+  // dependency would rerun the fetch when `setNetworks` returns, looping as soon
+  // as the refresh token is raised. Only the bump must trigger.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: trigger intentionally limited to the bump
   useEffect(() => {
     // Refetch on refresh bump too — a network created in the wizard/hub would
     // otherwise never reach the store (only fetched when empty).
@@ -164,17 +161,17 @@ export function ProjectSidebar() {
   }, [storeRefreshToken]);
 
   /**
-   * Les Projects du serveur actif, lus sur SON disque à chaque rafraîchissement.
+   * The active server's Projects, read from ITS disk on every refresh.
    *
-   * Le backend n'en tient plus de liste : elle se périmait au premier dossier
-   * renommé ou supprimé (ADR `server-disk-only-storage`). Le nom du dossier EST
-   * l'identité — le renommer le renomme dans l'éditeur, sans réconciliation.
-   * Serveur hors ligne → on le dit (`projectsStatus`) : ses Projects ne sont
-   * pas ouvrables, et rien ne sert d'inviter à en créer un de plus.
+   * The hub keeps no list of them: it went stale at the first renamed or
+   * deleted folder (ADR `server-disk-only-storage`). The folder name IS the
+   * identity — renaming it renames it in the editor, with no reconciliation.
+   * Offline server → say so (`projectsStatus`): its Projects cannot be opened,
+   * and there is no point inviting to create another one.
    */
-  // `refetchToken` et `storeRefreshToken` ne sont pas lus dans l'effet : ce sont
-  // justement les signaux « relis le disque » (Project créé, changement ailleurs).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: dépendances = signaux de rafraîchissement
+  // `refetchToken` and `storeRefreshToken` are not read in the effect: they are
+  // precisely the "re-read the disk" signals (Project created, change elsewhere).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dependencies = refresh signals
   useEffect(() => {
     if (!activeNetworkId) {
       setServerProjects([]);
@@ -184,7 +181,7 @@ export function ProjectSidebar() {
     let cancelled = false;
     setProjectsStatus("loading");
     if (!activeServerId) {
-      // Tout Project appartient à un serveur (ADR `server-only-projects`).
+      // Every Project belongs to a server (ADR `server-only-projects`).
       setServerProjects([]);
       setProjectsStatus("ready");
       return;
@@ -205,9 +202,9 @@ export function ProjectSidebar() {
   }, [activeNetworkId, activeServerId, refetchToken, storeRefreshToken]);
 
   // Fetch all server entries across all networks.
-  // Mêmes signaux de rafraîchissement que ci-dessus ; `activeNetworkId` re-scope
-  // la liste quand on change de network sans que `networks` bouge.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: dépendances = signaux de rafraîchissement
+  // Same refresh signals as above; `activeNetworkId` re-scopes the list when
+  // the network changes without `networks` moving.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dependencies = refresh signals
   useEffect(() => {
     if (networks.length === 0) {
       setAllServerEntries([]);
@@ -238,10 +235,8 @@ export function ProjectSidebar() {
         setAllServerEntries(entries);
         // Share the slugs so every surface can build slug-based links.
         useServersStore.getState().setServers(entries);
-        // La liste des Projects ne vient PLUS d'ici : elle se demande au disque
-        // du serveur actif (effet ci-dessous). Les lignes en base ne décrivent
-        // plus ce qui existe — elles ancrent ce que le backend possède
-        // (assets, resource pack, conversations) — ADR `server-disk-only-storage`.
+        // The Project list does NOT come from here: it is asked from the active
+        // server's disk (effect below) — ADR `server-disk-only-storage`.
       })
       .catch(() => {
         if (!cancelled) setAllServerEntries([]);
@@ -251,7 +246,7 @@ export function ProjectSidebar() {
     };
   }, [networks, activeNetworkId, refetchToken, storeRefreshToken]);
 
-  // Le hub et les serveurs qui s'y connectent, avec leur état.
+  // The hub and the servers connected to it, with their state.
   const { data: serversStatus } = useNetworkServersStatus(activeNetworkId);
   const selectorEntries = withServersStatus(
     allServerEntries,
@@ -272,7 +267,6 @@ export function ProjectSidebar() {
     }));
   const allProjects = [...serverProjects, ...optimisticEntries];
 
-  // Filter by active server (URL-driven).
   const filteredServerProjects = activeServerId
     ? allProjects.filter((p) => p.serverKeyId === activeServerId)
     : allProjects;
@@ -289,8 +283,8 @@ export function ProjectSidebar() {
   const remaining = [...idToProject.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
   // Add-on-owned projects surface under "Installed modules", not the flat list
-  // (ADR addon-owned-project-roots) — même regroupement que la page d'un
-  // serveur, calculé une seule fois dans `buildProjectGroups`.
+  // (ADR addon-owned-project-roots) — same grouping as a server page, computed
+  // once in `buildProjectGroups`.
   const { flatProjects, moduleGroups } = buildProjectGroups({
     projects: finalList,
     screens: serverScreens,
@@ -298,20 +292,18 @@ export function ProjectSidebar() {
     localProjects,
   });
 
-  // Nombre de Documents par Project : uniquement ceux qu'on a réellement ouverts
-  // (compte vivant, il suit les éditions). Le `documentCount` calculé côté
-  // backend est mort avec la copie des fichiers (ADR `server-disk-only-storage`)
-  // — le recalculer coûterait une lecture disque par Project juste pour peupler
-  // une sidebar. Un Project jamais ouvert n'affiche donc pas de badge.
+  // Document count per Project: only the ones actually opened (live count, it
+  // follows edits). Recomputing it for every Project would cost a disk read
+  // each just to fill a sidebar, so a Project never opened shows no badge.
   const liveCount = new Map(
     localProjects.map((p) => [p.id, p.menus.length + p.commands.length + p.dialogs.length]),
   );
   const countFor = (p: ProjectSummary): number | null => liveCount.get(p.id as ProjectId) ?? null;
 
-  // Le project ouvert a-t-il une ligne dans la liste ? Sinon (démo, project non
-  // listé), il s'affiche en tête avec ses Documents.
+  // Does the open project have a row in the list? Otherwise (demo, unlisted
+  // project), it is shown at the top with its Documents.
   const openProjectId = urlParams.projectId;
-  // La liste des projects n'est rendue qu'avec un network ; les modules toujours.
+  // The project list is only rendered with a network; modules always.
   const visibleRows = [
     ...(activeNetworkId ? flatProjects : []),
     ...moduleGroups.flatMap((g) => g.projects),
@@ -447,7 +439,7 @@ export function ProjectSidebar() {
                   />
                 ) : (
                   <li key={g.id} className="flex flex-col">
-                    {/* TODO(P2): render the module's icon once modules ship real icons */}
+                    {/* TODO: render the module's icon once modules ship real icons */}
                     <div className="px-2.5 pt-0.5 pb-1 text-[12px] font-semibold text-[var(--text)]">
                       {g.label}
                     </div>
@@ -457,7 +449,7 @@ export function ProjectSidebar() {
                           key={w.id}
                           id={w.id}
                           urlId={projectUrlId(w)}
-                          // Under a module group the canvas entry is "Éditeur"
+                          // Under a module group the canvas entry is "Editor"
                           // (ADR module-config-screens §2) — the group header
                           // already carries the module's name. Only a module
                           // owning several projects needs their real names.
@@ -512,8 +504,8 @@ export function ProjectSidebar() {
 }
 
 /**
- * Les serveurs du network actif, complétés par l'état que rapporte `servers-status` :
- * un serveur connecté au hub depuis le chargement y apparaît sans attendre.
+ * The active network's servers, completed with the state `servers-status`
+ * reports: a server that connected to the hub since loading shows up at once.
  */
 export function withServersStatus(
   entries: ServerEntry[],
@@ -545,10 +537,9 @@ export function withServersStatus(
 }
 
 /**
- * Le lien vers un Project, avec la seule décision qui varie : on a le contexte
- * network+serveur, ou pas. Les deux branches sont écrites en dur pour que le
- * routeur les type — le `to`/`params` calculé imposait deux `as any`, donc
- * aucune erreur de route n'était plus détectée ici.
+ * The link to a Project, with the only decision that varies: network+server
+ * context or not. Both branches are written out so the router types them —
+ * a computed `to`/`params` required two `as any`, hiding route errors.
  */
 function ProjectLink({
   projectId,
@@ -609,9 +600,8 @@ function ScreenItem({
 }
 
 /**
- * Les Documents du project ouvert, sous sa ligne : la barre de gauche devient
- * le registre (ADR à venir sur la sidebar unique). Ne s'affiche qu'une fois le
- * project chargé dans le compte, donc jamais pour un project simplement listé.
+ * The open project's Documents, under its row. Only shown once the project is
+ * loaded in the account, so never for a project that is merely listed.
  */
 function ActiveProjectDocuments({
   id,
@@ -644,9 +634,9 @@ function ActiveProjectDocuments({
 }
 
 /**
- * Le project ouvert quand aucune ligne de la liste ne le porte : la démo (pas de
- * network) ou un project que la liste du serveur ne montre pas. Sans ce bloc,
- * ses Documents n'auraient plus de place, depuis le retrait du panneau de droite.
+ * The open project when no row of the list holds it: the demo (no network) or
+ * a project the server's list does not show. Without this block its Documents
+ * would have nowhere to go.
  */
 function UnlistedOpenProject({
   urlId,
@@ -680,7 +670,7 @@ function UnlistedOpenProject({
   );
 }
 
-/** Paramètres et création, sur la ligne du project ouvert — une fois chargé. */
+/** Settings and creation, on the open project's row — once loaded. */
 function ActiveProjectActions({ id, urlId }: { id: string; urlId?: string }) {
   const project = useAccountStore((s) =>
     s.account.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
@@ -689,9 +679,9 @@ function ActiveProjectActions({ id, urlId }: { id: string; urlId?: string }) {
 }
 
 /**
- * Un project du serveur qui n'est pas ouvert, vu depuis l'index serveur (état
- * publié) : ses Documents en lecture, dépliables à la demande. Un clic ouvre le
- * Document dans son project. Rien n'est rendu tant que l'index ne le connaît pas.
+ * A server project that is not open, seen through the server index (published
+ * state): its Documents read-only, expandable on demand. A click opens the
+ * Document in its project. Nothing is rendered until the index knows it.
  */
 function useIndexedProject(urlId: string | undefined, id: string): Project | undefined {
   return useServerIndexStore((s) =>
@@ -711,7 +701,7 @@ function OtherProjectDocuments({
   const { t } = useTranslation();
   const navigate = useNavigate();
   return (
-    // biome-ignore lint/a11y/useSemanticElements: un groupe nommé de listes de navigation, pas un formulaire — <fieldset> serait faux.
+    // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.
     <div
       role="group"
       aria-label={t("sidebar.projectDocuments", { name: project.name })}
@@ -721,7 +711,7 @@ function OtherProjectDocuments({
         project={project}
         onOpen={(documentId) => {
           useSidebarStore.getState().close();
-          // Ouvre ce project, centré sur le Document (`?doc=`, cf. goToDocument).
+          // Opens this project, centred on the Document (`?doc=`, cf. goToDocument).
           void navigate({
             ...projectDestination(networkId, projectNamespace(project), serverId ?? undefined),
             search: { doc: documentId },

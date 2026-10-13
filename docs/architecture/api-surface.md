@@ -312,7 +312,7 @@ The artifact contains only the `net.artisanmc.modules.api.*` packages filtered t
 
 ## Protocol surfaces
 
-- **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.0"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
+- **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.1"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
 - **REST API** : versioned under `/api/v1/*`, served by the hub to the editor shipped in the same jar. See `versioning.md` §5.
 - **YAML schemas** : `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `ProjectReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
 - **Database** : Artisan owns no tables; each suite plugin migrates its own through `DatabaseApi`. See `versioning.md` §6.

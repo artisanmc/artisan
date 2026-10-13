@@ -195,7 +195,7 @@ class ProjectDataSourceTest {
         assertEquals(listOf("weekly", "daily", "handmade"), rows.map { it["id"] })
     }
 
-    // ── composable kinds: map / enum / union (ADR composable-data-models) ──
+    // composable kinds: map / enum / union (ADR composable-data-models)
 
     @Test
     fun `ltext inside map values and union variants localizes at resolve`() {

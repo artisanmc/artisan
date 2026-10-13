@@ -3,15 +3,15 @@ package net.artisanmc.plugin.engine
 import net.artisanmc.plugin.actiondsl.compileActionDsl
 
 /**
- * Compile une chaîne d'actions depuis son wire (ADR `structured-action-wire`) :
+ * Compiles an action chain from its wire (ADR `structured-action-wire`):
  *
- *  - **string** → ancien Action DSL (legacy) ; le texte d'action y est adressé
- *    par position ([assignI18nAddresses], `dslPrefix`) pour le mode inline.
- *  - `{steps: "<dsl>"}` → idem (forme legacy enveloppée).
- *  - **map / liste** → wire keyed structuré ([KeyedStepParser]) ; le texte est
- *    field-local (aucune adresse).
+ *  - **string** → old Action DSL (legacy); action text is addressed by position
+ *    ([assignI18nAddresses], `dslPrefix`) for inline mode.
+ *  - `{steps: "<dsl>"}` → same (legacy wrapped form).
+ *  - **map / list** → structured keyed wire ([KeyedStepParser]); text is
+ *    field-local (no address).
  *
- * `dslPrefix` nul = pas d'adressage (tests, contextes sans site).
+ * Null `dslPrefix` = no addressing (tests, contexts without a site).
  */
 object ActionChainCompiler {
     @Suppress("UNCHECKED_CAST")

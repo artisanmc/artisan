@@ -1,31 +1,31 @@
 # minecraft-assets
 
-Générateurs des données Minecraft vanilla que le dépôt commite, une fois par version du jeu.
-Paquet Bun autonome : `bun install` ici, rien d'autre (gen-icons a aussi besoin de Node et des
-`node_modules` de `editor/`).
+Generators for the vanilla Minecraft data the repository commits, once per game version.
+Self-contained Bun package: `bun install` here, nothing else (gen-icons also needs Node and the
+`node_modules` of `editor/`).
 
-Le jar client Mojang est téléchargé dans `mc-assets/<version>/` (ignoré par git) au premier
-`gen-items.ts`.
+The Mojang client jar is downloaded into `mc-assets/<version>/` (ignored by git) on the first
+`gen-items.ts` run.
 
 ## Scripts
 
-| Script | Produit |
+| Script | Produces |
 |---|---|
-| `gen-items.ts [version]` | `items/<version>.json` : le catalogue d'items (texture plate, ou chemin de `model` pour les blocs 3D). |
-| `gen-icons.ts [version]` | Rend chaque item à `model` en PNG (Playwright + Three.js via `renderer-browser.ts` / `renderer-worker.mjs`) dans `mc-assets/<version>/textures/icons/`, puis réécrit `items/<version>.json` pour pointer vers ces icônes. |
-| `pack-icons.ts [version...]` | `icons/icons-<version>.zip` : les icônes rendues + le catalogue final. |
-| `gen-char-advances.ts [version]` | Tables de largeur des glyphes vanilla : `plugin/core/.../render/CharAdvances.kt`, `editor/src/features/canvas/title/charAdvances.ts`, `charCells.ts`, `editor/src/lib/pack/vanillaFontChars.ts`. |
-| `gen-vanilla-font-zip.ts [version]` | `test-fonts/vanilla-ascii-<version>.zip`, une police MCFonts de test tirée d'`ascii.png`. |
+| `gen-items.ts [version]` | `items/<version>.json`: the item catalogue (flat texture, or a `model` path for 3D blocks). |
+| `gen-icons.ts [version]` | Renders every item with a `model` to PNG (Playwright + Three.js via `renderer-browser.ts` / `renderer-worker.mjs`) into `mc-assets/<version>/textures/icons/`, then rewrites `items/<version>.json` to point at those icons. |
+| `pack-icons.ts [version...]` | `icons/icons-<version>.zip`: the rendered icons + the final catalogue. |
+| `gen-char-advances.ts [version]` | Vanilla glyph width tables: `plugin/core/.../render/CharAdvances.kt`, `editor/src/features/canvas/title/charAdvances.ts`, `charCells.ts`, `editor/src/lib/pack/vanillaFontChars.ts`. |
+| `gen-vanilla-font-zip.ts [version]` | `test-fonts/vanilla-ascii-<version>.zip`, a test MCFonts font built from `ascii.png`. |
 
-## Nouvelle version de Minecraft
+## New Minecraft version
 
 ```bash
 cd tools/minecraft-assets
 bun gen-items.ts 1.21.x
 bun gen-icons.ts 1.21.x
 bun pack-icons.ts 1.21.x
-bun gen-char-advances.ts 1.21.x   # si la police vanilla a changé
+bun gen-char-advances.ts 1.21.x   # if the vanilla font changed
 ```
 
-Committer `items/<version>.json` et `icons/icons-<version>.zip`. Le hub les embarque dans son jar
-(`plugin/hub/build.gradle.kts` : le catalogue toujours, les icônes avec `-PwithEditor`).
+Commit `items/<version>.json` and `icons/icons-<version>.zip`. The hub embeds them in its jar
+(`plugin/hub/build.gradle.kts`: the catalogue always, the icons with `-PwithEditor`).

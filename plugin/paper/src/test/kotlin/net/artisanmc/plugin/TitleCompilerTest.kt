@@ -35,7 +35,7 @@ class TitleCompilerTest {
     private fun glyphEntry(name: String, codepoint: Int = 57344, width: Int = 8): AssetEntry =
         AssetEntry(name = name, type = "glyph", codepoint = codepoint, ascent = 8, height = 9, width = width)
 
-    // ---------- compileLayerBody (per-layer fragment, no font wrapper) ----------
+    // compileLayerBody (per-layer fragment, no font wrapper)
 
     @Test
     fun `compileLayerBody for text without color or font wraps in text_y font`() {
@@ -158,7 +158,7 @@ class TitleCompilerTest {
         assertEquals("□", s)
     }
 
-    // ---------- compileTitle (assembled, with font wrap + offsets) ----------
+    // compileTitle (assembled, with font wrap + offsets)
 
     @Test
     fun `compileTitle with empty layers returns empty component`() {
@@ -339,7 +339,7 @@ class TitleCompilerTest {
         assertEquals(-97, decodeOffset(textOffset))
     }
 
-    // ---------- layerX + estimateBodyWidth (internal helpers) ----------
+    // layerX + estimateBodyWidth (internal helpers)
 
     @Test
     fun `layerX returns 0 for background regardless of other layers`() {
@@ -510,7 +510,7 @@ class TitleCompilerTest {
         assertEquals(8, w)
     }
 
-    // ---------- Plain (vanilla) layers ----------------------------------------
+    // Plain (vanilla) layers
 
     @Test
     fun `compileTitle with single Plain layer returns raw MiniMessage without font wrapper`() {
@@ -570,7 +570,7 @@ class TitleCompilerTest {
         assertTrue(result !== Component.empty())
     }
 
-    // ---------- compileLayerBody for Textarea ----------
+    // compileLayerBody for Textarea
 
     @Test
     fun `compileLayerBody textarea with one line renders one text_y wrapper`() {
@@ -806,7 +806,7 @@ class TitleCompilerTest {
         assertTrue(s.contains("text_y6"))
     }
 
-    // ---------- wrapLine (private helper, exposed via test entry points) ----------
+    // wrapLine (private helper, exposed via test entry points)
 
     @Test
     fun `wrapLine returns single element when input fits within width`() {
@@ -889,7 +889,7 @@ class TitleCompilerTest {
         assertEquals(35, newX, "indented second line should render at layer.x + 2-space prefix + body width")
     }
 
-    // ---------- Textarea wrap integration ----------
+    // Textarea wrap integration
 
     @Test
     fun `compileLayerBody textarea wraps long content into multiple text_y wrappers`() {

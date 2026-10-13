@@ -22,7 +22,7 @@ class MenuRendererIterationTest {
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private fun player() = MockBukkit.getMock()!!.addPlayer()
 
-    /** 3 slots (10-12), liste de 5 items → page 0 = 3 premiers, page 1 = 2 derniers. */
+    /** 3 slots (10-12), list of 5 items → page 0 = first 3, page 1 = last 2. */
     private fun gridMenu(): MenuYaml = mapper.readValue(
         """
         schema: menu/v1
@@ -57,7 +57,7 @@ class MenuRendererIterationTest {
         val inv = session.slots
         assertEquals(Material.EMERALD, inv[10]?.type)  // s1
         assertEquals(Material.DIAMOND, inv[11]?.type)  // s2
-        assertNull(inv[12])                            // pas de 3e item
+        assertNull(inv[12])                            // no 3rd item
         assertEquals("shop", session.menuId)
     }
 

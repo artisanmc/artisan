@@ -1,5 +1,5 @@
 /** A Project working copy and its server baseline. Draft persistence is separate from publication. */
-/** Un renommage déclaré par l'éditeur, en chemins relatifs. */
+/** A rename declared by the editor, in relative paths. */
 export interface PendingRename {
   from: string;
   to: string;
@@ -15,9 +15,9 @@ export interface ProjectDraft {
     ownerId: string;
     acknowledged?: string;
     /**
-     * L'arbre de la révision acquittée : le dernier point commun avec les autres
-     * sessions, contre lequel on fusionne leur travail. Distinct de `baseline`,
-     * qui reste le disque publié.
+     * The tree of the acknowledged revision: the last common point with other
+     * sessions, against which their work is merged. Distinct from `baseline`,
+     * which stays the published disk.
      */
     base?: {
       tree: Record<string, string>;
@@ -33,41 +33,39 @@ export interface ProjectDraft {
       snapshot?: ProjectDraft;
     };
   };
-  /** L'arbre tel que le serveur l'avait chargé, rel-keyed. */
+  /** The tree as the server loaded it, rel-keyed. */
   baseline: Record<string, string>;
-  /** L'arbre tel que l'éditeur l'affiche — ce qui partira à l'enregistrement. */
+  /** The tree as the editor shows it — what a save will send. */
   tree: Record<string, string>;
   /**
-   * L'arbre **juste après le chargement**, avant toute édition.
+   * The tree **right after loading**, before any edit.
    *
-   * C'est lui, et non les octets du serveur, qui répond à « as-tu modifié
-   * quelque chose ? ». Ouvrir un Project applique des transformations —
-   * injection des models déclarés, abandon d'une source legacy, mise en forme
-   * canonique d'un fichier écrit à la main — qui font légitimement différer
-   * l'arbre des octets disque **sans que personne n'ait rien touché**. Comparer
-   * aux octets ferait annoncer « travail non enregistré » sur un Project qu'on
-   * vient d'ouvrir.
+   * This, not the server's bytes, answers "did you change anything?". Opening a
+   * Project applies transformations — injecting declared models, dropping a
+   * legacy source, canonical formatting of a hand-written file — that
+   * legitimately make the tree differ from the disk bytes **without anyone
+   * touching anything**. Comparing to the bytes would report "unsaved work" on a
+   * Project just opened.
    */
   initialTree?: Record<string, string>;
-  /** Millis de la prise de la base : l'âge du brouillon, à afficher. */
+  /** Millis when the base was taken: the draft's age, for display. */
   at: number;
   /**
-   * Renommages déclarés depuis le dernier enregistrement.
+   * Renames declared since the last save.
    *
-   * Persistés avec le brouillon à dessein : l'arbre porte déjà le nouveau nom,
-   * donc perdre cette liste à un rechargement ferait retomber le renommage en
-   * « suppression + création » — et avec, la corbeille et l'historique du
-   * fichier.
+   * Persisted with the draft on purpose: the tree already carries the new name,
+   * so losing this list on a reload would turn the rename back into
+   * "delete + create" — losing the file's trash and history with it.
    */
   renames?: PendingRename[];
 }
 
 /**
- * Y a-t-il du travail non enregistré ?
+ * Is there unsaved work?
  *
- * Comparaison de contenus, **sans hachage** : cet indicateur est permanent, il
- * doit être gratuit. Le hachage n'intervient qu'à l'enregistrement, où il sert à
- * autre chose — vérifier que le disque n'a pas bougé.
+ * Content comparison, **no hashing**: this indicator is permanent, it must be
+ * free. Hashing only happens on save, where it serves something else —
+ * checking the disk has not moved.
  */
 export function isDirty(
   reference: Record<string, string> | undefined,
@@ -93,11 +91,10 @@ export function hasDraftChanges(draft: ProjectDraft): boolean {
 }
 
 /**
- * Âge du brouillon, dans l'unité qui se lit.
+ * The draft's age, in a readable unit.
  *
- * Un arrondi aux heures pleines produisait « basé sur l'état d'il y a 0 h » pour
- * un brouillon de dix minutes — une phrase qui ne veut rien dire et qui donne
- * l'impression d'un compteur cassé.
+ * Rounding to whole hours produced "based on the state from 0 h ago" for a
+ * ten-minute draft — a meaningless sentence that looks like a broken counter.
  */
 export type DraftAge =
   | { unit: "now"; value: 0 }

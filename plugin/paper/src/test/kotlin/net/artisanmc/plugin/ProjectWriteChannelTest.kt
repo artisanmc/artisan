@@ -11,16 +11,14 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * `project_write` — l'éditeur écrit les fichiers du serveur (ADR
- * `server-disk-only-storage`, P1). Le plugin est le seul écrivain, donc c'est ici
- * que vivent les deux garde-fous :
+ * `project_write`: the editor writes the server's files (ADR `server-disk-only-storage`).
+ * The plugin is the only writer, so its guard lives here: a **per-file
+ * compare-and-swap**. Each write carries the hash it is based on; if the file moved
+ * since, nothing at all is written and the conflicts come back with the disk content
+ * (the editor shows the diff without a second round trip).
  *
- * - **compare-and-swap par fichier** : chaque écriture porte le hash sur lequel
- *   elle se base ; si le fichier a bougé depuis, rien n'est écrit du tout et les
- *   conflits remontent avec le contenu disque (l'éditeur affiche le diff sans
- *   second aller-retour) ;
- * - **corbeille** : l'ancien contenu part dans `.artisan/history/` avant tout
- *   écrasement ou suppression, en anneau des N dernières versions.
+ * Writes no longer archive the old content; `project_history` only reads versions
+ * already present in `.artisan/history/`.
  */
 class ProjectWriteChannelTest {
     private val mapper = ObjectMapper()
@@ -40,15 +38,15 @@ class ProjectWriteChannelTest {
                 latch.countDown()
             }
         }
-        /** Attend LA RÉPONSE : les annonces de rechargement voyagent sur le
-         *  même fil et peuvent arriver avant elle. */
+        /** Waits for THE REPLY: reload announcements travel on the same
+         *  connection and may arrive before it. */
         fun await(replies: Int = 1) {
             val deadline = System.currentTimeMillis() + 5000
             while (System.currentTimeMillis() < deadline) {
                 if (sink.count { it["type"] != "projects_reloaded" } >= replies) return
                 Thread.sleep(10)
             }
-            throw AssertionError("attendait $replies réponse(s), reçu ${sink.size} message(s)")
+            throw AssertionError("expected $replies reply(ies), got ${sink.size} message(s)")
         }
         fun project(id: String): File = File(root, id).also { it.mkdirs() }
         fun write(project: File, rel: String, content: String) {
@@ -169,7 +167,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `ecrit les fichiers et confirme`() {
+    fun `writes the files and acknowledges`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "manifest.yaml", "id: boutique\n")
@@ -184,7 +182,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `n'archive plus l'ancien contenu - l'historique vit dans les Versions du backend`() {
+    fun `does not archive the previous content`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/shop_main.yaml", "title: Ancien\n")
@@ -200,7 +198,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `refuse tout en bloc si un base_hash a bouge, et rend le contenu disque`() {
+    fun `rejects the whole batch if one base_hash moved, and returns the disk content`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/a.yaml", "title: A disque\n")
@@ -221,20 +219,19 @@ class ProjectWriteChannelTest {
         assertEquals(listOf("menus/a.yaml"), conflicts.map { it["path"] })
         assertEquals("title: A disque\n", conflicts[0]["disk"])
 
-        // Tout ou rien : b.yaml, pourtant non conflictuel, n'a pas bougé non plus.
+        // All or nothing: b.yaml, although not in conflict, did not move either.
         assertEquals("title: A disque\n", h.read(p, "menus/a.yaml"))
         assertEquals("title: B\n", h.read(p, "menus/b.yaml"))
-        assertTrue(h.historyOf(p, "menus/a.yaml").isEmpty(), "rien ne doit être archivé sur un refus")
+        assertTrue(h.historyOf(p, "menus/a.yaml").isEmpty(), "nothing must be archived on a refusal")
     }
 
     @Test
-    fun `un conflit rend l'etat reel du dossier, pour voir un renommage`() {
+    fun `a conflict returns the actual folder listing, so a rename shows`() {
         val h = Harness()
         val p = h.project("boutique")
-        // Quelqu'un a renommé a.yaml en renomme.yaml sur le disque. Pour le CAS
-        // c'est une suppression — et sans la liste ci-dessous, « garder ma
-        // version » recréerait a.yaml en laissant renomme.yaml : deux fichiers
-        // pour un seul menu, sans que rien ne le signale.
+        // Someone renamed a.yaml to renomme.yaml on disk. For the CAS that is a
+        // deletion, and without the list below "keep my version" would recreate
+        // a.yaml and leave renomme.yaml: two files for one menu, with nothing to say so.
         h.write(p, "menus/renomme.yaml", "title: A\n")
         val base = BundleHasher.hashContent("title: A\n")
 
@@ -246,12 +243,12 @@ class ProjectWriteChannelTest {
         assertEquals("conflict", msg["error"])
         @Suppress("UNCHECKED_CAST")
         val onDisk = msg["disk_files"] as List<String>
-        assertTrue(onDisk.contains("menus/renomme.yaml"), "le fichier apparu doit être visible : $onDisk")
+        assertTrue(onDisk.contains("menus/renomme.yaml"), "the file that appeared must be visible: $onDisk")
         assertFalse(onDisk.contains("menus/a.yaml"))
     }
 
     @Test
-    fun `un base_hash nul veut dire fichier neuf, et entre en conflit s'il existe deja`() {
+    fun `a null base_hash means a new file, and conflicts if it already exists`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/deja.yaml", "title: Existant\n")
@@ -270,7 +267,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `supprime un fichier sous CAS sans l'archiver`() {
+    fun `deletes a file under CAS without archiving it`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/vieux.yaml", "title: Vieux\n")
@@ -284,7 +281,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `l'editeur peut ecrire son propre etat mais pas la corbeille`() {
+    fun `the editor may write its own state but not other metadata`() {
         val h = Harness()
         val p = h.project("boutique")
 
@@ -304,10 +301,10 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `cree le dossier du project quand l'appelant le demande explicitement`() {
+    fun `creates the project folder when the caller explicitly asks`() {
         val h = Harness()
-        // Aucun `project()` : le dossier n'existe pas encore, comme après une
-        // création ou un import dans l'éditeur.
+        // No `project()`: the folder does not exist yet, as after a creation or an
+        // import in the editor.
         h.provider.handleMessageForTesting(
             """{"type":"project_write","request_id":"w1","project_id":"tout_neuf","create":true,"files":[
                 {"path":"manifest.yaml","content":"id: tout_neuf\n","base_hash":null}
@@ -320,7 +317,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `project_history rend les versions archivees, la plus recente d'abord`() {
+    fun `project_history returns archived versions, most recent first`() {
         val h = Harness()
         val p = h.project("boutique")
         val hist = File(p, ".artisan/history/menus/m.yaml").also { it.mkdirs() }
@@ -337,13 +334,13 @@ class ProjectWriteChannelTest {
         assertEquals(true, msg["ok"])
         @Suppress("UNCHECKED_CAST")
         val versions = msg["versions"] as List<Map<String, Any?>>
-        // La plus récente d'abord : c'est celle qu'on veut restaurer neuf fois sur dix.
+        // Most recent first: the one you want to restore nine times out of ten.
         assertEquals(listOf("v2", "v1"), versions.map { it["content"] })
         assertEquals(1755000009999L, (versions[0]["at"] as Number).toLong())
     }
 
     @Test
-    fun `project_history sur un fichier sans archive rend une liste vide`() {
+    fun `project_history of a file without archives is an empty list`() {
         val h = Harness()
         h.project("boutique")
         h.provider.handleMessageForTesting(
@@ -357,7 +354,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `project_history refuse de lire hors de l'arbre du project`() {
+    fun `project_history refuses to read outside the project tree`() {
         val h = Harness()
         h.project("boutique")
         h.provider.handleMessageForTesting(
@@ -370,7 +367,7 @@ class ProjectWriteChannelTest {
     }
 
     @Test
-    fun `refuse une traversee de chemin et un project inconnu`() {
+    fun `rejects a path traversal and an unknown project`() {
         val h = Harness()
         h.project("boutique")
         h.send(writeMsg("boutique", """[

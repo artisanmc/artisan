@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
 import { listLocalAssets, performLocalAssetMutation } from "./localAssets";
 
-/** PNG `w`×`h` dont seules les `opaque` premières colonnes sont opaques. */
+/** `w`×`h` PNG whose first `opaque` columns only are opaque. */
 function png(w: number, h: number, opaque = w): Uint8Array {
   const image = createImage(w, h);
   for (let y = 0; y < h; y++)
@@ -19,7 +19,7 @@ function png(w: number, h: number, opaque = w): Uint8Array {
 }
 const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
 
-/** Le plugin vu par le hub : un brouillon, ses blobs, le disque publié. */
+/** The plugin as seen through the hub: a draft, its blobs, the published disk. */
 function fakeHub(snapshot: ProjectDraft, published: Record<string, Uint8Array> = {}) {
   const state = {
     draft: {

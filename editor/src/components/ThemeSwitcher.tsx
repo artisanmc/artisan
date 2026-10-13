@@ -5,8 +5,7 @@ import { Moon, Sun } from "lucide-react";
 /**
  * Binary segmented-control: [☾ Dark] [☀ Light]
  * No "system" option — OS preference is the implicit default until the user
- * makes a choice, which sticks in localStorage + backend.
- * No CSS transition on swap — hard cut per spec §3.
+ * makes a choice, which persists. No CSS transition on swap.
  */
 export function ThemeSwitcher() {
   const { t } = useTranslation();

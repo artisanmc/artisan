@@ -17,6 +17,7 @@ L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au c
 | **Journal de publication** | `operation_id` | Disque : `<project>/.artisan/transactions/` (en cours) et `.receipts/` (reçus rejoués à l'identique). |
 | **Session éditeur** | Jeton aléatoire (cookie `artisan_session`) ; porte UUID, nom et permissions du joueur | Mémoire du hub (`Sessions`), 12 h. Perdue au redémarrage du hub. |
 | **Lien de connexion** | Jeton à usage unique | Mémoire du hub, 60 s, un par joueur et par minute. |
+| **Préférences d'éditeur** | UUID du joueur | Disque du hub : `plugins/Artisan/editor-prefs/<uuid>.json` (`PlayerPrefs`) : langue, thème, avancement du tour guidé. Écriture atomique, clés connues seules. |
 | **Pack de ressources** | SHA-1 du zip | Disque du hub : `plugins/Artisan/cache/resource-pack/<sha1>.zip` (`PackStore`, trois derniers, un pack par serveur construit par l'éditeur). Dernier pack appliqué : `cache/resource-pack.json` sur chaque serveur. |
 
 Pas d'utilisateur : l'identité dans l'éditeur est le joueur Minecraft qui a demandé le lien,
@@ -32,6 +33,7 @@ demande (`artisan.editor` les donne toutes). L'accès se donne avec un plugin de
 | `environment.yml` | `web.*` (port, bind, url, rôle, nom, hub-url, secret) et identifiants de base | L'admin seul ; jamais lu ni écrit par l'éditeur. |
 | `network-secret` | Secret du réseau généré par le hub quand ni `web.secret` ni Velocity n'en donnent | Le hub, une fois. |
 | `projects/` | Les Projects | Le plugin (seul écrivain), sur geste de l'éditeur, ou l'admin à la main puis `/artisan reload`. |
+| `editor-prefs/<uuid>.json` | Préférences d'éditeur d'un joueur (`PATCH /api/v1/auth/me`) | Le hub. |
 | `cache/minecraft/<version>/` | Textures vanilla extraites du jar client Mojang (SHA-1 vérifié) | Le hub, à la première texture demandée. |
 | `cache/resource-pack/`, `cache/resource-pack.json`, `cache/asset-index.json` | Packs servis (hub), dernier pack appliqué, index d'assets | `PackStore`, `ResourcePackManager`, `AssetCatalog`. |
 | `database/suite.mv.db` | Base H2 par défaut | Les plugins de la suite. |

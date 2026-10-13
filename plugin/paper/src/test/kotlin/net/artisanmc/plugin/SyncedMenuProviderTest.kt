@@ -81,7 +81,7 @@ class SyncedMenuProviderTest {
         assertEquals(27, player.openInventory.topInventory.size)
     }
 
-    /** Deux projects qui portent chacun un menu `main`, de tailles différentes pour les distinguer. */
+    /** Two projects each carrying a `main` menu, with different sizes to tell them apart. */
     private fun writeTwoProjectsWithSameMenuId(root: File) {
         for ((project, size) in listOf("core" to 27, "shop" to 54)) {
             val dir = File(root, project).apply { mkdirs() }
@@ -215,7 +215,7 @@ class SyncedMenuProviderTest {
     }
 
     @Test
-    fun `provider clears resource project when hello_ack resource_pack is null`() {
+    fun `provider clears the resource pack when hello_ack resource_pack is null`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
         mgr.onUpdate(ResourcePackInfo.from("http://stale", "a".repeat(40), "<gold>x</gold>"))

@@ -3,19 +3,19 @@ import { assetFileName } from "./assetDiskWrite";
 import type { ParsedMcFont } from "./mcFontsParser";
 
 /**
- * Une police importée, **dépliée** sur le disque du serveur (ADR
- * `assets-on-server-disk` — question ouverte tranchée le 2026-08-17).
+ * An imported font, **unpacked** on the server's disk (ADR
+ * `assets-on-server-disk`).
  *
- * La mesure qui a décidé : l'ASCII vanilla fait 95 PNG plus son descripteur,
- * 26 Ko en tout. Garder le zip aurait posé une boîte noire au milieu d'un
- * dossier dont tout le reste s'édite à la main, et il aurait fallu dézipper,
- * corriger, rezipper pour toucher un seul glyphe — pour économiser 96 entrées.
+ * The deciding measure: vanilla ASCII is 95 PNGs plus its descriptor, 26 KB in
+ * total. Keeping the zip would have put a black box in the middle of a folder
+ * where everything else is hand-editable, and touching a single glyph would
+ * have meant unzip, fix, rezip — to save 96 entries.
  *
- *     assets/fonts/<nom>/font.yaml      ← quel caractère, quelle image, ascent
- *     assets/fonts/<nom>/<texture>.png  ← un fichier par glyphe
+ *     assets/fonts/<name>/font.yaml      ← which character, which image, ascent
+ *     assets/fonts/<name>/<texture>.png  ← one file per glyph
  *
- * Le descripteur porte les chemins **relatifs au dossier de la police**, comme
- * dans le zip d'origine : ce qui est écrit là est ce que l'admin lit à côté.
+ * The descriptor holds paths **relative to the font folder**, as in the
+ * original zip: what is written there is what the admin reads next to it.
  */
 export const FONT_DESCRIPTOR = "font.yaml";
 export const FONT_DIR = "assets/fonts";
@@ -33,12 +33,12 @@ export interface FontMetaOnDisk {
   glyphMap: FontGlyphMeta[];
 }
 
-/** Le dossier d'une police, d'après son nom. */
+/** A font's folder, from its name. */
 export function fontDir(name: string): string {
   return `${FONT_DIR}/${assetFileName(name)}`;
 }
 
-/** Les fichiers à écrire pour poser une police importée sur le disque. */
+/** The files to write to put an imported font on disk. */
 export function fontFilesFor(
   name: string,
   parsed: Pick<ParsedMcFont, "glyphMap" | "glyphPngs">,
@@ -68,9 +68,9 @@ export function fontFilesFor(
 }
 
 /**
- * Relit un descripteur de police. `null` s'il est illisible — la police
- * disparaît alors de la bibliothèque, mais ses PNG restent sur le disque : on ne
- * supprime jamais ce qu'on ne comprend pas.
+ * Re-reads a font descriptor. `null` if unreadable — the font then disappears
+ * from the library, but its PNGs stay on disk: what is not understood is never
+ * deleted.
  */
 export function fontFromDisk(content: string): FontMetaOnDisk | null {
   try {

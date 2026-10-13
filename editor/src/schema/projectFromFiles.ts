@@ -63,7 +63,7 @@ interface EditorStateYaml {
   i18n_mode?: string;
 }
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+// Helpers
 
 function baseOf(projectId: string): string {
   return `plugins/Artisan/projects/${projectId}/`;
@@ -74,13 +74,13 @@ function getFile(files: Record<string, string>, projectId: string, rel: string):
 }
 
 /**
- * Les Documents d'un dossier, **découverts par scan** de l'arbre — miroir du
- * `documentIds` du plugin.
+ * A folder's Documents, **discovered by scanning** the tree — mirror of the
+ * plugin's `documentIds`.
  *
- * Le bloc `files:` du manifest recopiait à la main le contenu de `menus/`,
- * `commands/` et `dialogs/`, sans y ajouter ni ordre ni exclusion. Un bloc
- * legacy encore présent est fusionné, jamais soustrait : il ne peut plus rendre
- * invisible un fichier bien réel.
+ * The manifest's `files:` block copied the content of `menus/`, `commands/`
+ * and `dialogs/` by hand, adding neither order nor exclusion. A legacy block
+ * still present is merged, never subtracted: it can no longer hide a file
+ * that really exists.
  */
 function documentIds(
   files: Record<string, string>,
@@ -92,16 +92,16 @@ function documentIds(
   const scanned = Object.keys(files)
     .filter((k) => k.startsWith(prefix) && k.endsWith(".yaml"))
     .map((k) => k.slice(prefix.length, -".yaml".length))
-    // Un seul niveau : un sous-dossier n'est pas un Document.
+    // One level only: a subfolder is not a Document.
     .filter((id) => id.length > 0 && !id.includes("/") && !id.startsWith("."));
   return [...new Set([...scanned, ...(legacy ?? [])])].sort();
 }
 
 /**
- * Réécrit le préfixe `plugins/Artisan/projects/<quelconque>/` des clés vers
- * [projectId]. L'arbre d'un project ne contient que ses propres chemins, donc
- * réécrire sans regarder QUEL id était là est sûr — et rend la lecture
- * insensible à un id disque qui diffère de l'id interne.
+ * Rewrites the `plugins/Artisan/projects/<anything>/` key prefix to
+ * [projectId]. A project's tree only contains its own paths, so rewriting
+ * without looking at WHICH id was there is safe — and makes reading
+ * insensitive to a disk id that differs from the internal id.
  */
 function normalizeProjectPrefix(
   files: Record<string, string>,
@@ -165,7 +165,7 @@ function scanDir(
     });
 }
 
-// ─── board state (layout / edges) ────────────────────────────────────────────
+// Board state (layout / edges)
 
 function parseEditorLayout(raw: unknown): Record<string, { x: number; y: number }> {
   if (!raw || typeof raw !== "object") return {};
@@ -203,7 +203,7 @@ function parseEditorEdges(raw: unknown): Record<string, { from?: EdgeAnchor; to?
   return out;
 }
 
-// ─── lang files ──────────────────────────────────────────────────────────────
+// Lang files
 
 /** lang/<lang>.yaml trees (or legacy flat maps) → key → { lang: value }. */
 function readTranslations(
@@ -225,7 +225,7 @@ function readTranslations(
   return out;
 }
 
-// ─── captured items ──────────────────────────────────────────────────────────
+// Captured items
 
 /**
  * items/<id>.yml → CapturedItem. The file is the runtime truth (verbatim
@@ -273,7 +273,7 @@ function readCapturedItems(
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-// ─── data sources (data/v1 → domain, typed by Data models) ───────────────────
+// Data sources (data/v1 → domain, typed by Data models)
 
 /** data/v1 flattened field → ModelFieldType (used when no model back-ref exists). */
 function fieldTypeOfWire(f: Json): ModelFieldType {
@@ -386,7 +386,7 @@ function importDataValue(
   }
 }
 
-// ─── public API ──────────────────────────────────────────────────────────────
+// Public API
 
 /** Module dirs must be sane slugs — rejects hostile keys like `__proto__`. */
 const MODULE_DIR_RE = /^[a-z][a-z0-9_-]*$/;
@@ -465,7 +465,7 @@ function inlineLegacyTemplates(
 
 export interface ProjectFromFilesMeta {
   name?: string;
-  /** Id disque du project (cf. `Project.diskId`). Défaut : l'id interne. */
+  /** The project's disk id (cf. `Project.diskId`). Default: the internal id. */
   diskId?: string;
   description?: string;
   source?: Project["source"];
@@ -483,10 +483,10 @@ export function projectFromFiles(
   files: Record<string, string>,
   meta: ProjectFromFilesMeta = {},
 ): Project {
-  // Les clés de `files` sont préfixées par l'id DISQUE du project, qui n'est
-  // pas forcément l'id interne (cf. `Project.diskId`). On réécrit le préfixe
-  // vers l'id interne une fois pour toutes : tout l'aval adresse par
-  // `baseOf(projectId)` et n'a donc pas à connaître cette distinction.
+  // `files` keys are prefixed with the project's DISK id, which is not
+  // necessarily the internal id (cf. `Project.diskId`). The prefix is rewritten
+  // to the internal id once and for all: everything downstream addresses by
+  // `baseOf(projectId)` and need not know the distinction.
   files = normalizeProjectPrefix(files, projectId);
   const manifest = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
   const defaultLang = manifest.default_lang ?? "en";
@@ -564,7 +564,7 @@ export function projectFromFiles(
     pushUnsupported: (s) => unsupported.push(s),
   });
 
-  // ── Legacy templates/ migration (one-way) ──────────────────────────────────
+  // Legacy templates/ migration (one-way)
   // Item templates used to be a PROJECT-level shared view that elements bound
   // to by ref. A set now lives on the element that renders it, so a legacy
   // `templates/<id>.yaml` still on disk is read here and inlined below — never
@@ -576,14 +576,13 @@ export function projectFromFiles(
       {
         alias: (y.alias as string) ?? "",
         keyField: (y.key_field as string) ?? "",
-        // Deux formes se croisent ici, et il faut lire les deux.
+        // Two shapes meet here, and both must be read.
         //
-        // `appearances:` est celle d'avant le 17 août ; depuis, un template
-        // s'écrit comme un Element — display À PLAT plus `states`. Ne lire que
-        // la première rendait une liste VIDE pour un fichier parfaitement
-        // valide : l'élément héritait d'un display vide, et le menu s'affichait
-        // sans items, sans le moindre message. Un lecteur de migration doit
-        // être tolérant ; c'est l'écrivain qui doit être canonique.
+        // `appearances:` is the older one; since then, a template is written like an
+        // Element — FLAT display plus `states`. Reading only the former gave an EMPTY
+        // list for a perfectly valid file: the element inherited an empty display,
+        // and the menu showed without items, without a single message. A migration
+        // reader must be tolerant; it is the writer that must be canonical.
         appearances: Array.isArray(y.appearances)
           ? (y.appearances as Json[]).map(appearance)
           : [appearance(y), ...((y.states as Json[]) ?? []).map(appearance)],
@@ -934,8 +933,8 @@ export function projectFromFiles(
   // address, so bring node and address back together.
   adoptAddressedTranslations(project, translations);
 
-  // Le lore de base est conservé sans rien écrire : les `{base.lore}` de tête
-  // hérités du temps où il fallait le réclamer sont retirés (cf. baseLore.ts).
+  // The base lore is kept without writing anything: leading `{base.lore}`
+  // inherited from when it had to be requested are removed (cf. baseLore.ts).
   normalizeBaseLore(project);
 
   if (unsupported.length > 0) {

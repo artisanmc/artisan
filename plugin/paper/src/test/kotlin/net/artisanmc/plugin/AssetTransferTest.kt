@@ -11,16 +11,15 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * Transfert des **assets binaires** (ADR `assets-on-server-disk`, P0).
+ * Transfer of **binary assets** (ADR `assets-on-server-disk`).
  *
- * Un PNG ne peut pas voyager dans l'arbre de `project_read` : cet arbre part
- * entier à chaque ouverture, en UTF-8. Le base64 l'enflerait d'un tiers pour un
- * contenu dont l'éditeur n'a besoin qu'au moment de l'afficher — et lire un PNG
- * en UTF-8 le détruirait au passage.
+ * A PNG cannot travel in the `project_read` tree: that tree goes out whole on every
+ * open, as UTF-8. Base64 would inflate it by a third for content the editor only needs
+ * when displaying it, and reading a PNG as UTF-8 would destroy it.
  *
- * D'où la règle structurelle : l'arbre **annonce** les binaires (chemin + hash +
- * taille) sans les porter : `asset_read` les lit un par un, par chemin, et
- * `project_write` les écrit dans sa liste `binaries`.
+ * Hence the structural rule: the tree **announces** binaries (path + hash + size)
+ * without carrying them; `asset_read` reads them one by one, by path, and
+ * `project_write` writes them through its `binaries` list.
  */
 class AssetTransferTest {
     private class Harness {
@@ -40,7 +39,7 @@ class AssetTransferTest {
         }
         fun project(id: String): File = File(root, id).also { it.mkdirs() }
         private var operations = 0
-        /** `project_write` sans fichier texte : chaque écriture a sa propre opération. */
+        /** `project_write` without text files: each write has its own operation. */
         fun writeBinaries(vararg paths: String, content: String) = send(
             """{"type":"project_write","request_id":"r","operation_id":"op-${++operations}","project_id":"boutique","binaries":[""" +
                 paths.joinToString(",") { """{"path":"$it","content_base64":"$content","base_hash":null}""" } + "]}",
@@ -54,8 +53,8 @@ class AssetTransferTest {
             latch = CountDownLatch(1)
             sink.clear()
             provider.handleMessageForTesting(json)
-            // La réponse, pas la première chose qui passe : les annonces de
-            // rechargement voyagent sur le même fil et peuvent la précéder.
+            // The reply, not the first thing that comes by: reload announcements
+            // travel on the same connection and may precede it.
             val deadline = System.currentTimeMillis() + 5000
             while (System.currentTimeMillis() < deadline) {
                 val reply = sink.firstOrNull { it["type"] != "projects_reloaded" }
@@ -70,14 +69,14 @@ class AssetTransferTest {
             send("""{"type":"asset_read","request_id":"r","project_id":"$projectId","path":"$path"}""")
     }
 
-    /** Un PNG minimal mais réel : en-tête + octets non-UTF-8 (0x89, 0xFF…). */
+    /** A minimal but real PNG: header + non-UTF-8 bytes (0x89, 0xFF…). */
     private val png = byteArrayOf(
         0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
         0xFF.toByte(), 0x00, 0xC3.toByte(), 0x28,
     )
 
     @Test
-    fun `l'arbre annonce les binaires sans les porter`() {
+    fun `the tree lists binaries without carrying them`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\nsize: 27\n".toByteArray())
@@ -90,21 +89,21 @@ class AssetTransferTest {
         @Suppress("UNCHECKED_CAST")
         val binaries = res["binaries"] as List<Map<String, Any?>>
 
-        // Le PNG n'est pas dans l'arbre : le lire en UTF-8 l'aurait mutilé, et le
-        // porter en base64 enflerait chaque ouverture de Project.
+        // The PNG is not in the tree: reading it as UTF-8 would have mangled it, and
+        // carrying it as base64 would inflate every Project open.
         assertTrue(files.none { it["path"] == "assets/glyphs/diamant.png" })
         assertEquals(listOf("menus/m.yaml"), files.map { it["path"] })
 
-        // Mais son existence est annoncée : l'éditeur sait quoi proposer sans
-        // avoir à tout télécharger.
+        // But its existence is announced: the editor knows what to offer without
+        // downloading everything.
         val entry = binaries.single()
         assertEquals("assets/glyphs/diamant.png", entry["path"])
         assertEquals(png.size, (entry["size"] as Number).toInt())
-        assertTrue((entry["hash"] as String).length == 64, "hash SHA-256 hex attendu")
+        assertTrue((entry["hash"] as String).length == 64, "expected a SHA-256 hex hash")
     }
 
     @Test
-    fun `asset_read rend les octets exacts`() {
+    fun `asset_read returns the exact bytes`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "assets/glyphs/diamant.png", png)
@@ -112,33 +111,33 @@ class AssetTransferTest {
 
         val res = h.assetRead("boutique", "assets/glyphs/diamant.png")
         assertEquals(true, res["ok"])
-        // Octets EXACTS : un aller-retour base64 qui normaliserait quoi que ce
-        // soit rendrait l'image invalide, et le compare-and-swap faux.
+        // EXACT bytes: a base64 round trip that normalised anything would make the
+        // image invalid and the compare-and-swap wrong.
         assertArrayEquals(png, Base64.getDecoder().decode(res["content_base64"] as String))
     }
 
     @Test
-    fun `project_write ecrit un binaire et refuse si la base a bouge`() {
+    fun `project_write writes a binary and rejects it if the base moved`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
         h.provider.load()
 
         val b64 = Base64.getEncoder().encodeToString(png)
-        // base_hash null = « je m'attends à ce que le fichier n'existe pas ».
+        // base_hash null = "I expect the file not to exist".
         val created = h.writeBinaries("assets/glyphs/diamant.png", content = b64)
         assertEquals(true, created["ok"])
         assertArrayEquals(png, File(p, "assets/glyphs/diamant.png").readBytes())
 
-        // Réécrire en prétendant que le fichier est toujours absent doit être
-        // refusé : sinon deux admins qui téléversent le même nom s'écrasent en silence.
+        // Rewriting while claiming the file is still absent must be refused: otherwise
+        // two admins uploading the same name silently overwrite each other.
         val conflict = h.writeBinaries("assets/glyphs/diamant.png", content = b64)
         assertEquals(false, conflict["ok"])
         assertEquals("conflict", conflict["error"])
     }
 
     @Test
-    fun `un binaire ecrit est visible sans reload manuel`() {
+    fun `a written binary is visible without a manual reload`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
@@ -147,23 +146,22 @@ class AssetTransferTest {
         val b64 = Base64.getEncoder().encodeToString(png)
         h.writeBinaries("assets/textures/fond.png", content = b64)
 
-        // Écrire, c'est savoir qu'on a écrit : l'instantané reprend, sinon
-        // l'éditeur téléverserait une image qu'il ne verrait pas ensuite.
+        // Writing means knowing you wrote: the snapshot picks it up, otherwise the
+        // editor would upload an image it could not see afterwards.
         @Suppress("UNCHECKED_CAST")
         val binaries = h.read("boutique")["binaries"] as List<Map<String, Any?>>
         assertEquals(listOf("assets/textures/fond.png"), binaries.map { it["path"] })
     }
 
     /**
-     * Écriture GROUPÉE (ADR `assets-on-server-disk`, polices dépliées).
+     * BATCHED write (ADR `assets-on-server-disk`, unpacked fonts).
      *
-     * Une police importée, c'est ~96 fichiers (mesuré sur l'ASCII vanilla :
-     * 95 PNG + son descripteur, 26 Ko en tout). Les écrire un par un ferait 96
-     * allers-retours et, surtout, laisserait une police à moitié posée si l'un
-     * échouait : tout ou rien.
+     * An imported font is ~96 files (measured on vanilla ASCII: 95 PNGs + its
+     * descriptor, 26 KB in total). Writing them one by one would take 96 round trips
+     * and, above all, would leave a half-written font if one failed: all or nothing.
      */
     @Test
-    fun `project_write ecrit plusieurs binaires en tout ou rien`() {
+    fun `project_write writes several binaries all or nothing`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
@@ -177,18 +175,18 @@ class AssetTransferTest {
     }
 
     @Test
-    fun `un seul fichier perime annule tout le groupe`() {
+    fun `a single stale file cancels the whole batch`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "assets/fonts/pixelmix/b.png", png)
         h.provider.load()
 
         val b64 = Base64.getEncoder().encodeToString(png)
-        // Le second prétend que le fichier n'existe pas — il existe.
+        // The second claims the file does not exist; it does.
         val res = h.writeBinaries("assets/fonts/pixelmix/a.png", "assets/fonts/pixelmix/b.png", content = b64)
         assertEquals(false, res["ok"])
         assertEquals("conflict", res["error"])
-        // RIEN n'a été écrit : une police à moitié posée serait pire qu'aucune.
+        // NOTHING was written: a half-written font would be worse than none.
         assertFalse(File(p, "assets/fonts/pixelmix/a.png").exists())
     }
 }

@@ -32,7 +32,7 @@ object ConditionParser {
     private fun str(raw: Map<String, Any>, key: String): String =
         raw[key]?.toString() ?: throw IllegalArgumentException("Condition missing required field '$key': $raw")
 
-    /** Le schéma accepte "day"/"night"/"a-b" ou {from_ticks,to_ticks} — normalisé en string "a-b". */
+    /** The schema accepts "day"/"night"/"a-b" or {from_ticks,to_ticks}, normalized to an "a-b" string. */
     private fun parseTimeRange(range: Any?): String = when (range) {
         is Map<*, *> -> {
             val from = (range["from_ticks"] as? Number)?.toLong()

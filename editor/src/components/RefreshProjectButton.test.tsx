@@ -55,17 +55,17 @@ describe("RefreshProjectButton", () => {
     useProjectCacheStore.setState({ reloadToken: 0 } as never);
   });
 
-  it("sans travail en cours, actualise sans rien demander", async () => {
+  it("with no work in progress, refreshes without asking", async () => {
     render(<RefreshProjectButton projectId={PID} />);
     await userEvent.click(screen.getByRole("button", { name: "topbar.refresh" }));
     expect(useProjectCacheStore.getState().reloadToken).toBe(1);
   });
 
   /**
-   * Écraser est bien ce qu'on attend d'un rafraîchissement — mais ce qui est
-   * perdu ici n'existe nulle part ailleurs, donc jamais sans le demander.
+   * Overwriting is what a refresh is expected to do — but what is lost here
+   * exists nowhere else, so never without asking.
    */
-  it("avec du travail non enregistré, demande confirmation avant d'écraser", async () => {
+  it("with unsaved work, asks for confirmation before overwriting", async () => {
     seedDraft(true);
     render(<RefreshProjectButton projectId={PID} />);
     await userEvent.click(screen.getByRole("button", { name: "topbar.refresh" }));
@@ -75,11 +75,11 @@ describe("RefreshProjectButton", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "topbar.refreshConfirm" }));
     expect(useProjectCacheStore.getState().reloadToken).toBe(1);
-    // Le brouillon part AVANT la relecture, sinon il se réappliquerait par-dessus.
+    // The draft goes BEFORE the re-read, otherwise it would reapply on top.
     expect(useProjectDraftStore.getState().drafts[PID]).toBeUndefined();
   });
 
-  it("annuler ne touche ni au brouillon ni à l'affichage", async () => {
+  it("cancel touches neither the draft nor the display", async () => {
     seedDraft(true);
     render(<RefreshProjectButton projectId={PID} />);
     await userEvent.click(screen.getByRole("button", { name: "topbar.refresh" }));

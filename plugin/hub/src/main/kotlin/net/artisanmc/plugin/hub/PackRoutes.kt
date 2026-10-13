@@ -4,9 +4,9 @@ import net.artisanmc.plugin.hub.EditorPermissions.PUBLISH
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
 
 /**
- * Le pack que l'éditeur construit arrive ici. Le serveur le sert lui-même aux joueurs
- * (`/resource-pack/<sha1>.zip`, public comme l'était celui du backend) et le remet au
- * `ResourcePackManager` : délégation à l'hôte de pack ou envoi direct, inchangés.
+ * The pack the editor builds arrives here. The server serves it to players itself
+ * (`/resource-pack/<sha1>.zip`, public) and hands it to `ResourcePackManager`:
+ * delegation to the pack host or direct push.
  */
 class PackRoutes(private val servers: Servers, private val store: PackStore) {
     fun register(router: Router) {

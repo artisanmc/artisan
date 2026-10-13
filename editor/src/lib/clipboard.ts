@@ -1,4 +1,4 @@
-/** `navigator.clipboard` exige un contexte sécurisé ; hors HTTPS on passe par une zone de texte. */
+/** `navigator.clipboard` requires a secure context; outside HTTPS a textarea is used. */
 export async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text);
   const area = document.createElement("textarea");

@@ -16,17 +16,14 @@ import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * Relire le Project sur le disque de son serveur, à la demande.
+ * Re-reads the Project from its server's disk, on demand.
  *
- * Il existe parce que l'éditeur affiche d'abord la dernière version connue
- * (`projectCacheStore`) et parce qu'une modification faite à la main sur le
- * disque n'est prise en compte qu'au reload du plugin : il faut donc un geste
- * pour dire « va vraiment voir ». Sans lui, la seule issue serait de recharger
- * la page en espérant.
+ * It exists because the editor first shows the last known version
+ * (`projectCacheStore`) and because a manual change on disk is only picked up
+ * when the plugin reloads: a gesture is needed to say "really go and look".
  *
- * Avec du travail non enregistré, il ÉCRASE — c'est ce qu'on attend d'un
- * rafraîchissement — mais jamais sans le demander : ce qui est perdu ici ne se
- * retrouve nulle part.
+ * With unsaved work it OVERWRITES — which is what a refresh is expected to do —
+ * but never without asking: what is lost here cannot be found anywhere else.
  */
 export function RefreshProjectButton({
   projectId,
@@ -38,8 +35,8 @@ export function RefreshProjectButton({
   const [confirming, setConfirming] = useState(false);
 
   const refresh = () => {
-    // Le brouillon disparaît AVANT la relecture : le laisser ferait reprendre
-    // l'arbre local par-dessus ce qu'on vient d'aller chercher.
+    // The draft goes BEFORE the re-read: keeping it would reapply the local tree
+    // on top of what was just fetched.
     useProjectDraftStore.getState().clear(projectId);
     useProjectCacheStore.getState().requestReload();
     setConfirming(false);

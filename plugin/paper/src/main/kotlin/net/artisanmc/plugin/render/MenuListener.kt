@@ -47,7 +47,7 @@ class MenuListener(
         (event.whoClicked as? Player)?.let { resendNextTick(it, event.inventory) }
     }
 
-    /** Le contenu n'existant que côté client, c'est à nous d'annuler sa prédiction. */
+    /** The content exists client-side only, so undoing the client's prediction is on us. */
     private fun resendNextTick(player: Player, anchor: org.bukkit.inventory.Inventory) {
         val window = windows?.get(player.uniqueId)?.takeIf { it.anchor === anchor } ?: return
         scheduler.player(player.uniqueId) {
@@ -63,10 +63,9 @@ class MenuListener(
             sessions.remove(player)
             val goBack = session?.escapeGoesBack == true && event.reason == InventoryCloseEvent.Reason.PLAYER
             endNavigationIfClosed(player, goBack, session?.ctx)
-            // Le client a affiché le contenu du menu dans son propre inventaire
-            // (les slots du bas d'une fenêtre pointent vers lui) : resynchro du
-            // vrai contenu une fois la fenêtre fermée. Seulement si c'est bien
-            // cette ancre : ouvrir B depuis A ferme A après avoir posé B.
+            // The client showed the menu's content in its own inventory (a window's
+            // bottom slots point to it): resync the real content once the window is
+            // closed. Only if it is this anchor: opening B from A closes A after B is set.
             if (windows?.release(player, event.inventory) == true) {
                 scheduler.player(player.uniqueId) { resync(player) }
             }
@@ -74,12 +73,12 @@ class MenuListener(
     }
 
     /**
-     * Fermé sans ouvrir d'autre écran (ESC, `close_menu`) : la navigation est
-     * finie, l'historique aussi — sinon un `open_menu` ultérieur empilerait un
-     * menu déjà fermé et le retour le rouvrirait. Vérifié au tick suivant : ouvrir
-     * B depuis A (ou un dialog) ferme aussi A, mais un autre écran est alors affiché.
-     * [goBack] (ESC + `escape_goes_back` du project) : rouvre l'écran précédent
-     * s'il y en a un, comme `open_previous_menu`.
+     * Closed without opening another screen (ESC, `close_menu`): the navigation is over,
+     * and so is the history; otherwise a later `open_menu` would push a closed menu and
+     * going back would reopen it. Checked on the next tick: opening B from A (or a
+     * dialog) also closes A, but another screen is then shown.
+     * [goBack] (ESC + the project's `escape_goes_back`): reopens the previous screen if
+     * there is one, like `open_previous_menu`.
      */
     private fun endNavigationIfClosed(player: Player, goBack: Boolean, ctx: ExecutionContext?) {
         val store = history ?: return

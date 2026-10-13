@@ -26,7 +26,7 @@ vi.mock("./title/composer/TitleRender", () => ({ TitleRender: () => <div /> }));
 import { MenuGroup } from "./MenuGroup";
 
 describe("MenuGroup solo", () => {
-  it("ne pose pas de Group draggable et se rend à l'origine", () => {
+  it("does not set a draggable Group and renders at the origin", () => {
     const menu = { id: "m1" as MenuId, projectId: "p1" as ProjectId, title: [], rows: 3, layers: [] } as Menu;
     render(<MenuGroup projectId={"p1" as ProjectId} menu={menu} position={{ x: 99, y: 99 }} layout={{}} solo />);
     const outer = screen.getAllByTestId("konva-group").find((g) => g.getAttribute("data-name") === "menu:m1")!;
@@ -34,7 +34,7 @@ describe("MenuGroup solo", () => {
     expect(outer.getAttribute("data-draggable")).toBe("false");
   });
 
-  it("double-clic (mode board) émet ifz:open_element avec l'id du menu", () => {
+  it("double-click (board mode) emits ifz:open_element with the menu id", () => {
     const spy = vi.fn();
     window.addEventListener(OPEN_ELEMENT_EVENT, spy as any);
     const menu = { id: "m1" as MenuId, projectId: "p1" as ProjectId, title: [], rows: 3, layers: [] } as Menu;
@@ -47,7 +47,7 @@ describe("MenuGroup solo", () => {
     window.removeEventListener(OPEN_ELEMENT_EVENT, spy as any);
   });
 
-  it("double-clic en mode solo n'émet pas ifz:open_element", () => {
+  it("double-click in solo mode does not emit ifz:open_element", () => {
     const spy = vi.fn();
     window.addEventListener(OPEN_ELEMENT_EVENT, spy as any);
     const menu = { id: "m1" as MenuId, projectId: "p1" as ProjectId, title: [], rows: 3, layers: [] } as Menu;

@@ -15,7 +15,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Executes `run_actions` end-to-end (Phase 1.5, ADR action-dsl): self-binding of
+ * Executes `run_actions` end-to-end (ADR action-dsl): self-binding of
  * the bound row, the depth guard, and tolerant no-op failure modes.
  */
 class RunActionsExecutionTest {

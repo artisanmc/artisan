@@ -189,8 +189,8 @@ function OpenMenuEditor({
   const menus = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId)?.menus ?? []);
   const others = useOtherServerProjects(projectId);
   const activeLang = useUiStore((s) => s.activeLang);
-  // Une cible qualifiée (`boutique:main`) vit dans un autre project : on la lit
-  // dans l'index serveur (état publié) pour son titre et ses entrées.
+  // A qualified target (`boutique:main`) lives in another project: it is read
+  // from the server index (published state) for its title and inputs.
   const ref = parseDocRef(action.menuId);
   const remote =
     ref.namespace === null
@@ -634,7 +634,7 @@ function ShowTitleEditor({
 
   const enableSubtitle = () => {
     // Seed with the unallocated sentinel; the next mutator that routes
-    // through allocStepLTexts materializes a real key (Task 7 logic).
+    // through allocStepLTexts materializes a real key.
     onChange({ ...action, subtitle: { key: UNALLOCATED_LTEXT_KEY } });
   };
   const removeSubtitle = () => onChange({ ...action, subtitle: undefined });

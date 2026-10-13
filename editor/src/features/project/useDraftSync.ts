@@ -16,11 +16,11 @@ import {
 } from "./persistedDrafts";
 
 /**
- * Fenêtre d'apaisement : on ne resérialise pas l'arbre à chaque frappe.
+ * Debounce window: the tree is not re-serialised on every keystroke.
  *
- * Courte à dessein depuis que le bouton Enregistrer se désactive quand il n'y a
- * rien à enregistrer : c'est ce brouillon qui répond « y a-t-il du travail ? »,
- * donc tout retard ici est un bouton mort juste après une frappe.
+ * Short on purpose since the Save button is disabled when there is nothing to
+ * save: this draft answers "is there work?", so any delay here is a dead
+ * button right after a keystroke.
  */
 const DEBOUNCE_MS = 200;
 
@@ -50,8 +50,8 @@ export function useDraftSync(): void {
       window.removeEventListener("online", sync);
     };
   }, [userId]);
-  // Un autre onglet du même navigateur a écrit le brouillon : on se réaligne,
-  // ou on présente le conflit tout de suite si on a aussi des modifications.
+  // Another tab of the same browser wrote the draft: realign, or present the
+  // conflict right away if we also have changes.
   useEffect(() => {
     if (!userId) return;
     return subscribeDraftSaved((message) => {
@@ -83,9 +83,9 @@ export function useDraftSync(): void {
       for (const project of useAccountStore.getState().account.projects) {
         if (drafts.ownerId !== (projectPrincipal.current(project.id)?.id ?? null)) continue;
         const baseline = baselines[project.id];
-        // Sans base, on n'a jamais lu ce Project du serveur : conserver un
-        // arbre sans référence donnerait un brouillon qu'on ne saurait pas
-        // réconcilier. On attend la première lecture.
+        // Without a base, this Project was never read from the server: keeping a
+        // tree with no reference would give a draft we could not reconcile. Wait for
+        // the first read.
         if (!baseline) continue;
         const previous = drafts.get(project.id);
         const sameLoad = previous !== undefined && !isDirty(previous.baseline, baseline);
@@ -104,11 +104,11 @@ export function useDraftSync(): void {
             previous?.binaryTree ?? useProjectBaselineStore.getState().binaryBaselines[project.id],
           baseline,
           tree,
-          // Figé au premier passage suivant un chargement : c'est la référence
-          // de « as-tu modifié quelque chose ? ».
+          // Frozen on the first pass after a load: it is the reference for "did you
+          // change anything?".
           initialTree: sameLoad ? (previous?.initialTree ?? tree) : initialTree,
-          // L'âge du brouillon est celui de sa BASE, pas de la dernière frappe :
-          // c'est la péremption vis-à-vis du serveur qu'on affiche.
+          // The draft's age is its BASE's, not the last keystroke's: what is shown is
+          // how stale it is relative to the server.
           at: sameLoad ? previous.at : Date.now(),
           renames: drafts.pendingRenames[project.id] ?? previous?.renames,
         });

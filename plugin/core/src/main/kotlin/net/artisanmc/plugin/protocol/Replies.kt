@@ -6,9 +6,9 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 /**
- * Répond à l'éditeur. L'envoi passe toujours par [io] : jamais sur le thread du
- * callback WebSocket, jamais sur un thread du monde. Un exécuteur fermé (plugin
- * en cours d'arrêt) perd la réponse avec un avertissement, sans lever.
+ * Replies to the editor. Sending always goes through [io]: never on the WebSocket
+ * callback thread, never on a world thread. A closed executor (plugin shutting
+ * down) drops the reply with a warning, without throwing.
  */
 class Replies(
     private val io: Executor,
@@ -17,7 +17,7 @@ class Replies(
 ) {
     fun to(request: EditorRequest.WithReply, resultType: String) = Reply(resultType, request.requestId)
 
-    /** Exécute [task] hors du callback WebSocket, sur [executor]. */
+    /** Runs [task] off the WebSocket callback, on [executor]. */
     fun offThread(name: String, executor: Executor = io, task: () -> Unit) {
         try {
             executor.execute(task)
@@ -36,7 +36,7 @@ class Replies(
         fun error(code: String, message: String? = null) =
             send(if (message == null) mapOf("ok" to false, "error" to code) else mapOf("ok" to false, "error" to code, "message" to message))
 
-        /** Journalise [error] avec sa pile, puis répond [code] avec un message lisible. */
+        /** Logs [cause] with its stack trace, then replies [code] with a readable message. */
         fun failure(code: String, context: String, cause: Throwable) {
             logger?.log(Level.WARNING, "[Artisan] $context failed", cause)
             error(code, describe(cause))
@@ -44,7 +44,7 @@ class Replies(
     }
 
     companion object {
-        /** Jamais « ? » côté éditeur : à défaut de message, le type de l'exception. */
+        /** Never "?" in the editor: without a message, the exception type. */
         fun describe(cause: Throwable): String = cause.message?.takeIf { it.isNotBlank() } ?: cause.javaClass.simpleName
     }
 }

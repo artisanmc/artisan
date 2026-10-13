@@ -127,21 +127,21 @@ describe("ServerDetailPage", () => {
   });
 
   /**
-   * La liste vient du disque du serveur, comme la sidebar (ADR
-   * `server-disk-only-storage`) — la table des projects ne décrit plus ce qui
-   * existe. Le slug d'URL doit être résolu en id avant l'appel.
+   * The list comes from the server's disk, like the sidebar (ADR
+   * `server-disk-only-storage`). The URL slug must be resolved to an id before
+   * the call.
    */
-  it("lit les Projects sur le disque du serveur, par ids résolus", async () => {
+  it("reads the Projects from the server's disk, by resolved ids", async () => {
     render(<ServerDetailPage />);
     await waitFor(() => expect(listServerProjects).toHaveBeenCalledWith("net_1", "sk_1"));
   });
 
   /**
-   * Plus de compteur de Documents ici : le backend ne détient plus les fichiers
-   * (ADR `server-disk-only-storage`), donc il ne peut plus le connaître sans
-   * interroger le disque du serveur.
+   * No Document counter here: the hub does not hold the files (ADR
+   * `server-disk-only-storage`), so it cannot know it without querying the
+   * server's disk.
    */
-  it("n'affiche plus de compteur de Documents — le backend ne le connaît plus", async () => {
+  it("no longer shows a Documents counter — the backend no longer knows it", async () => {
     render(<ServerDetailPage />);
     await waitFor(() => expect(screen.getByText("Hub")).toBeInTheDocument());
     expect(screen.queryByText("5")).not.toBeInTheDocument();
@@ -156,9 +156,9 @@ describe("ServerDetailPage", () => {
     );
   });
 
-  /** Même regroupement que la sidebar : un project possédé par un Add-on sort
-   *  de la liste plate et apparaît sous le nom du module. */
-  it("affiche un project possédé sous son module, pas dans la liste des projects", async () => {
+  /** Same grouping as the sidebar: a project owned by an Add-on leaves the flat
+   *  list and appears under the module name. */
+  it("shows an owned project under its module, not in the projects list", async () => {
     screensState.screens = [
       {
         id: "catalogue",
@@ -174,7 +174,7 @@ describe("ServerDetailPage", () => {
     expect(screen.getByText("Hub")).toBeInTheDocument();
   });
 
-  it("montre les onglets du module : éditeur puis écrans déclarés", async () => {
+  it("shows the module's tabs: editor then declared screens", async () => {
     screensState.screens = [
       {
         id: "catalogue",
@@ -195,31 +195,31 @@ describe("ServerDetailPage", () => {
   });
 
   /**
-   * Tant que le disque n'a pas répondu, la page ne prétend rien : afficher
-   * « aucun projet » pendant la lecture, c'est affirmer un vide qu'on n'a pas
-   * constaté — exactement ce qui donnait un serveur « vide » au premier rendu.
+   * Until the disk has answered, the page claims nothing: showing "no project"
+   * during the read asserts an emptiness not observed — exactly what gave an
+   * "empty" server on first render.
    */
-  it("n'annonce pas un serveur vide tant que la lecture disque n'a pas répondu", async () => {
+  it("does not announce an empty server until the disk read has answered", async () => {
     vi.mocked(listServerProjects).mockReturnValue(new Promise(() => {}) as never);
     render(<ServerDetailPage />);
     await screen.findByText("serverDetail.loadingProjects");
     expect(screen.queryByText("serverDetail.noProjects")).not.toBeInTheDocument();
   });
 
-  it("dit que le serveur est injoignable quand la lecture disque échoue", async () => {
+  it("says the server is unreachable when the disk read fails", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({ ok: false, error: "read_error" });
     render(<ServerDetailPage />);
     await screen.findByText("serverDetail.projectsUnavailable");
     expect(screen.queryByText("serverDetail.noProjects")).not.toBeInTheDocument();
   });
 
-  it("dit que le serveur est hors ligne quand il répond server_offline", async () => {
+  it("says the server is offline when it answers server_offline", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({ ok: false, error: "server_offline" });
     render(<ServerDetailPage />);
     await screen.findByText("serverDetail.serverOffline");
   });
 
-  it("plugin à mettre à jour : le dit, et n'offre ni import ni configuration", async () => {
+  it("plugin needs an update: says so, and offers neither import nor configuration", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({
       ok: false,
       error: "plugin_update_required",
@@ -230,9 +230,9 @@ describe("ServerDetailPage", () => {
     expect(screen.queryByText("serverConfig.title")).not.toBeInTheDocument();
   });
 
-  /** Les Config screens décident du regroupement : la page les charge pour SON
-   *  serveur, sinon un project possédé apparaît d'abord à plat puis saute. */
-  it("charge les Config screens de son propre serveur", async () => {
+  /** Config screens decide the grouping: the page loads them for ITS server,
+   *  otherwise an owned project first appears flat then jumps. */
+  it("loads the Config screens of its own server", async () => {
     render(<ServerDetailPage />);
     await waitFor(() =>
       expect(screensState.load).toHaveBeenCalledWith({ networkId: "net_1", serverId: "sk_1" }),
@@ -240,21 +240,21 @@ describe("ServerDetailPage", () => {
   });
 
   /**
-   * Quand une route enfant occupe l'écran (le canvas d'un Project), cette page
-   * n'est qu'un passe-plat : elle ne doit ni lire le disque, ni s'abonner à
-   * l'état d'édition. Sinon chaque frappe dans l'éditeur re-rendait le parent,
-   * donc l'`<Outlet>`, donc tout le canvas.
+   * When a child route fills the screen (a Project's canvas), this page is only
+   * a pass-through: it must neither read the disk nor subscribe to editing
+   * state. Otherwise every keystroke in the editor re-rendered the parent, hence
+   * the `<Outlet>`, hence the whole canvas.
    */
-  it("ne lit pas le disque quand une route enfant est affichée", async () => {
+  it("does not read the disk when a child route is shown", async () => {
     routerState.childMatches = [{ id: "child" }];
     render(<ServerDetailPage />);
     await waitFor(() => expect(getNetwork).toHaveBeenCalled());
     expect(listServerProjects).not.toHaveBeenCalled();
   });
 
-  /** Slug de serveur inconnu de ce network : l'URL est périmée, on renvoie au
-   *  network plutôt que de tourner indéfiniment sur « lecture en cours ». */
-  it("renvoie au network quand le serveur n'existe pas", async () => {
+  /** Server slug unknown to this network: the URL is stale, go back to the
+   *  network rather than spinning forever on "reading". */
+  it("redirects to the network when the server does not exist", async () => {
     vi.mocked(getNetwork).mockResolvedValueOnce({
       network: { id: "net_1", name: "Mon Réseau", tier: "free" },
       serverKeys: [{ id: "sk_9", slug: "autre", label: "Autre" }],

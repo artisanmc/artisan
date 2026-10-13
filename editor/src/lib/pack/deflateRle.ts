@@ -1,12 +1,12 @@
 /**
- * `zlib.deflateSync(data, { level: 9, strategy: Z_RLE })`, octet pour octet.
+ * `zlib.deflateSync(data, { level: 9, strategy: Z_RLE })`, byte for byte.
  *
- * C'est ce que pngjs passe à zlib pour chaque PNG qu'il écrit. Le resource pack
- * construit dans le navigateur doit être identique, entrée par entrée, à celui du
- * backend : fflate compresse bien, mais autrement. On reproduit donc
- * `deflate_rle` et `trees.c` de zlib (fenêtre 32 Ko, memLevel 8) : correspondances
- * de distance 1 uniquement, un bloc toutes les 16383 entrées, et pour chaque bloc
- * le moins cher de stocké / fixe / dynamique, avec les arbres de Huffman de zlib.
+ * This is what pngjs passes to zlib for every PNG it writes. The resource pack
+ * built in the browser must be identical, entry by entry, to the pngjs/zlib
+ * output: fflate compresses well, but differently. So zlib's `deflate_rle`
+ * and `trees.c` are reproduced (32 KB window, memLevel 8): distance-1 matches
+ * only, one block every 16383 entries, and for each block the cheapest of
+ * stored / fixed / dynamic, with zlib's Huffman trees.
  */
 const MAX_BITS = 15;
 const MAX_BL_BITS = 7;
@@ -33,7 +33,7 @@ const EXTRA_DBITS = [
 const EXTRA_BLBITS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 7];
 const BL_ORDER = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
 
-/** Un arbre façon zlib : `freq` et `code` partagent un champ, `dad` et `len` l'autre. */
+/** A zlib-style tree: `freq` and `code` share one field, `dad` and `len` the other. */
 interface Tree {
   fc: Uint16Array;
   dl: Uint16Array;
@@ -140,7 +140,7 @@ class Deflater {
   blCount = new Uint16Array(MAX_BITS + 1);
   optLen = 0;
   staticLen = 0;
-  /** Entrées du bloc : longueur - 3 pour une correspondance, octet sinon. */
+  /** Block entries: length - 3 for a match, the byte otherwise. */
   syms = new Int32Array(LIT_BUFSIZE);
   isMatch = new Uint8Array(LIT_BUFSIZE);
   symNext = 0;
@@ -179,7 +179,7 @@ class Deflater {
     this.biValid = 0;
   }
 
-  /** Vrai quand le tampon d'entrées est plein : il faut vider le bloc. */
+  /** True when the entry buffer is full: the block must be flushed. */
   tallyLit(c: number): boolean {
     this.syms[this.symNext] = c;
     this.isMatch[this.symNext++] = 0;
@@ -412,12 +412,12 @@ class Deflater {
       this.sendCode(code + LITERALS + 1, lt);
       const extra = EXTRA_LBITS[code] as number;
       if (extra !== 0) this.sendBits(lc - (BASE_LENGTH[code] as number), extra);
-      this.sendCode(0, dt); // distance 1 : code 0, sans bits supplémentaires
+      this.sendCode(0, dt); // distance 1: code 0, no extra bits
     }
     this.sendCode(END_BLOCK, lt);
   }
 
-  /** `_tr_flush_block` ; `stored` est null quand le début du bloc a quitté la fenêtre. */
+  /** `_tr_flush_block`; `stored` is null when the block start has left the window. */
   flushBlock(stored: Uint8Array | null, storedLen: number, last: boolean): void {
     this.buildTree(this.lDesc);
     this.buildTree(this.dDesc);
@@ -474,7 +474,7 @@ function adler32(data: Uint8Array): number {
 export function deflateRle(data: Uint8Array): Uint8Array {
   const s = new Deflater();
   const total = data.length;
-  // Positions absolues : `strstart`, début de fenêtre, octets déjà lus, début de bloc.
+  // Absolute positions: `strstart`, window start, bytes already read, block start.
   let strstart = 0;
   let windowStart = 0;
   let loaded = 0;

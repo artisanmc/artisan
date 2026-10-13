@@ -58,8 +58,8 @@ beforeEach(() => {
   } as any);
 });
 
-describe("EditorPane — propriétés uniquement", () => {
-  it("un menu sélectionné affiche ses propriétés sans catalogue ni onglets", () => {
+describe("EditorPane — properties only", () => {
+  it("a selected menu shows its properties with no catalog or tabs", () => {
     useSelectionStore.getState().set(["m1"]);
     render(<EditorPane projectId={PID} />);
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
@@ -68,21 +68,21 @@ describe("EditorPane — propriétés uniquement", () => {
     expect(screen.queryByTestId("assets")).toBeNull();
   });
 
-  it("un élément de menu affiche ses propriétés sans onglets", () => {
+  it("a menu element shows its properties with no tabs", () => {
     useSelectionStore.getState().set(["el1"], 0, "m1");
     render(<EditorPane projectId={PID} />);
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
   });
 
-  /** On ne dépose ni item ni glyphe dans une commande. */
-  it("une commande affiche ses propriétés sans catalogue", () => {
+  /** No item or glyph is dropped into a command. */
+  it("a command shows its properties with no catalog", () => {
     useSelectionStore.getState().set(["c1"]);
     render(<EditorPane projectId={PID} />);
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
     expect(screen.queryByTestId("library")).toBeNull();
   });
 
-  it("affiche directement les propriétés d'une commande", () => {
+  it("shows a command's properties directly", () => {
     useSelectionStore.getState().set(["c1"]);
     render(<EditorPane projectId={PID} />);
     expect(screen.getByTestId("flow")).toBeInTheDocument();
@@ -90,11 +90,11 @@ describe("EditorPane — propriétés uniquement", () => {
 });
 
 /**
- * Les paramètres du project survivent à une sélection vide — c'est ce qui les
- * distingue d'une sélection — donc ils avaient besoin d'une sortie explicite.
+ * Project settings survive an empty selection — that is what sets them apart
+ * from a selection — so they needed an explicit way out.
  */
 describe("EditorPane — fermeture", () => {
-  it("la croix vide la sélection et referme les paramètres du projet", () => {
+  it("the cross clears the selection and closes the project settings", () => {
     useUiStore.getState().setProjectSettingsOpen(true);
     useSelectionStore.getState().set(["m1"]);
     render(<EditorPane projectId={PID} />);
@@ -107,7 +107,7 @@ describe("EditorPane — fermeture", () => {
 });
 
 describe("EditorPane — mode YAML", () => {
-  it("remplace les propriétés par le fichier du document de la sélection", () => {
+  it("replaces the properties with the file of the selection's document", () => {
     useSelectionStore.getState().set(["el1"], 0, "m1");
     render(<EditorPane projectId={PID} />);
 
@@ -117,7 +117,7 @@ describe("EditorPane — mode YAML", () => {
     expect(screen.queryByTestId("flow")).toBeNull();
   });
 
-  it("les paramètres du projet ouvrent le manifest", () => {
+  it("the project settings open the manifest", () => {
     useUiStore.getState().setProjectSettingsOpen(true);
     render(<EditorPane projectId={PID} />);
 
@@ -126,7 +126,7 @@ describe("EditorPane — mode YAML", () => {
     expect(screen.getByTestId("yaml")).toHaveTextContent("manifest.yaml");
   });
 
-  it("pas de bascule sans document sélectionné", () => {
+  it("no toggle without a selected document", () => {
     useUiStore.getState().setProjectSettingsOpen(false);
     render(<EditorPane projectId={PID} />);
     expect(screen.queryByTestId("editor-pane-yaml")).toBeNull();

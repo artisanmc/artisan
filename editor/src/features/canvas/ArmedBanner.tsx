@@ -1,4 +1,5 @@
 import { useUiStore } from "@/state/uiStore";
+import { useTranslation } from "react-i18next";
 import { useTextureUrl } from "./textureStore";
 
 /**
@@ -7,6 +8,7 @@ import { useTextureUrl } from "./textureStore";
  * places the armed material — see `onStageClick` in Stage.tsx.
  */
 export function ArmedBanner() {
+  const { t } = useTranslation();
   const armed = useUiStore((s) => s.armedMaterial);
   const setArmed = useUiStore((s) => s.setArmedMaterial);
   const url = useTextureUrl(armed ?? "");
@@ -25,12 +27,13 @@ export function ArmedBanner() {
         />
       ) : null}
       <span className="text-[12.5px]">
-        <strong className="text-[var(--brand)] font-semibold">{armed}</strong> armé — clique une case pour le placer
+        <strong className="text-[var(--brand)] font-semibold">{armed}</strong>{" "}
+        {t("canvas.armedHint")}
       </span>
       <button
         type="button"
         onClick={() => setArmed(null)}
-        title="Cancel"
+        title={t("canvas.cancel")}
         className="flex h-6 w-6 items-center justify-center rounded-[10px] text-[14px] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
       >
         ×

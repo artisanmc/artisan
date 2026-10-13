@@ -3,33 +3,32 @@ import { describe, expect, it } from "vitest";
 import { isResolvedContext } from "./resolvedContexts";
 
 /**
- * Un contexte d'appel se calcule en résolvant les arguments du lien contre les
- * lignes de l'appelant. Quand la source n'a pas de données — serveur non lié,
- * donc aucun snapshot — il n'y a aucune ligne à itérer et les templates
- * ressortent tels quels : `{cat}`, `{cat.id}`. Les proposer comme contexte donne
- * un bandeau qui affiche « Vu depuis : shop_main › {cat} » et un choix qui ne
- * change rien.
+ * A call context is computed by resolving the link's arguments against the
+ * caller's rows. When the source has no data — server not linked, so no
+ * snapshot — there is no row to iterate and the templates come out verbatim:
+ * `{cat}`, `{cat.id}`. Offering them as a context gives a banner reading
+ * "Seen from: shop_main › {cat}" and a choice that changes nothing.
  */
 describe("isResolvedContext", () => {
-  it("accepte des valeurs réellement résolues", () => {
+  it("accepts genuinely resolved values", () => {
     expect(isResolvedContext({ category: "les_cles", category_name: "Les Clés" })).toBe(true);
   });
 
-  it("accepte une valeur non-texte (la ligne entière passée telle quelle)", () => {
+  it("accepts a non-text value (the whole row passed as is)", () => {
     expect(isResolvedContext({ cat: { id: "les_cles", name: "Les Clés" } })).toBe(true);
   });
 
-  it("rejette un template resté brut", () => {
+  it("rejects a template left raw", () => {
     expect(isResolvedContext({ category: "{cat.id}" })).toBe(false);
     expect(isResolvedContext({ cat: "{cat}" })).toBe(false);
   });
 
-  /** Un seul argument non résolu suffit : l'écran obtenu serait faux. */
-  it("rejette dès qu'un argument sur deux est brut", () => {
+  /** A single unresolved argument is enough: the resulting screen would be wrong. */
+  it("rejects as soon as one argument out of two is raw", () => {
     expect(isResolvedContext({ category: "les_cles", category_name: "{cat.name}" })).toBe(false);
   });
 
-  it("accepte une accolade qui n'est pas un template", () => {
+  it("accepts a brace that is not a template", () => {
     expect(isResolvedContext({ label: "Pack {rare}" })).toBe(false);
     expect(isResolvedContext({ label: "100% coton" })).toBe(true);
   });

@@ -5,7 +5,7 @@ import { unzlibSync } from "fflate";
 import { describe, expect, test } from "vitest";
 import { deflateRle } from "./deflateRle";
 
-// Les options de pngjs 7 pour ses IDAT.
+// pngjs 7's options for its IDATs.
 const zlibRle = (data: Uint8Array) =>
   new Uint8Array(deflateSync(data, { level: 9, strategy: constants.Z_RLE, chunkSize: 32 * 1024 }));
 
@@ -19,7 +19,7 @@ function sample(length: number, kind: number, seed: number): Uint8Array {
   let run = 0;
   for (let i = 0; i < length; i++) {
     if (kind === 0)
-      out[i] = rand() * 256; // bruit : blocs stockés
+      out[i] = rand() * 256; // noise: stored blocks
     else if (kind === 1) {
       if (rand() < 0.05) run = rand() * 256;
       out[i] = run; // longues plages : arbres dynamiques
@@ -33,7 +33,7 @@ describe("deflateRle", () => {
     const inputs: Uint8Array[] = [
       new Uint8Array([1]),
       new Uint8Array(4),
-      new Uint8Array(300_000), // fenêtre qui glisse
+      new Uint8Array(300_000), // sliding window
       new Uint8Array(16_383 * 3), // bloc final vide
     ];
     for (let n = 0; n < 30; n++) inputs.push(sample(1 + ((n * 7717) % 9000), n % 3, n + 1));

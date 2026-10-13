@@ -19,8 +19,8 @@ tasks.named<Jar>("sourcesJar") {
     archiveBaseName.set("artisan-core-api")
 }
 
-// SemVer propre à l'API (colonne `Since` d'api-surface.md), indépendante du
-// numéro de build du plugin : `-PapiVersion=1.6.0` en release (tag `api-v1.6.0`).
+// The API has its own SemVer (the `Since` column of api-surface.md), independent of the
+// plugin build number: `-PapiVersion=1.6.0` on release (tag `api-v1.6.0`).
 val apiVersion: String = providers.gradleProperty("apiVersion").getOrElse(project.version.toString())
 
 publishing {

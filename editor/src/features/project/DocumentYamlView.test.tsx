@@ -7,8 +7,8 @@ import type { Project, ProjectId } from "@/domain/types";
 
 vi.mock("@/lib/api/projectFiles", () => ({ writeProjectFiles: vi.fn(async () => ({ ok: true })) }));
 
-// Le re-parse du Project après écriture est testé ailleurs ; ici on isole ce qui
-// part sur le fil.
+// Re-parsing the Project after the write is tested elsewhere; this isolates
+// what goes over the wire.
 vi.mock("@/features/project/saveProjectToDisk", () => ({
   adoptDiskIntoProject: vi.fn((p: unknown) => p),
 }));
@@ -38,10 +38,9 @@ function project(): Project {
 }
 
 /**
- * L'onglet YAML écrit **verbatim**. L'ADR `yaml-assisted-editing` canonicalisait
- * même depuis cet onglet — c'est ce qui effaçait les commentaires d'un admin sur
- * ses propres menus. Depuis que le disque est le seul store, ce que tu tapes est
- * ce qui atterrit.
+ * The YAML tab writes **verbatim**. Canonicalising even from this tab erased
+ * an admin's comments on their own menus. Since the disk is the only store,
+ * what you type is what lands.
  */
 describe("DocumentYamlView", () => {
   beforeEach(() => {
@@ -51,7 +50,7 @@ describe("DocumentYamlView", () => {
     });
   });
 
-  it("écrit exactement le texte tapé, commentaires et espacement compris", async () => {
+  it("writes exactly the typed text, comments and spacing included", async () => {
     render(
       <DocumentYamlView
         project={project()}
@@ -70,7 +69,7 @@ describe("DocumentYamlView", () => {
     expect(plan.files[0]!.path).toBe("menus/accueil.yaml");
   });
 
-  it("passe par le compare-and-swap comme n'importe quelle écriture", async () => {
+  it("goes through compare-and-swap like any other write", async () => {
     render(
       <DocumentYamlView
         project={project()}
@@ -83,12 +82,12 @@ describe("DocumentYamlView", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save|Enregistrer/ }));
 
     await waitFor(() => expect(writeProjectFiles).toHaveBeenCalled());
-    // Le hash porte sur le contenu CHARGÉ, pas sur le nouveau : écrire verbatim
-    // ne dispense pas de vérifier que le disque n'a pas bougé.
+    // The hash covers the LOADED content, not the new one: writing verbatim does
+    // not skip checking that the disk has not moved.
     expect(vi.mocked(writeProjectFiles).mock.calls[0]![3].files[0]!.base_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("n'enregistre rien tant que le texte n'a pas changé", () => {
+  it("saves nothing while the text has not changed", () => {
     render(
       <DocumentYamlView
         project={project()}

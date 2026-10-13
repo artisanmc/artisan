@@ -5,7 +5,7 @@ plugins {
     id("io.github.goooler.shadow") version "8.1.8" apply false
 }
 
-// La CI de déploiement passe `-PartisanVersion=1.0.<run>`.
+// The deploy CI passes `-PartisanVersion=1.0.<run>`.
 val artisanVersion = providers.gradleProperty("artisanVersion").getOrElse("1.0.0-SNAPSHOT")
 
 subprojects {
@@ -40,7 +40,7 @@ subprojects {
 
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
-        // Les vecteurs de conformance sont résolus depuis plugin/ (../docs, ../testdata).
+        // Conformance vectors are resolved from plugin/ (../docs, ../testdata).
         workingDir = rootDir
     }
 }

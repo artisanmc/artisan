@@ -80,7 +80,7 @@ export interface PreviewRequest {
   args?: Record<string, string>;
 }
 
-/** Live preview relayed to the connected plugin (5 s backend timeout). */
+/** Live preview relayed to the connected plugin (5 s hub timeout). */
 export async function previewDataSource(
   networkId: string,
   serverId: string,

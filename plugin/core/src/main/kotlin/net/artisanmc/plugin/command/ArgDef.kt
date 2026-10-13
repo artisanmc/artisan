@@ -23,8 +23,7 @@ sealed class ArgDef {
          * `default: "{sender}"` in the file — omitted argument binds whoever typed
          * the command. Lets `/dailyq [player]` mean "mine by default, someone
          * else's if you name them" without the author writing a branch for the
-         * common case. The editor already offers it as a checkbox; this is the
-         * runtime finally honouring what it writes. A non-player sender (console)
+         * common case. A non-player sender (console)
          * has nobody to fall back to, so the argument stays absent.
          */
         val defaultSender: Boolean = false,

@@ -108,7 +108,7 @@ function menuTail(clear: boolean | undefined, context: Record<string, string> | 
   return s;
 }
 
-// ── conditions ───────────────────────────────────────────────────────────────
+// Conditions
 
 function printFlat(conditions: Condition[], joins: ("and" | "or")[] | undefined): string {
   let out = printAtom(conditions[0]!);

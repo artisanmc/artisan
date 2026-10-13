@@ -5,7 +5,7 @@ import org.eclipse.jetty.websocket.api.Session
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
 
-/** WebSocket `/ws/editor` : le serveur prévient les onglets ouverts (rechargement, renommage). */
+/** WebSocket `/ws/editor`: the server notifies open tabs (reload, rename). */
 class EditorChannel(private val logger: Logger?) {
     private val open = ConcurrentHashMap.newKeySet<Session>()
 
@@ -14,7 +14,7 @@ class EditorChannel(private val logger: Logger?) {
         open.forEach { session -> if (session.isOpen) session.sendText(text, Callback.NOOP) }
     }
 
-    /** Une annonce d'un serveur, sous la forme que l'éditeur recevait du backend. */
+    /** An announcement from a server, in the shape the editor expects. */
     fun relay(event: Map<String, Any?>, server: String = Servers.LOCAL) {
         if (event["type"] != "projects_reloaded") return
         val projects = (event["projects"] as? List<*>).orEmpty().map { project ->

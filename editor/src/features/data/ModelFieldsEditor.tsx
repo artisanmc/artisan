@@ -471,7 +471,7 @@ function FieldList({
 }) {
   const { t } = useTranslation();
   const editSourceField = useAccountStore((s) => s.editSourceField);
-  // The draft stays hidden behind a dashed "+ Ajouter un champ" button:
+  // The draft stays hidden behind a dashed "+ Add a field" button:
   // always-visible inputs looked like an already-added field row.
   const [draftOpen, setDraftOpen] = useState(false);
   const [newName, setNewName] = useState("");

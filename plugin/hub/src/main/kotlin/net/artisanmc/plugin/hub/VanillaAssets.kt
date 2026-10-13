@@ -13,12 +13,12 @@ import java.util.logging.Logger
 import java.util.zip.ZipFile
 
 /**
- * Items et textures vanilla, sans le backend.
+ * Vanilla items and textures.
  *
- * Le catalogue d'items et les icônes 3D sont générés une fois par version côté dépôt
- * (`tools/minecraft-assets/items`, `tools/minecraft-assets/icons`) et voyagent dans le jar. Les textures
- * viennent du jar client Mojang, téléchargé une seule fois dans `<cache>/<version>/`, à la
- * première texture demandée : un serveur qui n'ouvre jamais l'éditeur ne télécharge rien.
+ * The item catalog and 3D icons are generated once per version in the repository
+ * (`tools/minecraft-assets/items`, `tools/minecraft-assets/icons`) and ship in the jar. Textures
+ * come from the Mojang client jar, downloaded once into `<cache>/<version>/` on the first
+ * texture request: a server that never opens the editor downloads nothing.
  */
 class VanillaAssets(
     private val cache: File,
@@ -32,7 +32,7 @@ class VanillaAssets(
     private val done get() = File(cache, "$version/.done")
     private val started = java.util.concurrent.atomic.AtomicBoolean()
 
-    /** Le catalogue embarqué le plus proche de la version du serveur. */
+    /** The bundled catalog closest to the server's version. */
     val catalogVersion: String? by lazy {
         val known = loader.getResourceAsStream("$ROOT/items/versions.txt")?.bufferedReader()?.readLines()
             ?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty().sortedWith(VERSIONS)
@@ -45,7 +45,7 @@ class VanillaAssets(
         catalogVersion?.let { v -> loader.getResourceAsStream("$ROOT/items/$v.json")?.use { mapper.readTree(it) } }
     }
 
-    /** `item/diamond_sword`, `icons/acacia_button`, `font/ascii` : un PNG, ou null. */
+    /** `item/diamond_sword`, `icons/acacia_button`, `font/ascii`: a PNG, or null. */
     fun texture(path: String): ByteArray? {
         if (!PATH.matches(path) || ".." in path) return null
         File(textures, "$path.png").takeIf { it.isFile }?.let { return it.readBytes() }

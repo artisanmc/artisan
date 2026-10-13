@@ -1,6 +1,8 @@
 ---
 title: Composed titles
 description: Add and align resizable text in resource-pack menu titles.
+sidebar:
+  order: 6
 ---
 
 Select a menu, open **Menu appearance** and switch to **Composed** mode.

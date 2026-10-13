@@ -1,16 +1,16 @@
 #!/usr/bin/env bun
 /**
  * Usage: bun pack-icons.ts [version...]
- * Sans argument : réempaquette toutes les versions déjà présentes dans icons/.
+ * Without arguments: repacks every version already present in icons/.
  *
- * Empaquette dans `icons/icons-<version>.zip` les artefacts qu'on ne sait pas
- * régénérer sans navigateur :
- *   - mc-assets/<version>/textures/icons/*.png  (rendus par gen-icons.ts)
- *   - items/<version>.json                      (post-rendu, pointe vers icons/)
+ * Packs into `icons/icons-<version>.zip` the artifacts that cannot be
+ * regenerated without a browser:
+ *   - mc-assets/<version>/textures/icons/*.png  (rendered by gen-icons.ts)
+ *   - items/<version>.json                      (post-render, points to icons/)
  *
- * Le hub les embarque dans son jar avec -PwithEditor (plugin/hub/build.gradle.kts).
- * À rejouer (et à committer) après chaque `gen-items.ts` + `gen-icons.ts`, donc
- * à chaque nouvelle version de Minecraft.
+ * The hub embeds them in its jar with -PwithEditor (plugin/hub/build.gradle.kts).
+ * Re-run (and commit) after each `gen-items.ts` + `gen-icons.ts`, so on every
+ * new Minecraft version.
  */
 
 import { zipSync } from "fflate";
@@ -30,7 +30,7 @@ const versions =
       : [];
 
 if (versions.length === 0) {
-  console.error("Aucune version — passe-la en argument (ex: 1.21.11).");
+  console.error("No version — pass it as an argument (e.g. 1.21.11).");
   process.exit(1);
 }
 
@@ -40,7 +40,7 @@ for (const version of versions) {
   const iconsDir = join(DATA_DIR, "mc-assets", version, "textures", "icons");
   const itemsPath = join(DATA_DIR, "items", `${version}.json`);
   if (!existsSync(iconsDir)) {
-    console.error(`✗ ${version} : ${iconsDir} absent — lance gen-items.ts puis gen-icons.ts d'abord.`);
+    console.error(`✗ ${version}: ${iconsDir} missing — run gen-items.ts then gen-icons.ts first.`);
     process.exit(1);
   }
 
@@ -51,11 +51,11 @@ for (const version of versions) {
   if (existsSync(itemsPath)) {
     entries[`items/${version}.json`] = readFileSync(itemsPath);
   } else {
-    console.warn(`  ! items/${version}.json absent — l'archive ne portera que les icônes.`);
+    console.warn(`  ! items/${version}.json missing — the archive will only hold the icons.`);
   }
 
   const out = join(SEED_DIR, `icons-${version}.zip`);
   writeFileSync(out, zipSync(entries, { level: 9 }));
   const mb = (statSync(out).size / 1048576).toFixed(1);
-  console.log(`✓ ${version} : ${Object.keys(entries).length} fichiers → icons/icons-${version}.zip (${mb} Mo)`);
+  console.log(`✓ ${version}: ${Object.keys(entries).length} files → icons/icons-${version}.zip (${mb} MB)`);
 }

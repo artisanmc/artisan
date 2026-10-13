@@ -21,8 +21,6 @@ interface ItemTileProps {
   item: LibraryItem;
   textureBase: string;
   version: string;
-  isCustom: boolean;
-  serverKeyId?: string;
   bundleReady: boolean;
   tints?: Record<number, string>;
 }
@@ -31,8 +29,6 @@ function ItemTile({
   item,
   textureBase,
   version,
-  isCustom,
-  serverKeyId,
   bundleReady,
   tints,
 }: ItemTileProps) {
@@ -55,7 +51,7 @@ function ItemTile({
       (entries) => {
         if (!entries[0]?.isIntersecting) return;
         observer.disconnect();
-        renderToCanvas(item.model!, version, isCustom, serverKeyId, tints).then((src) => {
+        renderToCanvas(item.model!, version, tints).then((src) => {
           if (cancelled || !src) return;
           setRendered(item.id, src);
         });
@@ -67,7 +63,7 @@ function ItemTile({
       cancelled = true;
       observer.disconnect();
     };
-  }, [item.model, bundleReady, version, isCustom, serverKeyId, setRendered]);
+  }, [item.model, bundleReady, version, setRendered]);
 
   return (
     <button
@@ -219,18 +215,12 @@ export function Library() {
               }}
             >
               {(rows[virtualRow.index] ?? []).map((item) => {
-                const isCustom = customData.items.some((c) => c.id === item.id);
-                const textureBase = isCustom
-                  ? `${API_URL}/api/v1/textures/custom/${customData.serverKeyId}`
-                  : `${API_URL}/api/v1/textures/${version}`;
                 return (
                   <ItemTile
                     key={item.id}
                     item={item}
-                    textureBase={textureBase}
+                    textureBase={`${API_URL}/api/v1/textures/${version}`}
                     version={version}
-                    isCustom={isCustom}
-                    serverKeyId={isCustom ? customData.serverKeyId : undefined}
                     bundleReady={bundleReady}
                     tints={item.tints}
                   />

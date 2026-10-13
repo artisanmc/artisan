@@ -19,15 +19,15 @@ const IDENTITY = {
 const menu = (id: string) => `schema: menu/v1\nid: ${id}\ntitle: ${id}\nsize: 27\nelements: []\n`;
 
 /**
- * Le piège de l'affichage-depuis-le-cache : les deux constructions écrivent dans
- * le MÊME store, celui que le canvas lit. Celle du cache part la première mais
- * peut finir la dernière (elle attend, elle aussi, les modèles déclarés du
- * serveur) — et elle écrasait alors la version fraîche, en silence.
+ * The show-from-cache trap: both builds write to the SAME store, the one the
+ * canvas reads. The cache build starts first but may finish last (it also
+ * waits for the server's declared models) — and it then silently overwrote
+ * the fresh version.
  *
- * L'écran affichait donc la visite précédente en croyant montrer le serveur :
- * des éléments disparus, un template vide, et rien pour le dire.
+ * The screen showed the previous visit while claiming to show the server:
+ * vanished elements, an empty template, and nothing to say so.
  */
-describe("useProjectLoader — la version fraîche gagne toujours", () => {
+describe("useProjectLoader — the fresh version always wins", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(draftsApi, "listDrafts").mockResolvedValue([]);
@@ -39,7 +39,7 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
   });
 
-  it("un affichage depuis le cache qui finit en retard n'écrase pas le Project frais", async () => {
+  it("a cached display that finishes late does not overwrite the fresh Project", async () => {
     useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
@@ -57,9 +57,9 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
       hash: "fraiche",
     });
 
-    // La construction depuis le cache part en premier mais traîne : c'est
-    // l'ordre qui révèle le bug, et il n'a rien de théorique (deux appels
-    // réseau distincts, deux latences).
+    // The build from the cache starts first but lags: this order reveals the
+    // bug, and it is not theoretical (two distinct network calls, two
+    // latencies).
     let call = 0;
     vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockImplementation(() => {
       call += 1;
@@ -79,10 +79,10 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
   });
 
   /**
-   * « Lecture des fichiers du serveur… » s'affichait encore à chaque visite,
-   * alors que la version connue était là : la construction depuis le cache
-   * attendait un aller-retour REST (les modèles déclarés du serveur) avant de
-   * rendre quoi que ce soit. Un cache qui attend le réseau n'est pas un cache.
+   * "Reading the server's files…" still showed on every visit although the
+   * known version was there: the build from the cache waited for a REST round
+   * trip (the server's declared models) before rendering anything. A cache that
+   * waits for the network is not a cache.
    */
   it("does not expose a cached project before the network authorizes opening it", async () => {
     useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
@@ -97,7 +97,7 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
 
     vi.spyOn(userProjectsApi, "loadUserProject").mockReturnValue(new Promise(() => {}) as never);
     vi.spyOn(projectFilesApi, "readProjectFiles").mockReturnValue(new Promise(() => {}) as never);
-    // Le réseau ne répond JAMAIS : si l'écran attend quoi que ce soit, il reste vide.
+    // The network NEVER answers: if the screen waits for anything, it stays empty.
     const models = vi
       .spyOn(dataSourcesApi, "fetchServerDeclaredModels")
       .mockReturnValue(new Promise(() => {}) as never);
@@ -110,16 +110,14 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
   });
 
   /**
-   * Le pire cas possible : du travail non enregistré qui disparaît à un simple
-   * rechargement de page.
+   * The worst possible case: unsaved work disappearing on a simple page reload.
    *
-   * Le brouillon persisté porte les éléments ajoutés mais pas encore
-   * enregistrés. Les chemins passant par le cache — affichage immédiat,
-   * réponse « inchangé », serveur injoignable — reconstruisaient depuis
-   * l'arbre du SERVEUR en l'ignorant. Seul le chemin « arbre frais » le
-   * reprenait.
+   * The persisted draft holds elements added but not yet saved. The paths
+   * through the cache — immediate display, "unchanged" answer, unreachable
+   * server — rebuilt from the SERVER's tree, ignoring it. Only the "fresh tree"
+   * path picked it up.
    */
-  it("un brouillon non enregistré survit à une réponse « inchangé »", async () => {
+  it("an unsaved draft survives an 'unchanged' response", async () => {
     useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",

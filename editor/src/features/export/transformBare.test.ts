@@ -1,8 +1,8 @@
-// ADR bare-data-files T2: the exporter writes BARE data files — pure values,
+// ADR bare-data-files: the exporter writes BARE data files — pure values,
 // ltext inlined as the default language's literal, schema beside the data
 // (models/<sourceId>.yaml doc or ref, minimal _source.yaml for per-row), and
 // generated comments from model hints. Locked as a files-level fixed point
-// with the T1 tolerant importer.
+// with the tolerant importer.
 import type { DataModelId, DataSourceId, ProjectId } from "@/domain/types";
 import { parse } from "yaml";
 import { flattenLangTree } from "@/lib/langTree";
@@ -169,8 +169,7 @@ describe("bare export (ADR bare-data-files T2)", () => {
     };
     const files = transform(project as never);
     const dataFile = files[`${base}/data/settings.yaml`]!;
-    // The hint sits above the key it documents (ADR yaml-assisted-editing ⑥ —
-    // was a flat list in the header block until 2026-07-27).
+    // The hint sits above the key it documents (ADR yaml-assisted-editing ⑥).
     expect(dataFile).toContain("# Remise globale en % (0-100)\ndiscount: 0");
 
     // Hand-written header (leading comment lines before the generated block)
@@ -376,7 +375,7 @@ describe("schema hints become per-key comments", () => {
   it("states that hand-written comments are overwritten", () => {
     const out = transform(projectWith({ whole_shop_discount: 10 }))[`${base}/data/shop_settings.yaml`]!;
     expect(out).toMatch(/^# ──/m);
-    expect(out.toLowerCase()).toContain("écras");
+    expect(out.toLowerCase()).toContain("overwritten");
   });
 
   it("still round-trips: comments carry no data", () => {

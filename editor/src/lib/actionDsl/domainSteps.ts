@@ -16,7 +16,7 @@ import { printActionDsl } from "./printer";
  *  - **Project-aware** ({@link stepsToDsl}/{@link dslToSteps}): menu / command /
  *    dialog action text IS a registered Key site, so an `LText` whose key is in
  *    `Project.i18nKeys` serializes as `@key`; anything else falls back to a
- *    literal (resolved via `getText`). This is what Phase 2 uses.
+ *    literal (resolved via `getText`).
  */
 
 const REF_PREFIX = "@";

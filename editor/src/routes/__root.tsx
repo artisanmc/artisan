@@ -18,8 +18,8 @@ export const Route = createRootRoute({
 });
 
 export function RootLayout() {
-  // Tient le brouillon du navigateur à jour — rien n'atteint le disque sans le
-  // geste Enregistrer, mais plus rien ne se perd à la fermeture d'un onglet.
+  // Keeps the browser draft up to date — nothing reaches the disk without an
+  // explicit save, but nothing is lost when a tab closes.
   useDraftSync();
   const user = useAuthStore((s) => s.currentUser);
   const userId = user?.id;
@@ -56,9 +56,9 @@ export function RootLayout() {
     let ws: EditorWs | null = null;
     const apiUrl = import.meta.env.VITE_API_URL ?? "";
     EditorWs.connectAsUser(apiUrl, {
-      // Le serveur a rechargé : ce qu'on affiche peut être devenu faux. La
-      // décision de relire (ou de ne rien faire) est prise dans
-      // `onProjectsReloaded` — notamment, elle épargne le travail en cours.
+      // The server reloaded: what is shown may have become wrong. The decision to
+      // re-read (or to do nothing) is made in `onProjectsReloaded` — in particular,
+      // it spares work in progress.
       onProjectsReloaded: (serverKeyId, projects) => {
         onProjectsReloadedInEditor(serverKeyId, projects);
         if (!cancelled && serverKeyId === activeServerId && useServerPapiPlaceholdersStore.getState().key) {
@@ -96,10 +96,3 @@ export function RootLayout() {
     </div>
   );
 }
-
-// L'auto-save vers le SERVEUR a été retiré avec la bascule « disque seul » (ADR
-// `server-disk-only-storage`) : rien n'atteint le disque sans le geste
-// Enregistrer. Ce qui n'est pas enregistré vit dans le brouillon du navigateur
-// (`useDraftSync` ci-dessus), donc survit à un rechargement — mais n'est pas
-// une vérité pour autant : il est daté, propre à cet appareil, et ne devient
-// réel qu'à l'enregistrement.

@@ -11,10 +11,10 @@ import { mergeDraftAssetResult } from "./mergeDraftAssetResult";
 import { type ConflictChoice, applyResolutions } from "./resolveConflicts";
 
 /**
- * Conflit entre deux sessions sur le MÊME brouillon : l'autre session a avancé la
- * révision. On garde le snapshot distant qui fait désormais foi, l'arbre rebasé
- * (les fichiers que l'autre session a seuls touchés sont déjà repris) et les
- * fichiers divergents des deux côtés, à trancher.
+ * Conflict between two sessions on the SAME draft: the other session moved
+ * the revision forward. Keeps the remote snapshot that is now authoritative,
+ * the rebased tree (files only the other session touched are already taken)
+ * and the files that diverge on both sides, to resolve.
  */
 type DraftConflict = {
   remote: api.PersistedDraft;
@@ -28,9 +28,9 @@ type Session = {
   active?: api.PersistedDraft;
   status: "saved" | "pending" | "saving" | "offline" | "conflict" | "migration_pending";
   error?: string;
-  /** Conflits trouvés à l'ouverture (ADR `snapshot-mirror-and-backend-history`), à trancher une fois. */
+  /** Conflicts found on open (ADR `snapshot-mirror-and-backend-history`), to resolve once. */
   openConflicts?: api.PersistedDraft["conflicts"];
-  /** Révision distante avancée par une autre session : trancher fichier par fichier. */
+  /** Remote revision moved forward by another session: resolve file by file. */
   draftConflict?: DraftConflict;
 };
 export const usePersistedDraftStore = create<{ sessions: Record<string, Session> }>(() => ({
@@ -104,8 +104,8 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
         return;
       }
     } else if (current?.remote && active && active.revision !== current.remote.revision) {
-      // Une autre session a avancé ce brouillon pendant l'absence de cet onglet :
-      // on rebase et on expose le conflit, sans jamais écraser en silence.
+      // Another session moved this draft forward while this tab was away: rebase
+      // and expose the conflict, never overwrite silently.
       const conflict = draftConflictOf(projectId, current, active);
       useProjectDraftStore
         .getState()
@@ -239,17 +239,16 @@ export async function selectPersistedDraft(projectId: string, id: string): Promi
   });
 }
 
-/** La modale a pris les conflits d'ouverture : ils ne se représentent plus. */
+/** The modal took the open conflicts: they do not come back. */
 export function consumeOpenConflicts(projectId: string): void {
   const session = usePersistedDraftStore.getState().sessions[projectId];
   if (session?.openConflicts) setSession(projectId, { ...session, openConflicts: undefined });
 }
 
 /**
- * Tranche un conflit entre deux sessions, fichier par fichier. Les choix
- * (« garder ma version » / « prendre celle de l'autre session ») s'appliquent à
- * l'arbre rebasé, puis le brouillon repart sur la révision distante : la
- * sauvegarde suivante n'écrase plus rien.
+ * Resolves a conflict between two sessions, file by file. The choices ("keep
+ * mine" / "take the other session's") apply to the rebased tree, then the
+ * draft restarts from the remote revision: the next save overwrites nothing.
  */
 export async function resolveDraftConflict(
   projectId: string,
@@ -267,7 +266,7 @@ export async function resolveDraftConflict(
   for (const path of outcome.removeFromTree) delete tree[path];
   const resolved: ProjectDraft = {
     ...local,
-    // Le choix porte sur l'arbre ; la base reste le disque publié (cf. `draftConflictOf`).
+    // The choice is about the tree; the base stays the published disk (cf. `draftConflictOf`).
     baseline: conflict.merged.baseline,
     tree,
     binaryBaseline: conflict.merged.binaryBaseline ?? local.binaryBaseline,
@@ -281,8 +280,8 @@ export async function resolveDraftConflict(
       base: baseOf(conflict.remote.snapshot),
     },
   };
-  // Rien de local à écrire (tout « prendre celle de l'autre session ») : on
-  // s'épargne une révision qui re-déclencherait un conflit pour rien.
+  // Nothing local to write (all "take the other session's"): skip a revision
+  // that would trigger a conflict for nothing.
   const settled = sameWorkingCopy(resolved, conflict.remote.snapshot);
   const toSave: ProjectDraft = {
     ...resolved,
@@ -458,9 +457,9 @@ function fingerprint(draft: ProjectDraft): string {
 }
 
 /**
- * Le brouillon n'a plus de travail local : son arbre de travail (texte, images,
- * renommages) égale celui de la révision distante. La base peut différer (c'est
- * le jeton de compare-and-swap), elle ne compte pas.
+ * The draft has no local work left: its working tree (text, images, renames)
+ * equals the remote revision's. The base may differ (it is the
+ * compare-and-swap token), it does not count.
  */
 function sameWorkingCopy(a: ProjectDraft, b: ProjectDraft): boolean {
   const normalize = (draft: ProjectDraft) => {
@@ -471,22 +470,22 @@ function sameWorkingCopy(a: ProjectDraft, b: ProjectDraft): boolean {
   return normalize(a) === normalize(b);
 }
 
-/** Point commun que fixe une révision acquittée (`remote.base`). */
+/** Common point set by an acknowledged revision (`remote.base`). */
 function baseOf(snapshot: ProjectDraft): NonNullable<ProjectDraft["remote"]>["base"] {
   const binaryTree = snapshot.binaryTree ?? snapshot.binaryBaseline;
   return { tree: snapshot.tree, ...(binaryTree ? { binaryTree } : {}) };
 }
 
 /**
- * Rebase le brouillon local sur celui d'une autre session (le distant fait foi).
- * Les fichiers touchés seulement par l'autre session sont repris en silence ;
- * ceux divergents des deux côtés sortent en `conflicts`.
+ * Rebases the local draft on another session's (the remote is
+ * authoritative). Files only the other session touched are taken silently;
+ * those diverging on both sides come out as `conflicts`.
  *
- * Fusion à trois voies depuis la dernière révision commune (`remote.base`), et
- * non depuis le disque : un fichier déjà modifié dans le brouillon partagé n'est
- * pas « modifié des deux côtés ». La `baseline` n'avance jamais ici : le travail
- * de l'autre session n'est pas publié, la base doit rester le disque, sinon la
- * publication l'omet et le rebase backend contre le disque l'annule.
+ * Three-way merge from the last common revision (`remote.base`), not from the
+ * disk: a file already changed in the shared draft is not "changed on both
+ * sides". The `baseline` never moves here: the other session's work is not
+ * published, the base must stay the disk, otherwise publishing omits it and
+ * the hub's rebase against the disk cancels it.
  */
 function draftConflictOf(
   projectId: string,
@@ -495,9 +494,9 @@ function draftConflictOf(
 ): DraftConflict {
   const renames = useProjectDraftStore.getState().pendingRenames[projectId] ?? local.renames ?? [];
   const common = local.remote?.base;
-  // `binaryTree`/`binaryBaseline` d'un brouillon est la carte complète des images
-  // suivies. Sans elle côté distant, on ne rebase pas les images : les passer
-  // pour vides ferait croire à une suppression et viderait la base locale.
+  // A draft's `binaryTree`/`binaryBaseline` is the complete map of tracked
+  // images. Without it on the remote side, images are not rebased: treating
+  // them as empty would look like a deletion and empty the local base.
   const theirsBinaries = remote.snapshot.binaryTree ?? remote.snapshot.binaryBaseline;
   const { snapshot, conflicts } = rebaseDraft(
     {
@@ -525,7 +524,7 @@ function draftConflictOf(
   };
 }
 
-/** Brouillon local adoptant la révision distante et l'arbre rebasé. */
+/** Local draft adopting the remote revision and the rebased tree. */
 function applyDraftConflict(
   local: ProjectDraft,
   conflict: DraftConflict,
@@ -579,9 +578,9 @@ async function syncOnce(projectId: string): Promise<void> {
     return;
   }
   if (session.status === "conflict") {
-    // Conflit posé sans snapshot distant (lecture ratée au chargement, par ex.) :
-    // on relit pour soit réconcilier une révision identique, soit construire le
-    // conflit fichier par fichier. Aucune écriture tant que ce n'est pas tranché.
+    // Conflict set without a remote snapshot (e.g. failed read on load): re-read
+    // to either reconcile an identical revision or build the file-by-file
+    // conflict. No write until it is resolved.
     if (!local.remote || session.draftConflict) return;
     try {
       const remote = await api.readDraft(projectId, local.remote.id);
@@ -714,7 +713,7 @@ async function syncOnce(projectId: string): Promise<void> {
       error.draft &&
       current
     ) {
-      // Autre session : on rebase et on expose le conflit au lieu de boucler.
+      // Another session: rebase and expose the conflict instead of looping.
       const conflict = draftConflictOf(projectId, current, error.draft);
       useProjectDraftStore
         .getState()

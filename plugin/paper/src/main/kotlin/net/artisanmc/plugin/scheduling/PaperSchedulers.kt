@@ -4,7 +4,7 @@ import org.bukkit.plugin.Plugin
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-/** Folia, Leaf et Paper exposent tous les schedulers régionalisés ; MockBukkit non. */
+/** Folia, Leaf and Paper all expose the regionised schedulers; MockBukkit does not. */
 fun schedulerFor(plugin: Plugin): Scheduler =
     if (runCatching { plugin.server.globalRegionScheduler }.isSuccess) RegionizedScheduler(plugin)
     else BukkitTaskScheduler(plugin)
@@ -45,7 +45,7 @@ class RegionizedScheduler(private val plugin: Plugin) : Scheduler {
     override fun ownsGlobal() = server.isGlobalTickThread
 }
 
-/** Scheduler Bukkit historique : un seul thread principal, joueurs compris. */
+/** Classic Bukkit scheduler: a single main thread, players included. */
 class BukkitTaskScheduler(private val plugin: Plugin) : Scheduler {
     private val bukkit get() = plugin.server.scheduler
 

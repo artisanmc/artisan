@@ -1,9 +1,9 @@
 type Meta = { hash: string; size: number };
 
 /**
- * Forme minimale partagée par le snapshot backend (`DraftSnapshot`) et le
- * brouillon éditeur (`ProjectDraft`) : le rebase ne connaît que l'arbre texte,
- * les images et les renommages.
+ * Minimal shape shared by the hub snapshot (`DraftSnapshot`) and the editor
+ * draft (`ProjectDraft`): the rebase only knows the text tree, the images and
+ * the renames.
  */
 export interface DraftRebaseShape {
   baseline: Record<string, string>;
@@ -14,17 +14,17 @@ export interface DraftRebaseShape {
 }
 
 /**
- * Rebase un brouillon sur un état « courant », fichier par fichier (ADR
- * `snapshot-mirror-and-backend-history`, décision 5) :
- * - modifié seulement côté courant → le brouillon prend la version courante ;
- * - modifié des deux côtés, différemment → conflit, le brouillon garde la sienne
- *   et sa base reste l'ancienne ;
- * - identique des deux côtés → la base avance.
- * Un chemin touché par un renommage du brouillon est à lui : on n'y touche pas.
+ * Rebases a draft on a "current" state, file by file (ADR
+ * `snapshot-mirror-and-backend-history`, decision 5):
+ * - changed only on the current side → the draft takes the current version;
+ * - changed on both sides, differently → conflict, the draft keeps its own
+ *   and its base stays the old one;
+ * - identical on both sides → the base moves forward.
+ * A path touched by one of the draft's renames belongs to it: left alone.
  *
- * Source unique : le backend rebase contre le disque publié (`current` = fichiers
- * du Snapshot), l'éditeur contre le brouillon d'une autre session ; l'algorithme
- * est le même, seul l'`current` change.
+ * Single source: the hub rebases against the published disk (`current` = the
+ * Snapshot's files), the editor against another session's draft; the
+ * algorithm is the same, only `current` changes.
  */
 export function rebaseDraft<S extends DraftRebaseShape>(
   snapshot: S,
@@ -40,7 +40,7 @@ export function rebaseDraft<S extends DraftRebaseShape>(
     renamed,
     conflicts,
   );
-  // Les images en conflit restent pour la publication (CAS) : pas de diff à montrer.
+  // Conflicting images are left to publication (CAS): no diff to show.
   const binaryConflicts: string[] = [];
   const binary =
     snapshot.binaryBaseline || snapshot.binaryTree
@@ -56,7 +56,7 @@ export function rebaseDraft<S extends DraftRebaseShape>(
   const next = { ...snapshot };
   next.baseline = text.baseline;
   next.tree = text.tree;
-  // Un brouillon sans suivi d'images laisse l'éditeur les lire à la source.
+  // A draft without image tracking lets the editor read them from the source.
   if (binary) {
     next.binaryBaseline = binary.baseline;
     next.binaryTree = binary.tree;

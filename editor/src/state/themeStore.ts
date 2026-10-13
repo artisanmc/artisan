@@ -39,7 +39,7 @@ export const useThemeStore = create<ThemeState>()(
       setTheme: (next: Theme) => {
         document.documentElement.dataset.theme = next;
         set({ theme: next });
-        // Fire-and-forget backend sync — same pattern as editor_language in uiStore.
+        // Fire-and-forget sync to the account — same pattern as editor_language in uiStore.
         import("./authStore").then(({ useAuthStore }) => {
           const user = useAuthStore.getState().currentUser;
           if (!user) return;

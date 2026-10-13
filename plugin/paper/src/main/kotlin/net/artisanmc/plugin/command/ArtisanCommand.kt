@@ -22,7 +22,7 @@ class ArtisanCommand(
     ): List<String> {
         return when {
             args.size == 1 -> listOf("menu", "reload", "sync", "editor", "dump-title")
-                .filter { it.startsWith(args[0].lowercase()) }
+                .filter { it.startsWith(args[0].lowercase()) && PERMISSIONS[it]?.let(sender::hasPermission) != false }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("dump-title", ignoreCase = true) ->
@@ -34,6 +34,11 @@ class ArtisanCommand(
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
+        val permission = PERMISSIONS[args.getOrNull(0)?.lowercase()]
+        if (permission != null && !sender.hasPermission(permission)) {
+            sender.sendMessage(lang.get("cmd.no_permission", sender))
+            return true
+        }
         when (args.getOrNull(0)?.lowercase()) {
             "menu" -> {
                 if (sender !is Player) { sender.sendMessage(lang.get("artisan.in_game_only", sender)); return true }
@@ -167,7 +172,7 @@ class ArtisanCommand(
         editorLink(sender, senderLang, editor.port ?: cfg.web.port)
     }
 
-    /** Un lien à usage unique : l'identité dans l'éditeur est celle du joueur qui le demande. */
+    /** A single-use link: the identity in the editor is the player who asked for it. */
     private fun editorLink(sender: CommandSender, senderLang: String, port: Int) {
         if (sender !is Player) {
             sender.sendMessage(lang.get("artisan.editor_in_game_only", senderLang))
@@ -189,7 +194,7 @@ class ArtisanCommand(
         }
     }
 
-    /** Sur une feuille, le hub donne le lien, avec les permissions que ce serveur a lues pour le joueur. */
+    /** On a leaf, the hub issues the link, with the permissions this server read for the player. */
     private fun hubLink(sender: CommandSender, senderLang: String) {
         if (sender !is Player) {
             sender.sendMessage(lang.get("artisan.editor_in_game_only", senderLang))
@@ -215,5 +220,15 @@ class ArtisanCommand(
                 sender.sendMessage(message)
             }
         }
+    }
+
+    private companion object {
+        /** `editor` checks its own rights, finer grained. */
+        val PERMISSIONS = mapOf(
+            "menu" to "artisan.menu",
+            "reload" to "artisan.admin",
+            "sync" to "artisan.admin",
+            "dump-title" to "artisan.admin",
+        )
     }
 }

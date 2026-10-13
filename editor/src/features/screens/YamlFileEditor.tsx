@@ -48,7 +48,7 @@ export function YamlFileEditor({
   errors: YamlSyntaxError[];
   selected: string;
   onSelect: (path: string) => void;
-  /** Corbeille du fichier — absente quand le contexte serveur est inconnu. */
+  /** The file's trash — absent when the server context is unknown. */
   history?: { networkId: string; serverId: string; diskId: string };
 }) {
   const { t } = useTranslation();

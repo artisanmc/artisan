@@ -100,7 +100,7 @@ class BundleCompilerTest {
     }
 
     @Test fun `compile parses canonical click steps into a step tree`() {
-        // steps is an Action DSL string since Phase 2 (ADR action-dsl).
+        // steps is an Action DSL string (ADR action-dsl).
         val clickYaml = ClickHandlerYaml(
             steps = "if has_money(100):\n  take_money 100\nelse:\n  send_message \"no\"\nclose_menu",
         )

@@ -26,7 +26,7 @@ Reconnexion avec backoff exponentiel (1 s → 60 s) ; ping OkHttp toutes les 30 
 
 | Champ | Lu par le hub pour |
 |---|---|
-| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.0"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). |
+| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.1"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). |
 | `server_key` | Le **secret du réseau** (nom de champ hérité). Comparé en temps constant ; faux ou vide : fermeture 1008. |
 | `proxy_name` | Nom du serveur dans le réseau (`web.name`, sinon le nom du dossier du serveur). `[A-Za-z0-9_-]{1,64}`, jamais `local`. Identité du serveur et préfixe de ses Projects (`<serveur>.<dossier>`). |
 | `plugin_version`, `minecraft_version` | Affichés dans la liste des serveurs ; la version Minecraft choisit le catalogue d'items. |
@@ -64,6 +64,9 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | `project_history` | `project_history_result` | `{project_id, path}` → `versions:[{at, content}]`, plus récente d'abord, lues dans `.artisan/history/<path>/`. Rien n'alimente plus ce dossier (`ProjectPublisher.withHistory` est l'identité) : seules les archives antérieures restent lisibles. |
 | `asset_read` | `asset_read_result` | `{project_id, path}` → `{content_base64, hash}`, lu sur le disque à la demande. |
 | `project_draft_request` | `project_draft_result` | Brouillons privés, cf. ci-dessous. |
+| `project_create` | `project_create_result` | `{project_id}` : dossier vide sous la racine core. Nom `[A-Za-z0-9][A-Za-z0-9_-]{0,127}` hors noms réservés Windows, sinon `invalid_name` ; déjà pris (casse ignorée, ou racine d'Add-on) `project_exists`. Mineure 1. |
+| `project_delete` | `project_delete_result` | `{project_id}` : dossier déplacé dans `<racine>/.artisan-trash/<id>-<horodatage UTC>/`, jamais effacé. `unknown_project`, `addon_immutable`. Mineure 1. |
+| `project_rename` | `project_rename_result` | `{project_id, target_project_id}` : déplacement atomique du dossier, `.artisan/` (brouillons, journaux) compris. `destination_exists` (jamais d'écrasement), `invalid_path`, `unknown_project`, `addon_immutable`. Pas de journal de reprise. Mineure 1. |
 | `config_read` | `config_read_result` | `{project_id, table}` → `files:[{path, content}]` (dossier de YAML ou `<table>.yaml`), plafond 1 MiB. |
 | `config_write` | `config_write_result` | `{project_id, files:[{path, content}], deletes}` : écriture directe d'une table d'écran de config, puis rechargement. |
 | `server_config_write` | `server_config_write_result` | `{changes}` : chaque clé validée (clé connue, type du défaut, chemins sous la racine, refs `projet:image`), `config.yml` réécrit, rechargement. Réponse `{server_config?, error?: "invalid_config"}`. Rien n'est écrit si un changement est refusé. |
@@ -118,7 +121,7 @@ demande un, le cookie suffit.
 ## Supprimé en phase F (ne pas réintroduire sans ADR)
 
 `draft_update`, `ping`/`pong` applicatifs, `project_deleted`, `project_copy`,
-`project_rename` (+ `hello.project_rename_results`), `asset_write`, `plugin_update`,
+l'ancien `project_rename` à `operation_id` et journal (+ `hello.project_rename_results`), `asset_write`, `plugin_update`,
 `member_add`, `import_sources_list|read`, `bundle_available`, ainsi que les champs de `hello`
 `capabilities`, `content_version`, `snapshot_hashes`, `local_project_ids`,
 `editor_access_mode`. État cloud récupérable au commit `f085f576` (branche `v2`).
@@ -132,7 +135,7 @@ sans gestionnaire ne compile pas.
 | Gestionnaire | Module | Messages |
 |---|---|---|
 | `ProjectReads` | `core` | `project_list`, `project_read`, `project_history`, `asset_read`, `config_read` |
-| `ProjectWrites` | `core` | `project_write`, `config_write`, `project_draft_request` |
+| `ProjectWrites` | `core` | `project_write`, `config_write`, `project_draft_request`, `project_create`, `project_delete`, `project_rename` (disque : `ProjectFolders`) |
 | `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
 | `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `session_replaced`, `custom_items_request` |
 

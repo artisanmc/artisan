@@ -10,19 +10,17 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * `project_read` sert l'**instantané** : les octets bruts que le plugin a lus au
- * dernier chargement, pas l'état courant du disque.
+ * `project_read` serves the **snapshot**: the raw bytes the plugin read at the last
+ * load, not the current disk state.
  *
- * C'est la sémantique de reload, celle de tous les autres plugins Minecraft :
- * une édition à la main ne s'applique nulle part avant `/artisan reload`.
- * L'éditeur montre donc ce qui tourne réellement, au lieu d'afficher un disque
- * que le serveur n'a pas encore lu.
+ * These are reload semantics, as in every other Minecraft plugin: a hand edit applies
+ * nowhere before `/artisan reload`. The editor therefore shows what is actually
+ * running instead of a disk the server has not read yet.
  *
- * L'instantané est fait d'**octets bruts**, pas du modèle parsé : c'est ce que le
- * compare-and-swap compare. Un modèle re-sérialisé donnerait d'autres octets,
- * donc des `base_hash` faux — conflits partout, ou écrasements silencieux.
- * Conséquence gratuite : un fichier illisible y figure aussi, donc reste
- * réparable depuis l'éditeur.
+ * The snapshot is made of **raw bytes**, not the parsed model: that is what the
+ * compare-and-swap compares. A re-serialized model would give other bytes, hence wrong
+ * `base_hash` values: conflicts everywhere, or silent overwrites. A free consequence:
+ * an unreadable file is in it too, so it stays repairable from the editor.
  */
 class SnapshotReadTest {
     private class Harness {
@@ -60,17 +58,17 @@ class SnapshotReadTest {
     }
 
     @Test
-    fun `une edition disque n'apparait pas avant un reload`() {
+    fun `a disk edit does not show before a reload`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
         assertEquals("schema: menu/v1\nsize: 27\n", h.read("boutique")["menus/m.yaml"])
 
-        // Quelqu'un édite le fichier à la main pendant que le serveur tourne.
+        // Someone edits the file by hand while the server is running.
         h.write(p, "menus/m.yaml", "schema: menu/v1\nsize: 54\n")
 
-        // Le serveur n'a pas relu : l'éditeur voit ce qui tourne, pas le disque.
+        // The server has not re-read it: the editor sees what runs, not the disk.
         assertEquals("schema: menu/v1\nsize: 27\n", h.read("boutique")["menus/m.yaml"])
 
         h.provider.load()
@@ -78,14 +76,14 @@ class SnapshotReadTest {
     }
 
     @Test
-    fun `une racine enregistree par un Add-on APRES le chargement devient lisible`() {
+    fun `a root an add-on registers after loading becomes readable`() {
         val h = Harness()
         h.provider.load()
 
-        // Un Add-on s'active APRÈS le core — 9 s plus tard en conditions réelles —
-        // et enregistre alors sa racine (ADR `addon-owned-project-roots`).
-        // L'instantané pris au chargement d'Artisan ne peut pas la contenir :
-        // sans rafraîchissement, son Project répond `unknown_project` à jamais.
+        // An Add-on enables AFTER the core (9 s later in real conditions) and only then
+        // registers its root (ADR `addon-owned-project-roots`). The snapshot taken when
+        // Artisan loaded cannot contain it: without a refresh, its Project answers
+        // `unknown_project` forever.
         val addonRoot = File(h.root, "../boutique_editor").also { it.mkdirs() }
         File(addonRoot, "menus/m.yaml").also { it.parentFile.mkdirs() }
             .writeText("schema: menu/v1\nsize: 27\n")
@@ -95,40 +93,40 @@ class SnapshotReadTest {
     }
 
     @Test
-    fun `un Add-on qui ecrit son propre disque peut faire reprendre l'instantane`() {
+    fun `an add-on that writes its own files can refresh the snapshot`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
 
-        // Un Add-on écrit dans SA racine — `/boutiqueadmin additem` capture un
-        // article et l'ajoute au catalogue (ADR `addon-owned-project-roots`).
-        // Sans annonce, cette écriture reste invisible au serveur qui tourne ET
-        // à l'éditeur jusqu'à ce que QUELQU'UN tape `/artisan reload` : l'admin
-        // capture un item, ne le voit nulle part, et croit la commande cassée.
+        // An Add-on writes into ITS root: `/boutiqueadmin additem` captures an item and
+        // adds it to the catalogue (ADR `addon-owned-project-roots`). Without an
+        // announcement, that write stays invisible to the running server AND the editor
+        // until SOMEONE types `/artisan reload`: the admin captures an item, sees it
+        // nowhere, and thinks the command is broken.
         h.write(p, "items/ci_abc.yml", "type: DIAMOND_SWORD\n")
         assertNull(h.read("boutique")["items/ci_abc.yml"])
 
-        // Le module le déclare, et l'instantané reprend : c'est le même chemin
-        // que `/artisan reload`, déclenché par celui qui sait qu'il a écrit.
+        // The module declares it and the snapshot picks it up: the same path as
+        // `/artisan reload`, triggered by the one who knows it wrote.
         h.provider.refreshFromDisk()
         assertEquals("type: DIAMOND_SWORD\n", h.read("boutique")["items/ci_abc.yml"])
     }
 
     @Test
-    fun `l'instantane garde les octets exacts, commentaires compris`() {
+    fun `the snapshot keeps the exact bytes, comments included`() {
         val h = Harness()
         val p = h.project("boutique")
         val exact = "# portage zMenu\nschema: menu/v1\n\nsize:   27\n"
         h.write(p, "menus/m.yaml", exact)
         h.provider.load()
 
-        // Octets exacts : c'est ce que le compare-and-swap compare.
+        // Exact bytes: that is what the compare-and-swap compares.
         assertEquals(exact, h.read("boutique")["menus/m.yaml"])
     }
 
     @Test
-    fun `un fichier illisible figure dans l'instantane et reste reparable`() {
+    fun `an unparseable file is in the snapshot and stays repairable`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/ok.yaml", "schema: menu/v1\nsize: 27\n")
@@ -136,8 +134,8 @@ class SnapshotReadTest {
         h.provider.load()
 
         val files = h.read("boutique")
-        // Le plugin l'a sauté au parsing, mais l'éditeur doit pouvoir l'ouvrir
-        // pour le réparer : sinon la faute de frappe t'enferme dehors.
+        // The plugin skipped it when parsing, but the editor must be able to open it
+        // to fix it: otherwise the typo locks you out.
         assertTrue(files.containsKey("menus/casse.yaml"))
         assertTrue(files.containsKey("menus/ok.yaml"))
     }

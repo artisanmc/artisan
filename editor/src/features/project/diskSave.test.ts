@@ -2,21 +2,21 @@ import { describe, it, expect } from "vitest";
 import { planWrite, toRelative } from "./diskSave";
 
 /**
- * Le planificateur d'enregistrement (ADR `server-disk-only-storage`, P2).
+ * The save planner (ADR `server-disk-only-storage`).
  *
- * L'éditeur garde en mémoire la **base** : le contenu de chaque fichier tel
- * qu'il l'a chargé. Enregistrer = comparer l'arbre courant à cette base, et
- * n'envoyer que ce qui a bougé, chaque entrée portant le hash de sa base pour
- * que le plugin puisse refuser si le disque a changé entre-temps.
+ * The editor keeps the **base** in memory: each file's content as it was
+ * loaded. Saving = comparing the current tree to that base and sending only
+ * what moved, each entry carrying its base hash so the plugin can refuse if
+ * the disk changed meanwhile.
  */
 describe("planWrite", () => {
-  it("n'envoie que ce qui a changé", async () => {
+  it("sends only what changed", async () => {
     const baseline = {
       "menus/a.yaml": "title: A\n",
       "menus/b.yaml": "title: B\n",
     };
     const next = {
-      "menus/a.yaml": "title: A\n", // inchangé
+      "menus/a.yaml": "title: A\n", // unchanged
       "menus/b.yaml": "title: B modifié\n",
     };
 
@@ -27,16 +27,16 @@ describe("planWrite", () => {
     expect(plan.deletes).toEqual([]);
   });
 
-  it("un fichier neuf part avec base_hash null", async () => {
+  it("a new file goes out with base_hash null", async () => {
     const plan = await planWrite({}, { "menus/neuf.yaml": "title: Neuf\n" });
 
     expect(plan.files).toHaveLength(1);
     expect(plan.files[0]!.path).toBe("menus/neuf.yaml");
-    // null = « je m'attends à ce qu'il n'y ait pas de fichier ici ».
+    // null = "I expect no file here".
     expect(plan.files[0]!.base_hash).toBeNull();
   });
 
-  it("un fichier disparu de l'arbre devient une suppression portant son hash de base", async () => {
+  it("a file gone from the tree becomes a delete carrying its base hash", async () => {
     const baseline = { "menus/vieux.yaml": "title: Vieux\n" };
     const plan = await planWrite(baseline, {});
 
@@ -46,17 +46,17 @@ describe("planWrite", () => {
     expect(plan.deletes[0]!.base_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("le base_hash d'un fichier modifié est celui de la BASE, pas du nouveau contenu", async () => {
+  it("the base_hash of a modified file is the BASE one, not the new content's", async () => {
     const baseline = { "menus/a.yaml": "ancien\n" };
     const plan = await planWrite(baseline, { "menus/a.yaml": "nouveau\n" });
     const planOfBase = await planWrite({}, { "menus/a.yaml": "ancien\n" });
 
-    // sha256("ancien\n") — le jeton décrit ce qu'on croyait trouver sur disque.
+    // sha256("ancien\n") — the token describes what we expected on disk.
     expect(plan.files[0]!.base_hash).not.toBeNull();
     expect(plan.files[0]!.base_hash).not.toBe(planOfBase.files[0]!.base_hash);
   });
 
-  it("un arbre identique à la base ne produit aucune écriture", async () => {
+  it("a tree identical to the base produces no write", async () => {
     const tree = { "menus/a.yaml": "title: A\n", "lang/fr.yaml": "x: y\n" };
     const plan = await planWrite(tree, { ...tree });
 
@@ -65,7 +65,7 @@ describe("planWrite", () => {
     expect(plan.empty).toBe(true);
   });
 
-  it("les chemins sortent triés — un diff lisible et un ordre d'écriture déterministe", async () => {
+  it("paths come out sorted — a readable diff and a deterministic write order", async () => {
     const plan = await planWrite({}, {
       "menus/z.yaml": "z\n",
       "commands/a.yaml": "a\n",
@@ -81,7 +81,7 @@ describe("planWrite", () => {
 });
 
 describe("toRelative", () => {
-  it("retire le préfixe canonique que produit transform()", () => {
+  it("strips the canonical prefix that transform() produces", () => {
     const canonical = {
       "plugins/Artisan/projects/boutique_shop/menus/a.yaml": "title: A\n",
       "plugins/Artisan/projects/boutique_shop/.artisan/editor.yaml": "i18n_mode: inline\n",
@@ -93,7 +93,7 @@ describe("toRelative", () => {
     });
   });
 
-  it("ignore ce qui n'appartient pas au project — jamais d'écriture hors de son arbre", () => {
+  it("ignores what does not belong to the project — never a write outside its tree", () => {
     const canonical = {
       "plugins/Artisan/projects/boutique_shop/menus/a.yaml": "title: A\n",
       "plugins/Artisan/projects/autre_project/menus/vole.yaml": "title: Volé\n",

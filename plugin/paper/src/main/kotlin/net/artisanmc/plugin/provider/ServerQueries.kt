@@ -24,9 +24,9 @@ import java.util.Base64
 import java.util.logging.Logger
 
 /**
- * Ce que l'éditeur demande au serveur en marche : joueurs, placeholders, têtes,
- * inventaires, data sources, glyphes Nexo. Tout ce qui lit l'API Bukkit passe
- * par le [scheduler] ; les réponses repartent hors du thread du monde.
+ * What the editor asks the running server: players, placeholders, heads, inventories,
+ * data sources, Nexo glyphs. Everything that reads the Bukkit API goes through the
+ * [scheduler]; replies are sent off the world thread.
  */
 class ServerQueries(
     private val replies: Replies,
@@ -39,7 +39,7 @@ class ServerQueries(
 ) {
     private val mapper = ObjectMapper()
 
-    /** Un picker de joueurs plutôt qu'un nom tapé à l'aveugle (capture, « prévisualiser en tant que »). */
+    /** A player picker rather than a name typed blind (capture, "preview as"). */
     fun onlinePlayers(request: OnlinePlayersFetch) {
         val reply = replies.to(request, "online_players_result")
         onGlobal(reply, "online players listing") {
@@ -82,7 +82,7 @@ class ServerQueries(
         }
     }
 
-    /** Lu sur le thread du joueur ; un joueur parti entre-temps répond `player_not_found`. */
+    /** Read on the player's thread; a player who left in the meantime replies `player_not_found`. */
     fun playerInventory(request: PlayerInventoryFetch) {
         val reply = replies.to(request, "player_inventory_result")
         val name = request.player
@@ -91,7 +91,7 @@ class ServerQueries(
             scheduler.player(player.uniqueId, onGone = { reply.error("player_not_found") }) {
                 try {
                     val nexo = evaluator.deps.nexoItems
-                    // 0-35 réserve, 36-39 armure, 40 main secondaire : la numérotation vanilla.
+                    // 0-35 storage, 36-39 armor, 40 off hand: the vanilla numbering.
                     val inv = player.inventory
                     val all = inv.contents.toList() + inv.armorContents.toList() + listOf(inv.itemInOffHand)
                     val slots = all.mapIndexedNotNull { slot, stack ->
@@ -108,7 +108,7 @@ class ServerQueries(
         }
     }
 
-    /** Même forme que celle lue par `ContextBinder.shape` au rendu : l'aperçu est le runtime. */
+    /** Same shape as the one `ContextBinder.shape` reads at render: the preview is the runtime. */
     fun dataSource(request: DataSourceFetch) {
         val reply = replies.to(request, "data_source_fetch_result")
         val registry = dataSources
@@ -132,7 +132,7 @@ class ServerQueries(
                 } catch (e: PlayerRequiredException) {
                     reply.error("player_required", Replies.describe(e))
                 } catch (e: Throwable) {
-                    // Un fetcher qui touche un joueur en aperçu lève souvent une NPE sans message.
+                    // A fetcher touching a player in preview often throws an NPE without a message.
                     reply.failure("fetch_error", "data source preview '$ref'", e)
                 }
             }
@@ -141,7 +141,7 @@ class ServerQueries(
         }
     }
 
-    /** config.yml depuis la page serveur (ADR `server-config-from-editor`) ; la réponse précède le rechargement. */
+    /** config.yml from the server page (ADR `server-config-from-editor`); the reply precedes the reload. */
     fun serverConfigWrite(request: ServerConfigWrite) {
         val access = serverConfig ?: return
         val reply = replies.to(request, "server_config_write_result")
@@ -152,7 +152,7 @@ class ServerQueries(
         }
     }
 
-    /** Import de glyphes Nexo dans les assets : lecture disque, hors du thread du monde. */
+    /** Nexo glyph import into the assets: disk read, off the world thread. */
     fun nexoGlyphs(request: NexoGlyphsList) {
         val reply = replies.to(request, "nexo_glyphs_list_result")
         replies.offThread("nexo_glyphs_list") {
@@ -188,7 +188,7 @@ class ServerQueries(
         }
     }
 
-    /** Aperçu plafonné à [MAX_PREVIEW_ROWS] lignes et ~[MAX_PREVIEW_BYTES] octets sérialisés. */
+    /** Preview capped at [MAX_PREVIEW_ROWS] rows and ~[MAX_PREVIEW_BYTES] serialized bytes. */
     internal fun truncateForPreview(rows: List<Map<String, Any?>>): Pair<List<Map<String, Any?>>, Boolean> {
         var out = rows.take(MAX_PREVIEW_ROWS)
         var truncated = rows.size > MAX_PREVIEW_ROWS

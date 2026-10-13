@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { loadUserProject } from "./userProjects";
 
 /**
- * Depuis la bascule « disque seul » (ADR `server-disk-only-storage`), cette
- * route ne sert plus qu'à l'**identité** d'un Project — nom, slug, serveur
- * propriétaire, network. Son contenu vient de `project_read`, sur le disque du
- * serveur, et n'a plus rien à faire ici.
+ * Since the switch to "disk only" (ADR `server-disk-only-storage`), this route
+ * only serves a Project's **identity** — name, slug, owning server, network.
+ * Its content comes from `project_read`, on the server's disk, and has nothing
+ * to do here.
  */
 describe("userProjects API client", () => {
   beforeEach(() => {

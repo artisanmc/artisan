@@ -3,18 +3,14 @@ import { boutiqueLocalRows } from "./localRows";
 import { migrateIcons } from "./migrateIcons";
 import { exportBoutiqueFiles } from "./state";
 
-/**
- * Tracer-bullet external module. Lives in its own package, consumes the SDK as
- * a dependency. P1c promotes this to a separate repo + published packages.
- */
+/** External module living in its own package, consuming the SDK as a dependency. */
 const boutiqueModule: FrontendModule = {
   id: "boutique",
   displayName: "Boutique",
   schemaVersion: "boutique/v1",
   sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
-  // No configuration screen anymore: the catalog is edited through the
-  // GENERATED Sources form (declared models) and item sets live at the MENU
-  // level — the bespoke BoutiqueScreen died with them (2026-07-27).
+  // No configuration screen: the catalog is edited through the generated
+  // Sources form (declared models) and item sets live at the menu level.
   routes: [],
   exportFiles: exportBoutiqueFiles,
   localPreviewRows: boutiqueLocalRows,

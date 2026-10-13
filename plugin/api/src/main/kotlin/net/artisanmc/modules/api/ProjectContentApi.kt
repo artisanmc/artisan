@@ -5,8 +5,8 @@ import net.artisanmc.modules.api.annotations.Stable
 /**
  * Read-only view of the project content on disk for modules. Backed by
  * `plugins/Artisan/projects/`. Paths use '/' separators. The `.artisan*`
- * namespace (sync metadata, trash) is never exposed. Content refreshes on
- * bundle sync — modules should re-read in [ArtisanModule.onReload].
+ * namespace (editor metadata, trash) is never exposed. Content refreshes on
+ * reload: modules should re-read in [ArtisanModule.onReload].
  */
 @Stable
 interface ProjectContentApi {

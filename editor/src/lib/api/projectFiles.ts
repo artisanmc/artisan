@@ -6,10 +6,9 @@ import type { ProjectSummary } from "./networks";
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /**
- * Lecture / écriture des fichiers d'un Project **sur le disque du serveur**
- * (ADR `server-disk-only-storage`). Le backend relaie au plugin ; il ne détient
- * aucune copie, donc serveur hors ligne = Project inouvrable, jamais un repli
- * périmé.
+ * Reading / writing a Project's files **on the server's disk** (ADR
+ * `server-disk-only-storage`). The hub relays to the plugin; it holds no copy,
+ * so server offline = Project cannot be opened, never a stale fallback.
  */
 
 export type ProjectFilesError =
@@ -55,11 +54,11 @@ export async function getEditorAccess(projectId: string): Promise<EditorAccessDt
 
 export interface ProjectFileConflict {
   path: string;
-  /** Contenu actuel sur disque ; `null` = le fichier y a été supprimé. */
+  /** Current content on disk; `null` = the file was deleted there. */
   disk: string | null;
 }
 
-/** Un Document que le serveur n'a pas réussi à charger, et pourquoi. */
+/** A Document the server failed to load, and why. */
 export interface FailedDocument {
   path: string;
   reason: string;
@@ -73,14 +72,14 @@ export type ProjectReadResult =
       binaries?: { path: string; hash: string; size: number }[];
       failed: FailedDocument[];
       hash: string | null;
-      /** Serveur éteint : dernière copie connue du backend, reçue à cette date. */
+      /** Server off: the hub's last known copy, received at this date. */
       offlineSince?: string;
-      /** Jamais publié : rien sur le disque, tout est dans le brouillon. */
+      /** Never published: nothing on disk, everything is in the draft. */
       unpublished?: boolean;
     }
   /**
-   * Le serveur porte exactement l'empreinte annoncée : rien n'a été transporté,
-   * et la dernière version connue reste valable — elle vient d'être revalidée.
+   * The server holds exactly the announced fingerprint: nothing was transferred,
+   * and the last known version stays valid — it was just revalidated.
    */
   | { ok: true; unchanged: true; hash: string | null; offlineSince?: string; unpublished?: boolean }
   | { ok: false; error: ProjectFilesError };
@@ -91,7 +90,7 @@ export type ProjectWriteResult =
       ok: false;
       error: "conflict";
       conflicts: ProjectFileConflict[];
-      /** L'état réel du dossier — de quoi voir qu'un fichier renommé est apparu. */
+      /** The folder's real state — enough to see that a renamed file appeared. */
       diskFiles: string[];
     }
   | { ok: false; error: ProjectFilesError; code?: string; status?: number; message?: string };
@@ -120,15 +119,15 @@ function base(networkId: string, serverId: string | undefined, diskId: string | 
   return `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/projects/${encodeURIComponent(diskId)}/files`;
 }
 
-/** L'arbre complet du Project, lu à la demande sur le disque du serveur. */
+/** The Project's full tree, read on demand from the server's disk. */
 export async function readProjectFiles(
   networkId: string,
   serverId?: string,
   diskId?: string,
   /**
-   * L'empreinte qu'on détient déjà. Le serveur ne renvoie l'arbre que s'il a
-   * changé — sinon il répond `unchanged`, et on garde ce qu'on avait sans avoir
-   * transporté plusieurs secondes de fichiers pour l'apprendre.
+   * The fingerprint we already hold. The server only sends the tree back if it
+   * changed — otherwise it answers `unchanged`, and we keep what we had without
+   * transferring seconds' worth of files to learn it.
    */
   ifHash?: string | null,
 ): Promise<ProjectReadResult> {
@@ -171,9 +170,9 @@ export async function readProjectFiles(
 }
 
 /**
- * Écrit le delta sur le disque du serveur. Un 409 rapporte les fichiers qui ont
- * bougé, **avec leur contenu disque** — de quoi afficher le diff sans second
- * aller-retour. Rien n'a été écrit dans ce cas : le plugin applique tout ou rien.
+ * Writes the delta to the server's disk. A 409 reports the files that moved,
+ * **with their disk content** — enough to show the diff without a second round
+ * trip. Nothing was written in that case: the plugin applies all or nothing.
  */
 export async function writeProjectFiles(
   networkId: string,
@@ -241,7 +240,7 @@ export interface FileVersion {
   /** Millis de l'archivage. */
   at: number;
   content: string;
-  /** Présent quand l'historique vient des Versions ; `null` = le serveur. */
+  /** Present when the history comes from Versions; `null` = the server. */
   author?: { id: string; name: string } | null;
 }
 
@@ -250,13 +249,12 @@ export type ProjectHistoryResult =
   | { ok: false; error: ProjectFilesError };
 
 /**
- * Les versions archivées d'UN fichier — la corbeille que le plugin écrit avant
- * chaque écrasement (ADR `server-disk-only-storage` décision 5), la plus récente
- * d'abord.
+ * The archived versions of ONE file — the trash the plugin writes before each
+ * overwrite (ADR `server-disk-only-storage` decision 5), most recent first.
  *
- * Restaurer n'a pas d'appel dédié : on remet le contenu choisi dans l'éditeur et
- * on enregistre. C'est une écriture comme une autre, donc elle passe par le même
- * compare-and-swap — restaurer ne peut pas écraser dans le dos de quelqu'un.
+ * Restoring has no dedicated call: the chosen content is put back in the
+ * editor and saved. It is a write like any other, so it goes through the same
+ * compare-and-swap — a restore cannot overwrite behind someone's back.
  */
 export async function readFileHistory(
   networkId: string,
@@ -283,14 +281,14 @@ export type ProjectListResult =
   | { ok: false; error: ProjectFilesError };
 
 /**
- * Les Projects présents sur le disque du serveur, **maintenant**.
+ * The Projects present on the server's disk, **now**.
  *
- * Le backend n'en tient plus de liste : elle se périmait au premier dossier
- * renommé ou supprimé (ADR `server-disk-only-storage`). Le nom du dossier EST
- * l'identité du Project — le renommer le renomme, immédiatement.
+ * The hub keeps no list of them: it went stale on the first renamed or deleted
+ * folder (ADR `server-disk-only-storage`). The folder name IS the Project's
+ * identity — renaming it renames the Project, immediately.
  *
- * Serveur hors ligne → erreur, et donc liste vide : ses Projects ne sont de
- * toute façon pas ouvrables.
+ * Server offline → error, hence an empty list: its Projects cannot be opened
+ * anyway.
  */
 export async function listServerProjects(
   networkId: string,

@@ -18,8 +18,7 @@ interface FloatingEditorPaneProps {
  * The editor pane as a glass card FLOATING over the full-bleed canvas (right
  * side): rounded, translucent + blur so the canvas shows softly behind it, and
  * fully visible to its left. A left-edge handle resizes it (the right edge is
- * anchored). Replaces the old docked SplitPane column — the canvas now spans the
- * whole region underneath. Desktop only; mobile keeps the vertical split.
+ * anchored). Desktop only; mobile keeps the vertical split.
  */
 export function FloatingEditorPane({
   projectId,

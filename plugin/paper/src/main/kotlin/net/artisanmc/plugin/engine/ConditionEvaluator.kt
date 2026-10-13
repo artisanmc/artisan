@@ -32,9 +32,9 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
     }
 
     /**
-     * Free-comparison condition (ADR action-dsl §6) : parse+évalue l'expression
-     * leaf contre `ctx.resolvedArgs`, résout les `%papi%` via `deps.papi`, coerce
-     * en Boolean. Tolérant : toute erreur de parse/éval → false (+ WARN unique).
+     * Free-comparison condition (ADR action-dsl §6): parses and evaluates the leaf
+     * expression against `ctx.resolvedArgs`, resolves `%papi%` through `deps.papi`,
+     * coerces to Boolean. Tolerant: any parse/eval error → false (+ a single WARN).
      */
     private fun evaluateExpression(condition: Condition.Expression, ctx: ExecutionContext): Boolean {
         val papi: ((String) -> String?)? = deps.papi?.let { p -> { name -> p.resolve(ctx.player, "%$name%") } }
@@ -78,7 +78,7 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
     companion object {
         val EMPTY = ConditionEvaluator(SoftDepRegistry.EMPTY, CooldownStore())
 
-        /** Garde du WARN unique pour les conditions `expression` non-parseables. */
+        /** Guards the single WARN for unparseable `expression` conditions. */
         private val expressionWarned = AtomicBoolean(false)
     }
 }

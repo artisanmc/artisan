@@ -88,7 +88,7 @@ describe("useMarqueeSelection — selection logic", () => {
     return { hook, pointer };
   }
 
-  it("sélectionne les menus dont la boîte intersecte le marquee", () => {
+  it("selects the menus whose box intersects the marquee", () => {
     const pk = projectWithMenus();
     const ptr = { x: 10, y: 10 };
     const { hook } = renderMarquee(pk, ptr);
@@ -115,7 +115,7 @@ describe("useMarqueeSelection — selection logic", () => {
     expect(hook.result.current.shouldConsumeClick()).toBe(false);
   });
 
-  it("shift ajoute à la sélection existante", () => {
+  it("shift adds to the existing selection", () => {
     const pk = projectWithMenus();
     useSelectionStore.getState().add("m2");
     const ptr = { x: 10, y: 10 };

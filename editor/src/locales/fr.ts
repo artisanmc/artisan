@@ -276,6 +276,8 @@ const fr: typeof en = {
       invalid_name: "Utilise un nom de dossier valide pour le projet (128 caractères maximum).",
       invalid_path: "Ce nom de projet n’est pas valide.",
       forbidden: "Tu n’as pas accès à ce serveur.",
+      plugin_update_required:
+        "Ce serveur utilise une version plus ancienne d’Artisan. Mets son plugin à jour pour créer des projets.",
       create_failed: "Impossible de créer le projet sur le serveur. Réessaie.",
     },
     cancel: "Annuler",
@@ -306,11 +308,20 @@ const fr: typeof en = {
   deleteProjectDialog: {
     title: "Supprimer le projet",
     warning:
-      "Cela supprimera définitivement « {{name}} » ainsi que tous ses menus, commandes et données. Cette action est irréversible.",
+      "« {{name}} » disparaîtra de l'éditeur avec tous ses menus, commandes, données et brouillons. Son dossier est déplacé dans `.artisan-trash/` sur le serveur, d'où un administrateur peut le récupérer.",
     confirmLabel: "Tapez l'ID du projet pour confirmer :",
     cancel: "Annuler",
     delete: "Supprimer",
     deleting: "Suppression…",
+    errors: {
+      server_offline: "Le serveur est hors ligne. Connectez-le pour supprimer le projet.",
+      fetch_timeout: "Le serveur n'a pas répondu à temps. Vérifiez la liste des projets avant de réessayer.",
+      plugin_update_required:
+        "Ce serveur utilise une version plus ancienne d'Artisan. Mettez son plugin à jour pour supprimer des projets.",
+      addon_immutable: "Ce projet est géré par un add-on et ne peut pas être supprimé.",
+      unknown_project: "Ce projet n'existe plus sur le serveur.",
+      delete_failed: "Impossible de supprimer le projet sur le serveur. Réessayez.",
+    },
   },
   menuProperties: {
     emptyMenuTitle: "Menu vide",
@@ -908,6 +919,12 @@ const fr: typeof en = {
     errFetchError: "Le module a échoué : {{message}}",
   },
   canvas: {
+    armedHint: "armé — clique une case pour le placer",
+    emptyState: {
+      title: "Bienvenue sur Artisan",
+      body: "Aucun workspace encore. Crée ton premier workspace pour démarrer — tu pourras y empiler menus, commandes et templates depuis le canvas.",
+      cta: "Crée ton premier workspace",
+    },
     groups: {
       title: "Groupes",
       createSelection: "Grouper la sélection",
@@ -989,6 +1006,32 @@ const fr: typeof en = {
     renameRejected: "Renommage refusé",
   },
   layerEditForm: {
+    emptySelection: "Sélectionne un élément pour modifier ses détails",
+    plainHint: "Titre vanilla — aucun resource project requis. MiniMessage supporté",
+    plainHintFont: "Titre vanilla — aucun resource project requis. Le texte s'affiche avec la police MC par défaut. MiniMessage supporté",
+    plainLabel: "Titre (MiniMessage) — {{lang}}",
+    preview: "Aperçu",
+    imageMissing: "<image manquante>",
+    imageNotLoaded: "image non chargée",
+    chooseImage: "Choisir une image…",
+    pickerTitle: "Choisir une image",
+    duplicateImage: "Dupliquer l'image",
+    duplicating: "Duplication…",
+    duplicateConfirm: "Dupliquer cette image pour ce menu uniquement ? Les autres menus garderont l'originale.",
+    provider: "Provider",
+    glyphName: "Glyph name",
+    textLabel: "Texte (MiniMessage, multi-ligne) — {{lang}}",
+    lineHeight: "Interligne (px)",
+    alignment: "Alignement",
+    alignLeft: "Aligner à gauche",
+    alignCenter: "Centrer",
+    alignRight: "Aligner à droite",
+    customFont: "Police personnalisée",
+    fontNone: "Aucune (vanilla)",
+    fontHint: "Importe une police via la Bibliothèque pour utiliser une police personnalisée.",
+    width: "Largeur (px)",
+    yLine0: "Y (ligne 0)",
+    overflow: "⚠ Certaines lignes dépassent la zone rendable (Y > 140) et seront tronquées.",
     textPlaceholder: "<gold>Texte du titre…",
     textareaPlaceholder: "<gold>Ligne 1\nLigne 2…",
     plainPlaceholder: "Texte du titre…",
@@ -1014,6 +1057,28 @@ const fr: typeof en = {
         xxl: "Géant (32)",
       },
     },
+  },
+  layersPanel: {
+    vanilla: "Vanilla",
+    composed: "Composé (Resource Project)",
+    switchToVanillaConfirm: "Passer en mode vanilla supprimera les layers actuels. Continuer ?",
+    addImage: "+ Image",
+    addText: "+ Texte",
+  },
+  layerListItem: {
+    deleteConfirm: "Supprimer cet élément du titre ?",
+    show: "Afficher",
+    hide: "Masquer",
+    showElement: "Afficher l'élément",
+    hideElement: "Masquer l'élément",
+    dragToReorder: "Glisser pour réordonner",
+    delete: "Supprimer",
+    deleteElement: "Supprimer l'élément du titre",
+    nameImage: "Image • {{name}}",
+    nameExternal: "Image ({{provider}}) • {{name}}",
+    nameText: "Texte • {{text}}",
+    namePlain: "Titre vanilla • {{text}}",
+    nameUnknown: "Calque inconnu",
   },
   nexoImport: {
     title: "Importer depuis Nexo",
@@ -1138,7 +1203,7 @@ const fr: typeof en = {
     staleOffline:
       "Serveur injoignable — affichage de ta dernière visite. Enregistrer est hors de portée.",
     unpublishedOffline:
-      "Serveur pas encore connecté — ce projet n'a jamais été publié. Ton brouillon est enregistré ; relie le serveur avec /artisan link pour publier.",
+      "Serveur hors ligne — ce projet n'a jamais été publié. Ton brouillon est enregistré ; la publication reprendra au retour du serveur.",
     staleOfflineSince:
       "Serveur hors ligne — version du {{date}}. Ton brouillon reste modifiable ; publier attend son retour.",
     loading: "Ouverture du projet…",
@@ -1257,6 +1322,20 @@ const fr: typeof en = {
     },
   },
   adminDesign: {
+    specimens: {
+      skeletonHint: "À la forme de ce qui va s'afficher : la mise en page ne saute pas quand les données arrivent. Pour une attente courte et localisée, préférer <Spinner>.",
+      spinnerLabel: "Lecture des fichiers du serveur…",
+      spinnerHint: "Toujours accompagné de ce qu'on attend : un rond qui tourne seul n'informe de rien.",
+      collapsibleTitle: "Paramètres avancés",
+      collapsibleBody: "Contenu démonté tant que la section est repliée.",
+      collapsibleOpenTitle: "Section ouverte par défaut",
+      workspaceViewBody: "Vue de travail qui remplace le canvas dans la zone centrale (panneau opaque, keep-alive). Le canvas reste monté dessous — jamais display:none. Échap / × reviennent au canvas.",
+      applyToAll: "Appliquer à tous",
+      disabled: "Désactivé",
+      checkboxHint: "Pour un état de formulaire confirmé explicitement. Un réglage persistant qui change le résultat en jeu garde <Switch>.",
+      defaultTexture: "Texture par défaut",
+      switchHint: "Pour un réglage enregistré qui change le résultat en jeu. Un masquage d'aperçu garde l'œil.",
+    },
     title: "Design system",
     intro:
       "Source de vérité du langage visuel de l'éditeur. Toute nouvelle UI doit passer d'abord par ces tokens, classes utilitaires et composants — étendre cette librairie (et cette page) plutôt que styler en ad-hoc.",
@@ -1468,6 +1547,8 @@ const fr: typeof en = {
     signIn: "Se connecter",
   },
   auth: {
+    privacy: "Confidentialité",
+    terms: "Conditions",
     logout: "Déconnexion",
   },
   placeholderInput: {

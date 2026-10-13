@@ -10,9 +10,8 @@ import net.artisanmc.plugin.expr.parseExpr
 
 /**
  * Maps the standalone Action DSL AST ({@link DslStep}) onto the plugin engine
- * models ({@link Step}/{@link Action}/{@link Condition}). This is the Phase 1.5
- * bridge (ADR `docs/decisions/action-dsl.md`) that lets `parseActionDsl(...)`
- * output flow into the existing `ActionExecutor`/`ConditionEvaluator`.
+ * models ({@link Step}/{@link Action}/{@link Condition}), so `parseActionDsl(...)`
+ * output flows into `ActionExecutor`/`ConditionEvaluator` (ADR `action-dsl`).
  *
  * Text mapping: a literal `{lit:s}` becomes the raw string `s` (an inline
  * template `resolveText`/`ArgResolver` interpolate); an i18n ref `{ref:k}`
@@ -24,7 +23,7 @@ fun dslToEngineSteps(steps: List<DslStep>): List<Step> = steps.map(::mapStep)
 
 /**
  * Parse an Action DSL string (the canonical menu/command/dialog click-handler
- * wire since Phase 2 of ADR `action-dsl`) into the engine [Step] tree. Blank
+ * wire, ADR `action-dsl`) into the engine [Step] tree. Blank
  * input → empty list. A malformed string throws [DslParseError] — callers
  * compile inside a `runCatching` so one bad chain drops its own handler with a
  * WARN rather than the whole bundle.
