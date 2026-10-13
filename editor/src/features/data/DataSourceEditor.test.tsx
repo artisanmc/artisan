@@ -93,7 +93,7 @@ describe("DataSourceEditor", () => {
 
   // Form ↔ YAML switch
 
-  it("montre le YAML de la source", () => {
+  it("shows the source's YAML", () => {
     render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     expect((screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value).toContain("coins");
@@ -104,7 +104,7 @@ describe("DataSourceEditor", () => {
    * in the FORM was overwritten by a stale draft when coming back to YAML. The
    * tab must always reflect the current state.
    */
-  it("relit l'état courant à chaque ouverture de l'onglet YAML", () => {
+  it("re-reads the current state each time the YAML tab opens", () => {
     const view = render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));
@@ -120,7 +120,7 @@ describe("DataSourceEditor", () => {
     expect(shown).not.toContain("coins");
   });
 
-  it("un aller-retour sans rien toucher ne modifie pas la source", () => {
+  it("a round trip without touching anything leaves the source unchanged", () => {
     render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));

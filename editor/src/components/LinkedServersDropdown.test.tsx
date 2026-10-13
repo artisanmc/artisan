@@ -93,8 +93,8 @@ describe("ServerRow", () => {
   });
 });
 
-describe("ServerRow — mise à jour du plugin en attente", () => {
-  it("n'offre rien de plus quand la mise à jour attend le redémarrage", () => {
+describe("ServerRow — plugin update pending", () => {
+  it("offers nothing more when the update is waiting for a restart", () => {
     render(<ServerRow s={entry({ online: true, pluginUpdatePending: "1.0.4" })} lang="en" t={t} />);
     expect(screen.getByText("linkedServers.pluginUpdatePending")).toBeInTheDocument();
     expect(screen.queryByRole("button")).toBeNull();
@@ -107,7 +107,7 @@ describe("LinkedServersDropdown", () => {
   // The trigger describes the server that HOLDS the open project: its disk
   // conditions everything (ADR `server-disk-only-storage`). The network aggregate
   // could show "2/3" while this very server was the missing one.
-  it("annonce l'état du serveur courant, pas l'agrégat du réseau", async () => {
+  it("announces the current server's state, not the network aggregate", async () => {
     vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
       online: 2,
       total: 3,
@@ -124,7 +124,7 @@ describe("LinkedServersDropdown", () => {
     expect(api.getNetworkServersStatus).toHaveBeenCalledWith("net1", "a");
   });
 
-  it("retombe sur l'agrégat quand aucun serveur courant n'est en portée", async () => {
+  it("falls back to the aggregate when no current server is in scope", async () => {
     vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
       online: 2,
       total: 3,
@@ -136,7 +136,7 @@ describe("LinkedServersDropdown", () => {
 
   // Offline is not a banner: the badge carries it, with a tooltip giving the
   // exact reason (copy date, draft, never published).
-  it("explique le hors-ligne du serveur courant en infobulle sur le badge", async () => {
+  it("explains the current server's offline state in a tooltip on the badge", async () => {
     vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
       online: 0,
       total: 1,
@@ -156,7 +156,7 @@ describe("LinkedServersDropdown", () => {
     );
   });
 
-  it("annonce « mise à jour requise » pour un serveur courant incompatible", async () => {
+  it("announces 'update required' for an incompatible current server", async () => {
     vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
       online: 1,
       total: 1,

@@ -10,25 +10,25 @@ import { isResolvedContext } from "./resolvedContexts";
  * "Seen from: shop_main › {cat}" and a choice that changes nothing.
  */
 describe("isResolvedContext", () => {
-  it("accepte des valeurs réellement résolues", () => {
+  it("accepts genuinely resolved values", () => {
     expect(isResolvedContext({ category: "les_cles", category_name: "Les Clés" })).toBe(true);
   });
 
-  it("accepte une valeur non-texte (la ligne entière passée telle quelle)", () => {
+  it("accepts a non-text value (the whole row passed as is)", () => {
     expect(isResolvedContext({ cat: { id: "les_cles", name: "Les Clés" } })).toBe(true);
   });
 
-  it("rejette un template resté brut", () => {
+  it("rejects a template left raw", () => {
     expect(isResolvedContext({ category: "{cat.id}" })).toBe(false);
     expect(isResolvedContext({ cat: "{cat}" })).toBe(false);
   });
 
   /** A single unresolved argument is enough: the resulting screen would be wrong. */
-  it("rejette dès qu'un argument sur deux est brut", () => {
+  it("rejects as soon as one argument out of two is raw", () => {
     expect(isResolvedContext({ category: "les_cles", category_name: "{cat.name}" })).toBe(false);
   });
 
-  it("accepte une accolade qui n'est pas un template", () => {
+  it("accepts a brace that is not a template", () => {
     expect(isResolvedContext({ label: "Pack {rare}" })).toBe(false);
     expect(isResolvedContext({ label: "100% coton" })).toBe(true);
   });

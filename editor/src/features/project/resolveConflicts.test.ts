@@ -17,7 +17,7 @@ describe("applyResolutions", () => {
     { path: "menus/b.yaml", disk: "title: B serveur\n" },
   ];
 
-  it("« garder ma version » rebase sans toucher à l'arbre de l'éditeur", () => {
+  it("'keep my version' rebases without touching the editor's tree", () => {
     const out = applyResolutions({}, conflicts, {
       "menus/a.yaml": "mine",
       "menus/b.yaml": "mine",
@@ -31,7 +31,7 @@ describe("applyResolutions", () => {
     expect(out.adoptFromDisk).toEqual({});
   });
 
-  it("« prendre celle du serveur » rebase ET rend le contenu à réintégrer", () => {
+  it("'take the server's' rebases AND returns the content to merge back", () => {
     const out = applyResolutions({}, conflicts, {
       "menus/a.yaml": "disk",
       "menus/b.yaml": "mine",
@@ -41,7 +41,7 @@ describe("applyResolutions", () => {
     expect(out.adoptFromDisk).toEqual({ "menus/a.yaml": "title: A serveur\n" });
   });
 
-  it("un fichier supprimé sur disque sort de la base au lieu d'y rester à null", () => {
+  it("a file deleted on disk leaves the base instead of staying there as null", () => {
     const out = applyResolutions(
       { "menus/parti.yaml": "title: Ancien\n" },
       [{ path: "menus/parti.yaml", disk: null }],
@@ -53,7 +53,7 @@ describe("applyResolutions", () => {
     expect("menus/parti.yaml" in out.nextBaseline).toBe(false);
   });
 
-  it("« prendre celle du serveur » sur un fichier supprimé le marque pour retrait", () => {
+  it("'take the server's' on a deleted file marks it for removal", () => {
     const out = applyResolutions(
       { "menus/parti.yaml": "title: Ancien\n" },
       [{ path: "menus/parti.yaml", disk: null }],
@@ -64,7 +64,7 @@ describe("applyResolutions", () => {
     expect(out.removeFromTree).toEqual(["menus/parti.yaml"]);
   });
 
-  it("préserve les entrées de base non conflictuelles", () => {
+  it("preserves the non-conflicting base entries", () => {
     const out = applyResolutions(
       { "lang/fr.yaml": "x: y\n" },
       [{ path: "menus/a.yaml", disk: "title: A\n" }],
@@ -74,7 +74,7 @@ describe("applyResolutions", () => {
     expect(out.nextBaseline["lang/fr.yaml"]).toBe("x: y\n");
   });
 
-  it("un fichier sans choix explicite est laissé intact — jamais de défaut silencieux", () => {
+  it("a file without an explicit choice is left untouched — never a silent default", () => {
     const out = applyResolutions({}, conflicts, { "menus/a.yaml": "mine" });
 
     // b was not resolved: its base does not move, so the re-save fails on it

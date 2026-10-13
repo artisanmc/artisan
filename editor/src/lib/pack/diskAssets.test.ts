@@ -33,7 +33,7 @@ describe("diskAssetsFromTree", () => {
     });
   });
 
-  test("le nom de fichier est l'identité, le dossier donne le type", () => {
+  test("the file name is the identity, the folder gives the type", () => {
     const found = diskAssetsFromTree(
       "p1",
       [],
@@ -45,7 +45,7 @@ describe("diskAssetsFromTree", () => {
     ]);
   });
 
-  test("le descripteur frère porte ascent, codepoint et dimensions", () => {
+  test("the sibling descriptor carries ascent, codepoint and dimensions", () => {
     const found = diskAssetsFromTree(
       "p1",
       [
@@ -65,7 +65,7 @@ describe("diskAssetsFromTree", () => {
     });
   });
 
-  test("un descripteur cassé ne fait pas disparaître l'image", () => {
+  test("a broken descriptor does not make the image disappear", () => {
     // Punishing the image for a typo in its `.yaml` would punish the wrong
     // thing — the admin would see a missing glyph without knowing why.
     const found = diskAssetsFromTree(
@@ -77,7 +77,7 @@ describe("diskAssetsFromTree", () => {
     expect(found[0]!.row.ascent).toBeNull();
   });
 
-  test("un binaire hors des dossiers d'assets n'est pas un asset", () => {
+  test("a binary outside the asset folders is not an asset", () => {
     // An image at the Project root has no business in the pack: membership is
     // read from the folder, not the extension.
     expect(diskAssetsFromTree("p1", [], [bin("capture.png")])).toEqual([]);

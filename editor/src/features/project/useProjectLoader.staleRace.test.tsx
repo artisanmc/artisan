@@ -27,7 +27,7 @@ const menu = (id: string) => `schema: menu/v1\nid: ${id}\ntitle: ${id}\nsize: 27
  * The screen showed the previous visit while claiming to show the server:
  * vanished elements, an empty template, and nothing to say so.
  */
-describe("useProjectLoader — la version fraîche gagne toujours", () => {
+describe("useProjectLoader — the fresh version always wins", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(draftsApi, "listDrafts").mockResolvedValue([]);
@@ -39,7 +39,7 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
   });
 
-  it("un affichage depuis le cache qui finit en retard n'écrase pas le Project frais", async () => {
+  it("a cached display that finishes late does not overwrite the fresh Project", async () => {
     useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
@@ -117,7 +117,7 @@ describe("useProjectLoader — la version fraîche gagne toujours", () => {
    * server — rebuilt from the SERVER's tree, ignoring it. Only the "fresh tree"
    * path picked it up.
    */
-  it("un brouillon non enregistré survit à une réponse « inchangé »", async () => {
+  it("an unsaved draft survives an 'unchanged' response", async () => {
     useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",

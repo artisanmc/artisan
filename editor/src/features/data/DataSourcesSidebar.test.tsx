@@ -41,18 +41,18 @@ function renderSidebar() {
   );
 }
 
-describe("DataSourcesSidebar — données possédées par un module", () => {
+describe("DataSourcesSidebar — data owned by a module", () => {
   // The canvas panel is a BINDING surface: a source whose model is declared by
   // a module is edited in the module's screen. Otherwise its schema could be
   // broken or the source deleted here (ADR module-config-screens).
-  it("ne propose pas à l'édition une Config typée par une déclaration de module", () => {
+  it("does not offer for editing a Config typed by a module declaration", () => {
     renderSidebar();
     const managed = screen.getByTestId("module-managed-sources");
     expect(managed.textContent).toContain("Réglages");
     expect(managed.textContent).toContain("Catégories");
   });
 
-  it("laisse éditables les sources du project", () => {
+  it("leaves the project's sources editable", () => {
     renderSidebar();
     expect(screen.getByTestId("module-managed-sources").textContent).not.toContain("Grades");
     expect(screen.getByRole("button", { name: /Grades/ })).toBeInTheDocument();

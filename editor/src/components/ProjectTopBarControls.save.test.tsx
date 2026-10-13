@@ -146,7 +146,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
   });
 
-  it("enregistre l'état VIVANT du store, pas la prop figée au chargement", async () => {
+  it("saves the LIVE store state, not the prop frozen at load time", async () => {
     const stale = baseProject("état au chargement");
     const live = baseProject("état après édition");
     useAccountStore.setState({
@@ -174,7 +174,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
    * there is something to write, disabled otherwise — a button that does
    * nothing already says there is nothing to do.
    */
-  it("est inactif quand rien n'a été modifié depuis le chargement", () => {
+  it("is inactive when nothing has changed since load", () => {
     const p = baseProject("intact");
     useAccountStore.setState({
       account: { id: "n1", projects: [p], projectOrder: [p.id] },
@@ -212,7 +212,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     expect(saveProjectToDisk).not.toHaveBeenCalled();
   });
 
-  describe("contrôles entre projets dans la revue", () => {
+  describe("cross-project controls in the review", () => {
     const command = (id: string, name: string) => ({
       id,
       projectId: "x",

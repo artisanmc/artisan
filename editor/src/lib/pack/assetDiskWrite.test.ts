@@ -13,12 +13,12 @@ import type { DiskAsset } from "./diskAssets";
 describe("assetDiskWrite", () => {
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 
-  test("le type donne le dossier, le nom donne le fichier", () => {
+  test("the type gives the folder, the name gives the file", () => {
     expect(assetDiskPath("glyph", "Icône Diamant")).toBe("assets/glyphs/ic-ne-diamant.png");
     expect(assetDiskPath("texture", "fond_boutique")).toBe("assets/textures/fond_boutique.png");
   });
 
-  test("le descripteur ne porte que ce qu'on sait", () => {
+  test("the descriptor carries only what is known", () => {
     expect(descriptorYaml({ ascent: 8, codepoint: 57344, width: 16, height: 16 })).toBe(
       "ascent: 8\ncodepoint: 57344\nwidth: 16\nheight: 16\n",
     );
@@ -33,7 +33,7 @@ describe("assetDiskWrite", () => {
     row: { codepoint: cp } as DiskAsset["row"],
   });
 
-  test("le codepoint proposé est le premier libre", () => {
+  test("the proposed codepoint is the first free one", () => {
     expect(nextFreeCodepoint([])).toBe(0xe000);
     expect(nextFreeCodepoint([used(0xe000), used(0xe001)])).toBe(0xe002);
   });
@@ -45,7 +45,7 @@ describe("assetDiskWrite", () => {
    * successor went up to U+F8FF — it would eventually have given a glyph a
    * space's codepoint.
    */
-  test("ne sort pas de la plage réservée aux glyphes", () => {
+  test("does not leave the range reserved for glyphs", () => {
     const all: DiskAsset[] = [];
     for (let cp = CODEPOINT_MIN; cp <= CODEPOINT_MAX; cp++) all.push(used(cp));
     expect(() => nextFreeCodepoint(all)).toThrow();

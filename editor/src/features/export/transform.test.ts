@@ -813,7 +813,7 @@ describe("transform — dialogs", () => {
     expect(files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]).toBeDefined();
   });
 
-  it("dialog yaml contains schema, title, can_close_with_escape — mais plus d'id", () => {
+  it("dialog yaml contains schema, title, can_close_with_escape — but no longer the id", () => {
     const dialog: Dialog = {
       id: dialogId("d_test"),
       projectId: projectId("p_test"),
@@ -838,7 +838,7 @@ describe("transform — dialogs", () => {
     expect(yaml).toContain('title: ""');
   });
 
-  it("le dialog existe par son fichier, plus par une entrée de manifest", () => {
+  it("the dialog exists through its file, no longer through a manifest entry", () => {
     const dialog: Dialog = {
       id: dialogId("d_test"),
       projectId: projectId("p_test"),
@@ -1608,8 +1608,8 @@ describe("projectToCommandV1 / projectToDialogV1", () => {
  * ships BEFORE anything writes the new form — production must be able to
  * read the new shape before reaching it.
  */
-describe("refs d'assets — nom et id opaque", () => {
-  it("lit `asset: <nom>` comme `asset_id: <id>`", () => {
+describe("asset refs — name and opaque id", () => {
+  it("reads `asset: <name>` as `asset_id: <id>`", () => {
     expect(parseTitleNode([{ kind: "background", asset: "fond_boutique" }])).toEqual([
       { kind: "background", assetId: "fond_boutique" },
     ]);
@@ -1618,7 +1618,7 @@ describe("refs d'assets — nom et id opaque", () => {
     ]);
   });
 
-  it("lit encore l'ancienne forme opaque", () => {
+  it("still reads the old opaque form", () => {
     expect(parseTitleNode([{ kind: "background", asset_id: "ast_9f3c1a" }])).toEqual([
       { kind: "background", assetId: "ast_9f3c1a" },
     ]);
