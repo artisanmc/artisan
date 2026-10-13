@@ -1,0 +1,10 @@
+server_key: ""
+ws_url: ""
+web:
+  enabled: true
+  role: "leaf"
+  name: "survie"
+  hub-url: "ws://hub:8765/ws/plugin"
+  secret: "local-network-secret"
+database:
+  type: "h2"

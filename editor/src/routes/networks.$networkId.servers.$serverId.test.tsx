@@ -207,10 +207,27 @@ describe("ServerDetailPage", () => {
   });
 
   it("dit que le serveur est injoignable quand la lecture disque échoue", async () => {
-    vi.mocked(listServerProjects).mockResolvedValue({ ok: false, error: "server_offline" });
+    vi.mocked(listServerProjects).mockResolvedValue({ ok: false, error: "read_error" });
     render(<ServerDetailPage />);
     await screen.findByText("serverDetail.projectsUnavailable");
     expect(screen.queryByText("serverDetail.noProjects")).not.toBeInTheDocument();
+  });
+
+  it("dit que le serveur est hors ligne quand il répond server_offline", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({ ok: false, error: "server_offline" });
+    render(<ServerDetailPage />);
+    await screen.findByText("serverDetail.serverOffline");
+  });
+
+  it("plugin à mettre à jour : le dit, et n'offre ni import ni configuration", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: false,
+      error: "plugin_update_required",
+    });
+    render(<ServerDetailPage />);
+    await screen.findByText("serverDetail.updateRequired");
+    expect(screen.getByText("topbar.import")).toBeDisabled();
+    expect(screen.queryByText("serverConfig.title")).not.toBeInTheDocument();
   });
 
   /** Les Config screens décident du regroupement : la page les charge pour SON

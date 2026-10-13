@@ -38,3 +38,4 @@ backend/data/asset-cache/
 backend/data/resource-projects/
 backend/data/plugin-release/
 /data/
+docker/network/data/

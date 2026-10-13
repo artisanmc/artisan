@@ -257,10 +257,18 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <p className="text-[15px] text-[var(--text)]">
-          {offline ? t("project.offlineTitle") : t("project.loadFailedTitle")}
+          {offline
+            ? t("project.offlineTitle")
+            : loadError === "plugin_update_required"
+              ? t("project.updateRequiredTitle")
+              : t("project.loadFailedTitle")}
         </p>
         <p className="max-w-md text-[13px] text-[var(--text-mut)]">
-          {offline ? t("project.offlineBody") : t("project.loadFailedBody")}
+          {offline
+            ? t("project.offlineBody")
+            : loadError === "plugin_update_required"
+              ? t("project.updateRequiredBody")
+              : t("project.loadFailedBody")}
         </p>
         <code className="text-[11px] text-[var(--text-faint)]">{loadError}</code>
         <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>

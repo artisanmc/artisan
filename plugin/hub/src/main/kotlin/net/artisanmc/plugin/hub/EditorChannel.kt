@@ -14,11 +14,15 @@ class EditorChannel(private val logger: Logger?) {
         open.forEach { session -> if (session.isOpen) session.sendText(text, Callback.NOOP) }
     }
 
-    /** Une annonce du serveur, sous la forme que l'éditeur recevait du backend. */
-    fun relay(event: Map<String, Any?>) {
-        if (event["type"] == "projects_reloaded") {
-            broadcast(mapOf("type" to "projects_reloaded", "server_key_id" to AccountRoutes.LOCAL, "projects" to event["projects"]))
+    /** Une annonce d'un serveur, sous la forme que l'éditeur recevait du backend. */
+    fun relay(event: Map<String, Any?>, server: String = Servers.LOCAL) {
+        if (event["type"] != "projects_reloaded") return
+        val projects = (event["projects"] as? List<*>).orEmpty().map { project ->
+            val fields = project as? Map<*, *> ?: return@map project
+            val folder = fields["id"] as? String ?: return@map project
+            fields + ("id" to ProjectRef.id(server, folder))
         }
+        broadcast(mapOf("type" to "projects_reloaded", "server_key_id" to server, "projects" to projects))
     }
 
     fun closeAll() {

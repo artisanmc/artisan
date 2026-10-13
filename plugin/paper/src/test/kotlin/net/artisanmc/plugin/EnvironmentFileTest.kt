@@ -69,6 +69,7 @@ class EnvironmentFileTest {
         assertEquals(3306, env.getInt("database.port"))
         assertEquals(8765, env.getInt("web.port"))
         assertTrue(env.getBoolean("web.enabled"))
+        assertEquals("hub", env.getString("web.role"))
     }
 
     @Test

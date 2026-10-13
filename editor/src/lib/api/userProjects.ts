@@ -39,7 +39,14 @@ export async function loadUserProject(
   const res = await projectFetch(projectRef, `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectRef)}${qs}`, {
     credentials: "include",
   });
-  if (!res.ok) throw new Error(`loadUserProject failed: ${res.status}`);
+  if (!res.ok) {
+    // Serveur hors ligne ou plugin à mettre à jour : le code remonte tel quel pour
+    // que l'éditeur l'explique au lieu d'afficher un statut HTTP.
+    const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    if (body?.error === "server_offline" || body?.error === "plugin_update_required")
+      throw new Error(body.error);
+    throw new Error(`loadUserProject failed: ${res.status}`);
+  }
   return (await res.json()) as UserProjectLoadResult;
 }
 
