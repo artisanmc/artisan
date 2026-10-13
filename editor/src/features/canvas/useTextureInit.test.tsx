@@ -7,9 +7,11 @@ vi.mock("@/lib/api/userProjects", () => ({
   fetchUserItems: (...a: unknown[]) => fetchUserItems(...a),
   fetchUserCustomItems: (...a: unknown[]) => fetchUserCustomItems(...a),
 }));
+const preloadModels = vi.fn();
+const renderToCanvas = vi.fn();
 vi.mock("@/lib/mcModelRenderer", () => ({
-  preloadModels: vi.fn().mockResolvedValue(undefined),
-  renderToCanvas: vi.fn().mockResolvedValue(null),
+  preloadModels: (...a: unknown[]) => preloadModels(...a),
+  renderToCanvas: (...a: unknown[]) => renderToCanvas(...a),
 }));
 
 import { useAuthStore } from "@/state/authStore";
@@ -21,6 +23,7 @@ const ITEMS = [{ id: "stone", label: "Stone" }];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  renderToCanvas.mockResolvedValue(null);
   fetchUserItems.mockResolvedValue({ version: "1.21.4", items: ITEMS });
   fetchUserCustomItems.mockResolvedValue({ items: [], serverKeyId: null });
   useTextureStore.setState({ libraryItems: [], libraryError: false });
@@ -57,6 +60,24 @@ describe("useTextureInit", () => {
     fetchUserItems.mockRejectedValue(new Error("404"));
     renderHook(() => useTextureInit());
     await waitFor(() => expect(useTextureStore.getState().libraryError).toBe(true));
+  });
+
+  // Le hub ne sert pas de bundle de modèles : le catalogue embarque des icônes
+  // déjà rendues, et les items custom n'ont qu'un nom (placeholder).
+  it("renders only vanilla items with a model, without any model bundle", async () => {
+    fetchUserItems.mockResolvedValue({
+      version: "1.21.4",
+      items: [...ITEMS, { id: "chest", label: "Chest", model: "item/chest" }],
+    });
+    fetchUserCustomItems.mockResolvedValue({
+      serverKeyId: "local",
+      items: [{ id: "nexo:coin", label: "coin", category: "nexo", model: "nexo/coin" }],
+    });
+    renderHook(() => useTextureInit());
+    await waitFor(() => expect(useTextureStore.getState().libraryBundleReady).toBe(true));
+    expect(preloadModels).not.toHaveBeenCalled();
+    expect(renderToCanvas).toHaveBeenCalledTimes(1);
+    expect(renderToCanvas).toHaveBeenCalledWith("item/chest", "1.21.4", undefined);
   });
 
   it("does nothing without a project id", () => {

@@ -44,14 +44,6 @@ describe("resolveModel", () => {
     expect(result!.textures.all).toBe("block/diamond_block"); // child wins
     expect(result!.elements).toHaveLength(1);                 // from parent
   });
-
-  test("uses custom models endpoint for custom items", async () => {
-    vi.mocked(fetch).mockResolvedValue({ ok: false } as Response);
-    await resolveModel("nexo/forest_sword", "1.21.4", true, "srv_abc");
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/models/custom/srv_abc/nexo/forest_sword"),
-    );
-  });
 });
 
 describe("faceVerts", () => {
