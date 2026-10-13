@@ -19,8 +19,8 @@ class MenuListener(
     private val executor: ActionExecutor,
     private val windows: MenuWindows? = null,
     private val history: NavigationHistoryStore? = null,
-    private val resync: (Player) -> Unit = { it.updateInventory() },
     private val events: MenuEventDispatcher? = null,
+    private val resync: (Player) -> Unit = { it.updateInventory() },
 ) : Listener {
     private val scheduler = schedulerFor(plugin)
 
