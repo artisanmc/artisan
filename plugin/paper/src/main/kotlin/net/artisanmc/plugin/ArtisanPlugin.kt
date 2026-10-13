@@ -519,7 +519,7 @@ open class ArtisanPlugin : JavaPlugin() {
         if (!checkDir.isDirectory || !checkDir.canWrite()) {
             logger.warning(
                 "[delegate] delegate-to-dir ${target.absolutePath} parent " +
-                    "(${checkDir.absolutePath}) is not a writable directory — falling back to legacy push mode",
+                    "(${checkDir.absolutePath}) is not a writable directory — falling back to pushing the pack to players directly",
             )
             return null
         }

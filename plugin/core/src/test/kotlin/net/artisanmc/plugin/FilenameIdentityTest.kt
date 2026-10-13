@@ -28,7 +28,7 @@ class FilenameIdentityTest {
     private fun read(dir: File) = ProjectReader(ProjectRoots(dir.parentFile), null).readAll()
 
     @Test
-    fun `l'id d'un menu vient du nom de fichier`(@TempDir tmp: Path) {
+    fun `a menu id comes from its filename`(@TempDir tmp: Path) {
         val p = project(tmp)
         write(p, "manifest.yaml", "schema: manifest/v1\n")
         write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
@@ -49,7 +49,7 @@ class FilenameIdentityTest {
     }
 
     @Test
-    fun `les documents sont decouverts par scan, sans bloc files`(@TempDir tmp: Path) {
+    fun `documents are discovered by scanning, without a files block`(@TempDir tmp: Path) {
         val p = project(tmp)
         // Minimal manifest: no index to maintain by hand.
         write(p, "manifest.yaml", "schema: manifest/v1\ndefault_lang: fr\n")
@@ -65,7 +65,7 @@ class FilenameIdentityTest {
     }
 
     @Test
-    fun `un bloc files legacy n'ampute pas ce qui est sur le disque`(@TempDir tmp: Path) {
+    fun `a legacy files block does not hide what is on disk`(@TempDir tmp: Path) {
         val p = project(tmp)
         // The block is behind: a file added by hand is not listed. The disk is
         // authoritative, otherwise the file would be invisible with nothing to

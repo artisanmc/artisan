@@ -76,7 +76,7 @@ class AssetTransferTest {
     )
 
     @Test
-    fun `l'arbre annonce les binaires sans les porter`() {
+    fun `the tree lists binaries without carrying them`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\nsize: 27\n".toByteArray())
@@ -99,11 +99,11 @@ class AssetTransferTest {
         val entry = binaries.single()
         assertEquals("assets/glyphs/diamant.png", entry["path"])
         assertEquals(png.size, (entry["size"] as Number).toInt())
-        assertTrue((entry["hash"] as String).length == 64, "hash SHA-256 hex attendu")
+        assertTrue((entry["hash"] as String).length == 64, "expected a SHA-256 hex hash")
     }
 
     @Test
-    fun `asset_read rend les octets exacts`() {
+    fun `asset_read returns the exact bytes`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "assets/glyphs/diamant.png", png)
@@ -117,7 +117,7 @@ class AssetTransferTest {
     }
 
     @Test
-    fun `project_write ecrit un binaire et refuse si la base a bouge`() {
+    fun `project_write writes a binary and rejects it if the base moved`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
@@ -137,7 +137,7 @@ class AssetTransferTest {
     }
 
     @Test
-    fun `un binaire ecrit est visible sans reload manuel`() {
+    fun `a written binary is visible without a manual reload`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
@@ -161,7 +161,7 @@ class AssetTransferTest {
      * and, above all, would leave a half-written font if one failed: all or nothing.
      */
     @Test
-    fun `project_write ecrit plusieurs binaires en tout ou rien`() {
+    fun `project_write writes several binaries all or nothing`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/m.yaml", "schema: menu/v1\n".toByteArray())
@@ -175,7 +175,7 @@ class AssetTransferTest {
     }
 
     @Test
-    fun `un seul fichier perime annule tout le groupe`() {
+    fun `a single stale file cancels the whole batch`() {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "assets/fonts/pixelmix/b.png", png)

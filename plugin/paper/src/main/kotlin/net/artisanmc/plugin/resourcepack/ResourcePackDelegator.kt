@@ -104,7 +104,7 @@ open class ResourcePackDelegator(
             tmp.copyTo(targetDir, overwrite = true)
             tmp.delete()
         }
-        logger?.info("[delegate] wrote Artisan project zip to ${targetDir.absolutePath}")
+        logger?.info("[delegate] wrote Artisan pack zip to ${targetDir.absolutePath}")
     }
 
     /**
@@ -140,7 +140,7 @@ open class ResourcePackDelegator(
                 zis.closeEntry()
             }
         }
-        logger?.info("[delegate] extracted Artisan project into ${artisanRoot.absolutePath}")
+        logger?.info("[delegate] extracted Artisan pack into ${artisanRoot.absolutePath}")
     }
 
     private fun acceptEntry(name: String): Boolean =

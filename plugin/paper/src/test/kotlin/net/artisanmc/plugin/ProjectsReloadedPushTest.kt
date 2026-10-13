@@ -39,7 +39,7 @@ class ProjectsReloadedPushTest {
     }
 
     @Test
-    fun `un chargement annonce les Projects et leur empreinte`() {
+    fun `a load announces the projects and their hash`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
@@ -54,7 +54,7 @@ class ProjectsReloadedPushTest {
     }
 
     @Test
-    fun `l'empreinte annoncee suit le contenu`() {
+    fun `the announced hash follows the content`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
@@ -72,7 +72,7 @@ class ProjectsReloadedPushTest {
     }
 
     @Test
-    fun `l'empreinte annoncee est celle que project_read rendra`() {
+    fun `the announced hash is the one project_read returns`() {
         val h = Harness()
         h.write("boutique", "menus/m.yaml", "schema: menu/v1\nsize: 27\n")
         h.provider.load()
