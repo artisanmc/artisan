@@ -14,8 +14,8 @@ interface MenuProvider {
     fun shutdown() { unload() }
     fun findMenu(menuId: String): BundleMenu?
     /**
-     * `ref` = id nu (cherché d'abord dans [fromProject], puis sur le serveur) ou
-     * `project:id`. Défaut : ignore le project, pour les implémentations simples.
+     * `ref` = bare id (looked up in [fromProject] first, then server-wide) or
+     * `project:id`. The default ignores the project, for simple implementations.
      */
     fun findMenu(ref: String, fromProject: String?): BundleMenu? = findMenu(ref)
     fun listMenuIds(): List<String> = emptyList()

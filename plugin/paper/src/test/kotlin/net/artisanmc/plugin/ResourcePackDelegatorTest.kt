@@ -37,7 +37,7 @@ class ResourcePackDelegatorTest {
         return baos.toByteArray()
     }
 
-    /** Compute SHA-1 hex of bytes (matches the format produced by the backend). */
+    /** SHA-1 hex of bytes (the format of the pack hash). */
     private fun sha1Hex(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-1").digest(bytes)
             .joinToString("") { "%02x".format(it) }
@@ -150,7 +150,7 @@ class ResourcePackDelegatorTest {
             "no file should be extracted when hash mismatches")
     }
 
-    // ----- ZIP output mode (target path ends with .zip) -----
+    // ZIP output mode (target path ends with .zip)
 
     /** Read entry names from a zip file on disk. */
     private fun zipEntries(zipFile: File): Map<String, ByteArray> {
@@ -180,9 +180,8 @@ class ResourcePackDelegatorTest {
         assertTrue(target.exists() && target.isFile, "target must be a regular file")
         val entries = zipEntries(target)
         assertTrue(entries.containsKey("pack.mcmeta"), "pack.mcmeta should be at zip root")
-        // Minecraft (et le fusionneur de Nexo) lisent la section `pack` : un
-        // autre nom de racine rend le pack.mcmeta invalide, donc le zip entier
-        // inexploitable par l'hôte.
+        // Minecraft (and Nexo's merger) read the `pack` section: any other root name
+        // makes the pack.mcmeta invalid, so the whole zip unusable by the host.
         val mcmeta = entries["pack.mcmeta"]!!.toString(Charsets.UTF_8)
         assertTrue("\"pack\":" in mcmeta, "root key must be `pack`, was: $mcmeta")
         assertFalse("\"project\":" in mcmeta, "root key must not be `project`, was: $mcmeta")

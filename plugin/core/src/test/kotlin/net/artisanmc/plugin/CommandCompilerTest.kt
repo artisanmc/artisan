@@ -98,7 +98,7 @@ class CommandCompilerTest {
     }
 
     @Test fun `compile parses canonical steps into a step tree`() {
-        // steps is an Action DSL string since Phase 2 (ADR action-dsl).
+        // steps is an Action DSL string (ADR action-dsl).
         val yaml = CommandYaml(
             name = "menu",
             steps = "if has_permission(x):\n  close_menu\nsend_message \"hi\"",

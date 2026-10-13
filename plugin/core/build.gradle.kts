@@ -1,5 +1,5 @@
-// Domaine d'Artisan : projets, menus, langage d'actions, expressions, protocole.
-// Aucune dépendance de plateforme : un import org.bukkit ici ne compile pas.
+// Artisan's domain: projects, menus, action language, expressions, protocol.
+// No platform dependency: an org.bukkit import here does not compile.
 dependencies {
     implementation(project(":artisan-api"))
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.2")

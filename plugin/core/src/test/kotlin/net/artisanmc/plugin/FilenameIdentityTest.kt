@@ -9,15 +9,11 @@ import java.io.File
 import java.nio.file.Path
 
 /**
- * **La structure de fichiers déclare, le contenu ne se redécrit pas.**
+ * **The file structure declares; the content does not describe itself again.**
  *
- * Deux redondances tombent ensemble :
- * - l'`id:` interne d'un Document, alors que le fichier porte déjà ce nom ;
- * - le bloc `files:` du manifest, qui recopiait à la main le contenu des dossiers.
- *
- * Le produit y était déjà à moitié : un template prend son `nameWithoutExtension`
- * quand son `id` est vide, et data sources comme models sont découverts par scan,
- * sans index ni champ `id`.
+ * Two redundancies go together:
+ * - a Document's inner `id:`, while the file already carries that name;
+ * - the manifest `files:` block, which copied the folders' content by hand.
  */
 class FilenameIdentityTest {
 
@@ -45,7 +41,7 @@ class FilenameIdentityTest {
     fun `un id interne divergent est ignore au profit du fichier`(@TempDir tmp: Path) {
         val p = project(tmp)
         write(p, "manifest.yaml", "schema: manifest/v1\n")
-        // Projet legacy : le fichier prétend s'appeler autrement.
+        // Legacy project: the file claims another name.
         write(p, "menus/accueil.yaml", "schema: menu/v1\nid: vieux_nom\nsize: 27\n")
 
         val bundle = read(p).single()
@@ -55,7 +51,7 @@ class FilenameIdentityTest {
     @Test
     fun `les documents sont decouverts par scan, sans bloc files`(@TempDir tmp: Path) {
         val p = project(tmp)
-        // Manifest minimal : plus d'index à tenir à jour à la main.
+        // Minimal manifest: no index to maintain by hand.
         write(p, "manifest.yaml", "schema: manifest/v1\ndefault_lang: fr\n")
         write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
         write(p, "menus/boutique.yaml", "schema: menu/v1\nsize: 54\n")
@@ -71,9 +67,9 @@ class FilenameIdentityTest {
     @Test
     fun `un bloc files legacy n'ampute pas ce qui est sur le disque`(@TempDir tmp: Path) {
         val p = project(tmp)
-        // Le bloc a pris du retard : un fichier ajouté à la main n'y figure pas.
-        // C'est le disque qui fait foi, sinon le fichier serait invisible sans
-        // que rien ne l'explique — le piège que ce bloc tendait.
+        // The block is behind: a file added by hand is not listed. The disk is
+        // authoritative, otherwise the file would be invisible with nothing to
+        // explain why.
         write(p, "manifest.yaml", "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n")
         write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
         write(p, "menus/oublie.yaml", "schema: menu/v1\nsize: 9\n")

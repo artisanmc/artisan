@@ -58,7 +58,7 @@ class PluginChannelTest {
     @AfterTest
     fun stop() = hub.stop()
 
-    /** Un serveur du réseau, côté test : il reçoit les messages du hub et répond à la main. */
+    /** A network server, test side: it receives the hub's messages and replies by hand. */
     private inner class Leaf : WebSocket.Listener {
         val received = LinkedBlockingQueue<JsonNode>()
         val closed = CompletableFuture<Int>()

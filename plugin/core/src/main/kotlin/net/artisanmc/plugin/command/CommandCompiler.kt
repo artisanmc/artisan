@@ -11,8 +11,8 @@ object CommandCompiler {
 
     fun compile(yaml: CommandYaml, logger: Logger? = null): CompiledCommand? = runCatching {
         val requirements = yaml.requirements.map { ConditionParser.parse(it) }
-        // Canonical wire: keyed steps (ou un step / une liste) ; string = ancien
-        // DSL. Une liste plate d'Action `{type:…}` est le wire legacy pré-DSL.
+        // Canonical wire: keyed steps (a step or a list); a string is the old DSL.
+        // A flat list of `{type:…}` actions is the pre-DSL legacy wire.
         val legacy       = yaml.legacyActions
         val steps        = if (legacy.isNotEmpty()) emptyList()
                            else ActionChainCompiler.compile(yaml.handler, I18nAddress.command(yaml.id))

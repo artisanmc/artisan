@@ -21,12 +21,12 @@ class ProjectReader(
      */
     private val declaredModels: () -> Map<String, Map<String, Any?>> = { emptyMap() },
     /**
-     * Appelé pour chaque Document que le serveur n'a **pas** réussi à charger
-     * (`projectId`, chemin relatif, raison).
+     * Called for each Document the server failed to load (`projectId`, relative
+     * path, reason).
      *
-     * Sans ça, un YAML cassé est sauté en silence des deux côtés : le serveur ne
-     * l'exécute pas, l'éditeur ne l'affiche pas, et rien n'explique sa
-     * disparition. Le signal remonte jusqu'à l'éditeur via `project_read`.
+     * Without it a broken YAML is skipped silently on both sides: the server does
+     * not run it, the editor does not show it, and nothing explains why it is gone.
+     * The signal reaches the editor through `project_read`.
      */
     private val onSkip: (String, String, String) -> Unit = { _, _, _ -> },
 ) {
@@ -51,10 +51,6 @@ class ProjectReader(
      * Verify the YAML's `schema` field is either empty (legacy / pre-versioning)
      * or matches the expected version. Reject everything else with a clear error
      * pointing at the schema migration framework (see api.schemas).
-     *
-     * In V1 we only know "manifest/v1", "menu/v1", "command/v1", "dialog/v1".
-     * Future versions will register a SchemaMigration via api.schemas.register(...)
-     * and run loadToCurrent before Jackson binds the data class.
      */
     private fun requireSchema(file: File, actual: String, vararg expected: String) {
         if (actual.isEmpty() || actual in expected) return
@@ -66,16 +62,11 @@ class ProjectReader(
     }
 
     /**
-     * Le **nom de fichier est l'identité** d'un Document.
+     * The **file name is a Document's identity**.
      *
-     * Le produit y était déjà à moitié : un template prend son `nameWithoutExtension`
-     * quand son `id` est vide, et les data sources comme les models n'ont pas de
-     * champ `id` du tout. Menus, commandes et dialogs gardaient un `id:` interne —
-     * donc deux sources pour une seule vérité, qui finissent par se contredire.
-     *
-     * Une seule règle : le fichier gagne. Un `id:` divergent est ignoré et signalé,
-     * pour qu'un projet legacy le dise au lieu de le subir. Deux règles
-     * (« le fichier, sauf si un id est présent ») perpétueraient l'ambiguïté.
+     * One rule: the file wins. A diverging inner `id:` is ignored and logged, so a
+     * legacy project says so instead of silently disagreeing. Two rules ("the file,
+     * unless an id is present") would keep the ambiguity alive.
      */
     private inline fun <reified T : Any> withFileId(doc: T, fileId: String, file: File): T {
         val current = when (doc) {
@@ -86,8 +77,8 @@ class ProjectReader(
         }
         if (current.isNotEmpty() && current != fileId) {
             logger?.warning(
-                "[Artisan] ${file.name} déclare 'id: $current' — ignoré, l'identité est le nom du " +
-                "fichier ('$fileId'). Retire ce champ, et renomme le fichier si tu voulais l'autre nom."
+                "[Artisan] ${file.name} declares 'id: $current', ignored: the identity is the file " +
+                "name ('$fileId'). Remove that field, and rename the file if you wanted the other name."
             )
         }
         @Suppress("UNCHECKED_CAST")
@@ -100,16 +91,11 @@ class ProjectReader(
     }
 
     /**
-     * Les Documents d'un dossier, **découverts par scan**.
+     * A folder's Documents, **discovered by scan**.
      *
-     * Le bloc `files:` du manifest recopiait à la main le contenu de `menus/`,
-     * `commands/` et `dialogs/` — un index sans ordre de chargement ni exclusion,
-     * dont l'unique effet possible était de se désynchroniser. Les data sources et
-     * les models étaient déjà scannés ; ceci aligne le reste.
-     *
-     * Un bloc legacy encore présent est **fusionné**, jamais soustrait : il ne peut
-     * plus rendre invisible un fichier bien réel. Ordre alphabétique, donc stable
-     * d'un chargement à l'autre.
+     * A legacy manifest `files:` block still present is **merged**, never
+     * subtracted: it cannot hide a real file. Alphabetical order, so stable from
+     * one load to the next.
      */
     private fun documentIds(projectDir: File, dir: String, legacy: List<String>): List<String> {
         val scanned = File(projectDir, dir).listFiles()
@@ -143,9 +129,8 @@ class ProjectReader(
         // dotted keys the runtime looks up (and still reads the legacy flat form).
         // Tolerant PER FILE, like menus/dialogs/data sources below: an unreadable
         // lang file degrades to no translations for that language (raw `{i18n:…}`
-        // tags in game) instead of dropping the whole project — a hand-edit typo
-        // in one lang file used to cost every menu, command and dialog of the
-        // project, since this read sits above them all.
+        // tags in game) instead of dropping the whole project, since this read
+        // sits above every menu, command and dialog.
         val langMaps: Map<String, Map<String, String>> = manifest.languages.associateWith { lang ->
             val langFile = File(projectDir, "lang/$lang.yaml")
             if (!langFile.exists()) return@associateWith emptyMap()

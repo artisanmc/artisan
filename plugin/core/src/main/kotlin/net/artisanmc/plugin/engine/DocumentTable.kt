@@ -1,17 +1,16 @@
 package net.artisanmc.plugin.engine
 
 /**
- * Les Documents d'un type (menus, dialogs) de **tous** les projects du serveur,
- * résolus par référence — miroir de `parseDocRef` + `deriveServerGraph` côté
- * éditeur.
+ * The Documents of one type (menus, dialogs) across **all** the server's projects,
+ * resolved by reference. Mirror of the editor's `parseDocRef` + `deriveServerGraph`.
  *
- * - `main` : id **nu**, cherché d'abord dans le project qui référence, puis sur
- *   le serveur s'il n'y est défini qu'une fois.
- * - `boutique:main` : id **qualifié** par le dossier d'un project.
+ * - `main`: **bare** id, looked up first in the referencing project, then on the
+ *   server if it is defined only once.
+ * - `boutique:main`: id **qualified** by a project folder.
  *
- * Un id nu absent du project et porté par plusieurs autres est [Ambiguous] : on
- * garde alors le **dernier chargé**, exactement ce que faisait la table unique
- * d'avant les namespaces — un menu qui s'ouvrait continue de s'ouvrir.
+ * A bare id missing from the project and defined by several others is [Ambiguous]:
+ * the **last loaded** one wins, exactly what the single table did before
+ * namespaces, so a menu that used to open keeps opening.
  */
 class DocumentTable<T>(entries: List<Pair<String, T>>, idOf: (T) -> String) {
     sealed interface Resolution<out T> {
@@ -20,7 +19,7 @@ class DocumentTable<T>(entries: List<Pair<String, T>>, idOf: (T) -> String) {
 
     data class Found<T>(override val value: T) : Resolution<T>
 
-    /** [value] = le gagnant historique (dernier chargé) ; [projects] = ceux qui le définissent. */
+    /** [value] = the historical winner (last loaded); [projects] = those defining it. */
     data class Ambiguous<T>(override val value: T, val projects: List<String>) : Resolution<T>
 
     data object Missing : Resolution<Nothing> {

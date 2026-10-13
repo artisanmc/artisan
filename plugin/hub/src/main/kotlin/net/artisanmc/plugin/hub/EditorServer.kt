@@ -4,18 +4,18 @@ import net.artisanmc.plugin.protocol.ProtocolVersion
 import net.artisanmc.plugin.protocol.ServerLink
 
 /**
- * Un serveur que l'éditeur atteint, vu par ses routes. Ce que le backend apprenait au
- * `hello` (modules, sources de données, configuration) se lit ici à la demande.
+ * A server the editor reaches, as seen by its routes. What a server announces
+ * (modules, data sources, configuration) is read here on demand.
  */
 interface EditorServer {
-    /** [Servers.LOCAL] pour le serveur qui héberge le hub. */
+    /** [Servers.LOCAL] for the server hosting the hub. */
     val id: String
     val link: ServerLink
     val label: String
     val online: Boolean
-    /** Sa version majeure du protocole n'est pas celle du hub : rien ne lui est envoyé. */
+    /** Its protocol major differs from the hub's: nothing is sent to it. */
     val updateRequired: Boolean get() = false
-    /** Une mineure plus ancienne que celle du hub ignore les messages ajoutés depuis. */
+    /** A minor older than the hub's ignores the messages added since. */
     val protocolVersion: String get() = ProtocolVersion.CURRENT
     val minecraftVersion: String
     val pluginVersion: String
@@ -24,8 +24,8 @@ interface EditorServer {
     fun models(): List<Map<String, Any?>>
     fun screens(): List<Map<String, Any?>>
     fun serverConfig(): Map<String, Any?>?
-    /** Items de Nexo, Oraxen, ItemsAdder : `{id, label, category}`. */
+    /** Nexo, Oraxen, ItemsAdder items: `{id, label, category}`. */
     fun customItems(): List<Map<String, String>>
-    /** Un pack servi par le hub sous [path] devient le pack du serveur. */
+    /** A pack served by the hub under [path] becomes the server's pack. */
     fun applyResourcePack(hash: String, path: String)
 }

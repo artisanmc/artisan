@@ -5,7 +5,7 @@ import java.io.File
 
 class ProjectContentReader(
     private val roots: ProjectRoots,
-    /** Reprise de l'instantané — câblée sur le provider, absente en test. */
+    /** Snapshot reload: wired to the provider, absent in tests. */
     private val onReloadRequested: () -> Unit = {},
 ) : ProjectContentApi {
 
@@ -35,7 +35,7 @@ class ProjectContentReader(
 
     override fun hasContent(dir: String): Boolean = projectIds().any { list(it, dir).isNotEmpty() }
 
-    /** Rejette la traversée hors project ('..', séparateurs dans l'id) et le namespace .artisan*. */
+    /** Rejects traversal out of the project ('..', separators in the id) and the .artisan* namespace. */
     private fun resolve(projectId: String, relPath: String): File? {
         if (!ProjectPathPolicy.valid(projectId) || projectId.contains('/') || projectId.startsWith('.')) return null
         if (ProjectPathPolicy.isPrivate(relPath) || relPath.split('/', '\\').any { it.startsWith(".artisan", ignoreCase = true) }) return null

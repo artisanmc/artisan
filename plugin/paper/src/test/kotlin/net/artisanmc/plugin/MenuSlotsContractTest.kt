@@ -36,7 +36,7 @@ class MenuSlotsContractTest {
 
     private fun hidden() = MenuSlots(top, PlayerInventoryMode.HIDDEN)
 
-    /** Ouvre une fenêtre et simule le paquet OPEN_WINDOW capturé. */
+    /** Opens a window and simulates the captured OPEN_WINDOW packet. */
     private fun openWindow(slots: MenuSlots, windowId: Int = 5) {
         windows.open(p, Bukkit.createInventory(null, top), slots)
         windows.onOpenWindow(p.uniqueId, windowId)

@@ -3,11 +3,11 @@ package net.artisanmc.plugin.render
 import org.bukkit.inventory.ItemStack
 import java.util.concurrent.atomic.AtomicReferenceArray
 
-/** Réglage `player_inventory` d'un menu : ce que montre le bas de la fenêtre. */
+/** A menu's `player_inventory` setting: what the bottom of the window shows. */
 enum class PlayerInventoryMode {
-    /** Le vrai inventaire du joueur, non modifiable. Positions `≥ size` ignorées. */
+    /** The player's real inventory, not editable. Positions `≥ size` are ignored. */
     VISIBLE,
-    /** Uniquement les boutons du menu, vide ailleurs. */
+    /** Only the menu's buttons, empty elsewhere. */
     HIDDEN;
 
     companion object {
@@ -16,34 +16,32 @@ enum class PlayerInventoryMode {
 }
 
 /**
- * Nature d'un slot. `DISPLAY` : contenu envoyé par paquets, ancre vide, clics
- * annulés. `INPUT` (slot de dépôt) : objet réel dans l'ancre, paquets laissés
- * intacts. Seul `DISPLAY` est produit aujourd'hui ; le filtrage existe déjà
- * pour qu'ajouter `INPUT` ne demande pas de refonte.
+ * Kind of slot. `DISPLAY`: content sent as packets, empty anchor, clicks cancelled.
+ * `INPUT` (drop slot): real item in the anchor, packets left untouched. Only `DISPLAY`
+ * is produced today; the filtering already exists so adding `INPUT` needs no rework.
  */
 enum class SlotKind { DISPLAY, INPUT }
 
 /**
- * Contenu d'une fenêtre de menu, adressé par rawSlot du protocole :
- * `0 until topSize` le menu, `topSize until topSize + 27` l'inventaire
- * principal, puis les 9 de la barre rapide.
+ * Contents of a menu window, addressed by protocol rawSlot: `0 until topSize` the
+ * menu, `topSize until topSize + 27` the main inventory, then the 9 hotbar slots.
  *
- * Seul point d'écriture du contenu d'un menu : l'ancre Bukkit reste vide, le
- * client reçoit ces items par paquets ([MenuWindows]). Menu ouvert, chaque
- * écriture est poussée au client.
+ * The only write point for a menu's contents: the Bukkit anchor stays empty and the
+ * client receives these items as packets ([MenuWindows]). While the menu is open,
+ * every write is pushed to the client.
  *
- * Écrit sur le thread principal, lu depuis les threads réseau.
+ * Written on the main thread, read from network threads.
  */
 class MenuSlots(val topSize: Int, val playerInventory: PlayerInventoryMode = PlayerInventoryMode.VISIBLE) {
     val size = topSize + PLAYER_SLOTS
 
-    /** Borne (exclue) des positions qu'un menu peut adresser. */
+    /** Exclusive bound of the positions a menu can address. */
     val slotLimit = if (playerInventory == PlayerInventoryMode.HIDDEN) size else topSize
 
     private val items = AtomicReferenceArray<ItemStack?>(size)
     private val kinds = AtomicReferenceArray<SlotKind>(Array(size) { SlotKind.DISPLAY })
 
-    /** Fenêtre ouverte qui reçoit les écritures, posée par [MenuWindows]. */
+    /** Open window receiving the writes, set by [MenuWindows]. */
     @Volatile internal var client: Client? = null
 
     internal interface Client {
@@ -53,7 +51,7 @@ class MenuSlots(val topSize: Int, val playerInventory: PlayerInventoryMode = Pla
 
     fun addressable(rawSlot: Int): Boolean = rawSlot in 0 until slotLimit
 
-    /** Le contenu client de ce slot vient-il de ce menu (et non du serveur) ? */
+    /** Does this slot's client content come from this menu (rather than the server)? */
     fun rewrites(rawSlot: Int): Boolean = addressable(rawSlot) && kinds[rawSlot] == SlotKind.DISPLAY
 
     fun kind(rawSlot: Int): SlotKind = kinds[rawSlot]
@@ -64,7 +62,7 @@ class MenuSlots(val topSize: Int, val playerInventory: PlayerInventoryMode = Pla
 
     operator fun get(rawSlot: Int): ItemStack? = if (addressable(rawSlot)) items[rawSlot] else null
 
-    /** Hors [addressable] (bas d'un menu `visible`) : ignoré. */
+    /** Outside [addressable] (bottom of a `visible` menu): ignored. */
     operator fun set(rawSlot: Int, item: ItemStack?) {
         if (!addressable(rawSlot)) return
         items[rawSlot] = item?.takeUnless { it.type.isAir }
@@ -80,9 +78,8 @@ class MenuSlots(val topSize: Int, val playerInventory: PlayerInventoryMode = Pla
         const val PLAYER_SLOTS = 36
 
         /**
-         * Index d'inventaire joueur (`SET_PLAYER_INVENTORY`, 1.21.2+) vers
-         * rawSlot : `0..8` barre rapide, `9..35` principal ; le reste (armure,
-         * seconde main) n'apparaît pas dans la fenêtre.
+         * Player inventory index (`SET_PLAYER_INVENTORY`, 1.21.2+) to rawSlot:
+         * `0..8` hotbar, `9..35` main; the rest (armor, off hand) is not in the window.
          */
         fun playerInventoryToRaw(index: Int, topSize: Int): Int? = when (index) {
             in 0..8 -> topSize + 27 + index
@@ -91,15 +88,15 @@ class MenuSlots(val topSize: Int, val playerInventory: PlayerInventoryMode = Pla
         }
 
         /**
-         * Contenu complet d'une fenêtre (`WINDOW_ITEMS`) : chaque slot réécrit
-         * par [view], les autres intacts. `null` si la taille ne correspond pas.
+         * A window's full contents (`WINDOW_ITEMS`): each rewritten slot from [view],
+         * the others untouched. `null` if the size does not match.
          */
         fun <T> rewriteContent(items: List<T>, slots: MenuSlots, view: (Int) -> T): List<T>? {
             if (items.size != slots.size) return null
             return items.mapIndexed { i, item -> if (slots.rewrites(i)) view(i) else item }
         }
 
-        /** Un slot (`SET_SLOT`) : ce que le client doit voir, `null` = paquet intact. */
+        /** One slot (`SET_SLOT`): what the client must see, `null` = packet untouched. */
         fun <T> rewriteSlot(rawSlot: Int, slots: MenuSlots, view: (Int) -> T): T? =
             if (slots.rewrites(rawSlot)) view(rawSlot) else null
     }

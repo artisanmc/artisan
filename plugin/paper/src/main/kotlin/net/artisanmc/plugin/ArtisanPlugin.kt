@@ -29,11 +29,10 @@ open class ArtisanPlugin : JavaPlugin() {
     val scheduler: Scheduler by lazy { schedulerFor(this) }
 
     /**
-     * Reprise de l'instantané demandée par un Add-on (`api.project.reload()`).
+     * Snapshot reload requested by an Add-on (`api.project.reload()`).
      *
-     * Silencieuse avant que le provider n'existe : un module qui écrit pendant
-     * son propre `onEnable` n'a rien à reprendre — le chargement qui suit lira
-     * son disque de toute façon.
+     * A no-op before the provider exists: a module writing during its own `onEnable`
+     * has nothing to reload, the following load reads its disk anyway.
      */
     fun refreshProjectsFromDisk() {
         if (!::menuProvider.isInitialized) return
@@ -67,13 +66,13 @@ open class ArtisanPlugin : JavaPlugin() {
     private var resourcePackManager: net.artisanmc.plugin.resourcepack.ResourcePackManager? = null
     lateinit var api: ArtisanAPI
         private set
-    /** Connexions à l'éditeur : survivent à `/artisan reload`, pas au redémarrage. */
+    /** Editor sign-ins: survive `/artisan reload`, not a restart. */
     val editorSessions = net.artisanmc.plugin.hub.Sessions()
     private val editorChannel by lazy { net.artisanmc.plugin.hub.EditorChannel(logger) }
-    /** Null si `web.enabled` est faux ou si le port n'a pas pu être ouvert. */
+    /** Null if `web.enabled` is false or the port could not be opened. */
     @Volatile var editor: net.artisanmc.plugin.hub.HubServer? = null
         private set
-    /** Adresse publique de l'éditeur, configurée dans `web.url` ; vide si non renseignée. */
+    /** The editor's public address from `web.url`; empty when not set. */
     var editorUrl: String = ""
         private set
     private var editorBind: String = ""
@@ -100,8 +99,8 @@ open class ArtisanPlugin : JavaPlugin() {
                 schemas = SchemaRegistry(),
                 modules = registry,
                 coreVersion = plugin.description.version,
-                // Le provider naît plus tard (il a besoin de l'API) : la reprise
-                // se résout à l'appel, pas à la construction.
+                // The provider is created later (it needs the API): the reload
+                // resolves at call time, not at construction.
                 project = net.artisanmc.plugin.project.ProjectContentReader(plugin.projectRoots) {
                     plugin.refreshProjectsFromDisk()
                 },
@@ -144,8 +143,8 @@ open class ArtisanPlugin : JavaPlugin() {
                                 plugin.logger.warning("[Artisan] module actions dropped — engine not initialized")
                                 return@Runnable
                             }
-                            // Portée i18n du project : sans elle une action
-                            // portant `@clé` afficherait « {i18n:clé} » brut.
+                            // The project's i18n scope: without it an action
+                            // carrying `@key` would show a raw "{i18n:key}".
                             val lang =
                                 if (plugin::langManager.isInitialized) plugin.langManager.playerLang(player)
                                 else "en"
@@ -169,7 +168,7 @@ open class ArtisanPlugin : JavaPlugin() {
                     }
                 },
             )
-            // version = core plugin version for now (ArtisanModule has no own version); P1c will add ArtisanModule.version
+            // A module reports the core plugin version: ArtisanModule has no version of its own.
             registry.bind(api) {
                 if (plugin::menuProvider.isInitialized) {
                     (plugin.menuProvider as? SyncedMenuProvider)?.notifyModulesChanged(
@@ -181,7 +180,7 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
-    /** Appelé depuis les threads d'I/O du provider : la command map n'est sûre que sur le thread global. */
+    /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
     private fun applyReload() {
         capturedItems.reload()
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
@@ -189,7 +188,7 @@ open class ArtisanPlugin : JavaPlugin() {
         api.events.publish(ConfigReloadEvent(moduleId = "menus"))
     }
 
-    /** PacketEvents est intégré au jar (relocalisé) : chargé ici, initialisé en tête d'[onEnable]. */
+    /** PacketEvents is bundled in the jar (relocated): loaded here, initialized at the start of [onEnable]. */
     override fun onLoad() {
         packetEventsLoaded = runCatching {
             PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
@@ -199,8 +198,8 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     override fun onEnable() {
-        // Le contenu des menus ne part que par paquets : sans PacketEvents,
-        // les fenêtres s'ouvrent vides (clics et sessions restent actifs).
+        // Menu contents are only sent as packets: without PacketEvents, windows
+        // open empty (clicks and sessions stay active).
         val packets = packetEventsLoaded && runCatching { PacketEvents.getAPI().init() }
             .onFailure { logger.log(java.util.logging.Level.SEVERE, "PacketEvents failed to start — menus will open empty", it) }
             .isSuccess
@@ -238,7 +237,7 @@ open class ArtisanPlugin : JavaPlugin() {
         assetCatalog.loadFromDisk()
         commandRegistrar = CommandRegistrar(this, langManager)
 
-        // Les modules s'inscrivent avant le premier `hello`, qui les annonce.
+        // Modules register before the first `hello`, which announces them.
         startRuntime(cfg) { defaultModules().forEach { api.modules.register(it) } }
         registerCustomItemsReloadListeners()
         startEditor(cfg.web)
@@ -260,7 +259,7 @@ open class ArtisanPlugin : JavaPlugin() {
         logger.info("Artisan disabled")
     }
 
-    /** Le serveur vu par l'éditeur qu'il sert : toujours le provider courant, qui change à chaque reload. */
+    /** This server as seen by the editor it serves: always the current provider, which changes on each reload. */
     private val localServer = object : net.artisanmc.plugin.hub.EditorServer {
         private val provider get() = menuProvider as SyncedMenuProvider
         override val id = net.artisanmc.plugin.hub.Servers.LOCAL
@@ -282,11 +281,11 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
-    /** L'adresse de l'éditeur pour les joueurs et les autres serveurs : `web.url`, sinon [host] ou l'IP du serveur. */
+    /** The editor address for players and other servers: `web.url`, else [host] or the server IP. */
     private fun editorBase(host: String? = null): String =
         editorUrl.ifEmpty { "http://${host ?: server.ip.ifBlank { "localhost" }}:${editor?.port ?: 8765}" }
 
-    /** Le nom de ce serveur dans le réseau : `web.name`, sinon le nom de son dossier. */
+    /** This server's name in the network: `web.name`, else its folder name. */
     private fun networkName(web: net.artisanmc.plugin.hub.WebConfig): String =
         web.name.ifBlank { File(".").absoluteFile.normalize().name }.replace(Regex("[^A-Za-z0-9_-]"), "-").take(64)
 
@@ -298,7 +297,7 @@ open class ArtisanPlugin : JavaPlugin() {
         editor = null
     }
 
-    /** Jetty vient de `libraries:` : s'il manque (serveur sans accès sortant), le plugin tourne sans éditeur. */
+    /** Jetty comes from `libraries:`: if it is missing (server without outbound access), the plugin runs without the editor. */
     private fun startEditor(web: net.artisanmc.plugin.hub.WebConfig) {
         editorUrl = web.url
         editorBind = web.bind
@@ -327,34 +326,27 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     /**
-     * Enregistrés une seule fois : chaque événement vise le provider courant, pour qu'un
-     * `/artisan reload` n'empile pas un écouteur de plus par rechargement.
+     * Registered once: each event targets the current provider, so `/artisan reload`
+     * does not stack one more listener per reload.
      */
     private fun registerCustomItemsReloadListeners() {
         val mgr = server.pluginManager
         val notify = { scheduler.async { (menuProvider as? SyncedMenuProvider)?.notifyCustomItemsReload() } }
 
-        // Initial custom items hash sync, post-server-load.
-        // Runs regardless of which custom-items plugin is installed.
-        // Short delay (40 ticks ≈ 2 s) lets Nexo/Oraxen/ItemsAdder finish populating
-        // their item registries and the WS hello to settle before we push the hash.
-        // notifyCustomItemsReload itself runs on a Bukkit async worker.
+        // Initial custom items hash sync, after server load, whichever custom-items plugin
+        // is installed. The delay (40 ticks ≈ 2 s) lets Nexo/Oraxen/ItemsAdder finish
+        // populating their registries and the WS hello settle before the hash is pushed.
         mgr.registerEvents(object : org.bukkit.event.Listener {
             @org.bukkit.event.EventHandler
             fun on(event: org.bukkit.event.server.ServerLoadEvent) {
                 scheduler.asyncLater(40L) {
                     (menuProvider as? SyncedMenuProvider)?.notifyCustomItemsReload()
-                    // Un module qui écrit dans son project à l'activation n'a plus
-                    // rien à rattraper : le disque est la seule vérité, donc son
-                    // fichier est déjà en place (ADR `server-disk-only-storage`).
-                    // Avant, il fallait rejouer le contrôle de synchro du hello_ack,
-                    // sinon le sweep du bundle suivant effaçait le fichier.
                 }
             }
         }, this)
 
         if (mgr.getPlugin("Nexo") != null) {
-            // Hot-reload listener: fires on /nexo reload during runtime
+            // Fires on /nexo reload.
             mgr.registerEvents(object : org.bukkit.event.Listener {
                 @org.bukkit.event.EventHandler
                 fun on(event: com.nexomc.nexo.api.events.NexoItemsLoadedEvent) {
@@ -432,15 +424,15 @@ open class ArtisanPlugin : JavaPlugin() {
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
         menuProvider.unload()
         startRuntime(cfg)
-        // ServerLoadEvent est passé : l'empreinte des custom items part d'ici, une fois
-        // la nouvelle connexion établie.
+        // ServerLoadEvent is past: the custom items hash goes from here, once the new
+        // connection is up.
         scheduler.asyncLater(40L) { (menuProvider as? SyncedMenuProvider)?.notifyCustomItemsReload() }
     }
 
     /**
-     * Ce que `/artisan reload` reconstruit depuis la config : items capturés,
-     * provider et sa connexion, pack de ressources, moteur d'actions, commandes.
-     * [beforeLoad] s'exécute une fois le provider créé, avant sa connexion.
+     * What `/artisan reload` rebuilds from the config: captured items, the provider and
+     * its connection, the resource pack, the action engine, commands.
+     * [beforeLoad] runs once the provider exists, before it connects.
      */
     private fun startRuntime(cfg: PluginConfig, beforeLoad: () -> Unit = {}) {
         projectRoots.coreRoot.mkdirs()
@@ -453,8 +445,8 @@ open class ArtisanPlugin : JavaPlugin() {
         menuProvider = provider
         moduleMessageSender = { m -> provider.sendModuleMessage(m) }
         beforeLoad()
-        // Avant load() : le premier hello porte déjà l'empreinte des custom items. Nexo et
-        // Oraxen annoncent leurs items avant qu'Artisan démarre (ordre softdepend).
+        // Before load(): the first hello already carries the custom items hash. Nexo and
+        // Oraxen announce their items before Artisan starts (softdepend order).
         val pluginsDir = server.pluginsFolder
         provider.setCustomItemsManager(
             net.artisanmc.plugin.customitems.CustomItemsManager(
@@ -474,7 +466,7 @@ open class ArtisanPlugin : JavaPlugin() {
             cacheFile = java.io.File(dataFolder, "cache/resource-pack.json"),
             packLoads = packLoads,
         )
-        // Le dernier pack appliqué survit à un redémarrage, hub injoignable compris.
+        // The last applied pack survives a restart, even with the hub unreachable.
         packs.loadFromDisk()
         provider.setResourcePackManager(packs)
         registerResourcePackManager(packs)
@@ -508,7 +500,7 @@ open class ArtisanPlugin : JavaPlugin() {
         hub = hubLink(cfg.web),
     )
 
-    /** Seule une feuille ouvre un WebSocket : vers `web.hub-url`, avec le secret du réseau. */
+    /** Only a leaf opens a WebSocket: to `web.hub-url`, with the network secret. */
     private fun hubLink(web: net.artisanmc.plugin.hub.WebConfig): net.artisanmc.plugin.ws.HubLink? {
         if (!web.leaf || web.hubUrl.isBlank()) return null
         val secret = networkSecret(web).ifEmpty { return null }
@@ -516,9 +508,9 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     /**
-     * Délégation du pack à Nexo, Oraxen ou ItemsAdder. Un chemin `.zip` vise un fichier,
-     * dont le dossier parent doit être inscriptible ; tout autre chemin vise un dossier.
-     * Sinon, repli sur l'envoi direct aux joueurs.
+     * Pack delegation to Nexo, Oraxen or ItemsAdder. A `.zip` path targets a file, whose
+     * parent folder must be writable; any other path targets a folder. Otherwise, falls
+     * back to pushing the pack to players directly.
      */
     private fun packDelegator(cfg: PluginConfig): net.artisanmc.plugin.resourcepack.ResourcePackDelegator? {
         val target = File(cfg.resourcePack.delegateToDir ?: return null)

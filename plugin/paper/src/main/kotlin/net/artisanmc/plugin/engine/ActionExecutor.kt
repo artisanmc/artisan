@@ -51,9 +51,9 @@ class ActionExecutor(
     }
 
     /**
-     * Exécute un arbre canonique : actions plates + branches if/else-if/else.
-     * Le contexte est replié d'action en action pour que `set_arg*` soit
-     * visible par les actions suivantes du même clic.
+     * Runs a canonical tree: flat actions + if/else-if/else branches. The context is
+     * folded from action to action so `set_arg*` is visible to the following actions
+     * of the same click.
      */
     fun executeSteps(steps: List<Step>, ctx: ExecutionContext): ExecutionContext {
         var cur = ctx
@@ -67,7 +67,7 @@ class ActionExecutor(
         return cur
     }
 
-    /** `joins` est évalué de gauche à droite sans précédence ; manquant = "and". */
+    /** `joins` is evaluated left to right without precedence; missing = "and". */
     private fun caseMatches(case: IfCase, ctx: ExecutionContext): Boolean {
         if (case.conditions.isEmpty()) return true
         var result = evaluator.evaluate(case.conditions[0], ctx)
@@ -103,11 +103,10 @@ class ActionExecutor(
     private val WHOLE_PLACEHOLDER = Regex("^\\{([a-z][a-z0-9_]*(?:\\.[a-z0-9_]+)?)}$")
 
     /**
-     * Résolution d'une valeur de `context` (open_menu / open_dialog) :
-     * un template qui est EXACTEMENT un placeholder (`{cat}`, `{item.final_price}`)
-     * passe la valeur BRUTE (Map de la ligne entière, Number…), type-preserving —
-     * `context: { cat: "{cat}" }` suffit pour que le menu cible utilise
-     * `{cat.name}` partout. Tout autre template s'interpole en chaîne.
+     * Resolves a `context` value (open_menu / open_dialog): a template that is EXACTLY
+     * one placeholder (`{cat}`, `{item.final_price}`) passes the RAW value (the whole
+     * row Map, a Number…), type-preserving, so `context: { cat: "{cat}" }` lets the
+     * target menu use `{cat.name}` everywhere. Any other template interpolates to a string.
      */
     private fun resolveContextValue(template: String, ctx: ExecutionContext): Any {
         val m = WHOLE_PLACEHOLDER.matchEntire(template.trim())
@@ -117,7 +116,7 @@ class ActionExecutor(
         return resolveText(template, ctx)
     }
 
-    /** Exécute une action et retourne le contexte — mis à jour par `set_arg*` pour les actions suivantes. */
+    /** Runs one action and returns the context, updated by `set_arg*` for the following actions. */
     private fun executeOne(action: Action, ctx: ExecutionContext): ExecutionContext {
         val player = ctx.player
         when (action) {
@@ -140,8 +139,8 @@ class ActionExecutor(
                 // only ever sees already-resolved values.
                 val passed = action.context.mapValues { resolveContextValue(it.value, ctx) }
                 val newArgs = if (action.clearContext) passed else ctx.navigationArgs + passed
-                // La pagination est un état par menu — ne jamais la propager au menu
-                // cible (collision d'element ids entre menus, ex. deux "grid").
+                // Pagination is per-menu state: never carry it to the target menu
+                // (element ids collide across menus, e.g. two "grid").
                 menuProvider.openMenu(
                     player, action.menuId, ctx.lang,
                     ctx.copy(args = newArgs, pagination = emptyMap(), pageInfo = emptyMap(), sourceArgs = emptyMap()),
@@ -223,10 +222,10 @@ class ActionExecutor(
     }
 
     /**
-     * Pont modules.md §4.2 : "namespace:name args…" connu du CommandRegistry est
-     * dispatché au module (args = {"argv": tokens, "raw": chaîne brute}) au lieu
-     * de Bukkit. Ref inconnue → fallback Bukkit (une commande Bukkit peut
-     * légitimement s'appeler "plugin:label").
+     * Bridge (modules.md §4.2): a "namespace:name args…" known to the CommandRegistry is
+     * dispatched to the module (args = {"argv": tokens, "raw": raw string}) instead of
+     * Bukkit. Unknown ref → Bukkit fallback (a Bukkit command may legitimately be named
+     * "plugin:label").
      */
     private fun tryRegistryDispatch(cmd: String, player: Player): Boolean {
         val registry = commandRegistry ?: return false
@@ -241,7 +240,7 @@ class ActionExecutor(
         return true
     }
 
-    /** Met à jour un arg de contexte et re-rend le menu courant du joueur (s'il y en a un). */
+    /** Updates a context arg and re-renders the player's current menu (if any). */
     private fun applyArg(ctx: ExecutionContext, arg: String, value: String): ExecutionContext {
         val newCtx = ctx.copy(args = ctx.args + (arg to value))
         sessions.get(ctx.player)?.let { session ->
@@ -267,12 +266,11 @@ class ActionExecutor(
     }
 
     /**
-     * `run_actions <expr>` (ADR action-dsl §run_actions) : résout la valeur DSL
-     * portée par une source (ex. `item.on_buy`), la parse via le codec Kotlin, la
-     * mappe vers l'engine et l'exécute EN PLACE avec l'objet source auto-bindé
-     * comme racine locale (`self` + champs bare). Tolérant : valeur absente / vide
-     * / non-parsable = no-op + un WARN. Profondeur d'appels bornée à 16 (anti-cycle).
-     * Retourne le contexte APPELANT — les self-bindings ne fuient pas dans la suite.
+     * `run_actions <expr>` (ADR action-dsl §run_actions): resolves the action chain
+     * carried by a source (e.g. `item.on_buy`), compiles it and runs it IN PLACE with the
+     * source object bound as a local root (`self` + bare fields). Tolerant: a missing /
+     * empty / unparseable value is a no-op + one WARN. Call depth is capped at 16
+     * (anti-cycle). Returns the CALLER's context: self-bindings do not leak further.
      */
     private fun runActions(action: Action.RunActions, ctx: ExecutionContext): ExecutionContext {
         if (ctx.runActionsDepth >= MAX_RUN_ACTIONS_DEPTH) {
@@ -292,9 +290,9 @@ class ActionExecutor(
             return ctx
         }
 
-        // Self-binding : l'objet dont l'expression tire sa valeur (la ligne / le
-        // config object) devient racine locale — la chaîne adresse ses champs bare
-        // (`{price}`) et via `{self.price}`. Le contexte appelant reste au-dessus.
+        // Self-binding: the object the expression reads from (the row / the config
+        // object) becomes a local root, so the chain addresses its fields bare
+        // (`{price}`) and as `{self.price}`. The caller's context stays above.
         val base = action.actions.substringBefore('.')
         val baseVal = ctx.exprValue(base)
         val newArgs: Map<String, Any> = when {
@@ -313,10 +311,10 @@ class ActionExecutor(
     }
 
     /**
-     * Annule le push d'une navigation qui n'a rien affiché (menu/dialog introuvable) :
-     * le provider n'a pas appelé `setCurrent`, l'écran quitté est toujours l'écran
-     * courant et ne doit pas devenir son propre « précédent ». Affiché : un retour
-     * câblé en `open_menu` est replié (cf. `collapseReturn`).
+     * Undoes the push of a navigation that showed nothing (menu/dialog not found): the
+     * provider did not call `setCurrent`, the screen being left is still the current one
+     * and must not become its own "previous". When shown, a return wired as `open_menu`
+     * is collapsed (see `collapseReturn`).
      */
     private fun undoPushIfNotShown(player: Player, leaving: NavigationEntry?) {
         val store = history ?: return
@@ -325,9 +323,9 @@ class ActionExecutor(
     }
 
     /**
-     * `open_previous_menu` : dépile l'écran précédent et le rouvre SANS empiler
-     * l'écran courant — la pile décroît à chaque retour, donc deux écrans ne
-     * peuvent jamais se renvoyer la balle indéfiniment. Pile vide = no-op.
+     * `open_previous_menu`: pops the previous screen and reopens it WITHOUT pushing the
+     * current one. The stack shrinks on every return, so two screens can never bounce
+     * back and forth forever. Empty stack = no-op.
      */
     private fun openPrevious(player: Player, ctx: ExecutionContext): ExecutionContext {
         val previous = history?.popPrevious(player) ?: return ctx
@@ -345,7 +343,7 @@ class ActionExecutor(
         return ctx
     }
 
-    /** Avance/recule la page des éléments ciblés (clamp aux bornes) puis re-rend le menu courant. */
+    /** Moves the targeted elements' page forward/back (clamped) then re-renders the current menu. */
     private fun paginate(ctx: ExecutionContext, elementId: String?, delta: Int): ExecutionContext {
         val session = sessions.get(ctx.player) ?: return ctx
         val targets = if (elementId != null) listOf(elementId) else ctx.pageInfo.keys.toList()
@@ -362,7 +360,7 @@ class ActionExecutor(
     }
 
     companion object {
-        /** Garde anti-cycle de `run_actions` (miroir du précédent i18n). */
+        /** `run_actions` anti-cycle guard. */
         private const val MAX_RUN_ACTIONS_DEPTH = 16
     }
 }

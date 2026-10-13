@@ -12,12 +12,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * An Add-on root wins over a core-root directory of the same id — silently, until
- * now. A stale core-root copy left behind by the move to
- * `addon-owned-project-roots` is not inert: the day the Add-on fails to enable,
- * nothing registers its root, `all()` re-exposes the stale tree as the live
- * project, and the divergence banner (which defaults to *disk*) offers to push
- * it over the real one.
+ * An Add-on root wins over a core-root directory of the same id, with a warning.
+ * A stale core-root copy is not inert: the day the Add-on fails to enable, nothing
+ * registers its root and `all()` re-exposes the stale tree as the live project.
  */
 class ProjectRootsShadowingTest {
 

@@ -13,15 +13,14 @@ import net.artisanmc.plugin.sync.ProjectFilesReader
 import java.nio.file.Files
 import java.util.Base64
 
-/** Ce que l'éditeur lit d'un Project : l'instantané chargé, ou le disque pour les binaires et l'historique. */
+/** What the editor reads from a Project: the loaded snapshot, or the disk for binaries and history. */
 class ProjectReads(private val workspace: ProjectWorkspace, private val replies: Replies) {
     private val roots get() = workspace.roots
 
     /**
-     * La liste se demande, elle ne se mémorise pas côté backend : le nom du
-     * dossier EST l'identité (ADR `server-disk-only-storage`). Même sémantique que
-     * [read] : ce que le serveur a chargé, sinon on listerait un Project qu'on ne
-     * peut pas ouvrir.
+     * The folder name IS the identity (ADR `server-disk-only-storage`). Same
+     * semantics as [read]: what the server loaded, otherwise the list would show a
+     * Project that cannot be opened.
      */
     fun list(request: ProjectList) {
         val reply = replies.to(request, "project_list_result")
@@ -39,8 +38,8 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
     }
 
     /**
-     * L'instantané, pas le disque : l'éditeur montre ce que le serveur a lu. Les
-     * binaires sont annoncés, pas portés (ADR `assets-on-server-disk`, décision 4).
+     * The snapshot, not the disk: the editor shows what the server read. Binaries
+     * are announced, not carried (ADR `assets-on-server-disk`).
      */
     fun read(request: ProjectRead) {
         val reply = replies.to(request, "project_read_result")
@@ -68,7 +67,7 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
         }
     }
 
-    /** Même garde que l'écriture : on ne lit l'historique que d'un fichier que l'éditeur pourrait écrire. */
+    /** Same guard as writes: history is only read for a file the editor could write. */
     fun history(request: ProjectHistory) {
         val reply = replies.to(request, "project_history_result")
         val (_, projectId, path) = request
@@ -79,7 +78,7 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
                 if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
                 ProjectPublisher(projectDir).recover()
                 val dir = ProjectPathPolicy.resolve(projectDir, ".artisan/history/$path")
-                // Un fichier jamais écrasé n'a pas d'archive : liste vide, pas une erreur.
+                // A file never overwritten has no archive: empty list, not an error.
                 val versions = (dir.listFiles() ?: emptyArray())
                     .filter { it.isFile && !Files.isSymbolicLink(it.toPath()) }
                     .sortedByDescending { it.name }
@@ -91,7 +90,7 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
         }
     }
 
-    /** Les octets d'un asset, lus sur le disque au moment de la demande : le hash rendu décrit ce qui est rendu. */
+    /** An asset's bytes, read from disk at request time: the returned hash describes what is returned. */
     fun asset(request: AssetRead) {
         val reply = replies.to(request, "asset_read_result")
         val (_, projectId, path) = request
@@ -113,7 +112,7 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
         }
     }
 
-    /** Une table d'écran de config (ADR `module-config-screens`) : un dossier de YAML ou un fichier. */
+    /** A config screen table (ADR `module-config-screens`): a folder of YAML files or one file. */
     fun config(request: ConfigRead) {
         val reply = replies.to(request, "config_read_result")
         val (_, projectId, table) = request
@@ -149,10 +148,9 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
 
     companion object {
         /**
-         * Garde-fou de `project_read` — l'arbre entier d'un Project sur le fil.
-         * Mesuré le 2026-08-12 sur les deux vrais projects du devstack : 7,9 Ko et
-         * 43 Ko. Deux ordres de grandeur de marge : un plafond qui répond
-         * `too_large` au lieu de tronquer.
+         * Safety cap for `project_read`, which sends a Project's whole tree. Real
+         * projects weigh tens of KB: two orders of magnitude of margin, answering
+         * `too_large` instead of truncating.
          */
         const val MAX_PROJECT_BYTES = 8 * 1024 * 1024
         const val MAX_CONFIG_BYTES = 1024 * 1024

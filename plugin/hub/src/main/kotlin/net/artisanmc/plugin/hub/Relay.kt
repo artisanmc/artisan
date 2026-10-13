@@ -5,7 +5,7 @@ import java.util.concurrent.TimeoutException
 import java.util.logging.Level
 import java.util.logging.Logger
 
-/** Une requête du protocole, puis une réponse HTTP construite depuis sa réponse. */
+/** A protocol request, then an HTTP response built from its reply. */
 class Relay(private val logger: Logger?) {
     fun send(call: Call, server: EditorServer, message: Map<String, Any?>, respond: (Map<String, Any?>) -> Unit) {
         if (server.updateRequired) return call.error(503, "plugin_update_required")
@@ -29,14 +29,14 @@ class Relay(private val logger: Logger?) {
     }
 
     companion object {
-        /** La réponse sans son enveloppe de protocole. */
+        /** The reply without its protocol envelope. */
         fun body(reply: Map<String, Any?>): Map<String, Any?> = reply - setOf("type", "request_id", "ok")
 
         fun ok(reply: Map<String, Any?>) = reply["ok"] == true
 
         fun errorCode(reply: Map<String, Any?>) = reply["error"] as? String ?: "fetch_error"
 
-        /** Mêmes statuts que le backend pour une lecture de Project refusée. */
+        /** HTTP statuses for a refused Project read. */
         fun readError(call: Call, reply: Map<String, Any?>) {
             val code = errorCode(reply)
             val status = when (code) {
