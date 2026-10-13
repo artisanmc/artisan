@@ -43,7 +43,7 @@ class PluginChannelTest {
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(servers, sessions, null), sessions,
         EditorAssets(javaClass.classLoader), editors, Logger.getAnonymousLogger(),
-        PluginChannel(servers, "s3cret", editors, { "https://editor.example" }, null),
+        PluginChannel(servers, "s3cret", sessions, editors, { host -> "https://${host ?: "editor.example"}" }, null),
     )
     private val client = HttpClient.newHttpClient()
     private lateinit var cookie: String
@@ -151,6 +151,28 @@ class PluginChannelTest {
         assertEquals(503, code)
         assertEquals("plugin_update_required", body!!["error"].asText())
         assertTrue(leaf.received.isEmpty())
+    }
+
+    @Test
+    fun `a player on another server gets a link from the hub`() {
+        val leaf = Leaf()
+        leaf.hello()
+        leaf.next()
+        val player = UUID.randomUUID().toString()
+        val request = mapOf(
+            "type" to "editor_link", "request_id" to "r1", "player_id" to player, "player_name" to "Iban",
+            "permissions" to listOf(EditorPermissions.VIEW, EditorPermissions.EDIT, "op.everything"), "host" to "play.example",
+        )
+        leaf.send(request)
+        val reply = leaf.next()
+        assertEquals("r1", reply["request_id"].asText())
+        val url = reply["url"].asText()
+        assertTrue(url.startsWith("https://play.example/login/"), url)
+        val session = sessions.redeem(url.substringAfterLast('/'))!!
+        assertEquals(setOf(EditorPermissions.VIEW, EditorPermissions.EDIT), session.permissions)
+
+        leaf.send(request + ("request_id" to "r2"))
+        assertEquals("too_soon", leaf.next()["error"].asText())
     }
 
     @Test

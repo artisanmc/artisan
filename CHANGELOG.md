@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Network mode: `/artisan editor` on a leaf asks the hub for the sign-in link, carrying the player's editor permissions as read on that server.
 - Network mode: a server whose protocol major version differs from the hub's is listed as needing an update, and the hub sends it nothing until both run the same release. `hello` now carries `protocol_version: "1.0"`.
 - Network mode: `web.role: leaf` turns a server into a leaf of the hub given in `web.hub-url`, under the name `web.name` (the server folder by default). The shared secret is `web.secret`, else the Velocity forwarding secret, else one the hub generates in `plugins/Artisan/network-secret`.
 - Editor served by the plugin: other servers of the network can connect to the server hosting the editor on `/ws/plugin`, with the shared secret as `server_key` and their name as `proxy_name`. The editor lists them, offline ones included, and edits their projects through them; a project on another server is named `<server>.<folder>`.

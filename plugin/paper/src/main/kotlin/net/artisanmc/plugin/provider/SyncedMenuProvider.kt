@@ -278,6 +278,13 @@ class SyncedMenuProvider(
         return url to (networkName ?: "")
     }
 
+    /** Sur une feuille, le lien de l'éditeur vient du hub ; null s'il ne répond pas. */
+    fun requestEditorLink(player: java.util.UUID, name: String, permissions: Set<String>, host: String?) =
+        wsClient?.request(mapOf(
+            "type" to "editor_link", "player_id" to player.toString(), "player_name" to name,
+            "permissions" to permissions.toList(), "host" to host,
+        )) ?: java.util.concurrent.CompletableFuture.completedFuture(null)
+
     fun addMember(email: String): java.util.concurrent.CompletableFuture<String> =
         wsClient?.addMember(email) ?: java.util.concurrent.CompletableFuture.completedFuture("offline")
 
