@@ -40,6 +40,17 @@ class EditorApiTest {
         override fun applyResourcePack(hash: String, path: String) { applied += hash to path }
     }
     private val applied = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
+    private var stored = false
+    private val loaded = object : LoadedProjects {
+        override fun list(server: String) = if (!stored) null else mapOf<String, Any?>(
+            "project_ids" to listOf("kept"), "project_roots" to listOf(mapOf("project_id" to "kept", "identity" to "folder", "project_key" to "k-9")),
+            "resource_inventory" to emptyList<Any>(),
+        )
+        override fun read(server: String, folder: String) = if (!stored || folder != "kept") null else mapOf<String, Any?>(
+            "hash" to "s1", "files" to listOf(mapOf("path" to "a.yml", "content" to "a: 1")), "failed" to emptyList<Any>(), "binaries" to emptyList<Any>(),
+        )
+        override fun binary(server: String, folder: String, path: String) = if (stored && path == "logo.png") byteArrayOf(4, 2) else null
+    }
     private val history = object : ProjectHistory {
         override fun versions(server: String, folder: String) =
             if (server == Servers.LOCAL && folder == "shop") listOf(mapOf<String, Any?>("id" to "7", "hash" to "h7")) else null
@@ -56,7 +67,7 @@ class EditorApiTest {
     private val prefs = PlayerPrefs(prefsDir)
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(Servers(server), sessions, null, VanillaAssets(java.nio.file.Files.createTempDirectory("vanilla").toFile(), "1.21.4", null, manifestUrl = VanillaAssetsTest.OFFLINE),
-            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile()), prefs, history), sessions,
+            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile()), prefs, history, loaded), sessions,
         EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -160,6 +171,17 @@ class EditorApiTest {
         assertEquals(404, call("GET", "/api/v1/projects/shop/versions/7/binary?path=a.yml").first)
         assertEquals("a: 1", call("GET", "/api/v1/projects/shop/history?path=a.yml").second!!["versions"][0]["content"].asText())
         assertTrue(sent.none { it["type"] == "project_history" })
+    }
+
+    @Test
+    fun `projects are read from the database, without asking the server`() {
+        stored = true
+        assertEquals("kept", call("GET", "/api/v1/networks/local/servers/local/projects").second!!["projects"][0]["externalId"].asText())
+        assertEquals("s1", call("GET", "/api/v1/projects/kept/files").second!!["hash"].asText())
+        assertEquals(true, call("GET", "/api/v1/projects/kept/files?if_hash=s1").second!!["unchanged"].asBoolean())
+        assertEquals(200, call("GET", "/api/v1/projects/kept/binary?path=logo.png").first)
+        assertEquals(200, call("GET", "/api/v1/user/projects/kept").first)
+        assertTrue(sent.isEmpty(), "nothing relayed: $sent")
     }
 
     @Test
