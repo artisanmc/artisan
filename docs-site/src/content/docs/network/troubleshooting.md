@@ -51,8 +51,7 @@ digits, `_` or `-`.
 ```
 
 The leaf refuses its own `name` before connecting: it contains a character other than
-letters, digits, `_` and `-`, is longer than 64 characters, or is `local` (reserved for
-the hub). Artisan never rewrites a written name, since it must match the server's name in
+letters, digits, `_` and `-`, or is longer than 64 characters. Artisan never rewrites a written name, since it must match the server's name in
 `velocity.toml`. Fix it and restart.
 
 A refused leaf keeps retrying, up to once a minute.

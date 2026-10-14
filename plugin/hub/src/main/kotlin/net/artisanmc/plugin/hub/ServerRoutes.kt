@@ -95,7 +95,7 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         }
     }
 
-    /** Config screens name their Project like the editor or like the module: `survie2.shop` or `shop`. */
+    /** Config screens name their Project like the editor (`<server id>.shop`) or like the module (`shop`). */
     private fun folder(server: EditorServer, project: String) = project.removePrefix("${server.id}.")
 
     private fun configError(call: Call, reply: Map<String, Any?>, fallback: String) = readError(call, reply, fallback)

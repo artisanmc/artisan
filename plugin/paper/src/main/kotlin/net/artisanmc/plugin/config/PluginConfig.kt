@@ -36,9 +36,8 @@ private val SERVER_NAME = Regex("[A-Za-z0-9_-]{1,64}")
  */
 fun serverName(name: String, folder: String): String? {
     val written = name.trim()
-    if (written.isNotEmpty()) return written.takeIf { SERVER_NAME.matches(it) && !it.equals("local", ignoreCase = true) }
-    val fromFolder = folder.replace(Regex("[^A-Za-z0-9_-]"), "-").take(64).ifEmpty { "Minecraft" }
-    return if (fromFolder.equals("local", ignoreCase = true)) "$fromFolder-" else fromFolder
+    if (written.isNotEmpty()) return written.takeIf { SERVER_NAME.matches(it) }
+    return folder.replace(Regex("[^A-Za-z0-9_-]"), "-").take(64).ifEmpty { "Minecraft" }
 }
 
 data class ResourcePackConfig(

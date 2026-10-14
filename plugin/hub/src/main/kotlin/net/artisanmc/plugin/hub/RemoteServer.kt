@@ -25,9 +25,10 @@ class ServerOfflineException(server: String) : RuntimeException("server $server 
  * configuration) is kept here, and each editor request goes out on its WebSocket with a `request_id`.
  */
 class RemoteServer(
+    /** Its server id, from the database while it is offline, from its `hello` once connected. */
     override val id: String,
-    /** Its server id, known from the database while it is offline; its `hello` says it once connected. */
-    private val knownUuid: String = "",
+    /** Its name, known from the database while it is offline; its `hello` says it once connected. */
+    @Volatile var name: String = "",
     /** The hub's public address: the packs it serves are downloaded from there. */
     private val publicUrl: () -> String,
     private val timeout: Duration = Duration.ofSeconds(30),
@@ -41,8 +42,7 @@ class RemoteServer(
     private val pending = ConcurrentHashMap<String, CompletableFuture<Map<String, Any?>>>()
 
     override val link = ServerLink(::request)
-    override val label: String get() = id
-    override val uuid: String get() = hello.path("server_uuid").asText("").ifEmpty { knownUuid }
+    override val label: String get() = name.ifEmpty { id }
     override val online: Boolean get() = session?.isOpen == true
     override val minecraftVersion: String get() = hello.path("minecraft_version").asText("")
     override val pluginVersion: String get() = hello.path("plugin_version").asText("")
@@ -66,10 +66,11 @@ class RemoteServer(
     fun attach(session: Session, hello: ObjectNode) {
         val previous = this.session
         this.hello = hello
+        hello.path("proxy_name").asText("").takeIf { it.isNotEmpty() }?.let { name = it }
         serverConfig = map(hello["server_config"])
         this.session = session
         if (previous != null && previous !== session) {
-            send(previous, mapOf("type" to "session_replaced", "reason" to "another server connected with this name"))
+            send(previous, mapOf("type" to "session_replaced", "reason" to "another server connected with this server id"))
             previous.close()
         }
         requestCustomItems(hello.path("custom_items_hash").asText(""))
@@ -78,7 +79,7 @@ class RemoteServer(
     fun detach(session: Session) {
         if (this.session !== session) return
         this.session = null
-        val offline = ServerOfflineException(id)
+        val offline = ServerOfflineException(label)
         pending.values.forEach { it.completeExceptionally(offline) }
     }
 
@@ -101,7 +102,7 @@ class RemoteServer(
             }
             "custom_items_changed" -> requestCustomItems(message.path("hash").asText(""))
             "custom_items_bundle" -> customItems = decodeCustomItems(message.path("data").asText(""))
-            "projects_reloaded" -> editors.relay(Call.mapper.convertValue(message, MAP), id, uuid)
+            "projects_reloaded" -> editors.relay(Call.mapper.convertValue(message, MAP), id)
         }
     }
 
@@ -110,7 +111,7 @@ class RemoteServer(
         val reply = CompletableFuture<Map<String, Any?>>()
         pending[requestId] = reply
         reply.whenComplete { _, _ -> pending.remove(requestId) }
-        if (!send(message + ("request_id" to requestId))) reply.completeExceptionally(ServerOfflineException(id))
+        if (!send(message + ("request_id" to requestId))) reply.completeExceptionally(ServerOfflineException(label))
         return reply.orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
     }
 

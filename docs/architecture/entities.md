@@ -10,9 +10,9 @@ L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au c
 
 | Entité | Identité | Où |
 |---|---|---|
-| **Server** | `local` pour le serveur qui héberge le hub ; `proxy_name` (`name`, sinon le nom du dossier du serveur) pour une feuille | `artisan_servers` (base de la suite) : `uuid` du fichier `plugins/Artisan/server-id`, `name`, `last_seen` rafraîchi chaque minute, `running` (faux après un arrêt propre) (`ServerRegistry`). Un `name` changé renomme la ligne ; un server id qui tourne déjà sous un autre nom (dossier copié) ou un nom tenu par un autre server id est refusé au démarrage. Le hub liste les serveurs connus de la table, éteints compris ; sans base, une feuille déconnectée reste listée jusqu'au redémarrage du hub (`Servers`, `RemoteServer`). Tables d'Artisan migrées par `SchemaMigrator` (`artisan_schema_version`). |
-| **Network** | Unique, nommé `local` ; libellé = nom du dossier du serveur hub | Implicite : le hub et les feuilles qui partagent son secret. |
-| **Project** | Nom de son dossier (`shop`) ; `<serveur>.<dossier>` hors du serveur du hub (`survie2.shop`) | Disque : `plugins/Artisan/projects/<dossier>/`, ou la racine qu'un add-on enregistre (`ProjectRootRegistry`, `identity: addon`). Cf. `project-files.md`. |
+| **Server** | Server id (UUID de `plugins/Artisan/server-id`), le serveur du hub compris : routes `/api/v1/servers/:server`, `serverKeyId`, `server_key_id`, préfixe des ids de Project, clés de `Servers` (issue #43). Le nom (`name`, sinon le nom du dossier du serveur ; `proxy_name` du `hello`) est un attribut, le libellé affiché | `artisan_servers` (base de la suite) : `uuid` du fichier `plugins/Artisan/server-id`, `name`, `last_seen` rafraîchi chaque minute, `running` (faux après un arrêt propre) (`ServerRegistry`). Un `name` changé renomme la ligne ; un server id qui tourne déjà sous un autre nom (dossier copié) ou un nom tenu par un autre server id est refusé au démarrage. Le hub liste les serveurs connus de la table, éteints compris ; sans base, une feuille déconnectée reste listée jusqu'au redémarrage du hub (`Servers`, `RemoteServer`). Tables d'Artisan migrées par `SchemaMigrator` (`artisan_schema_version`). |
+| **Network** | Unique, sans nom ; `network_name` du `hello_ack` = nom du serveur du hub | Implicite : le hub et les feuilles qui partagent son secret. |
+| **Project** | `<server id>.<dossier>` sur tout serveur, celui du hub compris (`f3a1….shop`, `Servers.project`) ; `externalId` = le dossier | Disque : `plugins/Artisan/projects/<dossier>/`, ou la racine qu'un add-on enregistre (`ProjectRootRegistry`, `identity: addon`). Cf. `project-files.md`. |
 | **Brouillon privé** | `draft_id` dans un Project, propriétaire = UUID du joueur | Base de la suite : `artisan_drafts` (enveloppe JSON, clé = hash du `draft_id`, colonnes `status` et `updated_at` pour la purge), reçus dans `artisan_draft_receipts` (résultat **sans** le corps du brouillon : au rejeu, le brouillon est relu ; `created_at`), blobs dans `artisan_contents` (`ProjectDrafts`, hub ; accès par `SuiteProjectData`, paper). Brouillons fermés (publiés, abandonnés) et reçus purgés après 30 jours (`DraftRows.KEEP`), une fois par jour. Les anciens `.artisan/drafts/` ne sont plus lus. |
 | **Journal de publication** | `operation_id` | Disque : `<project>/.artisan/transactions/` (en cours) et `.receipts/` (reçus rejoués à l'identique). |
 | **Session éditeur** | Jeton aléatoire (cookie `artisan_session`) ; porte UUID, nom et permissions du joueur | `artisan_editor_sessions` (clé = SHA-256 de l'id, jamais l'id) + cache mémoire du hub (`Sessions`). Expire après `web.session-days` (7) jours sans requête, survit au redémarrage. Sans base : mémoire seule. |
@@ -51,7 +51,7 @@ démarrage, sans refuser de démarrer (brouillons et sessions n'en ont pas besoi
 Lu au `hello`, mis à jour par `modules_changed`, `custom_items_bundle` et
 `server_config_write_result` : modules installés, data sources, models déclarés, écrans de
 config, `config.yml`, items custom, versions Minecraft et plugin, compatibilité du protocole.
-Rien de tout cela n'est écrit sur disque côté hub. Pour le serveur `local`, ces valeurs sont lues
+Rien de tout cela n'est écrit sur disque côté hub. Pour le serveur du hub, ces valeurs sont lues
 directement dans le plugin à chaque requête.
 
 ## Historique

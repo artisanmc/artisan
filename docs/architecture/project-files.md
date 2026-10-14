@@ -22,8 +22,8 @@ plugins/Artisan/projects/
     .artisan/history/              ← archives d'avant 2026-09-26, lues seulement
 ```
 
-Un Project s'identifie par le nom de son dossier ; vu depuis le hub d'un réseau, un Project d'une
-feuille s'appelle `<serveur>.<dossier>` (cf. `entities.md`). `.artisan-sync.yaml` (ancienne
+Un Project s'identifie par le nom de son dossier sur son serveur ; pour le hub et l'éditeur, il
+s'appelle `<server id>.<dossier>`, quel que soit le serveur (cf. `entities.md`). `.artisan-sync.yaml` (ancienne
 métadonnée de synchro cloud) peut subsister sur un vieux serveur : il reste exclu et ignoré.
 
 Les fichiers `data/` portent les Data models **inlinés** ; les valeurs `ltext` sont des clés i18n
