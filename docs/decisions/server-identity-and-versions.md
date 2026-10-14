@@ -75,6 +75,13 @@ serveurs et un fichier d'UUID.
     les garde. Un dossier copié qui arrive avec un id déjà présent sur le même serveur en
     reçoit un nouveau, avec un avertissement. Un projet d'Add-on garde l'identité de son
     manifeste.
+15. **L'éditeur lit depuis la base.** L'arborescence, le texte et les assets d'un projet
+    viennent de sa dernière Version (qui est le Snapshot), comme les brouillons,
+    l'historique et la liste des serveurs, serveur allumé ou éteint. Le serveur n'est
+    sollicité que pour publier (compare-and-swap sur son disque ; le chargement qui suit
+    enregistre la Version) et pour les données live (captures, placeholders, sources de
+    données, aperçus). La réponse de publication porte le hash de la Version créée, que
+    l'éditeur attend avant de relire.
 
 Les données futures liées à un serveur (lieux, analytics) vivent dans leurs propres
 tables, possédées par leur module, qui référencent `artisan_servers.id` ;
