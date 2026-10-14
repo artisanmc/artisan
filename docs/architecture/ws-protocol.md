@@ -14,7 +14,7 @@ backend ↔ plugin est parlé par le hub. Le **même** jeu de messages sert deux
 | WebSocket `/ws/plugin` | Une feuille du réseau (`web.hub` renseigné) | `WsClient` côté feuille, `PluginChannel` + `RemoteServer` côté hub, timeout 30 s par requête. |
 
 Le hub n'interprète aucun contenu : chaque route REST de l'éditeur devient un message du
-protocole (`project_read`, `project_write`, `project_draft_request`…) passé par `ServerLink`
+protocole (`project_read`, `project_write`, `project_draft_publish`…) passé par `ServerLink`
 (`core`) aux gestionnaires existants (cf. `rest-endpoints.md`).
 
 ## Connexion d'une feuille
@@ -66,7 +66,7 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | `project_write` | `project_write_result` | `{project_id, operation_id, files:[{path, content, base_hash}], deletes:[{path, base_hash}], renames:[{from, to, base_hash}], binaries?:[{path, content_base64\|null, base_hash}], create?}`. CAS par fichier, tout ou rien ; conflit : `{error: "conflict", conflicts:[{path, disk}], disk_files}`. `create` crée le dossier d'un Project neuf. Un `operation_id` rejoué rend la réponse déjà donnée. |
 | `project_history` | `project_history_result` | `{project_id, path}` → `versions:[{at, content}]`, plus récente d'abord, lues dans `.artisan/history/<path>/`. Rien n'alimente plus ce dossier (`ProjectPublisher.withHistory` est l'identité) : seules les archives antérieures restent lisibles. |
 | `asset_read` | `asset_read_result` | `{project_id, path}` → `{content_base64, hash}`, lu sur le disque à la demande. |
-| `project_draft_request` | `project_draft_result` | Brouillons privés, cf. ci-dessous. |
+| `project_draft_publish` | `project_draft_publish_result` | Publication d'un brouillon gardé par le hub, cf. ci-dessous. |
 | `project_create` | `project_create_result` | `{project_id}` : dossier vide sous la racine core. Nom `[A-Za-z0-9][A-Za-z0-9_-]{0,127}` hors noms réservés Windows, sinon `invalid_name` ; déjà pris (casse ignorée, ou racine d'Add-on) `project_exists`. Mineure 1. |
 | `project_delete` | `project_delete_result` | `{project_id}` : dossier déplacé dans `<racine>/.artisan-trash/<id>-<horodatage UTC>/`, jamais effacé. `unknown_project`, `addon_immutable`. Mineure 1. |
 | `project_rename` | `project_rename_result` | `{project_id, target_project_id}` : déplacement atomique du dossier, `.artisan/` (brouillons, journaux) compris. `destination_exists` (jamais d'écrasement), `invalid_path`, `unknown_project`, `addon_immutable`. Pas de journal de reprise. Mineure 1. |
@@ -91,22 +91,20 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | `custom_items_changed` | `{hash}` : Nexo/Oraxen/ItemsAdder rechargé ; le hub redemande le bundle. |
 | `editor_link` | `{request_id, player_id, player_name, permissions, host?}` : `/artisan editor` tapé sur une feuille. Le hub ne consulte aucune permission, il reprend celles lues par la feuille (`artisan.editor.view` requis) et répond `editor_link_result` `{ok, url}` ou `{error: "too_soon", retry_after}` / `invalid_input`. Timeout feuille 15 s. |
 
-### Brouillons privés (`project_draft_request`)
+### Brouillons privés (`project_draft_publish`)
 
-Requête `{project_id, owner_id, action, …}` ; `owner_id` est l'UUID du joueur de la session,
-fourni par le hub, jamais par l'éditeur. Actions servies par le hub :
-`list`, `read`, `read_blob`, `create`, `update`, `discard`, `publish`, `write_blob`.
-`ProjectDraftStore` (`core`) accepte aussi `import`, `list_all` et `purge_owner`, qu'aucune route
-n'envoie plus.
+Les brouillons vivent dans la base de la suite et le hub les sert lui-même (`ProjectDrafts`,
+ADR `server-identity-and-versions`), serveur éteint compris : `list`, `read`, `read_blob`,
+`create`, `update`, `discard`, `write_blob` ne vont jamais au serveur. `owner_id` est l'UUID du
+joueur de la session, fourni par le hub. Mutations : `operation_id` (reçu en base, rejouable) ;
+un brouillon existant exige `expected_revision`. Les blobs vont dans `artisan_contents`.
 
-- Mutations : `operation_id` (idempotence) ; un brouillon existant exige `expected_revision`.
-- `create`/`update` portent `draft_id`, `name`, `snapshot` ; `write_blob` porte `hash`,
-  `content_base64` sans avancer la révision.
-- Stockage : `<project>/.artisan/drafts/<id>/draft.json` + blobs, journal de publication dans
-  `.artisan/transactions/` (reprise après crash, reçus archivés dans `.receipts/`).
-- `publish` écrit projet et état final du brouillon dans un seul commit atomique
-  (`ProjectPublisher`), répond, **puis** recharge : un rechargement lent ne retient pas un
-  reçu déjà acquis. `storage_error` = issue incertaine, rejouer le même `operation_id`.
+Seule la publication va au serveur : `project_draft_publish` `{project_id, operation_id, draft,
+blobs: {hash: base64}, author_id, author_name}` (les binaires que le brouillon change).
+`DraftPublication` (`core`) vérifie chaque fichier contre le disque (compare-and-swap), écrit tout
+en un commit avec son reçu (`.artisan/transactions/`), répond `{ok, wrote}` ou `conflict`, **puis**
+recharge. Le hub ne marque le brouillon publié qu'après cette réponse ; une réponse perdue se
+rejoue sous le même `operation_id`, que le serveur reconnaît.
 
 ### Quota commercial
 
@@ -138,7 +136,7 @@ sans gestionnaire ne compile pas.
 | Gestionnaire | Module | Messages |
 |---|---|---|
 | `ProjectReads` | `core` | `project_list`, `project_read`, `project_history`, `asset_read`, `config_read` |
-| `ProjectWrites` | `core` | `project_write`, `config_write`, `project_draft_request`, `project_create`, `project_delete`, `project_rename` (disque : `ProjectFolders`) |
+| `ProjectWrites` | `core` | `project_write`, `config_write`, `project_draft_publish`, `project_create`, `project_delete`, `project_rename` (disque : `ProjectFolders`) |
 | `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
 | `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `session_replaced`, `custom_items_request` |
 

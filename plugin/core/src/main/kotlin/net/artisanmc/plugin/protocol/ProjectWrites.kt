@@ -2,14 +2,14 @@ package net.artisanmc.plugin.protocol
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.project.ProjectDraftStore
+import net.artisanmc.plugin.project.DraftPublication
 import net.artisanmc.plugin.project.ProjectFolders
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import net.artisanmc.plugin.project.ProjectPublisher
 import net.artisanmc.plugin.protocol.EditorRequest.ConfigWrite
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectCreate
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectDelete
-import net.artisanmc.plugin.protocol.EditorRequest.ProjectDraft
+import net.artisanmc.plugin.protocol.EditorRequest.ProjectDraftPublish
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectRename
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectWrite
 import net.artisanmc.plugin.sync.BundleHasher
@@ -188,26 +188,26 @@ class ProjectWrites(
         }
     }
 
-    /** Private drafts (`project_drafts`). The reply goes out before a publish's reload. */
-    fun draft(request: ProjectDraft) = replies.offThread("project_draft_request", workspace.io) {
+    /** Publishes a Draft the hub keeps. The reply goes out before the reload. */
+    fun publishDraft(request: ProjectDraftPublish) = replies.offThread("project_draft_publish", workspace.io) {
         val projectId = request.projectId
         val result: JsonNode = try {
             val root = roots.dirFor(projectId)
             when {
                 !EditorPaths.isSafeProjectId(projectId) -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "invalid_path"))
                 !root.isDirectory -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "unknown_project"))
-                else -> ProjectDraftStore(root).handle(request.message)
+                else -> DraftPublication(root).publish(request.message)
             }
         } catch (error: Exception) {
-            logger?.log(Level.WARNING, "[Artisan] Private draft operation failed", error)
+            logger?.log(Level.WARNING, "[Artisan] Draft publication failed", error)
             mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "storage_error"))
         }
         val payload = mapper.convertValue(result, Map::class.java).entries.associate { it.key.toString() to it.value }.toMutableMap()
-        payload["type"] = "project_draft_result"
+        payload["type"] = "project_draft_publish_result"
         payload["request_id"] = request.requestId
         send(payload)
-        if (result.path("ok").asBoolean() && request.message.path("action").asText() == "publish") {
-            noteAuthor(projectId, request.message, result.path("draft").path("snapshot").path("restoredFrom").asText("").ifEmpty { null })
+        if (result.path("ok").asBoolean()) {
+            noteAuthor(projectId, request.message, request.message.path("draft").path("snapshot").path("restoredFrom").asText("").ifEmpty { null })
             try {
                 workspace.reload()
             } catch (error: Exception) {

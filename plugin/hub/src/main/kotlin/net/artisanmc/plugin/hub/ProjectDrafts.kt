@@ -1,0 +1,179 @@
+package net.artisanmc.plugin.hub
+
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ObjectNode
+import net.artisanmc.plugin.project.ProjectPathPolicy
+import net.artisanmc.plugin.sync.BundleHasher
+import java.time.Instant
+import java.util.Base64
+
+/** Where Drafts live: the suite database. Null from [drafts] or false from [commit]: no such Project recorded. */
+interface DraftStorage {
+    fun drafts(server: String, folder: String): List<String>?
+    fun draft(server: String, folder: String, id: String): String?
+    /** The fingerprint and result of an operation already applied. */
+    fun receipt(operationId: String): Pair<String, String>?
+    fun commit(server: String, folder: String, id: String, draft: String, operationId: String, fingerprint: String, result: String): Boolean
+    fun content(hash: String): ByteArray?
+    fun putContent(hash: String, bytes: ByteArray)
+}
+
+/**
+ * Private Drafts, kept by the hub in the suite database (ADR `server-identity-and-versions`,
+ * decision 12): editable while their server is offline. Publishing is the server's write: the
+ * draft and its new blobs go to it, and the draft is marked published once it answers. A replayed
+ * operation gives back the result it already gave; a publication replayed after a lost answer is
+ * recognised by the server under the same `operation_id`.
+ */
+class ProjectDrafts(private val storage: DraftStorage) {
+    private val mapper = Call.mapper
+
+    /** Sends a publication to the Project's server; answers with its reply. */
+    fun interface Publisher {
+        fun publish(message: Map<String, Any?>, reply: (Map<String, Any?>) -> Unit)
+    }
+
+    fun handle(server: String, folder: String, request: ObjectNode, publisher: Publisher, respond: (Map<String, Any?>) -> Unit) {
+        try {
+            handleOrThrow(server, folder, request, publisher, respond)
+        } catch (e: IllegalArgumentException) {
+            respond(fail(e.message?.takeIf { it.matches(Regex("[a-z_]+")) } ?: "invalid_draft"))
+        }
+    }
+
+    private fun handleOrThrow(server: String, folder: String, request: ObjectNode, publisher: Publisher, respond: (Map<String, Any?>) -> Unit) {
+        val action = request.path("action").asText()
+        val owner = request.path("owner_id").asText().ifBlank { return respond(fail("invalid_owner")) }
+        val all = storage.drafts(server, folder)?.map { mapper.readTree(it) as ObjectNode } ?: return respond(fail("unknown_project"))
+        if (action == "list") return respond(ok("drafts" to all.filter { it["ownerId"].asText() == owner && it["status"].asText() == "active" }))
+        val id = request.path("draft_id").asText().ifEmpty { return respond(fail("invalid_draft")) }
+        val current = storage.draft(server, folder, id)?.let { mapper.readTree(it) as ObjectNode }?.takeIf { it["id"].asText() == id }
+        if (current != null && current["ownerId"].asText() != owner) return respond(fail("not_found"))
+        if (action == "read") return respond(current?.let { ok("draft" to it) } ?: fail("not_found"))
+        if (action == "read_blob") {
+            val hash = request.path("hash").asText()
+            if (current == null || hash !in hashes(current["snapshot"])) return respond(fail("not_found"))
+            val bytes = storage.content(hash) ?: return respond(fail("not_found"))
+            return respond(ok("content_base64" to Base64.getEncoder().encodeToString(bytes)))
+        }
+
+        val operationId = request.path("operation_id").asText().takeIf { it.length in 1..256 } ?: return respond(fail("invalid_operation"))
+        val fingerprint = BundleHasher.hashBytes(mapper.writeValueAsBytes(request.deepCopy().also { it.remove(listOf("request_id", "project_id", "type")) }))
+        storage.receipt(operationId)?.let { (printed, result) ->
+            return respond(if (printed == fingerprint) map(mapper.readTree(result)) else fail("operation_conflict"))
+        }
+        fun commit(draft: ObjectNode, result: Map<String, Any?>) {
+            if (!storage.commit(server, folder, id, mapper.writeValueAsString(draft), operationId, fingerprint, mapper.writeValueAsString(result)))
+                return respond(fail("unknown_project"))
+            respond(result)
+        }
+
+        if (action == "create") {
+            if (current != null) return respond(fail("draft_conflict"))
+            val name = request.path("name").asText()
+            val snapshot = request["snapshot"]
+            if (snapshot == null || !validBody(name, snapshot)) return respond(fail("invalid_draft"))
+            val now = Instant.now().toString()
+            val draft = mapper.valueToTree<ObjectNode>(
+                mapOf(
+                    "schema" to "artisan-draft/v1", "id" to id, "ownerId" to owner, "name" to name, "revision" to 1, "status" to "active",
+                    "snapshot" to snapshot, "updatedBy" to owner, "source" to request.path("source").asText("manual"),
+                    "createdAt" to now, "updatedAt" to now,
+                ),
+            )
+            return commit(draft, ok("draft" to draft))
+        }
+        if (current == null) return respond(fail("not_found"))
+        if (current["status"].asText() != "active") return respond(fail("draft_closed"))
+        if (!request.path("expected_revision").isIntegralNumber || request["expected_revision"].asLong() != current["revision"].asLong())
+            return respond(mapOf("ok" to false, "error" to "draft_conflict", "draft" to current))
+
+        if (action == "write_blob") {
+            val hash = request.path("hash").asText()
+            val bytes = runCatching { Base64.getDecoder().decode(request.path("content_base64").asText()) }.getOrNull()
+            if (bytes == null || bytes.size > MAX_BLOB || BundleHasher.hashBytes(bytes) != hash) return respond(fail("invalid_blob"))
+            storage.putContent(hash, bytes)
+            return commit(current, ok("draft" to current))
+        }
+        val next = current.deepCopy().apply {
+            put("revision", current["revision"].asLong() + 1)
+            put("updatedAt", Instant.now().toString())
+            put("updatedBy", owner)
+        }
+        when (action) {
+            "update" -> {
+                val name = request.path("name").asText()
+                val snapshot = request["snapshot"]
+                if (snapshot == null || !validBody(name, snapshot)) return respond(fail("invalid_draft"))
+                next.put("name", name)
+                next.set<JsonNode>("snapshot", snapshot)
+                commit(next, ok("draft" to next))
+            }
+            "discard" -> commit(next.put("status", "discarded"), ok("draft" to next))
+            "publish" -> {
+                val blobs = newBlobs(current["snapshot"]) ?: return respond(fail("missing_blob"))
+                val message = mapOf(
+                    "type" to "project_draft_publish", "project_id" to folder, "operation_id" to operationId,
+                    "draft" to current, "blobs" to blobs,
+                    "author_id" to request.path("author_id").asText(""), "author_name" to request.path("author_name").asText(""),
+                )
+                publisher.publish(message) { reply ->
+                    if (reply["ok"] != true) return@publish respond(reply - setOf("type", "request_id"))
+                    next.put("status", "published")
+                    commit(next, ok("draft" to next, "wrote" to reply["wrote"]))
+                }
+            }
+            else -> respond(fail("invalid_action"))
+        }
+    }
+
+    /** The bytes of each binary the draft changes, which the server does not have yet. */
+    private fun newBlobs(snapshot: JsonNode): Map<String, String>? {
+        val before = snapshot["binaryBaseline"]
+        val out = linkedMapOf<String, String>()
+        snapshot["binaryTree"]?.fields()?.forEach { (path, ref) ->
+            val hash = ref["hash"].asText()
+            if (before?.get(path)?.get("hash")?.asText() == hash || hash in out) return@forEach
+            out[hash] = Base64.getEncoder().encodeToString(storage.content(hash) ?: return null)
+        }
+        return out
+    }
+
+    private fun hashes(snapshot: JsonNode?): Set<String> =
+        listOf("binaryTree", "binaryBaseline").flatMap { key -> snapshot?.get(key)?.fields()?.asSequence()?.map { it.value["hash"].asText() }?.toList().orEmpty() }.toSet()
+
+    private fun contentPath(path: String) =
+        ProjectPathPolicy.valid(path) && (!path.startsWith('.') || path == ".artisan/editor.yaml") && !ProjectPathPolicy.isPrivate(path)
+
+    private fun validBody(name: String, snapshot: JsonNode): Boolean {
+        fun tree(node: JsonNode?) = node != null && node.isObject && node.size() <= 5000 && node.fields().asSequence().all { contentPath(it.key) && it.value.isTextual }
+        fun binary(node: JsonNode?) = node == null || node.isObject && node.size() <= 5000 && node.fields().asSequence().all {
+            contentPath(it.key) && it.value.isObject && it.value.path("hash").asText().matches(SHA256) &&
+                it.value.path("size").isIntegralNumber && it.value.path("size").asLong() in 0..MAX_BLOB.toLong()
+        }
+        if (name.isBlank() || name.length > 120 || !tree(snapshot["baseline"]) || !tree(snapshot["tree"]) ||
+            snapshot.has("initialTree") && !tree(snapshot["initialTree"]) || !snapshot.path("at").isNumber || snapshot.path("at").asDouble() < 0 ||
+            !binary(snapshot["binaryBaseline"]) || !binary(snapshot["binaryTree"]) || mapper.writeValueAsBytes(snapshot).size > 8 * 1024 * 1024
+        ) return false
+        val textPaths = snapshot["baseline"].fieldNames().asSequence().toSet() + snapshot["tree"].fieldNames().asSequence().toSet()
+        if ((snapshot["binaryBaseline"]?.fieldNames()?.asSequence().orEmpty() + snapshot["binaryTree"]?.fieldNames()?.asSequence().orEmpty()).any { it in textPaths }) return false
+        val renames = snapshot["renames"] ?: return true
+        if (!renames.isArray || renames.size() > 5000) return false
+        val from = mutableSetOf<String>()
+        val to = mutableSetOf<String>()
+        return renames.all { r ->
+            r.path("from").isTextual && r.path("to").isTextual && contentPath(r["from"].asText()) && contentPath(r["to"].asText()) &&
+                r["from"] != r["to"] && from.add(r["from"].asText()) && to.add(r["to"].asText())
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun map(node: JsonNode): Map<String, Any?> = mapper.convertValue(node, Map::class.java) as Map<String, Any?>
+    private fun ok(vararg values: Pair<String, Any?>): Map<String, Any?> = mapOf("ok" to true) + values
+    private fun fail(error: String): Map<String, Any?> = mapOf("ok" to false, "error" to error)
+
+    private companion object {
+        const val MAX_BLOB = 20 * 1024 * 1024
+        val SHA256 = Regex("[a-f0-9]{64}")
+    }
+}
