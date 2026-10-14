@@ -465,14 +465,22 @@ function rejectMutation(projectId: string, operationId: string, error: unknown) 
     remote: { ...current.remote, pendingMutation: undefined },
   });
 }
+/** Server metadata the editor must neither see nor send: every `.artisan*` path but `.artisan/editor.yaml`. */
+const editorVisible = (tree: Record<string, string>) =>
+  Object.fromEntries(
+    Object.entries(tree).filter(
+      ([path]) => !path.split("/")[0]!.startsWith(".artisan") || path === ".artisan/editor.yaml",
+    ),
+  );
+
 function snapshotOf(projectId: string, draft: ProjectDraft): ProjectDraft {
   return {
     ...(draft.binaryBaseline ? { binaryBaseline: draft.binaryBaseline } : {}),
     ...(draft.binaryTree ? { binaryTree: draft.binaryTree } : {}),
     ...(draft.restoredFrom ? { restoredFrom: draft.restoredFrom } : {}),
-    baseline: draft.baseline,
-    tree: draft.tree,
-    initialTree: draft.initialTree,
+    baseline: editorVisible(draft.baseline),
+    tree: editorVisible(draft.tree),
+    ...(draft.initialTree ? { initialTree: editorVisible(draft.initialTree) } : {}),
     at: draft.at,
     renames: useProjectDraftStore.getState().pendingRenames[projectId] ?? draft.renames ?? [],
   };

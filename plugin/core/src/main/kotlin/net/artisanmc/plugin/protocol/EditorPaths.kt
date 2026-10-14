@@ -5,15 +5,12 @@ import net.artisanmc.plugin.project.ProjectPathPolicy
 /** What the editor can see and write in a Project. */
 object EditorPaths {
     /**
-     * What `project_read` removes from the disk tree. The editor needs
-     * `.artisan/editor.yaml` (board layout, `i18n_mode`), not the trash, history or
-     * private drafts.
+     * What `project_read` removes from the disk tree: every `.artisan*` metadata but
+     * `.artisan/editor.yaml` (board layout, `i18n_mode`), the only one the editor owns.
      */
     fun isInvisible(rel: String): Boolean {
         if (ProjectPathPolicy.isPrivate(rel)) return true
-        val first = rel.substringBefore('/')
-        return first == ".artisan-trash" || first == ".artisan-sync.yaml" || rel == ".artisan/rename-operation.json" ||
-            rel.startsWith(".artisan/history/")
+        return rel.substringBefore('/').startsWith(".artisan") && rel != ".artisan/editor.yaml"
     }
 
     /**
