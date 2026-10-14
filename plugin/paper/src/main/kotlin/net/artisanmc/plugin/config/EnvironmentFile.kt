@@ -37,6 +37,7 @@ object EnvironmentFile {
         |#   bind   : empty listens on every interface, "127.0.0.1" behind a reverse proxy
         |#   url    : public address put in /artisan editor links, e.g. "https://editor.example.com";
         |#            empty uses the address the player joined with
+        |#   session-days : days an editor sign-in stays open without use, restarts included
         |# In a network, one server is the hub and serves the editor for all of them:
         |#   hub    : on every other server, the hub's address and web port, e.g. "10.0.0.5:8765";
         |#            empty means this server is the hub
@@ -47,6 +48,7 @@ object EnvironmentFile {
         |  port: 8765
         |  bind: ""
         |  url: ""
+        |  session-days: 7
         |  hub: ""
         |  secret: ""
         |

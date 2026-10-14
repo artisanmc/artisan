@@ -20,6 +20,7 @@ class EnvironmentFileTest {
         assertEquals("h2", env.getString("database.type"))
         assertEquals(3306, env.getInt("database.port"))
         assertEquals(8765, env.getInt("web.port"))
+        assertEquals(7, env.getInt("web.session-days"))
         assertTrue(env.getBoolean("web.enabled"))
         assertEquals("", env.getString("name"))
         assertEquals("", env.getString("web.hub"))

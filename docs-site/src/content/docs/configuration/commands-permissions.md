@@ -31,7 +31,7 @@ loads and skipped (with a warning in the log) if another plugin already owns the
 | `artisan.editor.config` | Change `config.yml` from the editor's server page. | op |
 
 The editor reads these permissions when the link is requested and keeps them for the
-12-hour session: after changing them, request a new link.
+whole session (up to 7 days without use): after changing them, sign out and request a new link.
 
 In a network, each server reads the permissions of the player who types
 `/artisan editor` **on that server** and passes them to the hub; the hub checks no

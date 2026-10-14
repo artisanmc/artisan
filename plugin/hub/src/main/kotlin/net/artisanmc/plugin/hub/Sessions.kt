@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.hub
 
+import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Clock
 import java.time.Duration
@@ -27,15 +28,26 @@ data class EditorSession(
     fun can(permission: String) = permission in permissions
 }
 
+/** Where sessions outlive a restart, keyed by a hash of their id: a leaked row opens nothing. */
+interface SessionStore {
+    fun put(key: String, session: EditorSession)
+    fun get(key: String): EditorSession?
+    fun touch(key: String, expiresAt: Instant)
+    fun delete(key: String)
+    fun purge(now: Instant)
+}
+
 /**
  * Sign-in links given by `/artisan editor`, then the sessions those links open.
  * A link works once, lives [linkTtl], and a player gets at most one per [linkInterval].
+ * A session closes after [sessionTtl] without a request; with a [store], it survives a restart.
  */
 class Sessions(
     private val clock: Clock = Clock.systemUTC(),
     private val linkTtl: Duration = Duration.ofSeconds(60),
     private val linkInterval: Duration = Duration.ofMinutes(1),
-    private val sessionTtl: Duration = Duration.ofHours(12),
+    private val sessionTtl: Duration = Duration.ofDays(7),
+    private val store: SessionStore? = null,
 ) {
     private class Link(val playerId: UUID, val playerName: String, val permissions: Set<String>, val expiresAt: Instant)
 
@@ -69,28 +81,46 @@ class Sessions(
         if (!link.expiresAt.isAfter(now)) return null
         val session = EditorSession(token(), link.playerId, link.playerName, link.permissions, now.plus(sessionTtl))
         sessions[session.id] = session
+        store?.put(key(session.id), session)
         return session
     }
 
+    /** The open session [id] names; each request pushes its end back, written at most once per [TOUCH_EVERY]. */
     fun find(id: String?): EditorSession? {
-        val session = sessions[id ?: return null] ?: return null
-        if (session.expiresAt.isAfter(clock.instant())) return session
-        sessions.remove(id)
-        return null
+        if (id.isNullOrEmpty()) return null
+        val session = sessions[id] ?: store?.get(key(id))?.copy(id = id) ?: return null
+        val now = clock.instant()
+        if (!session.expiresAt.isAfter(now)) {
+            close(id)
+            return null
+        }
+        val extended = now.plus(sessionTtl)
+        if (session.expiresAt.plus(TOUCH_EVERY).isAfter(extended)) return session.also { sessions[id] = it }
+        store?.touch(key(id), extended)
+        return session.copy(expiresAt = extended).also { sessions[id] = it }
     }
 
     fun close(id: String) {
         sessions.remove(id)
+        store?.delete(key(id))
     }
 
     private fun purge(now: Instant) {
         links.values.removeIf { !it.expiresAt.isAfter(now) }
         sessions.values.removeIf { !it.expiresAt.isAfter(now) }
         lastLink.values.removeIf { !it.plus(linkInterval).isAfter(now) }
+        store?.purge(now)
     }
+
+    private fun key(id: String): String =
+        MessageDigest.getInstance("SHA-256").digest(id.toByteArray()).joinToString("") { "%02x".format(it) }
 
     private fun token(): String {
         val bytes = ByteArray(32).also(random::nextBytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    private companion object {
+        val TOUCH_EVERY: Duration = Duration.ofHours(1)
     }
 }

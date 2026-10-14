@@ -77,6 +77,7 @@ data class PluginConfig(
                     name = EnvironmentFile.string(environment, "name", ""),
                     hubUrl = hubWebSocketUrl(EnvironmentFile.string(environment, "web.hub", "")),
                     secret = EnvironmentFile.string(environment, "web.secret", ""),
+                    sessionDays = environment.getInt("web.session-days", 7).coerceAtLeast(1),
                 ),
             )
         }
