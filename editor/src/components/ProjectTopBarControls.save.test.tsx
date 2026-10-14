@@ -191,6 +191,27 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     expect(screen.getByRole("button", { name: DEPLOY })).toBeDisabled();
   });
 
+  it("waits for an offline server: Deploy explains why, opens no review and writes nothing", async () => {
+    const p = baseProject("hors ligne");
+    useAccountStore.setState({
+      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    } as never);
+    useProjectDraftStore.getState().save("p1", {
+      baseline: { "menus/m.yaml": "a\n" },
+      tree: { "menus/m.yaml": "b\n" },
+      initialTree: { "menus/m.yaml": "a\n" },
+      at: 0,
+    });
+    vi.mocked(saveProjectToDisk).mockClear();
+
+    render(<ProjectTopBarControls project={p} projectId={"p1" as ProjectId} networkId="n1" offline />);
+    const deploy = screen.getByRole("button", { name: DEPLOY });
+    expect(deploy).toHaveAttribute("aria-disabled");
+    fireEvent.click(deploy);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(saveProjectToDisk).not.toHaveBeenCalled();
+  });
+
   it("shows the changes before deploying and writes nothing when cancelled", async () => {
     const p = baseProject("revue");
     useAccountStore.setState({

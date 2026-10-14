@@ -57,7 +57,8 @@ class ProjectRoutes(
                         "canUseAssistant" to false, "canDelete" to movable, "canCopyToServer" to false,
                     ),
                     "minecraftVersion" to server.minecraftVersion,
-                    "connection" to mapOf("available" to true),
+                    // Offline: the Project opens from the database, without live data or capture.
+                    "connection" to mapOf("available" to server.online),
                 ))
             }
         }
@@ -163,7 +164,10 @@ class ProjectRoutes(
     private fun read(call: Call, project: ProjectRef) {
         loaded?.read(project.server.id, project.folder)?.let { body ->
             val ifHash = call.query("if_hash")
-            return call.json(if (ifHash != null && ifHash == body["hash"]) mapOf("unchanged" to true, "hash" to ifHash) else body)
+            // An offline server's copy is dated: the editor opens it, publishing waits for the server.
+            val offline = if (project.server.online) emptyMap()
+            else mapOf("offlineSince" to (servers.lastSeen(project.server.id)?.toString() ?: ""))
+            return call.json((if (ifHash != null && ifHash == body["hash"]) mapOf("unchanged" to true, "hash" to ifHash) else body) + offline)
         }
         val message = mapOf("type" to "project_read", "project_id" to project.folder, "if_hash" to call.query("if_hash"))
         relay.send(call, project.server, message) { reply -> if (ok(reply)) call.json(body(reply)) else readError(call, reply) }

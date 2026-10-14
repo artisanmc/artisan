@@ -1203,9 +1203,9 @@ const fr: typeof en = {
     staleOffline:
       "Serveur injoignable — affichage de ta dernière visite. Enregistrer est hors de portée.",
     unpublishedOffline:
-      "Serveur hors ligne — ce projet n'a jamais été publié. Ton brouillon est enregistré ; la publication reprendra au retour du serveur.",
+      "Serveur hors ligne — ce projet n'a jamais été publié. Ton brouillon est enregistré ; la publication et les données live reprendront au retour du serveur.",
     staleOfflineSince:
-      "Serveur hors ligne — version du {{date}}. Ton brouillon reste modifiable ; publier attend son retour.",
+      "Serveur hors ligne depuis le {{date}} — tu travailles sur la dernière version qu'il a chargée. Ton brouillon reste modifiable ; la publication et les données live attendent son retour.",
     loading: "Ouverture du projet…",
     offlineTitle: "Serveur hors ligne",
     offlineBody:
@@ -1516,6 +1516,7 @@ const fr: typeof en = {
     deploying: "Déploiement…",
     deployTitle: "Relire puis écrire les changements sur le serveur",
     nothing: "Rien à déployer",
+    offline: "Le serveur est hors ligne : la publication attend son retour. Ton brouillon reste modifiable.",
     cannotDeployTitle: "Serveur inconnu — impossible de déployer",
     deployed: "Déployé sur le serveur",
     packFailed: "Le resource pack n’a pas pu être reconstruit ; les joueurs gardent le précédent.",
