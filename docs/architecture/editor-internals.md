@@ -46,6 +46,22 @@ routes de brouillon (`draft`, `conflicts`, `diskFiles` lus dans le corps) ;
 pour tout ce qui n'est pas un 401, `patchServerConfig` rejette l'`ApiError` du hub (`detail`
 porte l'explication du plugin). Tests : `src/lib/api/client.test.ts`.
 
+## Store du compte (`state/accountStore.ts`, `state/account/*Slice.ts`, issue #46)
+
+`useAccountStore` reste le point d'entrée des importeurs (70 modules de production), mais son
+code vit par domaine dans `state/account/` : une tranche par fichier (`projectsSlice`,
+`dialogsSlice`, `commandsSlice`, `menusSlice`, `elementsSlice`, `canvasSlice`, `i18nSlice`,
+`dataSlice`), chacune exportant son interface et `createXSlice(context)`, et `helpers.ts` pour
+ce que plusieurs tranches partagent (`touch`, `findCommand`, les `gc*LTexts`…). `AccountState`
+(`types.ts`) est l'intersection des tranches plus `account` ; `AccountSliceContext` est ce
+qu'une tranche reçoit : `set`, `get` et `clearTemporal`. Le store compose les tranches sous
+`temporal` (zundo, `partialize` sur `account`) : mêmes actions, même historique d'annulation,
+rien ne change pour l'éditeur.
+
+Étapes suivantes, store par store, à côté et non à la place : donner à une tranche son propre
+store (`useDialogsStore`…) et migrer ses importeurs, puis limiter zundo à ce qui est annulable ;
+la bascule des données (`account` scindé) en dernier.
+
 ## Image buttons
 
 `Appearance.image = { asset, fit?: "native" | "contain" | "stretch", offset_x?, offset_y? }` selects a project PNG
