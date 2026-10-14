@@ -692,3 +692,19 @@ it("recovers a draft stuck on a pending save the hub no longer knows, and can di
   await discardPersistedDraft("p1");
   expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
 });
+
+it("starts a new draft when the one it points at was discarded or published, keeping newer local work", async () => {
+  useProjectDraftStore.getState().save("p1", {
+    ...snapshot,
+    tree: { "manifest.yaml": "edited after discard" },
+    remote: { id: "d1", name: "My work", revision: 2, ownerId: "u1", acknowledged: "older" },
+  });
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  vi.mocked(api.readDraft).mockResolvedValue({ ...remote, revision: 2, status: "discarded" });
+  await loadPersistedDrafts("p1", "u1");
+  expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
+  expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe(
+    "edited after discard",
+  );
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+});

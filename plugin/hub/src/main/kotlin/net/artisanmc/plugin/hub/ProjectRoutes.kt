@@ -26,6 +26,7 @@ class ProjectRoutes(
     private val history: ProjectHistory? = null,
     private val loaded: LoadedProjects? = null,
     draftStorage: DraftStorage? = null,
+    private val logger: java.util.logging.Logger? = null,
 ) {
     private val drafts = draftStorage?.let(::ProjectDrafts)
     fun register(router: Router) {
@@ -302,7 +303,12 @@ class ProjectRoutes(
         val message = draftMessage(call, project, action, *fields)
         val drafts = drafts ?: return relay.send(call, project.server, message, respond)
         val request = Call.mapper.valueToTree<com.fasterxml.jackson.databind.node.ObjectNode>(message)
-        drafts.handle(project.server.id, project.folder, request, { publication, reply -> relay.send(call, project.server, publication, reply) }, respond)
+        drafts.handle(project.server.id, project.folder, request, { publication, reply -> relay.send(call, project.server, publication, reply) }) { reply ->
+            // A refusal the editor cannot recover from on its own: one line for post-mortem.
+            if (reply["ok"] == false && reply["error"] !in EXPECTED_DRAFT_ERRORS)
+                logger?.warning("[Artisan] Draft $action on ${project.id} refused: ${reply["error"]}")
+            respond(reply)
+        }
     }
 
     private fun draftResponse(call: Call, project: ProjectRef, reply: Map<String, Any?>, created: Boolean = false) {
@@ -354,6 +360,7 @@ class ProjectRoutes(
     }
 
     companion object {
+        private val EXPECTED_DRAFT_ERRORS = setOf("draft_conflict", "conflict", "draft_closed", "not_found")
         private val OPERATION_ERRORS = setOf("operation_mismatch", "operation_conflict", "operation_expired")
         private val IDENTIFIER = Regex("[a-zA-Z0-9_-]{1,100}")
         private val SHA256 = Regex("[a-f0-9]{64}")
