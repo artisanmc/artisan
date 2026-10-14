@@ -67,8 +67,9 @@ open class ArtisanPlugin : JavaPlugin() {
     private var resourcePackManager: net.artisanmc.plugin.resourcepack.ResourcePackManager? = null
     lateinit var api: ArtisanAPI
         private set
-    /** Editor sign-ins: survive `/artisan reload`, not a restart. */
-    val editorSessions = net.artisanmc.plugin.hub.Sessions()
+    /** Editor sign-ins, kept in the suite database when it opens: they survive a restart. */
+    lateinit var editorSessions: net.artisanmc.plugin.hub.Sessions
+        private set
     private val editorChannel by lazy { net.artisanmc.plugin.hub.EditorChannel(logger) }
     /** Null if `web.enabled` is false or the port could not be opened. */
     @Volatile var editor: net.artisanmc.plugin.hub.HubServer? = null
@@ -260,6 +261,10 @@ open class ArtisanPlugin : JavaPlugin() {
         // Modules register before the first `hello`, which announces them.
         startRuntime(cfg) { defaultModules().forEach { api.modules.register(it) } }
         registerCustomItemsReloadListeners()
+        editorSessions = net.artisanmc.plugin.hub.Sessions(
+            sessionTtl = java.time.Duration.ofDays(cfg.web.sessionDays.toLong()),
+            store = artisanData?.let(::editorSessionStore),
+        )
         startEditor(cfg.web)
 
         artisanCommand = ArtisanCommand(this, langManager)
@@ -712,6 +717,23 @@ open class ArtisanPlugin : JavaPlugin() {
 
         override fun content(hash: String) = contents?.get(hash)
         override fun putContent(hash: String, bytes: ByteArray) { contents?.put(hash, bytes) }
+    }
+
+    /** A failing database falls back to the sessions in memory: signed-in players stay signed in until a restart. */
+    private fun editorSessionStore(data: javax.sql.DataSource) = object : net.artisanmc.plugin.hub.SessionStore {
+        private val rows = net.artisanmc.plugin.database.EditorSessionRows(data)
+        private fun <T> safe(block: () -> T): T? =
+            runCatching(block).onFailure { logger.warning("[Artisan] Editor sessions not stored: ${it.message}") }.getOrNull()
+
+        override fun put(key: String, session: net.artisanmc.plugin.hub.EditorSession) {
+            safe { rows.put(key, net.artisanmc.plugin.database.EditorSessionRow(session.playerId, session.playerName, session.permissions, session.expiresAt)) }
+        }
+        override fun get(key: String) = safe { rows.get(key) }?.let {
+            net.artisanmc.plugin.hub.EditorSession("", it.playerId, it.playerName, it.permissions, it.expiresAt)
+        }
+        override fun touch(key: String, expiresAt: java.time.Instant) { safe { rows.touch(key, expiresAt) } }
+        override fun delete(key: String) { safe { rows.delete(key) } }
+        override fun purge(now: java.time.Instant) { safe { rows.purge(now) } }
     }
 
     /** Projects as their server loaded them, read from the suite database by the editor's routes. */
