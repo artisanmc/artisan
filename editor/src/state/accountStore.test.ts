@@ -1,9 +1,10 @@
-import { dialogId, elementId, menuId, projectId } from "@/domain/ids";
+import { commandId, dialogId, elementId, menuId, projectId } from "@/domain/ids";
 import type { I18nKey, MenuTitleLayer } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { produce } from "immer";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
+import { useProjectDraftStore } from "./projectDraftStore";
 
 const PERSONAL = projectId("p_personal");
 const SHOP_MAIN = menuId("m_shop_main");
@@ -1877,6 +1878,48 @@ describe("accountStore", () => {
         (s) => (s.action as { type: "send_message"; text: { key: string } }).text.key,
       );
       expect(new Set(keys).size).toBe(keys.length);
+    });
+  });
+
+  describe("rename intents in the draft", () => {
+    const renames = () => useProjectDraftStore.getState().pendingRenames[PERSONAL] ?? [];
+    beforeEach(() => useProjectDraftStore.setState({ pendingRenames: {} }));
+
+    it("an applied rename is recorded as a move", () => {
+      useAccountStore
+        .getState()
+        .setMenuId({ projectId: PERSONAL, oldId: SHOP_MAIN, newId: menuId("m_shop_renamed") });
+      expect(renames()).toEqual([
+        { from: "menus/m_shop_main.yaml", to: "menus/m_shop_renamed.yaml" },
+      ]);
+    });
+
+    it("a refused rename leaves no intent behind", () => {
+      const s = useAccountStore.getState();
+      expect(() =>
+        s.setMenuId({ projectId: PERSONAL, oldId: SHOP_MAIN, newId: menuId("m_about") }),
+      ).toThrow(/already exists/);
+      expect(() =>
+        s.setMenuId({ projectId: PERSONAL, oldId: SHOP_MAIN, newId: "" as never }),
+      ).toThrow(/empty/);
+      expect(() =>
+        s.setCommandId({ projectId: PERSONAL, oldId: commandId("c_heal"), newId: "" as never }),
+      ).toThrow(/empty/);
+      const dId = s.createDialog({ projectId: PERSONAL, id: "d_one" });
+      s.createDialog({ projectId: PERSONAL, id: "d_two" });
+      expect(() =>
+        useAccountStore
+          .getState()
+          .setDialogId({ projectId: PERSONAL, oldId: dId, newId: dialogId("d_two") }),
+      ).toThrow(/already exists/);
+      // Unknown source: nothing to move either.
+      s.setMenuId({ projectId: PERSONAL, oldId: menuId("m_missing"), newId: menuId("m_new") });
+      s.setCommandId({
+        projectId: PERSONAL,
+        oldId: commandId("c_missing"),
+        newId: commandId("c_new"),
+      });
+      expect(renames()).toEqual([]);
     });
   });
 
