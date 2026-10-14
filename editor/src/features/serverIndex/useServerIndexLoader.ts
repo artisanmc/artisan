@@ -7,18 +7,14 @@ import { serverIndexScope, useServerIndexStore } from "./serverIndexStore";
  * project is ready: opening never waits for it. Outside a server (demo), does
  * nothing.
  */
-export function useServerIndexLoader(
-  networkId: string | undefined,
-  serverId: string | undefined,
-  ready: boolean,
-): void {
+export function useServerIndexLoader(serverId: string | undefined, ready: boolean): void {
   useEffect(() => {
-    if (!ready || !networkId || !serverId) return;
-    const scope = serverIndexScope(networkId, serverId);
+    if (!ready || !serverId) return;
+    const scope = serverIndexScope(serverId);
     let cancelled = false;
     const store = useServerIndexStore.getState();
     store.begin(scope);
-    loadServerProjects({ networkId, serverId })
+    loadServerProjects({ serverId })
       .then((result) => {
         if (!cancelled) useServerIndexStore.getState().finish(scope, result);
       })
@@ -31,5 +27,5 @@ export function useServerIndexLoader(
     return () => {
       cancelled = true;
     };
-  }, [networkId, serverId, ready]);
+  }, [serverId, ready]);
 }

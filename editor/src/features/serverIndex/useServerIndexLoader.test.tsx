@@ -24,28 +24,28 @@ describe("useServerIndexLoader", () => {
       failed: [],
     });
 
-    renderHook(() => useServerIndexLoader("net", "srv", true));
+    renderHook(() => useServerIndexLoader("srv", true));
 
     await waitFor(() => expect(useServerIndexStore.getState().status).toBe("ready"));
-    expect(loadServerProjects).toHaveBeenCalledWith({ networkId: "net", serverId: "srv" });
+    expect(loadServerProjects).toHaveBeenCalledWith({ serverId: "srv" });
     expect(useServerIndexStore.getState().projects).toHaveLength(1);
-    expect(useServerIndexStore.getState().scope).toBe("net/srv");
+    expect(useServerIndexStore.getState().scope).toBe("srv");
   });
 
   it("waits for the edited project: opening it never depends on the index", () => {
-    renderHook(() => useServerIndexLoader("net", "srv", false));
+    renderHook(() => useServerIndexLoader("srv", false));
     expect(loadServerProjects).not.toHaveBeenCalled();
   });
 
   it("does nothing outside a server (demo)", () => {
-    renderHook(() => useServerIndexLoader(undefined, undefined, true));
+    renderHook(() => useServerIndexLoader(undefined, true));
     expect(loadServerProjects).not.toHaveBeenCalled();
   });
 
   it("reports unavailable instead of throwing when the read fails", async () => {
     loadServerProjects.mockRejectedValue(new Error("boom"));
 
-    renderHook(() => useServerIndexLoader("net", "srv", true));
+    renderHook(() => useServerIndexLoader("srv", true));
 
     await waitFor(() => expect(useServerIndexStore.getState().status).toBe("unavailable"));
   });
@@ -56,7 +56,7 @@ describe("useServerIndexLoader", () => {
       projects: [project("a")],
       failed: [],
     });
-    const { rerender } = renderHook(({ srv }) => useServerIndexLoader("net", srv, true), {
+    const { rerender } = renderHook(({ srv }) => useServerIndexLoader(srv, true), {
       initialProps: { srv: "one" },
     });
     await waitFor(() => expect(useServerIndexStore.getState().projects).toHaveLength(1));
@@ -68,7 +68,7 @@ describe("useServerIndexLoader", () => {
     loadServerProjects.mockReturnValueOnce(second);
     rerender({ srv: "two" });
 
-    await waitFor(() => expect(useServerIndexStore.getState().scope).toBe("net/two"));
+    await waitFor(() => expect(useServerIndexStore.getState().scope).toBe("two"));
     expect(useServerIndexStore.getState().projects).toEqual([]);
     resolveSecond({ status: "ready", projects: [], failed: [] });
   });

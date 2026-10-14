@@ -33,15 +33,10 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 
 import type { ProjectId } from "@/domain/types";
 import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import {
-  type ProjectSummary,
-  type ServerStatusEntry,
-  getNetwork,
-  listNetworks,
-} from "@/lib/api/networks";
+import { type ProjectSummary, type ServerStatusEntry, getNetwork } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { displayServerLabel } from "@/lib/serverLabel";
-import { urlNetworkId, urlServerId } from "@/lib/urlIds";
+import { urlServerId } from "@/lib/urlIds";
 import { useAccountStore } from "@/state/accountStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useNetworksStore } from "@/state/networksStore";
@@ -82,24 +77,16 @@ export function ProjectSidebar() {
     return () => window.removeEventListener("ifz:project_renamed", renamed);
   }, []);
 
-  // Active network + server: URL params first, then persisted selection.
-  // URL params may carry slugs instead of ids — resolve them to real ids here
-  // so all downstream matching (project filtering, link building) stays id-based.
-  // Routes without params (settings, credits…) fall back to the persisted
-  // selection (stores) so navigating there doesn't silently "deselect" the
+  // The hub's single network; active server: URL param first, then persisted
+  // selection. Routes without params (settings, credits…) fall back to the
+  // persisted selection so navigating there doesn't silently "deselect" the
   // server while the project list stays scoped to it.
-  const storedNetworkId = useNetworksStore((s) => s.activeId);
   const storedServerId = useServersStore((s) => s.activeServerId);
   const urlParams = useParams({ strict: false }) as {
-    networkId?: string;
     serverId?: string;
     projectId?: string;
   };
-  const rawNetworkParam = urlParams.networkId ?? storedNetworkId ?? networks[0]?.id ?? null;
-  const activeNetworkId = rawNetworkParam
-    ? (networks.find((n) => n.id === rawNetworkParam || n.slug === rawNetworkParam)?.id ??
-      rawNetworkParam)
-    : null;
+  const activeNetworkId = networks[0]?.id ?? null;
   // Only trust the persisted server if it still exists in the active network —
   // a deleted server must not filter the project list down to nothing.
   const storedServerValid =
@@ -122,18 +109,12 @@ export function ProjectSidebar() {
       )?.serverId ?? rawServerParam)
     : null;
 
-  // URL-facing forms: links carry slugs, everything else stays id-based.
-  const netParam = urlNetworkId(networks, activeNetworkId);
+  // URL-facing form: links carry slugs, everything else stays id-based.
   const srvParam = urlServerId(allServerEntries, activeNetworkId, activeServerId);
 
   // Persist the URL-driven selection so param-less routes keep it. Only store
   // resolved ids (never raw slugs) — the entry lookup guarantees that.
   useEffect(() => {
-    if (urlParams.networkId && activeNetworkId && networks.some((n) => n.id === activeNetworkId)) {
-      if (useNetworksStore.getState().activeId !== activeNetworkId) {
-        useNetworksStore.getState().setActiveId(activeNetworkId);
-      }
-    }
     if (urlParams.serverId) {
       const resolved = allServerEntries.find(
         (e) =>
@@ -144,7 +125,7 @@ export function ProjectSidebar() {
         useServersStore.getState().setActiveServerId(resolved);
       }
     }
-  }, [urlParams.networkId, urlParams.serverId, activeNetworkId, networks, allServerEntries]);
+  }, [urlParams.serverId, activeNetworkId, allServerEntries]);
 
   // `networks.length` is read as a condition, not a trigger: adding it as a
   // dependency would rerun the fetch when `setNetworks` returns, looping as soon
@@ -154,8 +135,8 @@ export function ProjectSidebar() {
     // Refetch on refresh bump too — a network created in the wizard/hub would
     // otherwise never reach the store (only fetched when empty).
     if (networks.length === 0 || storeRefreshToken > 0) {
-      listNetworks()
-        .then(setNetworks)
+      getNetwork()
+        .then((d) => setNetworks([d.network]))
         .catch(() => {});
     }
   }, [storeRefreshToken]);
@@ -186,12 +167,10 @@ export function ProjectSidebar() {
       setProjectsStatus("ready");
       return;
     }
-    listServerProjects(activeNetworkId, activeServerId).then((res) => {
+    listServerProjects(activeServerId).then((res) => {
       if (cancelled) return;
       setServerProjects(
-        res.ok
-          ? diskProjectsToSummaries(activeNetworkId, activeServerId, res.projectIds, res.projects)
-          : [],
+        res.ok ? diskProjectsToSummaries(activeServerId, res.projectIds, res.projects) : [],
       );
       setProjectsStatus(res.ok ? "ready" : "unavailable");
       setUpdateRequired(!res.ok && res.error === "plugin_update_required");
@@ -213,7 +192,7 @@ export function ProjectSidebar() {
     let cancelled = false;
     Promise.all(
       networks.map((n) =>
-        getNetwork(n.id).then((d) => ({
+        getNetwork().then((d) => ({
           network: n,
           serverKeys: d.serverKeys,
           projects: d.projects,
@@ -247,7 +226,7 @@ export function ProjectSidebar() {
   }, [networks, activeNetworkId, refetchToken, storeRefreshToken]);
 
   // The hub and the servers connected to it, with their state.
-  const { data: serversStatus } = useNetworkServersStatus(activeNetworkId);
+  const { data: serversStatus } = useNetworkServersStatus();
   const selectorEntries = withServersStatus(
     allServerEntries,
     activeNetworkId,
@@ -344,7 +323,7 @@ export function ProjectSidebar() {
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         {openProjectId && !openIsListed && (
-          <UnlistedOpenProject urlId={openProjectId} networkId={netParam} serverId={srvParam} />
+          <UnlistedOpenProject urlId={openProjectId} serverId={srvParam} />
         )}
         {activeNetworkId ? (
           <div className="flex flex-col">
@@ -377,7 +356,6 @@ export function ProjectSidebar() {
                       urlId={projectUrlId(w)}
                       name={w.name}
                       count={countFor(w)}
-                      networkId={urlNetworkId(networks, w.networkId) || netParam}
                       serverId={
                         urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam
                       }
@@ -388,7 +366,6 @@ export function ProjectSidebar() {
             </DndContext>
             {projectsStatus === "ready" && (
               <NewProjectDialog
-                networkId={netParam}
                 serverKeyId={activeServerId}
                 onCreated={() => setRefetchToken((n) => n + 1)}
                 trigger={
@@ -428,7 +405,6 @@ export function ProjectSidebar() {
                     urlId={projectUrlId(g.projects[0]!)}
                     name={g.label}
                     count={countFor(g.projects[0]!)}
-                    networkId={urlNetworkId(networks, g.projects[0]!.networkId) || netParam}
                     serverId={
                       urlServerId(
                         allServerEntries,
@@ -455,19 +431,13 @@ export function ProjectSidebar() {
                           // owning several projects needs their real names.
                           name={g.projects.length === 1 ? t("screens.editorEntry") : w.name}
                           count={countFor(w)}
-                          networkId={urlNetworkId(networks, w.networkId) || netParam}
                           serverId={
                             urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam
                           }
                         />
                       ))}
                       {g.screens.map((s) => (
-                        <ScreenItem
-                          key={s.id}
-                          screen={s}
-                          networkId={netParam}
-                          serverId={srvParam}
-                        />
+                        <ScreenItem key={s.id} screen={s} serverId={srvParam} />
                       ))}
                       {g.hasScreen && (
                         <li>
@@ -491,7 +461,6 @@ export function ProjectSidebar() {
       </div>
 
       <UserMenu
-        networkId={activeNetworkId}
         serverId={activeServerId}
         serverLabel={
           allServerEntries.find(
@@ -543,13 +512,11 @@ export function withServersStatus(
  */
 function ProjectLink({
   projectId,
-  networkId,
   serverId,
   className,
   children,
 }: {
   projectId: string;
-  networkId: string | null;
   serverId: string | null;
   className: string;
   children: ReactNode;
@@ -557,7 +524,7 @@ function ProjectLink({
   const close = () => useSidebarStore.getState().close();
   return (
     <Link
-      {...projectDestination(networkId, projectId, serverId ?? undefined)}
+      {...projectDestination(projectId, serverId ?? undefined)}
       onClick={close}
       className={className}
     >
@@ -569,21 +536,19 @@ function ProjectLink({
 /** Module Config screen link under "Installed modules" (ADR module-config-screens). */
 function ScreenItem({
   screen,
-  networkId,
   serverId,
 }: {
   screen: ServerEditorScreen;
-  networkId: string | null;
   serverId: string | null;
 }) {
   const params = useParams({ strict: false }) as { screenId?: string };
   const isActive = params.screenId === screen.id;
-  if (!networkId || !serverId) return null;
+  if (!serverId) return null;
   return (
     <li>
       <Link
-        to="/networks/$networkId/servers/$serverId/screens/$screenId"
-        params={{ networkId, serverId, screenId: screen.id }}
+        to="/servers/$serverId/screens/$screenId"
+        params={{ serverId, screenId: screen.id }}
         onClick={() => useSidebarStore.getState().close()}
         className={
           isActive
@@ -606,12 +571,10 @@ function ScreenItem({
 function ActiveProjectDocuments({
   id,
   urlId,
-  networkId,
   serverId,
 }: {
   id: string;
   urlId?: string;
-  networkId: string | null;
   serverId: string | null;
 }) {
   const navigate = useNavigate();
@@ -626,7 +589,7 @@ function ActiveProjectDocuments({
         header="none"
         onOpen={(documentId) => {
           useSidebarStore.getState().close();
-          goToDocument(navigate, { networkId, serverId, project, ref: documentId });
+          goToDocument(navigate, { serverId, project, ref: documentId });
         }}
       />
     </div>
@@ -640,11 +603,9 @@ function ActiveProjectDocuments({
  */
 function UnlistedOpenProject({
   urlId,
-  networkId,
   serverId,
 }: {
   urlId: string;
-  networkId: string | null;
   serverId: string | null;
 }) {
   const project = useAccountStore((s) =>
@@ -660,12 +621,7 @@ function UnlistedOpenProject({
         </span>
         <ProjectActions projectId={project.id} />
       </div>
-      <ActiveProjectDocuments
-        id={project.id}
-        urlId={urlId}
-        networkId={networkId}
-        serverId={serverId}
-      />
+      <ActiveProjectDocuments id={project.id} urlId={urlId} serverId={serverId} />
     </div>
   );
 }
@@ -691,11 +647,9 @@ function useIndexedProject(urlId: string | undefined, id: string): Project | und
 
 function OtherProjectDocuments({
   project,
-  networkId,
   serverId,
 }: {
   project: Project;
-  networkId: string;
   serverId: string | null;
 }) {
   const { t } = useTranslation();
@@ -713,7 +667,7 @@ function OtherProjectDocuments({
           useSidebarStore.getState().close();
           // Opens this project, centred on the Document (`?doc=`, cf. goToDocument).
           void navigate({
-            ...projectDestination(networkId, projectNamespace(project), serverId ?? undefined),
+            ...projectDestination(projectNamespace(project), serverId ?? undefined),
             search: { doc: documentId },
           } as never);
         }}
@@ -753,7 +707,6 @@ function OwnedProjectItem({
   urlId,
   name,
   count,
-  networkId,
   serverId,
 }: {
   id: string;
@@ -761,7 +714,6 @@ function OwnedProjectItem({
   urlId?: string;
   name: string;
   count: number | null;
-  networkId: string | null;
   serverId: string | null;
 }) {
   const { t } = useTranslation();
@@ -772,7 +724,6 @@ function OwnedProjectItem({
       <div className="flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
         <ProjectLink
           projectId={urlId ?? id}
-          networkId={networkId}
           serverId={serverId}
           className={
             isActiveProject
@@ -795,9 +746,7 @@ function OwnedProjectItem({
         </ProjectLink>
         {isActiveProject && <ActiveProjectActions id={id} urlId={urlId} />}
       </div>
-      {isActiveProject && (
-        <ActiveProjectDocuments id={id} urlId={urlId} networkId={networkId} serverId={serverId} />
-      )}
+      {isActiveProject && <ActiveProjectDocuments id={id} urlId={urlId} serverId={serverId} />}
     </li>
   );
 }
@@ -807,7 +756,6 @@ function SortableProjectItem({
   urlId,
   name,
   count,
-  networkId,
   serverId,
 }: {
   id: string;
@@ -815,7 +763,6 @@ function SortableProjectItem({
   urlId?: string;
   name: string;
   count: number | null;
-  networkId: string | null;
   serverId: string | null;
 }) {
   const { t } = useTranslation();
@@ -837,7 +784,7 @@ function SortableProjectItem({
   const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
   const indexed = useIndexedProject(urlId, id);
   const [expanded, setExpanded] = useState(false);
-  const canExpand = !isActiveProject && !!indexed && !!networkId;
+  const canExpand = !isActiveProject && !!indexed;
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -856,7 +803,6 @@ function SortableProjectItem({
         )}
         <ProjectLink
           projectId={urlId ?? id}
-          networkId={networkId}
           serverId={serverId}
           className={
             isActiveProject
@@ -893,11 +839,9 @@ function SortableProjectItem({
         </button>
       </div>
       {isActiveProject && !collapsed && (
-        <ActiveProjectDocuments id={id} urlId={urlId} networkId={networkId} serverId={serverId} />
+        <ActiveProjectDocuments id={id} urlId={urlId} serverId={serverId} />
       )}
-      {canExpand && expanded && (
-        <OtherProjectDocuments project={indexed} networkId={networkId} serverId={serverId} />
-      )}
+      {canExpand && expanded && <OtherProjectDocuments project={indexed} serverId={serverId} />}
     </li>
   );
 }

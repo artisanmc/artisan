@@ -16,7 +16,6 @@ import { useTranslation } from "react-i18next";
  * everything else, so it cannot overwrite behind someone's back.
  */
 export function FileHistory({
-  networkId,
   serverId,
   diskId,
   path,
@@ -24,7 +23,6 @@ export function FileHistory({
   projectId,
 }: {
   projectId?: string;
-  networkId?: string;
   serverId?: string;
   diskId?: string;
   path: string;
@@ -40,7 +38,7 @@ export function FileHistory({
     setError(null);
     const res = projectId
       ? await projectClient(projectId).history(path)
-      : await readFileHistory(networkId!, serverId, diskId, path);
+      : await readFileHistory({ serverId: serverId!, diskId: diskId! }, path);
     setLoading(false);
     if (!res.ok) {
       setError(res.error === "server_offline" ? t("history.serverOffline") : t("history.failed"));

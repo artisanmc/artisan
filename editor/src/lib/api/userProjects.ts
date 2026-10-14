@@ -25,15 +25,13 @@ export interface UserProjectLoadResult {
   connection?: { available: boolean };
 }
 
-/** Resolve a public ID or legacy alias in its Network/server scope. */
+/** Resolve a public ID or legacy alias in its server scope. */
 export async function loadUserProject(
   projectRef: string,
   serverRef?: string | null,
-  networkRef?: string | null,
 ): Promise<UserProjectLoadResult> {
   const query = new URLSearchParams();
   if (serverRef) query.set("server", serverRef);
-  if (networkRef) query.set("network", networkRef);
   const qs = query.size ? `?${query}` : "";
   const res = await projectFetch(
     projectRef,

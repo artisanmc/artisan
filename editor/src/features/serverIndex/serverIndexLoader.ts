@@ -33,26 +33,20 @@ export const clearServerIndexCache = (): void => cache.clear();
  * Drafts are not included: this is what the server runs.
  */
 export async function loadServerProjects(args: {
-  networkId: string;
   serverId: string;
 }): Promise<ServerProjectsResult> {
-  const { networkId, serverId } = args;
-  const listing = await listServerProjects(networkId, serverId);
+  const { serverId } = args;
+  const listing = await listServerProjects(serverId);
   if (!listing.ok) return { status: "unavailable", projects: [], failed: [] };
 
-  const summaries = diskProjectsToSummaries(
-    networkId,
-    serverId,
-    listing.projectIds,
-    listing.projects,
-  );
+  const summaries = diskProjectsToSummaries(serverId, listing.projectIds, listing.projects);
   const outcomes = await Promise.all(
     summaries.map(async (summary) => {
       const diskId = summary.externalId ?? summary.id;
-      const key = `${networkId}/${serverId}/${diskId}`;
+      const key = `${serverId}/${diskId}`;
       const known = cache.get(key);
       try {
-        const read = await readProjectFiles(networkId, serverId, diskId, known?.hash);
+        const read = await readProjectFiles({ serverId, diskId }, known?.hash);
         if (!read.ok) return { diskId, project: null };
         if (read.unchanged) {
           if (known) return { diskId, project: known.project };

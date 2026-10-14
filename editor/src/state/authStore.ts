@@ -121,7 +121,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 // Account-scoped local state must not leak across identities. Without this,
 // switching accounts in the same tab keeps the previous account's projects in
 // the sidebar, and clicking one navigates into a network the new user can't
-// access (403 → bounced to /networks). We clear:
+// access (403 → bounced to /servers). We clear:
 //   - accountStore (in-memory projects of the previous account)
 //   - uiStore last-active pointers (persisted; used by restore flows)
 // Deliberately NOT cleared on first sign-in (null → user): a page load may

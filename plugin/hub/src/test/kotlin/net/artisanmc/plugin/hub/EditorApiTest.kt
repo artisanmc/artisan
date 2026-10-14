@@ -23,6 +23,7 @@ class EditorApiTest {
     private var answer: (Map<String, Any?>) -> Map<String, Any?> = { mapOf("ok" to true) }
     private val server = object : EditorServer {
         override val id = Servers.LOCAL
+        override val uuid = "u-local"
         override val online = true
         override val link = ServerLink { message ->
             sent += message
@@ -120,23 +121,22 @@ class EditorApiTest {
 
     @Test
     fun `one network with one server, both named local`() {
-        val (_, body) = call("GET", "/api/v1/networks/local")
-        assertEquals("local", body!!["serverKeys"][0]["slug"].asText())
+        val (_, body) = call("GET", "/api/v1/network")
+        assertEquals("u-local", body!!["serverKeys"][0]["slug"].asText())
         assertEquals("Survie", body["serverKeys"][0]["label"].asText())
-        assertEquals(404, call("GET", "/api/v1/networks/other").first)
-        assertEquals(404, call("GET", "/api/v1/networks/local/servers/other/modules").first)
-        assertEquals("menus", call("GET", "/api/v1/networks/local/servers/local/modules").second!!["modules"][0]["id"].asText())
-        assertEquals(listOf("shop:item"), call("GET", "/api/v1/networks/local/servers/local/models").second!!["models"].map { it["id"].asText() })
+        assertEquals(404, call("GET", "/api/v1/servers/other/modules").first)
+        assertEquals("menus", call("GET", "/api/v1/servers/u-local/modules").second!!["modules"][0]["id"].asText())
+        assertEquals(listOf("shop:item"), call("GET", "/api/v1/servers/u-local/models").second!!["models"].map { it["id"].asText() })
     }
 
     @Test
     fun `projects are listed by folder name`() {
         answer = { mapOf("ok" to true, "project_ids" to listOf("shop"), "project_roots" to listOf(mapOf("project_id" to "shop", "identity" to "folder", "project_key" to "k-1"))) }
-        val (_, body) = call("GET", "/api/v1/networks/local/servers/local/projects")
+        val (_, body) = call("GET", "/api/v1/servers/u-local/projects")
         assertEquals("shop", body!!["project_ids"][0].asText())
         assertEquals("k-1", body["projects"][0]["projectKey"].asText())
         assertEquals("shop", body["projects"][0]["externalId"].asText())
-        assertEquals("local", body["projects"][0]["serverKeyId"].asText())
+        assertEquals("u-local", body["projects"][0]["serverKeyId"].asText())
 
         val (status, identity) = call("GET", "/api/v1/user/projects/shop?server=local&network=local")
         assertEquals(200, status)
@@ -176,7 +176,7 @@ class EditorApiTest {
     @Test
     fun `projects are read from the database, without asking the server`() {
         stored = true
-        assertEquals("kept", call("GET", "/api/v1/networks/local/servers/local/projects").second!!["projects"][0]["externalId"].asText())
+        assertEquals("kept", call("GET", "/api/v1/servers/u-local/projects").second!!["projects"][0]["externalId"].asText())
         assertEquals("s1", call("GET", "/api/v1/projects/kept/files").second!!["hash"].asText())
         assertEquals(true, call("GET", "/api/v1/projects/kept/files?if_hash=s1").second!!["unchanged"].asBoolean())
         assertEquals(200, call("GET", "/api/v1/projects/kept/binary?path=logo.png").first)
@@ -187,7 +187,7 @@ class EditorApiTest {
     @Test
     fun `an offline server's project opens from the database, dated by its last presence`() {
         stored = true
-        val servers = Servers(server, known = { mapOf("survie" to java.time.Instant.parse("2026-10-14T10:00:00Z")) })
+        val servers = Servers(server, known = { mapOf("survie" to Servers.Seen("u-survie", java.time.Instant.parse("2026-10-14T10:00:00Z"))) })
         val offline = HubServer(
             WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(servers, sessions, null, loaded = loaded), sessions,
             EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
@@ -251,12 +251,12 @@ class EditorApiTest {
 
     @Test
     fun `projects are created, renamed and deleted on the server disk`() {
-        val (created, body) = call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "local"))
+        val (created, body) = call("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "u-local"))
         assertEquals(201, created)
         assertEquals("shop", body!!["project"]["id"].asText())
         assertEquals(mapOf("type" to "project_create", "project_id" to "shop"), sent.last())
-        assertEquals(404, call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "nope")).first)
-        assertEquals(422, call("POST", "/api/v1/networks/local/projects", mapOf("serverKeyId" to "local")).first)
+        assertEquals(404, call("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "nope")).first)
+        assertEquals(422, call("POST", "/api/v1/network/projects", mapOf("serverKeyId" to "u-local")).first)
 
         val (renamed, identity) = call("POST", "/api/v1/projects/shop/rename", mapOf("operationId" to "op1", "targetId" to "store"))
         assertEquals(200, renamed)
@@ -269,7 +269,7 @@ class EditorApiTest {
 
         for ((error, status) in listOf("project_exists" to 409, "invalid_name" to 422)) {
             answer = { mapOf("ok" to false, "error" to error) }
-            val (code, refused) = call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "local"))
+            val (code, refused) = call("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "u-local"))
             assertEquals(status, code)
             assertEquals(error, refused!!["error"].asText())
         }
@@ -290,21 +290,21 @@ class EditorApiTest {
 
     @Test
     fun `server config and live data`() {
-        assertEquals("en", call("GET", "/api/v1/networks/local/servers/local/server-config").second!!["config"]["language"].asText())
-        assertEquals(422, call("PATCH", "/api/v1/networks/local/servers/local/server-config", mapOf("changes" to emptyMap<String, Any>())).first)
+        assertEquals("en", call("GET", "/api/v1/servers/u-local/server-config").second!!["config"]["language"].asText())
+        assertEquals(422, call("PATCH", "/api/v1/servers/u-local/server-config", mapOf("changes" to emptyMap<String, Any>())).first)
         answer = { mapOf("ok" to false, "error" to "invalid_config", "message" to "language: unknown") }
-        val (status, body) = call("PATCH", "/api/v1/networks/local/servers/local/server-config", mapOf("changes" to mapOf("language" to "xx")))
+        val (status, body) = call("PATCH", "/api/v1/servers/u-local/server-config", mapOf("changes" to mapOf("language" to "xx")))
         assertEquals(422, status)
         assertEquals("language: unknown", body!!["message"].asText())
 
         answer = { mapOf("ok" to false) }
-        assertEquals(0, call("GET", "/api/v1/networks/local/servers/local/players").second!!["players"].size())
-        assertEquals(422, call("GET", "/api/v1/networks/local/servers/local/head-texture?id=abc").first)
+        assertEquals(0, call("GET", "/api/v1/servers/u-local/players").second!!["players"].size())
+        assertEquals(422, call("GET", "/api/v1/servers/u-local/head-texture?id=abc").first)
     }
 
     @Test
     fun `config screens read and write the project on disk`() {
-        val path = "/api/v1/networks/local/servers/local/config"
+        val path = "/api/v1/servers/u-local/config"
         answer = { mapOf("ok" to true, "files" to listOf(mapOf("path" to "warps/spawn.yml", "content" to "x: 1"))) }
         val (status, body) = call("POST", "$path/read", mapOf("project_id" to "warps", "table" to "warps"))
         assertEquals(200, status)
@@ -355,7 +355,7 @@ class EditorApiTest {
     @Test
     fun `a pack built by the editor is served and applied`() {
         val zip = "PK\u0003\u0004pack".toByteArray()
-        val put = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/networks/local/servers/local/resource-pack"))
+        val put = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/u-local/resource-pack"))
             .PUT(HttpRequest.BodyPublishers.ofByteArray(zip)).header("Cookie", cookie).build()
         val response = client.send(put, HttpResponse.BodyHandlers.ofString())
         assertEquals(200, response.statusCode())
@@ -367,7 +367,7 @@ class EditorApiTest {
         assertEquals(200, served.statusCode())
         assertTrue(zip.contentEquals(served.body()))
 
-        val bad = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/networks/local/servers/local/resource-pack"))
+        val bad = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/u-local/resource-pack"))
             .PUT(HttpRequest.BodyPublishers.ofString("nope")).header("Cookie", cookie).build()
         assertEquals(422, client.send(bad, HttpResponse.BodyHandlers.ofString()).statusCode())
     }
@@ -377,11 +377,11 @@ class EditorApiTest {
         val token = (sessions.issueLink(UUID.randomUUID(), "Guest", setOf(EditorPermissions.VIEW)) as Sessions.LinkResult.Issued).token
         cookie = "${HubServer.COOKIE}=" + sessions.redeem(token)!!.id
         assertEquals(403, call("PUT", "/api/v1/projects/shop/files", mapOf("files" to emptyList<Any>())).first)
-        assertEquals(403, call("PATCH", "/api/v1/networks/local/servers/local/server-config", mapOf("changes" to mapOf("a" to 1))).first)
+        assertEquals(403, call("PATCH", "/api/v1/servers/u-local/server-config", mapOf("changes" to mapOf("a" to 1))).first)
         val write = mapOf("project_id" to "warps", "files" to listOf(mapOf("path" to "a.yml", "content" to "")))
-        assertEquals(403, call("POST", "/api/v1/networks/local/servers/local/config/write", write).first)
+        assertEquals(403, call("POST", "/api/v1/servers/u-local/config/write", write).first)
         assertEquals(403, call("DELETE", "/api/v1/user/projects/shop").first)
         assertEquals(403, call("POST", "/api/v1/projects/shop/rename", mapOf("targetId" to "store")).first)
-        assertEquals(403, call("POST", "/api/v1/networks/local/projects", mapOf("name" to "shop", "serverKeyId" to "local")).first)
+        assertEquals(403, call("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "u-local")).first)
     }
 }

@@ -50,7 +50,7 @@ class ProjectRoutes(
                 call.json(mapOf(
                     "project" to summary(server, root),
                     "networkId" to LOCAL,
-                    "serverKeyId" to server.id,
+                    "serverKeyId" to server.uuid,
                     "capabilities" to mapOf(
                         "liveData" to true, "captureInGame" to false, "preview" to true, "canRename" to movable,
                         // No assistant or migration in the self-hosted editor.
@@ -97,12 +97,12 @@ class ProjectRoutes(
 
     /** Create, delete (to the server's trash) and rename a Project folder. */
     private fun lifecycle(router: Router) {
-        router.on("POST", "/api/v1/networks/:network/projects", PUBLISH) { call ->
+        router.on("POST", "/api/v1/network/projects", PUBLISH) { call ->
             val request = call.body()
             val name = request?.get("name")?.takeIf { it.isTextual }?.asText()?.trim()
             val serverId = request?.get("serverKeyId")?.takeIf { it.isTextual }?.asText()
             if (name.isNullOrEmpty() || serverId == null) return@on call.error(422, "invalid_input")
-            val server = servers.find(serverId)?.takeIf { call.params["network"] == LOCAL }
+            val server = servers.byUuid(serverId)
                 ?: return@on call.error(404, "server_key_not_in_network")
             if (!speaksFolders(call, server)) return@on
             relay.send(call, server, mapOf("type" to "project_create", "project_id" to name)) { reply ->
@@ -337,7 +337,7 @@ class ProjectRoutes(
         val id = ProjectRef.id(server.id, folder)
         return mapOf(
             "id" to id, "name" to folder, "externalId" to folder, "slug" to id,
-            "networkId" to LOCAL, "serverKeyId" to server.id, "hash" to "",
+            "networkId" to LOCAL, "serverKeyId" to server.uuid, "hash" to "",
             "identityKind" to root["identity"], "ownerModule" to root["module_id"], "projectKey" to root["project_key"],
             "capabilities" to mapOf("canRename" to movable(server, root)),
         )

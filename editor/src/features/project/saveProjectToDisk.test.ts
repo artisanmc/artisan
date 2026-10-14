@@ -172,6 +172,6 @@ describe("saveProjectToDisk", () => {
 
     await saveProjectToDisk(emptyProject(), "n1", "s1");
 
-    expect(writeProjectFiles).toHaveBeenCalledWith("p1", undefined, undefined, expect.anything());
+    expect(writeProjectFiles).toHaveBeenCalledWith("p1", expect.anything());
   });
 });

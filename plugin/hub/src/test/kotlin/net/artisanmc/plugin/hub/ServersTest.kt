@@ -11,6 +11,7 @@ import kotlin.test.assertNull
 class ServersTest {
     private val local = object : EditorServer {
         override val id = Servers.LOCAL
+        override val uuid = "u-local"
         override val online = true
         override val link = ServerLink { CompletableFuture.completedFuture(emptyMap()) }
         override val label = "lobby"
@@ -28,7 +29,7 @@ class ServersTest {
 
     @Test
     fun `servers known to the database are listed offline, with their last presence`() {
-        val servers = Servers(local, known = { mapOf("survie" to seen) })
+        val servers = Servers(local, known = { mapOf("survie" to Servers.Seen("u-survie", seen)) })
         assertEquals(listOf("local", "survie"), servers.all().map { it.id })
         assertFalse(servers.find("survie")!!.online)
         assertEquals(seen, servers.lastSeen("survie"))
@@ -37,10 +38,10 @@ class ServersTest {
 
     @Test
     fun `a disconnected server the database no longer knows is dropped`() {
-        var known = mapOf("survie" to seen)
+        var known = mapOf("survie" to Servers.Seen("u-survie", seen))
         val servers = Servers(local, known = { known })
         servers.all()
-        known = mapOf("survival" to seen)
+        known = mapOf("survival" to Servers.Seen("u-survival", seen))
         assertEquals(listOf("local", "survival"), servers.all().map { it.id })
     }
 

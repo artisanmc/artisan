@@ -23,12 +23,11 @@ export interface ServerDataSource {
  * failure (non-OK response, network error, or malformed JSON).
  */
 export async function fetchServerDataSourcesUser(
-  networkId: string,
   serverId: string,
 ): Promise<ServerDataSource[]> {
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/data-sources`,
+      `${API_URL}/api/v1/servers/${serverId}/data-sources`,
       { credentials: "include" },
     );
     if (!res.ok) return [];
@@ -82,13 +81,12 @@ export interface PreviewRequest {
 
 /** Live preview relayed to the connected plugin (5 s hub timeout). */
 export async function previewDataSource(
-  networkId: string,
   serverId: string,
   req: PreviewRequest,
 ): Promise<PreviewResult> {
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/data-sources/preview`,
+      `${API_URL}/api/v1/servers/${serverId}/data-sources/preview`,
       {
         method: "POST",
         credentials: "include",
@@ -124,12 +122,11 @@ export async function previewDataSource(
  * §4): model/v1 documents, verbatim. [] on any failure.
  */
 export async function fetchServerDeclaredModels(
-  networkId: string,
   serverId: string,
 ): Promise<Record<string, unknown>[]> {
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/models`,
+      `${API_URL}/api/v1/servers/${serverId}/models`,
       { credentials: "include" },
     );
     if (!res.ok) return [];

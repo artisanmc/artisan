@@ -90,12 +90,10 @@ export function ServerRow({
  * live online/offline state, last-seen time and last IP. Polls every 15s.
  */
 export function LinkedServersDropdown({
-  networkId,
   currentServerKeyId,
   downHint,
   offline = false,
 }: {
-  networkId: string | null | undefined;
   currentServerKeyId?: string;
   /** Why the current server is offline, shown as a tooltip on the badge. */
   downHint?: string;
@@ -103,9 +101,9 @@ export function LinkedServersDropdown({
   offline?: boolean;
 }) {
   const { t, i18n } = useTranslation();
-  const { data } = useNetworkServersStatus(networkId, currentServerKeyId);
+  const { data } = useNetworkServersStatus(currentServerKeyId);
 
-  if (!networkId || data === null) return null;
+  if (data === null) return null;
 
   const { online, total } = data;
   // What matters here is the state of the server that HOLDS the open project:

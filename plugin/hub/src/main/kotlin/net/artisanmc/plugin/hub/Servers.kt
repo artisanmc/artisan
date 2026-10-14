@@ -11,26 +11,30 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class Servers(
     val local: EditorServer,
-    private val known: () -> Map<String, Instant>? = { null },
-    private val newRemote: (String) -> RemoteServer = { RemoteServer(it, publicUrl = { "" }) },
+    private val known: () -> Map<String, Seen>? = { null },
+    private val newRemote: (name: String, uuid: String) -> RemoteServer = { name, uuid -> RemoteServer(name, uuid, publicUrl = { "" }) },
 ) {
+    /** A server of `artisan_servers`: its server id and last presence. */
+    data class Seen(val uuid: String, val lastSeen: Instant)
+
     private val remote = ConcurrentHashMap<String, RemoteServer>()
 
     fun all(): List<EditorServer> {
         val known = known() ?: return listOf(local) + remote.values.sortedBy { it.id }
-        known.keys.forEach(::remote)
+        known.forEach { (name, seen) -> remote(name, seen.uuid) }
         return listOf(local) + remote.values.filter { it.online || it.id in known }.sortedBy { it.id }
     }
 
-    fun remote(id: String): RemoteServer = remote.computeIfAbsent(id, newRemote)
+    fun remote(id: String, uuid: String = ""): RemoteServer = remote.computeIfAbsent(id) { newRemote(it, uuid) }
 
-    fun lastSeen(id: String): Instant? = known()?.get(id)
+    fun lastSeen(id: String): Instant? = known()?.get(id)?.lastSeen
 
     fun find(id: String?): EditorServer? = all().firstOrNull { it.id == id }
 
-    /** The server of `/api/v1/networks/:network/servers/:server/…` routes. */
-    fun of(call: Call): EditorServer? =
-        if (call.params["network"] != LOCAL) null else find(call.params["server"])
+    /** The server of `/api/v1/servers/:server/…` routes, named by its server id. */
+    fun of(call: Call): EditorServer? = byUuid(call.params["server"])
+
+    fun byUuid(uuid: String?): EditorServer? = uuid?.takeIf { it.isNotEmpty() }?.let { u -> all().firstOrNull { it.uuid == u } }
 
     /**
      * A Project is named after its folder on the hub's server (`shop`), and

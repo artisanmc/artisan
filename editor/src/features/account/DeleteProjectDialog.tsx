@@ -50,7 +50,7 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
     try {
       if (remaining.length === 0) throw new Error("no_project_left");
       const destination = await loadUserProject(remaining[0]!);
-      navigate(projectDestination(destination.networkId, destination.project, destination.serverKeyId));
+      navigate(projectDestination(destination.project, destination.serverKeyId));
     } catch {
       navigate({ to: "/" });
     } finally {

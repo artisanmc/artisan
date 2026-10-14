@@ -1,4 +1,3 @@
-import { LOCAL_ID } from "@/lib/localServer";
 import { Navigate, createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
@@ -6,11 +5,5 @@ export const Route = createFileRoute("/")({
 });
 
 export function HomeRoute() {
-  return (
-    <Navigate
-      to="/networks/$networkId/servers/$serverId"
-      params={{ networkId: LOCAL_ID, serverId: LOCAL_ID }}
-      replace
-    />
-  );
+  return <Navigate to="/servers" replace />;
 }

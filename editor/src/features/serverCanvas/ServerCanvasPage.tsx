@@ -29,7 +29,7 @@ import { useTranslation } from "react-i18next";
 import { Arrow, Stage as KonvaStage, Layer, Rect, Text } from "react-konva";
 import { type BoardFilter, filterBoard, parseBoardFilter } from "./boardFilter";
 
-const ROUTE = "/networks/$networkId/servers/$serverId/canvas" as const;
+const ROUTE = "/servers/$serverId/canvas" as const;
 const KINDS: DocumentKind[] = ["menu", "command", "dialog"];
 
 export const validateServerCanvasSearch = (search: Record<string, unknown>): BoardFilter =>
@@ -44,15 +44,13 @@ interface ProbeResult {
 function ProjectProbe({
   loadRef,
   serverId,
-  networkId,
   onResult,
 }: {
   loadRef: string;
   serverId: string;
-  networkId: string;
   onResult: (loadRef: string, result: ProbeResult) => void;
 }) {
-  const { project, error, offline } = useProjectLoader(loadRef, serverId, networkId);
+  const { project, error, offline } = useProjectLoader(loadRef, serverId);
   const failed = error != null || offline;
   useEffect(() => onResult(loadRef, { project, failed }), [loadRef, project, failed, onResult]);
   return null;
@@ -60,7 +58,7 @@ function ProjectProbe({
 
 export function ServerCanvasPage() {
   const { t } = useTranslation();
-  const { networkId, serverId } = useParams({ from: ROUTE });
+  const { serverId } = useParams({ from: ROUTE });
   const filter = useSearch({ from: ROUTE }) as BoardFilter;
   const navigate = useNavigate();
 
@@ -71,17 +69,17 @@ export function ServerCanvasPage() {
   useEffect(() => {
     let cancelled = false;
     setListing("loading");
-    getNetwork(networkId)
+    getNetwork()
       .then(async (network) => {
         const key = network.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
         if (!key) throw new Error("unknown_server");
-        const res = await listServerProjects(networkId, key.id);
+        const res = await listServerProjects(key.id);
         if (cancelled) return;
         if (!res.ok) {
           setListing("unavailable");
           return;
         }
-        setSummaries(diskProjectsToSummaries(networkId, key.id, res.projectIds, res.projects));
+        setSummaries(diskProjectsToSummaries(key.id, res.projectIds, res.projects));
         setListing("ready");
       })
       .catch(() => {
@@ -90,7 +88,7 @@ export function ServerCanvasPage() {
     return () => {
       cancelled = true;
     };
-  }, [networkId, serverId]);
+  }, [serverId]);
 
   const onResult = useCallback((loadRef: string, result: ProbeResult) => {
     setResults((prev) => {
@@ -119,7 +117,7 @@ export function ServerCanvasPage() {
   );
 
   const setFilter = (next: BoardFilter) =>
-    navigate({ to: ROUTE, params: { networkId, serverId }, search: next, replace: true });
+    navigate({ to: ROUTE, params: { serverId }, search: next, replace: true });
 
   const status =
     listing === "loading"
@@ -137,14 +135,13 @@ export function ServerCanvasPage() {
           key={projectUrlId(s)}
           loadRef={projectUrlId(s)}
           serverId={serverId}
-          networkId={networkId}
           onResult={onResult}
         />
       ))}
       <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
         <Link
-          to="/networks/$networkId/servers/$serverId"
-          params={{ networkId, serverId }}
+          to="/servers/$serverId"
+          params={{ serverId }}
           className="btn-ghost btn-sm"
         >
           ← {t("serverCanvas.back")}
@@ -217,7 +214,7 @@ export function ServerCanvasPage() {
             </p>
           ) : (
             <Board
-              storageKey={`server-board:${networkId}/${serverId}`}
+              storageKey={`server-board:${serverId}`}
               projects={projects}
               nodes={visible.nodes}
               edges={visible.edges.map((e) => ({
@@ -236,8 +233,8 @@ export function ServerCanvasPage() {
                 if (!project) return;
                 // Opens the project's board, centered on the Document (goToDocument).
                 void navigate({
-                  to: "/networks/$networkId/servers/$serverId/projects/$projectId",
-                  params: { networkId, serverId, projectId: projectUrlId(project) },
+                  to: "/servers/$serverId/projects/$projectId",
+                  params: { serverId, projectId: projectUrlId(project) },
                   search: { doc: node.docId },
                 });
               }}

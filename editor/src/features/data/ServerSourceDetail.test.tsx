@@ -33,7 +33,7 @@ describe("ServerSourceDetail", () => {
   });
 
   it("renders ref, module badge, and the schema table", async () => {
-    render(<ServerSourceDetail networkId="n1" serverId="sk1" source={source} />);
+    render(<ServerSourceDetail serverId="sk1" source={source} />);
     expect(screen.getByText("boutique:items")).toBeInTheDocument();
     expect(screen.getByText("boutique")).toBeInTheDocument();
     expect(screen.getByText("price")).toBeInTheDocument();
@@ -47,16 +47,16 @@ describe("ServerSourceDetail", () => {
       rows: [{ id: "sword", price: 10 }],
       truncated: true,
     });
-    render(<ServerSourceDetail networkId="n1" serverId="sk1" source={source} />);
+    render(<ServerSourceDetail serverId="sk1" source={source} />);
     fireEvent.click(await screen.findByTestId("server-source-preview"));
     await waitFor(() => expect(screen.getByText("sword")).toBeInTheDocument());
-    expect(previewDataSource).toHaveBeenCalledWith("n1", "sk1", { ref: "boutique:items" });
+    expect(previewDataSource).toHaveBeenCalledWith("sk1", { ref: "boutique:items" });
     expect(screen.getByTestId("data-table-truncated")).toBeInTheDocument();
   });
 
   it("shows the typed error states", async () => {
     previewDataSource.mockResolvedValue({ ok: false, error: "player_required", message: null });
-    render(<ServerSourceDetail networkId="n1" serverId="sk1" source={source} />);
+    render(<ServerSourceDetail serverId="sk1" source={source} />);
     fireEvent.click(await screen.findByTestId("server-source-preview"));
     await waitFor(() => expect(screen.getByTestId("preview-error")).toBeInTheDocument());
   });
@@ -67,7 +67,7 @@ describe("ServerSourceDetail", () => {
       online: 0,
       total: 1,
     });
-    render(<ServerSourceDetail networkId="n1" serverId="sk1" source={source} />);
+    render(<ServerSourceDetail serverId="sk1" source={source} />);
     await waitFor(() => expect(screen.getByTestId("server-source-preview")).toBeDisabled());
     expect(screen.getByTestId("preview-offline-hint")).toBeInTheDocument();
   });

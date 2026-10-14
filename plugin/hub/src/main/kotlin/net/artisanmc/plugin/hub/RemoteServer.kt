@@ -26,6 +26,8 @@ class ServerOfflineException(server: String) : RuntimeException("server $server 
  */
 class RemoteServer(
     override val id: String,
+    /** Its server id, known from the database while it is offline; its `hello` says it once connected. */
+    private val knownUuid: String = "",
     /** The hub's public address: the packs it serves are downloaded from there. */
     private val publicUrl: () -> String,
     private val timeout: Duration = Duration.ofSeconds(30),
@@ -40,6 +42,7 @@ class RemoteServer(
 
     override val link = ServerLink(::request)
     override val label: String get() = id
+    override val uuid: String get() = hello.path("server_uuid").asText("").ifEmpty { knownUuid }
     override val online: Boolean get() = session?.isOpen == true
     override val minecraftVersion: String get() = hello.path("minecraft_version").asText("")
     override val pluginVersion: String get() = hello.path("plugin_version").asText("")
@@ -98,7 +101,7 @@ class RemoteServer(
             }
             "custom_items_changed" -> requestCustomItems(message.path("hash").asText(""))
             "custom_items_bundle" -> customItems = decodeCustomItems(message.path("data").asText(""))
-            "projects_reloaded" -> editors.relay(Call.mapper.convertValue(message, MAP), id)
+            "projects_reloaded" -> editors.relay(Call.mapper.convertValue(message, MAP), id, uuid)
         }
     }
 

@@ -103,8 +103,6 @@ export interface ProjectTopBarControlsProps {
   onTour?: () => void;
   tourCanResume?: boolean;
 
-  networkId?: string | null;
-
   /** The Project's server is unreachable: the badge shows it, the tooltip explains it. */
   offline?: boolean;
   offlineSince?: string | null;
@@ -125,7 +123,6 @@ export function ProjectTopBarControls({
   onDelete,
   onTour,
   tourCanResume,
-  networkId,
   offline = false,
   offlineSince,
   unpublished,
@@ -162,12 +159,10 @@ export function ProjectTopBarControls({
       >
         <div className="flex min-h-9 min-w-0 basis-full items-center gap-2 pl-11 lg:basis-auto lg:max-w-md lg:pl-0">
           <ProjectBreadcrumb
-            networkRef={networkId}
             serverRef={serverRef}
             projectName={displayName}
             serverStatus={
               <LinkedServersDropdown
-                networkId={networkId}
                 currentServerKeyId={project.serverKeyId ?? undefined}
                 downHint={pushStatusHint}
                 offline={offline}

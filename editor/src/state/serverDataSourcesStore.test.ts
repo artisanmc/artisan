@@ -6,7 +6,7 @@ describe("serverDataSourcesStore", () => {
     useServerDataSourcesStore.setState({ sources: [], status: "idle", loadedKey: null });
   });
 
-  it("loads sources from the user-scoped endpoint (network+server source)", async () => {
+  it("loads sources from the user-scoped endpoint (server source)", async () => {
     const fetchMock = vi.fn(
       async () =>
         new Response(
@@ -16,12 +16,12 @@ describe("serverDataSourcesStore", () => {
         ),
     );
     vi.stubGlobal("fetch", fetchMock);
-    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
+    await useServerDataSourcesStore.getState().load({ serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([
       { ref: "shop:items", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/networks/net1/servers/srv1/data-sources"),
+      expect.stringContaining("/api/v1/servers/srv1/data-sources"),
       expect.objectContaining({ credentials: "include" }),
     );
   });
@@ -31,7 +31,7 @@ describe("serverDataSourcesStore", () => {
       "fetch",
       vi.fn(async () => new Response("nope", { status: 500 })),
     );
-    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
+    await useServerDataSourcesStore.getState().load({ serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([]);
   });
 
@@ -42,7 +42,7 @@ describe("serverDataSourcesStore", () => {
         throw new Error("network down");
       }),
     );
-    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
+    await useServerDataSourcesStore.getState().load({ serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([]);
     expect(useServerDataSourcesStore.getState().status).toBe("ready");
   });
@@ -50,8 +50,8 @@ describe("serverDataSourcesStore", () => {
   it("is idempotent — a second call with the same source is a no-op while not idle", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data_sources: [] })));
     vi.stubGlobal("fetch", fetchMock);
-    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
-    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
+    await useServerDataSourcesStore.getState().load({ serverId: "srv1" });
+    await useServerDataSourcesStore.getState().load({ serverId: "srv1" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -62,12 +62,12 @@ describe("serverDataSourcesStore", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv1" });
+    await useServerDataSourcesStore.getState().load({ serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([
       { ref: "shop:items", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
     ]);
 
-    await useServerDataSourcesStore.getState().load({ networkId: "net1", serverId: "srv2" });
+    await useServerDataSourcesStore.getState().load({ serverId: "srv2" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(useServerDataSourcesStore.getState().sources).toEqual([
       { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
@@ -89,17 +89,17 @@ describe("serverDataSourcesStore", () => {
 
     const loadA = useServerDataSourcesStore
       .getState()
-      .load({ networkId: "net1", serverId: "srv1" });
+      .load({ serverId: "srv1" });
     const loadB = useServerDataSourcesStore
       .getState()
-      .load({ networkId: "net1", serverId: "srv2" });
+      .load({ serverId: "srv2" });
     await loadB;
-    expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:net1/srv2");
+    expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:srv2");
 
     resolveA!(new Response(JSON.stringify({ data_sources: [{ ref: "shop:items" }] })));
     await loadA;
 
-    expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:net1/srv2");
+    expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:srv2");
     expect(useServerDataSourcesStore.getState().sources).toEqual([
       { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
     ]);

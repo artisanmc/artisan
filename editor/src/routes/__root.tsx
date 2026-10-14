@@ -5,7 +5,6 @@ import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
 import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -23,34 +22,31 @@ export function RootLayout() {
   useDraftSync();
   const user = useAuthStore((s) => s.currentUser);
   const userId = user?.id;
-  const activeNetworkId = useNetworksStore((s) => s.activeId);
   const activeServerId = useServersStore((s) => s.activeServerId);
   useEffect(() => {
     const catalog = useServerPapiPlaceholdersStore.getState();
-    if (!userId || !activeNetworkId || !activeServerId) {
+    if (!userId || !activeServerId) {
       catalog.clear();
       return;
     }
-    const scope = { userId, networkId: activeNetworkId, serverId: activeServerId };
+    const scope = { userId, serverId: activeServerId };
     const refresh = () => { void catalog.load(scope); };
     refresh();
     const timer = setInterval(refresh, 15_000);
     return () => { clearInterval(timer); catalog.clear(); };
-  }, [userId, activeNetworkId, activeServerId]);
+  }, [userId, activeServerId]);
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "";
     useAuthStore.getState().hydrate(apiUrl);
   }, []);
-  // Presence + live draft WS as soon as the active network+server pair is
+  // Presence + live draft WS as soon as the active server is
   // known — cf. ProjectSidebar which resolves `activeServerId` to the exact
   // server_key id (not a slug).
   useEffect(() => {
-    if (!user || !activeNetworkId || !activeServerId) return;
-    useModulesStore.getState().integrate({ networkId: activeNetworkId, serverId: activeServerId });
-    useServerDataSourcesStore
-      .getState()
-      .load({ networkId: activeNetworkId, serverId: activeServerId });
-    useServerScreensStore.getState().load({ networkId: activeNetworkId, serverId: activeServerId });
+    if (!user || !activeServerId) return;
+    useModulesStore.getState().integrate({ serverId: activeServerId });
+    useServerDataSourcesStore.getState().load({ serverId: activeServerId });
+    useServerScreensStore.getState().load({ serverId: activeServerId });
 
     let cancelled = false;
     let ws: EditorWs | null = null;
@@ -62,7 +58,7 @@ export function RootLayout() {
       onProjectsReloaded: (serverKeyId, projects) => {
         onProjectsReloadedInEditor(serverKeyId, projects);
         if (!cancelled && serverKeyId === activeServerId && useServerPapiPlaceholdersStore.getState().key) {
-          void useServerPapiPlaceholdersStore.getState().load({ userId: user.id, networkId: activeNetworkId, serverId: activeServerId });
+          void useServerPapiPlaceholdersStore.getState().load({ userId: user.id, serverId: activeServerId });
         }
       },
     })
@@ -82,7 +78,7 @@ export function RootLayout() {
       cancelled = true;
       ws?.disconnect();
     };
-  }, [user, activeNetworkId, activeServerId]);
+  }, [user, activeServerId]);
   return (
     <div className="relative flex h-full">
       {user && (

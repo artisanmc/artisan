@@ -40,8 +40,13 @@ const TREES: Record<string, ReturnType<typeof projectTree>> = {
   beta: projectTree("beta", "gem"),
 };
 
-function mockHub(options: { failBinary?: string; server?: string; projects?: unknown[] } = {}) {
-  const server = options.server ?? "local";
+const HUB = "824473e8-413e-4109-ae91-185021a150e9";
+const LOBBY = "5f0c1e2a-9b7d-4c3e-8a61-2d4f9e0b7c15";
+
+function mockHub(
+  options: { failBinary?: string; server?: string; ids?: string[]; projects?: unknown[] } = {},
+) {
+  const server = options.server ?? HUB;
   const uploads: Uint8Array[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -51,13 +56,13 @@ function mockHub(options: { failBinary?: string; server?: string; projects?: unk
     const png = url.match(/(generic_54|hopper|dispenser)[^/]*\.png/);
     if (png) return new Response(vanilla(png[1]!));
     const { pathname, searchParams } = new URL(url);
-    if (pathname === `/api/v1/networks/local/servers/${server}/projects`)
+    if (pathname === `/api/v1/servers/${server}/projects`)
       // Unordered on purpose: the oldest (by id) must win the codepoint.
-      return json({ project_ids: ["beta", "alpha"], projects: options.projects });
-    if (pathname === `/api/v1/networks/local/servers/${server}/server-config`)
+      return json({ project_ids: options.ids ?? ["beta", "alpha"], projects: options.projects });
+    if (pathname === `/api/v1/servers/${server}/server-config`)
       return json({ config: {}, online: true });
     if (
-      pathname === `/api/v1/networks/local/servers/${server}/resource-pack` &&
+      pathname === `/api/v1/servers/${server}/resource-pack` &&
       init?.method === "PUT"
     ) {
       uploads.push(init.body as Uint8Array);
@@ -65,7 +70,7 @@ function mockHub(options: { failBinary?: string; server?: string; projects?: unk
     }
     const files = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/files$/);
     if (files) {
-      const tree = TREES[decodeURIComponent(files[1]!).replace(`${server}.`, "")];
+      const tree = TREES[decodeURIComponent(files[1]!).replace("lobby.", "")];
       return tree ? json({ ...tree, failed: [], hash: "h" }) : json({ error: "unknown_project" }, 404);
     }
     const binary = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/binary$/);
@@ -87,7 +92,7 @@ afterEach(() => {
 describe("buildServerPack", () => {
   test("assembles the same inputs as the backend orchestration", async () => {
     mockHub();
-    const built = await buildServerPack("local");
+    const built = await buildServerPack(HUB);
 
     const toFiles = (id: string) => TREES[id]!.files;
     const assets = ["alpha", "beta"].flatMap((id) =>
@@ -127,15 +132,15 @@ describe("buildServerPack", () => {
 
   test("a failed read uploads nothing", async () => {
     const { uploads } = mockHub({ failBinary: "assets/glyphs/gem.png" });
-    await expect(requestResourcePackRebuild("local")).rejects.toThrow();
+    await expect(requestResourcePackRebuild(HUB)).rejects.toThrow();
     expect(uploads).toHaveLength(0);
   });
 
   test("concurrent requests coalesce: one in flight, at most one queued", async () => {
     const { fetchMock, uploads } = mockHub();
-    const first = requestResourcePackRebuild("local");
-    const second = requestResourcePackRebuild("local");
-    const third = requestResourcePackRebuild("local");
+    const first = requestResourcePackRebuild(HUB);
+    const second = requestResourcePackRebuild(HUB);
+    const third = requestResourcePackRebuild(HUB);
     expect(third).toBe(second);
     expect(second).not.toBe(first);
     await Promise.all([first, second, third]);
@@ -144,9 +149,9 @@ describe("buildServerPack", () => {
     expect(lists).toHaveLength(2);
   });
 
-  test("another server of the network: its own routes and `<server>.<folder>` project ids", async () => {
-    const { fetchMock, uploads } = mockHub({ server: "lobby" });
-    await requestResourcePackRebuild("lobby");
+  test("another server of the network: its own routes and the `<server>.<folder>` ids the hub lists", async () => {
+    const { fetchMock, uploads } = mockHub({ server: LOBBY, ids: ["lobby.beta", "lobby.alpha"] });
+    await requestResourcePackRebuild(LOBBY);
     expect(uploads).toHaveLength(1);
     const reads = fetchMock.mock.calls
       .map(([url]) => new URL(String(url), "http://x").pathname)
@@ -156,13 +161,13 @@ describe("buildServerPack", () => {
 
   test("project ids listed by the hub win over the folder name", async () => {
     const { fetchMock } = mockHub({
-      server: "lobby",
-      projects: [{ id: "alpha", externalId: "alpha", name: "alpha", hash: "", networkId: "local", serverKeyId: "lobby" }],
+      server: LOBBY,
+      projects: [{ id: "lobby.alpha", externalId: "alpha", name: "alpha", hash: "", networkId: "local", serverKeyId: LOBBY }],
     });
-    await buildServerPack("lobby");
+    await buildServerPack(LOBBY);
     const reads = fetchMock.mock.calls
       .map(([url]) => new URL(String(url), "http://x").pathname)
       .filter((path) => path.endsWith("/files"));
-    expect(reads).toEqual(["/api/v1/projects/alpha/files", "/api/v1/projects/lobby.beta/files"]);
+    expect(reads).toEqual(["/api/v1/projects/beta/files", "/api/v1/projects/lobby.alpha/files"]);
   });
 });

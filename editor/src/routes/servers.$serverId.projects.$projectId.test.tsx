@@ -16,7 +16,6 @@ vi.mock("@tanstack/react-router", async () => {
   return {
     ...actual,
     useParams: () => ({
-      networkId: "net_1",
       serverId: "sk_1",
       projectId: "p1",
       documentId: loaderState.documentId,
@@ -108,7 +107,7 @@ vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
 import { validateProjectSearch } from "@/features/project/ProjectWorkspace";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { useUiStore } from "@/state/uiStore";
-import { ServerProjectPage } from "./networks.$networkId.servers.$serverId.projects.$projectId";
+import { ServerProjectPage } from "./servers.$serverId.projects.$projectId";
 
 describe("ServerProjectPage", () => {
   beforeEach(() => {
@@ -130,9 +129,8 @@ describe("ServerProjectPage", () => {
     render(<ServerProjectPage />);
     const destination = navigate.mock.calls[0]![0];
     expect(destination).toMatchObject({
-      to: "/networks/$networkId/servers/$serverId/projects/$projectId/document/$documentId",
+      to: "/servers/$serverId/projects/$projectId/document/$documentId",
       params: {
-        networkId: "net_1",
         serverId: "sk_1",
         projectId: "boutique_addon",
         documentId: "menu",

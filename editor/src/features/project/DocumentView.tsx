@@ -22,7 +22,7 @@ export function DocumentView({
 }: { projectId: ProjectId; documentId: ElementId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
+  const params = useParams({ strict: false }) as { serverId?: string };
   // The parent resolves the location before any document is selected.
   const resolvedId = useContext(ResolvedProjectContext) ?? projectId;
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === resolvedId));
@@ -52,8 +52,8 @@ export function DocumentView({
   }, [documentId]);
 
   const back = useCallback(
-    () => navigate(projectDestination(params.networkId!, project ?? projectId, params.serverId)),
-    [navigate, params.networkId, params.serverId, project, projectId],
+    () => navigate(projectDestination(project ?? projectId, params.serverId)),
+    [navigate, params.serverId, project, projectId],
   );
 
   // Escape goes back to the board. The event is ignored if focus is in an input
@@ -125,12 +125,7 @@ export function DocumentView({
     return (
       <div className="absolute inset-0 flex flex-col pt-14">
         {header}
-        <DocumentYamlView
-          project={project}
-          relPath={relPath}
-          networkId={params.networkId}
-          serverId={params.serverId}
-        />
+        <DocumentYamlView project={project} relPath={relPath} serverId={params.serverId} />
       </div>
     );
   }
