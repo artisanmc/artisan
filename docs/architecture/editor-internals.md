@@ -385,7 +385,15 @@ révision attendue. La copie locale est isolée par compte ; un ancien brouillon
 sans identifiant backend devient une copie distincte. Un accusé de réception
 ne remplace jamais les frappes effectuées pendant la requête. Un conflit de
 révision conserve le travail local et bloque l'écriture jusqu'à création d'une
-copie. `PersistedDraftControls` (modale large, liste à gauche, diffs à droite) propose
+copie. **Les erreurs sont classées par le code du hub, jamais par le statut HTTP seul**
+(`errorStatus`, 2026-10-14) : `draft_migration_pending` → `migration_pending` ; `draft_conflict`,
+`draft_exists`, `draft_closed`, `conflict`, `operation_*` → `conflict` ; 5xx, 401, 408, 429 et
+erreur réseau → `offline` (rejoué toutes les 15 s, mutation en attente conservée) ; tout autre
+4xx (`forbidden`, `unknown_project`, `invalid_draft`…) → `rejected` : la mutation est effacée,
+le même snapshot n'est **pas** renvoyé (empreinte gardée dans `session.rejected`), une modification
+(`markDraftPending`) ou le bouton Enregistrer (`syncPersistedDraft(id, true)`) le renvoie. Seul
+`draft_not_found` vaut « brouillon disparu » (`gone`) ; `draft_closed` pendant une sauvegarde
+recharge la liste (`loadPersistedDrafts`) au lieu de rester en `conflict`. `PersistedDraftControls` (modale large, liste à gauche, diffs à droite) propose
 copies nommées, sélection et comparaison base/arbre via `ChangeList`, depuis le chevron
 de Déployer, sans bloc permanent dans la topbar.
 

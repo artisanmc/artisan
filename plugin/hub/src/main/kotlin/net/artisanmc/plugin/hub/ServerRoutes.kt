@@ -6,6 +6,7 @@ import net.artisanmc.plugin.hub.EditorPermissions.VIEW
 import net.artisanmc.plugin.hub.Relay.Companion.body
 import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
+import net.artisanmc.plugin.hub.Relay.Companion.readError
 
 /** `/api/v1/networks/local/servers/:server/…`: what the server declares, its configuration, its live data. */
 class ServerRoutes(private val servers: Servers, private val relay: Relay) {
@@ -68,21 +69,13 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         on(router, "GET", "head-texture", VIEW) { call, server ->
             val id = call.query("id")?.takeIf { HDB_ID.matches(it) } ?: return@on call.error(422, "invalid_input")
             relay.send(call, server, mapOf("type" to "head_texture_fetch", "id" to id)) { reply ->
-                when {
-                    ok(reply) -> call.json(mapOf("texture" to reply["texture"]))
-                    errorCode(reply) == "head_not_found" -> call.error(404, "head_not_found")
-                    else -> call.error(502, errorCode(reply))
-                }
+                if (ok(reply)) call.json(mapOf("texture" to reply["texture"])) else readError(call, reply)
             }
         }
         on(router, "GET", "player-inventory", VIEW) { call, server ->
             val player = call.query("player")?.takeIf { it.isNotBlank() } ?: return@on call.error(422, "invalid_input")
             relay.send(call, server, mapOf("type" to "player_inventory_fetch", "player" to player)) { reply ->
-                when {
-                    ok(reply) -> call.json(mapOf("slots" to reply["slots"]))
-                    errorCode(reply) == "player_not_found" -> call.error(404, "player_not_found", reply["message"] as? String)
-                    else -> call.error(502, errorCode(reply), reply["message"] as? String)
-                }
+                if (ok(reply)) call.json(mapOf("slots" to reply["slots"])) else readError(call, reply)
             }
         }
         on(router, "POST", "data-sources/preview", VIEW) { call, server ->
@@ -98,13 +91,7 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
                 "args" to (request["args"] ?: emptyMap<String, Any>()),
             )
             relay.send(call, server, message) { reply ->
-                if (ok(reply)) return@send call.json(body(reply))
-                val status = when (errorCode(reply)) {
-                    "unknown_source" -> 404
-                    "player_required" -> 422
-                    else -> 502
-                }
-                call.json(mapOf("error" to errorCode(reply), "message" to reply["message"]), status)
+                if (ok(reply)) call.json(body(reply)) else readError(call, reply)
             }
         }
     }
@@ -112,15 +99,7 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     /** Config screens name their Project like the editor or like the module: `survie2.shop` or `shop`. */
     private fun folder(server: EditorServer, project: String) = project.removePrefix("${server.id}.")
 
-    private fun configError(call: Call, reply: Map<String, Any?>, fallback: String) {
-        val code = reply["error"] as? String ?: fallback
-        val status = when (code) {
-            "unknown_project" -> 404
-            "invalid_path" -> 422
-            else -> 502
-        }
-        call.json(mapOf("error" to code, "message" to reply["message"]), status)
-    }
+    private fun configError(call: Call, reply: Map<String, Any?>, fallback: String) = readError(call, reply, fallback)
 
     private fun on(router: Router, method: String, suffix: String, permission: String, handler: (Call, EditorServer) -> Unit) {
         router.on(method, "$SERVER/$suffix", permission) { call ->

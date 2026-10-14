@@ -36,16 +36,33 @@ class Relay(private val logger: Logger?) {
 
         fun errorCode(reply: Map<String, Any?>) = reply["error"] as? String ?: "fetch_error"
 
-        /** HTTP statuses for a refused Project read. */
-        fun readError(call: Call, reply: Map<String, Any?>) {
-            val code = errorCode(reply)
-            val status = when (code) {
-                "unknown_project", "not_found" -> 404
-                "invalid_path" -> 422
-                "plugin_update_required", "write_error", "storage_error" -> 503
-                else -> 502
-            }
-            call.json(mapOf("error" to code, "message" to reply["message"]), status)
+        /** A refused reply as an HTTP response: its code, its message, the status [ErrorStatus] gives the code. */
+        fun readError(call: Call, reply: Map<String, Any?>, fallback: String = "fetch_error") {
+            val code = reply["error"] as? String ?: fallback
+            call.json(mapOf("error" to code, "message" to reply["message"]), ErrorStatus.of(code))
         }
+    }
+}
+
+/**
+ * The one mapping from an error code to an HTTP status. The editor decides on the code, never on
+ * the status alone: a 404 is `unknown_project` (no such Project here), `draft_not_found` (no such
+ * draft) or `not_found` (no such route, file or player), and each means something else to it.
+ */
+object ErrorStatus {
+    fun of(code: String): Int = when (code) {
+        "not_found", "unknown_project", "draft_not_found", "head_not_found", "player_not_found", "unknown_source", "unknown_version" -> 404
+        "unauthorized" -> 401
+        "forbidden", "cross_origin", "owner_revoked" -> 403
+        "too_large" -> 413
+        "invalid_input", "invalid_path", "invalid_name", "invalid_draft", "invalid_blob", "invalid_action", "invalid_owner",
+        "invalid_operation", "invalid_body", "invalid_config", "invalid_zip", "missing_blob", "player_required" -> 422
+        "conflict", "draft_conflict", "draft_exists", "draft_closed", "project_exists", "destination_exists", "addon_immutable",
+        "operation_mismatch", "operation_conflict", "operation_expired", "too_soon" -> 409
+        "plugin_update_required", "write_error", "storage_error", "server_offline", "database_unavailable", "hdb_unavailable",
+        "draft_migration_pending", "rename_in_progress", "rename_pending", "inventory_unavailable" -> 503
+        "fetch_timeout" -> 504
+        "internal_error" -> 500
+        else -> 502
     }
 }

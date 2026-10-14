@@ -56,19 +56,28 @@ serveurs et un fichier d'UUID.
    Version.
 10. **Migrations de schéma maison, forward-only**, sur le modèle de MSQuests : migrations
     numérotées, table `artisan_schema_version`. Chaque migration reçoit la connexion de
-    la transaction ; une instruction DDL idempotente par migration (MySQL auto-commite
-    le DDL) ; `GET_LOCK('artisan_schema')` autour de l'application en MySQL/MariaDB.
+    la transaction ; une instruction DDL par migration, et un prédicat `applied` lu dans
+    le catalogue JDBC pour celles que MySQL ne sait pas rejouer (`ADD COLUMN`,
+    `CREATE INDEX`, `ADD CONSTRAINT`), car MySQL auto-commite le DDL et peut laisser une
+    étape appliquée mais non enregistrée ; `GET_LOCK('artisan_schema_version')` autour de
+    l'application en MySQL/MariaDB, résultat vérifié (verrou refusé = erreur, pas un go).
+    Amendé le 2026-10-14 (audit v2, problème 5).
 11. **Passage de H2 à MySQL.** Au premier démarrage sur MySQL, Artisan importe ses propres
     tables depuis le fichier H2 de la suite, en réattribuant les id par UUID. Rien n'est
-    importé si MySQL a déjà des Versions pour ce server id ; le fichier H2, partagé avec
-    les autres plugins, n'est ni renommé ni supprimé. Les autres plugins migrent leurs
-    tables eux-mêmes.
+    importé une fois la marque `imported:<server id>` posée dans `artisan_meta`, dans la
+    même transaction que l'import : un import échoué se relance au démarrage suivant, un
+    import fait ne se relance jamais, quoi que le serveur ait enregistré depuis (amendé le
+    2026-10-14 : le garde-fou « déjà des Versions » orphelinait l'historique H2 après un
+    échec). Le fichier H2, partagé avec les autres plugins, n'est ni renommé ni supprimé.
+    Les autres plugins migrent leurs tables eux-mêmes.
 12. **Brouillons en base, édition serveur éteint.** Un brouillon référence la même table
     de contenus (texte et binaires ajoutés). Un projet d'un serveur éteint s'ouvre depuis
     sa dernière Version, assets compris, et son brouillon reste éditable ; publier, les
     données live et la capture en jeu attendent le serveur. La publication garde son compare-and-swap sur
     les fichiers ; le brouillon est marqué publié ensuite, et une publication interrompue
-    se résout au démarrage par les reçus de `.artisan/transactions/`.
+    se résout au démarrage par les reçus de `.artisan/transactions/`. Le reçu d'une opération
+    en base ne garde pas le corps du brouillon (le rejeu relit le brouillon) ; brouillons
+    fermés et reçus sont purgés après 30 jours (amendé le 2026-10-14).
 13. **Aucun import des brouillons de `.artisan/drafts/`** : seul un serveur de dev en a.
 14. **Project id.** Un UUID généré une fois dans `.artisan/project-id` (écrit par le seul
     plugin : l'éditeur reconstruit `editor.yaml` entier et l'effacerait) identifie un
@@ -81,8 +90,11 @@ serveurs et un fichier d'UUID.
     l'historique et la liste des serveurs, serveur allumé ou éteint. Le serveur n'est
     sollicité que pour publier (compare-and-swap sur son disque ; le chargement qui suit
     enregistre la Version) et pour les données live (captures, placeholders, sources de
-    données, aperçus). La réponse de publication porte le hash de la Version créée, que
-    l'éditeur attend avant de relire.
+    données, aperçus). La réponse de publication part **avant** le rechargement et la
+    Version, écrite en asynchrone sur le thread `Artisan-versions` ; l'éditeur relit sur le
+    broadcast `projects_reloaded`, émis une fois la Version et l'état chargé enregistrés
+    (amendé le 2026-10-14 : la réponse ne porte pas le hash de la Version, et l'état n'est
+    pas écrit si une Version du chargement a échoué).
 
 Les données futures liées à un serveur (lieux, analytics) vivent dans leurs propres
 tables, possédées par leur module, qui référencent `artisan_servers.id` ;

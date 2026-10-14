@@ -26,8 +26,22 @@ type Session = {
   ownerId: string;
   drafts: api.PersistedDraft[];
   active?: api.PersistedDraft;
-  status: "saved" | "pending" | "saving" | "offline" | "conflict" | "migration_pending";
+  /**
+   * `offline`: the hub did not answer (network, 5xx), retried on the interval. `rejected`: the
+   * hub refused the draft as sent (an unknown Project, a permission, an invalid body), retried
+   * only once it changes, or on request. `conflict`: another session or a closed draft.
+   */
+  status:
+    | "saved"
+    | "pending"
+    | "saving"
+    | "offline"
+    | "conflict"
+    | "migration_pending"
+    | "rejected";
   error?: string;
+  /** The fingerprint of the snapshot the hub refused: an identical one is not sent again. */
+  rejected?: string;
   /** Conflicts found on open (ADR `snapshot-mirror-and-backend-history`), to resolve once. */
   openConflicts?: api.PersistedDraft["conflicts"];
   /** Remote revision moved forward by another session: resolve file by file. */
@@ -148,8 +162,7 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
         ...usePersistedDraftStore.getState().sessions[projectId],
         ownerId,
         drafts: usePersistedDraftStore.getState().sessions[projectId]?.drafts ?? [],
-        status: errorStatus(error),
-        error: error instanceof Error ? error.message : "draft_error",
+        ...failure(projectId, error),
       });
   }
 }
@@ -167,13 +180,13 @@ export async function refreshPersistedDraftList(projectId: string): Promise<void
 export function markDraftPending(projectId: string): void {
   const session = usePersistedDraftStore.getState().sessions[projectId];
   const local = useProjectDraftStore.getState().get(projectId);
-  if (
-    session?.status === "saved" &&
-    local &&
-    local.remote?.acknowledged !== fingerprint(snapshotOf(projectId, local))
-  ) {
+  if (!session || !local) return;
+  const current = fingerprint(snapshotOf(projectId, local));
+  if (session.status === "saved" && local.remote?.acknowledged !== current) {
     if (local.remote || hasDraftChanges(local))
       setSession(projectId, { ...session, status: "pending" });
+  } else if (session.status === "rejected" && session.rejected !== current) {
+    setSession(projectId, { ...session, status: "pending", rejected: undefined });
   }
 }
 
@@ -458,8 +471,9 @@ function terminalMutation(projectId: string, local: ProjectDraft, kind: "publish
   return operation;
 }
 function rejectMutation(projectId: string, operationId: string, error: unknown) {
-  // A definitive rejection cannot later commit; transport failures remain retryable.
-  if (!(error instanceof api.DraftApiError) || error.status < 400 || error.status >= 500) return;
+  // A definitive refusal cannot later commit; a hub that did not answer may have.
+  const status = errorStatus(error);
+  if (status !== "conflict" && status !== "rejected") return;
   const current = useProjectDraftStore.getState().get(projectId);
   if (current?.remote?.pendingMutation?.operationId !== operationId) return;
   useProjectDraftStore.getState().save(projectId, {
@@ -594,10 +608,11 @@ function applyDraftConflict(
 }
 const pending = new Map<string, Promise<void>>();
 const publishing = new Set<string>();
-export async function syncPersistedDraft(projectId: string): Promise<void> {
+/** [retryRejected]: a draft the hub refused is sent again as it is (the Save button); the interval never does. */
+export async function syncPersistedDraft(projectId: string, retryRejected = false): Promise<void> {
   const running = pending.get(projectId);
   if (running) return running;
-  const work = syncOnce(projectId);
+  const work = syncOnce(projectId, retryRejected);
   pending.set(projectId, work);
   try {
     await work;
@@ -605,13 +620,15 @@ export async function syncPersistedDraft(projectId: string): Promise<void> {
     if (pending.get(projectId) === work) pending.delete(projectId);
   }
 }
-async function syncOnce(projectId: string): Promise<void> {
+async function syncOnce(projectId: string, retryRejected = false): Promise<void> {
   if (publishing.has(projectId)) return;
   const session = usePersistedDraftStore.getState().sessions[projectId];
   const local = useProjectDraftStore.getState().get(projectId);
   if (!session || !local || session.ownerId !== projectPrincipal.current(projectId)?.id) return;
   if (local.remote && local.remote.ownerId !== session.ownerId) return;
   if (session.draftConflict) return;
+  // Refused as sent: the same snapshot gets the same answer. An edit (markDraftPending) or the Save button sends again.
+  if (session.status === "rejected" && !retryRejected) return;
   if (
     session.status === "migration_pending" ||
     (session.status === "offline" &&
@@ -770,6 +787,9 @@ async function syncOnce(projectId: string): Promise<void> {
     if (projectPrincipal.current(projectId)?.id !== session.ownerId) return;
     rejectMutation(projectId, operationId, error);
     const current = useProjectDraftStore.getState().get(projectId);
+    // Published or discarded elsewhere: the listing decides what the local work becomes (a new draft, or nothing).
+    if (error instanceof api.DraftApiError && error.code === "draft_closed")
+      return loadPersistedDrafts(projectId, session.ownerId);
     if (
       error instanceof api.DraftApiError &&
       error.code === "draft_conflict" &&
@@ -789,11 +809,7 @@ async function syncOnce(projectId: string): Promise<void> {
       });
       return;
     }
-    setSession(projectId, {
-      ...session,
-      status: errorStatus(error),
-      error: error instanceof Error ? error.message : "draft_error",
-    });
+    setSession(projectId, { ...session, ...failure(projectId, error) });
   }
 }
 export type AssetMutation = NonNullable<NonNullable<ProjectDraft["remote"]>["pendingMutation"]>;
@@ -951,7 +967,7 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
   } catch (error) {
     if (session.ownerId === projectPrincipal.current(projectId)?.id) {
       rejectMutation(projectId, operation.operationId, error);
-      setSession(projectId, { ...session, status: errorStatus(error) });
+      setSession(projectId, { ...session, ...failure(projectId, error) });
     }
     throw error;
   } finally {
@@ -959,15 +975,52 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
   }
 }
 
-/** The hub no longer holds this draft (deleted elsewhere, or kept on the server's disk before). */
+/**
+ * The hub no longer holds this draft (deleted elsewhere, or kept on the server's disk before).
+ * By code: a 404 is also `unknown_project` (this hub has no such Project) or `not_found` (no
+ * such route or file), which say nothing about the draft.
+ */
 function gone(error: unknown): boolean {
-  return error instanceof api.DraftApiError && error.status === 404;
+  return error instanceof api.DraftApiError && error.code === "draft_not_found";
 }
 
+/** What another session or a closed draft refuses: resolved by rebasing or reloading, never by sending again. */
+const CONFLICT_CODES = new Set([
+  "draft_conflict",
+  "draft_exists",
+  "draft_closed",
+  "conflict",
+  "operation_conflict",
+  "operation_mismatch",
+  "operation_expired",
+]);
+
+/**
+ * The hub's error code decides, the status alone never does: `fetch_timeout`, `server_offline`
+ * or `storage_error` come back as 5xx and are retried; `forbidden`, `unknown_project` or
+ * `invalid_draft` are 4xx the next try would get again.
+ */
 function errorStatus(error: unknown): Session["status"] {
-  if (error instanceof api.DraftApiError) {
-    if (error.code === "draft_migration_pending") return "migration_pending";
-    if (error.status === 409) return "conflict";
-  }
-  return "offline";
+  if (!(error instanceof api.DraftApiError)) return "offline";
+  if (error.code === "draft_migration_pending") return "migration_pending";
+  if (CONFLICT_CODES.has(error.code)) return "conflict";
+  // 401: the session expired; signing in again is what fixes it, not another save. 408/429: try later.
+  if (error.status >= 500 || error.status === 401 || error.status === 408 || error.status === 429)
+    return "offline";
+  return "rejected";
+}
+
+/** The session fields of a failed operation: its status, the code, and the snapshot refused when it is. */
+function failure(
+  projectId: string,
+  error: unknown,
+): Pick<Session, "status" | "error" | "rejected"> {
+  const status = errorStatus(error);
+  const local = useProjectDraftStore.getState().get(projectId);
+  return {
+    status,
+    error: error instanceof Error ? error.message : "draft_error",
+    rejected:
+      status === "rejected" && local ? fingerprint(snapshotOf(projectId, local)) : undefined,
+  };
 }

@@ -89,6 +89,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     companion object {
         private const val HEARTBEAT_TICKS = 20L * 60
+        private const val PURGE_TICKS = 20L * 60 * 60 * 24
 
         fun defaultModules(): List<ArtisanModule> = listOf(
             MenusModule(),
@@ -401,8 +402,10 @@ open class ArtisanPlugin : JavaPlugin() {
         }
         serverRow = registry.rowId(serverId)
         importEmbeddedDatabase()
-        versionStore = net.artisanmc.plugin.database.VersionStore(artisanData ?: return)
+        val data = net.artisanmc.plugin.database.SuiteProjectData(artisanData ?: return, database.dialect, ::row, logger)
+        suiteData = data
         serverRegistry = registry
+        editorChannel.onReload(data::invalidate)
         fun beat() {
             if (!isEnabled) return
             runCatching { registry.touch(serverId, java.time.Instant.now()) }
@@ -410,6 +413,15 @@ open class ArtisanPlugin : JavaPlugin() {
             scheduler.asyncLater(HEARTBEAT_TICKS) { beat() }
         }
         scheduler.asyncLater(HEARTBEAT_TICKS) { beat() }
+        // Closed drafts and receipts are kept `DraftRows.KEEP`, then dropped: once a day, off the main thread.
+        fun purge() {
+            if (!isEnabled) return
+            runCatching { data.purge(java.time.Instant.now()) }
+                .onSuccess { if (it > 0) logger.info("[Artisan] $it closed drafts and receipts purged") }
+                .onFailure { logger.warning("[Artisan] Drafts not purged: ${it.message}") }
+            scheduler.asyncLater(PURGE_TICKS) { purge() }
+        }
+        scheduler.asyncLater(HEARTBEAT_TICKS * 5) { purge() }
     }
 
     /** On MySQL/MariaDB, this server's history from the H2 file it ran on alone, once (ADR `server-identity-and-versions` ⑪). */
@@ -422,7 +434,9 @@ open class ArtisanPlugin : JavaPlugin() {
             { net.artisanmc.plugin.database.DatabaseSettings.of("h2", "", "0", "", "", "", 1, dataFolder) }, logger,
         )
         try {
-            net.artisanmc.plugin.database.EmbeddedImport.run(embedded.dataSource("Artisan-import"), target, serverId, logger)
+            // The file may come from an older release: its tables are brought to this schema before they are read.
+            val source = embedded.dataSource("Artisan-import").also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, net.artisanmc.modules.api.DatabaseDialect.H2, logger) }
+            net.artisanmc.plugin.database.EmbeddedImport.run(source, target, database.dialect, serverId, logger)
         } catch (e: Exception) {
             logger.warning("[Artisan] History of the embedded database not imported: ${e.message}")
         } finally {
@@ -463,8 +477,8 @@ open class ArtisanPlugin : JavaPlugin() {
                 net.artisanmc.plugin.hub.RemoteServer(name, uuid, publicUrl = { editorBase() })
             }
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
-            val drafts = draftStorage.takeIf { artisanData != null && serverRow != null }
-            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, projectHistory, loadedProjects, drafts)
+            val data = suiteData?.takeIf { serverRow != null }
+            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data?.history, data?.loaded, data?.drafts)
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger) {
                 if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) null
                 else artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
@@ -654,21 +668,27 @@ open class ArtisanPlugin : JavaPlugin() {
         onSnapshot = ::recordVersions,
     )
 
-    @Volatile private var versionStore: net.artisanmc.plugin.database.VersionStore? = null
+    /** Versions, loaded states and drafts in the suite database; null without a registered server. */
+    @Volatile private var suiteData: net.artisanmc.plugin.database.SuiteProjectData? = null
     @Volatile private var serverRow: Int? = null
     /** One writer: Versions are recorded in the order their Snapshots were loaded. */
     private val versionWriter = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "Artisan-versions").apply { isDaemon = true } }
 
-    /** Each Project whose loaded Snapshot differs from its latest Version gets a new one. */
+    /**
+     * Each Project whose loaded Snapshot differs from its latest Version gets a new one, then the
+     * loaded state. A Version that failed keeps the state where it was: the hub would otherwise
+     * serve the new hash over the previous Version's files, and `if_hash` would call that unchanged.
+     */
     private fun recordVersions(
         snapshot: net.artisanmc.plugin.project.ProjectSnapshot,
         authors: Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>,
         done: () -> Unit,
     ) {
-        val store = versionStore ?: return done()
+        val data = suiteData ?: return done()
         val server = serverRow ?: return done()
         val now = java.time.Instant.now()
         versionWriter.execute {
+            var failed = 0
             for (id in snapshot.projectIds) runCatching {
                 val dir = projectRoots.dirFor(id)
                 val content = { path: String -> !net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(path) }
@@ -676,17 +696,19 @@ open class ArtisanPlugin : JavaPlugin() {
                     snapshot.binaries[id].orEmpty().filterKeys(content).mapValues { net.artisanmc.plugin.database.SnapshotEntry.binary(it.value.hash, it.value.size) }
                 val published = authors[id]
                 val author = published?.let { net.artisanmc.plugin.database.VersionAuthor(it.id, it.name) }
-                store.record(server, projectRoots.key(id), id, entries, now, author, published?.restoredFrom?.toIntOrNull()) { File(dir, it).readBytes() }
-            }.onFailure { logger.warning("[Artisan] Version of project $id not recorded: ${it.message}") }
-            runCatching { recordServerState(server, snapshot, now) }.onFailure { logger.warning("[Artisan] Loaded state not recorded: ${it.message}") }
+                val result = data.versions.record(server, projectRoots.key(id), id, entries, now, author, published?.restoredFrom?.toIntOrNull()) { File(dir, it).readBytes() }
+                if (result.skipped.isNotEmpty())
+                    logger.warning("[Artisan] Project $id: ${result.skipped.joinToString()} changed on disk since the reload, kept out of this Version")
+            }.onFailure { failed++; logger.warning("[Artisan] Version of project $id not recorded: ${it.message}") }
+            if (failed == 0) runCatching { data.recordState(server, loadedState(snapshot), now) }
+                .onFailure { logger.warning("[Artisan] Loaded state not recorded: ${it.message}") }
+            else logger.warning("[Artisan] Loaded state not recorded: $failed Version(s) failed, the editor keeps the previous one")
             done()
         }
     }
 
-    private val stateMapper = com.fasterxml.jackson.databind.ObjectMapper()
-
     /** The Project list and, per Project, the Snapshot hash, failed files and editor metadata: what the hub serves. */
-    private fun recordServerState(server: Int, snapshot: net.artisanmc.plugin.project.ProjectSnapshot, now: java.time.Instant) {
+    private fun loadedState(snapshot: net.artisanmc.plugin.project.ProjectSnapshot): Map<String, Any?> {
         val projects = snapshot.projectIds.associateWith { id ->
             mapOf(
                 "hash" to snapshot.hash(id),
@@ -695,56 +717,11 @@ open class ArtisanPlugin : JavaPlugin() {
                 "meta" to snapshot.files[id].orEmpty().filterKeys { net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(it) },
             )
         }
-        val state = net.artisanmc.plugin.protocol.ProjectReads.listBody(snapshot, projectRoots) + ("projects" to projects)
-        net.artisanmc.plugin.database.ServerStateStore(artisanData ?: return).put(server, stateMapper.writeValueAsString(state), now)
+        return net.artisanmc.plugin.protocol.ProjectReads.listBody(snapshot, projectRoots) + ("projects" to projects)
     }
 
     /** The `artisan_servers` row of a hub server id. */
     private fun row(server: String) = if (server == net.artisanmc.plugin.hub.Servers.LOCAL) serverRow else serverRegistry?.rowId(server)
-
-    /** What [server] recorded at its last load, see [recordServerState]. */
-    @Suppress("UNCHECKED_CAST")
-    private fun state(server: String): Map<String, Any?>? {
-        val row = row(server) ?: return null
-        val json = net.artisanmc.plugin.database.ServerStateStore(artisanData ?: return null).get(row) ?: return null
-        return stateMapper.readValue(json, Map::class.java) as Map<String, Any?>
-    }
-
-    /** A Project's row and `project_key`, from its folder in the server's loaded state. */
-    @Suppress("UNCHECKED_CAST")
-    private fun projectKey(server: String, folder: String): Pair<Int, String>? {
-        val roots = state(server)?.get("project_roots") as? List<Map<String, Any?>> ?: return null
-        val key = roots.firstOrNull { it["project_id"] == folder }?.get("project_key") as? String ?: return null
-        return (row(server) ?: return null) to key
-    }
-
-    /** Drafts in the suite database, kept and served by the hub. */
-    private val draftStorage = object : net.artisanmc.plugin.hub.DraftStorage {
-        private val rows get() = artisanData?.let { net.artisanmc.plugin.database.DraftRows(it) }
-        private val contents get() = artisanData?.let { net.artisanmc.plugin.database.ContentRows(it) }
-
-        override fun drafts(server: String, folder: String): List<String>? {
-            val (row, key) = projectKey(server, folder) ?: return null
-            return rows?.all(row, key)
-        }
-
-        override fun draft(server: String, folder: String, id: String): String? {
-            val (row, key) = projectKey(server, folder) ?: return null
-            return rows?.get(row, key, id)
-        }
-
-        override fun receipt(operationId: String) = rows?.receipt(operationId)
-
-        override fun commit(server: String, folder: String, id: String, draft: String, operationId: String, fingerprint: String, result: String): Boolean {
-            val (row, key) = projectKey(server, folder) ?: return false
-            val rows = rows ?: return false
-            rows.commit(row, key, id, draft, operationId, fingerprint, result)
-            return true
-        }
-
-        override fun content(hash: String) = contents?.get(hash)
-        override fun putContent(hash: String, bytes: ByteArray) { contents?.put(hash, bytes) }
-    }
 
     /** A failing database falls back to the sessions in memory: signed-in players stay signed in until a restart. */
     private fun editorSessionStore(data: javax.sql.DataSource) = object : net.artisanmc.plugin.hub.SessionStore {
@@ -763,66 +740,6 @@ open class ArtisanPlugin : JavaPlugin() {
         override fun purge(now: java.time.Instant) { safe { rows.purge(now) } }
         override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) { safe { rows.setPermissions(playerId, origin, permissions) } }
         override fun deletePlayer(playerId: UUID, origin: String?) = safe { rows.deletePlayer(playerId, origin) } ?: 0
-    }
-
-    /** Projects as their server loaded them, read from the suite database by the editor's routes. */
-    private val loadedProjects = object : net.artisanmc.plugin.hub.LoadedProjects {
-
-        override fun list(server: String): Map<String, Any?>? = state(server)?.minus("projects")
-
-        @Suppress("UNCHECKED_CAST")
-        override fun read(server: String, folder: String): Map<String, Any?>? {
-            val loaded = (state(server)?.get("projects") as? Map<String, Map<String, Any?>>)?.get(folder) ?: return null
-            val version = versionStore?.latest(row(server) ?: return null, folder) ?: return null
-            val files = version.files + (loaded["meta"] as? Map<String, String>).orEmpty()
-            return mapOf(
-                "hash" to loaded["hash"],
-                "files" to files.toSortedMap().map { (path, content) -> mapOf("path" to path, "content" to content) },
-                "failed" to loaded["failed"],
-                "binaries" to version.binaries.map { mapOf("path" to it.path, "hash" to it.hash, "size" to it.size) },
-            )
-        }
-
-        override fun binary(server: String, folder: String, path: String): ByteArray? {
-            val row = row(server) ?: return null
-            return versionStore?.latestBinary(row, folder, path)
-        }
-    }
-
-    /** History routes of the editor, read from `artisan_versions`. */
-    private val projectHistory = object : net.artisanmc.plugin.hub.ProjectHistory {
-        private fun author(a: net.artisanmc.plugin.database.VersionAuthor?) = a?.let { mapOf("id" to it.id, "name" to it.name) }
-
-        override fun versions(server: String, folder: String): List<Map<String, Any?>>? {
-            val row = row(server) ?: return null
-            return versionStore?.versions(row, folder)?.map {
-                mapOf(
-                    "id" to it.id.toString(), "hash" to it.hash, "createdAt" to it.createdAt.toString(), "author" to author(it.author),
-                    "changed" to it.changed, "restoredFrom" to it.restoredFrom?.toString(),
-                )
-            }
-        }
-
-        override fun version(server: String, folder: String, id: String): Map<String, Any?>? {
-            val v = versionStore?.version(row(server) ?: return null, folder, id.toIntOrNull() ?: return null) ?: return null
-            return mapOf(
-                "id" to v.id.toString(), "createdAt" to v.createdAt.toString(), "previousId" to v.previousId?.toString(),
-                "files" to v.files.map { (path, content) -> mapOf("path" to path, "content" to content) },
-                "binaries" to v.binaries.map { mapOf("path" to it.path, "hash" to it.hash, "size" to it.size) },
-            )
-        }
-
-        override fun versionBinary(server: String, folder: String, id: String, path: String): ByteArray? {
-            val row = row(server) ?: return null
-            return versionStore?.binary(row, folder, id.toIntOrNull() ?: return null, path)
-        }
-
-        override fun fileHistory(server: String, folder: String, path: String): List<Map<String, Any?>>? {
-            val row = row(server) ?: return null
-            return versionStore?.fileHistory(row, folder, path)?.map {
-                mapOf("at" to it.at.toEpochMilli(), "content" to it.content, "author" to author(it.author))
-            }
-        }
     }
 
     /** Only a leaf opens a WebSocket: to `web.hub`, with the network secret. */

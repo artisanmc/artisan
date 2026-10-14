@@ -296,7 +296,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     try {
       render(<ProjectTopBarControls project={p} projectId={p.id} />);
       fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)$/ }));
-      await waitFor(() => expect(syncPersistedDraft).toHaveBeenCalledWith("p1"));
+      await waitFor(() => expect(syncPersistedDraft).toHaveBeenCalledWith("p1", true));
       expect(saveProjectToDisk).not.toHaveBeenCalled();
     } finally {
       usePersistedDraftStore.setState({ sessions: {} });
