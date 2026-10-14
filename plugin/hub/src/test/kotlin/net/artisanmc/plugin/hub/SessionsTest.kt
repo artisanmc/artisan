@@ -81,8 +81,48 @@ class SessionsTest {
         assertNull(store.rows[session.id])
     }
 
-    private fun signIn(sessions: Sessions): EditorSession {
-        val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(player, "Iban", setOf(EditorPermissions.VIEW)))
+    @Test
+    fun `permissions read again on the issuing server apply to open sessions, restarts included`() {
+        val store = MemoryStore()
+        val session = signIn(Sessions(clock, store = store), origin = "survie")
+        val restarted = Sessions(clock, store = store)
+        restarted.refresh("survie", mapOf(player to setOf(EditorPermissions.VIEW, EditorPermissions.EDIT)))
+        assertEquals(setOf(EditorPermissions.VIEW, EditorPermissions.EDIT), restarted.find(session.id)?.permissions)
+        assertEquals(setOf(EditorPermissions.VIEW, EditorPermissions.EDIT), Sessions(clock, store = store).find(session.id)?.permissions)
+    }
+
+    @Test
+    fun `losing the view permission on the issuing server closes the session`() {
+        val store = MemoryStore()
+        val sessions = Sessions(clock, store = store)
+        val session = signIn(sessions, origin = "survie")
+        sessions.find(session.id)
+        sessions.refresh("survie", mapOf(player to emptySet()))
+        assertNull(sessions.find(session.id))
+        assertNull(Sessions(clock, store = store).find(session.id))
+    }
+
+    @Test
+    fun `another server's permissions change nothing`() {
+        val session = signIn(sessions, origin = "survie")
+        sessions.refresh("lobby", mapOf(player to emptySet()))
+        assertEquals(setOf(EditorPermissions.VIEW), sessions.find(session.id)?.permissions)
+    }
+
+    @Test
+    fun `signing a player out closes every session they have`() {
+        val store = MemoryStore()
+        val sessions = Sessions(clock, store = store)
+        val first = signIn(sessions, origin = "survie")
+        now = now.plusSeconds(61)
+        val second = signIn(sessions, origin = "lobby")
+        assertEquals(2, sessions.closeAll(player))
+        assertNull(sessions.find(first.id))
+        assertNull(Sessions(clock, store = store).find(second.id))
+    }
+
+    private fun signIn(sessions: Sessions, origin: String = ""): EditorSession {
+        val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(player, "Iban", setOf(EditorPermissions.VIEW), origin))
         return assertNotNull(sessions.redeem(link.token))
     }
 
@@ -93,5 +133,13 @@ class SessionsTest {
         override fun touch(key: String, expiresAt: Instant) { rows[key] = rows[key]!!.copy(expiresAt = expiresAt) }
         override fun delete(key: String) { rows.remove(key) }
         override fun purge(now: Instant) { rows.values.removeIf { !it.expiresAt.isAfter(now) } }
+        override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) {
+            rows.replaceAll { _, s -> if (s.playerId == playerId && s.origin == origin) s.copy(permissions = permissions) else s }
+        }
+        override fun deletePlayer(playerId: UUID, origin: String?): Int {
+            val before = rows.size
+            rows.values.removeIf { it.playerId == playerId && (origin == null || it.origin == origin) }
+            return before - rows.size
+        }
     }
 }

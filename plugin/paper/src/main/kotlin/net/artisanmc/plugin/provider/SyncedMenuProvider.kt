@@ -249,6 +249,11 @@ class SyncedMenuProvider(
             "permissions" to permissions.toList(), "host" to host,
         )) ?: java.util.concurrent.CompletableFuture.completedFuture(null)
 
+    /** On a leaf, the hub closes the player's editor sessions; null if it does not answer. */
+    fun requestEditorLogout(player: java.util.UUID) =
+        wsClient?.request(mapOf("type" to "editor_logout", "player_id" to player.toString()))
+            ?: java.util.concurrent.CompletableFuture.completedFuture(null)
+
     override fun findMenu(menuId: String): BundleMenu? = findMenu(menuId, null)
     override fun findMenu(ref: String, fromProject: String?): BundleMenu? =
         resolveRef(menuTable, "Menu", ref, fromProject)

@@ -266,6 +266,7 @@ open class ArtisanPlugin : JavaPlugin() {
             store = artisanData?.let(::editorSessionStore),
         )
         startEditor(cfg.web)
+        startEditorPermissionReports(cfg.web)
 
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
@@ -337,6 +338,33 @@ open class ArtisanPlugin : JavaPlugin() {
         net.artisanmc.plugin.config.serverName(web.name, File(".").absoluteFile.normalize().name) ?: null.also {
             logger.severe("[Artisan] name \"${web.name}\" in environment.yml is invalid: letters, digits, _ and - only, 64 max, not \"local\". Use this server's name in velocity.toml.")
         }
+
+    val serverUuid: String get() = serverId.toString()
+
+    /**
+     * Every minute, the editor permissions of the online players, read here: the hub applies them
+     * to the sessions this server issued, and signs out whoever lost `artisan.editor.view`.
+     */
+    private fun startEditorPermissionReports(web: net.artisanmc.plugin.hub.WebConfig) {
+        if (!web.enabled || (!web.leaf && editor == null)) return
+        fun report() {
+            if (!isEnabled) return
+            scheduler.global {
+                val players = server.onlinePlayers.associate { p ->
+                    p.uniqueId to net.artisanmc.plugin.hub.EditorPermissions.ALL.filter(p::hasPermission).toSet()
+                }
+                scheduler.async {
+                    if (web.leaf) (menuProvider as? SyncedMenuProvider)?.sendModuleMessage(mapOf(
+                        "type" to "editor_permissions",
+                        "players" to players.entries.associate { (id, perms) -> id.toString() to perms.toList() },
+                    ))
+                    else editorSessions.refresh(serverUuid, players)
+                }
+            }
+            scheduler.asyncLater(HEARTBEAT_TICKS) { report() }
+        }
+        scheduler.asyncLater(HEARTBEAT_TICKS) { report() }
+    }
 
     private val serverId: UUID by lazy { net.artisanmc.plugin.database.ServerIdFile.read(File(dataFolder, "server-id")) }
     /** Artisan's own tables in the suite database, migrated once; null when it cannot be opened. */
@@ -726,14 +754,16 @@ open class ArtisanPlugin : JavaPlugin() {
             runCatching(block).onFailure { logger.warning("[Artisan] Editor sessions not stored: ${it.message}") }.getOrNull()
 
         override fun put(key: String, session: net.artisanmc.plugin.hub.EditorSession) {
-            safe { rows.put(key, net.artisanmc.plugin.database.EditorSessionRow(session.playerId, session.playerName, session.permissions, session.expiresAt)) }
+            safe { rows.put(key, net.artisanmc.plugin.database.EditorSessionRow(session.playerId, session.playerName, session.permissions, session.expiresAt, session.origin)) }
         }
         override fun get(key: String) = safe { rows.get(key) }?.let {
-            net.artisanmc.plugin.hub.EditorSession("", it.playerId, it.playerName, it.permissions, it.expiresAt)
+            net.artisanmc.plugin.hub.EditorSession("", it.playerId, it.playerName, it.permissions, it.expiresAt, it.origin)
         }
         override fun touch(key: String, expiresAt: java.time.Instant) { safe { rows.touch(key, expiresAt) } }
         override fun delete(key: String) { safe { rows.delete(key) } }
         override fun purge(now: java.time.Instant) { safe { rows.purge(now) } }
+        override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) { safe { rows.setPermissions(playerId, origin, permissions) } }
+        override fun deletePlayer(playerId: UUID, origin: String?) = safe { rows.deletePlayer(playerId, origin) } ?: 0
     }
 
     /** Projects as their server loaded them, read from the suite database by the editor's routes. */

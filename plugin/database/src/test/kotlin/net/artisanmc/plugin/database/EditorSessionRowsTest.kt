@@ -34,6 +34,19 @@ class EditorSessionRowsTest {
     }
 
     @Test
+    fun `permissions and sign-outs follow the issuing server`() {
+        rows.put("a", EditorSessionRow(player, "Iban", setOf("v"), t0, origin = "survie"))
+        rows.put("b", EditorSessionRow(player, "Iban", setOf("v"), t0, origin = "lobby"))
+        rows.setPermissions(player, "survie", setOf("v", "e"))
+        assertEquals(setOf("v", "e"), rows.get("a")?.permissions)
+        assertEquals(setOf("v"), rows.get("b")?.permissions)
+        assertEquals(1, rows.deletePlayer(player, "lobby"))
+        assertEquals("survie", rows.get("a")?.origin)
+        assertEquals(1, rows.deletePlayer(player, null))
+        assertNull(rows.get("a"))
+    }
+
+    @Test
     fun `purge drops the expired rows only`() {
         rows.put("old", EditorSessionRow(player, "Iban", emptySet(), t0))
         rows.put("new", EditorSessionRow(player, "Iban", emptySet(), t0.plusSeconds(1)))

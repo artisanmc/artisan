@@ -91,6 +91,8 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens}` : un module s'est enregistré après le `hello` ; le hub remplace ces champs. |
 | `custom_items_changed` | `{hash}` : Nexo/Oraxen/ItemsAdder rechargé ; le hub redemande le bundle. |
 | `editor_link` | `{request_id, player_id, player_name, permissions, host?}` : `/artisan editor` tapé sur une feuille. Le hub ne consulte aucune permission, il reprend celles lues par la feuille (`artisan.editor.view` requis) et répond `editor_link_result` `{ok, url}` ou `{error: "too_soon", retry_after}` / `invalid_input`. Timeout feuille 15 s. |
+| `editor_permissions` | `{players: {uuid: [permissions]}}` : chaque minute, les permissions éditeur des joueurs en ligne. Le hub les applique aux sessions que ce serveur a émises et ferme celles d'un joueur sans `artisan.editor.view`. Pas de réponse. |
+| `editor_logout` | `{request_id, player_id}` : `/artisan editor logout` tapé sur une feuille. Le hub ferme toutes les sessions du joueur et répond `editor_logout_result` `{ok, closed}`. |
 
 ### Brouillons privés (`project_draft_publish`)
 

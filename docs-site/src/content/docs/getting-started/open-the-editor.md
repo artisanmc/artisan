@@ -42,8 +42,10 @@ a leaf asks the hub for the link, which uses the hub's `web.url`.
 
 ## Give access to your team
 
-Permissions are read **when the link is requested** and kept for the whole session.
-After changing someone's permissions, they need a new link.
+Permissions are read **when the link is requested**, then every minute while the player
+is online on that server: a change applies within a minute, and removing
+`artisan.editor.view` signs them out. To sign someone out right away, use
+`/artisan editor logout <player>`.
 
 | Permission | Allows | Default |
 |---|---|---|

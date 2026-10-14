@@ -71,6 +71,8 @@ object ArtisanSchema {
                 expires_at TIMESTAMP NOT NULL
             )""",
         ),
+        // The server id that issued the session: the one whose permission reads apply to it.
+        Migration(12, "ALTER TABLE artisan_editor_sessions ADD COLUMN origin VARCHAR(64) NOT NULL DEFAULT ''"),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger) =

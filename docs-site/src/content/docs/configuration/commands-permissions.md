@@ -12,6 +12,7 @@ sidebar:
 | `/artisan menu <id>` | Open a menu by id. Players only; ids autocomplete. Requires `artisan.menu`. |
 | `/artisan reload` | Re-read `config.yml`, `environment.yml` and the language files, and reload every project from disk (including files edited by hand). On a leaf, reconnects to the hub. The web server and database pools are not restarted: `web.*` and `database.*` changes need a server restart. Requires `artisan.admin`. |
 | `/artisan editor` | Print your single-use sign-in link to the editor. Players only; requires `artisan.editor.view`. See [Open the editor](/wiki/getting-started/open-the-editor/). |
+| `/artisan editor logout [player]` | Sign a player out of the editor on every device. Without a name, signs yourself out. Naming another player requires `artisan.admin`. |
 | `/artisan sync reject` | Reload projects from disk; on a leaf, reconnect to the hub. Requires `artisan.admin`. |
 | `/artisan sync status` | Only points to the server log. |
 
@@ -30,8 +31,9 @@ loads and skipped (with a warning in the log) if another plugin already owns the
 | `artisan.editor.publish` | Publish projects to the server; upload the resource pack. | op |
 | `artisan.editor.config` | Change `config.yml` from the editor's server page. | op |
 
-The editor reads these permissions when the link is requested and keeps them for the
-whole session (up to 7 days without use): after changing them, sign out and request a new link.
+The editor reads these permissions when the link is requested, then again every minute
+while the player is online on the server where they requested it. A change applies within a
+minute; removing `artisan.editor.view` signs them out of the editor.
 
 In a network, each server reads the permissions of the player who types
 `/artisan editor` **on that server** and passes them to the hub; the hub checks no
