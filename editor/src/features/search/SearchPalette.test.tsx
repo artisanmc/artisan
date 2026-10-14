@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
-  useParams: () => ({ networkId: "n1", serverId: "s1", projectId: "p1" }),
+  useParams: () => ({ serverId: "s1", projectId: "p1" }),
 }));
 
 import { SearchPalette } from "./SearchPalette";
@@ -77,7 +77,7 @@ describe("SearchPalette", () => {
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "shop" } });
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
     expect(navigate).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "/networks/$networkId/servers/$serverId/projects/$projectId" }),
+      expect.objectContaining({ to: "/servers/$serverId/projects/$projectId" }),
     );
     expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "m_shop" });
     expect(useUiStore.getState().searchOpen).toBe(false);
@@ -118,7 +118,7 @@ describe("SearchPalette", () => {
 
     beforeEach(() => {
       useServerIndexStore.setState({
-        scope: "n1/s1",
+        scope: "s1",
         status: "ready",
         projects: [boutique()],
         failed: [],
@@ -133,7 +133,7 @@ describe("SearchPalette", () => {
       fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
       expect(navigate).toHaveBeenCalledWith(
         expect.objectContaining({
-          to: "/networks/$networkId/servers/$serverId/projects/$projectId",
+          to: "/servers/$serverId/projects/$projectId",
           params: expect.objectContaining({ projectId: "boutique" }),
           search: { doc: "catalogue" },
         }),
@@ -148,7 +148,7 @@ describe("SearchPalette", () => {
     });
 
     it("ignores what was loaded for another server", () => {
-      useServerIndexStore.setState({ scope: "n1/ailleurs" });
+      useServerIndexStore.setState({ scope: "ailleurs" });
       render(<SearchPalette projectId={PID} />);
       fireEvent.change(screen.getByRole("combobox"), { target: { value: "catalogue" } });
       expect(screen.queryByText("Catalogue")).not.toBeInTheDocument();

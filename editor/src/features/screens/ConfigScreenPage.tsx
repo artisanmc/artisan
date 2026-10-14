@@ -37,11 +37,9 @@ type Phase = "loading" | "offline" | "error" | "ready";
  * same relay. Greyed out while the server is offline — the disk is the truth.
  */
 export function ConfigScreenPage({
-  networkId,
   serverId,
   screenId,
 }: {
-  networkId: string;
   serverId: string;
   screenId: string;
 }) {
@@ -102,7 +100,7 @@ export function ConfigScreenPage({
       if (!getModule(entry.id)) registerModule(module);
     }
     setErrorCode(null);
-    const cacheKey = screenCacheKey(networkId, serverId, screen.id);
+    const cacheKey = screenCacheKey(serverId, screen.id);
     const known = useScreenCacheStore.getState().get(cacheKey);
     if (known) {
       // Nothing to wait for: everything needed to render the screen was stored on
@@ -122,13 +120,13 @@ export function ConfigScreenPage({
     // the data file — read it too, or the form opens untyped. Absent (a
     // module-declared table types itself from the declaration) is not an error.
     const [models, res, beside, context] = await Promise.all([
-      fetchServerDeclaredModels(networkId, serverId),
-      configRead(networkId, serverId, { projectId: screen.projectId, table: screen.table }),
-      configRead(networkId, serverId, {
+      fetchServerDeclaredModels(serverId),
+      configRead(serverId, { projectId: screen.projectId, table: screen.table }),
+      configRead(serverId, {
         projectId: screen.projectId,
         table: besideModelPath(screen.table),
       }),
-      readProjectFiles(networkId, serverId, screen.projectId),
+      readProjectFiles({ serverId, diskId: screen.projectId }),
     ]);
     if (!res.ok) {
       setErrorCode(res.error);
@@ -162,7 +160,7 @@ export function ConfigScreenPage({
     setStale(false);
     setPhase("ready");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [networkId, serverId, screen?.id, screen?.projectId, screen?.table]);
+  }, [serverId, screen?.id, screen?.projectId, screen?.table]);
 
   useEffect(() => {
     void load();
@@ -220,7 +218,7 @@ export function ConfigScreenPage({
     if (!screen || !scratch || !diff || !dirty) return;
     setSaving(true);
     try {
-      const res = await configWrite(networkId, serverId, {
+      const res = await configWrite(serverId, {
         projectId: screen.projectId,
         files: diff.files,
         deletes: diff.deletes,
@@ -238,7 +236,7 @@ export function ConfigScreenPage({
     } finally {
       setSaving(false);
     }
-  }, [networkId, serverId, screen, scratch, diff, dirty, original]);
+  }, [serverId, screen, scratch, diff, dirty, original]);
 
   if (!screen) {
     return (

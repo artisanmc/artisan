@@ -65,10 +65,10 @@ export interface CachedProject {
 /**
  * An entry's key. The URL may carry a slug OR an id, and the same name may
  * exist on two servers: the key therefore carries both, as they come, without
- * resolution — resolving would need the network we are trying to avoid.
+ * resolution.
  */
-export function projectCacheKey(projectId: string, serverRef?: string | null, networkRef?: string | null, ownerId?: string | null): string {
-  return JSON.stringify([ownerId, networkRef, serverRef, projectId]);
+export function projectCacheKey(projectId: string, serverRef?: string | null, ownerId?: string | null): string {
+  return JSON.stringify([ownerId, serverRef, projectId]);
 }
 
 interface ProjectCacheState {

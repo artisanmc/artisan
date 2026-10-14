@@ -29,12 +29,7 @@ it("restores a pending server operation from a refreshed listing without browser
       },
     ],
   };
-  const summaries = diskProjectsToSummaries(
-    "network",
-    "server",
-    response.project_ids,
-    response.projects,
-  );
+  const summaries = diskProjectsToSummaries("server", response.project_ids, response.projects);
   const pending = summaries.find((project) => project.id === "internal");
   expect(pending).toBeDefined();
   if (!pending) return;

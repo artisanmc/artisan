@@ -27,7 +27,7 @@ describe("selectModuleNavEntries", () => {
   it("skips registered modules with no routes (e.g. core menus/commands)", () => {
     registered.set("menus", {
       id: "menus",
-      sidebar: { icon: () => null, label: "Menus", to: "/networks" },
+      sidebar: { icon: () => null, label: "Menus", to: "/servers" },
       routes: [],
     });
     expect(selectModuleNavEntries(["menus"])).toEqual([]);

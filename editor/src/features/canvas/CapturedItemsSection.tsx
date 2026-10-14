@@ -5,7 +5,6 @@ import { PlayerNameInput } from "@/components/PlayerNameInput";
 import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
 import { useAccountStore } from "@/state/accountStore";
 import { isScreenScratchId } from "@/features/screens/screenScratch";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useUiStore } from "@/state/uiStore";
@@ -39,7 +38,6 @@ export function CapturedItemsSection({
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const addCapturedItem = useAccountStore((s) => s.addCapturedItem);
   const removeCapturedItem = useAccountStore((s) => s.removeCapturedItem);
-  const networkId = useNetworksStore((s) => s.activeId);
   const serverId = useServersStore((s) => s.activeServerId);
   const runtime = useProjectRuntime(projectId);
   const canCapture = runtime ? runtime.capabilities.captureInGame && runtime.connection.available : Boolean(serverId);
@@ -57,9 +55,9 @@ export function CapturedItemsSection({
   const readOnly = isScreenScratchId(projectId);
 
   const load = async () => {
-    if (!canCapture || !networkId || !serverId || !player.trim()) return;
+    if (!canCapture || !serverId || !player.trim()) return;
     setState({ kind: "loading" });
-    const res = await fetchPlayerInventory(networkId, serverId, player.trim());
+    const res = await fetchPlayerInventory(serverId, player.trim());
     setState(res.ok ? { kind: "done", slots: res.slots } : { kind: "error", code: res.error });
   };
 

@@ -93,7 +93,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       code: "draft_conflict",
       status: 409,
     });
-    render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+    render(<ProjectTopBarControls project={p} projectId={p.id} />);
     await deployAndConfirm();
     expect(await screen.findByRole("dialog")).toHaveTextContent(/Créer une copie|Create a copy/);
   });
@@ -115,7 +115,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       status: 422,
       message: "AccessDeniedException: menus/shop.yaml",
     });
-    render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+    render(<ProjectTopBarControls project={p} projectId={p.id} />);
     await deployAndConfirm();
     expect(await screen.findByRole("dialog")).toHaveTextContent(
       "AccessDeniedException: menus/shop.yaml",
@@ -161,7 +161,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       at: 0,
     });
 
-    render(<ProjectTopBarControls project={stale} projectId={"p1" as ProjectId} networkId="n1" />);
+    render(<ProjectTopBarControls project={stale} projectId={"p1" as ProjectId} />);
     await deployAndConfirm();
 
     await waitFor(() => expect(saveProjectToDisk).toHaveBeenCalled());
@@ -187,7 +187,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       at: 0,
     });
 
-    render(<ProjectTopBarControls project={p} projectId={"p1" as ProjectId} networkId="n1" />);
+    render(<ProjectTopBarControls project={p} projectId={"p1" as ProjectId} />);
     expect(screen.getByRole("button", { name: DEPLOY })).toBeDisabled();
   });
 
@@ -204,7 +204,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     });
     vi.mocked(saveProjectToDisk).mockClear();
 
-    render(<ProjectTopBarControls project={p} projectId={"p1" as ProjectId} networkId="n1" offline />);
+    render(<ProjectTopBarControls project={p} projectId={"p1" as ProjectId} offline />);
     const deploy = screen.getByRole("button", { name: DEPLOY });
     expect(deploy).toHaveAttribute("aria-disabled");
     fireEvent.click(deploy);
@@ -223,7 +223,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       tree: { "manifest.yaml": "changed" },
       at: 0,
     });
-    render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+    render(<ProjectTopBarControls project={p} projectId={p.id} />);
     fireEvent.click(screen.getByRole("button", { name: DEPLOY }));
     const review = await screen.findByRole("dialog");
     expect(within(review).getByRole("button", { name: /manifest\.yaml/ })).toBeInTheDocument();
@@ -258,7 +258,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
         at: 0,
       });
       useServerIndexStore.setState(index);
-      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
       fireEvent.click(screen.getByRole("button", { name: DEPLOY }));
     }
 
@@ -294,7 +294,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       sessions: { p1: { ownerId: "u1", drafts: [], status: "pending" } },
     });
     try {
-      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
       fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)$/ }));
       await waitFor(() => expect(syncPersistedDraft).toHaveBeenCalledWith("p1"));
       expect(saveProjectToDisk).not.toHaveBeenCalled();
@@ -312,7 +312,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       sessions: { p1: { ownerId: "u1", drafts: [], status: "pending" } },
     });
     try {
-      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
       const save = screen.getByRole("button", { name: /^(Save|Enregistrer)$/ });
       expect(save).toHaveTextContent(/^$/);
       expect(save).not.toHaveAttribute("title");
@@ -337,7 +337,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     } as never);
     usePersistedDraftStore.setState({ sessions: { p1: { ownerId: "u1", drafts: [], status } } });
     try {
-      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
       fireEvent.focus(
         screen.getByRole("button", { name: /^(Save|Saved|Enregistrer|Enregistré)$/ }),
       );
@@ -356,7 +356,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       sessions: { p1: { ownerId: "u1", drafts: [], status: "saving" } },
     });
     try {
-      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
       const save = screen.getByRole("button", { name: /^(Saving…|Enregistrement…)$/ });
       expect(save).toHaveAttribute("aria-disabled", "true");
       expect(save.querySelector(".animate-spin")).not.toBeNull();
@@ -374,7 +374,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       sessions: { p1: { ownerId: "u1", drafts: [], status: "saved" } },
     });
     try {
-      render(<ProjectTopBarControls project={p} projectId={p.id} networkId="n1" />);
+      render(<ProjectTopBarControls project={p} projectId={p.id} />);
       const save = screen.getByRole("button", { name: /^(Saved|Enregistré)$/ });
       expect(save).toHaveAttribute("aria-disabled", "true");
       fireEvent.click(save);

@@ -1,6 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { displayServerLabel } from "@/lib/serverLabel";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -60,36 +59,23 @@ export function ServerSelector({ servers }: Props) {
 
   // Active server = URL param (strict: false so it works on any nested route).
   // Slug routes put the slug in the param, old links the id — match both.
-  const params = useParams({ strict: false }) as {
-    networkId?: string;
-    serverId?: string;
-  };
+  const params = useParams({ strict: false }) as { serverId?: string };
   // Routes without a serverId param (settings, credits…) fall back to the
   // persisted selection so the selector and the project list stay coherent.
   const storedServerId = useServersStore((s) => s.activeServerId);
   const activeServerId = params.serverId ?? storedServerId ?? null;
 
-  // Server slugs are only unique per network — when the URL carries a network
-  // param (id or slug), scope the match to it so "server" doesn't resolve to
-  // another network's server of the same slug.
-  const matchesNetwork = (s: ServerEntry) =>
-    !params.networkId ||
-    s.networkId === params.networkId ||
-    (!!s.networkSlug && s.networkSlug === params.networkId);
   const active = servers.find(
-    (s) =>
-      matchesNetwork(s) &&
-      (s.serverId === activeServerId || (s.serverSlug && s.serverSlug === activeServerId)),
+    (s) => s.serverId === activeServerId || (s.serverSlug && s.serverSlug === activeServerId),
   );
 
   const handleSelect = (entry: ServerEntry) => {
     setOpen(false);
     useSidebarStore.getState().close();
     useServersStore.getState().setActiveServerId(entry.serverId);
-    useNetworksStore.getState().setActiveId(entry.networkId);
     navigate({
-      to: "/networks/$networkId/servers/$serverId",
-      params: { networkId: entry.networkId, serverId: entry.serverSlug ?? entry.serverId },
+      to: "/servers/$serverId",
+      params: { serverId: entry.serverSlug ?? entry.serverId },
     });
   };
 

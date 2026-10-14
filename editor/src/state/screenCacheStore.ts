@@ -25,8 +25,8 @@ export interface CachedScreen {
   fetchedAt: string;
 }
 
-export function screenCacheKey(networkId: string, serverId: string, screenId: string): string {
-  return `${networkId}/${serverId}/${screenId}`;
+export function screenCacheKey(serverId: string, screenId: string): string {
+  return `${serverId}/${screenId}`;
 }
 
 interface ScreenCacheState {

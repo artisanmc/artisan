@@ -13,8 +13,7 @@ interface ServerIndexState {
   reset: () => void;
 }
 
-export const serverIndexScope = (networkId: string, serverId: string): string =>
-  `${networkId}/${serverId}`;
+export const serverIndexScope = (serverId: string): string => serverId;
 
 /**
  * The current server's published projects, read-only. Ephemeral: nothing is

@@ -12,8 +12,6 @@ import { type ReactElement, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface NewProjectDialogProps {
-  /** Network the new workspace will be created in. When null, the trigger is disabled. */
-  networkId: string | null;
   /** Server key to associate the new project with. */
   serverKeyId?: string | null;
   /** Called with the new workspace id after a successful create. */
@@ -22,12 +20,7 @@ interface NewProjectDialogProps {
 }
 
 /** Creates the project on the server's disk through the hub. */
-export function NewProjectDialog({
-  networkId,
-  serverKeyId,
-  onCreated,
-  trigger,
-}: NewProjectDialogProps) {
+export function NewProjectDialog({ serverKeyId, onCreated, trigger }: NewProjectDialogProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -35,13 +28,13 @@ export function NewProjectDialog({
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    if (!networkId || !serverKeyId || submitting) return;
+    if (!serverKeyId || submitting) return;
     const trimmed = name.trim();
     if (!trimmed) return;
     setSubmitting(true);
     setError(null);
     try {
-      const project = await createProject(networkId, serverKeyId, trimmed);
+      const project = await createProject(serverKeyId, trimmed);
       setName("");
       setOpen(false);
       onCreated?.(project.id);
@@ -53,7 +46,7 @@ export function NewProjectDialog({
   };
 
   const defaultTrigger = (
-    <Button variant="outline" disabled={!networkId || !serverKeyId}>
+    <Button variant="outline" disabled={!serverKeyId}>
       + {t("projectMini.newProject")}
     </Button>
   );
@@ -102,7 +95,7 @@ export function NewProjectDialog({
             <Button
               type="submit"
               variant="primary"
-              disabled={!name.trim() || !networkId || !serverKeyId || submitting}
+              disabled={!name.trim() || !serverKeyId || submitting}
             >
               {submitting ? "…" : t("newProjectDialog.create")}
             </Button>

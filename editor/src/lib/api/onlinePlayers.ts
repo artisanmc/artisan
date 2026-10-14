@@ -8,11 +8,10 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
  * the pickers keep accepting a typed name, so nothing here can block an admin.
  */
 export async function listOnlinePlayers(
-  networkId: string,
   serverId: string,
 ): Promise<string[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/players`, {
+    const res = await fetch(`${API_URL}/api/v1/servers/${serverId}/players`, {
       credentials: "include",
     });
     if (!res.ok) return [];

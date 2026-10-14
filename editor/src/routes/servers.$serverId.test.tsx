@@ -28,7 +28,7 @@ vi.mock("@tanstack/react-router", async () => {
     ...actual,
     useChildMatches: () => routerState.childMatches,
     Outlet: () => <div>child-route</div>,
-    useParams: () => ({ networkId: "net_1", serverId: "sk_1" }),
+    useParams: () => ({ serverId: "sk_1" }),
     useNavigate: () => navigateSpy,
     Navigate: () => null,
     Link: ({ children, to, params, ...p }: any) => (
@@ -84,7 +84,7 @@ vi.mock("react-i18next", () => ({
 
 import { getNetwork } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
-import ServerDetailPage from "./networks.$networkId.servers.$serverId";
+import ServerDetailPage from "./servers.$serverId";
 
 describe("ServerDetailPage", () => {
   beforeEach(() => {
@@ -106,21 +106,21 @@ describe("ServerDetailPage", () => {
   it("redirects anonymous visitors to /login with a next return path", async () => {
     authState.currentUser = null;
     authState.isLoading = false;
-    setUrl("/networks/net_1/servers/sk_1", "?x=1");
+    setUrl("/servers/sk_1", "?x=1");
 
     render(<ServerDetailPage />);
 
     await waitFor(() =>
       expect(navigateSpy).toHaveBeenCalledWith({
         to: "/login",
-        search: { next: "/networks/net_1/servers/sk_1?x=1" },
+        search: { next: "/servers/sk_1?x=1" },
         replace: true,
       }),
     );
   });
 
   it("does not redirect a logged-in user", async () => {
-    setUrl("/networks/net_1/servers/sk_1");
+    setUrl("/servers/sk_1");
     render(<ServerDetailPage />);
     await waitFor(() => expect(screen.getByText("Hub")).toBeInTheDocument());
     expect(navigateSpy).not.toHaveBeenCalled();
@@ -133,7 +133,7 @@ describe("ServerDetailPage", () => {
    */
   it("reads the Projects from the server's disk, by resolved ids", async () => {
     render(<ServerDetailPage />);
-    await waitFor(() => expect(listServerProjects).toHaveBeenCalledWith("net_1", "sk_1"));
+    await waitFor(() => expect(listServerProjects).toHaveBeenCalledWith("sk_1"));
   });
 
   /**
@@ -150,10 +150,7 @@ describe("ServerDetailPage", () => {
   it("workspace link points to the new URL pattern", async () => {
     render(<ServerDetailPage />);
     const link = await screen.findByRole("link", { name: /Hub/ });
-    expect(link).toHaveAttribute(
-      "href",
-      "/networks/$networkId/servers/$serverId/projects/$projectId",
-    );
+    expect(link).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
   });
 
   /** Same grouping as the sidebar: a project owned by an Add-on leaves the flat
@@ -188,10 +185,7 @@ describe("ServerDetailPage", () => {
     await screen.findByText("Boutique");
     expect(screen.getByText("screens.editorEntry")).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "Catalogue" });
-    expect(link).toHaveAttribute(
-      "href",
-      "/networks/$networkId/servers/$serverId/screens/$screenId",
-    );
+    expect(link).toHaveAttribute("href", "/servers/$serverId/screens/$screenId");
   });
 
   /**
@@ -234,9 +228,7 @@ describe("ServerDetailPage", () => {
    *  otherwise an owned project first appears flat then jumps. */
   it("loads the Config screens of its own server", async () => {
     render(<ServerDetailPage />);
-    await waitFor(() =>
-      expect(screensState.load).toHaveBeenCalledWith({ networkId: "net_1", serverId: "sk_1" }),
-    );
+    await waitFor(() => expect(screensState.load).toHaveBeenCalledWith({ serverId: "sk_1" }));
   });
 
   /**
@@ -252,9 +244,9 @@ describe("ServerDetailPage", () => {
     expect(listServerProjects).not.toHaveBeenCalled();
   });
 
-  /** Server slug unknown to this network: the URL is stale, go back to the
-   *  network rather than spinning forever on "reading". */
-  it("redirects to the network when the server does not exist", async () => {
+  /** Server unknown to the hub: the URL is stale, go back to the server list
+   *  rather than spinning forever on "reading". */
+  it("redirects to the server list when the server does not exist", async () => {
     vi.mocked(getNetwork).mockResolvedValueOnce({
       network: { id: "net_1", name: "Mon Réseau", tier: "free" },
       serverKeys: [{ id: "sk_9", slug: "autre", label: "Autre" }],
@@ -262,11 +254,7 @@ describe("ServerDetailPage", () => {
     } as never);
     render(<ServerDetailPage />);
     await waitFor(() =>
-      expect(navigateSpy).toHaveBeenCalledWith({
-        to: "/networks/$networkId",
-        params: { networkId: "net_1" },
-        replace: true,
-      }),
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/servers", replace: true }),
     );
   });
 
@@ -279,13 +267,13 @@ describe("ServerDetailPage", () => {
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 
-  it("404 still bounces to /networks", async () => {
+  it("404 still bounces to /servers", async () => {
     vi.mocked(getNetwork).mockRejectedValueOnce(
       Object.assign(new Error("not found"), { status: 404 }),
     );
     render(<ServerDetailPage />);
     await waitFor(() =>
-      expect(navigateSpy).toHaveBeenCalledWith({ to: "/networks", replace: true }),
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/servers", replace: true }),
     );
   });
 });

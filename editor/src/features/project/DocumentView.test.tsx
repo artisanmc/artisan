@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
-  useParams: () => ({ networkId: "n1", serverId: "s1", projectId: "p1", elementId: "m1" }),
+  useParams: () => ({ serverId: "s1", projectId: "p1", elementId: "m1" }),
 }));
 vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div data-testid="focus-stage" /> }));
 vi.mock("@/features/canvas/EditorPane", () => ({
@@ -74,7 +74,7 @@ describe("DocumentView", () => {
     render(<ResolvedProjectContext.Provider value={PID}><DocumentView projectId={"shared" as ProjectId} documentId={"m1" as any} /></ResolvedProjectContext.Provider>);
     expect(screen.getByTestId("focus-stage")).toBeInTheDocument();
     fireEvent.click(screen.getByText(/back to canvas|retour au canvas/i));
-    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ params: { networkId: "n1", serverId: "s1", projectId: "shared" } }));
+    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ params: { serverId: "s1", projectId: "shared" } }));
   });
   it("renders the focused stage + EditorPane for a menu", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
@@ -86,7 +86,7 @@ describe("DocumentView", () => {
     fireEvent.click(screen.getByText(/back to canvas|retour au canvas/i));
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "/networks/$networkId/servers/$serverId/projects/$projectId",
+        to: "/servers/$serverId/projects/$projectId",
       }),
     );
   });
@@ -99,7 +99,7 @@ describe("DocumentView", () => {
     fireEvent.keyDown(document.body, { key: "Escape" });
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "/networks/$networkId/servers/$serverId/projects/$projectId",
+        to: "/servers/$serverId/projects/$projectId",
       }),
     );
   });

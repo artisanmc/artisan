@@ -7,7 +7,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EditorAccessNotice } from "@/features/project/EditorAccessNotice";
 import { useAuthStore } from "@/state/authStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link } from "@tanstack/react-router";
 import { LogOut, Settings as SettingsIcon, UserIcon } from "lucide-react";
@@ -22,18 +21,14 @@ function getInitial(name: string | null | undefined): string {
 }
 
 export function UserMenu({
-  networkId: selectedNetworkId,
   serverId,
   serverLabel,
 }: {
-  networkId?: string | null;
   serverId?: string | null;
   serverLabel?: string;
 } = {}) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.currentUser);
-  const storedNetworkId = useNetworksStore((s) => s.activeId);
-  const networkId = selectedNetworkId === undefined ? storedNetworkId : selectedNetworkId;
   const [open, setOpen] = useState(false);
   const closeSidebar = useSidebarStore((s) => s.close);
   const displayName = user?.name ?? t("userMenu.anonymous");
@@ -73,7 +68,7 @@ export function UserMenu({
       <DropdownMenuContent side="top" align="start" className="w-[280px] max-w-[calc(100vw-24px)]">
         {user ? (
           <>
-            {networkId && serverId && (
+            {serverId && (
               <>
                 <div className="px-2.5 pt-2 text-xs font-medium text-[var(--text)]">
                   {t("userMenu.resourceUsage")}
@@ -83,11 +78,7 @@ export function UserMenu({
                     </div>
                   )}
                 </div>
-                <EditorAccessNotice
-                  key={`${networkId}:${serverId}`}
-                  networkId={networkId}
-                  serverId={serverId}
-                />
+                <EditorAccessNotice key={serverId} serverId={serverId} />
                 <DropdownMenuSeparator />
               </>
             )}

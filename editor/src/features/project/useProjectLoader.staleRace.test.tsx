@@ -40,7 +40,7 @@ describe("useProjectLoader — the fresh version always wins", () => {
   });
 
   it("a cached display that finishes late does not overwrite the fresh Project", async () => {
-    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
       serverKeyId: "sk_1",
@@ -85,7 +85,7 @@ describe("useProjectLoader — the fresh version always wins", () => {
    * waits for the network is not a cache.
    */
   it("does not expose a cached project before the network authorizes opening it", async () => {
-    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
       serverKeyId: "sk_1",
@@ -118,7 +118,7 @@ describe("useProjectLoader — the fresh version always wins", () => {
    * path picked it up.
    */
   it("an unsaved draft survives an 'unchanged' response", async () => {
-    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
       serverKeyId: "sk_1",
@@ -152,12 +152,7 @@ describe("useProjectLoader — the fresh version always wins", () => {
 
     await waitFor(() => expect(result.current.project).not.toBeNull());
     await waitFor(() => expect(result.current.stale).toBe(false));
-    expect(projectFilesApi.readProjectFiles).toHaveBeenCalledExactlyOnceWith(
-      "p1",
-      undefined,
-      undefined,
-      "identique",
-    );
+    expect(projectFilesApi.readProjectFiles).toHaveBeenCalledExactlyOnceWith("p1", "identique");
 
     const menuIds = (result.current.project?.menus ?? []).map((m) => m.id);
     expect(menuIds).toContain("en_cours");

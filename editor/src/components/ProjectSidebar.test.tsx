@@ -9,8 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
 
 const mockParams = vi.hoisted(() => ({
-  current: { networkId: "net_1", serverId: "sk_1" } as {
-    networkId?: string;
+  current: { serverId: "sk_1" } as {
     serverId?: string;
     projectId?: string;
   },
@@ -48,10 +47,9 @@ describe("ProjectSidebar", () => {
       ok: true,
       projectIds: ["pack_a", "pack_b"],
     });
-    mockParams.current = { networkId: "net_1", serverId: "sk_1" };
+    mockParams.current = { serverId: "sk_1" };
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", tier: "free" }],
-      activeId: null,
     } as any);
     useServersStore.setState({ activeServerId: null } as any);
     useAccountStore.setState({ account: { id: "", projects: [], projectOrder: [] } } as any);
@@ -98,10 +96,7 @@ describe("ProjectSidebar", () => {
     });
     render(<ProjectSidebar />);
     const link = await screen.findByRole("link", { name: /pack_a/ });
-    expect(link).toHaveAttribute(
-      "href",
-      "/networks/$networkId/servers/$serverId/projects/$projectId",
-    );
+    expect(link).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
   });
 
   describe("document tree of the open project", () => {
@@ -129,7 +124,7 @@ describe("ProjectSidebar", () => {
     });
 
     it("expands the open project into its documents, grouped by type", async () => {
-      mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
+      mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
       const tree = await screen.findByRole("group", { name: /pack_a/ });
       expect(tree).toHaveTextContent("accueil");
@@ -137,7 +132,7 @@ describe("ProjectSidebar", () => {
     });
 
     it("puts settings and creation on the open project's row, no more 'Settings' row", async () => {
-      mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
+      mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
       const tree = await screen.findByRole("group", { name: /pack_a/ });
       const row = screen.getByRole("link", { name: /pack_a/ }).parentElement as HTMLElement;
@@ -148,14 +143,14 @@ describe("ProjectSidebar", () => {
     });
 
     it("does not expand projects that are not open", async () => {
-      mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
+      mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
       await screen.findByRole("group", { name: /pack_a/ });
       expect(screen.getAllByRole("group", { name: /documents/i })).toHaveLength(1);
     });
 
     it("expands another project on demand, from its published state", async () => {
-      mockParams.current = { networkId: "net_1", serverId: "sk_1", projectId: "pack_a" };
+      mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
       useServerIndexStore.setState({
         scope: "net_1/sk_1",
         status: "ready",
@@ -184,7 +179,7 @@ describe("ProjectSidebar", () => {
 
     it("shows the open project even when it is not listed (demo, no network)", async () => {
       mockParams.current = { projectId: "pack_a" };
-      useNetworksStore.setState({ networks: [], activeId: null } as never);
+      useNetworksStore.setState({ networks: [] } as never);
       render(<ProjectSidebar />);
       const tree = await screen.findByRole("group", { name: /Documents de pack_a/ });
       expect(tree).toHaveTextContent("accueil");
@@ -228,8 +223,8 @@ describe("ProjectSidebar", () => {
   });
 
   it("resolves slug URL params and lists the active server's workspaces", async () => {
-    // Routes put slugs (not ids) in networkId/serverId params.
-    mockParams.current = { networkId: "mon-network", serverId: "survival" };
+    // Routes may put a slug (not the id) in the serverId param.
+    mockParams.current = { serverId: "survival" };
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
     } as any);
@@ -245,7 +240,7 @@ describe("ProjectSidebar", () => {
   });
 
   it("falls back to the persisted server selection on routes without a serverId param", async () => {
-    // e.g. /settings or /credits — no networkId/serverId in the URL.
+    // e.g. /settings or /credits — no serverId in the URL.
     mockParams.current = {};
     useServersStore.setState({ activeServerId: "sk_1" } as any);
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
@@ -325,11 +320,10 @@ describe("ProjectSidebar", () => {
     expect(await screen.findByText("+ Nouveau projet")).toBeInTheDocument();
   });
 
-  it("persists the URL server (slug resolved to id) and network into the stores", async () => {
-    mockParams.current = { networkId: "mon-network", serverId: "survival" };
+  it("persists the URL server (slug resolved to id) into the store", async () => {
+    mockParams.current = { serverId: "survival" };
     useNetworksStore.setState({
       networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
-      activeId: null,
     } as any);
     vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
@@ -338,17 +332,16 @@ describe("ProjectSidebar", () => {
     });
     render(<ProjectSidebar />);
     await waitFor(() => expect(useServersStore.getState().activeServerId).toBe("sk_1"));
-    expect(useNetworksStore.getState().activeId).toBe("net_1");
   });
 
-  it("refetches when networkId changes", async () => {
+  it("reads the hub's single network", async () => {
     const getNetwork = vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
       network: { id: "net_1", name: "Mon Network", tier: "free" },
       projects: [],
       serverKeys: [],
     });
     render(<ProjectSidebar />);
-    await waitFor(() => expect(getNetwork).toHaveBeenCalledWith("net_1"));
+    await waitFor(() => expect(getNetwork).toHaveBeenCalledWith());
   });
 
   it("refetches when the store refresh token is bumped (server/workspace created elsewhere)", async () => {

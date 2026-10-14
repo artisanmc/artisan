@@ -55,7 +55,6 @@ describe("DocumentYamlView", () => {
       <DocumentYamlView
         project={project()}
         relPath="menus/accueil.yaml"
-        networkId="n1"
         serverId="s1"
       />,
     );
@@ -64,7 +63,7 @@ describe("DocumentYamlView", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save|Enregistrer/ }));
 
     await waitFor(() => expect(writeProjectFiles).toHaveBeenCalled());
-    const plan = vi.mocked(writeProjectFiles).mock.calls[0]![3];
+    const plan = vi.mocked(writeProjectFiles).mock.calls[0]![1];
     expect(plan.files[0]!.content).toBe(edited);
     expect(plan.files[0]!.path).toBe("menus/accueil.yaml");
   });
@@ -74,7 +73,6 @@ describe("DocumentYamlView", () => {
       <DocumentYamlView
         project={project()}
         relPath="menus/accueil.yaml"
-        networkId="n1"
         serverId="s1"
       />,
     );
@@ -84,7 +82,7 @@ describe("DocumentYamlView", () => {
     await waitFor(() => expect(writeProjectFiles).toHaveBeenCalled());
     // The hash covers the LOADED content, not the new one: writing verbatim does
     // not skip checking that the disk has not moved.
-    expect(vi.mocked(writeProjectFiles).mock.calls[0]![3].files[0]!.base_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(vi.mocked(writeProjectFiles).mock.calls[0]![1].files[0]!.base_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("saves nothing while the text has not changed", () => {
@@ -92,7 +90,6 @@ describe("DocumentYamlView", () => {
       <DocumentYamlView
         project={project()}
         relPath="menus/accueil.yaml"
-        networkId="n1"
         serverId="s1"
       />,
     );

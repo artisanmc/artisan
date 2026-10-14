@@ -1,9 +1,8 @@
 import type { DataSource, DataSourceId, Project } from "@/domain/types";
 import { resolveScreen } from "@/features/screens/screenList";
 import { useAccountStore } from "@/state/accountStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
-import { urlNetworkId, urlServerId } from "@/lib/urlIds";
+import { urlServerId } from "@/lib/urlIds";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -27,9 +26,7 @@ export function DataSourcesSidebar({
   const { t } = useTranslation();
   const addProjectDataSource = useAccountStore((s) => s.addProjectDataSource);
   const declaredScreens = useServerScreensStore((s) => s.screens);
-  const networkId = useNetworksStore((s) => s.activeId);
   const serverId = useServersStore((s) => s.activeServerId);
-  const networks = useNetworksStore((s) => s.networks);
   const servers = useServersStore((s) => s.servers);
   const localProjects = useAccountStore((s) => s.account.projects);
 
@@ -95,12 +92,12 @@ export function DataSourcesSidebar({
                   </div>
                   <div className="mt-0.5">
                     {t("screens.managedByModule", { module: moduleId })}
-                    {networkId && serverId && target && (
+                    {serverId && target && (
                       <>
                         {" — "}
                         <Link
-                          to="/networks/$networkId/servers/$serverId/screens/$screenId"
-                          params={{ networkId: urlNetworkId(networks, networkId)!, serverId: urlServerId(servers, networkId, serverId)!, screenId: target.id }}
+                          to="/servers/$serverId/screens/$screenId"
+                          params={{ serverId: urlServerId(servers, null, serverId)!, screenId: target.id }}
                           className="underline hover:text-[var(--text)]"
                         >
                           {t("screens.openScreen")}

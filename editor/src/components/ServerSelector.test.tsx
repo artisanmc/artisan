@@ -1,4 +1,3 @@
-import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -6,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 
 const mockParams = vi.hoisted(() => ({
-  current: {} as { networkId?: string; serverId?: string },
+  current: {} as { serverId?: string },
 }));
 const mockNavigate = vi.hoisted(() => vi.fn());
 
@@ -45,18 +44,16 @@ describe("ServerSelector", () => {
     mockNavigate.mockClear();
     mockParams.current = {};
     useServersStore.setState({ activeServerId: null });
-    useNetworksStore.setState({ activeId: null } as never);
   });
 
-  it("persists the selection in the servers/networks stores and navigates", async () => {
+  it("persists the selection in the servers store and navigates", async () => {
     render(<ServerSelector servers={SERVERS} />);
     await userEvent.click(screen.getByText(/Sélectionner un serveur|Select a server/));
     await userEvent.click(screen.getByText("Creatif"));
     expect(useServersStore.getState().activeServerId).toBe("sk_2");
-    expect(useNetworksStore.getState().activeId).toBe("net_1");
     expect(mockNavigate).toHaveBeenCalledWith({
-      to: "/networks/$networkId/servers/$serverId",
-      params: { networkId: "net_1", serverId: "sk_2" },
+      to: "/servers/$serverId",
+      params: { serverId: "sk_2" },
     });
   });
 
@@ -65,8 +62,8 @@ describe("ServerSelector", () => {
     await userEvent.click(screen.getByText(/Sélectionner un serveur|Select a server/));
     await userEvent.click(screen.getByText("Survival"));
     expect(mockNavigate).toHaveBeenCalledWith({
-      to: "/networks/$networkId/servers/$serverId",
-      params: { networkId: "net_1", serverId: "survival" },
+      to: "/servers/$serverId",
+      params: { serverId: "survival" },
     });
   });
 

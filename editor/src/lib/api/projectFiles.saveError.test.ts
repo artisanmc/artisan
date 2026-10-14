@@ -14,7 +14,7 @@ it("preserves an unknown server error code and HTTP status", async () => {
         }),
       ),
   );
-  expect(await writeProjectFiles("n1", "s1", "p1", { files: [], deletes: [] })).toEqual({
+  expect(await writeProjectFiles({ serverId: "s1", diskId: "p1" }, { files: [], deletes: [] })).toEqual({
     ok: false,
     error: "write_error",
     code: "disk_full",

@@ -3,7 +3,6 @@ import chestTextureUrl from "@/assets/minecraft/generic_54.png";
 import hopperTextureUrl from "@/assets/minecraft/hopper.png";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { getServerConfig } from "@/lib/api/serverConfig";
-import { LOCAL_ID } from "@/lib/localServer";
 import { projectClient } from "@/lib/projectClient";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
@@ -38,14 +37,13 @@ const VANILLA_TEXTURES: Record<GuiContainer, string> = {
  * only; those of a server other than the hub carry the id `<server>.<folder>`.
  */
 export async function buildServerPack(serverId: string): Promise<BuildResult> {
-  const list = await listServerProjects(LOCAL_ID, serverId);
+  const list = await listServerProjects(serverId);
   if (!list.ok) throw new Error(`project_list_failed:${list.error}`);
   const idOf = (folder: string) =>
-    list.projects?.find((p) => (p.externalId ?? p.id) === folder)?.id ??
-    (serverId === LOCAL_ID ? folder : `${serverId}.${folder}`);
+    list.projects?.find((p) => (p.externalId ?? p.id) === folder)?.id ?? folder;
   const projectIds = list.projectIds.map(idOf).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
-  const config = await getServerConfig(LOCAL_ID, serverId);
+  const config = await getServerConfig(serverId);
 
   const allAssets: AssetRow[] = [];
   const contribs: GlyphContribution[] = [];
@@ -137,15 +135,12 @@ export async function uploadResourcePack(
   serverId: string,
   zip: Uint8Array,
 ): Promise<{ hash: string }> {
-  const response = await fetch(
-    `${API_URL}/api/v1/networks/${LOCAL_ID}/servers/${serverId}/resource-pack`,
-    {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/zip" },
-      body: zip as BodyInit,
-    },
-  );
+  const response = await fetch(`${API_URL}/api/v1/servers/${serverId}/resource-pack`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/zip" },
+    body: zip as BodyInit,
+  });
   if (!response.ok) throw new Error(`resource_pack_upload_failed:${response.status}`);
   return response.json();
 }

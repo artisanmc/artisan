@@ -13,7 +13,7 @@ vi.mock("./runImportZip", () => ({
 
 import { ImportProjectDialog } from "./ImportProjectDialog";
 
-const target = { networkId: "n1", serverId: "sk1" };
+const target = { serverId: "sk1" };
 const basePreview = {
   target,
   projectId: "shop",
@@ -49,13 +49,7 @@ describe("ImportProjectDialog", () => {
     const onImported = vi.fn();
 
     render(
-      <ImportProjectDialog
-        networkId="n1"
-        serverKeyId="sk1"
-        open
-        onClose={() => {}}
-        onImported={onImported}
-      />,
+      <ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} onImported={onImported} />,
     );
     pickFile();
     fireEvent.click(screen.getByRole("button", { name: /^import/i }));
@@ -86,7 +80,7 @@ describe("ImportProjectDialog", () => {
       conflicts: 1,
     });
 
-    render(<ImportProjectDialog networkId="n1" serverKeyId="sk1" open onClose={() => {}} />);
+    render(<ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} />);
     pickFile();
     fireEvent.click(screen.getByRole("button", { name: /^import/i }));
 
@@ -126,7 +120,7 @@ describe("ImportProjectDialog", () => {
       conflicts: 1,
     });
 
-    render(<ImportProjectDialog networkId="n1" serverKeyId="sk1" open onClose={() => {}} />);
+    render(<ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} />);
     pickFile();
     fireEvent.click(screen.getByRole("button", { name: /^import/i }));
 
@@ -148,7 +142,7 @@ describe("ImportProjectDialog", () => {
       },
     });
 
-    render(<ImportProjectDialog networkId="n1" serverKeyId="sk1" open onClose={() => {}} />);
+    render(<ImportProjectDialog serverKeyId="sk1" open onClose={() => {}} />);
     pickFile();
     fireEvent.click(screen.getByRole("button", { name: /^import/i }));
 

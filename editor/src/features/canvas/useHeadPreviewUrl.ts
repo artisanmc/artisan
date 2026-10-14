@@ -1,4 +1,3 @@
-import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { useEffect, useState } from "react";
 import { headPreviewUrl } from "./headTexture";
@@ -9,7 +8,7 @@ const cache = new Map<
   { expires: number; pending: Promise<string | undefined>; url?: string }
 >();
 
-function resolve(networkId: string, serverId: string, id: string, key: string) {
+function resolve(serverId: string, id: string, key: string) {
   const cached = cache.get(key);
   if (cached && cached.expires > Date.now()) return cached.pending;
   const entry = {
@@ -20,7 +19,7 @@ function resolve(networkId: string, serverId: string, id: string, key: string) {
   entry.pending = (async () => {
     try {
       const response = await fetch(
-        `${API_URL}/api/v1/networks/${encodeURIComponent(networkId)}/servers/${encodeURIComponent(serverId)}/head-texture?id=${id}`,
+        `${API_URL}/api/v1/servers/${encodeURIComponent(serverId)}/head-texture?id=${id}`,
         { credentials: "include", signal: AbortSignal.timeout(7_000) },
       );
       if (!response.ok) return undefined;
@@ -45,18 +44,17 @@ function resolve(networkId: string, serverId: string, id: string, key: string) {
 
 /** HDB is resolved by the selected server; ordinary skins need no server lookup. */
 export function useHeadPreviewUrl(head: string | undefined): string | undefined {
-  const networkId = useNetworksStore((s) => s.activeId);
   const serverId = useServersStore((s) => s.activeServerId);
   const id = head?.match(/^hdb:(\d{1,10})$/)?.[1];
-  const key = networkId && serverId && id ? JSON.stringify([networkId, serverId, id]) : "";
+  const key = serverId && id ? JSON.stringify([serverId, id]) : "";
   const [resolved, setResolved] = useState<{ key: string; url?: string }>();
 
   useEffect(() => {
-    if (!key || !networkId || !serverId || !id) return;
+    if (!key || !serverId || !id) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     const load = async () => {
-      const url = await resolve(networkId, serverId, id, key);
+      const url = await resolve(serverId, id, key);
       if (cancelled) return;
       setResolved({ key, url });
       if (!url) timer = setTimeout(load, 30_000);
@@ -66,7 +64,7 @@ export function useHeadPreviewUrl(head: string | undefined): string | undefined 
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [key, networkId, serverId, id]);
+  }, [key, serverId, id]);
 
   return (
     headPreviewUrl(head) ??

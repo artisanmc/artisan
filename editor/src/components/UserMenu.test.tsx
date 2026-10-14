@@ -27,18 +27,18 @@ it("loads the selected server usage without an open project", async () => {
     count: 4,
     reason: null,
   });
-  render(<UserMenu networkId="network" serverId="server" serverLabel="Survival" />);
+  render(<UserMenu serverId="server" serverLabel="Survival" />);
   const button = await screen.findByRole("button", { name: /Iban/ });
   expect(getServerEditorAccess).not.toHaveBeenCalled();
   fireEvent.keyDown(button, { key: "ArrowDown" });
   expect(await screen.findByRole("status")).toHaveTextContent("4 / 10 ressources personnelles");
   expect(screen.getByText("Survival")).toBeInTheDocument();
-  expect(getServerEditorAccess).toHaveBeenCalledWith("network", "server");
+  expect(getServerEditorAccess).toHaveBeenCalledWith("server");
 });
 
 it("ignores a late inventory response from the previously selected server", async () => {
   let resolveFirst!: (value: ServerEditorAccessDto) => void;
-  vi.mocked(getServerEditorAccess).mockImplementation((_network, server) =>
+  vi.mocked(getServerEditorAccess).mockImplementation((server) =>
     server === "first"
       ? new Promise((resolve) => {
           resolveFirst = resolve;
@@ -52,11 +52,11 @@ it("ignores a late inventory response from the previously selected server", asyn
           reason: null,
         }),
   );
-  const { rerender } = render(<UserMenu networkId="network" serverId="first" />);
+  const { rerender } = render(<UserMenu serverId="first" />);
   fireEvent.keyDown(await screen.findByRole("button", { name: /Iban/ }), {
     key: "ArrowDown",
   });
-  rerender(<UserMenu networkId="network" serverId="second" />);
+  rerender(<UserMenu serverId="second" />);
   expect(await screen.findByRole("status")).toHaveTextContent("7 / 10");
   await act(async () =>
     resolveFirst({
@@ -69,7 +69,7 @@ it("ignores a late inventory response from the previously selected server", asyn
     }),
   );
   expect(screen.getByRole("status")).toHaveTextContent("7 / 10");
-  rerender(<UserMenu networkId="network" />);
+  rerender(<UserMenu />);
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
 });
 
@@ -91,7 +91,7 @@ it("shows unavailable inventory instead of zero and allows retrying", async () =
       count: 0,
       reason: null,
     });
-  render(<UserMenu networkId="network" serverId="offline" />);
+  render(<UserMenu serverId="offline" />);
   fireEvent.keyDown(await screen.findByRole("button", { name: /Iban/ }), {
     key: "ArrowDown",
   });

@@ -25,7 +25,7 @@ const GROUP_LABEL: Record<SearchGroup, string> = {
 export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const params = useParams({ strict: false }) as { networkId?: string; serverId?: string };
+  const params = useParams({ strict: false }) as { serverId?: string };
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const activeLang = useUiStore((s) => s.activeLang);
@@ -35,7 +35,7 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const activeRowRef = useRef<HTMLButtonElement>(null);
 
-  const scope = params.networkId && params.serverId ? serverIndexScope(params.networkId, params.serverId) : null;
+  const scope = params.serverId ? serverIndexScope(params.serverId) : null;
   const serverProjects = useServerIndexStore((s) => (s.scope === scope ? s.projects : NO_PROJECTS));
   const editedNamespace = project ? namespaceOf(project) : projectId;
 
@@ -73,7 +73,6 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
     // A Document from another project opens centered on its board (`?doc=`); a
     // Document from this project centers the current board.
     goToDocument(navigate, {
-      networkId: params.networkId,
       serverId: params.serverId,
       project: project ?? { id: projectId },
       ref: entry.target.projectUrlId

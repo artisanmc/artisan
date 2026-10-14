@@ -38,7 +38,6 @@ export function DocumentYamlView({
 }: {
   project: Project;
   relPath: string;
-  networkId?: string;
   serverId?: string;
 }) {
   const { t } = useTranslation();

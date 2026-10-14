@@ -24,13 +24,11 @@ class AccountRoutes(private val servers: Servers, private val sessions: Sessions
         }
         // `/ws/editor` authenticates with the session cookie: the ticket is only a required step.
         router.on("POST", "/api/v1/user/ws-ticket", VIEW) { it.json(mapOf("ticket" to "session")) }
-        router.on("GET", "/api/v1/networks", VIEW) { it.json(mapOf("networks" to listOf(network()))) }
-        router.on("GET", "/api/v1/networks/:network", VIEW) { call ->
-            if (call.params["network"] != LOCAL) return@on call.error(404, "not_found")
+        // One Network per hub: no id in the path.
+        router.on("GET", "/api/v1/network", VIEW) { call ->
             call.json(mapOf("network" to network(), "projects" to emptyList<Any>(), "serverKeys" to servers.all().map(::serverKey)))
         }
-        router.on("GET", "/api/v1/networks/:network/servers-status", VIEW) { call ->
-            if (call.params["network"] != LOCAL) return@on call.error(404, "not_found")
+        router.on("GET", "/api/v1/network/servers-status", VIEW) { call ->
             val all = servers.all()
             call.json(mapOf("servers" to all.map(::status), "online" to all.count { it.online }, "total" to all.size))
         }
@@ -55,13 +53,13 @@ class AccountRoutes(private val servers: Servers, private val sessions: Sessions
     )
 
     private fun serverKey(server: EditorServer) = mapOf(
-        "id" to server.id, "hash" to "", "label" to server.label, "slug" to server.id, "networkId" to LOCAL,
+        "id" to server.uuid, "hash" to "", "label" to server.label, "slug" to server.uuid, "networkId" to LOCAL,
         "lastMcVersion" to server.minecraftVersion, "createdAt" to null,
         "resourcePackHash" to null, "resourcePackUpdatedAt" to null, "allowedIps" to emptyList<String>(), "online" to server.online,
     )
 
     private fun status(server: EditorServer) = mapOf(
-        "id" to server.id, "label" to server.label, "online" to server.online, "lastMcVersion" to server.minecraftVersion,
+        "id" to server.uuid, "label" to server.label, "online" to server.online, "lastMcVersion" to server.minecraftVersion,
         "lastSeenAt" to servers.lastSeen(server.id)?.toString(), "lastSeenIp" to null, "contentVersion" to 2, "pluginVersion" to server.pluginVersion,
         "pluginUpdateVersion" to null, "pluginUpdatePending" to false, "isCurrent" to true,
         "updateRequired" to server.updateRequired,

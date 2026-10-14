@@ -5,21 +5,21 @@ describe("documentDestination — following a document reference", () => {
   const core = { id: "internal-1", diskId: "core" };
 
   it("opens a bare id in the current project", () => {
-    expect(documentDestination("n", core, "s", "main").params).toMatchObject({
+    expect(documentDestination(core, "s", "main").params).toMatchObject({
       projectId: "core",
       documentId: "main",
     });
   });
 
   it("opens a qualified id in the project it names", () => {
-    expect(documentDestination("n", core, "s", "boutique:main").params).toMatchObject({
+    expect(documentDestination(core, "s", "boutique:main").params).toMatchObject({
       projectId: "boutique",
       documentId: "main",
     });
   });
 
   it("keeps a qualified id that names the current project inside it", () => {
-    expect(documentDestination("n", core, "s", "core:main").params).toMatchObject({
+    expect(documentDestination(core, "s", "core:main").params).toMatchObject({
       projectId: "core",
       documentId: "main",
     });
@@ -29,20 +29,15 @@ describe("documentDestination — following a document reference", () => {
 describe("project URLs", () => {
   it("uses the exact module identity, including document links", () => {
     const project = { id: "internal-stable", externalId: "boutique_addon", slug: "boutique-shop" };
-    expect(projectDestination("network", project, "server", "menu").params).toEqual({
-      networkId: "network",
+    expect(projectDestination(project, "server", "menu").params).toEqual({
       serverId: "server",
       projectId: "boutique_addon",
       documentId: "menu",
     });
   });
-  it("a Network alone leads back to the Network; no Network leads home", () => {
-    expect(projectDestination("network", { id: "internal", externalId: "My_Project" })).toEqual({
-      to: "/networks/$networkId",
-      params: { networkId: "network" },
-    });
-    expect(projectDestination(null, { id: "internal", externalId: "My_Project" })).toEqual({
-      to: "/",
+  it("without a server, leads back to the server list", () => {
+    expect(projectDestination({ id: "internal", externalId: "My_Project" })).toEqual({
+      to: "/servers",
     });
   });
 });

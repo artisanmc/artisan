@@ -10,7 +10,6 @@ import { ProjectMiniPreview } from "./ProjectMiniPreview";
 
 interface ProjectMiniProps {
   project: Project;
-  networkId: string;
   active: boolean;
 }
 
@@ -24,7 +23,7 @@ const sourceColor = (source: Project["source"]) =>
       ? "bg-[var(--warning-soft)] text-[var(--warning)]"
       : "bg-[var(--success-soft)] text-[var(--success)]";
 
-export function ProjectMini({ project, active, networkId }: ProjectMiniProps) {
+export function ProjectMini({ project, active }: ProjectMiniProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: project.id,
   });
@@ -49,7 +48,7 @@ export function ProjectMini({ project, active, networkId }: ProjectMiniProps) {
       )}
     >
       <Link
-        {...projectDestination(networkId, project, project.serverKeyId)}
+        {...projectDestination(project, project.serverKeyId)}
         className="flex flex-col gap-1.5"
       >
         <div className="flex items-center justify-between gap-2">

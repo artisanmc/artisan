@@ -4,12 +4,11 @@ import { create } from "zustand";
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 export interface PapiServerScope {
   userId: string;
-  networkId: string;
   serverId: string;
 }
 
 export const papiScopeKey = (scope: PapiServerScope) =>
-  JSON.stringify([scope.userId, scope.networkId, scope.serverId]);
+  JSON.stringify([scope.userId, scope.serverId]);
 
 interface State {
   key: string | null;
@@ -37,7 +36,7 @@ export const useServerPapiPlaceholdersStore = create<State>((set) => {
       const promise = (async () => {
         try {
           const response = await fetch(
-            `${API_URL}/api/v1/networks/${encodeURIComponent(scope.networkId)}/servers/${encodeURIComponent(scope.serverId)}/papi-placeholders`,
+            `${API_URL}/api/v1/servers/${encodeURIComponent(scope.serverId)}/papi-placeholders`,
             { credentials: "include", signal: AbortSignal.timeout(7_000) },
           );
           if (!response.ok) return;

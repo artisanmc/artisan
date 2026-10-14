@@ -130,7 +130,7 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     }
 
     companion object {
-        const val SERVER = "/api/v1/networks/:network/servers/:server"
+        const val SERVER = "/api/v1/servers/:server"
         private val HDB_ID = Regex("[0-9]{1,10}")
 
         /** No billing or quota: access is always open. */
