@@ -10,8 +10,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import java.util.logging.Logger
 
-/** A network's hub as seen from a leaf: its `/ws/plugin`, the shared secret and the leaf's name. */
-data class HubLink(val url: String, val secret: String, val serverName: String)
+/** A network's hub as seen from a leaf: its `/ws/plugin`, the shared secret, the leaf's name and suite database. */
+data class HubLink(val url: String, val secret: String, val serverName: String, val databaseId: String = "")
 
 class WsClient(
     private val hub: HubLink,
@@ -80,6 +80,7 @@ class WsClient(
                 "protocol_version" to net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT,
                 "server_key" to hub.secret,
                 "proxy_name" to hub.serverName,
+                "database_id" to hub.databaseId,
                 "plugin_version" to pluginVersion,
                 "minecraft_version" to mcVersion,
                 "installed_modules" to installedModules(),
@@ -116,6 +117,7 @@ class WsClient(
         }
 
         override fun onClosed(ws: WebSocket, code: Int, reason: String) {
+            if (code == 1008) logger?.severe("[Artisan] The hub refused this server: $reason")
             if (code != 1000) scheduleReconnect()
         }
     }

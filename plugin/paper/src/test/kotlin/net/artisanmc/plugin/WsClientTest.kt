@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class WsClientTest {
-    private fun hub(server: MockWebServer) = HubLink(server.url("/ws/plugin").toString(), "network-secret", "survie")
+    private fun hub(server: MockWebServer) = HubLink(server.url("/ws/plugin").toString(), "network-secret", "survie", "db-1")
 
     @Test
     fun `each hello carries the network identity and the current server config`() {
@@ -47,6 +47,7 @@ class WsClientTest {
             val hello = mapper.readTree(hellos.last())
             assertEquals("network-secret", hello["server_key"].asText())
             assertEquals("survie", hello["proxy_name"].asText())
+            assertEquals("db-1", hello["database_id"].asText())
         } finally {
             client.disconnect()
             server.shutdown()

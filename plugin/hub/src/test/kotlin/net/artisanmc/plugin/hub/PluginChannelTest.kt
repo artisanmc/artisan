@@ -37,13 +37,14 @@ class PluginChannelTest {
         override fun customItems() = emptyList<Map<String, String>>()
         override fun applyResourcePack(hash: String, path: String) {}
     }
+    private var hubDatabase: String? = "db-1"
     private val servers = Servers(local, newRemote = { RemoteServer(it, publicUrl = { "https://editor.example" }) })
     private val sessions = Sessions()
     private val editors = EditorChannel(null)
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(servers, sessions, null), sessions,
         EditorAssets(javaClass.classLoader), editors, Logger.getAnonymousLogger(),
-        PluginChannel(servers, "s3cret", sessions, editors, { host -> "https://${host ?: "editor.example"}" }, null),
+        PluginChannel(servers, "s3cret", sessions, editors, { host -> "https://${host ?: "editor.example"}" }, null, { hubDatabase }),
     )
     private val client = HttpClient.newHttpClient()
     private lateinit var cookie: String
@@ -86,8 +87,8 @@ class PluginChannelTest {
 
         fun next(): JsonNode = received.poll(5, TimeUnit.SECONDS) ?: error("nothing received")
 
-        fun hello(key: String = "s3cret", name: String = "survie2", protocol: String = "1") = send(mapOf(
-            "type" to "hello", "server_key" to key, "proxy_name" to name, "protocol_version" to protocol,
+        fun hello(key: String = "s3cret", name: String = "survie2", protocol: String = "1", database: String = "db-1") = send(mapOf(
+            "type" to "hello", "server_key" to key, "proxy_name" to name, "protocol_version" to protocol, "database_id" to database,
             "minecraft_version" to "1.21.4", "plugin_version" to "2.0.0",
             "installed_modules" to listOf(mapOf("id" to "quests", "version" to "1.0.0")),
             "server_config" to mapOf("language" to "fr"),
@@ -106,6 +107,22 @@ class PluginChannelTest {
         leaf.hello(key = "wrong")
         assertEquals(1008, leaf.closed.get(5, TimeUnit.SECONDS))
         assertEquals(1, get("/api/v1/networks/local/servers-status").get().second!!["total"].asInt())
+    }
+
+    @Test
+    fun `a server on another database is turned away`() {
+        val leaf = Leaf()
+        leaf.hello(database = "db-2")
+        assertEquals(1008, leaf.closed.get(5, TimeUnit.SECONDS))
+        assertEquals(1, get("/api/v1/networks/local/servers-status").get().second!!["total"].asInt())
+    }
+
+    @Test
+    fun `a hub on an embedded database turns every server away`() {
+        hubDatabase = null
+        val leaf = Leaf()
+        leaf.hello()
+        assertEquals(1008, leaf.closed.get(5, TimeUnit.SECONDS))
     }
 
     @Test

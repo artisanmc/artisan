@@ -127,9 +127,9 @@ leaf projects appear as `survival.<folder>`.
 
 Nothing in the logs, or an error? See [Network troubleshooting](/wiki/network/troubleshooting/).
 
-## Optional: shared database
+## Shared database (required)
 
-If add-ons must share data across servers, point every server at the same MySQL or
-MariaDB database (`database.*` in `environment.yml`). See
+Every server of the network, hub included, must use the same MySQL or MariaDB database
+(`database.*` in `environment.yml`): a server on the embedded H2 database is refused. See
 [Database](/wiki/configuration/database/) and the
 [full example configs](/wiki/network/example-configs/).
