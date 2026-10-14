@@ -15,7 +15,7 @@ import java.util.UUID
 import net.artisanmc.plugin.sync.BundleHasher
 
 /**
- * Projects, publishing and drafts. A Project's id comes from its folder name
+ * Projects, publishing and drafts. A Project's id is its server's id and its folder name
  * ([Servers.project]): without a database, that is the only identity there is.
  */
 class ProjectRoutes(
@@ -48,7 +48,7 @@ class ProjectRoutes(
                 val movable = movable(server, root)
                 call.json(mapOf(
                     "project" to summary(server, root),
-                    "serverKeyId" to server.uuid,
+                    "serverKeyId" to server.id,
                     "capabilities" to mapOf(
                         "liveData" to true, "captureInGame" to false, "preview" to true,
                         "canRename" to movable, "canDelete" to movable,
@@ -318,7 +318,7 @@ class ProjectRoutes(
         val id = ProjectRef.id(server.id, folder)
         return mapOf(
             "id" to id, "name" to folder, "externalId" to folder, "slug" to id,
-            "serverKeyId" to server.uuid, "hash" to "",
+            "serverKeyId" to server.id, "hash" to "",
             "identityKind" to root["identity"], "ownerModule" to root["module_id"], "projectKey" to root["project_key"],
             "capabilities" to mapOf("canRename" to movable(server, root)),
         )

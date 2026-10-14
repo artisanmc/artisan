@@ -27,8 +27,9 @@ class SuiteProjectDataTest {
     private val registry = ServerRegistry(ds, DatabaseDialect.H2, log)
     private val hubId = UUID.randomUUID().also { registry.register(it, "hub", Instant.EPOCH) }
     private val hubRow = registry.rowId(hubId)!!
+    private val hub = hubId.toString()
     private var now = 0L
-    private val data = SuiteProjectData(ds, DatabaseDialect.H2, { server -> if (server == "local") hubRow else registry.rowId(server) }, log) { now }
+    private val data = SuiteProjectData(ds, DatabaseDialect.H2, { server -> registry.rowId(UUID.fromString(server)) }, log) { now }
     private val t0 = Instant.parse("2026-10-14T10:00:00Z")
 
     @AfterTest fun teardown() = pools.closeAll()
@@ -43,18 +44,18 @@ class SuiteProjectDataTest {
     fun `the loaded state serves the list, a project's files with its metadata, and its drafts`() {
         data.versions.record(hubRow, "key-shop", "shop", mapOf("a.yml" to SnapshotEntry.text("one")), t0, null, null) { error("no binary") }
         data.recordState(hubRow, state("shop" to "h1"), t0)
-        assertEquals(listOf("shop"), data.loaded.list("local")!!["project_ids"])
-        assertNull(data.loaded.list("local")!!["projects"])
-        val read = data.loaded.read("local", "shop")!!
+        assertEquals(listOf("shop"), data.loaded.list(hub)!!["project_ids"])
+        assertNull(data.loaded.list(hub)!!["projects"])
+        val read = data.loaded.read(hub, "shop")!!
         assertEquals("h1", read["hash"])
         assertEquals(listOf(mapOf("path" to ".artisan/editor.yaml", "content" to "zoom: 1"), mapOf("path" to "a.yml", "content" to "one")), read["files"])
-        assertNull(data.loaded.read("local", "missing"))
-        assertTrue(data.drafts.knownProject("local", "shop"))
-        assertFalse(data.drafts.knownProject("local", "missing"))
-        assertNull(data.drafts.drafts("local", "missing"))
-        assertTrue(data.drafts.commit("local", "shop", "d1", "{\"id\":\"d1\"}", "active", "op-1", "f", "{}"))
-        assertEquals(listOf("{\"id\":\"d1\"}"), data.drafts.drafts("local", "shop"))
-        assertEquals("{\"id\":\"d1\"}", data.drafts.draft("local", "shop", "d1"))
+        assertNull(data.loaded.read(hub, "missing"))
+        assertTrue(data.drafts.knownProject(hub, "shop"))
+        assertFalse(data.drafts.knownProject(hub, "missing"))
+        assertNull(data.drafts.drafts(hub, "missing"))
+        assertTrue(data.drafts.commit(hub, "shop", "d1", "{\"id\":\"d1\"}", "active", "op-1", "f", "{}"))
+        assertEquals(listOf("{\"id\":\"d1\"}"), data.drafts.drafts(hub, "shop"))
+        assertEquals("{\"id\":\"d1\"}", data.drafts.draft(hub, "shop", "d1"))
         assertEquals("f" to "{}", data.drafts.receipt("op-1"))
         assertNull(data.loaded.list("nowhere"))
     }
@@ -62,30 +63,30 @@ class SuiteProjectDataTest {
     @Test
     fun `a server's state is read once per window, and again after it records or announces a reload`() {
         data.recordState(hubRow, state("shop" to "h1"), t0)
-        assertEquals("h1", (data.state("local")!!["projects"] as Map<*, *>).let { (it["shop"] as Map<*, *>)["hash"] })
+        assertEquals("h1", (data.state(hub)!!["projects"] as Map<*, *>).let { (it["shop"] as Map<*, *>)["hash"] })
         // Written behind the cache's back: the copy holds until the window ends.
         ServerStateStore(ds).put(hubRow, "{\"project_ids\":[],\"project_roots\":[],\"projects\":{}}", t0.plusSeconds(1))
-        assertEquals(listOf("shop"), data.state("local")!!["project_ids"])
+        assertEquals(listOf("shop"), data.state(hub)!!["project_ids"])
         now += SuiteProjectData.CACHE_MS
-        assertEquals(emptyList<Any>(), data.state("local")!!["project_ids"])
+        assertEquals(emptyList<Any>(), data.state(hub)!!["project_ids"])
         // This server's own record drops its copy at once; a remote reload announcement does the same by id.
         data.recordState(hubRow, state("shop" to "h2"), t0.plusSeconds(2))
-        assertEquals(listOf("shop"), data.state("local")!!["project_ids"])
+        assertEquals(listOf("shop"), data.state(hub)!!["project_ids"])
         ServerStateStore(ds).put(hubRow, "{\"project_ids\":[\"x\"],\"project_roots\":[],\"projects\":{}}", t0.plusSeconds(3))
-        data.invalidate("local")
-        assertEquals(listOf("x"), data.state("local")!!["project_ids"])
+        data.invalidate(hub)
+        assertEquals(listOf("x"), data.state(hub)!!["project_ids"])
     }
 
     @Test
     fun `history comes from the versions of the folder's project`() {
         data.versions.record(hubRow, "key-shop", "shop", mapOf("a.yml" to SnapshotEntry.text("one")), t0, null, null) { error("no binary") }
         data.versions.record(hubRow, "key-shop", "shop", mapOf("a.yml" to SnapshotEntry.text("two")), t0.plusSeconds(60), null, null) { error("no binary") }
-        val versions = data.history.versions("local", "shop")!!
+        val versions = data.history.versions(hub, "shop")!!
         assertEquals(2, versions.size)
         assertEquals(listOf("a.yml"), versions[0]["changed"])
-        val latest = data.history.version("local", "shop", versions[0]["id"] as String)!!
+        val latest = data.history.version(hub, "shop", versions[0]["id"] as String)!!
         assertEquals(versions[1]["id"], latest["previousId"])
-        assertEquals(listOf("two", "one"), data.history.fileHistory("local", "shop", "a.yml")!!.map { it["content"] })
-        assertNull(data.history.versions("local", "missing"))
+        assertEquals(listOf("two", "one"), data.history.fileHistory(hub, "shop", "a.yml")!!.map { it["content"] })
+        assertNull(data.history.versions(hub, "missing"))
     }
 }
