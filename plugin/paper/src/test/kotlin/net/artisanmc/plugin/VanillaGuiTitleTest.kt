@@ -52,27 +52,16 @@ class VanillaGuiTitleTest {
         assertNull(decorated.color())
     }
 
-    private fun tracker(delegated: Boolean = false) = PackLoadTracker().apply { this.delegated = delegated }
     private fun status(id: UUID, s: Status) = PlayerResourcePackStatusEvent(p, id, s)
 
-    @Test fun `a player counts once Artisan's own pack is loaded, not someone else's`() {
-        val ours = UUID.randomUUID()
-        val t = tracker()
-        t.pushed(ours)
+    @Test fun `a player counts once the host pack carrying Artisan's assets is loaded, until they leave`() {
+        val t = PackLoadTracker()
+        t.onStatus(status(UUID.randomUUID(), Status.ACCEPTED))
+        assertFalse(t.hasLoaded(p.uniqueId))
         t.onStatus(status(UUID.randomUUID(), Status.SUCCESSFULLY_LOADED))
-        assertFalse(t.hasLoaded(p.uniqueId))
-        t.onStatus(status(ours, Status.ACCEPTED))
-        assertFalse(t.hasLoaded(p.uniqueId))
-        t.onStatus(status(ours, Status.SUCCESSFULLY_LOADED))
         assertTrue(t.hasLoaded(p.uniqueId))
         t.onQuit(PlayerQuitEvent(p, Component.empty(), PlayerQuitEvent.QuitReason.DISCONNECTED))
         assertFalse(t.hasLoaded(p.uniqueId))
-    }
-
-    @Test fun `when delegated, the host pack carries Artisan's assets`() {
-        val t = tracker(delegated = true)
-        t.onStatus(status(UUID.randomUUID(), Status.SUCCESSFULLY_LOADED))
-        assertTrue(t.hasLoaded(p.uniqueId))
     }
 
     @Test fun `the opened container type is remembered until the player leaves`() {

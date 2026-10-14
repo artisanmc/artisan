@@ -12,12 +12,13 @@ servers, see [Network example configs](/wiki/network/example-configs/).
 
 Nothing to change: the defaults serve the editor on `http://<server address>:8765`.
 Open port 8765 to the admins only. If you use custom images or titles, delegate the
-pack to a pack plugin (below) or set `web.url` so players can download it.
+pack to a pack plugin (below): Artisan does not send a pack to players itself.
 
-## Single server behind Caddy, pack pushed by Artisan
+## Single server with Oraxen, behind Caddy
 
-A VPS running Paper with Caddy in front. Admins open `https://editor.example.com`;
-players download the resource pack from the same address. Port 8765 stays closed.
+A VPS running Paper and Oraxen with Caddy in front. Admins open
+`https://editor.example.com`; Oraxen sends the pack, with Artisan's merged in. Port
+8765 stays closed.
 
 ```yaml
 # plugins/Artisan/environment.yml
@@ -44,12 +45,8 @@ language: "en"
 per_player_language: true
 
 resource-pack:
-  enabled: true
-  prompt: "<gold>Example Network</gold> <gray>menus and icons</gray>"
-  send-on-join: true
-  send-delay-ticks: 20
-  delegate-to-dir: ""
-  delegate-reload-command: ""
+  delegate-to-dir: "plugins/Oraxen/pack/external_packs/artisan"
+  delegate-reload-command: "oraxen reload pack"
   container-textures:
     chest: ""
     hopper: ""
@@ -81,7 +78,6 @@ web:
 ```yaml
 # plugins/Artisan/config.yml
 resource-pack:
-  enabled: true
   delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"
   delegate-reload-command: "n reload"
 ```
@@ -97,7 +93,7 @@ ingress:
 ```
 
 You can put Cloudflare Access in front of `editor.example.com` to restrict it to your
-team: in delegation mode players never use that address.
+team: players never use that address.
 
 ## Secrets in environment variables
 

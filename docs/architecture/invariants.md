@@ -178,7 +178,8 @@ dans `asset-index.json` : `vanilla_gui.transparent_chests|hoppers|dispensers`.
   (ids 0..5, stables) ; entonnoirs et distributeurs/droppers par le type Bukkit de l'inventaire qui
   vient de s'ouvrir (`OpenedContainers`, `InventoryOpenEvent` juste avant le paquet), leurs ids
   protocole bougeant d'une version à l'autre. Pour un joueur seulement si `PackLoadTracker` l'a vu
-  charger le pack Artisan (id poussé, ou n'importe quel pack en délégation) **et** si le catalogue
+  charger un pack (le pack Artisan est toujours fusionné dans celui d'un plugin hôte : n'importe
+  quel `SUCCESSFULLY_LOADED` compte) **et** si le catalogue
   courant rend ce type transparent. Sinon la glyph s'afficherait en caractère manquant. Un menu
   Artisan en `vanilla_texture: false` n'est pas décoré.
 - **Transitoires acceptés** : entre une publication et le rechargement du nouveau pack, un joueur peut

@@ -16,23 +16,16 @@ language: "en"
 # a matching lang file is available. Falls back to 'language' if not.
 per_player_language: false
 
-# Resource pack pushed by Artisan (independent from Oraxen/Nexo/ItemsAdder packs;
-# uses the 1.20.3+ pack stack so it coexists with other packs side-by-side).
+# Artisan's resource pack (images, glyphs, fonts, composed titles).
+# Artisan never sends a pack to players itself: it writes its pack into the
+# pack of a resource-pack plugin (Nexo, Oraxen, ItemsAdder), which merges it
+# into its own and sends it to players.
 resource-pack:
-  # Only gates the push to players. In delegation mode (delegate-to-dir set)
-  # Artisan never touches players, so this flag decides nothing there —
-  # keep it true.
-  enabled: true
-  prompt: "<gold>Pack Artisan</gold>"
-  send-on-join: true
-  send-delay-ticks: 20
-  # When set, Artisan stops pushing its own RP to players and writes its
-  # pack contents to this path. The admin configures the host RP plugin
-  # (Oraxen / Nexo / ItemsAdder / etc.) to read from it.
+  # Where Artisan writes its pack (`assets/artisan/*`), inside the folder the
+  # host plugin merges external packs from.
   #
-  # In this mode `enabled`, `prompt`, `send-on-join` and `send-delay-ticks`
-  # are moot: Artisan only exports `assets/artisan/*` and the host plugin
-  # serves it.
+  # Without it, Artisan's textures and glyphs reach no player, and the
+  # console says so on every pack update.
   #
   # Output shape depends on the path suffix:
   #   - `<path>.zip`  → single zip file with `assets/artisan/*` and a
@@ -48,8 +41,10 @@ resource-pack:
   # Nexo example:
   #   delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"
   #   delegate-reload-command: "n reload"
-  #
-  # Default: empty (Artisan pushes its own RP to players).
+  # Oraxen example:
+  #   delegate-to-dir: "plugins/Oraxen/pack/external_packs/artisan"
+  #   delegate-reload-command: "oraxen reload pack"
+  # ItemsAdder or another host: the folder it merges, and its reload command.
   delegate-to-dir: ""
   # Optional: command dispatched on the console after each pack update.
   # Use this to auto-reload the host RP plugin so players don't see missing

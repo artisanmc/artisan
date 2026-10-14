@@ -2,16 +2,17 @@ package net.artisanmc.plugin.resourcepack
 
 import net.artisanmc.plugin.config.ResourcePackConfig
 import net.artisanmc.plugin.scheduling.schedulerFor
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
-import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerResourcePackStatusEvent
 import org.bukkit.plugin.java.JavaPlugin
-import java.util.UUID
 import java.util.logging.Logger
 
+/**
+ * Hands the pack built by the editor to a host resource-pack plugin (Nexo, Oraxen,
+ * ItemsAdder) through [delegator]; that plugin sends it to players. Artisan never
+ * sends a pack to players itself.
+ */
 open class ResourcePackManager(
     private val plugin: JavaPlugin,
     private val config: ResourcePackConfig,
@@ -20,16 +21,9 @@ open class ResourcePackManager(
     private val delegator: ResourcePackDelegator? = null,
     /** Optional on-disk cache of the last applied pack info ({url, download_url,
      *  hash} JSON). When set, [onUpdate] persists here and [loadFromDisk]
-     *  restores at boot — push mode keeps working across a restart, even
-     *  before a leaf reaches its hub. */
+     *  restores at boot, even before a leaf reaches its hub. */
     private val cacheFile: java.io.File? = null,
-    /** Records the packs pushed here, so a player counts once one of them is loaded. */
-    private val packLoads: PackLoadTracker? = null,
 ) : Listener {
-    init {
-        packLoads?.delegated = delegator != null
-    }
-
     private val scheduler by lazy { schedulerFor(plugin) }
 
     @Volatile
@@ -46,7 +40,7 @@ open class ResourcePackManager(
             val url = node["url"]?.asText() ?: return
             val hash = node["hash"]?.asText() ?: return
             val downloadUrl = node["download_url"]?.asText() ?: url
-            currentPackInfo = ResourcePackInfo.from(url, downloadUrl, hash, config.prompt)
+            currentPackInfo = ResourcePackInfo.from(url, downloadUrl, hash)
         } catch (_: Throwable) {
             // Swallow: a corrupt cache must never break boot.
         }
@@ -75,20 +69,9 @@ open class ResourcePackManager(
     }
 
     /**
-     * UUID of the most recently pushed Artisan pack. Used to remove the old layer from each
-     * player's resource pack stack when a new one is pushed, so orphaned Artisan packs do not
-     * accumulate (each rebuild produces a new UUID because it's derived from the pack hash).
-     *
-     * Singleton: every online player is on the same Artisan pack at any moment, since the
-     * editor builds one resource pack per server.
-     */
-    @Volatile
-    private var previousUuid: UUID? = null
-
-    /**
      * Build and apply a [ResourcePackInfo] from a pack URL + hash.
      *
-     * @param url  External URL used to push the pack to the player.
+     * @param url  URL of the pack on the hub.
      * @param hash 40-char hex SHA-1.
      */
     fun applyPack(url: String, hash: String) {
@@ -98,44 +81,28 @@ open class ResourcePackManager(
     /**
      * Build and apply a [ResourcePackInfo] with split URLs.
      *
-     * @param playerUrl   External URL the player's client uses (sent via `addResourcePack`).
+     * @param playerUrl   External URL of the pack on the hub.
      * @param downloadUrl Plugin-side URL the plugin uses to download the pack itself (for
-     *                    [AssetCatalog]). In Docker, this is the hub's internal address.
+     *                    delegation and [AssetCatalog]). In Docker, this is the hub's internal address.
      * @param hash        40-char hex SHA-1.
      */
     fun applyPack(playerUrl: String, downloadUrl: String, hash: String) {
-        onUpdate(ResourcePackInfo.from(playerUrl, downloadUrl, hash, config.prompt))
+        onUpdate(ResourcePackInfo.from(playerUrl, downloadUrl, hash))
     }
 
     fun onUpdate(info: ResourcePackInfo?) {
-        val oldInfo = currentPackInfo
         currentPackInfo = info
         persistToDisk(info)
-        if (info == null) {
-            // In delegate mode nothing was added to players: nothing to clean up.
-            if (delegator == null) {
-                oldInfo?.let { old ->
-                    for (player in plugin.server.onlinePlayers) {
-                        scheduler.onPlayer(player.uniqueId) { removePackSafe(player, old.uuid) }
-                    }
-                }
-                previousUuid = null
-            }
-            return
-        }
+        if (info == null) return
         assetCatalog?.let { cat -> updateCatalogAsync(cat, info) }
         if (delegator != null) {
             applyDelegateAsync(info)
-            return
+        } else {
+            logger?.warning(
+                "[resource-pack] pack ${info.hash} not applied: set resource-pack.delegate-to-dir " +
+                    "to the pack folder of Nexo, Oraxen or ItemsAdder",
+            )
         }
-        if (!config.enabled) return
-        // Captured before the overwrite below: a push deferred to the player's
-        // thread must still remove the pack this update replaces.
-        val replaced = previousUuid
-        for (player in plugin.server.onlinePlayers) {
-            scheduler.onPlayer(player.uniqueId) { pushToPlayer(player, replaced) }
-        }
-        previousUuid = info.uuid
     }
 
     private fun applyDelegateAsync(info: ResourcePackInfo) {
@@ -206,73 +173,6 @@ open class ResourcePackManager(
             start()
         }
     }
-
-    fun pushToPlayer(player: Player, replaced: UUID? = previousUuid) {
-        if (!config.enabled) {
-            logger?.info("[resource-pack] pushToPlayer: pack disabled for ${player.name}")
-            return
-        }
-        val info = currentPackInfo
-        if (info == null) {
-            logger?.warning("[resource-pack] pushToPlayer: no pack info available for ${player.name} (currentPackInfo is null)")
-            return
-        }
-        // addResourcePack (additive) instead of setResourcePack (which replaces every pack
-        // on the client), so other RP plugins like Nexo/Oraxen/ItemsAdder coexist. Our UUID
-        // changes on every rebuild (derived from the hash), so the previous Artisan pack is
-        // removed explicitly to avoid orphans.
-        replaced?.let { prev ->
-            if (prev != info.uuid) {
-                removePackSafe(player, prev)
-            }
-        }
-        try {
-            logger?.info("[resource-pack] pushing pack to ${player.name}: ${info.url} hash=${info.hash}")
-            packLoads?.pushed(info.uuid)
-            addPack(player, info)
-        } catch (t: Throwable) {
-            logger?.warning("[resource-pack] addResourcePack failed for ${player.name}: ${t.message}")
-        }
-    }
-
-    private fun removePackSafe(player: Player, uuid: UUID) {
-        try {
-            removePack(player, uuid)
-        } catch (t: Throwable) {
-            logger?.warning("[resource-pack] removeResourcePack failed for ${player.name}: ${t.message}")
-        }
-    }
-
-    /**
-     * Test seam — override in tests to capture the Bukkit API call without exercising the
-     * underlying [Player.addResourcePack] (which throws `UnimplementedOperationException`
-     * under MockBukkit).
-     */
-    protected open fun addPack(player: Player, info: ResourcePackInfo) {
-        // Paper's additive addResourcePack takes a plain-text prompt (the Component overload
-        // only exists on the deprecated setResourcePack form). Serialize the prompt component
-        // to a legacy §-coded string so colors/formatting still survive in the prompt dialog.
-        val promptText = LegacyComponentSerializer.legacySection().serialize(info.prompt)
-        player.addResourcePack(info.uuid, info.url, info.sha1Bytes, promptText, false)
-    }
-
-    /** Test seam — see [addPack]. */
-    protected open fun removePack(player: Player, uuid: UUID) {
-        player.removeResourcePack(uuid)
-    }
-
-    fun onJoin(player: Player) {
-        if (delegator != null) return
-        if (!config.enabled || !config.sendOnJoin) return
-        if (config.sendDelayTicks <= 0L) {
-            pushToPlayer(player)
-        } else {
-            scheduler.playerLater(player.uniqueId, config.sendDelayTicks) { pushToPlayer(player) }
-        }
-    }
-
-    @EventHandler
-    fun onPlayerJoin(event: PlayerJoinEvent) { onJoin(event.player) }
 
     @EventHandler
     fun onPackStatus(event: PlayerResourcePackStatusEvent) {
