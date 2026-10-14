@@ -15,10 +15,9 @@ const tour = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/api/auth", () => ({
   getMe: async () => ({ id: "u1", editorTour: tour.progress }),
-  patchMe: async (
-    _options: unknown,
-    { editor_tour: action }: { editor_tour: { action: string; step?: number } },
-  ) => {
+  patchMe: async ({
+    editor_tour: action,
+  }: { editor_tour: { action: string; step?: number } }) => {
     const started = action.action === "start" && !tour.progress;
     if (action.action === "start") tour.progress ??= { step: 0, completed: false };
     if (action.action === "progress") tour.progress = { step: action.step!, completed: false };
