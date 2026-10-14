@@ -294,7 +294,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         return mapOf(
             "id" to id, "name" to folder, "externalId" to folder, "slug" to id,
             "networkId" to LOCAL, "serverKeyId" to server.id, "hash" to "",
-            "identityKind" to root["identity"], "ownerModule" to root["module_id"],
+            "identityKind" to root["identity"], "ownerModule" to root["module_id"], "projectKey" to root["project_key"],
             "capabilities" to mapOf("canRename" to movable(server, root)),
         )
     }

@@ -114,7 +114,7 @@ ceux-ci — dans **`docs/architecture/invariants.md`**.
    ligne : rien n'est copié ailleurs. **Décidé, pas encore codé** : Versions, brouillons et
    `artisan_servers` dans la base de la suite (ADR `server-identity-and-versions`).
 2. **`.artisan*` en premier segment = métadonnée** — hors hash, invisible au scan disque. L'éditeur
-   possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`,
+   possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`,
    `.artisan-trash/` et `.artisan-sync.yaml` lui restent invisibles **et** interdits en écriture.
 3. **Threads : Paper, Folia, Leaf** — jamais `Bukkit.getScheduler()` : tout passe par le port
    `Scheduler`. Jetty répond sur ses propres threads ; tout accès au jeu depuis le hub repasse par

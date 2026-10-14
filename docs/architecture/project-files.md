@@ -16,6 +16,7 @@ plugins/Artisan/projects/
     models/<id>.yaml               ← schema model/v1, ignorés par le plugin
     assets/{glyphs,textures,fonts}/ ← images et polices (binaires, écrits par la publication)
     .artisan/editor.yaml           ← état de la planche éditeur (seul `.artisan*` que l'éditeur écrit)
+    .artisan/project-id            ← UUID du projet, écrit une fois par le plugin (garde Versions et brouillons à travers un renommage)
     .artisan/drafts/<id>/          ← brouillons privés (draft.json porte l'UUID du joueur propriétaire, + blobs)
     .artisan/transactions/         ← journal de publication, reçus dans `.receipts/`
     .artisan/history/              ← archives d'avant 2026-09-26, lues seulement

@@ -70,7 +70,8 @@ serveurs et un fichier d'UUID.
     les fichiers ; le brouillon est marqué publié ensuite, et une publication interrompue
     se résout au démarrage par les reçus de `.artisan/transactions/`.
 13. **Aucun import des brouillons de `.artisan/drafts/`** : seul un serveur de dev en a.
-14. **Project id.** Un UUID généré une fois dans `.artisan/editor.yaml` identifie un
+14. **Project id.** Un UUID généré une fois dans `.artisan/project-id` (écrit par le seul
+    plugin : l'éditeur reconstruit `editor.yaml` entier et l'effacerait) identifie un
     projet ; Versions et brouillons le référencent, un dossier renommé (éditeur ou main)
     les garde. Un dossier copié qui arrive avec un id déjà présent sur le même serveur en
     reçoit un nouveau, avec un avertissement. Un projet d'Add-on garde l'identité de son
