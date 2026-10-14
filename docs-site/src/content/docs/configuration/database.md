@@ -62,6 +62,15 @@ Restart the server after changing `database.*`. A pool that fails to open names 
 plugin and the URL, and ends with
 `Check the database section of plugins/Artisan/environment.yml.`
 
+## Moving from H2 to MySQL
+
+A server that ran alone on H2 keeps its project history when it switches to MySQL or
+MariaDB: at the first start on the new database, Artisan copies its versions and drafts
+from `plugins/Artisan/database/suite.mv.db` and logs
+`Imported from the embedded database: … versions, … drafts`. This happens once, and only
+if the new database has no history for this server yet. The H2 file is left untouched:
+other plugins of the suite move their own data.
+
 ## Supported versions
 
 | Type | `database.type` | Version |

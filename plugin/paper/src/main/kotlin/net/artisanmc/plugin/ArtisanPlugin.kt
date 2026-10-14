@@ -366,6 +366,7 @@ open class ArtisanPlugin : JavaPlugin() {
             return
         }
         serverRow = registry.rowId(serverId)
+        importEmbeddedDatabase()
         versionStore = net.artisanmc.plugin.database.VersionStore(artisanData ?: return)
         serverRegistry = registry
         fun beat() {
@@ -375,6 +376,24 @@ open class ArtisanPlugin : JavaPlugin() {
             scheduler.asyncLater(HEARTBEAT_TICKS) { beat() }
         }
         scheduler.asyncLater(HEARTBEAT_TICKS) { beat() }
+    }
+
+    /** On MySQL/MariaDB, this server's history from the H2 file it ran on alone, once (ADR `server-identity-and-versions` ⑪). */
+    private fun importEmbeddedDatabase() {
+        if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) return
+        val file = File(dataFolder, "database/${net.artisanmc.plugin.database.ConnectionPools.H2_FILE}.mv.db")
+        val target = artisanData ?: return
+        if (!file.isFile) return
+        val embedded = net.artisanmc.plugin.database.ConnectionPools(
+            { net.artisanmc.plugin.database.DatabaseSettings.of("h2", "", "0", "", "", "", 1, dataFolder) }, logger,
+        )
+        try {
+            net.artisanmc.plugin.database.EmbeddedImport.run(embedded.dataSource("Artisan-import"), target, serverId, logger)
+        } catch (e: Exception) {
+            logger.warning("[Artisan] History of the embedded database not imported: ${e.message}")
+        } finally {
+            embedded.closeAll()
+        }
     }
 
     /** The other servers of `artisan_servers` and their last presence, cached a few seconds; null without a registry. */
