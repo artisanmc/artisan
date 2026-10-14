@@ -41,8 +41,7 @@ export function RootLayout() {
     };
   }, [userId, activeServerId]);
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL ?? "";
-    useAuthStore.getState().hydrate(apiUrl);
+    useAuthStore.getState().hydrate();
   }, []);
   // Presence + live draft WS as soon as the active server is
   // known — cf. ProjectSidebar which resolves `activeServerId` to the exact

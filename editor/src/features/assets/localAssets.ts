@@ -1,6 +1,7 @@
 import type { Asset, AssetType } from "@/domain/asset";
 import type { ProjectDraft } from "@/features/project/draft";
 import type { AssetMutation } from "@/features/project/persistedDrafts";
+import { apiRequest } from "@/lib/api/client";
 import {
   DraftApiError,
   type PersistedDraft,
@@ -26,7 +27,6 @@ import { fontFilesFor, fontFromDisk } from "@/lib/pack/fontOnDisk";
 import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
 import { readPngContentWidth, readPngDimensions } from "@/lib/pack/pngDimensions";
 import type { AssetRow } from "@/lib/pack/resourcePackBuilder";
-import { projectFetch } from "@/lib/projectFetch";
 import { sha256Hex } from "@/lib/sha256";
 
 /**
@@ -34,7 +34,6 @@ import { sha256Hex } from "@/lib/sha256";
  * private draft (snapshot + blobs) the plugin already keeps.
  */
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
 const NAME_RE = /^[a-z0-9_-]+$/;
 const MAX_RAW_BYTES = 2 * 1024 * 1024;
 const MAX_FONT_BYTES = 5 * 1024 * 1024;
@@ -180,10 +179,8 @@ class DraftOverlay {
   }
 
   private async published(path: string): Promise<Uint8Array | null> {
-    const response = await projectFetch(
-      this.projectId,
-      `${API_URL}/api/v1/projects/${encodeURIComponent(this.projectId)}/binary?path=${encodeURIComponent(path)}`,
-      { credentials: "include" },
+    const response = await apiRequest(
+      `/api/v1/projects/${encodeURIComponent(this.projectId)}/binary?path=${encodeURIComponent(path)}`,
     ).catch(() => fail(503, "storage_unavailable"));
     if (response.status === 404 || response.status === 422) return null;
     if (!response.ok) fail(503, "storage_unavailable");

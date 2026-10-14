@@ -5,12 +5,11 @@ import {
   mutateDraftAssets,
   trackDraftAssetPreparation,
 } from "@/features/project/persistedDrafts";
-import { projectFetch } from "@/lib/projectFetch";
+import { ApiError, apiFetch, apiRequest, apiUrl } from "@/lib/api/client";
 import { watchProjectPrincipal } from "@/lib/projectPrincipal";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import type { PersistedDraft } from "./projectDrafts";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
 type AssetResponse = { draft: PersistedDraft; asset?: Asset; warnings?: string[] };
 type RequestAsset = NonNullable<AssetMutation["asset"]>;
 export async function listAssets(
@@ -118,15 +117,19 @@ export interface NexoGlyph {
   texture: string;
   available: boolean;
 }
+const nexoGlyphPath = (projectId: string, id?: string) =>
+  `/api/v1/user/projects/${encodeURIComponent(projectId)}/nexo-glyphs${id === undefined ? "" : `/${encodeURIComponent(id)}`}`;
 export const nexoGlyphUrl = (projectId: string, id?: string) =>
-  `${API_URL}/api/v1/user/projects/${encodeURIComponent(projectId)}/nexo-glyphs${id === undefined ? "" : `/${encodeURIComponent(id)}`}`;
+  apiUrl(nexoGlyphPath(projectId, id));
 export async function listNexoGlyphs(projectId: string): Promise<NexoGlyph[]> {
-  const response = await projectFetch(projectId, nexoGlyphUrl(projectId));
-  if (!response.ok) throw new Error("nexo_glyphs_unavailable");
-  return ((await response.json()) as { glyphs: NexoGlyph[] }).glyphs;
+  try {
+    return (await apiFetch<{ glyphs: NexoGlyph[] }>(nexoGlyphPath(projectId))).glyphs;
+  } catch (error) {
+    throw new ApiError("nexo_glyphs_unavailable", ApiError.from(error).status);
+  }
 }
 export async function fetchNexoGlyph(projectId: string, id: string): Promise<Blob> {
-  const response = await projectFetch(projectId, nexoGlyphUrl(projectId, id));
-  if (!response.ok) throw new Error(`nexo_glyph_unavailable: ${id}`);
+  const response = await apiRequest(nexoGlyphPath(projectId, id));
+  if (!response.ok) throw new ApiError(`nexo_glyph_unavailable: ${id}`, response.status);
   return response.blob();
 }

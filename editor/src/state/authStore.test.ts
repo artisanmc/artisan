@@ -1,8 +1,6 @@
 import i18n from "@/i18n";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { useAuthStore } from "./authStore";
-
-const API = "http://x";
 
 beforeEach(() => {
   useAuthStore.setState({
@@ -22,14 +20,14 @@ describe("authStore.hydrate", () => {
         { status: 200, headers: { "Content-Type": "application/json" } },
       ),
     );
-    await useAuthStore.getState().hydrate(API);
+    await useAuthStore.getState().hydrate();
     expect(useAuthStore.getState().currentUser?.id).toBe("u1");
     expect(useAuthStore.getState().isLoading).toBe(false);
   });
 
   test("leaves currentUser null when /me returns 401", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 401 }));
-    await useAuthStore.getState().hydrate(API);
+    await useAuthStore.getState().hydrate();
     expect(useAuthStore.getState().currentUser).toBeNull();
   });
 
@@ -50,7 +48,7 @@ describe("authStore.hydrate", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         ),
       );
-    const done = useAuthStore.getState().hydrate(API);
+    const done = useAuthStore.getState().hydrate();
     await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
     // Still loading: no route may bounce to /login.
     expect(useAuthStore.getState().isLoading).toBe(true);
@@ -69,7 +67,7 @@ describe("authStore.hydrate", () => {
       currentUser: { id: "u1", email: "a@e.com", name: "Alice", avatarUrl: null },
     });
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
-    void useAuthStore.getState().hydrate(API);
+    void useAuthStore.getState().hydrate();
     await vi.advanceTimersByTimeAsync(60_000);
     // The known user stays known, and the app stays usable: only those we never
     // knew anything about are blocked.
@@ -96,7 +94,7 @@ describe("authStore.hydrate", () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(null, { status: 502 }));
-    void useAuthStore.getState().hydrate(API);
+    void useAuthStore.getState().hydrate();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(useAuthStore.getState().sessionStatus).toBe("unknown");
     expect(useAuthStore.getState().currentUser).toBeNull();
@@ -130,7 +128,7 @@ describe("authStore.hydrate", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         ),
       );
-    void useAuthStore.getState().hydrate(API);
+    void useAuthStore.getState().hydrate();
     await vi.advanceTimersByTimeAsync(20_000);
     expect(fetchSpy.mock.calls.length).toBeGreaterThan(1);
     expect(useAuthStore.getState().sessionStatus).toBe("signed-in");
@@ -152,7 +150,7 @@ describe("authStore.hydrate", () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(null, { status: 502 }));
-    void useAuthStore.getState().hydrate(API);
+    void useAuthStore.getState().hydrate();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
@@ -176,7 +174,7 @@ describe("authStore.hydrate", () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(null, { status: 401 }));
-    await useAuthStore.getState().hydrate(API);
+    await useAuthStore.getState().hydrate();
     expect(useAuthStore.getState().sessionStatus).toBe("signed-out");
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -186,7 +184,7 @@ describe("authStore.logout", () => {
   test("clears currentUser", async () => {
     useAuthStore.setState({ currentUser: { id: "u", email: "x@y.z", name: "X", avatarUrl: null } });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
-    await useAuthStore.getState().logout(API);
+    await useAuthStore.getState().logout();
     expect(useAuthStore.getState().currentUser).toBeNull();
   });
 });
@@ -240,7 +238,7 @@ describe("authStore.hydrate — editor_language sync", () => {
     );
     const changeLang = vi.spyOn(i18n, "changeLanguage").mockResolvedValue(undefined as never);
 
-    await useAuthStore.getState().hydrate(API);
+    await useAuthStore.getState().hydrate();
 
     expect(useAuthStore.getState().currentUser?.editorLanguage).toBe("fr");
     expect(changeLang).toHaveBeenCalledWith("fr");
@@ -257,7 +255,7 @@ describe("authStore.hydrate — editor_language sync", () => {
     );
     const changeLang = vi.spyOn(i18n, "changeLanguage").mockResolvedValue(undefined as never);
 
-    await useAuthStore.getState().hydrate(API);
+    await useAuthStore.getState().hydrate();
 
     expect(changeLang).not.toHaveBeenCalled();
   });
@@ -282,7 +280,7 @@ describe("authStore.hydrate — theme sync", () => {
       ),
     );
 
-    await useAuthStore.getState().hydrate(API);
+    await useAuthStore.getState().hydrate();
 
     // themeStore.setTheme should have set data-theme on the document element
     expect(document.documentElement.dataset.theme).toBe("light");
@@ -307,7 +305,7 @@ describe("authStore.hydrate — theme sync", () => {
       ),
     );
 
-    await useAuthStore.getState().hydrate(API);
+    await useAuthStore.getState().hydrate();
 
     // localStorage had "dark" — the server's "light" must NOT override it
     expect(document.documentElement.dataset.theme).toBe("dark");

@@ -1,9 +1,7 @@
 import type { PlannedDelete, PlannedWrite } from "@/features/project/diskSave";
-import { projectFetch } from "@/lib/projectFetch";
 import { isPrivateProjectPath } from "@/lib/projectFileVisibility";
+import { ApiError, apiFetch } from "./client";
 import type { ProjectSummary } from "./servers";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /**
  * Reading / writing a Project's files **on the server's disk** (ADR
@@ -67,6 +65,12 @@ export type ProjectWriteResult =
     }
   | { ok: false; error: ProjectFilesError; code?: string; status?: number; message?: string };
 
+/** The hub's code when it is one of ours; a transport failure is `network_error`; else `fallback`. */
+function refusal(error: unknown, fallback: ProjectFilesError): ProjectFilesError {
+  const failure = ApiError.from(error);
+  return failure.status === 0 ? "network_error" : knownError(failure.code, fallback);
+}
+
 function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesError {
   const codes: ProjectFilesError[] = [
     "server_offline",
@@ -87,12 +91,9 @@ function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesErro
 export type ProjectTarget = string | { serverId: string; diskId: string };
 
 function base(target: ProjectTarget): string {
-  if (typeof target === "string")
-    return `${API_URL}/api/v1/projects/${encodeURIComponent(target)}/files`;
-  return `${API_URL}/api/v1/servers/${target.serverId}/projects/${encodeURIComponent(target.diskId)}/files`;
+  if (typeof target === "string") return `/api/v1/projects/${encodeURIComponent(target)}/files`;
+  return `/api/v1/servers/${target.serverId}/projects/${encodeURIComponent(target.diskId)}/files`;
 }
-
-const fetchProjectId = (target: ProjectTarget) => (typeof target === "string" ? target : undefined);
 
 /** The Project's full tree, read on demand from the server's disk. */
 export async function readProjectFiles(
@@ -106,10 +107,7 @@ export async function readProjectFiles(
 ): Promise<ProjectReadResult> {
   try {
     const url = ifHash ? `${base(target)}?if_hash=${encodeURIComponent(ifHash)}` : base(target);
-    const res = await projectFetch(fetchProjectId(target), url, {
-      credentials: "include",
-    });
-    const body = (await res.json().catch(() => null)) as {
+    const body = await apiFetch<{
       files?: { path: string; content: string }[];
       binaries?: { path: string; hash: string; size: number }[];
       failed?: FailedDocument[];
@@ -117,9 +115,7 @@ export async function readProjectFiles(
       unchanged?: boolean;
       offlineSince?: string;
       unpublished?: boolean;
-      error?: string;
-    } | null;
-    if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
+    } | null>(url);
     const offline = {
       ...(body?.offlineSince ? { offlineSince: body.offlineSince } : {}),
       ...(body?.unpublished ? { unpublished: true } : {}),
@@ -135,8 +131,8 @@ export async function readProjectFiles(
       hash: body?.hash ?? null,
       ...offline,
     };
-  } catch {
-    return { ok: false, error: "network_error" };
+  } catch (error) {
+    return { ok: false, error: refusal(error, "read_error") };
   }
 }
 
@@ -157,21 +153,23 @@ export async function writeProjectFiles(
   },
 ): Promise<ProjectWriteResult> {
   try {
-    const res = await projectFetch(fetchProjectId(target), base(target), {
+    await apiFetch(base(target), {
       method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      json: {
         files: plan.files,
         deletes: plan.deletes,
         renames: plan.renames ?? [],
         create: plan.create === true,
         ...(plan.operationId ? { operationId: plan.operationId } : {}),
         ...(plan.binaries ? { binaries: plan.binaries } : {}),
-      }),
+      },
     });
-    if (res.status === 409) {
-      const body = (await res.json().catch(() => null)) as {
+    return { ok: true };
+  } catch (error) {
+    const failure = ApiError.from(error);
+    if (failure.status === 0) return { ok: false, error: "network_error" };
+    if (failure.status === 409) {
+      const body = failure.body as {
         conflicts?: ProjectFileConflict[];
         disk_files?: string[];
       } | null;
@@ -182,22 +180,13 @@ export async function writeProjectFiles(
         diskFiles: body?.disk_files ?? [],
       };
     }
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as {
-        error?: string;
-        message?: unknown;
-      } | null;
-      return {
-        ok: false,
-        error: knownError(body?.error, "write_error"),
-        code: typeof body?.error === "string" ? body.error : "write_error",
-        status: res.status,
-        ...(typeof body?.message === "string" ? { message: body.message } : {}),
-      };
-    }
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "network_error" };
+    return {
+      ok: false,
+      error: knownError(failure.code, "write_error"),
+      code: failure.hasCode ? failure.code : "write_error",
+      status: failure.status,
+      ...(failure.detail !== undefined ? { message: failure.detail } : {}),
+    };
   }
 }
 
@@ -227,15 +216,10 @@ export async function readFileHistory(
 ): Promise<ProjectHistoryResult> {
   try {
     const url = `${base(target).replace(/\/files$/, "/history")}?path=${encodeURIComponent(path)}`;
-    const res = await fetch(url, { credentials: "include" });
-    const body = (await res.json().catch(() => null)) as {
-      versions?: FileVersion[];
-      error?: string;
-    } | null;
-    if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
+    const body = await apiFetch<{ versions?: FileVersion[] } | null>(url);
     return { ok: true, versions: body?.versions ?? [] };
-  } catch {
-    return { ok: false, error: "network_error" };
+  } catch (error) {
+    return { ok: false, error: refusal(error, "read_error") };
   }
 }
 
@@ -255,21 +239,15 @@ export type ProjectListResult =
  */
 export async function listServerProjects(serverId: string): Promise<ProjectListResult> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/servers/${serverId}/projects`, {
-      credentials: "include",
-    });
-    const body = (await res.json().catch(() => null)) as {
-      project_ids?: string[];
-      projects?: ProjectSummary[];
-      error?: string;
-    } | null;
-    if (!res.ok) return { ok: false, error: knownError(body?.error, "read_error") };
+    const body = await apiFetch<{ project_ids?: string[]; projects?: ProjectSummary[] } | null>(
+      `/api/v1/servers/${serverId}/projects`,
+    );
     return {
       ok: true,
       projectIds: body?.project_ids ?? [],
       ...(body?.projects ? { projects: body.projects } : {}),
     };
-  } catch {
-    return { ok: false, error: "network_error" };
+  } catch (error) {
+    return { ok: false, error: refusal(error, "read_error") };
   }
 }

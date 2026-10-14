@@ -12,7 +12,7 @@ import { useTextureStore } from "./textureStore";
 /** ID prefix for Library items inside the top-level DndContext. */
 export const LIBRARY_DRAG_PREFIX = "lib:";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { API_URL } from "@/lib/api/client";
 
 const TILE_SIZE = 48;
 const GAP = 6;
@@ -25,13 +25,7 @@ interface ItemTileProps {
   tints?: Record<number, string>;
 }
 
-function ItemTile({
-  item,
-  textureBase,
-  version,
-  bundleReady,
-  tints,
-}: ItemTileProps) {
+function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTileProps) {
   const armed = useUiStore((s) => s.armedMaterial === item.id);
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
