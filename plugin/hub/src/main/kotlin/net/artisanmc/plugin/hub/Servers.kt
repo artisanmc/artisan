@@ -1,17 +1,30 @@
 package net.artisanmc.plugin.hub
 
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The servers the editor reaches. The one hosting the hub is [LOCAL]; the others connect
- * through `/ws/plugin` and stay listed, offline, after a disconnect.
+ * through `/ws/plugin`. [known] lists them from `artisan_servers` with their last presence, so
+ * an offline server stays listed across hub restarts; null without a database, where a
+ * disconnected server stays listed until the hub restarts.
  */
-class Servers(val local: EditorServer) {
+class Servers(
+    val local: EditorServer,
+    private val known: () -> Map<String, Instant>? = { null },
+    private val newRemote: (String) -> RemoteServer = { RemoteServer(it, publicUrl = { "" }) },
+) {
     private val remote = ConcurrentHashMap<String, RemoteServer>()
 
-    fun all(): List<EditorServer> = listOf(local) + remote.values.sortedBy { it.id }
+    fun all(): List<EditorServer> {
+        val known = known() ?: return listOf(local) + remote.values.sortedBy { it.id }
+        known.keys.forEach(::remote)
+        return listOf(local) + remote.values.filter { it.online || it.id in known }.sortedBy { it.id }
+    }
 
-    fun remote(id: String, create: (String) -> RemoteServer): RemoteServer = remote.computeIfAbsent(id, create)
+    fun remote(id: String): RemoteServer = remote.computeIfAbsent(id, newRemote)
+
+    fun lastSeen(id: String): Instant? = known()?.get(id)
 
     fun find(id: String?): EditorServer? = all().firstOrNull { it.id == id }
 

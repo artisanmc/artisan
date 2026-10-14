@@ -57,7 +57,7 @@ class PluginChannel(
     }
 
     private fun welcome(session: Session, name: String, hello: ObjectNode): RemoteServer {
-        val server = servers.remote(name) { RemoteServer(it, publicUrl = { publicUrl(null) }) }
+        val server = servers.remote(name)
         val ack = mapOf(
             "type" to "hello_ack",
             "session_id" to UUID.randomUUID().toString(),
