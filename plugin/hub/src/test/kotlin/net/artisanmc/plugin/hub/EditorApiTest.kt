@@ -123,6 +123,23 @@ class EditorApiTest {
     }
 
     @Test
+    fun `an asset addressed by its hash is cached for good, any other answer is revalidated`() {
+        val png = byteArrayOf(1, 2, 3)
+        val hash = java.security.MessageDigest.getInstance("SHA-256").digest(png).joinToString("") { "%02x".format(it) }
+        answer = { mapOf("ok" to true, "content_base64" to java.util.Base64.getEncoder().encodeToString(png)) }
+        fun cacheOf(path: String): String {
+            val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}$path")).header("Cookie", cookie).GET().build()
+            val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray())
+            assertEquals(200, response.statusCode())
+            return response.headers().firstValue("Cache-Control").orElse("")
+        }
+        assertEquals("private, max-age=31536000, immutable", cacheOf("/api/v1/projects/shop/binary?path=assets/a.png&h=$hash"))
+        assertEquals("private, no-cache", cacheOf("/api/v1/projects/shop/binary?path=assets/a.png&h=${"0".repeat(64)}"))
+        assertEquals("private, no-cache", cacheOf("/api/v1/projects/shop/binary?path=assets/a.png"))
+        assertEquals("private, max-age=31536000, immutable", cacheOf("/api/v1/user/projects/shop/drafts/d1/blobs/$hash"))
+    }
+
+    @Test
     fun `reading a project passes the plugin tree through`() {
         answer = { mapOf("ok" to true, "files" to listOf(mapOf("path" to "main.yml", "content" to "a")), "hash" to "h1") }
         val (status, body) = call("GET", "/api/v1/projects/shop/files?if_hash=h0")

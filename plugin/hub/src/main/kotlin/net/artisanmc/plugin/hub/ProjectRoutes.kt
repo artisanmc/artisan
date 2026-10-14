@@ -14,6 +14,7 @@ import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
 import net.artisanmc.plugin.protocol.ProtocolVersion
 import java.util.Base64
 import java.util.UUID
+import net.artisanmc.plugin.sync.BundleHasher
 
 /**
  * Projects, publishing and drafts. A Project's id comes from its folder name
@@ -125,6 +126,10 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
     private fun movable(server: EditorServer, root: Map<String, Any?>) =
         root["identity"] == "folder" && ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.PROJECT_FOLDERS
 
+    /** A URL naming its content's hash never changes content: the browser keeps it for good. */
+    private fun cacheFor(bytes: ByteArray, hash: String?): String =
+        if (hash != null && BundleHasher.hashBytes(bytes) == hash) "private, max-age=31536000, immutable" else "private, no-cache"
+
     private fun onProject(router: Router, method: String, pattern: String, permission: String, handler: (Call, ProjectRef) -> Unit) {
         router.on(method, pattern, permission) { call ->
             val project = servers.projectOf(call) ?: return@on call.error(404, "not_found")
@@ -178,7 +183,8 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         relay.send(call, project.server, mapOf("type" to "asset_read", "project_id" to project.folder, "path" to path)) { reply ->
             val content = reply["content_base64"] as? String
             if (!ok(reply) || content == null) return@send readError(call, reply)
-            call.send(200, contentType(path), Base64.getDecoder().decode(content), "private, no-cache")
+            val bytes = Base64.getDecoder().decode(content)
+            call.send(200, contentType(path), bytes, cacheFor(bytes, call.query("h")))
         }
     }
 
@@ -192,7 +198,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
             val message = draftMessage(call, project, "read_blob", "draft_id" to call.params["draft"], "hash" to hash)
             relay.send(call, project.server, message) { reply ->
                 val content = reply["content_base64"] as? String
-                if (ok(reply) && content != null) call.send(200, "application/octet-stream", Base64.getDecoder().decode(content))
+                if (ok(reply) && content != null) Base64.getDecoder().decode(content).let { call.send(200, "application/octet-stream", it, cacheFor(it, hash)) }
                 else draftResponse(call, project, reply)
             }
         }
