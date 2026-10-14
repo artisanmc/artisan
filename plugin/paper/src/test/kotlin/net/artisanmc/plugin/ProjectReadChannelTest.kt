@@ -154,7 +154,7 @@ class ProjectReadChannelTest {
             h.provider.handleMessageForTesting("""{"type":"project_list","request_id":"snapshot"}""")
             val msg = h.awaitReply()
             assertEquals(listOf("loaded"), msg["project_ids"])
-            assertEquals(listOf(mapOf("project_id" to "loaded", "identity" to "folder")), msg["project_roots"])
+            assertEquals(listOf(mapOf("project_id" to "loaded", "identity" to "folder")), (msg["project_roots"] as List<*>).map { (it as Map<*, *>) - "project_key" })
         }
     }
 

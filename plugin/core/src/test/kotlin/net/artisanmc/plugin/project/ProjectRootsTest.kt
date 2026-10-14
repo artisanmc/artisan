@@ -25,18 +25,47 @@ class ProjectRootsTest {
         addonDir.deleteRecursively()
     }
 
+    @Test fun `a folder project keeps its key across a rename`() {
+        val key = roots.key("user_proj")
+        assertEquals(key, roots.key("user_proj"))
+        assertTrue(File(coreRoot, "user_proj").renameTo(File(coreRoot, "renamed")))
+        roots.all()
+        assertEquals(key, roots.key("renamed"))
+        assertEquals(key, roots.descriptor("renamed")["project_key"])
+    }
+
+    @Test fun `a copied folder gets a key of its own`() {
+        val key = roots.key("user_proj")
+        File(coreRoot, "user_proj").copyRecursively(File(coreRoot, "user_proj_copy"))
+        roots.all()
+        assertEquals(key, roots.key("user_proj"))
+        assertNotEquals(key, roots.key("user_proj_copy"))
+    }
+
+    @Test fun `an add-on project is keyed by its manifest identity`() {
+        roots.register("boutique_addon", addonDir)
+        assertEquals("addon:boutique_addon", roots.key("boutique_addon"))
+        assertFalse(File(addonDir, ".artisan/project-id").exists())
+    }
+
+    @Test fun `the key is metadata, outside the project hash`() {
+        roots.key("user_proj")
+        assertTrue(File(coreRoot, "user_proj/.artisan/project-id").isFile)
+        assertTrue(net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(".artisan/project-id"))
+    }
+
     @Test fun `an add-on root reports the module that owns it`() {
         roots.register("msguilds_addon", addonDir, "msguilds")
         assertEquals(
             mapOf("project_id" to "msguilds_addon", "identity" to "addon", "module_id" to "msguilds"),
-            roots.descriptor("msguilds_addon"),
+            roots.descriptor("msguilds_addon") - "project_key",
         )
-        assertEquals(mapOf("project_id" to "user_proj", "identity" to "folder"), roots.descriptor("user_proj"))
+        assertEquals(mapOf("project_id" to "user_proj", "identity" to "folder"), roots.descriptor("user_proj") - "project_key")
     }
 
     @Test fun `an add-on root registered without a module reports none`() {
         roots.register("boutique_addon", addonDir)
-        assertEquals(mapOf("project_id" to "boutique_addon", "identity" to "addon"), roots.descriptor("boutique_addon"))
+        assertEquals(mapOf("project_id" to "boutique_addon", "identity" to "addon"), roots.descriptor("boutique_addon") - "project_key")
     }
 
     @Test fun `dirFor resolves a core project under the core root`() {

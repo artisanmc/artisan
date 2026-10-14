@@ -15,6 +15,8 @@ import java.util.concurrent.ConcurrentHashMap
  * here so the core's read/hash/publish/trash/hot-reload operate per root.
  * On a `projectId` collision across roots, the registered Add-on root wins.
  */
+private const val KEY_FILE = ".artisan/project-id"
+
 class ProjectRoots(
     val coreRoot: File,
     private val logger: java.util.logging.Logger? = null,
@@ -32,7 +34,9 @@ class ProjectRoots(
 
     /** `project_roots` entry: identity, plus the owning module of an Add-on root when known. */
     fun descriptor(projectId: String): Map<String, String> {
-        val identity = mapOf("project_id" to projectId, "identity" to if (isRegistered(projectId)) "addon" else "folder")
+        val identity = mapOf(
+            "project_id" to projectId, "identity" to if (isRegistered(projectId)) "addon" else "folder", "project_key" to key(projectId),
+        )
         val owner = owners[projectId] ?: return identity
         return identity + ("module_id" to owner)
     }
@@ -70,6 +74,35 @@ class ProjectRoots(
         register(projectId, dir)
     }
 
+    /**
+     * The project's lasting identity (ADR `server-identity-and-versions`): an Add-on's manifest
+     * id, else a UUID written once in `.artisan/project-id` — metadata the editor never sees, so
+     * a renamed folder keeps it and only the plugin writes it.
+     */
+    fun key(projectId: String): String {
+        if (isRegistered(projectId)) return "addon:$projectId"
+        val file = File(dirFor(projectId), KEY_FILE)
+        return file.takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() } ?: newKey(file)
+    }
+
+    private fun newKey(file: File): String = java.util.UUID.randomUUID().toString().also {
+        file.parentFile.mkdirs()
+        file.writeText("$it\n")
+    }
+
+    /** A copied folder arrives with the key of its source: the later folder by name gets a new one. */
+    private fun dedupeKeys(folders: Map<String, File>) {
+        val seen = HashMap<String, String>()
+        for ((projectId, dir) in folders) {
+            if (isRegistered(projectId)) continue
+            val file = File(dir, KEY_FILE)
+            val key = file.takeIf { it.isFile }?.readText()?.trim() ?: continue
+            val first = seen.putIfAbsent(key, projectId) ?: continue
+            newKey(file)
+            logger?.warning("[Artisan] Project '$projectId' had the same id as '$first' (a copied folder?): it got a new one.")
+        }
+    }
+
     /** The project dir for [projectId]: a registered Add-on root, else `<coreRoot>/<projectId>`. */
     fun dirFor(projectId: String): File = registered[projectId] ?: File(coreRoot, projectId)
 
@@ -85,6 +118,7 @@ class ProjectRoots(
             ?.filter { it.isDirectory && !it.name.startsWith(".") }
             ?.forEach { out[it.name] = it }
         out.putAll(registered)
+        dedupeKeys(out)
         return out.filterValues { dir ->
             runCatching { ProjectPublisher(dir).recover() }.onFailure {
                 logger?.log(java.util.logging.Level.WARNING, "[Artisan] Publication recovery blocked; project remains isolated: ${dir.name}", it)
