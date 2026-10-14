@@ -24,8 +24,7 @@ PacketEvents is bundled in the jar: you do not need to install it for Artisan.
 | Who | Reaches | When |
 |---|---|---|
 | Admins (browser) | The editor port, or the HTTPS address in front of it | Always, to use the editor |
-| Players (Minecraft client) | Nothing beyond the Minecraft port | By default |
-| Players (Minecraft client) | `<editor address>/resource-pack/…` | Only when Artisan pushes its own resource pack (see [Resource packs](/wiki/configuration/resource-packs/)) |
+| Players (Minecraft client) | Nothing beyond the Minecraft port | Always: the pack comes from your pack plugin (see [Resource packs](/wiki/configuration/resource-packs/)) |
 | Other servers of a network | The hub's `/ws/plugin`, on the editor port | Only in [network mode](/wiki/network/concepts/) |
 
 ## Optional plugins

@@ -10,26 +10,18 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Players whose client has loaded Artisan's resource pack. A title glyph from
  * `artisan:vanilla_gui` only renders for them — anyone else would see missing
- * characters. Lives across `/artisan reload` (the pack manager is swapped).
+ * characters. The pack is always merged into a host plugin's pack (Nexo, Oraxen,
+ * ItemsAdder), so any successful load counts. Lives across `/artisan reload`.
  * Read from network threads.
  */
 class PackLoadTracker : Listener {
-    /** The pack is merged into a host plugin's pack: any successful load counts. */
-    @Volatile var delegated: Boolean = false
-
-    private val artisanPacks = ConcurrentHashMap.newKeySet<UUID>()
     private val loaded = ConcurrentHashMap.newKeySet<UUID>()
-
-    fun pushed(packId: UUID) {
-        artisanPacks += packId
-    }
 
     fun hasLoaded(playerId: UUID): Boolean = playerId in loaded
 
     @EventHandler
     fun onStatus(event: PlayerResourcePackStatusEvent) {
-        if (event.status != PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) return
-        if (delegated || event.id in artisanPacks) loaded += event.player.uniqueId
+        if (event.status == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) loaded += event.player.uniqueId
     }
 
     @EventHandler

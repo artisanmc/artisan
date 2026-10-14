@@ -1568,11 +1568,7 @@ export default {
         "pool-size": "Database connections per plugin",
       },
       "resource-pack": {
-        enabled: "Send the pack to players",
-        prompt: "Prompt message",
-        "send-on-join": "Send on join",
-        "send-delay-ticks": "Send delay (ticks)",
-        "delegate-to-dir": "Delegate the pack to (path)",
+        "delegate-to-dir": "Pack folder of Nexo, Oraxen or ItemsAdder (path)",
         "delegate-reload-command": "Reload command after delegation",
         "container-textures": {
           chest: "Chests",

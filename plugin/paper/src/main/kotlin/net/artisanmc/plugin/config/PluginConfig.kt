@@ -42,10 +42,6 @@ fun serverName(name: String, folder: String): String? {
 }
 
 data class ResourcePackConfig(
-    val enabled: Boolean,
-    val prompt: String,
-    val sendOnJoin: Boolean,
-    val sendDelayTicks: Long,
     val delegateToDir: String?,
     val delegateReloadCommand: String?,
 )
@@ -62,10 +58,6 @@ data class PluginConfig(
                 language          = cfg.getString("language", "en") ?: "en",
                 perPlayerLanguage = cfg.getBoolean("per_player_language", false),
                 resourcePack      = ResourcePackConfig(
-                    enabled        = cfg.getBoolean("resource-pack.enabled", true),
-                    prompt         = cfg.getString("resource-pack.prompt", "<gold>Pack Artisan</gold>") ?: "<gold>Pack Artisan</gold>",
-                    sendOnJoin     = cfg.getBoolean("resource-pack.send-on-join", true),
-                    sendDelayTicks = cfg.getLong("resource-pack.send-delay-ticks", 20L),
                     delegateToDir  = cfg.getString("resource-pack.delegate-to-dir")?.takeIf { it.isNotBlank() },
                     delegateReloadCommand = cfg.getString("resource-pack.delegate-reload-command")?.takeIf { it.isNotBlank() },
                 ),

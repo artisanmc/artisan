@@ -1,22 +1,19 @@
 ---
 title: Resource packs
-description: How Artisan's resource pack reaches players — delegation to Nexo, Oraxen or ItemsAdder, or a pack pushed by Artisan.
+description: How Artisan's resource pack reaches players — through Nexo, Oraxen or ItemsAdder.
 sidebar:
   order: 5
 ---
 
 Custom images, glyphs, fonts and composed titles reach players through a resource
 pack. The editor builds that pack **in your browser** after each publish and uploads
-it to the server that serves the editor (requires `artisan.editor.publish`). The
-server then applies it in one of two modes, chosen by `resource-pack.delegate-to-dir`
-in [config.yml](/wiki/configuration/config-yml/).
+it to the server that serves the editor (requires `artisan.editor.publish`).
 
-| | Delegation (recommended with a pack plugin) | Push by Artisan |
-|---|---|---|
-| `delegate-to-dir` | A path in your pack plugin's folder | Empty (default) |
-| Who sends the pack to players | Nexo, Oraxen or ItemsAdder, merged with their own pack | Artisan, as an extra pack (1.20.3+ pack stack, alongside other packs) |
-| Prompts players see | One | One per plugin that sends a pack |
-| What players must reach | Nothing new | `<web.url>/resource-pack/<sha1>.zip` on the editor's web server |
+Artisan never sends a pack to players itself. It writes its pack into the pack of a
+resource-pack plugin — Nexo, Oraxen or ItemsAdder — which merges it into its own and
+sends it to players. Players see one prompt, and never contact the editor's web
+server. You choose where Artisan writes with `resource-pack.delegate-to-dir` in
+[config.yml](/wiki/configuration/config-yml/).
 
 ## Delegation to a pack host
 
@@ -47,27 +44,11 @@ success the log shows:
 [delegate] dispatching host reload: /n reload
 ```
 
-If the directory cannot be written, Artisan logs
-`[delegate] delegate-to-dir … is not a writable directory — falling back to legacy push mode`
-and pushes the pack itself.
+The server downloads the pack from the editor's web server: on a leaf, from the HTTP
+address of its `web.hub`.
 
-In delegation mode the server downloads the pack from the editor's web server: on a
-leaf, from the HTTP address of its `web.hub`. Players never contact it.
-
-## Push by Artisan
-
-Leave `delegate-to-dir` empty. Artisan sends its pack on join (after
-`send-delay-ticks`, if `send-on-join` is true) and to everyone online right after a
-publish. The pack is optional for the client: a player who declines still joins.
-
-Players' clients download the zip from the editor's web server, so:
-
-1. Set `web.url` in `environment.yml` (of the hub, in a network) to an address
-   players can open — your domain behind a reverse proxy, or `http://<public-ip>:8765`.
-2. Make sure that address is reachable from the internet, including
-   `/resource-pack/`.
-
-Each client's answer is logged, which is the quickest way to diagnose:
+Each client's answer to the host's pack is logged, which is the quickest way to
+diagnose:
 
 ```
 [resource-pack] Steve: ACCEPTED (pack …)
@@ -75,16 +56,24 @@ Each client's answer is logged, which is the quickest way to diagnose:
 [resource-pack] Alex: FAILED_DOWNLOAD (pack …)
 ```
 
-`FAILED_DOWNLOAD` means the client could not fetch the URL: check `web.url`.
+## Without a pack host
+
+With `delegate-to-dir` empty, Artisan's textures, glyphs and composed titles reach no
+player. Menus still open, but custom images show as missing characters. Every pack
+update says so in the console:
+
+```
+[resource-pack] pack <sha1> not applied: set resource-pack.delegate-to-dir to the pack folder of Nexo, Oraxen or ItemsAdder
+```
+
+The same happens when the folder cannot be written; Artisan then logs at startup
+`[delegate] delegate-to-dir … is not a writable directory — Artisan's pack will not reach players`.
 
 ## In a network
 
-Each server has its own `config.yml`, so each server picks its mode. The pack of a
-leaf is uploaded through the hub, stored by the hub, and:
-
-- in push mode, players of the leaf download it from the **hub's** `web.url`;
-- in delegation mode, the leaf downloads it from the hub over the internal address
-  of `web.hub` and hands it to its local pack plugin.
+Each server has its own `config.yml` and its own pack host. The pack of a leaf is
+uploaded through the hub, stored by the hub, and the leaf downloads it over the
+internal address of `web.hub` and hands it to its local pack plugin.
 
 The last applied pack is cached on each server (`plugins/Artisan/cache/`) and
 survives restarts, even while the hub is unreachable.

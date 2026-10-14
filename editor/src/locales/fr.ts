@@ -1615,11 +1615,7 @@ const fr: typeof en = {
         "pool-size": "Connexions à la base par plugin",
       },
       "resource-pack": {
-        enabled: "Envoyer le pack aux joueurs",
-        prompt: "Message de demande",
-        "send-on-join": "Envoyer à la connexion",
-        "send-delay-ticks": "Délai d'envoi (ticks)",
-        "delegate-to-dir": "Déléguer le pack vers (chemin)",
+        "delegate-to-dir": "Dossier du pack de Nexo, Oraxen ou ItemsAdder (chemin)",
         "delegate-reload-command": "Commande de rechargement après délégation",
         "container-textures": {
           chest: "Coffres",

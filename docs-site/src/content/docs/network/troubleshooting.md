@@ -116,8 +116,6 @@ MariaDB — see [Database](/wiki/configuration/database/).
 
 ## Resource pack fails on leaves
 
-In push mode, players of every server download the pack from the **hub's** `web.url`:
-it must be reachable from the internet. In delegation mode, the leaf downloads it from
-the address in its `web.hub`; the log shows
+The leaf downloads the pack from the address in its `web.hub`; the log shows
 `[delegate] apply failed: download or extract of <url> failed: …` when it cannot. See
 [Resource packs](/wiki/configuration/resource-packs/#in-a-network).

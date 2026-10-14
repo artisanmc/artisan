@@ -164,7 +164,7 @@ class SyncedMenuProviderTest {
     @Test
     fun `provider forwards resource_pack_updated to manager`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(delegateToDir = null, delegateReloadCommand = null))
         val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "0".repeat(40)
@@ -178,7 +178,7 @@ class SyncedMenuProviderTest {
     @Test
     fun `provider applies resource_pack from hello_ack`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(delegateToDir = null, delegateReloadCommand = null))
         val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null, resourcePackManager = mgr)
         provider.load()
         val hash = "f".repeat(40)
@@ -192,7 +192,7 @@ class SyncedMenuProviderTest {
     @Test
     fun `a leaf downloads the hub pack through the hub address it joined`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(delegateToDir = null, delegateReloadCommand = null))
         val provider = SyncedMenuProvider(
             net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null, resourcePackManager = mgr,
             hub = net.artisanmc.plugin.ws.HubLink("ws://hub:8765/ws/plugin", "secret", "survie"),
@@ -217,8 +217,8 @@ class SyncedMenuProviderTest {
     @Test
     fun `provider clears the resource pack when hello_ack resource_pack is null`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
-        val mgr = ResourcePackManager(plugin, ResourcePackConfig(enabled = true, prompt = "<gold>x</gold>", sendOnJoin = false, sendDelayTicks = 0L, delegateToDir = null, delegateReloadCommand = null))
-        mgr.onUpdate(ResourcePackInfo.from("http://stale", "a".repeat(40), "<gold>x</gold>"))
+        val mgr = ResourcePackManager(plugin, ResourcePackConfig(delegateToDir = null, delegateReloadCommand = null))
+        mgr.onUpdate(ResourcePackInfo.from("http://stale", "a".repeat(40)))
         val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null, resourcePackManager = mgr)
         provider.load()
         val raw = """{"type":"hello_ack","session_id":"s","resource_pack":null}"""
