@@ -22,11 +22,15 @@ serveurs et un fichier d'UUID.
    l'éditeur donne une Version signée par le joueur ; une édition à la main chargée
    au démarrage ou par `/artisan reload` donne une Version sans auteur, marquée « modifié
    sur le disque ». Un reload sans changement n'enregistre rien.
-2. **Texte en base, binaires sur le disque.** Une Version porte un manifeste chemin →
-   hash ; chaque contenu texte est stocké une fois (table de contenus adressés par hash,
-   partagée par Versions et brouillons). Images et polices sont référencées par hash, leur
-   contenu reste sur le disque du serveur. Modèle repris du backend (`project_versions`
-   + `snapshot_blobs`, migration 0058).
+2. **Contenus adressés par hash en base, texte et binaires.** Une Version porte un
+   manifeste chemin → hash ; chaque contenu, texte ou binaire, est stocké une fois dans une
+   table de contenus partagée par Versions et brouillons, quel que soit le nombre de
+   Versions qui le référencent. Le disque reste l'autorité de ce que le serveur exécute ;
+   la base en garde une copie durable, alimentée à chaque Snapshot par les seuls hashes
+   nouveaux. Le hub sert ainsi les assets de n'importe quel serveur sans relais WebSocket,
+   serveur éteint compris. Modèle repris du backend (`project_versions` + `snapshot_blobs`,
+   migration 0058), étendu aux binaires comme le cache d'assets du backend
+   ([assets-on-server-disk](assets-on-server-disk.md)), mais durable.
 3. **Réseau = MySQL ou MariaDB.** Dès qu'un serveur se relie à un hub, la base de la suite
    est partagée : un serveur relié en H2 refuse de démarrer son lien, un hub en H2 refuse
    les serveurs qui se relient. Une ligne `artisan_meta` porte un identifiant de base
@@ -42,10 +46,8 @@ serveurs et un fichier d'UUID.
    démarrage, une ligne de même UUID sous un autre nom vue il y a moins de deux minutes
    signale une copie : refus, avec le nom du serveur en cours et la marche à suivre
    (supprimer `server-id`). Sinon c'est un renommage, journalisé.
-6. **Binaires d'une ancienne Version.** Avant qu'une publication remplace ou supprime un
-   binaire, son contenu est déplacé dans `.artisan/blobs/<hash>` (métadonnée `.artisan*` :
-   hors hash, invisible au scan). Un binaire supprimé à la main est perdu pour les
-   Versions passées ; restaurer le signale manquant.
+6. **Les binaires d'une ancienne Version sont en base** (décision 2) : une Version se
+   restaure entière, même après une suppression à la main. Aucun stockage sur le disque.
 7. **Rétention illimitée** pour commencer, sans purge.
 8. **Restaurer charge une Version dans un brouillon**, publié ensuite normalement : la
    publication reste l'unique chemin d'écriture. Un bouton « Restaurer et publier »
@@ -61,10 +63,10 @@ serveurs et un fichier d'UUID.
     importé si MySQL a déjà des Versions pour ce server id ; le fichier H2, partagé avec
     les autres plugins, n'est ni renommé ni supprimé. Les autres plugins migrent leurs
     tables eux-mêmes.
-12. **Brouillons en base.** Le texte d'un brouillon va dans la table de contenus ; les
-    binaires ajoutés et pas encore publiés y vont en blob jusqu'à la publication. Un
-    projet d'un serveur éteint s'ouvre depuis sa dernière Version et son brouillon reste
-    éditable ; publier attend le serveur. La publication garde son compare-and-swap sur
+12. **Brouillons en base, édition serveur éteint.** Un brouillon référence la même table
+    de contenus (texte et binaires ajoutés). Un projet d'un serveur éteint s'ouvre depuis
+    sa dernière Version, assets compris, et son brouillon reste éditable ; publier, les
+    données live et la capture en jeu attendent le serveur. La publication garde son compare-and-swap sur
     les fichiers ; le brouillon est marqué publié ensuite, et une publication interrompue
     se résout au démarrage par les reçus de `.artisan/transactions/`.
 13. **Aucun import des brouillons de `.artisan/drafts/`** : seul un serveur de dev en a.
@@ -80,8 +82,10 @@ tables, possédées par leur module, qui référencent `artisan_servers.id` ;
 
 ## Options rejetées
 
-- **Versions complètes en base (binaires compris)** : des blobs de plusieurs Mo à chaque
-  Version, des sauvegardes lourdes, pour restaurer des assets qui changent rarement.
+- **Binaires seulement sur le disque** (copie dans `.artisan/blobs/` au remplacement) :
+  chaque aperçu d'un serveur relié traverse le WebSocket, un serveur éteint n'a plus
+  d'assets, un binaire supprimé à la main est perdu pour l'historique. Le poids en base
+  craint au départ n'existe pas : adressé par hash, chaque asset n'est stocké qu'une fois.
 - **Tout sur le disque** : pas d'historique d'un serveur éteint, pas de vue réseau.
 - **Le hub écrit toutes les Versions dans sa base** : marche en H2, mais l'historique de
   tout le réseau vit sur la machine du hub ; en changer ou la perdre perd tout.
@@ -95,7 +99,9 @@ tables, possédées par leur module, qui référencent `artisan_servers.id` ;
   une erreur au démarrage, plus un avertissement.
 - Les sauvegardes de la base portent la valeur utilisateur (historique, travail en
   cours), plus seulement les données de jeu.
-- L'éditeur doit ouvrir un projet sans son serveur : canvas sans assets du serveur ni
-  données live.
+- L'éditeur doit ouvrir un projet sans son serveur : canvas depuis la base, sans données
+  live.
+- La base porte une copie de chaque asset jamais chargé : quelques Mo à quelques dizaines
+  de Mo par projet, croissant avec les assets distincts, pas avec les Versions.
 - `SLocation` de MSCore garde le nom en clair : Velocity route par nom. MSCore pourra lire
   ce nom depuis `artisan_servers` via l'API au lieu de sa clé `servername`.
