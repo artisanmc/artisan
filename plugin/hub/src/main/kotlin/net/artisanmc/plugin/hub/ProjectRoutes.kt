@@ -34,7 +34,8 @@ class ProjectRoutes(
                 if (!ok(reply)) return@listed readError(call, reply)
                 val projects = roots(reply).map { summary(server, it) }
                 call.json(mapOf(
-                    "project_ids" to (reply["project_ids"] as? List<*>).orEmpty().map { ProjectRef.id(server.id, it as String) },
+                    // Folder names, as the editor matches them to `projects[].externalId`; the Project ids are in `projects[].id`.
+                    "project_ids" to (reply["project_ids"] as? List<*>).orEmpty().map { it as String },
                     "projects" to projects,
                     "pending_renames" to emptyList<Any>(),
                 ))
