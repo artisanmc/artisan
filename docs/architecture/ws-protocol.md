@@ -81,7 +81,7 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | `data_source_fetch` | `data_source_fetch_result` | `{ref, params, filter, sort, limit, args}` → `{rows, truncated}` (50 lignes, ≤ 256 Ko). `unknown_source`, `player_required`, `fetch_error`. |
 | `nexo_glyphs_list` / `nexo_glyph_read` | `nexo_glyphs_list_result` / `nexo_glyph_read_result` | Glyphes Nexo lus dans `plugins/Nexo/glyphs/` (sans API Nexo) ; `{glyphs:[{id, texture, available}]}` puis `{content_base64}`. |
 | `custom_items_request` | `custom_items_bundle` | Sans `request_id`. Le serveur répond `{hash, data}`, `data = base64(gzip(zip))`, catalogue dans `items.json`. |
-| `resource_pack_updated` | — | `{url, hash}` : le pack que le hub vient de recevoir pour ce serveur, servi sous `/resource-pack/<sha1>.zip`. Le serveur l'applique (délégation ou envoi direct, `ResourcePackManager`) ; une feuille le télécharge par l'adresse du hub qu'elle connaît (`web.hub`), les joueurs par l'URL publique. |
+| `resource_pack_updated` | — | `{url, hash}` : le pack que le hub vient de recevoir pour ce serveur, servi sous `/resource-pack/<sha1>.zip`. Le serveur le délègue à son plugin de pack (Nexo, Oraxen, ItemsAdder ; `ResourcePackManager`, `resource-pack.delegate-to-dir`) qui l'envoie aux joueurs ; Artisan n'envoie jamais de pack lui-même. Une feuille le télécharge par l'adresse du hub qu'elle connaît (`web.hub`). |
 
 ### Serveur → hub (annonces et requêtes)
 

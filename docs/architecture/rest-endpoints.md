@@ -37,7 +37,7 @@ nom de son dossier (`shop`) ou `<serveur>.<dossier>` hors du serveur du hub (`su
 | `GET /login/<jeton>` | `HubServer.kt` | Échange le lien de `/artisan editor` (usage unique, 60 s) contre une session de 12 h : cookie `HttpOnly`, `SameSite=Strict`, `Secure` si la requête l'est. Jeton invalide → `/login?expired=1`. |
 | `WS /ws/editor` | `HubServer.kt`, `EditorChannel.kt` | Annonces aux onglets ouverts. |
 | `WS /ws/plugin` | `PluginChannel.kt` | Feuilles du réseau, authentifiées par le secret partagé au `hello`. Pas de session navigateur. |
-| `GET /resource-pack/<sha1>.zip` | `PackRoutes.kt` | **Public** (les clients Minecraft le téléchargent) ; `PackStore` garde les trois derniers. |
+| `GET /resource-pack/<sha1>.zip` | `PackRoutes.kt` | **Public** (les serveurs le téléchargent pour le déléguer à leur plugin de pack) ; `PackStore` garde les trois derniers. |
 | `GET /*` | `EditorAssets.kt` | Build de l'éditeur embarqué (`-PwithEditor`) ; tout chemin inconnu rend `index.html`. Sans build embarqué : 503 texte. |
 
 ## Index par fichier de routes

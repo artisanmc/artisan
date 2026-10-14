@@ -24,17 +24,13 @@ Edit it in either place:
 | `database.pool-size` | `4` | Maximum connections of **each** plugin's pool on the [database](/wiki/configuration/database/) (clamped to 1–50). Applies to pools opened after the change: restart for plugins already connected. |
 | `language` | `"en"` | Language of the plugin's own messages: `en` or `fr`. |
 | `per_player_language` | `false` | `true`: send plugin messages in each player's client language when a matching lang file exists, else in `language`. |
-| `resource-pack.enabled` | `true` | Push Artisan's pack to players. Only gates the push: in delegation mode it decides nothing — keep it `true`. |
-| `resource-pack.prompt` | `"<gold>Pack Artisan</gold>"` | Text of the pack prompt, in MiniMessage. |
-| `resource-pack.send-on-join` | `true` | Send the pack when a player joins. Players online during a publish get the new pack immediately either way. |
-| `resource-pack.send-delay-ticks` | `20` | Delay after joining before the pack is sent (20 ticks = 1 s). `0`: immediately. |
-| `resource-pack.delegate-to-dir` | `""` | Empty: Artisan pushes its own pack. Set: Artisan writes its pack there for Nexo, Oraxen or ItemsAdder to merge, and never touches players. A `.zip` path writes one zip; any other path is a directory (Artisan writes `<path>/assets/artisan/`, wiped on each update). Absolute, or relative to the server root. |
-| `resource-pack.delegate-reload-command` | `""` | Console command run after each pack update in delegation mode, e.g. `n reload` (Nexo), `oraxen reload pack` (Oraxen). |
+| `resource-pack.delegate-to-dir` | `""` | Where Artisan writes its pack for Nexo, Oraxen or ItemsAdder to merge and send to players. Empty: Artisan's textures and glyphs reach no player, and the console says so on every pack update. A `.zip` path writes one zip; any other path is a directory (Artisan writes `<path>/assets/artisan/`, wiped on each update). Absolute, or relative to the server root. |
+| `resource-pack.delegate-reload-command` | `""` | Console command run after each pack update, e.g. `n reload` (Nexo), `oraxen reload pack` (Oraxen). |
 | `resource-pack.container-textures.chest` | `""` | Texture drawn back on other chest windows when a menu turns the vanilla chest texture off. `project:image` names a project image in the vanilla layout (256×256 or an HD multiple). Empty: vanilla texture. |
 | `resource-pack.container-textures.hopper` | `""` | Same, for hoppers. |
 | `resource-pack.container-textures.dispenser` | `""` | Same, for dispensers. |
 
-The two resource-pack modes are explained in [Resource packs](/wiki/configuration/resource-packs/).
+How the pack reaches players is explained in [Resource packs](/wiki/configuration/resource-packs/).
 
 ## Custom messages
 
@@ -52,10 +48,6 @@ language: "en"
 per_player_language: false
 
 resource-pack:
-  enabled: true
-  prompt: "<gold>Pack Artisan</gold>"
-  send-on-join: true
-  send-delay-ticks: 20
   delegate-to-dir: ""
   delegate-reload-command: ""
   container-textures:

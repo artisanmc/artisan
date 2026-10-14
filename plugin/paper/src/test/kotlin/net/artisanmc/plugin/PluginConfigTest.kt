@@ -65,41 +65,10 @@ class PluginConfigTest {
     }
 
     @Test
-    fun `resource-pack defaults parsed correctly`() {
-        val yaml = YamlConfiguration()
-        yaml.loadFromString("""
-            language: "en"
-            per_player_language: false
-            resource-pack:
-              enabled: true
-              prompt: "<gold>Pack</gold>"
-              send-on-join: true
-              send-delay-ticks: 20
-        """.trimIndent())
-        val cfg = PluginConfig.from(yaml)
-        assertTrue(cfg.resourcePack.enabled)
-        assertEquals(20L, cfg.resourcePack.sendDelayTicks)
-        assertTrue(cfg.resourcePack.sendOnJoin)
-    }
-
-    @Test
-    fun `resource-pack missing block falls back to defaults`() {
-        val yaml = YamlConfiguration()
-        yaml.loadFromString("language: \"en\"")
-        val cfg = PluginConfig.from(yaml)
-        assertTrue(cfg.resourcePack.enabled)
-        assertEquals(20L, cfg.resourcePack.sendDelayTicks)
-    }
-
-    @Test
     fun `parses resource-pack delegate-to-dir when set`() {
         val yaml = YamlConfiguration()
         yaml.loadFromString("""
             resource-pack:
-              enabled: true
-              prompt: "<gold>x</gold>"
-              send-on-join: true
-              send-delay-ticks: 20
               delegate-to-dir: "/srv/mc/plugins/Oraxen/pack"
         """.trimIndent())
         val cfg = PluginConfig.from(yaml)

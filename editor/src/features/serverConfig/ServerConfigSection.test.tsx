@@ -19,7 +19,8 @@ vi.mock("@/lib/api/userAssets", () => ({ listAssets: api.listAssets }));
 const config = {
   language: "en",
   per_player_language: false,
-  "resource-pack.send-delay-ticks": 20,
+  "database.pool-size": 4,
+  "resource-pack.delegate-to-dir": "",
   "resource-pack.container-textures.chest": "",
   "resource-pack.container-textures.hopper": "",
   "resource-pack.container-textures.dispenser": "",
@@ -53,12 +54,12 @@ describe("ServerConfigSection", () => {
     api.patchServerConfig.mockResolvedValue({ ...config, language: "fr" });
     renderSection();
     fireEvent.change(await screen.findByLabelText("Langue"), { target: { value: "fr" } });
-    fireEvent.change(screen.getByLabelText(/Délai d'envoi/), { target: { value: "40" } });
+    fireEvent.change(screen.getByLabelText(/Connexions à la base/), { target: { value: "8" } });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() =>
       expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
         language: "fr",
-        "resource-pack.send-delay-ticks": 40,
+        "database.pool-size": 8,
       }),
     );
   });
@@ -83,14 +84,14 @@ describe("ServerConfigSection", () => {
   it("explains the plugin's refusal with the field's label", async () => {
     const { ServerConfigError } = await import("@/lib/api/serverConfig");
     api.patchServerConfig.mockRejectedValue(
-      new ServerConfigError("invalid_config", "resource-pack.send-delay-ticks: unsafe_path"),
+      new ServerConfigError("invalid_config", "resource-pack.delegate-to-dir: unsafe_path"),
     );
     renderSection();
     fireEvent.change(await screen.findByLabelText("Langue"), { target: { value: "xx" } });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     expect(
       await screen.findByText(
-        "Délai d'envoi (ticks) : le chemin doit rester dans le dossier du serveur.",
+        "Dossier du pack de Nexo, Oraxen ou ItemsAdder (chemin) : le chemin doit rester dans le dossier du serveur.",
       ),
     ).toBeInTheDocument();
   });

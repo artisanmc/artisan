@@ -16,7 +16,7 @@ editor — a single server, or the hub of a network — it listens on `web.port`
 | `/api/v1/…` | The editor's API (session cookie required) | The editor |
 | `/ws/editor` | Live updates (WebSocket) | The editor |
 | `/ws/plugin` | Leaf servers of a network (WebSocket, shared secret) | Other Minecraft servers — hub only |
-| `/resource-pack/<sha1>.zip` | The resource pack built by the editor | Players' clients, in push mode only |
+| `/resource-pack/<sha1>.zip` | The resource pack built by the editor | The servers, to hand it to their pack plugin |
 
 Settings live under `web` in [environment.yml](/wiki/configuration/environment/#web)
 and apply after a restart.
@@ -141,10 +141,8 @@ editor.example.com {
 }
 ```
 
-## Resource packs and `web.url`
+## Resource packs
 
-In push mode, players' clients download the pack from
-`<web.url>/resource-pack/<sha1>.zip`. Then `web.url` must be an address **players**
-can open, and the proxy must not restrict `/resource-pack/` to admins. Without
-`web.url`, pack URLs use `server-ip` from `server.properties`, or `localhost` — which
-players cannot reach. See [Resource packs](/wiki/configuration/resource-packs/).
+Players never download from the editor's web server: the servers fetch the pack
+there and hand it to Nexo, Oraxen or ItemsAdder, which send it. See
+[Resource packs](/wiki/configuration/resource-packs/).

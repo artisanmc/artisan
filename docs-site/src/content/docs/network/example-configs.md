@@ -106,9 +106,8 @@ database:
 
 ## config.yml
 
-Per server. Here the lobby pushes Artisan's pack itself (players download it from
-`https://editor.example.com/resource-pack/…`), while the survival server delegates to
-Nexo:
+Per server. Each server hands Artisan's pack to its own pack plugin, which sends it
+to players: Oraxen on the lobby and skyblock, Nexo on the survival server.
 
 ```yaml
 # lobby and skyblock — plugins/Artisan/config.yml
@@ -117,12 +116,8 @@ database:
 language: "en"
 per_player_language: true
 resource-pack:
-  enabled: true
-  prompt: "<gold>Example Network</gold>"
-  send-on-join: true
-  send-delay-ticks: 20
-  delegate-to-dir: ""
-  delegate-reload-command: ""
+  delegate-to-dir: "plugins/Oraxen/pack/external_packs/artisan"
+  delegate-reload-command: "oraxen reload pack"
 ```
 
 ```yaml
@@ -132,7 +127,6 @@ database:
 language: "en"
 per_player_language: true
 resource-pack:
-  enabled: true
   delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"
   delegate-reload-command: "n reload"
 ```
