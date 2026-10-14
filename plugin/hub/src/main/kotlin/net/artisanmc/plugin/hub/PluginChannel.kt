@@ -37,7 +37,11 @@ class PluginChannel(
             val session = session ?: return
             val message = runCatching { Call.mapper.readTree(text) }.getOrNull()?.takeIf { it.isObject } ?: return
             val current = server
-            if (current != null && message.path("type").asText() == "editor_link") return link(session, message)
+            if (current != null) when (message.path("type").asText()) {
+                "editor_link" -> return link(session, message, current.uuid)
+                "editor_permissions" -> return sessions.refresh(current.uuid, permissions(message.path("players")))
+                "editor_logout" -> return logout(session, message)
+            }
             if (current != null) return current.receive(message, editors)
             if (message.path("type").asText() != "hello") return
             val name = message.path("proxy_name").asText("")
@@ -86,13 +90,26 @@ class PluginChannel(
      * `/artisan editor` typed on this server: the hub gives the link. It checks no
      * permission itself; it uses the ones the server read for this player.
      */
-    private fun link(session: Session, message: JsonNode) {
+    private fun permissions(players: JsonNode): Map<UUID, Set<String>> =
+        players.properties().mapNotNull { (id, list) ->
+            runCatching { UUID.fromString(id) }.getOrNull()?.let { it to list.map { p -> p.asText() }.filter { p -> p in EditorPermissions.ALL }.toSet() }
+        }.toMap()
+
+    /** `/artisan editor logout` typed on a network server. */
+    private fun logout(session: Session, message: JsonNode) {
+        val player = runCatching { UUID.fromString(message.path("player_id").asText()) }.getOrNull()
+        val closed = player?.let(sessions::closeAll) ?: 0
+        val reply = mapOf("type" to "editor_logout_result", "request_id" to message.path("request_id").asText(), "ok" to (player != null), "closed" to closed)
+        session.sendText(Call.mapper.writeValueAsString(reply), Callback.NOOP)
+    }
+
+    private fun link(session: Session, message: JsonNode, origin: String) {
         val player = runCatching { UUID.fromString(message.path("player_id").asText()) }.getOrNull()
         val name = message.path("player_name").asText("")
         val permissions = message.path("permissions").map { it.asText() }.filter { it in EditorPermissions.ALL }.toSet()
         val result = when {
             player == null || name.isEmpty() || EditorPermissions.VIEW !in permissions -> mapOf("ok" to false, "error" to "invalid_input")
-            else -> when (val link = sessions.issueLink(player, name, permissions)) {
+            else -> when (val link = sessions.issueLink(player, name, permissions, origin)) {
                 is Sessions.LinkResult.Issued -> {
                     val host = message.path("host").asText("").ifEmpty { null }
                     mapOf("ok" to true, "url" to publicUrl(host) + HubServer.LOGIN + link.token)

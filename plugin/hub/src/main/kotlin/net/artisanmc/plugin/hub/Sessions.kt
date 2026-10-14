@@ -17,13 +17,17 @@ object EditorPermissions {
     val ALL = listOf(VIEW, EDIT, PUBLISH, CONFIG)
 }
 
-/** A player signed in to the editor. Its permissions are the ones it had when asking for the link. */
+/**
+ * A player signed in to the editor. Its permissions are the ones it had when asking for the link,
+ * then the ones [origin], the server it asked on (by server id), reads again while the player is on it.
+ */
 data class EditorSession(
     val id: String,
     val playerId: UUID,
     val playerName: String,
     val permissions: Set<String>,
     val expiresAt: Instant,
+    val origin: String = "",
 ) {
     fun can(permission: String) = permission in permissions
 }
@@ -35,6 +39,9 @@ interface SessionStore {
     fun touch(key: String, expiresAt: Instant)
     fun delete(key: String)
     fun purge(now: Instant)
+    fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>)
+    /** Every session of [playerId], or only those [origin] issued; the number deleted. */
+    fun deletePlayer(playerId: UUID, origin: String?): Int
 }
 
 /**
@@ -49,19 +56,21 @@ class Sessions(
     private val sessionTtl: Duration = Duration.ofDays(7),
     private val store: SessionStore? = null,
 ) {
-    private class Link(val playerId: UUID, val playerName: String, val permissions: Set<String>, val expiresAt: Instant)
+    private class Link(val playerId: UUID, val playerName: String, val permissions: Set<String>, val expiresAt: Instant, val origin: String)
 
     private val random = SecureRandom()
     private val links = ConcurrentHashMap<String, Link>()
     private val lastLink = ConcurrentHashMap<UUID, Instant>()
     private val sessions = ConcurrentHashMap<String, EditorSession>()
+    /** The last permissions each server reported per player: an unchanged report touches nothing. */
+    private val reported = ConcurrentHashMap<Pair<String, UUID>, Set<String>>()
 
     sealed interface LinkResult {
         data class Issued(val token: String) : LinkResult
         data class TooSoon(val retryAfter: Duration) : LinkResult
     }
 
-    fun issueLink(playerId: UUID, playerName: String, permissions: Set<String>): LinkResult {
+    fun issueLink(playerId: UUID, playerName: String, permissions: Set<String>, origin: String = ""): LinkResult {
         val now = clock.instant()
         purge(now)
         val previous = lastLink[playerId]
@@ -70,7 +79,8 @@ class Sessions(
         }
         lastLink[playerId] = now
         val token = token()
-        links[token] = Link(playerId, playerName, permissions, now.plus(linkTtl))
+        links[token] = Link(playerId, playerName, permissions, now.plus(linkTtl), origin)
+        reported.remove(origin to playerId)
         return LinkResult.Issued(token)
     }
 
@@ -79,7 +89,7 @@ class Sessions(
         val link = links.remove(token) ?: return null
         val now = clock.instant()
         if (!link.expiresAt.isAfter(now)) return null
-        val session = EditorSession(token(), link.playerId, link.playerName, link.permissions, now.plus(sessionTtl))
+        val session = EditorSession(token(), link.playerId, link.playerName, link.permissions, now.plus(sessionTtl), link.origin)
         sessions[session.id] = session
         store?.put(key(session.id), session)
         return session
@@ -103,6 +113,31 @@ class Sessions(
     fun close(id: String) {
         sessions.remove(id)
         store?.delete(key(id))
+    }
+
+    /** Signs [playerId] out everywhere; the number of sessions closed. */
+    fun closeAll(playerId: UUID): Int {
+        val inMemory = sessions.values.count { it.playerId == playerId }
+        sessions.values.removeIf { it.playerId == playerId }
+        return store?.deletePlayer(playerId, null) ?: inMemory
+    }
+
+    /**
+     * The editor permissions [origin] reads for its online players: they replace those of the
+     * sessions it issued, and a player without [EditorPermissions.VIEW] is signed out of them.
+     */
+    fun refresh(origin: String, players: Map<UUID, Set<String>>) {
+        for ((playerId, permissions) in players) {
+            if (reported.put(origin to playerId, permissions) == permissions) continue
+            val mine = { s: EditorSession -> s.playerId == playerId && s.origin == origin }
+            if (EditorPermissions.VIEW in permissions) {
+                sessions.replaceAll { _, s -> if (mine(s)) s.copy(permissions = permissions) else s }
+                store?.setPermissions(playerId, origin, permissions)
+            } else {
+                sessions.values.removeIf(mine)
+                store?.deletePlayer(playerId, origin)
+            }
+        }
     }
 
     private fun purge(now: Instant) {

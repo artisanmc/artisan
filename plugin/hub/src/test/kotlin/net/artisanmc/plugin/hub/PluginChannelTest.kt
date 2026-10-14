@@ -18,6 +18,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PluginChannelTest {
@@ -245,6 +246,29 @@ class PluginChannelTest {
 
         leaf.send(request + ("request_id" to "r2"))
         assertEquals("too_soon", leaf.next()["error"].asText())
+    }
+
+    @Test
+    fun `a server reports its players' permissions and signs players out`() {
+        val leaf = Leaf()
+        leaf.hello()
+        leaf.next()
+        val player = UUID.randomUUID()
+        leaf.send(mapOf(
+            "type" to "editor_link", "request_id" to "r1", "player_id" to player.toString(), "player_name" to "Iban",
+            "permissions" to listOf(EditorPermissions.VIEW, EditorPermissions.EDIT),
+        ))
+        val session = sessions.redeem(leaf.next()["url"].asText().substringAfterLast('/'))!!
+        leaf.send(mapOf("type" to "editor_permissions", "players" to mapOf(player.toString() to listOf(EditorPermissions.VIEW))))
+        leaf.send(mapOf("type" to "editor_logout", "request_id" to "r2", "player_id" to UUID.randomUUID().toString()))
+        assertEquals(0, leaf.next()["closed"].asInt())
+        assertEquals(setOf(EditorPermissions.VIEW), sessions.find(session.id)?.permissions)
+
+        leaf.send(mapOf("type" to "editor_logout", "request_id" to "r3", "player_id" to player.toString()))
+        val reply = leaf.next()
+        assertEquals("editor_logout_result", reply["type"].asText())
+        assertEquals(1, reply["closed"].asInt())
+        assertNull(sessions.find(session.id))
     }
 
     @Test

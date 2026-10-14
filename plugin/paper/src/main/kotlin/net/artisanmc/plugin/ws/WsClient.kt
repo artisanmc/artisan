@@ -98,7 +98,7 @@ class WsClient(
             when (message?.get("type")?.asText()) {
                 "hello_ack" -> authenticated = true
                 "session_replaced" -> clearRequests()
-                "editor_link_result" -> {
+                "editor_link_result", "editor_logout_result" -> {
                     requests.remove(message.path("request_id").asText())?.complete(message)
                     return
                 }

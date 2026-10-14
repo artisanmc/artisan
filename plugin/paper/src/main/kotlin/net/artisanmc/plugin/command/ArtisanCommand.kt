@@ -29,6 +29,10 @@ class ArtisanCommand(
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
+            args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
+                listOf("logout").filter { it.startsWith(args[1].lowercase()) }
+            args.size == 3 && args[0].equals("editor", ignoreCase = true) && sender.hasPermission("artisan.admin") ->
+                plugin.server.onlinePlayers.map { it.name }.filter { it.startsWith(args[2], ignoreCase = true) }
             else -> emptyList()
         }
     }
@@ -66,7 +70,11 @@ class ArtisanCommand(
                     else -> sender.sendMessage(lang.get("artisan.usage_sync", sender))
                 }
             }
-            "editor" -> editor(sender)
+            "editor" -> when (args.getOrNull(1)?.lowercase()) {
+                null -> editor(sender)
+                "logout" -> logout(sender, args.getOrNull(2))
+                else -> sender.sendMessage(lang.get("artisan.usage_editor", sender))
+            }
             "dump-title" -> {
                 val menuId = args.getOrNull(1) ?: run {
                     sender.sendMessage("Usage: /artisan dump-title <menu_id> [lang]")
@@ -172,6 +180,32 @@ class ArtisanCommand(
         editorLink(sender, senderLang, editor.port ?: cfg.web.port)
     }
 
+    /** Closes every editor session of a player: oneself, or anyone with `artisan.admin`. */
+    private fun logout(sender: CommandSender, name: String?) {
+        val senderLang = lang.playerLang(sender)
+        if (name != null && !sender.hasPermission("artisan.admin")) return sender.sendMessage(lang.get("cmd.no_permission", sender))
+        val target = when {
+            name != null -> plugin.server.getPlayerExact(name) ?: plugin.server.getOfflinePlayerIfCached(name)
+            sender is Player -> sender
+            else -> return sender.sendMessage(lang.get("artisan.usage_editor", senderLang))
+        } ?: return sender.sendMessage(lang.get("artisan.editor_unknown_player", senderLang, "player" to name.orEmpty()))
+        val playerName = target.name ?: name.orEmpty()
+        fun done(count: Int?) = sender.sendMessage(
+            if (count == null) lang.get("artisan.editor_hub_offline", senderLang)
+            else lang.get("artisan.editor_logged_out", senderLang, "count" to count.toString(), "player" to playerName),
+        )
+        val cfg = plugin.currentConfig()
+        if (!(cfg.web.enabled && cfg.web.leaf)) {
+            if (plugin.editor == null) return sender.sendMessage(lang.get("artisan.editor_disabled", senderLang))
+            return done(plugin.editorSessions.closeAll(target.uniqueId))
+        }
+        val provider = plugin.menuProvider as? SyncedMenuProvider ?: return done(null)
+        provider.requestEditorLogout(target.uniqueId).whenComplete { reply, _ ->
+            if (!plugin.isEnabled) return@whenComplete
+            plugin.scheduler.global { done(reply?.takeIf { it.path("ok").asBoolean() }?.path("closed")?.asInt()) }
+        }
+    }
+
     /** A single-use link: the identity in the editor is the player who asked for it. */
     private fun editorLink(sender: CommandSender, senderLang: String, port: Int) {
         if (sender !is Player) {
@@ -183,7 +217,7 @@ class ArtisanCommand(
             sender.sendMessage(lang.get("artisan.editor_no_permission", senderLang))
             return
         }
-        when (val link = plugin.editorSessions.issueLink(sender.uniqueId, sender.name, permissions)) {
+        when (val link = plugin.editorSessions.issueLink(sender.uniqueId, sender.name, permissions, plugin.serverUuid)) {
             is Sessions.LinkResult.Issued -> {
                 val host = sender.virtualHost?.hostString ?: plugin.server.ip.ifBlank { "localhost" }
                 val base = plugin.editorUrl.ifEmpty { "http://$host:$port" }
