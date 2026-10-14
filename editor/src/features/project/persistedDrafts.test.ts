@@ -662,3 +662,33 @@ it("discards a draft the hub no longer holds without failing", async () => {
   await discardPersistedDraft("p1");
   expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
 });
+
+it("recovers a draft stuck on a pending save the hub no longer knows, and can discard it", async () => {
+  const stuck = {
+    ...snapshot,
+    remote: {
+      id: "old-disk-draft",
+      name: "My work",
+      revision: 3,
+      ownerId: "u1",
+      pendingMutation: {
+        operationId: "op-old",
+        kind: "save" as const,
+        id: "old-disk-draft",
+        name: "My work",
+        revision: 3,
+        snapshot,
+      },
+    },
+  };
+  useProjectDraftStore.getState().save("p1", stuck);
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("not_found", 404));
+  await loadPersistedDrafts("p1", "u1");
+  expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+
+  useProjectDraftStore.getState().save("p1", stuck);
+  await discardPersistedDraft("p1");
+  expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
+});

@@ -62,19 +62,6 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
     const drafts = await api.listDrafts(projectId);
     if (projectPrincipal.current(projectId)?.id !== ownerId) return;
     const active = before?.remote ? drafts.find((d) => d.id === before.remote?.id) : drafts[0];
-    if (before?.remote?.pendingMutation) {
-      setSession(projectId, { ownerId, drafts, active, status: "pending" });
-      return;
-    }
-    const acknowledged = useProjectDraftStore.getState().get(projectId)?.remote;
-    // An autosave may finish while the listing still describes the older revision.
-    if (
-      acknowledged &&
-      acknowledged.id === before?.remote?.id &&
-      acknowledged.revision > before.remote.revision &&
-      (!active || acknowledged.revision > active.revision)
-    )
-      return;
     if (before?.remote?.revision && !active) {
       const archived = await api.readDraft(projectId, before.remote.id).catch((error) => {
         if (!gone(error)) throw error;
@@ -104,6 +91,19 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
         return;
       }
     }
+    if (before?.remote?.pendingMutation) {
+      setSession(projectId, { ownerId, drafts, active, status: "pending" });
+      return;
+    }
+    const acknowledged = useProjectDraftStore.getState().get(projectId)?.remote;
+    // An autosave may finish while the listing still describes the older revision.
+    if (
+      acknowledged &&
+      acknowledged.id === before?.remote?.id &&
+      acknowledged.revision > before.remote.revision &&
+      (!active || acknowledged.revision > active.revision)
+    )
+      return;
     const current = useProjectDraftStore.getState().get(projectId);
     let status: Session["status"] = current ? "pending" : "saved";
     if (
@@ -433,9 +433,13 @@ export async function publishPersistedDraft(projectId: string): Promise<{
 }
 function terminalMutation(projectId: string, local: ProjectDraft, kind: "publish" | "discard") {
   const remote = local.remote!;
-  if (remote.pendingMutation && remote.pendingMutation.kind !== kind)
-    throw new Error("draft_operation_pending");
-  const operation = remote.pendingMutation ?? {
+  // Discarding throws the work away: an unsent save does not stand in its way, a publication does.
+  const pending =
+    kind === "discard" && remote.pendingMutation?.kind === "save"
+      ? undefined
+      : remote.pendingMutation;
+  if (pending && pending.kind !== kind) throw new Error("draft_operation_pending");
+  const operation = pending ?? {
     kind,
     operationId: crypto.randomUUID(),
     id: remote.id,
