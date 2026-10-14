@@ -45,6 +45,39 @@ class ServerRegistryTest {
     }
 
     @Test
+    fun `a new name on the same server id renames its row`() {
+        val id = UUID.randomUUID()
+        registry.register(id, "data", t0)
+        registry.stop(id)
+        assertEquals(Registration.Renamed("data"), registry.register(id, "survie", t0.plusSeconds(30)))
+        assertEquals(listOf("survie"), registry.others(UUID.randomUUID()).map { it.name })
+    }
+
+    @Test
+    fun `a crashed server renamed after two minutes is renamed too`() {
+        val id = UUID.randomUUID()
+        registry.register(id, "data", t0)
+        assertEquals(Registration.Renamed("data"), registry.register(id, "survie", t0.plusSeconds(180)))
+    }
+
+    @Test
+    fun `a copied server id is refused while its original runs`() {
+        val id = UUID.randomUUID()
+        registry.register(id, "survie", t0)
+        assertEquals(Registration.CopiedId("survie"), registry.register(id, "survie2", t0.plusSeconds(30)))
+        assertEquals(listOf("survie"), registry.others(UUID.randomUUID()).map { it.name })
+    }
+
+    @Test
+    fun `a name held by another server id is refused`() {
+        registry.register(UUID.randomUUID(), "survie", t0)
+        val other = UUID.randomUUID()
+        assertEquals(Registration.NameTaken, registry.register(other, "survie", t0.plusSeconds(600)))
+        registry.register(other, "lobby", t0)
+        assertEquals(Registration.NameTaken, registry.register(other, "survie", t0.plusSeconds(600)))
+    }
+
+    @Test
     fun `the server id is generated once`() {
         val file = dir.resolve("server-id")
         val first = ServerIdFile.read(file)
