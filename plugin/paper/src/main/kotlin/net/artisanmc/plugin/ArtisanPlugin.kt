@@ -330,20 +330,22 @@ open class ArtisanPlugin : JavaPlugin() {
         }
 
     private val serverId: UUID by lazy { net.artisanmc.plugin.database.ServerIdFile.read(File(dataFolder, "server-id")) }
+    /** Artisan's own tables in the suite database, migrated once; null when it cannot be opened. */
+    private val artisanData: javax.sql.DataSource? by lazy {
+        try {
+            database.dataSource(this).also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, database.dialect, logger) }
+        } catch (e: Exception) {
+            logger.warning("[Artisan] Suite database unavailable, offline servers and history are disabled: ${e.message}")
+            null
+        }
+    }
     @Volatile private var serverRegistry: net.artisanmc.plugin.database.ServerRegistry? = null
     @Volatile private var knownCache: Pair<Long, Map<String, java.time.Instant>>? = null
 
     /** This server in `artisan_servers`, its presence refreshed every minute (ADR `server-identity-and-versions`). */
     private fun startServerRegistry(web: net.artisanmc.plugin.hub.WebConfig) {
         val name = networkName(web) ?: return
-        val registry = try {
-            val dataSource = database.dataSource(this)
-            net.artisanmc.plugin.database.ArtisanSchema.migrate(dataSource, database.dialect, logger)
-            net.artisanmc.plugin.database.ServerRegistry(dataSource, database.dialect, logger)
-        } catch (e: Exception) {
-            logger.warning("[Artisan] Server registry unavailable, offline servers will not be listed: ${e.message}")
-            return
-        }
+        val registry = net.artisanmc.plugin.database.ServerRegistry(artisanData ?: return, database.dialect, logger)
         val refused = when (val result = runCatching { registry.register(serverId, name, java.time.Instant.now()) }.getOrElse {
             logger.warning("[Artisan] Server registry unavailable, offline servers will not be listed: ${it.message}")
             return
@@ -394,9 +396,6 @@ open class ArtisanPlugin : JavaPlugin() {
         if (!web.enabled) return
         if (web.leaf) {
             logger.info("[Artisan] Editor served by the hub at ${web.hubUrl}")
-            if (databaseSettings().type.equals("h2", ignoreCase = true)) {
-                logger.warning("[Artisan] Network mode with an H2 database: each server keeps its own suite data. Use MySQL or MariaDB to share it.")
-            }
             return
         }
         try {
@@ -407,7 +406,10 @@ open class ArtisanPlugin : JavaPlugin() {
             }
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
             val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs)
-            val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger)
+            val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger) {
+                if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) null
+                else artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
+            }
             val server = net.artisanmc.plugin.hub.HubServer(
                 web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger, plugins,
             )
@@ -598,7 +600,15 @@ open class ArtisanPlugin : JavaPlugin() {
         if (!web.leaf) return null
         val secret = networkSecret(web).ifEmpty { return null }
         val name = networkName(web) ?: return null
-        return net.artisanmc.plugin.ws.HubLink(web.hubUrl, secret, name)
+        if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) {
+            logger.severe("[Artisan] Not connecting to the hub: a network needs a shared MySQL or MariaDB database, this server uses H2 (database.type in environment.yml).")
+            return null
+        }
+        val databaseId = artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() } ?: run {
+            logger.severe("[Artisan] Not connecting to the hub: the suite database cannot be read.")
+            return null
+        }
+        return net.artisanmc.plugin.ws.HubLink(web.hubUrl, secret, name, databaseId)
     }
 
     /**

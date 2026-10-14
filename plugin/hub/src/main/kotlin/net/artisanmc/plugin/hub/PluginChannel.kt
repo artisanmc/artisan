@@ -22,6 +22,8 @@ class PluginChannel(
     /** The hub's public address; the host a player joined through is the fallback. */
     private val publicUrl: (host: String?) -> String,
     private val logger: Logger?,
+    /** The suite database this hub uses; null for an embedded one, which a Network cannot share. */
+    private val databaseId: () -> String?,
 ) {
     fun endpoint(): Session.Listener = object : Session.Listener.AutoDemanding {
         private var session: Session? = null
@@ -42,6 +44,9 @@ class PluginChannel(
             when {
                 !authorized(message.path("server_key").asText("")) -> refuse(session, "invalid server_key")
                 !NAME.matches(name) || name.equals(Servers.LOCAL, ignoreCase = true) -> refuse(session, "invalid proxy_name")
+                databaseId() == null -> refuse(session, "the hub uses an embedded H2 database: a network needs a shared MySQL or MariaDB database")
+                message.path("database_id").asText("") != databaseId() ->
+                    refuse(session, "not on the hub's database: every server of a network must use the same MySQL or MariaDB database")
                 else -> server = welcome(session, name, message as ObjectNode)
             }
         }

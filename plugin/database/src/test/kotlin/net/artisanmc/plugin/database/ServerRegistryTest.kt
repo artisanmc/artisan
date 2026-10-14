@@ -78,6 +78,13 @@ class ServerRegistryTest {
     }
 
     @Test
+    fun `the database id is generated once and shared`() {
+        val ds = pools.dataSource("Artisan")
+        val id = ArtisanMeta.databaseId(ds)
+        assertEquals(id, ArtisanMeta.databaseId(pools.dataSource("Other")))
+    }
+
+    @Test
     fun `the server id is generated once`() {
         val file = dir.resolve("server-id")
         val first = ServerIdFile.read(file)
