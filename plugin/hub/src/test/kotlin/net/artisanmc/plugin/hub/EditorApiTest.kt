@@ -110,9 +110,10 @@ class EditorApiTest {
 
     @Test
     fun `projects are listed by folder name`() {
-        answer = { mapOf("ok" to true, "project_ids" to listOf("shop"), "project_roots" to listOf(mapOf("project_id" to "shop", "identity" to "folder"))) }
+        answer = { mapOf("ok" to true, "project_ids" to listOf("shop"), "project_roots" to listOf(mapOf("project_id" to "shop", "identity" to "folder", "project_key" to "k-1"))) }
         val (_, body) = call("GET", "/api/v1/networks/local/servers/local/projects")
         assertEquals("shop", body!!["project_ids"][0].asText())
+        assertEquals("k-1", body["projects"][0]["projectKey"].asText())
         assertEquals("shop", body["projects"][0]["externalId"].asText())
         assertEquals("local", body["projects"][0]["serverKeyId"].asText())
 
