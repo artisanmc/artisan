@@ -200,7 +200,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
     private fun applyReload() {
-        capturedItems.reload()
+        capturedItems.reload((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
         api.modules.active().forEach { runCatching { it.onReload() } }
         api.events.publish(ConfigReloadEvent(moduleId = "menus"))
