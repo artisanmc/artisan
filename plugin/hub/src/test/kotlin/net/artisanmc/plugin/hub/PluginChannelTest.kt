@@ -37,7 +37,7 @@ class PluginChannelTest {
         override fun customItems() = emptyList<Map<String, String>>()
         override fun applyResourcePack(hash: String, path: String) {}
     }
-    private val servers = Servers(local)
+    private val servers = Servers(local, newRemote = { RemoteServer(it, publicUrl = { "https://editor.example" }) })
     private val sessions = Sessions()
     private val editors = EditorChannel(null)
     private val hub = HubServer(
