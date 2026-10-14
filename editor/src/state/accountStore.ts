@@ -1561,13 +1561,6 @@ export const useAccountStore = create<AccountState>()(
         ),
       setDialogId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
-        // Renaming is a MOVE, and only the editor knows it: the tree alone would
-        // only show a disappearance and an appearance. Without this intent, the
-        // trash archives a deletion that is not one and the file's history is
-        // orphaned from its new name.
-        useProjectDraftStore
-          .getState()
-          .recordRename(pId, `dialogs/${oldId}.yaml`, `dialogs/${newId}.yaml`);
         if (!newId) throw new Error("dialog id cannot be empty");
         const state = get();
         const project = state.account.projects.find((p) => p.id === pId);
@@ -1598,6 +1591,14 @@ export const useAccountStore = create<AccountState>()(
           p.updatedAt = new Date().toISOString();
         });
         set({ account: next });
+        // Renaming is a MOVE, and only the editor knows it: the tree alone would
+        // only show a disappearance and an appearance. Without this intent, the
+        // trash archives a deletion that is not one and the file's history is
+        // orphaned from its new name. Recorded once the rename is applied: a
+        // refused one must leave no intent behind in the draft.
+        useProjectDraftStore
+          .getState()
+          .recordRename(pId, `dialogs/${oldId}.yaml`, `dialogs/${newId}.yaml`);
       },
       addDialogBody: ({ projectId: pId, dialogId: dId, body }) =>
         set(
@@ -2664,23 +2665,19 @@ export const useAccountStore = create<AccountState>()(
       },
       setMenuId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
-        // Renaming is a MOVE, and only the editor knows it: the tree alone would
-        // only show a disappearance and an appearance. Without this intent, the
-        // trash archives a deletion that is not one and the file's history is
-        // orphaned from its new name.
-        useProjectDraftStore
-          .getState()
-          .recordRename(pId, `menus/${oldId}.yaml`, `menus/${newId}.yaml`);
         if (!newId) throw new Error("menu id cannot be empty");
+        {
+          const project = get().account.projects.find((p) => p.id === pId);
+          if (!project) return;
+          if (project.menus.some((m) => m.id === newId)) {
+            throw new Error(`menu id "${newId}" already exists in project`);
+          }
+          if (!project.menus.some((m) => m.id === oldId)) return;
+        }
         set(
           produce((draft: AccountState) => {
-            const project = draft.account.projects.find((p) => p.id === pId);
-            if (!project) return;
-            if (project.menus.some((m) => m.id === newId)) {
-              throw new Error(`menu id "${newId}" already exists in project`);
-            }
-            const menu = project.menus.find((m) => m.id === oldId);
-            if (!menu) return;
+            const project = draft.account.projects.find((p) => p.id === pId)!;
+            const menu = project.menus.find((m) => m.id === oldId)!;
             menu.id = newId;
             // Rewrite open_menu refs across the entire project — both
             // element click handlers and command step trees.
@@ -2716,26 +2713,26 @@ export const useAccountStore = create<AccountState>()(
             project.updatedAt = new Date().toISOString();
           }),
         );
+        // Same intent as setDialogId, recorded once the rename is applied.
+        useProjectDraftStore
+          .getState()
+          .recordRename(pId, `menus/${oldId}.yaml`, `menus/${newId}.yaml`);
       },
       setCommandId: ({ projectId: pId, oldId, newId }) => {
         if (oldId === newId) return;
-        // Renaming is a MOVE, and only the editor knows it: the tree alone would
-        // only show a disappearance and an appearance. Without this intent, the
-        // trash archives a deletion that is not one and the file's history is
-        // orphaned from its new name.
-        useProjectDraftStore
-          .getState()
-          .recordRename(pId, `commands/${oldId}.yaml`, `commands/${newId}.yaml`);
         if (!newId) throw new Error("command id cannot be empty");
+        {
+          const project = get().account.projects.find((p) => p.id === pId);
+          if (!project) return;
+          if (project.commands.some((c) => c.id === newId)) {
+            throw new Error(`command id "${newId}" already exists in project`);
+          }
+          if (!project.commands.some((c) => c.id === oldId)) return;
+        }
         set(
           produce((draft: AccountState) => {
-            const project = draft.account.projects.find((p) => p.id === pId);
-            if (!project) return;
-            if (project.commands.some((c) => c.id === newId)) {
-              throw new Error(`command id "${newId}" already exists in project`);
-            }
-            const cmd = project.commands.find((c) => c.id === oldId);
-            if (!cmd) return;
+            const project = draft.account.projects.find((p) => p.id === pId)!;
+            const cmd = project.commands.find((c) => c.id === oldId)!;
             cmd.id = newId;
             const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
             if (oldId in layout) {
@@ -2748,6 +2745,10 @@ export const useAccountStore = create<AccountState>()(
             project.updatedAt = new Date().toISOString();
           }),
         );
+        // Same intent as setDialogId, recorded once the rename is applied.
+        useProjectDraftStore
+          .getState()
+          .recordRename(pId, `commands/${oldId}.yaml`, `commands/${newId}.yaml`);
       },
       setElementId: ({ projectId: pId, menuId: mId, oldId, newId }) => {
         if (oldId === newId) return;
