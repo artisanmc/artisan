@@ -1411,6 +1411,8 @@ const fr: typeof en = {
     failed: "Impossible de lire les versions.",
     view: "Voir les changements",
     restore: "Restaurer dans mon brouillon",
+    restoreAndPublish: "Restaurer et publier",
+    restoredFrom: "Restaurée depuis la version du {{date}}",
     current: "Actuelle",
     kindDeploy: "Déploiement",
     kindServer: "Modif. serveur",
@@ -1423,7 +1425,7 @@ const fr: typeof en = {
     after: "Cette version",
     restored: "Version restaurée dans ton brouillon. Publie pour l'appliquer sur le serveur.",
     restoreHint:
-      "Ton brouillon reprend le contenu de cette version. Les images restent inchangées. Rien n'est publié.",
+      "Ton brouillon reprend le contenu de cette version, images comprises. Tu revois les changements avant toute publication.",
     hint: "Chaque version est ce que le serveur a chargé : un déploiement depuis l'éditeur ou un rechargement après une modification à la main.",
   },
   yamlView: {

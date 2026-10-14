@@ -14,24 +14,43 @@ import {
   listProjectVersions,
   readProjectVersion,
 } from "@/lib/api/projectVersions";
+import { performLocalAssetMutation } from "@/features/assets/localAssets";
 import { useAccountStore } from "@/state/accountStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { mutateDraftAssets } from "./persistedDrafts";
 import { adoptDiskIntoProject, projectTree } from "./saveProjectToDisk";
 
+/** Opens the top bar's deploy review: a restore is published through the usual review. */
+export const OPEN_DEPLOY_REVIEW = "artisan:open-deploy-review";
+
 /**
- * Replaces the draft's text content with the Version's. Nothing is
- * published: the user then publishes normally (compare-and-swap included).
- * Binaries (images) stay the draft's — the Version only keeps their hash.
+ * Replaces the draft's content with the Version's: text files, then images
+ * and fonts read back from the server. Nothing is published: the user then
+ * publishes normally (compare-and-swap included), and that Version says it
+ * was restored from this one.
  */
-export function restoreVersionIntoDraft(projectId: string, version: ProjectVersionContent) {
+export async function restoreVersionIntoDraft(projectId: string, version: ProjectVersionContent) {
   const { account, replaceProject } = useAccountStore.getState();
   const project = account.projects.find((p) => p.id === projectId);
   if (!project) throw new Error("project_unavailable");
   const files = Object.fromEntries(version.files.map((f) => [f.path, f.content]));
   const removed = Object.keys(projectTree(project)).filter((path) => !(path in files));
   replaceProject(adoptDiskIntoProject(project, files, removed));
+  await mutateDraftAssets(
+    projectId,
+    {
+      suffix: "/restore",
+      method: "POST",
+      fields: { versionId: version.id, binaries: JSON.stringify(version.binaries) },
+    },
+    (operation) => performLocalAssetMutation(projectId, operation),
+  );
+  const draft = useProjectDraftStore.getState().get(projectId);
+  if (draft)
+    useProjectDraftStore.getState().save(projectId, { ...draft, restoredFrom: version.id });
 }
 
 const textTree = (version: ProjectVersionContent | null) =>
@@ -55,6 +74,11 @@ export function versionChangeSet(
 }
 
 const PREVIEW_PATHS = 3;
+
+const dateOf = (versions: ProjectVersionSummary[] | null, id: string) => {
+  const found = versions?.find((v) => v.id === id);
+  return found ? new Date(found.createdAt).toLocaleString() : `#${id}`;
+};
 
 /**
  * The workspace's History tab: the server Project's Versions, most recent
@@ -110,6 +134,13 @@ export function ProjectHistory({ projectId, active }: { projectId: string; activ
                 </span>
                 {index === 0 ? <span className="badge">{t("versions.current")}</span> : null}
               </span>
+              {version.restoredFrom ? (
+                <span className="truncate text-xs text-[var(--text-mut)]">
+                  {t("versions.restoredFrom", {
+                    date: dateOf(versions, version.restoredFrom),
+                  })}
+                </span>
+              ) : null}
               <span className="truncate text-xs text-[var(--text-mut)]">
                 {version.author
                   ? t("versions.deployedBy", { name: version.author.name })
@@ -176,13 +207,15 @@ export function VersionDiffDialog({
     };
   }, [projectId, versionId]);
 
-  const restore = () => {
+  const restore = async (publish: boolean) => {
     if (!content) return;
     setBusy(true);
     try {
-      restoreVersionIntoDraft(projectId, content.version);
-      toast.success(t("versions.restored"));
+      await restoreVersionIntoDraft(projectId, content.version);
       onClose();
+      if (publish)
+        window.dispatchEvent(new CustomEvent(OPEN_DEPLOY_REVIEW, { detail: { projectId } }));
+      else toast.success(t("versions.restored"));
     } catch {
       toast.error(t("versions.failed"));
     } finally {
@@ -224,11 +257,19 @@ export function VersionDiffDialog({
           </button>
           <button
             type="button"
-            className="btn btn-sm btn-primary"
+            className="btn btn-sm btn-outline"
             disabled={!content || busy}
-            onClick={restore}
+            onClick={() => void restore(false)}
           >
             {t("versions.restore")}
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            disabled={!content || busy}
+            onClick={() => void restore(true)}
+          >
+            {t("versions.restoreAndPublish")}
           </button>
         </DialogFooter>
       </DialogContent>

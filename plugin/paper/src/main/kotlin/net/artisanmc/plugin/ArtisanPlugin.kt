@@ -607,7 +607,7 @@ open class ArtisanPlugin : JavaPlugin() {
     private val versionWriter = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "Artisan-versions").apply { isDaemon = true } }
 
     /** Each Project whose loaded Snapshot differs from its latest Version gets a new one. */
-    private fun recordVersions(snapshot: net.artisanmc.plugin.project.ProjectSnapshot, authors: Map<String, Pair<String, String>>) {
+    private fun recordVersions(snapshot: net.artisanmc.plugin.project.ProjectSnapshot, authors: Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>) {
         val store = versionStore ?: return
         val server = serverRow ?: return
         val now = java.time.Instant.now()
@@ -617,8 +617,9 @@ open class ArtisanPlugin : JavaPlugin() {
                 val content = { path: String -> !net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(path) }
                 val entries = snapshot.files[id].orEmpty().filterKeys(content).mapValues { net.artisanmc.plugin.database.SnapshotEntry.text(it.value) } +
                     snapshot.binaries[id].orEmpty().filterKeys(content).mapValues { net.artisanmc.plugin.database.SnapshotEntry.binary(it.value.hash, it.value.size) }
-                val author = authors[id]?.let { net.artisanmc.plugin.database.VersionAuthor(it.first, it.second) }
-                store.record(server, projectRoots.key(id), id, entries, now, author) { File(dir, it).readBytes() }
+                val published = authors[id]
+                val author = published?.let { net.artisanmc.plugin.database.VersionAuthor(it.id, it.name) }
+                store.record(server, projectRoots.key(id), id, entries, now, author, published?.restoredFrom?.toIntOrNull()) { File(dir, it).readBytes() }
             }.onFailure { logger.warning("[Artisan] Version of project $id not recorded: ${it.message}") }
         }
     }
@@ -631,7 +632,10 @@ open class ArtisanPlugin : JavaPlugin() {
         override fun versions(server: String, folder: String): List<Map<String, Any?>>? {
             val row = row(server) ?: return null
             return versionStore?.versions(row, folder)?.map {
-                mapOf("id" to it.id.toString(), "hash" to it.hash, "createdAt" to it.createdAt.toString(), "author" to author(it.author), "changed" to it.changed)
+                mapOf(
+                    "id" to it.id.toString(), "hash" to it.hash, "createdAt" to it.createdAt.toString(), "author" to author(it.author),
+                    "changed" to it.changed, "restoredFrom" to it.restoredFrom?.toString(),
+                )
             }
         }
 
@@ -642,6 +646,11 @@ open class ArtisanPlugin : JavaPlugin() {
                 "files" to v.files.map { (path, content) -> mapOf("path" to path, "content" to content) },
                 "binaries" to v.binaries.map { mapOf("path" to it.path, "hash" to it.hash, "size" to it.size) },
             )
+        }
+
+        override fun versionBinary(server: String, folder: String, id: String, path: String): ByteArray? {
+            val row = row(server) ?: return null
+            return versionStore?.binary(row, folder, id.toIntOrNull() ?: return null, path)
         }
 
         override fun fileHistory(server: String, folder: String, path: String): List<Map<String, Any?>>? {

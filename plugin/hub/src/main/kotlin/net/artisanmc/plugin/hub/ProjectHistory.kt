@@ -9,6 +9,8 @@ interface ProjectHistory {
     fun versions(server: String, folder: String): List<Map<String, Any?>>?
     /** `{id, createdAt, previousId, files: [{path, content}], binaries: [{path, hash, size}]}`. */
     fun version(server: String, folder: String, id: String): Map<String, Any?>?
+    /** The bytes of a binary file of a Version. */
+    fun versionBinary(server: String, folder: String, id: String, path: String): ByteArray?
     /** `{at, content, author}` for each Version where the file changed, newest first. */
     fun fileHistory(server: String, folder: String, path: String): List<Map<String, Any?>>?
 }

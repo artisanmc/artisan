@@ -72,6 +72,12 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay, priv
         onProject(router, "GET", "/api/v1/projects/:project/versions", VIEW) { call, project ->
             call.json(mapOf("versions" to (history?.versions(project.server.id, project.folder) ?: emptyList<Any>())))
         }
+        onProject(router, "GET", "/api/v1/projects/:project/versions/:version/binary", VIEW) { call, project ->
+            val path = call.query("path") ?: return@onProject call.error(422, "invalid_input")
+            history?.versionBinary(project.server.id, project.folder, call.params.getValue("version"), path)
+                ?.let { call.send(200, contentType(path), it, "private, max-age=31536000, immutable") }
+                ?: call.error(404, "not_found")
+        }
         onProject(router, "GET", "/api/v1/projects/:project/versions/:version", VIEW) { call, project ->
             history?.version(project.server.id, project.folder, call.params.getValue("version"))?.let(call::json)
                 ?: call.error(404, "not_found")

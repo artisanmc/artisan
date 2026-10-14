@@ -435,6 +435,7 @@ function snapshotOf(projectId: string, draft: ProjectDraft): ProjectDraft {
   return {
     ...(draft.binaryBaseline ? { binaryBaseline: draft.binaryBaseline } : {}),
     ...(draft.binaryTree ? { binaryTree: draft.binaryTree } : {}),
+    ...(draft.restoredFrom ? { restoredFrom: draft.restoredFrom } : {}),
     baseline: draft.baseline,
     tree: draft.tree,
     initialTree: draft.initialTree,
@@ -450,6 +451,7 @@ function fingerprint(draft: ProjectDraft): string {
     sorted(draft.tree),
     sorted(draft.initialTree),
     draft.at,
+    draft.restoredFrom ?? null,
     draft.renames ?? [],
     Object.entries(draft.binaryBaseline ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
     Object.entries(draft.binaryTree ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),

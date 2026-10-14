@@ -45,6 +45,8 @@ class EditorApiTest {
             if (server == Servers.LOCAL && folder == "shop") listOf(mapOf<String, Any?>("id" to "7", "hash" to "h7")) else null
         override fun version(server: String, folder: String, id: String) =
             if (folder == "shop" && id == "7") mapOf<String, Any?>("id" to "7", "previousId" to null) else null
+        override fun versionBinary(server: String, folder: String, id: String, path: String) =
+            if (folder == "shop" && id == "7" && path == "logo.png") byteArrayOf(9, 9) else null
         override fun fileHistory(server: String, folder: String, path: String) =
             if (folder == "shop") listOf(mapOf<String, Any?>("at" to 1L, "content" to "a: 1", "author" to null)) else null
     }
@@ -154,6 +156,8 @@ class EditorApiTest {
         assertEquals(0, call("GET", "/api/v1/projects/other/versions").second!!["versions"].size())
         assertEquals("7", call("GET", "/api/v1/projects/shop/versions/7").second!!["id"].asText())
         assertEquals(404, call("GET", "/api/v1/projects/shop/versions/8").first)
+        assertEquals(200, call("GET", "/api/v1/projects/shop/versions/7/binary?path=logo.png").first)
+        assertEquals(404, call("GET", "/api/v1/projects/shop/versions/7/binary?path=a.yml").first)
         assertEquals("a: 1", call("GET", "/api/v1/projects/shop/history?path=a.yml").second!!["versions"][0]["content"].asText())
         assertTrue(sent.none { it["type"] == "project_history" })
     }

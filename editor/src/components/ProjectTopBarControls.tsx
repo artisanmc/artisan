@@ -37,6 +37,7 @@ import type { Project, ProjectId } from "@/domain/types";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
 import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
+import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
 import { hasDraftChanges } from "@/features/project/draft";
 import { flushDraftEdits } from "@/features/project/draftFlush";
 import {
@@ -613,6 +614,16 @@ function SaveControls({
       binaryAfter: current?.binaryTree,
     });
   };
+  // "Restore and publish" from the History tab goes through this same review.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `openReview` reads the stores when it runs.
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      if ((event as CustomEvent<{ projectId: string }>).detail?.projectId === projectId)
+        openReview();
+    };
+    window.addEventListener(OPEN_DEPLOY_REVIEW, onOpen);
+    return () => window.removeEventListener(OPEN_DEPLOY_REVIEW, onOpen);
+  }, [projectId, project]);
 
   const draftSaved = draftSession?.status === "saved";
   const draftBusy = savingDraft || draftSession?.status === "saving";

@@ -22,5 +22,8 @@ interface ProjectWorkspace {
     fun reload()
 
     /** The editor player whose publication of [projectId] the next reload loads: that Version's author. */
-    fun authoredBy(projectId: String, authorId: String, authorName: String) {}
+    fun authoredBy(projectId: String, author: PublicationAuthor) {}
 }
+
+/** Who published, and the Version the published draft was restored from, if any. */
+data class PublicationAuthor(val id: String, val name: String, val restoredFrom: String? = null)
