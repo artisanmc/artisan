@@ -67,7 +67,9 @@ class SyncedMenuProvider(
     /** `api.menus` listeners and the Bukkit menu events. */
     private val menuEvents: net.artisanmc.plugin.render.MenuEventDispatcher? = null,
     /** Each loaded Snapshot, with the editor players whose publication it loads, by project id. */
-    private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>) -> Unit = { _, _ -> },
+    /** Each loaded Snapshot, with its publications' authors by project id; [done] announces the reload once it is recorded. */
+    private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>, done: () -> Unit) -> Unit =
+        { _, _, done -> done() },
 ) : MenuProvider {
     private val pendingAuthors = java.util.concurrent.ConcurrentHashMap<String, net.artisanmc.plugin.protocol.PublicationAuthor>()
     private var copyMinecraftVersion = "1.21.4"
@@ -415,9 +417,11 @@ class SyncedMenuProvider(
         )
         bundles = loaded
         indexDocuments(loaded)
-        announceReload()
         val authors = HashMap(pendingAuthors).also { pendingAuthors.clear() }
-        runCatching { onSnapshot(projects, authors) }.onFailure { logger?.warning("[Artisan] Versions not recorded: ${it.message}") }
+        runCatching { onSnapshot(projects, authors, ::announceReload) }.onFailure {
+            logger?.warning("[Artisan] Versions not recorded: ${it.message}")
+            announceReload()
+        }
     }
 
     /**

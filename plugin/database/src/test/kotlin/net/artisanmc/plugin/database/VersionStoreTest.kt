@@ -95,6 +95,25 @@ class VersionStoreTest {
     }
 
     @Test
+    fun `the latest version is what the editor opens`() {
+        record("h1", text("a.yml" to "one"), t0)
+        record("h2", text("a.yml" to "two") + ("logo.png" to SnapshotEntry.binary("e".repeat(64), 5)), t0.plusSeconds(60))
+        val latest = store.latest(server, "shop")!!
+        assertEquals(mapOf("a.yml" to "two"), latest.files)
+        assertEquals("png:logo.png", String(store.latestBinary(server, "shop", "logo.png")!!))
+        assertNull(store.latest(server, "missing"))
+    }
+
+    @Test
+    fun `the loaded state of a server is kept whole`() {
+        val states = ServerStateStore(ds)
+        assertNull(states.get(server))
+        states.put(server, "{\"a\":1}", t0)
+        states.put(server, "{\"a\":2}", t0.plusSeconds(1))
+        assertEquals("{\"a\":2}", states.get(server))
+    }
+
+    @Test
     fun `a renamed folder keeps its history`() {
         record("h1", text("a.yml" to "one"), t0)
         record("h2", text("a.yml" to "two"), t0.plusSeconds(60), folder = "boutique")

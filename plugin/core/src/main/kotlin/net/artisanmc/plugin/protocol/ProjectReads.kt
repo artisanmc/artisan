@@ -26,11 +26,7 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
         val reply = replies.to(request, "project_list_result")
         replies.offThread("project_list") {
             try {
-                val ids = workspace.snapshot.projectIds
-                val inventory = ResourceInventory.scan(roots).map { entry ->
-                    mapOf("project_id" to entry.projectId, "path" to entry.path, "origin" to entry.origin)
-                }
-                reply.ok("project_ids" to ids, "project_roots" to ids.map { roots.descriptor(it) }, "resource_inventory" to inventory)
+                reply.ok(*listBody(workspace.snapshot, roots).toList().toTypedArray())
             } catch (e: Throwable) {
                 reply.failure("read_error", "project_list", e)
             }
@@ -147,6 +143,15 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
     }
 
     companion object {
+        /** `project_list`'s content: also what the server records as its loaded state. */
+        fun listBody(snapshot: net.artisanmc.plugin.project.ProjectSnapshot, roots: net.artisanmc.plugin.project.ProjectRoots): Map<String, Any?> {
+            val ids = snapshot.projectIds
+            val inventory = ResourceInventory.scan(roots).map { entry ->
+                mapOf("project_id" to entry.projectId, "path" to entry.path, "origin" to entry.origin)
+            }
+            return mapOf("project_ids" to ids, "project_roots" to ids.map { roots.descriptor(it) }, "resource_inventory" to inventory)
+        }
+
         /**
          * Safety cap for `project_read`, which sends a Project's whole tree. Real
          * projects weigh tens of KB: two orders of magnitude of margin, answering
