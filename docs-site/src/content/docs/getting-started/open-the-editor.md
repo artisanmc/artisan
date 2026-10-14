@@ -19,8 +19,9 @@ Artisan answers with a clickable link. The link:
 - works **once** and expires after **60 seconds**;
 - can be requested **once per minute** per player (otherwise: `A link was just generated. Try again in N s.`).
 
-The session it opens lasts **12 hours**. Sessions live in memory: restarting the
-server that serves the editor signs everyone out. Run the command again for a new link.
+The session it opens stays valid until **7 days without use** (`web.session-days` in
+`environment.yml`), server restarts included: it is kept in the suite database. Once it
+expires, or after **Sign out**, run the command again for a new link.
 
 The command only works in game. From the console it answers
 `Run /artisan editor in game: the editor signs you in as your player.`

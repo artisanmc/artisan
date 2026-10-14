@@ -119,7 +119,8 @@ class HubServer(
                 .httpOnly(true)
                 .secure(call.request.isSecure)
                 .sameSite(HttpCookie.SameSite.STRICT)
-                .maxAge(Duration.between(java.time.Instant.now(), session.expiresAt).seconds)
+                // The hub ends the session, the cookie only carries it: kept as long as browsers allow.
+                .maxAge(Duration.ofDays(400).seconds)
                 .build(),
         )
         call.redirect("/")

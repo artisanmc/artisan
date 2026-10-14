@@ -2,7 +2,7 @@
 
 Depuis la phase F (2026-10), Artisan n'a plus de base centrale : ni PostgreSQL, ni comptes, ni
 réseaux en base. Tout ce qui dure vit sur le disque de chaque serveur Minecraft ; le hub ne
-garde en mémoire que les sessions et l'état des serveurs connectés. ADR `editor-web-server`.
+garde en mémoire que l'état des serveurs connectés (les sessions éditeur sont dans la base de la suite). ADR `editor-web-server`.
 L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au commit `f085f576`
 (branche `v2`).
 
@@ -15,7 +15,7 @@ L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au c
 | **Project** | Nom de son dossier (`shop`) ; `<serveur>.<dossier>` hors du serveur du hub (`survie2.shop`) | Disque : `plugins/Artisan/projects/<dossier>/`, ou la racine qu'un add-on enregistre (`ProjectRootRegistry`, `identity: addon`). Cf. `project-files.md`. |
 | **Brouillon privé** | `draft_id` dans un Project, propriétaire = UUID du joueur | Base de la suite : `artisan_drafts` (enveloppe JSON, clé = hash du `draft_id`), reçus dans `artisan_draft_receipts`, blobs dans `artisan_contents` (`ProjectDrafts`, hub). Les anciens `.artisan/drafts/` ne sont plus lus. |
 | **Journal de publication** | `operation_id` | Disque : `<project>/.artisan/transactions/` (en cours) et `.receipts/` (reçus rejoués à l'identique). |
-| **Session éditeur** | Jeton aléatoire (cookie `artisan_session`) ; porte UUID, nom et permissions du joueur | Mémoire du hub (`Sessions`), 12 h. Perdue au redémarrage du hub. |
+| **Session éditeur** | Jeton aléatoire (cookie `artisan_session`) ; porte UUID, nom et permissions du joueur | `artisan_editor_sessions` (clé = SHA-256 de l'id, jamais l'id) + cache mémoire du hub (`Sessions`). Expire après `web.session-days` (7) jours sans requête, survit au redémarrage. Sans base : mémoire seule. |
 | **Lien de connexion** | Jeton à usage unique | Mémoire du hub, 60 s, un par joueur et par minute. |
 | **Préférences d'éditeur** | UUID du joueur | Disque du hub : `plugins/Artisan/editor-prefs/<uuid>.json` (`PlayerPrefs`) : langue, thème, avancement du tour guidé. Écriture atomique, clés connues seules. |
 | **Pack de ressources** | SHA-1 du zip | Disque du hub : `plugins/Artisan/cache/resource-pack/<sha1>.zip` (`PackStore`, trois derniers, un pack par serveur construit par l'éditeur). Dernier pack appliqué : `cache/resource-pack.json` sur chaque serveur. |
