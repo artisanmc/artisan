@@ -739,3 +739,35 @@ it("never sends server metadata the editor must not see in a draft", async () =>
   expect(Object.keys(sent.initialTree ?? {})).toEqual(["manifest.yaml"]);
   expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
 });
+
+it("creates a draft whose creation never landed instead of calling it a conflict", async () => {
+  useProjectDraftStore.getState().save("p1", {
+    ...snapshot,
+    remote: { id: "never-created", name: "Brouillon", revision: 0, ownerId: "u1" },
+  });
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  await loadPersistedDrafts("p1", "u1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+  vi.mocked(api.createDraft).mockImplementation(async (_p, id, name, saved) => ({
+    ...remote,
+    id,
+    name,
+    snapshot: saved,
+  }));
+  await syncPersistedDraft("p1");
+  expect(vi.mocked(api.createDraft).mock.calls[0]?.[1]).toBe("never-created");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+});
+
+it("leaves the conflict state when the conflicting draft is gone from the hub", async () => {
+  useProjectDraftStore
+    .getState()
+    .save("p1", { ...snapshot, remote: { id: "d1", name: "My work", revision: 2, ownerId: "u1" } });
+  usePersistedDraftStore.setState({
+    sessions: { p1: { ownerId: "u1", drafts: [], status: "conflict" } as never },
+  });
+  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("not_found", 404));
+  await syncPersistedDraft("p1");
+  expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+});
