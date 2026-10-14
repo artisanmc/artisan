@@ -708,3 +708,34 @@ it("starts a new draft when the one it points at was discarded or published, kee
   );
   expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
 });
+
+it("never sends server metadata the editor must not see in a draft", async () => {
+  useProjectDraftStore.getState().save("p1", {
+    baseline: {
+      "manifest.yaml": "base",
+      ".artisan/project-id": "uuid\n",
+      ".artisan/editor.yaml": "schema: x",
+    },
+    tree: {
+      "manifest.yaml": "edited",
+      ".artisan/project-id": "uuid\n",
+      ".artisan/editor.yaml": "schema: x",
+    },
+    initialTree: { "manifest.yaml": "base", ".artisan/project-id": "uuid\n" },
+    at: 1,
+  });
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  await loadPersistedDrafts("p1", "u1");
+  vi.mocked(api.createDraft).mockImplementation(async (_p, id, name, saved) => ({
+    ...remote,
+    id,
+    name,
+    snapshot: saved,
+  }));
+  await syncPersistedDraft("p1");
+  const sent = vi.mocked(api.createDraft).mock.calls[0]![3];
+  expect(Object.keys(sent.baseline).sort()).toEqual([".artisan/editor.yaml", "manifest.yaml"]);
+  expect(Object.keys(sent.tree).sort()).toEqual([".artisan/editor.yaml", "manifest.yaml"]);
+  expect(Object.keys(sent.initialTree ?? {})).toEqual(["manifest.yaml"]);
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+});
