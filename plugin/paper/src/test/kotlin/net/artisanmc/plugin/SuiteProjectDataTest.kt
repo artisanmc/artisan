@@ -29,7 +29,7 @@ class SuiteProjectDataTest {
     private val hubRow = registry.rowId(hubId)!!
     private val hub = hubId.toString()
     private var now = 0L
-    private val data = SuiteProjectData(ds, DatabaseDialect.H2, { server -> registry.rowId(UUID.fromString(server)) }, log) { now }
+    private val data = SuiteProjectData(ds, DatabaseDialect.H2, { server -> runCatching { UUID.fromString(server) }.getOrNull()?.let(registry::rowId) }, log) { now }
     private val t0 = Instant.parse("2026-10-14T10:00:00Z")
 
     @AfterTest fun teardown() = pools.closeAll()
