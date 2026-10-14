@@ -40,13 +40,21 @@ class EditorApiTest {
         override fun applyResourcePack(hash: String, path: String) { applied += hash to path }
     }
     private val applied = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
+    private val history = object : ProjectHistory {
+        override fun versions(server: String, folder: String) =
+            if (server == Servers.LOCAL && folder == "shop") listOf(mapOf<String, Any?>("id" to "7", "hash" to "h7")) else null
+        override fun version(server: String, folder: String, id: String) =
+            if (folder == "shop" && id == "7") mapOf<String, Any?>("id" to "7", "previousId" to null) else null
+        override fun fileHistory(server: String, folder: String, path: String) =
+            if (folder == "shop") listOf(mapOf<String, Any?>("at" to 1L, "content" to "a: 1", "author" to null)) else null
+    }
     private val sessions = Sessions()
     private val player = UUID.randomUUID()
     private val prefsDir = java.nio.file.Files.createTempDirectory("prefs").toFile()
     private val prefs = PlayerPrefs(prefsDir)
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(Servers(server), sessions, null, VanillaAssets(java.nio.file.Files.createTempDirectory("vanilla").toFile(), "1.21.4", null, manifestUrl = VanillaAssetsTest.OFFLINE),
-            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile()), prefs), sessions,
+            PackStore(java.nio.file.Files.createTempDirectory("packs").toFile()), prefs, history), sessions,
         EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
     )
     private val client = HttpClient.newHttpClient()
@@ -138,6 +146,23 @@ class EditorApiTest {
         assertEquals("private, no-cache", cacheOf("/api/v1/projects/shop/binary?path=assets/a.png&h=${"0".repeat(64)}"))
         assertEquals("private, no-cache", cacheOf("/api/v1/projects/shop/binary?path=assets/a.png"))
         assertEquals("private, max-age=31536000, immutable", cacheOf("/api/v1/user/projects/shop/drafts/d1/blobs/$hash"))
+    }
+
+    @Test
+    fun `versions and file history come from the database`() {
+        assertEquals("h7", call("GET", "/api/v1/projects/shop/versions").second!!["versions"][0]["hash"].asText())
+        assertEquals(0, call("GET", "/api/v1/projects/other/versions").second!!["versions"].size())
+        assertEquals("7", call("GET", "/api/v1/projects/shop/versions/7").second!!["id"].asText())
+        assertEquals(404, call("GET", "/api/v1/projects/shop/versions/8").first)
+        assertEquals("a: 1", call("GET", "/api/v1/projects/shop/history?path=a.yml").second!!["versions"][0]["content"].asText())
+        assertTrue(sent.none { it["type"] == "project_history" })
+    }
+
+    @Test
+    fun `a publication names its author`() {
+        call("PUT", "/api/v1/projects/shop/files", mapOf("operation_id" to "op-1", "files" to emptyList<Any>()))
+        assertEquals(player.toString(), sent.last()["author_id"])
+        assertEquals("Iban", sent.last()["author_name"])
     }
 
     @Test

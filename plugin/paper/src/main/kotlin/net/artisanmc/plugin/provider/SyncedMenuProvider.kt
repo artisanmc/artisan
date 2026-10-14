@@ -66,7 +66,10 @@ class SyncedMenuProvider(
     private val hub: HubLink? = null,
     /** `api.menus` listeners and the Bukkit menu events. */
     private val menuEvents: net.artisanmc.plugin.render.MenuEventDispatcher? = null,
+    /** Each loaded Snapshot, with the editor players whose publication it loads, by project id. */
+    private val onSnapshot: (ProjectSnapshot, Map<String, Pair<String, String>>) -> Unit = { _, _ -> },
 ) : MenuProvider {
+    private val pendingAuthors = java.util.concurrent.ConcurrentHashMap<String, Pair<String, String>>()
     private var copyMinecraftVersion = "1.21.4"
     /** What `project_read` serves: the state read at the last load, never the current disk. */
     @Volatile private var projects = ProjectSnapshot.EMPTY
@@ -122,6 +125,9 @@ class SyncedMenuProvider(
         override fun reload() {
             reloadFromDisk()
             onReload?.invoke()
+        }
+        override fun authoredBy(projectId: String, authorId: String, authorName: String) {
+            pendingAuthors[projectId] = authorId to authorName
         }
     }
     private val replies = Replies(httpClient.dispatcher.executorService, ::send, logger)
@@ -410,6 +416,8 @@ class SyncedMenuProvider(
         bundles = loaded
         indexDocuments(loaded)
         announceReload()
+        val authors = HashMap(pendingAuthors).also { pendingAuthors.clear() }
+        runCatching { onSnapshot(projects, authors) }.onFailure { logger?.warning("[Artisan] Versions not recorded: ${it.message}") }
     }
 
     /**

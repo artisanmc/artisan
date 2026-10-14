@@ -255,10 +255,11 @@ open class ArtisanPlugin : JavaPlugin() {
         assetCatalog.loadFromDisk()
         commandRegistrar = CommandRegistrar(this, langManager)
 
+        // The server row exists before the first Snapshot, which becomes a Version.
+        startServerRegistry(cfg.web)
         // Modules register before the first `hello`, which announces them.
         startRuntime(cfg) { defaultModules().forEach { api.modules.register(it) } }
         registerCustomItemsReloadListeners()
-        startServerRegistry(cfg.web)
         startEditor(cfg.web)
 
         artisanCommand = ArtisanCommand(this, langManager)
@@ -289,6 +290,8 @@ open class ArtisanPlugin : JavaPlugin() {
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).
         api.modules.active().forEach { runCatching { it.onDisable() } }
+        versionWriter.shutdown()
+        versionWriter.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)
         serverRegistry?.let { registry -> runCatching { registry.stop(serverId) } }
         if (::database.isInitialized) database.closeAll()
         commandRegistrar.unregisterAll()
@@ -362,6 +365,8 @@ open class ArtisanPlugin : JavaPlugin() {
             logger.severe("[Artisan] Not registered in artisan_servers: $refused")
             return
         }
+        serverRow = registry.rowId(serverId)
+        versionStore = net.artisanmc.plugin.database.VersionStore(artisanData ?: return)
         serverRegistry = registry
         fun beat() {
             if (!isEnabled) return
@@ -405,7 +410,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 net.artisanmc.plugin.hub.RemoteServer(it, publicUrl = { editorBase() })
             }
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
-            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs)
+            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, projectHistory)
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger) {
                 if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) null
                 else artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
@@ -593,7 +598,59 @@ open class ArtisanPlugin : JavaPlugin() {
         editorEvents = { editorChannel.relay(it) },
         hub = hubLink(cfg.web),
         menuEvents = menuEvents,
+        onSnapshot = ::recordVersions,
     )
+
+    @Volatile private var versionStore: net.artisanmc.plugin.database.VersionStore? = null
+    @Volatile private var serverRow: Int? = null
+    /** One writer: Versions are recorded in the order their Snapshots were loaded. */
+    private val versionWriter = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "Artisan-versions").apply { isDaemon = true } }
+
+    /** Each Project whose loaded Snapshot differs from its latest Version gets a new one. */
+    private fun recordVersions(snapshot: net.artisanmc.plugin.project.ProjectSnapshot, authors: Map<String, Pair<String, String>>) {
+        val store = versionStore ?: return
+        val server = serverRow ?: return
+        val now = java.time.Instant.now()
+        versionWriter.execute {
+            for (id in snapshot.projectIds) runCatching {
+                val dir = projectRoots.dirFor(id)
+                val content = { path: String -> !net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(path) }
+                val entries = snapshot.files[id].orEmpty().filterKeys(content).mapValues { net.artisanmc.plugin.database.SnapshotEntry.text(it.value) } +
+                    snapshot.binaries[id].orEmpty().filterKeys(content).mapValues { net.artisanmc.plugin.database.SnapshotEntry.binary(it.value.hash, it.value.size) }
+                val author = authors[id]?.let { net.artisanmc.plugin.database.VersionAuthor(it.first, it.second) }
+                store.record(server, projectRoots.key(id), id, entries, now, author) { File(dir, it).readBytes() }
+            }.onFailure { logger.warning("[Artisan] Version of project $id not recorded: ${it.message}") }
+        }
+    }
+
+    /** History routes of the editor, read from `artisan_versions`. */
+    private val projectHistory = object : net.artisanmc.plugin.hub.ProjectHistory {
+        private fun row(server: String) = if (server == net.artisanmc.plugin.hub.Servers.LOCAL) serverRow else serverRegistry?.rowId(server)
+        private fun author(a: net.artisanmc.plugin.database.VersionAuthor?) = a?.let { mapOf("id" to it.id, "name" to it.name) }
+
+        override fun versions(server: String, folder: String): List<Map<String, Any?>>? {
+            val row = row(server) ?: return null
+            return versionStore?.versions(row, folder)?.map {
+                mapOf("id" to it.id.toString(), "hash" to it.hash, "createdAt" to it.createdAt.toString(), "author" to author(it.author), "changed" to it.changed)
+            }
+        }
+
+        override fun version(server: String, folder: String, id: String): Map<String, Any?>? {
+            val v = versionStore?.version(row(server) ?: return null, folder, id.toIntOrNull() ?: return null) ?: return null
+            return mapOf(
+                "id" to v.id.toString(), "createdAt" to v.createdAt.toString(), "previousId" to v.previousId?.toString(),
+                "files" to v.files.map { (path, content) -> mapOf("path" to path, "content" to content) },
+                "binaries" to v.binaries.map { mapOf("path" to it.path, "hash" to it.hash, "size" to it.size) },
+            )
+        }
+
+        override fun fileHistory(server: String, folder: String, path: String): List<Map<String, Any?>>? {
+            val row = row(server) ?: return null
+            return versionStore?.fileHistory(row, folder, path)?.map {
+                mapOf("at" to it.at.toEpochMilli(), "content" to it.content, "author" to author(it.author))
+            }
+        }
+    }
 
     /** Only a leaf opens a WebSocket: to `web.hub`, with the network secret. */
     private fun hubLink(web: net.artisanmc.plugin.hub.WebConfig): net.artisanmc.plugin.ws.HubLink? {
