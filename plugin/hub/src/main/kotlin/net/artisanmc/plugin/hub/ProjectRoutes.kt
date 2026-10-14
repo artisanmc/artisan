@@ -302,7 +302,6 @@ class ProjectRoutes(
         if (ok(reply)) return call.json(body, if (created) 201 else 200)
         val status = when (errorCode(reply)) {
             "not_found" -> 404
-            "quota_denied" -> 403
             "draft_migration_pending", "storage_error", "rename_in_progress", "rename_pending",
             "inventory_unavailable", "plugin_update_required" -> 503
             "draft_conflict", "draft_exists", "draft_closed", "conflict" -> 409

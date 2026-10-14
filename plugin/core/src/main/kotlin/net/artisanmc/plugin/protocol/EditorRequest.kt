@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
  * unknown or that lacks a required field does not become a request: it is ignored.
  *
  * [Mutation.message] keeps the raw write message: the idempotency fingerprint
- * hashes it verbatim, and `commercial_policy` is read from it.
+ * hashes it verbatim.
  */
 sealed interface EditorRequest {
     sealed interface WithReply : EditorRequest {

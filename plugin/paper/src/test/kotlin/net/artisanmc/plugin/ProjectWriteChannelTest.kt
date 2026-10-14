@@ -70,38 +70,6 @@ class ProjectWriteChannelTest {
         """{"type":"project_write","request_id":"w1","project_id":"$projectId","files":$files,"deletes":$deletes}"""
 
     @Test
-    fun `commercial quota rejects malformed wire values without writing`() {
-        for (quota in listOf("", ",\"quota\":\"5\"", ",\"quota\":1.5", ",\"quota\":1.0", ",\"quota\":-1", ",\"quota\":2147483648", ",\"quota\":true")) {
-            val h = Harness()
-            val p = h.project("shop")
-            h.send("""{"type":"project_write","request_id":"q","project_id":"shop","commercial_policy":{"enabled":true$quota},"files":[{"path":"menus/new.yaml","content":"size: 9"}]}""")
-            assertEquals("inventory_unavailable", h.reply()["error"], quota)
-            assertFalse(File(p, "menus/new.yaml").exists(), quota)
-        }
-    }
-
-    @Test
-    fun `commercial quota accepts explicit unlimited and max integer`() {
-        for (quota in listOf("null", "2147483647")) {
-            val h = Harness()
-            val p = h.project("shop")
-            h.send("""{"type":"project_write","request_id":"q","project_id":"shop","commercial_policy":{"enabled":true,"quota":$quota,"pro_until":null},"files":[{"path":"menus/new.yaml","content":"size: 9"}]}""")
-            assertEquals(true, h.reply()["ok"], quota)
-            assertTrue(File(p, "menus/new.yaml").exists(), quota)
-        }
-    }
-
-    @Test
-    fun `effective custom quota is not overridden by a Pro date`() {
-        val h = Harness()
-        val p = h.project("shop")
-        h.write(p, "menus/existing.yaml", "size: 9")
-        h.send("""{"type":"project_write","request_id":"q","project_id":"shop","commercial_policy":{"enabled":true,"quota":1,"pro_until":"2999-01-01T00:00:00Z"},"files":[{"path":"menus/new.yaml","content":"size: 9"}]}""")
-        assertEquals("quota_denied", h.reply()["error"])
-        assertFalse(File(p, "menus/new.yaml").exists())
-    }
-
-    @Test
     fun `mixed lot checks binary CAS before writing descriptor and retries after lost reply`() {
         val h = Harness()
         val p = h.project("shop")

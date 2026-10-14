@@ -40,13 +40,6 @@ class ProjectWrites(
         val binaries = request.binaries
         if (binaries == null || !isValidWrite(request, binaries)) return reply.error("invalid_path")
         replies.offThread("project_write", workspace.io) {
-            if (mutations.deniedByQuota(
-                    reply, request.message, projectId,
-                    request.writes.map { it.path } + binaries.filter { it.contentBase64 != null }.map { it.path },
-                    request.deletes.map { it.path } + binaries.filter { it.contentBase64 == null }.map { it.path },
-                    request.renames.map { it.from to it.to },
-                )
-            ) return@offThread
             val projectDir = roots.dirFor(projectId)
             if (!projectDir.isDirectory) {
                 // A new Project has no folder yet: created only on request, otherwise
@@ -158,7 +151,6 @@ class ProjectWrites(
             writes.any { !EditorPaths.isSafeRelPath(it.first) } || deletes.any { !EditorPaths.isSafeRelPath(it) }
         ) return reply.error("invalid_path")
         replies.offThread("config_write", workspace.io) {
-            if (mutations.deniedByQuota(reply, request.message, projectId, writes.map { it.first }, deletes)) return@offThread
             val projectDir = roots.dirFor(projectId)
             if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
             try {
@@ -204,12 +196,7 @@ class ProjectWrites(
             when {
                 !EditorPaths.isSafeProjectId(projectId) -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "invalid_path"))
                 !root.isDirectory -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "unknown_project"))
-                else -> ProjectDraftStore(root) { changes ->
-                    mutations.quotaDenial(
-                        request.message, projectId,
-                        changes.filterValues { it != null }.keys.toList(), changes.filterValues { it == null }.keys.toList(),
-                    )
-                }.handle(request.message)
+                else -> ProjectDraftStore(root).handle(request.message)
             }
         } catch (error: Exception) {
             logger?.log(Level.WARNING, "[Artisan] Private draft operation failed", error)
