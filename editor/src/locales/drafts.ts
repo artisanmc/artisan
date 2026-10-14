@@ -12,6 +12,8 @@ export const draftsFr = {
     saving: "Enregistrement du brouillon sur votre compte…",
     saved: "Brouillon enregistré sur votre compte. Rien n'est encore déployé.",
     offline: "Copie locale seulement : la sauvegarde n'est pas confirmée. Cliquer pour réessayer.",
+    rejected:
+      "Le serveur a refusé ce brouillon tel quel. Votre copie locale est conservée : modifiez-la ou cliquez pour renvoyer.",
     conflict: "Brouillon modifié dans une autre session. Ouvrez Brouillons pour créer une copie.",
     migration_pending: "Transfert des brouillons en cours : enregistrement suspendu.",
   },
@@ -20,6 +22,7 @@ export const draftsFr = {
   pending: "Sauvegarde en attente",
   saving: "Sauvegarde du brouillon…",
   offline: "Copie locale — sauvegarde non confirmée",
+  rejected: "Brouillon refusé par le serveur — copie locale conservée",
   migration_pending: "Transfert des brouillons en cours — enregistrement suspendu",
   conflict: "Modifié dans une autre session. Créez une copie pour conserver votre travail.",
   name: "Nom du brouillon",
@@ -46,6 +49,8 @@ export const draftsEn = {
     saving: "Saving the draft to your account…",
     saved: "Draft saved to your account. Nothing is deployed yet.",
     offline: "Local copy only: the save is not confirmed. Click to retry.",
+    rejected:
+      "The server refused this draft as it is. Your local copy is kept: change it, or click to send it again.",
     conflict: "Draft changed in another session. Open Drafts to create a copy.",
     migration_pending: "Draft transfer in progress: saving is paused.",
   },
@@ -54,6 +59,7 @@ export const draftsEn = {
   pending: "Save pending",
   saving: "Saving draft…",
   offline: "Local copy — save not confirmed",
+  rejected: "Draft refused by the server — local copy kept",
   migration_pending: "Draft transfer in progress — saving paused",
   conflict: "Changed in another session. Create a copy to preserve your work.",
   name: "Draft name",

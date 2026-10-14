@@ -8,6 +8,7 @@ import java.util.logging.Logger
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -34,7 +35,7 @@ class EmbeddedImportTest {
         versions.record(row, "k", "shop", mapOf("a.yml" to SnapshotEntry.text("one")), t0, null, null) { error("no binary") }
         val first = versions.versions(row, "shop")!!.single().id
         versions.record(row, "k", "shop", mapOf("a.yml" to SnapshotEntry.text("two")), t0.plusSeconds(60), VersionAuthor("u", "Iban"), first) { error("no binary") }
-        DraftRows(source).commit(row, "k", "d1", "{\"id\":\"d1\"}", "op", "f", "{}")
+        DraftRows(source).commit(row, "k", "d1", "{\"id\":\"d1\"}", "active", "op", "f", "{}")
     }
 
     @Test
@@ -46,7 +47,7 @@ class EmbeddedImportTest {
         registry.register(survie, "survie", t0)
         val row = registry.rowId(survie)!!
 
-        assertTrue(EmbeddedImport.run(source, target, survie, log))
+        assertTrue(EmbeddedImport.run(source, target, DatabaseDialect.H2, survie, log))
         val versions = VersionStore(target).versions(row, "shop")!!
         assertEquals(2, versions.size)
         assertEquals(versions[1].id, versions[0].restoredFrom)
@@ -60,9 +61,38 @@ class EmbeddedImportTest {
         seedSource()
         val registry = ServerRegistry(target, DatabaseDialect.H2, log)
         registry.register(survie, "survie", t0)
-        assertTrue(EmbeddedImport.run(source, target, survie, log))
-        assertFalse(EmbeddedImport.run(source, target, survie, log))
+        assertTrue(EmbeddedImport.run(source, target, DatabaseDialect.H2, survie, log))
+        assertFalse(EmbeddedImport.run(source, target, DatabaseDialect.H2, survie, log))
         assertEquals(2, VersionStore(target).versions(registry.rowId(survie)!!, "shop")!!.size)
+    }
+
+    @Test
+    fun `a failed import leaves no mark and runs again, a done one is marked for good`() {
+        seedSource()
+        val registry = ServerRegistry(target, DatabaseDialect.H2, log)
+        registry.register(survie, "survie", t0)
+        val row = registry.rowId(survie)!!
+        // A draft already there: the import's insert fails, everything rolls back.
+        DraftRows(target).commit(row, "k", "d1", "{\"id\":\"d1\"}", "active", "op-x", "f", "{}")
+        assertFailsWith<Exception> { EmbeddedImport.run(source, target, DatabaseDialect.H2, survie, log) }
+        assertEquals(null, VersionStore(target).versions(row, "shop"))
+        target.connection.use { c -> c.prepareStatement("DELETE FROM artisan_drafts").use { it.executeUpdate() } }
+        assertTrue(EmbeddedImport.run(source, target, DatabaseDialect.H2, survie, log))
+        assertEquals(2, VersionStore(target).versions(row, "shop")!!.size)
+        // Marked: a Version recorded since, or none at all, changes nothing.
+        assertFalse(EmbeddedImport.run(source, target, DatabaseDialect.H2, survie, log))
+    }
+
+    @Test
+    fun `versions recorded before the mark existed count as imported`() {
+        seedSource()
+        val registry = ServerRegistry(target, DatabaseDialect.H2, log)
+        registry.register(survie, "survie", t0)
+        val row = registry.rowId(survie)!!
+        VersionStore(target).record(row, "k", "shop", mapOf("a.yml" to SnapshotEntry.text("mine")), t0, null, null) { error("no binary") }
+        assertFalse(EmbeddedImport.run(source, target, DatabaseDialect.H2, survie, log))
+        assertEquals(1, VersionStore(target).versions(row, "shop")!!.size)
+        assertFalse(EmbeddedImport.run(source, target, DatabaseDialect.H2, survie, log))
     }
 
     @Test
@@ -70,7 +100,7 @@ class EmbeddedImportTest {
         seedSource()
         val other = UUID.randomUUID()
         ServerRegistry(target, DatabaseDialect.H2, log).register(other, "survival", t0)
-        assertFalse(EmbeddedImport.run(source, target, other, log))
+        assertFalse(EmbeddedImport.run(source, target, DatabaseDialect.H2, other, log))
         assertTrue(sourceDir.resolve("database/${ConnectionPools.H2_FILE}.mv.db").isFile)
     }
 }

@@ -506,6 +506,7 @@ function SaveControls({
   const draftNeedsAttention =
     draftSession?.status === "conflict" ||
     draftSession?.status === "offline" ||
+    draftSession?.status === "rejected" ||
     draftSession?.status === "migration_pending";
   const [conflicts, setConflicts] = useState<ProjectFileConflict[]>([]);
   const [conflictTree, setConflictTree] = useState<Record<string, string>>({});
@@ -636,7 +637,7 @@ function SaveControls({
     setSavingDraft(true);
     try {
       flushDraftEdits();
-      await syncPersistedDraft(projectId);
+      await syncPersistedDraft(projectId, true);
     } finally {
       setSavingDraft(false);
     }

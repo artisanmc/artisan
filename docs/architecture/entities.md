@@ -13,7 +13,7 @@ L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au c
 | **Server** | `local` pour le serveur qui héberge le hub ; `proxy_name` (`name`, sinon le nom du dossier du serveur) pour une feuille | `artisan_servers` (base de la suite) : `uuid` du fichier `plugins/Artisan/server-id`, `name`, `last_seen` rafraîchi chaque minute, `running` (faux après un arrêt propre) (`ServerRegistry`). Un `name` changé renomme la ligne ; un server id qui tourne déjà sous un autre nom (dossier copié) ou un nom tenu par un autre server id est refusé au démarrage. Le hub liste les serveurs connus de la table, éteints compris ; sans base, une feuille déconnectée reste listée jusqu'au redémarrage du hub (`Servers`, `RemoteServer`). Tables d'Artisan migrées par `SchemaMigrator` (`artisan_schema_version`). |
 | **Network** | Unique, nommé `local` ; libellé = nom du dossier du serveur hub | Implicite : le hub et les feuilles qui partagent son secret. |
 | **Project** | Nom de son dossier (`shop`) ; `<serveur>.<dossier>` hors du serveur du hub (`survie2.shop`) | Disque : `plugins/Artisan/projects/<dossier>/`, ou la racine qu'un add-on enregistre (`ProjectRootRegistry`, `identity: addon`). Cf. `project-files.md`. |
-| **Brouillon privé** | `draft_id` dans un Project, propriétaire = UUID du joueur | Base de la suite : `artisan_drafts` (enveloppe JSON, clé = hash du `draft_id`), reçus dans `artisan_draft_receipts`, blobs dans `artisan_contents` (`ProjectDrafts`, hub). Les anciens `.artisan/drafts/` ne sont plus lus. |
+| **Brouillon privé** | `draft_id` dans un Project, propriétaire = UUID du joueur | Base de la suite : `artisan_drafts` (enveloppe JSON, clé = hash du `draft_id`, colonnes `status` et `updated_at` pour la purge), reçus dans `artisan_draft_receipts` (résultat **sans** le corps du brouillon : au rejeu, le brouillon est relu ; `created_at`), blobs dans `artisan_contents` (`ProjectDrafts`, hub ; accès par `SuiteProjectData`, paper). Brouillons fermés (publiés, abandonnés) et reçus purgés après 30 jours (`DraftRows.KEEP`), une fois par jour. Les anciens `.artisan/drafts/` ne sont plus lus. |
 | **Journal de publication** | `operation_id` | Disque : `<project>/.artisan/transactions/` (en cours) et `.receipts/` (reçus rejoués à l'identique). |
 | **Session éditeur** | Jeton aléatoire (cookie `artisan_session`) ; porte UUID, nom et permissions du joueur | `artisan_editor_sessions` (clé = SHA-256 de l'id, jamais l'id) + cache mémoire du hub (`Sessions`). Expire après `web.session-days` (7) jours sans requête, survit au redémarrage. Sans base : mémoire seule. |
 | **Lien de connexion** | Jeton à usage unique | Mémoire du hub, 60 s, un par joueur et par minute. |
@@ -61,15 +61,28 @@ directement dans le plugin à chaque requête.
 - **Versions** (ADR `server-identity-and-versions`) : `artisan_versions` (serveur, `project_key`
   de `.artisan/project-id` ou `addon:<id>`, dernier dossier, hash du manifeste, manifeste
   `t|b <hash> <taille> <chemin>`, auteur UUID + pseudo ou rien, date) et `artisan_contents`
-  (hash → octets, texte et binaires, stockés une fois). Chaque serveur enregistre la sienne à
+  (hash → octets, texte et binaires, stockés une fois ; `MERGE` H2 / `INSERT IGNORE` MySQL, deux
+  serveurs peuvent insérer le même hash). Chaque serveur enregistre la sienne à
   chaque Snapshot dont le manifeste diffère du précédent (`SyncedMenuProvider.onSnapshot` →
-  `ArtisanPlugin.recordVersions`, thread `Artisan-versions`) ; `.artisan*` hors manifeste.
+  `ArtisanPlugin.recordVersions`, thread `Artisan-versions`), **en une transaction** ; `.artisan*`
+  hors manifeste. Les octets d'un binaire sont relus du disque au moment de l'enregistrement et
+  re-hachés : s'ils ne correspondent plus au hash du Snapshot (publication ou édition entre-temps),
+  l'entrée n'est pas stockée (avertissement), la Version suivante la reprendra.
   Passage de H2 à MySQL : `EmbeddedImport` recopie au premier démarrage Versions, contenus et
-  brouillons du server id depuis le fichier H2 (ids réattribués), une fois.
-  `artisan_server_state` (un JSON par serveur, réécrit à chaque chargement) : le contenu de
-  `project_list` et, par Project, le hash du Snapshot, les fichiers en échec et `.artisan/editor.yaml`.
-  Le hub lit la liste, les Projects et leurs assets dans ces deux tables (`LoadedProjects`) ; le
-  rechargement n'est annoncé qu'une fois enregistré. Sans base, il relaie au serveur.
+  brouillons du server id depuis le fichier H2 (ids réattribués), une fois : l'import et sa marque
+  `imported:<server id>` dans `artisan_meta` sont une transaction, un import échoué se relance au
+  démarrage suivant, un import fait ne se relance jamais. Migrations (`SchemaMigrator`) : chaque
+  étape non rejouable (`ADD COLUMN`, `CREATE INDEX`, `ADD CONSTRAINT`) porte un prédicat `applied`
+  lu dans le catalogue JDBC, car MySQL auto-commit le DDL ; `GET_LOCK` non obtenu = erreur.
+  `artisan_server_state` (un JSON par serveur, réécrit à chaque chargement **si toutes les Versions
+  du chargement ont été enregistrées** : sinon l'état précédent reste, cohérent avec les fichiers
+  servis) : le contenu de `project_list` et, par Project, le hash du Snapshot, les fichiers en
+  échec et `.artisan/editor.yaml`. Le hub lit la liste, les Projects et leurs assets dans ces deux
+  tables (`LoadedProjects`, implémenté par `SuiteProjectData` dans `paper`, qui garde l'état parsé
+  de chaque serveur 5 s et le jette dès que ce serveur enregistre ou annonce un rechargement) ;
+  la dernière Version d'un dossier est lue par deux requêtes indexées, l'historique complet n'est
+  chargé que par les routes d'historique. Le rechargement n'est annoncé qu'une fois enregistré.
+  Sans base, il relaie au serveur.
   L'auteur vient de `author_id`/`author_name` des messages de publication du hub ;
   `restored_from` du `restoredFrom` du brouillon publié (restaurer une Version charge son texte
   et ses binaires, lus en base, dans le brouillon ; « Restaurer et publier » ouvre la revue).

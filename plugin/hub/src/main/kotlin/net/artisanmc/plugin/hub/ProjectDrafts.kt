@@ -7,13 +7,19 @@ import net.artisanmc.plugin.sync.BundleHasher
 import java.time.Instant
 import java.util.Base64
 
-/** Where Drafts live: the suite database. Null from [drafts] or false from [commit]: no such Project recorded. */
+/**
+ * Where Drafts live: the suite database. False from [knownProject], null from [drafts] or false
+ * from [commit]: no such Project recorded. [commit] throws when the operation's receipt is
+ * already there (a concurrent replay won); the caller answers with that receipt.
+ */
 interface DraftStorage {
+    fun knownProject(server: String, folder: String): Boolean
+    /** Every draft of the Project, whole: the list only, the other actions read one draft. */
     fun drafts(server: String, folder: String): List<String>?
     fun draft(server: String, folder: String, id: String): String?
     /** The fingerprint and result of an operation already applied. */
     fun receipt(operationId: String): Pair<String, String>?
-    fun commit(server: String, folder: String, id: String, draft: String, operationId: String, fingerprint: String, result: String): Boolean
+    fun commit(server: String, folder: String, id: String, draft: String, status: String, operationId: String, fingerprint: String, result: String): Boolean
     fun content(hash: String): ByteArray?
     fun putContent(hash: String, bytes: ByteArray)
 }
@@ -22,8 +28,15 @@ interface DraftStorage {
  * Private Drafts, kept by the hub in the suite database (ADR `server-identity-and-versions`,
  * decision 12): editable while their server is offline. Publishing is the server's write: the
  * draft and its new blobs go to it, and the draft is marked published once it answers. A replayed
- * operation gives back the result it already gave; a publication replayed after a lost answer is
- * recognised by the server under the same `operation_id`.
+ * operation gives back the result it already gave (its receipt keeps the result without the
+ * draft's body: the draft is read again, so receipts stay small); a publication replayed after
+ * a lost answer is recognised by the server under the same `operation_id`.
+ *
+ * Errors, by code (the hub maps them to statuses in [ErrorStatus]): `unknown_project` (no such
+ * Project recorded), `draft_not_found` (no such draft of this owner), `draft_conflict` (revision
+ * moved; the current draft comes along), `draft_closed` (published or discarded), `operation_conflict`
+ * (operation id reused with other content), `invalid_*`/`missing_blob` (refused as sent),
+ * `storage_error` (the database failed).
  */
 class ProjectDrafts(private val storage: DraftStorage) {
     private val mapper = Call.mapper
@@ -38,18 +51,24 @@ class ProjectDrafts(private val storage: DraftStorage) {
             handleOrThrow(server, folder, request, publisher, respond)
         } catch (e: IllegalArgumentException) {
             respond(fail(e.message?.takeIf { it.matches(Regex("[a-z_]+")) } ?: "invalid_draft"))
+        } catch (e: Exception) {
+            respond(fail("storage_error") + ("message" to e.message))
         }
     }
 
     private fun handleOrThrow(server: String, folder: String, request: ObjectNode, publisher: Publisher, respond: (Map<String, Any?>) -> Unit) {
         val action = request.path("action").asText()
         val owner = request.path("owner_id").asText().ifBlank { return respond(fail("invalid_owner")) }
-        val all = storage.drafts(server, folder)?.map { mapper.readTree(it) as ObjectNode } ?: return respond(fail("unknown_project"))
-        if (action == "list") return respond(ok("drafts" to all.filter { it["ownerId"].asText() == owner && it["status"].asText() == "active" }))
+        if (action == "list") {
+            val all = storage.drafts(server, folder)?.map { mapper.readTree(it) as ObjectNode } ?: return respond(fail("unknown_project"))
+            return respond(ok("drafts" to all.filter { it["ownerId"].asText() == owner && it["status"].asText() == "active" }))
+        }
+        if (!storage.knownProject(server, folder)) return respond(fail("unknown_project"))
         val id = request.path("draft_id").asText().ifEmpty { return respond(fail("invalid_draft")) }
-        val current = storage.draft(server, folder, id)?.let { mapper.readTree(it) as ObjectNode }?.takeIf { it["id"].asText() == id }
-        if (current != null && current["ownerId"].asText() != owner) return respond(fail("not_found"))
-        if (action == "read") return respond(current?.let { ok("draft" to it) } ?: fail("not_found"))
+        fun stored() = storage.draft(server, folder, id)?.let { mapper.readTree(it) as ObjectNode }?.takeIf { it["id"].asText() == id }
+        val current = stored()
+        if (current != null && current["ownerId"].asText() != owner) return respond(fail("draft_not_found"))
+        if (action == "read") return respond(current?.let { ok("draft" to it) } ?: fail("draft_not_found"))
         if (action == "read_blob") {
             val hash = request.path("hash").asText()
             if (current == null || hash !in hashes(current["snapshot"])) return respond(fail("not_found"))
@@ -59,12 +78,25 @@ class ProjectDrafts(private val storage: DraftStorage) {
 
         val operationId = request.path("operation_id").asText().takeIf { it.length in 1..256 } ?: return respond(fail("invalid_operation"))
         val fingerprint = BundleHasher.hashBytes(mapper.writeValueAsBytes(request.deepCopy().also { it.remove(listOf("request_id", "project_id", "type")) }))
-        storage.receipt(operationId)?.let { (printed, result) ->
-            return respond(if (printed == fingerprint) map(mapper.readTree(result)) else fail("operation_conflict"))
+        /** The answer an operation already gave, its draft read again. */
+        fun replay(printed: String, result: String): Map<String, Any?> {
+            if (printed != fingerprint) return fail("operation_conflict")
+            val saved = mapper.readTree(result) as ObjectNode
+            if (saved.has("draft")) stored()?.let { saved.set<JsonNode>("draft", it) }
+            return map(saved)
         }
+        storage.receipt(operationId)?.let { (printed, result) -> return respond(replay(printed, result)) }
         fun commit(draft: ObjectNode, result: Map<String, Any?>) {
-            if (!storage.commit(server, folder, id, mapper.writeValueAsString(draft), operationId, fingerprint, mapper.writeValueAsString(result)))
-                return respond(fail("unknown_project"))
+            val status = draft["status"].asText()
+            val kept = result.mapValues { (key, value) -> if (key == "draft") mapOf("revision" to draft["revision"].asLong()) else value }
+            val written = try {
+                storage.commit(server, folder, id, mapper.writeValueAsString(draft), status, operationId, fingerprint, mapper.writeValueAsString(kept))
+            } catch (e: Exception) {
+                // The same operation, sent twice at once: the other request's receipt is the answer.
+                val (printed, saved) = storage.receipt(operationId) ?: throw e
+                return respond(replay(printed, saved))
+            }
+            if (!written) return respond(fail("unknown_project"))
             respond(result)
         }
 
@@ -84,7 +116,7 @@ class ProjectDrafts(private val storage: DraftStorage) {
             )
             return commit(draft, ok("draft" to draft))
         }
-        if (current == null) return respond(fail("not_found"))
+        if (current == null) return respond(fail("draft_not_found"))
         if (current["status"].asText() != "active") return respond(fail("draft_closed"))
         if (!request.path("expected_revision").isIntegralNumber || request["expected_revision"].asLong() != current["revision"].asLong())
             return respond(mapOf("ok" to false, "error" to "draft_conflict", "draft" to current))
