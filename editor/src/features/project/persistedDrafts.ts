@@ -68,8 +68,8 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
         return null;
       });
       if (projectPrincipal.current(projectId)?.id !== ownerId) return;
-      if (!archived) {
-        // The draft no longer exists on the hub: the local work stays, as a new draft.
+      // The local work stays, as a new draft.
+      const detach = () => {
         const current = useProjectDraftStore.getState().get(projectId);
         if (current)
           useProjectDraftStore.getState().save(projectId, { ...current, remote: undefined });
@@ -79,8 +79,9 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
           drafts,
           status: kept && hasDraftChanges(kept) ? "pending" : "saved",
         });
-        return;
-      }
+      };
+      // The draft no longer exists on the hub.
+      if (!archived) return detach();
       if (
         archived.status !== "active" &&
         useProjectDraftStore.getState().get(projectId) === before &&
@@ -90,6 +91,9 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
         setSession(projectId, { ownerId, drafts, status: "saved" });
         return;
       }
+      // Discarded or published elsewhere while newer work stayed here (not this tab's own publication).
+      if (archived.status !== "active" && before.remote.pendingMutation?.kind !== "publish")
+        return detach();
     }
     if (before?.remote?.pendingMutation) {
       setSession(projectId, { ownerId, drafts, active, status: "pending" });

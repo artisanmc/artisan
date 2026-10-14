@@ -11,7 +11,7 @@ object EditorApi {
         val relay = Relay(logger)
         AccountRoutes(servers, sessions, prefs).register(router)
         ServerRoutes(servers, relay).register(router)
-        ProjectRoutes(servers, relay, history, loaded, drafts).register(router)
+        ProjectRoutes(servers, relay, history, loaded, drafts, logger).register(router)
         ItemRoutes(servers, relay, vanilla).register(router)
         packs?.let { PackRoutes(servers, it).register(router) }
         return router
