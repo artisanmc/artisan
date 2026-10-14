@@ -63,6 +63,20 @@ Two leaves share a name (often both empty `name` with the same folder name, such
 as `data` in Docker images). Each connection replaces the other. Give every server a
 distinct `name`.
 
+## "Not registered in artisan_servers"
+
+Each server has a permanent id in `plugins/Artisan/server-id`, generated at its first
+start. Changing `name` keeps it: the server is renamed, and everything attached to it
+follows. Two refusals appear at startup:
+
+| Console | Cause | Fix |
+|---|---|---|
+| `this server's id … belongs to the running server "survie"` | This server folder was copied from `survie`, `server-id` included, and `survie` is running | Delete `plugins/Artisan/server-id` on the copy and restart: it becomes a server of its own |
+| `another server already uses the name "survie"` | Another server id holds that name | Choose another `name`, or restore the original `server-id` if this is the same server reinstalled |
+
+A refused server still runs, but is missing from the server list while it is
+offline.
+
 ## `/artisan editor` on a leaf: "The editor hub cannot be reached right now"
 
 The leaf is not connected to the hub at that moment. See
