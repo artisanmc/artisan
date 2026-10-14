@@ -62,7 +62,7 @@ class AccountRoutes(private val servers: Servers, private val sessions: Sessions
 
     private fun status(server: EditorServer) = mapOf(
         "id" to server.id, "label" to server.label, "online" to server.online, "lastMcVersion" to server.minecraftVersion,
-        "lastSeenAt" to null, "lastSeenIp" to null, "contentVersion" to 2, "pluginVersion" to server.pluginVersion,
+        "lastSeenAt" to servers.lastSeen(server.id)?.toString(), "lastSeenIp" to null, "contentVersion" to 2, "pluginVersion" to server.pluginVersion,
         "pluginUpdateVersion" to null, "pluginUpdatePending" to false, "isCurrent" to true,
         "updateRequired" to server.updateRequired,
     )

@@ -10,7 +10,7 @@ L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au c
 
 | Entité | Identité | Où |
 |---|---|---|
-| **Server** | `local` pour le serveur qui héberge le hub ; `proxy_name` (`name`, sinon le nom du dossier du serveur) pour une feuille | Mémoire du hub (`Servers`, `RemoteServer`). Une feuille déconnectée reste listée hors ligne jusqu'au redémarrage du hub. |
+| **Server** | `local` pour le serveur qui héberge le hub ; `proxy_name` (`name`, sinon le nom du dossier du serveur) pour une feuille | `artisan_servers` (base de la suite) : `uuid` du fichier `plugins/Artisan/server-id`, `name`, `last_seen` rafraîchi chaque minute (`ServerRegistry`). Le hub liste les serveurs connus de la table, éteints compris ; sans base, une feuille déconnectée reste listée jusqu'au redémarrage du hub (`Servers`, `RemoteServer`). Tables d'Artisan migrées par `SchemaMigrator` (`artisan_schema_version`). |
 | **Network** | Unique, nommé `local` ; libellé = nom du dossier du serveur hub | Implicite : le hub et les feuilles qui partagent son secret. |
 | **Project** | Nom de son dossier (`shop`) ; `<serveur>.<dossier>` hors du serveur du hub (`survie2.shop`) | Disque : `plugins/Artisan/projects/<dossier>/`, ou la racine qu'un add-on enregistre (`ProjectRootRegistry`, `identity: addon`). Cf. `project-files.md`. |
 | **Brouillon privé** | `draft_id` dans un Project, propriétaire = UUID du joueur | Disque : `<project>/.artisan/drafts/<id>/draft.json` + blobs (`ProjectDraftStore`). |

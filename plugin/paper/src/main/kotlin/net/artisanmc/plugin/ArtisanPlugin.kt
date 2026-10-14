@@ -22,6 +22,7 @@ import net.artisanmc.plugin.render.PacketEventsMenuPackets
 import net.artisanmc.plugin.render.PacketEventsSlotSink
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
+import java.util.UUID
 
 open class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
@@ -86,6 +87,8 @@ open class ArtisanPlugin : JavaPlugin() {
         private set
 
     companion object {
+        private const val HEARTBEAT_TICKS = 20L * 60
+
         fun defaultModules(): List<ArtisanModule> = listOf(
             MenusModule(),
             CommandsModule(),
@@ -255,6 +258,7 @@ open class ArtisanPlugin : JavaPlugin() {
         // Modules register before the first `hello`, which announces them.
         startRuntime(cfg) { defaultModules().forEach { api.modules.register(it) } }
         registerCustomItemsReloadListeners()
+        startServerRegistry(cfg.web)
         startEditor(cfg.web)
 
         artisanCommand = ArtisanCommand(this, langManager)
@@ -324,6 +328,40 @@ open class ArtisanPlugin : JavaPlugin() {
             logger.severe("[Artisan] name \"${web.name}\" in environment.yml is invalid: letters, digits, _ and - only, 64 max, not \"local\". Use this server's name in velocity.toml.")
         }
 
+    private val serverId: UUID by lazy { net.artisanmc.plugin.database.ServerIdFile.read(File(dataFolder, "server-id")) }
+    @Volatile private var serverRegistry: net.artisanmc.plugin.database.ServerRegistry? = null
+    @Volatile private var knownCache: Pair<Long, Map<String, java.time.Instant>>? = null
+
+    /** This server in `artisan_servers`, its presence refreshed every minute (ADR `server-identity-and-versions`). */
+    private fun startServerRegistry(web: net.artisanmc.plugin.hub.WebConfig) {
+        val name = networkName(web) ?: return
+        val registry = try {
+            val dataSource = database.dataSource(this)
+            net.artisanmc.plugin.database.ArtisanSchema.migrate(dataSource, database.dialect, logger)
+            net.artisanmc.plugin.database.ServerRegistry(dataSource, database.dialect, logger)
+                .also { it.register(serverId, name, java.time.Instant.now()) }
+        } catch (e: Exception) {
+            logger.warning("[Artisan] Server registry unavailable, offline servers will not be listed: ${e.message}")
+            return
+        }
+        serverRegistry = registry
+        fun beat() {
+            if (!isEnabled) return
+            runCatching { registry.touch(serverId, java.time.Instant.now()) }
+                .onFailure { logger.warning("[Artisan] Presence not refreshed: ${it.message}") }
+            scheduler.asyncLater(HEARTBEAT_TICKS) { beat() }
+        }
+        scheduler.asyncLater(HEARTBEAT_TICKS) { beat() }
+    }
+
+    /** The other servers of `artisan_servers` and their last presence, cached a few seconds; null without a registry. */
+    private fun knownServers(): Map<String, java.time.Instant>? {
+        val registry = serverRegistry ?: return null
+        knownCache?.takeIf { System.currentTimeMillis() - it.first < 5_000 }?.let { return it.second }
+        return runCatching { registry.others(serverId).associate { it.name to it.lastSeen } }.getOrNull()
+            ?.also { knownCache = System.currentTimeMillis() to it }
+    }
+
     private fun networkSecret(web: net.artisanmc.plugin.hub.WebConfig): String =
         net.artisanmc.plugin.config.NetworkSecret.resolve(web.secret, File("."), File(dataFolder, "network-secret"), generate = !web.leaf)
 
@@ -348,7 +386,9 @@ open class ArtisanPlugin : JavaPlugin() {
         try {
             val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
-            val servers = net.artisanmc.plugin.hub.Servers(localServer)
+            val servers = net.artisanmc.plugin.hub.Servers(localServer, ::knownServers) {
+                net.artisanmc.plugin.hub.RemoteServer(it, publicUrl = { editorBase() })
+            }
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
             val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs)
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger)
