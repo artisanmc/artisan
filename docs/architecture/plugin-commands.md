@@ -31,3 +31,15 @@ port pris, Jetty non téléchargé) : `editor_disabled`.
 au hub par `/ws/plugin` (`editor_link`, réponse `editor_link_result`). Le hub ne consulte aucune
 permission lui-même. `<base>` vaut le `web.url` du hub, sinon l'adresse rejointe par le joueur avec
 le port du hub. Hub injoignable : `editor_hub_offline`.
+
+**Permissions relues** : chaque minute, le serveur envoie au hub les permissions éditeur de ses
+joueurs en ligne (`editor_permissions` depuis une feuille, appel direct sur le hub). Elles
+remplacent celles des sessions que **ce serveur** a émises (colonne `origin` = server id) ; sans
+`artisan.editor.view`, ces sessions sont fermées. Un autre serveur ne touche pas aux sessions
+qu'il n'a pas émises (permissions LuckPerms par serveur).
+
+## `editor logout [joueur]`
+
+Ferme toutes les sessions éditeur d'un joueur, quel que soit le serveur d'origine. Sans argument :
+soi-même (en jeu). Avec un joueur (en ligne ou connu du serveur) : `artisan.admin`, console comprise.
+Sur une feuille, passe par le hub (`editor_logout` → `editor_logout_result {ok, closed}`).
