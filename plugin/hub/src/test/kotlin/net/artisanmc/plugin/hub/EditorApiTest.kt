@@ -185,6 +185,27 @@ class EditorApiTest {
     }
 
     @Test
+    fun `an offline server's project opens from the database, dated by its last presence`() {
+        stored = true
+        val servers = Servers(server, known = { mapOf("survie" to java.time.Instant.parse("2026-10-14T10:00:00Z")) })
+        val offline = HubServer(
+            WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(servers, sessions, null, loaded = loaded), sessions,
+            EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
+        ).also { it.start() }
+        try {
+            fun get(path: String) = client.send(
+                HttpRequest.newBuilder(URI("http://127.0.0.1:${offline.port}$path")).header("Cookie", cookie).GET().build(),
+                HttpResponse.BodyHandlers.ofString(),
+            ).let { mapper.readTree(it.body()) }
+            assertEquals("2026-10-14T10:00:00Z", get("/api/v1/projects/survie.kept/files")["offlineSince"].asText())
+            assertEquals(false, get("/api/v1/user/projects/survie.kept")["connection"]["available"].asBoolean())
+            assertEquals(true, get("/api/v1/user/projects/kept")["connection"]["available"].asBoolean())
+        } finally {
+            offline.stop()
+        }
+    }
+
+    @Test
     fun `a publication names its author`() {
         call("PUT", "/api/v1/projects/shop/files", mapOf("operation_id" to "op-1", "files" to emptyList<Any>()))
         assertEquals(player.toString(), sent.last()["author_id"])

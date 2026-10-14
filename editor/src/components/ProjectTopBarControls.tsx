@@ -170,6 +170,7 @@ export function ProjectTopBarControls({
                 networkId={networkId}
                 currentServerKeyId={project.serverKeyId ?? undefined}
                 downHint={pushStatusHint}
+                offline={offline}
               />
             }
           />
@@ -190,7 +191,7 @@ export function ProjectTopBarControls({
         <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
           <SearchButton />
           <div data-tour="save" className="flex items-center gap-1">
-            <SaveControls key={projectId} projectId={projectId} />
+            <SaveControls key={projectId} projectId={projectId} offline={offline} />
           </div>
           <RefreshProjectButton
             projectId={projectId}
@@ -481,8 +482,11 @@ function syncAccountFromDraft(projectId: ProjectId): void {
  */
 function SaveControls({
   projectId,
+  offline = false,
 }: {
   projectId: ProjectId;
+  /** The server is offline: the draft stays editable, publishing waits for its return. */
+  offline?: boolean;
 }) {
   const { t } = useTranslation();
   const user = useProjectPrincipalId(projectId);
@@ -601,6 +605,10 @@ function SaveControls({
 
   const openReview = () => {
     if (!project) return;
+    if (offline) {
+      toast.error(t("deploy.offline"));
+      return;
+    }
     flushDraftEdits();
     const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
     const current = useProjectDraftStore.getState().get(projectId);
@@ -716,26 +724,41 @@ function SaveControls({
             </button>
           </Tooltip>
         )}
-        <button
-          type="button"
-          onClick={openReview}
-          disabled={saving || !canSave || !dirty}
-          title={
-            !canSave
-              ? t("deploy.cannotDeployTitle")
-              : dirty
-                ? t("deploy.deployTitle")
-                : t("deploy.nothing")
-          }
-          className="btn btn-sm btn-primary"
-        >
-          {saving ? (
-            <Spinner aria-hidden role="presentation" className="text-current" />
-          ) : (
-            <Play className="size-4" fill="currentColor" aria-hidden />
-          )}
-          {saving ? t("deploy.deploying") : t("deploy.deploy")}
-        </button>
+        {offline ? (
+          // A disabled button gets no hover: `aria-disabled` keeps the explanation reachable.
+          <Tooltip content={t("deploy.offline")}>
+            <button
+              type="button"
+              aria-disabled
+              onClick={openReview}
+              className="btn btn-sm btn-primary cursor-default opacity-50"
+            >
+              <Play className="size-4" fill="currentColor" aria-hidden />
+              {t("deploy.deploy")}
+            </button>
+          </Tooltip>
+        ) : (
+          <button
+            type="button"
+            onClick={openReview}
+            disabled={saving || !canSave || !dirty}
+            title={
+              !canSave
+                ? t("deploy.cannotDeployTitle")
+                : dirty
+                  ? t("deploy.deployTitle")
+                  : t("deploy.nothing")
+            }
+            className="btn btn-sm btn-primary"
+          >
+            {saving ? (
+              <Spinner aria-hidden role="presentation" className="text-current" />
+            ) : (
+              <Play className="size-4" fill="currentColor" aria-hidden />
+            )}
+            {saving ? t("deploy.deploying") : t("deploy.deploy")}
+          </button>
+        )}
         {dirty || draftSession || lastSaveError ? (
           <DropdownMenu>
             <DropdownMenuTrigger

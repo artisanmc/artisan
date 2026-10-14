@@ -1183,9 +1183,9 @@ export default {
     staleLoading: "Showing your last visit — fetching the server’s version…",
     staleOffline: "Server unreachable — showing your last visit. Saving is out of reach.",
     unpublishedOffline:
-      "Server offline — this project has never been published. Your draft is saved; publishing resumes when the server is back.",
+      "Server offline — this project has never been published. Your draft is saved; publishing and live data resume when the server is back.",
     staleOfflineSince:
-      "Server offline — version from {{date}}. Your draft stays editable; publishing waits for its return.",
+      "Server offline since {{date}} — you are working on the version it last loaded. Your draft stays editable; publishing and live data wait for its return.",
     loading: "Opening the project…",
     offlineTitle: "Server offline",
     offlineBody:
@@ -1493,6 +1493,7 @@ export default {
     deploying: "Deploying…",
     deployTitle: "Review, then write the changes to the server",
     nothing: "Nothing to deploy",
+    offline: "The server is offline: publishing waits for its return. Your draft stays editable.",
     cannotDeployTitle: "Unknown server — cannot deploy",
     deployed: "Deployed to the server",
     packFailed: "The resource pack could not be rebuilt; players keep the previous one.",
