@@ -410,7 +410,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 net.artisanmc.plugin.hub.RemoteServer(it, publicUrl = { editorBase() })
             }
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
-            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, projectHistory)
+            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, projectHistory, loadedProjects)
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger) {
                 if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) null
                 else artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
@@ -607,9 +607,13 @@ open class ArtisanPlugin : JavaPlugin() {
     private val versionWriter = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "Artisan-versions").apply { isDaemon = true } }
 
     /** Each Project whose loaded Snapshot differs from its latest Version gets a new one. */
-    private fun recordVersions(snapshot: net.artisanmc.plugin.project.ProjectSnapshot, authors: Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>) {
-        val store = versionStore ?: return
-        val server = serverRow ?: return
+    private fun recordVersions(
+        snapshot: net.artisanmc.plugin.project.ProjectSnapshot,
+        authors: Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>,
+        done: () -> Unit,
+    ) {
+        val store = versionStore ?: return done()
+        val server = serverRow ?: return done()
         val now = java.time.Instant.now()
         versionWriter.execute {
             for (id in snapshot.projectIds) runCatching {
@@ -621,6 +625,56 @@ open class ArtisanPlugin : JavaPlugin() {
                 val author = published?.let { net.artisanmc.plugin.database.VersionAuthor(it.id, it.name) }
                 store.record(server, projectRoots.key(id), id, entries, now, author, published?.restoredFrom?.toIntOrNull()) { File(dir, it).readBytes() }
             }.onFailure { logger.warning("[Artisan] Version of project $id not recorded: ${it.message}") }
+            runCatching { recordServerState(server, snapshot, now) }.onFailure { logger.warning("[Artisan] Loaded state not recorded: ${it.message}") }
+            done()
+        }
+    }
+
+    private val stateMapper = com.fasterxml.jackson.databind.ObjectMapper()
+
+    /** The Project list and, per Project, the Snapshot hash, failed files and editor metadata: what the hub serves. */
+    private fun recordServerState(server: Int, snapshot: net.artisanmc.plugin.project.ProjectSnapshot, now: java.time.Instant) {
+        val projects = snapshot.projectIds.associateWith { id ->
+            mapOf(
+                "hash" to snapshot.hash(id),
+                "failed" to snapshot.skipped[id].orEmpty().toSortedMap().map { (path, reason) -> mapOf("path" to path, "reason" to reason) },
+                // `.artisan/editor.yaml`: read by the editor, outside the Versions.
+                "meta" to snapshot.files[id].orEmpty().filterKeys { net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(it) },
+            )
+        }
+        val state = net.artisanmc.plugin.protocol.ProjectReads.listBody(snapshot, projectRoots) + ("projects" to projects)
+        net.artisanmc.plugin.database.ServerStateStore(artisanData ?: return).put(server, stateMapper.writeValueAsString(state), now)
+    }
+
+    /** Projects as their server loaded them, read from the suite database by the editor's routes. */
+    private val loadedProjects = object : net.artisanmc.plugin.hub.LoadedProjects {
+        private fun row(server: String) = if (server == net.artisanmc.plugin.hub.Servers.LOCAL) serverRow else serverRegistry?.rowId(server)
+
+        @Suppress("UNCHECKED_CAST")
+        private fun state(server: String): Map<String, Any?>? {
+            val row = row(server) ?: return null
+            val json = net.artisanmc.plugin.database.ServerStateStore(artisanData ?: return null).get(row) ?: return null
+            return stateMapper.readValue(json, Map::class.java) as Map<String, Any?>
+        }
+
+        override fun list(server: String): Map<String, Any?>? = state(server)?.minus("projects")
+
+        @Suppress("UNCHECKED_CAST")
+        override fun read(server: String, folder: String): Map<String, Any?>? {
+            val loaded = (state(server)?.get("projects") as? Map<String, Map<String, Any?>>)?.get(folder) ?: return null
+            val version = versionStore?.latest(row(server) ?: return null, folder) ?: return null
+            val files = version.files + (loaded["meta"] as? Map<String, String>).orEmpty()
+            return mapOf(
+                "hash" to loaded["hash"],
+                "files" to files.toSortedMap().map { (path, content) -> mapOf("path" to path, "content" to content) },
+                "failed" to loaded["failed"],
+                "binaries" to version.binaries.map { mapOf("path" to it.path, "hash" to it.hash, "size" to it.size) },
+            )
+        }
+
+        override fun binary(server: String, folder: String, path: String): ByteArray? {
+            val row = row(server) ?: return null
+            return versionStore?.latestBinary(row, folder, path)
         }
     }
 

@@ -111,6 +111,17 @@ class VersionStore(private val dataSource: DataSource) {
         changes.map { (row, hash) -> FileVersion(row.createdAt, contents[hash].orEmpty(), row.author) }.reversed()
     }
 
+    /** The latest Version of the Project loaded from [folder]: what the server runs, what the editor opens. */
+    fun latest(server: Int, folder: String): VersionContent? = dataSource.connection.use { c ->
+        val last = rows(c, server, folder)?.lastOrNull() ?: return null
+        version(server, folder, last.id)
+    }
+
+    fun latestBinary(server: Int, folder: String, path: String): ByteArray? = dataSource.connection.use { c ->
+        val last = rows(c, server, folder)?.lastOrNull() ?: return null
+        binary(server, folder, last.id, path)
+    }
+
     /** A binary file of a Version, read from the stored contents; null for a text or unknown path. */
     fun binary(server: Int, folder: String, id: Int, path: String): ByteArray? = dataSource.connection.use { c ->
         val entry = rows(c, server, folder)?.firstOrNull { it.id == id }?.manifest?.firstOrNull { it.path == path && it.binary } ?: return null

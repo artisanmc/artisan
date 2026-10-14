@@ -43,6 +43,10 @@ object ArtisanSchema {
         ),
         Migration(6, "CREATE INDEX artisan_versions_project ON artisan_versions (server_id, project_key, id)"),
         Migration(7, "CREATE INDEX artisan_versions_folder ON artisan_versions (server_id, folder, id)"),
+        Migration(
+            8,
+            "CREATE TABLE IF NOT EXISTS artisan_server_state (server_id INT NOT NULL PRIMARY KEY, state LONGTEXT NOT NULL, updated_at TIMESTAMP NOT NULL)",
+        ),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger) =
@@ -157,6 +161,27 @@ class ServerRegistry(
             s.executeQuery().use { rs ->
                 generateSequence { if (rs.next()) KnownServer(rs.getString(1), rs.getTimestamp(2).toInstant()) else null }.toList()
             }
+        }
+    }
+}
+
+/**
+ * What a server loaded at its last start or reload, beyond its Versions: its Project list and,
+ * per Project, the Snapshot hash and the files that failed to load. Opaque JSON, written whole.
+ */
+class ServerStateStore(private val dataSource: DataSource) {
+    fun put(server: Int, state: String, now: Instant) = dataSource.connection.use { c ->
+        val updated = c.prepareStatement("UPDATE artisan_server_state SET state = ?, updated_at = ? WHERE server_id = ?").use {
+            it.setString(1, state); it.setTimestamp(2, Timestamp.from(now)); it.setInt(3, server); it.executeUpdate()
+        }
+        if (updated == 0) c.prepareStatement("INSERT INTO artisan_server_state (server_id, state, updated_at) VALUES (?, ?, ?)").use {
+            it.setInt(1, server); it.setString(2, state); it.setTimestamp(3, Timestamp.from(now)); it.executeUpdate()
+        }
+    }
+
+    fun get(server: Int): String? = dataSource.connection.use { c ->
+        c.prepareStatement("SELECT state FROM artisan_server_state WHERE server_id = ?").use { s ->
+            s.setInt(1, server); s.executeQuery().use { if (it.next()) it.getString(1) else null }
         }
     }
 }

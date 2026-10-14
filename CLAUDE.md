@@ -110,9 +110,10 @@ ceux-ci — dans **`docs/architecture/invariants.md`**.
 1. **Tout vit sur le disque du serveur** — contenu publié **et** brouillons privés
    (`<project>/.artisan/drafts/`, un jeu par UUID de joueur, `ProjectDraftStore`). L'éditeur
    sauvegarde automatiquement son brouillon ; publier reste explicite, via `project_write` ou la
-   publication du brouillon, avec compare-and-swap. Serveur éteint = éditeur (ou feuille) hors
-   ligne : rien n'est copié ailleurs. **Décidé, pas encore codé** : Versions, brouillons et
-   `artisan_servers` dans la base de la suite (ADR `server-identity-and-versions`).
+   publication du brouillon, avec compare-and-swap. La base de la suite garde une copie de ce que
+   chaque serveur a chargé (`artisan_servers`, Versions, `artisan_server_state`) : le hub lit les
+   Projects depuis la base, serveur éteint compris ; seules les écritures et les données live vont
+   au serveur (ADR `server-identity-and-versions`). Brouillons en base : décidé, pas encore codé.
 2. **`.artisan*` en premier segment = métadonnée** — hors hash, invisible au scan disque. L'éditeur
    possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`,
    `.artisan-trash/` et `.artisan-sync.yaml` lui restent invisibles **et** interdits en écriture.

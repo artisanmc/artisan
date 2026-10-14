@@ -20,12 +20,17 @@ import net.artisanmc.plugin.sync.BundleHasher
  * Projects, publishing and drafts. A Project's id comes from its folder name
  * ([Servers.project]): without a database, that is the only identity there is.
  */
-class ProjectRoutes(private val servers: Servers, private val relay: Relay, private val history: ProjectHistory? = null) {
+class ProjectRoutes(
+    private val servers: Servers,
+    private val relay: Relay,
+    private val history: ProjectHistory? = null,
+    private val loaded: LoadedProjects? = null,
+) {
     fun register(router: Router) {
         router.on("GET", "$SERVER/projects", VIEW) { call ->
             val server = servers.of(call) ?: return@on call.error(404, "not_found")
-            relay.send(call, server, mapOf("type" to "project_list")) { reply ->
-                if (!ok(reply)) return@send readError(call, reply)
+            listed(call, server) { reply ->
+                if (!ok(reply)) return@listed readError(call, reply)
                 val projects = roots(reply).map { summary(server, it) }
                 call.json(mapOf(
                     "project_ids" to (reply["project_ids"] as? List<*>).orEmpty().map { ProjectRef.id(server.id, it as String) },
@@ -36,9 +41,9 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay, priv
         }
         onProject(router, "GET", "/api/v1/user/projects/:project", VIEW) { call, project ->
             val server = project.server
-            relay.send(call, server, mapOf("type" to "project_list")) { reply ->
-                if (!ok(reply)) return@send readError(call, reply)
-                val root = roots(reply).firstOrNull { it["project_id"] == project.folder } ?: return@send call.error(404, "not_found")
+            listed(call, server) { reply ->
+                if (!ok(reply)) return@listed readError(call, reply)
+                val root = roots(reply).firstOrNull { it["project_id"] == project.folder } ?: return@listed call.error(404, "not_found")
                 val movable = movable(server, root)
                 call.json(mapOf(
                     "project" to summary(server, root),
@@ -55,7 +60,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay, priv
             }
         }
         onProject(router, "GET", "/api/v1/projects/:project/editor-access", VIEW) { call, project ->
-            relay.send(call, project.server, mapOf("type" to "project_list")) { reply ->
+            listed(call, project.server) { reply ->
                 val root = roots(reply).firstOrNull { it["project_id"] == project.folder }
                 val origin = if (root?.get("identity") == "addon") "module" else "personal"
                 call.json(EDITOR_ACCESS + ("projectOrigin" to origin))
@@ -147,7 +152,17 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay, priv
         }
     }
 
+    /** The Project list a server loaded: from the database, else asked to the server. */
+    private fun listed(call: Call, server: EditorServer, respond: (Map<String, Any?>) -> Unit) {
+        loaded?.list(server.id)?.let { return respond(it + ("ok" to true)) }
+        relay.send(call, server, mapOf("type" to "project_list"), respond)
+    }
+
     private fun read(call: Call, project: ProjectRef) {
+        loaded?.read(project.server.id, project.folder)?.let { body ->
+            val ifHash = call.query("if_hash")
+            return call.json(if (ifHash != null && ifHash == body["hash"]) mapOf("unchanged" to true, "hash" to ifHash) else body)
+        }
         val message = mapOf("type" to "project_read", "project_id" to project.folder, "if_hash" to call.query("if_hash"))
         relay.send(call, project.server, message) { reply -> if (ok(reply)) call.json(body(reply)) else readError(call, reply) }
     }
@@ -193,6 +208,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay, priv
 
     private fun asset(call: Call, project: ProjectRef) {
         val path = call.query("path") ?: return call.error(422, "invalid_input")
+        loaded?.binary(project.server.id, project.folder, path)?.let { return call.send(200, contentType(path), it, cacheFor(it, call.query("h"))) }
         relay.send(call, project.server, mapOf("type" to "asset_read", "project_id" to project.folder, "path" to path)) { reply ->
             val content = reply["content_base64"] as? String
             if (!ok(reply) || content == null) return@send readError(call, reply)
