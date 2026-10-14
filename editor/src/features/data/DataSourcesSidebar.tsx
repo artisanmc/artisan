@@ -1,9 +1,9 @@
 import type { DataSource, DataSourceId, Project } from "@/domain/types";
 import { resolveScreen } from "@/features/screens/screenList";
-import { useAccountStore } from "@/state/accountStore";
-import { useServersStore } from "@/state/serversStore";
 import { urlServerId } from "@/lib/urlIds";
+import { useAccountStore } from "@/state/accountStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
+import { useServersStore } from "@/state/serversStore";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ServerSourcesSection } from "./ServerSourcesSection";
@@ -63,9 +63,7 @@ export function DataSourcesSidebar({
                 <span>{d.shape === "table" ? "🗂" : "📦"}</span>
                 <span className="truncate">{d.name}</span>
                 <span className="ml-auto text-[9px] text-[var(--text-faint)]">
-                  {d.shape === "table"
-                    ? t("dataSources.shapeTable")
-                    : t("dataSources.shapeConfig")}
+                  {d.shape === "table" ? t("dataSources.shapeTable") : t("dataSources.shapeConfig")}
                 </span>
               </button>
             </li>
@@ -80,7 +78,8 @@ export function DataSourcesSidebar({
                 (s) => s.projectId === project.id && s.table === `data/${d.id}`,
               );
               const target =
-                declared ?? resolveScreen(`${moduleId}:__auto__${project.id}__${d.id}`, [], localProjects);
+                declared ??
+                resolveScreen(`${moduleId}:__auto__${project.id}__${d.id}`, [], localProjects);
               return (
                 <li
                   key={d.id}
@@ -97,7 +96,10 @@ export function DataSourcesSidebar({
                         {" — "}
                         <Link
                           to="/servers/$serverId/screens/$screenId"
-                          params={{ serverId: urlServerId(servers, null, serverId)!, screenId: target.id }}
+                          params={{
+                            serverId: urlServerId(servers, serverId)!,
+                            screenId: target.id,
+                          }}
                           className="underline hover:text-[var(--text)]"
                         >
                           {t("screens.openScreen")}

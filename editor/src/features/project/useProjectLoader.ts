@@ -1,5 +1,5 @@
 import { injectDeclaredModels, normalizeDataSources } from "@/domain/dataModels";
-import type { Account, Project, ProjectId } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
 import { hasDraftChanges } from "@/features/project/draft";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import type { FailedDocument } from "@/lib/api/projectFiles";
@@ -21,7 +21,6 @@ import { loadPersistedDrafts } from "./persistedDrafts";
 export interface ProjectLoadResult {
   project: Project | null;
   urlId: string | null;
-  networkId: string | null;
   error: string | null;
   /** The owning server is unreachable — the Project cannot be opened. */
   offline: boolean;
@@ -70,7 +69,7 @@ async function buildProject(
 ): Promise<Project> {
   const serverId = res.project.serverKeyId ?? res.serverKeyId;
   let models = declaredModels;
-  if (!models && serverId && res.networkId && projectRuntime(res).capabilities.liveData) {
+  if (!models && serverId && projectRuntime(res).capabilities.liveData) {
     models = await fetchServerDeclaredModels(serverId).catch(() => []);
     lastDeclaredModels = models;
   }
@@ -94,14 +93,14 @@ async function buildProject(
 }
 
 /** Install a project only from the currently authorized, uncancelled load. */
-function mirrorIntoAccount(loaded: Project, networkId: string | null): void {
+function mirrorIntoAccount(loaded: Project): void {
   // PRESERVING the existing order — overwriting it moved the visited project to
   // the top of the sidebar.
   const current = useAccountStore.getState().account;
   const idx = current.projects.findIndex((p) => p.id === loaded.id);
   const loadedId = loaded.id as ProjectId;
   useAccountStore.getState().setAccount({
-    id: (networkId ?? "") as Account["id"],
+    id: current.id,
     projects:
       idx === -1
         ? [...current.projects, loaded]
@@ -118,7 +117,6 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
   const opened = useRef<string | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [resolvedUrl, setResolvedUrl] = useState<{ scope: string; id: string } | null>(null);
-  const [networkId, setNetworkId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [failed, setFailed] = useState<FailedDocument[]>([]);
@@ -227,10 +225,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
               const built = await buildProject(res, diskId, shown.tree);
               if (cancelled) return;
               setFromDraft(shown.fromDraft);
-              mirrorIntoAccount(built, res.networkId);
+              mirrorIntoAccount(built);
               opened.current = scope;
               setProject(built);
-              setNetworkId(res.networkId);
               setFailed(cached.failed ?? []);
               settle(disk.offlineSince, disk.unpublished);
               return;
@@ -269,11 +266,10 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
               .set(res.project.id, shown.fromDraft && recovered ? recovered.baseline : full.files);
             const built = await buildProject(res, diskId, shown.tree);
             if (cancelled) return;
-            mirrorIntoAccount(built, res.networkId);
+            mirrorIntoAccount(built);
             opened.current = scope;
             setProject(built);
             setFromDraft(shown.fromDraft);
-            setNetworkId(res.networkId);
             setFailed(full.failed);
             settle(full.offlineSince, full.unpublished);
             return;
@@ -306,10 +302,9 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
           });
           const built = await buildProject(res, diskId, resumable?.tree ?? disk.files);
           if (cancelled) return;
-          mirrorIntoAccount(built, res.networkId);
+          mirrorIntoAccount(built);
           opened.current = scope;
           setProject(built);
-          setNetworkId(res.networkId);
           setFromDraft(resumable !== null);
           settle(disk.offlineSince, disk.unpublished);
         })
@@ -343,5 +338,15 @@ export function useProjectLoader(projectId: string, serverRef?: string | null): 
   }, [projectId, serverRef, ownerId, reloadToken]);
 
   const currentScope = JSON.stringify([ownerId, serverRef, projectId]);
-  return { project: opened.current === currentScope ? project : null, urlId: resolvedUrl?.scope === currentScope ? resolvedUrl.id : null, networkId, error, offline, failed, fromDraft, stale, offlineSince, unpublished };
+  return {
+    project: opened.current === currentScope ? project : null,
+    urlId: resolvedUrl?.scope === currentScope ? resolvedUrl.id : null,
+    error,
+    offline,
+    failed,
+    fromDraft,
+    stale,
+    offlineSince,
+    unpublished,
+  };
 }

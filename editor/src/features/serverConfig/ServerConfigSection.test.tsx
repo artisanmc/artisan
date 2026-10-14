@@ -1,5 +1,5 @@
 import type { Asset } from "@/domain/asset";
-import type { ProjectSummary } from "@/lib/api/networks";
+import type { ProjectSummary } from "@/lib/api/servers";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ServerConfigSection } from "./ServerConfigSection";

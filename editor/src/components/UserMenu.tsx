@@ -5,7 +5,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { EditorAccessNotice } from "@/features/project/EditorAccessNotice";
 import { useAuthStore } from "@/state/authStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link } from "@tanstack/react-router";
@@ -21,10 +20,9 @@ function getInitial(name: string | null | undefined): string {
 }
 
 export function UserMenu({
-  serverId,
   serverLabel,
 }: {
-  serverId?: string | null;
+  /** The selected server, named at the top of the menu when there is one. */
   serverLabel?: string;
 } = {}) {
   const { t } = useTranslation();
@@ -68,17 +66,11 @@ export function UserMenu({
       <DropdownMenuContent side="top" align="start" className="w-[280px] max-w-[calc(100vw-24px)]">
         {user ? (
           <>
-            {serverId && (
+            {serverLabel && (
               <>
-                <div className="px-2.5 pt-2 text-xs font-medium text-[var(--text)]">
-                  {t("userMenu.resourceUsage")}
-                  {serverLabel && (
-                    <div className="truncate pt-1 font-normal text-[var(--text-mut)]">
-                      {serverLabel}
-                    </div>
-                  )}
+                <div className="truncate px-2.5 pt-2 text-xs text-[var(--text-mut)]">
+                  {serverLabel}
                 </div>
-                <EditorAccessNotice key={serverId} serverId={serverId} />
                 <DropdownMenuSeparator />
               </>
             )}

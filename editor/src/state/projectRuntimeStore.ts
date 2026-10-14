@@ -3,14 +3,12 @@ import { create } from "zustand";
 
 export interface ProjectRuntime {
   projectId: string;
-  networkId: string | null;
   serverId: string | null;
   minecraftVersion: string | null;
   capabilities: {
     canImport?: boolean;
     canDelete?: boolean;
     canRename: boolean;
-    canCopyToServer?: boolean;
     liveData: boolean;
     captureInGame: boolean;
     preview: boolean;
@@ -20,7 +18,6 @@ export interface ProjectRuntime {
 export const unavailableProjectCapabilities = Object.freeze({
   canImport: false,
   canDelete: false,
-  canCopyToServer: false,
   canRename: false,
   liveData: false,
   captureInGame: false,
@@ -30,13 +27,11 @@ export function projectRuntime(metadata: UserProjectLoadResult): ProjectRuntime 
   const serverId = metadata.project.serverKeyId ?? metadata.serverKeyId ?? null;
   return {
     projectId: metadata.project.id,
-    networkId: metadata.networkId,
     serverId,
     minecraftVersion: metadata.minecraftVersion ?? null,
     capabilities: {
       canImport: true,
       canDelete: true,
-      canCopyToServer: false,
       ...(metadata.capabilities ?? {
         canRename: false,
         liveData: serverId !== null,

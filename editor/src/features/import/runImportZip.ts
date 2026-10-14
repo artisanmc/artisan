@@ -1,11 +1,11 @@
 import { normalizeProjectFiles, readProjectZip } from "@/features/export/projectZip";
-import { createProject } from "@/lib/api/networks";
 import { createDraft, updateDraft, uploadDraftBlob } from "@/lib/api/projectDrafts";
 import {
   type ProjectFilesError,
   listServerProjects,
   readProjectFiles,
 } from "@/lib/api/projectFiles";
+import { createProject } from "@/lib/api/servers";
 import { loadUserProject } from "@/lib/api/userProjects";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import {
@@ -37,21 +37,17 @@ export type ImportError =
   | "create_failed"
   | "invalid_name"
   | "forbidden"
-  | "server_key_not_in_network"
-  | "quota_denied"
   | "plugin_update_required"
   | "invalid_path"
   | "unknown";
 
-/** The error codes `POST /network/projects` can return. */
+/** The error codes `POST /servers/:server/projects` can return. */
 const CREATE_ERRORS: ImportError[] = [
   "server_offline",
   "fetch_timeout",
   "network_error",
   "invalid_name",
   "forbidden",
-  "server_key_not_in_network",
-  "quota_denied",
   "plugin_update_required",
   "invalid_path",
 ];

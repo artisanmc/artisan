@@ -25,18 +25,8 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 const SERVERS: ServerEntry[] = [
-  {
-    serverId: "sk_1",
-    serverLabel: "Survival",
-    networkId: "net_1",
-    networkName: "Mon Network",
-  },
-  {
-    serverId: "sk_2",
-    serverLabel: "Creatif",
-    networkId: "net_1",
-    networkName: "Mon Network",
-  },
+  { serverId: "sk_1", serverLabel: "Survival" },
+  { serverId: "sk_2", serverLabel: "Creatif" },
 ];
 
 describe("ServerSelector", () => {
@@ -73,7 +63,13 @@ describe("ServerSelector", () => {
         servers={[
           { ...SERVERS[0]!, online: true },
           { ...SERVERS[1]!, online: false },
-          { ...SERVERS[0]!, serverId: "sk_3", serverLabel: "Lobby", online: true, updateRequired: true },
+          {
+            ...SERVERS[0]!,
+            serverId: "sk_3",
+            serverLabel: "Lobby",
+            online: true,
+            updateRequired: true,
+          },
         ]}
       />,
     );

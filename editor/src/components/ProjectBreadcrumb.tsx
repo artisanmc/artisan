@@ -1,15 +1,13 @@
 import { Breadcrumb, BreadcrumbCurrent, BreadcrumbSwitcher } from "@/components/ui/breadcrumb";
-import { type ServerKeySummary, getNetwork } from "@/lib/api/networks";
+import { type ServerSummary, listServers } from "@/lib/api/servers";
 import { displayServerLabel } from "@/lib/serverLabel";
-import { useNetworksStore } from "@/state/networksStore";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * Server › project, at the head of the topbar. The network only shows in the
- * server's tooltip, leaving room for the tabs. The server opens the list of
- * the network's servers: picking one leads to its page.
+ * Server › project, at the head of the topbar. The server opens the list of
+ * the hub's servers: picking one leads to its page.
  * Outside a server (demo), only the project is shown.
  */
 export function ProjectBreadcrumb({
@@ -23,23 +21,22 @@ export function ProjectBreadcrumb({
   serverStatus?: ReactNode;
 }) {
   const { t } = useTranslation();
-  const networkName = useNetworksStore((s) => s.networks[0]?.name);
   const navigate = useNavigate();
-  const [servers, setServers] = useState<ServerKeySummary[]>([]);
+  const [servers, setServers] = useState<ServerSummary[]>([]);
   useEffect(() => {
     setServers([]);
     if (!serverRef) return;
     let cancelled = false;
-    getNetwork()
-      .then((res) => {
-        if (!cancelled) setServers(res.serverKeys);
+    listServers()
+      .then((list) => {
+        if (!cancelled) setServers(list);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [serverRef]);
-  const current = servers.find((k) => k.id === serverRef || k.slug === serverRef);
+  const current = servers.find((k) => k.id === serverRef);
   const serverLabel = current ? displayServerLabel(current) : serverRef;
 
   return (
@@ -49,7 +46,7 @@ export function ProjectBreadcrumb({
           {serverStatus}
           <BreadcrumbSwitcher
             current={current?.id ?? serverRef}
-            title={networkName ? `${networkName} › ${serverLabel}` : (serverLabel ?? undefined)}
+            title={serverLabel ?? undefined}
             searchPlaceholder={t("breadcrumb.searchServers")}
             items={servers.map((k) => ({
               id: k.id,
@@ -63,12 +60,8 @@ export function ProjectBreadcrumb({
               ),
             }))}
             onSelect={(id) => {
-              const key = servers.find((k) => k.id === id);
-              if (!key) return;
-              navigate({
-                to: "/servers/$serverId",
-                params: { serverId: key.slug ?? key.id },
-              });
+              if (!servers.some((k) => k.id === id)) return;
+              navigate({ to: "/servers/$serverId", params: { serverId: id } });
             }}
           />
         </span>
