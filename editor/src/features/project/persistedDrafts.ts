@@ -138,7 +138,9 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
         draftConflict: conflict,
       });
       return;
-    } else if (current?.remote && !active) status = "conflict";
+      // A revision-0 draft was never created on the hub: nothing to conflict with, it is still to create.
+    } else if (current?.remote && !active)
+      status = current.remote.revision ? "conflict" : "pending";
     setSession(projectId, { ownerId, drafts, active, status });
   } catch (error) {
     if (projectPrincipal.current(projectId)?.id === ownerId)
@@ -668,8 +670,17 @@ async function syncOnce(projectId: string): Promise<void> {
         error: undefined,
         draftConflict: conflict,
       });
-    } catch {
-      // An unavailable comparison cannot prove that the conflict is resolved.
+    } catch (error) {
+      // An unavailable comparison cannot prove that the conflict is resolved; a draft gone
+      // from the hub leaves nothing to conflict with: the local work becomes a new draft.
+      if (!gone(error) || useProjectDraftStore.getState().get(projectId) !== local) return;
+      useProjectDraftStore.getState().save(projectId, { ...local, remote: undefined });
+      setSession(projectId, {
+        ...session,
+        status: "pending",
+        error: undefined,
+        draftConflict: undefined,
+      });
     }
     return;
   }
