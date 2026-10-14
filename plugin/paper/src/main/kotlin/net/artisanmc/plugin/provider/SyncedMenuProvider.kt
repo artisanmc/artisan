@@ -70,6 +70,11 @@ class SyncedMenuProvider(
     /** Each loaded Snapshot, with its publications' authors by project id; [done] announces the reload once it is recorded. */
     private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>, done: () -> Unit) -> Unit =
         { _, _, done -> done() },
+    /**
+     * Where a reload asked after [load] reads the disk and parses the YAML ([refreshFromDisk]):
+     * never a game thread (issue #42). The caller's thread by default, for the tests.
+     */
+    private val reloadExecutor: Executor = Executor { it.run() },
 ) : MenuProvider {
     private val pendingAuthors = java.util.concurrent.ConcurrentHashMap<String, net.artisanmc.plugin.protocol.PublicationAuthor>()
     private var copyMinecraftVersion = "1.21.4"
@@ -186,8 +191,12 @@ class SyncedMenuProvider(
      *
      * This is NOT disk watching: it is an explicit declaration by the writer, at the
      * moment of the write.
+     *
+     * The disk is read on [reloadExecutor], whatever thread asks: a reload of a few projects
+     * takes seconds on a slow bind mount. Only [onReload] (command map, modules' `onReload()`)
+     * goes back to the global thread, through the scheduler, once the snapshot is swapped.
      */
-    fun refreshFromDisk() {
+    fun refreshFromDisk() = reloadExecutor.execute {
         reloadFromDisk()
         onReload?.invoke()
     }
@@ -197,8 +206,11 @@ class SyncedMenuProvider(
         // here cannot contain it. Without this hook, its Project would answer
         // `unknown_project` until the next reload. Deferred to the next tick so the
         // Add-on's onEnable has returned: its bootstrap writes are read, and its
-        // onReload() never runs before its onEnable is done.
+        // onReload() never runs before its onEnable is done. The tick only orders the
+        // reload; the disk work itself leaves the global thread (refreshFromDisk).
         roots.onRegister = { _, _ -> scheduler.global(::refreshFromDisk) }
+        // The first load, and `/artisan reload`, read on the calling thread: menus and
+        // commands exist when the server opens, and the admin's reply says they do.
         reloadFromDisk()
         val mcVersion = try {
             org.bukkit.Bukkit.getServer().minecraftVersion
