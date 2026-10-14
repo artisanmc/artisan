@@ -93,11 +93,14 @@ export function LinkedServersDropdown({
   networkId,
   currentServerKeyId,
   downHint,
+  offline = false,
 }: {
   networkId: string | null | undefined;
   currentServerKeyId?: string;
   /** Why the current server is offline, shown as a tooltip on the badge. */
   downHint?: string;
+  /** The open project could not reach its server: red at once, without waiting for the next poll. */
+  offline?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const { data } = useNetworkServersStatus(networkId, currentServerKeyId);
@@ -112,7 +115,7 @@ export function LinkedServersDropdown({
   const current = currentServerKeyId
     ? data.servers.find((s) => s.id === currentServerKeyId)
     : undefined;
-  const up = current ? current.online && !current.updateRequired : online > 0;
+  const up = !offline && (current ? current.online && !current.updateRequired : online > 0);
   const label = current
     ? t(
         current.updateRequired
