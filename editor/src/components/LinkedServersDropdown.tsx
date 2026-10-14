@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,8 +6,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useNetworkServersStatus } from "@/components/useNetworkServersStatus";
-import { type ServerStatusEntry, isPluginOutdated } from "@/lib/api/networks";
+import { useServersStatus } from "@/components/useServersStatus";
+import type { ServerSummary } from "@/lib/api/servers";
 import { useTranslation } from "react-i18next";
 
 type TFn = ReturnType<typeof useTranslation>["t"];
@@ -31,7 +30,7 @@ export function ServerRow({
   lang,
   t,
 }: {
-  s: ServerStatusEntry;
+  s: ServerSummary;
   lang: string;
   t: TFn;
 }) {
@@ -49,20 +48,15 @@ export function ServerRow({
         <span className="truncate text-[13px] text-[var(--text)]">
           {s.label ?? s.id.slice(0, 8)}
         </span>
-        {s.isCurrent ? <Badge variant="sage">{t("linkedServers.current")}</Badge> : null}
       </div>
       <div className="pl-3.5 font-mono text-[11px] text-[var(--text-faint)]">
         {s.online ? (
           <>
             {t("linkedServers.online")}
-            {s.lastSeenIp ? ` · ${s.lastSeenIp}` : ""}
-            {s.lastMcVersion ? ` · ${s.lastMcVersion}` : ""}
+            {s.minecraftVersion ? ` · ${s.minecraftVersion}` : ""}
           </>
         ) : s.lastSeenAt ? (
-          <>
-            {t("linkedServers.lastSeen", { when: relTime(s.lastSeenAt, lang) })}
-            {s.lastSeenIp ? ` · ${s.lastSeenIp}` : ""}
-          </>
+          t("linkedServers.lastSeen", { when: relTime(s.lastSeenAt, lang) })
         ) : (
           t("linkedServers.neverConnected")
         )}
@@ -71,23 +65,15 @@ export function ServerRow({
         <div className="pl-3.5 text-[11px] text-[var(--danger)]">
           {t("linkedServers.updateRequired")}
         </div>
-      ) : isPluginOutdated(s) ? (
-        <div className="pl-3.5 text-[11px] text-[var(--danger)]">
-          {t("linkedServers.pluginOutdated")}
-        </div>
-      ) : null}
-      {s.pluginUpdatePending ? (
-        <div className="pl-3.5 text-[11px] text-[var(--text-mut)]">
-          {t("linkedServers.pluginUpdatePending", { version: s.pluginUpdatePending })}
-        </div>
       ) : null}
     </div>
   );
 }
 
 /**
- * Status dot (beside the server in the breadcrumb) + dropdown listing every server key in the current network with
- * live online/offline state, last-seen time and last IP. Polls every 15s.
+ * Status dot (beside the server in the breadcrumb) + dropdown showing the
+ * server holding the open project, with its live state and last-seen time.
+ * Polls every 15s.
  */
 export function LinkedServersDropdown({
   currentServerKeyId,
@@ -101,18 +87,17 @@ export function LinkedServersDropdown({
   offline?: boolean;
 }) {
   const { t, i18n } = useTranslation();
-  const { data } = useNetworkServersStatus(currentServerKeyId);
+  const { data } = useServersStatus();
 
   if (data === null) return null;
 
-  const { online, total } = data;
+  const online = data.filter((s) => s.online).length;
+  const total = data.length;
   // What matters here is the state of the server that HOLDS the open project:
   // its content lives on its disk, so it conditions everything (ADR
-  // `server-disk-only-storage`). The network aggregate could show "2/2" while
-  // YOUR server was the only one missing. The other servers stay in the dropdown.
-  const current = currentServerKeyId
-    ? data.servers.find((s) => s.id === currentServerKeyId)
-    : undefined;
+  // `server-disk-only-storage`). The hub aggregate could show "2/2" while
+  // YOUR server was the only one missing.
+  const current = currentServerKeyId ? data.find((s) => s.id === currentServerKeyId) : undefined;
   const up = !offline && (current ? current.online && !current.updateRequired : online > 0);
   const label = current
     ? t(

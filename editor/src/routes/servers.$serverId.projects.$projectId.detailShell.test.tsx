@@ -58,10 +58,8 @@ vi.mock("@/features/project/useProjectLoader", () => ({
       dialogs: [],
       assets: [],
     },
-    networkId: "net_1",
   }),
 }));
-vi.mock("@/lib/api/userProjects", () => ({ getNetworkOfProject: vi.fn().mockResolvedValue("net_1") }));
 vi.mock("@/components/ProjectTopBarControls", () => ({
   ProjectTopBarControls: () => <div data-testid="topbar" />,
 }));
@@ -72,7 +70,6 @@ vi.mock("@/features/canvas/EditorPane", () => ({
   EditorPane: () => <div data-testid="editor-pane" />,
 }));
 vi.mock("@/features/help/PatternsGallery", () => ({ PatternsGallery: () => null }));
-vi.mock("@/features/sync/DeleteProjectDialog", () => ({ DeleteProjectDialog: () => null }));
 vi.mock("@dnd-kit/core", () => ({
   DndContext: ({ children }: any) => <>{children}</>,
   DragOverlay: () => null,

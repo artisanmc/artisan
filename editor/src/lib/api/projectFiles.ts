@@ -1,7 +1,7 @@
 import type { PlannedDelete, PlannedWrite } from "@/features/project/diskSave";
 import { projectFetch } from "@/lib/projectFetch";
 import { isPrivateProjectPath } from "@/lib/projectFileVisibility";
-import type { ProjectSummary } from "./networks";
+import type { ProjectSummary } from "./servers";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -22,35 +22,7 @@ export type ProjectFilesError =
   | "too_large"
   | "network_error"
   | "forbidden"
-  | "quota_denied"
-  | "inventory_unavailable"
   | "plugin_update_required";
-export interface EditorAccessDto {
-  enabled: boolean;
-  quota: number | null;
-  proUntil: string | null;
-  inventoryAvailable: boolean;
-  count: number | null;
-  reason: "free_quota_reached" | "free_quota_exceeded" | "inventory_unavailable" | null;
-  projectOrigin: "personal" | "module";
-}
-
-export type ServerEditorAccessDto = Omit<EditorAccessDto, "projectOrigin">;
-
-export async function getServerEditorAccess(serverId: string): Promise<ServerEditorAccessDto> {
-  const res = await fetch(`${API_URL}/api/v1/servers/${encodeURIComponent(serverId)}/editor-access`, { credentials: "include", cache: "no-store" });
-  const body = await res.json().catch(() => null) as ServerEditorAccessDto | null;
-  if (body && (res.ok || res.status === 503 && body.reason === "inventory_unavailable")) return body;
-  throw new Error("editor_access_unavailable");
-}
-
-export async function getEditorAccess(projectId: string): Promise<EditorAccessDto | null> {
-  const res = await fetch(`${API_URL}/api/v1/projects/${encodeURIComponent(projectId)}/editor-access`, { credentials: "include", cache: "no-store" });
-  if (res.status === 422) return null;
-  const body = await res.json().catch(() => null) as EditorAccessDto | null;
-  if (res.ok || res.status === 503 && body?.reason === "inventory_unavailable") return body;
-  throw new Error("editor_access_unavailable");
-}
 
 export interface ProjectFileConflict {
   path: string;
@@ -106,8 +78,6 @@ function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesErro
     "write_error",
     "too_large",
     "forbidden",
-    "quota_denied",
-    "inventory_unavailable",
     "plugin_update_required",
   ];
   return codes.includes(raw as ProjectFilesError) ? (raw as ProjectFilesError) : fallback;
@@ -135,9 +105,7 @@ export async function readProjectFiles(
   ifHash?: string | null,
 ): Promise<ProjectReadResult> {
   try {
-    const url = ifHash
-      ? `${base(target)}?if_hash=${encodeURIComponent(ifHash)}`
-      : base(target);
+    const url = ifHash ? `${base(target)}?if_hash=${encodeURIComponent(ifHash)}` : base(target);
     const res = await projectFetch(fetchProjectId(target), url, {
       credentials: "include",
     });
@@ -189,23 +157,19 @@ export async function writeProjectFiles(
   },
 ): Promise<ProjectWriteResult> {
   try {
-    const res = await projectFetch(
-      fetchProjectId(target),
-      base(target),
-      {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          files: plan.files,
-          deletes: plan.deletes,
-          renames: plan.renames ?? [],
-          create: plan.create === true,
-          ...(plan.operationId ? { operationId: plan.operationId } : {}),
-          ...(plan.binaries ? { binaries: plan.binaries } : {}),
-        }),
-      },
-    );
+    const res = await projectFetch(fetchProjectId(target), base(target), {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: plan.files,
+        deletes: plan.deletes,
+        renames: plan.renames ?? [],
+        create: plan.create === true,
+        ...(plan.operationId ? { operationId: plan.operationId } : {}),
+        ...(plan.binaries ? { binaries: plan.binaries } : {}),
+      }),
+    });
     if (res.status === 409) {
       const body = (await res.json().catch(() => null)) as {
         conflicts?: ProjectFileConflict[];
@@ -291,10 +255,9 @@ export type ProjectListResult =
  */
 export async function listServerProjects(serverId: string): Promise<ProjectListResult> {
   try {
-    const res = await fetch(
-      `${API_URL}/api/v1/servers/${serverId}/projects`,
-      { credentials: "include" },
-    );
+    const res = await fetch(`${API_URL}/api/v1/servers/${serverId}/projects`, {
+      credentials: "include",
+    });
     const body = (await res.json().catch(() => null)) as {
       project_ids?: string[];
       projects?: ProjectSummary[];

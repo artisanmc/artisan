@@ -120,10 +120,14 @@ class EditorApiTest {
     }
 
     @Test
-    fun `one network with one server, both named local`() {
-        val (_, body) = call("GET", "/api/v1/network")
-        assertEquals("u-local", body!!["serverKeys"][0]["slug"].asText())
-        assertEquals("Survie", body["serverKeys"][0]["label"].asText())
+    fun `the hub lists its servers by id, its own first`() {
+        val (_, body) = call("GET", "/api/v1/servers")
+        assertEquals("u-local", body!!["servers"][0]["id"].asText())
+        assertEquals("Survie", body["servers"][0]["label"].asText())
+        assertEquals(true, body["servers"][0]["online"].asBoolean())
+        assertEquals(404, call("GET", "/api/v1/network").first)
+        assertEquals(404, call("POST", "/api/v1/user/ws-ticket").first)
+        assertEquals(404, call("GET", "/api/v1/servers/u-local/editor-access").first)
         assertEquals(404, call("GET", "/api/v1/servers/other/modules").first)
         assertEquals("menus", call("GET", "/api/v1/servers/u-local/modules").second!!["modules"][0]["id"].asText())
         assertEquals(listOf("shop:item"), call("GET", "/api/v1/servers/u-local/models").second!!["models"].map { it["id"].asText() })
@@ -251,12 +255,12 @@ class EditorApiTest {
 
     @Test
     fun `projects are created, renamed and deleted on the server disk`() {
-        val (created, body) = call("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "u-local"))
+        val (created, body) = call("POST", "/api/v1/servers/u-local/projects", mapOf("name" to "shop"))
         assertEquals(201, created)
         assertEquals("shop", body!!["project"]["id"].asText())
         assertEquals(mapOf("type" to "project_create", "project_id" to "shop"), sent.last())
-        assertEquals(404, call("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "nope")).first)
-        assertEquals(422, call("POST", "/api/v1/network/projects", mapOf("serverKeyId" to "u-local")).first)
+        assertEquals(404, call("POST", "/api/v1/servers/nope/projects", mapOf("name" to "shop")).first)
+        assertEquals(422, call("POST", "/api/v1/servers/u-local/projects", emptyMap<String, Any>()).first)
 
         val (renamed, identity) = call("POST", "/api/v1/projects/shop/rename", mapOf("operationId" to "op1", "targetId" to "store"))
         assertEquals(200, renamed)
@@ -269,7 +273,7 @@ class EditorApiTest {
 
         for ((error, status) in listOf("project_exists" to 409, "invalid_name" to 422)) {
             answer = { mapOf("ok" to false, "error" to error) }
-            val (code, refused) = call("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "u-local"))
+            val (code, refused) = call("POST", "/api/v1/servers/u-local/projects", mapOf("name" to "shop"))
             assertEquals(status, code)
             assertEquals(error, refused!!["error"].asText())
         }
@@ -382,6 +386,6 @@ class EditorApiTest {
         assertEquals(403, call("POST", "/api/v1/servers/u-local/config/write", write).first)
         assertEquals(403, call("DELETE", "/api/v1/user/projects/shop").first)
         assertEquals(403, call("POST", "/api/v1/projects/shop/rename", mapOf("targetId" to "store")).first)
-        assertEquals(403, call("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "u-local")).first)
+        assertEquals(403, call("POST", "/api/v1/servers/u-local/projects", mapOf("name" to "shop")).first)
     }
 }
