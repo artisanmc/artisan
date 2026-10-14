@@ -8,6 +8,8 @@ export interface PendingRename {
 export interface ProjectDraft {
   binaryBaseline?: Record<string, { hash: string; size: number }>;
   binaryTree?: Record<string, { hash: string; size: number }>;
+  /** The Version this draft was restored from: the Version its publication makes says so. */
+  restoredFrom?: string;
   remote?: {
     id: string;
     name: string;

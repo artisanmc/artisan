@@ -11,6 +11,8 @@ export interface ProjectVersionSummary {
   author: { id: string; name: string } | null;
   /** Files that differ from the previous Version. */
   changed: string[];
+  /** The Version a restore published again. */
+  restoredFrom?: string | null;
 }
 
 export interface ProjectVersionContent {
@@ -40,4 +42,19 @@ export async function readProjectVersion(
   });
   if (!res.ok) throw new Error("version_unavailable");
   return (await res.json()) as ProjectVersionContent;
+}
+
+/** The bytes of one of a Version's images or fonts, kept by the server. */
+export async function readVersionBinary(
+  projectId: string,
+  versionId: string,
+  path: string,
+): Promise<Uint8Array> {
+  const res = await projectFetch(
+    projectId,
+    url(projectId, `/${encodeURIComponent(versionId)}/binary?path=${encodeURIComponent(path)}`),
+    { credentials: "include" },
+  );
+  if (!res.ok) throw new Error("version_unavailable");
+  return new Uint8Array(await res.arrayBuffer());
 }

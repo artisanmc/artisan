@@ -4,12 +4,14 @@ import { useAccountStore } from "@/state/accountStore";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { ProjectHistory } from "./ProjectHistory";
+import { mutateDraftAssets } from "./persistedDrafts";
 import { projectTree } from "./saveProjectToDisk";
 
 vi.mock("@/lib/api/projectVersions", () => ({
   listProjectVersions: vi.fn(),
   readProjectVersion: vi.fn(),
 }));
+vi.mock("./persistedDrafts", () => ({ mutateDraftAssets: vi.fn().mockResolvedValue({}) }));
 
 it("lists deployments and server edits, shows a Version's diff, and restores it into the draft", async () => {
   const previous = useAccountStore.getState().account;
@@ -63,10 +65,20 @@ it("lists deployments and server edits, shows a Version's diff, and restores it 
     expect(await within(dialog).findByText("old.yaml")).toBeInTheDocument();
     expect(api.readProjectVersion).toHaveBeenCalledWith(project.id, "v0");
 
-    fireEvent.click(within(dialog).getByRole("button", { name: /Restore|Restaurer/ }));
+    const opened = vi.fn();
+    window.addEventListener("artisan:open-deploy-review", opened);
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /Restore and publish|Restaurer et publier/ }),
+    );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    window.removeEventListener("artisan:open-deploy-review", opened);
     const restored = useAccountStore.getState().account.projects.find((p) => p.id === project.id)!;
     expect(Object.keys(projectTree(restored)).sort()).toEqual(kept.map(([path]) => path).sort());
+    expect(vi.mocked(mutateDraftAssets).mock.calls[0]![1]).toMatchObject({
+      suffix: "/restore",
+      fields: { versionId: "v1" },
+    });
+    expect(opened).toHaveBeenCalledOnce();
   } finally {
     act(() => useAccountStore.setState({ account: previous }));
   }

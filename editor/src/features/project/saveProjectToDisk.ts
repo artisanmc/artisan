@@ -111,6 +111,7 @@ export async function saveProjectToDisk(
           useProjectDraftStore.getState().save(project.id, {
             ...current,
             renames,
+            restoredFrom: undefined,
             remote: undefined,
             baseline: published,
             binaryBaseline: result.binaryTree,

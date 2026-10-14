@@ -19,7 +19,9 @@ class SnapshotEntry private constructor(val hash: String, val size: Long, val te
 }
 
 data class VersionAuthor(val id: String, val name: String)
-data class VersionSummary(val id: Int, val hash: String, val createdAt: Instant, val author: VersionAuthor?, val changed: List<String>)
+data class VersionSummary(
+    val id: Int, val hash: String, val createdAt: Instant, val author: VersionAuthor?, val changed: List<String>, val restoredFrom: Int? = null,
+)
 data class VersionBinary(val path: String, val hash: String, val size: Long)
 data class VersionContent(
     val id: Int, val createdAt: Instant, val previousId: Int?,
@@ -34,7 +36,7 @@ data class FileVersion(val at: Instant, val content: String, val author: Version
  */
 class VersionStore(private val dataSource: DataSource) {
     private class Entry(val binary: Boolean, val hash: String, val size: Long, val path: String)
-    private class Row(val id: Int, val hash: String, val manifest: List<Entry>, val createdAt: Instant, val author: VersionAuthor?)
+    private class Row(val id: Int, val hash: String, val manifest: List<Entry>, val createdAt: Instant, val author: VersionAuthor?, val restoredFrom: Int?)
 
     /**
      * Records [entries] unless the latest Version of [projectKey] holds the same files; [readBinary]
@@ -43,7 +45,7 @@ class VersionStore(private val dataSource: DataSource) {
      */
     fun record(
         server: Int, projectKey: String, folder: String, entries: Map<String, SnapshotEntry>,
-        at: Instant, author: VersionAuthor?, readBinary: (path: String) -> ByteArray,
+        at: Instant, author: VersionAuthor?, restoredFrom: Int?, readBinary: (path: String) -> ByteArray,
     ): Boolean = dataSource.connection.use { c ->
         val manifest = entries.toSortedMap().entries.joinToString("\n") { (path, e) ->
             "${if (e.binary) "b" else "t"}\t${e.hash}\t${e.size}\t$path"
@@ -62,11 +64,13 @@ class VersionStore(private val dataSource: DataSource) {
             }
         }
         c.prepareStatement(
-            "INSERT INTO artisan_versions (server_id, project_key, folder, hash, manifest, author_id, author_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO artisan_versions (server_id, project_key, folder, hash, manifest, author_id, author_name, created_at, restored_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ).use {
             it.setInt(1, server); it.setString(2, projectKey); it.setString(3, folder); it.setString(4, hash)
             it.setString(5, manifest); it.setString(6, author?.id); it.setString(7, author?.name)
-            it.setTimestamp(8, Timestamp.from(at)); it.executeUpdate()
+            it.setTimestamp(8, Timestamp.from(at))
+            if (restoredFrom == null) it.setNull(9, java.sql.Types.INTEGER) else it.setInt(9, restoredFrom)
+            it.executeUpdate()
         }
         true
     }
@@ -78,7 +82,7 @@ class VersionStore(private val dataSource: DataSource) {
             val before = rows.getOrNull(i - 1)?.manifest?.associate { it.path to it.hash }.orEmpty()
             val now = row.manifest.associate { it.path to it.hash }
             val changed = (now.keys + before.keys).filter { now[it] != before[it] }.sorted()
-            VersionSummary(row.id, row.hash, row.createdAt, row.author, changed)
+            VersionSummary(row.id, row.hash, row.createdAt, row.author, changed, row.restoredFrom)
         }.reversed()
     }
 
@@ -107,6 +111,14 @@ class VersionStore(private val dataSource: DataSource) {
         changes.map { (row, hash) -> FileVersion(row.createdAt, contents[hash].orEmpty(), row.author) }.reversed()
     }
 
+    /** A binary file of a Version, read from the stored contents; null for a text or unknown path. */
+    fun binary(server: Int, folder: String, id: Int, path: String): ByteArray? = dataSource.connection.use { c ->
+        val entry = rows(c, server, folder)?.firstOrNull { it.id == id }?.manifest?.firstOrNull { it.path == path && it.binary } ?: return null
+        c.prepareStatement("SELECT content FROM artisan_contents WHERE hash = ?").use { s ->
+            s.setString(1, entry.hash); s.executeQuery().use { if (it.next()) it.getBytes(1) else null }
+        }
+    }
+
     fun contentCount(): Int = dataSource.connection.use { c ->
         c.createStatement().use { s -> s.executeQuery("SELECT COUNT(*) FROM artisan_contents").use { it.next(); it.getInt(1) } }
     }
@@ -118,7 +130,7 @@ class VersionStore(private val dataSource: DataSource) {
         ).use { s -> s.setInt(1, server); s.setString(2, folder); s.executeQuery().use { if (it.next()) it.getString(1) else null } }
             ?: return null
         val rows = c.prepareStatement(
-            "SELECT id, hash, manifest, created_at, author_id, author_name, folder FROM artisan_versions WHERE server_id = ? AND project_key = ? ORDER BY id",
+            "SELECT id, hash, manifest, created_at, author_id, author_name, folder, restored_from FROM artisan_versions WHERE server_id = ? AND project_key = ? ORDER BY id",
         ).use { s ->
             s.setInt(1, server); s.setString(2, key)
             s.executeQuery().use { rs ->
@@ -127,6 +139,7 @@ class VersionStore(private val dataSource: DataSource) {
                     else Row(
                         rs.getInt(1), rs.getString(2), parse(rs.getString(3)), rs.getTimestamp(4).toInstant(),
                         rs.getString(5)?.let { VersionAuthor(it, rs.getString(6).orEmpty()) },
+                        rs.getInt(8).takeUnless { rs.wasNull() },
                     ) to rs.getString(7)
                 }.toList()
             }

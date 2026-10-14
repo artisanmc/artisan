@@ -64,7 +64,9 @@ directement dans le plugin à chaque requête.
   (hash → octets, texte et binaires, stockés une fois). Chaque serveur enregistre la sienne à
   chaque Snapshot dont le manifeste diffère du précédent (`SyncedMenuProvider.onSnapshot` →
   `ArtisanPlugin.recordVersions`, thread `Artisan-versions`) ; `.artisan*` hors manifeste.
-  L'auteur vient de `author_id`/`author_name` des messages de publication du hub.
+  L'auteur vient de `author_id`/`author_name` des messages de publication du hub ;
+  `restored_from` du `restoredFrom` du brouillon publié (restaurer une Version charge son texte
+  et ses binaires, lus en base, dans le brouillon ; « Restaurer et publier » ouvre la revue).
 
 ## Phases (récit)
 
