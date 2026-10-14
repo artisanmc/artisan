@@ -66,6 +66,7 @@ class ProjectWrites(
                     return@offThread reply.send(mapOf("ok" to false, "error" to "conflict", "conflicts" to conflicts, "disk_files" to onDisk))
                 }
                 mutations.commit(projectDir, request.message, changes(projectDir, request, decoded))
+                noteAuthor(projectId, request.message)
                 workspace.reload()
                 reply.ok()
             } catch (e: Throwable) {
@@ -219,12 +220,18 @@ class ProjectWrites(
         payload["request_id"] = request.requestId
         send(payload)
         if (result.path("ok").asBoolean() && request.message.path("action").asText() == "publish") {
+            noteAuthor(projectId, request.message)
             try {
                 workspace.reload()
             } catch (error: Exception) {
                 logger?.log(Level.WARNING, "[Artisan] Draft published but runtime reload failed", error)
             }
         }
+    }
+
+    private fun noteAuthor(projectId: String, message: JsonNode) {
+        val id = message.path("author_id").asText("").ifEmpty { return }
+        workspace.authoredBy(projectId, id, message.path("author_name").asText(""))
     }
 
     private companion object {

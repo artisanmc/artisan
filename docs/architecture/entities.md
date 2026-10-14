@@ -56,10 +56,15 @@ directement dans le plugin à chaque requête.
 
 ## Historique
 
-- `.artisan/history/<chemin>/<ms>` : archives d'un fichier, lues par `project_history`.
-  **Plus alimentées** depuis le 2026-09-26 (`ProjectPublisher.withHistory` est l'identité ;
-  l'historique était passé au backend) ; un renommage déplace encore les archives existantes.
-- Versions d'un Project : aucune. La route `…/versions` rend une liste vide.
+- `.artisan/history/<chemin>/<ms>` : archives d'un fichier d'avant les Versions, lues par
+  `project_history` quand la base est indisponible. Plus alimentées.
+- **Versions** (ADR `server-identity-and-versions`) : `artisan_versions` (serveur, `project_key`
+  de `.artisan/project-id` ou `addon:<id>`, dernier dossier, hash du manifeste, manifeste
+  `t|b <hash> <taille> <chemin>`, auteur UUID + pseudo ou rien, date) et `artisan_contents`
+  (hash → octets, texte et binaires, stockés une fois). Chaque serveur enregistre la sienne à
+  chaque Snapshot dont le manifeste diffère du précédent (`SyncedMenuProvider.onSnapshot` →
+  `ArtisanPlugin.recordVersions`, thread `Artisan-versions`) ; `.artisan*` hors manifeste.
+  L'auteur vient de `author_id`/`author_name` des messages de publication du hub.
 
 ## Phases (récit)
 

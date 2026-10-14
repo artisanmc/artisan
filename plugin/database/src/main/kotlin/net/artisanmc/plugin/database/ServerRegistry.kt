@@ -25,6 +25,24 @@ object ArtisanSchema {
         // A server stopped cleanly is no longer running: renaming it right away is not a copy.
         Migration(2, "ALTER TABLE artisan_servers ADD COLUMN running BOOLEAN NOT NULL DEFAULT FALSE"),
         Migration(3, "CREATE TABLE IF NOT EXISTS artisan_meta (name VARCHAR(64) NOT NULL PRIMARY KEY, val VARCHAR(255) NOT NULL)"),
+        Migration(4, "CREATE TABLE IF NOT EXISTS artisan_contents (hash VARCHAR(64) NOT NULL PRIMARY KEY, content LONGBLOB NOT NULL)"),
+        Migration(
+            5,
+            """CREATE TABLE IF NOT EXISTS artisan_versions (
+                id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                server_id INT NOT NULL REFERENCES artisan_servers(id),
+                project_key VARCHAR(80) NOT NULL,
+                folder VARCHAR(128) NOT NULL,
+                hash VARCHAR(64) NOT NULL,
+                manifest LONGTEXT NOT NULL,
+                author_id CHAR(36),
+                author_name VARCHAR(32),
+                created_at TIMESTAMP NOT NULL,
+                restored_from INT
+            )""",
+        ),
+        Migration(6, "CREATE INDEX artisan_versions_project ON artisan_versions (server_id, project_key, id)"),
+        Migration(7, "CREATE INDEX artisan_versions_folder ON artisan_versions (server_id, folder, id)"),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger) =
@@ -105,6 +123,15 @@ class ServerRegistry(
             }
         }
     }
+
+    /** The `artisan_servers.id` of a server id, or of a server name. */
+    fun rowId(id: UUID): Int? = dataSource.connection.use { c -> rowId(c, "uuid = ?", id.toString()) }
+    fun rowId(name: String): Int? = dataSource.connection.use { c -> rowId(c, "LOWER(name) = LOWER(?)", name) }
+
+    private fun rowId(c: java.sql.Connection, where: String, value: String): Int? =
+        c.prepareStatement("SELECT id FROM artisan_servers WHERE $where").use { s ->
+            s.setString(1, value); s.executeQuery().use { if (it.next()) it.getInt(1) else null }
+        }
 
     /** A clean stop: the server id may come back under another name at once. */
     fun stop(id: UUID) = dataSource.connection.use { c ->

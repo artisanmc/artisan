@@ -20,7 +20,7 @@ import net.artisanmc.plugin.sync.BundleHasher
  * Projects, publishing and drafts. A Project's id comes from its folder name
  * ([Servers.project]): without a database, that is the only identity there is.
  */
-class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
+class ProjectRoutes(private val servers: Servers, private val relay: Relay, private val history: ProjectHistory? = null) {
     fun register(router: Router) {
         router.on("GET", "$SERVER/projects", VIEW) { call ->
             val server = servers.of(call) ?: return@on call.error(404, "not_found")
@@ -69,9 +69,13 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         }
         onProject(router, "GET", "/api/v1/projects/:project/binary", VIEW, ::asset)
         onProject(router, "GET", "$SERVER/projects/:project/asset", VIEW, ::asset)
-        // The self-hosted editor keeps no Versions.
-        router.on("GET", "/api/v1/projects/:project/versions", VIEW) { it.json(mapOf("versions" to emptyList<Any>())) }
-        router.on("GET", "/api/v1/projects/:project/versions/:version", VIEW) { it.error(404, "not_found") }
+        onProject(router, "GET", "/api/v1/projects/:project/versions", VIEW) { call, project ->
+            call.json(mapOf("versions" to (history?.versions(project.server.id, project.folder) ?: emptyList<Any>())))
+        }
+        onProject(router, "GET", "/api/v1/projects/:project/versions/:version", VIEW) { call, project ->
+            history?.version(project.server.id, project.folder, call.params.getValue("version"))?.let(call::json)
+                ?: call.error(404, "not_found")
+        }
 
         drafts(router)
         lifecycle(router)
@@ -155,6 +159,7 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
             put("renames", request["renames"] ?: emptyList<Any>())
             put("create", request.path("create").asBoolean(false))
             request["binaries"]?.let { put("binaries", it) }
+            putAll(author(call))
         }
         relay.send(call, project.server, message) { reply ->
             val error = errorCode(reply)
@@ -173,6 +178,8 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
 
     private fun history(call: Call, project: ProjectRef) {
         val path = call.query("path") ?: return call.error(422, "invalid_input")
+        history?.fileHistory(project.server.id, project.folder, path)?.let { return call.json(mapOf("versions" to it)) }
+        // Archives of `.artisan/history/`, from before Versions.
         relay.send(call, project.server, mapOf("type" to "project_history", "project_id" to project.folder, "path" to path)) { reply ->
             if (ok(reply)) call.json(mapOf("versions" to reply["versions"])) else readError(call, reply)
         }
@@ -254,7 +261,10 @@ class ProjectRoutes(private val servers: Servers, private val relay: Relay) {
         "project_id" to project.folder,
         "owner_id" to call.session!!.playerId.toString(),
         "action" to action,
-    ) + fields
+    ) + author(call) + fields
+
+    /** The Version a publication makes is authored by the signed-in player. */
+    private fun author(call: Call) = call.session!!.let { mapOf("author_id" to it.playerId.toString(), "author_name" to it.playerName) }
 
     private fun draft(call: Call, project: ProjectRef, action: String, vararg fields: Pair<String, Any?>, created: Boolean = false) {
         relay.send(call, project.server, draftMessage(call, project, action, *fields)) { reply -> draftResponse(call, project, reply, created) }

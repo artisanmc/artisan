@@ -20,7 +20,9 @@ class ProjectFolderRequestsTest {
         override val snapshot = ProjectSnapshot.EMPTY
         override val io = Executor { it.run() }
         override fun reload() { reloads++ }
+        override fun authoredBy(projectId: String, authorId: String, authorName: String) { authored += Triple(projectId, authorId, authorName) }
     }
+    private val authored = mutableListOf<Triple<String, String, String>>()
     private val writes = ProjectWrites(workspace, Replies(workspace.io, { sent += it }, null), { sent += it }, null)
     private val mapper = ObjectMapper()
 
@@ -49,6 +51,16 @@ class ProjectFolderRequestsTest {
         assertEquals(true, dispatch("""{"type":"project_delete","request_id":"r4","project_id":"store"}""")["ok"])
         assertEquals(listOf(".artisan-trash"), coreRoot.list()!!.toList())
         assertEquals(3, reloads)
+    }
+
+    @Test fun `a publication names its author before the reload`() {
+        File(coreRoot, "shop").mkdirs()
+        writes.write(EditorRequest.parse(mapper.readTree(
+            """{"type":"project_write","request_id":"w1","project_id":"shop","operation_id":"op1","files":[{"path":"a.yml","content":"a: 1"}],"deletes":[],"renames":[],"author_id":"u1","author_name":"Iban"}""",
+        )) as EditorRequest.ProjectWrite)
+        assertEquals(true, sent.last()["ok"])
+        assertEquals(listOf(Triple("shop", "u1", "Iban")), authored)
+        assertEquals(1, reloads)
     }
 
     @Test fun `unsafe ids are refused before touching the disk`() {
