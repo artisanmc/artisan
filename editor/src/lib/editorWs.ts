@@ -10,18 +10,12 @@ export interface EditorWsHandlers {
   onProjectsReloaded?: (serverKeyId: string, projects: { id: string; hash: string }[]) => void;
 }
 
-/**
- * Live editor notifications over WS, authenticated by the session cookie; the
- * ticket from POST /api/v1/user/ws-ticket is still required on the URL.
- */
+/** Live editor notifications over WS, authenticated by the session cookie alone. */
 export class EditorWs {
   private ws: WebSocket | null = null;
 
-  private constructor(
-    ticket: string,
-    private handlers: EditorWsHandlers,
-  ) {
-    this.ws = new WebSocket(`${WS_URL}/ws/editor?ticket=${encodeURIComponent(ticket)}`);
+  constructor(private handlers: EditorWsHandlers) {
+    this.ws = new WebSocket(`${WS_URL}/ws/editor`);
     this.ws.onmessage = (evt) => {
       let msg: { type: string; server_key_id?: string; projects?: { id: string; hash: string }[] };
       try {
@@ -33,16 +27,6 @@ export class EditorWs {
         this.handlers.onProjectsReloaded?.(msg.server_key_id, msg.projects ?? []);
       }
     };
-  }
-
-  static async connectAsUser(apiUrl: string, handlers: EditorWsHandlers): Promise<EditorWs> {
-    const res = await fetch(`${apiUrl}/api/v1/user/ws-ticket`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (!res.ok) throw new Error(`Failed to obtain WS ticket (${res.status})`);
-    const { ticket } = (await res.json()) as { ticket: string };
-    return new EditorWs(ticket, handlers);
   }
 
   disconnect(): void {

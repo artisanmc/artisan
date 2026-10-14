@@ -108,7 +108,7 @@ class PluginChannelTest {
         val leaf = Leaf()
         leaf.hello(key = "wrong")
         assertEquals(1008, leaf.closed.get(5, TimeUnit.SECONDS))
-        assertEquals(1, get("/api/v1/network/servers-status").get().second!!["total"].asInt())
+        assertEquals(1, get("/api/v1/servers").get().second!!["servers"].size())
     }
 
     @Test
@@ -116,7 +116,7 @@ class PluginChannelTest {
         val leaf = Leaf()
         leaf.hello(database = "db-2")
         assertEquals(1008, leaf.closed.get(5, TimeUnit.SECONDS))
-        assertEquals(1, get("/api/v1/network/servers-status").get().second!!["total"].asInt())
+        assertEquals(1, get("/api/v1/servers").get().second!!["servers"].size())
     }
 
     @Test
@@ -136,7 +136,7 @@ class PluginChannelTest {
         assertEquals("https://editor.example", ack["editor_url"].asText())
         assertTrue(ack["resource_pack"].isObject && ack["resource_pack"].isEmpty)
 
-        val status = get("/api/v1/network/servers-status").get().second!!
+        val status = get("/api/v1/servers").get().second!!
         assertEquals(listOf("u-local", "u-survie2"), status["servers"].map { it["id"].asText() })
         assertEquals("quests", get("/api/v1/servers/u-survie2/modules").get().second!!["modules"][0]["id"].asText())
         assertEquals("fr", get("/api/v1/servers/u-survie2/server-config").get().second!!["config"]["language"].asText())
@@ -173,7 +173,7 @@ class PluginChannelTest {
         leaf.hello(protocol = "1.1")
         leaf.next()
 
-        val create = send("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "u-survie2"))
+        val create = send("POST", "/api/v1/servers/u-survie2/projects", mapOf("name" to "shop"))
         val createRequest = leaf.next()
         assertEquals("project_create", createRequest["type"].asText())
         assertEquals("shop", createRequest["project_id"].asText())
@@ -203,7 +203,7 @@ class PluginChannelTest {
         leaf.hello(protocol = "1.0")
         leaf.next()
         for ((code, body) in listOf(
-            send("POST", "/api/v1/network/projects", mapOf("name" to "shop", "serverKeyId" to "u-survie2")),
+            send("POST", "/api/v1/servers/u-survie2/projects", mapOf("name" to "shop")),
             send("POST", "/api/v1/projects/survie2.shop/rename", mapOf("targetId" to "store")),
             send("DELETE", "/api/v1/user/projects/survie2.shop"),
         ).map { it.get(5, TimeUnit.SECONDS) }) {
@@ -218,7 +218,7 @@ class PluginChannelTest {
         val leaf = Leaf()
         leaf.hello(protocol = "2.0")
         leaf.next()
-        val status = get("/api/v1/network/servers-status").get().second!!
+        val status = get("/api/v1/servers").get().second!!
         assertEquals(true, status["servers"][1]["updateRequired"].asBoolean())
         val (code, body) = get("/api/v1/servers/u-survie2/projects").get(5, TimeUnit.SECONDS)
         assertEquals(503, code)
@@ -280,8 +280,8 @@ class PluginChannelTest {
         var status: JsonNode
         val deadline = System.currentTimeMillis() + 5000
         do {
-            status = get("/api/v1/network/servers-status").get().second!!
-        } while (status["online"].asInt() != 1 && System.currentTimeMillis() < deadline)
+            status = get("/api/v1/servers").get().second!!
+        } while (status["servers"].count { it["online"].asBoolean() } != 1 && System.currentTimeMillis() < deadline)
         assertEquals(false, status["servers"][1]["online"].asBoolean())
         val (code, body) = get("/api/v1/servers/u-survie2/projects").get(5, TimeUnit.SECONDS)
         assertEquals(503, code)

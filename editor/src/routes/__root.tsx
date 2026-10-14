@@ -30,10 +30,15 @@ export function RootLayout() {
       return;
     }
     const scope = { userId, serverId: activeServerId };
-    const refresh = () => { void catalog.load(scope); };
+    const refresh = () => {
+      void catalog.load(scope);
+    };
     refresh();
     const timer = setInterval(refresh, 15_000);
-    return () => { clearInterval(timer); catalog.clear(); };
+    return () => {
+      clearInterval(timer);
+      catalog.clear();
+    };
   }, [userId, activeServerId]);
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "";
@@ -49,30 +54,23 @@ export function RootLayout() {
     useServerScreensStore.getState().load({ serverId: activeServerId });
 
     let cancelled = false;
-    let ws: EditorWs | null = null;
-    const apiUrl = import.meta.env.VITE_API_URL ?? "";
-    EditorWs.connectAsUser(apiUrl, {
+    const ws = new EditorWs({
       // The server reloaded: what is shown may have become wrong. The decision to
       // re-read (or to do nothing) is made in `onProjectsReloaded` — in particular,
       // it spares work in progress.
       onProjectsReloaded: (serverKeyId, projects) => {
         onProjectsReloadedInEditor(serverKeyId, projects);
-        if (!cancelled && serverKeyId === activeServerId && useServerPapiPlaceholdersStore.getState().key) {
-          void useServerPapiPlaceholdersStore.getState().load({ userId: user.id, serverId: activeServerId });
+        if (
+          !cancelled &&
+          serverKeyId === activeServerId &&
+          useServerPapiPlaceholdersStore.getState().key
+        ) {
+          void useServerPapiPlaceholdersStore
+            .getState()
+            .load({ userId: user.id, serverId: activeServerId });
         }
       },
-    })
-      .then((connected) => {
-        if (cancelled) {
-          connected.disconnect();
-          return;
-        }
-        ws = connected;
-      })
-      .catch(() => {
-        // No WS ticket (e.g. cookie expired mid-session) — everything still
-        // works over REST, reload notices are simply unavailable.
-      });
+    });
 
     return () => {
       cancelled = true;

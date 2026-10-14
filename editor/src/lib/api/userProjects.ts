@@ -10,12 +10,10 @@ export interface UserProjectLoadResult {
     externalId?: string | null;
     serverKeyId?: string | null;
   };
-  networkId: string | null;
   serverKeyId: string | null;
   capabilities?: {
     canImport?: boolean;
     canDelete?: boolean;
-    canCopyToServer?: boolean;
     canRename: boolean;
     liveData: boolean;
     captureInGame: boolean;
@@ -49,15 +47,6 @@ export async function loadUserProject(
     throw new Error(`loadUserProject failed: ${res.status}`);
   }
   return (await res.json()) as UserProjectLoadResult;
-}
-
-export async function getNetworkOfProject(projectId: string): Promise<string | null> {
-  try {
-    const res = await loadUserProject(projectId);
-    return res.networkId;
-  } catch {
-    return null;
-  }
 }
 
 /** DELETE /api/v1/user/projects/:projectId — the server moves the folder to its trash. Rejects with the error code. */

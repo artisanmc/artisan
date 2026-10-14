@@ -18,7 +18,7 @@ Dernière révision : 2026-06-19.
 | **ORM** | Drizzle | Sequelize, Prisma | TS-native, types parfaits, proche du SQL, pas de codegen ni de moteur séparé. Dialecte swappable (SQLite → PostgreSQL en changeant 3 lignes). |
 | **DB** | PostgreSQL 16 (`drizzle-orm/postgres-js`) | SQLite (`bun:sqlite`) | SaaS multi-tenant : visualisation données, backups, requêtes ad-hoc, préparation multi-instance. Drizzle abstrait le dialecte — le switch depuis SQLite n'a nécessité que 3 lignes de config. |
 | **Canvas éditeur** | Konva + react-konva | React Flow | Un seul canvas Konva avec inventaires inlines. React Flow (node-based) ne correspond pas au modèle visuel : les menus ne sont pas des nœuds connectés, ce sont des compositions d'items dans une grille. |
-| **WS client (éditeur)** | Custom `pluginBridge.ts` (~60 LOC) | partysocket, socket.io | On contrôle le protocole JSON. partysocket n'est utile que si on veut le reconnect auto sans l'écrire — 60 lignes suffisent. |
+| **WS client (éditeur)** | Custom `pluginBridge.ts` (~60 LOC) | partysocket, socket.io | On contrôle le protocole JSON. partysocket n'est utile que si on veut le reconnect auto sans l'écrire — 60 lignes suffisent. *Supprimé depuis (issue #44) : `pluginBridge.ts` n'avait plus d'importeur une fois l'éditeur servi par le plugin ; `lib/editorWs.ts` porte la socket `/ws/editor`.* |
 | **WS client (plugin)** | OkHttp 4 WebSocket | socket.io, Ktor | OkHttp est déjà la dépendance HTTP du plugin (bundle download). Un seul client HTTP+WS. Reconnect exponential backoff inclus. |
 | **Frontend framework** | React 19 + TypeScript strict | Vue, Svelte, Solid | Écosystème (@dnd-kit, shadcn, training data LLMs). |
 | **Build** | Vite 6 | webpack, Parcel, Turbopack | Standard 2026. HMR rapide, config minimale. |
@@ -96,7 +96,7 @@ Pas de React Flow : les menus Artisan ne sont pas des nœuds dans un graphe. Ce 
 
 ### Zustand + Zundo
 
-`accountStore.ts` est le store principal — mutations pack/menu/element/command + undo/redo via Zundo. `uiStore.ts` porte l'état UI pur (onglet actif, langue, dimensions). `wsStore.ts` porte la connexion WS et la fonction `publish()`.
+`accountStore.ts` est le store principal — mutations pack/menu/element/command + undo/redo via Zundo. `uiStore.ts` porte l'état UI pur (onglet actif, langue, dimensions). `wsStore.ts` portait la connexion WS et la fonction `publish()` ; supprimé avec `pluginBridge.ts` (issue #44).
 
 TanStack Query n'est pas utilisé (pas de data fetching server-side côté editor dans le MVP — l'état vit en localStorage).
 

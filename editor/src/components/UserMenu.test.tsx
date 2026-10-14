@@ -1,10 +1,8 @@
-import { type ServerEditorAccessDto, getServerEditorAccess } from "@/lib/api/projectFiles";
 import { useAuthStore } from "@/state/authStore";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { UserMenu } from "./UserMenu";
 
-vi.mock("@/lib/api/projectFiles", () => ({ getServerEditorAccess: vi.fn() }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, ...props }: React.ComponentPropsWithRef<"a"> & { to: string }) => (
     <a href={to} {...props} />
@@ -14,88 +12,22 @@ vi.mock("@tanstack/react-router", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.setState({
-    currentUser: { id: "user", name: "Iban", email: "test@example.com", isAdmin: false },
+    currentUser: { id: "user", name: "Iban", email: "test@example.com", avatarUrl: null },
   });
 });
 
-it("loads the selected server usage without an open project", async () => {
-  vi.mocked(getServerEditorAccess).mockResolvedValue({
-    enabled: true,
-    quota: 10,
-    proUntil: null,
-    inventoryAvailable: true,
-    count: 4,
-    reason: null,
-  });
-  render(<UserMenu serverId="server" serverLabel="Survival" />);
+it("names the selected server in the open menu", async () => {
+  render(<UserMenu serverLabel="Survival" />);
   const button = await screen.findByRole("button", { name: /Iban/ });
-  expect(getServerEditorAccess).not.toHaveBeenCalled();
+  expect(screen.queryByText("Survival")).not.toBeInTheDocument();
   fireEvent.keyDown(button, { key: "ArrowDown" });
-  expect(await screen.findByRole("status")).toHaveTextContent("4 / 10 ressources personnelles");
-  expect(screen.getByText("Survival")).toBeInTheDocument();
-  expect(getServerEditorAccess).toHaveBeenCalledWith("server");
+  expect(await screen.findByText("Survival")).toBeInTheDocument();
+  expect(screen.getByRole("menuitem", { name: /déconnexion/i })).toBeInTheDocument();
 });
 
-it("ignores a late inventory response from the previously selected server", async () => {
-  let resolveFirst!: (value: ServerEditorAccessDto) => void;
-  vi.mocked(getServerEditorAccess).mockImplementation((server) =>
-    server === "first"
-      ? new Promise((resolve) => {
-          resolveFirst = resolve;
-        })
-      : Promise.resolve({
-          enabled: true,
-          quota: 10,
-          proUntil: null,
-          inventoryAvailable: true,
-          count: 7,
-          reason: null,
-        }),
-  );
-  const { rerender } = render(<UserMenu serverId="first" />);
-  fireEvent.keyDown(await screen.findByRole("button", { name: /Iban/ }), {
-    key: "ArrowDown",
-  });
-  rerender(<UserMenu serverId="second" />);
-  expect(await screen.findByRole("status")).toHaveTextContent("7 / 10");
-  await act(async () =>
-    resolveFirst({
-      enabled: true,
-      quota: 10,
-      proUntil: null,
-      inventoryAvailable: true,
-      count: 1,
-      reason: null,
-    }),
-  );
-  expect(screen.getByRole("status")).toHaveTextContent("7 / 10");
-  rerender(<UserMenu />);
-  expect(screen.queryByRole("status")).not.toBeInTheDocument();
-});
-
-it("shows unavailable inventory instead of zero and allows retrying", async () => {
-  vi.mocked(getServerEditorAccess)
-    .mockResolvedValueOnce({
-      enabled: true,
-      quota: 10,
-      proUntil: null,
-      inventoryAvailable: false,
-      count: null,
-      reason: "inventory_unavailable",
-    })
-    .mockResolvedValueOnce({
-      enabled: true,
-      quota: 10,
-      proUntil: null,
-      inventoryAvailable: true,
-      count: 0,
-      reason: null,
-    });
-  render(<UserMenu serverId="offline" />);
-  fireEvent.keyDown(await screen.findByRole("button", { name: /Iban/ }), {
-    key: "ArrowDown",
-  });
-  expect(await screen.findByRole("alert")).not.toHaveTextContent("0 / 10");
-  fireEvent.click(screen.getByRole("button", { name: /réessayer/i }));
-  expect(await screen.findByRole("status")).toHaveTextContent("0 / 10");
+it("omits the server line without a selected server", async () => {
+  render(<UserMenu />);
+  fireEvent.keyDown(await screen.findByRole("button", { name: /Iban/ }), { key: "ArrowDown" });
+  expect(await screen.findByRole("menu")).toBeInTheDocument();
+  expect(screen.queryByText("Survival")).not.toBeInTheDocument();
 });

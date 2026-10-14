@@ -12,10 +12,6 @@ export interface ServerEntry {
   /** URL slug — the serverId URL param may carry it instead of the id. */
   serverSlug?: string;
   serverLabel: string;
-  networkId: string;
-  /** URL slug — the networkId URL param may carry it instead of the id. */
-  networkSlug?: string;
-  networkName: string;
   /** Absent = unknown state: nothing is shown rather than an assumed offline. */
   online?: boolean;
   /** Plugin too different from the hub: listed, but not editable. */
@@ -48,7 +44,7 @@ function ServerState({ entry }: { entry: ServerEntry }) {
 }
 
 interface Props {
-  /** All servers across all networks (pre-fetched by the sidebar). */
+  /** The hub's servers (pre-fetched by the sidebar). */
   servers: ServerEntry[];
 }
 
@@ -85,9 +81,6 @@ export function ServerSelector({ servers }: Props) {
     ? displayServerLabel({ id: active.serverId, label: active.serverLabel || null })
     : t("sidebar.selectServer");
 
-  // Only show network-name suffix when servers span multiple networks
-  const multiNetwork = new Set(servers.map((s) => s.networkId)).size > 1;
-
   return (
     <div className="relative">
       <button
@@ -117,7 +110,7 @@ export function ServerSelector({ servers }: Props) {
         >
           {servers.map((entry) => (
             <button
-              key={`${entry.networkId}:${entry.serverId}`}
+              key={entry.serverId}
               type="button"
               onClick={() => handleSelect(entry)}
               className="flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left hover:bg-[var(--surface-hover)]"
@@ -126,11 +119,6 @@ export function ServerSelector({ servers }: Props) {
                 {displayServerLabel({ id: entry.serverId, label: entry.serverLabel || null })}
               </span>
               <ServerState entry={entry} />
-              {multiNetwork && (
-                <span className="ml-2 text-[11px] text-[var(--text-faint)]">
-                  {entry.networkName}
-                </span>
-              )}
             </button>
           ))}
         </div>

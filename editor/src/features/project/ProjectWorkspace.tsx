@@ -2,6 +2,7 @@ import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { Asset } from "@/domain/asset";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
+import { DeleteProjectDialog } from "@/features/account/DeleteProjectDialog";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import {
   IMAGE_BUTTON_DRAG_PREFIX,
@@ -42,9 +43,7 @@ import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShor
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
-import { DeleteProjectDialog } from "@/features/sync/DeleteProjectDialog";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
-import { deleteUserProject } from "@/lib/api/userProjects";
 import { validActiveLang } from "@/lib/i18nUsages";
 import { documentDestination, projectDestination } from "@/lib/projectNavigation";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
@@ -199,18 +198,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     // Persist the tab too so a reload restores the exact view, not just the project.
     if (ui.lastActiveTab !== tab) ui.setLastActiveTab(tab ?? null);
   }, [pId, tab]);
-
-  // Navigate away if the currently-viewed project is deleted from the server.
-  useEffect(() => {
-    function onProjectDeleted(e: Event) {
-      const ev = e as CustomEvent<{ projectId: string }>;
-      if (ev.detail?.projectId === pId) {
-        navigate({ to: "/" });
-      }
-    }
-    window.addEventListener("ifz:project_deleted", onProjectDeleted);
-    return () => window.removeEventListener("ifz:project_deleted", onProjectDeleted);
-  }, [pId, navigate]);
 
   // Open the individual element view on double-click (dispatched from board nodes).
   // A qualified ref (`boutique:main`, from a link chip) opens the project it names.
@@ -540,22 +527,12 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       <LibraryDragOverlay />
       <EditorTour state={tourState} actions={editorTourController} storage="server" />
 
-      {showDeleteDialog && project && (
+      {project && (
         <DeleteProjectDialog
+          projectId={pId}
           projectName={project.name}
-          onCancel={() => setShowDeleteDialog(false)}
-          onConfirm={async () => {
-            try {
-              await deleteUserProject(pId);
-              setShowDeleteDialog(false);
-              navigate({ to: "/" });
-            } catch (e) {
-              const code = e instanceof Error ? e.message : "delete_failed";
-              toast.error(
-                t(`deleteProjectDialog.errors.${code}`, { defaultValue: t("toast.deleteFailed") }),
-              );
-            }
-          }}
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
         />
       )}
 

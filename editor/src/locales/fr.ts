@@ -2,7 +2,6 @@ import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import type en from "./en";
 import { onboardingFr } from "./onboarding";
-import { planCatalogFr } from "./planCatalog";
 import { projectIdentityFr } from "./projectIdentity";
 import { selfHostedFr } from "./selfHosted";
 import { serverCanvasFr } from "./serverCanvas";
@@ -184,8 +183,6 @@ const fr: typeof en = {
       create_failed: "Le projet n'a pas pu être créé sur le serveur.",
       invalid_name: "Ce nom de dossier n'est pas autorisé sur le serveur.",
       forbidden: "Tu n'as pas la permission de créer un projet sur ce serveur.",
-      server_key_not_in_network: "Ce serveur n'appartient plus au network.",
-      quota_denied: "Le plan du serveur ne permet pas un projet de plus.",
       plugin_update_required: "Le plugin du serveur est trop ancien pour cette action.",
       invalid_path: "Le nom de dossier du projet est invalide.",
       unknown: "L'import a échoué.",
@@ -256,14 +253,7 @@ const fr: typeof en = {
     title: "Langue de l'éditeur",
   },
   projectMini: {
-    sidebarTitle: "Projects",
     newProject: "Nouveau projet",
-    reorderProject: "Réordonner le projet",
-    sourceUser: "perso",
-    sourceImported: "imp",
-    sourceForked: "fork",
-    countMenusCommands: "{{menus}}m · {{commands}}c",
-    emptyPreview: "vide",
   },
   newProjectDialog: {
     title: "Nouveau projet",
@@ -1106,18 +1096,6 @@ const fr: typeof en = {
   assetPicker: {
     upload: "Importer",
   },
-  sync: {
-    deleteProjectDialog: {
-      title: "Supprimer le projet «{{name}}» ?",
-      warning:
-        "Cette action supprimera tous les menus, dialogs et traductions du projet sur tous les serveurs Minecraft connectés. Les fichiers seront déplacés dans `plugins/Artisan/.artisan-trash/` côté serveur en cas de récupération nécessaire.",
-      conflictWarning:
-        "Si un conflit existe pour ce projet, il sera ignoré et l'éditeur deviendra autoritaire.",
-      typePrompt: "Pour confirmer, tape le nom du projet :",
-      cancel: "Annuler",
-      confirm: "Supprimer",
-    },
-  },
   patterns: {
     title: "Aide-mémoire",
     intro: "Clique sur copier pour réutiliser un snippet dans tes propres champs.",
@@ -1286,10 +1264,7 @@ const fr: typeof en = {
     down: "Hors ligne",
     lastSeen: "Vu {{when}}",
     neverConnected: "Jamais connecté",
-    current: "courant",
     empty: "Aucun serveur lié",
-    pluginOutdated: "Plugin obsolète — mets-le à jour pour éditer ce serveur",
-    pluginUpdatePending: "Plugin {{version}} installé — redémarre le serveur pour l'appliquer",
     updateRequired: "Mise à jour requise",
   },
   sidebar: {
@@ -1307,19 +1282,8 @@ const fr: typeof en = {
     newProject: "+ Nouveau projet",
     setupHint: "Crée un Network ou lance <1>{{cmd}}</1> sur ton serveur pour commencer.",
     networkLabel: "Network",
-    manageNetworks: "Gérer les networks →",
-    noNetworkCta: "Créer un Network",
-    noNetworkHint: "Crée d'abord un Network pour ranger tes projets.",
-    createNetwork: "+ Créer un network",
     serverLabel: "Serveur",
     selectServer: "Sélectionner un serveur",
-  },
-  admin: {
-    billing: {
-      sales: {
-        range: { "7d": "7 jours", "30d": "30 jours", custom: "Personnalisé", from: "Du", to: "Au" },
-      },
-    },
   },
   adminDesign: {
     specimens: {
@@ -1440,12 +1404,6 @@ const fr: typeof en = {
     revert: "Annuler",
     revertTitle: "Jeter les modifications non enregistrées et repartir de l'état du serveur",
   },
-  editorAccess: {
-    unavailable:
-      "Impossible de vérifier les droits de l'éditeur tant que l'inventaire du serveur est indisponible.",
-    module: "Ressource de module · hors quota personnel",
-    retry: "Réessayer",
-  },
   save: {
     lastError: "Dernière erreur d’enregistrement",
     errorHelp:
@@ -1462,10 +1420,6 @@ const fr: typeof en = {
       invalid_input: "Les données envoyées sont invalides.",
       read_error: "Le serveur n’a pas pu lire les fichiers.",
       write_error: "Le serveur n’a pas pu écrire les fichiers.",
-      quota_denied:
-        "Cette modification dépasse le quota gratuit de l'éditeur. Ton brouillon est conservé. Renouvelle Pro ou supprime des ressources personnelles pour continuer.",
-      inventory_unavailable:
-        "L'inventaire des ressources du serveur est indisponible. Reconnecte le serveur et réessaie.",
       plugin_update_required: "Mets à jour le plugin serveur pour modifier avec cette offre.",
       too_large: "Les données dépassent la taille autorisée.",
       forbidden: "Tu n’as pas l’autorisation d’enregistrer ce projet.",
@@ -1545,7 +1499,6 @@ const fr: typeof en = {
     },
   },
   userMenu: {
-    resourceUsage: "Utilisation des ressources",
     anonymous: "Anonyme",
     signIn: "Se connecter",
   },
@@ -1645,9 +1598,6 @@ const fr: typeof en = {
     documentCount_one: "{{count}} élément",
     documentCount_other: "{{count}} éléments",
     openBoard: "Planche générale",
-  },
-  billing: {
-    catalog: planCatalogFr,
   },
   search: {
     placeholder: "Rechercher menus, commandes, items, texte…",

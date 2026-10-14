@@ -1,11 +1,11 @@
 import "@/i18n";
-import * as api from "@/lib/api/networks";
-import type { ServerStatusEntry } from "@/lib/api/networks";
+import * as api from "@/lib/api/servers";
+import type { ServerSummary } from "@/lib/api/servers";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LinkedServersDropdown, ServerRow, relTime } from "./LinkedServersDropdown";
 
-vi.mock("@/lib/api/networks");
+vi.mock("@/lib/api/servers");
 
 // Stub t: echo interpolation values so assertions don't depend on locale text.
 const t = ((k: string, o?: Record<string, unknown>) =>
@@ -15,15 +15,13 @@ const t = ((k: string, o?: Record<string, unknown>) =>
       ? `x${o.count}`
       : k) as unknown as Parameters<typeof ServerRow>[0]["t"];
 
-function entry(over: Partial<ServerStatusEntry>): ServerStatusEntry {
+function entry(over: Partial<ServerSummary>): ServerSummary {
   return {
     id: "sk",
     label: "Srv",
     online: false,
-    lastMcVersion: null,
+    minecraftVersion: null,
     lastSeenAt: null,
-    lastSeenIp: null,
-    isCurrent: false,
     ...over,
   };
 }
@@ -40,64 +38,38 @@ describe("relTime", () => {
 });
 
 describe("ServerRow", () => {
-  it("online row shows IP and version", () => {
+  it("online row shows the Minecraft version", () => {
     render(
       <ServerRow
-        s={entry({
-          id: "b",
-          label: "Lobby",
-          online: true,
-          lastMcVersion: "1.21.4",
-          lastSeenIp: "1.2.3.5",
-        })}
+        s={entry({ id: "b", label: "Lobby", online: true, minecraftVersion: "1.21.4" })}
         lang="en"
         t={t}
       />,
     );
     expect(screen.getByText(/Lobby/)).toBeInTheDocument();
-    expect(screen.getByText(/1\.2\.3\.5/)).toBeInTheDocument();
     expect(screen.getByText(/1\.21\.4/)).toBeInTheDocument();
-    // One key = one live server: the hub evicts the previous connection
-    // (ADR `server-disk-only-storage`), so there is no instance multiplier.
-    expect(screen.queryByText(/x2/)).toBeNull();
   });
 
-  it("offline row with a last hello shows last-seen + last IP", () => {
+  it("offline row with a last hello shows last-seen", () => {
     const iso = new Date(Date.now() - 2 * 3_600_000).toISOString();
     render(
       <ServerRow
-        s={entry({
-          id: "a",
-          label: "Survival",
-          online: false,
-          lastSeenAt: iso,
-          lastSeenIp: "1.2.3.4",
-        })}
+        s={entry({ id: "a", label: "Survival", online: false, lastSeenAt: iso })}
         lang="en"
         t={t}
       />,
     );
     expect(screen.getByText(/Last seen/)).toBeInTheDocument();
-    expect(screen.getByText(/1\.2\.3\.4/)).toBeInTheDocument();
   });
 
-  it("never-connected row shows the never-connected label and no IP", () => {
+  it("never-connected row shows the never-connected label", () => {
     render(<ServerRow s={entry({ id: "c", label: "Events" })} lang="en" t={t} />);
     expect(screen.getByText("linkedServers.neverConnected")).toBeInTheDocument();
   });
 
-  it("a server the hub flags updateRequired says so instead of the outdated hint", () => {
+  it("a server the hub flags updateRequired says so", () => {
     render(<ServerRow s={entry({ online: true, updateRequired: true })} lang="en" t={t} />);
     expect(screen.getByText("linkedServers.updateRequired")).toBeInTheDocument();
-    expect(screen.queryByText("linkedServers.pluginOutdated")).toBeNull();
-  });
-});
-
-describe("ServerRow — plugin update pending", () => {
-  it("offers nothing more when the update is waiting for a restart", () => {
-    render(<ServerRow s={entry({ online: true, pluginUpdatePending: "1.0.4" })} lang="en" t={t} />);
-    expect(screen.getByText("linkedServers.pluginUpdatePending")).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull();
   });
 });
 
@@ -105,31 +77,26 @@ describe("LinkedServersDropdown", () => {
   beforeEach(() => vi.clearAllMocks());
 
   // The trigger describes the server that HOLDS the open project: its disk
-  // conditions everything (ADR `server-disk-only-storage`). The network aggregate
+  // conditions everything (ADR `server-disk-only-storage`). The hub aggregate
   // could show "2/3" while this very server was the missing one.
-  it("announces the current server's state, not the network aggregate", async () => {
-    vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
-      online: 2,
-      total: 3,
-      servers: [
-        entry({ id: "a", online: false, isCurrent: true }),
-        entry({ id: "b", online: true }),
-        entry({ id: "c", online: true }),
-      ],
-    });
+  it("announces the current server's state, not the aggregate", async () => {
+    vi.mocked(api.listServers).mockResolvedValue([
+      entry({ id: "a", online: false }),
+      entry({ id: "b", online: true }),
+      entry({ id: "c", online: true }),
+    ]);
     render(<LinkedServersDropdown currentServerKeyId="a" />);
 
     expect(await screen.findByText(/Offline|Hors ligne/)).toBeInTheDocument();
     expect(screen.queryByText("2/3")).toBeNull();
-    expect(api.getNetworkServersStatus).toHaveBeenCalledWith("a");
   });
 
   it("falls back to the aggregate when no current server is in scope", async () => {
-    vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
-      online: 2,
-      total: 3,
-      servers: [entry({ id: "b", online: true }), entry({ id: "c", online: true })],
-    });
+    vi.mocked(api.listServers).mockResolvedValue([
+      entry({ id: "a", online: false }),
+      entry({ id: "b", online: true }),
+      entry({ id: "c", online: true }),
+    ]);
     render(<LinkedServersDropdown />);
     expect(await screen.findByText("2/3")).toBeInTheDocument();
   });
@@ -137,11 +104,7 @@ describe("LinkedServersDropdown", () => {
   // Offline is not a banner: the badge carries it, with a tooltip giving the
   // exact reason (copy date, draft, never published).
   it("explains the current server's offline state in a tooltip on the badge", async () => {
-    vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
-      online: 0,
-      total: 1,
-      servers: [entry({ id: "a", online: false, isCurrent: true })],
-    });
+    vi.mocked(api.listServers).mockResolvedValue([entry({ id: "a", online: false })]);
     render(
       <LinkedServersDropdown
         currentServerKeyId="a"
@@ -156,17 +119,15 @@ describe("LinkedServersDropdown", () => {
   });
 
   it("announces 'update required' for an incompatible current server", async () => {
-    vi.mocked(api.getNetworkServersStatus).mockResolvedValue({
-      online: 1,
-      total: 1,
-      servers: [entry({ id: "lobby", online: true, isCurrent: true, updateRequired: true })],
-    });
+    vi.mocked(api.listServers).mockResolvedValue([
+      entry({ id: "lobby", online: true, updateRequired: true }),
+    ]);
     render(<LinkedServersDropdown currentServerKeyId="lobby" />);
     expect(await screen.findByText(/Update required|Mise à jour requise/)).toBeInTheDocument();
   });
 
   it("renders nothing while the hub has not answered", () => {
-    vi.mocked(api.getNetworkServersStatus).mockReturnValue(new Promise(() => {}));
+    vi.mocked(api.listServers).mockReturnValue(new Promise(() => {}));
     const { container } = render(<LinkedServersDropdown />);
     expect(container).toBeEmptyDOMElement();
   });

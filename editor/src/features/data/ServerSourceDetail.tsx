@@ -7,7 +7,7 @@ import {
   type ServerDataSource,
   previewDataSource,
 } from "@/lib/api/dataSources";
-import { getNetworkServersStatus } from "@/lib/api/networks";
+import { listServers } from "@/lib/api/servers";
 import { copyText } from "@/lib/clipboard";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,10 +37,10 @@ export function ServerSourceDetail({ serverId, source }: ServerSourceDetailProps
   useEffect(() => {
     setPreview({ kind: "idle" });
     let cancelled = false;
-    getNetworkServersStatus()
-      .then((status) => {
+    listServers()
+      .then((servers) => {
         if (cancelled) return;
-        setOnline(status.servers.find((s) => s.id === serverId)?.online ?? false);
+        setOnline(servers.find((s) => s.id === serverId)?.online ?? false);
       })
       .catch(() => {
         if (!cancelled) setOnline(null); // unknown — leave preview enabled, errors surface on click
@@ -157,7 +157,6 @@ export function ServerSourceDetail({ serverId, source }: ServerSourceDetailProps
           </div>
         ) : null}
       </section>
-
     </div>
   );
 }
