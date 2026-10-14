@@ -20,4 +20,7 @@ interface ProjectWorkspace {
      * knows it wrote: without this, the editor would not see its own write.
      */
     fun reload()
+
+    /** The editor player whose publication of [projectId] the next reload loads: that Version's author. */
+    fun authoredBy(projectId: String, authorId: String, authorName: String) {}
 }
