@@ -20,7 +20,6 @@ import {
 } from "./importMerge";
 
 export interface ImportTarget {
-  networkId: string;
   /** Real server_key id (not the URL slug). */
   serverId: string;
 }
@@ -44,7 +43,7 @@ export type ImportError =
   | "invalid_path"
   | "unknown";
 
-/** The error codes `POST /networks/:id/projects` can return. */
+/** The error codes `POST /network/projects` can return. */
 const CREATE_ERRORS: ImportError[] = [
   "server_offline",
   "fetch_timeout",
@@ -161,7 +160,7 @@ export async function prepareImportZip(
   if (Object.keys(input.files).length === 0 && Object.keys(input.binaries).length === 0)
     return { ok: false, error: "empty" };
 
-  const listing = await listServerProjects(target.networkId, target.serverId);
+  const listing = await listServerProjects(target.serverId);
   if (!listing.ok) return { ok: false, error: filesError(listing.error) };
   const summary = listing.projects?.find(
     (project) => (project.externalId ?? project.id) === normalized.projectId,
@@ -175,7 +174,10 @@ export async function prepareImportZip(
 
   let reference = EMPTY_REFERENCE;
   if (exists) {
-    const read = await readProjectFiles(target.networkId, target.serverId, normalized.projectId);
+    const read = await readProjectFiles({
+      serverId: target.serverId,
+      diskId: normalized.projectId,
+    });
     if (!read.ok) return { ok: false, error: filesError(read.error) };
     if (read.unchanged) return { ok: false, error: "read_error" };
     reference = referenceOf(read.files, read.binaries ?? []);
@@ -211,7 +213,7 @@ export async function applyImportZip(
 
   if (!preview.exists) {
     try {
-      const project = await createProject(target.networkId, target.serverId, projectId);
+      const project = await createProject(target.serverId, projectId);
       projectRef = project.id;
       created = true;
     } catch (error) {
@@ -220,7 +222,7 @@ export async function applyImportZip(
         // The listing did not see it yet, but the server holds it: resolve its
         // internal anchor and the import becomes an update, not a failure.
         try {
-          const resolved = await loadUserProject(projectId, target.serverId, target.networkId);
+          const resolved = await loadUserProject(projectId, target.serverId);
           projectRef = resolved.project.id;
         } catch {
           console.error("[import] project_exists but the anchor cannot be found");
@@ -233,7 +235,7 @@ export async function applyImportZip(
     }
     // The new Project may carry an anchoring `manifest.yaml`: the draft's base
     // must reflect it, otherwise publishing would conflict.
-    const read = await readProjectFiles(target.networkId, target.serverId, projectId);
+    const read = await readProjectFiles({ serverId: target.serverId, diskId: projectId });
     if (read.ok && !read.unchanged) reference = referenceOf(read.files, read.binaries ?? []);
     else if (!read.ok && read.error !== "server_offline")
       return { ok: false, error: filesError(read.error) };

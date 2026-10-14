@@ -9,6 +9,8 @@ describe("authentication return", () => {
     },
   );
   it("keeps a local path", () => {
-    expect(safeAuthReturn("/networks/local/servers/local")).toBe("/networks/local/servers/local");
+    expect(safeAuthReturn("/servers/824473e8-413e-4109-ae91-185021a150e9")).toBe(
+      "/servers/824473e8-413e-4109-ae91-185021a150e9",
+    );
   });
 });

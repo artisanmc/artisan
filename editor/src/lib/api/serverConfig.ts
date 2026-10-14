@@ -3,15 +3,14 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 /** Editable `config.yml` of a server, flat dotted keys (ADR `server-config-from-editor`). */
 export type ServerConfig = Record<string, unknown>;
 
-const url = (networkId: string, serverKeyId: string) =>
-  `${API_URL}/api/v1/networks/${encodeURIComponent(networkId)}/servers/${encodeURIComponent(serverKeyId)}/server-config`;
+const url = (serverKeyId: string) =>
+  `${API_URL}/api/v1/servers/${encodeURIComponent(serverKeyId)}/server-config`;
 
 /** `config: null` = plugin offline since the hub started, or too old to report it. */
 export async function getServerConfig(
-  networkId: string,
   serverKeyId: string,
 ): Promise<{ config: ServerConfig | null; online: boolean }> {
-  const res = await fetch(url(networkId, serverKeyId), { credentials: "include" });
+  const res = await fetch(url(serverKeyId), { credentials: "include" });
   if (!res.ok) throw new Error(`${res.status}`);
   return res.json();
 }
@@ -26,11 +25,10 @@ export class ServerConfigError extends Error {
 }
 
 export async function patchServerConfig(
-  networkId: string,
   serverKeyId: string,
   changes: ServerConfig,
 ): Promise<ServerConfig> {
-  const res = await fetch(url(networkId, serverKeyId), {
+  const res = await fetch(url(serverKeyId), {
     method: "PATCH",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

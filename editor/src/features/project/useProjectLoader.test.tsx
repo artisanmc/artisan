@@ -46,20 +46,20 @@ describe("useProjectLoader", () => {
     expect(result.current.urlId).toBe("shop");
   });
 
-  it("isolates identical folder/server names by Network and never exposes the previous project during navigation", async () => {
+  it("isolates identical folder names by server and never exposes the previous project during navigation", async () => {
     useAuthStore.setState({ currentUser: { id: "u1" } } as never);
     vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockResolvedValue([]);
-    const load = vi.spyOn(userProjectsApi, "loadUserProject").mockImplementation(async (_ref, _server, network) => ({
-      project: { id: `internal-${network}`, name: "Shared", externalId: "shared" }, networkId: network!, serverKeyId: `server-${network}`,
+    const load = vi.spyOn(userProjectsApi, "loadUserProject").mockImplementation(async (_ref, server) => ({
+      project: { id: `internal-${server}`, name: "Shared", externalId: "shared" }, networkId: "local", serverKeyId: server!,
     }));
     const read = vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({ ok: true, files: { "manifest.yaml": "schema: manifest/v2\n" }, failed: [], hash: "first-hash" });
-    const { result, rerender } = renderHook(({ network }) => useProjectLoader("shared", "survival", network), { initialProps: { network: "first" } });
+    const { result, rerender } = renderHook(({ server }) => useProjectLoader("shared", server), { initialProps: { server: "first" } });
     await waitFor(() => expect(result.current.project?.id).toBe("internal-first"));
     read.mockReturnValue(new Promise(() => {}));
-    rerender({ network: "second" });
+    rerender({ server: "second" });
     expect(result.current.project).toBeNull();
-    await waitFor(() => expect(load).toHaveBeenCalledWith("shared", "survival", "second"));
-    expect(read).toHaveBeenLastCalledWith("internal-second", undefined, undefined, undefined);
+    await waitFor(() => expect(load).toHaveBeenCalledWith("shared", "second"));
+    expect(read).toHaveBeenLastCalledWith("internal-second", undefined);
   });
 
   it("loads the content from the server's DISK, not from the backend", async () => {
@@ -81,7 +81,7 @@ describe("useProjectLoader", () => {
     expect(result.current.error).toBeNull();
     // Read under the disk id, from the owning server. With no known version,
     // there is no fingerprint to announce: the server sends the tree.
-    expect(readSpy).toHaveBeenCalledWith("p1", undefined, undefined, undefined);
+    expect(readSpy).toHaveBeenCalledWith("p1", undefined);
     // What was read becomes the compare-and-swap base.
     expect(useProjectBaselineStore.getState().get("p1")).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
@@ -177,7 +177,7 @@ describe("useProjectLoader", () => {
    */
   it("keeps the cached project closed until the server responds", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
-    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity: {
         project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
         networkId: "net_1",
@@ -231,7 +231,7 @@ describe("useProjectLoader", () => {
     const { result } = renderHook(() => useProjectLoader("p1"));
     await waitFor(() => expect(result.current.project).not.toBeNull());
 
-    expect(useProjectCacheStore.getState().get(projectCacheKey("p1", undefined, undefined, "u1"))?.tree).toEqual({
+    expect(useProjectCacheStore.getState().get(projectCacheKey("p1", undefined, "u1"))?.tree).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
     });
   });
@@ -243,7 +243,7 @@ describe("useProjectLoader", () => {
    */
   it("announces the held fingerprint and keeps its copy when the server says 'unchanged'", async () => {
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
-    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity: {
         project: { id: "p1", name: "p", hash: "h", externalId: "boutique_shop" },
         networkId: "net_1",
@@ -267,7 +267,7 @@ describe("useProjectLoader", () => {
     const { result } = renderHook(() => useProjectLoader("p1"));
 
     await waitFor(() => expect(result.current.project).not.toBeNull());
-    expect(readSpy).toHaveBeenCalledWith("p1", undefined, undefined, "empreinte-connue");
+    expect(readSpy).toHaveBeenCalledWith("p1", "empreinte-connue");
     // Revalidated: the displayed copy is no longer "dated", it is confirmed.
     await waitFor(() => expect(result.current.stale).toBe(false));
     // What is on screen is indeed what the server holds: it is the
@@ -286,7 +286,7 @@ describe("useProjectLoader", () => {
       networkId: "net_1",
       serverKeyId: "sk_1",
     };
-    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, undefined, "u1"), {
+    useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity,
       diskId: "shop",
       tree: { "manifest.yaml": "id: shop\n" },

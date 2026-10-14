@@ -8,10 +8,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 type AccessScope =
-  | { projectId: string; networkId?: never; serverId?: never }
-  | { projectId?: never; networkId: string; serverId: string };
+  | { projectId: string; serverId?: never }
+  | { projectId?: never; serverId: string };
 
-export function EditorAccessNotice({ projectId, networkId, serverId }: AccessScope) {
+export function EditorAccessNotice({ projectId, serverId }: AccessScope) {
   const { t } = useTranslation();
   const [access, setAccess] = useState<EditorAccessDto | null>(null);
   const [failed, setFailed] = useState(false);
@@ -23,7 +23,7 @@ export function EditorAccessNotice({ projectId, networkId, serverId }: AccessSco
       void (
         projectId !== undefined
           ? getEditorAccess(projectId)
-          : getServerEditorAccess(networkId, serverId).then((value) => ({
+          : getServerEditorAccess(serverId).then((value) => ({
               ...value,
               projectOrigin: "personal" as const,
             }))
@@ -45,7 +45,7 @@ export function EditorAccessNotice({ projectId, networkId, serverId }: AccessSco
       window.clearInterval(interval);
       window.removeEventListener("artisan:editor-access-refresh", refresh);
     };
-  }, [projectId, networkId, serverId, revision]);
+  }, [projectId, serverId, revision]);
   if (!access && !failed) return null;
   const unknown = failed || !access?.inventoryAvailable;
   const module = access?.projectOrigin === "module";

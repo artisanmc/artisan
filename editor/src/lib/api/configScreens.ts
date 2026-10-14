@@ -11,12 +11,11 @@ export interface ServerEditorScreen {
 
 /** Declared Config screens of a server. [] on any failure. */
 export async function fetchServerEditorScreens(
-  networkId: string,
   serverId: string,
 ): Promise<ServerEditorScreen[]> {
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/screens`,
+      `${API_URL}/api/v1/servers/${serverId}/screens`,
       { credentials: "include" },
     );
     if (!res.ok) return [];
@@ -64,13 +63,12 @@ export type ConfigReadResult =
 
 /** Live read of a Config-screen table's files from the plugin's disk (WS relay). */
 export async function configRead(
-  networkId: string,
   serverId: string,
   req: { projectId: string; table: string },
 ): Promise<ConfigReadResult> {
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/config/read`,
+      `${API_URL}/api/v1/servers/${serverId}/config/read`,
       {
         method: "POST",
         credentials: "include",
@@ -96,13 +94,12 @@ export type ConfigWriteResult =
 
 /** Live write of Config-screen files to the plugin's disk (it hot-reloads + auto-pushes). */
 export async function configWrite(
-  networkId: string,
   serverId: string,
   req: { projectId: string; files: ConfigFile[]; deletes?: string[] },
 ): Promise<ConfigWriteResult> {
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/config/write`,
+      `${API_URL}/api/v1/servers/${serverId}/config/write`,
       {
         method: "POST",
         credentials: "include",

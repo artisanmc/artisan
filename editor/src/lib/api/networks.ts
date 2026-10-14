@@ -38,18 +38,13 @@ export interface ProjectSummary {
   ownerModule?: string | null;
 }
 
-export async function listNetworks(): Promise<NetworkSummary[]> {
-  const res = await fetch(`${API_URL}/api/v1/networks`, { credentials: "include" });
-  if (!res.ok) throw new Error(`listNetworks failed: ${res.status}`);
-  return ((await res.json()) as { networks: NetworkSummary[] }).networks;
-}
-
-export async function getNetwork(id: string): Promise<{
+/** The hub's single network, its servers (ids = server UUIDs). */
+export async function getNetwork(): Promise<{
   network: NetworkSummary;
   projects: ProjectSummary[];
   serverKeys: ServerKeySummary[];
 }> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${id}`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/api/v1/network`, { credentials: "include" });
   if (!res.ok) {
     // Attach the HTTP status so callers can react (e.g. 403/404 → redirect to
     // the user's own networks list rather than loop a broken page).
@@ -104,11 +99,10 @@ export interface NetworkServersStatus {
 
 /** Topbar linked-servers aggregate: live online state + last-seen per server key. */
 export async function getNetworkServersStatus(
-  networkId: string,
   currentServerKeyId?: string,
 ): Promise<NetworkServersStatus> {
   const q = currentServerKeyId ? `?current=${encodeURIComponent(currentServerKeyId)}` : "";
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/servers-status${q}`, {
+  const res = await fetch(`${API_URL}/api/v1/network/servers-status${q}`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`getNetworkServersStatus failed: ${res.status}`);
@@ -116,12 +110,11 @@ export async function getNetworkServersStatus(
 }
 
 export async function createProject(
-  networkId: string,
   serverKeyId: string,
   name: string,
   description?: string,
 ): Promise<ProjectSummary> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${networkId}/projects`, {
+  const res = await fetch(`${API_URL}/api/v1/network/projects`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -137,4 +130,3 @@ export async function createProject(
   }
   return ((await res.json()) as { project: ProjectSummary }).project;
 }
-

@@ -37,8 +37,8 @@ export interface EditorAccessDto {
 
 export type ServerEditorAccessDto = Omit<EditorAccessDto, "projectOrigin">;
 
-export async function getServerEditorAccess(networkId: string, serverId: string): Promise<ServerEditorAccessDto> {
-  const res = await fetch(`${API_URL}/api/v1/networks/${encodeURIComponent(networkId)}/servers/${encodeURIComponent(serverId)}/editor-access`, { credentials: "include", cache: "no-store" });
+export async function getServerEditorAccess(serverId: string): Promise<ServerEditorAccessDto> {
+  const res = await fetch(`${API_URL}/api/v1/servers/${encodeURIComponent(serverId)}/editor-access`, { credentials: "include", cache: "no-store" });
   const body = await res.json().catch(() => null) as ServerEditorAccessDto | null;
   if (body && (res.ok || res.status === 503 && body.reason === "inventory_unavailable")) return body;
   throw new Error("editor_access_unavailable");
@@ -113,17 +113,20 @@ function knownError(raw: unknown, fallback: ProjectFilesError): ProjectFilesErro
   return codes.includes(raw as ProjectFilesError) ? (raw as ProjectFilesError) : fallback;
 }
 
-function base(networkId: string, serverId: string | undefined, diskId: string | undefined): string {
-  if (diskId === undefined)
-    return `${API_URL}/api/v1/projects/${encodeURIComponent(networkId)}/files`;
-  return `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/projects/${encodeURIComponent(diskId)}/files`;
+/** A Project named by its id, or by its folder on a given server. */
+export type ProjectTarget = string | { serverId: string; diskId: string };
+
+function base(target: ProjectTarget): string {
+  if (typeof target === "string")
+    return `${API_URL}/api/v1/projects/${encodeURIComponent(target)}/files`;
+  return `${API_URL}/api/v1/servers/${target.serverId}/projects/${encodeURIComponent(target.diskId)}/files`;
 }
+
+const fetchProjectId = (target: ProjectTarget) => (typeof target === "string" ? target : undefined);
 
 /** The Project's full tree, read on demand from the server's disk. */
 export async function readProjectFiles(
-  networkId: string,
-  serverId?: string,
-  diskId?: string,
+  target: ProjectTarget,
   /**
    * The fingerprint we already hold. The server only sends the tree back if it
    * changed — otherwise it answers `unchanged`, and we keep what we had without
@@ -133,9 +136,9 @@ export async function readProjectFiles(
 ): Promise<ProjectReadResult> {
   try {
     const url = ifHash
-      ? `${base(networkId, serverId, diskId)}?if_hash=${encodeURIComponent(ifHash)}`
-      : base(networkId, serverId, diskId);
-    const res = await projectFetch(diskId === undefined ? networkId : undefined, url, {
+      ? `${base(target)}?if_hash=${encodeURIComponent(ifHash)}`
+      : base(target);
+    const res = await projectFetch(fetchProjectId(target), url, {
       credentials: "include",
     });
     const body = (await res.json().catch(() => null)) as {
@@ -175,9 +178,7 @@ export async function readProjectFiles(
  * trip. Nothing was written in that case: the plugin applies all or nothing.
  */
 export async function writeProjectFiles(
-  networkId: string,
-  serverId: string | undefined,
-  diskId: string | undefined,
+  target: ProjectTarget,
   plan: {
     files: PlannedWrite[];
     deletes: PlannedDelete[];
@@ -189,8 +190,8 @@ export async function writeProjectFiles(
 ): Promise<ProjectWriteResult> {
   try {
     const res = await projectFetch(
-      diskId === undefined ? networkId : undefined,
-      base(networkId, serverId, diskId),
+      fetchProjectId(target),
+      base(target),
       {
         method: "PUT",
         credentials: "include",
@@ -257,13 +258,11 @@ export type ProjectHistoryResult =
  * compare-and-swap — a restore cannot overwrite behind someone's back.
  */
 export async function readFileHistory(
-  networkId: string,
-  serverId: string | undefined,
-  diskId: string | undefined,
+  target: ProjectTarget,
   path: string,
 ): Promise<ProjectHistoryResult> {
   try {
-    const url = `${base(networkId, serverId, diskId).replace(/\/files$/, "/history")}?path=${encodeURIComponent(path)}`;
+    const url = `${base(target).replace(/\/files$/, "/history")}?path=${encodeURIComponent(path)}`;
     const res = await fetch(url, { credentials: "include" });
     const body = (await res.json().catch(() => null)) as {
       versions?: FileVersion[];
@@ -290,13 +289,10 @@ export type ProjectListResult =
  * Server offline → error, hence an empty list: its Projects cannot be opened
  * anyway.
  */
-export async function listServerProjects(
-  networkId: string,
-  serverId: string,
-): Promise<ProjectListResult> {
+export async function listServerProjects(serverId: string): Promise<ProjectListResult> {
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/projects`,
+      `${API_URL}/api/v1/servers/${serverId}/projects`,
       { credentials: "include" },
     );
     const body = (await res.json().catch(() => null)) as {

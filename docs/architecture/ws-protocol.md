@@ -30,6 +30,7 @@ Reconnexion avec backoff exponentiel (1 s → 60 s) ; ping OkHttp toutes les 30 
 |---|---|
 | `protocol_version` | `ProtocolVersion.CURRENT` (`"1.1"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). |
 | `server_key` | Le **secret du réseau** (nom de champ hérité). Comparé en temps constant ; faux ou vide : fermeture 1008. |
+| `server_uuid` | Server id du serveur (`plugins/Artisan/server-id`) : ce par quoi l'éditeur et l'API le nomment (`/api/v1/servers/:server`). |
 | `database_id` | Identifiant de la base de suite (`artisan_meta`, généré une fois). Le hub refuse un `hello` dont l'identifiant diffère du sien, et tout `hello` s'il est lui-même en H2 : un réseau partage une base MySQL/MariaDB. |
 | `proxy_name` | Nom du serveur dans le réseau (clé racine `name`, sinon le nom du dossier du serveur). `[A-Za-z0-9_-]{1,64}`, jamais `local`. Identité du serveur et préfixe de ses Projects (`<serveur>.<dossier>`). |
 | `plugin_version`, `minecraft_version` | Affichés dans la liste des serveurs ; la version Minecraft choisit le catalogue d'items. |

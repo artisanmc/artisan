@@ -22,7 +22,6 @@ import {
 } from "./runImportZip";
 
 interface ImportProjectDialogProps {
-  networkId: string;
   serverKeyId: string | null;
   open: boolean;
   onClose: () => void;
@@ -38,7 +37,6 @@ interface ImportProjectDialogProps {
  * be replaced or deleted.
  */
 export function ImportProjectDialog({
-  networkId,
   serverKeyId,
   open,
   onClose,
@@ -84,7 +82,7 @@ export function ImportProjectDialog({
     if (!file || !serverKeyId) return;
     setBusy(true);
     setError(null);
-    const result = await prepareImportZip(file, { networkId, serverId: serverKeyId }, mode);
+    const result = await prepareImportZip(file, { serverId: serverKeyId }, mode);
     setBusy(false);
     if (!result.ok) {
       setError(result.error);

@@ -1,6 +1,5 @@
 import { Input } from "@/components/ui/input";
 import { listOnlinePlayers } from "@/lib/api/onlinePlayers";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { useEffect, useId, useState } from "react";
 
@@ -33,20 +32,19 @@ export function PlayerNameInput({
   testId?: string;
 }) {
   const listId = useId();
-  const networkId = useNetworksStore((s) => s.activeId);
   const serverId = useServersStore((s) => s.activeServerId);
   const [players, setPlayers] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!networkId || !serverId) return;
+    if (!serverId) return;
     let cancelled = false;
-    listOnlinePlayers(networkId, serverId).then((names) => {
+    listOnlinePlayers(serverId).then((names) => {
       if (!cancelled) setPlayers(names);
     });
     return () => {
       cancelled = true;
     };
-  }, [networkId, serverId]);
+  }, [serverId]);
 
   return (
     <>

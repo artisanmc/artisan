@@ -117,11 +117,11 @@ describe("LinkedServersDropdown", () => {
         entry({ id: "c", online: true }),
       ],
     });
-    render(<LinkedServersDropdown networkId="net1" currentServerKeyId="a" />);
+    render(<LinkedServersDropdown currentServerKeyId="a" />);
 
     expect(await screen.findByText(/Offline|Hors ligne/)).toBeInTheDocument();
     expect(screen.queryByText("2/3")).toBeNull();
-    expect(api.getNetworkServersStatus).toHaveBeenCalledWith("net1", "a");
+    expect(api.getNetworkServersStatus).toHaveBeenCalledWith("a");
   });
 
   it("falls back to the aggregate when no current server is in scope", async () => {
@@ -130,7 +130,7 @@ describe("LinkedServersDropdown", () => {
       total: 3,
       servers: [entry({ id: "b", online: true }), entry({ id: "c", online: true })],
     });
-    render(<LinkedServersDropdown networkId="net1" />);
+    render(<LinkedServersDropdown />);
     expect(await screen.findByText("2/3")).toBeInTheDocument();
   });
 
@@ -144,7 +144,6 @@ describe("LinkedServersDropdown", () => {
     });
     render(
       <LinkedServersDropdown
-        networkId="net1"
         currentServerKeyId="a"
         downHint="Serveur hors ligne — version du 01/10/2026. Ton brouillon reste modifiable."
       />,
@@ -162,12 +161,13 @@ describe("LinkedServersDropdown", () => {
       total: 1,
       servers: [entry({ id: "lobby", online: true, isCurrent: true, updateRequired: true })],
     });
-    render(<LinkedServersDropdown networkId="local" currentServerKeyId="lobby" />);
+    render(<LinkedServersDropdown currentServerKeyId="lobby" />);
     expect(await screen.findByText(/Update required|Mise à jour requise/)).toBeInTheDocument();
   });
 
-  it("renders nothing without a networkId", () => {
-    const { container } = render(<LinkedServersDropdown networkId={null} />);
+  it("renders nothing while the hub has not answered", () => {
+    vi.mocked(api.getNetworkServersStatus).mockReturnValue(new Promise(() => {}));
+    const { container } = render(<LinkedServersDropdown />);
     expect(container).toBeEmptyDOMElement();
   });
 });

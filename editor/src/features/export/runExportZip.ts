@@ -25,12 +25,7 @@ export interface ExportZipResult {
  * is a snapshot of what the server actually runs. Unsaved edits are not in it,
  * for the same reason they are not in the game.
  */
-export async function runExportZip(
-  project: Project,
-  hasUser: boolean,
-  _networkId?: string,
-  _serverId?: string,
-): Promise<ExportZipResult> {
+export async function runExportZip(project: Project, hasUser: boolean): Promise<ExportZipResult> {
   if (!hasUser) return { ok: false, error: "not_signed_in" };
   try {
     const diskId = project.diskId ?? project.id;

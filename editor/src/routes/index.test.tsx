@@ -7,15 +7,13 @@ vi.mock("@tanstack/react-router", async () => {
     await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
-    Navigate: ({ params }: { params: { networkId: string; serverId: string } }) => (
-      <div data-testid="navigate">{`${params.networkId}/${params.serverId}`}</div>
-    ),
+    Navigate: ({ to }: { to: string }) => <div data-testid="navigate">{to}</div>,
   };
 });
 
 describe("HomeRoute", () => {
-  it("opens the server the plugin serves", () => {
+  it("opens the server list", () => {
     render(<HomeRoute />);
-    expect(screen.getByTestId("navigate")).toHaveTextContent("local/local");
+    expect(screen.getByTestId("navigate")).toHaveTextContent("/servers");
   });
 });

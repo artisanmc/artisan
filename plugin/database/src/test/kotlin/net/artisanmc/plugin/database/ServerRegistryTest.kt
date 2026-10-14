@@ -32,7 +32,7 @@ class ServerRegistryTest {
         registry.register(survie, "survie", t0)
         registry.touch(survie, t0.plusSeconds(60))
 
-        assertEquals(listOf(KnownServer("survie", t0.plusSeconds(60))), registry.others(lobby))
+        assertEquals(listOf(KnownServer("survie", t0.plusSeconds(60), survie.toString())), registry.others(lobby))
         assertEquals(listOf("lobby", "survie"), registry.others(UUID.randomUUID()).map { it.name })
     }
 
@@ -41,7 +41,7 @@ class ServerRegistryTest {
         val id = UUID.randomUUID()
         registry.register(id, "survie", t0)
         registry.register(id, "survie", t0.plusSeconds(120))
-        assertEquals(listOf(KnownServer("survie", t0.plusSeconds(120))), registry.others(UUID.randomUUID()))
+        assertEquals(listOf(KnownServer("survie", t0.plusSeconds(120), id.toString())), registry.others(UUID.randomUUID()))
     }
 
     @Test

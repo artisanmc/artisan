@@ -44,11 +44,11 @@ describe("userProjects API client", () => {
     },
   );
 
-  it("sends both location references and preserves the exact project ID", async () => {
+  it("sends the server reference and preserves the exact project ID", async () => {
     global.fetch = vi.fn(async () => new Response(JSON.stringify({ project: { id: "internal", externalId: "My_Project" } })));
-    await loadUserProject("My_Project", "survival", "network-b");
+    await loadUserProject("My_Project", "survival");
     const url = new URL(vi.mocked(fetch).mock.calls[0]![0] as string);
     expect(url.pathname).toBe("/api/v1/user/projects/My_Project");
-    expect(Object.fromEntries(url.searchParams)).toEqual({ server: "survival", network: "network-b" });
+    expect(Object.fromEntries(url.searchParams)).toEqual({ server: "survival" });
   });
 });

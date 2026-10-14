@@ -20,23 +20,22 @@ type Navigate = ReturnType<typeof useNavigate>;
 export function goToDocument(
   navigate: Navigate,
   args: {
-    networkId: string | null | undefined;
     serverId: string | null | undefined;
     project: { id: string; diskId?: string | null };
     ref: string;
   },
 ): void {
-  const { networkId, serverId, project, ref } = args;
+  const { serverId, project, ref } = args;
   const { namespace, id } = parseDocRef(ref);
   const here = projectNamespace({ id: project.id, diskId: project.diskId ?? undefined });
   if (namespace !== null && namespace !== here) {
     void navigate({
-      ...projectDestination(networkId, namespace, serverId),
+      ...projectDestination(namespace, serverId),
       search: { doc: id },
     } as never);
     return;
   }
   useSelectionStore.getState().set([id as ElementId]);
   useUiStore.getState().requestCenter(project.id, id);
-  void navigate({ ...projectDestination(networkId, project, serverId), search: {} } as never);
+  void navigate({ ...projectDestination(project, serverId), search: {} } as never);
 }

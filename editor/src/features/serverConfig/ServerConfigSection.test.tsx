@@ -29,7 +29,7 @@ const image = (name: string, size: number, type: Asset["type"] = "texture") =>
   ({ id: name, name, type, width: size, height: size, projectId: "p1" }) as Asset;
 
 function renderSection() {
-  return render(<ServerConfigSection networkId="n1" serverKeyId="s1" projects={[project]} />);
+  return render(<ServerConfigSection serverKeyId="s1" projects={[project]} />);
 }
 
 describe("ServerConfigSection", () => {
@@ -56,7 +56,7 @@ describe("ServerConfigSection", () => {
     fireEvent.change(screen.getByLabelText(/Délai d'envoi/), { target: { value: "40" } });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() =>
-      expect(api.patchServerConfig).toHaveBeenCalledWith("n1", "s1", {
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
         language: "fr",
         "resource-pack.send-delay-ticks": 40,
       }),
@@ -74,7 +74,7 @@ describe("ServerConfigSection", () => {
     fireEvent.change(chest, { target: { value: "ui:chest_hd" } });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() =>
-      expect(api.patchServerConfig).toHaveBeenCalledWith("n1", "s1", {
+      expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
         "resource-pack.container-textures.chest": "ui:chest_hd",
       }),
     );

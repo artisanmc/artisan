@@ -93,7 +93,7 @@ object ServerIdFile {
     }
 }
 
-data class KnownServer(val name: String, val lastSeen: Instant)
+data class KnownServer(val name: String, val lastSeen: Instant, val uuid: String = "")
 
 sealed interface Registration {
     data object Registered : Registration
@@ -170,10 +170,10 @@ class ServerRegistry(
 
     /** Every server but [self], by name. */
     fun others(self: UUID): List<KnownServer> = dataSource.connection.use { c ->
-        c.prepareStatement("SELECT name, last_seen FROM artisan_servers WHERE uuid <> ? ORDER BY name").use { s ->
+        c.prepareStatement("SELECT name, last_seen, uuid FROM artisan_servers WHERE uuid <> ? ORDER BY name").use { s ->
             s.setString(1, self.toString())
             s.executeQuery().use { rs ->
-                generateSequence { if (rs.next()) KnownServer(rs.getString(1), rs.getTimestamp(2).toInstant()) else null }.toList()
+                generateSequence { if (rs.next()) KnownServer(rs.getString(1), rs.getTimestamp(2).toInstant(), rs.getString(3)) else null }.toList()
             }
         }
     }

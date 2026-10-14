@@ -24,11 +24,9 @@ const containerLayout = (w: number, h: number) => w === h && w >= 256 && w % 256
  * only sends the keys that changed.
  */
 export function ServerConfigSection({
-  networkId,
   serverKeyId,
   projects,
 }: {
-  networkId: string;
   serverKeyId: string;
   projects: ProjectSummary[];
 }) {
@@ -41,13 +39,13 @@ export function ServerConfigSection({
 
   useEffect(() => {
     let cancelled = false;
-    getServerConfig(networkId, serverKeyId)
+    getServerConfig(serverKeyId)
       .then((res) => !cancelled && setConfig(res.config))
       .catch(() => !cancelled && setConfig(null));
     return () => {
       cancelled = true;
     };
-  }, [networkId, serverKeyId]);
+  }, [serverKeyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,7 +93,7 @@ export function ServerConfigSection({
   const save = async () => {
     setSaving(true);
     try {
-      setConfig(await patchServerConfig(networkId, serverKeyId, changes));
+      setConfig(await patchServerConfig(serverKeyId, changes));
       setChanges({});
       // Changing container textures requires rebuilding the pack.
       if (Object.keys(changes).some((key) => key.startsWith(TEXTURES)))

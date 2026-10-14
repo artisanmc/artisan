@@ -35,12 +35,12 @@ beforeEach(() => {
 });
 
 describe("useModulesStore.integrate", () => {
-  it("fetches presence via the user-scoped endpoint (network+server)", async () => {
+  it("fetches presence via the user-scoped endpoint (server)", async () => {
     vi.mocked(fetchActiveModulesUser).mockResolvedValue([{ id: "quests", version: "1.0.0" }]);
 
-    await useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv1" });
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
 
-    expect(fetchActiveModulesUser).toHaveBeenCalledWith("net1", "srv1");
+    expect(fetchActiveModulesUser).toHaveBeenCalledWith("srv1");
     expect(loadQuests).toHaveBeenCalledTimes(1);
     expect(registered.has("quests")).toBe(true);
     expect(useModulesStore.getState().mountedIds).toEqual(["quests"]);
@@ -50,7 +50,7 @@ describe("useModulesStore.integrate", () => {
   it("does not load a module that is not active", async () => {
     vi.mocked(fetchActiveModulesUser).mockResolvedValue([]);
 
-    await useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv1" });
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
 
     expect(loadQuests).not.toHaveBeenCalled();
     expect(useModulesStore.getState().mountedIds).toEqual([]);
@@ -59,8 +59,8 @@ describe("useModulesStore.integrate", () => {
   it("is idempotent — a second call with the same source is a no-op while not idle", async () => {
     vi.mocked(fetchActiveModulesUser).mockResolvedValue([{ id: "quests", version: "1.0.0" }]);
 
-    await useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv1" });
-    await useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv1" });
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
 
     expect(loadQuests).toHaveBeenCalledTimes(1);
     expect(fetchActiveModulesUser).toHaveBeenCalledTimes(1);
@@ -69,7 +69,7 @@ describe("useModulesStore.integrate", () => {
   it("resets to idle and clears mountedIds when fetchActiveModulesUser rejects", async () => {
     vi.mocked(fetchActiveModulesUser).mockRejectedValue(new Error("network"));
 
-    await useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv1" });
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
 
     expect(useModulesStore.getState().status).toBe("idle");
     expect(useModulesStore.getState().mountedIds).toEqual([]);
@@ -78,15 +78,15 @@ describe("useModulesStore.integrate", () => {
   it("refetches when the active source changes (server switch is not swallowed)", async () => {
     vi.mocked(fetchActiveModulesUser).mockResolvedValueOnce([{ id: "quests", version: "1.0.0" }]);
 
-    await useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv1" });
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
     expect(useModulesStore.getState().mountedIds).toEqual(["quests"]);
 
     vi.mocked(fetchActiveModulesUser).mockResolvedValueOnce([]);
-    await useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv2" });
+    await useModulesStore.getState().integrate({ serverId: "srv2" });
 
     expect(fetchActiveModulesUser).toHaveBeenCalledTimes(2);
-    expect(fetchActiveModulesUser).toHaveBeenNthCalledWith(1, "net1", "srv1");
-    expect(fetchActiveModulesUser).toHaveBeenNthCalledWith(2, "net1", "srv2");
+    expect(fetchActiveModulesUser).toHaveBeenNthCalledWith(1, "srv1");
+    expect(fetchActiveModulesUser).toHaveBeenNthCalledWith(2, "srv2");
     expect(useModulesStore.getState().mountedIds).toEqual([]);
     expect(useModulesStore.getState().status).toBe("ready");
   });
@@ -100,15 +100,15 @@ describe("useModulesStore.integrate", () => {
       .mockImplementationOnce(() => pendingA)
       .mockResolvedValueOnce([]);
 
-    const integrateA = useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv1" });
-    const integrateB = useModulesStore.getState().integrate({ networkId: "net1", serverId: "srv2" });
+    const integrateA = useModulesStore.getState().integrate({ serverId: "srv1" });
+    const integrateB = useModulesStore.getState().integrate({ serverId: "srv2" });
     await integrateB;
-    expect(useModulesStore.getState().loadedKey).toBe("u:net1/srv2");
+    expect(useModulesStore.getState().loadedKey).toBe("u:srv2");
 
     resolveA!([{ id: "quests", version: "1.0.0" }]);
     await integrateA;
 
-    expect(useModulesStore.getState().loadedKey).toBe("u:net1/srv2");
+    expect(useModulesStore.getState().loadedKey).toBe("u:srv2");
     expect(useModulesStore.getState().mountedIds).toEqual([]);
   });
 });

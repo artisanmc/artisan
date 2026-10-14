@@ -23,7 +23,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-export const Route = createFileRoute("/networks/$networkId/servers/$serverId")({
+export const Route = createFileRoute("/servers/$serverId")({
   component: ServerDetailPage,
 });
 
@@ -38,8 +38,8 @@ export const Route = createFileRoute("/networks/$networkId/servers/$serverId")({
  * the overview is actually displayed.
  */
 export default function ServerDetailPage() {
-  const { networkId, serverId } = useParams({
-    from: "/networks/$networkId/servers/$serverId",
+  const { serverId } = useParams({
+    from: "/servers/$serverId",
   });
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -59,16 +59,16 @@ export default function ServerDetailPage() {
   }, [authLoading, currentUser, navigate]);
 
   useEffect(() => {
-    if (!networkId || !serverId) return;
-    getNetwork(networkId)
+    if (!serverId) return;
+    getNetwork()
       .then((d) => {
         // serverId param is the server slug (old links may still pass the id).
         const sk = d.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
         if (!sk) {
-          // The network exists, this server does not: the URL is stale. Go back to the
-          // network — the alternative would be waiting forever for a disk read that
-          // cannot be addressed to anyone.
-          navigate({ to: "/networks/$networkId", params: { networkId }, replace: true });
+          // This server does not exist: the URL is stale. Go back to the server list —
+          // the alternative would be waiting forever for a disk read that cannot be
+          // addressed to anyone.
+          navigate({ to: "/servers", replace: true });
           return;
         }
         setServerDisplayLabel(displayServerLabel(sk));
@@ -78,10 +78,10 @@ export default function ServerDetailPage() {
         if (e?.status === 403) {
           setAccessDenied(true);
         } else if (e?.status === 404) {
-          navigate({ to: "/networks", replace: true });
+          navigate({ to: "/servers", replace: true });
         } else console.error(e);
       });
-  }, [networkId, serverId, navigate]);
+  }, [serverId, navigate]);
 
   if (accessDenied)
     return (
@@ -93,7 +93,6 @@ export default function ServerDetailPage() {
 
   return (
     <ServerOverview
-      networkId={networkId}
       serverId={serverId}
       serverKeyId={serverKeyId}
       label={serverDisplayLabel ?? serverId}
@@ -102,12 +101,10 @@ export default function ServerDetailPage() {
 }
 
 function ServerOverview({
-  networkId,
   serverId,
   serverKeyId,
   label,
 }: {
-  networkId: string;
   /** URL form (usually a slug) — the one links carry. */
   serverId: string;
   /** Real server_key id, `null` until the network has answered. */
@@ -149,7 +146,7 @@ function ServerOverview({
     if (!serverKeyId) return undefined;
     let cancelled = false;
     setStatus("loading");
-    listServerProjects(networkId, serverKeyId).then((res) => {
+    listServerProjects(serverKeyId).then((res) => {
       if (cancelled) return;
       if (!res.ok) {
         setProjects([]);
@@ -157,13 +154,13 @@ function ServerOverview({
         setUnavailableReason(res.error);
         return;
       }
-      setProjects(diskProjectsToSummaries(networkId, serverKeyId, res.projectIds, res.projects));
+      setProjects(diskProjectsToSummaries(serverKeyId, res.projectIds, res.projects));
       setStatus("ready");
     });
     return () => {
       cancelled = true;
     };
-  }, [networkId, serverKeyId]);
+  }, [serverKeyId]);
 
   useEffect(() => reloadProjects(), [reloadProjects]);
 
@@ -173,8 +170,8 @@ function ServerOverview({
   // store ignores a source already loaded).
   useEffect(() => {
     if (!serverKeyId) return;
-    useServerScreensStore.getState().load({ networkId, serverId: serverKeyId });
-  }, [networkId, serverKeyId]);
+    useServerScreensStore.getState().load({ serverId: serverKeyId });
+  }, [serverKeyId]);
 
   // Same split as the sidebar — ordinary projects on one side, installed
   // modules on the other with their tabs (ADR `addon-owned-project-roots`).
@@ -212,8 +209,8 @@ function ServerOverview({
               {t("topbar.import")}
             </button>
             <Link
-              to="/networks/$networkId/servers/$serverId/canvas"
-              params={{ networkId, serverId }}
+              to="/servers/$serverId/canvas"
+              params={{ serverId }}
               className="btn-ghost btn-sm"
             >
               {t("serverDetail.openBoard")}
@@ -240,8 +237,8 @@ function ServerOverview({
               {flatProjects.map((w) => (
                 <li key={w.id} className="flex items-center gap-2">
                   <Link
-                    to="/networks/$networkId/servers/$serverId/projects/$projectId"
-                    params={{ networkId, serverId, projectId: projectUrlId(w) }}
+                    to="/servers/$serverId/projects/$projectId"
+                    params={{ serverId, projectId: projectUrlId(w) }}
                     className="card flex flex-1 items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
                   >
                     {/* No Document counter: the hub does not hold the files, so it
@@ -276,9 +273,8 @@ function ServerOverview({
                           return (
                             <li key={`p:${e.project.id}`}>
                               <Link
-                                to="/networks/$networkId/servers/$serverId/projects/$projectId"
+                                to="/servers/$serverId/projects/$projectId"
                                 params={{
-                                  networkId,
                                   serverId,
                                   projectId: projectUrlId(e.project),
                                 }}
@@ -293,8 +289,8 @@ function ServerOverview({
                           return (
                             <li key={`s:${e.screen.id}`}>
                               <Link
-                                to="/networks/$networkId/servers/$serverId/screens/$screenId"
-                                params={{ networkId, serverId, screenId: e.screen.id }}
+                                to="/servers/$serverId/screens/$screenId"
+                                params={{ serverId, screenId: e.screen.id }}
                                 className="chip"
                               >
                                 {e.screen.label}
@@ -328,20 +324,19 @@ function ServerOverview({
               <span className="h-px flex-1 bg-[var(--border-soft)]" />
             </div>
             <p className="text-[12px] text-[var(--text-mut)]">{t("serverConfig.connectionHint")}</p>
-            <ServerConfigSection networkId={networkId} serverKeyId={serverKeyId} projects={projects} />
+            <ServerConfigSection serverKeyId={serverKeyId} projects={projects} />
           </section>
         )}
         {serverKeyId && (
           <ImportProjectDialog
-            networkId={networkId}
             serverKeyId={serverKeyId}
             open={importOpen}
             onClose={() => setImportOpen(false)}
             onImported={(projectId) => {
               setImportOpen(false);
               navigate({
-                to: "/networks/$networkId/servers/$serverId/projects/$projectId",
-                params: { networkId, serverId, projectId },
+                to: "/servers/$serverId/projects/$projectId",
+                params: { serverId, projectId },
               });
             }}
           />

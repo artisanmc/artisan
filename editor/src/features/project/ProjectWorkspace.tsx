@@ -94,9 +94,9 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
 };
 
 export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) {
-  const { networkId, serverId, projectId } = useParams({
+  const { serverId, projectId } = useParams({
     strict: false,
-  }) as { networkId?: string; serverId?: string; projectId: string };
+  }) as { serverId?: string; projectId: string };
   const loadRef = projectRef ?? projectId;
   // Resolve the public folder/module ID in its complete location scope.
   const {
@@ -108,7 +108,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     fromDraft,
     offlineSince,
     unpublished,
-  } = useProjectLoader(loadRef, serverId, networkId);
+  } = useProjectLoader(loadRef, serverId);
   const project = userProject;
   const pId = (project?.id ?? projectId) as ProjectId;
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -136,7 +136,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reacts to the link and the load, not to every project edit.
   useEffect(() => {
     if (!doc || !project) return;
-    goToDocument(navigate, { networkId, serverId, project, ref: doc });
+    goToDocument(navigate, { serverId, project, ref: doc });
   }, [doc, loadedId]);
   const presentedTab = tourPresenting ? "overview" : tab;
   const exitToCanvas = () =>
@@ -153,22 +153,22 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   useEffect(() => {
     if (!canonicalId || canonicalId === projectId) return;
     void navigate({
-      ...projectDestination(networkId, canonicalId, serverId, documentId),
+      ...projectDestination(canonicalId, serverId, documentId),
       replace: true,
       search: (previous) => previous,
       hash: true,
     });
-  }, [canonicalId, projectId, networkId, serverId, documentId, navigate]);
+  }, [canonicalId, projectId, serverId, documentId, navigate]);
   // The folder is the Project's identity: once renamed, it opens under its new name.
   useEffect(() => {
     const renamed = (raw: Event) => {
       const { previousDiskId, diskId } = (raw as CustomEvent<ProjectRenamed>).detail;
       if (previousDiskId !== projectId) return;
-      void navigate({ ...projectDestination(networkId, diskId, serverId), replace: true });
+      void navigate({ ...projectDestination(diskId, serverId), replace: true });
     };
     window.addEventListener("ifz:project_renamed", renamed);
     return () => window.removeEventListener("ifz:project_renamed", renamed);
-  }, [projectId, networkId, serverId, navigate]);
+  }, [projectId, serverId, navigate]);
 
   // The active language is persisted globally: a project that lost that
   // language (lang/ files removed) must fall back to its default language.
@@ -181,7 +181,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   }, [project, activeLang, setActiveLang]);
 
   useGlobalSearchShortcut();
-  useServerIndexLoader(networkId, serverId, !!project && !loadError);
+  useServerIndexLoader(serverId, !!project && !loadError);
   useWorkspaceTabShortcuts(!!runtime?.serverId);
 
   const [patternsOpen, setPatternsOpen] = useState(false);
@@ -217,11 +217,11 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   useEffect(() => {
     function onOpen(e: Event) {
       const id = (e as CustomEvent<{ id: string }>).detail?.id;
-      if (id && project) navigate(documentDestination(networkId, project, serverId, id));
+      if (id && project) navigate(documentDestination(project, serverId, id));
     }
     window.addEventListener(OPEN_ELEMENT_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_ELEMENT_EVENT, onOpen);
-  }, [networkId, serverId, project, navigate]);
+  }, [serverId, project, navigate]);
 
   // Wait for auth hydration first — on a hard load, `/me` is still in flight
   // and currentUser is briefly null; gating now would bounce a logged-in user
@@ -480,7 +480,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           project={project}
           projectId={pId}
           onExportZip={async () => {
-            const res = await runExportZip(project, !!principalId, networkId, serverId);
+            const res = await runExportZip(project, !!principalId);
             if (!res.ok) {
               toast.error(
                 res.error === "not_signed_in"
@@ -503,7 +503,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
           onDelete={
             runtime?.capabilities.canDelete === false ? undefined : () => setShowDeleteDialog(true)
           }
-          networkId={networkId}
           offline={offline}
           offlineSince={offlineSince}
           unpublished={unpublished}

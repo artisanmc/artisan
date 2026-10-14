@@ -1,6 +1,5 @@
 import type { ContextInput, Menu, ProjectId, SourceRef } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -39,7 +38,6 @@ describe("preview as player", () => {
   beforeEach(() => {
     useUiStore.setState({ previewPlayer: "", menuPreviewArgs: {} });
     // The picker only fetches once a server is selected.
-    useNetworksStore.setState({ activeId: "n1" } as never);
     useServersStore.setState({ activeServerId: "s1" } as never);
     listOnlinePlayers.mockClear();
     useAccountStore.setState({

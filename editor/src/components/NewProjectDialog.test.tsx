@@ -17,7 +17,7 @@ describe("NewProjectDialog", () => {
     );
     vi.stubGlobal("fetch", fetch);
     const onCreated = vi.fn();
-    render(<NewProjectDialog networkId="network" serverKeyId="server" onCreated={onCreated} />);
+    render(<NewProjectDialog serverKeyId="server" onCreated={onCreated} />);
     await user.click(screen.getByRole("button", { name: /nouveau projet/i }));
     await user.type(screen.getByPlaceholderText("mon_projet"), "mon_projet{Enter}{Enter}");
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -39,7 +39,7 @@ describe("NewProjectDialog", () => {
       "fetch",
       vi.fn(async () => new Response(JSON.stringify({ error: "server_offline" }), { status: 503 })),
     );
-    render(<NewProjectDialog networkId="network" serverKeyId="server" />);
+    render(<NewProjectDialog serverKeyId="server" />);
     await user.click(screen.getByRole("button", { name: /nouveau projet/i }));
     await user.type(screen.getByRole("textbox"), "mon_projet{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent(/serveur.*hors ligne/i);

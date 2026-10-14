@@ -6,7 +6,6 @@ import { useCssVar } from "@/lib/themeColors";
 import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useHoverStore } from "@/state/hoverStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { usePaginationStore } from "@/state/paginationStore";
 import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
@@ -158,13 +157,12 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   // for module sources, not just the static connector sample. Loaded below.
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const loadSnapshot = useServerSnapshotsStore((s) => s.loadSnapshot);
-  const networkId = useNetworksStore((s) => s.activeId);
   const serverId = useServersStore((s) => s.activeServerId);
   // Whose eyes we preview through: a per-player source returns nothing useful
   // with `player = null`, so pass the chosen player down to the fetcher.
   const previewPlayer = useUiStore((s) => s.previewPlayer);
   useEffect(() => {
-    if (!networkId || !serverId) return;
+    if (!serverId) return;
     for (const input of menu.contextInputs ?? []) {
       if (input.kind === "sourceRef" && !String(input.ref).startsWith("pack:")) {
         // The input's own params (`group: daily`) still apply — the preview player
@@ -172,14 +170,13 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
         const declared = (input.params ?? {}) as Record<string, string>;
         const params = previewPlayer ? { ...declared, player: previewPlayer } : declared;
         loadSnapshot({
-          networkId,
           serverId,
           ref: String(input.ref),
           ...(Object.keys(params).length > 0 ? { params } : {}),
         });
       }
     }
-  }, [menu.contextInputs, networkId, serverId, loadSnapshot, previewPlayer]);
+  }, [menu.contextInputs, serverId, loadSnapshot, previewPlayer]);
   // Build a preview scope from contextInputs — primitives are coerced to their
   // declared type; sourceRefs resolve against a live snapshot (server sources)
   // with project.dataSources as the project-data path.

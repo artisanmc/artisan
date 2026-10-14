@@ -1,7 +1,6 @@
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { DataSourceId, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServersStore } from "@/state/serversStore";
 import { useState } from "react";
@@ -29,7 +28,6 @@ export function DataSourcesPanelContent({ projectId }: { projectId: ProjectId })
   const { t } = useTranslation();
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const [selection, setSelection] = useState<DataPanelSelection>(null);
-  const activeNetworkId = useNetworksStore((s) => s.activeId);
   const activeServerId = useServersStore((s) => s.activeServerId);
   const serverSources = useServerDataSourcesStore((s) => s.sources);
 
@@ -65,9 +63,8 @@ export function DataSourcesPanelContent({ projectId }: { projectId: ProjectId })
       <main className="card flex min-h-0 flex-1 flex-col overflow-auto p-6 md:p-8">
         {selected ? (
           <DataSourceEditor projectId={projectId} source={selected} />
-        ) : selectedServerSource && activeNetworkId && activeServerId ? (
+        ) : selectedServerSource && activeServerId ? (
           <ServerSourceDetail
-            networkId={activeNetworkId}
             serverId={activeServerId}
             source={selectedServerSource}
             projectId={projectId}

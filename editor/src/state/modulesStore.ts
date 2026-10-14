@@ -4,12 +4,11 @@ import { fetchActiveModulesUser } from "@/lib/api/modules";
 import { MODULE_MANIFEST } from "@/distribution/modules.manifest";
 
 export interface ModulesSource {
-  networkId: string;
   serverId: string;
 }
 
 function sourceKey(source: ModulesSource): string {
-  return `u:${source.networkId}/${source.serverId}`;
+  return `u:${source.serverId}`;
 }
 
 interface ModulesState {
@@ -35,7 +34,7 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
     set({ status: "loading", loadedKey: key });
 
     try {
-      const active = await fetchActiveModulesUser(source.networkId, source.serverId);
+      const active = await fetchActiveModulesUser(source.serverId);
       const activeIds = new Set(active.map((m) => m.id));
       const mounted: string[] = [];
 

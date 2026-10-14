@@ -71,7 +71,7 @@ async function buildProject(
   const serverId = res.project.serverKeyId ?? res.serverKeyId;
   let models = declaredModels;
   if (!models && serverId && res.networkId && projectRuntime(res).capabilities.liveData) {
-    models = await fetchServerDeclaredModels(res.networkId, serverId).catch(() => []);
+    models = await fetchServerDeclaredModels(serverId).catch(() => []);
     lastDeclaredModels = models;
   }
   flushDraftEdits();
@@ -112,7 +112,7 @@ function mirrorIntoAccount(loaded: Project, networkId: string | null): void {
   });
 }
 
-export function useProjectLoader(projectId: string, serverRef?: string | null, networkRef?: string | null): ProjectLoadResult {
+export function useProjectLoader(projectId: string, serverRef?: string | null): ProjectLoadResult {
   const ownerId = useProjectPrincipalId(projectId);
   const reloadToken = useProjectCacheStore((s) => s.reloadToken);
   const opened = useRef<string | null>(null);
@@ -129,7 +129,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken restarts the read on Refresh.
   useEffect(() => {
-    const scope = JSON.stringify([ownerId, networkRef, serverRef, projectId]);
+    const scope = JSON.stringify([ownerId, serverRef, projectId]);
     useProjectRuntimeStore.getState().set(null);
     useServersStore.getState().setActiveServerId(null);
     if (opened.current !== scope) setProject(null);
@@ -145,7 +145,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
     useProjectDraftStore.getState().setOwner(ownerId);
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    const cacheKey = projectCacheKey(projectId, serverRef, networkRef, ownerId);
+    const cacheKey = projectCacheKey(projectId, serverRef, ownerId);
     const cached = useProjectCacheStore.getState().get(cacheKey);
 
     const refresh = () => {
@@ -166,7 +166,7 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
         setStale(false);
         validated = true;
       };
-      return loadUserProject(projectId, serverRef, networkRef)
+      return loadUserProject(projectId, serverRef)
         .then(async (res) => {
           if (cancelled) return;
           // The content comes from the server's DISK, never from the hub (ADR
@@ -340,8 +340,8 @@ export function useProjectLoader(projectId: string, serverRef?: string | null, n
       cancelled = true;
       clearTimeout(retryTimer);
     };
-  }, [projectId, serverRef, networkRef, ownerId, reloadToken]);
+  }, [projectId, serverRef, ownerId, reloadToken]);
 
-  const currentScope = JSON.stringify([ownerId, networkRef, serverRef, projectId]);
+  const currentScope = JSON.stringify([ownerId, serverRef, projectId]);
   return { project: opened.current === currentScope ? project : null, urlId: resolvedUrl?.scope === currentScope ? resolvedUrl.id : null, networkId, error, offline, failed, fromDraft, stale, offlineSince, unpublished };
 }

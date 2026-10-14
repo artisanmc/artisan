@@ -8,8 +8,10 @@ import net.artisanmc.plugin.protocol.ServerLink
  * (modules, data sources, configuration) is read here on demand.
  */
 interface EditorServer {
-    /** [Servers.LOCAL] for the server hosting the hub. */
+    /** [Servers.LOCAL] for the server hosting the hub, else its name: what Project ids are built from. */
     val id: String
+    /** Its server id (`plugins/Artisan/server-id`): what the editor's URLs and API name it by. */
+    val uuid: String
     val link: ServerLink
     val label: String
     val online: Boolean

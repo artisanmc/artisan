@@ -1,32 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { urlNetworkId, urlServerId } from "./urlIds";
-
-const NETWORKS = [
-  { id: "net_1", name: "Mon réseau", slug: "mon-reseau" },
-  { id: "net_2", name: "Sans slug" },
-] as never[];
+import { urlServerId } from "./urlIds";
 
 const SERVERS = [
   { networkId: "net_1", serverId: "srv_1", serverSlug: "survie" },
   { networkId: "net_2", serverId: "srv_2", serverSlug: "survie" },
   { networkId: "net_1", serverId: "srv_3" },
 ];
-
-describe("urlNetworkId", () => {
-  it("prefers the slug", () => {
-    expect(urlNetworkId(NETWORKS, "net_1")).toBe("mon-reseau");
-  });
-
-  it("falls back to the id when there is no slug, or the network is unknown", () => {
-    expect(urlNetworkId(NETWORKS, "net_2")).toBe("net_2");
-    expect(urlNetworkId([], "net_1")).toBe("net_1");
-    expect(urlNetworkId(NETWORKS, null)).toBeNull();
-  });
-
-  it("is idempotent — a slug in, the same slug out", () => {
-    expect(urlNetworkId(NETWORKS, "mon-reseau")).toBe("mon-reseau");
-  });
-});
 
 describe("urlServerId", () => {
   it("prefers the slug, scoped to the network", () => {

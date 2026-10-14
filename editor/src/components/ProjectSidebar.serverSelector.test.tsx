@@ -18,7 +18,7 @@ vi.mock("@tanstack/react-router", async () => {
   return {
     ...actual,
     useNavigate: () => vi.fn(),
-    useParams: () => ({ networkId: "local", serverId: "local" }),
+    useParams: () => ({ serverId: "local" }),
     useSearch: () => ({}),
     Link: ({ children, to, params, ...props }: any) => (
       <a href={to} {...props}>
@@ -69,7 +69,6 @@ describe("ProjectSidebar served by the plugin", () => {
     vi.mocked(listServerProjects).mockResolvedValue({ ok: true, projectIds: ["shop"] });
     useNetworksStore.setState({
       networks: [{ id: "local", slug: "local", name: "Hub", tier: "free" }],
-      activeId: null,
     } as any);
     useServersStore.setState({ activeServerId: null } as any);
     useAccountStore.setState({ account: { id: "", projects: [], projectOrder: [] } } as any);

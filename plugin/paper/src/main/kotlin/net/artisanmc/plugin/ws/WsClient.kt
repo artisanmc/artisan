@@ -11,7 +11,7 @@ import java.util.UUID
 import java.util.logging.Logger
 
 /** A network's hub as seen from a leaf: its `/ws/plugin`, the shared secret, the leaf's name and suite database. */
-data class HubLink(val url: String, val secret: String, val serverName: String, val databaseId: String = "")
+data class HubLink(val url: String, val secret: String, val serverName: String, val databaseId: String = "", val serverUuid: String = "")
 
 class WsClient(
     private val hub: HubLink,
@@ -80,6 +80,7 @@ class WsClient(
                 "protocol_version" to net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT,
                 "server_key" to hub.secret,
                 "proxy_name" to hub.serverName,
+                "server_uuid" to hub.serverUuid,
                 "database_id" to hub.databaseId,
                 "plugin_version" to pluginVersion,
                 "minecraft_version" to mcVersion,

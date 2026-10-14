@@ -49,7 +49,7 @@ export function YamlFileEditor({
   selected: string;
   onSelect: (path: string) => void;
   /** The file's trash — absent when the server context is unknown. */
-  history?: { networkId: string; serverId: string; diskId: string };
+  history?: { serverId: string; diskId: string };
 }) {
   const { t } = useTranslation();
   const current = files.find((f) => f.path === selected) ?? files[0];
@@ -89,7 +89,6 @@ export function YamlFileEditor({
       {history ? (
         <FileHistory
           key={current.path}
-          networkId={history.networkId}
           serverId={history.serverId}
           diskId={history.diskId}
           path={current.path}

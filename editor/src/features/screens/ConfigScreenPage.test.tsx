@@ -36,7 +36,7 @@ const SETTINGS = "whole_shop_discount: 10\n";
 beforeEach(() => {
   vi.clearAllMocks();
   useScreenCacheStore.setState({ entries: {} } as never);
-  configRead.mockImplementation(async (_n: string, _s: string, req: { table: string }) =>
+  configRead.mockImplementation(async (_s: string, req: { table: string }) =>
     req.table === "data/shop_settings"
       ? { ok: true, files: [{ path: "data/shop_settings.yaml", content: SETTINGS }] }
       : { ok: true, files: [] },
@@ -56,7 +56,7 @@ beforeEach(() => {
 });
 
 const renderPage = () =>
-  render(<ConfigScreenPage networkId="n" serverId="s" screenId="boutique:settings" />);
+  render(<ConfigScreenPage serverId="s" screenId="boutique:settings" />);
 
 async function ready() {
   await waitFor(() => expect(screen.getByTestId("config-value-form")).toBeTruthy());
@@ -74,7 +74,7 @@ async function ready() {
  */
 describe("ConfigScreenPage — last known version", () => {
   it("shows the known version without waiting for the server, and says so", async () => {
-    useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
+    useScreenCacheStore.getState().put(screenCacheKey("s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
       fetchedAt: new Date().toISOString(),
@@ -96,7 +96,7 @@ describe("ConfigScreenPage — last known version", () => {
    * explain why saving is no longer possible.
    */
   it("a revalidation failure is reported right away", async () => {
-    useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
+    useScreenCacheStore.getState().put(screenCacheKey("s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
       fetchedAt: new Date().toISOString(),
@@ -111,7 +111,7 @@ describe("ConfigScreenPage — last known version", () => {
   });
 
   it("does not enable saving while the copy is dated", async () => {
-    useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
+    useScreenCacheStore.getState().put(screenCacheKey("s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
       fetchedAt: new Date().toISOString(),
@@ -127,7 +127,7 @@ describe("ConfigScreenPage — last known version", () => {
   });
 
   it("the server's response replaces the known version and hands control back", async () => {
-    useScreenCacheStore.getState().put(screenCacheKey("n", "s", "boutique:settings"), {
+    useScreenCacheStore.getState().put(screenCacheKey("s", "boutique:settings"), {
       files: [{ path: "data/shop_settings.yaml", content: "whole_shop_discount: 42\n" }],
       models: [],
       fetchedAt: new Date().toISOString(),
@@ -146,7 +146,7 @@ describe("ConfigScreenPage — last known version", () => {
     await ready();
     await waitFor(() =>
       expect(
-        useScreenCacheStore.getState().get(screenCacheKey("n", "s", "boutique:settings"))?.files,
+        useScreenCacheStore.getState().get(screenCacheKey("s", "boutique:settings"))?.files,
       ).toEqual([{ path: "data/shop_settings.yaml", content: SETTINGS }]),
     );
   });
@@ -185,7 +185,7 @@ describe("ConfigScreenPage — form and YAML over the same file", () => {
     fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
 
     await waitFor(() => expect(configWrite).toHaveBeenCalled());
-    const written = configWrite.mock.calls[0]![2] as { files: { path: string; content: string }[] };
+    const written = configWrite.mock.calls[0]![1] as { files: { path: string; content: string }[] };
     const file = written.files.find((f) => f.path === "data/shop_settings.yaml")!;
     expect(file.content).toContain("42");
   });
@@ -206,7 +206,7 @@ describe("ConfigScreenPage — form and YAML over the same file", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
     await waitFor(() => expect(configWrite).toHaveBeenCalled());
-    const written = configWrite.mock.calls[0]![2] as { files: { path: string; content: string }[] };
+    const written = configWrite.mock.calls[0]![1] as { files: { path: string; content: string }[] };
     expect(written.files[0]!.content).toContain("[unclosed");
   });
 });
@@ -228,7 +228,7 @@ describe("ConfigScreenPage — the YAML tab shows the file, not a pending rewrit
   ].join("\n");
 
   beforeEach(() => {
-    configRead.mockImplementation(async (_n: string, _s: string, req: { table: string }) =>
+    configRead.mockImplementation(async (_s: string, req: { table: string }) =>
       req.table === "data/shop_settings"
         ? { ok: true, files: [{ path: "data/shop_settings.yaml", content: LEGACY }] }
         : { ok: true, files: [] },

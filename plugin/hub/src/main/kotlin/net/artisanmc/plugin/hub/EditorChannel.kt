@@ -15,14 +15,14 @@ class EditorChannel(private val logger: Logger?) {
     }
 
     /** An announcement from a server, in the shape the editor expects. */
-    fun relay(event: Map<String, Any?>, server: String = Servers.LOCAL) {
+    fun relay(event: Map<String, Any?>, server: String = Servers.LOCAL, serverUuid: String = "") {
         if (event["type"] != "projects_reloaded") return
         val projects = (event["projects"] as? List<*>).orEmpty().map { project ->
             val fields = project as? Map<*, *> ?: return@map project
             val folder = fields["id"] as? String ?: return@map project
             fields + ("id" to ProjectRef.id(server, folder))
         }
-        broadcast(mapOf("type" to "projects_reloaded", "server_key_id" to server, "projects" to projects))
+        broadcast(mapOf("type" to "projects_reloaded", "server_key_id" to serverUuid.ifEmpty { server }, "projects" to projects))
     }
 
     fun closeAll() {

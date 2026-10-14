@@ -6,7 +6,7 @@ import { goToDocument } from "./goToDocument";
 
 const navigate = vi.fn();
 const core = { id: "p1", diskId: "core" };
-const BOARD = "/networks/$networkId/servers/$serverId/projects/$projectId";
+const BOARD = "/servers/$serverId/projects/$projectId";
 
 beforeEach(() => {
   navigate.mockReset();
@@ -16,7 +16,7 @@ beforeEach(() => {
 
 describe("goToDocument", () => {
   it("selects the document, asks the board to centre on it, and returns to the board", () => {
-    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "main" });
+    goToDocument(navigate, { serverId: "s", project: core, ref: "main" });
     expect(useUiStore.getState().centerRequest).toMatchObject({ projectId: "p1", docId: "main" });
     expect([...useSelectionStore.getState().ids]).toEqual(["main"]);
     expect(navigate).toHaveBeenCalledWith(
@@ -29,14 +29,14 @@ describe("goToDocument", () => {
   });
 
   it("centres again when the same document is picked twice", () => {
-    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "main" });
+    goToDocument(navigate, { serverId: "s", project: core, ref: "main" });
     const first = useUiStore.getState().centerRequest?.nonce;
-    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "main" });
+    goToDocument(navigate, { serverId: "s", project: core, ref: "main" });
     expect(useUiStore.getState().centerRequest?.nonce).not.toBe(first);
   });
 
   it("opens another project on its board, centred on the document, through the URL", () => {
-    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "boutique:main" });
+    goToDocument(navigate, { serverId: "s", project: core, ref: "boutique:main" });
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({
         to: BOARD,
@@ -48,7 +48,7 @@ describe("goToDocument", () => {
   });
 
   it("treats a ref qualified with this project's own folder as local", () => {
-    goToDocument(navigate, { networkId: "n", serverId: "s", project: core, ref: "core:main" });
+    goToDocument(navigate, { serverId: "s", project: core, ref: "core:main" });
     expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "main" });
   });
 });

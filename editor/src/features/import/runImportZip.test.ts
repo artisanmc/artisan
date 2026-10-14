@@ -31,7 +31,7 @@ vi.mock("@/lib/api/userProjects", () => ({ loadUserProject: mocks.loadUserProjec
 import { hashBytes } from "@/lib/contentHash";
 import { applyImportZip, prepareImportZip } from "./runImportZip";
 
-const target = { networkId: "n1", serverId: "sk1" };
+const target = { serverId: "sk1" };
 const file = new Blob(["zip"]);
 
 const shopSummary = {
@@ -120,7 +120,7 @@ describe("applyImportZip", () => {
     const result = await applyImportZip(prepared.preview);
 
     expect(result).toMatchObject({ ok: true, projectId: "shop", created: true });
-    expect(mocks.createProject).toHaveBeenCalledWith("n1", "sk1", "shop");
+    expect(mocks.createProject).toHaveBeenCalledWith("sk1", "shop");
     expect(mocks.createDraft.mock.calls[0]![0]).toBe("proj_shop");
     const snapshot = mocks.createDraft.mock.calls[0]![3];
     expect(snapshot.baseline).toEqual({});
@@ -151,7 +151,7 @@ describe("applyImportZip", () => {
     const result = await applyImportZip(prepared.preview);
 
     expect(result).toMatchObject({ ok: true, projectId: "shop", created: false });
-    expect(mocks.loadUserProject).toHaveBeenCalledWith("shop", "sk1", "n1");
+    expect(mocks.loadUserProject).toHaveBeenCalledWith("shop", "sk1");
     expect(mocks.createDraft.mock.calls[0]![0]).toBe("proj_shop");
   });
 
@@ -180,7 +180,7 @@ describe("applyImportZip", () => {
     if (!prepared.ok) throw new Error("expected preview");
     await applyImportZip(prepared.preview, { "menus/a.yaml": "server" });
 
-    expect(mocks.readProjectFiles).toHaveBeenCalledWith("n1", "sk1", "shop");
+    expect(mocks.readProjectFiles).toHaveBeenCalledWith({ serverId: "sk1", diskId: "shop" });
     expect(mocks.createDraft.mock.calls[0]![0]).toBe("proj_shop");
     const snapshot = mocks.createDraft.mock.calls[0]![3];
     expect(snapshot.tree["menus/a.yaml"]).toBe("server\n");

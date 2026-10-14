@@ -10,7 +10,7 @@ const { useServerSnapshotsStore } = await import("./serverSnapshotsStore");
 const load = (params?: Record<string, string>) =>
   useServerSnapshotsStore
     .getState()
-    .loadSnapshot({ networkId: "n1", serverId: "s1", ref: "msquests:quests", params });
+    .loadSnapshot({ serverId: "s1", ref: "msquests:quests", params });
 
 const rows = () => useServerSnapshotsStore.getState().rowsByRef["msquests:quests"];
 
@@ -57,7 +57,7 @@ describe("serverSnapshotsStore", () => {
 
     await load({ group: "daily", player: "Steve" });
 
-    expect(previewDataSource).toHaveBeenCalledWith("n1", "s1", {
+    expect(previewDataSource).toHaveBeenCalledWith("s1", {
       ref: "msquests:quests",
       params: { group: "daily", player: "Steve" },
     });
@@ -76,9 +76,7 @@ describe("serverSnapshotsStore", () => {
   });
 
   it("never fetches a project-owned source", async () => {
-    await useServerSnapshotsStore
-      .getState()
-      .loadSnapshot({ networkId: "n1", serverId: "s1", ref: "pack:ranks" });
+    await useServerSnapshotsStore.getState().loadSnapshot({ serverId: "s1", ref: "pack:ranks" });
 
     expect(previewDataSource).not.toHaveBeenCalled();
   });

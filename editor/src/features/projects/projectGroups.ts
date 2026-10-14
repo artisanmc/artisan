@@ -4,6 +4,7 @@ import type { Project } from "@/domain/types";
 import { fallbackScreensFor } from "@/features/screens/screenList";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import type { ProjectSummary } from "@/lib/api/networks";
+import { LOCAL_ID } from "@/lib/localServer";
 import { getModule } from "@artisan/editor-sdk";
 
 export type OwnedProject = ProjectSummary & { ownerModule: string };
@@ -17,7 +18,6 @@ export type OwnedProject = ProjectSummary & { ownerModule: string };
  * do not diverge.
  */
 export function diskProjectsToSummaries(
-  networkId: string,
   serverKeyId: string,
   projectIds: string[],
   metadata: ProjectSummary[] = [],
@@ -29,7 +29,7 @@ export function diskProjectsToSummaries(
         name: id,
         externalId: id,
         hash: "",
-        networkId,
+        networkId: LOCAL_ID,
         serverKeyId,
       },
   );

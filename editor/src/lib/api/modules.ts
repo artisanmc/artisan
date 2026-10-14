@@ -12,11 +12,10 @@ export interface ActiveModule {
  * non-OK response (treat "no presence info" as "no modules").
  */
 export async function fetchActiveModulesUser(
-  networkId: string,
   serverId: string,
 ): Promise<ActiveModule[]> {
   const res = await fetch(
-    `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/modules`,
+    `${API_URL}/api/v1/servers/${serverId}/modules`,
     { credentials: "include" },
   );
   if (!res.ok) return [];

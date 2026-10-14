@@ -36,21 +36,21 @@ beforeEach(() => {
 });
 
 it("switches server from a menu (network in its tooltip), and ends on the project", async () => {
-  render(<ProjectBreadcrumb networkRef="primalcraft" serverRef="survie" projectName="main" />);
+  render(<ProjectBreadcrumb serverRef="survie" projectName="main" />);
   expect(screen.queryByText("Primalcraft")).toBeNull();
   const server = await screen.findByRole("button", { name: /Survie/ });
   expect(server).toHaveAttribute("title", "Primalcraft › Survie");
   fireEvent.keyDown(server, { key: "Enter" });
   fireEvent.click(screen.getByRole("menuitem", { name: "Lobby" }));
   expect(navigate).toHaveBeenCalledWith({
-    to: "/networks/$networkId/servers/$serverId",
-    params: { networkId: "primalcraft", serverId: "lobby" },
+    to: "/servers/$serverId",
+    params: { serverId: "lobby" },
   });
   expect(screen.getByText("main")).toHaveAttribute("aria-current", "page");
 });
 
-it("shows only the project outside a network (demo)", () => {
-  render(<ProjectBreadcrumb networkRef={null} serverRef={null} projectName="Welcome" />);
+it("shows only the project outside a server (demo)", () => {
+  render(<ProjectBreadcrumb serverRef={null} projectName="Welcome" />);
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.getByText("Welcome")).toHaveAttribute("aria-current", "page");
 });

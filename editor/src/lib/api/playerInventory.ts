@@ -22,13 +22,12 @@ export type InventoryFetchResult =
  * serialized stack plus its display descriptor.
  */
 export async function fetchPlayerInventory(
-  networkId: string,
   serverId: string,
   player: string,
 ): Promise<InventoryFetchResult> {
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/networks/${networkId}/servers/${serverId}/player-inventory?player=${encodeURIComponent(player)}`,
+      `${API_URL}/api/v1/servers/${serverId}/player-inventory?player=${encodeURIComponent(player)}`,
       { credentials: "include" },
     );
     const body = (await res.json().catch(() => null)) as
