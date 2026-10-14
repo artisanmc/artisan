@@ -72,7 +72,8 @@ class ProjectDrafts(private val storage: DraftStorage) {
             if (current != null) return respond(fail("draft_conflict"))
             val name = request.path("name").asText()
             val snapshot = request["snapshot"]
-            if (snapshot == null || !validBody(name, snapshot)) return respond(fail("invalid_draft"))
+            val invalid = if (snapshot == null) "snapshot missing" else invalidBody(name, snapshot)
+            if (invalid != null) return respond(fail("invalid_draft") + ("message" to invalid))
             val now = Instant.now().toString()
             val draft = mapper.valueToTree<ObjectNode>(
                 mapOf(
@@ -104,7 +105,8 @@ class ProjectDrafts(private val storage: DraftStorage) {
             "update" -> {
                 val name = request.path("name").asText()
                 val snapshot = request["snapshot"]
-                if (snapshot == null || !validBody(name, snapshot)) return respond(fail("invalid_draft"))
+                val invalid = if (snapshot == null) "snapshot missing" else invalidBody(name, snapshot)
+                if (invalid != null) return respond(fail("invalid_draft") + ("message" to invalid))
                 next.put("name", name)
                 next.set<JsonNode>("snapshot", snapshot)
                 commit(next, ok("draft" to next))
@@ -145,26 +147,43 @@ class ProjectDrafts(private val storage: DraftStorage) {
     private fun contentPath(path: String) =
         ProjectPathPolicy.valid(path) && (!path.startsWith('.') || path == ".artisan/editor.yaml") && !ProjectPathPolicy.isPrivate(path)
 
-    private fun validBody(name: String, snapshot: JsonNode): Boolean {
-        fun tree(node: JsonNode?) = node != null && node.isObject && node.size() <= 5000 && node.fields().asSequence().all { contentPath(it.key) && it.value.isTextual }
-        fun binary(node: JsonNode?) = node == null || node.isObject && node.size() <= 5000 && node.fields().asSequence().all {
-            contentPath(it.key) && it.value.isObject && it.value.path("hash").asText().matches(SHA256) &&
-                it.value.path("size").isIntegralNumber && it.value.path("size").asLong() in 0..MAX_BLOB.toLong()
+    /** Why [snapshot] cannot be a draft body; null when it can. */
+    private fun invalidBody(name: String, snapshot: JsonNode): String? {
+        fun badPath(node: JsonNode?) = node?.fieldNames()?.asSequence()?.firstOrNull { !contentPath(it) }
+        fun tree(key: String): String? {
+            val node = snapshot[key] ?: return "$key missing"
+            if (!node.isObject || node.size() > 5000) return "$key is not an object of at most 5000 files"
+            badPath(node)?.let { return "$key: path not allowed: $it" }
+            return node.fields().asSequence().firstOrNull { !it.value.isTextual }?.let { "$key: not text: ${it.key}" }
         }
-        if (name.isBlank() || name.length > 120 || !tree(snapshot["baseline"]) || !tree(snapshot["tree"]) ||
-            snapshot.has("initialTree") && !tree(snapshot["initialTree"]) || !snapshot.path("at").isNumber || snapshot.path("at").asDouble() < 0 ||
-            !binary(snapshot["binaryBaseline"]) || !binary(snapshot["binaryTree"]) || mapper.writeValueAsBytes(snapshot).size > 8 * 1024 * 1024
-        ) return false
+        fun binary(key: String): String? {
+            val node = snapshot[key] ?: return null
+            if (!node.isObject || node.size() > 5000) return "$key is not an object of at most 5000 files"
+            badPath(node)?.let { return "$key: path not allowed: $it" }
+            return node.fields().asSequence().firstOrNull {
+                !it.value.isObject || !it.value.path("hash").asText().matches(SHA256) ||
+                    !it.value.path("size").isIntegralNumber || it.value.path("size").asLong() !in 0..MAX_BLOB.toLong()
+            }?.let { "$key: bad entry: ${it.key}" }
+        }
+        if (name.isBlank() || name.length > 120) return "name must be 1 to 120 characters"
+        tree("baseline")?.let { return it }
+        tree("tree")?.let { return it }
+        if (snapshot.has("initialTree")) tree("initialTree")?.let { return it }
+        if (!snapshot.path("at").isNumber || snapshot.path("at").asDouble() < 0) return "at must be a positive number"
+        binary("binaryBaseline")?.let { return it }
+        binary("binaryTree")?.let { return it }
+        if (mapper.writeValueAsBytes(snapshot).size > 8 * 1024 * 1024) return "snapshot larger than 8 MB"
         val textPaths = snapshot["baseline"].fieldNames().asSequence().toSet() + snapshot["tree"].fieldNames().asSequence().toSet()
-        if ((snapshot["binaryBaseline"]?.fieldNames()?.asSequence().orEmpty() + snapshot["binaryTree"]?.fieldNames()?.asSequence().orEmpty()).any { it in textPaths }) return false
-        val renames = snapshot["renames"] ?: return true
-        if (!renames.isArray || renames.size() > 5000) return false
+        (snapshot["binaryBaseline"]?.fieldNames()?.asSequence().orEmpty() + snapshot["binaryTree"]?.fieldNames()?.asSequence().orEmpty())
+            .firstOrNull { it in textPaths }?.let { return "both text and binary: $it" }
+        val renames = snapshot["renames"] ?: return null
+        if (!renames.isArray || renames.size() > 5000) return "renames is not a list of at most 5000"
         val from = mutableSetOf<String>()
         val to = mutableSetOf<String>()
-        return renames.all { r ->
-            r.path("from").isTextual && r.path("to").isTextual && contentPath(r["from"].asText()) && contentPath(r["to"].asText()) &&
-                r["from"] != r["to"] && from.add(r["from"].asText()) && to.add(r["to"].asText())
-        }
+        return renames.firstOrNull { r ->
+            !(r.path("from").isTextual && r.path("to").isTextual && contentPath(r["from"].asText()) && contentPath(r["to"].asText()) &&
+                r["from"] != r["to"] && from.add(r["from"].asText()) && to.add(r["to"].asText()))
+        }?.let { "bad rename: $it" }
     }
 
     @Suppress("UNCHECKED_CAST")

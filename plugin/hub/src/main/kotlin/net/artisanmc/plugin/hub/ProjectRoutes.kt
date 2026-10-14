@@ -306,7 +306,7 @@ class ProjectRoutes(
         drafts.handle(project.server.id, project.folder, request, { publication, reply -> relay.send(call, project.server, publication, reply) }) { reply ->
             // A refusal the editor cannot recover from on its own: one line for post-mortem.
             if (reply["ok"] == false && reply["error"] !in EXPECTED_DRAFT_ERRORS)
-                logger?.warning("[Artisan] Draft $action on ${project.id} refused: ${reply["error"]}")
+                logger?.warning("[Artisan] Draft $action on ${project.id} refused: ${reply["error"]}${reply["message"]?.let { " ($it)" } ?: ""}")
             respond(reply)
         }
     }
