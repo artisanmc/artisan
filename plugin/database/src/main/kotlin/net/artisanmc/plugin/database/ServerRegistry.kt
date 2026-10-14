@@ -47,6 +47,20 @@ object ArtisanSchema {
             8,
             "CREATE TABLE IF NOT EXISTS artisan_server_state (server_id INT NOT NULL PRIMARY KEY, state LONGTEXT NOT NULL, updated_at TIMESTAMP NOT NULL)",
         ),
+        Migration(
+            9,
+            """CREATE TABLE IF NOT EXISTS artisan_drafts (
+                server_id INT NOT NULL,
+                project_key VARCHAR(80) NOT NULL,
+                id VARCHAR(128) NOT NULL,
+                draft LONGTEXT NOT NULL,
+                PRIMARY KEY (server_id, project_key, id)
+            )""",
+        ),
+        Migration(
+            10,
+            "CREATE TABLE IF NOT EXISTS artisan_draft_receipts (operation_id VARCHAR(256) NOT NULL PRIMARY KEY, fingerprint VARCHAR(64) NOT NULL, result LONGTEXT NOT NULL)",
+        ),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger) =

@@ -94,9 +94,9 @@ recovery copy of unsaved edits in the meantime.
 
 ## Drafts and publishing
 
-Edits are automatically saved to your private draft. Drafts are stored on the
-project's own server, under `.artisan/drafts/`, and belong to the player who opened
-the editor. The disk button (**Save**) saves the draft immediately, without changing
+Edits are automatically saved to your private draft. Drafts are stored in the suite
+database (see [Database](/wiki/configuration/database/)) and belong to the player who
+opened the editor. The disk button (**Save**) saves the draft immediately, without changing
 the published files. It spins while saving and turns inactive once the server holds
 the latest version. Hover it to see the draft state: unsaved, saved, local copy only, or
 changed in another session. Open the editor with the same Minecraft account from
