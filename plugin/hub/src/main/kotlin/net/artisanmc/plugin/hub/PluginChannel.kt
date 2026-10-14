@@ -11,8 +11,8 @@ import java.util.logging.Logger
 
 /**
  * WebSocket `/ws/plugin`: the network's leaves connect here. The `hello` must carry the
- * shared secret (`server_key`) and the server name (`proxy_name`); without them the
- * connection is closed.
+ * shared secret (`server_key`), the server id (`server_uuid`) and the server name
+ * (`proxy_name`); without them the connection is closed.
  */
 class PluginChannel(
     private val servers: Servers,
@@ -38,20 +38,23 @@ class PluginChannel(
             val message = runCatching { Call.mapper.readTree(text) }.getOrNull()?.takeIf { it.isObject } ?: return
             val current = server
             if (current != null) when (message.path("type").asText()) {
-                "editor_link" -> return link(session, message, current.uuid)
-                "editor_permissions" -> return sessions.refresh(current.uuid, permissions(message.path("players")))
+                "editor_link" -> return link(session, message, current.id)
+                "editor_permissions" -> return sessions.refresh(current.id, permissions(message.path("players")))
                 "editor_logout" -> return logout(session, message)
             }
             if (current != null) return current.receive(message, editors)
             if (message.path("type").asText() != "hello") return
             val name = message.path("proxy_name").asText("")
+            val id = message.path("server_uuid").asText("")
             when {
                 !authorized(message.path("server_key").asText("")) -> refuse(session, "invalid server_key")
-                !NAME.matches(name) || name.equals(Servers.LOCAL, ignoreCase = true) -> refuse(session, "invalid proxy_name")
+                !NAME.matches(name) -> refuse(session, "invalid proxy_name")
+                !SERVER_ID.matches(id) -> refuse(session, "invalid server_uuid")
+                id == servers.local.id -> refuse(session, "server id $id is the hub's own: plugins/Artisan/server-id was copied from it")
                 databaseId() == null -> refuse(session, "the hub uses an embedded H2 database: a network needs a shared MySQL or MariaDB database")
                 message.path("database_id").asText("") != databaseId() ->
                     refuse(session, "not on the hub's database: every server of a network must use the same MySQL or MariaDB database")
-                else -> server = welcome(session, name, message as ObjectNode)
+                else -> server = welcome(session, id, name, message as ObjectNode)
             }
         }
 
@@ -65,12 +68,12 @@ class PluginChannel(
         }
     }
 
-    private fun welcome(session: Session, name: String, hello: ObjectNode): RemoteServer {
-        val server = servers.remote(name)
+    private fun welcome(session: Session, id: String, name: String, hello: ObjectNode): RemoteServer {
+        val server = servers.remote(id, name)
         val ack = mapOf(
             "type" to "hello_ack",
             "session_id" to UUID.randomUUID().toString(),
-            "server_id" to name,
+            "server_id" to id,
             "editor_url" to publicUrl(null),
             "network_name" to servers.local.label,
             // An object without an address leaves the server its current pack; null would remove it.
@@ -131,6 +134,8 @@ class PluginChannel(
 
     private companion object {
         val NAME = Regex("[A-Za-z0-9_-]{1,64}")
+        /** A UUID (`plugins/Artisan/server-id`); the tests use shorter ids. */
+        val SERVER_ID = Regex("[A-Za-z0-9-]{1,36}")
         const val POLICY_VIOLATION = 1008
     }
 }

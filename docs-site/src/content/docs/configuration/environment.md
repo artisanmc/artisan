@@ -26,9 +26,10 @@ Behind Velocity, set `name` to the server's name in `velocity.toml` (its key und
 server. Set it before going multi-server — the folder name is often the same everywhere
 in containers (`data`, `container`).
 
-A written `name` is never altered: letters, digits, `_` and `-` only, 64 characters max,
-not `local` (reserved for the hub). Anything else is refused at startup with an error in
-the console, and the server does not connect to the hub.
+A written `name` is never altered: letters, digits, `_` and `-` only, 64 characters max.
+Anything else is refused at startup with an error in the console, and the server does not
+connect to the hub. The name is a label: the server is identified by the id in
+`plugins/Artisan/server-id`, so renaming it keeps its projects and history.
 
 ## `web`
 

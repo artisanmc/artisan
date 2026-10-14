@@ -41,7 +41,13 @@ serveurs et un fichier d'UUID.
    identifie le serveur ; `artisan_servers (id, uuid UNIQUE, name UNIQUE, last_seen, …)`
    est mis à jour au démarrage et les autres tables référencent `artisan_servers.id`. Le
    `name` (le nom Velocity) est un attribut : un serveur renommé, y compris quand son nom
-   par défaut change avec son dossier, garde sa ligne.
+   par défaut change avec son dossier, garde sa ligne. Amendé le 2026-10-14 (issue #43) : le
+   server id est l'identité du serveur dans tout le hub, le serveur du hub compris — routes
+   `/api/v1/servers/:server`, `server_key_id`, préfixe des ids de Project
+   (`<server id>.<dossier>`), clés de `Servers`, `LoadedProjects`, `ProjectHistory` et
+   `DraftStorage`, `hello_ack.server_id`. La sentinelle `local` du serveur du hub et le
+   `proxy_name` comme identité d'une feuille disparaissent ; un `hello` sans `server_uuid`
+   est refusé, et le nom `local` n'est plus réservé.
 5. **`server-id` copié.** Chaque serveur rafraîchit `last_seen` chaque minute. Au
    démarrage, une ligne de même UUID sous un autre nom vue il y a moins de deux minutes
    signale une copie : refus, avec le nom du serveur en cours et la marche à suivre

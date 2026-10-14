@@ -63,6 +63,8 @@ secret partagé en `server_key` et leur nom en `proxy_name` ; le hub garde ce qu
 (`RemoteServer`) et relaie chaque requête de l'éditeur par `request_id`. Un serveur déconnecté
 reste listé hors ligne (503 `server_offline`). Un Project hors du serveur du hub s'identifie
 `<serveur>.<dossier>` (`Servers.project`) : deux serveurs peuvent avoir le même dossier.
+Depuis le 2026-10-14 (issue #43, ADR `server-identity-and-versions`), c'est `<server id>.<dossier>`
+sur tout serveur, celui du hub compris.
 *Rejeté :* un identifiant opaque par Project (il faudrait une base pour le retrouver).
 
 **⑩ Rôles `hub` et `leaf`.** `web.role: leaf` coupe le serveur web et pointe le client vers

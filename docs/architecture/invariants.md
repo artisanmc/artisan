@@ -25,15 +25,18 @@ Depuis la phase F (2026-10), il n'y a plus de backend ni de copie centrale. Cont
 - **Édition à la main** : prise en compte à `/artisan reload` seulement (le `SyncScanner` a été
   retiré). L'éditeur l'apprend par `projects_reloaded`.
 
-## Un nom de serveur = un serveur vivant
+## Un server id = un serveur vivant
 
-Sur `/ws/plugin`, le hub identifie une feuille par son `proxy_name`. Une nouvelle connexion
-sous le même nom **remplace** l'ancienne (`RemoteServer.attach`), prévenue par `session_replaced`.
-Deux serveurs sous un même nom ont chacun leur disque : les laisser coexister ferait lire l'un et
-écrire l'autre. **Dernier arrivé gagne** : un serveur qui crashe laisse une connexion morte, et
-« premier gagne » verrouillerait le vrai serveur dehors. Deux serveurs qui se disputent un nom
-deviennent visibles (déconnexions en boucle) au lieu de diverger en silence. Le nom `local` est
-réservé au serveur du hub.
+Sur `/ws/plugin`, le hub identifie une feuille par son `server_uuid` (`plugins/Artisan/server-id`),
+jamais par son nom. Une nouvelle connexion sous le même id **remplace** l'ancienne
+(`RemoteServer.attach`), prévenue par `session_replaced` ; un `hello` sans id, ou portant l'id du
+hub lui-même, est refusé (1008). Deux serveurs sous un même id ont chacun leur disque : les laisser
+coexister ferait lire l'un et écrire l'autre. **Dernier arrivé gagne** : un serveur qui crashe
+laisse une connexion morte, et « premier gagne » verrouillerait le vrai serveur dehors. Deux
+dossiers copiés qui se disputent un id deviennent visibles (déconnexions en boucle, refus
+`CopiedId` de `ServerRegistry`) au lieu de diverger en silence. Un serveur renommé garde son id,
+ses Projects et ses Versions ; deux serveurs de même nom sont départagés à l'enregistrement
+(`NameTaken`), le hub les distingue par id.
 
 ## Une release, une version de protocole
 
@@ -119,7 +122,7 @@ choisit `RegionizedScheduler` (Paper, Folia, Leaf) ou `BukkitTaskScheduler` (Moc
 `isPrimaryThread` hors de `PaperSchedulers.kt`. Téléporter : `teleportAsync`, jamais `teleport`.
 
 Le hub ajoute ses propres threads : Jetty (`artisan-web`, 32 max) répond aux requêtes HTTP et
-WebSocket, et ne touche jamais le jeu directement. Le serveur `local` passe par `LocalServerLink`
+WebSocket, et ne touche jamais le jeu directement. Le serveur du hub passe par `LocalServerLink`
 vers les mêmes gestionnaires que le WebSocket : lectures et écritures disque sur
 `ProjectWorkspace.io`, accès joueurs et inventaires par le `Scheduler`.
 

@@ -37,7 +37,7 @@ class PluginConfigTest {
         assertEquals("Survie_2-b", serverName(" Survie_2-b ", "data"))
         assertNull(serverName("survie.1", "data"))
         assertNull(serverName("mon serveur", "data"))
-        assertNull(serverName("local", "data"))
+        assertEquals("local", serverName("local", "data"))
         assertNull(serverName("a".repeat(65), "data"))
     }
 
@@ -46,7 +46,6 @@ class PluginConfigTest {
         assertEquals("data", serverName("", "data"))
         assertEquals("my-server", serverName("", "my server"))
         assertEquals("Minecraft", serverName("", ""))
-        assertEquals("local-", serverName("", "local"))
     }
 
     @Test

@@ -24,8 +24,7 @@ import kotlin.test.assertTrue
 class PluginChannelTest {
     private val mapper = ObjectMapper()
     private val local = object : EditorServer {
-        override val id = Servers.LOCAL
-        override val uuid = "u-local"
+        override val id = "u-local"
         override val online = true
         override val link = ServerLink { CompletableFuture.completedFuture(mapOf("ok" to true)) }
         override val label = "Lobby"
@@ -40,7 +39,7 @@ class PluginChannelTest {
         override fun applyResourcePack(hash: String, path: String) {}
     }
     private var hubDatabase: String? = "db-1"
-    private val servers = Servers(local, newRemote = { name, uuid -> RemoteServer(name, uuid, publicUrl = { "https://editor.example" }) })
+    private val servers = Servers(local, newRemote = { id, name -> RemoteServer(id, name, publicUrl = { "https://editor.example" }) })
     private val sessions = Sessions()
     private val editors = EditorChannel(null)
     private val hub = HubServer(
@@ -89,8 +88,8 @@ class PluginChannelTest {
 
         fun next(): JsonNode = received.poll(5, TimeUnit.SECONDS) ?: error("nothing received")
 
-        fun hello(key: String = "s3cret", name: String = "survie2", protocol: String = "1", database: String = "db-1") = send(mapOf(
-            "type" to "hello", "server_key" to key, "proxy_name" to name, "server_uuid" to "u-$name", "protocol_version" to protocol, "database_id" to database,
+        fun hello(key: String = "s3cret", name: String = "survie2", protocol: String = "1", database: String = "db-1", id: String = "u-$name") = send(mapOf(
+            "type" to "hello", "server_key" to key, "proxy_name" to name, "server_uuid" to id, "protocol_version" to protocol, "database_id" to database,
             "minecraft_version" to "1.21.4", "plugin_version" to "2.0.0",
             "installed_modules" to listOf(mapOf("id" to "quests", "version" to "1.0.0")),
             "server_config" to mapOf("language" to "fr"),
@@ -117,6 +116,31 @@ class PluginChannelTest {
         leaf.hello(database = "db-2")
         assertEquals(1008, leaf.closed.get(5, TimeUnit.SECONDS))
         assertEquals(1, get("/api/v1/servers").get().second!!["servers"].size())
+    }
+
+    @Test
+    fun `a server without a server id, or with the hub's own, is turned away`() {
+        val anonymous = Leaf()
+        anonymous.hello(id = "")
+        assertEquals(1008, anonymous.closed.get(5, TimeUnit.SECONDS))
+        val copy = Leaf()
+        copy.hello(id = "u-local")
+        assertEquals(1008, copy.closed.get(5, TimeUnit.SECONDS))
+        assertEquals(1, get("/api/v1/servers").get().second!!["servers"].size())
+    }
+
+    @Test
+    fun `a renamed server keeps its id and its place in the list`() {
+        val leaf = Leaf()
+        leaf.hello(name = "survie2")
+        assertEquals("u-survie2", leaf.next()["server_id"].asText())
+        val renamed = Leaf()
+        renamed.hello(name = "survival", id = "u-survie2")
+        renamed.next()
+        // The connection under the old name is replaced: same server id, last arrived wins.
+        leaf.closed.get(5, TimeUnit.SECONDS)
+        val status = get("/api/v1/servers").get().second!!
+        assertEquals(listOf("u-local" to "Lobby", "u-survie2" to "survival"), status["servers"].map { it["id"].asText() to it["label"].asText() })
     }
 
     @Test
@@ -149,11 +173,11 @@ class PluginChannelTest {
             "project_ids" to listOf("shop"), "project_roots" to listOf(mapOf("project_id" to "shop", "identity" to "personal")),
         ))
         val projects = list.get(5, TimeUnit.SECONDS).second!!
-        assertEquals("survie2.shop", projects["projects"][0]["id"].asText())
+        assertEquals("u-survie2.shop", projects["projects"][0]["id"].asText())
         assertEquals("u-survie2", projects["projects"][0]["serverKeyId"].asText())
         assertEquals("shop", projects["projects"][0]["externalId"].asText())
 
-        val read = get("/api/v1/projects/survie2.shop/files")
+        val read = get("/api/v1/projects/u-survie2.shop/files")
         val readRequest = leaf.next()
         assertEquals("shop", readRequest["project_id"].asText())
         leaf.send(mapOf("type" to "project_read_result", "request_id" to readRequest["request_id"].asText(), "ok" to true, "files" to emptyList<Any>()))
@@ -180,17 +204,17 @@ class PluginChannelTest {
         leaf.send(mapOf("type" to "project_create_result", "request_id" to createRequest["request_id"].asText(), "ok" to true))
         val (created, body) = create.get(5, TimeUnit.SECONDS)
         assertEquals(201, created)
-        assertEquals("survie2.shop", body!!["project"]["id"].asText())
+        assertEquals("u-survie2.shop", body!!["project"]["id"].asText())
 
-        val rename = send("POST", "/api/v1/projects/survie2.shop/rename", mapOf("targetId" to "store"))
+        val rename = send("POST", "/api/v1/projects/u-survie2.shop/rename", mapOf("targetId" to "store"))
         val renameRequest = leaf.next()
         assertEquals("project_rename", renameRequest["type"].asText())
         assertEquals("shop", renameRequest["project_id"].asText())
         assertEquals("store", renameRequest["target_project_id"].asText())
         leaf.send(mapOf("type" to "project_rename_result", "request_id" to renameRequest["request_id"].asText(), "ok" to true))
-        assertEquals("survie2.store", rename.get(5, TimeUnit.SECONDS).second!!["projectId"].asText())
+        assertEquals("u-survie2.store", rename.get(5, TimeUnit.SECONDS).second!!["projectId"].asText())
 
-        val delete = send("DELETE", "/api/v1/user/projects/survie2.store")
+        val delete = send("DELETE", "/api/v1/user/projects/u-survie2.store")
         val deleteRequest = leaf.next()
         assertEquals("project_delete", deleteRequest["type"].asText())
         leaf.send(mapOf("type" to "project_delete_result", "request_id" to deleteRequest["request_id"].asText(), "ok" to false, "error" to "addon_immutable"))
@@ -204,8 +228,8 @@ class PluginChannelTest {
         leaf.next()
         for ((code, body) in listOf(
             send("POST", "/api/v1/servers/u-survie2/projects", mapOf("name" to "shop")),
-            send("POST", "/api/v1/projects/survie2.shop/rename", mapOf("targetId" to "store")),
-            send("DELETE", "/api/v1/user/projects/survie2.shop"),
+            send("POST", "/api/v1/projects/u-survie2.shop/rename", mapOf("targetId" to "store")),
+            send("DELETE", "/api/v1/user/projects/u-survie2.shop"),
         ).map { it.get(5, TimeUnit.SECONDS) }) {
             assertEquals(501, code)
             assertEquals("plugin_update_required", body!!["error"].asText())
