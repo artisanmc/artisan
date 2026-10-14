@@ -324,7 +324,7 @@ Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*`
 | `list(projectId: String, dir: String)` | `List<String>` | 1.2.0 |
 | `read(projectId: String, relPath: String)` | `String?` | 1.2.0 |
 | `hasContent(dir: String)` | `Boolean` | 1.2.0 |
-| `reload()` | `Unit` | 1.6.0 |
+| `reload()` | `Unit` | 1.6.0 — asynchronous since 1.8.0: the disk is read on Artisan's reload thread, and modules' `onReload()` follows on the global thread |
 
 ### `net.artisanmc.modules.api.ProjectRootRegistry`
 
