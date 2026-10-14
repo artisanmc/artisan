@@ -1,8 +1,8 @@
+import { apiFetch } from "@/lib/api/client";
 import { useServersStore } from "@/state/serversStore";
 import { useEffect, useState } from "react";
 import { headPreviewUrl } from "./headTexture";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
 const cache = new Map<
   string,
   { expires: number; pending: Promise<string | undefined>; url?: string }
@@ -18,12 +18,10 @@ function resolve(serverId: string, id: string, key: string) {
   };
   entry.pending = (async () => {
     try {
-      const response = await fetch(
-        `${API_URL}/api/v1/servers/${encodeURIComponent(serverId)}/head-texture?id=${id}`,
-        { credentials: "include", signal: AbortSignal.timeout(7_000) },
+      const body = await apiFetch<{ texture?: unknown }>(
+        `/api/v1/servers/${encodeURIComponent(serverId)}/head-texture?id=${id}`,
+        { timeoutMs: 7_000 },
       );
-      if (!response.ok) return undefined;
-      const body = await response.json();
       if (typeof body.texture === "string") entry.url = headPreviewUrl(`basehead:${body.texture}`);
       return entry.url;
     } catch {

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { API_URL, apiRequest } from "@/lib/api/client";
 
 // Types
 
@@ -14,7 +14,12 @@ interface ModelFace {
 interface ModelElement {
   from: [number, number, number];
   to: [number, number, number];
-  rotation?: { origin: [number, number, number]; axis: "x" | "y" | "z"; angle: number; rescale?: boolean };
+  rotation?: {
+    origin: [number, number, number];
+    axis: "x" | "y" | "z";
+    angle: number;
+    rescale?: boolean;
+  };
   shade?: boolean; // default: true — when false, face brightness is always 1.0
   faces: Partial<Record<"down" | "up" | "north" | "south" | "west" | "east", ModelFace>>;
 }
@@ -77,13 +82,15 @@ function cacheKey(modelPath: string, version: string): string {
 export async function preloadModels(version: string): Promise<void> {
   const url = `${API_URL}/api/v1/model-bundle/${version}`;
   try {
-    const res = await fetch(url);
+    const res = await apiRequest(url);
     if (!res.ok) return;
-    const bundle = await res.json() as Record<string, ResolvedModel>;
+    const bundle = (await res.json()) as Record<string, ResolvedModel>;
     for (const [path, model] of Object.entries(bundle)) {
       resolvedModelCache.set(cacheKey(path, version), model);
     }
-  } catch { /* silently degrade — individual fetches will handle it */ }
+  } catch {
+    /* silently degrade — individual fetches will handle it */
+  }
 }
 
 // Model fetching + resolution
@@ -95,8 +102,8 @@ const modelJsonCache = new Map<string, Promise<Record<string, unknown> | null>>(
 function fetchModel(modelPath: string, version: string): Promise<Record<string, unknown> | null> {
   const url = `${API_URL}/api/v1/models/${version}/${modelPath}`;
   if (modelJsonCache.has(url)) return modelJsonCache.get(url)!;
-  const promise = fetch(url)
-    .then(res => res.ok ? res.json() as Promise<Record<string, unknown>> : null)
+  const promise = apiRequest(url)
+    .then((res) => (res.ok ? (res.json() as Promise<Record<string, unknown>>) : null))
     .catch(() => null);
   modelJsonCache.set(url, promise);
   return promise;
@@ -150,7 +157,7 @@ function resolveVar(textures: Record<string, string>, key: string, depth = 0): s
 // Flat 2D layer compositing (item/generated multi-layer items)
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
@@ -174,7 +181,8 @@ async function renderFlat(
   if (layers.length === 0) return null;
 
   const canvas = document.createElement("canvas");
-  canvas.width = 128; canvas.height = 128;
+  canvas.width = 128;
+  canvas.height = 128;
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingEnabled = false;
 
@@ -184,7 +192,8 @@ async function renderFlat(
     if (tint) {
       // Tint layer: draw on temp canvas, multiply with tint color, restore alpha
       const tmp = document.createElement("canvas");
-      tmp.width = 128; tmp.height = 128;
+      tmp.width = 128;
+      tmp.height = 128;
       const tc = tmp.getContext("2d")!;
       tc.imageSmoothingEnabled = false;
       tc.drawImage(img, 0, 0, 128, 128);
@@ -214,7 +223,11 @@ interface EntityRenderDef {
   textureH: number;
   texturePath: string;
   boxes: EntityBox[];
-  display: { rotation: [number, number, number]; translation: [number, number, number]; scale: [number, number, number] };
+  display: {
+    rotation: [number, number, number];
+    translation: [number, number, number];
+    scale: [number, number, number];
+  };
   /** When false, skip the scale(1,-1,-1) y-flip (chests render correctly in entity space). Default: true. */
   yFlip?: boolean;
 }
@@ -223,32 +236,38 @@ interface EntityRenderDef {
 // Used for shulkers whose entity textures (1.21.11+) only have content in the top face rows.
 interface EntityFlatDef {
   texturePath: string;
-  sx: number; sy: number; sw: number; sh: number; // source crop in texture pixels
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number; // source crop in texture pixels
 }
 
 const SHULKER_FLAT_DEF = (color: string): EntityFlatDef => ({
   texturePath: color === "shulker" ? "entity/shulker/shulker" : `entity/shulker/shulker_${color}`,
-  sx: 16, sy: 0, sw: 16, sh: 16, // lid up-face: texOffset(0,0), d=16 → (u+d, v, u+d+w, v+d) = (16,0,32,16)
+  sx: 16,
+  sy: 0,
+  sw: 16,
+  sh: 16, // lid up-face: texOffset(0,0), d=16 → (u+d, v, u+d+w, v+d) = (16,0,32,16)
 });
 
 const ENTITY_FLAT_MAP: Record<string, EntityFlatDef> = {
-  shulker_box:            SHULKER_FLAT_DEF("shulker"),
-  black_shulker_box:      SHULKER_FLAT_DEF("black"),
-  blue_shulker_box:       SHULKER_FLAT_DEF("blue"),
-  brown_shulker_box:      SHULKER_FLAT_DEF("brown"),
-  cyan_shulker_box:       SHULKER_FLAT_DEF("cyan"),
-  gray_shulker_box:       SHULKER_FLAT_DEF("gray"),
-  green_shulker_box:      SHULKER_FLAT_DEF("green"),
+  shulker_box: SHULKER_FLAT_DEF("shulker"),
+  black_shulker_box: SHULKER_FLAT_DEF("black"),
+  blue_shulker_box: SHULKER_FLAT_DEF("blue"),
+  brown_shulker_box: SHULKER_FLAT_DEF("brown"),
+  cyan_shulker_box: SHULKER_FLAT_DEF("cyan"),
+  gray_shulker_box: SHULKER_FLAT_DEF("gray"),
+  green_shulker_box: SHULKER_FLAT_DEF("green"),
   light_blue_shulker_box: SHULKER_FLAT_DEF("light_blue"),
   light_gray_shulker_box: SHULKER_FLAT_DEF("light_gray"),
-  lime_shulker_box:       SHULKER_FLAT_DEF("lime"),
-  magenta_shulker_box:    SHULKER_FLAT_DEF("magenta"),
-  orange_shulker_box:     SHULKER_FLAT_DEF("orange"),
-  pink_shulker_box:       SHULKER_FLAT_DEF("pink"),
-  purple_shulker_box:     SHULKER_FLAT_DEF("purple"),
-  red_shulker_box:        SHULKER_FLAT_DEF("red"),
-  white_shulker_box:      SHULKER_FLAT_DEF("white"),
-  yellow_shulker_box:     SHULKER_FLAT_DEF("yellow"),
+  lime_shulker_box: SHULKER_FLAT_DEF("lime"),
+  magenta_shulker_box: SHULKER_FLAT_DEF("magenta"),
+  orange_shulker_box: SHULKER_FLAT_DEF("orange"),
+  pink_shulker_box: SHULKER_FLAT_DEF("pink"),
+  purple_shulker_box: SHULKER_FLAT_DEF("purple"),
+  red_shulker_box: SHULKER_FLAT_DEF("red"),
+  white_shulker_box: SHULKER_FLAT_DEF("white"),
+  yellow_shulker_box: SHULKER_FLAT_DEF("yellow"),
 };
 
 async function renderEntityFlat(itemId: string, version: string): Promise<string | null> {
@@ -258,26 +277,41 @@ async function renderEntityFlat(itemId: string, version: string): Promise<string
   const img = await loadImage(url);
   if (!img) return null;
   const canvas = document.createElement("canvas");
-  canvas.width = 128; canvas.height = 128;
+  canvas.width = 128;
+  canvas.height = 128;
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(img, def.sx, def.sy, def.sw, def.sh, 0, 0, 128, 128);
   return canvas.toDataURL("image/png");
 }
 
-const SHIELD_DISPLAY = { rotation: [15, -25, -5] as [number,number,number], translation: [2, 3, 0] as [number,number,number], scale: [0.65, 0.65, 0.65] as [number,number,number] };
+const SHIELD_DISPLAY = {
+  rotation: [15, -25, -5] as [number, number, number],
+  translation: [2, 3, 0] as [number, number, number],
+  scale: [0.65, 0.65, 0.65] as [number, number, number],
+};
 // Chests: -45° Y shows south(lock face) + east(right side), matching Minecraft's GUI display.
-const CHEST_DISPLAY = { rotation: [30, -45, 0] as [number,number,number], translation: [0, 0, 0] as [number,number,number], scale: [0.625, 0.625, 0.625] as [number,number,number] };
+const CHEST_DISPLAY = {
+  rotation: [30, -45, 0] as [number, number, number],
+  translation: [0, 0, 0] as [number, number, number],
+  scale: [0.625, 0.625, 0.625] as [number, number, number],
+};
 const CHEST_BOXES: EntityBox[] = [
   { origin: [-7, -7.5, -7], size: [14, 10, 14], texOffset: [0, 19] }, // body
-  { origin: [-7, 2.5, -7],  size: [14, 5, 14],  texOffset: [0, 0] },  // lid
-  { origin: [-1, 0.5, 7],   size: [2, 4, 1],    texOffset: [0, 0] },  // lock hasp
+  { origin: [-7, 2.5, -7], size: [14, 5, 14], texOffset: [0, 0] }, // lid
+  { origin: [-1, 0.5, 7], size: [2, 4, 1], texOffset: [0, 0] }, // lock hasp
 ];
 // Skull items: one 8×8×8 entity-layout cube (face region at texOffset 0,0 of the
 // mob/skin texture). GUI transform from item/template_skull: rotation [30,45,0].
-const HEAD_DISPLAY = { rotation: [30, 45, 0] as [number,number,number], translation: [0, 0, 0] as [number,number,number], scale: [1.1, 1.1, 1.1] as [number,number,number] };
+const HEAD_DISPLAY = {
+  rotation: [30, 45, 0] as [number, number, number],
+  translation: [0, 0, 0] as [number, number, number],
+  scale: [1.1, 1.1, 1.1] as [number, number, number],
+};
 const headDef = (texturePath: string, textureW: number, textureH: number): EntityRenderDef => ({
-  textureW, textureH, texturePath,
+  textureW,
+  textureH,
+  texturePath,
   boxes: [{ origin: [-4, -4, -4], size: [8, 8, 8], texOffset: [0, 0] }],
   // Skin UVs already place the face south and the hair on top.
   yFlip: false,
@@ -285,37 +319,118 @@ const headDef = (texturePath: string, textureW: number, textureH: number): Entit
 });
 export const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
   shield: {
-    textureW: 64, textureH: 64, texturePath: "entity/shield_base",
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/shield_base",
     boxes: [
       { origin: [-6, -11, -2], size: [12, 22, 1], texOffset: [0, 0] },
-      { origin: [-1, -3, -1],  size: [2, 6, 6],   texOffset: [26, 0] },
+      { origin: [-1, -3, -1], size: [2, 6, 6], texOffset: [26, 0] },
     ],
     display: SHIELD_DISPLAY,
   },
-  chest:                    { textureW: 64, textureH: 64, texturePath: "entity/chest/normal",           boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  ender_chest:              { textureW: 64, textureH: 64, texturePath: "entity/chest/ender",            boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  trapped_chest:            { textureW: 64, textureH: 64, texturePath: "entity/chest/trapped",          boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  copper_chest:             { textureW: 64, textureH: 64, texturePath: "entity/chest/copper",           boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  exposed_copper_chest:     { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  weathered_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  oxidized_copper_chest:    { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  waxed_copper_chest:           { textureW: 64, textureH: 64, texturePath: "entity/chest/copper",           boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  waxed_exposed_copper_chest:   { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_exposed",   boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  waxed_weathered_copper_chest: { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_weathered", boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  waxed_oxidized_copper_chest:  { textureW: 64, textureH: 64, texturePath: "entity/chest/copper_oxidized",  boxes: CHEST_BOXES, display: CHEST_DISPLAY, yFlip: false },
-  player_head:           headDef("entity/player/wide/steve", 64, 64),
-  zombie_head:           headDef("entity/zombie/zombie", 64, 64),
-  creeper_head:          headDef("entity/creeper/creeper", 64, 32),
-  skeleton_skull:        headDef("entity/skeleton/skeleton", 64, 32),
+  chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/normal",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  ender_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/ender",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  trapped_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/trapped",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  copper_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/copper",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  exposed_copper_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/copper_exposed",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  weathered_copper_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/copper_weathered",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  oxidized_copper_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/copper_oxidized",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  waxed_copper_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/copper",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  waxed_exposed_copper_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/copper_exposed",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  waxed_weathered_copper_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/copper_weathered",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  waxed_oxidized_copper_chest: {
+    textureW: 64,
+    textureH: 64,
+    texturePath: "entity/chest/copper_oxidized",
+    boxes: CHEST_BOXES,
+    display: CHEST_DISPLAY,
+    yFlip: false,
+  },
+  player_head: headDef("entity/player/wide/steve", 64, 64),
+  zombie_head: headDef("entity/zombie/zombie", 64, 64),
+  creeper_head: headDef("entity/creeper/creeper", 64, 32),
+  skeleton_skull: headDef("entity/skeleton/skeleton", 64, 32),
   wither_skeleton_skull: headDef("entity/skeleton/wither_skeleton", 64, 32),
-  piglin_head:           headDef("entity/piglin/piglin", 64, 64),
+  piglin_head: headDef("entity/piglin/piglin", 64, 64),
   // Dragon head: approximated by the dragon model's 16³ head cube (256×256 sheet).
   // texOffset [128,30] lands the front face on the dragon's eyes + snout region,
   // giving a recognizable two-eyed black face (the dragon texture is mostly black).
   dragon_head: {
-    textureW: 256, textureH: 256, texturePath: "entity/enderdragon/dragon",
+    textureW: 256,
+    textureH: 256,
+    texturePath: "entity/enderdragon/dragon",
     boxes: [{ origin: [-8, -8, -8], size: [16, 16, 16], texOffset: [128, 30] }],
-    display: { ...HEAD_DISPLAY, scale: [0.55, 0.55, 0.55] as [number,number,number] },
+    display: { ...HEAD_DISPLAY, scale: [0.55, 0.55, 0.55] as [number, number, number] },
   },
 };
 
@@ -324,11 +439,16 @@ export const ENTITY_RENDER_MAP: Record<string, EntityRenderDef> = {
 // swapV=true: swap v1/v2 to compensate for scale(1,-1,-1) so texture appears right-side-up.
 // swapV=false (yFlip:false entities like chests): use normal V order.
 function entityFaceUVs(
-  px1: number, py1: number, px2: number, py2: number,
-  texW: number, texH: number,
+  px1: number,
+  py1: number,
+  px2: number,
+  py2: number,
+  texW: number,
+  texH: number,
   swapV: boolean,
 ): Float32Array {
-  const u1 = px1 / texW, u2 = px2 / texW;
+  const u1 = px1 / texW,
+    u2 = px2 / texW;
   const v1 = 1 - (swapV ? py2 : py1) / texH;
   const v2 = 1 - (swapV ? py1 : py2) / texH;
   // Quad order matches faceVerts: TL, TR, BR, BL → tri1(TL,TR,BR) + tri2(TL,BR,BL)
@@ -345,7 +465,9 @@ function buildEntityBoxMeshes(
   const [ox, oy, oz] = box.origin;
   const [w, h, d] = box.size;
   const [u, v] = box.texOffset;
-  const tx = ox + w, ty = oy + h, tz = oz + d;
+  const tx = ox + w,
+    ty = oy + h,
+    tz = oz + d;
 
   // Entity cube UV layout: each face in pixel coords.
   // "down" is always omitted: for yFlip entities it ends up on top (copper_chest opaque square
@@ -353,19 +475,35 @@ function buildEntityBoxMeshes(
   // "north" is omitted for non-yFlip (chests): it's the back face, always hidden in GUI view,
   // and it sits coplanar with the body's south face causing z-fighting (lock north face at z=7
   // vs body south face at z=7). For yFlip entities the y-flip turns north into a visible face.
-  const faceDefs: Array<["up"|"north"|"south"|"west"|"east", number, number, number, number]> = [
-    ["up",    u+d,       v,     u+d+w,     v+d],
-    ["west",  u,         v+d,   u+d,       v+d+h],
-    ["south", u+d,       v+d,   u+d+w,     v+d+h],
-    ["east",  u+d+w,     v+d,   u+2*d+w,   v+d+h],
-    ...(yFlip ? [["north", u+2*d+w, v+d, u+2*d+2*w, v+d+h] as ["north", number, number, number, number]] : []),
+  const faceDefs: Array<
+    ["up" | "north" | "south" | "west" | "east", number, number, number, number]
+  > = [
+    ["up", u + d, v, u + d + w, v + d],
+    ["west", u, v + d, u + d, v + d + h],
+    ["south", u + d, v + d, u + d + w, v + d + h],
+    ["east", u + d + w, v + d, u + 2 * d + w, v + d + h],
+    ...(yFlip
+      ? [
+          ["north", u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h] as [
+            "north",
+            number,
+            number,
+            number,
+            number,
+          ],
+        ]
+      : []),
   ];
 
   return faceDefs.map(([face, px1, py1, px2, py2]) => {
     const verts = faceVerts(face, ox, oy, oz, tx, ty, tz);
     const positions = new Float32Array([
-      ...verts.slice(0,3), ...verts.slice(3,6), ...verts.slice(6,9),
-      ...verts.slice(0,3), ...verts.slice(6,9), ...verts.slice(9,12),
+      ...verts.slice(0, 3),
+      ...verts.slice(3, 6),
+      ...verts.slice(6, 9),
+      ...verts.slice(0, 3),
+      ...verts.slice(6, 9),
+      ...verts.slice(9, 12),
     ]);
     const uvs = entityFaceUVs(px1, py1, px2, py2, textureW, textureH, yFlip);
     const geo = new THREE.BufferGeometry();
@@ -373,7 +511,10 @@ function buildEntityBoxMeshes(
     geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
     const shade = FACE_SHADE[face] ?? 1.0;
     const mat = new THREE.MeshBasicMaterial({
-      map: texture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide,
+      map: texture,
+      transparent: true,
+      alphaTest: 0.01,
+      side: THREE.DoubleSide,
       color: new THREE.Color(shade, shade, shade),
     });
     return new THREE.Mesh(geo, mat);
@@ -396,7 +537,13 @@ async function renderEntityItem(itemId: string, version: string): Promise<string
   const innerGroup = new THREE.Group();
   if (shouldYFlip) innerGroup.scale.set(1, -1, -1);
   for (const box of def.boxes) {
-    for (const mesh of buildEntityBoxMeshes(box, texture, def.textureW, def.textureH, shouldYFlip)) {
+    for (const mesh of buildEntityBoxMeshes(
+      box,
+      texture,
+      def.textureW,
+      def.textureH,
+      shouldYFlip,
+    )) {
       innerGroup.add(mesh);
     }
   }
@@ -422,7 +569,9 @@ async function renderEntityItem(itemId: string, version: string): Promise<string
   try {
     renderer.render(scene, camera);
     return renderer.domElement.toDataURL("image/png");
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 // Texture loading
@@ -439,10 +588,10 @@ export function clearCaches(): void {
 
 function loadTex(url: string): Promise<THREE.Texture | null> {
   if (texCache.has(url)) return Promise.resolve(texCache.get(url)!);
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     new THREE.TextureLoader().load(
       url,
-      tex => {
+      (tex) => {
         tex.magFilter = THREE.NearestFilter;
         tex.minFilter = THREE.NearestFilter;
         tex.colorSpace = THREE.SRGBColorSpace;
@@ -450,13 +599,17 @@ function loadTex(url: string): Promise<THREE.Texture | null> {
         resolve(tex);
       },
       undefined,
-      () => { texCache.set(url, null); resolve(null); },
+      () => {
+        texCache.set(url, null);
+        resolve(null);
+      },
     );
   });
 }
 
 async function loadModelTextures(
-  model: ResolvedModel, version: string,
+  model: ResolvedModel,
+  version: string,
 ): Promise<Map<string, THREE.Texture>> {
   const resolved = new Map<string, string>();
   for (const key of Object.keys(model.textures)) {
@@ -465,11 +618,13 @@ async function loadModelTextures(
   }
 
   const out = new Map<string, THREE.Texture>();
-  await Promise.all([...resolved.entries()].map(async ([key, path]) => {
-    const url = `${API_URL}/api/v1/textures/${version}/${path}`;
-    const tex = await loadTex(url);
-    if (tex) out.set(key, tex);
-  }));
+  await Promise.all(
+    [...resolved.entries()].map(async ([key, path]) => {
+      const url = `${API_URL}/api/v1/textures/${version}/${path}`;
+      const tex = await loadTex(url);
+      if (tex) out.set(key, tex);
+    }),
+  );
   return out;
 }
 
@@ -478,81 +633,110 @@ async function loadModelTextures(
 // Face vertex positions in 0-16 space (viewed from outside, CCW winding):
 export function faceVerts(
   face: "down" | "up" | "north" | "south" | "west" | "east",
-  fx: number, fy: number, fz: number,
-  tx: number, ty: number, tz: number,
+  fx: number,
+  fy: number,
+  fz: number,
+  tx: number,
+  ty: number,
+  tz: number,
 ): number[] {
   switch (face) {
-    case "down":  return [fx,fy,tz, tx,fy,tz, tx,fy,fz, fx,fy,fz];
-    case "up":    return [fx,ty,fz, tx,ty,fz, tx,ty,tz, fx,ty,tz];
-    case "north": return [tx,ty,fz, fx,ty,fz, fx,fy,fz, tx,fy,fz];
-    case "south": return [fx,ty,tz, tx,ty,tz, tx,fy,tz, fx,fy,tz];
-    case "west":  return [fx,ty,fz, fx,ty,tz, fx,fy,tz, fx,fy,fz];
-    case "east":  return [tx,ty,tz, tx,ty,fz, tx,fy,fz, tx,fy,tz];
+    case "down":
+      return [fx, fy, tz, tx, fy, tz, tx, fy, fz, fx, fy, fz];
+    case "up":
+      return [fx, ty, fz, tx, ty, fz, tx, ty, tz, fx, ty, tz];
+    case "north":
+      return [tx, ty, fz, fx, ty, fz, fx, fy, fz, tx, fy, fz];
+    case "south":
+      return [fx, ty, tz, tx, ty, tz, tx, fy, tz, fx, fy, tz];
+    case "west":
+      return [fx, ty, fz, fx, ty, tz, fx, fy, tz, fx, fy, fz];
+    case "east":
+      return [tx, ty, tz, tx, ty, fz, tx, fy, fz, tx, fy, tz];
   }
 }
 
 // Default UV for a face when not specified (from Minecraft wiki):
 export function defaultUV(
   face: "down" | "up" | "north" | "south" | "west" | "east",
-  from: [number,number,number], to: [number,number,number],
-): [number,number,number,number] {
-  const [fx,fy,fz] = from; const [tx,ty,tz] = to;
+  from: [number, number, number],
+  to: [number, number, number],
+): [number, number, number, number] {
+  const [fx, fy, fz] = from;
+  const [tx, ty, tz] = to;
   switch (face) {
-    case "down":  return [fx, 16-tz, tx, 16-fz];
-    case "up":    return [fx, fz,    tx, tz];
-    case "north": return [16-tx, 16-ty, 16-fx, 16-fy];
-    case "south": return [fx, 16-ty, tx, 16-fy];
-    case "west":  return [fz, 16-ty, tz, 16-fy];
-    case "east":  return [16-tz, 16-ty, 16-fz, 16-fy];
+    case "down":
+      return [fx, 16 - tz, tx, 16 - fz];
+    case "up":
+      return [fx, fz, tx, tz];
+    case "north":
+      return [16 - tx, 16 - ty, 16 - fx, 16 - fy];
+    case "south":
+      return [fx, 16 - ty, tx, 16 - fy];
+    case "west":
+      return [fz, 16 - ty, tz, 16 - fy];
+    case "east":
+      return [16 - tz, 16 - ty, 16 - fz, 16 - fy];
   }
 }
 
 // Minecraft directional face brightness (matches Java Edition GUI rendering).
 const FACE_SHADE: Record<string, number> = {
-  up: 1.0, down: 0.5, north: 0.8, south: 0.8, east: 0.6, west: 0.6,
+  up: 1.0,
+  down: 0.5,
+  north: 0.8,
+  south: 0.8,
+  east: 0.6,
+  west: 0.6,
 };
 
 // Minecraft face UV (top-left origin, y↓, 0-16) → Three.js UV (bottom-left, y↑, 0-1),
 // with clockwise texture rotation applied.
-export function faceUVs(u1: number, v1: number, u2: number, v2: number, rotation: number): Float32Array {
+export function faceUVs(
+  u1: number,
+  v1: number,
+  u2: number,
+  v2: number,
+  rotation: number,
+): Float32Array {
   const corners: [number, number][] = [
-    [u1/16, 1-v1/16], // TL
-    [u2/16, 1-v1/16], // TR
-    [u2/16, 1-v2/16], // BR
-    [u1/16, 1-v2/16], // BL
+    [u1 / 16, 1 - v1 / 16], // TL
+    [u2 / 16, 1 - v1 / 16], // TR
+    [u2 / 16, 1 - v2 / 16], // BR
+    [u1 / 16, 1 - v2 / 16], // BL
   ];
-  const steps = ((rotation / 90) % 4 + 4) % 4;
-  const uv = (i: number) => corners[((i - steps) % 4 + 4) % 4]!;
-  return new Float32Array([
-    ...uv(0), ...uv(1), ...uv(2),
-    ...uv(0), ...uv(2), ...uv(3),
-  ]);
+  const steps = (((rotation / 90) % 4) + 4) % 4;
+  const uv = (i: number) => corners[(((i - steps) % 4) + 4) % 4]!;
+  return new Float32Array([...uv(0), ...uv(1), ...uv(2), ...uv(0), ...uv(2), ...uv(3)]);
 }
 
 function buildFaceMesh(
   face: "down" | "up" | "north" | "south" | "west" | "east",
   faceData: ModelFace,
-  from: [number,number,number],
-  to: [number,number,number],
+  from: [number, number, number],
+  to: [number, number, number],
   textures: Map<string, THREE.Texture>,
   modelTextures: Record<string, string>,
   shaded: boolean,
 ): THREE.Mesh | null {
-  const texKey = faceData.texture.startsWith("#")
-    ? faceData.texture.slice(1)
-    : faceData.texture;
+  const texKey = faceData.texture.startsWith("#") ? faceData.texture.slice(1) : faceData.texture;
   const resolvedKey = resolveVar(modelTextures, texKey) ?? texKey;
   const tex = textures.get(resolvedKey) ?? textures.get(texKey);
   if (!tex) return null;
 
-  const [fx,fy,fz] = from; const [tx,ty,tz] = to;
+  const [fx, fy, fz] = from;
+  const [tx, ty, tz] = to;
   const verts = faceVerts(face, fx, fy, fz, tx, ty, tz);
   const positions = new Float32Array([
-    ...verts.slice(0,3), ...verts.slice(3,6), ...verts.slice(6,9),
-    ...verts.slice(0,3), ...verts.slice(6,9), ...verts.slice(9,12),
+    ...verts.slice(0, 3),
+    ...verts.slice(3, 6),
+    ...verts.slice(6, 9),
+    ...verts.slice(0, 3),
+    ...verts.slice(6, 9),
+    ...verts.slice(9, 12),
   ]);
 
-  const [u1,v1,u2,v2] = faceData.uv ?? defaultUV(face, from, to);
+  const [u1, v1, u2, v2] = faceData.uv ?? defaultUV(face, from, to);
   const uvs = faceUVs(u1, v1, u2, v2, faceData.rotation ?? 0);
 
   const geo = new THREE.BufferGeometry();
@@ -613,7 +797,15 @@ function buildScene(model: ResolvedModel, textures: Map<string, THREE.Texture>):
       for (const face of FACES) {
         const faceData = elem.faces[face];
         if (!faceData) continue;
-        const mesh = buildFaceMesh(face, faceData, elem.from, elem.to, textures, model.textures, shaded);
+        const mesh = buildFaceMesh(
+          face,
+          faceData,
+          elem.from,
+          elem.to,
+          textures,
+          model.textures,
+          shaded,
+        );
         if (mesh) inner.add(mesh);
       }
       elemGroup.add(pivot);
@@ -621,7 +813,15 @@ function buildScene(model: ResolvedModel, textures: Map<string, THREE.Texture>):
       for (const face of FACES) {
         const faceData = elem.faces[face];
         if (!faceData) continue;
-        const mesh = buildFaceMesh(face, faceData, elem.from, elem.to, textures, model.textures, shaded);
+        const mesh = buildFaceMesh(
+          face,
+          faceData,
+          elem.from,
+          elem.to,
+          textures,
+          model.textures,
+          shaded,
+        );
         if (mesh) elemGroup.add(mesh);
       }
     }

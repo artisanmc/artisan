@@ -4,7 +4,6 @@ import { useSyncExternalStore } from "react";
 import { type EditorTourIdentity, createEditorTourController } from "./editorTourController";
 import { createEditorTourStorage } from "./editorTourStorage";
 
-const apiUrl = import.meta.env.VITE_API_URL ?? "";
 const storage = createEditorTourStorage(
   () => localStorage,
   () => sessionStorage,
@@ -16,12 +15,12 @@ export const editorTourController = createEditorTourController({
   clearTransfer: storage.clearTransfer,
   readAccount: (accountId) => {
     if (useAuthStore.getState().currentUser?.id !== accountId) return Promise.resolve(null);
-    return getMe({ apiUrl });
+    return getMe();
   },
   writeAccount: (accountId, action) => {
     if (useAuthStore.getState().currentUser?.id !== accountId)
       return Promise.resolve({ error: "session_changed" });
-    return patchMe({ apiUrl }, { editor_tour: action });
+    return patchMe({ editor_tour: action });
   },
 });
 

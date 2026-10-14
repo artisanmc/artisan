@@ -31,10 +31,8 @@ export function UserMenu({
   const closeSidebar = useSidebarStore((s) => s.close);
   const displayName = user?.name ?? t("userMenu.anonymous");
   const initial = getInitial(user?.name);
-  const apiUrl = import.meta.env.VITE_API_URL ?? "";
-
   const onLogout = async () => {
-    await useAuthStore.getState().logout(apiUrl);
+    await useAuthStore.getState().logout();
   };
 
   return (
