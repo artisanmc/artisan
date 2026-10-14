@@ -289,6 +289,7 @@ open class ArtisanPlugin : JavaPlugin() {
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).
         api.modules.active().forEach { runCatching { it.onDisable() } }
+        serverRegistry?.let { registry -> runCatching { registry.stop(serverId) } }
         if (::database.isInitialized) database.closeAll()
         commandRegistrar.unregisterAll()
         menuProvider.shutdown()
@@ -339,9 +340,24 @@ open class ArtisanPlugin : JavaPlugin() {
             val dataSource = database.dataSource(this)
             net.artisanmc.plugin.database.ArtisanSchema.migrate(dataSource, database.dialect, logger)
             net.artisanmc.plugin.database.ServerRegistry(dataSource, database.dialect, logger)
-                .also { it.register(serverId, name, java.time.Instant.now()) }
         } catch (e: Exception) {
             logger.warning("[Artisan] Server registry unavailable, offline servers will not be listed: ${e.message}")
+            return
+        }
+        val refused = when (val result = runCatching { registry.register(serverId, name, java.time.Instant.now()) }.getOrElse {
+            logger.warning("[Artisan] Server registry unavailable, offline servers will not be listed: ${it.message}")
+            return
+        }) {
+            is net.artisanmc.plugin.database.Registration.CopiedId ->
+                "this server's id (plugins/Artisan/server-id) belongs to the running server \"${result.running}\": " +
+                    "this folder was copied from it. Delete plugins/Artisan/server-id here and restart to make it a server of its own."
+            net.artisanmc.plugin.database.Registration.NameTaken ->
+                "another server already uses the name \"$name\". Set a different name in environment.yml, or restore " +
+                    "plugins/Artisan/server-id if this server is that one."
+            else -> null
+        }
+        if (refused != null) {
+            logger.severe("[Artisan] Not registered in artisan_servers: $refused")
             return
         }
         serverRegistry = registry
