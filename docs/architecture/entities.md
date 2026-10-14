@@ -64,6 +64,8 @@ directement dans le plugin à chaque requête.
   (hash → octets, texte et binaires, stockés une fois). Chaque serveur enregistre la sienne à
   chaque Snapshot dont le manifeste diffère du précédent (`SyncedMenuProvider.onSnapshot` →
   `ArtisanPlugin.recordVersions`, thread `Artisan-versions`) ; `.artisan*` hors manifeste.
+  Passage de H2 à MySQL : `EmbeddedImport` recopie au premier démarrage Versions, contenus et
+  brouillons du server id depuis le fichier H2 (ids réattribués), une fois.
   `artisan_server_state` (un JSON par serveur, réécrit à chaque chargement) : le contenu de
   `project_list` et, par Project, le hash du Snapshot, les fichiers en échec et `.artisan/editor.yaml`.
   Le hub lit la liste, les Projects et leurs assets dans ces deux tables (`LoadedProjects`) ; le
