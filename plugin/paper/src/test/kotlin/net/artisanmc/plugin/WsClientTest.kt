@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class WsClientTest {
-    private fun hub(server: MockWebServer) = HubLink(server.url("/ws/plugin").toString(), "network-secret", "survie", "db-1")
+    private fun hub(server: MockWebServer, databaseId: () -> String? = { "db-1" }) = HubLink(server.url("/ws/plugin").toString(), "network-secret", "survie", databaseId)
 
     @Test
     fun `each hello carries the network identity and the current server config`() {
@@ -48,6 +48,32 @@ class WsClientTest {
             assertEquals("network-secret", hello["server_key"].asText())
             assertEquals("survie", hello["proxy_name"].asText())
             assertEquals("db-1", hello["database_id"].asText())
+        } finally {
+            client.disconnect()
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun `the connection waits for the suite database, then says hello with its id`() {
+        val server = MockWebServer()
+        val helloText = java.util.concurrent.atomic.AtomicReference<String>()
+        val latch = CountDownLatch(1)
+        server.enqueue(MockResponse().withWebSocketUpgrade(object : ClosingWebSocketListener() {
+            override fun onMessage(ws: WebSocket, text: String) {
+                helloText.set(text)
+                latch.countDown()
+            }
+        }))
+        server.start()
+        val databaseId = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        val client = WsClient(hub = hub(server) { databaseId.get() }, mcVersion = "1.21.4", onMessage = {})
+        try {
+            client.connect()
+            assertEquals(0, server.requestCount, "no socket is opened without a database id")
+            databaseId.set("db-2")
+            assertTrue(latch.await(8, TimeUnit.SECONDS), "Expected hello once the database id is known")
+            assertEquals("db-2", ObjectMapper().readTree(helloText.get())["database_id"].asText())
         } finally {
             client.disconnect()
             server.shutdown()

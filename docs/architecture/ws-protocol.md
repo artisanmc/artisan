@@ -22,7 +22,10 @@ protocole (`project_read`, `project_write`, `project_draft_publish`…) passé p
 Une feuille se connecte à l'adresse WebSocket dérivée de `web.hub` (`hubWebSocketUrl`, `PluginConfig.kt` :
 `"10.0.0.5:8765"` → `ws://10.0.0.5:8765/ws/plugin`, hôte nu → port 8765, `https://…` → `wss://…`,
 URL `ws(s)://` gardée telle quelle) et envoie `hello`.
-Reconnexion avec backoff exponentiel (1 s → 60 s) ; ping OkHttp toutes les 30 s.
+Reconnexion avec backoff exponentiel (1 s → 60 s) ; ping OkHttp toutes les 30 s. La feuille
+n'ouvre pas la socket tant que sa base de suite n'est pas ouverte (`database_id` inconnu,
+issue #42) : elle réessaie toutes les 2 s. Le hub dont la base s'ouvre encore ferme un `hello`
+en 1008 (« not open yet: retry ») ; la feuille revient par son backoff.
 
 **`hello`** (feuille → hub). Champs envoyés par `WsClient` et lus par le hub :
 
