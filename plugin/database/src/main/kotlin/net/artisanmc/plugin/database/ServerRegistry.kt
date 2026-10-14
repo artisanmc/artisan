@@ -24,10 +24,26 @@ object ArtisanSchema {
         ),
         // A server stopped cleanly is no longer running: renaming it right away is not a copy.
         Migration(2, "ALTER TABLE artisan_servers ADD COLUMN running BOOLEAN NOT NULL DEFAULT FALSE"),
+        Migration(3, "CREATE TABLE IF NOT EXISTS artisan_meta (name VARCHAR(64) NOT NULL PRIMARY KEY, val VARCHAR(255) NOT NULL)"),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger) =
         SchemaMigrator(dataSource, dialect, VERSION_TABLE, logger).apply(MIGRATIONS)
+}
+
+/** Facts about the suite database itself. */
+object ArtisanMeta {
+    /** Generated once per database: servers of one Network must all announce the same. */
+    fun databaseId(dataSource: DataSource): String = dataSource.connection.use { c ->
+        fun read() = c.prepareStatement("SELECT val FROM artisan_meta WHERE name = 'database_id'").use { s ->
+            s.executeQuery().use { if (it.next()) it.getString(1) else null }
+        }
+        read() ?: runCatching {
+            c.prepareStatement("INSERT INTO artisan_meta (name, val) VALUES ('database_id', ?)").use {
+                it.setString(1, UUID.randomUUID().toString()); it.executeUpdate()
+            }
+        }.let { read() ?: throw IllegalStateException("artisan_meta: no database_id", it.exceptionOrNull()) }
+    }
 }
 
 /** The server's identity: a UUID written once in `plugins/Artisan/server-id`, kept across renames. */

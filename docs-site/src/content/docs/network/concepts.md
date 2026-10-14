@@ -86,8 +86,8 @@ release on every server**:
 
 ## Shared data
 
-Projects never go through a database. Add-ons of the suite (a shop, for example) use
-the database Artisan lends them: use MySQL or MariaDB on every server if their data
-must be shared — see [Database](/wiki/configuration/database/).
+A network shares one MySQL or MariaDB database, required for more than one server:
+Artisan keeps the list of servers there, and add-ons of the suite (a shop, for example)
+keep their shared data in it — see [Database](/wiki/configuration/database/).
 
 Next: [set up a network](/wiki/network/setup/).

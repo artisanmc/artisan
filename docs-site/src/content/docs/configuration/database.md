@@ -16,14 +16,19 @@ plugin that asks gets its own connection pool.
 |---|---|---|
 | Setup | None | A database server and a user |
 | Storage | `plugins/Artisan/database/suite.mv.db` | Your database server |
-| Several servers | Each server keeps its own data | One shared database for the whole network |
-| Use it for | A single server | A [network](/wiki/network/concepts/) whose add-ons must share data |
+| Several servers | Not allowed | One shared database for the whole network, required |
+| Use it for | A single server | A [network](/wiki/network/concepts/) |
 
-In network mode with H2, every leaf logs at startup:
+A network of several servers requires one MySQL or MariaDB database shared by all of
+them: Artisan keeps the list of servers there, so any server can become the hub without
+moving data. A leaf on H2 does not connect to its hub:
 
 ```
-[Artisan] Network mode with an H2 database: each server keeps its own suite data. Use MySQL or MariaDB to share it.
+[Artisan] Not connecting to the hub: a network needs a shared MySQL or MariaDB database, this server uses H2 (database.type in environment.yml).
 ```
+
+A hub on H2 refuses every leaf, and a leaf pointed at another database than the hub's is
+refused too (`not on the hub's database` in both consoles).
 
 ## Configure MySQL or MariaDB
 
