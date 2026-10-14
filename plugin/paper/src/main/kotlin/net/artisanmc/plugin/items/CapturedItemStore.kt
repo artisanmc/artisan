@@ -31,9 +31,10 @@ open class CapturedItemStore(
     @Volatile
     private var stacks: Map<String, ItemStack> = emptyMap()
 
-    fun reload() {
+    /** [dirs] defaults to the registry scan; a caller on the global thread passes the loaded Snapshot's dirs so it never waits on a disk reload. */
+    fun reload(dirs: Map<String, File> = roots.all()) {
         val fresh = HashMap<String, ItemStack>()
-        roots.all().forEach { (projectId, projectDir) ->
+        dirs.forEach { (projectId, projectDir) ->
             val itemsDir = File(projectDir, "items")
             itemsDir.listFiles { f -> f.isFile && (f.extension == "yml" || f.extension == "yaml") }
                 ?.forEach { file ->
