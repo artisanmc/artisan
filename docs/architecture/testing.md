@@ -30,7 +30,7 @@ l'algo = mettre à jour les deux côtés **et** régénérer le vecteur.
 | `testdata/element-structural-keys.json` | `ElementStructuralKeysTest` (plugin) + `schema/elementStructuralKeys.test.ts` (éditeur) |
 | `testdata/i18n-address-conformance.json` | `I18nAddressConformanceTest` (plugin) + `i18nAddressConformance.test.ts` (éditeur) |
 | `testdata/project-snapshot-hash-conformance.json` | `ProjectSnapshotHashConformanceTest` (plugin seul : l'éditeur ne recalcule pas l'empreinte) |
-| `testdata/resource-pack-conformance.json` | `lib/pack/resourcePackConformance.test.ts` (éditeur) : zip octet pour octet. Le constructeur du pack de l'éditeur en est désormais propriétaire — le script backend qui le générait a disparu avec le backend ; un changement voulu du zip met à jour `entries`/`sha1` du vecteur dans le même commit. |
+| `testdata/resource-pack-conformance.json` | `lib/pack/resourcePackConformance.test.ts` (éditeur) : zip octet pour octet. Le constructeur du pack de l'éditeur en est désormais propriétaire — le script backend qui le générait a disparu avec le backend ; un changement voulu du zip met à jour `entries`/`sha1` du vecteur dans le même commit. Le SHA-1 ne dépend pas du fuseau horaire de l'hôte : la date fixe des entrées du zip est construite en heure locale (`ZIP_MTIME`, `resourcePackBuilder.ts`), car fflate écrit l'horodatage DOS depuis les champs locaux de la `Date`. |
 
 ## Menus en paquets — checklist manuelle
 
