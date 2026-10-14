@@ -1390,6 +1390,8 @@ export default {
     failed: "Could not read the versions.",
     view: "See changes",
     restore: "Restore into my draft",
+    restoreAndPublish: "Restore and publish",
+    restoredFrom: "Restored from the version of {{date}}",
     current: "Current",
     kindDeploy: "Deployment",
     kindServer: "Server edit",
@@ -1402,7 +1404,7 @@ export default {
     after: "This version",
     restored: "Version restored into your draft. Publish to apply it on the server.",
     restoreHint:
-      "Your draft takes this version's content. Images stay as they are. Nothing is published.",
+      "Your draft takes this version's content, images included. You review the changes before anything is published.",
     hint: "Each version is what the server loaded: an editor deployment or a reload after a hand edit.",
   },
   yamlView: {

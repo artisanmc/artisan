@@ -33,8 +33,10 @@ class VersionStoreTest {
         path to SnapshotEntry.text(content)
     }
 
-    private fun record(@Suppress("UNUSED_PARAMETER") label: String, entries: Map<String, SnapshotEntry>, at: Instant, author: VersionAuthor? = null, folder: String = "shop") =
-        store.record(server, "key-1", folder, entries, at, author) { path -> read += path; "png:$path".toByteArray() }
+    private fun record(
+        @Suppress("UNUSED_PARAMETER") label: String, entries: Map<String, SnapshotEntry>, at: Instant,
+        author: VersionAuthor? = null, folder: String = "shop", restoredFrom: Int? = null,
+    ) = store.record(server, "key-1", folder, entries, at, author, restoredFrom) { path -> read += path; "png:$path".toByteArray() }
 
     @Test
     fun `a differing snapshot becomes a version, an identical one does not`() {
@@ -79,6 +81,17 @@ class VersionStoreTest {
         val history = store.fileHistory(server, "shop", "a.yml")!!
         assertEquals(listOf("two", "one"), history.map { it.content })
         assertEquals(listOf(null, iban), history.map { it.author })
+    }
+
+    @Test
+    fun `a restored version says where it comes from, and gives back its binaries`() {
+        record("h1", text("a.yml" to "one") + ("logo.png" to SnapshotEntry.binary("d".repeat(64), 12)), t0)
+        val first = store.versions(server, "shop")!!.single()
+        record("h2", text("a.yml" to "one", "b.yml" to "two"), t0.plusSeconds(60))
+        record("h3", text("a.yml" to "one") + ("logo.png" to SnapshotEntry.binary("d".repeat(64), 12)), t0.plusSeconds(120), iban, restoredFrom = first.id)
+        assertEquals(first.id, store.versions(server, "shop")!![0].restoredFrom)
+        assertEquals("png:logo.png", String(store.binary(server, "shop", first.id, "logo.png")!!))
+        assertNull(store.binary(server, "shop", first.id, "a.yml"))
     }
 
     @Test

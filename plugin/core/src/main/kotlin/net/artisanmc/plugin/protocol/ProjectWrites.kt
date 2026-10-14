@@ -220,7 +220,7 @@ class ProjectWrites(
         payload["request_id"] = request.requestId
         send(payload)
         if (result.path("ok").asBoolean() && request.message.path("action").asText() == "publish") {
-            noteAuthor(projectId, request.message)
+            noteAuthor(projectId, request.message, result.path("draft").path("snapshot").path("restoredFrom").asText("").ifEmpty { null })
             try {
                 workspace.reload()
             } catch (error: Exception) {
@@ -229,9 +229,9 @@ class ProjectWrites(
         }
     }
 
-    private fun noteAuthor(projectId: String, message: JsonNode) {
+    private fun noteAuthor(projectId: String, message: JsonNode, restoredFrom: String? = null) {
         val id = message.path("author_id").asText("").ifEmpty { return }
-        workspace.authoredBy(projectId, id, message.path("author_name").asText(""))
+        workspace.authoredBy(projectId, PublicationAuthor(id, message.path("author_name").asText(""), restoredFrom))
     }
 
     private companion object {

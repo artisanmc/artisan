@@ -20,7 +20,7 @@ class ProjectFolderRequestsTest {
         override val snapshot = ProjectSnapshot.EMPTY
         override val io = Executor { it.run() }
         override fun reload() { reloads++ }
-        override fun authoredBy(projectId: String, authorId: String, authorName: String) { authored += Triple(projectId, authorId, authorName) }
+        override fun authoredBy(projectId: String, author: PublicationAuthor) { authored += Triple(projectId, author.id, author.name) }
     }
     private val authored = mutableListOf<Triple<String, String, String>>()
     private val writes = ProjectWrites(workspace, Replies(workspace.io, { sent += it }, null), { sent += it }, null)

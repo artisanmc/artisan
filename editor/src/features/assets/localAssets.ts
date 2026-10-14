@@ -10,6 +10,7 @@ import {
   uploadDraftBlob,
 } from "@/lib/api/projectDrafts";
 import { readProjectFiles } from "@/lib/api/projectFiles";
+import { readVersionBinary } from "@/lib/api/projectVersions";
 import {
   type DiskAssetDescriptor,
   type DiskAssetsTree,
@@ -562,6 +563,32 @@ async function remove(overlay: DraftOverlay, id: string): Promise<Body> {
  * Applies an asset mutation to the private draft. Failures are
  * `DraftApiError`s carrying the matching code and status.
  */
+/** A Version's images and fonts back into the draft: changed ones read from the Version, the others removed. */
+async function restoreBinaries(
+  overlay: DraftOverlay,
+  projectId: string,
+  fields: Record<string, string>,
+) {
+  const versionId = fields.versionId;
+  if (!versionId) fail(422, "invalid_input");
+  const wanted = JSON.parse(fields.binaries ?? "[]") as { path: string; hash: string }[];
+  const current = overlay.read().binaries;
+  const binaries: WriteBatch["binaries"] = [];
+  for (const binary of wanted) {
+    const have = current.find((c) => c.path === binary.path);
+    if (have?.hash === binary.hash) continue;
+    const content = await readVersionBinary(projectId, versionId, binary.path).catch(() =>
+      fail(503, "storage_unavailable"),
+    );
+    if (sha256Hex(content) !== binary.hash) fail(503, "storage_unavailable");
+    binaries.push({ path: binary.path, content, baseHash: have?.hash ?? null });
+  }
+  for (const c of current)
+    if (!wanted.some((w) => w.path === c.path))
+      binaries.push({ path: c.path, content: null, baseHash: c.hash });
+  await overlay.commit({ files: [], binaries });
+}
+
 export async function performLocalAssetMutation(
   projectId: string,
   operation: AssetMutation,
@@ -570,6 +597,11 @@ export async function performLocalAssetMutation(
   if (!operation.snapshot || !Number.isInteger(operation.revision) || operation.revision < 1)
     fail(422, "invalid_draft");
   const overlay = new DraftOverlay(projectId, operation);
+  if (input.suffix === "/restore" && input.method === "POST") {
+    await restoreBinaries(overlay, projectId, input.fields);
+    if (!overlay.updatedDraft) throw new Error("draft_acknowledgement_missing");
+    return { draft: { ...overlay.updatedDraft, projectId } };
+  }
   const [, rawId, action] = input.suffix.split("/");
   const id = rawId === undefined ? undefined : decodeURIComponent(rawId);
   let body: Body;
