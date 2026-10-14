@@ -76,8 +76,24 @@ export async function loadPersistedDrafts(projectId: string, ownerId: string): P
     )
       return;
     if (before?.remote?.revision && !active) {
-      const archived = await api.readDraft(projectId, before.remote.id);
+      const archived = await api.readDraft(projectId, before.remote.id).catch((error) => {
+        if (!gone(error)) throw error;
+        return null;
+      });
       if (projectPrincipal.current(projectId)?.id !== ownerId) return;
+      if (!archived) {
+        // The draft no longer exists on the hub: the local work stays, as a new draft.
+        const current = useProjectDraftStore.getState().get(projectId);
+        if (current)
+          useProjectDraftStore.getState().save(projectId, { ...current, remote: undefined });
+        const kept = useProjectDraftStore.getState().get(projectId);
+        setSession(projectId, {
+          ownerId,
+          drafts,
+          status: kept && hasDraftChanges(kept) ? "pending" : "saved",
+        });
+        return;
+      }
       if (
         archived.status !== "active" &&
         useProjectDraftStore.getState().get(projectId) === before &&
@@ -315,6 +331,8 @@ export async function discardPersistedDraft(projectId: string): Promise<void> {
       await api.discardDraft(projectId, operation.id, operation.revision, operation.operationId);
     } catch (error) {
       rejectMutation(projectId, operation.operationId, error);
+      // Already gone from the hub: there is nothing left to discard there.
+      if (gone(error)) return finishDiscard(projectId, local, ownerId);
       // Discarding is explicit: a revision saved elsewhere since is thrown away too.
       const server =
         error instanceof api.DraftApiError && error.code === "draft_conflict"
@@ -325,6 +343,14 @@ export async function discardPersistedDraft(projectId: string): Promise<void> {
         await api.discardDraft(projectId, server.id, server.revision, crypto.randomUUID());
     }
   }
+  finishDiscard(projectId, local, ownerId);
+}
+
+function finishDiscard(
+  projectId: string,
+  local: ProjectDraft | undefined,
+  ownerId: string | undefined,
+) {
   if (projectPrincipal.current(projectId)?.id !== ownerId) throw new Error("session_changed");
   const current = useProjectDraftStore.getState().get(projectId);
   if (
@@ -678,7 +704,15 @@ async function syncOnce(projectId: string): Promise<void> {
         if (fingerprint(saved.snapshot) !== sent)
           throw new api.DraftApiError("draft_conflict", 409, saved);
       }
-    } else saved = await api.updateDraft(projectId, id, revision, name, snapshot, operationId);
+    } else {
+      try {
+        saved = await api.updateDraft(projectId, id, revision, name, snapshot, operationId);
+      } catch (error) {
+        // The draft no longer exists on the hub: created again under the same id, with the local work.
+        if (!gone(error)) throw error;
+        saved = await api.createDraft(projectId, id, name, snapshot, operationId);
+      }
+    }
     if (projectPrincipal.current(projectId)?.id !== session.ownerId) return;
     const current = useProjectDraftStore.getState().get(projectId);
     if (!current || current.remote?.id !== id) return;
@@ -896,6 +930,11 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
   } finally {
     publishing.delete(projectId);
   }
+}
+
+/** The hub no longer holds this draft (deleted elsewhere, or kept on the server's disk before). */
+function gone(error: unknown): boolean {
+  return error instanceof api.DraftApiError && error.status === 404;
 }
 
 function errorStatus(error: unknown): Session["status"] {
