@@ -13,10 +13,17 @@ class ProjectDraftsTest {
         val rows = linkedMapOf<String, String>()
         val receipts = mutableMapOf<String, Pair<String, String>>()
         val contents = mutableMapOf<String, ByteArray>()
+        var failCommits = false
+        /** The next commit finds its receipt written by a concurrent, identical request. */
+        var raceOnce = false
+        override fun knownProject(server: String, folder: String) = folder != "missing"
         override fun drafts(server: String, folder: String) = if (folder == "missing") null else rows.filterKeys { it.startsWith("$server/$folder/") }.values.toList()
         override fun draft(server: String, folder: String, id: String) = rows["$server/$folder/$id"]
         override fun receipt(operationId: String) = receipts[operationId]
-        override fun commit(server: String, folder: String, id: String, draft: String, operationId: String, fingerprint: String, result: String): Boolean {
+        override fun commit(server: String, folder: String, id: String, draft: String, status: String, operationId: String, fingerprint: String, result: String): Boolean {
+            if (failCommits) throw java.sql.SQLException("connection lost")
+            if (raceOnce) { raceOnce = false; rows["$server/$folder/$id"] = draft; receipts[operationId] = fingerprint to result }
+            if (operationId in receipts) throw java.sql.SQLException("Duplicate entry for key artisan_draft_receipts.PRIMARY")
             rows["$server/$folder/$id"] = draft
             receipts[operationId] = fingerprint to result
             return true
@@ -56,15 +63,48 @@ class ProjectDraftsTest {
         assertEquals(1, (request("action" to "list")["drafts"] as List<*>).size)
         var other: Map<String, Any?> = emptyMap()
         drafts.handle("local", "shop", Call.mapper.valueToTree(mapOf("owner_id" to "bob", "action" to "read", "draft_id" to "d1")), publisher) { other = it }
-        assertEquals("not_found", other["error"])
+        assertEquals("draft_not_found", other["error"])
     }
 
     @Test
     fun `a replayed operation gives back its result, a reused id with other content is refused`() {
         val first = create()
-        assertEquals(draftOf(first)["createdAt"], draftOf(create())["createdAt"])
+        val replayed = create()
+        assertEquals(draftOf(first)["createdAt"], draftOf(replayed)["createdAt"])
+        assertEquals(draftOf(first)["snapshot"], draftOf(replayed)["snapshot"])
         val reused = request("action" to "create", "draft_id" to "d2", "operation_id" to "op-c-d1", "name" to "X", "snapshot" to snapshot(mapOf("a.yml" to "x")))
         assertEquals("operation_conflict", reused["error"])
+    }
+
+    @Test
+    fun `a receipt keeps the result without the draft's body`() {
+        create()
+        val (_, result) = storage.receipts.getValue("op-c-d1")
+        assertEquals(mapOf("ok" to true, "draft" to mapOf("revision" to 1)), Call.mapper.readValue(result, Map::class.java))
+    }
+
+    @Test
+    fun `a commit that lost the race to the same operation answers with its receipt`() {
+        create()
+        storage.raceOnce = true
+        val updated = request("action" to "update", "draft_id" to "d1", "expected_revision" to 1, "operation_id" to "op-u", "name" to "B", "snapshot" to snapshot(mapOf("a.yml" to "a: 2")))
+        assertEquals(true, updated["ok"])
+        assertEquals(2, (draftOf(updated)["revision"] as Number).toInt())
+        assertEquals("B", draftOf(updated)["name"])
+        assertEquals("operation_conflict", request("action" to "update", "draft_id" to "d1", "expected_revision" to 2, "operation_id" to "op-u", "name" to "C", "snapshot" to snapshot(mapOf("a.yml" to "a: 3")))["error"])
+    }
+
+    @Test
+    fun `a failing database is storage_error, a missing draft is draft_not_found`() {
+        create()
+        storage.failCommits = true
+        val failed = request("action" to "update", "draft_id" to "d1", "expected_revision" to 1, "operation_id" to "op-u", "name" to "B", "snapshot" to snapshot(mapOf("a.yml" to "a: 2")))
+        assertEquals("storage_error", failed["error"])
+        storage.failCommits = false
+        assertEquals("draft_not_found", request("action" to "read", "draft_id" to "nope")["error"])
+        assertEquals("draft_not_found", request("action" to "update", "draft_id" to "nope", "expected_revision" to 1, "operation_id" to "op-n", "name" to "B", "snapshot" to snapshot(mapOf("a.yml" to "a: 2")))["error"])
+        request("action" to "discard", "draft_id" to "d1", "expected_revision" to 1, "operation_id" to "op-d")
+        assertEquals("draft_closed", request("action" to "update", "draft_id" to "d1", "expected_revision" to 2, "operation_id" to "op-u2", "name" to "B", "snapshot" to snapshot(mapOf("a.yml" to "a: 2")))["error"])
     }
 
     @Test

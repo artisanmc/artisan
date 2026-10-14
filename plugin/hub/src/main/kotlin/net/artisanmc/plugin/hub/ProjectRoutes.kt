@@ -31,7 +31,7 @@ class ProjectRoutes(
     private val drafts = draftStorage?.let(::ProjectDrafts)
     fun register(router: Router) {
         router.on("GET", "$SERVER/projects", VIEW) { call ->
-            val server = servers.of(call) ?: return@on call.error(404, "not_found")
+            val server = servers.of(call) ?: return@on call.error(404, "unknown_project")
             listed(call, server) { reply ->
                 if (!ok(reply)) return@listed readError(call, reply)
                 val projects = roots(reply).map { summary(server, it) }
@@ -136,11 +136,7 @@ class ProjectRoutes(
         return false
     }
 
-    private fun folderError(call: Call, reply: Map<String, Any?>) = when (val code = errorCode(reply)) {
-        "project_exists", "destination_exists", "addon_immutable" -> call.error(409, code)
-        "invalid_name", "invalid_path" -> call.error(422, code)
-        else -> readError(call, reply)
-    }
+    private fun folderError(call: Call, reply: Map<String, Any?>) = readError(call, reply)
 
     private fun movable(server: EditorServer, root: Map<String, Any?>) =
         root["identity"] == "folder" && ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.PROJECT_FOLDERS
@@ -149,9 +145,10 @@ class ProjectRoutes(
     private fun cacheFor(bytes: ByteArray, hash: String?): String =
         if (hash != null && BundleHasher.hashBytes(bytes) == hash) "private, max-age=31536000, immutable" else "private, no-cache"
 
+    /** `:project` names a server this hub knows and a folder, else `unknown_project`: not the `not_found` of a draft or a file. */
     private fun onProject(router: Router, method: String, pattern: String, permission: String, handler: (Call, ProjectRef) -> Unit) {
         router.on(method, pattern, permission) { call ->
-            val project = servers.projectOf(call) ?: return@on call.error(404, "not_found")
+            val project = servers.projectOf(call) ?: return@on call.error(404, "unknown_project")
             handler(call, project)
         }
     }
@@ -224,7 +221,7 @@ class ProjectRoutes(
         }
     }
 
-    /** Private drafts, one set per player: in the suite database ([ProjectDrafts]), else on the server's disk. */
+    /** Private drafts, one set per player: in the suite database ([ProjectDrafts]), else relayed to the server. */
     private fun drafts(router: Router) {
         val base = "/api/v1/user/projects/:project/drafts"
         onProject(router, "GET", base, VIEW) { call, project -> draft(call, project, "list") }
@@ -319,15 +316,7 @@ class ProjectRoutes(
         if (reply["draft"] != null) body["draft"] = attach(reply["draft"])
         (reply["drafts"] as? List<*>)?.let { drafts -> body["drafts"] = drafts.map(::attach) }
         if (ok(reply)) return call.json(body, if (created) 201 else 200)
-        val status = when (errorCode(reply)) {
-            "not_found" -> 404
-            "draft_migration_pending", "storage_error", "rename_in_progress", "rename_pending",
-            "inventory_unavailable", "plugin_update_required" -> 503
-            "draft_conflict", "draft_exists", "draft_closed", "conflict" -> 409
-            in OPERATION_ERRORS -> 409
-            else -> 422
-        }
-        call.json(body, status)
+        call.json(body, ErrorStatus.of(errorCode(reply)))
     }
 
     private fun operationId(request: JsonNode): String? {
@@ -360,7 +349,7 @@ class ProjectRoutes(
     }
 
     companion object {
-        private val EXPECTED_DRAFT_ERRORS = setOf("draft_conflict", "conflict", "draft_closed", "not_found")
+        private val EXPECTED_DRAFT_ERRORS = setOf("draft_conflict", "conflict", "draft_closed", "draft_not_found", "not_found")
         private val OPERATION_ERRORS = setOf("operation_mismatch", "operation_conflict", "operation_expired")
         private val IDENTIFIER = Regex("[a-zA-Z0-9_-]{1,100}")
         private val SHA256 = Regex("[a-f0-9]{64}")

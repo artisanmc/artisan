@@ -10,6 +10,7 @@ import {
   copyPersistedDraft,
   discardPersistedDraft,
   loadPersistedDrafts,
+  markDraftPending,
   publishPersistedDraft,
   resolveDraftConflict,
   syncPersistedDraft,
@@ -620,7 +621,7 @@ it("keeps local work as a new draft when its hub draft no longer exists", async 
     remote: { id: "old-disk-draft", name: "My work", revision: 3, ownerId: "u1" },
   });
   vi.mocked(api.listDrafts).mockResolvedValue([]);
-  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("not_found", 404));
+  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
   await loadPersistedDrafts("p1", "u1");
   expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
   expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
@@ -643,7 +644,7 @@ it("creates the draft again when an update finds it gone", async () => {
     ...useProjectDraftStore.getState().get("p1")!,
     tree: { "manifest.yaml": "newer" },
   });
-  vi.mocked(api.updateDraft).mockRejectedValue(new api.DraftApiError("not_found", 404));
+  vi.mocked(api.updateDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
   vi.mocked(api.createDraft).mockImplementation(async (_p, id, name, saved) => ({
     ...remote,
     id,
@@ -658,7 +659,7 @@ it("creates the draft again when an update finds it gone", async () => {
 it("discards a draft the hub no longer holds without failing", async () => {
   vi.mocked(api.listDrafts).mockResolvedValue([remote]);
   await loadPersistedDrafts("p1", "u1");
-  vi.mocked(api.discardDraft).mockRejectedValue(new api.DraftApiError("not_found", 404));
+  vi.mocked(api.discardDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
   await discardPersistedDraft("p1");
   expect(useProjectDraftStore.getState().get("p1")).toBeUndefined();
 });
@@ -683,7 +684,7 @@ it("recovers a draft stuck on a pending save the hub no longer knows, and can di
   };
   useProjectDraftStore.getState().save("p1", stuck);
   vi.mocked(api.listDrafts).mockResolvedValue([]);
-  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("not_found", 404));
+  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
   await loadPersistedDrafts("p1", "u1");
   expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
   expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
@@ -766,8 +767,89 @@ it("leaves the conflict state when the conflicting draft is gone from the hub", 
   usePersistedDraftStore.setState({
     sessions: { p1: { ownerId: "u1", drafts: [], status: "conflict" } as never },
   });
-  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("not_found", 404));
+  vi.mocked(api.readDraft).mockRejectedValue(new api.DraftApiError("draft_not_found", 404));
   await syncPersistedDraft("p1");
   expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
   expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+});
+
+it("keeps a draft whose 404 is not the draft's: the hub has no such Project", async () => {
+  useProjectDraftStore
+    .getState()
+    .save("p1", { ...snapshot, remote: { id: "d1", name: "My work", revision: 2, ownerId: "u1" } });
+  vi.mocked(api.listDrafts).mockRejectedValue(new api.DraftApiError("unknown_project", 404));
+  await loadPersistedDrafts("p1", "u1");
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.id).toBe("d1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("rejected");
+  expect(usePersistedDraftStore.getState().sessions.p1?.error).toBe("unknown_project");
+});
+
+it("does not send a refused draft again until it changes, and clears its pending mutation", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "my edit" },
+  });
+  vi.mocked(api.updateDraft).mockRejectedValue(new api.DraftApiError("forbidden", 403));
+  await syncPersistedDraft("p1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("rejected");
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.pendingMutation).toBeUndefined();
+  // The interval: nothing goes out for the same snapshot.
+  await syncPersistedDraft("p1");
+  expect(api.updateDraft).toHaveBeenCalledTimes(1);
+  // The Save button sends it as it is.
+  await syncPersistedDraft("p1", true);
+  expect(api.updateDraft).toHaveBeenCalledTimes(2);
+  // An edit sends it again on its own.
+  vi.mocked(api.updateDraft).mockImplementation(async (_p, id, revision, name, saved) => ({
+    ...remote,
+    id,
+    name,
+    revision: revision + 1,
+    snapshot: saved,
+  }));
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "fixed" },
+  });
+  markDraftPending("p1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("pending");
+  await syncPersistedDraft("p1");
+  expect(api.updateDraft).toHaveBeenCalledTimes(3);
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("saved");
+});
+
+it("keeps the pending mutation and retries when the hub did not answer", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "my edit" },
+  });
+  vi.mocked(api.updateDraft).mockRejectedValue(new api.DraftApiError("storage_error", 503));
+  await syncPersistedDraft("p1");
+  expect(usePersistedDraftStore.getState().sessions.p1?.status).toBe("offline");
+  expect(useProjectDraftStore.getState().get("p1")?.remote?.pendingMutation?.kind).toBe("save");
+  await syncPersistedDraft("p1");
+  expect(api.updateDraft).toHaveBeenCalledTimes(2);
+});
+
+it("starts over from the listing when a save finds the draft closed elsewhere", async () => {
+  vi.mocked(api.listDrafts).mockResolvedValue([remote]);
+  await loadPersistedDrafts("p1", "u1");
+  useProjectDraftStore.getState().save("p1", {
+    ...useProjectDraftStore.getState().get("p1")!,
+    tree: { "manifest.yaml": "newer work" },
+  });
+  vi.mocked(api.updateDraft).mockRejectedValue(new api.DraftApiError("draft_closed", 409));
+  vi.mocked(api.listDrafts).mockResolvedValue([]);
+  vi.mocked(api.readDraft).mockResolvedValue({ ...remote, status: "published" });
+  await syncPersistedDraft("p1");
+  const session = usePersistedDraftStore.getState().sessions.p1;
+  expect(session?.status).toBe("pending");
+  expect(session?.draftConflict).toBeUndefined();
+  // The newer work stays, as a draft to create.
+  expect(useProjectDraftStore.getState().get("p1")?.remote).toBeUndefined();
+  expect(useProjectDraftStore.getState().get("p1")?.tree["manifest.yaml"]).toBe("newer work");
 });

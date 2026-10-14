@@ -8,6 +8,10 @@ import java.util.logging.Logger
 /** WebSocket `/ws/editor`: the server notifies open tabs (reload, rename). */
 class EditorChannel(private val logger: Logger?) {
     private val open = ConcurrentHashMap.newKeySet<Session>()
+    private val reloadListeners = java.util.concurrent.CopyOnWriteArrayList<(server: String) -> Unit>()
+
+    /** Called with the hub server id of each server whose `projects_reloaded` goes through here. */
+    fun onReload(listener: (server: String) -> Unit) { reloadListeners += listener }
 
     fun broadcast(message: Map<String, Any?>) {
         val text = Call.mapper.writeValueAsString(message)
@@ -17,6 +21,7 @@ class EditorChannel(private val logger: Logger?) {
     /** An announcement from a server, in the shape the editor expects. */
     fun relay(event: Map<String, Any?>, server: String = Servers.LOCAL, serverUuid: String = "") {
         if (event["type"] != "projects_reloaded") return
+        reloadListeners.forEach { it(server) }
         val projects = (event["projects"] as? List<*>).orEmpty().map { project ->
             val fields = project as? Map<*, *> ?: return@map project
             val folder = fields["id"] as? String ?: return@map project
