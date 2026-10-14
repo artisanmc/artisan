@@ -254,6 +254,8 @@ class SyncedMenuProvider(
         resolveRef(menuTable, "Menu", ref, fromProject)
     override fun listMenuIds(): List<String> = menuTable.ids.distinct().sorted()
     override fun allBundles(): List<ProjectBundle> = bundles
+    /** The loaded Snapshot's project dirs, without the registry lock a reload in progress holds. */
+    fun projectDirs(): Map<String, File> = projects.projectIds.associateWith(roots::dirFor)
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
         val menu = findMenu(menuId, ctx.projectId) ?: run {
@@ -393,6 +395,7 @@ class SyncedMenuProvider(
     // plugin: the disk is deliberately not watched.
 
     private fun reloadFromDisk() = synchronized(roots) {
+        val started = System.nanoTime()
         // Declared model docs feed the reader so BARE data files resolve their
         // schema from the JAR declaration (ADR bare-data-files ①).
         val failures = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
@@ -422,6 +425,9 @@ class SyncedMenuProvider(
             logger?.warning("[Artisan] Versions not recorded: ${it.message}")
             announceReload()
         }
+        val millis = (System.nanoTime() - started) / 1_000_000
+        // Every editor write waits behind this: a slow disk (Docker bind mount on Windows) shows up here, not as a timeout.
+        if (millis > 2_000) logger?.warning("[Artisan] Reload of ${dirs.size} projects took ${millis} ms")
     }
 
     /**
