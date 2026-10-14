@@ -29,10 +29,10 @@ class LateSuiteDataTest {
 
     @AfterTest fun teardown() = pools.closeAll()
 
-    private fun draft(action: String, vararg fields: Pair<String, Any?>): Map<String, Any?> {
+    private fun draft(server: String, action: String, vararg fields: Pair<String, Any?>): Map<String, Any?> {
         var out: Map<String, Any?> = emptyMap()
         val request = Call.mapper.valueToTree<ObjectNode>(mapOf("owner_id" to "alice", "action" to action) + fields)
-        ProjectDrafts(late.drafts).handle("u-hub", "shop", request, { _, reply -> reply(mapOf("ok" to true)) }) { out = it }
+        ProjectDrafts(late.drafts).handle(server, "shop", request, { _, reply -> reply(mapOf("ok" to true)) }) { out = it }
         return out
     }
 
@@ -40,7 +40,7 @@ class LateSuiteDataTest {
     fun `before the database opens, reads are absent and drafts are refused with storage_error`() {
         assertNull(late.loaded.list("u-hub"))
         assertNull(late.history.versions("u-hub", "shop"))
-        val refused = draft("list")
+        val refused = draft("u-hub", "list")
         assertEquals(false, refused["ok"])
         assertEquals("storage_error", refused["error"])
     }
@@ -51,11 +51,11 @@ class LateSuiteDataTest {
         val registry = ServerRegistry(ds, DatabaseDialect.H2, log)
         val hub = UUID.randomUUID().also { registry.register(it, "hub", Instant.EPOCH) }
         val row = registry.rowId(hub)!!
-        val opened = SuiteProjectData(ds, DatabaseDialect.H2, { registry.rowId(UUID.fromString(it)) }, log)
+        val opened = SuiteProjectData(ds, DatabaseDialect.H2, { runCatching { UUID.fromString(it) }.getOrNull()?.let(registry::rowId) }, log)
         opened.recordState(row, mapOf("project_ids" to listOf("shop"), "project_roots" to listOf(mapOf("project_id" to "shop", "project_key" to "k-1")), "projects" to emptyMap<String, Any>()), Instant.EPOCH)
         data = opened
         assertEquals(listOf("shop"), late.loaded.list(hub.toString())!!["project_ids"])
         assertTrue(late.drafts.knownProject(hub.toString(), "shop"))
-        assertEquals(true, draft("list")["ok"])
+        assertEquals(true, draft(hub.toString(), "list")["ok"])
     }
 }
