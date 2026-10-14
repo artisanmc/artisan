@@ -410,7 +410,8 @@ open class ArtisanPlugin : JavaPlugin() {
                 net.artisanmc.plugin.hub.RemoteServer(it, publicUrl = { editorBase() })
             }
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
-            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, projectHistory, loadedProjects)
+            val drafts = draftStorage.takeIf { artisanData != null && serverRow != null }
+            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, projectHistory, loadedProjects, drafts)
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger) {
                 if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) null
                 else artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
@@ -646,16 +647,55 @@ open class ArtisanPlugin : JavaPlugin() {
         net.artisanmc.plugin.database.ServerStateStore(artisanData ?: return).put(server, stateMapper.writeValueAsString(state), now)
     }
 
+    /** The `artisan_servers` row of a hub server id. */
+    private fun row(server: String) = if (server == net.artisanmc.plugin.hub.Servers.LOCAL) serverRow else serverRegistry?.rowId(server)
+
+    /** What [server] recorded at its last load, see [recordServerState]. */
+    @Suppress("UNCHECKED_CAST")
+    private fun state(server: String): Map<String, Any?>? {
+        val row = row(server) ?: return null
+        val json = net.artisanmc.plugin.database.ServerStateStore(artisanData ?: return null).get(row) ?: return null
+        return stateMapper.readValue(json, Map::class.java) as Map<String, Any?>
+    }
+
+    /** A Project's row and `project_key`, from its folder in the server's loaded state. */
+    @Suppress("UNCHECKED_CAST")
+    private fun projectKey(server: String, folder: String): Pair<Int, String>? {
+        val roots = state(server)?.get("project_roots") as? List<Map<String, Any?>> ?: return null
+        val key = roots.firstOrNull { it["project_id"] == folder }?.get("project_key") as? String ?: return null
+        return (row(server) ?: return null) to key
+    }
+
+    /** Drafts in the suite database, kept and served by the hub. */
+    private val draftStorage = object : net.artisanmc.plugin.hub.DraftStorage {
+        private val rows get() = artisanData?.let { net.artisanmc.plugin.database.DraftRows(it) }
+        private val contents get() = artisanData?.let { net.artisanmc.plugin.database.ContentRows(it) }
+
+        override fun drafts(server: String, folder: String): List<String>? {
+            val (row, key) = projectKey(server, folder) ?: return null
+            return rows?.all(row, key)
+        }
+
+        override fun draft(server: String, folder: String, id: String): String? {
+            val (row, key) = projectKey(server, folder) ?: return null
+            return rows?.get(row, key, id)
+        }
+
+        override fun receipt(operationId: String) = rows?.receipt(operationId)
+
+        override fun commit(server: String, folder: String, id: String, draft: String, operationId: String, fingerprint: String, result: String): Boolean {
+            val (row, key) = projectKey(server, folder) ?: return false
+            val rows = rows ?: return false
+            rows.commit(row, key, id, draft, operationId, fingerprint, result)
+            return true
+        }
+
+        override fun content(hash: String) = contents?.get(hash)
+        override fun putContent(hash: String, bytes: ByteArray) { contents?.put(hash, bytes) }
+    }
+
     /** Projects as their server loaded them, read from the suite database by the editor's routes. */
     private val loadedProjects = object : net.artisanmc.plugin.hub.LoadedProjects {
-        private fun row(server: String) = if (server == net.artisanmc.plugin.hub.Servers.LOCAL) serverRow else serverRegistry?.rowId(server)
-
-        @Suppress("UNCHECKED_CAST")
-        private fun state(server: String): Map<String, Any?>? {
-            val row = row(server) ?: return null
-            val json = net.artisanmc.plugin.database.ServerStateStore(artisanData ?: return null).get(row) ?: return null
-            return stateMapper.readValue(json, Map::class.java) as Map<String, Any?>
-        }
 
         override fun list(server: String): Map<String, Any?>? = state(server)?.minus("projects")
 
@@ -680,7 +720,6 @@ open class ArtisanPlugin : JavaPlugin() {
 
     /** History routes of the editor, read from `artisan_versions`. */
     private val projectHistory = object : net.artisanmc.plugin.hub.ProjectHistory {
-        private fun row(server: String) = if (server == net.artisanmc.plugin.hub.Servers.LOCAL) serverRow else serverRegistry?.rowId(server)
         private fun author(a: net.artisanmc.plugin.database.VersionAuthor?) = a?.let { mapOf("id" to it.id, "name" to it.name) }
 
         override fun versions(server: String, folder: String): List<Map<String, Any?>>? {

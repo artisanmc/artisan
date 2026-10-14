@@ -16,9 +16,10 @@ Depuis la phase F (2026-10), il n'y a plus de backend ni de copie centrale. Cont
 - **Lecture** : `project_read` rend l'instantané chargé par le serveur, pas le disque courant.
 - **Écriture** : `project_write` ou la publication d'un brouillon, sur **geste explicite**. Le
   **plugin est le seul écrivain** ; le hub relaie et n'arbitre jamais.
-- **Brouillons** : `<project>/.artisan/drafts/`, un jeu par UUID de joueur, sauvegardés
-  automatiquement. La publication écrit projet et état final du brouillon dans **un seul commit
-  atomique** (`ProjectPublisher`, journal `.artisan/transactions/` rejoué après crash).
+- **Brouillons** : dans la base de la suite (`artisan_drafts`), un jeu par UUID de joueur,
+  sauvegardés automatiquement, servis par le hub même serveur éteint. La publication est une
+  écriture du serveur (compare-and-swap, journal `.artisan/transactions/`) ; le hub ne marque le
+  brouillon publié qu'après sa réponse, rejouable sous le même `operation_id`.
 - **Serveur éteint** : l'éditeur qu'il héberge l'est aussi ; une feuille éteinte est listée hors
   ligne (503 `server_offline`). Rien n'est ouvrable sans le serveur.
 - **Édition à la main** : prise en compte à `/artisan reload` seulement (le `SyncScanner` a été

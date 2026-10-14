@@ -107,13 +107,12 @@ directe. **Un `ArtisanModule` n'importe que depuis `net.artisanmc.modules.api.*`
 Les trois qu'on ne peut pas se permettre de découvrir après coup. Le reste — et le détail de
 ceux-ci — dans **`docs/architecture/invariants.md`**.
 
-1. **Tout vit sur le disque du serveur** — contenu publié **et** brouillons privés
-   (`<project>/.artisan/drafts/`, un jeu par UUID de joueur, `ProjectDraftStore`). L'éditeur
-   sauvegarde automatiquement son brouillon ; publier reste explicite, via `project_write` ou la
-   publication du brouillon, avec compare-and-swap. La base de la suite garde une copie de ce que
-   chaque serveur a chargé (`artisan_servers`, Versions, `artisan_server_state`) : le hub lit les
-   Projects depuis la base, serveur éteint compris ; seules les écritures et les données live vont
-   au serveur (ADR `server-identity-and-versions`). Brouillons en base : décidé, pas encore codé.
+1. **Le contenu publié vit sur le disque du serveur, le reste dans la base de la suite** — seul
+   le serveur écrit ses fichiers (`project_write` ou publication d'un brouillon, compare-and-swap).
+   La base garde ce que chaque serveur a chargé (`artisan_servers`, Versions,
+   `artisan_server_state`) et les brouillons privés (`artisan_drafts`, un jeu par UUID de joueur,
+   autosave) : le hub lit et édite depuis la base, serveur éteint compris ; seules les écritures et
+   les données live vont au serveur (ADR `server-identity-and-versions`).
 2. **`.artisan*` en premier segment = métadonnée** — hors hash, invisible au scan disque. L'éditeur
    possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`,
    `.artisan-trash/` et `.artisan-sync.yaml` lui restent invisibles **et** interdits en écriture.

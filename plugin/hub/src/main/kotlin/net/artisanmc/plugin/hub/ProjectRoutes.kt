@@ -25,7 +25,9 @@ class ProjectRoutes(
     private val relay: Relay,
     private val history: ProjectHistory? = null,
     private val loaded: LoadedProjects? = null,
+    draftStorage: DraftStorage? = null,
 ) {
+    private val drafts = draftStorage?.let(::ProjectDrafts)
     fun register(router: Router) {
         router.on("GET", "$SERVER/projects", VIEW) { call ->
             val server = servers.of(call) ?: return@on call.error(404, "not_found")
@@ -217,15 +219,14 @@ class ProjectRoutes(
         }
     }
 
-    /** Private drafts stay on the server's disk (`ProjectDraftStore`), one set per player. */
+    /** Private drafts, one set per player: in the suite database ([ProjectDrafts]), else on the server's disk. */
     private fun drafts(router: Router) {
         val base = "/api/v1/user/projects/:project/drafts"
         onProject(router, "GET", base, VIEW) { call, project -> draft(call, project, "list") }
         onProject(router, "GET", "$base/:draft", VIEW) { call, project -> draft(call, project, "read", "draft_id" to call.params["draft"]) }
         onProject(router, "GET", "$base/:draft/blobs/:hash", VIEW) { call, project ->
             val hash = call.params.getValue("hash").takeIf { SHA256.matches(it) } ?: return@onProject call.error(422, "invalid_input")
-            val message = draftMessage(call, project, "read_blob", "draft_id" to call.params["draft"], "hash" to hash)
-            relay.send(call, project.server, message) { reply ->
+            draftReply(call, project, "read_blob", "draft_id" to call.params["draft"], "hash" to hash) { reply ->
                 val content = reply["content_base64"] as? String
                 if (ok(reply) && content != null) Base64.getDecoder().decode(content).let { call.send(200, "application/octet-stream", it, cacheFor(it, hash)) }
                 else draftResponse(call, project, reply)
@@ -289,7 +290,15 @@ class ProjectRoutes(
     private fun author(call: Call) = call.session!!.let { mapOf("author_id" to it.playerId.toString(), "author_name" to it.playerName) }
 
     private fun draft(call: Call, project: ProjectRef, action: String, vararg fields: Pair<String, Any?>, created: Boolean = false) {
-        relay.send(call, project.server, draftMessage(call, project, action, *fields)) { reply -> draftResponse(call, project, reply, created) }
+        draftReply(call, project, action, *fields) { reply -> draftResponse(call, project, reply, created) }
+    }
+
+    /** A draft operation's reply: done by the hub on the database, or by the server when there is none. */
+    private fun draftReply(call: Call, project: ProjectRef, action: String, vararg fields: Pair<String, Any?>, respond: (Map<String, Any?>) -> Unit) {
+        val message = draftMessage(call, project, action, *fields)
+        val drafts = drafts ?: return relay.send(call, project.server, message, respond)
+        val request = Call.mapper.valueToTree<com.fasterxml.jackson.databind.node.ObjectNode>(message)
+        drafts.handle(project.server.id, project.folder, request, { publication, reply -> relay.send(call, project.server, publication, reply) }, respond)
     }
 
     private fun draftResponse(call: Call, project: ProjectRef, reply: Map<String, Any?>, created: Boolean = false) {

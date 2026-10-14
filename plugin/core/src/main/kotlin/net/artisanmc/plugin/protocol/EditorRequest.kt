@@ -76,7 +76,8 @@ sealed interface EditorRequest {
     data class ProjectRename(override val requestId: String, val projectId: String, val targetId: String) : WithReply
 
     /** Drafts parse their own protocol (`ProjectDraftStore`). */
-    data class ProjectDraft(override val requestId: String, val projectId: String, override val message: JsonNode) : Mutation
+    /** A Draft the hub keeps, to publish: the draft, its new binaries, its author. */
+    data class ProjectDraftPublish(override val requestId: String, val projectId: String, override val message: JsonNode) : Mutation
 
     sealed interface PackUpdate {
         data object Cleared : PackUpdate
@@ -138,7 +139,7 @@ sealed interface EditorRequest {
                     deletes = node.array("deletes").mapNotNull { it.asText() },
                     message = node,
                 )
-                "project_draft_request" -> ProjectDraft(requestId, node.text("project_id") ?: return null, node)
+                "project_draft_publish" -> ProjectDraftPublish(requestId, node.text("project_id") ?: return null, node)
                 "project_create" -> ProjectCreate(requestId, node.text("project_id") ?: return null)
                 "project_delete" -> ProjectDelete(requestId, node.text("project_id") ?: return null)
                 "project_rename" -> ProjectRename(

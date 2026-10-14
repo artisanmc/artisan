@@ -186,3 +186,74 @@ class VersionStore(private val dataSource: DataSource) {
 
 private fun sha256(bytes: ByteArray): String =
     MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
+/** `artisan_contents` by hash: a draft's images and fonts, before and after publication. */
+class ContentRows(private val dataSource: DataSource) {
+    fun get(hash: String): ByteArray? = dataSource.connection.use { c ->
+        c.prepareStatement("SELECT content FROM artisan_contents WHERE hash = ?").use { s ->
+            s.setString(1, hash); s.executeQuery().use { if (it.next()) it.getBytes(1) else null }
+        }
+    }
+
+    fun put(hash: String, bytes: ByteArray) = dataSource.connection.use { c ->
+        val known = c.prepareStatement("SELECT 1 FROM artisan_contents WHERE hash = ?").use { s ->
+            s.setString(1, hash); s.executeQuery().use { it.next() }
+        }
+        if (!known) c.prepareStatement("INSERT INTO artisan_contents (hash, content) VALUES (?, ?)").use {
+            it.setString(1, hash); it.setBytes(2, bytes); it.executeUpdate()
+        }
+    }
+}
+
+/**
+ * Private Drafts (ADR `server-identity-and-versions`, decision 12): one JSON envelope per draft of a
+ * Project, and the receipt of each operation, written in one transaction so a replayed operation
+ * returns the result it already gave.
+ */
+class DraftRows(private val dataSource: DataSource) {
+    /** Draft ids are case-sensitive; MySQL's default collation is not: rows are keyed by the id's hash. */
+    private fun key(id: String) = sha256(id.toByteArray(Charsets.UTF_8))
+
+    fun all(server: Int, projectKey: String): List<String> = dataSource.connection.use { c ->
+        c.prepareStatement("SELECT draft FROM artisan_drafts WHERE server_id = ? AND project_key = ? ORDER BY id").use { s ->
+            s.setInt(1, server); s.setString(2, projectKey)
+            s.executeQuery().use { rs -> generateSequence { if (rs.next()) rs.getString(1) else null }.toList() }
+        }
+    }
+
+    fun get(server: Int, projectKey: String, id: String): String? = dataSource.connection.use { c ->
+        c.prepareStatement("SELECT draft FROM artisan_drafts WHERE server_id = ? AND project_key = ? AND id = ?").use { s ->
+            s.setInt(1, server); s.setString(2, projectKey); s.setString(3, key(id))
+            s.executeQuery().use { if (it.next()) it.getString(1) else null }
+        }
+    }
+
+    /** The fingerprint and result of an operation already applied. */
+    fun receipt(operationId: String): Pair<String, String>? = dataSource.connection.use { c ->
+        c.prepareStatement("SELECT fingerprint, result FROM artisan_draft_receipts WHERE operation_id = ?").use { s ->
+            s.setString(1, operationId); s.executeQuery().use { if (it.next()) it.getString(1) to it.getString(2) else null }
+        }
+    }
+
+    fun commit(server: Int, projectKey: String, id: String, draft: String, operationId: String, fingerprint: String, result: String) =
+        dataSource.connection.use { c ->
+            c.autoCommit = false
+            try {
+                val updated = c.prepareStatement("UPDATE artisan_drafts SET draft = ? WHERE server_id = ? AND project_key = ? AND id = ?").use {
+                    it.setString(1, draft); it.setInt(2, server); it.setString(3, projectKey); it.setString(4, key(id)); it.executeUpdate()
+                }
+                if (updated == 0) c.prepareStatement("INSERT INTO artisan_drafts (server_id, project_key, id, draft) VALUES (?, ?, ?, ?)").use {
+                    it.setInt(1, server); it.setString(2, projectKey); it.setString(3, key(id)); it.setString(4, draft); it.executeUpdate()
+                }
+                c.prepareStatement("INSERT INTO artisan_draft_receipts (operation_id, fingerprint, result) VALUES (?, ?, ?)").use {
+                    it.setString(1, operationId); it.setString(2, fingerprint); it.setString(3, result); it.executeUpdate()
+                }
+                c.commit()
+            } catch (e: Exception) {
+                c.rollback()
+                throw e
+            } finally {
+                c.autoCommit = true
+            }
+        }
+}
