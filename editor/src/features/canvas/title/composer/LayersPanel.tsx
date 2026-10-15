@@ -250,7 +250,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
             <VanillaTextureLayer projectId={projectId} menu={menu} />
             {menu.title.map((layer, index) => (
               <div
-                // biome-ignore lint/suspicious/noArrayIndexKey: les calques n'ont pas d'identifiant stable (MenuTitleLayer sans id) et le réordonnancement est par index
+                // biome-ignore lint/suspicious/noArrayIndexKey: layers have no stable id (MenuTitleLayer has none) and reordering is by index
                 key={index}
                 data-testid="layer-row-wrapper"
                 data-index={index}

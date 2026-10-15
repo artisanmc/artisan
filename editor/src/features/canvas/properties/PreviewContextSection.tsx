@@ -117,7 +117,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         {t("menuProperties.previewContextHint")}
       </p>
       {hasServerSource ? (
-        // biome-ignore lint/a11y/noLabelWithoutControl: le label englobe l'<input> rendu par PlayerNameInput (qui n'expose pas d'id) ; Biome ne voit pas à travers le composant
+        // biome-ignore lint/a11y/noLabelWithoutControl: the label wraps the <input> rendered by PlayerNameInput (which takes no id); Biome cannot see through the component
         <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
           <span className="whitespace-nowrap">{t("menuProperties.previewAsPlayer")}</span>
           {/* Committed on blur / Enter, not on every keystroke: each change refetches
