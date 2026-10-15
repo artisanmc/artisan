@@ -188,49 +188,26 @@ net.artisanmc.core
 
 ### 3.2 Annotations de stabilité
 
-```kotlin
-package net.artisanmc.api.annotations
+`plugin/api` est écrite **en Java** depuis l'API 2.0.0 (ADR `extensible-document-kinds`, « Langue de
+l'API publique ») : interfaces, classes immuables, enums, callbacks `@FunctionalInterface`, aucun type
+`kotlin.*` et pas de `kotlin-stdlib` dans le POM. Les annotations vivent dans
+`net.artisanmc.modules.api.annotations` :
 
-/**
- * Marks API surface that is covered by SemVer.
- * - No removal or breaking changes within a major version.
- * - May be deprecated, but kept functional with a sunset date.
- */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
-@Retention(AnnotationRetention.SOURCE)
-annotation class Stable
+```java
+@Retention(RetentionPolicy.SOURCE) public @interface Stable {}    // couverte par SemVer
+@Retention(RetentionPolicy.SOURCE) public @interface Beta {}      // peut changer en mineure
+@Retention(RetentionPolicy.SOURCE) public @interface Internal {}  // interdit aux modules
 
-/**
- * Marks API surface that is experimental.
- * - May change in minor versions.
- * - Modules should not rely on this in production.
- */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
-@Retention(AnnotationRetention.SOURCE)
-annotation class Beta
-
-/**
- * Marks API surface that is internal to Artisan.
- * - May change anytime, without notice.
- * - Modules MUST NOT use this.
- */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
-@Retention(AnnotationRetention.SOURCE)
-annotation class Internal
-
-/**
- * Marks API surface that is deprecated.
- * - Functional until the specified version.
- * - Modules should migrate to the replacement.
- */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
-@Retention(AnnotationRetention.RUNTIME)
-annotation class Deprecated(
-    val reason: String,
-    val removeInVersion: String,
-    val replacement: String = ""
-)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Sunset {                 // dépréciation datée, remplace @Deprecated
+    String reason();
+    String removeInVersion();
+    String replacement() default "";
+}
 ```
+
+`ApiSurfaceIsJavaFriendlyTest` échoue si une classe Kotlin apparaît dans `plugin/api/src/main` ou si
+un type `kotlin.*` traverse une signature publique.
 
 ### 3.3 SemVer strict
 
@@ -246,9 +223,9 @@ La version publiée est la plus haute valeur `Since` d'`api-surface.md` : la mon
 
 Quand tu veux retirer une API en major :
 
-1. **N mois avant la major (où N ≥ 3)** : marque `@Deprecated(reason=..., removeInVersion="2.0.0", replacement="newMethod()")`.
+1. **N mois avant la major (où N ≥ 3)** : marque `@Sunset(reason=..., removeInVersion="3.0.0", replacement="newMethod()")`.
 2. Le compileur warn les modules qui l'utilisent.
-3. `@Deprecated` apparaît dans le CHANGELOG.
+3. `@Sunset` apparaît dans le CHANGELOG.
 4. **Au release de la major** : la méthode est supprimée.
 5. Les modules incompatibles fail gracefully (cf. modules.md section 13).
 
@@ -257,7 +234,7 @@ Quand tu veux retirer une API en major :
 Au-delà de la source compatibility, **veille à la binary compatibility** :
 
 - Ne change pas la signature d'une méthode publique (paramètres, types de retour, exceptions)
-- N'ajoute pas un paramètre required à une méthode existante (mais default values OK en Kotlin)
+- N'ajoute pas un paramètre required à une méthode existante (ajoute une surcharge Java)
 - N'enlève pas un constructor public
 - Ne réordonne pas les éléments d'une enum
 

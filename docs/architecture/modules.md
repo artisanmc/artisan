@@ -539,7 +539,7 @@ Modules livrés :
 - `translations` — i18n keys (intégré dans menus + commands)
 
 Pattern d'architecture en place :
-- `ArtisanModule` interface (Kotlin) côté plugin
+- `ArtisanModule` interface (Java depuis l'API 2.0.0) côté plugin
 - `BackendModule` / `FrontendModule` interfaces côté web
 - `DataSourceRegistry` + `CommandRegistry` opérationnels
 - 5 data sources homemade (EssentialsX, ChestShop, JobsReborn, LuckPerms, Quests) — ce sont déjà des modules read-only en pratique

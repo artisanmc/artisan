@@ -7,8 +7,8 @@ class SchemaRegistryTest {
 
     private fun migration(from: String, to: String, transform: (MutableMap<String, Any?>) -> Unit = {}) =
         object : SchemaMigration<MutableMap<String, Any?>> {
-            override val from = from
-            override val to = to
+            override fun getFrom() = from
+            override fun getTo() = to
             override fun migrate(data: MutableMap<String, Any?>): MutableMap<String, Any?> {
                 transform(data)
                 data["schema"] = to

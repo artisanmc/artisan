@@ -59,9 +59,6 @@ open class ArtisanPlugin : JavaPlugin() {
     /** projectId -> working-copy root, unioning the core projects dir with Add-on-owned roots. */
     lateinit var projectRoots: net.artisanmc.plugin.project.ProjectRoots
         private set
-    /** Late-bound WS sender for module messages (api.messages) — set once the provider exists. */
-    @Volatile var moduleMessageSender: ((Map<String, Any>) -> Unit)? = null
-        private set
     /** The event-registered resource-pack manager — swapped (not stacked) on `/artisan reload`. */
     @Volatile
     private var resourcePackManager: net.artisanmc.plugin.resourcepack.ResourcePackManager? = null
@@ -101,47 +98,28 @@ open class ArtisanPlugin : JavaPlugin() {
             val nexoForCapture = net.artisanmc.plugin.engine.NexoItemRenderer.tryInit()
             plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(File(plugin.dataFolder, "projects"), plugin.logger)
             plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger)
-            val api = ArtisanAPI(
-                plugin = plugin,
-                dataSources = DataSourceRegistry(),
-                commands = CommandRegistry(),
-                events = ModuleEventBus(),
-                schemas = SchemaRegistry(),
-                modules = registry,
-                coreVersion = plugin.description.version,
+            val api = ArtisanAPI.builder(
+                plugin,
+                DataSourceRegistry(),
+                CommandRegistry(),
+                ModuleEventBus(),
+                SchemaRegistry(),
+                registry,
+                plugin.description.version,
                 // The provider is created later (it needs the API): the reload
                 // resolves at call time, not at construction.
-                project = net.artisanmc.plugin.project.ProjectContentReader(plugin.projectRoots) {
+                net.artisanmc.plugin.project.ProjectContentReader(plugin.projectRoots) {
                     plugin.refreshProjectsFromDisk()
                 },
-                projectRoots = plugin.projectRoots,
-                database = plugin.database,
-                menus = net.artisanmc.plugin.provider.PaperMenuApi(
-                    provider = { if (plugin::menuProvider.isInitialized) plugin.menuProvider else null },
-                    sessions = { if (plugin::sessions.isInitialized) plugin.sessions else null },
-                    langOf = { if (plugin::langManager.isInitialized) plugin.langManager.playerLang(it) else "en" },
-                    scheduler = plugin.scheduler,
-                    events = plugin.menuEvents,
-                ),
-                scheduler = net.artisanmc.plugin.scheduling.PaperSchedulerApi,
-                placeholders = plugin.placeholders,
-                items = object : net.artisanmc.modules.api.ItemStackApi {
+            )
+                .projectRoots(plugin.projectRoots)
+                .items(object : net.artisanmc.modules.api.ItemStackApi {
                     override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                         net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
                     override fun describe(stack: org.bukkit.inventory.ItemStack): Map<String, Any> =
                         net.artisanmc.plugin.items.ItemDescriptor.derive(stack, nexoForCapture)
-                },
-                messages = object : net.artisanmc.modules.api.ModuleMessagesApi {
-                    override fun send(type: String, payload: Map<String, Any?>) {
-                        val m = HashMap<String, Any>()
-                        m["type"] = type
-                        payload.forEach { (k, v) -> if (v != null) m[k] = v }
-                        val sender = plugin.moduleMessageSender
-                        if (sender != null) sender(m)
-                        else plugin.logger.warning("[Artisan] module message '$type' dropped — not connected")
-                    }
-                },
-                actions = object : net.artisanmc.modules.api.ModuleActionsApi {
+                })
+                .actions(object : net.artisanmc.modules.api.ModuleActionsApi {
                     override fun execute(
                         player: org.bukkit.entity.Player,
                         actions: String,
@@ -185,8 +163,18 @@ open class ArtisanPlugin : JavaPlugin() {
                         }
                         plugin.scheduler.onPlayer(player.uniqueId, run::run)
                     }
-                },
-            )
+                })
+                .database(plugin.database)
+                .menus(net.artisanmc.plugin.provider.PaperMenuApi(
+                    provider = { if (plugin::menuProvider.isInitialized) plugin.menuProvider else null },
+                    sessions = { if (plugin::sessions.isInitialized) plugin.sessions else null },
+                    langOf = { if (plugin::langManager.isInitialized) plugin.langManager.playerLang(it) else "en" },
+                    scheduler = plugin.scheduler,
+                    events = plugin.menuEvents,
+                ))
+                .scheduler(net.artisanmc.plugin.scheduling.PaperSchedulerApi)
+                .placeholders(plugin.placeholders)
+                .build()
             // A module reports the core plugin version: ArtisanModule has no version of its own.
             registry.bind(api) {
                 if (plugin::menuProvider.isInitialized) {
@@ -204,7 +192,7 @@ open class ArtisanPlugin : JavaPlugin() {
         capturedItems.reload((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
         commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
         api.modules.active().forEach { runCatching { it.onReload() } }
-        api.events.publish(ConfigReloadEvent(moduleId = "menus"))
+        api.events.publish(ConfigReloadEvent("menus"))
     }
 
     /** PacketEvents is bundled in the jar (relocated): loaded here, initialized at the start of [onEnable]. */
@@ -618,7 +606,6 @@ open class ArtisanPlugin : JavaPlugin() {
 
         val provider = createProvider(cfg)
         menuProvider = provider
-        moduleMessageSender = { m -> provider.sendModuleMessage(m) }
         beforeLoad()
         // Before load(): the first hello already carries the custom items hash. Nexo and
         // Oraxen announce their items before Artisan starts (softdepend order).

@@ -50,8 +50,8 @@ class ArtisanPluginModuleWiringTest {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         var disabled = false
         plugin.api.modules.register(object : net.artisanmc.modules.api.ArtisanModule {
-            override val id = "homes"
-            override val schemaVersion = "homes/v1"
+            override fun getId() = "homes"
+            override fun getSchemaVersion() = "homes/v1"
             override fun onEnable(api: ArtisanAPI) {
                 api.commands.register(net.artisanmc.modules.api.CommandDeclaration("homes:go") { _, _ -> })
             }
