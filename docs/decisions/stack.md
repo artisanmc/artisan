@@ -96,7 +96,7 @@ Pas de React Flow : les menus Artisan ne sont pas des nœuds dans un graphe. Ce 
 
 ### Zustand + Zundo
 
-`accountStore.ts` est le store principal — mutations pack/menu/element/command + undo/redo via Zundo. `uiStore.ts` porte l'état UI pur (onglet actif, langue, dimensions). `wsStore.ts` portait la connexion WS et la fonction `publish()` ; supprimé avec `pluginBridge.ts` (issue #44).
+`accountStore.ts` est le store principal — ses mutations vivent par domaine dans `state/account/*Slice.ts` (projets, dialogues, commandes, menus, éléments, canvas, i18n, données), composées sous Zundo pour l'undo/redo (issue #46). `uiStore.ts` porte l'état UI pur (onglet actif, langue, dimensions). `wsStore.ts` portait la connexion WS et la fonction `publish()` ; supprimé avec `pluginBridge.ts` (issue #44).
 
 TanStack Query n'est pas utilisé (pas de data fetching server-side côté editor dans le MVP — l'état vit en localStorage).
 
