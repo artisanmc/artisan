@@ -11,7 +11,7 @@ import { Edges } from "./Edges";
 
 vi.mock("react-konva", () => ({
   Arrow: (props: Record<string, unknown>) => (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: stub test d'un nœud Konva (canvas, sans clavier) ; le div ne sert qu'à relayer fireEvent.click au handler
+    // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
       data-testid="konva-arrow"
       data-points={JSON.stringify(props.points)}

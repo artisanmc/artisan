@@ -391,7 +391,7 @@ export const useUiStore = create<UiState>()(
       version: 1,
       migrate: (persisted, version) => {
         const p = (persisted ?? {}) as Partial<UiState>;
-        // delete (not set undefined) so merge's {...current, ...p} keeps the
+        // Drop the key (not set undefined) so merge's {...current, ...p} keeps the
         // new default rather than spreading an explicit undefined over it.
         if (version < 1) {
           const { canvasMode: _dropped, ...rest } = p;

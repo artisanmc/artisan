@@ -89,7 +89,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
           onRowClick();
         }
       }}
-      // biome-ignore lint/a11y/useSemanticElements: la ligne contient elle-même des <button> (œil, menu) ; un <button> englobant produirait des boutons imbriqués, HTML invalide
+      // biome-ignore lint/a11y/useSemanticElements: the row itself holds <button>s (eye, menu); a wrapping <button> would nest buttons, which is invalid HTML
       role="button"
       tabIndex={0}
       className={cn(
@@ -111,7 +111,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
         {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
       </button>
 
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: poignée de glisser-déposer ; le onClick ne fait que stopper la propagation vers la ligne, aucune action à rendre au clavier */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: drag handle; onClick only stops propagation to the row, there is no action to offer on the keyboard */}
       <span
         data-testid="layer-list-item-drag"
         data-drag-handle="true"

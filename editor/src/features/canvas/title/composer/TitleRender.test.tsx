@@ -83,7 +83,7 @@ vi.mock("react-konva", () => ({
     listening?: boolean;
     onClick?: ClickHandler;
   }) => (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: stub test d'un nœud Konva (canvas, sans clavier) ; le div ne sert qu'à relayer fireEvent.click au handler
+    // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
       data-testid="rect"
       data-fill={props.fill}
@@ -109,7 +109,7 @@ vi.mock("react-konva", () => ({
     x?: number;
     y?: number;
   }) => (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: stub test d'un nœud Konva (canvas, sans clavier) ; le div ne sert qu'à relayer fireEvent.click au handler
+    // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
       data-testid="group"
       data-x={props.x}
@@ -233,7 +233,7 @@ vi.mock("./WidthResizeHandle", () => ({
     scale?: number;
     onResize: (w: number) => void;
   }) => (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: stub test d'un nœud Konva (canvas, sans clavier) ; le div ne sert qu'à relayer fireEvent.click au handler
+    // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
       data-testid="width-resize-handle"
       data-x={props.x}
