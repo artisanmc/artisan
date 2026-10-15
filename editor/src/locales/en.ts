@@ -1535,8 +1535,6 @@ export default {
     signIn: "Sign in",
   },
   auth: {
-    privacy: "Privacy",
-    terms: "Terms",
     logout: "Sign out",
   },
   placeholderInput: {
