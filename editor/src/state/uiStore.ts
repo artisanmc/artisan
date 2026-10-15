@@ -229,9 +229,8 @@ export const useUiStore = create<UiState>()(
         import("./authStore").then(({ useAuthStore }) => {
           const user = useAuthStore.getState().currentUser;
           if (!user) return;
-          const apiUrl = import.meta.env.VITE_API_URL ?? "";
           import("@/lib/api/auth").then(({ patchMe }) =>
-            patchMe({ apiUrl }, { editor_language: lang }).catch(() => {
+            patchMe({ editor_language: lang }).catch(() => {
               console.warn("editor_language sync to backend failed (offline?)");
             }),
           );

@@ -25,6 +25,27 @@ even if its acknowledgement is lost. The plugin confirms the durable write befor
 runtime reload, which separately announces `projects_reloaded`. Regression coverage:
 `editor/src/lib/api/projectDrafts.test.ts` (28-second success and server timeout).
 
+## Client API (`lib/api/client.ts`, issue #45)
+
+Un seul transport vers le hub : `apiFetch(path, init)` (réponse JSON) et `apiRequest(path,
+init)` (la `Response`, pour les binaires et les routes dont le statut fait partie du contrat,
+comme le 202 de `rename`). `API_URL` est déclaré là et nulle part ailleurs ; le cookie de
+session part avec chaque appel ; `init.json` encode le corps, `init.timeoutMs` pose un
+délai local. Tout `lib/api/*` et chaque appel ponctuel (textures de tête, placeholders PAPI,
+images authentifiées, rendu de modèles, pack de ressources) passent par là : plus de `fetch`
+brut dans `src/`.
+
+Une seule classe d'erreur, `ApiError { code, status, body, detail }` : `code` est l'`error` du
+hub (`http_<statut>` s'il n'en envoie pas, `hasCode` le dit), `status` le statut HTTP ;
+une panne de transport est `network_error` (statut 0), un délai local `fetch_timeout` (504,
+comme le hub pour un plugin muet), une annulation `aborted`. `ApiError.from(e)` normalise
+n'importe quelle exception. Les modules qui rendent un résultat `{ok:false, error}` classent
+par `code` (jamais par statut seul), `network_error` à part. `DraftApiError` est le cas des
+routes de brouillon (`draft`, `conflicts`, `diskFiles` lus dans le corps) ;
+`AuthUnreachableError` et `ServerConfigError` ont disparu : `getMe` rejette une `ApiError`
+pour tout ce qui n'est pas un 401, `patchServerConfig` rejette l'`ApiError` du hub (`detail`
+porte l'explication du plugin). Tests : `src/lib/api/client.test.ts`.
+
 ## Image buttons
 
 `Appearance.image = { asset, fit?: "native" | "contain" | "stretch", offset_x?, offset_y? }` selects a project PNG

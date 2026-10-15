@@ -82,9 +82,9 @@ describe("ServerConfigSection", () => {
   });
 
   it("explains the plugin's refusal with the field's label", async () => {
-    const { ServerConfigError } = await import("@/lib/api/serverConfig");
+    const { ApiError } = await import("@/lib/api/client");
     api.patchServerConfig.mockRejectedValue(
-      new ServerConfigError("invalid_config", "resource-pack.delegate-to-dir: unsafe_path"),
+      new ApiError("invalid_config", 422, null, "resource-pack.delegate-to-dir: unsafe_path"),
     );
     renderSection();
     fireEvent.change(await screen.findByLabelText("Langue"), { target: { value: "xx" } });
