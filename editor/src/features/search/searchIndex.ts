@@ -2,6 +2,7 @@ import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import { getText } from "@/lib/i18n";
 import { parsePositions } from "@/lib/positions";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export type SearchGroup = "menu" | "command" | "dialog" | "content";
 
@@ -25,7 +26,7 @@ function entry(partial: Omit<SearchEntry, "haystack">): SearchEntry {
 export function buildSearchIndex(project: Project, activeLang: string): SearchEntry[] {
   const out: SearchEntry[] = [];
 
-  for (const menu of project.menus ?? []) {
+  for (const menu of menusOf(project)) {
     const lt = getFirstTitleText(menu);
     const menuLabel = (lt ? getText(project, lt, activeLang) : "") || menu.id;
     out.push(
@@ -82,7 +83,7 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
     }
   }
 
-  for (const cmd of project.commands ?? []) {
+  for (const cmd of commandsOf(project)) {
     out.push(
       entry({
         id: `command:${cmd.id}`,
@@ -93,7 +94,7 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
     );
   }
 
-  for (const dialog of project.dialogs ?? []) {
+  for (const dialog of dialogsOf(project)) {
     const dlabel = getText(project, dialog.title, activeLang) || dialog.id;
     out.push(
       entry({

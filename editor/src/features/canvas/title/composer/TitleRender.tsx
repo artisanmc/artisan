@@ -18,6 +18,7 @@ import { WidthResizeHandle } from "./WidthResizeHandle";
 import { snapDragPosition } from "./snap";
 import { useTitleLayerDrag } from "./useTitleLayerDrag";
 import { asTextFrame, patchTextFrame, textAnchorOffset } from "./textFrame";
+import { menusOf } from "@/domain/documents";
 
 const TAG_RX = /<[^>]+>/g;
 
@@ -157,7 +158,7 @@ interface TitleRenderProps {
  */
 export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = project?.menus.find((m) => m.id === menuId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
   const selectedLayerKey = useUiStore((s) => s.selectedLayerKey);
@@ -169,7 +170,8 @@ export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const previewCtx = useMemo(
-    () => (project && menu ? buildPreviewScope(menu, project, snapshots, menuPreviewArgs[menuId]) : {}),
+    () =>
+      project && menu ? buildPreviewScope(menu, project, snapshots, menuPreviewArgs[menuId]) : {},
     [project, menu, snapshots, menuPreviewArgs, menuId],
   );
 
@@ -220,7 +222,12 @@ export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
             : undefined;
         const text =
           layer.kind === "text" || layer.kind === "plain" || layer.kind === "textarea"
-            ? renderPreview(getText(project, layer.value, activeLang), previewCtx, project, activeLang)
+            ? renderPreview(
+                getText(project, layer.value, activeLang),
+                previewCtx,
+                project,
+                activeLang,
+              )
             : "";
         const selected = selectedLayerKey?.menuId === menuId && selectedLayerKey?.index === idx;
 
@@ -386,7 +393,8 @@ function LayerNode({
       : [];
   const textareaTotalH =
     layer.kind === "textarea"
-      ? Math.max(0, textareaLines.length - 1) * layer.lineHeight + Math.max(layer.lineHeight, layer.size ?? 8)
+      ? Math.max(0, textareaLines.length - 1) * layer.lineHeight +
+        Math.max(layer.lineHeight, layer.size ?? 8)
       : 0;
 
   // Per-kind body. Background and glyph share the image path.
@@ -437,42 +445,40 @@ function LayerNode({
     const lines = hardLines.flatMap((l) =>
       wrapLineJs(l, Math.floor((layer.width * 8) / (layer.size ?? 8))),
     );
-    body = (
-      lines.map((line, i) => {
-          const lineWidth = Math.floor(measureLineWidthJs(line) * (layer.size ?? 8) / 8);
-          const lineX =
-            layer.alignment === "center"
-              ? (anchorOffset - Math.floor(lineWidth / 2)) * scale
-              : layer.alignment === "right"
-                ? (anchorOffset - lineWidth) * scale
-                : 0;
-          const lineY = i * layer.lineHeight * scale;
-          return fontAsset ? (
-            <McFontText
-              // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
-              key={i}
-              text={line}
-              font={fontAsset}
-              x={lineX}
-              y={lineY + (fontRefAscent != null ? fontRefAscent * scale : BASELINE_Y_PX * scale)}
-              scale={scale}
-              listening={false}
-            />
-          ) : (
-            <VanillaMcText
-              // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
-              key={i}
-              source={line}
-              x={lineX}
-              y={lineY}
-              scale={scale}
-              sizeScale={(layer.size ?? 8) / 8}
-              defaultColor="#404040"
-              listening={false}
-            />
-          );
-        })
-    );
+    body = lines.map((line, i) => {
+      const lineWidth = Math.floor((measureLineWidthJs(line) * (layer.size ?? 8)) / 8);
+      const lineX =
+        layer.alignment === "center"
+          ? (anchorOffset - Math.floor(lineWidth / 2)) * scale
+          : layer.alignment === "right"
+            ? (anchorOffset - lineWidth) * scale
+            : 0;
+      const lineY = i * layer.lineHeight * scale;
+      return fontAsset ? (
+        <McFontText
+          // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
+          key={i}
+          text={line}
+          font={fontAsset}
+          x={lineX}
+          y={lineY + (fontRefAscent != null ? fontRefAscent * scale : BASELINE_Y_PX * scale)}
+          scale={scale}
+          listening={false}
+        />
+      ) : (
+        <VanillaMcText
+          // biome-ignore lint/suspicious/noArrayIndexKey: stateless rendered lines follow their visual row.
+          key={i}
+          source={line}
+          x={lineX}
+          y={lineY}
+          scale={scale}
+          sizeScale={(layer.size ?? 8) / 8}
+          defaultColor="#404040"
+          listening={false}
+        />
+      );
+    });
   } else if (layer.kind === "external_glyph") {
     // external_glyph — runtime resolves these; in the editor we show a
     // dashed placeholder labelled with `provider:glyphName`.
@@ -561,14 +567,7 @@ function LayerNode({
       {/* Hit area — only listening when selected. Unselected layers are
           click-through so the underlying menu remains reachable. When
           selected, this Rect captures pointer events for drag and click. */}
-      <Rect
-        x={0}
-        y={0}
-        width={hitW}
-        height={hitH}
-        fill="rgba(0,0,0,0.001)"
-        listening={selected}
-      />
+      <Rect x={0} y={0} width={hitW} height={hitH} fill="rgba(0,0,0,0.001)" listening={selected} />
       {body}
       {selected ? (
         <>
@@ -605,4 +604,3 @@ function LayerNode({
     </Group>
   );
 }
-

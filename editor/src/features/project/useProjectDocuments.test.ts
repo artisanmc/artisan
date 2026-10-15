@@ -1,18 +1,38 @@
 import { describe, expect, it } from "vitest";
 import type { Project, ProjectId } from "@/domain/types";
 import { buildProjectDocuments } from "./useProjectDocuments";
+import { menusOf } from "@/domain/documents";
 
 const PID = "p1" as ProjectId;
 function project(): Project {
   return {
-    id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
-    menus: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any],
-    commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+    id: PID,
+    name: "p",
+    source: "user_created",
+    createdAt: "",
+    updatedAt: "",
+    documents: {
+      menu: [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any],
+      command: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+      dialog: [
+        {
+          id: "d1",
+          projectId: PID,
+          title: { key: "k_d1" },
+          canCloseWithEscape: true,
+          body: [],
+          inputs: [],
+          buttons: [],
+        } as any,
+      ],
+    },
     // title is an LText ref — key "k_d1" resolved via i18nKeys below
-    dialogs: [{ id: "d1", projectId: PID, title: { key: "k_d1" }, canCloseWithEscape: true, body: [], inputs: [], buttons: [] } as any],
-    assets: [], dataSources: [], importedConnectors: [],
+    assets: [],
+    dataSources: [],
+    importedConnectors: [],
     i18nKeys: { k_d1: { en: "Confirm" } } as any,
-    defaultLang: "en", canvasLayout: { m1: { x: 0, y: 0 } } as any,
+    defaultLang: "en",
+    canvasLayout: { m1: { x: 0, y: 0 } } as any,
   } as Project;
 }
 
@@ -32,7 +52,7 @@ describe("buildProjectDocuments", () => {
   it("menu label is always the id, even when the menu has a title", () => {
     const p = project();
     // Give the menu a resolvable text title; the panel must STILL show the id.
-    (p.menus as any)[0].title = [{ kind: "text", value: { key: "k_m1" } }];
+    (menusOf(p) as any)[0].title = [{ kind: "text", value: { key: "k_m1" } }];
     (p.i18nKeys as any).k_m1 = { en: "Shop" };
     const groups = buildProjectDocuments(p, "en");
     const menus = groups.find((g) => g.type === "menu")!;

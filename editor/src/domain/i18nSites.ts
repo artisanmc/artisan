@@ -32,6 +32,7 @@ import type {
   Project,
   Step,
 } from "./types";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 /**
  * Single traversal of every localizable-text **key site** in a project tree.
@@ -250,7 +251,14 @@ function* visitModelValueLTexts(
   switch (type.kind) {
     case "item": {
       const obj = value as Record<string, unknown>;
-      for (const field of itemTextFields(value)) yield* visitModelValueLTexts(obj[field.name], field.type, base + "." + field.name, models, visited);
+      for (const field of itemTextFields(value))
+        yield* visitModelValueLTexts(
+          obj[field.name],
+          field.type,
+          base + "." + field.name,
+          models,
+          visited,
+        );
       return;
     }
     case "ltext":
@@ -370,9 +378,9 @@ export function* visitDataSourceLTexts(project: Project, ds: DataSource): Genera
 
 /** Yield every key site in a project: menus, commands, dialogs, sources. */
 export function* visitProjectLTexts(project: Project): Generator<LTextSite> {
-  for (const menu of project.menus ?? []) yield* visitMenuLTexts(menu);
-  for (const cmd of project.commands ?? []) yield* visitCommandLTexts(cmd);
-  for (const dlg of project.dialogs ?? []) yield* visitDialogLTexts(dlg);
+  for (const menu of menusOf(project)) yield* visitMenuLTexts(menu);
+  for (const cmd of commandsOf(project)) yield* visitCommandLTexts(cmd);
+  for (const dlg of dialogsOf(project)) yield* visitDialogLTexts(dlg);
   for (const ds of project.dataSources ?? []) yield* visitDataSourceLTexts(project, ds);
 }
 
@@ -398,7 +406,8 @@ export function adoptBareLTexts(project: Project, ds: DataSource): void {
       case "item": {
         if (!value || typeof value !== "object" || Array.isArray(value)) return value;
         const obj = { ...value } as Record<string, unknown>;
-        for (const field of itemTextFields(value)) obj[field.name] = adopt(obj[field.name], field.type, base + "." + field.name, visited);
+        for (const field of itemTextFields(value))
+          obj[field.name] = adopt(obj[field.name], field.type, base + "." + field.name, visited);
         return obj;
       }
       case "ltext": {

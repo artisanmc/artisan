@@ -6,10 +6,11 @@ import type { Menu } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { useAccountStore } from "@/state/accountStore";
 import { VanillaTextureLayer } from "./VanillaTextureLayer";
+import { menusOf } from "@/domain/documents";
 
 const PERSONAL = projectId("p_personal");
 const menu = () =>
-  useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!.menus[0]!;
+  menusOf(useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!)[0]!;
 
 describe("VanillaTextureLayer", () => {
   beforeEach(() => useAccountStore.setState({ account: mockAccount() }));

@@ -4,6 +4,7 @@ import type { Project } from "@/domain/types";
 import type { SearchEntry } from "@/features/search/searchIndex";
 import { getText } from "@/lib/i18n";
 import { projectUrlId } from "@/lib/projectUrlId";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export type IndexedKind = "menu" | "command" | "dialog";
 
@@ -37,12 +38,12 @@ export function indexProjectDocuments(project: Project, lang: string): IndexedDo
     label,
   });
   return [
-    ...(project.menus ?? []).map((menu) => {
+    ...menusOf(project).map((menu) => {
       const title = getFirstTitleText(menu);
       return doc(menu.id, "menu", (title ? getText(project, title, lang) : "") || menu.id);
     }),
-    ...(project.commands ?? []).map((command) => doc(command.id, "command", `/${command.name}`)),
-    ...(project.dialogs ?? []).map((dialog) =>
+    ...commandsOf(project).map((command) => doc(command.id, "command", `/${command.name}`)),
+    ...dialogsOf(project).map((dialog) =>
       doc(dialog.id, "dialog", getText(project, dialog.title, lang) || dialog.id),
     ),
   ];

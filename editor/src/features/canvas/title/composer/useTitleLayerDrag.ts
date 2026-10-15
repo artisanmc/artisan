@@ -2,6 +2,7 @@ import { useCallback } from "react";
 
 import type { MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { menusOf } from "@/domain/documents";
 
 export interface UseTitleLayerDragArgs {
   menuId: MenuId;
@@ -15,7 +16,7 @@ export interface UseTitleLayerDragHandlers {
 function findMenu(menuId: MenuId): { projectId: ProjectId; layer: MenuTitleLayer[] } | null {
   const projects = useAccountStore.getState().account.projects;
   for (const project of projects) {
-    const menu = project.menus.find((m) => m.id === menuId);
+    const menu = menusOf(project).find((m) => m.id === menuId);
     if (menu) return { projectId: project.id, layer: menu.title };
   }
   return null;

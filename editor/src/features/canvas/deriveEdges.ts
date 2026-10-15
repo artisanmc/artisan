@@ -1,6 +1,7 @@
 import { addressedAppearances } from "@/domain/element";
 import { walkActions } from "@/domain/stepPath";
 import type { Project } from "@/domain/types";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export type EdgeTrigger =
   | { kind: "element"; elementId: string; material: string; clickType: string }
@@ -40,7 +41,7 @@ export function deriveEdges(project: Project): Edge[] {
     }
   };
 
-  for (const menu of project.menus) {
+  for (const menu of menusOf(project)) {
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
         for (const appearance of addressedAppearances(el)) {
@@ -71,7 +72,7 @@ export function deriveEdges(project: Project): Edge[] {
     }
   }
 
-  for (const cmd of project.commands) {
+  for (const cmd of commandsOf(project)) {
     for (const action of walkActions(cmd.steps)) {
       if (action.type === "open_menu") {
         addTrigger(cmd.id, action.menuId, { kind: "command", commandId: cmd.id });
@@ -81,7 +82,7 @@ export function deriveEdges(project: Project): Edge[] {
     }
   }
 
-  for (const dialog of project.dialogs ?? []) {
+  for (const dialog of dialogsOf(project)) {
     for (const btn of dialog.buttons) {
       for (const action of walkActions(btn.steps)) {
         if (action.type === "open_menu") {

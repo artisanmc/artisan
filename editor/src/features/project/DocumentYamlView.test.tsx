@@ -30,9 +30,11 @@ function project(): Project {
     id: "p1" as ProjectId,
     diskId: "boutique",
     name: "B",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     i18nKeys: {},
   } as unknown as Project;
 }
@@ -51,13 +53,7 @@ describe("DocumentYamlView", () => {
   });
 
   it("writes exactly the typed text, comments and spacing included", async () => {
-    render(
-      <DocumentYamlView
-        project={project()}
-        relPath="menus/accueil.yaml"
-        serverId="s1"
-      />,
-    );
+    render(<DocumentYamlView project={project()} relPath="menus/accueil.yaml" serverId="s1" />);
     const edited = "# portage zMenu, corrigé\nschema: menu/v1\n\nsize:   54\n";
     fireEvent.change(screen.getByLabelText("menus/accueil.yaml"), { target: { value: edited } });
     fireEvent.click(screen.getByRole("button", { name: /Save|Enregistrer/ }));
@@ -69,30 +65,20 @@ describe("DocumentYamlView", () => {
   });
 
   it("goes through compare-and-swap like any other write", async () => {
-    render(
-      <DocumentYamlView
-        project={project()}
-        relPath="menus/accueil.yaml"
-        serverId="s1"
-      />,
-    );
+    render(<DocumentYamlView project={project()} relPath="menus/accueil.yaml" serverId="s1" />);
     fireEvent.change(screen.getByLabelText("menus/accueil.yaml"), { target: { value: "x\n" } });
     fireEvent.click(screen.getByRole("button", { name: /Save|Enregistrer/ }));
 
     await waitFor(() => expect(writeProjectFiles).toHaveBeenCalled());
     // The hash covers the LOADED content, not the new one: writing verbatim does
     // not skip checking that the disk has not moved.
-    expect(vi.mocked(writeProjectFiles).mock.calls[0]![1].files[0]!.base_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(vi.mocked(writeProjectFiles).mock.calls[0]![1].files[0]!.base_hash).toMatch(
+      /^[0-9a-f]{64}$/,
+    );
   });
 
   it("saves nothing while the text has not changed", () => {
-    render(
-      <DocumentYamlView
-        project={project()}
-        relPath="menus/accueil.yaml"
-        serverId="s1"
-      />,
-    );
+    render(<DocumentYamlView project={project()} relPath="menus/accueil.yaml" serverId="s1" />);
     expect(screen.getByRole("button", { name: /Save|Enregistrer/ })).toBeDisabled();
   });
 });

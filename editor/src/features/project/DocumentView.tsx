@@ -15,6 +15,7 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { useTranslation } from "react-i18next";
 import { documentLabel } from "./useProjectDocuments";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export function DocumentView({
   projectId,
@@ -32,9 +33,9 @@ export function DocumentView({
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   const eid = documentId as string;
   const [yamlMode, setYamlMode] = useState(false);
-  const menu = project?.menus.find((m) => m.id === eid);
-  const command = project?.commands.find((c) => c.id === eid);
-  const dialog = project?.dialogs.find((d) => d.id === eid);
+  const menu = menusOf(project).find((m) => m.id === eid);
+  const command = commandsOf(project).find((c) => c.id === eid);
+  const dialog = dialogsOf(project).find((d) => d.id === eid);
   const relPath = project ? documentRelPath(project, eid) : null;
 
   useEffect(() => {

@@ -5,6 +5,7 @@ import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { slotMcXY } from "./inventoryTypes";
 import { TEX_FIRST_SLOT_X, TEX_SCALE, TEX_SLOT_STRIDE, TEX_TITLE_H } from "./menuLayout";
+import { menusOf } from "@/domain/documents";
 
 /** Build a one-menu project of the given inventory type at layout origin {0,0}. */
 function singleMenuProject(inventoryType: InventoryType): {
@@ -20,7 +21,7 @@ function singleMenuProject(inventoryType: InventoryType): {
     inventoryType,
     layers: [],
   } as unknown as Menu;
-  const project = { menus: [menu], commands: [], dialogs: [] } as unknown as Project;
+  const project = { documents: { menu: [menu], command: [], dialog: [] } } as unknown as Project;
   return { project, layout: { [id]: { x: 0, y: 0 } }, menuId: id };
 }
 
@@ -33,7 +34,7 @@ describe("hitTestSlot", () => {
   });
 
   it("returns the chest slot under the cursor", () => {
-    const menu = personal.menus[0]!;
+    const menu = menusOf(personal)[0]!;
     const pos = layout[menu.id]!;
     // Aim at slot index 13 (row 1, col 4) — center of the cell.
     const col = 13 % 9;
@@ -44,7 +45,7 @@ describe("hitTestSlot", () => {
   });
 
   it("returns null when the point falls in the title bar above the chest grid", () => {
-    const menu = personal.menus[0]!;
+    const menu = menusOf(personal)[0]!;
     const pos = layout[menu.id]!;
     // Aim inside the title bar.
     const x = pos.x + TEX_FIRST_SLOT_X + 10;
@@ -53,7 +54,7 @@ describe("hitTestSlot", () => {
   });
 
   it("returns null when the point falls in the player-inv area below the chest grid", () => {
-    const menu = personal.menus[0]!;
+    const menu = menusOf(personal)[0]!;
     const pos = layout[menu.id]!;
     // Just past the chest grid bottom.
     const x = pos.x + TEX_FIRST_SLOT_X + 10;
@@ -102,7 +103,7 @@ describe("screenToWorld", () => {
 describe("hitTestSlot — player inventory (player_inventory: hidden)", () => {
   function chest(playerInventory?: "hidden") {
     const { project, layout, menuId } = singleMenuProject("chest");
-    if (playerInventory) (project.menus[0] as Menu).playerInventory = playerInventory;
+    if (playerInventory) (menusOf(project)[0] as Menu).playerInventory = playerInventory;
     return { project, layout, menuId };
   }
   const center = (mc: { x: number; y: number }) => ({

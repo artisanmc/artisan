@@ -1,16 +1,12 @@
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 interface NewDialogDialogProps {
   projectId: ProjectId;
@@ -27,9 +23,9 @@ export function NewDialogDialog({ projectId, open, position, onOpenChange }: New
     const project = s.account.projects.find((p) => p.id === projectId);
     if (!project) return "";
     return [
-      ...project.dialogs.map((d) => d.id),
-      ...project.menus.map((m) => m.id),
-      ...project.commands.map((c) => c.id),
+      ...dialogsOf(project).map((d) => d.id),
+      ...menusOf(project).map((m) => m.id),
+      ...commandsOf(project).map((c) => c.id),
     ].join(",");
   });
   const existingIds = new Set(existingIdsStr ? existingIdsStr.split(",") : []);
@@ -40,7 +36,9 @@ export function NewDialogDialog({ projectId, open, position, onOpenChange }: New
 
   const submit = () => {
     if (!trimmed || conflict) return;
-    const dialogId = useAccountStore.getState().createDialog({ projectId, id: prefixedId, position });
+    const dialogId = useAccountStore
+      .getState()
+      .createDialog({ projectId, id: prefixedId, position });
     useSelectionStore.getState().set([dialogId]);
     setId("");
     onOpenChange(false);
@@ -58,12 +56,15 @@ export function NewDialogDialog({ projectId, open, position, onOpenChange }: New
               placeholder="confirm_buy"
               value={id}
               onChange={(e) => setId(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
               autoFocus
             />
             {prefixedId && !conflict && (
               <span className="font-mono text-xs text-[var(--text-mut)]">
-                {t("canvas.idPreviewLabel")} <span className="text-[var(--text-mut)]">{prefixedId}</span>
+                {t("canvas.idPreviewLabel")}{" "}
+                <span className="text-[var(--text-mut)]">{prefixedId}</span>
               </span>
             )}
             {conflict && (
@@ -71,8 +72,12 @@ export function NewDialogDialog({ projectId, open, position, onOpenChange }: New
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>{t("canvas.cancel")}</Button>
-            <Button onClick={submit} disabled={!trimmed || conflict}>{t("canvas.create")}</Button>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              {t("canvas.cancel")}
+            </Button>
+            <Button onClick={submit} disabled={!trimmed || conflict}>
+              {t("canvas.create")}
+            </Button>
           </div>
         </div>
       </DialogContent>

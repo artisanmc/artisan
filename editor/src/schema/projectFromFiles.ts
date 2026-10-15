@@ -31,10 +31,11 @@ import type {
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
 import { parse as parseYaml } from "yaml";
-import { commandV1ToDomain } from "./commandV1ToDomain";
-import { dialogV1ToDomain } from "./dialogV1ToDomain";
 import { normalizeBaseLore } from "@/domain/baseLore";
-import { makeAppearanceConverter, menuV1ToDomain } from "./menuV1ToDomain";
+import { listDocumentKinds } from "@/domain/documentKinds";
+import { documentIds as documentIdsOf, emptyDocuments, menusOf } from "@/domain/documents";
+import { documentCodec } from "./documentCodecs";
+import { makeAppearanceConverter } from "./menuV1ToDomain";
 
 // biome-ignore lint/suspicious/noExplicitAny: untyped wire objects — fields read by snake name
 type Json = Record<string, any>;
@@ -46,7 +47,8 @@ interface ManifestYaml {
   languages?: string[];
   lore_max_width?: number;
   escape_goes_back?: boolean;
-  files?: { menus?: string[]; commands?: string[]; dialogs?: string[] };
+  /** Legacy, keyed by document folder (`menus`, `commands`, `dialogs`). */
+  files?: Record<string, string[] | undefined>;
   /** Legacy home of the board state (pre `.artisan/editor.yaml`). */
   editor_layout?: Record<string, unknown>;
   editor_edges?: Record<string, unknown>;
@@ -328,7 +330,8 @@ function importDataValue(
     case "item": {
       if (!value || typeof value !== "object" || Array.isArray(value)) return value;
       const out = { ...value } as Record<string, unknown>;
-      for (const field of itemTextFields(value)) out[field.name] = importDataValue(out[field.name], field.type, models, visited, ref);
+      for (const field of itemTextFields(value))
+        out[field.name] = importDataValue(out[field.name], field.type, models, visited, ref);
       return out;
     }
     case "ltext":
@@ -392,17 +395,18 @@ function importDataValue(
 const MODULE_DIR_RE = /^[a-z][a-z0-9_-]*$/;
 
 /** Dirs and files owned by the core importer — everything else under a slug
- *  dir belongs to a module (`moduleData[ns].__files`). */
-const CORE_PREFIXES = [
-  "menus/",
-  "commands/",
-  "dialogs/",
-  "lang/",
-  "items/",
-  "templates/",
-  "models/",
-  "data/",
-];
+ *  dir belongs to a module (`moduleData[ns].__files`). The document folders
+ *  come from the kind registry: a kind nobody registered is module data. */
+function corePrefixes(): string[] {
+  return [
+    ...listDocumentKinds().map((def) => `${def.dir}/`),
+    "lang/",
+    "items/",
+    "templates/",
+    "models/",
+    "data/",
+  ];
+}
 const CORE_FILES = new Set(["manifest.yaml", "meta.yaml"]);
 
 interface LegacyTemplate {
@@ -501,36 +505,23 @@ export function projectFromFiles(
 
   const convertOpts = { projectId, lang: defaultLang, translations };
 
-  const menus = documentIds(files, projectId, "menus", manifest.files?.menus).flatMap((menuId) => {
-    const y = tryParse<Json>(getFile(files, projectId, `menus/${menuId}.yaml`));
-    if (!y) return [];
-    const r = menuV1ToDomain({ ...y, id: menuId }, convertOpts);
-    Object.assign(i18nKeys, r.i18nKeys);
-    unsupported.push(...r.unsupported);
-    return [r.menu];
-  });
-
-  const commands = documentIds(files, projectId, "commands", manifest.files?.commands).flatMap(
-    (cmdId) => {
-      const y = tryParse<Json>(getFile(files, projectId, `commands/${cmdId}.yaml`));
-      if (!y) return [];
-      const r = commandV1ToDomain({ ...y, id: cmdId }, convertOpts);
-      Object.assign(i18nKeys, r.i18nKeys);
-      unsupported.push(...r.unsupported);
-      return [r.command];
-    },
-  );
-
-  const dialogs = documentIds(files, projectId, "dialogs", manifest.files?.dialogs).flatMap(
-    (dlgId) => {
-      const y = tryParse<Json>(getFile(files, projectId, `dialogs/${dlgId}.yaml`));
-      if (!y) return [];
-      const r = dialogV1ToDomain({ ...y, id: dlgId }, convertOpts);
-      Object.assign(i18nKeys, r.i18nKeys);
-      unsupported.push(...r.unsupported);
-      return [r.dialog];
-    },
-  );
+  // One folder per registered kind, each file through its kind's codec. The
+  // container is the project's only store of documents (ADR decision 10).
+  const documents = emptyDocuments();
+  for (const def of listDocumentKinds()) {
+    const codec = documentCodec(def.kind);
+    documents[def.kind] = documentIds(files, projectId, def.dir, manifest.files?.[def.dir]).flatMap(
+      (docId) => {
+        const y = tryParse<Json>(getFile(files, projectId, `${def.dir}/${docId}.yaml`));
+        if (!y) return [];
+        const r = codec.parse({ ...y, id: docId }, convertOpts);
+        Object.assign(i18nKeys, r.i18nKeys);
+        unsupported.push(...r.unsupported);
+        return [r.doc];
+      },
+    );
+  }
+  const menus = menusOf({ documents });
 
   // Shared i18n bridge for the file kinds without a per-document converter
   // (templates, data sources).
@@ -876,7 +867,7 @@ export function projectFromFiles(
   const moduleData: Record<string, { __files: Record<string, string> }> = Object.create(null);
   for (const [path, content] of Object.entries(files)) {
     const rel = relativeToProject(path, projectId);
-    if (CORE_FILES.has(rel) || CORE_PREFIXES.some((p) => rel.startsWith(p))) continue;
+    if (CORE_FILES.has(rel) || corePrefixes().some((p) => rel.startsWith(p))) continue;
     const slash = rel.indexOf("/");
     if (slash <= 0) continue; // top-level unknown files (and .artisan/*): ignored
     const dir = rel.slice(0, slash);
@@ -884,11 +875,7 @@ export function projectFromFiles(
     (moduleData[dir] ??= { __files: {} }).__files[rel.slice(slash + 1)] = content;
   }
 
-  const canvasGroups = normalizeCanvasGroups(editorState.groups, [
-    ...menus.map((m) => m.id),
-    ...commands.map((c) => c.id),
-    ...dialogs.map((d) => d.id),
-  ]);
+  const canvasGroups = normalizeCanvasGroups(editorState.groups, documentIdsOf({ documents }));
 
   const project: Project = {
     id: projectId,
@@ -904,8 +891,7 @@ export function projectFromFiles(
     ...(meta.serverKeyId ? { serverKeyId: meta.serverKeyId } : {}),
     createdAt: meta.createdAt ?? now,
     updatedAt: meta.updatedAt ?? now,
-    menus,
-    commands,
+    documents,
     ...(capturedItems.length > 0 ? { capturedItems } : {}),
     assets: [],
     dataSources,
@@ -915,7 +901,6 @@ export function projectFromFiles(
     ...(manifest.lore_max_width ? { loreMaxWidth: manifest.lore_max_width } : {}),
     ...(manifest.escape_goes_back === true ? { escapeGoesBack: true } : {}),
     ...(editorState.i18n_mode === "inline" ? { i18nMode: "inline" as const } : {}),
-    dialogs,
     canvasLayout: parseEditorLayout(editorState.layout),
     ...(canvasGroups.length ? { canvasGroups } : {}),
     ...(Object.keys(parseEditorEdges(editorState.edges)).length > 0

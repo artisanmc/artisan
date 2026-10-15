@@ -48,6 +48,7 @@ import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
 import { useServersStatus } from "./useServersStatus";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export function ProjectSidebar() {
   const { t } = useTranslation();
@@ -191,7 +192,10 @@ export function ProjectSidebar() {
   // follows edits). Recomputing it for every Project would cost a disk read
   // each just to fill a sidebar, so a Project never opened shows no badge.
   const liveCount = new Map(
-    localProjects.map((p) => [p.id, p.menus.length + p.commands.length + p.dialogs.length]),
+    localProjects.map((p) => [
+      p.id,
+      menusOf(p).length + commandsOf(p).length + dialogsOf(p).length,
+    ]),
   );
   const countFor = (p: ProjectSummary): number | null => liveCount.get(p.id as ProjectId) ?? null;
 

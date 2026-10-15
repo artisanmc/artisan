@@ -15,9 +15,13 @@ import { nodeBox } from "./menuLayout";
 import { findPreviewCallContexts } from "./previewCallContexts";
 import { nextCallContext } from "./previewCallNavigation";
 import { groupEdges } from "./groupedBoard";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 /** Keeps only the edges whose two ends are on the board. */
-export function visibleEdges(edges: Edge[], layout: Record<string, { x: number; y: number }>): Edge[] {
+export function visibleEdges(
+  edges: Edge[],
+  layout: Record<string, { x: number; y: number }>,
+): Edge[] {
   return edges.filter((e) => layout[e.source] && layout[e.target]);
 }
 
@@ -31,14 +35,14 @@ function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<str
   const out = new Set<string>();
   for (const id of ids) {
     if (
-      project.menus.some((m) => m.id === id) ||
-      project.commands.some((c) => c.id === id) ||
-      (project.dialogs ?? []).some((d) => d.id === id)
+      menusOf(project).some((m) => m.id === id) ||
+      commandsOf(project).some((c) => c.id === id) ||
+      dialogsOf(project).some((d) => d.id === id)
     ) {
       out.add(id);
       continue;
     }
-    for (const m of project.menus) {
+    for (const m of menusOf(project)) {
       if (m.layers.some((l) => l.elements.some((el) => el.id === id))) {
         out.add(m.id);
         break;
@@ -62,7 +66,7 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
    * Cf. ADR `parameterised-menu-over-menu-per-category`.
    */
   const enterEdge = (edge: Edge) => {
-    const target = project.menus.find((m) => m.id === edge.target);
+    const target = menusOf(project).find((m) => m.id === edge.target);
     if (!target || (target.contextInputs ?? []).length === 0) return;
     const contexts = findPreviewCallContexts(target, project, snapshots, activeLang);
     const next = nextCallContext(contexts, menuPreviewArgs[target.id], edge.source);
@@ -70,7 +74,13 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
     setMenuPreviewArgs(target.id, next.args);
   };
 
-  const highlightSet = useMemo(() => new Set([...deriveHighlightSet(project, selectedIds)].map((id) => representatives?.[id] ?? id)), [project, selectedIds, representatives]);
+  const highlightSet = useMemo(
+    () =>
+      new Set(
+        [...deriveHighlightSet(project, selectedIds)].map((id) => representatives?.[id] ?? id),
+      ),
+    [project, selectedIds, representatives],
+  );
   const hoveredEdgeId = useEdgeHoverStore((s) => s.edge?.id ?? null);
   const setHover = useEdgeHoverStore((s) => s.set);
   const moveHover = useEdgeHoverStore((s) => s.move);
@@ -85,15 +95,15 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
 
   const boxes = useMemo(() => {
     const out: Record<string, Box> = {};
-    for (const m of project.menus) {
+    for (const m of menusOf(project)) {
       const box = nodeBox(project, m.id, layout);
       if (box) out[m.id] = box;
     }
-    for (const c of project.commands) {
+    for (const c of commandsOf(project)) {
       const box = nodeBox(project, c.id, layout);
       if (box) out[c.id] = box;
     }
-    for (const d of project.dialogs ?? []) {
+    for (const d of dialogsOf(project)) {
       const box = nodeBox(project, d.id, layout);
       if (box) out[d.id] = box;
     }
@@ -120,7 +130,12 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
   }, [project.canvasEdges, dragOverride]);
 
   const routed = useMemo(
-    () => routeEdges({ edges: visibleEdges(groupEdges(deriveEdges(project), representatives ?? {}), boxes), boxes, overrides }),
+    () =>
+      routeEdges({
+        edges: visibleEdges(groupEdges(deriveEdges(project), representatives ?? {}), boxes),
+        boxes,
+        overrides,
+      }),
     [project, boxes, overrides, representatives],
   );
 
@@ -179,7 +194,9 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
           if (!box) return null;
           const pt = end === "from" ? selectedRouted.from : selectedRouted.to;
           const reset = () =>
-            useAccountStore.getState().clearEdgeAnchor({ projectId: project.id, edgeId: edge.id, end });
+            useAccountStore
+              .getState()
+              .clearEdgeAnchor({ projectId: project.id, edgeId: edge.id, end });
           return (
             <Circle
               key={`${edge.id}:${end}`}

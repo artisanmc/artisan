@@ -5,6 +5,7 @@ import { produce } from "immer";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
 import { useProjectDraftStore } from "./projectDraftStore";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 const PERSONAL = projectId("p_personal");
 const SHOP_MAIN = menuId("m_shop_main");
@@ -12,7 +13,7 @@ const PROFILE_BTN = elementId("el_btn_profile");
 
 const findElement = (mId = SHOP_MAIN, eId = PROFILE_BTN) => {
   const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-  const menu = project.menus.find((m) => m.id === mId)!;
+  const menu = menusOf(project).find((m) => m.id === mId)!;
   return menu.layers[0]!.elements.find((el) => el.id === eId);
 };
 
@@ -32,9 +33,9 @@ describe("accountStore", () => {
         const mId = useAccountStore.getState().createMenu({ projectId: PERSONAL, id: "m_set" });
         useAccountStore.setState((state) =>
           produce(state, (draft) => {
-            const menu = draft.account.projects
-              .find((p) => p.id === PERSONAL)!
-              .menus.find((m) => m.id === mId)!;
+            const menu = menusOf(draft.account.projects.find((p) => p.id === PERSONAL)!).find(
+              (m) => m.id === mId,
+            )!;
             menu.contextInputs = [
               { kind: "sourceRef", name: "items", ref: "boutique:items" as never },
             ];
@@ -55,7 +56,7 @@ describe("accountStore", () => {
         });
         expect(r.ok).toBe(true);
         const project = getProject();
-        const menu = project.menus.find((m) => m.id === mId)!;
+        const menu = menusOf(project).find((m) => m.id === mId)!;
         const el = menu.layers.flatMap((l) => l.elements).find((e) => e.iterates)!;
         expect(el.iterates).toEqual({ source: "items", alias: "item" }); // NO templateId
         expect(el.positions).not.toBe("");
@@ -78,8 +79,8 @@ describe("accountStore", () => {
           schema: SCHEMA,
         });
         expect(r.ok).toBe(true);
-        const el = getProject()
-          .menus.find((m) => m.id === mId)!
+        const el = menusOf(getProject())
+          .find((m) => m.id === mId)!
           .layers.flatMap((l) => l.elements)
           .find((e) => e.places)!;
         expect(el.places).toEqual({
@@ -144,8 +145,8 @@ describe("accountStore", () => {
       id: "d_test",
     });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    expect(project.dialogs).toHaveLength(1);
-    expect(project.dialogs[0]!.id).toBe("d_test");
+    expect(dialogsOf(project)).toHaveLength(1);
+    expect(dialogsOf(project)[0]!.id).toBe("d_test");
     expect(typeof dId).toBe("string");
   });
 
@@ -213,16 +214,14 @@ describe("accountStore", () => {
 
   it("setDialogTitle stores translation in i18nKeys", () => {
     useAccountStore.getState().createDialog({ projectId: PERSONAL, id: "d_greet" });
-    useAccountStore
-      .getState()
-      .setDialogTitle({
-        projectId: PERSONAL,
-        dialogId: dialogId("d_greet"),
-        lang: "en",
-        value: "Hello!",
-      });
+    useAccountStore.getState().setDialogTitle({
+      projectId: PERSONAL,
+      dialogId: dialogId("d_greet"),
+      lang: "en",
+      value: "Hello!",
+    });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const dialog = project.dialogs.find((d) => d.id === "d_greet")!;
+    const dialog = dialogsOf(project).find((d) => d.id === "d_greet")!;
     expect(project.i18nKeys[dialog.title.key]!["en"]).toBe("Hello!");
   });
 
@@ -253,7 +252,7 @@ describe("accountStore", () => {
       .createDialog({ projectId: PERSONAL, id: "d_bye", position: { x: 10, y: 10 } });
     useAccountStore.getState().deleteFromProject({ projectId: PERSONAL, nodeIds: ["d_bye"] });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    expect(project.dialogs.some((d) => d.id === "d_bye")).toBe(false);
+    expect(dialogsOf(project).some((d) => d.id === "d_bye")).toBe(false);
     expect((project.canvasLayout as Record<string, unknown>)["d_bye"]).toBeUndefined();
   });
 
@@ -315,7 +314,7 @@ describe("accountStore", () => {
       .getState()
       .addDialogButton({ projectId: PERSONAL, dialogId: dialogId("d_multi") });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const d = project.dialogs.find((d) => d.id === "d_multi")!;
+    const d = dialogsOf(project).find((d) => d.id === "d_multi")!;
     expect(d.buttons).toHaveLength(2); // default btn_confirm + new one
   });
 
@@ -369,9 +368,9 @@ describe("accountStore", () => {
     const a = useAccountStore.getState().account;
     const from = a.projects.find((p) => p.id === fromId)!;
     const to = a.projects.find((p) => p.id === toId)!;
-    expect(from.menus.some((m) => m.id === menuToMove)).toBe(false);
-    expect(to.menus.some((m) => m.id === menuToMove)).toBe(true);
-    expect(to.menus.find((m) => m.id === menuToMove)!.projectId).toBe(toId);
+    expect(menusOf(from).some((m) => m.id === menuToMove)).toBe(false);
+    expect(menusOf(to).some((m) => m.id === menuToMove)).toBe(true);
+    expect(menusOf(to).find((m) => m.id === menuToMove)!.projectId).toBe(toId);
   });
 
   it("moveMenuToProject succeeds even when refs become dangling", () => {
@@ -387,10 +386,10 @@ describe("accountStore", () => {
       .moveMenuToProject({ menuId: sourceMenu, fromProjectId: fromId, toProjectId: toId });
 
     const a = useAccountStore.getState().account;
-    expect(a.projects.find((p) => p.id === fromId)!.menus.some((m) => m.id === sourceMenu)).toBe(
+    expect(menusOf(a.projects.find((p) => p.id === fromId)!).some((m) => m.id === sourceMenu)).toBe(
       false,
     );
-    expect(a.projects.find((p) => p.id === toId)!.menus.some((m) => m.id === sourceMenu)).toBe(
+    expect(menusOf(a.projects.find((p) => p.id === toId)!).some((m) => m.id === sourceMenu)).toBe(
       true,
     );
   });
@@ -399,7 +398,7 @@ describe("accountStore", () => {
     const pId = projectId("p_personal");
     useAccountStore.getState().deleteFromProject({ projectId: pId, nodeIds: ["m_about"] });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === pId)!;
-    expect(project.menus.some((m) => m.id === "m_about")).toBe(false);
+    expect(menusOf(project).some((m) => m.id === "m_about")).toBe(false);
     expect("m_about" in project.canvasLayout).toBe(false);
   });
 
@@ -410,7 +409,7 @@ describe("accountStore", () => {
     const pId = projectId("p_personal");
     useAccountStore.getState().deleteFromProject({ projectId: pId, nodeIds: ["m_profile"] });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === pId)!;
-    expect(project.menus.some((m) => m.id === "m_profile")).toBe(false);
+    expect(menusOf(project).some((m) => m.id === "m_profile")).toBe(false);
   });
 
   it("setSlotMaterial updates an existing element at that position", () => {
@@ -423,7 +422,7 @@ describe("accountStore", () => {
     const project = useAccountStore
       .getState()
       .account.projects.find((p) => p.id === projectId("p_personal"))!;
-    const menu = project.menus.find((m) => m.id === "m_shop_main")!;
+    const menu = menusOf(project).find((m) => m.id === "m_shop_main")!;
     const el = menu.layers[0]!.elements.find((e) => e.positions === "13")!;
     expect(el.display!.material).toBe("DIAMOND");
   });
@@ -438,7 +437,7 @@ describe("accountStore", () => {
     const project = useAccountStore
       .getState()
       .account.projects.find((p) => p.id === projectId("p_personal"))!;
-    const menu = project.menus.find((m) => m.id === "m_about")!;
+    const menu = menusOf(project).find((m) => m.id === "m_about")!;
     const el = menu.layers[0]!.elements.find((e) => e.positions === "5");
     expect(el?.display?.material).toBe("PAPER");
   });
@@ -455,10 +454,9 @@ describe("accountStore", () => {
     useAccountStore
       .getState()
       .setSlotMaterial({ projectId: pId, menuId: mId, position: 7, material: "DIRT" });
-    const menu = useAccountStore
-      .getState()
-      .account.projects.find((p) => p.id === pId)!
-      .menus.find((m) => m.id === mId)!;
+    const menu = menusOf(
+      useAccountStore.getState().account.projects.find((p) => p.id === pId)!,
+    ).find((m) => m.id === mId)!;
     const ids = menu.layers[0]!.elements.map((e) => e.id);
     expect(ids).toContain("paper_1");
     expect(ids).toContain("paper_2");
@@ -474,20 +472,16 @@ describe("accountStore", () => {
       material: "EMERALD",
     });
     expect(
-      useAccountStore
-        .getState()
-        .account.projects.find((p) => p.id === "p_personal")!
-        .menus.find((m) => m.id === "m_shop_main")!
+      menusOf(useAccountStore.getState().account.projects.find((p) => p.id === "p_personal")!)
+        .find((m) => m.id === "m_shop_main")!
         .layers[0]!.elements.find((e) => e.positions === "13")?.display?.material,
     ).toBe("EMERALD");
 
     useAccountStore.temporal.getState().undo();
 
     expect(
-      useAccountStore
-        .getState()
-        .account.projects.find((p) => p.id === "p_personal")!
-        .menus.find((m) => m.id === "m_shop_main")!
+      menusOf(useAccountStore.getState().account.projects.find((p) => p.id === "p_personal")!)
+        .find((m) => m.id === "m_shop_main")!
         .layers[0]!.elements.find((e) => e.positions === "13")?.display?.material,
     ).not.toBe("EMERALD");
   });
@@ -529,7 +523,7 @@ describe("accountStore", () => {
     expect(findElement()?.positions).toBe("13,22");
     // The DIRT element lost its only position and was pruned entirely.
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const menu = project.menus.find((m) => m.id === SHOP_MAIN)!;
+    const menu = menusOf(project).find((m) => m.id === SHOP_MAIN)!;
     const dirt = menu.layers[0]!.elements.find((el) => el.display?.material === "DIRT");
     expect(dirt).toBeUndefined();
   });
@@ -615,7 +609,7 @@ describe("accountStore", () => {
       },
     });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const menu = project.menus.find((m) => m.id === SHOP_MAIN)!;
+    const menu = menusOf(project).find((m) => m.id === SHOP_MAIN)!;
     // addElement now renames the id following the material_N scheme (paste-friendly).
     const pasted = menu.layers[0]!.elements.find((el) => el.display?.material === "GOLD_INGOT");
     expect(pasted?.id).toMatch(/^gold_ingot_\d+$/);
@@ -627,7 +621,7 @@ describe("accountStore", () => {
 
   it("addElement clones i18n keys so original and duplicate are independent", () => {
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const menu = project.menus.find((m) => m.id === SHOP_MAIN)!;
+    const menu = menusOf(project).find((m) => m.id === SHOP_MAIN)!;
     const original = menu.layers[0]!.elements.find((el) => el.id === PROFILE_BTN)!;
     const originalTitleKey = original.display!.title?.key;
     if (!originalTitleKey) throw new Error("fixture missing title");
@@ -645,7 +639,7 @@ describe("accountStore", () => {
     });
 
     const state = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const stateMenu = state.menus.find((m) => m.id === SHOP_MAIN)!;
+    const stateMenu = menusOf(state).find((m) => m.id === SHOP_MAIN)!;
     // addElement renumbers the id by material; locate the just-added element
     // by its new positions instead of the now-overwritten input id.
     const pasted = stateMenu.layers[0]!.elements.find((el) => el.positions === "20")!;
@@ -673,7 +667,7 @@ describe("accountStore", () => {
       .getState()
       .setSlotMaterial({ projectId: PERSONAL, menuId: SHOP_MAIN, position: 9, material: "STONE" });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const menu = project.menus.find((m) => m.id === SHOP_MAIN)!;
+    const menu = menusOf(project).find((m) => m.id === SHOP_MAIN)!;
     const stoneId = menu.layers[0]!.elements.find((el) => el.display?.material === "STONE")!.id;
 
     useAccountStore.getState().moveSelectionByDelta({
@@ -685,10 +679,10 @@ describe("accountStore", () => {
     });
 
     expect(findElement()?.positions).toBe("10-11");
-    const stoneAfter = useAccountStore
-      .getState()
-      .account.projects.find((p) => p.id === PERSONAL)!
-      .menus.find((m) => m.id === SHOP_MAIN)!
+    const stoneAfter = menusOf(
+      useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!,
+    )
+      .find((m) => m.id === SHOP_MAIN)!
       .layers[0]!.elements.find((el) => el.id === stoneId);
     expect(stoneAfter?.positions).toBe("19");
   });
@@ -707,7 +701,7 @@ describe("accountStore", () => {
     });
     expect(findElement()?.positions).toBe("14");
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const menu = project.menus.find((m) => m.id === SHOP_MAIN)!;
+    const menu = menusOf(project).find((m) => m.id === SHOP_MAIN)!;
     const dirt = menu.layers[0]!.elements.find((el) => el.display?.material === "DIRT");
     expect(dirt).toBeUndefined();
   });
@@ -728,25 +722,21 @@ describe("accountStore", () => {
 
   it("moveSelectionByDelta respects the inventory type's grid (hopper = 5 cols × 1 row)", () => {
     // Turn SHOP_MAIN into a hopper: 5 columns, a single row.
-    useAccountStore
-      .getState()
-      .setMenuField({
-        projectId: PERSONAL,
-        menuId: SHOP_MAIN,
-        field: "inventoryType",
-        value: "hopper",
-      });
+    useAccountStore.getState().setMenuField({
+      projectId: PERSONAL,
+      menuId: SHOP_MAIN,
+      field: "inventoryType",
+      value: "hopper",
+    });
 
     // Last hopper column is 4; moving right leaves the 5-wide grid → must throw
     // (a chest-assuming `% 9` would wrongly allow it and produce slot 5).
-    useAccountStore
-      .getState()
-      .setElementPositions({
-        projectId: PERSONAL,
-        menuId: SHOP_MAIN,
-        elementId: PROFILE_BTN,
-        positions: "4",
-      });
+    useAccountStore.getState().setElementPositions({
+      projectId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      positions: "4",
+    });
     expect(() =>
       useAccountStore.getState().moveSelectionByDelta({
         projectId: PERSONAL,
@@ -760,14 +750,12 @@ describe("accountStore", () => {
 
     // A hopper has a single row; moving down must throw (chest `menu.rows` bound
     // would wrongly allow it and produce slot 9).
-    useAccountStore
-      .getState()
-      .setElementPositions({
-        projectId: PERSONAL,
-        menuId: SHOP_MAIN,
-        elementId: PROFILE_BTN,
-        positions: "0",
-      });
+    useAccountStore.getState().setElementPositions({
+      projectId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      positions: "0",
+    });
     expect(() =>
       useAccountStore.getState().moveSelectionByDelta({
         projectId: PERSONAL,
@@ -779,14 +767,12 @@ describe("accountStore", () => {
     ).toThrow(/outside the menu/);
 
     // A valid in-row move still works: col 1 → col 2.
-    useAccountStore
-      .getState()
-      .setElementPositions({
-        projectId: PERSONAL,
-        menuId: SHOP_MAIN,
-        elementId: PROFILE_BTN,
-        positions: "1",
-      });
+    useAccountStore.getState().setElementPositions({
+      projectId: PERSONAL,
+      menuId: SHOP_MAIN,
+      elementId: PROFILE_BTN,
+      positions: "1",
+    });
     useAccountStore.getState().moveSelectionByDelta({
       projectId: PERSONAL,
       menuId: SHOP_MAIN,
@@ -988,10 +974,9 @@ describe("accountStore", () => {
         commandId: cId,
         arg: { name: "amount", type: "integer", required: false },
       });
-      const cmd = useAccountStore
-        .getState()
-        .account.projects.find((p) => p.id === pId)!
-        .commands.find((c) => c.id === cId)!;
+      const cmd = commandsOf(
+        useAccountStore.getState().account.projects.find((p) => p.id === pId)!,
+      ).find((c) => c.id === cId)!;
       expect(cmd.arguments).toHaveLength(2);
       expect(cmd.arguments[0]!.required).toBe(true);
       expect(cmd.arguments[1]!.required).toBe(false);
@@ -1013,10 +998,9 @@ describe("accountStore", () => {
       } catch {
         // expected
       }
-      const cmd = useAccountStore
-        .getState()
-        .account.projects.find((p) => p.id === pId)!
-        .commands.find((c) => c.id === cId)!;
+      const cmd = commandsOf(
+        useAccountStore.getState().account.projects.find((p) => p.id === pId)!,
+      ).find((c) => c.id === cId)!;
       expect(cmd.arguments).toHaveLength(1);
     });
   });
@@ -1030,10 +1014,9 @@ describe("accountStore", () => {
         menuId: mId,
         kind: "primitive",
       });
-      const menu = useAccountStore
-        .getState()
-        .account.projects.find((p) => p.id === pId)!
-        .menus.find((m) => m.id === mId)!;
+      const menu = menusOf(
+        useAccountStore.getState().account.projects.find((p) => p.id === pId)!,
+      ).find((m) => m.id === mId)!;
       const added = (menu.contextInputs ?? []).at(-1);
       expect(added?.kind).toBe("primitive");
       if (added?.kind === "primitive") {
@@ -1049,10 +1032,9 @@ describe("accountStore", () => {
         menuId: mId,
         kind: "sourceRef",
       });
-      const menu = useAccountStore
-        .getState()
-        .account.projects.find((p) => p.id === pId)!
-        .menus.find((m) => m.id === mId)!;
+      const menu = menusOf(
+        useAccountStore.getState().account.projects.find((p) => p.id === pId)!,
+      ).find((m) => m.id === mId)!;
       const added = (menu.contextInputs ?? []).at(-1);
       expect(added?.kind).toBe("sourceRef");
     });
@@ -1065,10 +1047,9 @@ describe("accountStore", () => {
         menuId: mId,
         kind: "sourceRef",
       });
-      const before = useAccountStore
-        .getState()
-        .account.projects.find((p) => p.id === pId)!
-        .menus.find((m) => m.id === mId)!;
+      const before = menusOf(
+        useAccountStore.getState().account.projects.find((p) => p.id === pId)!,
+      ).find((m) => m.id === mId)!;
       const idx = (before.contextInputs ?? []).findIndex((c) => c.kind === "sourceRef");
       expect(idx).toBeGreaterThanOrEqual(0);
 
@@ -1083,10 +1064,9 @@ describe("accountStore", () => {
         },
       });
 
-      const after = useAccountStore
-        .getState()
-        .account.projects.find((p) => p.id === pId)!
-        .menus.find((m) => m.id === mId)!;
+      const after = menusOf(
+        useAccountStore.getState().account.projects.find((p) => p.id === pId)!,
+      ).find((m) => m.id === mId)!;
       const stored = (after.contextInputs ?? []).find((c) => c.name === "shops");
       expect(stored?.kind).toBe("sourceRef");
       if (stored?.kind === "sourceRef") {
@@ -1102,10 +1082,9 @@ describe("accountStore", () => {
         menuId: mId,
         kind: "primitive",
       });
-      const before = useAccountStore
-        .getState()
-        .account.projects.find((p) => p.id === pId)!
-        .menus.find((m) => m.id === mId)!;
+      const before = menusOf(
+        useAccountStore.getState().account.projects.find((p) => p.id === pId)!,
+      ).find((m) => m.id === mId)!;
       const idx = (before.contextInputs ?? []).findIndex((c) => c.kind === "primitive");
 
       useAccountStore.getState().setMenuContextInput({
@@ -1116,10 +1095,9 @@ describe("accountStore", () => {
       });
 
       const stored = (
-        useAccountStore
-          .getState()
-          .account.projects.find((p) => p.id === pId)!
-          .menus.find((m) => m.id === mId)!.contextInputs ?? []
+        menusOf(useAccountStore.getState().account.projects.find((p) => p.id === pId)!).find(
+          (m) => m.id === mId,
+        )!.contextInputs ?? []
       ).find((c) => c.name === "category");
       expect(stored?.kind).toBe("primitive");
       if (stored?.kind === "primitive") {
@@ -1586,15 +1564,13 @@ describe("accountStore", () => {
       expect(perks[0]!.key).not.toBe("");
       const key = perks[0]!.key;
       expect(project.i18nKeys[key as never]).toBeDefined();
-      useAccountStore
-        .getState()
-        .removeSourceListItem({
-          projectId: PERSONAL,
-          sourceId: ds0.id,
-          row: 0,
-          path: ["perks"],
-          index: 0,
-        });
+      useAccountStore.getState().removeSourceListItem({
+        projectId: PERSONAL,
+        sourceId: ds0.id,
+        row: 0,
+        path: ["perks"],
+        index: 0,
+      });
       project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
       expect(
         (project.dataSources[0] as { rows: Record<string, unknown>[] }).rows[0]!.perks,
@@ -1697,7 +1673,7 @@ describe("accountStore", () => {
         id: "my_menu",
       });
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      const menu = project.menus.find((m) => m.id === mId)!;
+      const menu = menusOf(project).find((m) => m.id === mId)!;
       expect(Array.isArray(menu.title)).toBe(true);
       expect(menu.title).toHaveLength(1);
       expect(menu.title[0]!.kind).toBe("plain");
@@ -1716,7 +1692,7 @@ describe("accountStore", () => {
         .getState()
         .setMenuTitle({ projectId: PERSONAL, menuId: mId, lang: "en", value: "Lazy" });
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      const menu = project.menus.find((m) => m.id === mId)!;
+      const menu = menusOf(project).find((m) => m.id === mId)!;
       expect(menu.title).toHaveLength(1);
       const first = menu.title[0]!;
       expect(first.kind).toBe("plain");
@@ -1728,7 +1704,7 @@ describe("accountStore", () => {
 
     it("setMenuId renames i18n keys to new prefix", () => {
       const pack0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      const menu0 = pack0.menus.find((m) => m.id === SHOP_MAIN)!;
+      const menu0 = menusOf(pack0).find((m) => m.id === SHOP_MAIN)!;
       // title is now MenuTitleLayer[]; grab the first text layer's key.
       const firstLayer0 = menu0.title[0];
       expect(firstLayer0?.kind).toBe("text");
@@ -1739,7 +1715,7 @@ describe("accountStore", () => {
         .getState()
         .setMenuId({ projectId: PERSONAL, oldId: SHOP_MAIN, newId: menuId("m_shop_new") });
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      const menu = project.menus.find((m) => m.id === menuId("m_shop_new"))!;
+      const menu = menusOf(project).find((m) => m.id === menuId("m_shop_new"))!;
 
       const firstLayer = menu.title[0];
       expect(firstLayer?.kind).toBe("text");
@@ -1753,7 +1729,7 @@ describe("accountStore", () => {
       // The mock fixture already has an opaque title on PROFILE_BTN. Capture it
       // before rename, then verify rekeyMenu moved it to the semantic slot.
       const pack0 = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      const el0 = pack0.menus
+      const el0 = menusOf(pack0)
         .find((m) => m.id === SHOP_MAIN)!
         .layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
       const oldKey = el0.display!.title?.key;
@@ -1766,7 +1742,7 @@ describe("accountStore", () => {
         newId: elementId("el_btn_new"),
       });
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      const menu = project.menus.find((m) => m.id === SHOP_MAIN)!;
+      const menu = menusOf(project).find((m) => m.id === SHOP_MAIN)!;
       const el = menu.layers[0]!.elements.find((e) => e.id === elementId("el_btn_new"))!;
 
       const expectedKey = `menus.${SHOP_MAIN}.elements.el_btn_new.default.title` as I18nKey;
@@ -1788,7 +1764,7 @@ describe("accountStore", () => {
         lang: "en",
       });
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      const el = project.menus
+      const el = menusOf(project)
         .find((m) => m.id === SHOP_MAIN)!
         .layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
       const steps = el.display!.click!.left!.steps;
@@ -1818,7 +1794,7 @@ describe("accountStore", () => {
         lang: "en",
       });
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      const el = project.menus
+      const el = menusOf(project)
         .find((m) => m.id === SHOP_MAIN)!
         .layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
       const steps = el.display!.click!.left!.steps;
@@ -1847,7 +1823,7 @@ describe("accountStore", () => {
       addMsg();
 
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      const el = project.menus
+      const el = menusOf(project)
         .find((m) => m.id === SHOP_MAIN)!
         .layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
       const steps = el.display!.click!.left!.steps;
@@ -1919,7 +1895,7 @@ describe("accountStore", () => {
 
     const getMenu = (mId: string) => {
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      return project.menus.find((m) => m.id === mId)!;
+      return menusOf(project).find((m) => m.id === mId)!;
     };
 
     it("addMenuTitleLayer appends a layer", () => {
@@ -2048,14 +2024,12 @@ describe("accountStore", () => {
         ],
       });
       // Seed translations for both so we can watch the GC.
-      useAccountStore
-        .getState()
-        .setI18nValue({
-          projectId: PERSONAL,
-          lt: { key: droppedKey },
-          lang: "en",
-          value: "Boutique",
-        });
+      useAccountStore.getState().setI18nValue({
+        projectId: PERSONAL,
+        lt: { key: droppedKey },
+        lang: "en",
+        value: "Boutique",
+      });
       useAccountStore
         .getState()
         .setI18nValue({ projectId: PERSONAL, lt: { key: keptKey }, lang: "en", value: "Shop" });
@@ -2106,10 +2080,10 @@ describe("accountStore — board positions", () => {
 
   it("releaseBoardPositions releases every hand-placed position, without touching the Documents", () => {
     useAccountStore.getState().setCanvasPosition({ projectId: P, nodeId: "m_about", x: 5, y: 6 });
-    const menus = project().menus.map((m) => m.id);
+    const menus = menusOf(project()).map((m) => m.id);
     useAccountStore.getState().releaseBoardPositions({ projectId: P });
     expect(project().canvasLayout).toEqual({});
-    expect(project().menus.map((m) => m.id)).toEqual(menus);
+    expect(menusOf(project()).map((m) => m.id)).toEqual(menus);
   });
 
   it("releaseBoardPositions also releases the forced link anchors", () => {

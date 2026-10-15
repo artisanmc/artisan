@@ -28,9 +28,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Arrow, Stage as KonvaStage, Layer, Rect, Text } from "react-konva";
 import { type BoardFilter, filterBoard, parseBoardFilter } from "./boardFilter";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { listDocumentKinds } from "@/domain/documentKinds";
 
 const ROUTE = "/servers/$serverId/canvas" as const;
-const KINDS: DocumentKind[] = ["menu", "command", "dialog"];
+const KINDS: DocumentKind[] = listDocumentKinds().map((def) => def.kind);
 
 export const validateServerCanvasSearch = (search: Record<string, unknown>): BoardFilter =>
   parseBoardFilter(search);
@@ -402,7 +404,7 @@ function Board({
             const position = positions[n.key];
             if (!project || !position) return null;
             if (n.kind === "menu") {
-              const menu = project.menus.find((m) => m.id === n.docId);
+              const menu = menusOf(project).find((m) => m.id === n.docId);
               return menu ? (
                 <MenuGroup
                   key={n.key}
@@ -414,7 +416,7 @@ function Board({
               ) : null;
             }
             if (n.kind === "command") {
-              const command = project.commands.find((c) => c.id === n.docId);
+              const command = commandsOf(project).find((c) => c.id === n.docId);
               return command ? (
                 <CommandGroup
                   key={n.key}
@@ -424,7 +426,7 @@ function Board({
                 />
               ) : null;
             }
-            const dialog = (project.dialogs ?? []).find((d) => d.id === n.docId);
+            const dialog = dialogsOf(project).find((d) => d.id === n.docId);
             return dialog ? (
               <DialogGroup key={n.key} projectId={project.id} dialog={dialog} position={position} />
             ) : null;

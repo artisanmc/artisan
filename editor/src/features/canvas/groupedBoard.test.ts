@@ -17,38 +17,40 @@ function project(id = "p"): Project {
     dataSources: [],
     i18nKeys: {},
     canvasLayout: {},
-    commands: [],
-    dialogs: [],
-    menus: ["main", "craft_a", "craft_b", "quest"].map((name) => ({
-      id: `${id}_${name}`,
-      projectId: id,
-      title: [],
-      rows: 3,
-      layers: [
-        {
-          id: "l",
-          elements: (name === "main"
-            ? ["craft_a", "quest"]
-            : name === "craft_a"
-              ? ["craft_b", "main"]
-              : []
-          ).map((target, index) => ({
-            id: `e${index}`,
-            positions: String(index),
-            display: {
-              click: {
-                left: {
-                  steps: [
-                    { kind: "action", action: { type: "open_menu", menuId: `${id}_${target}` } },
-                  ],
+    documents: {
+      command: [],
+      dialog: [],
+      menu: ["main", "craft_a", "craft_b", "quest"].map((name) => ({
+        id: `${id}_${name}`,
+        projectId: id,
+        title: [],
+        rows: 3,
+        layers: [
+          {
+            id: "l",
+            elements: (name === "main"
+              ? ["craft_a", "quest"]
+              : name === "craft_a"
+                ? ["craft_b", "main"]
+                : []
+            ).map((target, index) => ({
+              id: `e${index}`,
+              positions: String(index),
+              display: {
+                click: {
+                  left: {
+                    steps: [
+                      { kind: "action", action: { type: "open_menu", menuId: `${id}_${target}` } },
+                    ],
+                  },
                 },
               },
-            },
-            states: [],
-          })),
-        },
-      ],
-    })),
+              states: [],
+            })),
+          },
+        ],
+      })),
+    },
     canvasGroups: [{ id: "crafts", name: "Crafts", nodeIds: [`${id}_craft_a`, `${id}_craft_b`] }],
   } as unknown as Project;
 }

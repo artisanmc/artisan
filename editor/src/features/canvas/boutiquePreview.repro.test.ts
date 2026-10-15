@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { matchPlacementRow, placementAtSlot, resolvePlacementSlot } from "./placement";
 import { sourceIsContextFiltered } from "./placementScope";
+import { menusOf } from "@/domain/documents";
 
 /**
  * Reproduction of a boutique preview bug: slots showed `{item.name}` /
@@ -81,7 +82,7 @@ function load() {
     "plugins/Artisan/projects/boutique_shop/menus/shop_category.yaml": MENU,
   };
   const project = projectFromFiles(projectId("boutique_shop"), files, { name: "Boutique" });
-  return { project, menu: project.menus[0]! };
+  return { project, menu: menusOf(project)[0]! };
 }
 
 describe("shop preview — placements outside the preview context", () => {

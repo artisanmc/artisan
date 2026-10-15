@@ -1,16 +1,12 @@
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 interface NewCommandDialogProps {
   projectId: ProjectId;
@@ -20,7 +16,11 @@ interface NewCommandDialogProps {
 }
 
 function slugify(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
 }
 
 function deriveUniqueId(name: string, existingIds: Set<string>): string {
@@ -31,7 +31,12 @@ function deriveUniqueId(name: string, existingIds: Set<string>): string {
   return `${base}_${n}`;
 }
 
-export function NewCommandDialog({ projectId, open, position, onOpenChange }: NewCommandDialogProps) {
+export function NewCommandDialog({
+  projectId,
+  open,
+  position,
+  onOpenChange,
+}: NewCommandDialogProps) {
   const [name, setName] = useState("");
   const { t } = useTranslation();
 
@@ -39,9 +44,9 @@ export function NewCommandDialog({ projectId, open, position, onOpenChange }: Ne
     const project = s.account.projects.find((p) => p.id === projectId);
     if (!project) return "";
     return [
-      ...project.commands.map((c) => c.id),
-      ...project.menus.map((m) => m.id),
-      ...project.dialogs.map((d) => d.id),
+      ...commandsOf(project).map((c) => c.id),
+      ...menusOf(project).map((m) => m.id),
+      ...dialogsOf(project).map((d) => d.id),
     ].join(",");
   });
   const existingIds = new Set(existingIdsStr ? existingIdsStr.split(",") : []);
@@ -73,18 +78,25 @@ export function NewCommandDialog({ projectId, open, position, onOpenChange }: Ne
               placeholder="shop"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
               autoFocus
             />
             {derivedId && (
               <span className="font-mono text-xs text-[var(--text-mut)]">
-                {t("canvas.idPreviewLabel")} <span className="text-[var(--text-mut)]">{derivedId}</span>
+                {t("canvas.idPreviewLabel")}{" "}
+                <span className="text-[var(--text-mut)]">{derivedId}</span>
               </span>
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>{t("canvas.cancel")}</Button>
-            <Button onClick={submit} disabled={!name.trim()}>{t("canvas.create")}</Button>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              {t("canvas.cancel")}
+            </Button>
+            <Button onClick={submit} disabled={!name.trim()}>
+              {t("canvas.create")}
+            </Button>
           </div>
         </div>
       </DialogContent>

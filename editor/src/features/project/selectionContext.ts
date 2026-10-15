@@ -1,4 +1,5 @@
 import type { Project } from "@/domain/types";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 /**
  * What the current selection designates, for the given project. A single
@@ -30,17 +31,17 @@ export function selectionContext(
 
   const id = [...ids][0]!;
   if (selectionMenuId === null) {
-    if (project.commands.some((c) => c.id === id)) return { kind: "command", id };
-    if ((project.dialogs ?? []).some((d) => d.id === id)) return { kind: "dialog", id };
-    if (project.menus.some((m) => m.id === id)) return { kind: "menu", menuId: id };
+    if (commandsOf(project).some((c) => c.id === id)) return { kind: "command", id };
+    if (dialogsOf(project).some((d) => d.id === id)) return { kind: "dialog", id };
+    if (menusOf(project).some((m) => m.id === id)) return { kind: "menu", menuId: id };
   }
 
   // An element id is unique ONLY within its menu (menu/v1): resolution is
   // restricted to the menu where the selection was made, otherwise a shared id
   // (two menus with `grid`) would edit the wrong one.
   const menus = selectionMenuId
-    ? project.menus.filter((m) => m.id === selectionMenuId)
-    : project.menus;
+    ? menusOf(project).filter((m) => m.id === selectionMenuId)
+    : menusOf(project);
   for (const menu of menus) {
     for (const layer of menu.layers) {
       if (layer.elements.some((e) => e.id === id)) {

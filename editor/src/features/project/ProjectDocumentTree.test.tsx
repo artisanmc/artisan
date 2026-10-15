@@ -15,12 +15,14 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      { id: "m1", projectId: PID, title: [], rows: 3, layers: [] },
-      { id: "m2", projectId: PID, title: [], rows: 3, layers: [] },
-    ],
-    commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] }],
-    dialogs: [],
+    documents: {
+      menu: [
+        { id: "m1", projectId: PID, title: [], rows: 3, layers: [] },
+        { id: "m2", projectId: PID, title: [], rows: 3, layers: [] },
+      ],
+      command: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] }],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     i18nKeys: {},
