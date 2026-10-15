@@ -37,7 +37,7 @@ class PooledDatabase(
 ) : DatabaseApi, Listener {
     private val pools = ConnectionPools(settings, logger)
 
-    override val dialect: DatabaseDialect get() = pools.dialect
+    override fun getDialect(): DatabaseDialect = pools.dialect
 
     override fun dataSource(owner: Plugin): DataSource = pools.dataSource(owner.name)
 

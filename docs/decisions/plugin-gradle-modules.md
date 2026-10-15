@@ -18,7 +18,7 @@ la règle.
 
 | Module | Contenu | Dépend de |
 |---|---|---|
-| `api` | Surface publique pour les add-ons (`net.artisanmc.modules.api`). Publiée comme `artisan-core-api`. | `paper-api` (compileOnly) |
+| `api` | Surface publique pour les add-ons (`net.artisanmc.modules.api`), en Java depuis l'API 2.0.0. Publiée comme `artisan-core-api`. | `paper-api` (compileOnly) |
 | `core` | Domaine sans plateforme : projets, modèle, langage d'actions, expressions, parseurs de menus. | `api`, Jackson |
 | `database` | Pools HikariCP par plugin, réglages de connexion. | `api`, HikariCP (compileOnly) |
 | `paper` | Tout ce qui importe Bukkit, et la racine de composition (`ArtisanPlugin`). Produit le jar. | les trois, `paper-api` |

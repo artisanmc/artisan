@@ -2,8 +2,12 @@ plugins {
     `maven-publish`
 }
 
+// The public surface is Java (API 2.0.0): no Kotlin type, no kotlin-stdlib for add-ons.
+// Only the tests are Kotlin. ApiSurfaceIsJavaFriendlyTest fails on a Kotlin class in main.
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
+    // Nullability of the surface, read by Kotlin add-ons and by the Kotlin modules of this plugin.
+    compileOnly("org.jetbrains:annotations:26.0.2")
     testImplementation("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
 }
 
@@ -19,6 +23,7 @@ val generateApiVersion by tasks.registering {
     inputs.file(surface)
     outputs.dir(out)
     doLast {
+        out.get().asFile.deleteRecursively()
         val semver = Regex("""\d+\.\d+\.\d+""")
         val found = surface.asFile.readLines().flatMap { line ->
             val lastCell = Regex("""^\|(.*)\|$""").find(line.trim())?.groupValues?.get(1)?.split("|")?.last()?.trim()
@@ -27,28 +32,25 @@ val generateApiVersion by tasks.registering {
         }
         val version = found.maxByOrNull { v -> v.split(".").fold(0L) { acc, n -> acc * 100_000 + n.toLong() } }
             ?: error("No Since version found in ${surface.asFile}")
-        val file = out.get().file("net/artisanmc/modules/api/ApiVersion.kt").asFile
+        val file = out.get().file("net/artisanmc/modules/api/ApiVersion.java").asFile
         file.parentFile.mkdirs()
         file.writeText(
             """
-            |package net.artisanmc.modules.api
+            |package net.artisanmc.modules.api;
             |
             |/** Generated from docs/architecture/api-surface.md by the `generateApiVersion` task. */
             |@net.artisanmc.modules.api.annotations.Internal
-            |internal object ApiVersion {
-            |    const val CURRENT = "$version"
+            |final class ApiVersion {
+            |    static final String CURRENT = "$version";
+            |
+            |    private ApiVersion() {}
             |}
             |""".trimMargin(),
         )
     }
 }
 
-extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension> {
-    sourceSets.getByName("main").kotlin.srcDir(generateApiVersion)
-    // Interface members with a body become JVM default methods (Java add-ons may
-    // leave `onReload()` out), and DefaultImpls stay for add-ons compiled before 1.8.0.
-    compilerOptions { freeCompilerArgs.add("-Xjvm-default=all-compatibility") }
-}
+sourceSets.getByName("main").java.srcDir(generateApiVersion)
 
 tasks.jar {
     archiveBaseName.set("artisan-core-api")
@@ -90,14 +92,6 @@ publishing {
                 scm {
                     url.set("https://github.com/artisanmc/artisan")
                     connection.set("scm:git:https://github.com/artisanmc/artisan.git")
-                }
-                withXml {
-                    val deps = asNode().appendNode("dependencies")
-                    val stdlib = deps.appendNode("dependency")
-                    stdlib.appendNode("groupId", "org.jetbrains.kotlin")
-                    stdlib.appendNode("artifactId", "kotlin-stdlib")
-                    stdlib.appendNode("version", "2.0.21")
-                    stdlib.appendNode("scope", "compile")
                 }
             }
         }

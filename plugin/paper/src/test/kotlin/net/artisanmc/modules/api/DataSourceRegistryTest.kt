@@ -22,8 +22,8 @@ class DataSourceRegistryTest {
     fun `register and fetch returns the declared data`() {
         val registry = DataSourceRegistry()
         registry.register(DataSourceDeclaration(
-            ref = "shop:items",
-            fetcher = { _, _ -> listOf(mapOf("id" to "diamond", "price" to 100)) }
+            "shop:items",
+            { _, _ -> listOf(mapOf("id" to "diamond", "price" to 100)) },
         ))
 
         val rows = registry.fetch("shop:items", player, emptyMap())
@@ -44,17 +44,17 @@ class DataSourceRegistryTest {
     @Test
     fun `registering twice with same ref throws DuplicateDataSourceException`() {
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration(ref = "shop:items", fetcher = { _, _ -> emptyList() }))
+        registry.register(DataSourceDeclaration("shop:items", { _, _ -> emptyList() }))
 
         assertThrows(DuplicateDataSourceException::class.java) {
-            registry.register(DataSourceDeclaration(ref = "shop:items", fetcher = { _, _ -> emptyList() }))
+            registry.register(DataSourceDeclaration("shop:items", { _, _ -> emptyList() }))
         }
     }
 
     @Test
     fun `declarations returns registered declarations`() {
         val reg = DataSourceRegistry()
-        val decl = DataSourceDeclaration(ref = "shop:items", fetcher = { _, _ -> emptyList() }, schemaHint = "id, name, price")
+        val decl = DataSourceDeclaration("shop:items", { _, _ -> emptyList() })
         reg.register(decl)
         assertEquals(listOf(decl), reg.declarations())
     }
@@ -62,8 +62,8 @@ class DataSourceRegistryTest {
     @Test
     fun `declarations are sorted by ref`() {
         val reg = DataSourceRegistry()
-        reg.register(DataSourceDeclaration(ref = "shop:items", fetcher = { _, _ -> emptyList() }))
-        reg.register(DataSourceDeclaration(ref = "auction:listings", fetcher = { _, _ -> emptyList() }))
+        reg.register(DataSourceDeclaration("shop:items", { _, _ -> emptyList() }))
+        reg.register(DataSourceDeclaration("auction:listings", { _, _ -> emptyList() }))
         assertEquals(listOf("auction:listings", "shop:items"), reg.declarations().map { it.ref })
     }
 
@@ -71,8 +71,8 @@ class DataSourceRegistryTest {
     fun `fetch accepts a null player (preview mode)`() {
         val registry = DataSourceRegistry()
         registry.register(DataSourceDeclaration(
-            ref = "shop:items",
-            fetcher = { p, _ -> listOf(mapOf("player" to (p?.name ?: "none"))) },
+            "shop:items",
+            { p, _ -> listOf(mapOf("player" to (p?.name ?: "none"))) },
         ))
         val rows = registry.fetch("shop:items", null, emptyMap())
         assertEquals("none", rows[0]["player"])
@@ -81,18 +81,18 @@ class DataSourceRegistryTest {
     @Test
     fun `declaration carries a typed schema (empty by default)`() {
         val decl = DataSourceDeclaration(
-            ref = "shop:items",
-            fetcher = { _, _ -> emptyList() },
-            schema = listOf(DataSourceField("price", FieldKind.NUMBER, "Unit price")),
+            "shop:items",
+            { _, _ -> emptyList() },
+            listOf(DataSourceField("price", FieldKind.NUMBER, "Unit price")),
         )
         assertEquals("price", decl.schema[0].name)
         assertEquals(FieldKind.NUMBER, decl.schema[0].type)
-        assertTrue(DataSourceDeclaration(ref = "a:b", fetcher = { _, _ -> emptyList() }).schema.isEmpty())
+        assertTrue(DataSourceDeclaration("a:b", { _, _ -> emptyList() }).schema.isEmpty())
     }
 
     @Test
     fun `declaration defaults to dynamic stability and null keyField`() {
-        val decl = DataSourceDeclaration(ref = "a:b", fetcher = { _, _ -> emptyList() })
+        val decl = DataSourceDeclaration("a:b", { _, _ -> emptyList() })
         assertEquals(Stability.DYNAMIC, decl.stability)
         assertNull(decl.keyField)
     }
@@ -100,10 +100,11 @@ class DataSourceRegistryTest {
     @Test
     fun `static declaration carries stability and keyField`() {
         val decl = DataSourceDeclaration(
-            ref = "boutique:items",
-            fetcher = { _, _ -> emptyList() },
-            stability = Stability.STATIC,
-            keyField = "id",
+            "boutique:items",
+            { _, _ -> emptyList() },
+            emptyList(),
+            Stability.STATIC,
+            "id",
         )
         assertEquals(Stability.STATIC, decl.stability)
         assertEquals("id", decl.keyField)
@@ -113,17 +114,20 @@ class DataSourceRegistryTest {
     fun `static declaration without a keyField is rejected`() {
         assertThrows(IllegalArgumentException::class.java) {
             DataSourceDeclaration(
-                ref = "boutique:items",
-                fetcher = { _, _ -> emptyList() },
-                stability = Stability.STATIC,
+                "boutique:items",
+                { _, _ -> emptyList() },
+                emptyList(),
+                Stability.STATIC,
+                null,
             )
         }
         assertThrows(IllegalArgumentException::class.java) {
             DataSourceDeclaration(
-                ref = "boutique:items",
-                fetcher = { _, _ -> emptyList() },
-                stability = Stability.STATIC,
-                keyField = "  ",
+                "boutique:items",
+                { _, _ -> emptyList() },
+                emptyList(),
+                Stability.STATIC,
+                "  ",
             )
         }
     }
@@ -133,10 +137,10 @@ class DataSourceRegistryTest {
         val server = MockBukkit.getMock()!!
         val plugin = MockBukkit.load(net.artisanmc.plugin.ArtisanPlugin::class.java)
         val module = object : ArtisanModule {
-            override val id = "boutique"
-            override val schemaVersion = "menu/v1"
+            override fun getId() = "boutique"
+            override fun getSchemaVersion() = "menu/v1"
             override fun onEnable(api: ArtisanAPI) {
-                api.dataSources.register(DataSourceDeclaration(ref = "boutique:owned", fetcher = { _, _ -> emptyList() }))
+                api.dataSources.register(DataSourceDeclaration("boutique:owned", { _, _ -> emptyList() }))
             }
             override fun onDisable() {}
             override fun onReload() {}
@@ -144,7 +148,7 @@ class DataSourceRegistryTest {
         plugin.api.modules.register(module)
         val entry = plugin.api.dataSources.registered().first { it.declaration.ref == "boutique:owned" }
         assertEquals("boutique", entry.moduleId)
-        plugin.api.dataSources.register(DataSourceDeclaration(ref = "core:after", fetcher = { _, _ -> emptyList() }))
+        plugin.api.dataSources.register(DataSourceDeclaration("core:after", { _, _ -> emptyList() }))
         assertNull(plugin.api.dataSources.registered().first { it.declaration.ref == "core:after" }.moduleId)
     }
 }
