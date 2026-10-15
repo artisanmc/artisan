@@ -10,8 +10,12 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import java.util.logging.Logger
 
-/** A network's hub as seen from a leaf: its `/ws/plugin`, the shared secret, the leaf's name and suite database. */
-data class HubLink(val url: String, val secret: String, val serverName: String, val databaseId: String = "", val serverUuid: String = "")
+/**
+ * A network's hub as seen from a leaf: its `/ws/plugin`, the shared secret, the leaf's name,
+ * server id and suite database. [databaseId] is read when the socket opens: null while the
+ * suite database is still opening (issue #42), and the connection waits for it.
+ */
+data class HubLink(val url: String, val secret: String, val serverName: String, val databaseId: () -> String? = { "" }, val serverUuid: String = "")
 
 class WsClient(
     private val hub: HubLink,
@@ -34,6 +38,7 @@ class WsClient(
     @Volatile private var socket: WebSocket? = null
     @Volatile private var retryDelay = 1L
     @Volatile private var authenticated = false
+    @Volatile private var waitingForDatabase = false
     private val requests = ConcurrentHashMap<String, CompletableFuture<JsonNode?>>()
 
     /** A request to the hub; its `<type>_result` reply, or null when offline or unanswered. */
@@ -54,6 +59,15 @@ class WsClient(
     }
 
     fun connect() {
+        if (scheduler.isShutdown) return
+        if (hub.databaseId() == null) {
+            // The hub refuses a hello without the database id: wait for the database instead.
+            if (!waitingForDatabase) logger?.info("[Artisan] Waiting for the suite database before connecting to the hub")
+            waitingForDatabase = true
+            runCatching { scheduler.schedule(::connect, DATABASE_RETRY_SECONDS, TimeUnit.SECONDS) }
+            return
+        }
+        waitingForDatabase = false
         val req = Request.Builder().url(hub.url).build()
         socket = httpClient.newWebSocket(req, Listener())
     }
@@ -81,7 +95,7 @@ class WsClient(
                 "server_key" to hub.secret,
                 "proxy_name" to hub.serverName,
                 "server_uuid" to hub.serverUuid,
-                "database_id" to hub.databaseId,
+                "database_id" to hub.databaseId().orEmpty(),
                 "plugin_version" to pluginVersion,
                 "minecraft_version" to mcVersion,
                 "installed_modules" to installedModules(),
@@ -121,6 +135,10 @@ class WsClient(
             if (code == 1008) logger?.severe("[Artisan] The hub refused this server: $reason")
             if (code != 1000) scheduleReconnect()
         }
+    }
+
+    private companion object {
+        const val DATABASE_RETRY_SECONDS = 2L
     }
 
     private fun scheduleReconnect() {
