@@ -1,3 +1,4 @@
+import { isLTextNode } from "@/domain/actionTextSlots";
 import type { Action, Condition, ElementId, I18nKey, IfCase, LText, MenuId, DialogId, Step } from "@/domain/types";
 
 /**
@@ -138,10 +139,26 @@ function encodeAction(a: Action, c: ActionTextCodec): StructuredStep {
       return { set_arg_cycle_prev: { arg: a.arg, list: a.list } };
     case "run_actions":
       return { run_actions: a.actions };
-    case "module":
-      // A module's action: its wire value verbatim, the bare name when it has none.
-      return a.value == null ? a.name : { [a.name]: a.value };
+    case "module": {
+      // A module's action: its wire value, the bare name when it has none. A text
+      // argument adopted into an LText node (`adoptActionTexts`) is written back as
+      // field-local text like a core action's.
+      const value = encodeModuleValue(a.value, c);
+      return value == null ? a.name : { [a.name]: value };
+    }
   }
+}
+
+/** LText nodes inside a module action's value (top-level arguments and list entries) → wire text. */
+function encodeModuleValue(value: unknown, c: ActionTextCodec): unknown {
+  if (isLTextNode(value)) return c.toWire(value.key);
+  if (Array.isArray(value)) return value.map((v) => (isLTextNode(v) ? c.toWire(v.key) : v));
+  if (isRecord(value)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = encodeModuleValue(v, c);
+    return out;
+  }
+  return value;
 }
 
 // Actions: decode

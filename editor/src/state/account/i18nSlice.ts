@@ -1,4 +1,5 @@
 import type { LText, ProjectId } from "@/domain/types";
+import { adoptProjectActionTexts } from "@/domain/i18nSites";
 import { setLText } from "@/lib/i18n";
 import { findUnusedI18nKeys } from "@/lib/i18nUsages";
 import { current, produce } from "immer";
@@ -13,6 +14,12 @@ export interface I18nSlice {
    * based step mutators handle structure; this handles content.
    */
   setI18nValue: (input: { projectId: ProjectId; lt: LText; lang: string; value: string }) => void;
+  /**
+   * Adopt the wire texts of module actions into LText nodes at their canonical address
+   * (`adoptProjectActionTexts`): run when the server's declared actions become known
+   * after the project was read, so those texts join the Translations panel.
+   */
+  adoptActionTexts: (input: { projectId: ProjectId }) => void;
   /** Add a new language to the project (clones empty entries from defaultLang for every existing key). */
   addLanguage: (input: { projectId: ProjectId; lang: string }) => void;
   /** Remove a language and all its translations. No-op on `defaultLang`. */
@@ -42,6 +49,13 @@ export const createI18nSlice = ({ set }: AccountSliceContext): I18nSlice => ({
         if (!project) return;
         setLText(project, lt, lang, value);
         project.updatedAt = new Date().toISOString();
+      }),
+    ),
+  adoptActionTexts: ({ projectId: pId }) =>
+    set(
+      produce((draft: AccountState) => {
+        const project = draft.account.projects.find((p) => p.id === pId);
+        if (project) adoptProjectActionTexts(project);
       }),
     ),
   addLanguage: ({ projectId: pId, lang }) => {

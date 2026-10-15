@@ -1,4 +1,5 @@
 import * as dataSourcesApi from "@/lib/api/dataSources";
+import * as declaredActionsApi from "@/lib/api/declaredActions";
 import * as draftsApi from "@/lib/api/projectDrafts";
 import * as projectFilesApi from "@/lib/api/projectFiles";
 import * as userProjectsApi from "@/lib/api/userProjects";
@@ -32,6 +33,7 @@ describe("useProjectLoader — the fresh version always wins", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(draftsApi, "listDrafts").mockResolvedValue([]);
+    vi.spyOn(declaredActionsApi, "fetchServerDeclaredActions").mockResolvedValue([]);
     useProjectCacheStore.setState({ entries: {}, reloadToken: 0 } as never);
     useProjectDraftStore.setState({ drafts: {}, pendingRenames: {}, ownerId: null, backups: {} });
     useAccountStore.setState({

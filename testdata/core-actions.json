@@ -1,0 +1,397 @@
+{
+  "note" : "Artisan's own action vocabulary, generated from plugin/core CoreActions.kt (CoreActionsVectorTest keeps it equal; regenerate with ARTISAN_WRITE_VECTORS=1). Entries are in the declared_actions wire shape of Presence (name, args, primary); i18n_slots names the legacy slot of a text argument for the positional addressing of the Action DSL (testdata/i18n-address-conformance.json). The editor imports this file as its table of core actions (lib/actions/coreActions.ts): forms, i18n sites and the step picker read it, never a hand-written copy.",
+  "actions" : [ {
+    "name" : "run_command",
+    "args" : [ {
+      "name" : "command",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    }, {
+      "name" : "as",
+      "type" : {
+        "kind" : "enum",
+        "values" : [ "player", "console" ]
+      },
+      "default" : "player"
+    } ],
+    "primary" : "command"
+  }, {
+    "name" : "open_menu",
+    "args" : [ {
+      "name" : "menu_id",
+      "type" : {
+        "kind" : "document_ref",
+        "document" : "menu"
+      },
+      "required" : true
+    }, {
+      "name" : "close_current",
+      "type" : {
+        "kind" : "boolean"
+      },
+      "default" : true
+    }, {
+      "name" : "context",
+      "type" : {
+        "kind" : "map",
+        "of" : {
+          "kind" : "string"
+        }
+      }
+    }, {
+      "name" : "clear_context",
+      "type" : {
+        "kind" : "boolean"
+      },
+      "default" : false
+    } ],
+    "primary" : "menu_id"
+  }, {
+    "name" : "close_menu",
+    "args" : [ ],
+    "primary" : null
+  }, {
+    "name" : "open_previous_menu",
+    "args" : [ ],
+    "primary" : null
+  }, {
+    "name" : "give_item",
+    "args" : [ {
+      "name" : "material",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    }, {
+      "name" : "count",
+      "type" : {
+        "kind" : "integer"
+      },
+      "required" : true,
+      "default" : 1
+    }, {
+      "name" : "nbt",
+      "type" : {
+        "kind" : "string"
+      }
+    }, {
+      "name" : "name",
+      "type" : {
+        "kind" : "ltext"
+      }
+    }, {
+      "name" : "lore",
+      "type" : {
+        "kind" : "list",
+        "of" : {
+          "kind" : "ltext"
+        }
+      }
+    }, {
+      "name" : "lore_mode",
+      "type" : {
+        "kind" : "enum",
+        "values" : [ "replace" ]
+      }
+    } ],
+    "primary" : "material"
+  }, {
+    "name" : "take_item",
+    "args" : [ {
+      "name" : "material",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    }, {
+      "name" : "count",
+      "type" : {
+        "kind" : "integer"
+      },
+      "required" : true,
+      "default" : 1
+    }, {
+      "name" : "nbt",
+      "type" : {
+        "kind" : "string"
+      }
+    } ],
+    "primary" : "material"
+  }, {
+    "name" : "give_money",
+    "args" : [ {
+      "name" : "amount",
+      "type" : {
+        "kind" : "number"
+      },
+      "required" : true
+    }, {
+      "name" : "currency",
+      "type" : {
+        "kind" : "string"
+      }
+    } ],
+    "primary" : "amount"
+  }, {
+    "name" : "take_money",
+    "args" : [ {
+      "name" : "amount",
+      "type" : {
+        "kind" : "number"
+      },
+      "required" : true
+    }, {
+      "name" : "currency",
+      "type" : {
+        "kind" : "string"
+      }
+    } ],
+    "primary" : "amount"
+  }, {
+    "name" : "give_xp",
+    "args" : [ {
+      "name" : "amount",
+      "type" : {
+        "kind" : "integer"
+      },
+      "required" : true
+    } ],
+    "primary" : "amount"
+  }, {
+    "name" : "give_level",
+    "args" : [ {
+      "name" : "amount",
+      "type" : {
+        "kind" : "integer"
+      },
+      "required" : true
+    } ],
+    "primary" : "amount"
+  }, {
+    "name" : "send_message",
+    "args" : [ {
+      "name" : "text",
+      "type" : {
+        "kind" : "ltext"
+      },
+      "required" : true
+    } ],
+    "primary" : "text",
+    "i18n_slots" : {
+      "text" : "message"
+    }
+  }, {
+    "name" : "broadcast",
+    "args" : [ {
+      "name" : "text",
+      "type" : {
+        "kind" : "ltext"
+      },
+      "required" : true
+    } ],
+    "primary" : "text",
+    "i18n_slots" : {
+      "text" : "message"
+    }
+  }, {
+    "name" : "play_sound",
+    "args" : [ {
+      "name" : "sound",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    }, {
+      "name" : "volume",
+      "type" : {
+        "kind" : "number"
+      },
+      "default" : 1.0
+    }, {
+      "name" : "pitch",
+      "type" : {
+        "kind" : "number"
+      },
+      "default" : 1.0
+    } ],
+    "primary" : "sound"
+  }, {
+    "name" : "teleport",
+    "args" : [ {
+      "name" : "world",
+      "type" : {
+        "kind" : "string"
+      }
+    }, {
+      "name" : "x",
+      "type" : {
+        "kind" : "number"
+      }
+    }, {
+      "name" : "y",
+      "type" : {
+        "kind" : "number"
+      }
+    }, {
+      "name" : "z",
+      "type" : {
+        "kind" : "number"
+      }
+    }, {
+      "name" : "yaw",
+      "type" : {
+        "kind" : "number"
+      }
+    }, {
+      "name" : "pitch",
+      "type" : {
+        "kind" : "number"
+      }
+    } ],
+    "primary" : null
+  }, {
+    "name" : "pagination_next",
+    "args" : [ {
+      "name" : "element_id",
+      "type" : {
+        "kind" : "string"
+      }
+    } ],
+    "primary" : "element_id"
+  }, {
+    "name" : "pagination_prev",
+    "args" : [ {
+      "name" : "element_id",
+      "type" : {
+        "kind" : "string"
+      }
+    } ],
+    "primary" : "element_id"
+  }, {
+    "name" : "show_title",
+    "args" : [ {
+      "name" : "title",
+      "type" : {
+        "kind" : "ltext"
+      },
+      "required" : true
+    }, {
+      "name" : "subtitle",
+      "type" : {
+        "kind" : "ltext"
+      }
+    }, {
+      "name" : "fade_in",
+      "type" : {
+        "kind" : "integer"
+      },
+      "default" : 10
+    }, {
+      "name" : "stay",
+      "type" : {
+        "kind" : "integer"
+      },
+      "default" : 70
+    }, {
+      "name" : "fade_out",
+      "type" : {
+        "kind" : "integer"
+      },
+      "default" : 20
+    } ],
+    "primary" : "title",
+    "i18n_slots" : {
+      "title" : "show_title",
+      "subtitle" : "show_subtitle"
+    }
+  }, {
+    "name" : "open_dialog",
+    "args" : [ {
+      "name" : "dialog_id",
+      "type" : {
+        "kind" : "document_ref",
+        "document" : "dialog"
+      },
+      "required" : true
+    }, {
+      "name" : "context",
+      "type" : {
+        "kind" : "map",
+        "of" : {
+          "kind" : "string"
+        }
+      }
+    }, {
+      "name" : "clear_context",
+      "type" : {
+        "kind" : "boolean"
+      },
+      "default" : false
+    } ],
+    "primary" : "dialog_id"
+  }, {
+    "name" : "close_dialog",
+    "args" : [ ],
+    "primary" : null
+  }, {
+    "name" : "set_arg",
+    "args" : [ {
+      "name" : "arg",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    }, {
+      "name" : "value",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    } ],
+    "primary" : null
+  }, {
+    "name" : "set_arg_cycle_next",
+    "args" : [ {
+      "name" : "arg",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    }, {
+      "name" : "list",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    } ],
+    "primary" : null
+  }, {
+    "name" : "set_arg_cycle_prev",
+    "args" : [ {
+      "name" : "arg",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    }, {
+      "name" : "list",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    } ],
+    "primary" : null
+  }, {
+    "name" : "run_actions",
+    "args" : [ {
+      "name" : "actions",
+      "type" : {
+        "kind" : "string"
+      },
+      "required" : true
+    } ],
+    "primary" : "actions"
+  } ]
+}

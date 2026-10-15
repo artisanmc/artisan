@@ -1,4 +1,7 @@
 import { injectDeclaredModels, normalizeDataSources } from "@/domain/dataModels";
+import { adoptProjectActionTexts } from "@/domain/i18nSites";
+import { fetchServerDeclaredActions } from "@/lib/api/declaredActions";
+import { coreActionOf } from "@/lib/actions/coreActions";
 import type { Project, ProjectId } from "@/domain/types";
 import { hasDraftChanges } from "@/features/project/draft";
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
@@ -85,6 +88,14 @@ async function buildProject(
     serverKeyId: res.project.serverKeyId ?? res.serverKeyId ?? undefined,
   });
   if (models) injectDeclaredModels(loaded, models as never);
+  // A module action's texts are sites once its declaration is known: the server's
+  // declared actions (fetched here like the models) or Artisan's own table.
+  if (serverId && projectRuntime(res).capabilities.liveData) {
+    const declared = await fetchServerDeclaredActions(serverId).catch(() => []);
+    adoptProjectActionTexts(loaded, (name) => coreActionOf(name) ?? declared.find((a) => a.name === name));
+  } else {
+    adoptProjectActionTexts(loaded);
+  }
   // Accepted reset (ADR project-sources-and-data-models).
   normalizeDataSources(loaded);
   for (const module of listModules()) module.migrateProject?.(loaded);

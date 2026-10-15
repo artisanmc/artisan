@@ -93,6 +93,7 @@ function ControlledStepTree({ projectId, steps, frames, indent, mutate }: TreePr
           <AddStepLine
             indent={indent}
             firstMenuId={firstMenuId}
+            literalText
             onPick={(newStep) =>
               mutate((root) => {
                 parentOf(root)?.push(newStep);

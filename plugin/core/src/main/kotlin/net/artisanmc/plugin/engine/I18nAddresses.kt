@@ -50,59 +50,90 @@ object I18nAddress {
         "dialogs.$dialogId.buttons.$buttonId"
 }
 
+/** Where the addresser finds an action's schema; the core vocabulary by default. */
+typealias ActionSchemaLookup = (String) -> ActionSchema?
+
 /**
- * Stamp every text-bearing action of a Step tree with its canonical i18n
- * ADDRESS, so inline mode can translate it: the file holds the default
- * language's literal, the other languages sit at that address in
- * `lang/<lang>.yaml`.
+ * Stamp every text argument of a Step tree with its canonical i18n ADDRESS, so the
+ * legacy Action DSL's inline mode can translate it: the file holds the default
+ * language's literal, the other languages sit at that address in `lang/<lang>.yaml`.
  *
  * This is the Kotlin half of a cross-language contract — the editor mints the
  * very same addresses in `visitStepLTexts` (`domain/i18nSites.ts`). Both sides
  * must agree exactly, or a translation lands at an address the runtime never
- * looks up. The rules, and the shared vector that locks them:
+ * looks up. The rules are driven by each action's schema ([ActionSchema], found
+ * through [schemaOf]) and locked by the shared vector
+ * `testdata/i18n-address-conformance.json`:
  *
  *  - walk order is document order, an `if`'s cases before its `else`;
- *  - messages, titles and subtitles keep INDEPENDENT counters;
- *  - `send_message` and `broadcast` share the message counter;
- *  - the first of each kind has no suffix (`.message`, `.show_title`,
- *    `.show_subtitle`), the rest are suffixed from `_1` on;
- *  - a `show_title` without a subtitle consumes no subtitle counter.
+ *  - an `ltext` argument with a declared slot ([ActionSchema.i18nSlots]) is addressed
+ *    `<prefix>.<slot>`, then `<slot>_1`, `<slot>_2`…; the counter is per slot, so
+ *    `send_message` and `broadcast` (both `message`) share one;
+ *  - any other `ltext` argument hangs off the action's name (`:` read as `.`), numbered
+ *    per occurrence of that action: `<prefix>.quests.notify.text`, then
+ *    `<prefix>.quests.notify_1.text`; a `list(ltext)` argument numbers its entries
+ *    `…lines`, `…lines_2`, `…lines_3`;
+ *  - an absent optional text consumes no counter (a `show_title` without a subtitle);
+ *  - an action without a schema has no text site.
+ *
+ * The addresses land on the step keyed by argument name (`lines.1` for a list entry).
  */
-fun assignI18nAddresses(steps: List<Step>, prefix: String): List<Step> {
-    val counters = Counters()
-    return steps.map { stamp(it, prefix, counters) }
+fun assignI18nAddresses(
+    steps: List<Step>,
+    prefix: String,
+    schemaOf: ActionSchemaLookup = CoreActions::schema,
+): List<Step> {
+    val counters = mutableMapOf<String, Int>()
+    return steps.map { stamp(it, prefix, counters, schemaOf) }
 }
 
-private class Counters {
-    var message = 0
-    var title = 0
-    var subtitle = 0
+private fun MutableMap<String, Int>.next(slot: String): Int {
+    val n = this[slot] ?: 0
+    this[slot] = n + 1
+    return n
 }
 
 private fun suffixed(prefix: String, leaf: String, index: Int): String =
     if (index == 0) "$prefix.$leaf" else "$prefix.${leaf}_$index"
 
-private fun stamp(step: Step, prefix: String, c: Counters): Step = when (step) {
-    is Step.ActionStep -> stampAction(step, prefix, c)
+private fun stamp(step: Step, prefix: String, c: MutableMap<String, Int>, schemaOf: ActionSchemaLookup): Step = when (step) {
+    is Step.ActionStep -> stampAction(step, prefix, c, schemaOf)
     is Step.IfStep -> Step.IfStep(
-        cases = step.cases.map { case -> case.copy(steps = case.steps.map { stamp(it, prefix, c) }) },
-        elseSteps = step.elseSteps.map { stamp(it, prefix, c) },
+        cases = step.cases.map { case -> case.copy(steps = case.steps.map { stamp(it, prefix, c, schemaOf) }) },
+        elseSteps = step.elseSteps.map { stamp(it, prefix, c, schemaOf) },
     )
 }
 
-/**
- * The legacy DSL's addressing table: only the DSL (read-only since ADR
- * `structured-action-wire`) addresses action text by position; the keyed wire is
- * field-local. The three addressed actions are therefore fixed here, by wire name,
- * and the addresses land on the step keyed by argument name.
- */
-private fun stampAction(step: Step.ActionStep, prefix: String, c: Counters): Step.ActionStep = when (step.name) {
-    "send_message", "broadcast" -> step.copy(i18n = mapOf("text" to suffixed(prefix, "message", c.message++)))
-    "show_title" -> {
-        val hasSubtitle = (step.value as? Map<*, *>)?.get("subtitle") != null
-        val addresses = linkedMapOf("title" to suffixed(prefix, "show_title", c.title++))
-        if (hasSubtitle) addresses["subtitle"] = suffixed(prefix, "show_subtitle", c.subtitle++)
-        step.copy(i18n = addresses)
+private fun stampAction(
+    step: Step.ActionStep,
+    prefix: String,
+    c: MutableMap<String, Int>,
+    schemaOf: ActionSchemaLookup,
+): Step.ActionStep {
+    val schema = schemaOf(step.name) ?: return step
+    val args = schema.normalize(step.value)
+    val addresses = linkedMapOf<String, String>()
+    // The generic base is minted once per step, on its first slot-less text.
+    var base: String? = null
+    fun baseOf(): String = base ?: suffixed(prefix, step.name.replace(':', '.'), c.next("action:${step.name}")).also { base = it }
+    for (arg in schema.args) {
+        val kind = arg.type.kind
+        val value = args[arg.name]
+        val slot = schema.i18nSlots[arg.name]
+        when {
+            kind == "ltext" -> {
+                if (value == null && !arg.isRequired) continue
+                addresses[arg.name] =
+                    if (slot != null) suffixed(prefix, slot, c.next(slot)) else "${baseOf()}.${arg.name}"
+            }
+            kind == "list" && arg.type.of?.kind == "ltext" -> {
+                val entries = value as? List<*> ?: continue
+                val listBase = if (slot != null) suffixed(prefix, slot, c.next(slot)) else "${baseOf()}.${arg.name}"
+                entries.forEachIndexed { i, _ ->
+                    addresses["${arg.name}.$i"] = if (i == 0) listBase else "${listBase}_${i + 1}"
+                }
+            }
+        }
     }
-    else -> step
+    return if (addresses.isEmpty()) step else step.copy(i18n = addresses)
 }
