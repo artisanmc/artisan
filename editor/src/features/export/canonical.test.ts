@@ -54,29 +54,22 @@ function goldenProject(): Project {
                               {
                                 conditions: [{ type: "has_money", amount: 50 }],
                                 steps: [
-                                  { kind: "action", action: { type: "take_money", amount: 50 } },
+                                  { kind: "action", action: { name: "take_money", value: 50 } },
                                 ],
                               },
                             ],
                             else: [
                               {
                                 kind: "action",
-                                action: {
-                                  type: "send_message",
-                                  text: { key: "t.buy.msg" as I18nKey },
-                                },
+                                action: { name: "send_message", value: { key: "t.buy.msg" as I18nKey } },
                               },
                             ],
                           },
                           {
                             kind: "action",
-                            action: {
-                              type: "open_menu",
-                              menuId: menuId("shop"),
-                              clearContext: true,
-                            },
+                            action: { name: "open_menu", value: { menu_id: menuId("shop"), clear_context: true } },
                           },
-                          { kind: "action", action: { type: "paginate", direction: "next" } },
+                          { kind: "action", action: { name: "pagination_next", value: null } },
                         ],
                       },
                     },

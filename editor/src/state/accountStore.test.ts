@@ -844,7 +844,7 @@ describe("accountStore", () => {
       clickType: "left",
       frames: [],
       index: -1,
-      step: { kind: "action", action: { type: "close_menu" } },
+      step: { kind: "action", action: { name: "close_menu", value: null } },
       lang: "en",
     });
     let steps = findElement()!.display!.click!.left!.steps;
@@ -873,7 +873,7 @@ describe("accountStore", () => {
       index: -1,
       step: {
         kind: "action",
-        action: { type: "send_message", text: { key: "" as I18nKey } },
+        action: { name: "send_message", value: { key: "" as I18nKey } },
       },
       lang: "en",
     });
@@ -888,8 +888,8 @@ describe("accountStore", () => {
       toIndex: 0,
     });
     const steps = findElement()!.display!.click!.left!.steps;
-    expect(steps[0]?.kind === "action" && steps[0].action.type).toBe("send_message");
-    expect(steps[1]?.kind === "action" && steps[1].action.type).toBe("open_menu");
+    expect(steps[0]?.kind === "action" && steps[0].action.name).toBe("send_message");
+    expect(steps[1]?.kind === "action" && steps[1].action.name).toBe("open_menu");
   });
 
   it("addElementStep into an if-step's case descends through the path", () => {
@@ -912,7 +912,7 @@ describe("accountStore", () => {
       clickType: "left",
       frames: [{ stepIndex: 0, descend: { case: 0 } }],
       index: 0,
-      step: { kind: "action", action: { type: "close_menu" } },
+      step: { kind: "action", action: { name: "close_menu", value: null } },
       lang: "en",
     });
     const root = findElement()!.display!.click!.left!.steps[0]!;
@@ -1760,7 +1760,7 @@ describe("accountStore", () => {
         clickType: "left",
         frames: [],
         index: -1,
-        step: { kind: "action", action: { type: "send_message", text: { key: "" as I18nKey } } },
+        step: { kind: "action", action: { name: "send_message", value: { key: "" as I18nKey } } },
         lang: "en",
       });
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
@@ -1769,9 +1769,9 @@ describe("accountStore", () => {
         .layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
       const steps = el.display!.click!.left!.steps;
       const last = steps[steps.length - 1]!;
-      if (last.kind !== "action" || last.action.type !== "send_message") throw new Error();
+      if (last.kind !== "action" || last.action.name !== "send_message") throw new Error();
       const expectedPrefix = `menus.${SHOP_MAIN}.elements.${PROFILE_BTN}.default.click.left`;
-      expect(last.action.text.key).toBe(`${expectedPrefix}.message`);
+      expect((last.action.value as { key: string }).key).toBe(`${expectedPrefix}.message`);
     });
 
     it("addElementStep allocates semantic keys for show_title (title + subtitle)", () => {
@@ -1785,11 +1785,7 @@ describe("accountStore", () => {
         index: -1,
         step: {
           kind: "action",
-          action: {
-            type: "show_title",
-            title: { key: "" as I18nKey },
-            subtitle: { key: "" as I18nKey },
-          },
+          action: { name: "show_title", value: { title: { key: "" as I18nKey }, subtitle: { key: "" as I18nKey } } },
         },
         lang: "en",
       });
@@ -1799,10 +1795,11 @@ describe("accountStore", () => {
         .layers[0]!.elements.find((e) => e.id === PROFILE_BTN)!;
       const steps = el.display!.click!.left!.steps;
       const last = steps[steps.length - 1]!;
-      if (last.kind !== "action" || last.action.type !== "show_title") throw new Error();
+      if (last.kind !== "action" || last.action.name !== "show_title") throw new Error();
       const expectedPrefix = `menus.${SHOP_MAIN}.elements.${PROFILE_BTN}.default.click.left`;
-      expect(last.action.title.key).toBe(`${expectedPrefix}.show_title`);
-      expect(last.action.subtitle!.key).toBe(`${expectedPrefix}.show_subtitle`);
+      const value = last.action.value as { title: { key: string }; subtitle: { key: string } };
+      expect(value.title.key).toBe(`${expectedPrefix}.show_title`);
+      expect(value.subtitle.key).toBe(`${expectedPrefix}.show_subtitle`);
     });
 
     it("addElementStep allocates distinct keys for multiple send_message steps", () => {
@@ -1815,7 +1812,7 @@ describe("accountStore", () => {
           clickType: "left",
           frames: [],
           index: -1,
-          step: { kind: "action", action: { type: "send_message", text: { key: "" as I18nKey } } },
+          step: { kind: "action", action: { name: "send_message", value: { key: "" as I18nKey } } },
           lang: "en",
         });
 
@@ -1829,11 +1826,9 @@ describe("accountStore", () => {
       const steps = el.display!.click!.left!.steps;
       const msgSteps = steps.filter(
         (s): s is Extract<typeof s, { kind: "action" }> =>
-          s.kind === "action" && s.action.type === "send_message",
+          s.kind === "action" && s.action.name === "send_message",
       );
-      const keys = msgSteps.map(
-        (s) => (s.action as { type: "send_message"; text: { key: string } }).text.key,
-      );
+      const keys = msgSteps.map((s) => (s.action.value as { key: string }).key);
       expect(new Set(keys).size).toBe(keys.length);
     });
   });

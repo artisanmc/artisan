@@ -69,7 +69,7 @@ beforeEach(() => {
   });
 });
 
-const openMenu = (menuId: string): Action => ({ type: "open_menu", menuId: menuId as never });
+const openMenu = (menuId: string): Action => ({ name: "open_menu", value: menuId as never });
 
 describe("open_menu target across projects", () => {
   it("lists the other projects' menus under their project and picks them qualified", async () => {
@@ -79,9 +79,7 @@ describe("open_menu target across projects", () => {
     expect(screen.getByText("Boutique")).toBeInTheDocument();
     expect(screen.getAllByRole("menuitemradio", { name: /accueil/ })).toHaveLength(1);
     await userEvent.click(screen.getByRole("menuitemradio", { name: /catalogue/ }));
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ menuId: "boutique:catalogue" }),
-    );
+    expect(onChange).toHaveBeenCalledWith({ name: "open_menu", value: "boutique:catalogue" });
   });
 
   it("shows a qualified target with its title, not as missing", () => {
@@ -116,7 +114,7 @@ describe("open_dialog target across projects", () => {
     render(
       <ActionEditor
         projectId={PID}
-        action={{ type: "open_dialog", dialogId: "regles" as never }}
+        action={{ name: "open_dialog", value: "regles" as never }}
         onChange={onChange}
       />,
     );
@@ -125,6 +123,6 @@ describe("open_dialog target across projects", () => {
     expect(within(group).getByRole("option", { name: "aide" })).toHaveValue("boutique:aide");
     expect(within(select).getAllByRole("option", { name: "regles" })).toHaveLength(1);
     fireEvent.change(select, { target: { value: "boutique:aide" } });
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ dialogId: "boutique:aide" }));
+    expect(onChange).toHaveBeenCalledWith({ name: "open_dialog", value: "boutique:aide" });
   });
 });

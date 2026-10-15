@@ -95,6 +95,20 @@ mappings:
       - "testdata/i18n-address-conformance.json"
     reason: "Canonical i18n addresses, derived on both sides"
 
+  - touches: "editor/src/domain/actionArgs.ts"
+    updates:
+      - "testdata/action-wire-conformance.json"
+      - "docs/architecture/testing.md"
+      - "docs/architecture/editor-internals.md"
+    reason: "Wire value ⇄ argument map rule (mirror of ActionDeclaration.normalize/canonical): the canonical form the editor writes is locked by the shared vector"
+
+  - touches: "editor/src/features/canvas/properties/ActionEditor.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+      - "editor/src/locales/en.ts"
+      - "editor/src/locales/fr.ts"
+    reason: "Declaration-driven action form (W4): a new argument widget or label needs its i18n keys and its line in the internals doc"
+
   - touches: "editor/src/domain/actionTextSlots.ts"
     updates:
       - "testdata/i18n-address-conformance.json"

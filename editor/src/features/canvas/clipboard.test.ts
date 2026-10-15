@@ -27,10 +27,8 @@ describe("rewriteIds", () => {
     const firstStep = newShopMain.layers[0]!.elements[0]!.display!.click!.left!.steps[0]!;
     if (firstStep.kind !== "action") throw new Error("expected action step");
     const action = firstStep.action;
-    expect(action.type).toBe("open_menu");
-    if (action.type === "open_menu") {
-      expect(action.menuId).toBe(newProfile.id);
-    }
+    expect(action.name).toBe("open_menu");
+    expect(action.value).toBe(newProfile.id);
   });
 
   it("leaves open_menu targets that aren't in the paste set untouched", () => {
@@ -39,8 +37,7 @@ describe("rewriteIds", () => {
     const firstStep = menus[0]!.layers[0]!.elements[0]!.display!.click!.left!.steps[0]!;
     if (firstStep.kind !== "action") throw new Error("expected action step");
     const action = firstStep.action;
-    if (action.type === "open_menu") {
-      expect(action.menuId).toBe("m_profile"); // left dangling — runtime no-ops on missing targets
-    }
+    expect(action.name).toBe("open_menu");
+    expect(action.value).toBe("m_profile"); // left dangling — runtime no-ops on missing targets
   });
 });
