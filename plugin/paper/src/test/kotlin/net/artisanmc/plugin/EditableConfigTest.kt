@@ -27,6 +27,7 @@ class EditableConfigTest {
         assertEquals("", report["resource-pack.container-textures.chest"])
         assertFalse("server_key" in report)
         assertFalse("ws_url" in report)
+        assertFalse("database.pool-size" in report)
         assertFalse(report.keys.any { it.startsWith("editor.") || it.startsWith("assistant.") })
     }
 
@@ -35,11 +36,9 @@ class EditableConfigTest {
         val cfg = fileConfig()
         assertNull(editable.apply(cfg, mapOf(
             "language" to "fr",
-            "database.pool-size" to 8,
             "resource-pack.container-textures.chest" to "ui:menu_items",
         )))
         assertEquals("fr", cfg.getString("language"))
-        assertEquals(8, cfg.getInt("database.pool-size"))
         assertEquals("ui:menu_items", cfg.getString("resource-pack.container-textures.chest"))
     }
 
@@ -55,7 +54,7 @@ class EditableConfigTest {
     fun `rejects wrong types and malformed texture refs`() {
         val cfg = fileConfig()
         assertEquals("per_player_language: invalid_type", editable.apply(cfg, mapOf("per_player_language" to "yes")))
-        assertEquals("database.pool-size: invalid_type", editable.apply(cfg, mapOf("database.pool-size" to 1.5)))
+        assertEquals("database.pool-size: unknown_key", editable.apply(cfg, mapOf("database.pool-size" to 8)))
         assertEquals("resource-pack.send-delay-ticks: unknown_key", editable.apply(cfg, mapOf("resource-pack.send-delay-ticks" to 20)))
         assertEquals("resource-pack.container-textures.hopper: invalid_reference", editable.apply(cfg, mapOf("resource-pack.container-textures.hopper" to "menu_items")))
     }
