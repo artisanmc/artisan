@@ -1,7 +1,9 @@
 # Document kinds extensibles — design & découpage
 
-**Status:** draft (2026-10-14) — dérive de l'ADR `extensible-document-kinds`.
-Décisions de la grill (2026-10-14) intégrées ; matière brute pour la construction.
+**Status:** draft (2026-10-14, rafraîchi le 2026-10-15) — dérive de l'ADR
+`extensible-document-kinds`. Décisions de la grill (2026-10-14) intégrées ; matière brute pour
+la construction. Le 2026-10-15 la carte `file:line` a été confrontée au code de `v2` (après
+#48–#54) ; les questions R1–R5 de l'ADR (§Révision) sont **ouvertes** et marquées ici.
 
 ## But
 
@@ -40,21 +42,31 @@ interface DocumentKindContribution {
   parse(file, ctx): Document;      // fichier → domaine
   serialize(doc, ctx): string;     // domaine → fichier
   ltextSites(doc): LTextSite[];    // key sites i18n (rekey + GC)
-  chainSlots(doc): ChainSlot[];    // où vivent les chaînes (cf. trigger)
+  chainSlots(doc): ChainSlotSite[]; // où vivent les chaînes (cf. trigger)
   actions?: ActionDecl[];          // Actions déclarées (typées)
   board?: { size?; render?; rank? }; // surcharge board — OPTIONNELLE
 }
 
-// Une Action déclarée : un nom + des arguments typés (système de types partagé,
-// + le seul type neuf `document_ref(kind)`). `document_ref` fait de l'argument
-// une cible résolue → picker + arête, génériquement (aucun code de board).
+// Une Action déclarée : un nom + des arguments typés. R3 (ADR) : les args sont des
+// `ModelField[]` du field kit existant (`ModelFieldType`), `document_ref(kind)` étant
+// un kind de `ModelFieldType` ajouté — pas un vocabulaire d'arguments à part. C'est
+// `document_ref` qui fait de l'argument une cible résolue → picker + arête,
+// génériquement (aucun code de board), y compris depuis une ligne de data model.
 interface ActionDecl {
   name: string;                    // "start_quest", "open_conversation"
-  args: ArgDecl[];                 // types field kit + document_ref(kind)
+  args: ModelField[];              // field kit + { kind: "document_ref", of: kind }
 }
 
-// Un trigger EST un slot de chaîne nommé qui est un point d'entrée.
-interface ChainSlot { name: string; /* "right_click", "invoke", "click" */ }
+// Un trigger EST un slot de chaîne nommé qui est un point d'entrée. Le visiteur
+// rend des SITES (comme `LTextSite`) : l'extracteur générique d'arêtes a besoin des
+// steps et du chemin pour garder les triggers que la planche affiche (élément +
+// clickType, bouton de dialog, invocation de commande…).
+interface ChainSlotSite {
+  name: string;                    // "right_click", "invoke", "click"
+  steps: Step[];
+  path: string;                    // chemin dans le document, pour le rename/undo
+  label?: string;                  // ce que l'arête affiche (material, bouton…)
+}
 ```
 
 Les kinds core (menus, commands, dialogs) déclarent les leurs via ce même
@@ -96,32 +108,45 @@ sont tranchées en grill (table « Décisions tranchées » de l'ADR).
 
 ### W1 — Actions : types, vocabulaire, wire (les deux stacks + schéma)
 
-- **Un seul système de types** : le schéma d'arguments réutilise le vocabulaire de
-  `composable-data-models` (field kit : `material`, `item`, `minimessage`,
-  `actions`, `enum`, `list`, `object`…) **plus** `document_ref(kind)` — le seul
-  type neuf, source générique des arêtes.
+- **Un seul système de types** : le schéma d'arguments réutilise le field kit réel
+  (`ModelFieldType`, `editor/src/domain/types.ts` : `string, number, integer, boolean,
+  ltext, minimessage, minimessage_multiline, item, actions, conditions, list, object, model,
+  map, enum, union`) **plus** `document_ref(kind)` — le seul type neuf, source générique
+  des arêtes. R3 : l'ajouter **à** `ModelFieldType`, pas à côté.
 - Wire : les noms d'Actions core restent énumérés dans
-  `docs/schema/menu/v1/schema.json` `$defs.Action` (1014+, validation **stricte**) ;
+  `docs/schema/menu/v1/schema.json` `$defs.Action` (l.975+, validation **stricte**) ;
   ajouter la **tolérance map-à-clé-inconnue** (Action module, validée au form).
+  **État réel (2026-10-15)** : l'éditeur transforme aujourd'hui une clé inconnue en
+  `run_actions ""` (`structuredSteps.ts` `decodeAction` default — perte silencieuse) et le
+  plugin lève `IllegalArgumentException("Unknown action")` (`KeyedStepParser.parseAction`
+  else). Les deux doivent devenir le passthrough `module(name, args)`.
 - Éditeur : `editor/src/schema/actionV1ToDomain.ts:29-48` (`action()` switch
   `default → pushUnsupported`), `features/flow/defaults.ts:63-86` (`ACTION_TYPES`),
   `docs/schema/menu/v1/types.ts:397-420`, labels/pickers `features/flow/labels.ts:6,44`.
 - **Dogfood** : `open_menu`/`open_dialog`/`close_menu`/`open_previous_menu`
-  deviennent des Actions **déclarées** (menus/dialogs) ; codec piloté par registre.
-- Si `structured-action-wire` est accepté entre-temps : le codec DSL
-  (`editor/src/lib/actionDsl/*`, `plugin/core/.../actiondsl/*`) est retiré ; sinon
-  garder `parseVerb` **piloté par table** (ADR `action-dsl` §Portability).
-- Vecteurs : `testdata/action-dsl-conformance.json` (ou successeur) gagne un
-  fixture d'Action module keyed.
+  sont **décrites** dans le registre (menus/dialogs) ; codec, form, picker et arêtes
+  pilotés par registre. R1 (ouvert) : leur **exécution** reste au code core typé
+  (recommandé) ou passe aussi par le registre.
+- `structured-action-wire` est **accepted** (2026-10-15) : le wire keyed est en prod des
+  deux côtés. Le codec DSL (`editor/src/lib/actionDsl/*`, `plugin/core/.../actiondsl/*`)
+  ne sert plus qu'à lire les anciens fichiers ; son retrait est un nettoyage séparé.
+- Vecteur : `testdata/action-wire-conformance.json` (créé le 2026-10-15,
+  `ActionWireConformanceTest` ↔ `lib/actions/actionWireConformance.test.ts`) verrouille
+  le wire keyed ; il gagne un fixture d'Action module (clé inconnue → passthrough) avec le
+  lot qui l'implémente.
 
 ### W2 — Modèle Project (des deux côtés)
 
+R2 (ouvert) : conteneur complet tout de suite, ou accesseur `documentsOf(project, kind)` +
+`project.documents[kind]` réservé aux kinds module (recommandé). `project.menus` apparaît
+dans ~98 fichiers de l'éditeur (130 occurrences hors tests), `.dialogs` 36, `.commands` 39.
+
 - Éditeur : `editor/src/domain/types.ts:134-164` — `Project.menus/commands/
-  dialogs` → conteneur par kind. Impacte `schema/projectFromFiles.ts:396-533`
+  dialogs`. Impacte `schema/projectFromFiles.ts:396-533`
   (`CORE_PREFIXES` + les trois blocs de parse), `features/export/transform.ts:1095-1241`.
-- Plugin : `ProjectBundle.kt:538-557` → conteneur ; `ProjectReader.kt:170-215`
+- Plugin : `ProjectBundle.kt:538-557` ; `ProjectReader.kt:170-215`
   (trois blocs → un scan par kind enregistré), `withFileId` (`:71-91`) devient un
-  hook du kind.
+  hook du kind ; `project/ResourceInventory.kt:31` (`listOf("menus", "dialogs", "commands")`).
 - **Opaque préservé** : un dir de kind non enregistré round-trip dans
   `moduleData.__files` (aujourd'hui implicite — le rendre explicite et testé).
 
@@ -153,10 +178,12 @@ sont tranchées en grill (table « Décisions tranchées » de l'ADR).
 - Éditeur : `useProjectDocuments.ts:8-41`, `ProjectDocumentTree.tsx:24-113`,
   `ProjectSidebar.tsx:274-280` (`documentCount`), `searchIndex.ts:6,155`,
   `domain/canvasGroups.ts:4-8` (`liveDocumentIds`).
-- `state/accountStore.ts` : `createMenu/createCommand/createDialog` (`:1467-1539`),
-  `setMenuId/setCommandId/setDialogId` (`:2665-2745,1562-1601`),
-  `deleteFromProject` (`:4082-4113`), `rekeyProject` (`:4248-4258`) → hooks du
-  kind.
+- Store (découpé par #46 part 2) : `state/account/menusSlice.ts` (`createMenu`,
+  `setMenuId`), `dialogsSlice.ts` (`createDialog`, `setDialogId`), `commandsSlice.ts`
+  (`createCommand`, `setCommandId`), `projectsSlice.ts` (`deleteFromProject`), `i18nSlice.ts`
+  (`rekeyProject`) → un slice générique « documents » (create/rename/delete/layout par kind
+  via le registre), les slices de kind gardant leurs actions d'édition propres. R5 : à
+  coordonner avec les lots restants de #46.
 - i18n : `lib/i18nKeys.ts:5-49`, `domain/i18nSites.ts:158-207,544` — le visiteur
   `ltextSites` du kind (sinon rekey/GC silencieusement cassés) ; `chainSlots` sert
   aussi au rename des refs dans les chaînes.
@@ -170,9 +197,19 @@ sont tranchées en grill (table « Décisions tranchées » de l'ADR).
   `editor/packages/editor-sdk/src/contract/registry.ts:6-32`, dogfood dans
   `editor/src/modules/menus/index.ts` / `commands/index.ts` + dialogs enregistré
   dans `main.tsx:9-24`.
-- Presence : `document_kinds` au `hello`.
+- Presence : `document_kinds` au `hello` et `modules_changed` (`WsClient.kt`,
+  `SyncedMenuProvider.kt` côté serveur) **et** dans la liste des champs que le hub recopie
+  d'une feuille (`plugin/hub/.../RemoteServer.kt`, `modules_changed`) — sinon un kind déclaré
+  sur une feuille est invisible depuis le hub.
 
 ### W7 — Kinds pilotes
+
+R4 (ouvert) : le kind `quest` est déclaré par MSQuests en add-on (recommandé, c'est la lettre
+de l'ADR), donc ce pilote vit dans son dépôt. Note sur l'ordre : Conversation teste navigation et
+arêtes mais son éditeur (arbre) est la plus grosse surface UI ; NPC teste le trigger-source avec
+un formulaire trivial mais son runtime (entité, interaction) est du vrai travail Bukkit. Une
+« Conversation v0 » linéaire (liste de nœuds à choix, sans éditeur graphique) suffit à valider
+la plomberie.
 
 Dans l'ordre de moindre risque, en add-on, de bout en bout — la validation :
 
@@ -190,7 +227,7 @@ Chaque pilote tranche le **modèle interne** de son kind (objectifs, nœuds, etc
 ## Validation
 
 - Vecteurs existants **intacts** après W1–W5 (pur refactor) :
-  `action-dsl-conformance.json` (ou successeur), `doc-ref-conformance.json`,
+  `action-wire-conformance.json`, `action-dsl-conformance.json`, `doc-ref-conformance.json`,
   `menuV1.test`, `menuV1ToDomain.roundtrip`.
 - Nouveaux tests : round-trip d'un dir de kind inconnu (opaque préservé) ; une
   Action module keyed → arête dérivée du `document_ref` ; résolution d'une ref de

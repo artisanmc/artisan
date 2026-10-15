@@ -55,6 +55,18 @@ mappings:
       - "testdata/lang-tree-conformance.json"
     reason: "lang/ tree writer (the only writer)"
 
+  - touches: "plugin/*/src/main/kotlin/**/engine/KeyedStepParser.kt"
+    updates:
+      - "docs/architecture/testing.md"
+      - "testdata/action-wire-conformance.json"
+    reason: "Structured action wire reader — mirror of lib/actions/structuredSteps.ts, locked by shared vector"
+
+  - touches: "editor/src/lib/actions/structuredSteps.ts"
+    updates:
+      - "docs/architecture/testing.md"
+      - "testdata/action-wire-conformance.json"
+    reason: "Structured action wire codec (the only writer) — locked by shared vector"
+
   - touches: "plugin/*/src/main/kotlin/**/I18nAddresses.kt"
     updates:
       - "docs/architecture/project-files.md"
