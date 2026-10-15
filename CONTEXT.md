@@ -7,6 +7,25 @@ definition wins (or this file gets updated in the same change).
 Terms are listed alphabetically. Each entry is a 1-3 sentence canonical
 definition followed by examples and explicit non-examples where helpful.
 
+## Action
+
+A single leaf step of an **Action chain** — the invocable unit of the chain's
+vocabulary (`give_item`, `send_message`, `open_menu`, `start_quest`), as opposed to
+the chain itself. The vocabulary is **core-owned but module-extensible**: a Module
+may declare additional actions, each with typed arguments, one of which may be a
+**Document reference** — which makes that argument a resolved target, exactly as
+`open_menu` names a Menu.
+
+Non-examples:
+- An **Action chain** is the ordered sequence of Actions (with `if`/`else`); one
+  Action is one line.
+- A **Command** is invoked on its own; an Action is embedded in a chain. A Module
+  may back a declared Action with a registered command, but they are distinct.
+- `run_command ns:cmd` is not a declared Action — it is the opaque escape hatch:
+  same effect, an untyped string argument, so no resolved reference.
+
+_Avoid_: verbe, verb
+
 ## Action chain
 
 An ordered sequence of **Steps** — each Step a leaf **action** (`give_item`,
@@ -120,7 +139,7 @@ Non-examples:
 
 ## Command
 
-One of the three **Document** kinds: an admin-authored chat/slash command
+One of the **Document** kinds: an admin-authored chat/slash command
 (`commands/<id>.yaml`) — a trigger, typed arguments, and the **action chains**
 that run when a player invokes it (`open_menu`, `send_message`, …). Its arguments
 feed a **Menu**'s `contextInputs` by name. Commands are also a cross-module
@@ -153,6 +172,22 @@ Non-examples:
   data is edited in Config screens, not there.
 - A custom editor route a module ships as code is not a Config screen — Config
   screens are core-generated from declarations.
+
+## Conversation
+
+A branching dialogue tree — lines and player **choices**, where picking a reply
+follows a branch and each option is gated by **conditions**. One of the **Document**
+kinds (its own file `conversations/<id>.yaml`, its own editor). Distinct from a
+**Dialog**: a Dialog is one native Minecraft screen (title, body, inputs, buttons);
+a Conversation is the branching whole. Any trigger opens one with
+`open_conversation <ref>` — an NPC interaction, a menu button, a command — and one
+Conversation may be opened by several triggers.
+
+Non-examples:
+- A **Dialog** is not a Conversation — the native single screen vs. the branching
+  tree; a Conversation choice may open a Dialog, but they are different kinds.
+- A linear run of `send_message` / `open_dialog` steps is not a Conversation — no
+  branch means no tree.
 
 ## Data model
 
@@ -274,7 +309,7 @@ Non-examples:
 
 ## Dialog
 
-One of the three **Document** kinds: an admin-authored dialog screen
+One of the **Document** kinds: an admin-authored dialog screen
 (`dialogs/<id>.yaml`) — Minecraft's native dialog UI (title, body, inputs,
 buttons), as opposed to the inventory grid of a **Menu**. A standalone document
 with a stable id, living beside the Project's other Documents in its file tree.
@@ -285,8 +320,8 @@ Non-examples:
 
 ## Document
 
-One of the three editable units a **Project** contains — a **Menu**, a
-**Command**, or a **Dialog** — each one file on disk (`menus/<id>.yaml`,
+One of the editable units a **Project** contains — a **Menu**, a **Command**, a
+**Dialog**, a **Conversation**… — each one file on disk (`menus/<id>.yaml`,
 `commands/<id>.yaml`, `dialogs/<id>.yaml`), edited as a standalone document with a
 stable id. **Document** is the canonical umbrella, and code now matches: a Project's
 `documentCount`, the `DocumentView` component, and the `.../document.$documentId`
