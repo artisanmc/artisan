@@ -1,5 +1,5 @@
 {
-  "$comment": "Structured action wire (ADR structured-action-wire): both stacks must read `wire` and `canonical` as the same chain, and the editor must write `canonical` back. `names` is the top-level step sequence (an action's wire name, or `if`). Plugin: KeyedStepParser; editor: lib/actions/structuredSteps.ts. Unknown action keys (module Actions, ADR extensible-document-kinds decision 5) are pinned by a later batch.",
+  "$comment": "Structured action wire (ADR structured-action-wire): both stacks must read `wire` and `canonical` as the same chain, and the editor must write `canonical` back: the shortest form (ADR extensible-document-kinds W4) — an argument at its declared default is dropped, a primary argument alone is written bare. `names` is the top-level step sequence (an action's wire name, or `if`). Plugin: KeyedStepParser; editor: lib/actions/structuredSteps.ts. Unknown action keys (module Actions, ADR extensible-document-kinds decision 5) are pinned by a later batch.",
   "cases": [
     {
       "name": "arg-less action: null value and bare string are the same step",
@@ -224,7 +224,7 @@
       ]
     },
     {
-      "name": "give_item / take_item: a bare material means one of it",
+      "name": "give_item / take_item: a bare material means one of it; the count is always written back",
       "wire": [
         {
           "give_item": "DIAMOND"
@@ -266,7 +266,7 @@
       ]
     },
     {
-      "name": "play_sound: bare name, or map with volume and pitch",
+      "name": "play_sound: bare name, or map with volume and pitch; a default volume is not written back",
       "wire": [
         {
           "play_sound": "ENTITY_PLAYER_LEVELUP"
@@ -286,7 +286,6 @@
         {
           "play_sound": {
             "sound": "ENTITY_PLAYER_LEVELUP",
-            "volume": 1,
             "pitch": 1.2
           }
         }
@@ -325,7 +324,7 @@
       ]
     },
     {
-      "name": "show_title: a bare text is the title; the map carries subtitle and timings",
+      "name": "show_title: a bare text is the title and writes back bare; the map carries subtitle and timings",
       "wire": [
         {
           "show_title": "VIP"
@@ -345,9 +344,7 @@
       ],
       "canonical": [
         {
-          "show_title": {
-            "title": "VIP"
-          }
+          "show_title": "VIP"
         },
         {
           "show_title": {

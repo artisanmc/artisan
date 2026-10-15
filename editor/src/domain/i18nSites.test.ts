@@ -57,7 +57,7 @@ function makeFixture(): Project {
             {
               id: "ok",
               label: lt("lt_btnl"),
-              steps: [{ kind: "action", action: { type: "send_message", text: lt("lt_bm") } }],
+              steps: [{ kind: "action", action: { name: "send_message", value: lt("lt_bm") } }],
             },
           ],
         },
@@ -68,7 +68,7 @@ function makeFixture(): Project {
           projectId: "p" as never,
           name: "give",
           arguments: [],
-          steps: [{ kind: "action", action: { type: "send_message", text: lt("lt_cm") } }],
+          steps: [{ kind: "action", action: { name: "send_message", value: lt("lt_cm") } }],
         },
       ],
       menu: [
@@ -95,15 +95,11 @@ function makeFixture(): Project {
                     click: {
                       left: {
                         steps: [
-                          { kind: "action", action: { type: "send_message", text: lt("lt_m0") } },
-                          { kind: "action", action: { type: "send_message", text: lt("lt_m1") } },
+                          { kind: "action", action: { name: "send_message", value: lt("lt_m0") } },
+                          { kind: "action", action: { name: "send_message", value: lt("lt_m1") } },
                           {
                             kind: "action",
-                            action: {
-                              type: "show_title",
-                              title: lt("lt_st"),
-                              subtitle: lt("lt_ss"),
-                            },
+                            action: { name: "show_title", value: { title: lt("lt_st"), subtitle: lt("lt_ss") } },
                           },
                         ],
                       },
@@ -220,8 +216,8 @@ describe("visitProjectLTexts", () => {
     const handler = menusOf(project)[0]!.layers[0]!.elements[0]!.display!.click!.left!;
     const firstAction = handler.steps[0]!;
     expect(firstAction.kind).toBe("action");
-    if (firstAction.kind === "action" && firstAction.action.type === "send_message") {
-      expect(firstAction.action.text.key).toBe("claimed");
+    if (firstAction.kind === "action" && firstAction.action.name === "send_message") {
+      expect((firstAction.action.value as { key: string }).key).toBe("claimed");
     }
   });
 

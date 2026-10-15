@@ -164,12 +164,9 @@ describe("validate", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: {
-                                type: "send_message",
-                                text: {
+                              action: { name: "send_message", value: {
                                   key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
-                                },
-                              },
+                                } },
                             },
                           ],
                         },
@@ -217,15 +214,11 @@ describe("validate", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: {
-                                type: "show_title",
-                                title: {
+                              action: { name: "show_title", value: { title: {
                                   key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
-                                },
-                                subtitle: {
+                                }, subtitle: {
                                   key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
-                                },
-                              },
+                                } } },
                             },
                           ],
                         },
@@ -269,7 +262,7 @@ describe("validate", () => {
             steps: [
               {
                 kind: "action",
-                action: { type: "send_message", text: { key: "commands.heal.message" as I18nKey } },
+                action: { name: "send_message", value: { key: "commands.heal.message" as I18nKey } },
               },
             ],
           },

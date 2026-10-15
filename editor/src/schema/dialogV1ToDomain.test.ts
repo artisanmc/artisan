@@ -19,7 +19,7 @@ describe("dialogV1ToDomain", () => {
     expect(dialog.projectId).toBe("p1");
     expect(dialog.canCloseWithEscape).toBe(true);
     expect(i18nKeys[dialog.title.key]).toEqual({ en: "Sure?" });
-    expect(dialog.buttons[0]!.steps).toEqual([{ kind: "action", action: { type: "close_dialog" } }]);
+    expect(dialog.buttons[0]!.steps).toEqual([{ kind: "action", action: { name: "close_dialog", value: null } }]);
     expect(i18nKeys[dialog.buttons[0]!.label.key]).toEqual({ en: "Yes" });
   });
 

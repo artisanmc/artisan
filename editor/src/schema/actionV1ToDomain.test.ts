@@ -24,7 +24,7 @@ describe("makeStepConverter — DSL steps (Phase 2)", () => {
     const c = ctx();
     const { steps } = makeStepConverter(c);
     expect(steps("open_menu shop")).toEqual([
-      { kind: "action", action: { type: "open_menu", menuId: "shop" } },
+      { kind: "action", action: { name: "open_menu", value: "shop" } },
     ]);
   });
 
@@ -37,7 +37,7 @@ describe("makeStepConverter — DSL steps (Phase 2)", () => {
         cases: [
           {
             conditions: [{ type: "has_permission", perm: "a.b" }],
-            steps: [{ kind: "action", action: { type: "close_menu" } }],
+            steps: [{ kind: "action", action: { name: "close_menu", value: null } }],
           },
         ],
       },
@@ -47,11 +47,11 @@ describe("makeStepConverter — DSL steps (Phase 2)", () => {
   it("mints an i18n key for a literal send_message, resolves @key via ref", () => {
     const c = ctx();
     const { steps } = makeStepConverter(c);
-    const litStep = steps('send_message "hi"')[0] as unknown as { action: { text: LText } };
-    expect(c.keys[litStep.action.text.key]).toEqual({ en: "hi" });
+    const litStep = steps('send_message "hi"')[0] as unknown as { action: { value: LText } };
+    expect(c.keys[litStep.action.value.key]).toEqual({ en: "hi" });
 
-    const refStep = steps("send_message @greeting")[0] as unknown as { action: { text: LText } };
-    expect(refStep.action.text.key).toBe("greeting");
+    const refStep = steps("send_message @greeting")[0] as unknown as { action: { value: LText } };
+    expect(refStep.action.value.key).toBe("greeting");
   });
 
   it("blank / non-string input yields no steps", () => {

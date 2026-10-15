@@ -1,3 +1,4 @@
+import { actionDocumentRefs } from "@/domain/actionArgs";
 import { newCommandId, newElementId, newLayerId, newMenuId } from "@/domain/ids";
 import type {
   Action,
@@ -87,12 +88,16 @@ export function rewriteIds(input: {
   const menuRemap = new Map<MenuId, MenuId>();
   for (const m of input.menus) menuRemap.set(m.id, newMenuId());
 
+  // Every `document_ref` to a menu of the rewritten set follows its new id (read through
+  // the action's declaration, so a module's action referencing a menu is rewritten too).
   const remapAction = (a: Action): Action => {
-    if (a.type === "open_menu") {
-      const target = menuRemap.get(a.menuId);
-      return target ? { ...a, menuId: target } : a;
+    const copy: Action = { name: a.name, value: a.value };
+    for (const ref of actionDocumentRefs(copy)) {
+      if (ref.document !== "menu") continue;
+      const target = menuRemap.get(ref.id as MenuId);
+      if (target) ref.set(target);
     }
-    return a;
+    return copy;
   };
   const remapStep = (step: Step): Step => {
     if (step.kind === "action") return { kind: "action", action: remapAction(step.action) };

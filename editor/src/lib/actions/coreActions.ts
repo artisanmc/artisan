@@ -1,6 +1,7 @@
 import type { ModelField } from "@/domain/types";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { useServerActionsStore } from "@/state/serverActionsStore";
+import { useCallback } from "react";
 import vector from "../../../../testdata/core-actions.json";
 
 /**
@@ -45,3 +46,12 @@ export type DeclaredActionLookup = (name: string) => DeclaredAction | undefined;
  */
 export const declaredActionOf: DeclaredActionLookup = (name) =>
   coreActionOf(name) ?? useServerActionsStore.getState().actions.find((a) => a.name === name);
+
+/** The same lookup as a hook: re-renders when the server's declared actions change. */
+export function useDeclaredActionOf(): DeclaredActionLookup {
+  const actions = useServerActionsStore((s) => s.actions);
+  return useCallback(
+    (name: string) => coreActionOf(name) ?? actions.find((a) => a.name === name),
+    [actions],
+  );
+}

@@ -12,8 +12,8 @@ describe("domain types — compile-time shape", () => {
   });
 
   it("an open_menu Action carries a MenuId", () => {
-    const a: Action = { type: "open_menu", menuId: "m_1" as Menu["id"] };
-    expect(a.type).toBe("open_menu");
+    const a: Action = { name: "open_menu", value: "m_1" as Menu["id"] };
+    expect(a.name).toBe("open_menu");
   });
 
   it("an Element holds a display and its states", () => {
@@ -62,25 +62,17 @@ describe("Condition union — expression variant", () => {
 
 describe("Action union — context mutation variants", () => {
   it("constructs set_arg", () => {
-    const a: Action = { type: "set_arg", arg: "current_tag", value: `"weapon"` };
-    expect(a.type).toBe("set_arg");
+    const a: Action = { name: "set_arg", value: { arg: "current_tag", value: `"weapon"` } };
+    expect(a.name).toBe("set_arg");
   });
 
   it("constructs set_arg_cycle_next", () => {
-    const a: Action = {
-      type: "set_arg_cycle_next",
-      arg: "current_tag",
-      list: "categories",
-    };
-    expect(a.type).toBe("set_arg_cycle_next");
+    const a: Action = { name: "set_arg_cycle_next", value: { arg: "current_tag", list: "categories" } };
+    expect(a.name).toBe("set_arg_cycle_next");
   });
 
   it("constructs set_arg_cycle_prev", () => {
-    const a: Action = {
-      type: "set_arg_cycle_prev",
-      arg: "current_tag",
-      list: "categories",
-    };
-    expect(a.type).toBe("set_arg_cycle_prev");
+    const a: Action = { name: "set_arg_cycle_prev", value: { arg: "current_tag", list: "categories" } };
+    expect(a.name).toBe("set_arg_cycle_prev");
   });
 });

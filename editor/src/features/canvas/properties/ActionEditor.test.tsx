@@ -68,7 +68,7 @@ function project(): Project {
   };
 }
 
-const command: Action = { type: "run_command", command: "", as: "console" };
+const command: Action = { name: "run_command", value: { command: "", as: "console" } };
 
 function typeBrace() {
   fireEvent.change(screen.getByRole("combobox"), { target: { value: "{", selectionStart: 1 } });
