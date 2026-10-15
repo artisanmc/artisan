@@ -15,12 +15,16 @@ class EngineRuntime(
     private val i18n: Map<String, String> = emptyMap(),
 ) : ActionRuntime {
 
-    override fun text(ctx: ActionContext, text: Any?): String =
-        executor.resolveText(Args.ltext(text) ?: return "", executor.context(ctx))
+    override fun text(ctx: ActionContext, text: Any?): String {
+        val ltext = Args.ltext(text) ?: return ""
+        return executor.resolveText(ltext, executor.context(ctx))
+    }
 
     /** A core handler's `ltext` argument, looked up at its legacy address when the step has one. */
-    fun text(ctx: ExecutionContext, args: Map<String, Any>, name: String): String =
-        executor.resolveText(Args.ltext(args[name]) ?: return "", ctx, i18n[name])
+    fun text(ctx: ExecutionContext, args: Map<String, Any>, name: String): String {
+        val ltext = Args.ltext(args[name]) ?: return ""
+        return executor.resolveText(ltext, ctx, i18n[name])
+    }
 
     override fun run(ctx: ActionContext, chain: Any?): ActionContext {
         val base = executor.context(ctx)
