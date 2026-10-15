@@ -18,7 +18,11 @@ et avec eux `editor.access_mode` / `editor.console_only`.
 
 ## `editor`
 
-En jeu seulement (`editor_in_game_only` sinon) ; sans `artisan.editor.view` : refus.
+Sans `artisan.editor.view` : refus. Depuis la console : identité **Console** partagée
+(`ArtisanCommand.CONSOLE_ID`, UUID nul, nom `Console`), avec les permissions de la console,
+et le lien imprimé en clair (`editor_link_console`, rien à cliquer). Sans `web.url`, l'adresse
+est `server-ip`, sinon `localhost`. La relecture des permissions ne touche jamais cette session
+(elle ne lit que les joueurs en ligne) : elle vit jusqu'à expiration ou `editor logout`.
 
 **Serveur seul ou hub** (`web.hub` vide, serveur web démarré) : imprime un lien
 `<base>/login/<jeton>` à usage unique, valable 60 s, un par joueur et par minute
@@ -41,5 +45,5 @@ qu'il n'a pas émises (permissions LuckPerms par serveur).
 ## `editor logout [joueur]`
 
 Ferme toutes les sessions éditeur d'un joueur, quel que soit le serveur d'origine. Sans argument :
-soi-même (en jeu). Avec un joueur (en ligne ou connu du serveur) : `artisan.admin`, console comprise.
+soi-même (en jeu), Console (depuis la console). `Console` se nomme comme un joueur. Avec un joueur (en ligne ou connu du serveur) : `artisan.admin`, console comprise.
 Sur une feuille, passe par le hub (`editor_logout` → `editor_logout_result {ok, closed}`).
