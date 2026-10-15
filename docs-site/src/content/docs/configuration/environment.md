@@ -57,8 +57,7 @@ Artisan itself creates no tables. See [Database](/wiki/configuration/database/).
 | `database.name` | `"minecraft"` | Database (schema) name. Ignored for H2. |
 | `database.user` | `"root"` | User. Ignored for H2. |
 | `database.password` | `""` | Password. Ignored for H2. Prefer an environment variable. |
-
-The pool size is not here but in `config.yml` (`database.pool-size`).
+| `database.pool-size` | `4` | Maximum connections of **each** plugin's own pool (clamped to 1–50). A value left in `config.yml` by an older version is still read until this key is set. |
 
 ## Environment variables
 

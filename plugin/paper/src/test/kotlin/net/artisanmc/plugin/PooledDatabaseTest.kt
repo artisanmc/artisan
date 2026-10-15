@@ -41,11 +41,20 @@ class PooledDatabaseTest {
     }
 
     @Test
-    fun `pool size comes from config yml`() {
-        config.set("database.pool-size", 7)
+    fun `pool size comes from environment yml`() {
+        assertEquals(4, readDatabaseSettings(environment, config, dir).poolSize)
+        environment = yaml("database: { pool-size: 7 }")
         assertEquals(7, readDatabaseSettings(environment, config, dir).poolSize)
-        config.set("database.pool-size", 500)
+        environment = yaml("database: { pool-size: 500 }")
         assertEquals(50, readDatabaseSettings(environment, config, dir).poolSize)
+    }
+
+    @Test
+    fun `a pool size left in config yml is still read until environment yml sets one`() {
+        config.set("database.pool-size", 6)
+        assertEquals(6, readDatabaseSettings(environment, config, dir).poolSize)
+        environment = yaml("database: { pool-size: 9 }")
+        assertEquals(9, readDatabaseSettings(environment, config, dir).poolSize)
     }
 
     @Test

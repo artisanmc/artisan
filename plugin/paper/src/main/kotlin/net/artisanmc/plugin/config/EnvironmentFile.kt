@@ -52,11 +52,11 @@ object EnvironmentFile {
         |  hub: ""
         |  secret: ""
         |
-        |# Database shared by the plugins of the suite, one connection pool per plugin
-        |# (pool size: database.pool-size in config.yml). Changes apply after a restart.
-        |#   h2      : a single file, plugins/Artisan/database/suite.mv.db, nothing to set up
-        |#   mysql   : MySQL 8+
-        |#   mariadb : MariaDB 10.6+
+        |# Database shared by the plugins of the suite. Changes apply after a restart.
+        |#   type      : h2      a single file, plugins/Artisan/database/suite.mv.db, nothing to set up
+        |#               mysql   MySQL 8+
+        |#               mariadb MariaDB 10.6+
+        |#   pool-size : maximum connections of each plugin's own pool (1 to 50)
         |database:
         |  type: "h2"
         |  host: "localhost"
@@ -64,5 +64,6 @@ object EnvironmentFile {
         |  name: "minecraft"
         |  user: "root"
         |  password: ""
+        |  pool-size: 4
         |""".trimMargin()
 }
