@@ -6,7 +6,7 @@ import { findPreviewCallContexts } from "@/features/canvas/previewCallContexts";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { extractArgTokens } from "./MenuDataSection";
 
@@ -21,6 +21,7 @@ type SourceRefInput = Extract<ContextInput, { kind: "sourceRef" }>;
  */
 export function PreviewContextSection({ menu, projectId }: { menu: Menu; projectId: ProjectId }) {
   const { t } = useTranslation();
+  const fieldId = useId();
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
@@ -112,8 +113,11 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
       <div className="font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
         {t("menuProperties.previewContext")}
       </div>
-      <p className="text-[10px] text-[var(--text-faint)]">{t("menuProperties.previewContextHint")}</p>
+      <p className="text-[10px] text-[var(--text-faint)]">
+        {t("menuProperties.previewContextHint")}
+      </p>
       {hasServerSource ? (
+        // biome-ignore lint/a11y/noLabelWithoutControl: the label wraps the <input> rendered by PlayerNameInput (which takes no id); Biome cannot see through the component
         <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
           <span className="whitespace-nowrap">{t("menuProperties.previewAsPlayer")}</span>
           {/* Committed on blur / Enter, not on every keystroke: each change refetches
@@ -149,10 +153,15 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         </label>
       ) : null}
       {[...candidates.entries()].map(([token, values]) => (
-        <label key={token} className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
+        <label
+          key={token}
+          htmlFor={`${fieldId}-arg-${token}`}
+          className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]"
+        >
           <span className="font-mono">{`{${token}}`}</span>
           {values.size > 0 ? (
             <select
+              id={`${fieldId}-arg-${token}`}
               data-testid={`preview-arg-${token}`}
               className="h-6 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[10px] text-[var(--text)]"
               value={typeof previewArgs[token] === "string" ? (previewArgs[token] as string) : ""}
@@ -167,6 +176,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
             </select>
           ) : (
             <Input
+              id={`${fieldId}-arg-${token}`}
               data-testid={`preview-arg-${token}`}
               value={typeof previewArgs[token] === "string" ? (previewArgs[token] as string) : ""}
               onChange={(e) => setMenuPreviewArg(menu.id, token, e.target.value)}
@@ -179,9 +189,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         const rows = resolveSourceRef(input.rowOf!, project, snapshots);
         const list = Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
         const current = previewArgs[input.name];
-        const selectedIdx = list.findIndex(
-          (r) => JSON.stringify(r) === JSON.stringify(current),
-        );
+        const selectedIdx = list.findIndex((r) => JSON.stringify(r) === JSON.stringify(current));
         return (
           <label
             key={input.name}
@@ -211,12 +219,16 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
       {freeInputs.map((input) => (
         <label
           key={input.name}
+          htmlFor={`${fieldId}-free-${input.name}`}
           className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]"
         >
           <span className="font-mono">{`{${input.name}}`}</span>
           <Input
+            id={`${fieldId}-free-${input.name}`}
             data-testid={`preview-arg-${input.name}`}
-            value={typeof previewArgs[input.name] === "string" ? (previewArgs[input.name] as string) : ""}
+            value={
+              typeof previewArgs[input.name] === "string" ? (previewArgs[input.name] as string) : ""
+            }
             placeholder={input.default ?? ""}
             onChange={(e) => setMenuPreviewArg(menu.id, input.name, e.target.value)}
             className="h-6 flex-1 px-2 py-0 font-mono text-[10px]"

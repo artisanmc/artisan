@@ -7,6 +7,7 @@ import { useThemeStore } from "@/state/themeStore";
 export function useCssVar(token: string): string {
   const theme = useThemeStore((s) => s.theme);
   const [value, setValue] = useState(() => readVar(token));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `theme` is the re-read trigger — the CSS var's computed value changes when the theme flips, which Biome can't see
   useEffect(() => {
     setValue(readVar(token));
   }, [theme, token]);

@@ -786,7 +786,8 @@ function dataSourceI18n(project: Project): {
       if (!entry) continue;
       for (const [lang, val] of Object.entries(entry)) {
         if (lang === project.defaultLang) continue;
-        (byLang[lang] ??= {})[site.path] = val;
+        byLang[lang] ??= {};
+        byLang[lang][site.path] = val;
       }
     }
   }
@@ -800,13 +801,11 @@ function generatedHeader(name: string, fields: ModelField[]): string {
   // The hints themselves now sit above the key they document (ADR
   // yaml-assisted-editing ⑥) — the header only says what the file does to
   // comments, because it overwrites them and must not pretend otherwise.
-  return (
-    [
-      `# ── ${name} — managed by Artisan (values can be edited by hand)`,
-      "# Comments are generated from the schema: a comment added anywhere",
-      "# other than the top of the file is overwritten on the next save.",
-    ].join("\n") + "\n"
-  );
+  return `${[
+    `# ── ${name} — managed by Artisan (values can be edited by hand)`,
+    "# Comments are generated from the schema: a comment added anywhere",
+    "# other than the top of the file is overwritten on the next save.",
+  ].join("\n")}\n`;
 }
 
 function hasAnyHelp(fields: ModelField[]): boolean {
@@ -888,16 +887,16 @@ function modelKindRefs(models: DataModel[]): Set<string> {
         walk(ty.of);
         return;
       case "object":
-        ty.fields.forEach((f) => walk(f.type));
+        for (const f of ty.fields) walk(f.type);
         return;
       case "union":
-        ty.variants.forEach((v) => v.fields.forEach((f) => walk(f.type)));
+        for (const v of ty.variants) for (const f of v.fields) walk(f.type);
         return;
       default:
         return;
     }
   };
-  for (const m of models) m.fields.forEach((f) => walk(f.type));
+  for (const m of models) for (const f of m.fields) walk(f.type);
   return out;
 }
 

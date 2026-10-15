@@ -26,7 +26,7 @@ describe("groupServerSources", () => {
       src("boutique:z", "boutique"),
       src("boutique:a", "boutique"),
     ]);
-    expect(groups[0].sources.map((s) => s.ref)).toEqual(["boutique:a", "boutique:z"]);
+    expect(groups[0]!.sources.map((s) => s.ref)).toEqual(["boutique:a", "boutique:z"]);
   });
 
   it("returns [] for no sources", () => {

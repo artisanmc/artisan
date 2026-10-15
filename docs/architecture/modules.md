@@ -42,6 +42,13 @@ Modular monolith donne :
 - UX cohérente (mêmes primitives, même design system)
 - Architecture qui se prête à un futur SDK 3ᵉ party (V3+) sans refactor
 
+**Frontières d'imports de l'éditeur, vérifiées en CI** (`npm run check:boundaries`,
+`editor/scripts/check-boundaries.mjs`) : un package `editor/packages/*` n'importe pas `editor/src/`
+(il passe par `@artisan/editor-sdk`) ; `domain`, `schema`, `lib`, `state` et `components`
+n'importent pas `features/` ; une feature n'importe une autre feature que par un lien déjà connu.
+Les violations existantes sont gelées dans `editor/boundaries-baseline.json`, qui ne peut que
+rétrécir : une nouvelle violation fait échouer la CI, une violation corrigée doit en être retirée.
+
 **Quand pivoter vers vrai plugin SDK** : seulement quand tu as 3+ modules tiers développés par d'autres et de la demande validée pour un programme officiel. Probablement V3+ ou au-delà.
 
 ## 3. Module abstraction

@@ -157,7 +157,7 @@ describe("accountStore", () => {
       position: { x: 100, y: 200 },
     });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    expect((project.canvasLayout as Record<string, unknown>)["d_shop"]).toEqual({ x: 100, y: 200 });
+    expect((project.canvasLayout as Record<string, unknown>).d_shop).toEqual({ x: 100, y: 200 });
   });
 
   describe("placement mode reducers", () => {
@@ -222,7 +222,7 @@ describe("accountStore", () => {
     });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
     const dialog = dialogsOf(project).find((d) => d.id === "d_greet")!;
-    expect(project.i18nKeys[dialog.title.key]!["en"]).toBe("Hello!");
+    expect(project.i18nKeys[dialog.title.key]!.en).toBe("Hello!");
   });
 
   it("removeUnusedI18nKeys drops orphaned keys but keeps referenced ones", () => {
@@ -253,7 +253,7 @@ describe("accountStore", () => {
     useAccountStore.getState().deleteFromProject({ projectId: PERSONAL, nodeIds: ["d_bye"] });
     const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
     expect(dialogsOf(project).some((d) => d.id === "d_bye")).toBe(false);
-    expect((project.canvasLayout as Record<string, unknown>)["d_bye"]).toBeUndefined();
+    expect((project.canvasLayout as Record<string, unknown>).d_bye).toBeUndefined();
   });
 
   it("setEdgeAnchor stores an endpoint override; clearEdgeAnchor removes it and the empty entry", () => {
@@ -1698,7 +1698,7 @@ describe("accountStore", () => {
       expect(first.kind).toBe("plain");
       if (first.kind === "plain") {
         expect(first.value.key).toBe(`menus.${mId}.title`);
-        expect(project.i18nKeys[first.value.key]?.["en"]).toBe("Lazy");
+        expect(project.i18nKeys[first.value.key]?.en).toBe("Lazy");
       }
     });
 
@@ -1785,7 +1785,10 @@ describe("accountStore", () => {
         index: -1,
         step: {
           kind: "action",
-          action: { name: "show_title", value: { title: { key: "" as I18nKey }, subtitle: { key: "" as I18nKey } } },
+          action: {
+            name: "show_title",
+            value: { title: { key: "" as I18nKey }, subtitle: { key: "" as I18nKey } },
+          },
         },
         lang: "en",
       });

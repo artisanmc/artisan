@@ -24,7 +24,6 @@ it("offers to edit the ID next to it when the server allows renaming", () => {
   const project = mockAccount().projects[0]!;
   useProjectRuntimeStore.getState().set({
     projectId: project.id,
-    networkId: "network",
     serverId: "server",
     minecraftVersion: null,
     capabilities: { canRename: true, liveData: true, captureInGame: true, preview: true },

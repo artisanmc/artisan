@@ -49,7 +49,7 @@ it("converts an item with the image's natural footprint and edits pixel offsets"
     onItem: vi.fn(),
   };
   const { rerender } = render(<ImageButtonEditor {...props} />);
-  fireEvent.click(screen.getByRole("button", { name: "Image", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Image" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose Buy" }));
   expect(onImage).toHaveBeenCalledWith({ asset: "buy", fit: "native" }, "1,10,19");
   rerender(<ImageButtonEditor {...props} image={{ asset: "buy", fit: "native", offset_x: 2 }} />);

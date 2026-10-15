@@ -28,7 +28,9 @@ it("updates all previews after one HDB lookup and keeps cached skins scoped to t
     expect(result.current).toEqual(Array(2).fill(`https://mc-heads.net/head/${"a".repeat(64)}`)),
   );
   expect(fetcher).toHaveBeenCalledTimes(1);
-  expect(fetcher.mock.calls[0][0]).toContain("/api/v1/servers/heads-server/head-texture?id=128276");
+  expect(fetcher.mock.calls[0]![0]).toContain(
+    "/api/v1/servers/heads-server/head-texture?id=128276",
+  );
   fetcher.mockResolvedValue({ ok: false });
   act(() => useServersStore.setState({ activeServerId: "other-heads-server" }));
   expect(result.current).toEqual([undefined, undefined]);

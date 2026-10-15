@@ -136,7 +136,7 @@ it("keeps the appearance when clicking the already active composed mode", () => 
   fireEvent.click(screen.getByRole("button", { name: /composé/i }));
   const project = useAccountStore.getState().account.projects[0]!;
   expect(menusOf(project)[0]!.title).toEqual(layers);
-  expect(project.i18nKeys.title).toEqual({ en: "Shop", fr: "Boutique" });
+  expect(project.i18nKeys[K("title")]).toEqual({ en: "Shop", fr: "Boutique" });
 });
 
 it("shows the default texture first and restores it when going back to a vanilla title", () => {

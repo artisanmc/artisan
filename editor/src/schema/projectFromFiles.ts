@@ -221,7 +221,12 @@ function readTranslations(
     const parsed = tryParse<Record<string, unknown>>(content);
     if (!parsed || typeof parsed !== "object") continue;
     for (const [key, value] of Object.entries(flattenLangTree(parsed))) {
-      (out[key] ??= {})[lang] = value;
+      let byLang = out[key];
+      if (byLang === undefined) {
+        byLang = {};
+        out[key] = byLang;
+      }
+      byLang[lang] = value;
     }
   }
   return out;
@@ -439,7 +444,7 @@ function inlineLegacyTemplates(
       const binding = (el.iterates ?? el.places) as LegacyBinding | undefined;
       const tplId = binding?.templateId;
       if (!binding || !tplId) continue;
-      delete binding.templateId;
+      Reflect.deleteProperty(binding, "templateId");
       // Dangling ref: the element keeps its (empty) local fields — non-hermetic
       // by design, it just renders nothing.
       const tpl = templates.get(tplId);
@@ -484,14 +489,14 @@ export interface ProjectFromFilesMeta {
  */
 export function projectFromFiles(
   projectId: ProjectId,
-  files: Record<string, string>,
+  rawFiles: Record<string, string>,
   meta: ProjectFromFilesMeta = {},
 ): Project {
   // `files` keys are prefixed with the project's DISK id, which is not
   // necessarily the internal id (cf. `Project.diskId`). The prefix is rewritten
   // to the internal id once and for all: everything downstream addresses by
   // `baseOf(projectId)` and need not know the distinction.
-  files = normalizeProjectPrefix(files, projectId);
+  const files = normalizeProjectPrefix(rawFiles, projectId);
   const manifest = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
   const defaultLang = manifest.default_lang ?? "en";
   const now = new Date().toISOString();
@@ -872,7 +877,12 @@ export function projectFromFiles(
     if (slash <= 0) continue; // top-level unknown files (and .artisan/*): ignored
     const dir = rel.slice(0, slash);
     if (!MODULE_DIR_RE.test(dir) || dir in Object.prototype) continue;
-    (moduleData[dir] ??= { __files: {} }).__files[rel.slice(slash + 1)] = content;
+    let mod = moduleData[dir];
+    if (mod === undefined) {
+      mod = { __files: {} };
+      moduleData[dir] = mod;
+    }
+    mod.__files[rel.slice(slash + 1)] = content;
   }
 
   const canvasGroups = normalizeCanvasGroups(editorState.groups, documentIdsOf({ documents }));

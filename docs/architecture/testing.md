@@ -10,7 +10,11 @@ Il n'y a plus de suite backend depuis la phase F (2026-10).
 | Plugin `paper` | `./gradlew :paper:test` | Rendu des menus (MockBukkit), contrat des paquets (`MenuSlotsContractTest`), gestionnaires du protocole (`Project*ChannelTest`, `ConfigChannelTest`, fetch live), `LocalServerLink`, `WsClient` (MockWebServer), pack de ressources (manager, délégation), config et `environment.yml`, secret réseau, scheduler. |
 | Plugin `api`, `database` | `./gradlew test` | Surface Java-friendly (`ApiSurfaceIsJavaFriendlyTest`), pools de connexions. |
 | Éditeur | `cd editor && npm test` | Expr DSL, canvas + édition de Document, export (transform/validate/zip), i18n, title composer, pack de ressources dans le navigateur (`lib/pack/`), brouillons et conflits, routes. |
-| E2E éditeur | `cd editor && npx playwright test` | `smoke.spec.ts` — canvas charge, sidebar visible. |
+| E2E éditeur | `cd editor && npm run test:e2e` | `smoke.spec.ts` — l'app démarre sur `npm run dev`, API simulée en 401 : un visiteur anonyme arrive sur `/login`, sans erreur de page. |
+
+Contrôles statiques de l'éditeur, en CI avec les tests : `npm run typecheck` (`tsc -b`, tests
+compris ; le build ne type que `tsconfig.app.json`), `npx biome lint .` sur tout l'éditeur, et le
+format Biome sur les seuls fichiers modifiés par la PR (`biome format --changed`).
 
 E2E éditeur → hub → serveur : **non automatisé**, test manuel sur `docker compose` (serveur seul)
 ou `docker/network/compose.yml` (hub + feuille).

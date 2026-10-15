@@ -18,9 +18,13 @@ test("editor CI does not enforce the repository-wide lint while its baseline is 
   assert.doesNotMatch(workflow, /run: npm run lint/);
 });
 
-test("editor CI runs the deploy tests, editor tests, both builds and the wiki verify", () => {
+test("editor CI runs the deploy tests, static checks, editor tests, both builds and the wiki verify", () => {
   for (const step of [
     /run: node --test deploy\/\*\.test\.mjs/,
+    /run: npm run typecheck\n\s+working-directory: editor/,
+    /run: npx biome lint \.\n\s+working-directory: editor/,
+    /run: npm run check:boundaries\n\s+working-directory: editor/,
+    /run: npx biome format --changed --no-errors-on-unmatched --since=/,
     /run: npm test -- --run\n\s+working-directory: editor/,
     /run: npm run build\n\s+working-directory: editor/,
     /run: npm run build:site\n\s+working-directory: editor/,
@@ -28,6 +32,10 @@ test("editor CI runs the deploy tests, editor tests, both builds and the wiki ve
   ]) {
     assert.match(workflow, step);
   }
+});
+
+test("editor e2e smoke runs in CI", () => {
+  assert.match(workflow, /run: npm run test:e2e/);
 });
 
 test("CI builds no cloud editor: no VITE_* env, no cloud hosts", () => {

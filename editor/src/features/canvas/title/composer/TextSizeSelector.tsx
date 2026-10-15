@@ -29,7 +29,7 @@ export function TextSizeSelector({ id, value, onChange }: TextSizeSelectorProps)
         id={id}
         value={value ?? 8}
         onChange={(e) => {
-          const n = parseInt(e.target.value, 10) as TextSize;
+          const n = Number.parseInt(e.target.value, 10) as TextSize;
           onChange(n === 8 ? undefined : n);
         }}
         className="h-8 w-full rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2 text-xs text-[var(--text)]"
