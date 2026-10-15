@@ -53,6 +53,9 @@ export interface FontMeta {
   glyphMap: FontGlyphMeta[];
 }
 
+/** 2020-01-01 00:00:00 in the host's local time: fflate's DOS timestamp reads local fields. */
+const ZIP_MTIME = () => new Date(2020, 0, 1, 0, 0, 0);
+
 export function buildResourcePackZip(
   assets: AssetRow[],
   glyphPngs: Map<string, Uint8Array>,
@@ -171,8 +174,10 @@ export function buildResourcePackZip(
   // defaults to "now" — two identical rebuilds straddling a window produced
   // different bytes, so the same content hashed differently and clients
   // re-downloaded an unchanged project (and flaked CI's determinism test). Any
-  // constant works; content changes still change the hash.
-  const zipBytes = zipSync(files, { level: 0, mtime: new Date("2020-01-01T00:00:00Z") });
+  // constant works; content changes still change the hash. fflate writes the
+  // DOS timestamp from the Date's *local* fields, so the constant is built in
+  // local time: the same bytes come out whatever the host's timezone.
+  const zipBytes = zipSync(files, { level: 0, mtime: ZIP_MTIME() });
   const hash = sha1Hex(zipBytes);
   return { zipBytes, hash };
 }
