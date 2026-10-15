@@ -124,9 +124,13 @@ sont tranchées en grill (table « Décisions tranchées » de l'ADR).
   `default → pushUnsupported`), `features/flow/defaults.ts:63-86` (`ACTION_TYPES`),
   `docs/schema/menu/v1/types.ts:397-420`, labels/pickers `features/flow/labels.ts:6,44`.
 - **Dogfood** : `open_menu`/`open_dialog`/`close_menu`/`open_previous_menu`
-  sont **décrites** dans le registre (menus/dialogs) ; codec, form, picker et arêtes
-  pilotés par registre. R1 (ouvert) : leur **exécution** reste au code core typé
-  (recommandé) ou passe aussi par le registre.
+  sont des **handlers** du module menus/dialogs (R1 tranché : `ActionHandler { name,
+  args: ModelField[], primary?, execute(ctx, args, runtime): ctx }`) ; codec, form, picker,
+  arêtes **et dispatch** pilotés par registre, sealed class `Action` interne au module. Test
+  de complétude : un handler par nom du vocabulaire, schéma coïncidant. Verrou supplémentaire :
+  `i18n-address-conformance.json` — le visiteur i18n des args devient piloté par schéma
+  (`ltext` dans `ModelField[]`, comme `visitModelValueLTexts`) et doit émettre les **mêmes
+  adresses** que `visitStepLTexts` / `I18nAddresses.kt` pour les actions core.
 - `structured-action-wire` est **accepted** (2026-10-15) : le wire keyed est en prod des
   deux côtés. Le codec DSL (`editor/src/lib/actionDsl/*`, `plugin/core/.../actiondsl/*`)
   ne sert plus qu'à lire les anciens fichiers ; son retrait est un nettoyage séparé.
