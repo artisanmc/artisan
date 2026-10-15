@@ -32,7 +32,7 @@ export function AliasesField({ label, aliases, onChange }: AliasesFieldProps) {
   return (
     <div>
       <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{label}</div>
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: clic de confort qui renvoie le focus à l'<input> interne, lui-même atteignable au Tab ; aucune action propre au conteneur */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: convenience click that focuses the inner <input>, itself reachable with Tab; the container has no action of its own */}
       <div
         className="flex min-h-10 w-full cursor-text flex-wrap items-center gap-1 rounded-md border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
         onClick={() => inputRef.current?.focus()}

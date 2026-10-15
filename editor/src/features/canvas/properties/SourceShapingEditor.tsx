@@ -32,7 +32,7 @@ export function SourceShapingEditor({
   // interim names — the record is rebuilt on every emit.
   const [rows, setRows] = useState<[string, string][]>(() => Object.entries(input.filter ?? {}));
   const filterKey = JSON.stringify(input.filter ?? {});
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `filterKey` (JSON de input.filter) remplace input.filter pour ne resynchroniser que sur un changement de contenu, pas de référence ; input.ref/input.name forcent la resynchro au changement de source
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `filterKey` (input.filter as JSON) stands in for input.filter so only a content change resyncs, not a new reference; input.ref/input.name force a resync when the source changes
   useEffect(() => {
     setRows((prev) => {
       const next = Object.entries(input.filter ?? {});
