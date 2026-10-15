@@ -99,6 +99,12 @@ câblage, verrouillé par les vecteurs existants**. On n'ouvre l'enregistrement
 qu'une fois les kinds core passés par le registre sans changement de
 comportement.
 
+Ordre des lots (2026-10-15, après R1 et R2) : le **conteneur (W2) d'abord**, c'est la base ;
+puis le **registre d'actions avec dispatch par handler (W1 + W3)** ; puis **`document_ref`
+dans `ModelFieldType` et les arêtes génériques (W4)** ; puis listing/create/rename/i18n (W5) ;
+puis les surfaces d'enregistrement publiques et la présence (W6, `@Beta`) ; enfin un pilote (W7)
+avant tout gel d'API.
+
 ## Workstreams
 
 ### W0 — ADR + spec (ce document)
@@ -141,9 +147,15 @@ sont tranchées en grill (table « Décisions tranchées » de l'ADR).
 
 ### W2 — Modèle Project (des deux côtés)
 
-R2 (ouvert) : conteneur complet tout de suite, ou accesseur `documentsOf(project, kind)` +
-`project.documents[kind]` réservé aux kinds module (recommandé). `project.menus` apparaît
-dans ~98 fichiers de l'éditeur (130 occurrences hors tests), `.dialogs` 36, `.commands` 39.
+R2 tranché (2026-10-15) : **conteneur unique, maintenant, entier**. `project.documents[kind]`
+(éditeur) et `ProjectBundle.documents` (plugin) sont la seule source de vérité ; les champs
+`menus/commands/dialogs` disparaissent. `documentsOf(project, kind)` et des accesseurs typés par
+kind (`menusOf(project)`…) sont une **façade de lecture** pour l'ergonomie, jamais un second
+stockage. Les ~98 fichiers de l'éditeur qui lisent `project.menus` (130 occurrences hors tests,
+`.dialogs` 36, `.commands` 39) passent tous par la façade dans ce workstream — le volume n'est
+pas un argument, c'est le périmètre. Un minimum de registre de kinds (kind → `dir`, `idPrefix`,
+`schemaVersion`) est nécessaire ici pour piloter `CORE_PREFIXES`, `ProjectReader` et
+`ResourceInventory` par les données ; les descripteurs complets (W6) viennent après.
 
 - Éditeur : `editor/src/domain/types.ts:134-164` — `Project.menus/commands/
   dialogs`. Impacte `schema/projectFromFiles.ts:396-533`
