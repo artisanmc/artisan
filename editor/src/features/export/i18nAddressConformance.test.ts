@@ -1,7 +1,10 @@
-import { visitMenuLTexts, visitStepLTexts } from "@/domain/i18nSites";
+import { adoptActionTexts, visitMenuLTexts, visitStepLTexts } from "@/domain/i18nSites";
 import { menuId, projectId } from "@/domain/ids";
-import type { I18nKey, Menu, MenuTitleLayer, Step } from "@/domain/types";
+import type { I18nKey, Menu, MenuTitleLayer, ModelField, Project, Step } from "@/domain/types";
 import { parseToSteps } from "@/lib/actionDsl";
+import { coreActionOf } from "@/lib/actions/coreActions";
+import { structuredToSteps } from "@/lib/actions/structuredSteps";
+import type { DeclaredAction } from "@/lib/api/declaredActions";
 import {
   clickHandlerKeyPrefix,
   commandKeyPrefix,
@@ -119,11 +122,74 @@ describe("i18n address conformance — menu title layers", () => {
   }
 });
 
+/**
+ * A `step_addresses` case: a legacy `dsl` chain, or keyed `steps` (the structured wire,
+ * module actions included) with the `declared_actions` of the module actions it uses.
+ */
+interface StepCase {
+  name: string;
+  prefix: string;
+  dsl?: string;
+  steps?: unknown;
+  declared_actions?: {
+    name: string;
+    args: ModelField[];
+    primary?: string | null;
+    module_id?: string | null;
+  }[];
+  addresses: string[];
+}
+
 describe("i18n address conformance — action texts", () => {
-  for (const c of vector.step_addresses) {
+  for (const c of vector.step_addresses as StepCase[]) {
     it(c.name, () => {
-      const steps = parseToSteps(c.dsl) as Step[];
-      expect([...visitStepLTexts(steps, c.prefix)].map((s) => s.key)).toEqual(c.addresses);
+      const declared: DeclaredAction[] = (c.declared_actions ?? []).map((d) => ({
+        name: d.name,
+        args: d.args,
+        primary: d.primary ?? null,
+        moduleId: d.module_id ?? null,
+      }));
+      const declOf = (name: string) => coreActionOf(name) ?? declared.find((a) => a.name === name);
+      // The wire texts are adopted into LText nodes at their address first, as the
+      // editor does once the declarations are known; the visitor then yields the sites.
+      const project = { defaultLang: "en", i18nKeys: {} } as unknown as Project;
+      const steps =
+        c.dsl !== undefined
+          ? (parseToSteps(c.dsl) as Step[])
+          : structuredToSteps(c.steps, {
+              toWire: () => "",
+              fromWire: (raw) => {
+                const key = `k_${Object.keys(project.i18nKeys).length}` as I18nKey;
+                project.i18nKeys[key] = typeof raw === "string" ? { en: raw } : raw;
+                return { key };
+              },
+            });
+      adoptActionTexts(project, steps, c.prefix, declOf);
+      expect([...visitStepLTexts(steps, c.prefix, declOf)].map((s) => s.key)).toEqual(c.addresses);
     });
   }
+
+  it("adopts a module text's languages under its address", () => {
+    const declared: DeclaredAction = {
+      name: "quests:notify",
+      args: [{ name: "text", type: { kind: "ltext" }, required: true }],
+      primary: "text",
+      moduleId: "quests",
+    };
+    const declOf = (name: string) => coreActionOf(name) ?? (name === declared.name ? declared : undefined);
+    const project = { defaultLang: "en", i18nKeys: {} } as unknown as Project;
+    const steps = structuredToSteps([{ "quests:notify": { en: "Hi", fr: "Salut" } }, { "quests:notify": "Bye" }], {
+      toWire: () => "",
+      fromWire: () => ({ key: "" as I18nKey }),
+    });
+    adoptActionTexts(project, steps, "commands.give", declOf);
+    expect(project.i18nKeys).toEqual({
+      "commands.give.quests.notify.text": { en: "Hi", fr: "Salut" },
+      "commands.give.quests.notify_1.text": { en: "Bye" },
+    });
+    const first = steps[0];
+    expect(first?.kind === "action" && first.action.type === "module" ? first.action.value : null).toEqual({
+      key: "commands.give.quests.notify.text",
+    });
+  });
 });

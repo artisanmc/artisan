@@ -12,7 +12,7 @@ import {
   visitMenuLTexts,
   visitStepLTexts,
 } from "@/domain/i18nSites";
-import { walkActions } from "@/domain/stepPath";
+import { isLTextNode, walkStepTextSlots } from "@/domain/actionTextSlots";
 import type {
   Appearance,
   ClickType,
@@ -69,24 +69,24 @@ export function cloneAppearanceLTextsInto(project: Project, a: Appearance): void
   }
   if (a.click) {
     for (const handler of Object.values(a.click)) {
-      if (!handler) continue;
-      for (const action of walkActions(handler.steps)) {
-        if (action.type === "send_message" || action.type === "broadcast") {
-          const src = project.i18nKeys[action.text.key];
-          action.text = createLText(project, "", project.defaultLang);
-          if (src) project.i18nKeys[action.text.key] = { ...src };
-        } else if (action.type === "show_title") {
-          const srcT = project.i18nKeys[action.title.key];
-          action.title = createLText(project, "", project.defaultLang);
-          if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
-          if (action.subtitle) {
-            const srcS = project.i18nKeys[action.subtitle.key];
-            action.subtitle = createLText(project, "", project.defaultLang);
-            if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
-          }
-        }
-      }
+      if (handler) duplicateStepLTexts(project, handler.steps);
     }
+  }
+}
+
+/**
+ * Give every text of a copied Step tree its own fresh key, carrying the translations
+ * over, so the copy and its source stop sharing entries. Folds over the text slots of
+ * every declared action (core or module), like the i18n lifecycle does.
+ */
+export function duplicateStepLTexts(project: Project, steps: Step[]): void {
+  for (const slot of walkStepTextSlots(steps, "")) {
+    const node = slot.get();
+    if (!isLTextNode(node)) continue;
+    const src = project.i18nKeys[node.key];
+    const fresh = createLText(project, "", project.defaultLang);
+    if (src) project.i18nKeys[fresh.key] = { ...src };
+    slot.set(fresh);
   }
 }
 
@@ -244,23 +244,10 @@ export function updateDialogLTextKey(dialog: Dialog, oldKey: I18nKey, newKey: I1
       btn.label.key = newKey;
       return;
     }
-    for (const action of walkActions(btn.steps)) {
-      if (
-        (action.type === "send_message" || action.type === "broadcast") &&
-        action.text.key === oldKey
-      ) {
-        action.text.key = newKey;
+    for (const site of visitStepLTexts(btn.steps, "")) {
+      if (site.lText.key === oldKey) {
+        site.lText.key = newKey;
         return;
-      }
-      if (action.type === "show_title") {
-        if (action.title.key === oldKey) {
-          action.title.key = newKey;
-          return;
-        }
-        if (action.subtitle?.key === oldKey) {
-          action.subtitle.key = newKey;
-          return;
-        }
       }
     }
   }

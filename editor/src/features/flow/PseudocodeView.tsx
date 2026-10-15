@@ -33,6 +33,7 @@ import { type CSSProperties, createContext, useContext, useMemo, useRef, useStat
 import { useTranslation } from "react-i18next";
 import { ACTION_TYPES, defaultAction, defaultModuleAction } from "./defaults";
 import { moduleActionsOf, useServerActionsStore } from "@/state/serverActionsStore";
+import { isLTextNode } from "@/domain/actionTextSlots";
 import { CLICK_TYPE_ORDER, actionTypeLabel, clickTypeLabel, conditionsSummary } from "./labels";
 import { menusOf } from "@/domain/documents";
 
@@ -865,11 +866,14 @@ export function AddStepLine({
   firstMenuId,
   onPick,
   allowIf = true,
+  literalText = false,
 }: {
   indent: number;
   firstMenuId: MenuId | undefined;
   onPick: (step: Step) => void;
   allowIf?: boolean;
+  /** Literal-text mode for module-data steps — a module action's texts seed as strings. */
+  literalText?: boolean;
 }) {
   const { t } = useTranslation();
   // Actions a module registered on the active server (ADR extensible-document-kinds, R1).
@@ -905,7 +909,9 @@ export function AddStepLine({
           {moduleActions.map((decl) => (
             <DropdownMenuItem
               key={decl.name}
-              onSelect={() => onPick({ kind: "action", action: defaultModuleAction(decl) })}
+              onSelect={() =>
+                onPick({ kind: "action", action: defaultModuleAction(decl, literalText) })
+              }
               className="cursor-pointer focus:bg-[var(--surface-hover)]"
             >
               <span className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--text-mut)]">
@@ -1148,12 +1154,21 @@ function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => s
     case "run_actions":
       return action.actions;
     case "module":
-      return action.value == null
-        ? ""
-        : typeof action.value === "object"
-          ? JSON.stringify(action.value)
-          : String(action.value);
+      return summarizeModuleValue(action.value, getText);
   }
+}
+
+/** A module action's value in one line: adopted texts read in the active language, the rest as JSON. */
+function summarizeModuleValue(value: unknown, getText: (lt: LText | undefined) => string): string {
+  if (value == null) return "";
+  if (isLTextNode(value)) return getText(value);
+  if (Array.isArray(value)) return value.map((v) => summarizeModuleValue(v, getText)).join(", ");
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => `${k}: ${isLTextNode(v) ? getText(v) : JSON.stringify(v)}`)
+      .join(", ");
+  }
+  return String(value);
 }
 
 function summarizeConditions(
