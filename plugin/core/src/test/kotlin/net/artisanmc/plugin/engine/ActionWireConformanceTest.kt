@@ -13,9 +13,10 @@ import java.io.File
  * the editor asserts against too (`lib/actions/actionWireConformance.test.ts`).
  *
  * The canonical form in the vector is what the editor writes; `wire` is a variant
- * a hand or an older editor may have written. Both MUST compile to the same chain
- * here, and the chain MUST be the step sequence the vector names — so a menu
- * authored in the editor runs exactly what the board shows.
+ * a hand or an older editor may have written. Both MUST bind to the same chain
+ * here (the argument maps the handlers receive, [CoreActions] defaults included),
+ * and the chain MUST be the step sequence the vector names — so a menu authored
+ * in the editor runs exactly what the board shows.
  */
 class ActionWireConformanceTest {
     private val mapper = ObjectMapper()
@@ -33,12 +34,21 @@ class ActionWireConformanceTest {
     /** JSON tree → the plain maps/lists/scalars SnakeYAML hands the parser. */
     private fun plain(node: JsonNode): Any? = mapper.convertValue(node, Any::class.java)
 
-    /** `OpenMenu` → `open_menu`, `PaginationNext` → `pagination_next`: the wire key. */
+    /** The wire key of a step: the action's name, or `if`. */
     private fun wireName(step: Step): String = when (step) {
         is Step.IfStep -> "if"
-        is Step.ActionStep -> step.action::class.simpleName!!
-            .replace(Regex("(?<=[a-z0-9])([A-Z])")) { "_" + it.value }
-            .lowercase()
+        is Step.ActionStep -> step.name
+    }
+
+    /** A chain as the engine runs it: each action bound to its argument map. */
+    private fun bound(steps: List<Step>): List<Any> = steps.map { step ->
+        when (step) {
+            is Step.ActionStep -> step.name to (CoreActions.schema(step.name)?.bind(step.value) ?: step.value)
+            is Step.IfStep -> mapOf(
+                "cases" to step.cases.map { it.conditions to bound(it.steps) },
+                "else" to bound(step.elseSteps),
+            )
+        }
     }
 
     @TestFactory
@@ -47,7 +57,7 @@ class ActionWireConformanceTest {
             DynamicTest.dynamicTest(c["name"].asText()) {
                 val fromWire = KeyedStepParser.parseKeyed(plain(c["wire"]))
                 val fromCanonical = KeyedStepParser.parseKeyed(plain(c["canonical"]))
-                assertEquals(fromCanonical, fromWire, "wire and canonical must compile to the same chain")
+                assertEquals(bound(fromCanonical), bound(fromWire), "wire and canonical must compile to the same chain")
                 assertEquals(c["names"].map { it.asText() }, fromWire.map(::wireName), "top-level step names")
             }
         }

@@ -40,6 +40,7 @@ public final class ArtisanAPI {
     private final ModuleActionsApi actions;
     private final ModelRegistry models;
     private final EditorScreenRegistry screens;
+    private final ActionRegistry actionRegistry;
     private final DatabaseApi database;
     private final MenuApi menus;
     private final SchedulerApi scheduler;
@@ -59,6 +60,7 @@ public final class ArtisanAPI {
         this.actions = b.actions;
         this.models = b.models;
         this.screens = b.screens;
+        this.actionRegistry = b.actionRegistry;
         this.database = b.database;
         this.menus = b.menus;
         this.scheduler = b.scheduler;
@@ -151,6 +153,16 @@ public final class ArtisanAPI {
         return screens;
     }
 
+    /**
+     * The action vocabulary (ADR {@code extensible-document-kinds}): the declarations a chain may
+     * invoke, core and module alike, dispatched by name. Reported at Presence as
+     * {@code declared_actions}.
+     */
+    @Beta
+    public ActionRegistry getActionRegistry() {
+        return actionRegistry;
+    }
+
     /** One connection pool per plugin, credentials in {@code environment.yml} (ADR {@code suite-foundation-database}). */
     @Beta
     public DatabaseApi getDatabase() {
@@ -203,6 +215,7 @@ public final class ArtisanAPI {
         private ModuleActionsApi actions = ModuleActionsApi.NOOP;
         private ModelRegistry models = new ModelRegistry();
         private EditorScreenRegistry screens = new EditorScreenRegistry();
+        private ActionRegistry actionRegistry = new ActionRegistry();
         private DatabaseApi database = DatabaseApi.NONE;
         private MenuApi menus = MenuApi.NOOP;
         private SchedulerApi scheduler = SchedulerApi.DIRECT;
@@ -250,6 +263,11 @@ public final class ArtisanAPI {
 
         public Builder screens(EditorScreenRegistry screens) {
             this.screens = Objects.requireNonNull(screens);
+            return this;
+        }
+
+        public Builder actionRegistry(ActionRegistry actionRegistry) {
+            this.actionRegistry = Objects.requireNonNull(actionRegistry);
             return this;
         }
 

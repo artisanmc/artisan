@@ -2,7 +2,6 @@ package net.artisanmc.plugin
 
 import net.artisanmc.plugin.command.ArgDef
 import net.artisanmc.plugin.command.CommandCompiler
-import net.artisanmc.plugin.engine.Action
 import net.artisanmc.plugin.engine.Condition
 import net.artisanmc.plugin.engine.Step
 import net.artisanmc.plugin.model.CooldownYaml
@@ -19,8 +18,7 @@ class CommandCompilerTest {
         val result = CommandCompiler.compile(yaml)
         assertNotNull(result)
         assertEquals("reward", result.name)
-        assertEquals(1, result.handler.actions.size)
-        assertIs<Action.SendMessage>(result.handler.actions[0])
+        assertEquals(listOf(Step.ActionStep("send_message", mapOf("text" to "Received!"))), result.handler.steps)
     }
 
     @Test fun `actions as DSL string compiles like steps`() {
@@ -66,7 +64,7 @@ class CommandCompilerTest {
         assertEquals(1, result.handler.requirements.size)
         assertIs<Condition.CooldownPassed>(result.handler.requirements[0])
         assertEquals(1, result.handler.fallback.size)
-        assertIs<Action.SendMessage>((result.handler.fallback[0] as Step.ActionStep).action)
+        assertEquals("send_message", (result.handler.fallback[0] as Step.ActionStep).name)
     }
 
     @Test fun `compile command with cooldown`() {
@@ -110,12 +108,15 @@ class CommandCompilerTest {
         assertIs<net.artisanmc.plugin.engine.Step.ActionStep>(result.handler.steps[1])
     }
 
-    @Test fun `compile returns null on invalid action type`() {
+    @Test fun `compile keeps an unknown action for the registry to report`() {
+        // The vocabulary lives in the action registry (a module may add a name): the
+        // compiler keeps the step, the executor warns when it runs.
         val yaml = CommandYaml(
-            name = "broken",
+            name = "module_action",
             actions = listOf(mapOf("type" to "does_not_exist")),
         )
         val result = CommandCompiler.compile(yaml)
-        assertNull(result)
+        assertNotNull(result)
+        assertEquals("does_not_exist", assertIs<net.artisanmc.plugin.engine.Step.ActionStep>(result.handler.steps.single()).name)
     }
 }

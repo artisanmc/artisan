@@ -53,6 +53,7 @@ class RemoteServer(
     override fun dataSources() = list("data_sources")
     override fun models() = list("declared_models")
     override fun screens() = list("editor_screens")
+    override fun actions() = list("declared_actions")
     override fun serverConfig() = serverConfig
     override fun customItems() = customItems
 
@@ -96,7 +97,7 @@ class RemoteServer(
         }
         when (message.path("type").asText()) {
             "modules_changed" -> hello = hello.deepCopy().apply {
-                for (field in listOf("installed_modules", "data_sources", "declared_models", "editor_screens")) {
+                for (field in listOf("installed_modules", "data_sources", "declared_models", "editor_screens", "declared_actions")) {
                     message[field]?.let { set<JsonNode>(field, it) }
                 }
             }

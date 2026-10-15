@@ -38,7 +38,7 @@ class RunCommandBridgeTest {
         var seen: Map<String, Any?>? = null
         val registry = registryWith("boutique:buy") { _, args -> seen = args }
         val executor = makeExecutor(commandRegistry = registry)
-        executor.execute(listOf(Action.RunCommand(command = "boutique:buy sword extra", asConsole = false)), ExecutionContext(p))
+        executor.execute(listOf(Step.ActionStep("run_command", "boutique:buy sword extra")), ExecutionContext(p))
         assertEquals(listOf("sword", "extra"), seen?.get("argv"))
         assertEquals("sword extra", seen?.get("raw"))
     }
@@ -48,7 +48,7 @@ class RunCommandBridgeTest {
         var seen: Map<String, Any?>? = null
         val registry = registryWith("boutique:buy") { _, args -> seen = args }
         val executor = makeExecutor(commandRegistry = registry)
-        executor.execute(listOf(Action.RunCommand(command = "Boutique:Buy \"Diamond Sword\" 2", asConsole = false)), ExecutionContext(p))
+        executor.execute(listOf(Step.ActionStep("run_command", "Boutique:Buy \"Diamond Sword\" 2")), ExecutionContext(p))
         assertEquals(listOf("Diamond Sword", "2"), seen?.get("argv"))
         assertEquals("\"Diamond Sword\" 2", seen?.get("raw"))
     }
@@ -57,13 +57,13 @@ class RunCommandBridgeTest {
         val p = MockBukkit.getMock()!!.addPlayer()
         val executor = makeExecutor(commandRegistry = CommandRegistry())
         // Must not throw UnknownCommandException: performCommand is the fallback.
-        executor.execute(listOf(Action.RunCommand(command = "essentials:home base", asConsole = false)), ExecutionContext(p))
+        executor.execute(listOf(Step.ActionStep("run_command", "essentials:home base")), ExecutionContext(p))
     }
 
     @Test fun `null registry keeps legacy behavior`() {
         val p = MockBukkit.getMock()!!.addPlayer()
         val executor = makeExecutor(commandRegistry = null)
-        executor.execute(listOf(Action.RunCommand(command = "boutique:buy sword", asConsole = false)), ExecutionContext(p))
+        executor.execute(listOf(Step.ActionStep("run_command", "boutique:buy sword")), ExecutionContext(p))
     }
 
     @Test fun `console run_command never routes to the registry`() {
@@ -71,7 +71,7 @@ class RunCommandBridgeTest {
         var called = false
         val registry = registryWith("boutique:buy") { _, _ -> called = true }
         val executor = makeExecutor(commandRegistry = registry)
-        executor.execute(listOf(Action.RunCommand(command = "boutique:buy sword", asConsole = true)), ExecutionContext(p))
+        executor.execute(listOf(Step.ActionStep("run_command", mapOf("command" to "boutique:buy sword", "as" to "console"))), ExecutionContext(p))
         assertFalse(called)
     }
 }

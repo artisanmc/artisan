@@ -29,7 +29,7 @@ class PackCommandTest {
     }
     private fun executor() = ActionExecutor(plugin.value, stubProvider, sessions, deps, cooldowns, evaluator)
 
-    private fun cmd(name: String, argDefs: List<ArgDef> = emptyList(), handler: ClickHandler = ClickHandler(emptyList(), emptyList(), emptyList()), permission: String? = null): PackCommand {
+    private fun cmd(name: String, argDefs: List<ArgDef> = emptyList(), handler: ClickHandler = ClickHandler(emptyList(), emptyList()), permission: String? = null): PackCommand {
         val compiled = CompiledCommand(name, emptyList(), permission, "", argDefs, handler)
         return PackCommand(compiled, executor(), lang)
     }
@@ -43,7 +43,7 @@ class PackCommandTest {
                 openedFrom = ctx.projectId
             }
         }
-        val handler = ClickHandler(emptyList(), listOf(Action.OpenMenu("main")), emptyList())
+        val handler = ClickHandler(emptyList(), emptyList(), steps = listOf(Step.ActionStep("open_menu", "main")))
         val compiled = CompiledCommand("shopcmd", emptyList(), null, "", emptyList(), handler)
         val command = PackCommand(
             compiled,
@@ -65,8 +65,8 @@ class PackCommandTest {
     @Test fun `execute runs handler for player with no args`() {
         val handler = ClickHandler(
             requirements = emptyList(),
-            actions = listOf(Action.SendMessage("executed")),
             fallback = emptyList(),
+            steps = listOf(Step.ActionStep("send_message", "executed")),
         )
         val command = cmd("test", handler = handler)
         val player = MockBukkit.getMock()!!.addPlayer()
@@ -90,7 +90,7 @@ class PackCommandTest {
                 }
             }
             val actions = ActionExecutor(plugin.value, provider, sessions, deps, cooldowns, evaluator)
-            val handler = ClickHandler(emptyList(), listOf(Action.OpenMenu("menu_zdzd")), emptyList())
+            val handler = ClickHandler(emptyList(), emptyList(), steps = listOf(Step.ActionStep("open_menu", "menu_zdzd")))
             val command = PackCommand(CompiledCommand("testimg", emptyList(), null, "", emptyList(), handler), actions, languages)
             assertTrue(command.execute(player, "testimg", emptyArray()))
             val (selected, context) = assertNotNull(opened)
