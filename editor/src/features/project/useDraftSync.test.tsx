@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isDirty } from "./draft";
 import { projectTree } from "./saveProjectToDisk";
 import { useDraftSync } from "./useDraftSync";
+import { menusOf } from "@/domain/documents";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -53,8 +54,8 @@ describe("browser draft retention", () => {
   it("keeps a restored draft dirty after serialization and another refresh", () => {
     const { account, project, initialTree } = setup();
     project.name = "Edited project";
-    project.menus[0]!.rows = 5;
-    project.canvasLayout = { [project.menus[0]!.id]: { x: 321, y: 456 } };
+    menusOf(project)[0]!.rows = 5;
+    project.canvasLayout = { [menusOf(project)[0]!.id]: { x: 321, y: 456 } };
     const tree = projectTree(project);
     // A browser reload hydrates JSON: equal file trees are different objects.
     useProjectDraftStore.getState().save(
@@ -107,8 +108,8 @@ describe("browser draft retention", () => {
     });
     renderHook(() => useDraftSync());
     project.name = "Last edit before refresh";
-    project.menus[0]!.rows = 5;
-    project.canvasLayout = { [project.menus[0]!.id]: { x: 321, y: 456 } };
+    menusOf(project)[0]!.rows = 5;
+    project.canvasLayout = { [menusOf(project)[0]!.id]: { x: 321, y: 456 } };
     act(() => {
       useAccountStore.getState().setAccount(account);
       window.dispatchEvent(new Event("pagehide"));
@@ -125,7 +126,7 @@ describe("browser draft retention", () => {
       at: 123,
     });
     renderHook(() => useDraftSync());
-    project.menus[0]!.rows = 5;
+    menusOf(project)[0]!.rows = 5;
     const savedTree = projectTree(project);
     act(() => {
       useProjectBaselineStore.getState().set(project.id, savedTree);

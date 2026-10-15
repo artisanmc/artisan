@@ -6,6 +6,7 @@ import { type RefObject, useCallback, useState } from "react";
 import type { ContextMenuState, ContextMenuTarget } from "./ContextMenu";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import type { ViewportState } from "./usePanZoom";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 const emptyTarget: ContextMenuTarget = { kind: "entity", selectedIds: [] };
 
@@ -14,7 +15,7 @@ const slotIsFilled = (
   menuId: string,
   position: number,
 ): boolean => {
-  const menu = project.menus.find((m) => m.id === menuId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
   if (!menu) return false;
   const positionStr = String(position);
   return menu.layers.some((l) =>
@@ -28,7 +29,7 @@ const selectedElementAt = (
   position: number,
   ids: ReadonlySet<string>,
 ): boolean =>
-  !!project.menus
+  !!menusOf(project)
     .find((m) => m.id === menuId)
     ?.layers.some((l) =>
       l.elements.some((el) => ids.has(el.id) && parsePositions(el.positions).includes(position)),
@@ -81,7 +82,7 @@ export function useStageContextMenu({
         ((selected.menuId === null &&
           selected.ids.has(slotHit.menuId) &&
           [...selected.ids].every((id) =>
-            [project.menus, project.commands, project.dialogs].some((nodes) =>
+            [menusOf(project), commandsOf(project), dialogsOf(project)].some((nodes) =>
               nodes?.some((n) => n.id === id),
             ),
           )) ||

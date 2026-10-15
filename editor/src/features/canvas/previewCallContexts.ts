@@ -3,6 +3,7 @@ import { walkActions } from "@/domain/stepPath";
 import type { Menu, Project } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
 import { type SourceSnapshots, buildPreviewScope, renderPreview } from "./menuPreviewScope";
+import { menusOf } from "@/domain/documents";
 
 /** One way of arriving at a parameterized menu: a caller's open_menu action,
  *  interpolated against one of the caller's iteration rows. */
@@ -51,7 +52,7 @@ export function findPreviewCallContexts(
 ): PreviewCallContext[] {
   const out: PreviewCallContext[] = [];
   const seen = new Set<string>();
-  for (const caller of project.menus) {
+  for (const caller of menusOf(project)) {
     if (caller.id === target.id) continue;
     const scope = buildPreviewScope(caller, project, snapshots);
     for (const layer of caller.layers) {

@@ -1,6 +1,7 @@
 import type { Project } from "@/domain/types";
 import { INVENTORY_TYPES, PLAYER_SLOTS, rowsFor, slotCount, slotMcXY } from "./inventoryTypes";
 import { TEX_SCALE, TEX_SLOT_STRIDE, menuBoxSize } from "./menuLayout";
+import { menusOf } from "@/domain/documents";
 
 export interface SlotHit {
   menuId: string;
@@ -26,7 +27,7 @@ export function hitTestSlot(
   worldX: number,
   worldY: number,
 ): SlotHit | null {
-  for (const menu of project.menus) {
+  for (const menu of menusOf(project)) {
     const pos = layout[menu.id];
     if (!pos) continue;
     const type = menu.inventoryType ?? "chest";

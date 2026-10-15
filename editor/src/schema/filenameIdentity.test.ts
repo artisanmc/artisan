@@ -3,6 +3,7 @@ import { projectFromFiles } from "./projectFromFiles";
 import { transform } from "@/features/export/transform";
 import { parse } from "yaml";
 import type { ProjectId } from "@/domain/types";
+import { menusOf } from "@/domain/documents";
 
 const BASE = "plugins/Artisan/projects/p1";
 
@@ -20,7 +21,7 @@ describe("a Document's identity comes from its file name", () => {
       [`${BASE}/manifest.yaml`]: "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n",
       [`${BASE}/menus/accueil.yaml`]: "schema: menu/v1\nsize: 27\n",
     });
-    expect(project.menus.map((m) => m.id)).toEqual(["accueil"]);
+    expect(menusOf(project).map((m) => m.id)).toEqual(["accueil"]);
   });
 
   it("ignores a diverging internal id in favour of the file", () => {
@@ -28,7 +29,7 @@ describe("a Document's identity comes from its file name", () => {
       [`${BASE}/manifest.yaml`]: "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n",
       [`${BASE}/menus/accueil.yaml`]: "schema: menu/v1\nid: vieux_nom\nsize: 27\n",
     });
-    expect(project.menus.map((m) => m.id)).toEqual(["accueil"]);
+    expect(menusOf(project).map((m) => m.id)).toEqual(["accueil"]);
   });
 
   it("no longer writes the id field into the file", () => {
@@ -50,6 +51,6 @@ describe("a Document's identity comes from its file name", () => {
       [`${BASE}/menus/accueil.yaml`]: "schema: menu/v1\nsize: 27\n",
     });
     const reloaded = load(transform(project));
-    expect(reloaded.menus.map((m) => m.id)).toEqual(["accueil"]);
+    expect(menusOf(reloaded).map((m) => m.id)).toEqual(["accueil"]);
   });
 });

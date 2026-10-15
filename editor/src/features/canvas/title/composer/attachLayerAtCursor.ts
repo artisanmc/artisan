@@ -4,6 +4,7 @@ import { TEX_SCALE, TEX_TITLE_H, menuBoxSize } from "../../menuLayout";
 import type { StageGeometry } from "../../stageGeometry";
 import { type MenuBounds, findNearestMenu } from "./dragPlacement";
 import { type Cursor, screenToCanvasCoords } from "./screenToCanvasCoords";
+import { menusOf } from "@/domain/documents";
 
 export interface AttachPlacement {
   menuId: MenuId;
@@ -37,7 +38,7 @@ export function attachLayerAtCursor(
 
   const layout = autoLayout(project);
   const bounds: MenuBounds[] = [];
-  for (const menu of project.menus) {
+  for (const menu of menusOf(project)) {
     const pos = layout[menu.id];
     if (!pos) continue;
     const box = menuBoxSize(menu.inventoryType ?? "chest", menu.rows);

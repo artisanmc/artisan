@@ -113,7 +113,7 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
         </div>
       );
     case "command": {
-      const command = project.commands.find((c) => c.id === ctx.id)!;
+      const command = commandsOf(project).find((c) => c.id === ctx.id)!;
       return (
         <div className="h-full overflow-hidden">
           <CommandEditor projectId={projectId} command={command} />
@@ -121,7 +121,7 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
       );
     }
     case "dialog": {
-      const dialog = project.dialogs.find((d) => d.id === ctx.id)!;
+      const dialog = dialogsOf(project).find((d) => d.id === ctx.id)!;
       return (
         <div className="h-full overflow-hidden">
           <DialogEditor projectId={projectId} dialog={dialog} />
@@ -129,7 +129,7 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
       );
     }
     case "element": {
-      const menu = project.menus.find((m) => m.id === ctx.menuId)!;
+      const menu = menusOf(project).find((m) => m.id === ctx.menuId)!;
       const el = menu.layers.flatMap((l) => l.elements).find((e) => e.id === ctx.elementId)!;
       return (
         <div className="h-full overflow-hidden">
@@ -138,7 +138,7 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
       );
     }
     case "menu": {
-      const menu = project.menus.find((m) => m.id === ctx.menuId)!;
+      const menu = menusOf(project).find((m) => m.id === ctx.menuId)!;
       return (
         <div className="h-full overflow-y-auto p-3">
           <MenuProperties projectId={projectId} menu={menu} />
@@ -415,6 +415,7 @@ export function stateDropId(menuId: MenuId, elementId: ElementId, stateIndex: nu
  * users can paste a full `hdb:…`/`eyJ…` and the select snaps to match.
  */
 export { HeadField } from "./ItemHeadField";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 interface StateMaterialIconProps {
   projectId: ProjectId;

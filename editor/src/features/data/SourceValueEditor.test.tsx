@@ -15,8 +15,11 @@ function makeProject(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataModels: [
       {
@@ -51,7 +54,6 @@ function makeProject(): Project {
     ],
     i18nKeys: { ["sources.ranks.vip.name" as never]: { en: "VIP" } } as Project["i18nKeys"],
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   } as unknown as Project;
 }
@@ -78,7 +80,10 @@ describe("SourceRowsTable", () => {
     fireEvent.click(screen.getByRole("button", { name: /ajouter un enchantement/i }));
     view.rerender(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
     fireEvent.change(screen.getByPlaceholderText("sharpness"), { target: { value: "sharpness" } });
-    expect(tableSource().rows[0]!.icon).toEqual({ extends: "DIAMOND_SWORD", enchants: { sharpness: 1 } });
+    expect(tableSource().rows[0]!.icon).toEqual({
+      extends: "DIAMOND_SWORD",
+      enchants: { sharpness: 1 },
+    });
   });
   it("edits an icon quantity without losing its material or enchantments", () => {
     const p = project();
@@ -124,15 +129,13 @@ describe("SourceRowsTable", () => {
 
   it("shows a duplicate Row key error without changing the stored value", () => {
     useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
-    useAccountStore
-      .getState()
-      .setSourceValue({
-        projectId: PID,
-        sourceId: "ranks" as never,
-        row: 1,
-        path: ["id"],
-        value: "member",
-      });
+    useAccountStore.getState().setSourceValue({
+      projectId: PID,
+      sourceId: "ranks" as never,
+      row: 1,
+      path: ["id"],
+      value: "member",
+    });
     render(<SourceRowsTable projectId={PID} project={project()} source={tableSource()} />);
 
     const input = screen.getByDisplayValue("member");
@@ -147,15 +150,13 @@ describe("SourceRowsTable", () => {
 
   it("clears a Row key error when an index-keyed editor is reused", () => {
     useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
-    useAccountStore
-      .getState()
-      .setSourceValue({
-        projectId: PID,
-        sourceId: "ranks" as never,
-        row: 1,
-        path: ["id"],
-        value: "member",
-      });
+    useAccountStore.getState().setSourceValue({
+      projectId: PID,
+      sourceId: "ranks" as never,
+      row: 1,
+      path: ["id"],
+      value: "member",
+    });
     const view = render(
       <SourceRowsTable projectId={PID} project={project()} source={tableSource()} />,
     );

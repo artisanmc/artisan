@@ -52,6 +52,7 @@ import { usePrimaryButtonOnly } from "./usePrimaryButtonOnly";
 import { usePanZoom } from "./usePanZoom";
 import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageTouch } from "./useStageTouch";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 interface StageProps {
   projectId: ProjectId;
@@ -113,14 +114,23 @@ function StageCanvas({ projectId, focus }: StageProps) {
     };
     const down = (e: KeyboardEvent) => {
       if (e.repeat) return;
-      if (e.code === "Space" && !isEditable(e.target)) { e.preventDefault(); setSpaceHeld(true); }
-      if (e.key === "Alt" && !isEditable(e.target)) { e.preventDefault(); setAltHeld(true); }
+      if (e.code === "Space" && !isEditable(e.target)) {
+        e.preventDefault();
+        setSpaceHeld(true);
+      }
+      if (e.key === "Alt" && !isEditable(e.target)) {
+        e.preventDefault();
+        setAltHeld(true);
+      }
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === "Space") setSpaceHeld(false);
       if (e.key === "Alt") setAltHeld(false);
     };
-    const onBlur = () => { setSpaceHeld(false); setAltHeld(false); };
+    const onBlur = () => {
+      setSpaceHeld(false);
+      setAltHeld(false);
+    };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", onBlur);
@@ -188,10 +198,18 @@ function StageCanvas({ projectId, focus }: StageProps) {
     const group = baseBoard.groups.find((g) => g.key === groupDrag.key);
     if (!group) return baseBoard;
     const members = new Set(group.members);
-    const shift = (p: { x: number; y: number }) => ({ x: p.x + groupDrag.dx, y: p.y + groupDrag.dy });
-    return { ...baseBoard,
-      layout: Object.fromEntries(Object.entries(baseBoard.layout).map(([id, p]) => [id, members.has(id) ? shift(p) : p])),
-      groups: baseBoard.groups.map((g) => group.kind === "project" || g.key === group.key ? { ...g, ...shift(g) } : g),
+    const shift = (p: { x: number; y: number }) => ({
+      x: p.x + groupDrag.dx,
+      y: p.y + groupDrag.dy,
+    });
+    return {
+      ...baseBoard,
+      layout: Object.fromEntries(
+        Object.entries(baseBoard.layout).map(([id, p]) => [id, members.has(id) ? shift(p) : p]),
+      ),
+      groups: baseBoard.groups.map((g) =>
+        group.kind === "project" || g.key === group.key ? { ...g, ...shift(g) } : g,
+      ),
     };
   }, [baseBoard, groupDrag]);
   const layout = useMemo(
@@ -205,7 +223,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
     if (!focus) return null;
     // `focus` is a Document id (the umbrella); `menu.id` is a MenuId. Nominal
     // brands do not overlap, so the comparison is textual.
-    const menu = project?.menus.find((m) => (m.id as string) === (focus as string));
+    const menu = menusOf(project).find((m) => (m.id as string) === (focus as string));
     return menu ? menuBoxSize(menu.inventoryType ?? "chest", menu.rows) : null;
   }, [project, focus]);
   useEffect(() => {
@@ -347,7 +365,12 @@ function StageCanvas({ projectId, focus }: StageProps) {
       const wrapper = wrapperRef.current;
       if (!wrapper || !project) return null;
       const rect = wrapper.getBoundingClientRect();
-      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+      if (
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom
+      ) {
         return null;
       }
       const stagePoint = { x: clientX - rect.left, y: clientY - rect.top };
@@ -473,7 +496,13 @@ function StageCanvas({ projectId, focus }: StageProps) {
         </div>
       )}
       <ArmedBanner />
-      {!focusMode && <BoardGroupControls project={project} dialog={groupDialog} onDialogChange={setGroupDialog} />}
+      {!focusMode && (
+        <BoardGroupControls
+          project={project}
+          dialog={groupDialog}
+          onDialogChange={setGroupDialog}
+        />
+      )}
       <CanvasToolbar
         onRearrange={
           focusMode
@@ -489,10 +518,12 @@ function StageCanvas({ projectId, focus }: StageProps) {
       />
       {!focusMode && minimapVisible && size.w > 0 && size.h > 0 && (
         <CanvasMinimap
-          boxes={[...Object.keys(layout).flatMap((id) => {
-            const box = nodeBox(project, id, layout);
-            return box ? [{ ...box, id }] : [];
-          })]}
+          boxes={[
+            ...Object.keys(layout).flatMap((id) => {
+              const box = nodeBox(project, id, layout);
+              return box ? [{ ...box, id }] : [];
+            }),
+          ]}
           size={size}
           viewport={viewport}
           onNavigate={setViewport}
@@ -550,13 +581,25 @@ function StageCanvas({ projectId, focus }: StageProps) {
           }
         }}
       >
-        {!focusMode && <Layer name="groups">
-          <BoardGroupFrames groups={board?.groups ?? []}
-            onManage={(group) => { if (group.kind === "group") setGroupDialog({ groupId: group.id }); }}
-            onDrag={setGroupDrag}
-            onMove={(group, dx, dy) => useAccountStore.getState().moveCanvasGroup({ projectId, groupId: group.kind === "project" ? null : group.id, dx, dy })}
-          />
-        </Layer>}
+        {!focusMode && (
+          <Layer name="groups">
+            <BoardGroupFrames
+              groups={board?.groups ?? []}
+              onManage={(group) => {
+                if (group.kind === "group") setGroupDialog({ groupId: group.id });
+              }}
+              onDrag={setGroupDrag}
+              onMove={(group, dx, dy) =>
+                useAccountStore.getState().moveCanvasGroup({
+                  projectId,
+                  groupId: group.kind === "project" ? null : group.id,
+                  dx,
+                  dy,
+                })
+              }
+            />
+          </Layer>
+        )}
         <Layer name="edges">
           <Edges project={project} layout={layout} representatives={board?.representatives} />
           {board?.gutter && (
@@ -571,36 +614,42 @@ function StageCanvas({ projectId, focus }: StageProps) {
           )}
         </Layer>
         <Layer name="menus" imageSmoothingEnabled={false}>
-          {project.menus.filter((menu) => layout[menu.id]).map((menu) => (
-            <MenuGroup
-              key={menu.id}
-              projectId={projectId}
-              menu={menu}
-              position={layout[menu.id]!}
-              layout={layout}
-              solo={focusMode}
-            />
-          ))}
+          {menusOf(project)
+            .filter((menu) => layout[menu.id])
+            .map((menu) => (
+              <MenuGroup
+                key={menu.id}
+                projectId={projectId}
+                menu={menu}
+                position={layout[menu.id]!}
+                layout={layout}
+                solo={focusMode}
+              />
+            ))}
         </Layer>
         {/* Commands and dialogs render above the menus layer so they always
             take click priority, even after a menu calls moveToTop() during drag. */}
         <Layer name="commands" imageSmoothingEnabled={false}>
-          {project.commands.filter((command) => layout[command.id]).map((command) => (
-            <CommandGroup
-              key={command.id}
-              projectId={projectId}
-              command={command}
-              position={layout[command.id]!}
-            />
-          ))}
-          {project.dialogs.filter((dialog) => layout[dialog.id]).map((dialog) => (
-            <DialogGroup
-              key={dialog.id}
-              projectId={projectId}
-              dialog={dialog}
-              position={layout[dialog.id]!}
-            />
-          ))}
+          {commandsOf(project)
+            .filter((command) => layout[command.id])
+            .map((command) => (
+              <CommandGroup
+                key={command.id}
+                projectId={projectId}
+                command={command}
+                position={layout[command.id]!}
+              />
+            ))}
+          {dialogsOf(project)
+            .filter((dialog) => layout[dialog.id])
+            .map((dialog) => (
+              <DialogGroup
+                key={dialog.id}
+                projectId={projectId}
+                dialog={dialog}
+                position={layout[dialog.id]!}
+              />
+            ))}
           <GhostChips
             project={project}
             layout={layout}
@@ -655,7 +704,11 @@ function StageCanvas({ projectId, focus }: StageProps) {
         }}
         onGroup={
           !focusMode && entityIds.length >= 2 && entityIds.every((id) => groupableIds.has(id))
-            ? () => { setGroupDialog({ nodeIds: entityIds }); closeCtxMenu(); } : undefined
+            ? () => {
+                setGroupDialog({ nodeIds: entityIds });
+                closeCtxMenu();
+              }
+            : undefined
         }
         onMoveTo={(toProjectId) => {
           if (entityIds.length !== 1) return;

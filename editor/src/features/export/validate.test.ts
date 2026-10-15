@@ -1,5 +1,5 @@
 import { commandId, elementId, layerId, menuId, projectId } from "@/domain/ids";
-import type { I18nKey, Project } from "@/domain/types";
+import type { Dialog, I18nKey, Menu, Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { validate } from "./validate";
 
@@ -13,8 +13,10 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
     createdAt: "",
     updatedAt: "",
     i18nKeys: {},
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+    },
     assets: [],
     canvasLayout: {},
     ...overrides,
@@ -30,15 +32,17 @@ describe("validate", () => {
 
   it("errors when a referenced key has no entry at all", () => {
     const project = makeProject({
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [],
+          },
+        ],
+      },
     });
     const result = validate(project);
     expect(result.valid).toBe(false);
@@ -48,15 +52,17 @@ describe("validate", () => {
   it("accepts an intentionally blank default-lang value", () => {
     const project = makeProject({
       i18nKeys: { "menus.shop.title": { en: "  " } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [],
+          },
+        ],
+      },
     });
     const result = validate(project);
     expect(result.valid).toBe(true);
@@ -66,15 +72,17 @@ describe("validate", () => {
   it("errors when a referenced key has no default-lang entry", () => {
     const project = makeProject({
       i18nKeys: { "menus.shop.title": { fr: "Bonjour" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [],
+          },
+        ],
+      },
     });
     const result = validate(project);
     expect(result.valid).toBe(false);
@@ -84,15 +92,17 @@ describe("validate", () => {
   it("does not warn about a target language when the source is intentionally blank", () => {
     const project = makeProject({
       i18nKeys: { "menus.shop.title": { en: "", fr: "" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [],
+          },
+        ],
+      },
     });
     const result = validate(project);
     expect(result.valid).toBe(true);
@@ -114,15 +124,17 @@ describe("validate", () => {
       i18nKeys: {
         "menus.shop.title": { en: "Shop", fr: "" },
       } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [],
+          },
+        ],
+      },
     });
     const result = validate(project);
     expect(result.valid).toBe(true);
@@ -131,44 +143,46 @@ describe("validate", () => {
 
   it("validates send_message keys in element click handlers", () => {
     const project = makeProject({
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("btn"),
-                  positions: "0",
-                  display: {
-                    click: {
-                      left: {
-                        steps: [
-                          {
-                            kind: "action",
-                            action: {
-                              type: "send_message",
-                              text: {
-                                key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("btn"),
+                    positions: "0",
+                    display: {
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: {
+                                type: "send_message",
+                                text: {
+                                  key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
+                                },
                               },
                             },
-                          },
-                        ],
+                          ],
+                        },
                       },
                     },
+                    states: [],
                   },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
       i18nKeys: {
         "menus.shop.title": { en: "Shop" },
       } as Project["i18nKeys"],
@@ -182,47 +196,49 @@ describe("validate", () => {
 
   it("validates show_title title and subtitle keys in element click handlers", () => {
     const project = makeProject({
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("btn"),
-                  positions: "0",
-                  display: {
-                    click: {
-                      left: {
-                        steps: [
-                          {
-                            kind: "action",
-                            action: {
-                              type: "show_title",
-                              title: {
-                                key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
-                              },
-                              subtitle: {
-                                key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("btn"),
+                    positions: "0",
+                    display: {
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: {
+                                type: "show_title",
+                                title: {
+                                  key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
+                                },
+                                subtitle: {
+                                  key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
+                                },
                               },
                             },
-                          },
-                        ],
+                          ],
+                        },
                       },
                     },
+                    states: [],
                   },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
       i18nKeys: {
         "menus.shop.title": { en: "Shop" },
       } as Project["i18nKeys"],
@@ -243,20 +259,22 @@ describe("validate", () => {
 
   it("validates send_message keys in command steps", () => {
     const project = makeProject({
-      commands: [
-        {
-          id: commandId("heal"),
-          projectId: projectId("p_test"),
-          name: "heal",
-          arguments: [],
-          steps: [
-            {
-              kind: "action",
-              action: { type: "send_message", text: { key: "commands.heal.message" as I18nKey } },
-            },
-          ],
-        },
-      ],
+      documents: {
+        command: [
+          {
+            id: commandId("heal"),
+            projectId: projectId("p_test"),
+            name: "heal",
+            arguments: [],
+            steps: [
+              {
+                kind: "action",
+                action: { type: "send_message", text: { key: "commands.heal.message" as I18nKey } },
+              },
+            ],
+          },
+        ],
+      },
     });
     const result = validate(project);
     expect(result.valid).toBe(false);
@@ -269,28 +287,30 @@ describe("validate", () => {
         "menus.shop.title": { en: "Shop" },
         "menus.shop.elements.btn.default.title": { en: "Buy" },
       } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("btn"),
-                  positions: "0",
-                  display: { title: { key: "menus.shop.elements.btn.default.title" as I18nKey } },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("btn"),
+                    positions: "0",
+                    display: { title: { key: "menus.shop.elements.btn.default.title" as I18nKey } },
+                    states: [],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
     });
     const result = validate(project);
     expect(result.valid).toBe(true);
@@ -299,17 +319,19 @@ describe("validate", () => {
 
   it("validates dialog title keys (previously skipped entirely)", () => {
     const project = makeProject({
-      dialogs: [
-        {
-          id: "confirm",
-          projectId: "p_test",
-          title: { key: "dialogs.confirm.title" as I18nKey },
-          canCloseWithEscape: true,
-          body: [],
-          inputs: [],
-          buttons: [],
-        },
-      ] as unknown as Project["dialogs"],
+      documents: {
+        dialog: [
+          {
+            id: "confirm",
+            projectId: "p_test",
+            title: { key: "dialogs.confirm.title" as I18nKey },
+            canCloseWithEscape: true,
+            body: [],
+            inputs: [],
+            buttons: [],
+          },
+        ] as unknown as Dialog[],
+      },
     });
     const result = validate(project);
     expect(result.valid).toBe(false);
@@ -319,29 +341,31 @@ describe("validate", () => {
   it("collects each entry of legacy array-shaped lore without crashing", () => {
     const project = makeProject({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("btn"),
-                  positions: "0",
-                  // legacy migration artifact: lore as an LText[] rather than a single LText
-                  display: { lore: [{ key: "lt_l0" }, { key: "lt_l1" }] },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ] as unknown as Project["menus"],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("btn"),
+                    positions: "0",
+                    // legacy migration artifact: lore as an LText[] rather than a single LText
+                    display: { lore: [{ key: "lt_l0" }, { key: "lt_l1" }] },
+                    states: [],
+                  },
+                ],
+              },
+            ],
+          },
+        ] as unknown as Menu[],
+      },
     });
     const result = validate(project);
     expect(result.valid).toBe(false);

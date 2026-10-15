@@ -15,6 +15,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 
 import { MenuProperties } from "./MenuProperties";
+import { menusOf } from "@/domain/documents";
 
 // Mock AssetPicker so opening the LayerEditForm sub-form doesn't drag in
 // the real picker (which needs an auth token + fetch). Matches the mock in
@@ -48,22 +49,24 @@ function seedProject() {
           source: "user_created",
           createdAt: "",
           updatedAt: "",
-          menus: [
-            {
-              id: MENU_ID,
-              projectId: PACK_ID,
-              title: [],
-              rows: 3,
-              layers: [],
-            },
-          ],
-          commands: [],
+          documents: {
+            menu: [
+              {
+                id: MENU_ID,
+                projectId: PACK_ID,
+                title: [],
+                rows: 3,
+                layers: [],
+              },
+            ],
+            command: [],
+            dialog: [],
+          },
           assets: [],
           dataSources: [],
           importedConnectors: [],
           i18nKeys: {},
           defaultLang: "en",
-          dialogs: [],
           canvasLayout: {},
         },
       ],
@@ -86,7 +89,7 @@ beforeEach(() => {
 
 describe("MenuProperties — embedded title section", () => {
   it("renders the title section with the LayersPanel for the provided menu", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!)[0]! as Menu;
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);
 
     // Section wrapper present (i18n-agnostic — keyed by data-testid).
@@ -98,7 +101,7 @@ describe("MenuProperties — embedded title section", () => {
   });
 
   it("offers adding an image next to adding text, in composed mode", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!)[0]! as Menu;
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);
     const controls = screen.getByTestId("add-layer-controls");
     expect(within(controls).getByTestId("menu-add-image")).toBeInTheDocument();
@@ -117,28 +120,30 @@ describe("MenuProperties — background and decorations", () => {
         projects: state.account.projects.map((project) => ({
           ...project,
           i18nKeys: { "original-title": { fr: "Boutique", en: "Shop" } },
-          menus: project.menus.map((menu) => ({
-            ...menu,
-            layers: [
-              {
-                id: "buttons" as LayerId,
-                name: "Buttons",
-                elements: [
-                  {
-                    id: "buy" as ElementId,
-                    positions: "3",
-                    display: { material: "DIAMOND" },
-                    states: [],
-                  },
-                ],
-              },
-            ],
-          })),
+          documents: {
+            menu: menusOf(project).map((menu) => ({
+              ...menu,
+              layers: [
+                {
+                  id: "buttons" as LayerId,
+                  name: "Buttons",
+                  elements: [
+                    {
+                      id: "buy" as ElementId,
+                      positions: "3",
+                      display: { material: "DIAMOND" },
+                      states: [],
+                    },
+                  ],
+                },
+              ],
+            })),
+          },
         })),
       },
     }));
     const project = useAccountStore.getState().account.projects[0]!;
-    const menu = project.menus[0]!;
+    const menu = menusOf(project)[0]!;
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);
     return menu;
   }
@@ -149,7 +154,7 @@ describe("MenuProperties — background and decorations", () => {
     expect(picker).toHaveAttribute("data-project", PACK_ID);
     fireEvent.click(picker);
   }
-  const current = () => useAccountStore.getState().account.projects[0]!.menus[0]!;
+  const current = () => menusOf(useAccountStore.getState().account.projects[0]!)[0]!;
 
   it("adds a menu image while preserving the plain title and menu elements", () => {
     const value = { key: "original-title" as I18nKey };
@@ -204,7 +209,7 @@ describe("MenuProperties — background and decorations", () => {
 // Tests run pinned to French (tests/setup.ts), so labels use French copy.
 describe("MenuProperties — inventory type", () => {
   it("renders the three inventory-type options", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!)[0]! as Menu;
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);
 
     expect(screen.getByRole("button", { name: "Coffre" })).toBeInTheDocument();
@@ -214,7 +219,7 @@ describe("MenuProperties — inventory type", () => {
 
   it("explains that a hidden bottom frees the player slots for the menu", () => {
     const menu = {
-      ...(useAccountStore.getState().account.projects[0]!.menus[0]! as Menu),
+      ...(menusOf(useAccountStore.getState().account.projects[0]!)[0]! as Menu),
       playerInventory: "hidden" as const,
     };
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);
@@ -222,19 +227,19 @@ describe("MenuProperties — inventory type", () => {
   });
 
   it("toggles the player inventory between visible and hidden", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!)[0]! as Menu;
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);
 
     expect(screen.getByRole("button", { name: "Visible" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(/voit son propre inventaire/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Masqué" }));
-    expect(useAccountStore.getState().account.projects[0]!.menus[0]!.playerInventory).toBe(
+    expect(menusOf(useAccountStore.getState().account.projects[0]!)[0]!.playerInventory).toBe(
       "hidden",
     );
   });
 
   it("shows the rows selector for a chest menu", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!)[0]! as Menu;
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);
 
     // chest rows 1..6 buttons present
@@ -243,7 +248,7 @@ describe("MenuProperties — inventory type", () => {
 
   it("hides the rows selector for a hopper menu", () => {
     const menu = {
-      ...(useAccountStore.getState().account.projects[0]!.menus[0]! as Menu),
+      ...(menusOf(useAccountStore.getState().account.projects[0]!)[0]! as Menu),
       inventoryType: "hopper" as const,
     };
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);
@@ -258,7 +263,7 @@ describe("MenuProperties — inventory type", () => {
     const prev = useAccountStore.getState().setMenuField;
     useAccountStore.setState({ setMenuField: spy } as any);
 
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!)[0]! as Menu;
     render(<MenuProperties projectId={PACK_ID} menu={menu} />);
     screen.getByRole("button", { name: "Entonnoir" }).click();
 
@@ -274,7 +279,7 @@ describe("MenuProperties — inventory type", () => {
 
   it("shows the out-of-range warning when an element exceeds capacity", () => {
     // hopper capacity = 5 slots (indices 0..4); slot 10 is out of range.
-    const base = useAccountStore.getState().account.projects[0]!.menus[0]! as Menu;
+    const base = menusOf(useAccountStore.getState().account.projects[0]!)[0]! as Menu;
     const menu: Menu = {
       ...base,
       inventoryType: "hopper",

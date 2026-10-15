@@ -19,8 +19,11 @@ function makeProject(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataModels: [
       {
@@ -103,7 +106,6 @@ function makeProject(): Project {
       "sources.settings.motd": { en: "Welcome" },
     },
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   } as unknown as Project;
 }
@@ -197,8 +199,11 @@ describe("bare export — map / enum / union kinds", () => {
       source: "user_created",
       createdAt: "",
       updatedAt: "",
-      menus: [],
-      commands: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
       dataModels: [
         {
@@ -257,7 +262,6 @@ describe("bare export — map / enum / union kinds", () => {
         "sources.quests.daily.tiers.gold.act.text": { en: "Well done!", fr: "Bravo !" },
       },
       defaultLang: "en",
-      dialogs: [],
       canvasLayout: {},
     } as unknown as Project;
   }
@@ -304,8 +308,11 @@ describe("bare export — per-row file granularity", () => {
       source: "user_created",
       createdAt: "",
       updatedAt: "",
-      menus: [],
-      commands: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
       dataModels: [
         {
@@ -336,7 +343,6 @@ describe("bare export — per-row file granularity", () => {
         "sources.categories.daily.label": { en: "Daily" },
       },
       defaultLang: "en",
-      dialogs: [],
       canvasLayout: {},
     } as unknown as Project;
   }

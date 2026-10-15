@@ -6,6 +6,7 @@ import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { capturePlacementCache, matchPlacementRow } from "./placement";
+import { menusOf } from "@/domain/documents";
 
 /** @dnd-kit id prefix for a draggable palette row. Payload rides in `data`. */
 export const PLACEMENT_ROW_DRAG_PREFIX = "row:";
@@ -33,7 +34,7 @@ export function pinPlacementRow(opts: {
   const { projectId, menuId, elementId, key, position } = opts;
   const account = useAccountStore.getState();
   const project = account.account.projects.find((p) => p.id === projectId);
-  const menu = project?.menus.find((m) => m.id === menuId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
   const el = menu?.layers.flatMap((l) => l.elements).find((e) => e.id === elementId);
   if (!project || !menu || !el?.places) return;
   const appearance = el.display;

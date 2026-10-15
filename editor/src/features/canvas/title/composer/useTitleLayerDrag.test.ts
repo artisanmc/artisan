@@ -6,6 +6,7 @@ import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types"
 import { useAccountStore } from "@/state/accountStore";
 
 import { useTitleLayerDrag } from "./useTitleLayerDrag";
+import { menusOf } from "@/domain/documents";
 
 const PERSONAL = "p_personal" as ProjectId;
 const M_ID = "m_shop_main" as MenuId;
@@ -48,7 +49,7 @@ const seedMenuTitle = (layers: MenuTitleLayer[]) => {
 
 const getTitle = (): MenuTitleLayer[] => {
   const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-  return project.menus.find((m) => m.id === M_ID)!.title;
+  return menusOf(project).find((m) => m.id === M_ID)!.title;
 };
 
 describe("useTitleLayerDrag", () => {
@@ -146,7 +147,9 @@ describe("useTitleLayerDrag", () => {
     it("does not crash with an invalid layer index", async () => {
       seedMenuTitle([{ kind: "background", assetId: ASSET_BG.id as AssetId }]);
       const { result } = renderHook(() => useTitleLayerDrag({ menuId: M_ID, layerIndex: 99 }));
-      await expect(act(async () => result.current.onPositionChange({ x: 1, y: 2 }))).resolves.not.toThrow();
+      await expect(
+        act(async () => result.current.onPositionChange({ x: 1, y: 2 })),
+      ).resolves.not.toThrow();
     });
   });
 });

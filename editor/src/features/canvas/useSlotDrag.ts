@@ -14,6 +14,7 @@ import { positionToCell } from "./inventoryTypes";
 import { TEX_SLOT_STRIDE, slotXY } from "./menuLayout";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { placementAtSlot } from "./placement";
+import { menusOf } from "@/domain/documents";
 
 export type SiblingGhost = { position: number; material: string; head?: string; count?: number };
 export type DragState =
@@ -199,7 +200,7 @@ export function useSlotDrag(args: UseSlotDragArgs) {
       const hit = hitTestSlot(project, layout, worldX, worldY);
       const altKey = (e.evt as MouseEvent).altKey;
 
-      const menu = project.menus.find((m) => m.id === menuId);
+      const menu = menusOf(project).find((m) => m.id === menuId);
       const source = menu?.layers
         .flatMap((layer) => layer.elements)
         .find((el) => el.id === sourceElementId);

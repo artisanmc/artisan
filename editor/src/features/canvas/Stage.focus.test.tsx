@@ -6,6 +6,7 @@ import { Stage } from "./Stage";
 import { INVENTORY_TYPES } from "./inventoryTypes";
 import { TEX_SCALE } from "./menuLayout";
 import { tryStageDrop } from "./stageDropTarget";
+import { menusOf } from "@/domain/documents";
 
 vi.mock("react-konva", () => ({
   Stage: (p: any) => <div data-testid="konva-stage">{p.children}</div>,
@@ -37,17 +38,19 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      { id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
-      { id: "m2", projectId: PID, title: [], rows: 3, layers: [] } as any,
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        { id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
+        { id: "m2", projectId: PID, title: [], rows: 3, layers: [] } as any,
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: { m1: { x: 0, y: 0 } } as any,
   } as Project;
 }
@@ -114,7 +117,9 @@ describe("Stage — mode focus", () => {
     );
 
     expect(placed).toBe(true);
-    const menu = useAccountStore.getState().account.projects[0]!.menus.find((m) => m.id === "m2")!;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!).find(
+      (m) => m.id === "m2",
+    )!;
     expect(menu.layers.flatMap((l) => l.elements)).not.toHaveLength(0);
   });
 });

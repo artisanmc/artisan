@@ -11,6 +11,9 @@ import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.engine.MenuSessionStore
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.model.BundleDialog
+import net.artisanmc.plugin.model.BundleDocument
+import net.artisanmc.plugin.model.DocumentKind
+import net.artisanmc.plugin.model.DocumentKinds
 import net.artisanmc.plugin.model.BundleMenu
 import net.artisanmc.plugin.model.ProjectBundle
 import net.artisanmc.plugin.render.DialogRenderer
@@ -86,21 +89,26 @@ class SyncedMenuProvider(
      * `boutique:main`); see [net.artisanmc.plugin.engine.DocumentTable]. Bundles
      * load in project order: on ambiguity, the last one wins.
      */
-    @Volatile private var menuTable = net.artisanmc.plugin.engine.DocumentTable<BundleMenu>(emptyList()) { it.id }
-    @Volatile private var dialogTable = net.artisanmc.plugin.engine.DocumentTable<BundleDialog>(emptyList()) { it.id }
+    @Volatile private var tables: Map<String, net.artisanmc.plugin.engine.DocumentTable<BundleDocument>> = emptyMap()
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : BundleDocument> table(kind: DocumentKind): net.artisanmc.plugin.engine.DocumentTable<T> =
+        (tables[kind.kind] ?: net.artisanmc.plugin.engine.DocumentTable<BundleDocument>(emptyList()) { it.id })
+            as net.artisanmc.plugin.engine.DocumentTable<T>
+    private val menuTable: net.artisanmc.plugin.engine.DocumentTable<BundleMenu> get() = table(DocumentKinds.MENU)
+    private val dialogTable: net.artisanmc.plugin.engine.DocumentTable<BundleDialog> get() = table(DocumentKinds.DIALOG)
     /** One warning per ambiguous reference and calling project, not one log per click. */
     private val warnedAmbiguous = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile private var bundles = listOf<ProjectBundle>()
     /** `pack:` refs resolve against the live bundle list (survives hot-reload swaps). */
     private val projectDataResolver = net.artisanmc.plugin.engine.ProjectDataResolver { bundles }
 
+    /** One table per registered kind (ADR `extensible-document-kinds`): a module's kind resolves by reference like a menu. */
     private fun indexDocuments(loaded: List<ProjectBundle>) {
-        menuTable = net.artisanmc.plugin.engine.DocumentTable(
-            loaded.flatMap { b -> b.menus.map { b.projectId to it } },
-        ) { it.id }
-        dialogTable = net.artisanmc.plugin.engine.DocumentTable(
-            loaded.flatMap { b -> b.dialogs.map { b.projectId to it } },
-        ) { it.id }
+        tables = DocumentKinds.all().associate { kind ->
+            kind.kind to net.artisanmc.plugin.engine.DocumentTable<BundleDocument>(
+                loaded.flatMap { b -> b.documents[kind.kind].orEmpty().map { b.projectId to it } },
+            ) { it.id }
+        }
         warnedAmbiguous.clear()
     }
 

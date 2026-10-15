@@ -2,9 +2,11 @@ import { liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { newProjectId } from "@/domain/ids";
 import { migrateTitle } from "@/domain/migrateTitle";
 import type { Account, MenuId, Project, ProjectId } from "@/domain/types";
+import { allDocuments, emptyDocuments, menusOf, mutableMenus } from "@/domain/documents";
 import { migrateProjectToI18n } from "@/lib/i18nMigration";
+import { migrateProjectDocuments } from "@/lib/projectDocumentsMigration";
 import { produce } from "immer";
-import { gcCommandLTexts, gcDialogLTexts, gcMenuLTexts, mintSourceLTexts } from "./helpers";
+import { gcDocumentLTexts, mintSourceLTexts } from "./helpers";
 import type { AccountSliceContext, AccountState } from "./types";
 
 /** The account and its Projects: creation, import, replacement, ordering, deletion of Documents. */
@@ -47,11 +49,18 @@ export const createProjectsSlice = ({
 }: AccountSliceContext): ProjectsSlice => ({
   setAccount: (account) => {
     clearTemporal();
-    const migratedProjects = account.projects.map((p) => ({
-      ...p,
-      dialogs: p.dialogs ?? [],
-      menus: p.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
-    }));
+    const migratedProjects = account.projects.map((p) => {
+      const next = { ...p };
+      // A stored account may predate `Project.documents` (ADR decision 10).
+      migrateProjectDocuments(next);
+      return {
+        ...next,
+        documents: {
+          ...next.documents,
+          menu: menusOf(next).map((m) => ({ ...m, title: migrateTitle(m.title) })),
+        },
+      };
+    });
     const migratedAccount = produce({ ...account, projects: migratedProjects }, (draft) => {
       for (const project of draft.projects) mintSourceLTexts(project);
     });
@@ -67,11 +76,9 @@ export const createProjectsSlice = ({
           source: "user_created",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          menus: [],
-          commands: [],
+          documents: emptyDocuments(),
           assets: [],
           dataSources: [],
-          dialogs: [],
           i18nKeys: {},
           defaultLang: "en",
           loreMaxWidth: 240,
@@ -90,33 +97,43 @@ export const createProjectsSlice = ({
       throw new Error("invalid project: not an object");
     }
     if (typeof incoming.name !== "string") throw new Error("invalid project: missing name");
-    if (!Array.isArray(incoming.menus)) throw new Error("invalid project: missing menus");
-    if (!Array.isArray(incoming.commands)) throw new Error("invalid project: missing commands");
+    // A file written before `Project.documents` carries `menus` / `commands` /
+    // `dialogs` at the top level: fold them into the container first.
+    const folded = { ...incoming };
+    migrateProjectDocuments(folded);
+    if (!folded.documents || typeof folded.documents !== "object")
+      throw new Error("invalid project: missing documents");
+    for (const [kind, docs] of Object.entries(folded.documents)) {
+      if (!Array.isArray(docs)) throw new Error(`invalid project: documents.${kind} is not a list`);
+    }
 
     const id = newProjectId();
     set(
       produce((draft: AccountState) => {
-        const next = {
-          ...incoming,
+        const next: Project = {
+          ...folded,
           id,
           // Force fresh source/timestamps even if the file claimed otherwise.
           source: "imported" as const,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           // Retag children so their projectId matches the new project id.
-          menus: incoming.menus.map((m) => ({ ...m, projectId: id })),
-          commands: incoming.commands.map((c) => ({ ...c, projectId: id })),
-          assets: (incoming.assets ?? []).map((a) => ({ ...a, projectId: id })),
-          dialogs: (incoming.dialogs ?? []).map((d) => ({ ...d, projectId: id })),
-          i18nKeys: incoming.i18nKeys ?? {},
-          defaultLang: incoming.defaultLang ?? "en",
-          canvasLayout: incoming.canvasLayout ?? {},
+          documents: Object.fromEntries(
+            Object.entries(folded.documents).map(([kind, docs]) => [
+              kind,
+              docs.map((d) => ({ ...d, projectId: id })),
+            ]),
+          ),
+          assets: (folded.assets ?? []).map((a) => ({ ...a, projectId: id })),
+          i18nKeys: folded.i18nKeys ?? {},
+          defaultLang: folded.defaultLang ?? "en",
+          canvasLayout: folded.canvasLayout ?? {},
         };
         // Imported project may use the legacy plain-string shape — migrate
         // in place so it lines up with the current LText-based domain.
         migrateProjectToI18n(next, next.defaultLang);
         // Migrate menu titles from LText to MenuTitleLayer[].
-        for (const menu of next.menus) {
+        for (const menu of mutableMenus(next)) {
           menu.title = migrateTitle(menu.title);
         }
         draft.account.projects.push(next);
@@ -134,7 +151,10 @@ export const createProjectsSlice = ({
         if (idx !== -1) {
           draft.account.projects[idx] = {
             ...project,
-            menus: project.menus.map((m) => ({ ...m, title: migrateTitle(m.title) })),
+            documents: {
+              ...project.documents,
+              menu: menusOf(project).map((m) => ({ ...m, title: migrateTitle(m.title) })),
+            },
           };
         }
       }),
@@ -182,13 +202,13 @@ export const createProjectsSlice = ({
       const from = draft.projects.find((p) => p.id === fromProjectId);
       const to = draft.projects.find((p) => p.id === toProjectId);
       if (!from || !to) throw new Error("project not found");
-      const idx = from.menus.findIndex((m) => m.id === mId);
+      const idx = menusOf(from).findIndex((m) => m.id === mId);
       if (idx === -1) throw new Error("menu not found in source project");
-      const [moved] = from.menus.splice(idx, 1);
+      const [moved] = mutableMenus(from).splice(idx, 1);
       if (!moved) return;
       from.canvasGroups = normalizeCanvasGroups(from.canvasGroups, liveDocumentIds(from));
       moved.projectId = toProjectId;
-      to.menus.push(moved);
+      mutableMenus(to).push(moved);
     });
     set({ account: next });
   },
@@ -212,18 +232,12 @@ export const createProjectsSlice = ({
     const next = produce(get().account, (draft) => {
       const project = draft.projects.find((p) => p.id === pId);
       if (!project) return;
-      for (const m of project.menus) {
-        if (ids.has(m.id)) gcMenuLTexts(project, m);
+      for (const { kind, doc } of allDocuments(project)) {
+        if (ids.has(doc.id)) gcDocumentLTexts(project, kind, doc);
       }
-      for (const c of project.commands) {
-        if (ids.has(c.id)) gcCommandLTexts(project, c);
+      for (const kind of Object.keys(project.documents)) {
+        project.documents[kind] = (project.documents[kind] ?? []).filter((d) => !ids.has(d.id));
       }
-      for (const d of project.dialogs) {
-        if (ids.has(d.id)) gcDialogLTexts(project, d);
-      }
-      project.menus = project.menus.filter((m) => !ids.has(m.id));
-      project.commands = project.commands.filter((c) => !ids.has(c.id));
-      project.dialogs = project.dialogs.filter((d) => !ids.has(d.id));
       if (project.canvasGroups) {
         project.canvasGroups = normalizeCanvasGroups(
           project.canvasGroups,

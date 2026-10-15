@@ -10,44 +10,46 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      {
-        id: "m_shop",
-        projectId: PID,
-        title: [{ kind: "plain", value: { key: "k_title" } }],
-        rows: 3,
-        layers: [
-          {
-            id: "L1",
-            name: "default",
-            elements: [
-              {
-                id: "el_buy",
-                positions: "13",
-                display: {
-                  material: "DIAMOND",
-                  title: { key: "k_buytitle" },
-                  lore: { key: "k_buylore" },
+    documents: {
+      menu: [
+        {
+          id: "m_shop",
+          projectId: PID,
+          title: [{ kind: "plain", value: { key: "k_title" } }],
+          rows: 3,
+          layers: [
+            {
+              id: "L1",
+              name: "default",
+              elements: [
+                {
+                  id: "el_buy",
+                  positions: "13",
+                  display: {
+                    material: "DIAMOND",
+                    title: { key: "k_buytitle" },
+                    lore: { key: "k_buylore" },
+                  },
+                  states: [],
                 },
-                states: [],
-              },
-            ],
-          },
-        ],
-      } as any,
-    ],
-    commands: [{ id: "c_heal", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
-    dialogs: [
-      {
-        id: "d_confirm",
-        projectId: PID,
-        title: { key: "k_dtitle" },
-        canCloseWithEscape: true,
-        body: [{ type: "text", text: { key: "k_dbody" } }],
-        inputs: [],
-        buttons: [{ id: "btn_ok", label: { key: "k_btn" }, steps: [] }],
-      } as any,
-    ],
+              ],
+            },
+          ],
+        } as any,
+      ],
+      command: [{ id: "c_heal", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+      dialog: [
+        {
+          id: "d_confirm",
+          projectId: PID,
+          title: { key: "k_dtitle" },
+          canCloseWithEscape: true,
+          body: [{ type: "text", text: { key: "k_dbody" } }],
+          inputs: [],
+          buttons: [{ id: "btn_ok", label: { key: "k_btn" }, steps: [] }],
+        } as any,
+      ],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
