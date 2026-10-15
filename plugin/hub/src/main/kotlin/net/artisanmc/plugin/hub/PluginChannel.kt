@@ -82,8 +82,11 @@ class PluginChannel(
             // An object without an address leaves the server its current pack; null would remove it.
             "resource_pack" to (server.pack ?: emptyMap<String, String>()),
         )
-        session.sendText(Call.mapper.writeValueAsString(ack), Callback.NOOP)
+        // The hello is applied before the ack goes out: once the leaf reads hello_ack, every
+        // editor request sees its protocol version, modules and configuration (no window where
+        // a server is listed with an empty hello, i.e. as protocol 1 and up to date).
         server.attach(session, hello)
+        session.sendText(Call.mapper.writeValueAsString(ack), Callback.NOOP)
         if (server.updateRequired) {
             logger?.warning("[Artisan] Server $name speaks protocol ${hello.path("protocol_version").asText("?")}, the hub ${ProtocolVersion.CURRENT}: update both to the same release")
         } else {
