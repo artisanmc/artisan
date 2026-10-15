@@ -9,14 +9,12 @@ import {
   dialogOptionLabelKey,
   dialogTitleKey,
   menuTitleKey,
-  messageKeyAt,
   moveLTextKey,
-  showSubtitleKeyAt,
-  showTitleKeyAt,
   stateLabel,
 } from "@/lib/i18nKeys";
 import { addressedAppearances } from "./element";
-import { walkActions } from "./stepPath";
+import { isLTextNode, walkStepTextSlots } from "./actionTextSlots";
+import { type DeclaredActionLookup, declaredActionOf } from "@/lib/actions/coreActions";
 import type {
   Appearance,
   Command,
@@ -66,7 +64,9 @@ export type SiteKind =
   | "dialogBody"
   | "dialogInputLabel"
   | "dialogOptionLabel"
-  | "dialogButtonLabel";
+  | "dialogButtonLabel"
+  /** A text argument of an action with no legacy slot: a module's, or a core text beyond message/title. */
+  | "actionText";
 
 export interface LTextSite {
   /** Live node — read or reassign its `.key`. */
@@ -82,44 +82,99 @@ export interface LTextSite {
 export const label = (site: LTextSite): string => site.path;
 
 /**
- * Walk a Step tree's actions in {@link walkActions} order, yielding a site for
- * every `send_message` / `broadcast` / `show_title` LText. `prefix` is the
+ * Walk a Step tree's text slots ({@link walkStepTextSlots}: every `ltext` argument of
+ * every declared action, core or module, addressed as the plugin addresses them) and
+ * yield a site for each slot already holding an {@link LText} node. `prefix` is the
  * canonical key base of the owning handler (`…click.left`, `commands.give`,
- * `dialogs.x.buttons.btn`). Counters per message/title/subtitle mirror the
- * historic alloc/rekey schemes exactly — this is the one place they live now.
+ * `dialogs.x.buttons.btn`). A slot still holding its wire text (a module's action read
+ * before the server declared it) is skipped here and adopted by {@link adoptActionTexts}.
  */
-export function* visitStepLTexts(steps: Step[], prefix: string): Generator<LTextSite> {
-  let msgIdx = 0;
-  let titleIdx = 0;
-  let subtitleIdx = 0;
-  for (const action of walkActions(steps)) {
-    if (action.type === "send_message" || action.type === "broadcast") {
-      yield {
-        lText: action.text,
-        key: messageKeyAt(prefix, msgIdx),
-        path: `${prefix}.message`,
-        kind: "message",
-      };
-      msgIdx++;
-    } else if (action.type === "show_title") {
-      yield {
-        lText: action.title,
-        key: showTitleKeyAt(prefix, titleIdx),
-        path: `${prefix}.show_title.title`,
-        kind: "showTitle",
-      };
-      titleIdx++;
-      if (action.subtitle) {
-        yield {
-          lText: action.subtitle,
-          key: showSubtitleKeyAt(prefix, subtitleIdx),
-          path: `${prefix}.show_title.subtitle`,
-          kind: "showSubtitle",
-        };
-        subtitleIdx++;
+export function* visitStepLTexts(
+  steps: Step[],
+  prefix: string,
+  declOf: DeclaredActionLookup = declaredActionOf,
+): Generator<LTextSite> {
+  for (const slot of walkStepTextSlots(steps, prefix, declOf)) {
+    const lText = slot.get();
+    if (!isLTextNode(lText)) continue;
+    yield { lText, key: slot.key, path: slot.path, kind: siteKindOf(slot.slot) };
+  }
+}
+
+function siteKindOf(slot: string | null): SiteKind {
+  switch (slot) {
+    case "message":
+      return "message";
+    case "show_title":
+      return "showTitle";
+    case "show_subtitle":
+      return "showSubtitle";
+    default:
+      return "actionText";
+  }
+}
+
+/**
+ * Adopt the wire texts of a Step tree into LText nodes (the action half of ADR
+ * `bare-data-files` ④): a module's action is read verbatim when the server has not
+ * declared it yet, so its `ltext` arguments hold a string or a `{lang: text}` map. Once
+ * the declaration is known, each such text becomes a node at the slot's canonical
+ * address, its languages stored under that key (a bare string is the default language's).
+ * Idempotent; nodes pass through untouched.
+ */
+export function adoptActionTexts(
+  project: Project,
+  steps: Step[],
+  prefix: string,
+  declOf: DeclaredActionLookup = declaredActionOf,
+): void {
+  for (const slot of walkStepTextSlots(steps, prefix, declOf)) {
+    const value = slot.get();
+    if (isLTextNode(value)) continue;
+    const entry: Record<string, string> =
+      typeof value === "string"
+        ? { [project.defaultLang]: value }
+        : typeof value === "object" && value !== null && !Array.isArray(value)
+          ? Object.fromEntries(
+              Object.entries(value as Record<string, unknown>).filter(
+                (e): e is [string, string] => typeof e[1] === "string",
+              ),
+            )
+          : { [project.defaultLang]: value == null ? "" : String(value) };
+    project.i18nKeys[slot.key] = { ...(project.i18nKeys[slot.key] ?? {}), ...entry };
+    slot.set({ key: slot.key });
+  }
+}
+
+/** Every action chain of a project with its canonical key prefix: click handlers, commands, dialog buttons. */
+export function* visitProjectStepChains(project: Project): Generator<{ steps: Step[]; prefix: string }> {
+  for (const menu of menusOf(project)) {
+    for (const layer of menu.layers) {
+      for (const el of layer.elements) {
+        const appearances = addressedAppearances(el);
+        for (let i = 0; i < appearances.length; i++) {
+          const click = appearances[i]!.click;
+          if (!click) continue;
+          const base = `menus.${menu.id}.elements.${el.id}.${stateLabel(i)}`;
+          for (const [clickType, handler] of Object.entries(click)) {
+            if (handler) yield { steps: handler.steps, prefix: `${base}.click.${clickType}` };
+          }
+        }
       }
     }
   }
+  for (const cmd of commandsOf(project)) yield { steps: cmd.steps, prefix: commandKeyPrefix(cmd.id) };
+  for (const dlg of dialogsOf(project)) {
+    for (const btn of dlg.buttons) yield { steps: btn.steps, prefix: dialogButtonKeyPrefix(dlg.id, btn.id) };
+  }
+}
+
+/** {@link adoptActionTexts} over every action chain of the project. */
+export function adoptProjectActionTexts(
+  project: Project,
+  declOf: DeclaredActionLookup = declaredActionOf,
+): void {
+  for (const { steps, prefix } of visitProjectStepChains(project)) adoptActionTexts(project, steps, prefix, declOf);
 }
 
 /**
@@ -227,11 +282,6 @@ export function* visitDialogLTexts(dialog: Dialog): Generator<LTextSite> {
     yield { lText: btn.label, key: btnKey, path: btnKey, kind: "dialogButtonLabel" };
     yield* visitStepLTexts(btn.steps, dialogButtonKeyPrefix(dialog.id, btn.id));
   }
-}
-
-/** LText-shaped live node guard — row values are untrusted (`unknown`). */
-function isLTextNode(v: unknown): v is LText {
-  return typeof v === "object" && v !== null && typeof (v as { key?: unknown }).key === "string";
 }
 
 /**

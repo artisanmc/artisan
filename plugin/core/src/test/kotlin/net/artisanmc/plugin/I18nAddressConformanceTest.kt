@@ -5,7 +5,12 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.actiondsl.compileActionDsl
+import net.artisanmc.modules.api.ModelField
+import net.artisanmc.modules.api.ModelFieldType
+import net.artisanmc.plugin.engine.ActionSchema
+import net.artisanmc.plugin.engine.CoreActions
 import net.artisanmc.plugin.engine.I18nAddress
+import net.artisanmc.plugin.engine.KeyedStepParser
 import net.artisanmc.plugin.model.MenuTitleLayer
 import net.artisanmc.plugin.engine.MenuTitleParser
 import net.artisanmc.plugin.engine.Step
@@ -109,11 +114,7 @@ class I18nAddressConformanceTest {
         val out = mutableListOf<String>()
         fun walk(list: List<Step>) {
             for (s in list) when (s) {
-                is Step.ActionStep -> {
-                    s.i18n["text"]?.let { out.add(it) }
-                    s.i18n["title"]?.let { out.add(it) }
-                    s.i18n["subtitle"]?.let { out.add(it) }
-                }
+                is Step.ActionStep -> out.addAll(s.i18n.values)
                 is Step.IfStep -> { s.cases.forEach { walk(it.steps) }; walk(s.elseSteps) }
             }
         }
@@ -121,11 +122,35 @@ class I18nAddressConformanceTest {
         return out
     }
 
+    /** A `declared_actions` wire entry (Presence shape) → the schema the addresser reads. */
+    private fun schemaOf(decl: JsonNode): ActionSchema = ActionSchema(
+        name = decl.str("name"),
+        args = decl["args"].map { a ->
+            ModelField(a.str("name"), typeOf(a["type"]), a["required"]?.asBoolean() ?: false)
+        },
+        primary = decl["primary"]?.takeUnless { it.isNull }?.asText(),
+    )
+
+    private fun typeOf(t: JsonNode): ModelFieldType = when (val kind = t.str("kind")) {
+        "ltext" -> ModelFieldType.ltext()
+        "list" -> ModelFieldType.list(typeOf(t["of"]))
+        "actions" -> ModelFieldType.actions()
+        "string" -> ModelFieldType.string()
+        else -> error("unsupported field kind in vector: $kind")
+    }
+
+    /** The chain of a case: its legacy DSL, or its keyed steps read as the plugin reads a file. */
+    private fun stepsOf(case: JsonNode): List<Step> =
+        if (case.has("dsl")) compileActionDsl(case.str("dsl"))
+        else KeyedStepParser.parseKeyed(ObjectMapper().convertValue(case["steps"], Any::class.java))
+
     @TestFactory
     fun `action texts are addressed as the editor addresses them`(): List<DynamicTest> =
         vector()["step_addresses"].map { case ->
             DynamicTest.dynamicTest(case.str("name")) {
-                val steps = assignI18nAddresses(compileActionDsl(case.str("dsl")), case.str("prefix"))
+                val declared = (case["declared_actions"] ?: emptyList<JsonNode>()).map { schemaOf(it) }.associateBy { it.name }
+                val lookup = { name: String -> declared[name] ?: CoreActions.schema(name) }
+                val steps = assignI18nAddresses(stepsOf(case), case.str("prefix"), lookup)
                 assertEquals(case["addresses"].map { it.asText() }, stepAddresses(steps))
             }
         }
