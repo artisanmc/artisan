@@ -36,7 +36,10 @@ serveurs et un fichier d'UUID.
    les serveurs qui se relient. Une ligne `artisan_meta` porte un identifiant de base
    généré une fois ; chaque serveur l'annonce au hub, qui refuse une base différente.
    Chaque serveur écrit ses propres Versions. Changer de hub ne déplace aucune donnée. Un
-   serveur seul garde H2.
+   serveur seul garde H2. Amendé le 2026-10-14 (issue #42) : la base s'ouvre hors du thread
+   principal, sur `Artisan-versions`, avant la première Version ; tant qu'elle n'est pas
+   ouverte, le hub répond « indisponible » (brouillons `storage_error`, relais au serveur
+   pour le reste, feuilles priées de réessayer) et une feuille attend sa base avant `hello`.
 4. **Server id.** Un UUID généré au premier démarrage dans `plugins/Artisan/server-id`
    identifie le serveur ; `artisan_servers (id, uuid UNIQUE, name UNIQUE, last_seen, …)`
    est mis à jour au démarrage et les autres tables référencent `artisan_servers.id`. Le

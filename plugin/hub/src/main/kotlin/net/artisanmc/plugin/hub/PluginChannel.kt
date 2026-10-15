@@ -24,6 +24,8 @@ class PluginChannel(
     private val logger: Logger?,
     /** The suite database this hub uses; null for an embedded one, which a Network cannot share. */
     private val databaseId: () -> String?,
+    /** False while the hub's suite database is still opening (issue #42): a leaf is told to retry. */
+    private val databaseOpen: () -> Boolean = { true },
 ) {
     fun endpoint(): Session.Listener = object : Session.Listener.AutoDemanding {
         private var session: Session? = null
@@ -51,6 +53,7 @@ class PluginChannel(
                 !NAME.matches(name) -> refuse(session, "invalid proxy_name")
                 !SERVER_ID.matches(id) -> refuse(session, "invalid server_uuid")
                 id == servers.local.id -> refuse(session, "server id $id is the hub's own: plugins/Artisan/server-id was copied from it")
+                !databaseOpen() -> refuse(session, "the hub's suite database is not open yet: retry")
                 databaseId() == null -> refuse(session, "the hub uses an embedded H2 database: a network needs a shared MySQL or MariaDB database")
                 message.path("database_id").asText("") != databaseId() ->
                     refuse(session, "not on the hub's database: every server of a network must use the same MySQL or MariaDB database")

@@ -257,14 +257,15 @@ open class ArtisanPlugin : JavaPlugin() {
         assetCatalog.loadFromDisk()
         commandRegistrar = CommandRegistrar(this, langManager)
 
-        // The server row exists before the first Snapshot, which becomes a Version.
-        startServerRegistry(cfg.web)
+        // The suite database opens on the Versions thread, ahead of the first Snapshot's
+        // Version (issue #42): the server row exists before it, and nothing here waits.
+        versionWriter.execute { openSuiteDatabase(cfg.web) }
         // Modules register before the first `hello`, which announces them.
         startRuntime(cfg) { defaultModules().forEach { api.modules.register(it) } }
         registerCustomItemsReloadListeners()
         editorSessions = net.artisanmc.plugin.hub.Sessions(
             sessionTtl = java.time.Duration.ofDays(cfg.web.sessionDays.toLong()),
-            store = artisanData?.let(::editorSessionStore),
+            store = editorSessionStore(),
         )
         startEditor(cfg.web)
         startEditorPermissionReports(cfg.web)
@@ -299,6 +300,7 @@ open class ArtisanPlugin : JavaPlugin() {
         api.modules.active().forEach { runCatching { it.onDisable() } }
         versionWriter.shutdown()
         versionWriter.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)
+        reloadExecutor.shutdown()
         serverRegistry?.let { registry -> runCatching { registry.stop(serverId) } }
         if (::database.isInitialized) database.closeAll()
         commandRegistrar.unregisterAll()
@@ -367,22 +369,29 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     private val serverId: UUID by lazy { net.artisanmc.plugin.database.ServerIdFile.read(File(dataFolder, "server-id")) }
-    /** Artisan's own tables in the suite database, migrated once; null when it cannot be opened. */
-    private val artisanData: javax.sql.DataSource? by lazy {
-        try {
-            database.dataSource(this).also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, database.dialect, logger) }
-        } catch (e: Exception) {
-            logger.warning("[Artisan] Suite database unavailable, offline servers and history are disabled: ${e.message}")
-            null
-        }
-    }
+    /** Artisan's own tables in the suite database, migrated once; null until [openSuiteDatabase] opened it, or when it could not. */
+    @Volatile private var artisanData: javax.sql.DataSource? = null
     @Volatile private var serverRegistry: net.artisanmc.plugin.database.ServerRegistry? = null
     @Volatile private var knownCache: Pair<Long, Map<String, net.artisanmc.plugin.hub.Servers.Seen>>? = null
 
-    /** This server in `artisan_servers`, its presence refreshed every minute (ADR `server-identity-and-versions`). */
-    private fun startServerRegistry(web: net.artisanmc.plugin.hub.WebConfig) {
+    /**
+     * Opens the suite database (pool, migrations with their `GET_LOCK`), registers this server
+     * in `artisan_servers` with its presence refreshed every minute (ADR
+     * `server-identity-and-versions`), and imports the H2 history. Off the main thread, on
+     * `Artisan-versions` (issue #42): the hub and the hub link read the fields set here once
+     * they are, and answer "not open" until then.
+     */
+    private fun openSuiteDatabase(web: net.artisanmc.plugin.hub.WebConfig) {
+        val data = try {
+            database.dataSource(this).also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, database.dialect, logger) }
+        } catch (e: Exception) {
+            logger.warning("[Artisan] Suite database unavailable, offline servers and history are disabled: ${e.message}")
+            if (web.leaf) logger.severe("[Artisan] Not connecting to the hub: the suite database cannot be opened.")
+            return
+        }
+        artisanData = data
         val name = networkName(web) ?: return
-        val registry = net.artisanmc.plugin.database.ServerRegistry(artisanData ?: return, database.dialect, logger)
+        val registry = net.artisanmc.plugin.database.ServerRegistry(data, database.dialect, logger)
         val refused = when (val result = runCatching { registry.register(serverId, name, java.time.Instant.now()) }.getOrElse {
             logger.warning("[Artisan] Server registry unavailable, offline servers will not be listed: ${it.message}")
             return
@@ -400,11 +409,11 @@ open class ArtisanPlugin : JavaPlugin() {
             return
         }
         serverRow = registry.rowId(serverId)
-        importEmbeddedDatabase()
-        val data = net.artisanmc.plugin.database.SuiteProjectData(artisanData ?: return, database.dialect, ::row, logger)
-        suiteData = data
+        importEmbeddedDatabase(data)
+        val suite = net.artisanmc.plugin.database.SuiteProjectData(data, database.dialect, ::row, logger)
+        suiteData = suite
         serverRegistry = registry
-        editorChannel.onReload(data::invalidate)
+        editorChannel.onReload(suite::invalidate)
         fun beat() {
             if (!isEnabled) return
             runCatching { registry.touch(serverId, java.time.Instant.now()) }
@@ -415,7 +424,7 @@ open class ArtisanPlugin : JavaPlugin() {
         // Closed drafts and receipts are kept `DraftRows.KEEP`, then dropped: once a day, off the main thread.
         fun purge() {
             if (!isEnabled) return
-            runCatching { data.purge(java.time.Instant.now()) }
+            runCatching { suite.purge(java.time.Instant.now()) }
                 .onSuccess { if (it > 0) logger.info("[Artisan] $it closed drafts and receipts purged") }
                 .onFailure { logger.warning("[Artisan] Drafts not purged: ${it.message}") }
             scheduler.asyncLater(PURGE_TICKS) { purge() }
@@ -424,10 +433,9 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     /** On MySQL/MariaDB, this server's history from the H2 file it ran on alone, once (ADR `server-identity-and-versions` ⑪). */
-    private fun importEmbeddedDatabase() {
+    private fun importEmbeddedDatabase(target: javax.sql.DataSource) {
         if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) return
         val file = File(dataFolder, "database/${net.artisanmc.plugin.database.ConnectionPools.H2_FILE}.mv.db")
-        val target = artisanData ?: return
         if (!file.isFile) return
         val embedded = net.artisanmc.plugin.database.ConnectionPools(
             { net.artisanmc.plugin.database.DatabaseSettings.of("h2", "", "0", "", "", "", 1, dataFolder) }, logger,
@@ -476,12 +484,13 @@ open class ArtisanPlugin : JavaPlugin() {
                 net.artisanmc.plugin.hub.RemoteServer(id, name, publicUrl = { editorBase() })
             }
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
-            val data = suiteData?.takeIf { serverRow != null }
-            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data?.history, data?.loaded, data?.drafts)
-            val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger) {
+            // The suite database may still be opening (issue #42): the routes read it once it is.
+            val data = net.artisanmc.plugin.database.LateSuiteData { suiteData }
+            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts)
+            val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
                 if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) null
                 else artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
-            }
+            }) { artisanData != null }
             val server = net.artisanmc.plugin.hub.HubServer(
                 web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger, plugins,
             )
@@ -665,13 +674,16 @@ open class ArtisanPlugin : JavaPlugin() {
         hub = hubLink(cfg.web),
         menuEvents = menuEvents,
         onSnapshot = ::recordVersions,
+        reloadExecutor = reloadExecutor,
     )
 
     /** Versions, loaded states and drafts in the suite database; null without a registered server. */
     @Volatile private var suiteData: net.artisanmc.plugin.database.SuiteProjectData? = null
     @Volatile private var serverRow: Int? = null
-    /** One writer: Versions are recorded in the order their Snapshots were loaded. */
+    /** One writer: Versions are recorded in the order their Snapshots were loaded, after the database opened. */
     private val versionWriter = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "Artisan-versions").apply { isDaemon = true } }
+    /** Reloads asked after the start (`api.project.reload()`, a root registered): disk reads and YAML off the game threads. */
+    private val reloadExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "Artisan-reload").apply { isDaemon = true } }
 
     /**
      * Each Project whose loaded Snapshot differs from its latest Version gets a new one, then the
@@ -683,10 +695,11 @@ open class ArtisanPlugin : JavaPlugin() {
         authors: Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>,
         done: () -> Unit,
     ) {
-        val data = suiteData ?: return done()
-        val server = serverRow ?: return done()
         val now = java.time.Instant.now()
         versionWriter.execute {
+            // Read here, not before: the first Snapshot is queued while the database is still opening.
+            val data = suiteData ?: return@execute done()
+            val server = serverRow ?: return@execute done()
             var failed = 0
             for (id in snapshot.projectIds) runCatching {
                 val dir = projectRoots.dirFor(id)
@@ -726,23 +739,27 @@ open class ArtisanPlugin : JavaPlugin() {
         return serverRegistry?.rowId(id)
     }
 
-    /** A failing database falls back to the sessions in memory: signed-in players stay signed in until a restart. */
-    private fun editorSessionStore(data: javax.sql.DataSource) = object : net.artisanmc.plugin.hub.SessionStore {
-        private val rows = net.artisanmc.plugin.database.EditorSessionRows(data)
-        private fun <T> safe(block: () -> T): T? =
-            runCatching(block).onFailure { logger.warning("[Artisan] Editor sessions not stored: ${it.message}") }.getOrNull()
+    /**
+     * `artisan_editor_sessions` once the suite database is open; before that, and when it fails,
+     * the sessions in memory alone: signed-in players stay signed in until a restart.
+     */
+    private fun editorSessionStore() = object : net.artisanmc.plugin.hub.SessionStore {
+        private fun <T> safe(block: (net.artisanmc.plugin.database.EditorSessionRows) -> T): T? {
+            val rows = net.artisanmc.plugin.database.EditorSessionRows(artisanData ?: return null)
+            return runCatching { block(rows) }.onFailure { logger.warning("[Artisan] Editor sessions not stored: ${it.message}") }.getOrNull()
+        }
 
         override fun put(key: String, session: net.artisanmc.plugin.hub.EditorSession) {
-            safe { rows.put(key, net.artisanmc.plugin.database.EditorSessionRow(session.playerId, session.playerName, session.permissions, session.expiresAt, session.origin)) }
+            safe { it.put(key, net.artisanmc.plugin.database.EditorSessionRow(session.playerId, session.playerName, session.permissions, session.expiresAt, session.origin)) }
         }
-        override fun get(key: String) = safe { rows.get(key) }?.let {
+        override fun get(key: String) = safe { it.get(key) }?.let {
             net.artisanmc.plugin.hub.EditorSession("", it.playerId, it.playerName, it.permissions, it.expiresAt, it.origin)
         }
-        override fun touch(key: String, expiresAt: java.time.Instant) { safe { rows.touch(key, expiresAt) } }
-        override fun delete(key: String) { safe { rows.delete(key) } }
-        override fun purge(now: java.time.Instant) { safe { rows.purge(now) } }
-        override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) { safe { rows.setPermissions(playerId, origin, permissions) } }
-        override fun deletePlayer(playerId: UUID, origin: String?) = safe { rows.deletePlayer(playerId, origin) } ?: 0
+        override fun touch(key: String, expiresAt: java.time.Instant) { safe { it.touch(key, expiresAt) } }
+        override fun delete(key: String) { safe { it.delete(key) } }
+        override fun purge(now: java.time.Instant) { safe { it.purge(now) } }
+        override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) { safe { it.setPermissions(playerId, origin, permissions) } }
+        override fun deletePlayer(playerId: UUID, origin: String?) = safe { it.deletePlayer(playerId, origin) } ?: 0
     }
 
     /** Only a leaf opens a WebSocket: to `web.hub`, with the network secret. */
@@ -754,10 +771,8 @@ open class ArtisanPlugin : JavaPlugin() {
             logger.severe("[Artisan] Not connecting to the hub: a network needs a shared MySQL or MariaDB database, this server uses H2 (database.type in environment.yml).")
             return null
         }
-        val databaseId = artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() } ?: run {
-            logger.severe("[Artisan] Not connecting to the hub: the suite database cannot be read.")
-            return null
-        }
+        // Read when the socket opens: null while the database is still opening, and the client waits for it.
+        val databaseId = { artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() } }
         return net.artisanmc.plugin.ws.HubLink(web.hubUrl, secret, name, databaseId, serverId.toString())
     }
 

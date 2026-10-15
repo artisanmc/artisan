@@ -126,6 +126,25 @@ WebSocket, et ne touche jamais le jeu directement. Le serveur du hub passe par `
 vers les mêmes gestionnaires que le WebSocket : lectures et écritures disque sur
 `ProjectWorkspace.io`, accès joueurs et inventaires par le `Scheduler`.
 
+Rien de bloquant dans `onEnable` ni sur le thread global après lui (issue #42) :
+
+- La base de la suite (pool, migrations et leur `GET_LOCK`, enregistrement dans
+  `artisan_servers`, import H2 → MySQL) s'ouvre sur le thread `Artisan-versions`
+  (`ArtisanPlugin.openSuiteDatabase`), en tête de file : la première Version, mise en file par
+  le premier chargement, la trouve ouverte. Tant qu'elle ne l'est pas, le hub le dit plutôt que
+  de servir du vide (`LateSuiteData`) : Versions et états chargés absents (les routes relaient
+  au serveur, comme sans base), brouillons refusés `storage_error` 503 (l'éditeur réessaie),
+  sessions éditeur en mémoire seule, feuilles refusées sur `/ws/plugin` avec « not open yet »
+  (elles se reconnectent). Une feuille attend elle-même sa base avant d'envoyer `hello`
+  (`WsClient.connect`, `HubLink.databaseId`).
+- Un rechargement demandé après le démarrage (`api.project.reload()`, `projectRoots.register`)
+  lit le disque et parse le YAML sur le thread `Artisan-reload`
+  (`SyncedMenuProvider.refreshFromDisk`) ; seul `applyReload` (command map, `onReload()` des
+  modules) repasse par le thread global, après la bascule du snapshot. Le premier chargement et
+  `/artisan reload` restent synchrones : les menus et commandes existent quand le serveur
+  s'ouvre, et la réponse de l'admin dit vrai.
+- Aucun JDBC ni I/O disque dans le chemin join, tick ou clic.
+
 ## Reload atomique
 
 `reloadFromDisk()` construit un nouveau `ConcurrentHashMap` **entier**, puis l'assigne à
