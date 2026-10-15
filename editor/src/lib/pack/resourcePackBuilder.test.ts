@@ -109,6 +109,26 @@ describe("buildResourcePackZip", () => {
     expect(hash2).toBe(hash);
   });
 
+  test("same bytes whatever the host's timezone", () => {
+    const assets = [row({})];
+    const pngs = new Map([["asset_g1", PNG_1x1]]);
+    const tz = process.env.TZ;
+    try {
+      process.env.TZ = "UTC";
+      const utc = buildResourcePackZip(assets, pngs, new Map()).hash;
+      process.env.TZ = "Pacific/Kiritimati";
+      const east = buildResourcePackZip(assets, pngs, new Map()).hash;
+      process.env.TZ = "America/Los_Angeles";
+      const west = buildResourcePackZip(assets, pngs, new Map()).hash;
+      expect(east).toBe(utc);
+      expect(west).toBe(utc);
+    } finally {
+      // biome-ignore lint/performance/noDelete: `= undefined` would set the string "undefined"
+      if (tz === undefined) delete process.env.TZ;
+      else process.env.TZ = tz;
+    }
+  });
+
   test("ignores assets without codepoints in the bitmap providers", () => {
     const t = row({
       id: "asset_t1",
