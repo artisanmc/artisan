@@ -46,7 +46,7 @@ describe("buildProjectDocuments", () => {
     const dlgs = groups.find((g) => g.type === "dialog")!;
     expect(dlgs.items[0]).toMatchObject({ id: "d1" });
     // dialog label is the id, even though the title resolves to "Confirm"
-    expect(dlgs.items[0].label).toBe("d1");
+    expect(dlgs.items[0]!.label).toBe("d1");
   });
 
   it("menu label is always the id, even when the menu has a title", () => {
@@ -56,13 +56,13 @@ describe("buildProjectDocuments", () => {
     (p.i18nKeys as any).k_m1 = { en: "Shop" };
     const groups = buildProjectDocuments(p, "en");
     const menus = groups.find((g) => g.type === "menu")!;
-    expect(menus.items[0].label).toBe("m1");
+    expect(menus.items[0]!.label).toBe("m1");
   });
 
   it("dialog label is always the id, even when the title resolves", () => {
     const p = project();
     const groups = buildProjectDocuments(p, "en");
     const dlgs = groups.find((g) => g.type === "dialog")!;
-    expect(dlgs.items[0].label).toBe("d1");
+    expect(dlgs.items[0]!.label).toBe("d1");
   });
 });

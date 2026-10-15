@@ -5,7 +5,16 @@
  * element and asserts the store write.
  */
 import "@/i18n";
-import type { Account, ElementId, I18nKey, Menu, MenuId, Project, ProjectId } from "@/domain/types";
+import type {
+  Account,
+  DataSourceId,
+  ElementId,
+  I18nKey,
+  Menu,
+  MenuId,
+  Project,
+  ProjectId,
+} from "@/domain/types";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -66,7 +75,7 @@ describe("state card title editing reaches the store", () => {
     const project = makeProject();
     project.dataSources = [
       {
-        id: "settings",
+        id: "settings" as DataSourceId,
         name: "settings",
         shape: "config",
         fields: [{ name: "icon", type: { kind: "item" } }],

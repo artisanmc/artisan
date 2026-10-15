@@ -41,6 +41,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   }, [source.name]);
 
   // Another source is another file: neither draft nor mode is inherited.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: source.id is the reset trigger, not a value read by the effect
   useEffect(() => {
     setDraft(null);
     setMode("form");
@@ -149,7 +150,9 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
               aria-label={t("screens.yamlFile")}
             >
               {(draft ?? []).map((f) => (
-                <option key={f.path} value={f.path}>{f.path}</option>
+                <option key={f.path} value={f.path}>
+                  {f.path}
+                </option>
               ))}
             </select>
           )}
@@ -165,13 +168,17 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
                     value={current.content}
                     ariaLabel={current.path}
                     onChange={(next) =>
-                      setDraft(files.map((f) => (f.path === current.path ? { ...f, content: next } : f)))
+                      setDraft(
+                        files.map((f) => (f.path === current.path ? { ...f, content: next } : f)),
+                      )
                     }
                   />
                 </div>
                 {err ? (
                   <p className="text-[11px] text-rose-300" role="alert">
-                    {err.line !== null ? `${t("screens.yamlErrorLine", { line: err.line })} — ` : ""}
+                    {err.line !== null
+                      ? `${t("screens.yamlErrorLine", { line: err.line })} — `
+                      : ""}
                     {err.message}
                   </p>
                 ) : (
@@ -184,35 +191,35 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
           })()}
         </div>
       ) : (
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto pr-1">
-        <section className="rounded border border-[var(--border-soft)] p-3">
-          <button
-            type="button"
-            onClick={() => setSchemaOpen((v) => !v)}
-            className="eyebrow mb-2 flex items-center gap-1"
-            aria-expanded={schemaOpen}
-          >
-            <span>{schemaOpen ? "▾" : "▸"}</span>
-            {t("dataSources.schemaTitle")}
-          </button>
-          {schemaOpen ? (
-            <ModelFieldsEditor projectId={projectId} project={project} source={source} />
-          ) : null}
-        </section>
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto pr-1">
+          <section className="rounded border border-[var(--border-soft)] p-3">
+            <button
+              type="button"
+              onClick={() => setSchemaOpen((v) => !v)}
+              className="eyebrow mb-2 flex items-center gap-1"
+              aria-expanded={schemaOpen}
+            >
+              <span>{schemaOpen ? "▾" : "▸"}</span>
+              {t("dataSources.schemaTitle")}
+            </button>
+            {schemaOpen ? (
+              <ModelFieldsEditor projectId={projectId} project={project} source={source} />
+            ) : null}
+          </section>
 
-        <section className="rounded border border-[var(--border-soft)] p-3">
-          <div className="eyebrow mb-2">
-            {source.shape === "table" ? t("dataSources.rowsTitle") : t("dataSources.valuesTitle")}
-          </div>
-          {source.shape === "table" ? (
-            <SourceRowsTable projectId={projectId} project={project} source={source} />
-          ) : (
-            <ConfigValueForm projectId={projectId} project={project} source={source} />
-          )}
-        </section>
+          <section className="rounded border border-[var(--border-soft)] p-3">
+            <div className="eyebrow mb-2">
+              {source.shape === "table" ? t("dataSources.rowsTitle") : t("dataSources.valuesTitle")}
+            </div>
+            {source.shape === "table" ? (
+              <SourceRowsTable projectId={projectId} project={project} source={source} />
+            ) : (
+              <ConfigValueForm projectId={projectId} project={project} source={source} />
+            )}
+          </section>
 
-        {/* Item sets live at the MENU level — no data-level creation surface. */}
-      </div>
+          {/* Item sets live at the MENU level — no data-level creation surface. */}
+        </div>
       )}
     </div>
   );

@@ -43,7 +43,7 @@ beforeEach(() => {
   });
   vi.spyOn(api, "updateDraft").mockResolvedValue(draft);
 });
-test.each([{}, { "manifest.yaml": "name: Demo" }])(
+test.each<Record<string, string>>([{}, { "manifest.yaml": "name: Demo" }])(
   "first asset action materializes a clean private draft: %j",
   async (tree) => {
     useProjectDraftStore.setState({ drafts: {} });
@@ -76,14 +76,14 @@ test.each([{}, { "manifest.yaml": "name: Demo" }])(
 );
 
 test("private upload blocks autosave and preserves text typed while its ACK is pending", async () => {
-  let finish!: (result: { draft: typeof draft }) => void;
+  let finish!: (result: { draft: api.PersistedDraft }) => void;
   let started!: () => void;
   const ready = new Promise<void>((resolve) => {
     started = resolve;
   });
   const saving = mutateDraftAssets("project", input, async () => {
     started();
-    return new Promise((resolve) => {
+    return new Promise<{ draft: api.PersistedDraft }>((resolve) => {
       finish = resolve;
     });
   });

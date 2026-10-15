@@ -7,7 +7,7 @@ import { stepsToStructured, structuredToSteps, type ActionTextCodec } from "./st
  * Locks the reference examples in `docs/architecture/action-steps.md` — each wire
  * blob must decode and re-encode byte-for-byte (same shape). Mirrors the doc.
  */
-let values: Record<string, Record<string, string>> = {};
+const values: Record<string, Record<string, string>> = {};
 let counter = 0;
 const codec: ActionTextCodec = {
   // Mirror `fieldTextOf`: a single-language text collapses to its bare string.

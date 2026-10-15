@@ -142,7 +142,7 @@ describe("legacy templates/ migration", () => {
     const [a, b] = elementsOf(p);
 
     // The template is gone as an entity — it survives only as element content.
-    expect(p.itemTemplates ?? []).toEqual([]);
+    expect((p as { itemTemplates?: unknown }).itemTemplates ?? []).toEqual([]);
 
     for (const el of [a!, b!]) {
       expect(el.states).toHaveLength(0);

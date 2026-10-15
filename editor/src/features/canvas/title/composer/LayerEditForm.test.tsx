@@ -15,6 +15,7 @@ vi.mock("@/features/assets/AssetPicker", () => ({
   AssetPicker: (props: any) =>
     props.open ? (
       <button
+        type="button"
         data-testid="asset-picker"
         data-type-filter={props.typeFilter}
         data-project-id={props.projectId}
@@ -47,7 +48,7 @@ const A = (s: string) => s as AssetId;
 function makeAsset(id: string, name: string, overrides: Partial<Asset> = {}): Asset {
   return {
     id,
-    serverKeyId: "sk1",
+    projectId: PACK_ID,
     type: "glyph",
     name,
     width: 16,
@@ -122,11 +123,13 @@ describe("LayerEditForm — empty state", () => {
     });
     selectLayer(0);
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
-    expect(menusOf(useAccountStore.getState().account.projects[0])[0].title[0].kind).toBe("text");
+    expect(menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title[0]!.kind).toBe(
+      "text",
+    );
     fireEvent.change(screen.getByTestId("textarea-width"), { target: { value: "100" } });
     fireEvent.change(container.querySelector("textarea")!, { target: { value: "Hello\nWorld" } });
-    const project = useAccountStore.getState().account.projects[0];
-    expect(menusOf(project)[0].title[0]).toMatchObject({
+    const project = useAccountStore.getState().account.projects[0]!;
+    expect(menusOf(project)[0]!.title[0]).toMatchObject({
       kind: "textarea",
       value: { key: K("g") },
       x: 8,
@@ -134,7 +137,7 @@ describe("LayerEditForm — empty state", () => {
       size: 12,
       width: 100,
     });
-    expect(project.i18nKeys.g).toEqual({ en: "Hello\nWorld", fr: "Bonjour" });
+    expect(project.i18nKeys[K("g")]).toEqual({ en: "Hello\nWorld", fr: "Bonjour" });
   });
 
   it("renders an empty-state hint when no layer is selected", () => {
@@ -440,7 +443,7 @@ describe("LayerEditForm — textarea layer", () => {
     const { container } = render(<LayerEditForm projectId={PACK_ID} />);
     const ta = container.querySelector("textarea") as HTMLTextAreaElement;
     fireEvent.change(ta, { target: { value: "line1\nline2\nline3" } });
-    const updated = useAccountStore.getState().account.projects[0]!.i18nKeys.t1?.en;
+    const updated = useAccountStore.getState().account.projects[0]!.i18nKeys[K("t1")]?.en;
     expect(updated).toBe("line1\nline2\nline3");
   });
 
@@ -457,7 +460,7 @@ describe("LayerEditForm — textarea layer", () => {
     for (const alignment of ["center", "right", "left"] as const) {
       fireEvent.click(screen.getByTestId(`textarea-align-${alignment}`));
       fireEvent.change(screen.getByTestId("textarea-width"), { target: { value: "120" } });
-      const layer = menusOf(useAccountStore.getState().account.projects[0])[0].title[0];
+      const layer = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title[0]!;
       if (layer.kind !== "textarea") throw new Error("Expected text block");
       const anchor =
         alignment === "center"

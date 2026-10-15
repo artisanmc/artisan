@@ -91,6 +91,7 @@ export function ConfigScreenPage({
   // rewrite must not be mistaken for an edit: opening a screen changes nothing.
   const [baselineEmit, setBaselineEmit] = useState<Map<string, string>>(new Map());
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `screen` is re-memoized whenever account projects change, which `upsertScratchProject` below does — depending on the object would refetch in a loop; only the screen's identity (id/projectId/table) must reload
   const load = useCallback(async () => {
     if (!screen) return;
     // A declared screen can open before the presence-driven lazy loader finishes.
@@ -159,7 +160,6 @@ export function ConfigScreenPage({
     });
     setStale(false);
     setPhase("ready");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverId, screen?.id, screen?.projectId, screen?.table]);
 
   useEffect(() => {
@@ -171,8 +171,7 @@ export function ConfigScreenPage({
   useEffect(() => {
     if (!scratchId) return;
     return () => removeProject(scratchId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scratchId]);
+  }, [scratchId, removeProject]);
 
   // Text mode owns the truth while it is being typed; the form's serialization
   // takes over as soon as the text is valid and adopted back into the scratch.

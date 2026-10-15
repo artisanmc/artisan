@@ -1,16 +1,11 @@
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { deleteUserProject, loadUserProject } from "@/lib/api/userProjects";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 import type { ProjectId } from "@/domain/types";
@@ -22,10 +17,16 @@ interface DeleteProjectDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange }: DeleteProjectDialogProps) {
+export function DeleteProjectDialog({
+  projectId,
+  projectName,
+  open,
+  onOpenChange,
+}: DeleteProjectDialogProps) {
   const [confirm, setConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirmInputId = useId();
   const user = useAuthStore((s) => s.currentUser);
   const removeProject = useAccountStore((s) => s.removeProject);
   const projectOrder = useAccountStore((s) => s.account.projectOrder);
@@ -78,17 +79,20 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
             {t("deleteProjectDialog.warning", { name: projectName })}
           </p>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-[var(--text-faint)]">
+            <label htmlFor={confirmInputId} className="text-xs text-[var(--text-faint)]">
               {t("deleteProjectDialog.confirmLabel")}{" "}
               <code className="rounded bg-[var(--surface-raised-2)] px-1 py-0.5 font-mono text-[var(--text-mut)]">
                 {projectId}
               </code>
             </label>
             <Input
+              id={confirmInputId}
               placeholder={projectId}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleDelete(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleDelete();
+              }}
               autoFocus
             />
           </div>
@@ -103,11 +107,7 @@ export function DeleteProjectDialog({ projectId, projectName, open, onOpenChange
             <Button variant="ghost" onClick={() => handleOpenChange(false)} disabled={deleting}>
               {t("deleteProjectDialog.cancel")}
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={!canDelete || deleting}
-            >
+            <Button variant="destructive" onClick={handleDelete} disabled={!canDelete || deleting}>
               {deleting ? t("deleteProjectDialog.deleting") : t("deleteProjectDialog.delete")}
             </Button>
           </div>

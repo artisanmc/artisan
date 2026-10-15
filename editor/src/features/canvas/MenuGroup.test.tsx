@@ -26,6 +26,7 @@ vi.mock("react-konva", () => ({
     x?: number;
     y?: number;
   }) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
       data-testid="konva-group"
       data-name={props.name}

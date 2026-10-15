@@ -11,8 +11,6 @@ import type { DiskAsset } from "./diskAssets";
  * The plugin stays the only writer.
  */
 describe("assetDiskWrite", () => {
-  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
-
   test("the type gives the folder, the name gives the file", () => {
     expect(assetDiskPath("glyph", "Icône Diamant")).toBe("assets/glyphs/ic-ne-diamant.png");
     expect(assetDiskPath("texture", "fond_boutique")).toBe("assets/textures/fond_boutique.png");

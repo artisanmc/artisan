@@ -13,14 +13,15 @@
     "build": "npm run generate-routes && tsc -p tsconfig.app.json && vite build",
     "build:self-hosted": "npm run build",
     "build:site": "npm --prefix ../docs-site run build && npm run generate-routes && vite build --mode site && node scripts/copy-wiki.mjs",
-    "typecheck": "tsc -b",
+    "typecheck": "tsr generate && tsc -b",
     "preview": "vite preview",
     "preview:site": "vite preview --mode site",
     "pretest": "tsr generate",
     "test": "vitest",
     "test:e2e": "playwright test",
     "lint": "biome check .",
-    "lint:fix": "biome check --write ."
+    "lint:fix": "biome check --write .",
+    "check:boundaries": "node scripts/check-boundaries.mjs"
   },
   "dependencies": {
     "@artisan/editor-sdk": "*",

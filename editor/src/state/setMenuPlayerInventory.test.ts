@@ -1,4 +1,5 @@
-import { type ElementId, type menuId, projectId } from "@/domain/ids";
+import { type menuId, projectId } from "@/domain/ids";
+import type { ElementId } from "@/domain/types";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
