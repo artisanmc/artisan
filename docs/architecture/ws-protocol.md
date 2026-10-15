@@ -119,8 +119,7 @@ n'en envoie jamais : aucune limite ne s'applique.
 WebSocket navigateur ← hub (`EditorChannel`). Ouverture : cookie de session portant
 `artisan.editor.view` et en-tête `Origin` de même hôte, sinon 403. Le hub n'y envoie que
 `projects_reloaded` `{server_key_id, projects:[{id, hash}]}` ; il ne lit rien du navigateur.
-`POST /api/v1/user/ws-ticket` rend un ticket factice (`"session"`) : l'éditeur hérité en
-demande un, le cookie suffit.
+L'éditeur l'ouvre directement (`new EditorWs(handlers)`), sans ticket : le cookie suffit.
 
 ## Supprimé en phase F (ne pas réintroduire sans ADR)
 

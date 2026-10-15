@@ -25,7 +25,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
@@ -33,13 +33,12 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 
 import type { ProjectId } from "@/domain/types";
 import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import { type ProjectSummary, type ServerStatusEntry, getNetwork } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
+import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlServerId } from "@/lib/urlIds";
 import { useAccountStore } from "@/state/accountStore";
 import { useModulesStore } from "@/state/modulesStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
@@ -48,13 +47,10 @@ import { ChevronDown, ChevronRight, Folder, FolderOpen, GripVertical } from "luc
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
-import { useNetworkServersStatus } from "./useNetworkServersStatus";
+import { useServersStatus } from "./useServersStatus";
 
 export function ProjectSidebar() {
   const { t } = useTranslation();
-  const networks = useNetworksStore((s) => s.networks);
-  const setNetworks = useNetworksStore((s) => s.setNetworks);
-  const storeRefreshToken = useNetworksStore((s) => s.refreshToken);
   const localProjects = useAccountStore((s) => s.account.projects);
   const projectOrder = useAccountStore((s) => s.account.projectOrder);
   const reorderProjects = useAccountStore((s) => s.reorderProjects);
@@ -69,7 +65,14 @@ export function ProjectSidebar() {
     "loading",
   );
   const [updateRequired, setUpdateRequired] = useState(false);
-  const [allServerEntries, setAllServerEntries] = useState<ServerEntry[]>([]);
+  // The hub's servers with their live state, re-read every 15 s: a server that
+  // connected since loading shows up at once.
+  const { data: serversStatus } = useServersStatus();
+  const allServerEntries = useMemo(() => serverEntriesOf(serversStatus ?? []), [serversStatus]);
+  // Share the ids so every surface can build links the same way.
+  useEffect(() => {
+    useServersStore.getState().setServers(allServerEntries);
+  }, [allServerEntries]);
   const [refetchToken, setRefetchToken] = useState(0);
   useEffect(() => {
     const renamed = () => setRefetchToken((token) => token + 1);
@@ -77,8 +80,7 @@ export function ProjectSidebar() {
     return () => window.removeEventListener("ifz:project_renamed", renamed);
   }, []);
 
-  // The hub's single network; active server: URL param first, then persisted
-  // selection. Routes without params (settings, credits…) fall back to the
+  // Active server: URL param first, then persisted selection. Routes without params (settings, credits…) fall back to the
   // persisted selection so navigating there doesn't silently "deselect" the
   // server while the project list stays scoped to it.
   const storedServerId = useServersStore((s) => s.activeServerId);
@@ -86,60 +88,33 @@ export function ProjectSidebar() {
     serverId?: string;
     projectId?: string;
   };
-  const activeNetworkId = networks[0]?.id ?? null;
-  // Only trust the persisted server if it still exists in the active network —
-  // a deleted server must not filter the project list down to nothing.
+  // Only trust the persisted server if the hub still lists it — a deleted
+  // server must not filter the project list down to nothing.
   const storedServerValid =
-    storedServerId != null &&
-    allServerEntries.some(
-      (e) =>
-        e.serverId === storedServerId &&
-        (activeNetworkId == null || e.networkId === activeNetworkId),
-    );
+    storedServerId != null && allServerEntries.some((e) => e.serverId === storedServerId);
   const rawServerParam =
     urlParams.serverId ?? (urlParams.projectId ? null : storedServerValid ? storedServerId : null);
-  // Server slugs are only unique per network ("server" exists in many) — scope
-  // the lookup to the active network or a slug could resolve to another
-  // network's server and the workspace list would filter to the wrong projects.
   const activeServerId = rawServerParam
     ? (allServerEntries.find(
-        (e) =>
-          (activeNetworkId == null || e.networkId === activeNetworkId) &&
-          (e.serverId === rawServerParam || e.serverSlug === rawServerParam),
+        (e) => e.serverId === rawServerParam || e.serverSlug === rawServerParam,
       )?.serverId ?? rawServerParam)
     : null;
 
   // URL-facing form: links carry slugs, everything else stays id-based.
-  const srvParam = urlServerId(allServerEntries, activeNetworkId, activeServerId);
+  const srvParam = urlServerId(allServerEntries, activeServerId);
 
   // Persist the URL-driven selection so param-less routes keep it. Only store
   // resolved ids (never raw slugs) — the entry lookup guarantees that.
   useEffect(() => {
     if (urlParams.serverId) {
       const resolved = allServerEntries.find(
-        (e) =>
-          (activeNetworkId == null || e.networkId === activeNetworkId) &&
-          (e.serverId === urlParams.serverId || e.serverSlug === urlParams.serverId),
+        (e) => e.serverId === urlParams.serverId || e.serverSlug === urlParams.serverId,
       )?.serverId;
       if (resolved && useServersStore.getState().activeServerId !== resolved) {
         useServersStore.getState().setActiveServerId(resolved);
       }
     }
-  }, [urlParams.serverId, activeNetworkId, allServerEntries]);
-
-  // `networks.length` is read as a condition, not a trigger: adding it as a
-  // dependency would rerun the fetch when `setNetworks` returns, looping as soon
-  // as the refresh token is raised. Only the bump must trigger.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: trigger intentionally limited to the bump
-  useEffect(() => {
-    // Refetch on refresh bump too — a network created in the wizard/hub would
-    // otherwise never reach the store (only fetched when empty).
-    if (networks.length === 0 || storeRefreshToken > 0) {
-      getNetwork()
-        .then((d) => setNetworks([d.network]))
-        .catch(() => {});
-    }
-  }, [storeRefreshToken]);
+  }, [urlParams.serverId, allServerEntries]);
 
   /**
    * The active server's Projects, read from ITS disk on every refresh.
@@ -150,15 +125,10 @@ export function ProjectSidebar() {
    * Offline server → say so (`projectsStatus`): its Projects cannot be opened,
    * and there is no point inviting to create another one.
    */
-  // `refetchToken` and `storeRefreshToken` are not read in the effect: they are
-  // precisely the "re-read the disk" signals (Project created, change elsewhere).
+  // `refetchToken` is not read in the effect: it is precisely the "re-read the
+  // disk" signal (Project created, renamed elsewhere).
   // biome-ignore lint/correctness/useExhaustiveDependencies: dependencies = refresh signals
   useEffect(() => {
-    if (!activeNetworkId) {
-      setServerProjects([]);
-      setProjectsStatus("loading");
-      return;
-    }
     let cancelled = false;
     setProjectsStatus("loading");
     if (!activeServerId) {
@@ -178,60 +148,7 @@ export function ProjectSidebar() {
     return () => {
       cancelled = true;
     };
-  }, [activeNetworkId, activeServerId, refetchToken, storeRefreshToken]);
-
-  // Fetch all server entries across all networks.
-  // Same refresh signals as above; `activeNetworkId` re-scopes the list when
-  // the network changes without `networks` moving.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: dependencies = refresh signals
-  useEffect(() => {
-    if (networks.length === 0) {
-      setAllServerEntries([]);
-      return;
-    }
-    let cancelled = false;
-    Promise.all(
-      networks.map((n) =>
-        getNetwork().then((d) => ({
-          network: n,
-          serverKeys: d.serverKeys,
-          projects: d.projects,
-        })),
-      ),
-    )
-      .then((results) => {
-        if (cancelled) return;
-        const entries: ServerEntry[] = results.flatMap((r) =>
-          r.serverKeys.map((sk) => ({
-            serverId: sk.id,
-            serverSlug: sk.slug,
-            serverLabel: displayServerLabel(sk),
-            networkId: r.network.id,
-            networkSlug: r.network.slug,
-            networkName: r.network.name,
-          })),
-        );
-        setAllServerEntries(entries);
-        // Share the slugs so every surface can build slug-based links.
-        useServersStore.getState().setServers(entries);
-        // The Project list does NOT come from here: it is asked from the active
-        // server's disk (effect below) — ADR `server-disk-only-storage`.
-      })
-      .catch(() => {
-        if (!cancelled) setAllServerEntries([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [networks, activeNetworkId, refetchToken, storeRefreshToken]);
-
-  // The hub and the servers connected to it, with their state.
-  const { data: serversStatus } = useNetworkServersStatus();
-  const selectorEntries = withServersStatus(
-    allServerEntries,
-    activeNetworkId,
-    serversStatus?.servers ?? [],
-  );
+  }, [activeServerId, refetchToken]);
 
   const serverIds = new Set(serverProjects.map((p) => p.id));
   const optimisticEntries: ProjectSummary[] = localProjects
@@ -241,7 +158,6 @@ export function ProjectSidebar() {
       name: p.name,
       hash: "",
       updatedAt: p.updatedAt,
-      networkId: (p as unknown as { networkId?: string }).networkId ?? "",
       serverKeyId: (p as unknown as { serverKeyId?: string }).serverKeyId ?? "",
     }));
   const allProjects = [...serverProjects, ...optimisticEntries];
@@ -282,11 +198,7 @@ export function ProjectSidebar() {
   // Does the open project have a row in the list? Otherwise (demo, unlisted
   // project), it is shown at the top with its Documents.
   const openProjectId = urlParams.projectId;
-  // The project list is only rendered with a network; modules always.
-  const visibleRows = [
-    ...(activeNetworkId ? flatProjects : []),
-    ...moduleGroups.flatMap((g) => g.projects),
-  ];
+  const visibleRows = [...flatProjects, ...moduleGroups.flatMap((g) => g.projects)];
   const openIsListed =
     !!openProjectId &&
     visibleRows.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId);
@@ -319,71 +231,59 @@ export function ProjectSidebar() {
         <ArtisanWordmark />
       </Link>
 
-      <ServerSelector servers={selectorEntries} />
+      <ServerSelector servers={allServerEntries} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         {openProjectId && !openIsListed && (
           <UnlistedOpenProject urlId={openProjectId} serverId={srvParam} />
         )}
-        {activeNetworkId ? (
-          <div className="flex flex-col">
-            <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-              {t("sidebar.myProjects")}
+        <div className="flex flex-col">
+          <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
+            {t("sidebar.myProjects")}
+          </div>
+          {projectsStatus !== "ready" && (
+            <div className="px-2.5 pb-1 text-[11.5px] text-[var(--text-faint)]">
+              {projectsStatus === "loading"
+                ? t("sidebar.loadingProjects")
+                : updateRequired
+                  ? t("linkedServers.updateRequired")
+                  : t("sidebar.projectsUnavailable")}
             </div>
-            {projectsStatus !== "ready" && (
-              <div className="px-2.5 pb-1 text-[11.5px] text-[var(--text-faint)]">
-                {projectsStatus === "loading"
-                  ? t("sidebar.loadingProjects")
-                  : updateRequired
-                    ? t("linkedServers.updateRequired")
-                    : t("sidebar.projectsUnavailable")}
-              </div>
-            )}
-            <DndContext
-              sensors={sensors}
-              onDragEnd={onDragEnd}
-              modifiers={[restrictToVerticalAxis]}
+          )}
+          <DndContext sensors={sensors} onDragEnd={onDragEnd} modifiers={[restrictToVerticalAxis]}>
+            <SortableContext
+              items={flatProjects.map((p) => p.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <SortableContext
-                items={flatProjects.map((p) => p.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <ul className="flex flex-col">
-                  {flatProjects.map((w) => (
-                    <SortableProjectItem
-                      key={w.id}
-                      id={w.id}
-                      urlId={projectUrlId(w)}
-                      name={w.name}
-                      count={countFor(w)}
-                      serverId={
-                        urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam
-                      }
-                    />
-                  ))}
-                </ul>
-              </SortableContext>
-            </DndContext>
-            {projectsStatus === "ready" && (
-              <NewProjectDialog
-                serverKeyId={activeServerId}
-                onCreated={() => setRefetchToken((n) => n + 1)}
-                trigger={
-                  <button
-                    type="button"
-                    className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                  >
-                    {t("sidebar.newProject")}
-                  </button>
-                }
-              />
-            )}
-          </div>
-        ) : (
-          <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-[11.5px] leading-relaxed text-[var(--text-mut)]">
-            {t("sidebar.noNetworkHint")}
-          </div>
-        )}
+              <ul className="flex flex-col">
+                {flatProjects.map((w) => (
+                  <SortableProjectItem
+                    key={w.id}
+                    id={w.id}
+                    urlId={projectUrlId(w)}
+                    name={w.name}
+                    count={countFor(w)}
+                    serverId={urlServerId(allServerEntries, w.serverKeyId) || srvParam}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+          {projectsStatus === "ready" && (
+            <NewProjectDialog
+              serverKeyId={activeServerId}
+              onCreated={() => setRefetchToken((n) => n + 1)}
+              trigger={
+                <button
+                  type="button"
+                  className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                >
+                  {t("sidebar.newProject")}
+                </button>
+              }
+            />
+          )}
+        </div>
 
         <div className="mt-4 flex flex-col">
           <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
@@ -405,13 +305,7 @@ export function ProjectSidebar() {
                     urlId={projectUrlId(g.projects[0]!)}
                     name={g.label}
                     count={countFor(g.projects[0]!)}
-                    serverId={
-                      urlServerId(
-                        allServerEntries,
-                        g.projects[0]!.networkId,
-                        g.projects[0]!.serverKeyId,
-                      ) || srvParam
-                    }
+                    serverId={urlServerId(allServerEntries, g.projects[0]!.serverKeyId) || srvParam}
                   />
                 ) : (
                   <li key={g.id} className="flex flex-col">
@@ -431,9 +325,7 @@ export function ProjectSidebar() {
                           // owning several projects needs their real names.
                           name={g.projects.length === 1 ? t("screens.editorEntry") : w.name}
                           count={countFor(w)}
-                          serverId={
-                            urlServerId(allServerEntries, w.networkId, w.serverKeyId) || srvParam
-                          }
+                          serverId={urlServerId(allServerEntries, w.serverKeyId) || srvParam}
                         />
                       ))}
                       {g.screens.map((s) => (
@@ -461,53 +353,25 @@ export function ProjectSidebar() {
       </div>
 
       <UserMenu
-        serverId={activeServerId}
-        serverLabel={
-          allServerEntries.find(
-            (entry) => entry.networkId === activeNetworkId && entry.serverId === activeServerId,
-          )?.serverLabel ?? undefined
-        }
+        serverLabel={allServerEntries.find((e) => e.serverId === activeServerId)?.serverLabel}
       />
     </nav>
   );
 }
 
-/**
- * The active network's servers, completed with the state `servers-status`
- * reports: a server that connected to the hub since loading shows up at once.
- */
-export function withServersStatus(
-  entries: ServerEntry[],
-  networkId: string | null,
-  statuses: ServerStatusEntry[],
-): ServerEntry[] {
-  const inNetwork = entries.filter((e) => e.networkId === networkId);
-  const known = new Set(inNetwork.map((e) => e.serverId));
-  const template = inNetwork[0];
-  const added: ServerEntry[] =
-    networkId && template
-      ? statuses
-          .filter((s) => !known.has(s.id))
-          .map((s) => ({
-            serverId: s.id,
-            serverSlug: s.id,
-            serverLabel: s.label ?? s.id,
-            networkId,
-            networkSlug: template.networkSlug,
-            networkName: template.networkName,
-          }))
-      : [];
-  return [...inNetwork, ...added].map((entry) => {
-    const status = statuses.find((s) => s.id === entry.serverId);
-    return status
-      ? { ...entry, online: status.online, updateRequired: status.updateRequired === true }
-      : entry;
-  });
+/** The selector's rows, straight from what the hub lists. */
+export function serverEntriesOf(servers: ServerSummary[]): ServerEntry[] {
+  return servers.map((s) => ({
+    serverId: s.id,
+    serverLabel: displayServerLabel(s),
+    online: s.online,
+    updateRequired: s.updateRequired === true,
+  }));
 }
 
 /**
- * The link to a Project, with the only decision that varies: network+server
- * context or not. Both branches are written out so the router types them —
+ * The link to a Project, with the only decision that varies: server context
+ * or not. Both branches are written out so the router types them —
  * a computed `to`/`params` required two `as any`, hiding route errors.
  */
 function ProjectLink({
@@ -597,7 +461,7 @@ function ActiveProjectDocuments({
 }
 
 /**
- * The open project when no row of the list holds it: the demo (no network) or
+ * The open project when no row of the list holds it: the demo (no server) or
  * a project the server's list does not show. Without this block its Documents
  * would have nowhere to go.
  */

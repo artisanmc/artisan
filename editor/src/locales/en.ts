@@ -1,7 +1,6 @@
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
 import { onboardingEn } from "./onboarding";
-import { planCatalogEn } from "./planCatalog";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
 import { serverCanvasEn } from "./serverCanvas";
@@ -179,8 +178,6 @@ export default {
       create_failed: "The project could not be created on the server.",
       invalid_name: "That folder name is not allowed on the server.",
       forbidden: "You don't have permission to create a project on this server.",
-      server_key_not_in_network: "This server no longer belongs to the network.",
-      quota_denied: "The server's plan does not allow another project.",
       plugin_update_required: "The server's plugin is too old for this action.",
       invalid_path: "The project's folder name is invalid.",
       unknown: "Import failed.",
@@ -248,14 +245,7 @@ export default {
     title: "Editor language",
   },
   projectMini: {
-    sidebarTitle: "Projects",
     newProject: "New project",
-    reorderProject: "Reorder project",
-    sourceUser: "user",
-    sourceImported: "imp",
-    sourceForked: "fork",
-    countMenusCommands: "{{menus}}m · {{commands}}c",
-    emptyPreview: "empty",
   },
   newProjectDialog: {
     title: "New project",
@@ -1087,18 +1077,6 @@ export default {
   assetPicker: {
     upload: "Upload",
   },
-  sync: {
-    deleteProjectDialog: {
-      title: "Delete project «{{name}}»?",
-      warning:
-        "This action will remove all menus, dialogs and translations of the project from every connected Minecraft server. The files will be moved to `plugins/Artisan/.artisan-trash/` server-side in case you need to recover them.",
-      conflictWarning:
-        "If a conflict exists for this project, it will be ignored and the editor will become authoritative.",
-      typePrompt: "To confirm, type the project name:",
-      cancel: "Cancel",
-      confirm: "Delete",
-    },
-  },
   patterns: {
     title: "Cheat sheet",
     intro: "Click copy on any snippet to use it in your own fields.",
@@ -1266,10 +1244,7 @@ export default {
     down: "Offline",
     lastSeen: "Last seen {{when}}",
     neverConnected: "Never connected",
-    current: "current",
     empty: "No servers linked",
-    pluginOutdated: "Plugin outdated — update it to edit this server",
-    pluginUpdatePending: "Plugin {{version}} installed — restart the server to apply it",
     updateRequired: "Update required",
   },
   sidebar: {
@@ -1287,19 +1262,8 @@ export default {
     newProject: "+ New project",
     setupHint: "Create a Network or run <1>{{cmd}}</1> on your server to start.",
     networkLabel: "Network",
-    manageNetworks: "Manage networks →",
-    noNetworkCta: "Create a Network",
-    noNetworkHint: "Create a Network first to organize your projects.",
-    createNetwork: "+ Create network",
     serverLabel: "Server",
     selectServer: "Select a server",
-  },
-  admin: {
-    billing: {
-      sales: {
-        range: { "7d": "7 days", "30d": "30 days", custom: "Custom", from: "From", to: "To" },
-      },
-    },
   },
   adminDesign: {
     specimens: {
@@ -1419,11 +1383,6 @@ export default {
     revert: "Revert",
     revertTitle: "Discard unsaved changes and start again from the server state",
   },
-  editorAccess: {
-    unavailable: "Editor rights cannot be checked while the server inventory is unavailable.",
-    module: "Module resource · outside the personal quota",
-    retry: "Retry",
-  },
   save: {
     lastError: "Last save error",
     errorHelp:
@@ -1440,10 +1399,6 @@ export default {
       invalid_input: "The submitted data is invalid.",
       read_error: "The server could not read the files.",
       write_error: "The server could not write the files.",
-      quota_denied:
-        "This change exceeds the free editor quota. Your draft is still here. Renew Pro or delete personal resources to continue.",
-      inventory_unavailable:
-        "The server resource inventory could not be checked. Reconnect the server and try again.",
       plugin_update_required: "Update the server plugin before editing with this offer.",
       too_large: "The data exceeds the allowed size.",
       forbidden: "You do not have permission to save this project.",
@@ -1520,7 +1475,6 @@ export default {
     },
   },
   userMenu: {
-    resourceUsage: "Resource usage",
     anonymous: "Anonymous",
     signIn: "Sign in",
   },
@@ -1620,9 +1574,6 @@ export default {
     buttonLabel: "Label",
     buttonActions: "Actions",
     addButton: "Add button",
-  },
-  billing: {
-    catalog: planCatalogEn,
   },
   search: {
     placeholder: "Search menus, commands, items, text…",

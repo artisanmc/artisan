@@ -13,12 +13,16 @@ vi.mock("@tanstack/react-router", async () => {
   };
 });
 
-vi.mock("@/lib/api/networks", () => ({
-  getNetwork: vi.fn().mockResolvedValue({
-    network: { id: "local", name: "Hub", tier: "free" },
-    projects: [],
-    serverKeys: [{ id: "824473e8-413e-4109-ae91-185021a150e9", label: "Hub" }],
-  }),
+vi.mock("@/lib/api/servers", () => ({
+  listServers: vi.fn().mockResolvedValue([
+    {
+      id: "824473e8-413e-4109-ae91-185021a150e9",
+      label: "Hub",
+      online: true,
+      minecraftVersion: null,
+      lastSeenAt: null,
+    },
+  ]),
 }));
 
 describe("ServersPage", () => {

@@ -6,17 +6,17 @@ class FakeWebSocket {
   url: string;
   onmessage: ((evt: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
+  closed = false;
   constructor(url: string) {
     this.url = url;
     FakeWebSocket.instances.push(this);
   }
-  close(): void {}
+  close(): void {
+    this.closed = true;
+  }
 }
 
-const ticket = (value: string) =>
-  vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ticket: value }) });
-
-describe("EditorWs.connectAsUser", () => {
+describe("EditorWs", () => {
   beforeEach(() => {
     FakeWebSocket.instances = [];
     vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
@@ -27,41 +27,40 @@ describe("EditorWs.connectAsUser", () => {
     vi.restoreAllMocks();
   });
 
-  it("fetches a ticket with credentials included, then opens ?ticket= on the WS URL", async () => {
-    const fetchMock = ticket("wst_abc123");
+  // The session cookie authenticates the socket: no ticket round-trip, no
+  // query string (issue #44).
+  it("opens /ws/editor directly, with no ticket", () => {
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const ws = await EditorWs.connectAsUser("http://localhost:3001", {});
+    new EditorWs({});
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:3001/api/v1/user/ws-ticket",
-      expect.objectContaining({ method: "POST", credentials: "include" }),
-    );
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(FakeWebSocket.instances).toHaveLength(1);
-    expect(FakeWebSocket.instances[0]!.url).toContain("/ws/editor?ticket=wst_abc123");
-    expect(ws).toBeInstanceOf(EditorWs);
+    expect(FakeWebSocket.instances[0]!.url).toMatch(/\/ws\/editor$/);
   });
 
-  it("throws if the ticket fetch fails", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
-    await expect(EditorWs.connectAsUser("http://localhost:3001", {})).rejects.toThrow();
-  });
-
-  it("dispatches projects_reloaded and ignores other message types", async () => {
-    vi.stubGlobal("fetch", ticket("wst_x"));
+  it("dispatches projects_reloaded and ignores other message types", () => {
     const onProjectsReloaded = vi.fn();
-    await EditorWs.connectAsUser("http://localhost:3001", { onProjectsReloaded });
+    new EditorWs({ onProjectsReloaded });
     const socket = FakeWebSocket.instances[0]!;
 
     expect(() =>
       socket.onmessage?.({ data: JSON.stringify({ type: "unknown_type" }) }),
     ).not.toThrow();
+    expect(() => socket.onmessage?.({ data: "not json" })).not.toThrow();
     expect(onProjectsReloaded).not.toHaveBeenCalled();
 
     const projects = [{ id: "shop", hash: "h1" }];
     socket.onmessage?.({
-      data: JSON.stringify({ type: "projects_reloaded", server_key_id: "local", projects }),
+      data: JSON.stringify({ type: "projects_reloaded", server_key_id: "u-local", projects }),
     });
-    expect(onProjectsReloaded).toHaveBeenCalledWith("local", projects);
+    expect(onProjectsReloaded).toHaveBeenCalledWith("u-local", projects);
+  });
+
+  it("closes the socket on disconnect", () => {
+    const ws = new EditorWs({});
+    ws.disconnect();
+    expect(FakeWebSocket.instances[0]!.closed).toBe(true);
   });
 });

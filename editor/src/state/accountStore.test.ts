@@ -22,25 +22,6 @@ describe("accountStore", () => {
     useAccountStore.setState({ account: mockAccount() });
   });
 
-  describe("applyAssistantTranslations", () => {
-    it("merges per-key/per-lang values without touching other languages", () => {
-      const K = "menus.shop.title" as I18nKey;
-      useAccountStore
-        .getState()
-        .setI18nValue({ projectId: PERSONAL, lt: { key: K }, lang: "fr", value: "&6Boutique" });
-      useAccountStore
-        .getState()
-        .setI18nValue({ projectId: PERSONAL, lt: { key: K }, lang: "en", value: "&6Shop" });
-      useAccountStore.getState().applyAssistantTranslations({
-        projectId: PERSONAL,
-        entries: { [K]: { fr: "<gold>Boutique" }, ["new.key" as I18nKey]: { fr: "Neuf" } },
-      });
-      const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-      expect(project.i18nKeys[K]).toEqual({ fr: "<gold>Boutique", en: "&6Shop" });
-      expect(project.i18nKeys["new.key" as I18nKey]).toEqual({ fr: "Neuf" });
-    });
-  });
-
   describe("menu item sets", () => {
     const getProject = () =>
       useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
@@ -2110,52 +2091,6 @@ describe("accountStore", () => {
       const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
       expect(project.i18nKeys[key]).toBeUndefined();
     });
-  });
-
-  it("applyAssistantCommand inserts then replaces a command and merges i18n", () => {
-    const dropped = useAccountStore.getState().applyAssistantCommand({
-      projectId: PERSONAL,
-      lang: "en",
-      commandV1: {
-        schema: "command/v1",
-        id: "heal",
-        name: "heal",
-        steps: 'send_message "Healed"',
-      },
-    });
-    expect(dropped).toEqual([]);
-    let project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const cmd = project.commands.find((c) => c.id === "heal")!;
-    expect(cmd.name).toBe("heal");
-    const msgKey = (cmd.steps[0] as any).action.text.key;
-    expect(project.i18nKeys[msgKey]!.en).toBe("Healed");
-
-    useAccountStore.getState().applyAssistantCommand({
-      projectId: PERSONAL,
-      lang: "en",
-      commandV1: { schema: "command/v1", id: "heal", name: "heal2", steps: "close_menu" },
-    });
-    project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    expect(project.commands.filter((c) => c.id === "heal")).toHaveLength(1);
-    expect(project.commands.find((c) => c.id === "heal")!.name).toBe("heal2");
-  });
-
-  it("applyAssistantDialog inserts a dialog and merges i18n", () => {
-    useAccountStore.getState().applyAssistantDialog({
-      projectId: PERSONAL,
-      lang: "en",
-      dialogV1: {
-        schema: "dialog/v1",
-        id: "d_confirm",
-        title: "Sure?",
-        buttons: [{ id: "yes", label: "Yes", actions: "close_dialog" }],
-      },
-    });
-    const project = useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
-    const dlg = project.dialogs.find((d) => d.id === "d_confirm")!;
-    expect(dlg).toBeDefined();
-    expect(project.i18nKeys[dlg.title.key]!.en).toBe("Sure?");
-    expect(dlg.buttons[0]!.steps[0]).toMatchObject({ kind: "action" });
   });
 });
 

@@ -2,13 +2,13 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
-import type { ProjectSummary } from "@/lib/api/networks";
 import {
   type ServerConfig,
   ServerConfigError,
   getServerConfig,
   patchServerConfig,
 } from "@/lib/api/serverConfig";
+import type { ProjectSummary } from "@/lib/api/servers";
 import { listAssets } from "@/lib/api/userAssets";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

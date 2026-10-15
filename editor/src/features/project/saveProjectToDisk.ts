@@ -61,7 +61,6 @@ export type SaveToDiskResult =
  */
 export async function saveProjectToDisk(
   project: Project,
-  _networkId?: string,
   _serverId?: string,
 ): Promise<SaveToDiskResult> {
   const next = projectTree(project);

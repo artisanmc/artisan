@@ -8,7 +8,7 @@ import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
 import net.artisanmc.plugin.hub.Relay.Companion.readError
 
-/** `/api/v1/networks/local/servers/:server/…`: what the server declares, its configuration, its live data. */
+/** `/api/v1/servers/:server/…`: what the server declares, its configuration, its live data. */
 class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     fun register(router: Router) {
         on(router, "GET", "modules", VIEW) { call, server -> call.json(mapOf("modules" to server.modules())) }
@@ -18,7 +18,6 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
             call.json(mapOf("models" to models))
         }
         on(router, "GET", "screens", VIEW) { call, server -> call.json(mapOf("screens" to server.screens())) }
-        on(router, "GET", "editor-access", VIEW) { call, _ -> call.json(EDITOR_ACCESS) }
 
         on(router, "GET", "server-config", VIEW) { call, server -> call.json(mapOf("config" to server.serverConfig(), "online" to server.online)) }
         on(router, "PATCH", "server-config", CONFIG) { call, server ->
@@ -111,11 +110,5 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     companion object {
         const val SERVER = "/api/v1/servers/:server"
         private val HDB_ID = Regex("[0-9]{1,10}")
-
-        /** No billing or quota: access is always open. */
-        val EDITOR_ACCESS = mapOf(
-            "enabled" to true, "quota" to null, "proUntil" to null,
-            "inventoryAvailable" to true, "count" to null, "reason" to null,
-        )
     }
 }

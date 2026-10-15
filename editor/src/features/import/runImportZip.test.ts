@@ -16,7 +16,7 @@ vi.mock("@/features/export/projectZip", () => ({
   readProjectZip: mocks.readProjectZip,
   normalizeProjectFiles: mocks.normalizeProjectFiles,
 }));
-vi.mock("@/lib/api/networks", () => ({ createProject: mocks.createProject }));
+vi.mock("@/lib/api/servers", () => ({ createProject: mocks.createProject }));
 vi.mock("@/lib/api/projectDrafts", () => ({
   createDraft: mocks.createDraft,
   updateDraft: mocks.updateDraft,
@@ -39,7 +39,6 @@ const shopSummary = {
   externalId: "shop",
   name: "shop",
   hash: "h",
-  networkId: "n1",
   serverKeyId: "sk1",
 };
 
