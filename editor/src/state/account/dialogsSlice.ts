@@ -1,4 +1,4 @@
-import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
+import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
 import type {
   Condition,
   Dialog,
@@ -408,14 +408,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
         const btn = dialog.buttons[buttonIndex];
         if (btn) {
           delete project!.i18nKeys[btn.label.key];
-          for (const action of walkActions(btn.steps)) {
-            if (action.type === "send_message" || action.type === "broadcast")
-              delete project!.i18nKeys[action.text.key];
-            else if (action.type === "show_title") {
-              delete project!.i18nKeys[action.title.key];
-              if (action.subtitle) delete project!.i18nKeys[action.subtitle.key];
-            }
-          }
+          gcStepLTexts(project!, btn.steps);
           dialog.buttons.splice(buttonIndex, 1);
         }
         touch(draft, pId);

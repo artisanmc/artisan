@@ -95,6 +95,19 @@ mappings:
       - "testdata/i18n-address-conformance.json"
     reason: "Canonical i18n addresses, derived on both sides"
 
+  - touches: "editor/src/domain/actionTextSlots.ts"
+    updates:
+      - "testdata/i18n-address-conformance.json"
+      - "docs/architecture/testing.md"
+    reason: "Editor half of the action-text addressing (mirror of assignI18nAddresses), locked by the shared vector"
+
+  - touches: "plugin/*/src/main/kotlin/**/engine/CoreActions.kt"
+    updates:
+      - "testdata/core-actions.json"
+      - "docs/architecture/testing.md"
+      - "docs/decisions/extensible-document-kinds.md"
+    reason: "The core action vocabulary; the shared vector is generated from it (ARTISAN_WRITE_VECTORS=1) and imported by the editor"
+
   - touches: "tools/minecraft-assets/*.ts"
     updates:
       - "tools/minecraft-assets/README.md"

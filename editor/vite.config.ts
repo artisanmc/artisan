@@ -49,6 +49,9 @@ export default defineConfig(({ mode }) => ({
   // The editor ships inside the plugin jar (plugin/hub, `-PwithEditor`).
   build: { outDir: mode === "site" ? "dist" : "dist-self-hosted" },
   server: {
+    // The shared conformance vectors (testdata/core-actions.json is the table of
+    // core actions the editor imports) live beside the editor, at the repo root.
+    fs: { allow: [".", "../testdata"] },
     // The editor talks to the plugin's hub on the same origin: proxy it in dev.
     proxy: {
       "/api": hubUrl,
