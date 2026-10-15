@@ -39,13 +39,14 @@ class PluginChannelTest {
         override fun applyResourcePack(hash: String, path: String) {}
     }
     private var hubDatabase: String? = "db-1"
+    private var hubDatabaseOpen = true
     private val servers = Servers(local, newRemote = { id, name -> RemoteServer(id, name, publicUrl = { "https://editor.example" }) })
     private val sessions = Sessions()
     private val editors = EditorChannel(null)
     private val hub = HubServer(
         WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(servers, sessions, null), sessions,
         EditorAssets(javaClass.classLoader), editors, Logger.getAnonymousLogger(),
-        PluginChannel(servers, "s3cret", sessions, editors, { host -> "https://${host ?: "editor.example"}" }, null, { hubDatabase }),
+        PluginChannel(servers, "s3cret", sessions, editors, { host -> "https://${host ?: "editor.example"}" }, null, { hubDatabase }, { hubDatabaseOpen }),
     )
     private val client = HttpClient.newHttpClient()
     private lateinit var cookie: String
@@ -141,6 +142,18 @@ class PluginChannelTest {
         leaf.closed.get(5, TimeUnit.SECONDS)
         val status = get("/api/v1/servers").get().second!!
         assertEquals(listOf("u-local" to "Lobby", "u-survie2" to "survival"), status["servers"].map { it["id"].asText() to it["label"].asText() })
+    }
+
+    @Test
+    fun `a hub whose database is still opening tells the server to retry`() {
+        hubDatabaseOpen = false
+        val leaf = Leaf()
+        leaf.hello()
+        assertEquals(1008, leaf.closed.get(5, TimeUnit.SECONDS))
+        hubDatabaseOpen = true
+        val again = Leaf()
+        again.hello()
+        assertEquals("hello_ack", again.next()["type"].asText())
     }
 
     @Test
