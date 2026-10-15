@@ -146,7 +146,30 @@ mappings:
   - touches: "editor/packages/editor-sdk/src/**"
     updates:
       - "docs/architecture/modules.md"
-    reason: "Frontend module API surface (@artisan/editor-sdk — FrontendModule, registerModule)"
+      - "docs/architecture/editor-internals.md"
+      - "docs/decisions/extensible-document-kinds.md"
+    reason: "Frontend module API surface (@artisan/editor-sdk — FrontendModule, registerModule, DocumentKindContribution)"
+
+  - touches: "editor/src/lib/moduleDocumentKinds.ts"
+    updates:
+      - "docs/architecture/editor-internals.md"
+      - "docs/architecture/modules.md"
+    reason: "Host side of FrontendModule.documents: how a contribution enters the kind table, the codecs and the visitors"
+
+  - touches: "editor/src/domain/documentKindVisitors.ts"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "Per-kind text sites and chain slots: what translations, rekey, GC and edges can see of a Document"
+
+  - touches: "editor/src/modules/*/*Kind.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "A core kind's contribution (menus, commands, dialogs) — the reference implementation of the kind contract"
+
+  - touches: "editor/src/features/canvas/DocumentGroup.tsx"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "Generic board node of a module's kind: preview-only rule"
 
   # --- Hub (editor web server) and protocol ---
 

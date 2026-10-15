@@ -9,7 +9,7 @@ Il n'y a plus de suite backend depuis la phase F (2026-10).
 | Plugin `hub` | `./gradlew :hub:test` | Serveur web (session par lien, permissions, même origine, port occupé), routes héritées du backend (`EditorApiTest`), `/ws/plugin` (secret, version de protocole, lien demandé par une feuille, serveur hors ligne), catalogue et textures vanilla. |
 | Plugin `paper` | `./gradlew :paper:test` | Rendu des menus (MockBukkit), contrat des paquets (`MenuSlotsContractTest`), gestionnaires du protocole (`Project*ChannelTest`, `ConfigChannelTest`, fetch live), `LocalServerLink`, `WsClient` (MockWebServer), pack de ressources (manager, délégation), config et `environment.yml`, secret réseau, scheduler. |
 | Plugin `api`, `database` | `./gradlew test` | Surface Java-friendly (`ApiSurfaceIsJavaFriendlyTest`), pools de connexions. |
-| Éditeur | `cd editor && npm test` | Expr DSL, canvas + édition de Document, export (transform/validate/zip), i18n, title composer, pack de ressources dans le navigateur (`lib/pack/`), brouillons et conflits, routes. |
+| Éditeur | `cd editor && npm test` | Expr DSL, canvas + édition de Document, export (transform/validate/zip), i18n, title composer, pack de ressources dans le navigateur (`lib/pack/`), brouillons et conflits, routes, kind de Document contribué par un module de bout en bout (`lib/moduleDocumentKinds.test.tsx` : un kind « quest » traverse registres, sélection, panneau, listings, recherche, textes, arêtes, planche et store). |
 | E2E éditeur | `cd editor && npm run test:e2e` | `smoke.spec.ts` — l'app démarre sur `npm run dev`, API simulée en 401 : un visiteur anonyme arrive sur `/login`, sans erreur de page. |
 
 Contrôles statiques de l'éditeur, en CI avec les tests : `npm run typecheck` (`tsc -b`, tests

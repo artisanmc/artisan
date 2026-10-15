@@ -272,14 +272,17 @@ export default {
     description: "description",
     descriptionPlaceholder: "(none)",
     loreMaxWidth: "lore max width (px)",
-    loreMaxWidthHint: "Longer lore lines wrap, in game and in the preview. ~6 px per character, 0 = never.",
+    loreMaxWidthHint:
+      "Longer lore lines wrap, in game and in the preview. ~6 px per character, 0 = never.",
     escapeGoesBack: "ESC goes back",
-    escapeGoesBackHint: "Pressing ESC in a menu reopens the previous screen, like a back button. On the first menu, ESC closes.",
+    escapeGoesBackHint:
+      "Pressing ESC in a menu reopens the previous screen, like a back button. On the first menu, ESC closes.",
     sourceUser: "user",
     sourceImported: "imported",
     sourceForked: "forked",
     newMenu: "New menu",
     create: "Create a document",
+    newDocument: "New {{kind}}",
     newCommand: "New command",
     newDialog: "New dialog",
     countAssets: "{{assets}} {{assetsPlural}}",
@@ -297,8 +300,10 @@ export default {
     deleting: "Deleting…",
     errors: {
       server_offline: "The server is offline. Connect it to delete the project.",
-      fetch_timeout: "The server did not respond in time. Check the project list before trying again.",
-      plugin_update_required: "This server runs an older Artisan. Update its plugin to delete projects.",
+      fetch_timeout:
+        "The server did not respond in time. Check the project list before trying again.",
+      plugin_update_required:
+        "This server runs an older Artisan. Update its plugin to delete projects.",
       addon_immutable: "This project is managed by an add-on and cannot be deleted.",
       unknown_project: "This project no longer exists on the server.",
       delete_failed: "Could not delete the project on the server. Try again.",
@@ -427,7 +432,8 @@ export default {
     openPreviousMenuLabel:
       "Returns to the previous screen (back button). Does nothing when there is no history.",
     moduleValueLabel: "arguments (JSON)",
-    moduleUnknown: "This action is not declared by the connected server: its arguments are edited as raw JSON.",
+    moduleUnknown:
+      "This action is not declared by the connected server: its arguments are edited as raw JSON.",
     moduleAddText: "Add a text",
     moduleValueInvalid: "Invalid JSON: the value was not changed.",
     moduleAction: "Module action",
@@ -501,13 +507,35 @@ export default {
     },
     enum: { player: "player", console: "console" },
     args: {
-      open_menu: { menu_id: "target menu", context: "context to pass", clear_context: "clear context", close_current: "close the current menu" },
-      open_dialog: { dialog_id: "target dialog", context: "context to pass", clear_context: "clear context" },
+      open_menu: {
+        menu_id: "target menu",
+        context: "context to pass",
+        clear_context: "clear context",
+        close_current: "close the current menu",
+      },
+      open_dialog: {
+        dialog_id: "target dialog",
+        context: "context to pass",
+        clear_context: "clear context",
+      },
       run_command: { command: "command", as: "run as" },
       send_message: { text: "text (MiniMessage)" },
       broadcast: { text: "text (MiniMessage)" },
-      show_title: { title: "title (MiniMessage)", subtitle: "subtitle (MiniMessage)", fade_in: "fade in (ticks)", stay: "stay (ticks)", fade_out: "fade out (ticks)" },
-      give_item: { material: "material", count: "count", nbt: "NBT", name: "item name", lore: "lore", lore_mode: "lore mode" },
+      show_title: {
+        title: "title (MiniMessage)",
+        subtitle: "subtitle (MiniMessage)",
+        fade_in: "fade in (ticks)",
+        stay: "stay (ticks)",
+        fade_out: "fade out (ticks)",
+      },
+      give_item: {
+        material: "material",
+        count: "count",
+        nbt: "NBT",
+        name: "item name",
+        lore: "lore",
+        lore_mode: "lore mode",
+      },
       take_item: { material: "material", count: "count", nbt: "NBT" },
       give_money: { amount: "amount", currency: "currency" },
       take_money: { amount: "amount", currency: "currency" },
@@ -518,15 +546,23 @@ export default {
       pagination_next: { element_id: "target" },
       pagination_prev: { element_id: "target" },
       set_arg: { arg: "context input to set", value: "new value (expression)" },
-      set_arg_cycle_next: { arg: "context input to cycle", list: "list to cycle through (expression)" },
-      set_arg_cycle_prev: { arg: "context input to cycle", list: "list to cycle through (expression)" },
+      set_arg_cycle_next: {
+        arg: "context input to cycle",
+        list: "list to cycle through (expression)",
+      },
+      set_arg_cycle_prev: {
+        arg: "context input to cycle",
+        list: "list to cycle through (expression)",
+      },
       run_actions: { actions: "actions to run" },
     },
     help: {
       open_menu: { clear_context: "Forget the parent menu's history." },
       open_dialog: { clear_context: "Forget the parent menu's history." },
       run_command: { command: "No leading slash — the runtime adds it." },
-      show_title: { fade_out: "20 ticks = 1 second. Leave empty to use vanilla defaults (10/70/20)." },
+      show_title: {
+        fade_out: "20 ticks = 1 second. Leave empty to use vanilla defaults (10/70/20).",
+      },
       play_sound: { sound: "Bukkit Sound name (e.g. ENTITY_PLAYER_LEVELUP)." },
       pagination_next: {
         element_id:
@@ -536,10 +572,18 @@ export default {
         element_id:
           'Leave on "All" for menus with one list. Pick a specific element when several iterables coexist and need independent pagers.',
       },
-      set_arg: { value: 'An expression — strings need quotes (e.g. "weapon"), numbers don\'t (e.g. 5).' },
-      set_arg_cycle_next: { list: "Expression evaluating to a list — typically a context input name like categories or quest.tags." },
-      set_arg_cycle_prev: { list: "Expression evaluating to a list — typically a context input name like categories or quest.tags." },
-      run_actions: { actions: "An expression pointing at an actions field (e.g. item.on_buy). Runs it inline." },
+      set_arg: {
+        value: 'An expression — strings need quotes (e.g. "weapon"), numbers don\'t (e.g. 5).',
+      },
+      set_arg_cycle_next: {
+        list: "Expression evaluating to a list — typically a context input name like categories or quest.tags.",
+      },
+      set_arg_cycle_prev: {
+        list: "Expression evaluating to a list — typically a context input name like categories or quest.tags.",
+      },
+      run_actions: {
+        actions: "An expression pointing at an actions field (e.g. item.on_buy). Runs it inline.",
+      },
     },
   },
   itemBinding: {
@@ -787,6 +831,7 @@ export default {
     unavailable: "Catalogue unavailable — server offline",
   },
   projectPanel: {
+    noEditor: "No editor for this {{kind}} yet",
     menus: "Menus",
     commands: "Commands",
     dialogs: "Dialogs",
@@ -981,6 +1026,7 @@ export default {
     newMenuHere: "New menu here",
     pasteHere: "Paste here",
     newCommandHere: "New command here",
+    newDocumentDialogTitle: "New {{kind}}",
     newDialogDialogTitle: "New dialog",
     newMenuDialogTitle: "New menu",
     newCommandDialogTitle: "New command",
@@ -1035,7 +1081,8 @@ export default {
   layerEditForm: {
     emptySelection: "Select an element to edit its details",
     plainHint: "Vanilla title — no resource project required. MiniMessage supported",
-    plainHintFont: "Vanilla title — no resource project required. The text renders in the default MC font. MiniMessage supported",
+    plainHintFont:
+      "Vanilla title — no resource project required. The text renders in the default MC font. MiniMessage supported",
     plainLabel: "Title (MiniMessage) — {{lang}}",
     preview: "Preview",
     imageMissing: "<missing image>",
@@ -1323,18 +1370,23 @@ export default {
   },
   adminDesign: {
     specimens: {
-      skeletonHint: "Shaped like what will appear: the layout doesn't jump when the data arrives. For a short, localized wait, prefer <Spinner>.",
+      skeletonHint:
+        "Shaped like what will appear: the layout doesn't jump when the data arrives. For a short, localized wait, prefer <Spinner>.",
       spinnerLabel: "Reading the server's files…",
-      spinnerHint: "Always paired with what is being waited for: a lone spinning circle tells nothing.",
+      spinnerHint:
+        "Always paired with what is being waited for: a lone spinning circle tells nothing.",
       collapsibleTitle: "Advanced settings",
       collapsibleBody: "Content unmounted while the section is collapsed.",
       collapsibleOpenTitle: "Section open by default",
-      workspaceViewBody: "Working view that replaces the canvas in the central area (opaque panel, keep-alive). The canvas stays mounted underneath — never display:none. Escape / × go back to the canvas.",
+      workspaceViewBody:
+        "Working view that replaces the canvas in the central area (opaque panel, keep-alive). The canvas stays mounted underneath — never display:none. Escape / × go back to the canvas.",
       applyToAll: "Apply to all",
       disabled: "Disabled",
-      checkboxHint: "For an explicitly confirmed form state. A persistent setting that changes the in-game result keeps <Switch>.",
+      checkboxHint:
+        "For an explicitly confirmed form state. A persistent setting that changes the in-game result keeps <Switch>.",
       defaultTexture: "Default texture",
-      switchHint: "For a saved setting that changes the in-game result. A preview-only toggle keeps the eye icon.",
+      switchHint:
+        "For a saved setting that changes the in-game result. A preview-only toggle keeps the eye icon.",
     },
     title: "Design system",
     intro:
@@ -1560,8 +1612,7 @@ export default {
     },
     listHint: "Comma-separated values.",
     vanillaTexture: "Vanilla texture",
-    connectionHint:
-      "The database credentials live in environment.yml, edited by hand only.",
+    connectionHint: "The database credentials live in environment.yml, edited by hand only.",
     groups: {
       general: "General",
       textures: "Container textures",
