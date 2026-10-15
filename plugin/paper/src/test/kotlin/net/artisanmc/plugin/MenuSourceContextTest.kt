@@ -49,37 +49,37 @@ class MenuSourceContextTest {
     @Test fun `navigation drops automatically loaded lists and preserves caller parameters`() {
         val ctx = rendered(mapOf("category" to "keys", "discount" to 5))
         assertEquals(rows, ctx.args["items"])
-        executor.execute(listOf(Action.OpenMenu("main")), ctx)
+        executor.execute(listOf(Step.ActionStep("open_menu", "main")), ctx)
         assertEquals(mapOf("category" to "keys", "discount" to 5), openedContext!!.args)
     }
 
     @Test fun `caller supplied source input survives navigation`() {
         val supplied = listOf(mapOf("id" to "tools"))
         val ctx = rendered(mapOf("items" to supplied))
-        executor.execute(listOf(Action.OpenMenu("main")), ctx)
+        executor.execute(listOf(Step.ActionStep("open_menu", "main")), ctx)
         assertSame(supplied, openedContext!!.args["items"])
     }
 
     @Test fun `explicitly forwarding a loaded list keeps its type and survives further navigation`() {
         val ctx = rendered()
-        executor.execute(listOf(Action.OpenMenu("details", context = mapOf("items" to "{items}"))), ctx)
+        executor.execute(listOf(Step.ActionStep("open_menu", mapOf("menu_id" to "details", "context" to mapOf("items" to "{items}")))), ctx)
         assertSame(ctx.args["items"], openedContext!!.args["items"])
-        executor.execute(listOf(Action.OpenMenu("next")), openedContext!!)
+        executor.execute(listOf(Step.ActionStep("open_menu", "next")), openedContext!!)
         assertEquals(rows, openedContext!!.args["items"])
     }
 
     @Test fun `dialog can read inherited source data but returning to a menu drops it`() {
         val ctx = rendered(mapOf("category" to "keys"))
-        executor.execute(listOf(Action.OpenDialog("confirm")), ctx)
+        executor.execute(listOf(Step.ActionStep("open_dialog", "confirm")), ctx)
         assertEquals(rows, openedContext!!.args["items"])
-        executor.execute(listOf(Action.OpenMenu("category")), openedContext!!)
+        executor.execute(listOf(Step.ActionStep("open_menu", "category")), openedContext!!)
         assertEquals(mapOf("category" to "keys"), openedContext!!.args)
     }
 
     @Test fun `explicitly forwarded dialog source data remains caller data on return`() {
         val ctx = rendered()
-        executor.execute(listOf(Action.OpenDialog("confirm", context = mapOf("items" to "{items}"))), ctx)
-        executor.execute(listOf(Action.OpenMenu("category")), openedContext!!)
+        executor.execute(listOf(Step.ActionStep("open_dialog", mapOf("dialog_id" to "confirm", "context" to mapOf("items" to "{items}")))), ctx)
+        executor.execute(listOf(Step.ActionStep("open_menu", "category")), openedContext!!)
         assertEquals(rows, openedContext!!.args["items"])
     }
 }

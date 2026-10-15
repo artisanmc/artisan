@@ -11,11 +11,10 @@ data class Cooldown(
 
 data class ClickHandler(
     val requirements: List<Condition>,
-    val actions: List<Action>,
     /** Fallback run when `requirements` fail: a step tree (structured wire). */
     val fallback: List<Step>,
     val cooldown: Cooldown? = null,
-    /** Canonical menu/v1 tree. Non-empty = takes precedence over `actions` (legacy wire). */
+    /** The chain: canonical menu/v1 tree (the legacy `actions` list compiles to flat steps). */
     val steps: List<Step> = emptyList(),
 )
 

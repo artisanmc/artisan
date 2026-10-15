@@ -5,7 +5,22 @@ package net.artisanmc.plugin.engine
  * actions and if / else-if / else branches.
  */
 sealed class Step {
-    data class ActionStep(val action: Action) : Step()
+    /**
+     * One action of the chain, as the wire names it (ADR `structured-action-wire`): the
+     * action's [name] (`open_menu`, `quests:start`) and its wire [value] — null for a bare
+     * name, a scalar for the primary argument, a map of arguments. The engine folds the
+     * value into the declared arguments at dispatch ([net.artisanmc.modules.api.ActionDeclaration.normalize]);
+     * the core knows no action by name (ADR `extensible-document-kinds`, R1).
+     *
+     * [i18n] holds the canonical i18n ADDRESS of the text arguments stamped by
+     * [assignI18nAddresses] (legacy DSL inline mode), keyed by argument name.
+     */
+    data class ActionStep(
+        val name: String,
+        val value: Any? = null,
+        val i18n: Map<String, String> = emptyMap(),
+    ) : Step()
+
     data class IfStep(val cases: List<IfCase>, val elseSteps: List<Step> = emptyList()) : Step()
 }
 
@@ -20,6 +35,7 @@ data class IfCase(
     val steps: List<Step> = emptyList(),
 )
 
+/** Pre-DSL legacy wire: `{kind: action, action: {type…}}` / `{kind: if, cases, else}` step trees. */
 object StepParser {
     fun parseAll(raw: List<Map<String, Any>>): List<Step> = raw.map { parse(it) }
 
@@ -28,7 +44,7 @@ object StepParser {
         "action" -> {
             val action = raw["action"] as? Map<String, Any>
                 ?: throw IllegalArgumentException("Step kind 'action' missing 'action' map: $raw")
-            Step.ActionStep(ActionParser.parse(action))
+            ActionParser.parse(action)
         }
         "if" -> {
             val cases = (raw["cases"] as? List<*>).orEmpty().map { case ->

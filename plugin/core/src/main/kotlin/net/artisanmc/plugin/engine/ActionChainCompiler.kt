@@ -22,7 +22,7 @@ object ActionChainCompiler {
         // Pre-DSL legacy wire: a flat list of type-tagged actions (`{type:…}`).
         raw is List<*> && raw.isNotEmpty() &&
             raw.all { it is Map<*, *> && it.containsKey("type") } ->
-            raw.map { Step.ActionStep(ActionParser.parse(it as Map<String, Any>)) }
+            raw.map { ActionParser.parse(it as Map<String, Any>) }
         else -> KeyedStepParser.parseKeyed(raw)
     }
 

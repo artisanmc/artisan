@@ -32,9 +32,9 @@ class CanonicalConformanceTest {
         val apps = compiled.compiledAppearances.values.flatten()
         assertTrue(apps.isNotEmpty(), "expected at least one compiled appearance")
         val leftSteps = apps.first().clicks[ClickType.LEFT]?.steps ?: emptyList()
-        val leftActions = leftSteps.filterIsInstance<Step.ActionStep>().map { it.action }
-        assertTrue(leftActions.any { it is Action.RunCommand }, "expected a run_command action")
-        assertTrue(leftActions.any { it is Action.SendMessage }, "expected a send_message action")
+        val leftActions = leftSteps.filterIsInstance<Step.ActionStep>().map { it.name }
+        assertTrue("run_command" in leftActions, "expected a run_command action")
+        assertTrue("send_message" in leftActions, "expected a send_message action")
     }
 
     @Test

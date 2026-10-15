@@ -54,7 +54,7 @@ class RunActionsExecutionTest {
         val p = MockBukkit.getMock()!!.addPlayer()
         val row = mapOf("price" to 100, "on_buy" to "send_message \"paid {price}\"")
         val ctx = ExecutionContext(p, args = mapOf("item" to row))
-        executor().execute(listOf(Action.RunActions("item.on_buy")), ctx)
+        executor().execute(listOf(Step.ActionStep("run_actions", "item.on_buy")), ctx)
         assertEquals(listOf("paid 100"), drain(p))
     }
 
@@ -62,7 +62,7 @@ class RunActionsExecutionTest {
         val p = MockBukkit.getMock()!!.addPlayer()
         val row = mapOf("price" to 42, "on_buy" to "send_message \"cost {self.price}\"")
         val ctx = ExecutionContext(p, args = mapOf("item" to row))
-        executor().execute(listOf(Action.RunActions("item.on_buy")), ctx)
+        executor().execute(listOf(Step.ActionStep("run_actions", "item.on_buy")), ctx)
         assertEquals(listOf("cost 42"), drain(p))
     }
 
@@ -71,28 +71,28 @@ class RunActionsExecutionTest {
         val row = mapOf("on_buy" to "run_actions item.on_buy")
         val ctx = ExecutionContext(p, args = mapOf("item" to row))
         // Must terminate at depth 16 — no StackOverflowError, no throw.
-        executor().execute(listOf(Action.RunActions("item.on_buy")), ctx)
+        executor().execute(listOf(Step.ActionStep("run_actions", "item.on_buy")), ctx)
         assertTrue(drain(p).isEmpty())
     }
 
     @Test fun `missing value is a tolerant no-op`() {
         val p = MockBukkit.getMock()!!.addPlayer()
         val ctx = ExecutionContext(p, args = mapOf("item" to mapOf("price" to 1)))
-        executor().execute(listOf(Action.RunActions("item.absent")), ctx)
+        executor().execute(listOf(Step.ActionStep("run_actions", "item.absent")), ctx)
         assertNull(p.nextComponentMessage())
     }
 
     @Test fun `blank value is a tolerant no-op`() {
         val p = MockBukkit.getMock()!!.addPlayer()
         val ctx = ExecutionContext(p, args = mapOf("item" to mapOf("on_buy" to "   ")))
-        executor().execute(listOf(Action.RunActions("item.on_buy")), ctx)
+        executor().execute(listOf(Step.ActionStep("run_actions", "item.on_buy")), ctx)
         assertNull(p.nextComponentMessage())
     }
 
     @Test fun `unparseable value is a tolerant no-op`() {
         val p = MockBukkit.getMock()!!.addPlayer()
         val ctx = ExecutionContext(p, args = mapOf("item" to mapOf("on_buy" to "not_a_verb foo bar")))
-        executor().execute(listOf(Action.RunActions("item.on_buy")), ctx)
+        executor().execute(listOf(Step.ActionStep("run_actions", "item.on_buy")), ctx)
         assertNull(p.nextComponentMessage())
     }
 }

@@ -1,6 +1,5 @@
 package net.artisanmc.plugin.actiondsl
 
-import net.artisanmc.plugin.engine.Action
 import net.artisanmc.plugin.engine.Condition
 import net.artisanmc.plugin.engine.IfCase
 import net.artisanmc.plugin.engine.Step
@@ -15,20 +14,20 @@ class DslToEngineTest {
 
     @Test fun `set string literals decode quotes and escapes before template resolution`() {
         assertEquals(
-            listOf(Step.ActionStep(Action.SetArg("label", "Say \"hello\" to {player.name}"))),
+            listOf(Step.ActionStep("set_arg", mapOf("arg" to "label", "value" to "Say \"hello\" to {player.name}"))),
             map("""set label = "Say \"hello\" to {player.name}""""),
         )
         assertEquals(
-            listOf(Step.ActionStep(Action.SetArg("label", ""))),
+            listOf(Step.ActionStep("set_arg", mapOf("arg" to "label", "value" to ""))),
             map("set label = \"\""),
         )
         assertEquals(
-            listOf(Step.ActionStep(Action.SetArg("label", "tools"))),
+            listOf(Step.ActionStep("set_arg", mapOf("arg" to "label", "value" to "tools"))),
             map("set label = tools"),
         )
     }
 
-    @Test fun `flat actions map field-by-field with numeric narrowing`() {
+    @Test fun `flat actions map to keyed steps, counts narrowed to Int`() {
         val steps = map(
             """
             send_message "hello {name}"
@@ -40,11 +39,11 @@ class DslToEngineTest {
         )
         assertEquals(
             listOf(
-                Step.ActionStep(Action.SendMessage("hello {name}")),
-                Step.ActionStep(Action.GiveItem("DIAMOND", 3)),
-                Step.ActionStep(Action.TakeMoney(12.5)),
-                Step.ActionStep(Action.GiveXp(10)),
-                Step.ActionStep(Action.PlaySound("PLING", 1f, 1.2f)),
+                Step.ActionStep("send_message", "hello {name}"),
+                Step.ActionStep("give_item", mapOf("material" to "DIAMOND", "count" to 3)),
+                Step.ActionStep("take_money", 12.5),
+                Step.ActionStep("give_xp", 10),
+                Step.ActionStep("play_sound", mapOf("sound" to "PLING", "volume" to 1.0, "pitch" to 1.2)),
             ),
             steps,
         )
@@ -52,11 +51,11 @@ class DslToEngineTest {
 
     @Test fun `i18n ref becomes an {i18n} template, literal stays raw`() {
         assertEquals(
-            listOf(Step.ActionStep(Action.Broadcast("{i18n:welcome.msg}"))),
+            listOf(Step.ActionStep("broadcast", "{i18n:welcome.msg}")),
             map("broadcast @welcome.msg"),
         )
         assertEquals(
-            listOf(Step.ActionStep(Action.SendMessage("plain {price}"))),
+            listOf(Step.ActionStep("send_message", "plain {price}")),
             map("send_message \"plain {price}\""),
         )
     }
@@ -80,10 +79,10 @@ class DslToEngineTest {
                                 Condition.HasMoney(100.0),
                             ),
                             joins = listOf("and"),
-                            steps = listOf(Step.ActionStep(Action.GiveMoney(50.0))),
+                            steps = listOf(Step.ActionStep("give_money", 50.0)),
                         ),
                     ),
-                    elseSteps = listOf(Step.ActionStep(Action.Broadcast("{i18n:poor}"))),
+                    elseSteps = listOf(Step.ActionStep("broadcast", "{i18n:poor}")),
                 ),
             ),
             steps,
@@ -122,9 +121,9 @@ class DslToEngineTest {
         assertTrue(cond is Condition.Expression, "expected Expression, got $cond")
     }
 
-    @Test fun `run_actions verb maps to the RunActions engine action`() {
+    @Test fun `run_actions verb maps to the run_actions step`() {
         assertEquals(
-            listOf(Step.ActionStep(Action.RunActions("item.on_buy"))),
+            listOf(Step.ActionStep("run_actions", "item.on_buy")),
             map("run_actions item.on_buy"),
         )
     }

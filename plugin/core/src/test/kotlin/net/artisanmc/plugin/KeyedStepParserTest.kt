@@ -22,22 +22,28 @@ class KeyedStepParserTest {
                 mapOf("run_command" to mapOf("command" to "op", "as" to "console")),
             ),
         )
-        assertEquals(5, steps.size)
-        assertEquals(LocalizedText.of("Hi"), (steps[0] as Step.ActionStep).action.let { (it as Action.SendMessage).text })
-        assertEquals(Action.CloseMenu, (steps[1] as Step.ActionStep).action)
-        assertEquals(Action.CloseDialog, (steps[2] as Step.ActionStep).action)
-        assertEquals(Action.GiveMoney(100.0), (steps[3] as Step.ActionStep).action)
-        assertEquals(Action.RunCommand("op", asConsole = true), (steps[4] as Step.ActionStep).action)
+        assertEquals(
+            listOf(
+                Step.ActionStep("send_message", "Hi"),
+                Step.ActionStep("close_menu"),
+                Step.ActionStep("close_dialog"),
+                Step.ActionStep("give_money", 100),
+                Step.ActionStep("run_command", mapOf("command" to "op", "as" to "console")),
+            ),
+            steps,
+        )
     }
 
-    @Test fun `action text accepts a field-local lang map`() {
+    @Test fun `an unknown action passes through by name, for the registry to resolve`() {
+        val steps = KeyedStepParser.parseKeyed(listOf(mapOf("quests:start" to "mq_01"), "npcs:despawn"))
+        assertEquals(listOf(Step.ActionStep("quests:start", "mq_01"), Step.ActionStep("npcs:despawn")), steps)
+    }
+
+    @Test fun `action text keeps a field-local lang map as the wire value`() {
         val steps = KeyedStepParser.parseKeyed(
             mapOf("send_message" to mapOf("en" to "Hi", "fr" to "Salut")),
         )
-        val msg = (steps.single() as Step.ActionStep).action as Action.SendMessage
-        assertEquals("Salut", msg.text.forLang("fr", "en"))
-        assertEquals("Hi", msg.text.forLang("en", "fr"))
-        assertEquals("Hi", msg.text.forLang("de", "en"))
+        assertEquals(Step.ActionStep("send_message", mapOf("en" to "Hi", "fr" to "Salut")), steps.single())
     }
 
     @Test fun `parses if with or`() {
@@ -89,8 +95,7 @@ class KeyedStepParserTest {
         val m = menu(ElementYaml(id = "e", positions = "0", display = app))
         val ca = BundleCompiler.compile(m, emptyMap()).compiledAppearances["e"]!!.first()
         val step = ca.clicks[ClickType.LEFT]!!.steps.single() as Step.ActionStep
-        val msg = step.action as Action.SendMessage
-        assertEquals("Salut", msg.text.forLang("fr", "en"))
+        assertEquals(Step.ActionStep("send_message", mapOf("en" to "Hi", "fr" to "Salut")), step)
     }
 
     @Test fun `legacy DSL string still compiles`() {
@@ -98,6 +103,6 @@ class KeyedStepParserTest {
         val m = menu(ElementYaml(id = "e", positions = "0", display = app))
         val ca = BundleCompiler.compile(m, emptyMap()).compiledAppearances["e"]!!.first()
         val step = ca.clicks[ClickType.LEFT]!!.steps.single() as Step.ActionStep
-        assertEquals(Action.CloseMenu, step.action)
+        assertEquals(Step.ActionStep("close_menu"), step)
     }
 }

@@ -1,6 +1,5 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.plugin.model.LocalizedText
 
 /**
  * Parser for the **name-keyed structured** action wire (ADR `structured-action-wire`).
@@ -9,8 +8,9 @@ import net.artisanmc.plugin.model.LocalizedText
  *
  * Tolerant read: a **string** handler is the old Action DSL; a `{steps: "<dsl>"}`
  * object is the legacy wrapped form; a **string list entry** is an action without
- * arguments. The parser never throws: an invalid entry is ignored, like the rest of
- * the bundle loader.
+ * arguments. An action is kept as its name and wire value ([Step.ActionStep]): the
+ * vocabulary lives in the action registry, not here. The parser never throws: an
+ * invalid entry is ignored, like the rest of the bundle loader.
  */
 object KeyedStepParser {
 
@@ -28,10 +28,13 @@ object KeyedStepParser {
     }
 
     private fun parseStep(raw: Any?): Step? = when {
-        raw is String -> Step.ActionStep(parseNoArg(raw))
+        raw is String -> Step.ActionStep(raw)
         raw is Map<*, *> ->
             if (raw.containsKey("if")) parseIf(raw)
-            else singleEntry(raw)?.let { (name, value) -> Step.ActionStep(parseAction(name, value)) }
+            // An action is its wire name and its value: the engine binds the value to the
+            // declared arguments at dispatch, so an unknown name (a module's action) passes
+            // through here and is reported when it runs.
+            else singleEntry(raw)?.let { (name, value) -> Step.ActionStep(name, value) }
         else -> null
     }
 
@@ -55,80 +58,6 @@ object KeyedStepParser {
             break
         }
         return Step.IfStep(cases, elseSteps)
-    }
-
-    private fun parseNoArg(name: String): Action = when (name) {
-        "close_menu" -> Action.CloseMenu
-        "close_dialog" -> Action.CloseDialog
-        "open_previous_menu" -> Action.OpenPreviousMenu
-        else -> throw IllegalArgumentException("Unknown no-arg action: $name")
-    }
-
-    private fun parseAction(name: String, value: Any?): Action {
-        val o = value as? Map<*, *>
-        fun arg(k: String): String? = o?.get(k)?.toString()
-        return when (name) {
-            "send_message" -> Action.SendMessage(textOf(value))
-            "broadcast" -> Action.Broadcast(textOf(value))
-            "give_xp" -> Action.GiveXp(num(value))
-            "give_level" -> Action.GiveLevel(num(value))
-            "give_money" -> Action.GiveMoney(
-                amount = (value as? Number)?.toDouble() ?: numOrZero(o?.get("amount")),
-                currency = arg("currency"),
-            )
-            "take_money" -> Action.TakeMoney(
-                amount = (value as? Number)?.toDouble() ?: numOrZero(o?.get("amount")),
-                currency = arg("currency"),
-            )
-            "run_command" ->
-                if (value is String) Action.RunCommand(value, false)
-                else Action.RunCommand(arg("command") ?: "", arg("as") == "console")
-            "open_menu" ->
-                if (value is String) Action.OpenMenu(value)
-                else Action.OpenMenu(arg("menu_id") ?: "", contextOf(o), o?.get("clear_context") as? Boolean ?: false)
-            "open_dialog" ->
-                if (value is String) Action.OpenDialog(value)
-                else Action.OpenDialog(arg("dialog_id") ?: "", contextOf(o), o?.get("clear_context") as? Boolean ?: false)
-            "close_menu" -> Action.CloseMenu
-            "close_dialog" -> Action.CloseDialog
-            "open_previous_menu" -> Action.OpenPreviousMenu
-            "give_item" ->
-                if (value is String) Action.GiveItem(value)
-                else Action.GiveItem(
-                    material = arg("material") ?: "",
-                    count = (o?.get("count") as? Number)?.toInt() ?: 1,
-                    name = arg("name"),
-                    lore = asList(o?.get("lore")).map { it.toString() },
-                )
-            "take_item" ->
-                if (value is String) Action.TakeItem(value)
-                else Action.TakeItem(arg("material") ?: "", (o?.get("count") as? Number)?.toInt() ?: 1)
-            "play_sound" ->
-                if (value is String) Action.PlaySound(value)
-                else Action.PlaySound(arg("sound") ?: "", (o?.get("volume") as? Number)?.toFloat() ?: 1f, (o?.get("pitch") as? Number)?.toFloat() ?: 1f)
-            "teleport" -> Action.Teleport(
-                world = arg("world"),
-                x = numOrZero(o?.get("x")), y = numOrZero(o?.get("y")), z = numOrZero(o?.get("z")),
-                yaw = (o?.get("yaw") as? Number)?.toFloat() ?: 0f,
-                pitch = (o?.get("pitch") as? Number)?.toFloat() ?: 0f,
-            )
-            "pagination_next" -> Action.PaginationNext((value as? String)?.ifEmpty { null })
-            "pagination_prev" -> Action.PaginationPrev((value as? String)?.ifEmpty { null })
-            "show_title" ->
-                if (o != null && o.containsKey("title")) Action.ShowTitle(
-                    title = textOf(o["title"]),
-                    subtitle = o["subtitle"]?.let { textOf(it) },
-                    fadeIn = (o["fade_in"] as? Number)?.toInt() ?: 10,
-                    stay = (o["stay"] as? Number)?.toInt() ?: 70,
-                    fadeOut = (o["fade_out"] as? Number)?.toInt() ?: 20,
-                )
-                else Action.ShowTitle(title = textOf(value))
-            "set_arg" -> Action.SetArg(arg("arg") ?: "", arg("value") ?: "")
-            "set_arg_cycle_next" -> Action.SetArgCycleNext(arg("arg") ?: "", arg("list") ?: "")
-            "set_arg_cycle_prev" -> Action.SetArgCyclePrev(arg("arg") ?: "", arg("list") ?: "")
-            "run_actions" -> Action.RunActions(value?.toString() ?: "")
-            else -> throw IllegalArgumentException("Unknown action: $name")
-        }
     }
 
     /** Parse a list of keyed (or legacy `{type}`) conditions: an appearance's `if`. */
@@ -167,16 +96,6 @@ object KeyedStepParser {
             else -> null
         }
     }
-
-    private fun textOf(value: Any?): LocalizedText = when {
-        value is String -> LocalizedText.of(value)
-        value is Map<*, *> -> LocalizedText.ofMap(value.entries.associate { it.key.toString() to it.value.toString() })
-        value == null -> LocalizedText.of("")
-        else -> LocalizedText.of(value.toString())
-    }
-
-    private fun contextOf(o: Map<*, *>?): Map<String, String> =
-        (o?.get("context") as? Map<*, *>)?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
 
     private fun asList(v: Any?): List<*> = when (v) {
         null -> emptyList<Any?>()

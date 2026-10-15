@@ -59,7 +59,7 @@ class NavigationHistoryExecutorTest {
     @Test fun `navigate pushes the outgoing screen and records the new one`() {
         val p = player()
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "menu"))
-        executor().execute(listOf(Action.OpenMenu("wiki")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_menu", "wiki")), ctx(p))
         assertTrue(history.hasPrevious(p))
         assertEquals("menu", history.previous(p)?.id)
         assertEquals("wiki", history.current(p)?.id)
@@ -68,13 +68,13 @@ class NavigationHistoryExecutorTest {
     @Test fun `two backs from menu-wiki-item land on menu then stop (no loop)`() {
         val p = player()
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "menu"))
-        executor().execute(listOf(Action.OpenMenu("wiki")), ctx(p))
-        executor().execute(listOf(Action.OpenMenu("item")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_menu", "wiki")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_menu", "item")), ctx(p))
         opened.clear()
 
-        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
-        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
-        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_previous_menu")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_previous_menu")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_previous_menu")), ctx(p))
 
         assertEquals(listOf("menu:wiki", "menu:menu"), opened)
         assertFalse(history.hasPrevious(p))
@@ -86,7 +86,7 @@ class NavigationHistoryExecutorTest {
         history.pushCurrent(p) // as if navigating away
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "item"))
 
-        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_previous_menu")), ctx(p))
         assertEquals("menu:menu", opened.single())
         assertEquals("armor", history.current(p)?.args?.get("cat"))
     }
@@ -94,14 +94,14 @@ class NavigationHistoryExecutorTest {
     @Test fun `open_menu back to the previous screen acts as a back (no loop)`() {
         val p = player()
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "main"))
-        executor().execute(listOf(Action.OpenMenu("crafts")), ctx(p))
-        executor().execute(listOf(Action.OpenMenu("burger")), ctx(p, mapOf("recipe" to "burger")))
-        executor().execute(listOf(Action.OpenMenu("crafts")), ctx(p, mapOf("recipe" to "burger")))
-        executor().execute(listOf(Action.OpenMenu("elytra")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_menu", "crafts")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_menu", "burger")), ctx(p, mapOf("recipe" to "burger")))
+        executor().execute(listOf(Step.ActionStep("open_menu", "crafts")), ctx(p, mapOf("recipe" to "burger")))
+        executor().execute(listOf(Step.ActionStep("open_menu", "elytra")), ctx(p))
         opened.clear()
 
-        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
-        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_previous_menu")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_previous_menu")), ctx(p))
 
         assertEquals(listOf("menu:crafts", "menu:main"), opened)
         assertFalse(history.hasPrevious(p))
@@ -109,7 +109,7 @@ class NavigationHistoryExecutorTest {
 
     @Test fun `back with an empty stack is a no-op`() {
         val p = player()
-        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_previous_menu")), ctx(p))
         assertTrue(opened.isEmpty())
     }
 
@@ -117,14 +117,14 @@ class NavigationHistoryExecutorTest {
         val p = player()
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "shop"))
         sessions.set(p, MenuSession("shop", ExecutionContext(p), emptyMap()))
-        executor().execute(listOf(Action.SetArg("cat", "tools")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("set_arg", mapOf("arg" to "cat", "value" to "tools"))), ctx(p))
         assertFalse(history.hasPrevious(p))
     }
 
     @Test fun `opening a dialog also pushes`() {
         val p = player()
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "menu"))
-        executor().execute(listOf(Action.OpenDialog("confirm")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_dialog", "confirm")), ctx(p))
         assertEquals("menu", history.previous(p)?.id)
         assertEquals("dialog:confirm", opened.single())
     }
@@ -132,19 +132,19 @@ class NavigationHistoryExecutorTest {
     @Test fun `open_menu to a missing menu leaves the history untouched`() {
         val p = player()
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "root"))
-        executor().execute(listOf(Action.OpenMenu("a")), ctx(p))
-        executor().execute(listOf(Action.OpenMenu(MISSING)), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_menu", "a")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_menu", MISSING)), ctx(p))
         assertEquals("a", history.current(p)?.id)
         assertEquals("root", history.previous(p)?.id)
         opened.clear()
-        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_previous_menu")), ctx(p))
         assertEquals(listOf("menu:root"), opened)
     }
 
     @Test fun `open_dialog to a missing dialog leaves the history untouched`() {
         val p = player()
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "a"))
-        executor().execute(listOf(Action.OpenDialog(MISSING)), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_dialog", MISSING)), ctx(p))
         assertFalse(history.hasPrevious(p))
         assertEquals("a", history.current(p)?.id)
     }
@@ -154,7 +154,7 @@ class NavigationHistoryExecutorTest {
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.DIALOG, "confirm"))
         history.pushCurrent(p)
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "menu"))
-        executor().execute(listOf(Action.OpenPreviousMenu), ctx(p))
+        executor().execute(listOf(Step.ActionStep("open_previous_menu")), ctx(p))
         assertEquals("dialog:confirm", opened.single())
     }
 

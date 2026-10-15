@@ -76,14 +76,14 @@ class CommandRegistrarTest {
         registrar.unregisterAll()
     }
 
-    @Test fun `invalid command yaml is skipped without exception`() {
+    @Test fun `a command naming an unknown action still registers`() {
+        // The name may be a module's: the registry reports it when the command runs.
         val badYaml = CommandYaml(
             name = "brokencommand",
             actions = listOf(mapOf("type" to "definitely_not_an_action")),
         )
         val registrar = CommandRegistrar(plugin.value, lang)
         registrar.reload(listOf(bundle(badYaml)), executor(), evaluator)
-        // No exception — bad command simply skipped
         registrar.unregisterAll()
     }
 
