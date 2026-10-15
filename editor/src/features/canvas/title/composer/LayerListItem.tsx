@@ -89,6 +89,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
           onRowClick();
         }
       }}
+      // biome-ignore lint/a11y/useSemanticElements: la ligne contient elle-même des <button> (œil, menu) ; un <button> englobant produirait des boutons imbriqués, HTML invalide
       role="button"
       tabIndex={0}
       className={cn(
@@ -110,6 +111,7 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
         {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
       </button>
 
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: poignée de glisser-déposer ; le onClick ne fait que stopper la propagation vers la ligne, aucune action à rendre au clavier */}
       <span
         data-testid="layer-list-item-drag"
         data-drag-handle="true"
@@ -172,8 +174,8 @@ function deriveAutoName(
   }
   if (layer.kind === "textarea") {
     const raw = project ? getText(project, layer.value, activeLang) : "";
-    const firstLine = (raw && raw.split("\n")[0]) || layer.value.key;
-    const hasMore = raw && raw.includes("\n");
+    const firstLine = raw?.split("\n")[0] || layer.value.key;
+    const hasMore = raw?.includes("\n");
     const suffix = hasMore ? "…" : "";
     return t("layerListItem.nameText", { text: `${truncate(firstLine, 18)}${suffix}` });
   }
@@ -195,7 +197,7 @@ function externalProviderLabel(provider: "oraxen" | "nexo" | "itemsadder"): stri
 
 function resolveAssetName(id: AssetId, assets: Asset[]): string {
   const asset = assets.find((a) => a.id === id);
-  if (asset && asset.name) return asset.name;
+  if (asset?.name) return asset.name;
   return truncate(id, 12);
 }
 

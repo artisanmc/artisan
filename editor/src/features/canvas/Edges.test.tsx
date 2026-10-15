@@ -11,6 +11,7 @@ import { Edges } from "./Edges";
 
 vi.mock("react-konva", () => ({
   Arrow: (props: Record<string, unknown>) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: stub test d'un nœud Konva (canvas, sans clavier) ; le div ne sert qu'à relayer fireEvent.click au handler
     <div
       data-testid="konva-arrow"
       data-points={JSON.stringify(props.points)}
@@ -43,7 +44,8 @@ vi.mock("./deriveEdges", () => ({
 
 const PERSONAL = projectId("p_personal");
 const layout = { m_shop_main: { x: 0, y: 0 }, m_profile: { x: 700, y: 0 } };
-const getProject = () => useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+const getProject = () =>
+  useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
 
 describe("Edges", () => {
   beforeEach(() => {

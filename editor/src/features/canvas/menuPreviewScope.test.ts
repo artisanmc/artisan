@@ -398,7 +398,7 @@ describe("resolveSourceRef — a module-owned project answers for its own namesp
     const project = stubProject({
       ownerModule: "boutique",
       defaultLang: "fr",
-      i18nKeys: { "sources.categories.premium.name": { fr: "Premium" } },
+      i18nKeys: { "sources.categories.premium.name": { fr: "Premium" } } as Project["i18nKeys"],
       dataSources: [
         {
           id: "categories" as DataSourceId,

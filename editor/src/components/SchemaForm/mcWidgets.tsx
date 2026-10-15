@@ -27,6 +27,7 @@ interface WidgetProps {
  */
 export function mcWidgets(projectId: ProjectId): Record<string, ComponentType<WidgetProps>> {
   const material: ComponentType<WidgetProps> = ({ value, onChange, schema }) => (
+    // biome-ignore lint/a11y/noLabelWithoutControl: MaterialRefField renders native controls (picker <button>, <Input>) inside this label, which implicitly labels them; Biome can't see through the component
     <label className="flex flex-col gap-1 text-sm">
       {schema.title ? <span>{schema.title}</span> : null}
       <MaterialRefField
@@ -41,6 +42,7 @@ export function mcWidgets(projectId: ProjectId): Record<string, ComponentType<Wi
     return ({ value, onChange, schema }) => {
       const text = String(value ?? "");
       return (
+        // biome-ignore lint/a11y/noLabelWithoutControl: RevealField renders a native <button> facade (then a PlaceholderInput) inside this label, which implicitly labels it; Biome can't see through the component
         <label className="flex flex-col gap-1 text-sm">
           {schema.title ? <span>{schema.title}</span> : null}
           <RevealField

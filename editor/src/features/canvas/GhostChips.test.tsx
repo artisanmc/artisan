@@ -6,6 +6,7 @@ import { GhostChips } from "./GhostChips";
 
 vi.mock("react-konva", () => ({
   Group: (p: any) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: stub test d'un nœud Konva (canvas, sans clavier) ; le div ne sert qu'à relayer fireEvent.click au handler
     <div
       data-testid="konva-group"
       data-name={p.name}

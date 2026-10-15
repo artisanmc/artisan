@@ -17,7 +17,7 @@ const A = (s: string) => s as AssetId;
 function asset(id: string, name: string): Asset {
   return {
     id,
-    serverKeyId: "sk1",
+    projectId: PACK_ID,
     type: "glyph",
     name,
     width: 16,

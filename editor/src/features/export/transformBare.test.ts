@@ -243,7 +243,8 @@ describe("bare export (ADR bare-data-files T2)", () => {
     // Declared models arrive via Presence, not files — reinject + adopt the
     // bare literals, the way the loader does after injection.
     const p2 = projectFromFiles(PID, files1, { name: "Bare Out" });
-    (p2.dataModels ??= []).push((project.dataModels as never[])[0]! as never);
+    p2.dataModels ??= [];
+    p2.dataModels.push((project.dataModels as never[])[0]! as never);
     const cats = p2.dataSources.find((d) => d.id === ("categories" as DataSourceId));
     if (cats?.shape !== "table") throw new Error("expected table");
     adoptBareLTexts(p2, cats);

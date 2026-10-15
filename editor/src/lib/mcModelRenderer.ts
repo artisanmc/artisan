@@ -447,8 +447,8 @@ function entityFaceUVs(
   texH: number,
   swapV: boolean,
 ): Float32Array {
-  const u1 = px1 / texW,
-    u2 = px2 / texW;
+  const u1 = px1 / texW;
+  const u2 = px2 / texW;
   const v1 = 1 - (swapV ? py2 : py1) / texH;
   const v2 = 1 - (swapV ? py1 : py2) / texH;
   // Quad order matches faceVerts: TL, TR, BR, BL → tri1(TL,TR,BR) + tri2(TL,BR,BL)
@@ -465,9 +465,9 @@ function buildEntityBoxMeshes(
   const [ox, oy, oz] = box.origin;
   const [w, h, d] = box.size;
   const [u, v] = box.texOffset;
-  const tx = ox + w,
-    ty = oy + h,
-    tz = oz + d;
+  const tx = ox + w;
+  const ty = oy + h;
+  const tz = oz + d;
 
   // Entity cube UV layout: each face in pixel coords.
   // "down" is always omitted: for yFlip entities it ends up on top (copper_chest opaque square

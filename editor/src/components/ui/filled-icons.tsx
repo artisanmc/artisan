@@ -15,6 +15,7 @@ export function SaveFilledIcon({ className, ...props }: IconProps) {
       fill="currentColor"
       fillRule="evenodd"
       data-icon="save-filled"
+      aria-hidden="true"
       className={cn("size-4 shrink-0", className)}
       {...props}
     >

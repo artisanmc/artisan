@@ -13,8 +13,8 @@ describe("spaceOffsetTable", () => {
     const table = spaceOffsetTable();
     expect(table).toHaveLength(SPACE_OFFSET_ADVANCES.length);
     for (let i = 0; i < table.length; i++) {
-      expect(table[i].codepoint).toBe(SPACE_OFFSET_CODEPOINT_START + i);
-      expect(table[i].advance).toBe(SPACE_OFFSET_ADVANCES[i]);
+      expect(table[i]!.codepoint).toBe(SPACE_OFFSET_CODEPOINT_START + i);
+      expect(table[i]!.advance).toBe(SPACE_OFFSET_ADVANCES[i]);
     }
   });
 

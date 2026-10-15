@@ -52,11 +52,22 @@ describe("useProjectLoader", () => {
   it("isolates identical folder names by server and never exposes the previous project during navigation", async () => {
     useAuthStore.setState({ currentUser: { id: "u1" } } as never);
     vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockResolvedValue([]);
-    const load = vi.spyOn(userProjectsApi, "loadUserProject").mockImplementation(async (_ref, server) => ({
-      project: { id: `internal-${server}`, name: "Shared", externalId: "shared" }, networkId: "local", serverKeyId: server!,
-    }));
-    const read = vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({ ok: true, files: { "manifest.yaml": "schema: manifest/v2\n" }, failed: [], hash: "first-hash" });
-    const { result, rerender } = renderHook(({ server }) => useProjectLoader("shared", server), { initialProps: { server: "first" } });
+    const load = vi
+      .spyOn(userProjectsApi, "loadUserProject")
+      .mockImplementation(async (_ref, server) => ({
+        project: { id: `internal-${server}`, name: "Shared", externalId: "shared" },
+        networkId: "local",
+        serverKeyId: server!,
+      }));
+    const read = vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({
+      ok: true,
+      files: { "manifest.yaml": "schema: manifest/v2\n" },
+      failed: [],
+      hash: "first-hash",
+    });
+    const { result, rerender } = renderHook(({ server }) => useProjectLoader("shared", server), {
+      initialProps: { server: "first" },
+    });
     await waitFor(() => expect(result.current.project?.id).toBe("internal-first"));
     read.mockReturnValue(new Promise(() => {}));
     rerender({ server: "second" });
@@ -76,6 +87,7 @@ describe("useProjectLoader", () => {
       ok: true,
       files: { "manifest.yaml": "id: boutique_shop\n" },
       failed: [],
+      hash: null,
     });
 
     const { result } = renderHook(() => useProjectLoader("p1"));
@@ -141,7 +153,11 @@ describe("useProjectLoader", () => {
         status: "active",
         source: "editor",
         updatedAt: "now",
-        snapshot: { baseline: {}, tree: { "manifest.yaml": "id: prepare\nname: prepare\n" }, at: 1 },
+        snapshot: {
+          baseline: {},
+          tree: { "manifest.yaml": "id: prepare\nname: prepare\n" },
+          at: 1,
+        },
       },
     ]);
 
@@ -229,12 +245,15 @@ describe("useProjectLoader", () => {
       ok: true,
       files: { "manifest.yaml": "id: boutique_shop\n" },
       failed: [],
+      hash: null,
     });
 
     const { result } = renderHook(() => useProjectLoader("p1"));
     await waitFor(() => expect(result.current.project).not.toBeNull());
 
-    expect(useProjectCacheStore.getState().get(projectCacheKey("p1", undefined, "u1"))?.tree).toEqual({
+    expect(
+      useProjectCacheStore.getState().get(projectCacheKey("p1", undefined, "u1"))?.tree,
+    ).toEqual({
       "manifest.yaml": "id: boutique_shop\n",
     });
   });
@@ -345,6 +364,7 @@ describe("useProjectLoader", () => {
         ok: true,
         files: { "manifest.yaml": "id: shop\nname: Server edit\n" },
         failed: [],
+        hash: null,
       });
     const { result } = renderHook(() => useProjectLoader("p1"));
     await act(async () => {});

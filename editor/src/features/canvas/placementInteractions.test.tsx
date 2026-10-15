@@ -137,6 +137,7 @@ it.each([
       layout: { [menuId]: { x: 0, y: 0 } },
       menuLayers: menusOf(project)[0]!.layers,
       inventoryType: "chest",
+      menuRows: menusOf(project)[0]!.rows,
     }),
   );
   const target = outside ? { x: -100, y: -100 } : slotXY(1, "chest");

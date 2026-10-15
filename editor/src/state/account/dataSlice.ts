@@ -229,7 +229,7 @@ export const createDataSlice = ({ set, get }: AccountSliceContext): DataSlice =>
         const ds = project?.dataSources.find((d) => d.id === sourceId);
         if (!ds || ds.shape !== "table") return;
         if (granularity === "row") ds.granularity = "row";
-        else delete ds.granularity;
+        else Reflect.deleteProperty(ds, "granularity");
       }),
     ),
   setSourceValue: ({ projectId, sourceId, row, path, value }) => {

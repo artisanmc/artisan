@@ -3,10 +3,7 @@ import { dataModelId, dataSourceId } from "./ids";
 import { nextAvailableSourceRowKey, validateSourceRowKey } from "./dataSourceRowKeys";
 import type { DataModel, DataSource, Project } from "./types";
 
-function tableSource(
-  kind: "string" | "number" | "integer",
-  rows: Record<string, unknown>[],
-): Extract<DataSource, { shape: "table" }> {
+function tableSource(rows: Record<string, unknown>[]): Extract<DataSource, { shape: "table" }> {
   return {
     id: dataSourceId("members"),
     name: "members",
@@ -43,21 +40,21 @@ function projectFor(kind: "string" | "number" | "integer"): Project {
 describe("source row keys", () => {
   it("generates the first missing string row key", () => {
     const project = projectFor("string");
-    const source = tableSource("string", [{ id: "row_1" }, { id: "row_3" }]);
+    const source = tableSource([{ id: "row_1" }, { id: "row_3" }]);
 
     expect(nextAvailableSourceRowKey(project, source)).toBe("row_2");
   });
 
   it("generates the first missing integer row key", () => {
     const project = projectFor("integer");
-    const source = tableSource("integer", [{ id: 1 }, { id: 3 }]);
+    const source = tableSource([{ id: 1 }, { id: 3 }]);
 
     expect(nextAvailableSourceRowKey(project, source)).toBe(2);
   });
 
   it("rejects a string key that duplicates another row ignoring case and whitespace", () => {
     const project = projectFor("string");
-    const source = tableSource("string", [{ id: "vip" }]);
+    const source = tableSource([{ id: "vip" }]);
 
     expect(validateSourceRowKey(project, source, -1, " VIP ")).toEqual({
       ok: false,
@@ -67,7 +64,7 @@ describe("source row keys", () => {
 
   it("returns the normalized string key when available", () => {
     const project = projectFor("string");
-    const source = tableSource("string", [{ id: "vip" }]);
+    const source = tableSource([{ id: "vip" }]);
 
     expect(validateSourceRowKey(project, source, -1, " Elite ")).toEqual({
       ok: true,
@@ -77,7 +74,7 @@ describe("source row keys", () => {
 
   it("rejects a whitespace-only string key as required", () => {
     const project = projectFor("string");
-    const source = tableSource("string", []);
+    const source = tableSource([]);
 
     expect(validateSourceRowKey(project, source, -1, "   ")).toEqual({
       ok: false,
@@ -87,7 +84,7 @@ describe("source row keys", () => {
 
   it("accepts a numeric key already held by the current row", () => {
     const project = projectFor("number");
-    const source = tableSource("number", [{ id: 1 }, { id: 2 }]);
+    const source = tableSource([{ id: 1 }, { id: 2 }]);
 
     expect(validateSourceRowKey(project, source, 0, "1")).toEqual({ ok: true, value: 1 });
   });
