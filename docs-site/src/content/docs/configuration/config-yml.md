@@ -21,7 +21,6 @@ Edit it in either place:
 
 | Key | Default | Meaning |
 |---|---|---|
-| `database.pool-size` | `4` | Maximum connections of **each** plugin's pool on the [database](/wiki/configuration/database/) (clamped to 1–50). Applies to pools opened after the change: restart for plugins already connected. |
 | `language` | `"en"` | Language of the plugin's own messages: `en` or `fr`. |
 | `per_player_language` | `false` | `true`: send plugin messages in each player's client language when a matching lang file exists, else in `language`. |
 | `resource-pack.delegate-to-dir` | `""` | Where Artisan writes its pack for Nexo, Oraxen or ItemsAdder to merge and send to players. Empty: Artisan's textures and glyphs reach no player, and the console says so on every pack update. A `.zip` path writes one zip; any other path is a directory (Artisan writes `<path>/assets/artisan/`, wiped on each update). Absolute, or relative to the server root. |
@@ -41,9 +40,6 @@ file): it overrides the bundled one for that code.
 ## Default file
 
 ```yaml
-database:
-  pool-size: 4
-
 language: "en"
 per_player_language: false
 

@@ -129,8 +129,8 @@ database:
 
 - `h2` stores a single file, `plugins/Artisan/database/suite.mv.db`, shared by
   every plugin.
-- The pool size per plugin is `database.pool-size` in Artisan's `config.yml`
-  (default 4, from 1 to 50) — editable from the editor's server page.
+- The pool size per plugin is `database.pool-size` in Artisan's `environment.yml`
+  (default 4, from 1 to 50).
 - Changes apply after a restart.
 - In a network, give every server the same MySQL or MariaDB database to share
   data between them; with H2, each server keeps its own file.

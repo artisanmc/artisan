@@ -19,7 +19,6 @@ vi.mock("@/lib/api/userAssets", () => ({ listAssets: api.listAssets }));
 const config = {
   language: "en",
   per_player_language: false,
-  "database.pool-size": 4,
   "resource-pack.delegate-to-dir": "",
   "resource-pack.container-textures.chest": "",
   "resource-pack.container-textures.hopper": "",
@@ -54,12 +53,14 @@ describe("ServerConfigSection", () => {
     api.patchServerConfig.mockResolvedValue({ ...config, language: "fr" });
     renderSection();
     fireEvent.change(await screen.findByLabelText("Langue"), { target: { value: "fr" } });
-    fireEvent.change(screen.getByLabelText(/Connexions à la base/), { target: { value: "8" } });
+    fireEvent.change(screen.getByLabelText(/Dossier du pack/), {
+      target: { value: "plugins/Nexo/pack" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() =>
       expect(api.patchServerConfig).toHaveBeenCalledWith("s1", {
         language: "fr",
-        "database.pool-size": 8,
+        "resource-pack.delegate-to-dir": "plugins/Nexo/pack",
       }),
     );
   });

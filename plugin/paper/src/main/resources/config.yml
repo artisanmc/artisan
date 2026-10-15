@@ -2,12 +2,6 @@
 # The web editor, network and database settings live in environment.yml,
 # which the editor never reads nor writes.
 
-# Database lent to the plugins of the suite (credentials in environment.yml).
-database:
-  # Maximum connections of each plugin's pool. Applies to pools opened after
-  # a change: restart the server for plugins already connected.
-  pool-size: 4
-
 # Language for plugin system messages (en, fr). Defaults to en.
 # Place custom lang files in plugins/Artisan/lang/<code>.yml to override.
 language: "en"
