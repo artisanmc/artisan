@@ -1,7 +1,7 @@
 import { SelfHostedSignIn } from "@/features/selfHosted/SelfHostedSignIn";
 import { safeAuthReturn } from "@/lib/authReturn";
 import { useAuthStore } from "@/state/authStore";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { Navigate, createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/login")({
   beforeLoad: ({ search }) => {
@@ -16,11 +16,15 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-function LoginPage() {
+export function LoginPage() {
+  const user = useAuthStore((s) => s.currentUser);
+  const search = new URLSearchParams(window.location.search);
+  // A full page load reaches beforeLoad before the session is known: leave once it is.
+  if (user) return <Navigate to={safeAuthReturn(search.get("next"))} replace />;
   return (
     <div className="grain relative flex min-h-screen items-center justify-center bg-[var(--surface)] p-8">
       <div aria-hidden className="page-glow pointer-events-none absolute inset-0" />
-      <SelfHostedSignIn expired={new URLSearchParams(window.location.search).has("expired")} />
+      <SelfHostedSignIn expired={search.has("expired")} />
     </div>
   );
 }
