@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DataSource, Project, ProjectId } from "@/domain/types";
 import { applySourceYaml, sourceYamlFiles } from "./sourceYaml";
+import { menusOf } from "@/domain/documents";
 
 const PID = "p_yaml" as ProjectId;
 
@@ -11,8 +12,16 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [], commands: [], dialogs: [], assets: [],
-    i18nKeys: {}, defaultLang: "fr", languages: ["fr"], canvasLayout: {},
+    documents: {
+      menu: [],
+      commands: [],
+      dialogs: [],
+      assets: [],
+    },
+    i18nKeys: {},
+    defaultLang: "fr",
+    languages: ["fr"],
+    canvasLayout: {},
     dataModels: [
       {
         id: "mdl_ranks" as never,
@@ -25,14 +34,26 @@ function project(): Project {
       },
     ],
     dataSources: [
-      { id: "ranks" as never, name: "ranks", shape: "table", modelId: "mdl_ranks" as never,
-        rows: [{ id: "vip", price: 10 }] },
-      { id: "settings" as never, name: "settings", shape: "config", fields: [], value: { motd: "salut" } },
+      {
+        id: "ranks" as never,
+        name: "ranks",
+        shape: "table",
+        modelId: "mdl_ranks" as never,
+        rows: [{ id: "vip", price: 10 }],
+      },
+      {
+        id: "settings" as never,
+        name: "settings",
+        shape: "config",
+        fields: [],
+        value: { motd: "salut" },
+      },
     ],
   } as unknown as Project;
 }
 
-const source = (p: Project, id: string) => p.dataSources.find((d) => String(d.id) === id) as DataSource;
+const source = (p: Project, id: string) =>
+  p.dataSources.find((d) => String(d.id) === id) as DataSource;
 
 describe("sourceYamlFiles", () => {
   it("renders only the files of the requested source", () => {
@@ -74,10 +95,10 @@ describe("applySourceYaml", () => {
   // A source edit must not turn into a rewrite of the project.
   it("touches neither the menus nor the layout", () => {
     const p = project();
-    p.menus = [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as never];
+    p.documents.menu = [{ id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as never];
     p.canvasLayout = { m1: { x: 42, y: 7 } } as never;
     const next = applySourceYaml(p, sourceYamlFiles(p, source(p, "settings")))!;
-    expect(next.menus).toBe(p.menus);
+    expect(menusOf(next)).toBe(menusOf(p));
     expect(next.canvasLayout).toEqual({ m1: { x: 42, y: 7 } });
   });
 

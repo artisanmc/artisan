@@ -18,19 +18,15 @@ data class ManifestYaml(
     @JsonProperty(value = "project_id", access = JsonProperty.Access.WRITE_ONLY) val projectId: String = "",
     @JsonProperty("default_lang") val defaultLang: String = "en",
     val languages: List<String> = emptyList(),
-    val files: ManifestFiles = ManifestFiles(),
+    /**
+     * Legacy `files:` block, keyed by document folder (`menus`, `commands`,
+     * `dialogs`, `templates`). Merged into the folder scan, never subtracted.
+     */
+    val files: Map<String, List<String>> = emptyMap(),
     /** Lore lines wider than this many MC pixels wrap ([net.artisanmc.plugin.render.LoreWrap]). 0 = never. */
     @JsonProperty("lore_max_width") val loreMaxWidth: Int = 0,
     /** ESC reopens the previous screen of the stack instead of closing everything ([net.artisanmc.plugin.render.MenuListener]). */
     @JsonProperty("escape_goes_back") val escapeGoesBack: Boolean = false,
-)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class ManifestFiles(
-    val menus: List<String> = emptyList(),
-    val commands: List<String> = emptyList(),
-    val dialogs: List<String> = emptyList(),
-    val templates: List<String> = emptyList(),
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -344,8 +340,8 @@ data class BundleDialog(
     val defaultLang: String = "en",
     /** Folder of the defining project: the namespace of its references (see [BundleMenu.projectId]). */
     val projectId: String = "",
-) {
-    val id: String get() = yaml.id
+) : BundleDocument {
+    override val id: String get() = yaml.id
 
     /** Same deterministic fallback chain as [BundleMenu.langMapWithFallback]. */
     fun langMapWithFallback(lang: String): Map<String, String> =
@@ -355,7 +351,7 @@ data class BundleDialog(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class CommandYaml(
     val schema: String = "",
-    val id: String = "",
+    override val id: String = "",
     val name: String = "",
     val aliases: List<String> = emptyList(),
     val permission: String? = null,
@@ -370,7 +366,7 @@ data class CommandYaml(
     val cooldown:     CooldownYaml? = null,
     /** Legacy spelling of the Action DSL string (`actions` is canonical). */
     val steps:        String = "",
-) {
+) : BundleDocument {
     /** The Action DSL string: canonical `actions` (string form) or legacy `steps`. */
     val dsl: String get() = (actions as? String) ?: steps
 
@@ -534,14 +530,24 @@ data class BundleDataSource(
     }
 }
 
-/** Assembled result for one project — all menus plus their lang maps. */
+/** A Document as the runtime carries it: whatever its kind, it has the id its file gave it. */
+interface BundleDocument {
+    val id: String
+}
+
+/** Assembled result for one project — its Documents by kind plus their lang maps. */
 data class ProjectBundle(
     val projectId: String,
     val defaultLang: String,
     val languages: List<String>,
-    val menus: List<BundleMenu>,
-    val commands: List<CommandYaml>,
-    val dialogs: List<BundleDialog>,
+    /**
+     * The project's Documents, keyed by [DocumentKind.kind] (ADR
+     * `extensible-document-kinds`, decision 10). The only store: [menus],
+     * [commands] and [dialogs] are typed views of it, and a kind the core does
+     * not know sits here untouched for the module that registered it
+     * ([documentsOf]).
+     */
+    val documents: Map<String, List<BundleDocument>> = emptyMap(),
     val dataSources: List<BundleDataSource> = emptyList(),
     /**
      * The project's translations (`lang/<code>.yaml`). Carried here on top of the
@@ -551,6 +557,15 @@ data class ProjectBundle(
      */
     val langMaps: Map<String, Map<String, String>> = emptyMap(),
 ) {
+    /** Typed read façade over [documents] for the core kinds — the one cast point. */
+    val menus: List<BundleMenu> get() = documentsOf(DocumentKinds.MENU.kind)
+    val commands: List<CommandYaml> get() = documentsOf(DocumentKinds.COMMAND.kind)
+    val dialogs: List<BundleDialog> get() = documentsOf(DocumentKinds.DIALOG.kind)
+
+    /** The Documents of one kind, typed by the caller — `[]` when the project holds none. */
+    inline fun <reified T : BundleDocument> documentsOf(kind: String): List<T> =
+        documents[kind].orEmpty().map { it as T }
+
     /** Same deterministic fallback chain as [BundleMenu.langMapWithFallback]. */
     fun langMapWithFallback(lang: String): Map<String, String> =
         langMaps[defaultLang].orEmpty() + langMaps[lang].orEmpty()
@@ -583,8 +598,8 @@ data class BundleMenu(
     val loreMaxWidth: Int = 0,
     /** From the project manifest — see [ManifestYaml.escapeGoesBack]. */
     val escapeGoesBack: Boolean = false,
-) {
-    val id: String get() = yaml.id
+) : BundleDocument {
+    override val id: String get() = yaml.id
 
     /**
      * Lang map with deterministic PER-KEY fallback chain — requested lang →

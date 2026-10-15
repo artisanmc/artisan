@@ -9,7 +9,7 @@
 import "@/i18n";
 import { PlaceholderInput } from "@/components/PlaceholderInput";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
-import type { Account, ElementId, MenuId, Project, ProjectId } from "@/domain/types";
+import type { Account, ElementId, Menu, MenuId, Project, ProjectId } from "@/domain/types";
 import type { FieldLocation } from "@/lib/placeholderCatalog";
 import { useAccountStore } from "@/state/accountStore";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -28,29 +28,31 @@ function makeProject(): Project {
     source: "user_created",
     createdAt: "2026-05-31",
     updatedAt: "2026-05-31",
-    menus: [
-      {
-        id: MENU_ID,
-        projectId: PACK_ID,
-        title: [],
-        rows: 3,
-        layers: [
-          {
-            id: "l1" as Project["menus"][number]["layers"][number]["id"],
-            name: "default",
-            elements: [{ id: ELEMENT_ID, positions: "0", display: {}, states: [] }],
-          },
-        ],
-        contextInputs: [{ kind: "primitive", name: "player", type: "player", default: "Steve" }],
-      },
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        {
+          id: MENU_ID,
+          projectId: PACK_ID,
+          title: [],
+          rows: 3,
+          layers: [
+            {
+              id: "l1" as Menu["layers"][number]["id"],
+              name: "default",
+              elements: [{ id: ELEMENT_ID, positions: "0", display: {}, states: [] }],
+            },
+          ],
+          contextInputs: [{ kind: "primitive", name: "player", type: "player", default: "Steve" }],
+        },
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   };
 }

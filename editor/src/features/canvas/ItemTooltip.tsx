@@ -12,6 +12,7 @@ import { useMemo } from "react";
 import { previewItem } from "./itemValuePreview";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 import { matchPlacementRow, placementAtSlot, placementTotalPages } from "./placement";
+import { menusOf } from "@/domain/documents";
 
 interface ItemTooltipProps {
   projectId: ProjectId;
@@ -29,7 +30,7 @@ const findElementAndMenu = (
   menuId: string | null,
 ): { element: Element; menu: Menu } | null => {
   if (!project || !id || !menuId) return null;
-  const menu = project.menus.find((m) => m.id === menuId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
   if (!menu) return null;
   for (const layer of menu.layers) {
     for (const el of layer.elements) {

@@ -1,6 +1,7 @@
 import type { Project } from "@/domain/types";
 import { deriveServerGraph, documentKey } from "@/features/canvas/serverGraph";
 import { namespaceOf } from "./serverIndex";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export interface IssueOwner {
   namespace: string;
@@ -94,7 +95,7 @@ const triggerName = (c: { id: string; name: string }) => (c.name || c.id).toLowe
 function commandConflicts(all: Project[], editedNamespace: string): ServerIssue[] {
   const byTrigger = new Map<string, Map<string, IssueOwner>>();
   for (const project of all) {
-    for (const command of project.commands ?? []) {
+    for (const command of commandsOf(project)) {
       const who = owner(project, command.id);
       const key = `${who.namespace}/${who.docId}`;
       const triggers = [
@@ -126,7 +127,7 @@ function duplicateIds(all: Project[], editedNamespace: string): ServerIssue[] {
   for (const docKind of ["menu", "dialog"] as const) {
     const byId = new Map<string, IssueOwner[]>();
     for (const project of all) {
-      const docs = docKind === "menu" ? (project.menus ?? []) : (project.dialogs ?? []);
+      const docs = docKind === "menu" ? menusOf(project) : dialogsOf(project);
       for (const doc of docs)
         byId.set(doc.id, [...(byId.get(doc.id) ?? []), owner(project, doc.id)]);
     }
@@ -145,9 +146,9 @@ function duplicateIds(all: Project[], editedNamespace: string): ServerIssue[] {
 function brokenLinks(edited: Project, all: Project[]): ServerIssue[] {
   const prefix = documentKey(edited.id, "");
   const kindOf = (docId: string): "menu" | "command" | "dialog" =>
-    (edited.menus ?? []).some((m) => m.id === docId)
+    menusOf(edited).some((m) => m.id === docId)
       ? "menu"
-      : (edited.commands ?? []).some((c) => c.id === docId)
+      : commandsOf(edited).some((c) => c.id === docId)
         ? "command"
         : "dialog";
   return deriveServerGraph(all)

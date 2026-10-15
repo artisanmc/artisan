@@ -77,6 +77,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { goToDocument } from "./goToDocument";
+import { menusOf } from "@/domain/documents";
 
 export type ProjectSearch = {
   tab?: "overview" | "translations" | "data-sources" | "resources" | "history";
@@ -416,7 +417,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
 
   const canvasActive =
     presentedTab === "overview" &&
-    (!documentId || !!project?.menus.some((menu) => menu.id === documentId));
+    (!documentId || !!menusOf(project).some((menu) => menu.id === documentId));
 
   const tabContent = (
     // `h-full` (not just `flex-1`) so it fills the content frame — otherwise the

@@ -2,6 +2,7 @@ import { visitProjectLTexts } from "@/domain/i18nSites";
 import { assertImageButtonPlacement, hasImageButton } from "@/domain/imageButton";
 import type { I18nKey, Project } from "@/domain/types";
 import { isTranslationMissing, listLanguages } from "@/lib/i18nUsages";
+import { menusOf } from "@/domain/documents";
 
 export interface ValidationResult {
   valid: boolean;
@@ -12,7 +13,7 @@ export interface ValidationResult {
 export function validate(project: Project): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
-  for (const menu of project.menus)
+  for (const menu of menusOf(project))
     for (const element of menu.layers.flatMap((layer) => layer.elements)) {
       if (!hasImageButton(element)) continue;
       try {

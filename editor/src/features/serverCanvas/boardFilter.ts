@@ -4,6 +4,7 @@ import type {
   DocumentKind,
   ServerGraph,
 } from "@/features/canvas/serverGraph";
+import { listDocumentKinds } from "@/domain/documentKinds";
 
 export interface BoardFilter {
   project?: string;
@@ -11,7 +12,7 @@ export interface BoardFilter {
   q?: string;
 }
 
-const KINDS: DocumentKind[] = ["menu", "command", "dialog"];
+const KINDS: DocumentKind[] = listDocumentKinds().map((def) => def.kind);
 
 export function parseBoardFilter(search: Record<string, unknown>): BoardFilter {
   const out: BoardFilter = {};

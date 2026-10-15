@@ -34,7 +34,6 @@ const personalProject = (): Project => {
     } as Project["i18nKeys"],
     assets: [],
     dataSources: [],
-    dialogs: [],
     importedConnectors: [],
     canvasLayout: {
       [shopMainId]: { x: 60, y: 80 },
@@ -42,65 +41,70 @@ const personalProject = (): Project => {
       [aboutId]: { x: 320, y: 320 },
       [healCmdId]: { x: 540, y: 80 },
     },
-    menus: [
-      {
-        id: shopMainId,
-        projectId: pId,
-        title: textLayer(k("menus.m_shop_main.title")),
-        rows: 3,
-        layers: [
-          {
-            id: layerId("l_default"),
-            name: "default",
-            elements: [
-              {
-                id: elementId("el_btn_profile"),
-                positions: "13",
-                display: {
-                  material: "PAPER",
-                  title: { key: k("menus.m_shop_main.elements.el_btn_profile.default.title") },
-                  click: {
-                    left: {
-                      steps: [{ kind: "action", action: { type: "open_menu", menuId: profileId } }],
+    documents: {
+      menu: [
+        {
+          id: shopMainId,
+          projectId: pId,
+          title: textLayer(k("menus.m_shop_main.title")),
+          rows: 3,
+          layers: [
+            {
+              id: layerId("l_default"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("el_btn_profile"),
+                  positions: "13",
+                  display: {
+                    material: "PAPER",
+                    title: { key: k("menus.m_shop_main.elements.el_btn_profile.default.title") },
+                    click: {
+                      left: {
+                        steps: [
+                          { kind: "action", action: { type: "open_menu", menuId: profileId } },
+                        ],
+                      },
                     },
                   },
+                  states: [],
                 },
-                states: [],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: profileId,
-        projectId: pId,
-        title: textLayer(k("menus.m_profile.title")),
-        rows: 3,
-        layers: [{ id: layerId("l_default_2"), name: "default", elements: [] }],
-      },
-      {
-        id: aboutId,
-        projectId: pId,
-        title: textLayer(k("menus.m_about.title")),
-        rows: 3,
-        layers: [{ id: layerId("l_default_about"), name: "default", elements: [] }],
-      },
-    ],
-    commands: [
-      {
-        id: healCmdId,
-        projectId: pId,
-        name: "heal",
-        permission: "artisan.heal",
-        arguments: [],
-        steps: [
-          {
-            kind: "action",
-            action: { type: "send_message", text: { key: k("commands.c_heal.message") } },
-          },
-        ],
-      },
-    ],
+              ],
+            },
+          ],
+        },
+        {
+          id: profileId,
+          projectId: pId,
+          title: textLayer(k("menus.m_profile.title")),
+          rows: 3,
+          layers: [{ id: layerId("l_default_2"), name: "default", elements: [] }],
+        },
+        {
+          id: aboutId,
+          projectId: pId,
+          title: textLayer(k("menus.m_about.title")),
+          rows: 3,
+          layers: [{ id: layerId("l_default_about"), name: "default", elements: [] }],
+        },
+      ],
+      command: [
+        {
+          id: healCmdId,
+          projectId: pId,
+          name: "heal",
+          permission: "artisan.heal",
+          arguments: [],
+          steps: [
+            {
+              kind: "action",
+              action: { type: "send_message", text: { key: k("commands.c_heal.message") } },
+            },
+          ],
+        },
+      ],
+      dialog: [],
+    },
   };
 };
 
@@ -126,41 +130,43 @@ const shopSystemProject = (): Project => {
     } as Project["i18nKeys"],
     assets: [],
     dataSources: [],
-    dialogs: [],
     importedConnectors: [],
     canvasLayout: {},
-    menus: [
-      {
-        id: shopRootId,
-        projectId: pId,
-        title: textLayer(k("menus.m_shop_root.title")),
-        rows: 6,
-        layers: [{ id: layerId("l_def_3"), name: "default", elements: [] }],
-      },
-      {
-        id: catArmorsId,
-        projectId: pId,
-        title: textLayer(k("menus.m_cat_armors.title")),
-        rows: 6,
-        layers: [{ id: layerId("l_def_4"), name: "default", elements: [] }],
-      },
-      {
-        id: catWeaponsId,
-        projectId: pId,
-        title: textLayer(k("menus.m_cat_weapons.title")),
-        rows: 6,
-        layers: [{ id: layerId("l_def_5"), name: "default", elements: [] }],
-      },
-    ],
-    commands: [
-      {
-        id: shopCmdId,
-        projectId: pId,
-        name: "shop",
-        arguments: [],
-        steps: [{ kind: "action", action: { type: "open_menu", menuId: shopRootId } }],
-      },
-    ],
+    documents: {
+      menu: [
+        {
+          id: shopRootId,
+          projectId: pId,
+          title: textLayer(k("menus.m_shop_root.title")),
+          rows: 6,
+          layers: [{ id: layerId("l_def_3"), name: "default", elements: [] }],
+        },
+        {
+          id: catArmorsId,
+          projectId: pId,
+          title: textLayer(k("menus.m_cat_armors.title")),
+          rows: 6,
+          layers: [{ id: layerId("l_def_4"), name: "default", elements: [] }],
+        },
+        {
+          id: catWeaponsId,
+          projectId: pId,
+          title: textLayer(k("menus.m_cat_weapons.title")),
+          rows: 6,
+          layers: [{ id: layerId("l_def_5"), name: "default", elements: [] }],
+        },
+      ],
+      command: [
+        {
+          id: shopCmdId,
+          projectId: pId,
+          name: "shop",
+          arguments: [],
+          steps: [{ kind: "action", action: { type: "open_menu", menuId: shopRootId } }],
+        },
+      ],
+      dialog: [],
+    },
   };
 };
 
@@ -183,19 +189,21 @@ const dailyQuestsProject = (): Project => {
     } as Project["i18nKeys"],
     assets: [],
     dataSources: [],
-    dialogs: [],
     importedConnectors: [],
     canvasLayout: {},
-    menus: [
-      {
-        id: questsMainId,
-        projectId: pId,
-        title: textLayer(k("menus.m_quests_main.title")),
-        rows: 6,
-        layers: [{ id: layerId("l_def_6"), name: "default", elements: [] }],
-      },
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        {
+          id: questsMainId,
+          projectId: pId,
+          title: textLayer(k("menus.m_quests_main.title")),
+          rows: 6,
+          layers: [{ id: layerId("l_def_6"), name: "default", elements: [] }],
+        },
+      ],
+      command: [],
+      dialog: [],
+    },
   };
 };
 

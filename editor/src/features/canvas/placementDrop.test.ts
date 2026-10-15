@@ -5,6 +5,7 @@ import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { beforeEach, describe, expect, it } from "vitest";
 import { pinPlacementRow } from "./placementDrop";
+import { menusOf } from "@/domain/documents";
 
 const PID = "p1" as ProjectId;
 const MID = "m1" as MenuId;
@@ -17,43 +18,45 @@ function makeProject(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      {
-        id: MID,
-        projectId: PID,
-        title: [],
-        rows: 3,
-        contextInputs: [{ kind: "sourceRef", name: "shops", ref: "shop:items" as never }],
-        layers: [
-          {
-            id: "L1" as never,
-            name: "l",
-            elements: [
-              {
-                id: EID,
-                positions: "0",
-                display: { material: "{item.material}", count: 1, title: { key: "t" as never } },
-                states: [],
-                places: { source: "shops", alias: "item", keyField: "id", placements: [] },
-              },
-            ],
-          },
-        ],
-      } as never,
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        {
+          id: MID,
+          projectId: PID,
+          title: [],
+          rows: 3,
+          contextInputs: [{ kind: "sourceRef", name: "shops", ref: "shop:items" as never }],
+          layers: [
+            {
+              id: "L1" as never,
+              name: "l",
+              elements: [
+                {
+                  id: EID,
+                  positions: "0",
+                  display: { material: "{item.material}", count: 1, title: { key: "t" as never } },
+                  states: [],
+                  places: { source: "shops", alias: "item", keyField: "id", placements: [] },
+                },
+              ],
+            },
+          ],
+        } as never,
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: { t: { en: "{item.name}" } } as Project["i18nKeys"],
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   } as Project;
 }
 
 function currentPlaces() {
-  const el = useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements[0]!;
+  const el = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements[0]!;
   return el.places!;
 }
 
@@ -103,7 +106,7 @@ describe("pinPlacementRow", () => {
     });
     pinPlacementRow({ projectId: PID, menuId: MID, elementId: EID, key: "sword", position: 4 });
     expect(
-      useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements[0]!.places,
+      menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements[0]!.places,
     ).toBeUndefined();
   });
 });

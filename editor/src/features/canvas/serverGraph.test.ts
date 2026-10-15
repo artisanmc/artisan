@@ -50,14 +50,16 @@ function project(
   return {
     id,
     name: id,
-    menus: docs.menus ?? [],
-    commands: (docs.commands ?? []).map((c) => ({
-      id: c.id,
-      name: c.id,
-      arguments: [],
-      steps: [{ kind: "action", action: { type: "open_menu", menuId: c.opens } }],
-    })),
-    dialogs: (docs.dialogs ?? []).map((d) => ({ id: d, buttons: [] })),
+    documents: {
+      menu: docs.menus ?? [],
+      command: (docs.commands ?? []).map((c) => ({
+        id: c.id,
+        name: c.id,
+        arguments: [],
+        steps: [{ kind: "action", action: { type: "open_menu", menuId: c.opens } }],
+      })),
+      dialog: (docs.dialogs ?? []).map((d) => ({ id: d, buttons: [] })),
+    },
   } as unknown as Project;
 }
 

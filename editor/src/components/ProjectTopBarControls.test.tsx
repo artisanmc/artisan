@@ -127,9 +127,11 @@ describe("ProjectTopBarControls", () => {
       name: "named_project",
       defaultLang: "en",
       i18nKeys: {},
-      menus: [],
-      commands: [],
-      dialogs: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
     } as any;
     const previous = useAccountStore.getState().account;
@@ -161,9 +163,11 @@ describe("ProjectTopBarControls", () => {
       name: "Test",
       defaultLang: "en",
       i18nKeys: {},
-      menus: [],
-      commands: [],
-      dialogs: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
     } as any;
     render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
@@ -187,9 +191,11 @@ describe("ProjectTopBarControls", () => {
       name: "Test",
       defaultLang: "en",
       i18nKeys: {},
-      menus: [],
-      commands: [],
-      dialogs: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
     } as any;
     render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
@@ -211,9 +217,11 @@ describe("ProjectTopBarControls", () => {
       // activeLang defaults to the browser lang in tests ("en") — count misses
       // for en: k1 has French source text but no English value → 1 missing.
       i18nKeys: { k1: { fr: "Bonjour" }, k2: { fr: "Au revoir", en: "Bye" } },
-      menus: [],
-      commands: [],
-      dialogs: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
     } as any;
     render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);

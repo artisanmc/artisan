@@ -18,9 +18,6 @@ class ModuleActionsLangTest {
             projectId = id,
             defaultLang = defaultLang,
             languages = langMaps.keys.toList(),
-            menus = emptyList(),
-            commands = emptyList(),
-            dialogs = emptyList(),
             langMaps = langMaps,
         )
 

@@ -7,6 +7,7 @@ import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 
 import { MenuGroup } from "./MenuGroup";
+import { menusOf } from "@/domain/documents";
 
 // Stub react-konva so MenuGroup renders to plain DOM. We expose `name`
 // (a Konva-only attribute Konva itself uses to identify nodes) as
@@ -65,22 +66,24 @@ function makeProject(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      {
-        id: MENU_ID,
-        projectId: PACK_ID,
-        title: [],
-        rows: 3,
-        layers: [],
-      } as Menu,
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        {
+          id: MENU_ID,
+          projectId: PACK_ID,
+          title: [],
+          rows: 3,
+          layers: [],
+        } as Menu,
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   };
 }
@@ -104,7 +107,7 @@ beforeEach(() => {
 
 describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
   it("clicking the menu's outer Group sets uiStore.selectedMenuId to this menu's id", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]!;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!)[0]!;
     render(
       <MenuGroup
         projectId={PACK_ID}
@@ -132,7 +135,7 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
   });
 
   it("clicking the menu also sets it in the legacy selectionStore (element-selection store)", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]!;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!)[0]!;
     render(
       <MenuGroup
         projectId={PACK_ID}
@@ -151,7 +154,7 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
   });
 
   it("solo: clicking the menu re-selects it after an element was selected", () => {
-    const menu = useAccountStore.getState().account.projects[0]!.menus[0]!;
+    const menu = menusOf(useAccountStore.getState().account.projects[0]!)[0]!;
     useSelectionStore.setState({ ids: new Set(["el1"]), focusedSlot: 3 } as any);
     render(
       <MenuGroup projectId={PACK_ID} menu={menu} position={{ x: 0, y: 0 }} layout={{}} solo />,

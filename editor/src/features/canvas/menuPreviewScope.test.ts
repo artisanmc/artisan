@@ -1,4 +1,11 @@
-import type { ContextInput, DataSource, DataSourceId, Menu, Project, SourceRef } from "@/domain/types";
+import type {
+  ContextInput,
+  DataSource,
+  DataSourceId,
+  Menu,
+  Project,
+  SourceRef,
+} from "@/domain/types";
 import { registerModule } from "@artisan/editor-sdk";
 import { afterEach, describe, expect, it } from "vitest";
 import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
@@ -13,8 +20,10 @@ const stubProject = (overrides: Partial<Project> = {}): Project =>
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
@@ -39,14 +48,35 @@ describe("resolveSourceRef — module-local rows (authoring-time)", () => {
     registerModule(boutiqueModule);
     useUiStore.setState({ activeLang: "fr" });
     const project = stubProject({
-      i18nKeys: { line1: { en: "Rare", fr: "Rare FR" }, line2: { en: "Sharp", fr: "Tranchante" } } as Project["i18nKeys"],
+      i18nKeys: {
+        line1: { en: "Rare", fr: "Rare FR" },
+        line2: { en: "Sharp", fr: "Tranchante" },
+      } as Project["i18nKeys"],
       dataSources: [
-        { id: "categories", shape: "table", rows: [{ id: "weapons", items: [{ id: "sword", price: 100, lore: [{ key: "line1" }, { key: "line2" }] }] }] },
-        { id: "shop_settings", shape: "config", value: { placeholders: { price_display: "%price% jetons" } } },
+        {
+          id: "categories",
+          shape: "table",
+          rows: [
+            {
+              id: "weapons",
+              items: [{ id: "sword", price: 100, lore: [{ key: "line1" }, { key: "line2" }] }],
+            },
+          ],
+        },
+        {
+          id: "shop_settings",
+          shape: "config",
+          value: { placeholders: { price_display: "%price% jetons" } },
+        },
       ] as unknown as Project["dataSources"],
     });
-    const rows = resolveSourceRef("boutique:items" as SourceRef, project) as Record<string, unknown>[];
-    expect(renderPreview("{item.lore}\n{item.price_display}", { item: rows[0] }, project, "fr")).toBe("Rare FR\nTranchante\n100 jetons");
+    const rows = resolveSourceRef("boutique:items" as SourceRef, project) as Record<
+      string,
+      unknown
+    >[];
+    expect(
+      renderPreview("{item.lore}\n{item.price_display}", { item: rows[0] }, project, "fr"),
+    ).toBe("Rare FR\nTranchante\n100 jetons");
   });
   afterEach(() => clearRegistry());
 
@@ -173,7 +203,9 @@ describe("buildPreviewScope", () => {
   });
 
   it("does not seed `player` when an input with that name is declared (caller wins)", () => {
-    const menu = stubMenu([{ kind: "sourceRef", name: "player", ref: "pack:missing" as SourceRef }]);
+    const menu = stubMenu([
+      { kind: "sourceRef", name: "player", ref: "pack:missing" as SourceRef },
+    ]);
     const scope = buildPreviewScope(menu, stubProject());
     expect(scope.player).toBeUndefined();
   });
@@ -217,7 +249,10 @@ describe("buildPreviewScope", () => {
     const menu = stubMenu([
       { kind: "sourceRef", name: "categories", ref: "pack:categories" as SourceRef },
     ]);
-    expect(buildPreviewScope(menu, project).categories).toEqual([{ id: "weapon" }, { id: "armor" }]);
+    expect(buildPreviewScope(menu, project).categories).toEqual([
+      { id: "weapon" },
+      { id: "armor" },
+    ]);
   });
 
   it("falls back to undefined for unresolvable sourceRef inputs", () => {
@@ -237,7 +272,13 @@ describe("buildPreviewScope — sourceRef shaping + preview args", () => {
   const projectWithSource = () =>
     stubProject({
       dataSources: [
-        { id: "items" as DataSourceId, name: "items", shape: "table", modelId: "m_items", rows: ROWS },
+        {
+          id: "items" as DataSourceId,
+          name: "items",
+          shape: "table",
+          modelId: "m_items",
+          rows: ROWS,
+        },
       ] as unknown as DataSource[],
     });
   const menuWithFilter = (): Menu =>
@@ -327,7 +368,10 @@ describe("renderPreview with the builtin player", () => {
 describe("resolveSourceRef — a module-owned project answers for its own namespace", () => {
   afterEach(() => clearRegistry());
 
-  const rows = [{ id: "les_cles", name: "Les Clés" }, { id: "premium", name: "Premium" }];
+  const rows = [
+    { id: "les_cles", name: "Les Clés" },
+    { id: "premium", name: "Premium" },
+  ];
   const table = {
     id: "categories" as DataSourceId,
     name: "Catégories",
@@ -363,7 +407,11 @@ describe("resolveSourceRef — a module-owned project answers for its own namesp
           rows: [
             { id: "premium", name: { key: "sources.categories.premium.name" } },
             // Nested rows carry ltext too (a category's items).
-            { id: "divers", name: "Divers", items: [{ id: "i1", name: { key: "sources.categories.premium.name" } }] },
+            {
+              id: "divers",
+              name: "Divers",
+              items: [{ id: "i1", name: { key: "sources.categories.premium.name" } }],
+            },
           ],
         } as unknown as DataSource,
       ],
@@ -377,6 +425,8 @@ describe("resolveSourceRef — a module-owned project answers for its own namesp
   it("still prefers a live snapshot for a source the project does not hold", () => {
     const project = stubProject({ ownerModule: "boutique", dataSources: [table] });
     const snap = [{ id: "x" }];
-    expect(resolveSourceRef("boutique:items" as SourceRef, project, { "boutique:items": snap })).toEqual(snap);
+    expect(
+      resolveSourceRef("boutique:items" as SourceRef, project, { "boutique:items": snap }),
+    ).toEqual(snap);
   });
 });

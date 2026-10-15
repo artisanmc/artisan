@@ -19,9 +19,11 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
     createdAt: "",
     updatedAt: "",
     i18nKeys: {},
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     canvasLayout: {},
     ...overrides,
@@ -78,7 +80,7 @@ const I18N = {
 
 /** i18nMode is a legacy flag; structural text is field-local regardless. */
 const project = (overrides: Partial<Project> = {}): Project =>
-  makeProject({ menus: [shopMenu()], i18nKeys: { ...I18N }, ...overrides });
+  makeProject({ documents: { menu: [shopMenu()] }, i18nKeys: { ...I18N }, ...overrides });
 
 const langFile = (files: Record<string, string>, lang: string) => {
   const raw = files[`${BASE}/lang/${lang}.yaml`];
@@ -98,9 +100,9 @@ describe("transform — structural text is field-local", () => {
 
   it("emits a bare string when only the default language has a value", () => {
     const menu = parse(
-      transform(project({ i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"] }))[
-        `${BASE}/menus/shop.yaml`
-      ]!,
+      transform(
+        project({ i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"] }),
+      )[`${BASE}/menus/shop.yaml`]!,
     );
     expect(menu.title[0].value).toBe("Shop");
     // Untranslated keys with no value land as empty strings, never a raw key.
@@ -124,7 +126,9 @@ describe("transform — structural text is field-local", () => {
       { send_message: { en: "Bought!", fr: "Acheté !" } },
     ]);
     // No action key in lang/ anymore.
-    expect(langFile(files, "en")?.["menus.shop.elements.btn.default.click.left.message"]).toBeUndefined();
+    expect(
+      langFile(files, "en")?.["menus.shop.elements.btn.default.click.left.message"],
+    ).toBeUndefined();
   });
 
   it("leaves structural keys out of lang/", () => {
@@ -136,38 +140,40 @@ describe("transform — structural text is field-local", () => {
 
   it("inlines command and dialog structural texts too", () => {
     const p = project({
-      menus: [],
-      commands: [
-        {
-          id: commandId("heal"),
-          projectId: projectId("p_test"),
-          name: "heal",
-          arguments: [],
-          steps: [
-            {
-              kind: "action",
-              action: { type: "send_message", text: { key: "commands.heal.message" as I18nKey } },
-            },
-          ],
-        },
-      ],
-      dialogs: [
-        {
-          id: dialogId("confirm"),
-          projectId: projectId("p_test"),
-          title: { key: "dialogs.confirm.title" as I18nKey },
-          canCloseWithEscape: true,
-          body: [{ type: "text", text: { key: "dialogs.confirm.body.0.text" as I18nKey } }],
-          inputs: [],
-          buttons: [
-            {
-              id: "ok",
-              label: { key: "dialogs.confirm.buttons.ok.label" as I18nKey },
-              steps: [],
-            },
-          ],
-        } as unknown as Dialog,
-      ],
+      documents: {
+        menu: [],
+        command: [
+          {
+            id: commandId("heal"),
+            projectId: projectId("p_test"),
+            name: "heal",
+            arguments: [],
+            steps: [
+              {
+                kind: "action",
+                action: { type: "send_message", text: { key: "commands.heal.message" as I18nKey } },
+              },
+            ],
+          },
+        ],
+        dialog: [
+          {
+            id: dialogId("confirm"),
+            projectId: projectId("p_test"),
+            title: { key: "dialogs.confirm.title" as I18nKey },
+            canCloseWithEscape: true,
+            body: [{ type: "text", text: { key: "dialogs.confirm.body.0.text" as I18nKey } }],
+            inputs: [],
+            buttons: [
+              {
+                id: "ok",
+                label: { key: "dialogs.confirm.buttons.ok.label" as I18nKey },
+                steps: [],
+              },
+            ],
+          } as unknown as Dialog,
+        ],
+      },
       i18nKeys: {
         "commands.heal.message": { en: "Healed", fr: "Soigné" },
         "dialogs.confirm.title": { en: "Sure?", fr: "Sûr ?" },
@@ -188,7 +194,6 @@ describe("transform — structural text is field-local", () => {
     expect(fr["commands.heal.message"]).toBeUndefined();
     expect(fr["dialogs.confirm.title"]).toBeUndefined();
   });
-
 });
 
 describe("field-local — round-trip through the file tree", () => {

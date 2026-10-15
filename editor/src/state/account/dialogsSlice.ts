@@ -27,6 +27,7 @@ import {
   updateDialogLTextKey,
 } from "./helpers";
 import type { AccountSliceContext, AccountState } from "./types";
+import { dialogsOf, mutableDialogs } from "@/domain/documents";
 
 /** Dialogs: bodies, inputs, buttons and the steps behind them. */
 export interface DialogsSlice {
@@ -179,7 +180,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
         if (!project) return;
         project.i18nKeys[titleKey] = { [project.defaultLang]: "" };
         project.i18nKeys[btnLabelKey] = { [project.defaultLang]: "Confirm" };
-        project.dialogs.push({
+        mutableDialogs(project).push({
           id: dId,
           projectId: pId,
           title: { key: titleKey },
@@ -201,7 +202,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const dialog = project.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         if (!dialog) return;
         if (!project.i18nKeys[dialog.title.key]) project.i18nKeys[dialog.title.key] = {};
         project.i18nKeys[dialog.title.key]![lang] = value;
@@ -212,7 +213,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         if (!dialog) return;
         if (field === "canCloseWithEscape") dialog.canCloseWithEscape = value;
         touch(draft, pId);
@@ -224,11 +225,11 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     const state = get();
     const project = state.account.projects.find((p) => p.id === pId);
     if (!project) throw new Error("project not found");
-    if (project.dialogs.some((d) => d.id === newId))
+    if (dialogsOf(project).some((d) => d.id === newId))
       throw new Error(`dialog id "${newId}" already exists`);
     const next = produce(state.account, (draft) => {
       const p = draft.projects.find((p) => p.id === pId)!;
-      const d = p.dialogs.find((d) => d.id === oldId)!;
+      const d = dialogsOf(p).find((d) => d.id === oldId)!;
       d.id = newId;
       const oldPrefix = `dialogs.${oldId}.`;
       const newPrefix = `dialogs.${newId}.`;
@@ -263,7 +264,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         if (!dialog) return;
         if (body.type === "text") {
           const key = dialogBodyTextKey(dId, dialog.body.length);
@@ -279,7 +280,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         if (!dialog) return;
         const body = dialog.body[index];
         if (body?.type === "text") delete project!.i18nKeys[body.text.key];
@@ -291,7 +292,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const body = dialog?.body[index];
         if (!body || body.type !== "text") return;
         if (!project!.i18nKeys[body.text.key]) project!.i18nKeys[body.text.key] = {};
@@ -303,7 +304,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const body = dialog?.body[index];
         if (!body || body.type !== "item") return;
         body.material = material;
@@ -315,7 +316,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         if (!dialog) return;
         const inputId = `input_${dialog.inputs.length}`;
         const labelKey = dialogInputLabelKey(dId, inputId);
@@ -362,7 +363,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         if (!dialog) return;
         const input = dialog.inputs[index];
         if (input) {
@@ -379,7 +380,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         if (!dialog?.inputs[index]) return;
         Object.assign(dialog.inputs[index]!, patch);
         touch(draft, pId);
@@ -389,7 +390,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         if (!dialog) return;
         const btnId = `btn_${dialog.buttons.length}`;
         const labelKey = dialogButtonLabelKey(dId, btnId);
@@ -402,7 +403,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         if (!dialog) return;
         const btn = dialog.buttons[buttonIndex];
         if (btn) {
@@ -424,7 +425,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!btn) return;
         if (!project!.i18nKeys[btn.label.key]) project!.i18nKeys[btn.label.key] = {};
@@ -444,7 +445,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!project || !btn) return;
         const parent = resolveParentMut(btn.steps, frames);
@@ -466,7 +467,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!btn) return;
         const parent = resolveParentMut(btn.steps, frames);
@@ -482,7 +483,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!project || !btn) return;
         const parent = resolveParentMut(btn.steps, path.frames);
@@ -497,7 +498,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!project || !btn) return;
         const parent = resolveParentMut(btn.steps, path.frames);
@@ -511,7 +512,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!btn) return;
         const parent = resolveParentMut(btn.steps, frames);
@@ -532,7 +533,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!project || !btn) return;
         const parent = resolveParentMut(btn.steps, frames);
@@ -559,7 +560,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!btn) return;
         const parent = resolveParentMut(btn.steps, frames);
@@ -586,7 +587,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!btn) return;
         const parent = resolveParentMut(btn.steps, frames);
@@ -611,7 +612,7 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = project?.dialogs.find((d) => d.id === dId);
+        const dialog = dialogsOf(project).find((d) => d.id === dId);
         const btn = dialog?.buttons[buttonIndex];
         if (!project || !btn) return;
         const parent = resolveParentMut(btn.steps, frames);
@@ -633,9 +634,9 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const idx = project.dialogs.findIndex((d) => d.id === dialog.id);
+        const idx = dialogsOf(project).findIndex((d) => d.id === dialog.id);
         if (idx === -1) return;
-        project.dialogs[idx] = dialog;
+        mutableDialogs(project)[idx] = dialog;
         project.updatedAt = new Date().toISOString();
       }),
     ),

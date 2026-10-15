@@ -5,6 +5,7 @@ import { useUiStore } from "@/state/uiStore";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ItemTooltip } from "./ItemTooltip";
+import { menusOf } from "@/domain/documents";
 
 const project = {
   id: "p1",
@@ -15,34 +16,36 @@ const project = {
     second_title: { fr: "Steve" },
     second_lore: { fr: "test" },
   },
-  menus: ["first", "second"].map((id) => ({
-    id,
-    projectId: "p1",
-    title: [],
-    rows: 6,
-    layers: [
-      {
-        id: `${id}_layer`,
-        elements: [
-          {
-            id: "player",
-            positions: "4",
-            display: {
-              material: "PLAYER_HEAD",
-              title: { key: `${id}_title` },
-              lore: { key: `${id}_lore` },
+  documents: {
+    menu: ["first", "second"].map((id) => ({
+      id,
+      projectId: "p1",
+      title: [],
+      rows: 6,
+      layers: [
+        {
+          id: `${id}_layer`,
+          elements: [
+            {
+              id: "player",
+              positions: "4",
+              display: {
+                material: "PLAYER_HEAD",
+                title: { key: `${id}_title` },
+                lore: { key: `${id}_lore` },
+              },
+              states: [],
             },
-            states: [],
-          },
-        ],
-      },
-    ],
-  })),
-  commands: [],
+          ],
+        },
+      ],
+    })),
+    command: [],
+    dialog: [],
+  },
   assets: [],
   dataSources: [],
   importedConnectors: [],
-  dialogs: [],
   canvasLayout: {},
 } as unknown as Project;
 
@@ -89,7 +92,9 @@ describe("ItemTooltip menu scope", () => {
       useAccountStore.setState({
         account: {
           ...useAccountStore.getState().account,
-          projects: [{ ...project, menus: [project.menus[0]] }],
+          projects: [
+            { ...project, documents: { ...project.documents, menu: [menusOf(project)[0]!] } },
+          ],
         },
       }),
     );
@@ -128,32 +133,34 @@ describe("ItemTooltip over a captured item", () => {
         display: {},
       },
     ],
-    menus: [
-      {
-        id: "shop",
-        projectId: "p1",
-        title: [],
-        rows: 6,
-        layers: [
-          {
-            id: "shop_layer",
-            elements: [
-              {
-                id: "product",
-                positions: "0",
-                display: { material: "item:ci_sword", lore: { key: "shop_lore" } },
-                states: [],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    commands: [],
+    documents: {
+      menu: [
+        {
+          id: "shop",
+          projectId: "p1",
+          title: [],
+          rows: 6,
+          layers: [
+            {
+              id: "shop_layer",
+              elements: [
+                {
+                  id: "product",
+                  positions: "0",
+                  display: { material: "item:ci_sword", lore: { key: "shop_lore" } },
+                  states: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
-    dialogs: [],
     canvasLayout: {},
   } as unknown as Project;
 

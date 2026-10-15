@@ -9,6 +9,7 @@ import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectLoader } from "./useProjectLoader";
+import { menusOf } from "@/domain/documents";
 
 const IDENTITY = {
   project: { id: "p1", name: "Boutique", hash: "h", externalId: "boutique_shop" },
@@ -73,7 +74,7 @@ describe("useProjectLoader — the fresh version always wins", () => {
     expect(result.current.stale).toBe(false);
 
     const stored = useAccountStore.getState().account.projects.find((p) => p.id === "p1");
-    const menuIds = (stored?.menus ?? []).map((m) => m.id);
+    const menuIds = (menusOf(stored) ?? []).map((m) => m.id);
     expect(menuIds).toContain("frais");
     expect(menuIds).not.toContain("perime");
   });
@@ -154,7 +155,7 @@ describe("useProjectLoader — the fresh version always wins", () => {
     await waitFor(() => expect(result.current.stale).toBe(false));
     expect(projectFilesApi.readProjectFiles).toHaveBeenCalledExactlyOnceWith("p1", "identique");
 
-    const menuIds = (result.current.project?.menus ?? []).map((m) => m.id);
+    const menuIds = menusOf(result.current.project).map((m) => m.id);
     expect(menuIds).toContain("en_cours");
     expect(useProjectDraftStore.getState().drafts.p1).toBeDefined();
   });

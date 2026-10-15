@@ -9,11 +9,20 @@ import { Stage } from "./Stage";
 import { useMarqueeSelection } from "./useMarqueeSelection";
 
 vi.mock("react-konva", () => ({
-  Stage: (p: any) => <div data-testid="konva-stage" data-draggable={String(!!p.draggable)}>{p.children}</div>,
+  Stage: (p: any) => (
+    <div data-testid="konva-stage" data-draggable={String(!!p.draggable)}>
+      {p.children}
+    </div>
+  ),
   Layer: (p: any) => <div>{p.children}</div>,
   Group: (p: any) => <div data-name={p.name}>{p.children}</div>,
-  Rect: () => <div />, Image: () => <div />, Text: () => <div />, Line: () => <div />,
-  Transformer: () => <div />, Arrow: () => <div />, Circle: () => <div />,
+  Rect: () => <div />,
+  Image: () => <div />,
+  Text: () => <div />,
+  Line: () => <div />,
+  Transformer: () => <div />,
+  Arrow: () => <div />,
+  Circle: () => <div />,
 }));
 vi.mock("use-image", () => ({ default: () => [null, "loaded"] }));
 vi.mock("./title/composer/TitleRender", () => ({ TitleRender: () => <div /> }));
@@ -21,12 +30,27 @@ vi.mock("./Edges", () => ({ Edges: () => <div /> }));
 
 const PID = "p1" as ProjectId;
 function project(): Project {
-  return { id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
-    menus: [], commands: [], dialogs: [], assets: [], dataSources: [], importedConnectors: [],
-    i18nKeys: {}, defaultLang: "en", canvasLayout: {} } as Project;
+  return {
+    id: PID,
+    name: "p",
+    source: "user_created",
+    createdAt: "",
+    updatedAt: "",
+    documents: { menu: [], command: [], dialog: [] },
+    assets: [],
+    dataSources: [],
+    importedConnectors: [],
+    i18nKeys: {},
+    defaultLang: "en",
+    canvasLayout: {},
+  } as Project;
 }
 describe("Stage — modes", () => {
-  beforeEach(() => useAccountStore.setState({ account: { id: "a" as any, projects: [project()], projectOrder: [PID] } } as any));
+  beforeEach(() =>
+    useAccountStore.setState({
+      account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
+    } as any),
+  );
   it("hand mode → stage draggable", () => {
     useUiStore.setState({ canvasMode: "hand" } as any);
     render(<Stage projectId={PID} />);
@@ -41,9 +65,13 @@ describe("Stage — modes", () => {
     useUiStore.setState({ canvasMode: "select" } as any);
     render(<Stage projectId={PID} />);
     expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("false");
-    act(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Alt" })); });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Alt" }));
+    });
     expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("true");
-    act(() => { window.dispatchEvent(new KeyboardEvent("keyup", { key: "Alt" })); });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Alt" }));
+    });
     expect(screen.getByTestId("konva-stage").getAttribute("data-draggable")).toBe("false");
   });
 });
@@ -55,15 +83,24 @@ function menu(id: string): Menu {
 function projectWithMenus(): Project {
   return {
     ...project(),
-    menus: [menu("m1"), menu("m2")],
+    documents: {
+      menu: [menu("m1"), menu("m2")],
+    },
     canvasLayout: { m1: { x: 0, y: 0 }, m2: { x: 1000, y: 1000 } },
   } as Project;
 }
 
 // Konva mouse event with a target that IS the stage (empty-space drag).
 function stageEvent(shiftKey = false, button = 0) {
-  const stage = { getStage() { return stage; } };
-  return { target: stage, evt: { shiftKey, button } } as unknown as Konva.KonvaEventObject<MouseEvent>;
+  const stage = {
+    getStage() {
+      return stage;
+    },
+  };
+  return {
+    target: stage,
+    evt: { shiftKey, button },
+  } as unknown as Konva.KonvaEventObject<MouseEvent>;
 }
 
 describe("useMarqueeSelection — selection logic", () => {

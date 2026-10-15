@@ -16,12 +16,14 @@ function project(canvasLayout: Record<string, { x: number; y: number }>): Projec
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      { id: MENU_A, projectId: PACK_ID, title: [], rows: 3, layers: [] },
-      { id: MENU_B, projectId: PACK_ID, title: [], rows: 3, layers: [] },
-    ],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [
+        { id: MENU_A, projectId: PACK_ID, title: [], rows: 3, layers: [] },
+        { id: MENU_B, projectId: PACK_ID, title: [], rows: 3, layers: [] },
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],

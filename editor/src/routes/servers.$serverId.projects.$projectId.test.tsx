@@ -53,8 +53,7 @@ const loaderState = vi.hoisted(() => ({
   documentId: undefined as string | undefined,
 }));
 vi.mock("@/features/project/useProjectLoader", () => ({
-  useProjectLoader: () =>
-    loaderState.loaded ? loadedProject() : { failed: [], project: null },
+  useProjectLoader: () => (loaderState.loaded ? loadedProject() : { failed: [], project: null }),
 }));
 function loadedProject() {
   return {
@@ -67,9 +66,11 @@ function loadedProject() {
       name: "Hub",
       defaultLang: "en",
       i18nKeys: {},
-      menus: [],
-      commands: [],
-      dialogs: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
     },
   };

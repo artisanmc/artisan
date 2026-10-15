@@ -145,26 +145,38 @@ sont tranchées en grill (table « Décisions tranchées » de l'ADR).
   le wire keyed ; il gagne un fixture d'Action module (clé inconnue → passthrough) avec le
   lot qui l'implémente.
 
-### W2 — Modèle Project (des deux côtés)
+### W2 — Modèle Project (des deux côtés) — **fait (lot 2, 2026-10-15)**
 
-R2 tranché (2026-10-15) : **conteneur unique, maintenant, entier**. `project.documents[kind]`
-(éditeur) et `ProjectBundle.documents` (plugin) sont la seule source de vérité ; les champs
-`menus/commands/dialogs` disparaissent. `documentsOf(project, kind)` et des accesseurs typés par
-kind (`menusOf(project)`…) sont une **façade de lecture** pour l'ergonomie, jamais un second
-stockage. Les ~98 fichiers de l'éditeur qui lisent `project.menus` (130 occurrences hors tests,
-`.dialogs` 36, `.commands` 39) passent tous par la façade dans ce workstream — le volume n'est
-pas un argument, c'est le périmètre. Un minimum de registre de kinds (kind → `dir`, `idPrefix`,
-`schemaVersion`) est nécessaire ici pour piloter `CORE_PREFIXES`, `ProjectReader` et
-`ResourceInventory` par les données ; les descripteurs complets (W6) viennent après.
+R2 tranché : **conteneur unique, maintenant, entier**. `project.documents[kind]` (éditeur) et
+`ProjectBundle.documents` (plugin) sont la seule source de vérité ; les champs
+`menus/commands/dialogs` ont disparu des deux modèles. `documentsOf(project, kind)` et les
+accesseurs typés (`menusOf(project)`, `bundle.menus`) sont une **façade de lecture**, jamais un
+second stockage. Le volume n'était pas un argument : tous les sites sont passés.
 
-- Éditeur : `editor/src/domain/types.ts:134-164` — `Project.menus/commands/
-  dialogs`. Impacte `schema/projectFromFiles.ts:396-533`
-  (`CORE_PREFIXES` + les trois blocs de parse), `features/export/transform.ts:1095-1241`.
-- Plugin : `ProjectBundle.kt:538-557` ; `ProjectReader.kt:170-215`
-  (trois blocs → un scan par kind enregistré), `withFileId` (`:71-91`) devient un
-  hook du kind ; `project/ResourceInventory.kt:31` (`listOf("menus", "dialogs", "commands")`).
-- **Opaque préservé** : un dir de kind non enregistré round-trip dans
-  `moduleData.__files` (aujourd'hui implicite — le rendre explicite et testé).
+État réel :
+
+- Éditeur : `domain/documentKinds.ts` (registre `DocumentKindDef {kind, dir, idPrefix?,
+  schemaVersion, rank}`, `register/list/byDir`, les trois kinds core enregistrés au chargement) ;
+  `Project.documents: Record<string, Document[]>` (`domain/types.ts`) ; façade `domain/documents.ts`
+  (`documentsOf`, `mutableDocuments`, `menusOf/commandsOf/dialogsOf`, `mutable*`, `allDocuments`,
+  `documentIds`, `findDocument`, `emptyDocuments`) ; codecs par kind `schema/documentCodecs.ts`
+  (`parse`/`serialize`, les trois core enregistrés) : `projectFromFiles` boucle sur
+  `listDocumentKinds()` (préfixes core dérivés des `dir`), `transform` écrit `<dir>/<id>.yaml` par
+  le codec du kind. `lib/projectDocumentsMigration.ts` replie un Project persisté avant le
+  conteneur (`setAccount`, `importProject`). Écriture : `mutableMenus(draft).push(...)` ou
+  `draft.documents.menu = ...` — le conteneur est le store, la façade lit.
+- Plugin : `model/DocumentKinds.kt` (`DocumentKind {kind, dir, schemaVersions}`, registre
+  copy-on-write, `byDir`) ; `ProjectBundle.documents: Map<String, List<BundleDocument>>` avec
+  `menus/commands/dialogs` en getters typés par `documentsOf<T>(kind)` (le seul point de cast) ;
+  `BundleDocument { id }` implémenté par `BundleMenu`, `CommandYaml`, `BundleDialog` ;
+  `ProjectReader` boucle sur `DocumentKinds.all()` avec un lecteur par kind core (un kind
+  enregistré sans lecteur est laissé sur disque) ; `ManifestYaml.files` devient
+  `Map<dir, List<String>>` ; `ResourceInventory` et les tables de `SyncedMenuProvider`
+  (`Map<kind, DocumentTable<BundleDocument>>`) suivent le registre.
+- **Opaque préservé** : un dossier de kind non enregistré round-trip dans `moduleData.__files`
+  côté éditeur et n'est pas lu côté plugin (`DocumentKindsTest`).
+- Reste pour W6 : les descripteurs complets (parse/serialize côté plugin exposés à l'api, kind
+  déclaré par un module) ; la façade garde ses accesseurs typés pour les kinds core.
 
 ### W3 — Ref resolution + runtime « faire »
 

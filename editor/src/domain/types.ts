@@ -131,8 +131,13 @@ export interface Project {
   serverKeyId?: string;
   createdAt: string;
   updatedAt: string;
-  menus: Menu[];
-  commands: Command[];
+  /**
+   * Every Document of the project, by kind ("menu", "command", "dialog", a
+   * module's kind…) — the only store (ADR `extensible-document-kinds`,
+   * decision 10). Read through `domain/documents.ts` (`menusOf`,
+   * `documentsOf`); the kinds themselves are `domain/documentKinds.ts`.
+   */
+  documents: Record<string, Document[]>;
   /** Captured items — serialized game ItemStacks + display descriptors (optional on older projects). */
   capturedItems?: CapturedItem[];
   assets: Asset[];
@@ -161,8 +166,8 @@ export interface Project {
    * `.artisan/editor.yaml` — both shapes are valid input for the plugin.
    */
   i18nMode?: "extract" | "inline";
-  dialogs: Dialog[];
-  canvasLayout: Record<MenuId | CommandId | DialogId, { x: number; y: number }>;
+  /** Board position of each document, keyed by its id (ids are unique across kinds). */
+  canvasLayout: Record<string, { x: number; y: number }>;
   /** Visual-only groups, one level inside the project; stored in .artisan/editor.yaml. */
   canvasGroups?: CanvasGroup[];
   /**
@@ -185,6 +190,9 @@ export interface Project {
    */
   ownerModule?: string;
 }
+
+/** One editable unit of a Project, whatever its kind. A module's kind adds its own member. */
+export type Document = Menu | Command | Dialog;
 
 /** Container shape of a menu. Absent in stored data = "chest" (back-compat). */
 export type InventoryType = "chest" | "hopper" | "dropper";
