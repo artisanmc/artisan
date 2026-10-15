@@ -1,5 +1,10 @@
-import { isLTextNode } from "@/domain/actionTextSlots";
-import type { Action, Condition, ElementId, I18nKey, IfCase, LText, MenuId, DialogId, Step } from "@/domain/types";
+import { canonicalActionValue, isLTextNode, normalizeActionArgs } from "@/domain/actionArgs";
+import type { Action, Condition, I18nKey, IfCase, LText, Step } from "@/domain/types";
+import {
+  type DeclaredActionLookup,
+  declaredActionOf,
+  isCoreAction,
+} from "@/lib/actions/coreActions";
 
 /**
  * Structured codec for action chains (ADR `structured-action-wire`).
@@ -40,233 +45,84 @@ function oneName(raw: Record<string, unknown>): { name: string; value: unknown }
 
 /** Wire text value is a string or a lang map. */
 function isFieldText(v: unknown): v is FieldText {
-  return typeof v === "string" || (isRecord(v) && Object.values(v).every((x) => typeof x === "string"));
+  return (
+    typeof v === "string" || (isRecord(v) && Object.values(v).every((x) => typeof x === "string"))
+  );
 }
 
-function decodeText(v: unknown, c: ActionTextCodec): LText {
-  if (isFieldText(v)) return c.fromWire(v);
-  return c.fromWire(typeof v === "string" ? v : "");
+// Actions
+
+function argsMap(v: unknown): Record<string, unknown> {
+  return isRecord(v) ? v : {};
 }
-
-// Actions: encode
-
-function encodeAction(a: Action, c: ActionTextCodec): StructuredStep {
-  switch (a.type) {
-    case "send_message":
-      return { send_message: c.toWire(a.text.key) };
-    case "broadcast":
-      return { broadcast: c.toWire(a.text.key) };
-    case "give_xp":
-      return { give_xp: a.amount };
-    case "give_level":
-      return { give_level: a.amount };
-    case "give_money":
-      return { give_money: a.amount };
-    case "take_money":
-      return { take_money: a.amount };
-    // Arg-less actions canonically serialize as their bare name (a string step);
-    // `close_menu:` (null) is still accepted on read.
-    case "close_menu":
-      return "close_menu";
-    case "close_dialog":
-      return "close_dialog";
-    case "open_previous_menu":
-      return "open_previous_menu";
-    case "run_command":
-      return a.as === "player" ? { run_command: a.command } : { run_command: { command: a.command, as: a.as } };
-    case "give_item":
-      return { give_item: { material: a.material, count: a.count } };
-    case "take_item":
-      return { take_item: { material: a.material, count: a.count } };
-    case "play_sound":
-      return a.volume === undefined && a.pitch === undefined
-        ? { play_sound: a.sound }
-        : { play_sound: { sound: a.sound, ...(a.volume !== undefined ? { volume: a.volume } : {}), ...(a.pitch !== undefined ? { pitch: a.pitch } : {}) } };
-    case "teleport":
-      return {
-        teleport: {
-          world: a.world,
-          x: a.x,
-          y: a.y,
-          z: a.z,
-          ...(a.yaw !== undefined ? { yaw: a.yaw } : {}),
-          ...(a.pitch !== undefined ? { pitch: a.pitch } : {}),
-        },
-      };
-    case "open_menu": {
-      const hasExtras = a.context !== undefined || a.clearContext !== undefined;
-      return hasExtras
-        ? {
-            open_menu: {
-              menu_id: a.menuId,
-              ...(a.context ? { context: a.context } : {}),
-              ...(a.clearContext !== undefined ? { clear_context: a.clearContext } : {}),
-            },
-          }
-        : { open_menu: a.menuId };
-    }
-    case "open_dialog": {
-      const hasExtras = a.context !== undefined || a.clearContext !== undefined;
-      return hasExtras
-        ? {
-            open_dialog: {
-              dialog_id: a.dialogId,
-              ...(a.context ? { context: a.context } : {}),
-              ...(a.clearContext !== undefined ? { clear_context: a.clearContext } : {}),
-            },
-          }
-        : { open_dialog: a.dialogId };
-    }
-    case "paginate":
-      return a.direction === "next"
-        ? { pagination_next: a.targetElementId ?? null }
-        : { pagination_prev: a.targetElementId ?? null };
-    case "show_title":
-      return {
-        show_title: {
-          title: c.toWire(a.title.key),
-          ...(a.subtitle ? { subtitle: c.toWire(a.subtitle.key) } : {}),
-          ...(a.fadeIn !== undefined ? { fade_in: a.fadeIn } : {}),
-          ...(a.stay !== undefined ? { stay: a.stay } : {}),
-          ...(a.fadeOut !== undefined ? { fade_out: a.fadeOut } : {}),
-        },
-      };
-    case "set_arg":
-      return { set_arg: { arg: a.arg, value: a.value } };
-    case "set_arg_cycle_next":
-      return { set_arg_cycle_next: { arg: a.arg, list: a.list } };
-    case "set_arg_cycle_prev":
-      return { set_arg_cycle_prev: { arg: a.arg, list: a.list } };
-    case "run_actions":
-      return { run_actions: a.actions };
-    case "module": {
-      // A module's action: its wire value, the bare name when it has none. A text
-      // argument adopted into an LText node (`adoptActionTexts`) is written back as
-      // field-local text like a core action's.
-      const value = encodeModuleValue(a.value, c);
-      return value == null ? a.name : { [a.name]: value };
-    }
-  }
-}
-
-/** LText nodes inside a module action's value (top-level arguments and list entries) → wire text. */
-function encodeModuleValue(value: unknown, c: ActionTextCodec): unknown {
-  if (isLTextNode(value)) return c.toWire(value.key);
-  if (Array.isArray(value)) return value.map((v) => (isLTextNode(v) ? c.toWire(v.key) : v));
-  if (isRecord(value)) {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value)) out[k] = encodeModuleValue(v, c);
-    return out;
-  }
-  return value;
-}
-
-// Actions: decode
-
 function str(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 function num(v: unknown): number {
   return typeof v === "number" ? v : Number(v);
 }
-function argsMap(v: unknown): Record<string, unknown> {
-  return isRecord(v) ? v : {};
+
+/** Wire text (string or language map) → LText through the codec. */
+function decodeText(v: unknown, c: ActionTextCodec): LText {
+  if (isFieldText(v)) return c.fromWire(v);
+  return c.fromWire(typeof v === "string" ? v : "");
 }
 
-function decodeAction(name: string, value: unknown, c: ActionTextCodec): Action {
-  const o = argsMap(value);
-  switch (name) {
-    case "send_message":
-      return { type: "send_message", text: decodeText(value, c) };
-    case "broadcast":
-      return { type: "broadcast", text: decodeText(value, c) };
-    case "give_xp":
-      return { type: "give_xp", amount: num(value) };
-    case "give_level":
-      return { type: "give_level", amount: num(value) };
-    case "give_money":
-      return { type: "give_money", amount: num(value) };
-    case "take_money":
-      return { type: "take_money", amount: num(value) };
-    case "close_menu":
-      return { type: "close_menu" };
-    case "close_dialog":
-      return { type: "close_dialog" };
-    case "open_previous_menu":
-      return { type: "open_previous_menu" };
-    case "run_command":
-      return typeof value === "string"
-        ? { type: "run_command", command: value, as: "player" }
-        : { type: "run_command", command: str(o.command), as: o.as === "console" ? "console" : "player" };
-    // A bare material means one of it (same reading as the plugin's KeyedStepParser).
-    case "give_item":
-      return typeof value === "string"
-        ? { type: "give_item", material: value, count: 1 }
-        : { type: "give_item", material: str(o.material), count: o.count === undefined ? 1 : num(o.count) };
-    case "take_item":
-      return typeof value === "string"
-        ? { type: "take_item", material: value, count: 1 }
-        : { type: "take_item", material: str(o.material), count: o.count === undefined ? 1 : num(o.count) };
-    case "play_sound":
-      return typeof value === "string"
-        ? { type: "play_sound", sound: value }
-        : { type: "play_sound", sound: str(o.sound), ...(o.volume !== undefined ? { volume: num(o.volume) } : {}), ...(o.pitch !== undefined ? { pitch: num(o.pitch) } : {}) };
-    case "teleport":
-      return {
-        type: "teleport",
-        world: str(o.world),
-        x: num(o.x),
-        y: num(o.y),
-        z: num(o.z),
-        ...(o.yaw !== undefined ? { yaw: num(o.yaw) } : {}),
-        ...(o.pitch !== undefined ? { pitch: num(o.pitch) } : {}),
-      };
-    case "open_menu":
-      return typeof value === "string"
-        ? { type: "open_menu", menuId: value as MenuId }
-        : {
-            type: "open_menu",
-            menuId: str(o.menu_id) as MenuId,
-            ...(isRecord(o.context) ? { context: o.context as Record<string, string> } : {}),
-            ...(o.clear_context !== undefined ? { clearContext: o.clear_context === true } : {}),
-          };
-    case "open_dialog":
-      return typeof value === "string"
-        ? { type: "open_dialog", dialogId: value as DialogId }
-        : {
-            type: "open_dialog",
-            dialogId: str(o.dialog_id) as DialogId,
-            ...(isRecord(o.context) ? { context: o.context as Record<string, string> } : {}),
-            ...(o.clear_context !== undefined ? { clearContext: o.clear_context === true } : {}),
-          };
-    case "pagination_next":
-      return { type: "paginate", direction: "next", ...(typeof value === "string" ? { targetElementId: value as ElementId } : {}) };
-    case "pagination_prev":
-      return { type: "paginate", direction: "prev", ...(typeof value === "string" ? { targetElementId: value as ElementId } : {}) };
-    case "show_title":
-      // A bare text (string or language map) is the title alone.
-      if (!isRecord(value) || !("title" in value)) return { type: "show_title", title: decodeText(value, c) };
-      return {
-        type: "show_title",
-        title: decodeText(o.title, c),
-        ...(o.subtitle !== undefined ? { subtitle: decodeText(o.subtitle, c) } : {}),
-        ...(o.fade_in !== undefined ? { fadeIn: num(o.fade_in) } : {}),
-        ...(o.stay !== undefined ? { stay: num(o.stay) } : {}),
-        ...(o.fade_out !== undefined ? { fadeOut: num(o.fade_out) } : {}),
-      };
-    case "set_arg":
-      return { type: "set_arg", arg: str(o.arg), value: str(o.value) };
-    case "set_arg_cycle_next":
-      return { type: "set_arg_cycle_next", arg: str(o.arg), list: str(o.list) };
-    case "set_arg_cycle_prev":
-      return { type: "set_arg_cycle_prev", arg: str(o.arg), list: str(o.list) };
-    case "run_actions":
-      return { type: "run_actions", actions: str(value) };
-    default:
-      // A name the core vocabulary doesn't know: a module's action (or a typo).
-      // Kept verbatim; the plugin's registry binds it or reports it.
-      return { type: "module", name, value: value ?? null };
+/** Every LText node inside a value (top-level arguments, list entries, nested records) → wire text. */
+function encodeTexts(value: unknown, c: ActionTextCodec): unknown {
+  if (isLTextNode(value)) return c.toWire(value.key);
+  if (Array.isArray(value)) return value.map((v) => encodeTexts(v, c));
+  if (isRecord(value)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = encodeTexts(v, c);
+    return out;
   }
+  return value;
+}
+
+/**
+ * An action → its keyed step: the bare name when it has no argument, `{name: value}`
+ * otherwise, the value in its canonical form (`canonicalActionValue`: defaults dropped,
+ * the primary alone when it is the only argument) with adopted texts written back as
+ * field-local text. An undeclared action is written as it was read.
+ */
+function encodeAction(a: Action, c: ActionTextCodec, declOf: DeclaredActionLookup): StructuredStep {
+  const decl = declOf(a.name);
+  const value = decl
+    ? canonicalActionValue(
+        decl,
+        encodeTexts(normalizeActionArgs(decl, a.value), c) as Record<string, unknown>,
+      )
+    : encodeTexts(a.value, c);
+  // No value: the bare name, unless the declaration has arguments (then `{name: null}`
+  // says "none of them", like `pagination_next: null`).
+  if (value == null) return decl && decl.args.length > 0 ? { [a.name]: null } : a.name;
+  return { [a.name]: value };
+}
+
+/**
+ * A keyed step → an action. A core action's text arguments (`ltext`, `list(ltext)`) go
+ * through the codec into LText nodes here, like a title; a module's action is kept
+ * verbatim — its texts become nodes once its declaration is known (`adoptActionTexts`),
+ * since the server may not have reported it yet. The value is stored canonical.
+ */
+function decodeAction(
+  name: string,
+  value: unknown,
+  c: ActionTextCodec,
+  declOf: DeclaredActionLookup,
+): Action {
+  const decl = declOf(name);
+  if (!decl || !isCoreAction(name)) return { name, value: value ?? null };
+  const args = normalizeActionArgs(decl, value);
+  for (const arg of decl.args) {
+    const v = args[arg.name];
+    if (v === undefined) continue;
+    if (arg.type.kind === "ltext") args[arg.name] = decodeText(v, c);
+    else if (arg.type.kind === "list" && arg.type.of.kind === "ltext" && Array.isArray(v))
+      args[arg.name] = v.map((e) => decodeText(e, c));
+  }
+  return { name, value: canonicalActionValue(decl, args) };
 }
 
 // Conditions: encode
@@ -380,9 +236,15 @@ function decodeCondition(raw: unknown): Condition | null {
     case "placeholder_match":
       return { type: "placeholder_match", placeholder: str(o.placeholder), regex: str(o.regex) };
     case "pagination_at_first":
-      return { type: "pagination_at_first", ...(typeof value === "string" ? { elementId: value } : {}) };
+      return {
+        type: "pagination_at_first",
+        ...(typeof value === "string" ? { elementId: value } : {}),
+      };
     case "pagination_at_last":
-      return { type: "pagination_at_last", ...(typeof value === "string" ? { elementId: value } : {}) };
+      return {
+        type: "pagination_at_last",
+        ...(typeof value === "string" ? { elementId: value } : {}),
+      };
     case "expression":
       return { type: "expression", expr: str(value) };
     case "not": {
@@ -415,48 +277,73 @@ function decodeIfConditions(raw: unknown): Condition[] {
 
 // Steps
 
-export function stepsToStructured(steps: Step[], c: ActionTextCodec): StructuredStep[] {
-  return steps.map((s) => encodeStep(s, c));
+/**
+ * Domain steps → keyed wire. `declOf` finds each action's declaration (Artisan's table,
+ * then the active server's `declared_actions` by default) for its canonical form.
+ */
+export function stepsToStructured(
+  steps: Step[],
+  c: ActionTextCodec,
+  declOf: DeclaredActionLookup = declaredActionOf,
+): StructuredStep[] {
+  return steps.map((s) => encodeStep(s, c, declOf));
 }
 
-function encodeStep(s: Step, c: ActionTextCodec): StructuredStep {
-  if (s.kind === "action") return encodeAction(s.action, c);
-  return encodeIf(s.cases, s.else, c);
+function encodeStep(s: Step, c: ActionTextCodec, d: DeclaredActionLookup): StructuredStep {
+  if (s.kind === "action") return encodeAction(s.action, c, d);
+  return encodeIf(s.cases, s.else, c, d);
 }
 
-function encodeIf(cases: IfCase[], elseSteps: Step[] | undefined, c: ActionTextCodec): Record<string, unknown> {
+function encodeIf(
+  cases: IfCase[],
+  elseSteps: Step[] | undefined,
+  c: ActionTextCodec,
+  d: DeclaredActionLookup,
+): Record<string, unknown> {
   const [first, ...rest] = cases;
   if (!first) return { if: [], do: [] };
   const node: Record<string, unknown> = {
     if: conditionsToStructured(first.conditions, first.joins),
-    do: first.steps.map((s) => encodeStep(s, c)),
+    do: first.steps.map((s) => encodeStep(s, c, d)),
   };
-  const nestedElse = rest.length > 0 ? [encodeIf(rest, elseSteps, c)] : elseSteps?.map((s) => encodeStep(s, c));
+  const nestedElse =
+    rest.length > 0
+      ? [encodeIf(rest, elseSteps, c, d)]
+      : elseSteps?.map((s) => encodeStep(s, c, d));
   if (nestedElse && nestedElse.length > 0) node.else = nestedElse;
   return node;
 }
 
-export function structuredToSteps(raw: unknown, c: ActionTextCodec): Step[] {
+/** Keyed wire → domain steps (map = one step, list = a chain, string = an arg-less action). */
+export function structuredToSteps(
+  raw: unknown,
+  c: ActionTextCodec,
+  declOf: DeclaredActionLookup = declaredActionOf,
+): Step[] {
   if (raw === undefined || raw === null) return [];
   if (typeof raw === "string") {
     // Legacy DSL string or a single arg-less action name.
-    return [decodeStep(raw, c)];
+    return [decodeStep(raw, c, declOf)];
   }
-  if (Array.isArray(raw)) return raw.map((s) => decodeStep(s, c));
-  return [decodeStep(raw, c)];
+  if (Array.isArray(raw)) return raw.map((s) => decodeStep(s, c, declOf));
+  return [decodeStep(raw, c, declOf)];
 }
 
-function decodeStep(raw: unknown, c: ActionTextCodec): Step {
+function decodeStep(raw: unknown, c: ActionTextCodec, d: DeclaredActionLookup): Step {
   if (typeof raw === "string") {
-    return { kind: "action", action: decodeAction(raw, null, c) };
+    return { kind: "action", action: decodeAction(raw, null, c, d) };
   }
   const rawObj = argsMap(raw);
-  if ("if" in rawObj) return decodeIf(rawObj, c);
+  if ("if" in rawObj) return decodeIf(rawObj, c, d);
   const m = oneName(rawObj);
-  return { kind: "action", action: decodeAction(m?.name ?? "", m?.value, c) };
+  return { kind: "action", action: decodeAction(m?.name ?? "", m?.value, c, d) };
 }
 
-function decodeIf(node: Record<string, unknown>, c: ActionTextCodec): Step {
+function decodeIf(
+  node: Record<string, unknown>,
+  c: ActionTextCodec,
+  d: DeclaredActionLookup,
+): Step {
   const cases: IfCase[] = [];
   let current = node;
   let elseSteps: Step[] | undefined;
@@ -464,7 +351,7 @@ function decodeIf(node: Record<string, unknown>, c: ActionTextCodec): Step {
   while (true) {
     cases.push({
       conditions: decodeIfConditions(current.if),
-      steps: (Array.isArray(current.do) ? current.do : []).map((s) => decodeStep(s, c)),
+      steps: (Array.isArray(current.do) ? current.do : []).map((s) => decodeStep(s, c, d)),
     });
     const els = current.else;
     const firstElse = Array.isArray(els) ? els[0] : undefined;
@@ -472,7 +359,7 @@ function decodeIf(node: Record<string, unknown>, c: ActionTextCodec): Step {
       current = firstElse;
       continue;
     }
-    elseSteps = Array.isArray(els) ? els.map((s) => decodeStep(s, c)) : undefined;
+    elseSteps = Array.isArray(els) ? els.map((s) => decodeStep(s, c, d)) : undefined;
     break;
   }
   return { kind: "if", cases, ...(elseSteps && elseSteps.length > 0 ? { else: elseSteps } : {}) };

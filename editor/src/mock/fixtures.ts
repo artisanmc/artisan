@@ -62,7 +62,7 @@ const personalProject = (): Project => {
                     click: {
                       left: {
                         steps: [
-                          { kind: "action", action: { type: "open_menu", menuId: profileId } },
+                          { kind: "action", action: { name: "open_menu", value: profileId } },
                         ],
                       },
                     },
@@ -98,7 +98,7 @@ const personalProject = (): Project => {
           steps: [
             {
               kind: "action",
-              action: { type: "send_message", text: { key: k("commands.c_heal.message") } },
+              action: { name: "send_message", value: { key: k("commands.c_heal.message") } },
             },
           ],
         },
@@ -162,7 +162,7 @@ const shopSystemProject = (): Project => {
           projectId: pId,
           name: "shop",
           arguments: [],
-          steps: [{ kind: "action", action: { type: "open_menu", menuId: shopRootId } }],
+          steps: [{ kind: "action", action: { name: "open_menu", value: shopRootId } }],
         },
       ],
       dialog: [],

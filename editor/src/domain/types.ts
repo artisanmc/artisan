@@ -396,110 +396,21 @@ export interface IfCase {
   steps: Step[];
 }
 
-export type Action =
-  | {
-      type: "open_menu";
-      menuId: MenuId;
-      clearContext?: boolean;
-      /**
-       * Values passed to the target menu's contextInputs when it opens.
-       * Keys are the target input names; values are template strings
-       * that may reference placeholders from the caller scope (e.g.
-       * `{player}`, `{quest.name}`).
-       */
-      context?: Record<string, string>;
-    }
-  | { type: "close_menu" }
-  /**
-   * Re-open the previous screen from the player's navigation history — the back
-   * button. Consumes the history (menu → wiki → item: two backs return to the
-   * menu, never bounce between item and wiki). No-op when there is no previous
-   * screen; guard the button with `has_previous_menu`.
-   */
-  | { type: "open_previous_menu" }
-  | { type: "run_command"; command: string; as: "player" | "console" }
-  | { type: "send_message"; text: LText }
-  /**
-   * Display a Minecraft HUD title (and optional subtitle) to the
-   * triggering player. Mirrors Adventure's `Audience.showTitle(Title)`.
-   * `title` and `subtitle` are LText refs so they translate per-player;
-   * timings are ticks (50ms each). Defaults match Adventure: 10/70/20.
-   */
-  | {
-      type: "show_title";
-      title: LText;
-      subtitle?: LText;
-      fadeIn?: number;
-      stay?: number;
-      fadeOut?: number;
-    }
-  | { type: "give_item"; material: string; count: number }
-  | { type: "take_item"; material: string; count: number }
-  | { type: "take_money"; amount: number }
-  | { type: "give_money"; amount: number }
-  | { type: "give_xp"; amount: number }
-  | { type: "give_level"; amount: number }
-  /** Broadcast to every online player (vs send_message → triggering player only). */
-  | { type: "broadcast"; text: LText }
-  /** Play a sound to the triggering player. `sound` is a Bukkit Sound name. */
-  | { type: "play_sound"; sound: string; volume?: number; pitch?: number }
-  /** Teleport to coordinates. */
-  | {
-      type: "teleport";
-      world: string;
-      x: number;
-      y: number;
-      z: number;
-      yaw?: number;
-      pitch?: number;
-    }
-  /**
-   * Advance pagination of an iterating element. If `targetElementId` is
-   * unset the runtime paginates every iterating element in the current
-   * menu (handy for a single "Next page" button when there's only one
-   * list). With it set, only that element's pagination flips — useful
-   * when a menu has several iterables, each with its own pager.
-   */
-  | { type: "paginate"; direction: "next" | "prev"; targetElementId?: ElementId }
-  /**
-   * Mutate a context input of the current menu. `value` is an Expression
-   * (DSL). After the mutation, the runtime triggers a re-render of the
-   * current menu. `arg` MUST match an existing Menu.contextInputs[*].name.
-   */
-  | { type: "set_arg"; arg: string; value: string }
-  /**
-   * Cycle a context input through a list. `list` is an Expression
-   * evaluating to a list. The runtime finds the current value's index
-   * (looseEq), advances by ±1 wrapping at endpoints, and writes the
-   * new value to contextInput[arg]. Then triggers re-render.
-   *
-   * If `arg` is unknown or `list` doesn't evaluate to a non-empty list,
-   * the action is a no-op (warn-logged).
-   */
-  | { type: "set_arg_cycle_next"; arg: string; list: string }
-  | { type: "set_arg_cycle_prev"; arg: string; list: string }
-  | {
-      type: "open_dialog";
-      dialogId: DialogId;
-      context?: Record<string, string>;
-      clearContext?: boolean;
-    }
-  | { type: "close_dialog" }
-  /**
-   * Invoke an Action chain stored on a Data source `actions` field. `actions`
-   * is an Expression resolving to the chain (a table row's field or a config
-   * value); it runs inline with the resolved-from object as self-scope, depth
-   * capped at 16. Cf. ADR `action-dsl`.
-   */
-  | { type: "run_actions"; actions: string }
-  /**
-   * An action a module registered on the server (ADR `extensible-document-kinds`,
-   * R1): `name` is its wire key (`quests:start`), `value` its wire value verbatim
-   * (null, a scalar, or an argument map). The editor renders its form from the
-   * server's declared actions when they are known, and keeps the value as is
-   * otherwise — the plugin binds and runs it through the action registry.
-   */
-  | { type: "module"; name: string; value: unknown };
+/**
+ * An action step, as the wire carries it (ADR `structured-action-wire`, `extensible-document-kinds`
+ * R1/W4): `name` is its wire key (`open_menu`, `quests:start`), `value` its wire value in the
+ * canonical form (null for no argument, the primary argument's value alone, or an argument
+ * map), with one difference: a text argument (`ltext`, an entry of a `list(ltext)`) is an
+ * {@link LText} node once adopted. The vocabulary lives in the declarations — Artisan's own in
+ * `testdata/core-actions.json` (`lib/actions/coreActions.ts`), a module's in the server's
+ * `declared_actions` — and every reader goes through them (`domain/actionArgs.ts`): the form,
+ * the pseudocode, the i18n slots, the `document_ref` edges. An undeclared action is kept
+ * verbatim; the plugin binds and runs it through the action registry.
+ */
+export interface Action {
+  name: string;
+  value: unknown;
+}
 
 export type Condition =
   | { type: "has_permission"; perm: string }

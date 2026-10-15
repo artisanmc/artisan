@@ -24,7 +24,7 @@ describe("commandV1ToDomain", () => {
     expect(command.permission).toBe("a.heal");
     expect(command.description).toBe("Heal");
     expect(command.projectId).toBe("p1");
-    expect(command.steps).toEqual([{ kind: "action", action: { type: "close_menu" } }]);
+    expect(command.steps).toEqual([{ kind: "action", action: { name: "close_menu", value: null } }]);
   });
 
   it("maps arguments, online_player→player, and extracts send_message i18n", () => {
@@ -46,7 +46,7 @@ describe("commandV1ToDomain", () => {
       { name: "amount", type: "integer", required: true },
     ]);
     const a = command.steps[0] as any;
-    expect(i18nKeys[a.action.text.key]).toEqual({ en: "ok" });
+    expect(i18nKeys[a.action.value.key]).toEqual({ en: "ok" });
   });
 
   it("reads the canonical `actions` field and defaults name to id", () => {
@@ -55,7 +55,7 @@ describe("commandV1ToDomain", () => {
       opts,
     );
     expect(command.name).toBe("boutique");
-    expect(command.steps).toEqual([{ kind: "action", action: { type: "close_menu" } }]);
+    expect(command.steps).toEqual([{ kind: "action", action: { name: "close_menu", value: null } }]);
   });
 
   it("prefers `actions` over legacy `steps` when both are present", () => {
@@ -63,7 +63,7 @@ describe("commandV1ToDomain", () => {
       { schema: "command/v1", id: "c", actions: "close_menu", steps: 'send_message "old"' },
       opts,
     );
-    expect(command.steps).toEqual([{ kind: "action", action: { type: "close_menu" } }]);
+    expect(command.steps).toEqual([{ kind: "action", action: { name: "close_menu", value: null } }]);
   });
 
   it("flags requirements/fallback/cooldown and unsupported arg types", () => {
@@ -74,7 +74,7 @@ describe("commandV1ToDomain", () => {
         name: "c",
         arguments: [{ name: "w", type: "world", required: false }],
         requirements: [{ type: "has_money", amount: 1 }],
-        fallback: [{ type: "close_menu" }],
+        fallback: [{ name: "close_menu", value: null }],
         cooldown: { id: "x", duration_seconds: 5 },
         steps: "close_menu",
       },

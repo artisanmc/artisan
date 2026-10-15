@@ -53,12 +53,9 @@ const shopMenu = (): Menu =>
                   steps: [
                     {
                       kind: "action",
-                      action: {
-                        type: "send_message",
-                        text: {
+                      action: { name: "send_message", value: {
                           key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
-                        },
-                      },
+                        } },
                     },
                   ],
                 },
@@ -151,7 +148,7 @@ describe("transform — structural text is field-local", () => {
             steps: [
               {
                 kind: "action",
-                action: { type: "send_message", text: { key: "commands.heal.message" as I18nKey } },
+                action: { name: "send_message", value: { key: "commands.heal.message" as I18nKey } },
               },
             ],
           },

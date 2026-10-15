@@ -32,20 +32,20 @@ function roundTrip(steps: Step[]) {
 describe("structuredSteps — actions", () => {
   it("encodes scalar, null and multi-arg actions", () => {
     const steps: Step[] = [
-      { kind: "action", action: { type: "send_message", text: { key: "m1" as I18nKey } } },
-      { kind: "action", action: { type: "close_menu" } },
-      { kind: "action", action: { type: "open_previous_menu" } },
-      { kind: "action", action: { type: "give_money", amount: 100 } },
-      { kind: "action", action: { type: "run_command", command: "say hi", as: "player" } },
-      { kind: "action", action: { type: "run_command", command: "op", as: "console" } },
-      { kind: "action", action: { type: "open_menu", menuId: "shop" } },
+      { kind: "action", action: { name: "send_message", value: { key: "m1" as I18nKey } } },
+      { kind: "action", action: { name: "close_menu", value: null } },
+      { kind: "action", action: { name: "open_previous_menu", value: null } },
+      { kind: "action", action: { name: "give_money", value: 100 } },
+      { kind: "action", action: { name: "run_command", value: "say hi" } },
+      { kind: "action", action: { name: "run_command", value: { command: "op", as: "console" } } },
+      { kind: "action", action: { name: "open_menu", value: "shop" } },
       {
         kind: "action",
-        action: { type: "open_menu", menuId: "shop", context: { cat: "{cat.id}" } },
+        action: { name: "open_menu", value: { menu_id: "shop", context: { cat: "{cat.id}" } } },
       },
       {
         kind: "action",
-        action: { type: "show_title", title: { key: "m2" as I18nKey }, stay: 40 },
+        action: { name: "show_title", value: { title: { key: "m2" as I18nKey }, stay: 40 } },
       },
     ];
     expect(stepsToStructured(steps, codec)).toEqual([
@@ -63,12 +63,12 @@ describe("structuredSteps — actions", () => {
 
   it("round-trips action steps through the wire", () => {
     const steps: Step[] = [
-      { kind: "action", action: { type: "send_message", text: { key: "m1" as I18nKey } } },
-      { kind: "action", action: { type: "open_dialog", dialogId: "confirm", clearContext: true } },
-      { kind: "action", action: { type: "play_sound", sound: "PLING", pitch: 1.2 } },
+      { kind: "action", action: { name: "send_message", value: { key: "m1" as I18nKey } } },
+      { kind: "action", action: { name: "open_dialog", value: { dialog_id: "confirm", clear_context: true } } },
+      { kind: "action", action: { name: "play_sound", value: { sound: "PLING", pitch: 1.2 } } },
       {
         kind: "action",
-        action: { type: "paginate", direction: "next", targetElementId: "grid" as never },
+        action: { name: "pagination_next", value: "grid" as never },
       },
     ];
     const { wire, wire2 } = roundTrip(steps);
@@ -126,15 +126,15 @@ describe("structuredSteps — if / else", () => {
         cases: [
           {
             conditions: [{ type: "has_permission", perm: "a" }],
-            steps: [{ kind: "action", action: { type: "close_menu" } }],
+            steps: [{ kind: "action", action: { name: "close_menu", value: null } }],
           },
           {
             conditions: [{ type: "random_chance", probability: 0.1 }],
-            steps: [{ kind: "action", action: { type: "open_dialog", dialogId: "d" } }],
+            steps: [{ kind: "action", action: { name: "open_dialog", value: "d" } }],
           },
         ],
         else: [
-          { kind: "action", action: { type: "send_message", text: { key: "m1" as I18nKey } } },
+          { kind: "action", action: { name: "send_message", value: { key: "m1" as I18nKey } } },
         ],
       },
     ];
@@ -171,7 +171,7 @@ describe("structuredSteps — if / else", () => {
               { type: "world_is", world: "b" },
             ],
             joins: ["or"],
-            steps: [{ kind: "action", action: { type: "close_menu" } }],
+            steps: [{ kind: "action", action: { name: "close_menu", value: null } }],
           },
         ],
       },
@@ -225,14 +225,14 @@ describe("structuredSteps — mixed and/or joins", () => {
 describe("structuredSteps — tolerant decode", () => {
   it("reads a bare string as an arg-less action", () => {
     expect(structuredToSteps(["close_menu", "close_dialog"], codec)).toEqual([
-      { kind: "action", action: { type: "close_menu" } },
-      { kind: "action", action: { type: "close_dialog" } },
+      { kind: "action", action: { name: "close_menu", value: null } },
+      { kind: "action", action: { name: "close_dialog", value: null } },
     ]);
   });
 
   it("accepts close_menu: (null) as the same action", () => {
     expect(structuredToSteps([{ close_menu: null }], codec)).toEqual([
-      { kind: "action", action: { type: "close_menu" } },
+      { kind: "action", action: { name: "close_menu", value: null } },
     ]);
   });
 

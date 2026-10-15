@@ -20,7 +20,7 @@ const menu = (id: string, opens?: string) =>
                   material: "PAPER",
                   click: {
                     left: {
-                      steps: [{ kind: "action", action: { type: "open_menu", menuId: opens } }],
+                      steps: [{ kind: "action", action: { name: "open_menu", value: opens } }],
                     },
                   },
                 },
@@ -111,7 +111,7 @@ describe("rearrangeProjectLayout — modes", () => {
           positions: String(index),
           display: {
             click: {
-              left: { steps: [{ kind: "action", action: { type: "open_menu", menuId: target } }] },
+              left: { steps: [{ kind: "action", action: { name: "open_menu", value: target } }] },
             },
           },
           states: [],

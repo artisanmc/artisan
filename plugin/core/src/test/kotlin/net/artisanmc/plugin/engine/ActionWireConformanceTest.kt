@@ -40,15 +40,27 @@ class ActionWireConformanceTest {
         is Step.ActionStep -> step.name
     }
 
-    /** A chain as the engine runs it: each action bound to its argument map. */
+    /**
+     * A chain as the engine runs it: each action bound to its argument map. Numbers are
+     * compared as doubles: a handler reads them through [Args] (`volume: 1` on the wire and
+     * the declared default `1.0` are the same value to it), so a canonical form that drops a
+     * default must still bind like the wire that spelled it out.
+     */
     private fun bound(steps: List<Step>): List<Any> = steps.map { step ->
         when (step) {
-            is Step.ActionStep -> step.name to (CoreActions.schema(step.name)?.bind(step.value) ?: step.value)
+            is Step.ActionStep -> step.name to numbersAsDouble(CoreActions.schema(step.name)?.bind(step.value) ?: step.value)
             is Step.IfStep -> mapOf(
                 "cases" to step.cases.map { it.conditions to bound(it.steps) },
                 "else" to bound(step.elseSteps),
             )
         }
+    }
+
+    private fun numbersAsDouble(v: Any?): Any? = when (v) {
+        is Number -> v.toDouble()
+        is Map<*, *> -> v.entries.associate { (k, e) -> k to numbersAsDouble(e) }
+        is List<*> -> v.map(::numbersAsDouble)
+        else -> v
     }
 
     @TestFactory
