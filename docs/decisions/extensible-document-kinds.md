@@ -165,6 +165,40 @@ Trois ADR cadrent :
 - On fige le descripteur `@Beta` et on **n'ouvre pas** de nouvelle API plugin tant
   qu'un pilote (NPC, Conversation ou Quest) ne l'exige pas.
 
+## Révision 2026-10-15 — confrontation au code de `v2`
+
+Faits qui corrigent le texte ci-dessus (le code fait foi) :
+
+- Le wire structuré keyed est **déjà** en production des deux côtés (l'éditeur écrit
+  `stepsToStructured`, le plugin lit `KeyedStepParser`) ; `structured-action-wire` passe
+  `accepted` le même jour. La condition « si accepté entre-temps » de la spec W1 tombe ;
+  le retrait du codec DSL est un nettoyage hors chemin critique.
+- Le verrou cross-stack du wire keyed n'existait pas : `testdata/action-wire-conformance.json`
+  (`ActionWireConformanceTest` ↔ `lib/actions/actionWireConformance.test.ts`) le crée.
+  `action-dsl-conformance.json` ne couvre que le DSL legacy.
+- Le field kit réel (`ModelFieldType`, `editor/src/domain/types.ts`) est `string, number,
+  integer, boolean, ltext, minimessage, minimessage_multiline, item, actions, conditions, list,
+  object, model, map, enum, union`. `material` n'en fait pas partie (c'est `item`).
+- Le store éditeur est découpé par kind (`state/account/{menus,dialogs,commands,…}Slice.ts`,
+  issue #46) : la carte `file:line` de la spec W5 est rafraîchie en conséquence.
+- Deux sites hard-codés manquaient à la spec : `project/ResourceInventory.kt` (les trois
+  dossiers) et le relais de présence du hub (`hub/RemoteServer.kt`, liste des champs copiés
+  d'une feuille — `document_kinds` doit s'y ajouter).
+
+### Questions ouvertes (à trancher avant le lot « registre d'actions »)
+
+| # | Question | Recommandation |
+|---|---|---|
+| R1 | Décision 4 : les actions core doivent-elles être **exécutées** via le registre, ou seulement **décrites** par lui ? | **Tranché (Iban, 2026-10-15) : exécutées aussi.** Un seul contrat `ActionHandler { name, args: ModelField[], execute(ctx, args) }`, implémenté par chaque module ; le core dispatche par nom et ne connaît personne. `open_menu` est un handler du module menus comme `start_quest` le sera du module quêtes ; aucun `when`/`if (name === …)` hors d'un handler. L'exhaustivité du compilateur est remplacée par un **test de complétude** (chaque nom du vocabulaire a exactement un handler, dont le schéma coïncide) et par le vecteur `action-wire-conformance.json` ; le typage reste **interne au module** (la sealed class `Action` devient privée à menus/dialogs). Même mécanisme que `DataSourceRegistry`, `CommandRegistry`, `ModelRegistry`, `EditorScreenRegistry`. Deux détails de contrat imposés par le code actuel : (a) `execute` **retourne le contexte suivant** — huit actions core le modifient (`open_previous_menu`, `pagination_*`, `set_arg*`, `run_actions`) et `open_menu`/`open_dialog` poussent l'historique de navigation ; `run_actions` a besoin du runtime (exécuter des steps, résoudre un texte), donc le handler reçoit `(ctx, args, runtime)`. (b) La forme scalaire du wire (`open_menu: shop`) exige un **argument primaire** dans la déclaration : le core normalise `scalaire → {primary: v}`, `null → {}`, `map → map` d'après le schéma, et canonise en sens inverse (seul le primaire renseigné → scalaire, aucun arg → nom nu) ; le handler ne voit jamais la forme du wire. |
+| R2 | Décision 10 : conteneur par kind **tout de suite**, ou accesseur `documentsOf(project, kind)` sur les anciens champs d'abord, conteneur complet seulement si l'accesseur ne suffit pas ? | **Tranché (Iban, 2026-10-15) : conteneur unique, maintenant, entier.** Le nombre de sites touchés n'entre pas dans la balance : on tranche sur la santé de l'architecture. `project.documents[kind]` / `ProjectBundle.documents` est la **seule source de vérité** ; `documentsOf(project, kind)` et ses variantes typées sont une **façade de lecture**, pas une seconde représentation. Les trois champs parallèles `menus/commands/dialogs` sont la **cause racine** du problème : c'est parce que le Project est modélisé en trois champs que la liste fermée des kinds fuit dans tous les consommateurs (`DocumentKind` en douze endroits, `["menu","command","dialog"]`, `GUTTER_KIND_ORDER`). Le conteneur supprime la cause ; un accesseur sur les anciens champs soignait le symptôme en gardant deux représentations et une migration à payer deux fois. Le typage statique perdu ne couvrait que les kinds core, que le compilateur ne peut de toute façon pas connaître dès qu'un kind vient d'un module. Conséquence sur l'ordre : le conteneur (W2) est la **base** du chantier et passe en premier, comme le handoff du 2026-10-14 le disait. Réserve : les contrats neufs restent `@Beta` et ne se figent qu'après un pilote. |
+| R3 | `document_ref(kind)` : type d'argument à part, ou **kind de `ModelFieldType`** ? | **Kind de `ModelFieldType`.** `ActionDecl.args` devient un `ModelField[]`, `<SchemaForm>` le rend déjà, et une ligne de data model peut pointer un Document avec picker, rename, ref morte et arête par le même visiteur. Seule lecture cohérente de « un seul système de types ». |
+| R4 | Qui déclare le kind `quest` : Artisan core ou **MSQuests en add-on** ? | **MSQuests.** L'ADR déclare les kinds par module ; le pilote Quest vit alors dans son dépôt et y tranche `quest/v1`. |
+| R5 | W5 et les lots restants de #46 (un store par slice) se chevauchent. | W5 après #46, ou « CRUD générique de Document par kind » intégré au plan #46. |
+
+Précision retenue sans débat : un slot de chaîne est un **site** (`{ name, steps, path }`),
+comme `LTextSite`, pas un simple nom — l'extracteur générique d'arêtes a besoin des steps
+et du chemin pour conserver les triggers que la planche affiche.
+
 ## Hors périmètre / différé
 
 - **Le DSL** : éliminé par `structured-action-wire` ; non réintroduit.
