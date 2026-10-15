@@ -249,9 +249,9 @@ comme table des actions core ; `domain/actionTextSlots.ts` (`walkStepTextSlots`)
 sites i18n : adoptés en nœuds `LText` à leur adresse quand la déclaration est connue (chargement du
 projet, ou Présence plus tard — `adoptProjectActionTexts`), listés dans le panneau Traductions,
 édités par langue dans le formulaire (`ModuleTextInput`), réécrits en texte field-local à l'export.
-La dette restante (formulaires des actions core, W4) est levée au lot 5 ci-dessous.
+La dette restante (formulaires des actions core, W4) est levée ci-dessous.
 
-**Fait (2026-10-15, lot 5 — W4, « unification complète » tranchée par Iban)** : l'union typée
+**Fait (2026-10-15, W4 — « unification complète » tranchée par Iban)** : l'union typée
 `Action` de l'éditeur est supprimée. Une action du domaine est `{ name, value }` — le nom du wire
 et sa valeur canonique, ses textes en nœuds `LText` aux emplacements `ltext` — core ou module
 sans distinction ; `{type: "module", name, value}` disparaît. Tout lecteur passe par la
