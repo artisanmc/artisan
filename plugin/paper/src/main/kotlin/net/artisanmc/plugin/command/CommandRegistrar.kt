@@ -59,7 +59,7 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
                     registered += normalised
                     seen += normalised
                 }
-                logger.info("[ART-DEBUG] Registered command: /$name (actions=${compiled.handler.actions.size})")
+                logger.info("[ART-DEBUG] Registered command: /$name (steps=${compiled.handler.steps.size})")
             }
         }
     }

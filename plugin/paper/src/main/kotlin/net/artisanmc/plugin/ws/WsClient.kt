@@ -24,6 +24,7 @@ class WsClient(
     private val dataSources: () -> List<Map<String, Any?>> = { emptyList() },
     private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
     private val editorScreens: () -> List<Map<String, Any?>> = { emptyList() },
+    private val declaredActions: () -> List<Map<String, Any?>> = { emptyList() },
     private val serverConfig: () -> Map<String, Any?>? = { null },
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
@@ -102,6 +103,7 @@ class WsClient(
                 "data_sources" to dataSources(),
                 "declared_models" to declaredModels(),
                 "editor_screens" to editorScreens(),
+                "declared_actions" to declaredActions(),
                 "server_config" to serverConfig(),
             )
             ws.send(mapper.writeValueAsString(hello))

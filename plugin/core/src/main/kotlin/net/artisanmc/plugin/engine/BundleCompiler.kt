@@ -101,12 +101,12 @@ object BundleCompiler {
     private fun compileClickHandler(raw: Any?, prefix: String): ClickHandler {
         // Programmatic construction (tests): a ClickHandlerYaml instance.
         if (raw is net.artisanmc.plugin.model.ClickHandlerYaml) {
+            val dsl = assignI18nAddresses(compileActionDsl(raw.steps), prefix)
             return ClickHandler(
                 requirements = raw.requirements.map { ConditionParser.parse(it) },
-                actions = raw.actions.map { ActionParser.parse(it) },
-                fallback = raw.fallback.map { Step.ActionStep(ActionParser.parse(it)) },
+                fallback = raw.fallback.map { ActionParser.parse(it) },
                 cooldown = raw.cooldown?.let { Cooldown(it.id, it.duration, it.scope, it.message) },
-                steps = assignI18nAddresses(compileActionDsl(raw.steps), prefix),
+                steps = dsl.ifEmpty { raw.actions.map { ActionParser.parse(it) } },
             )
         }
         val m = raw as? Map<*, *>
@@ -114,11 +114,11 @@ object BundleCompiler {
             (m.containsKey("requirements") || m.containsKey("cooldown") ||
                 m.containsKey("fallback") || m.containsKey("actions"))
         if (!isLegacyObject) {
-            return ClickHandler(emptyList(), emptyList(), emptyList(), steps = ActionChainCompiler.compile(raw, prefix))
+            return ClickHandler(emptyList(), emptyList(), steps = ActionChainCompiler.compile(raw, prefix))
         }
         val requirements = (m!!["requirements"] as? List<Map<String, Any>>).orEmpty().map { ConditionParser.parse(it) }
         val legacyActions = (m["actions"] as? List<Map<String, Any>>).orEmpty().map { ActionParser.parse(it) }
-        val fallback = (m["fallback"] as? List<Map<String, Any>>).orEmpty().map { Step.ActionStep(ActionParser.parse(it)) }
+        val fallback = (m["fallback"] as? List<Map<String, Any>>).orEmpty().map { ActionParser.parse(it) }
         val cooldown = (m["cooldown"] as? Map<*, *>)?.let { cy ->
             Cooldown(
                 cy["id"]?.toString() ?: "",
@@ -128,7 +128,7 @@ object BundleCompiler {
             )
         }
         val steps = (m["steps"] as? String)?.let { assignI18nAddresses(compileActionDsl(it), prefix) } ?: emptyList()
-        return ClickHandler(requirements, legacyActions, fallback, cooldown, steps)
+        return ClickHandler(requirements, fallback, cooldown, steps.ifEmpty { legacyActions })
     }
 
     private fun warnMalformedTemplates(

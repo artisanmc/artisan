@@ -1,6 +1,5 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.plugin.engine.Action
 import net.artisanmc.plugin.engine.Step
 import net.artisanmc.plugin.engine.assignI18nAddresses
 import net.artisanmc.plugin.actiondsl.compileActionDsl
@@ -25,10 +24,9 @@ class ActionI18nAddressTest {
         val out = mutableListOf<String?>()
         fun walk(steps: List<Step>) {
             for (s in steps) when (s) {
-                is Step.ActionStep -> when (val a = s.action) {
-                    is Action.SendMessage -> out.add(a.i18n)
-                    is Action.Broadcast -> out.add(a.i18n)
-                    is Action.ShowTitle -> { out.add(a.i18nTitle); out.add(a.i18nSubtitle) }
+                is Step.ActionStep -> when (s.name) {
+                    "send_message", "broadcast" -> out.add(s.i18n["text"])
+                    "show_title" -> { out.add(s.i18n["title"]); out.add(s.i18n["subtitle"]) }
                     else -> {}
                 }
                 is Step.IfStep -> { s.cases.forEach { walk(it.steps) }; walk(s.elseSteps) }

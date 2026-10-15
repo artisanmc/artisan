@@ -99,7 +99,7 @@ object DialogRenderer {
                     emptyList()
                 }
             val fallback     = ActionChainCompiler.compile(btnYaml.fallback)
-            val handler      = ClickHandler(requirements, emptyList(), fallback, steps = steps)
+            val handler      = ClickHandler(requirements, fallback, steps = steps)
             val btnLabel     = LenientText.parse(texts.buttonLabels[i])
 
             val callback = DialogActionCallback { view: DialogResponseView, _: Audience ->

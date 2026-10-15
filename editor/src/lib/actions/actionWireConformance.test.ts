@@ -36,6 +36,7 @@ const names = (steps: Step[]): string[] =>
   steps.map((s) => {
     if (s.kind === "if") return "if";
     const a = s.action;
+    if (a.type === "module") return a.name;
     return a.type === "paginate" ? `pagination_${a.direction}` : a.type;
   });
 

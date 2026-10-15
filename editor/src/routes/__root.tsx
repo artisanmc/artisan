@@ -5,6 +5,7 @@ import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
 import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
+import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -51,6 +52,7 @@ export function RootLayout() {
     useModulesStore.getState().integrate({ serverId: activeServerId });
     useServerDataSourcesStore.getState().load({ serverId: activeServerId });
     useServerScreensStore.getState().load({ serverId: activeServerId });
+    useServerActionsStore.getState().load({ serverId: activeServerId });
 
     let cancelled = false;
     const ws = new EditorWs({

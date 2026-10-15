@@ -1,9 +1,9 @@
 package net.artisanmc.plugin.engine
 
+import net.artisanmc.modules.api.ActionContext
+import net.artisanmc.modules.api.ActionRegistry
 import net.artisanmc.modules.api.CommandRegistry
 import net.artisanmc.plugin.command.ModuleCommandLine
-import net.artisanmc.plugin.actiondsl.dslToEngineSteps
-import net.artisanmc.plugin.actiondsl.parseActionDsl
 import net.artisanmc.plugin.model.LocalizedText
 import net.artisanmc.plugin.scheduling.schedulerFor
 import net.artisanmc.plugin.provider.MenuProvider
@@ -18,6 +18,12 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
 
+/**
+ * Runs action chains. Every action, Artisan's own included, goes through the
+ * [ActionRegistry]: the step names the action, the declaration binds its wire value to
+ * the argument map, the handler runs it (ADR `extensible-document-kinds`, R1). The core
+ * handlers ([CoreActionHandlers]) call back into this class for the game logic.
+ */
 class ActionExecutor(
     private val plugin: JavaPlugin,
     private val menuProvider: MenuProvider,
@@ -27,6 +33,8 @@ class ActionExecutor(
     private val evaluator: ConditionEvaluator,
     private val commandRegistry: CommandRegistry? = null,
     private val history: NavigationHistoryStore? = null,
+    /** The vocabulary; defaults to Artisan's own actions alone (tests, tools). */
+    private val registry: ActionRegistry = CoreActionHandlers.registry(),
 ) {
     private val scheduler by lazy { schedulerFor(plugin) }
 
@@ -40,16 +48,14 @@ class ActionExecutor(
             executeSteps(handler.fallback, ctx)
             return
         }
-        if (handler.steps.isNotEmpty()) executeSteps(handler.steps, ctx)
-        else execute(handler.actions, ctx)
+        executeSteps(handler.steps, ctx)
         if (cooldown != null) {
             cooldowns.set(cooldown.id, ctx.player.uniqueId, cooldown.scope, cooldown.durationSeconds)
         }
     }
 
-    fun execute(actions: List<Action>, ctx: ExecutionContext) {
-        actions.fold(ctx) { cur, action -> executeOne(action, cur) }
-    }
+    /** Alias of [executeSteps] for callers that hold a flat chain. */
+    fun execute(steps: List<Step>, ctx: ExecutionContext): ExecutionContext = executeSteps(steps, ctx)
 
     /**
      * Runs a canonical tree: flat actions + if/else-if/else branches. The context is
@@ -59,7 +65,7 @@ class ActionExecutor(
     fun executeSteps(steps: List<Step>, ctx: ExecutionContext): ExecutionContext {
         var cur = ctx
         for (step in steps) cur = when (step) {
-            is Step.ActionStep -> executeOne(step.action, cur)
+            is Step.ActionStep -> dispatch(step, cur)
             is Step.IfStep -> {
                 val case = step.cases.firstOrNull { caseMatches(it, cur) }
                 executeSteps(case?.steps ?: step.elseSteps, cur)
@@ -67,6 +73,35 @@ class ActionExecutor(
         }
         return cur
     }
+
+    /**
+     * One action: the registry names the handler, the declaration binds the wire value
+     * (defaults included), the handler runs with a per-step [EngineRuntime]. A name nobody
+     * declares, or a handler that throws, is skipped with one warning: a module's bad data
+     * must not break the click.
+     */
+    private fun dispatch(step: Step.ActionStep, ctx: ExecutionContext): ExecutionContext {
+        val decl = registry.find(step.name)
+        if (decl == null) {
+            warn("unknown action '${step.name}' — skipped (no module declares it)")
+            return ctx
+        }
+        val args = decl.bind(step.value)
+        val result = try {
+            decl.handler.execute(EngineActionContext(ctx), args, EngineRuntime(this, step.i18n))
+        } catch (e: Exception) {
+            warn("action '${step.name}' failed: ${e.message}")
+            return ctx
+        }
+        return if (result == null) ctx else context(result)
+    }
+
+    /** A module's own [ActionContext] folded back into the engine's: its bindings are kept. */
+    fun context(ctx: ActionContext): ExecutionContext =
+        (ctx as? EngineActionContext)?.engine
+            ?: ExecutionContext(ctx.player, ctx.args, ctx.lang, projectId = ctx.projectId)
+
+    private fun warn(message: String) = Bukkit.getLogger().warning("[Artisan] $message")
 
     /** `joins` is evaluated left to right without precedence; missing = "and". */
     private fun caseMatches(case: IfCase, ctx: ExecutionContext): Boolean {
@@ -117,109 +152,183 @@ class ActionExecutor(
         return resolveText(template, ctx)
     }
 
-    /** Runs one action and returns the context, updated by `set_arg*` for the following actions. */
-    private fun executeOne(action: Action, ctx: ExecutionContext): ExecutionContext {
+    // ---- core handlers' game logic (bound by CoreActionHandlers) ----
+
+    internal fun runCommand(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
         val player = ctx.player
-        when (action) {
-            is Action.RunCommand -> {
-                val cmd = resolveText(action.command, ctx).trimStart('/')
-                val bridged = if (!action.asConsole) tryRegistryDispatch(cmd, player) else false
-                if (!bridged) {
-                    if (action.asConsole) scheduler.onGlobal { Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd) }
-                    else player.performCommand(cmd)
-                }
-            }
-            is Action.OpenMenu -> {
-                // Real navigation: remember the screen we're leaving so a back
-                // button can return to it (popPrevious consumes it). Pushed
-                // before opening so the new screen renders `has_previous_menu`.
-                val leaving = history?.current(player)
-                history?.pushCurrent(player)
-                // Context values resolve against the EMITTING ctx (the click
-                // that binds the iteration row / current args) — the target menu
-                // only ever sees already-resolved values.
-                val passed = action.context.mapValues { resolveContextValue(it.value, ctx) }
-                val newArgs = if (action.clearContext) passed else ctx.navigationArgs + passed
-                // Pagination is per-menu state: never carry it to the target menu
-                // (element ids collide across menus, e.g. two "grid").
-                menuProvider.openMenu(
-                    player, action.menuId, ctx.lang,
-                    ctx.copy(args = newArgs, pagination = emptyMap(), pageInfo = emptyMap(), sourceArgs = emptyMap()),
-                )
-                undoPushIfNotShown(player, leaving)
-            }
-            is Action.CloseMenu -> player.closeInventory()
-            is Action.OpenPreviousMenu -> return openPrevious(player, ctx)
-            is Action.OpenDialog -> {
-                // Same as OpenMenu: a dialog is a navigation step too.
-                val leaving = history?.current(player)
-                history?.pushCurrent(player)
-                // Same rule as OpenMenu: context values resolve at emit time —
-                // the dialog's texts/actions read the passed args only.
-                val passed = action.context.mapValues { resolveContextValue(it.value, ctx) }
-                val newArgs = if (action.clearContext) passed else ctx.args + passed
-                menuProvider.openDialog(player, action.dialogId, ctx.lang, ctx.copy(
-                    args = newArgs,
-                    sourceArgs = if (action.clearContext) emptyMap() else ctx.sourceArgs - passed.keys,
-                ))
-                undoPushIfNotShown(player, leaving)
-            }
-            is Action.CloseDialog -> runCatching { player.javaClass.getMethod("closeDialog").invoke(player) }
-            is Action.GiveItem  -> {
-                val material = Material.matchMaterial(action.material) ?: return ctx
-                val item = ItemStack(material, action.count)
-                if (action.name != null || action.lore.isNotEmpty()) {
-                    val meta = item.itemMeta
-                    action.name?.let { meta.displayName(LenientText.parse(resolveText(it, ctx))) }
-                    if (action.lore.isNotEmpty()) meta.lore(action.lore.map { LenientText.parse(resolveText(it, ctx)) })
-                    item.itemMeta = meta
-                }
-                player.inventory.addItem(item)
-            }
-            is Action.TakeItem -> {
-                val material = Material.matchMaterial(action.material) ?: return ctx
-                var toRemove = action.count
-                player.inventory.contents.orEmpty().forEachIndexed { i, item ->
-                    if (item != null && item.type == material && toRemove > 0) {
-                        val take = minOf(toRemove, item.amount)
-                        toRemove -= take
-                        if (item.amount - take <= 0) player.inventory.setItem(i, null)
-                        else item.amount -= take
-                    }
-                }
-            }
-            is Action.GiveMoney -> deps.vault?.deposit(player, action.amount)
-            is Action.TakeMoney -> deps.vault?.withdraw(player, action.amount)
-            is Action.GiveXp    -> player.giveExp(action.amount)
-            is Action.GiveLevel -> player.giveExpLevels(action.amount)
-            is Action.SendMessage  -> player.sendMessage(LenientText.parse(resolveText(action.text, ctx, action.i18n)))
-            is Action.Broadcast    -> Bukkit.getServer().broadcast(LenientText.parse(resolveText(action.text, ctx, action.i18n)))
-            is Action.PlaySound    -> runCatching {
-                player.playSound(player.location, Sound.valueOf(action.sound.uppercase()), action.volume, action.pitch)
-            }
-            is Action.Teleport -> {
-                val world = action.world?.let { Bukkit.getWorld(it) } ?: return ctx
-                player.teleportAsync(org.bukkit.Location(world, action.x, action.y, action.z, action.yaw, action.pitch))
-            }
-            is Action.PaginationNext -> return paginate(ctx, action.elementId, +1)
-            is Action.PaginationPrev -> return paginate(ctx, action.elementId, -1)
-            is Action.RunActions -> return runActions(action, ctx)
-            is Action.SetArg -> return applyArg(ctx, action.arg, resolveText(action.value, ctx))
-            is Action.SetArgCycleNext -> return cycleArg(ctx, action.arg, action.list, forward = true)
-            is Action.SetArgCyclePrev -> return cycleArg(ctx, action.arg, action.list, forward = false)
-            is Action.ShowTitle -> {
-                val titleComponent    = LenientText.parse(resolveText(action.title, ctx, action.i18nTitle))
-                val subtitleComponent = action.subtitle?.let { LenientText.parse(resolveText(it, ctx, action.i18nSubtitle)) }
-                                            ?: net.kyori.adventure.text.Component.empty()
-                val times = Title.Times.times(
-                    Duration.ofMillis(action.fadeIn  * 50L),  // 1 tick = 50ms
-                    Duration.ofMillis(action.stay    * 50L),
-                    Duration.ofMillis(action.fadeOut * 50L),
-                )
-                player.showTitle(Title.title(titleComponent, subtitleComponent, times))
+        val cmd = rt.text(ctx, args, "command").trimStart('/')
+        val asConsole = Args.str(args, "as") == "console"
+        val bridged = if (!asConsole) tryRegistryDispatch(cmd, player) else false
+        if (!bridged) {
+            if (asConsole) scheduler.onGlobal { Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd) }
+            else player.performCommand(cmd)
+        }
+        return ctx
+    }
+
+    internal fun openMenu(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        val player = ctx.player
+        val menuId = Args.str(args, "menu_id") ?: return ctx
+        // Real navigation: remember the screen we're leaving so a back
+        // button can return to it (popPrevious consumes it). Pushed
+        // before opening so the new screen renders `has_previous_menu`.
+        val leaving = history?.current(player)
+        history?.pushCurrent(player)
+        // Context values resolve against the EMITTING ctx (the click
+        // that binds the iteration row / current args) — the target menu
+        // only ever sees already-resolved values.
+        val passed = Args.stringMap(args, "context").mapValues { resolveContextValue(it.value, ctx) }
+        val newArgs = if (Args.bool(args, "clear_context", false)) passed else ctx.navigationArgs + passed
+        // Pagination is per-menu state: never carry it to the target menu
+        // (element ids collide across menus, e.g. two "grid").
+        menuProvider.openMenu(
+            player, menuId, ctx.lang,
+            ctx.copy(args = newArgs, pagination = emptyMap(), pageInfo = emptyMap(), sourceArgs = emptyMap()),
+        )
+        undoPushIfNotShown(player, leaving)
+        return ctx
+    }
+
+    internal fun closeMenu(ctx: ExecutionContext): ExecutionContext {
+        ctx.player.closeInventory()
+        return ctx
+    }
+
+    internal fun openDialog(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        val player = ctx.player
+        val dialogId = Args.str(args, "dialog_id") ?: return ctx
+        // Same as openMenu: a dialog is a navigation step too.
+        val leaving = history?.current(player)
+        history?.pushCurrent(player)
+        // Same rule as openMenu: context values resolve at emit time —
+        // the dialog's texts/actions read the passed args only.
+        val clear = Args.bool(args, "clear_context", false)
+        val passed = Args.stringMap(args, "context").mapValues { resolveContextValue(it.value, ctx) }
+        val newArgs = if (clear) passed else ctx.args + passed
+        menuProvider.openDialog(player, dialogId, ctx.lang, ctx.copy(
+            args = newArgs,
+            sourceArgs = if (clear) emptyMap() else ctx.sourceArgs - passed.keys,
+        ))
+        undoPushIfNotShown(player, leaving)
+        return ctx
+    }
+
+    internal fun closeDialog(ctx: ExecutionContext): ExecutionContext {
+        runCatching { ctx.player.javaClass.getMethod("closeDialog").invoke(ctx.player) }
+        return ctx
+    }
+
+    internal fun giveItem(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
+        val material = Material.matchMaterial(Args.str(args, "material") ?: return ctx) ?: return ctx
+        val item = ItemStack(material, Args.int(args, "count", 1))
+        val name = args["name"]
+        val lore = Args.ltextList(args, "lore")
+        if (name != null || lore.isNotEmpty()) {
+            val meta = item.itemMeta
+            if (name != null) meta.displayName(LenientText.parse(rt.text(ctx, args, "name")))
+            if (lore.isNotEmpty()) meta.lore(lore.map { LenientText.parse(resolveText(it, ctx)) })
+            item.itemMeta = meta
+        }
+        ctx.player.inventory.addItem(item)
+        return ctx
+    }
+
+    internal fun takeItem(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        val material = Material.matchMaterial(Args.str(args, "material") ?: return ctx) ?: return ctx
+        var toRemove = Args.int(args, "count", 1)
+        val inventory = ctx.player.inventory
+        inventory.contents.orEmpty().forEachIndexed { i, item ->
+            if (item != null && item.type == material && toRemove > 0) {
+                val take = minOf(toRemove, item.amount)
+                toRemove -= take
+                if (item.amount - take <= 0) inventory.setItem(i, null)
+                else item.amount -= take
             }
         }
         return ctx
+    }
+
+    internal fun giveMoney(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        deps.vault?.deposit(ctx.player, Args.double(args, "amount", 0.0))
+        return ctx
+    }
+
+    internal fun takeMoney(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        deps.vault?.withdraw(ctx.player, Args.double(args, "amount", 0.0))
+        return ctx
+    }
+
+    internal fun giveXp(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        ctx.player.giveExp(Args.int(args, "amount", 0))
+        return ctx
+    }
+
+    internal fun giveLevel(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        ctx.player.giveExpLevels(Args.int(args, "amount", 0))
+        return ctx
+    }
+
+    internal fun sendMessage(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
+        ctx.player.sendMessage(LenientText.parse(rt.text(ctx, args, "text")))
+        return ctx
+    }
+
+    internal fun broadcast(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
+        Bukkit.getServer().broadcast(LenientText.parse(rt.text(ctx, args, "text")))
+        return ctx
+    }
+
+    internal fun playSound(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        val sound = Args.str(args, "sound") ?: return ctx
+        runCatching {
+            ctx.player.playSound(
+                ctx.player.location, Sound.valueOf(sound.uppercase()),
+                Args.float(args, "volume", 1f), Args.float(args, "pitch", 1f),
+            )
+        }
+        return ctx
+    }
+
+    internal fun teleport(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        val world = Args.str(args, "world")?.let { Bukkit.getWorld(it) } ?: return ctx
+        ctx.player.teleportAsync(org.bukkit.Location(
+            world,
+            Args.double(args, "x", 0.0), Args.double(args, "y", 0.0), Args.double(args, "z", 0.0),
+            Args.float(args, "yaw", 0f), Args.float(args, "pitch", 0f),
+        ))
+        return ctx
+    }
+
+    internal fun showTitle(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
+        val titleComponent = LenientText.parse(rt.text(ctx, args, "title"))
+        val subtitleComponent =
+            if (args["subtitle"] != null) LenientText.parse(rt.text(ctx, args, "subtitle"))
+            else net.kyori.adventure.text.Component.empty()
+        val times = Title.Times.times(
+            Duration.ofMillis(Args.int(args, "fade_in", 10) * 50L),  // 1 tick = 50ms
+            Duration.ofMillis(Args.int(args, "stay", 70) * 50L),
+            Duration.ofMillis(Args.int(args, "fade_out", 20) * 50L),
+        )
+        ctx.player.showTitle(Title.title(titleComponent, subtitleComponent, times))
+        return ctx
+    }
+
+    internal fun paginationNext(ctx: ExecutionContext, args: Map<String, Any>) = paginate(ctx, Args.str(args, "element_id"), +1)
+    internal fun paginationPrev(ctx: ExecutionContext, args: Map<String, Any>) = paginate(ctx, Args.str(args, "element_id"), -1)
+
+    internal fun setArg(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
+        val arg = Args.str(args, "arg") ?: return ctx
+        return applyArg(ctx, arg, rt.text(ctx, args, "value"))
+    }
+
+    internal fun setArgCycle(ctx: ExecutionContext, args: Map<String, Any>, forward: Boolean): ExecutionContext {
+        val arg = Args.str(args, "arg") ?: return ctx
+        return cycleArg(ctx, arg, Args.str(args, "list") ?: "", forward)
+    }
+
+    internal fun runActions(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        val expr = Args.str(args, "actions") ?: return ctx
+        return runActions(expr, ctx)
     }
 
     /**
@@ -268,28 +377,28 @@ class ActionExecutor(
      * empty / unparseable value is a no-op + one WARN. Call depth is capped at 16
      * (anti-cycle). Returns the CALLER's context: self-bindings do not leak further.
      */
-    private fun runActions(action: Action.RunActions, ctx: ExecutionContext): ExecutionContext {
+    private fun runActions(expr: String, ctx: ExecutionContext): ExecutionContext {
         if (ctx.runActionsDepth >= MAX_RUN_ACTIONS_DEPTH) {
             Bukkit.getLogger().warning(
-                "[Artisan] run_actions depth limit ($MAX_RUN_ACTIONS_DEPTH) reached at '${action.actions}' — skipping",
+                "[Artisan] run_actions depth limit ($MAX_RUN_ACTIONS_DEPTH) reached at '$expr' — skipping",
             )
             return ctx
         }
-        val raw = ctx.exprValue(action.actions)
+        val raw = ctx.exprValue(expr)
         if (raw == null || (raw is String && raw.isBlank())) {
-            Bukkit.getLogger().warning("[Artisan] run_actions '${action.actions}' resolved to no action chain — skipping")
+            Bukkit.getLogger().warning("[Artisan] run_actions '$expr' resolved to no action chain — skipping")
             return ctx
         }
         // Keyed structured steps (canonical) or a legacy Action DSL string.
         val steps = runCatching { ActionChainCompiler.compile(raw) }.getOrElse {
-            Bukkit.getLogger().warning("[Artisan] run_actions '${action.actions}' failed to parse: ${it.message}")
+            Bukkit.getLogger().warning("[Artisan] run_actions '$expr' failed to parse: ${it.message}")
             return ctx
         }
 
         // Self-binding: the object the expression reads from (the row / the config
         // object) becomes a local root, so the chain addresses its fields bare
         // (`{price}`) and as `{self.price}`. The caller's context stays above.
-        val base = action.actions.substringBefore('.')
+        val base = expr.substringBefore('.')
         val baseVal = ctx.exprValue(base)
         val newArgs: Map<String, Any> = when {
             baseVal is Map<*, *> -> {
@@ -323,7 +432,8 @@ class ActionExecutor(
      * current one. The stack shrinks on every return, so two screens can never bounce
      * back and forth forever. Empty stack = no-op.
      */
-    private fun openPrevious(player: Player, ctx: ExecutionContext): ExecutionContext {
+    internal fun openPrevious(ctx: ExecutionContext): ExecutionContext {
+        val player = ctx.player
         val previous = history?.popPrevious(player) ?: return ctx
         val target = ctx.copy(
             args = previous.args,
