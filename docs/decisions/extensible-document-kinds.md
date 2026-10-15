@@ -193,7 +193,7 @@ Faits qui corrigent le texte ci-dessus (le code fait foi) :
 | R2 | Décision 10 : conteneur par kind **tout de suite**, ou accesseur `documentsOf(project, kind)` sur les anciens champs d'abord, conteneur complet seulement si l'accesseur ne suffit pas ? | **Tranché (Iban, 2026-10-15) : conteneur unique, maintenant, entier.** Le nombre de sites touchés n'entre pas dans la balance : on tranche sur la santé de l'architecture. `project.documents[kind]` / `ProjectBundle.documents` est la **seule source de vérité** ; `documentsOf(project, kind)` et ses variantes typées sont une **façade de lecture**, pas une seconde représentation. Les trois champs parallèles `menus/commands/dialogs` sont la **cause racine** du problème : c'est parce que le Project est modélisé en trois champs que la liste fermée des kinds fuit dans tous les consommateurs (`DocumentKind` en douze endroits, `["menu","command","dialog"]`, `GUTTER_KIND_ORDER`). Le conteneur supprime la cause ; un accesseur sur les anciens champs soignait le symptôme en gardant deux représentations et une migration à payer deux fois. Le typage statique perdu ne couvrait que les kinds core, que le compilateur ne peut de toute façon pas connaître dès qu'un kind vient d'un module. Conséquence sur l'ordre : le conteneur (W2) est la **base** du chantier et passe en premier, comme le handoff du 2026-10-14 le disait. Réserve : les contrats neufs restent `@Beta` et ne se figent qu'après un pilote. **Fait (lot 2)** : éditeur `domain/documentKinds.ts` (registre : kind, dir, idPrefix, schemaVersion, rank), `Project.documents: Record<kind, Document[]>`, façade `domain/documents.ts`, codecs par kind `schema/documentCodecs.ts` pilotant `projectFromFiles` et `transform` ; plugin `model/DocumentKinds.kt`, `ProjectBundle.documents: Map<kind, List<BundleDocument>>` avec `menus/commands/dialogs` en getters typés (un seul point de cast), `ProjectReader` en boucle sur le registre, `ResourceInventory` et les tables de `SyncedMenuProvider` par kind. Un projet persisté avant le conteneur est replié à la lecture (`lib/projectDocumentsMigration.ts`). |
 | R3 | `document_ref(kind)` : type d'argument à part, ou **kind de `ModelFieldType`** ? | **Kind de `ModelFieldType`.** `ActionDecl.args` devient un `ModelField[]`, `<SchemaForm>` le rend déjà, et une ligne de data model peut pointer un Document avec picker, rename, ref morte et arête par le même visiteur. Seule lecture cohérente de « un seul système de types ». |
 | R4 | Qui déclare le kind `quest` : Artisan core ou **MSQuests en add-on** ? | **MSQuests.** L'ADR déclare les kinds par module ; le pilote Quest vit alors dans son dépôt et y tranche `quest/v1`. |
-| R5 | W5 et les lots restants de #46 (un store par slice) se chevauchent. | W5 après #46, ou « CRUD générique de Document par kind » intégré au plan #46. |
+| R5 | W5 et les lots restants de #46 (un store par slice) se chevauchent. | W5 après #46, ou « CRUD générique de Document par kind » intégré au plan #46. **Fait (lot 5)** : W5 est arrivé après le découpage en slices de #46 ; le CRUD générique est une slice de plus (`state/account/documentsSlice.ts`). |
 
 ### Langue de l'API publique (tranché 2026-10-15)
 
@@ -274,6 +274,27 @@ projette vers `{name, value}` et sert aussi à replier la forme typée d'un proj
 Précision retenue sans débat : un slot de chaîne est un **site** (`{ name, steps, path }`),
 comme `LTextSite`, pas un simple nom — l'extracteur générique d'arêtes a besoin des steps
 et du chemin pour conserver les triggers que la planche affiche.
+
+**Fait (2026-10-15, lot 5 — W5, côté éditeur)** : le contrat de kind du SDK existe.
+`FrontendModule.documents: DocumentKindContribution[]` (`kind`, `dir`, `schemaVersion`,
+`idPrefix`, `label`, `icon`, `component`, `title`, `listByTitle`, `create`, `parse`, `serialize`,
+`ltextSites`, `chainSlots`, `board{size, summary, render}`) ; le registre SDK refuse un kind
+contribué deux fois. L'hôte installe une contribution à l'enregistrement du module
+(`lib/moduleDocumentKinds.ts` → table des kinds, codecs, visiteurs `domain/documentKindVisitors.ts`)
+et lit le reste par `documentKindContribution(kind)` : panneau Propriétés (`selectionContext`
+`{kind: "document"}`, `FlowCanvas` rend le `component`), listings et recherche, création
+(`NewDocumentDialog`), store (`documentsSlice` : `createDocument`, `updateDocument`,
+`setDocumentId` qui repointe les `document_ref` du kind), textes (`visitProjectLTexts`,
+`rekeyProject`, GC), arêtes (trigger `chain`), planche (`DocumentGroup`, nœud générique avec
+aperçu `board.render` non interactif) et planche serveur. Les kinds core sont déclarés par la même
+interface (`src/modules/{menus,commands,dialogs}/*Kind.tsx`) — décision 1 tenue ; les éditeurs
+core intégrés restent le repli quand leurs modules ne sont pas enregistrés. Tranché avec Iban
+(thread « Édition canvas ou vue focus par type ») : (1) le panneau Propriétés montre le
+`component` de tout kind via le registre ; (2) `board.render` est un aperçu seulement ; (3)
+l'édition en place des menus sur la planche est une exception core documentée, non généralisée.
+Reste W6 (plugin : `DocumentKindRegistry`, `document_kinds` à la Presence), différé jusqu'au
+pilote, comme dit plus haut ; un kind de module n'est pas synchronisé par le serveur tant que
+`DocumentKinds.kt` ne le liste pas.
 
 ## Hors périmètre / différé
 

@@ -24,7 +24,7 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
   const docId =
     ctx.kind === "menu" || ctx.kind === "element"
       ? ctx.menuId
-      : ctx.kind === "command" || ctx.kind === "dialog"
+      : ctx.kind === "command" || ctx.kind === "dialog" || ctx.kind === "document"
         ? ctx.id
         : null;
   const relPath =

@@ -4,6 +4,7 @@ import type { CanvasSlice } from "./canvasSlice";
 import type { CommandsSlice } from "./commandsSlice";
 import type { DataSlice } from "./dataSlice";
 import type { DialogsSlice } from "./dialogsSlice";
+import type { DocumentsSlice } from "./documentsSlice";
 import type { ElementsSlice } from "./elementsSlice";
 import type { I18nSlice } from "./i18nSlice";
 import type { MenusSlice } from "./menusSlice";
@@ -25,6 +26,7 @@ export type SourceValueUpdateResult =
 /** The account store: one `account` object, mutated by the slices below (one per domain). */
 export type AccountState = { account: Account } & ProjectsSlice &
   DialogsSlice &
+  DocumentsSlice &
   CommandsSlice &
   MenusSlice &
   ElementsSlice &

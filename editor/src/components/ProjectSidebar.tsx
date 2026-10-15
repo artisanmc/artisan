@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
+import { documentCount } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
 import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
@@ -48,7 +49,6 @@ import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
 import { useServersStatus } from "./useServersStatus";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export function ProjectSidebar() {
   const { t } = useTranslation();
@@ -191,12 +191,7 @@ export function ProjectSidebar() {
   // Document count per Project: only the ones actually opened (live count, it
   // follows edits). Recomputing it for every Project would cost a disk read
   // each just to fill a sidebar, so a Project never opened shows no badge.
-  const liveCount = new Map(
-    localProjects.map((p) => [
-      p.id,
-      menusOf(p).length + commandsOf(p).length + dialogsOf(p).length,
-    ]),
-  );
+  const liveCount = new Map(localProjects.map((p) => [p.id, documentCount(p)]));
   const countFor = (p: ProjectSummary): number | null => liveCount.get(p.id as ProjectId) ?? null;
 
   // Does the open project have a row in the list? Otherwise (demo, unlisted

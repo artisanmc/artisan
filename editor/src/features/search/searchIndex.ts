@@ -1,10 +1,14 @@
+import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
+import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import { getText } from "@/lib/i18n";
+import { documentTitle } from "@/lib/moduleDocumentKinds";
 import { parsePositions } from "@/lib/positions";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { documentKindContribution } from "@artisan/editor-sdk";
 
-export type SearchGroup = "menu" | "command" | "dialog" | "content";
+/** `menu`, `command`, `dialog`, a module's kind, or `content` (a text inside a Document). */
+export type SearchGroup = string;
 
 export interface SearchEntry {
   id: string;
@@ -136,6 +140,20 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
     }
   }
 
+  // A module's kind: one entry per Document, labelled by its kind's title.
+  const core = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
+  for (const { kind, doc } of allDocuments(project)) {
+    if (core.has(kind)) continue;
+    out.push(
+      entry({
+        id: `${kind}:${doc.id}`,
+        group: kind,
+        label: documentTitle(documentKindContribution(kind), doc, project, activeLang),
+        target: { openId: doc.id },
+      }),
+    );
+  }
+
   return out;
 }
 
@@ -153,7 +171,8 @@ export function groupResultsForDisplay(results: SearchEntry[]): SearchEntry[] {
   return [...buckets.values()].flat();
 }
 
-const GROUP_RANK: Record<SearchGroup, number> = { menu: 0, command: 0, dialog: 0, content: 1 };
+/** Documents rank before the texts inside them. */
+const groupRank = (group: SearchGroup): number => (group === "content" ? 1 : 0);
 
 /** Filter + rank. Case-insensitive substring match. Empty query → []. */
 export function searchQuery(entries: SearchEntry[], q: string): SearchEntry[] {
@@ -167,7 +186,7 @@ export function searchQuery(entries: SearchEntry[], q: string): SearchEntry[] {
     else if (label.startsWith(needle)) matchScore = 1;
     else if (e.haystack.includes(needle)) matchScore = 2;
     else continue;
-    scored.push({ e, score: matchScore * 10 + GROUP_RANK[e.group] });
+    scored.push({ e, score: matchScore * 10 + groupRank(e.group) });
   }
   scored.sort((a, b) => a.score - b.score);
   return scored.map((s) => s.e);

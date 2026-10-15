@@ -1,5 +1,6 @@
+import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
+import { commandsOf, dialogsOf, findDocument, menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 /**
  * What the current selection designates, for the given project. A single
@@ -18,7 +19,11 @@ export type SelectionContext =
   | { kind: "element"; menuId: string; elementId: string }
   | { kind: "command"; id: string }
   | { kind: "dialog"; id: string }
+  /** A Document of a kind contributed by a module: its editor comes from the kind registry. */
+  | { kind: "document"; documentKind: string; id: string }
   | { kind: "unknown" };
+
+const CORE = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
 
 export function selectionContext(
   project: Project | undefined,
@@ -34,6 +39,10 @@ export function selectionContext(
     if (commandsOf(project).some((c) => c.id === id)) return { kind: "command", id };
     if (dialogsOf(project).some((d) => d.id === id)) return { kind: "dialog", id };
     if (menusOf(project).some((m) => m.id === id)) return { kind: "menu", menuId: id };
+    const found = findDocument(project, id);
+    if (found && !CORE.has(found.kind)) {
+      return { kind: "document", documentKind: found.kind, id };
+    }
   }
 
   // An element id is unique ONLY within its menu (menu/v1): resolution is
