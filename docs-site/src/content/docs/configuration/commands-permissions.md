@@ -11,8 +11,8 @@ sidebar:
 |---|---|
 | `/artisan menu <id>` | Open a menu by id. Players only; ids autocomplete. Requires `artisan.menu`. |
 | `/artisan reload` | Re-read `config.yml`, `environment.yml` and the language files, and reload every project from disk (including files edited by hand). On a leaf, reconnects to the hub. The web server and database pools are not restarted: `web.*` and `database.*` changes need a server restart. Requires `artisan.admin`. |
-| `/artisan editor` | Print your single-use sign-in link to the editor. Players only; requires `artisan.editor.view`. See [Open the editor](/wiki/getting-started/open-the-editor/). |
-| `/artisan editor logout [player]` | Sign a player out of the editor on every device. Without a name, signs yourself out. Naming another player requires `artisan.admin`. |
+| `/artisan editor` | Print your single-use sign-in link to the editor. Requires `artisan.editor.view`. From the console, signs in as the shared Console identity. See [Open the editor](/wiki/getting-started/open-the-editor/). |
+| `/artisan editor logout [player]` | Sign a player out of the editor on every device. Without a name, signs yourself out (Console from the console). Naming another player, or `Console`, requires `artisan.admin`. |
 | `/artisan sync reject` | Reload projects from disk; on a leaf, reconnect to the hub. Requires `artisan.admin`. |
 | `/artisan sync status` | Only points to the server log. |
 

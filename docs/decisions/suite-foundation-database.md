@@ -34,7 +34,11 @@ plugin.
 3. **Un pool HikariCP par plugin**, ouvert au premier `api.database.dataSource(plugin)`
    et fermé à la désactivation de ce plugin. Un plugin qui fuit des connexions
    n'affame jamais les autres. Taille commune `database.pool-size` (4 par défaut)
-   dans `config.yml`, donc modifiable depuis l'éditeur ; les identifiants, non.
+   dans `environment.yml`, avec le reste de la section `database` (révision
+   2026-10-15 : elle était dans `config.yml` pour être modifiable depuis l'éditeur,
+   mais elle ne s'applique qu'au redémarrage et coupait la section en deux fichiers ;
+   une valeur restée dans `config.yml` est encore lue tant qu'`environment.yml` n'en
+   donne pas).
 4. **Seul `javax.sql.DataSource` traverse l'API.** Pas de HikariCP, de JDBI ni de
    driver dans `modules.api` : aucun conflit de classloader possible. Chaque plugin
    garde sa couche d'accès et **ses propres migrations** (aucune API de migration

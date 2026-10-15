@@ -111,8 +111,6 @@ to players: Oraxen on the lobby and skyblock, Nexo on the survival server.
 
 ```yaml
 # lobby and skyblock — plugins/Artisan/config.yml
-database:
-  pool-size: 4
 language: "en"
 per_player_language: true
 resource-pack:
@@ -122,8 +120,6 @@ resource-pack:
 
 ```yaml
 # survival — plugins/Artisan/config.yml
-database:
-  pool-size: 4
 language: "en"
 per_player_language: true
 resource-pack:

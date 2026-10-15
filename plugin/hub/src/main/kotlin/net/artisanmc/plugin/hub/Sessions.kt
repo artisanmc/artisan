@@ -119,7 +119,8 @@ class Sessions(
     fun closeAll(playerId: UUID): Int {
         val inMemory = sessions.values.count { it.playerId == playerId }
         sessions.values.removeIf { it.playerId == playerId }
-        return store?.deletePlayer(playerId, null) ?: inMemory
+        // A session opened before the database was is only in memory; one from before a restart, only stored.
+        return maxOf(inMemory, store?.deletePlayer(playerId, null) ?: 0)
     }
 
     /**

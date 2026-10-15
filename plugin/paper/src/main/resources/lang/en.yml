@@ -25,6 +25,6 @@ artisan:
   editor_link: "<aqua>[Artisan] </aqua><green>Open the editor: <click:open_url:'{url}'><aqua><underlined>click here</underlined></aqua></click> <gray>(single use, valid 60 seconds)</gray></green>"
   editor_link_too_soon: "<yellow>[Artisan] A link was just generated. Try again in {seconds} s.</yellow>"
   editor_hub_offline: "<yellow>[Artisan] The editor hub cannot be reached right now. Try again in a few seconds, and check web.hub in environment.yml if this persists.</yellow>"
-  editor_in_game_only: "<red>[Artisan] Run /artisan editor in game: the editor signs you in as your player.</red>"
+  editor_link_console: "[Artisan] Editor link, signed in as Console (single use, valid 60 seconds): {url}"
   editor_disabled: "<red>[Artisan] The web editor is not running on this server. Check web.enabled in environment.yml and the startup log.</red>"
   prefix: "<aqua>[Artisan] </aqua>"

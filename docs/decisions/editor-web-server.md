@@ -29,7 +29,9 @@ couper l'accès à l'éditeur lui-même.
 **⑤ Connexion par lien en jeu.** `/artisan editor` donne un jeton à usage unique
 (60 s, un par joueur et par minute) ; `/login/<jeton>` ouvre une session (cookie
 `HttpOnly`, `SameSite=Strict`, 12 h). L'identité est l'UUID du joueur, les droits
-sont ses permissions `artisan.editor.*` au moment de la demande. Toute route de
+sont ses permissions `artisan.editor.*` au moment de la demande. *Révisé le
+2026-10-15* : la console obtient aussi un lien, au nom d'une identité **Console**
+unique (UUID nul) partagée par quiconque l'utilise — mêmes brouillons, même auteur. Toute route de
 l'API exige une session ; une requête qui modifie quelque chose ou ouvre un
 WebSocket doit venir de la même origine que la page.
 
