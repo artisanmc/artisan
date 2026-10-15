@@ -92,7 +92,7 @@ docs/            architecture/ · decisions/ · specs/ · schema/ · superpowers
 (8765). Connexion par le lien de `/artisan editor`. Réseau : un serveur `web.role: hub`, les autres
 `leaf` reliés à son `/ws/plugin` par un secret partagé. ADR `editor-web-server`.
 
-**Plugin en modules Gradle** — `plugin/api` (surface add-ons), `plugin/core` (domaine, sans Bukkit),
+**Plugin en modules Gradle** — `plugin/api` (surface add-ons, **en Java** : API 2.0.0), `plugin/core` (domaine, sans Bukkit),
 `plugin/database`, `plugin/hub` (serveur web, sans Bukkit), `plugin/paper` (Bukkit + jar). Un import
 `org.bukkit` hors de `paper` ou `api` ne compile pas. Détail : `plugin/README.md`, ADR `plugin-gradle-modules`.
 

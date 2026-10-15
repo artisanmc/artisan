@@ -8,8 +8,8 @@ import net.artisanmc.modules.api.ArtisanModule
  * A thin wrapper: those classes are wired by ArtisanPlugin.
  */
 class CommandsModule : ArtisanModule {
-    override val id = "commands"
-    override val schemaVersion = "command/v1"
+    override fun getId() = "commands"
+    override fun getSchemaVersion() = "command/v1"
 
     override fun onEnable(api: ArtisanAPI) {
     }

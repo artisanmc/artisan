@@ -49,8 +49,8 @@ class MenuRendererDataSourceTest {
         val p = player()
         val registry = DataSourceRegistry()
         registry.register(DataSourceDeclaration(
-            ref = "boutique:items",
-            fetcher = { _, _ -> listOf(
+            "boutique:items",
+            { _, _ -> listOf(
                 mapOf("id" to "sword", "name" to "Sword", "material" to "DIAMOND_SWORD", "category" to "weapons"),
                 mapOf("id" to "apple", "name" to "Apple", "material" to "APPLE", "category" to "food"),
             ) },
@@ -80,8 +80,8 @@ class MenuRendererDataSourceTest {
         val p = player()
         val registry = DataSourceRegistry()
         registry.register(DataSourceDeclaration(
-            ref = "boutique:items",
-            fetcher = { _, _ -> listOf(
+            "boutique:items",
+            { _, _ -> listOf(
                 mapOf("id" to "sword", "name" to "Sword", "material" to "DIAMOND_SWORD"),
             ) },
         ))

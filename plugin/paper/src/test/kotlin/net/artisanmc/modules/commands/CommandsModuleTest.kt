@@ -31,21 +31,22 @@ class CommandsModuleTest {
     fun `onEnable does not throw with a real plugin API`() {
         val module = CommandsModule()
         val reg = ModuleRegistry()
-        val api = ArtisanAPI(
-            plugin = plugin,
-            dataSources = DataSourceRegistry(),
-            commands = CommandRegistry(),
-            events = ModuleEventBus(),
-            schemas = SchemaRegistry(),
-            modules = reg,
-            coreVersion = "1.0.0",
-            project = object : net.artisanmc.modules.api.ProjectContentApi {
+        val api = ArtisanAPI.builder(
+            plugin,
+            DataSourceRegistry(),
+            CommandRegistry(),
+            ModuleEventBus(),
+            SchemaRegistry(),
+            reg,
+            "1.0.0",
+            object : net.artisanmc.modules.api.ProjectContentApi {
                 override fun projectIds() = emptyList<String>()
                 override fun list(projectId: String, dir: String) = emptyList<String>()
                 override fun read(projectId: String, relPath: String): String? = null
                 override fun hasContent(dir: String) = false
             },
         )
+            .build()
         reg.bind(api) {}
         module.onEnable(api)
     }

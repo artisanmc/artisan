@@ -13,8 +13,8 @@ import net.artisanmc.modules.api.ArtisanModule
  * ArtisanPlugin, which also handles their reload and shutdown.
  */
 class MenusModule : ArtisanModule {
-    override val id = "menus"
-    override val schemaVersion = "menu/v1"
+    override fun getId() = "menus"
+    override fun getSchemaVersion() = "menu/v1"
 
     private var api: ArtisanAPI? = null
 

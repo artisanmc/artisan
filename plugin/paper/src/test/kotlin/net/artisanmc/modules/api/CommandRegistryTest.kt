@@ -23,8 +23,8 @@ class CommandRegistryTest {
         val registry = CommandRegistry()
         var calledWith: Map<String, Any?>? = null
         registry.register(CommandDeclaration(
-            name = "shop:buy",
-            handler = { _, args -> calledWith = args }
+            "shop:buy",
+            { _, args -> calledWith = args },
         ))
 
         registry.dispatch("shop:buy", player, mapOf("item" to "diamond"))
@@ -43,9 +43,9 @@ class CommandRegistryTest {
     @Test
     fun `register twice on same name throws DuplicateCommandException`() {
         val registry = CommandRegistry()
-        registry.register(CommandDeclaration(name = "shop:buy", handler = { _, _ -> }))
+        registry.register(CommandDeclaration("shop:buy", { _, _ -> }))
         assertThrows(DuplicateCommandException::class.java) {
-            registry.register(CommandDeclaration(name = "shop:buy", handler = { _, _ -> }))
+            registry.register(CommandDeclaration("shop:buy", { _, _ -> }))
         }
     }
 }

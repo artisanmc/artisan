@@ -44,8 +44,8 @@ class ModuleRegistrationIntegrationTest {
 
     /** A minimal stub module simulating an external `artisan-quests` plugin. */
     private fun questsModule() = object : ArtisanModule {
-        override val id = "quests"
-        override val schemaVersion = "quests/v1"
+        override fun getId() = "quests"
+        override fun getSchemaVersion() = "quests/v1"
         override fun onEnable(api: ArtisanAPI) {}
         override fun onDisable() {}
     }
@@ -71,21 +71,22 @@ class ModuleRegistrationIntegrationTest {
         val registry = ModuleRegistry()
         // We need a real JavaPlugin for the ArtisanAPI constructor — use MockBukkit to load one.
         val artisanPlugin = MockBukkit.load(ArtisanPlugin::class.java)
-        val api = ArtisanAPI(
-            plugin       = artisanPlugin,
-            dataSources  = DataSourceRegistry(),
-            commands     = CommandRegistry(),
-            events       = ModuleEventBus(),
-            schemas      = SchemaRegistry(),
-            modules      = registry,
-            coreVersion  = "1.0.0",
-            project      = object : net.artisanmc.modules.api.ProjectContentApi {
+        val api = ArtisanAPI.builder(
+            artisanPlugin,
+            DataSourceRegistry(),
+            CommandRegistry(),
+            ModuleEventBus(),
+            SchemaRegistry(),
+            registry,
+            "1.0.0",
+            object : net.artisanmc.modules.api.ProjectContentApi {
                 override fun projectIds() = emptyList<String>()
                 override fun list(projectId: String, dir: String) = emptyList<String>()
                 override fun read(projectId: String, relPath: String): String? = null
                 override fun hasContent(dir: String) = false
             },
         )
+            .build()
         registry.bind(api) {
             // onChange fires whenever the active module list changes.
             provider?.notifyModulesChanged(

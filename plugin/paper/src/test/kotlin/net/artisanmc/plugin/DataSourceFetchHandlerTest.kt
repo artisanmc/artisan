@@ -45,7 +45,9 @@ class DataSourceFetchHandlerTest {
     @Test
     fun `fetches with null player on the main thread and shapes filter-sort-limit`() {
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration(ref = "shop:items", fetcher = { player, _ ->
+        registry.register(DataSourceDeclaration(
+            "shop:items",
+            { player, _ ->
             assertNull(player)
             listOf(
                 mapOf("id" to "bow", "cat" to "armes", "price" to 30),
@@ -53,7 +55,8 @@ class DataSourceFetchHandlerTest {
                 mapOf("id" to "bread", "cat" to "food", "price" to 1),
                 mapOf("id" to "axe", "cat" to "armes", "price" to 20),
             )
-        }))
+        },
+        ))
         val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
@@ -76,9 +79,12 @@ class DataSourceFetchHandlerTest {
     @Test
     fun `interpolates {arg} tokens in filter values from args`() {
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration(ref = "quests:list", fetcher = { _, _ ->
+        registry.register(DataSourceDeclaration(
+            "quests:list",
+            { _, _ ->
             listOf(mapOf("id" to "q1", "group" to "daily"), mapOf("id" to "q2", "group" to "weekly"))
-        }))
+        },
+        ))
         val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
@@ -95,9 +101,12 @@ class DataSourceFetchHandlerTest {
     @Test
     fun `truncates to 50 rows and flags truncated`() {
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration(ref = "big:list", fetcher = { _, _ ->
+        registry.register(DataSourceDeclaration(
+            "big:list",
+            { _, _ ->
             (1..80).map { mapOf<String, Any?>("i" to it) }
-        }))
+        },
+        ))
         val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
@@ -116,9 +125,12 @@ class DataSourceFetchHandlerTest {
     fun `truncates further when payload exceeds 256 KB`() {
         val big = "x".repeat(20_000)
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration(ref = "huge:list", fetcher = { _, _ ->
+        registry.register(DataSourceDeclaration(
+            "huge:list",
+            { _, _ ->
             (1..40).map { mapOf<String, Any?>("i" to it, "blob" to big) }
-        }))
+        },
+        ))
         val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
@@ -151,8 +163,8 @@ class DataSourceFetchHandlerTest {
     @Test
     fun `PlayerRequiredException maps to player_required, other exceptions to fetch_error`() {
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration(ref = "me:stats", fetcher = { _, _ -> throw PlayerRequiredException("needs a player") }))
-        registry.register(DataSourceDeclaration(ref = "boom:x", fetcher = { _, _ -> error("kaboom") }))
+        registry.register(DataSourceDeclaration("me:stats", { _, _ -> throw PlayerRequiredException("needs a player") }))
+        registry.register(DataSourceDeclaration("boom:x", { _, _ -> error("kaboom") }))
         val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(2)
         val p = provider(registry, sink, latch)
@@ -174,7 +186,7 @@ class DataSourceFetchHandlerTest {
         // throws an NPE (null message) in preview mode. The reply must carry a
         // non-null, diagnosable message (the exception's class name).
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration(ref = "npe:x", fetcher = { _, _ -> throw NullPointerException() }))
+        registry.register(DataSourceDeclaration("npe:x", { _, _ -> throw NullPointerException() }))
         val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
@@ -191,7 +203,7 @@ class DataSourceFetchHandlerTest {
     fun `main-thread scheduling failure still replies with fetch_error`() {
         val dir = Files.createTempDirectory("artisan_dsf_").toFile()
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration(ref = "shop:items", fetcher = { _, _ -> emptyList() }))
+        registry.register(DataSourceDeclaration("shop:items", { _, _ -> emptyList() }))
         val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = SyncedMenuProvider(
