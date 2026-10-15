@@ -1,8 +1,9 @@
-import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { type DeclaredActionLookup, declaredActionOf } from "@/lib/actions/coreActions";
-import { canonicalModuleValue, normalizeModuleArgs } from "@/lib/actions/moduleActions";
+import { actionArgs, isLTextNode } from "./actionArgs";
 import { walkActions } from "./stepPath";
-import type { Action, I18nKey, LText, ModelField, Step } from "./types";
+import type { I18nKey, LText, ModelField, Step } from "./types";
+
+export { isLTextNode };
 
 /**
  * The text slots of a Step tree, addressed as the plugin addresses them
@@ -39,55 +40,8 @@ export interface ActionTextSlot {
   slot: string | null;
 }
 
-export const isLTextNode = (v: unknown): v is LText =>
-  typeof v === "object" &&
-  v !== null &&
-  !Array.isArray(v) &&
-  typeof (v as { key?: unknown }).key === "string" &&
-  Object.keys(v as object).length === 1;
-
 const suffixed = (prefix: string, leaf: string, index: number): string =>
   index === 0 ? `${prefix}.${leaf}` : `${prefix}.${leaf}_${index}`;
-
-/** The wire name and the argument accessors of an action, whatever its editor shape. */
-interface ActionArgs {
-  name: string;
-  get: (arg: string) => unknown;
-  set: (arg: string, value: unknown) => void;
-}
-
-function actionArgs(action: Action, decl: DeclaredAction): ActionArgs {
-  if (action.type === "module") {
-    return {
-      name: action.name,
-      get: (arg) => normalizeModuleArgs(decl, action.value)[arg],
-      set: (arg, value) => {
-        action.value = canonicalModuleValue(decl, {
-          ...normalizeModuleArgs(decl, action.value),
-          [arg]: value,
-        });
-      },
-    };
-  }
-  // A core action of the typed union: its text arguments carry the wire name
-  // (`text`, `title`, `subtitle`), so the declaration reads them directly.
-  const record = action as unknown as Record<string, unknown>;
-  return {
-    name: action.type,
-    get: (arg) => record[arg],
-    set: (arg, value) => {
-      record[arg] = value;
-    },
-  };
-}
-
-/** The wire name of an editor action: `paginate` is `pagination_next`/`pagination_prev`. */
-export function actionWireName(action: Action): string {
-  if (action.type === "module") return action.name;
-  if (action.type === "paginate")
-    return action.direction === "next" ? "pagination_next" : "pagination_prev";
-  return action.type;
-}
 
 function isTextArg(arg: ModelField): boolean {
   return arg.type.kind === "ltext";
@@ -109,7 +63,7 @@ export function* walkStepTextSlots(
     return n;
   };
   for (const action of walkActions(steps)) {
-    const wireName = actionWireName(action);
+    const wireName = action.name;
     const decl = declOf(wireName);
     if (!decl) continue;
     const args = actionArgs(action, decl);

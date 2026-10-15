@@ -4,6 +4,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { isLTextNode, normalizeActionArgs } from "@/domain/actionArgs";
+import { menusOf } from "@/domain/documents";
 import type { StepFrame } from "@/domain/stepPath";
 import type {
   Action,
@@ -22,20 +24,20 @@ import type {
 import { ActionEditor } from "@/features/canvas/properties/ActionEditor";
 import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { useDeclaredActionOf } from "@/lib/actions/coreActions";
+import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { cx } from "@/lib/cx";
 import { useGetText } from "@/lib/useText";
 import { type AppearanceTarget, useAccountStore } from "@/state/accountStore";
+import { moduleActionsOf, useServerActionsStore } from "@/state/serverActionsStore";
 import { useUiStore } from "@/state/uiStore";
 import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { type CSSProperties, createContext, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ACTION_TYPES, defaultAction, defaultModuleAction } from "./defaults";
-import { moduleActionsOf, useServerActionsStore } from "@/state/serverActionsStore";
-import { isLTextNode } from "@/domain/actionTextSlots";
+import { ACTION_TYPES, defaultAction, defaultDeclaredAction } from "./defaults";
 import { CLICK_TYPE_ORDER, actionTypeLabel, clickTypeLabel, conditionsSummary } from "./labels";
-import { menusOf } from "@/domain/documents";
 
 const INDENT = 16;
 
@@ -685,7 +687,7 @@ export function ActionLine({
         handles={<RowHandles onRemove={onRemove} />}
       >
         <DragHandle />
-        <Token kind="action">{action.type}</Token>
+        <Token kind="action">{action.name}</Token>
         <ActionSummaryArgs action={action} getText={getText} />
       </Row>
       {expanded ? (
@@ -894,23 +896,23 @@ export function AddStepLine({
           align="start"
           className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
         >
-          {ACTION_TYPES.map((type) => (
+          {ACTION_TYPES.map((name) => (
             <DropdownMenuItem
-              key={type}
-              onSelect={() => onPick({ kind: "action", action: defaultAction(type, firstMenuId) })}
+              key={name}
+              onSelect={() => onPick({ kind: "action", action: defaultAction(name, firstMenuId) })}
               className="cursor-pointer focus:bg-[var(--surface-hover)]"
             >
               <span className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--text-mut)]">
-                {actionTypeLabel(type)}
+                {actionTypeLabel(name)}
               </span>
-              <span className="font-mono text-[11px] text-[var(--text)]">{type}</span>
+              <span className="font-mono text-[11px] text-[var(--text)]">{name}</span>
             </DropdownMenuItem>
           ))}
           {moduleActions.map((decl) => (
             <DropdownMenuItem
               key={decl.name}
               onSelect={() =>
-                onPick({ kind: "action", action: defaultModuleAction(decl, literalText) })
+                onPick({ kind: "action", action: defaultDeclaredAction(decl, { literalText }) })
               }
               className="cursor-pointer focus:bg-[var(--surface-hover)]"
             >
@@ -1060,10 +1062,9 @@ function HandleButton({
 // Helpers
 
 /**
- * Inline summary of an action's args. MiniMessage-bearing actions
- * (send_message / broadcast / show_title) render their text *formatted* so
- * the row shows `<gold><bold>Hi` as actual gold bold text, not raw tags.
- * Everything else falls back to the plain-string {@link actionSummaryArgs}.
+ * Inline summary of an action's args, read through its declaration. Text arguments render
+ * *formatted* so the row shows `<gold><bold>Hi` as actual gold bold text, not raw tags;
+ * the other arguments fall back to the plain-string {@link actionSummaryArgs}.
  */
 function ActionSummaryArgs({
   action,
@@ -1072,93 +1073,68 @@ function ActionSummaryArgs({
   action: Action;
   getText: (lt: LText | undefined) => string;
 }) {
-  if (action.type === "send_message" || action.type === "broadcast") {
+  const declOf = useDeclaredActionOf();
+  const decl = declOf(action.name);
+  const args = decl ? normalizeActionArgs(decl, action.value) : {};
+  const texts = decl
+    ? decl.args.filter((a) => a.type.kind === "ltext" && isLTextNode(args[a.name]))
+    : [];
+  if (texts.length === 0) {
     return (
-      <span className="min-w-0 truncate text-[var(--text-mut)]">
-        "<MiniMessageInline source={getText(action.text)} />"
-      </span>
+      <span className="text-[var(--text-mut)]">{actionSummaryArgs(action, getText, decl)}</span>
     );
   }
-  if (action.type === "show_title") {
-    const sub = action.subtitle ? getText(action.subtitle) : null;
-    return (
-      <span className="min-w-0 truncate text-[var(--text-mut)]">
-        "<MiniMessageInline source={getText(action.title)} />"
-        {sub !== null ? (
-          <>
-            {' / "'}
-            <MiniMessageInline source={sub} />
-            {'"'}
-          </>
-        ) : null}
-      </span>
-    );
-  }
-  return <span className="text-[var(--text-mut)]">{actionSummaryArgs(action, getText)}</span>;
+  const rest = actionSummaryArgs(action, getText, decl, new Set(texts.map((a) => a.name)));
+  return (
+    <span className="min-w-0 truncate text-[var(--text-mut)]">
+      {texts.map((a, i) => (
+        <span key={a.name}>
+          {i > 0 ? " / " : ""}"<MiniMessageInline source={getText(args[a.name] as LText)} />"
+        </span>
+      ))}
+      {rest ? ` ${rest}` : ""}
+    </span>
+  );
 }
 
-/** Compact one-line summary of action params (just the args, no type prefix). */
-function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => string): string {
-  switch (action.type) {
-    case "open_menu": {
-      // Surface the passed context inline — it's load-bearing (parameterized
-      // menus) and otherwise only visible after expanding the action.
-      const ctx = Object.entries(action.context ?? {})
-        .map(([k, v]) => `${k}=${v}`)
+/**
+ * Compact one-line summary of action params (just the args, no name prefix): the primary
+ * argument first, then the others as `name=value`, a set flag as `(name)`; texts read in the
+ * active language. An undeclared action shows its wire value.
+ */
+function actionSummaryArgs(
+  action: Action,
+  getText: (lt: LText | undefined) => string,
+  decl: DeclaredAction | undefined,
+  skip: Set<string> = new Set(),
+): string {
+  if (!decl) return summarizeModuleValue(action.value, getText);
+  const args = normalizeActionArgs(decl, action.value);
+  const show = (v: unknown): string => {
+    if (isLTextNode(v)) return `"${getText(v)}"`;
+    if (typeof v === "string") return v;
+    if (Array.isArray(v)) return v.map(show).join(", ");
+    if (typeof v === "object" && v !== null)
+      return Object.entries(v)
+        .map(([k, x]) => `${k}=${show(x)}`)
         .join(", ");
-      return action.menuId + (ctx ? ` (${ctx})` : "") + (action.clearContext ? " (clear)" : "");
-    }
-    case "close_menu":
-      return "";
-    case "open_previous_menu":
-      return "";
-    case "run_command":
-      return `${action.as === "console" ? "[console] " : ""}/${action.command}`;
-    case "send_message":
-      return `"${getText(action.text)}"`;
-    case "show_title": {
-      const title = getText(action.title);
-      const sub = action.subtitle ? getText(action.subtitle) : null;
-      return sub ? `"${title}" / "${sub}"` : `"${title}"`;
-    }
-    case "give_item":
-      return `${action.count}× ${action.material}`;
-    case "take_item":
-      return `-${action.count}× ${action.material}`;
-    case "take_money":
-      return `-$${action.amount}`;
-    case "give_money":
-      return `+$${action.amount}`;
-    case "give_xp":
-      return `+${action.amount} xp`;
-    case "give_level":
-      return `+${action.amount} lvl`;
-    case "broadcast":
-      return `"${getText(action.text)}"`;
-    case "play_sound":
-      return action.sound;
-    case "teleport":
-      return `${action.world} ${action.x},${action.y},${action.z}`;
-    case "paginate":
-      return `${action.direction}${action.targetElementId ? ` ${action.targetElementId}` : " (all)"}`;
-    case "set_arg":
-      return `${action.arg} = ${action.value}`;
-    case "set_arg_cycle_next":
-      return `${action.arg} ↻ next ${action.list}`;
-    case "set_arg_cycle_prev":
-      return `${action.arg} ↻ prev ${action.list}`;
-    case "open_dialog":
-      return action.dialogId + (action.clearContext ? " (clear)" : "");
-    case "close_dialog":
-      return "";
-    case "run_actions":
-      return action.actions;
-    case "module":
-      return summarizeModuleValue(action.value, getText);
+    return String(v);
+  };
+  const parts: string[] = [];
+  const primary = decl.primary;
+  if (primary && args[primary] !== undefined && !skip.has(primary)) parts.push(show(args[primary]));
+  for (const arg of decl.args) {
+    if (arg.name === primary || skip.has(arg.name)) continue;
+    const v = args[arg.name];
+    if (v === undefined) continue;
+    if (v === true) parts.push(`(${arg.name})`);
+    else if (v === false) continue;
+    else parts.push(`${arg.name}=${show(v)}`);
   }
+  return parts.join(" ");
 }
 
-/** A module action's value in one line: adopted texts read in the active language, the rest as JSON. */
+/** An undeclared action's value in one line: adopted texts read in the active language, the rest as JSON. */
 function summarizeModuleValue(value: unknown, getText: (lt: LText | undefined) => string): string {
   if (value == null) return "";
   if (isLTextNode(value)) return getText(value);

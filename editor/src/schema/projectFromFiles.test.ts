@@ -63,7 +63,7 @@ function fixture(): Project {
                     title: { key: "k_row_title" },
                     click: {
                       left: {
-                        steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }],
+                        steps: [{ kind: "action", action: { name: "open_menu", value: "m1" } }],
                       },
                     },
                   },
@@ -87,7 +87,7 @@ function fixture(): Project {
           projectId: PID,
           name: "shop",
           arguments: [{ name: "target", type: "player", required: true }],
-          steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }],
+          steps: [{ kind: "action", action: { name: "open_menu", value: "m1" } }],
         },
       ],
       dialog: [

@@ -112,12 +112,7 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
       menuWithClick("left", 'open_menu target clear with player="{player}"'),
       opts,
     );
-    expect(clickAction(r)).toEqual({
-      type: "open_menu",
-      menuId: "target",
-      clearContext: true,
-      context: { player: "{player}" },
-    });
+    expect(clickAction(r)).toEqual({ name: "open_menu", value: { menu_id: "target", context: { player: "{player}" }, clear_context: true } });
   });
 
   it("reads template refs on iterates/places (the display lives in templates/)", () => {
@@ -253,25 +248,25 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
     const el = (menu.layers as any[])[0].elements[0];
     el.click = { left: "close_menu" };
     const r = menuV1ToDomain(menu, opts);
-    expect(clickAction(r)).toEqual({ type: "close_menu" });
+    expect(clickAction(r)).toEqual({ name: "close_menu", value: null });
   });
 
   it("open_menu without clear/context omits those keys", () => {
     const r = menuV1ToDomain(menuWithClick("left", "open_menu target"), opts);
-    expect(clickAction(r)).toEqual({ type: "open_menu", menuId: "target" });
+    expect(clickAction(r)).toEqual({ name: "open_menu", value: "target" });
   });
 
   it("send_message literal mints an LText and stores the value", () => {
     const r = menuV1ToDomain(menuWithClick("left", 'send_message "Hello"'), opts);
-    const act = clickAction(r) as { type: string; text: { key: string } };
-    expect(act.type).toBe("send_message");
-    expect(r.i18nKeys[act.text.key]).toEqual({ en: "Hello" });
+    const act = clickAction(r) as { name: string; value: { key: string } };
+    expect(act.name).toBe("send_message");
+    expect(r.i18nKeys[act.value.key]).toEqual({ en: "Hello" });
   });
 
   it("send_message @key references an existing i18n key (no mint)", () => {
     const r = menuV1ToDomain(menuWithClick("left", "send_message @menus.x.msg"), opts);
-    const act = clickAction(r) as { type: string; text: { key: string } };
-    expect(act.text.key).toBe("menus.x.msg");
+    const act = clickAction(r) as { name: string; value: { key: string } };
+    expect(act.value.key).toBe("menus.x.msg");
   });
 
   it("show_title carries timings and mints title/subtitle literals", () => {
@@ -280,48 +275,46 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
       opts,
     );
     const act = clickAction(r) as {
-      type: string;
-      title: { key: string };
-      subtitle: { key: string };
-      fadeIn: number;
-      stay: number;
-      fadeOut: number;
+      name: string;
+      value: {
+        title: { key: string };
+        subtitle: { key: string };
+        fade_in: number;
+        stay: number;
+        fade_out: number;
+      };
     };
-    expect(act.type).toBe("show_title");
-    expect(act.fadeIn).toBe(5);
-    expect(act.stay).toBe(10);
-    expect(act.fadeOut).toBe(15);
-    expect(r.i18nKeys[act.title.key]).toEqual({ en: "T" });
-    expect(r.i18nKeys[act.subtitle.key]).toEqual({ en: "S" });
+    expect(act.name).toBe("show_title");
+    expect(act.value.fade_in).toBe(5);
+    expect(act.value.stay).toBe(10);
+    expect(act.value.fade_out).toBe(15);
+    expect(r.i18nKeys[act.value.title.key]).toEqual({ en: "T" });
+    expect(r.i18nKeys[act.value.subtitle.key]).toEqual({ en: "S" });
   });
 
   it("parses run_command with an explicit as target", () => {
     const r = menuV1ToDomain(menuWithClick("left", 'run_command "say hi" as player'), opts);
-    expect(clickAction(r)).toEqual({ type: "run_command", command: "say hi", as: "player" });
+    expect(clickAction(r)).toEqual({ name: "run_command", value: "say hi" });
   });
 
   it("paginate next with target element", () => {
     const r = menuV1ToDomain(menuWithClick("left", "paginate next grid"), opts);
-    expect(clickAction(r)).toEqual({
-      type: "paginate",
-      direction: "next",
-      targetElementId: "grid",
-    });
+    expect(clickAction(r)).toEqual({ name: "pagination_next", value: "grid" });
   });
 
   it("paginate prev without target omits targetElementId", () => {
     const r = menuV1ToDomain(menuWithClick("left", "paginate prev"), opts);
-    expect(clickAction(r)).toEqual({ type: "paginate", direction: "prev" });
+    expect(clickAction(r)).toEqual({ name: "pagination_prev", value: null });
   });
 
   it("set arg = value passes through", () => {
     const r = menuV1ToDomain(menuWithClick("left", "set page = 2"), opts);
-    expect(clickAction(r)).toEqual({ type: "set_arg", arg: "page", value: "2" });
+    expect(clickAction(r)).toEqual({ name: "set_arg", value: { arg: "page", value: "2" } });
   });
 
   it("open_dialog with a bare id", () => {
     const r = menuV1ToDomain(menuWithClick("left", "open_dialog confirm"), opts);
-    expect(clickAction(r)).toEqual({ type: "open_dialog", dialogId: "confirm" });
+    expect(clickAction(r)).toEqual({ name: "open_dialog", value: "confirm" });
   });
 
   it("round-trips an if-step (cases + else)", () => {
@@ -331,10 +324,10 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
     const steps = clickSteps(r) as Array<Record<string, any>>;
     expect(steps[0]!.kind).toBe("if");
     expect(steps[0]!.cases[0].conditions[0]).toEqual({ type: "has_permission", perm: "vip" });
-    expect(steps[0]!.cases[0].steps[0]).toEqual({ kind: "action", action: { type: "close_menu" } });
+    expect(steps[0]!.cases[0].steps[0]).toEqual({ kind: "action", action: { name: "close_menu", value: null } });
     expect(steps[0]!.else[0]).toEqual({
       kind: "action",
-      action: { type: "run_command", command: "say no", as: "console" },
+      action: { name: "run_command", value: { command: "say no", as: "console" } },
     });
   });
 
@@ -708,24 +701,11 @@ describe("menuV1ToDomain — extended runtime-OK vocab", () => {
     expect(r.unsupported).toEqual([]);
     const steps = r.menu.layers[0]!.elements[0]!.display!.click!.left!.steps;
     expect(steps).toHaveLength(7);
-    const bc = steps[0] as { kind: "action"; action: { type: string; text: { key: string } } };
-    expect(bc.action.type).toBe("broadcast");
-    expect(r.i18nKeys[bc.action.text.key]).toEqual({ en: "<gold>Big news!</gold>" });
-    expect((steps[1] as { action: unknown }).action).toEqual({
-      type: "play_sound",
-      sound: "ENTITY_PLAYER_LEVELUP",
-      volume: 0.5,
-      pitch: 1.2,
-    });
-    expect((steps[6] as { action: unknown }).action).toEqual({
-      type: "teleport",
-      world: "spawn",
-      x: 0.5,
-      y: 64,
-      z: 0.5,
-      yaw: 90,
-      pitch: 0,
-    });
+    const bc = steps[0] as { kind: "action"; action: { name: string; value: { key: string } } };
+    expect(bc.action.name).toBe("broadcast");
+    expect(r.i18nKeys[bc.action.value.key]).toEqual({ en: "<gold>Big news!</gold>" });
+    expect((steps[1] as { action: unknown }).action).toEqual({ name: "play_sound", value: { sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.2 } });
+    expect((steps[6] as { action: unknown }).action).toEqual({ name: "teleport", value: { world: "spawn", x: 0.5, y: 64, z: 0.5, yaw: 90, pitch: 0 } });
   });
 });
 

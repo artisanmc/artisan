@@ -49,14 +49,10 @@ const project = (): Project =>
                         steps: [
                           {
                             kind: "action",
-                            action: {
-                              type: "open_menu",
-                              menuId: "shop_category",
-                              context: {
+                            action: { name: "open_menu", value: { menu_id: "shop_category", context: {
                                 category_id: "{cat.id}",
                                 category_name: "{cat.name}",
-                              },
-                            },
+                              } } },
                           },
                         ],
                       },
@@ -110,10 +106,8 @@ describe("findPreviewCallContexts", () => {
     const p = project();
     // Rewrite the caller's context to the whole-model style: cat: "{cat}".
     const el = menusOf(p)[0]!.layers[0]!.elements[0]!;
-    const action = el.display!.click!.left!.steps[0]! as {
-      action: { context: Record<string, string> };
-    };
-    action.action.context = { cat: "{cat}" };
+    const step = el.display!.click!.left!.steps[0]! as { action: { value: Record<string, unknown> } };
+    step.action.value.context = { cat: "{cat}" };
     const target = menusOf(p).find((m) => m.id === "shop_category") as Menu;
     const contexts = findPreviewCallContexts(target, p, undefined, "fr");
     expect(contexts).toHaveLength(2);

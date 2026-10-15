@@ -76,14 +76,14 @@ function buildProject(): Project {
         id: "buy",
         label: lt(project, "Buy"),
         steps: [
-          { kind: "action", action: { type: "take_money", amount: 100 } },
-          { kind: "action", action: { type: "close_dialog" } },
+          { kind: "action", action: { name: "take_money", value: 100 } },
+          { kind: "action", action: { name: "close_dialog", value: null } },
         ],
       },
       {
         id: "cancel",
         label: lt(project, "Cancel"),
-        steps: [{ kind: "action", action: { type: "open_menu", menuId: menuId("shop") } }],
+        steps: [{ kind: "action", action: { name: "open_menu", value: menuId("shop") } }],
       },
     ],
   };
