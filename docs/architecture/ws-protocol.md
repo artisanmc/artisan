@@ -50,8 +50,10 @@ l'envoie plus, l'empreinte suit par `custom_items_changed`.
 resource_pack}`. `server_id` reprend le `server_uuid` du `hello`, `network_name` le nom du
 serveur du hub. `resource_pack` vaut le dernier pack que le hub a servi à ce serveur
 (`{url, hash}`), ou `{}` : un objet sans adresse laisse au serveur le pack qu'il a déjà
-(`PackUpdate.Incomplete`), `null` le lui retirerait. Avant `hello_ack`, `WsClient.request`
-répond `null` sans rien envoyer.
+(`PackUpdate.Incomplete`), `null` le lui retirerait. Le hub applique le `hello` (version de
+protocole, modules, configuration) avant d'envoyer `hello_ack` : une requête de l'éditeur qui suit
+l'ack voit le serveur tel qu'il s'est annoncé, jamais avec un `hello` vide. Avant `hello_ack`,
+`WsClient.request` répond `null` sans rien envoyer.
 
 **`session_replaced`** (hub → feuille) : un autre serveur s'est connecté avec le même server id ;
 l'ancienne connexion est fermée (dernier arrivé gagne, cf. `invariants.md`).
