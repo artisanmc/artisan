@@ -38,6 +38,7 @@ export function DocumentView({
   const dialog = dialogsOf(project).find((d) => d.id === eid);
   const relPath = project ? documentRelPath(project, eid) : null;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the default selection is applied once per opened document; re-running on `menu.layers` edits would reset the user's selection on every change
   useEffect(() => {
     // By default, select the element (menu/command/dialog) itself. But if a
     // selection already targets this element or one of its children — e.g. the
@@ -49,7 +50,6 @@ export function DocumentView({
     const current = useSelectionStore.getState().ids;
     const alreadyRelevant = current.size > 0 && [...current].every((id) => childIds.has(id));
     if (!alreadyRelevant) useSelectionStore.getState().set([documentId]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId]);
 
   const back = useCallback(

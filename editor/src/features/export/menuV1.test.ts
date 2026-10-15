@@ -45,7 +45,7 @@ function project(): Project {
 describe("serializeMenuToV1 / projectToMenuV1", () => {
   it("produces a canonical menu/v1 object that validates", () => {
     const p = project();
-    const m = serializeMenuToV1(menusOf(p)[0], p);
+    const m = serializeMenuToV1(menusOf(p)[0]!, p);
     expect(m.schema).toBe("menu/v1");
     expect(m.size).toBe(27);
     expect(validateMenuV1(m)).toEqual({ valid: true, errors: [] });
@@ -54,6 +54,6 @@ describe("serializeMenuToV1 / projectToMenuV1", () => {
     const p = project();
     const arr = projectToMenuV1(p);
     expect(arr).toHaveLength(1);
-    expect(arr[0].id).toBe("shop");
+    expect(arr[0]!.id).toBe("shop");
   });
 });

@@ -87,7 +87,7 @@ export const createI18nSlice = ({ set }: AccountSliceContext): I18nSlice => ({
         // `extract` is the default and leaves no marker — on disk as here,
         // so a project that never touched the toggle stays clean.
         if (mode === "inline") project.i18nMode = "inline";
-        else delete project.i18nMode;
+        else Reflect.deleteProperty(project, "i18nMode");
         project.updatedAt = new Date().toISOString();
       }),
     ),

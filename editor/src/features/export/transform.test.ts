@@ -4,7 +4,6 @@ import type {
   AssetId,
   Condition,
   Dialog,
-  Element,
   I18nKey,
   Menu,
   Project,
@@ -153,7 +152,6 @@ describe("transform", () => {
       },
     });
     const files = transform(project);
-    const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(parseEditorState(files)?.layout).toEqual({
       shop: { x: 40, y: 40 },
       heal: { x: 260, y: 40 },
@@ -171,7 +169,6 @@ describe("transform", () => {
       canvasLayout: {},
     });
     const files = transform(project);
-    const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(parseEditorState(files)).toBeUndefined();
   });
 
@@ -307,7 +304,6 @@ describe("transform", () => {
       } as Project["canvasLayout"],
     });
     const files = transform(project);
-    const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(parseEditorState(files)?.layout).toEqual({ shop: { x: 40, y: 40 } });
   });
 
@@ -321,7 +317,6 @@ describe("transform", () => {
       canvasLayout: { [menuId("shop")]: { x: 123, y: 456 } },
     });
     const files = transform(project);
-    const manifestYaml = files["plugins/Artisan/projects/p_test/manifest.yaml"]!;
     // The editor emits block-style YAML for nested objects (the `yaml` lib's
     // default with our yamlOpts).
     const editorYaml = files["plugins/Artisan/projects/p_test/.artisan/editor.yaml"]!;
@@ -344,7 +339,6 @@ describe("transform", () => {
       },
     });
     const files = transform(project);
-    const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(parseEditorState(files)?.edges).toEqual({
       "home->shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
     });
@@ -359,7 +353,6 @@ describe("transform", () => {
       },
     });
     const files = transform(project);
-    const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(parseEditorState(files)?.edges).toBeUndefined();
   });
 
@@ -378,7 +371,6 @@ describe("transform", () => {
       },
     });
     const files = transform(project);
-    const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
     expect(parseEditorState(files)?.edges).toEqual({
       "home->shop": { from: { side: "right", t: 0.5 } },
     });
@@ -446,9 +438,12 @@ describe("transform", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: { name: "send_message", value: {
+                              action: {
+                                name: "send_message",
+                                value: {
                                   key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
-                                } },
+                                },
+                              },
                             },
                           ],
                         },
@@ -537,11 +532,20 @@ describe("transform", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: { name: "show_title", value: { title: {
-                                  key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
-                                }, subtitle: {
-                                  key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
-                                }, fade_in: 5, stay: 40, fade_out: 15 } },
+                              action: {
+                                name: "show_title",
+                                value: {
+                                  title: {
+                                    key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
+                                  },
+                                  subtitle: {
+                                    key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
+                                  },
+                                  fade_in: 5,
+                                  stay: 40,
+                                  fade_out: 15,
+                                },
+                              },
                             },
                           ],
                         },
@@ -591,9 +595,12 @@ describe("transform", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: { name: "show_title", value: {
+                              action: {
+                                name: "show_title",
+                                value: {
                                   key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
-                                } },
+                                },
+                              },
                             },
                           ],
                         },
@@ -640,7 +647,10 @@ describe("transform", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: { name: "open_menu", value: { menu_id: targetId, clear_context: true } },
+                              action: {
+                                name: "open_menu",
+                                value: { menu_id: targetId, clear_context: true },
+                              },
                             },
                           ],
                         },
@@ -808,8 +818,8 @@ describe("transform", () => {
     expect(fr["menus.shop.title"]).toBeUndefined();
     // lang/ only holds siteless presentation keys now.
     expect(Object.keys(en).every((k) => k.startsWith("artisan."))).toBe(true);
-    expect(en["lt_orphan"]).toBeUndefined();
-    expect(en["greeting"]).toBeUndefined();
+    expect(en.lt_orphan).toBeUndefined();
+    expect(en.greeting).toBeUndefined();
     expect(files["plugins/Artisan/projects/p_test/translations.yaml"]).toBeUndefined();
   });
 
@@ -939,9 +949,7 @@ describe("transform — dialogs", () => {
         {
           id: "btn_open",
           label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey },
-          steps: [
-            { kind: "action", action: { name: "open_dialog", value: dialogId("d_other") } },
-          ],
+          steps: [{ kind: "action", action: { name: "open_dialog", value: dialogId("d_other") } }],
         },
       ],
     };

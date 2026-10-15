@@ -68,7 +68,7 @@ describe("ItemTooltip menu scope", () => {
       for (const [key, value] of [
         ["second_title", "Alex"],
         ["second_lore", "Nouveau lore"],
-      ]) {
+      ] as const) {
         useAccountStore.getState().setI18nValue({
           projectId: project.id,
           lt: { key: key as I18nKey },
