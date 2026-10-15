@@ -23,8 +23,16 @@ The session it opens stays valid until **7 days without use** (`web.session-days
 `environment.yml`), server restarts included: it is kept in the suite database. Once it
 expires, or after **Sign out**, run the command again for a new link.
 
-The command only works in game. From the console it answers
-`Run /artisan editor in game: the editor signs you in as your player.`
+## From the console
+
+Run `artisan editor` in the server console: it prints the link itself, as there is
+nothing to click. The editor signs you in as **Console**, one identity shared by
+whoever uses the console, with every editor permission: the same drafts, and
+`Console` as the author in the history. `artisan editor logout` signs Console out
+everywhere. Without `web.url`, the link uses the server's `server-ip`, else
+`localhost`.
+
+The link lands in the server log: it still works only once and for 60 seconds.
 
 ## Which address the link uses
 
