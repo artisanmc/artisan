@@ -8,6 +8,7 @@
   "files": {
     "ignore": [
       "dist",
+      "dist-*",
       "node_modules",
       ".vite",
       "playwright-report",
