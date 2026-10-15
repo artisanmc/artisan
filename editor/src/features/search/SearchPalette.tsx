@@ -1,19 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { LayoutGrid, MessageSquare, Search, TerminalSquare } from "lucide-react";
 import type { ElementId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
-import { useUiStore } from "@/state/uiStore";
-import { useSelectionStore } from "@/state/selectionStore";
-import {
-  buildSearchIndex,
-  groupResultsForDisplay,
-  searchQuery,
-  type SearchEntry,
-  type SearchGroup,
-} from "./searchIndex";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import type { Project } from "@/domain/types";
 import { goToDocument } from "@/features/project/goToDocument";
 import {
   indexProjectDocuments,
@@ -21,22 +7,50 @@ import {
   toSearchEntries,
 } from "@/features/serverIndex/serverIndex";
 import { serverIndexScope, useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import type { Project } from "@/domain/types";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { useAccountStore } from "@/state/accountStore";
+import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
+import { documentKindContribution } from "@artisan/editor-sdk";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
+import { FileText, LayoutGrid, MessageSquare, Search, TerminalSquare } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ComponentType } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  type SearchEntry,
+  type SearchGroup,
+  buildSearchIndex,
+  groupResultsForDisplay,
+  searchQuery,
+} from "./searchIndex";
 
 const NO_PROJECTS: Project[] = [];
 
-const GROUP_ICON: Record<SearchGroup, typeof Search> = {
+type GroupIcon = ComponentType<{ className?: string }>;
+const GROUP_ICON: Record<string, GroupIcon> = {
   menu: LayoutGrid,
   command: TerminalSquare,
   dialog: MessageSquare,
   content: Search,
 };
-const GROUP_LABEL: Record<SearchGroup, string> = {
+const GROUP_LABEL: Record<string, string> = {
   menu: "search.groupMenu",
   command: "search.groupCommand",
   dialog: "search.groupDialog",
   content: "search.groupContent",
 };
+/** A module's kind takes its icon and label from its contribution. */
+function groupIcon(group: SearchGroup): GroupIcon {
+  return GROUP_ICON[group] ?? documentKindContribution(group)?.icon ?? FileText;
+}
+function groupLabel(group: SearchGroup, t: TFunction): string {
+  const key = GROUP_LABEL[group];
+  if (key) return t(key);
+  const label = documentKindContribution(group)?.label ?? group;
+  return t(label, { defaultValue: label });
+}
 
 export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
@@ -182,12 +196,12 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
             results.map((r, i) => {
               const header = r.group !== lastGroup ? r.group : null;
               lastGroup = r.group;
-              const Icon = GROUP_ICON[r.group];
+              const Icon = groupIcon(r.group);
               return (
                 <div key={r.id}>
                   {header && (
                     <div className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                      {t(GROUP_LABEL[header])}
+                      {groupLabel(header, t)}
                     </div>
                   )}
                   <button

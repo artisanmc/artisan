@@ -77,6 +77,9 @@ export interface FrontendModule {
   // UI integration
   sidebar: { icon: ComponentType; label: string };
   routes: { path: string; component: ComponentType }[];
+
+  // Document kinds this module contributes (ADR extensible-document-kinds, lot 5)
+  documents?: DocumentKindContribution[];
   
   // WebSocket message types this module handles
   wsMessageTypes?: string[];
@@ -100,6 +103,21 @@ export const modules: FrontendModule[] = [menusModule, commandsModule, shopModul
 Le core charge ce registry au boot, monte les routes, register les WS handlers, ajoute les entrées sidebar.
 
 > **SDK barrel (depuis 2026-06-15)** — le contrat `FrontendModule` + le registre + l'event bus sont exposés via un point d'entrée unique `@artisan/editor-sdk` (alias interne `editor/src/sdk/index.ts`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `@/modules/api/...` en profondeur. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands consomment déjà le barrel (dogfooding).
+
+> **Kinds de Document (depuis 2026-10-15, lot 5)** — un module contribue ses kinds de Document par
+> `documents: DocumentKindContribution[]` : `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
+> `icon?`, `component` (vue du panneau Propriétés), `title?`, `listByTitle?`, `create`, `parse`,
+> `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
+> aperçu non interactif). L'hôte l'installe à l'enregistrement (`registerEditorModule`,
+> `lib/moduleDocumentKinds.ts`) dans sa table des kinds, ses codecs et ses visiteurs ; le panneau,
+> les listings, la recherche, la planche, les traductions et les arêtes le lisent par le registre
+> SDK (`documentKindContribution(kind)`). Les kinds core sont déclarés ainsi
+> (`src/modules/{menus,commands,dialogs}/*Kind.tsx`). Un kind contribué par deux modules est refusé.
+> **Ajouter un kind** : écrire la contribution dans `src/modules/{id}/{kind}Kind.tsx`, la lister
+> dans la `FrontendModule`, un test de bout en bout sur le modèle de
+> `lib/moduleDocumentKinds.test.tsx` (kind « quest »). Le plugin ne connaît pas encore les kinds de
+> module (W6, après un pilote) : le dossier n'est pas synchronisé tant que `DocumentKinds.kt` ne le
+> liste pas. Détail : `docs/architecture/editor-internals.md`, « Kinds de Document contribués ».
 
 ### 3.2 Backend module (supprimé en phase F)
 

@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MODULE_MANIFEST } from "@/distribution/modules.manifest";
-import { getModule, registerModule } from "@artisan/editor-sdk";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { ConfigValueForm, SourceRowsTable } from "@/features/data/SourceValueEditor";
 import {
@@ -13,10 +12,12 @@ import {
 import { fetchServerDeclaredModels } from "@/lib/api/dataSources";
 import { readProjectFiles } from "@/lib/api/projectFiles";
 import { cx } from "@/lib/cx";
+import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
 import { useAccountStore } from "@/state/accountStore";
 import { screenCacheKey, useScreenCacheStore } from "@/state/screenCacheStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
+import { getModule } from "@artisan/editor-sdk";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { YamlFileEditor, yamlErrorsOf } from "./YamlFileEditor";
@@ -98,7 +99,7 @@ export function ConfigScreenPage({
     const entry = MODULE_MANIFEST.find((entry) => entry.id === screen.moduleId);
     if (entry && !getModule(entry.id)) {
       const module = await entry.load();
-      if (!getModule(entry.id)) registerModule(module);
+      registerEditorModule(module);
     }
     setErrorCode(null);
     const cacheKey = screenCacheKey(serverId, screen.id);

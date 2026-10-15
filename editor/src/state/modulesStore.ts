@@ -1,7 +1,8 @@
-import { create } from "zustand";
-import { getModule, registerModule } from "@artisan/editor-sdk";
-import { fetchActiveModulesUser } from "@/lib/api/modules";
 import { MODULE_MANIFEST } from "@/distribution/modules.manifest";
+import { fetchActiveModulesUser } from "@/lib/api/modules";
+import { registerEditorModule } from "@/lib/moduleDocumentKinds";
+import { getModule } from "@artisan/editor-sdk";
+import { create } from "zustand";
 
 export interface ModulesSource {
   serverId: string;
@@ -42,7 +43,7 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
         if (!activeIds.has(entry.id)) continue;
         if (!getModule(entry.id)) {
           const mod = await entry.load();
-          if (!getModule(entry.id)) registerModule(mod);
+          registerEditorModule(mod);
         }
         mounted.push(entry.id);
       }
