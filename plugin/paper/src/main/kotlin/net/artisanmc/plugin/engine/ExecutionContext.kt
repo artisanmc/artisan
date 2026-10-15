@@ -1,10 +1,15 @@
 package net.artisanmc.plugin.engine
 
+import net.artisanmc.modules.api.ActionContext
 import org.bukkit.entity.Player
 
 /** Current page + page count of an iterating element, computed at render. */
 data class PageInfo(val page: Int, val pageCount: Int)
 
+/**
+ * The engine's context: what a module's handler sees through [EngineActionContext]
+ * (player, args, language, project), plus Artisan's own navigation and pagination state.
+ */
 data class ExecutionContext(
     val player: Player,
     val args: Map<String, Any> = emptyMap(),
@@ -39,4 +44,18 @@ data class ExecutionContext(
      */
     val resolvedArgs: Map<String, Any>
         get() = if ("player" in args) args else args + ("player" to player)
+}
+
+/**
+ * The engine's context as the API shows it to a handler ([ActionContext]). A Kotlin
+ * property cannot implement a Java getter, so this view wraps [engine] instead of
+ * [ExecutionContext] implementing the interface; [ActionExecutor.context] unwraps it.
+ */
+class EngineActionContext(val engine: ExecutionContext) : ActionContext {
+    override fun getPlayer(): Player = engine.player
+    override fun getArgs(): Map<String, Any> = engine.args
+    override fun getLang(): String = engine.lang
+    override fun getProjectId(): String? = engine.projectId
+    override fun withArgs(args: Map<String, Any>): ActionContext =
+        EngineActionContext(engine.copy(args = engine.args + args))
 }

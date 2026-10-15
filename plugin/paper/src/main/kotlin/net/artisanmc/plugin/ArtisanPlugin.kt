@@ -174,6 +174,9 @@ open class ArtisanPlugin : JavaPlugin() {
                 ))
                 .scheduler(net.artisanmc.plugin.scheduling.PaperSchedulerApi)
                 .placeholders(plugin.placeholders)
+                // Artisan's own actions are registered like a module's: every chain, core
+                // included, dispatches through this registry (ADR extensible-document-kinds, R1).
+                .actionRegistry(ActionRegistry().also(net.artisanmc.plugin.engine.CoreActionHandlers::registerAll))
                 .build()
             // A module reports the core plugin version: ArtisanModule has no version of its own.
             registry.bind(api) {
@@ -310,6 +313,7 @@ open class ArtisanPlugin : JavaPlugin() {
         override fun dataSources() = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources)
         override fun models() = api.models.declared().map { it.document }
         override fun screens() = api.screens.declared().map { it.toWire() }
+        override fun actions() = api.actionRegistry.registered().map { it.toWire() }
         override fun serverConfig() = serverConfigAccess.report()
         override fun customItems() = provider.customItems()
         override fun applyResourcePack(hash: String, path: String) {
@@ -633,7 +637,7 @@ open class ArtisanPlugin : JavaPlugin() {
         registerResourcePackManager(packs)
         provider.load()
 
-        executor = ActionExecutor(this, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory)
+        executor = ActionExecutor(this, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry)
         commandRegistrar.reload(provider.allBundles(), executor, evaluator)
     }
 
@@ -652,6 +656,7 @@ open class ArtisanPlugin : JavaPlugin() {
         dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
         declaredModelsReport = { api.models.declared().map { it.document } },
         editorScreensReport = { api.screens.declared().map { it.toWire() } },
+        declaredActionsReport = { api.actionRegistry.registered().map { it.toWire() } },
         scheduler = scheduler,
         menuWindows = menuWindows,
         pluginVersion = description.version,

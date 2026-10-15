@@ -129,6 +129,9 @@ export function defaultValueForModelType(
     // The wire-shaped Condition[] the core engine evaluates — empty chain.
     case "conditions":
       return [];
+    // A Document id, none chosen yet.
+    case "document_ref":
+      return "";
   }
 }
 
@@ -150,6 +153,7 @@ export function modelFieldTypeToFieldType(
     case "minimessage":
     case "minimessage_multiline":
     case "actions":
+    case "document_ref":
       return { kind: "string" };
     case "number":
     case "integer":

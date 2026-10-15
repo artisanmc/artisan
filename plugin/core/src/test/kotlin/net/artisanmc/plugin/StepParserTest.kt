@@ -12,7 +12,7 @@ class StepParserTest {
         val steps = StepParser.parseAll(listOf(action("type" to "run_command", "command" to "spawn")))
         assertEquals(1, steps.size)
         val s = assertIs<Step.ActionStep>(steps[0])
-        assertEquals(Action.RunCommand("spawn"), s.action)
+        assertEquals(Step.ActionStep("run_command", mapOf("command" to "spawn")), s)
     }
 
     @Test fun `parses an if step with cases joins and else`() {
@@ -40,7 +40,7 @@ class StepParserTest {
         assertEquals(listOf("or"), case.joins)
         assertIs<Step.ActionStep>(case.steps.single())
         val elseStep = assertIs<Step.ActionStep>(s.elseSteps.single())
-        assertEquals(Action.SendMessage("no"), elseStep.action)
+        assertEquals(Step.ActionStep("send_message", mapOf("text" to "no")), elseStep)
     }
 
     @Test fun `if step without else or joins has empty defaults`() {
@@ -85,7 +85,8 @@ class StepParserTest {
         assertFailsWith<IllegalArgumentException> { StepParser.parse(mapOf("kind" to "loop")) }
     }
 
-    @Test fun `throws on unknown action type inside a step`() {
-        assertFailsWith<IllegalArgumentException> { StepParser.parse(action("type" to "does_not_exist")) }
+    @Test fun `an unknown action type passes through for the registry`() {
+        val s = assertIs<Step.ActionStep>(StepParser.parse(action("type" to "does_not_exist")))
+        assertEquals("does_not_exist", s.name)
     }
 }

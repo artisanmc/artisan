@@ -37,7 +37,9 @@ const SCALAR_KINDS = [
 type KindChoice = (typeof SCALAR_KINDS)[number] | "list" | "object" | "model" | "map" | "enum" | "union";
 
 function kindOf(t: ModelFieldType): KindChoice {
-  return t.kind;
+  // `document_ref` is declared by modules (ADR extensible-document-kinds), not
+  // authored here: the field editor shows it as the string id it stores.
+  return t.kind === "document_ref" ? "string" : t.kind;
 }
 
 function defaultTypeForKind(kind: KindChoice, models: DataModel[]): ModelFieldType {

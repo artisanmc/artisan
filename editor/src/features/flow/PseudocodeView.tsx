@@ -31,7 +31,8 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { type CSSProperties, createContext, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ACTION_TYPES, defaultAction } from "./defaults";
+import { ACTION_TYPES, defaultAction, defaultModuleAction } from "./defaults";
+import { moduleActionsOf, useServerActionsStore } from "@/state/serverActionsStore";
 import { CLICK_TYPE_ORDER, actionTypeLabel, clickTypeLabel, conditionsSummary } from "./labels";
 import { menusOf } from "@/domain/documents";
 
@@ -871,6 +872,9 @@ export function AddStepLine({
   allowIf?: boolean;
 }) {
   const { t } = useTranslation();
+  // Actions a module registered on the active server (ADR extensible-document-kinds, R1).
+  const declared = useServerActionsStore((s) => s.actions);
+  const moduleActions = moduleActionsOf(declared);
   return (
     <div className="flex items-center py-0.5" style={{ paddingLeft: indent * INDENT + 4 }}>
       <DropdownMenu>
@@ -896,6 +900,18 @@ export function AddStepLine({
                 {actionTypeLabel(type)}
               </span>
               <span className="font-mono text-[11px] text-[var(--text)]">{type}</span>
+            </DropdownMenuItem>
+          ))}
+          {moduleActions.map((decl) => (
+            <DropdownMenuItem
+              key={decl.name}
+              onSelect={() => onPick({ kind: "action", action: defaultModuleAction(decl) })}
+              className="cursor-pointer focus:bg-[var(--surface-hover)]"
+            >
+              <span className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--text-mut)]">
+                {decl.moduleId}
+              </span>
+              <span className="font-mono text-[11px] text-[var(--text)]">{decl.name}</span>
             </DropdownMenuItem>
           ))}
           {allowIf && (
@@ -1131,6 +1147,12 @@ function actionSummaryArgs(action: Action, getText: (lt: LText | undefined) => s
       return "";
     case "run_actions":
       return action.actions;
+    case "module":
+      return action.value == null
+        ? ""
+        : typeof action.value === "object"
+          ? JSON.stringify(action.value)
+          : String(action.value);
   }
 }
 

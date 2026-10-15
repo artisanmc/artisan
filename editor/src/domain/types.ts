@@ -491,7 +491,15 @@ export type Action =
    * value); it runs inline with the resolved-from object as self-scope, depth
    * capped at 16. Cf. ADR `action-dsl`.
    */
-  | { type: "run_actions"; actions: string };
+  | { type: "run_actions"; actions: string }
+  /**
+   * An action a module registered on the server (ADR `extensible-document-kinds`,
+   * R1): `name` is its wire key (`quests:start`), `value` its wire value verbatim
+   * (null, a scalar, or an argument map). The editor renders its form from the
+   * server's declared actions when they are known, and keeps the value as is
+   * otherwise — the plugin binds and runs it through the action registry.
+   */
+  | { type: "module"; name: string; value: unknown };
 
 export type Condition =
   | { type: "has_permission"; perm: string }
@@ -648,7 +656,13 @@ export type ModelFieldType =
    * declares its own condition variants. Exported verbatim; the runtime side
    * treats it as opaque until evaluated through the core engine.
    */
-  | { kind: "conditions" };
+  | { kind: "conditions" }
+  /**
+   * A reference to a Document of kind `document` (`menu`, `dialog`, a module's
+   * kind), stored as its id — the type `open_menu`'s target has (ADR
+   * `extensible-document-kinds`, R3).
+   */
+  | { kind: "document_ref"; document: string };
 
 export interface UnionVariant {
   /** The tag value selecting this variant. */

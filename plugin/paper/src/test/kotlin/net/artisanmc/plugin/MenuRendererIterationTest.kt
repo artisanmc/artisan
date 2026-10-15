@@ -216,7 +216,7 @@ class MenuRendererIterationTest {
         val before = sessions.get(p)!!
         assertEquals(0, before.ctx.pageInfo["grid"]?.page)
 
-        executor.execute(listOf(Action.PaginationNext("grid")), before.ctx)
+        executor.execute(listOf(Step.ActionStep("pagination_next", "grid")), before.ctx)
 
         val after = sessions.get(p)!!
         assertEquals(1, after.ctx.pageInfo["grid"]?.page)
