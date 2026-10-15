@@ -47,11 +47,11 @@ class Servers(
         return ref(server, id.substringAfter('.'))
     }
 
-    /** The Project of `:project`; a route naming a server also accepts the bare folder name. */
+    /** The Project of `:project`; a server named by the route or by `?server=` also accepts the bare folder name. */
     fun projectOf(call: Call): ProjectRef? {
         val id = call.params["project"] ?: return null
-        if (!call.params.containsKey("server")) return project(id)
-        val server = of(call) ?: return null
+        val serverId = call.params["server"] ?: call.query("server") ?: return project(id)
+        val server = find(serverId) ?: return null
         return ref(server, id.removePrefix("${server.id}."))
     }
 

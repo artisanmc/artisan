@@ -149,6 +149,10 @@ class EditorApiTest {
         // The folder name alone names no Project, the hub's own server included.
         assertEquals("unknown_project", call("GET", "/api/v1/user/projects/shop").second!!["error"].asText())
         assertEquals("unknown_project", call("GET", "/api/v1/projects/shop/files").second!!["error"].asText())
+        // The editor opens a Project by its folder, the server named apart.
+        val (scoped, byQuery) = call("GET", "/api/v1/user/projects/shop?server=u-local")
+        assertEquals(200, scoped)
+        assertEquals("u-local.shop", byQuery!!["project"]["id"].asText())
     }
 
     @Test
