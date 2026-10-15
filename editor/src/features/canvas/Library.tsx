@@ -38,6 +38,7 @@ function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTilePr
     item.model ? (s.renderedByMaterial[item.id.toLowerCase()] ?? null) : null,
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `tints` vient de `item` (tuile clé par item.id) ; une nouvelle référence d'objet ne doit pas relancer un rendu 3D déjà mis en cache par matériau
   useEffect(() => {
     if (!item.model || !bundleReady || !tileRef.current) return;
     let cancelled = false;
@@ -57,7 +58,7 @@ function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTilePr
       cancelled = true;
       observer.disconnect();
     };
-  }, [item.model, bundleReady, version, setRendered]);
+  }, [item.id, item.model, bundleReady, version, setRendered]);
 
   return (
     <button

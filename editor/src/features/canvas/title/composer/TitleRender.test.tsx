@@ -83,6 +83,7 @@ vi.mock("react-konva", () => ({
     listening?: boolean;
     onClick?: ClickHandler;
   }) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: stub test d'un nœud Konva (canvas, sans clavier) ; le div ne sert qu'à relayer fireEvent.click au handler
     <div
       data-testid="rect"
       data-fill={props.fill}
@@ -108,6 +109,7 @@ vi.mock("react-konva", () => ({
     x?: number;
     y?: number;
   }) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: stub test d'un nœud Konva (canvas, sans clavier) ; le div ne sert qu'à relayer fireEvent.click au handler
     <div
       data-testid="group"
       data-x={props.x}
@@ -231,6 +233,7 @@ vi.mock("./WidthResizeHandle", () => ({
     scale?: number;
     onResize: (w: number) => void;
   }) => (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: stub test d'un nœud Konva (canvas, sans clavier) ; le div ne sert qu'à relayer fireEvent.click au handler
     <div
       data-testid="width-resize-handle"
       data-x={props.x}
@@ -1177,7 +1180,7 @@ describe("TitleRender — textarea wrap and resize handle", () => {
     selectLayer(0);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={1} />);
     fireEvent.click(screen.getByTestId("width-resize-handle"));
-    expect(menusOf(useAccountStore.getState().account.projects[0])[0].title[0]).toMatchObject({
+    expect(menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title[0]).toMatchObject({
       kind: "textarea",
       x: 8,
       width: 120,
@@ -1208,7 +1211,7 @@ describe("TitleRender — textarea wrap and resize handle", () => {
     act(() => {
       dispatchDragEnd(group, { x: 60, y: 40 });
     });
-    expect(menusOf(useAccountStore.getState().account.projects[0])[0].title[0]).toMatchObject({
+    expect(menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title[0]).toMatchObject({
       x: 90,
       y: 20,
       alignment: "center",

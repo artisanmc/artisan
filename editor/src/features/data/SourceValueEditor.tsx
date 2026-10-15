@@ -138,6 +138,7 @@ function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowK
   // rendered with identity-derived React keys, so after a mid-list delete the
   // same instance keeps its row datum while its `row` index prop shifts — an
   // in-progress draft must survive that shift.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sourceId/fieldName are reset triggers (row identity), not values read by the effect
   useEffect(() => {
     setDraft(String(value ?? ""));
     setError(null);
@@ -302,11 +303,31 @@ export function ValueEditor({
         />
       );
     case "item": {
-      const source = project.dataSources?.find(s => s.id === sourceId);
-      const root = source?.shape === "table" && row !== null ? source.rows[row] : source?.shape === "config" ? source.value : {};
-      const owner = path.slice(0, -1).reduce<unknown>((obj, key) => obj && typeof obj === "object" ? (obj as Record<string | number, unknown>)[key] : undefined, root);
-      const current = resolveRowTexts([owner as Record<string, unknown> ?? {}], project)[0];
-      return <ItemValueField projectId={projectId} value={value} onChange={set} scope={{ item: current }} />;
+      const source = project.dataSources?.find((s) => s.id === sourceId);
+      const root =
+        source?.shape === "table" && row !== null
+          ? source.rows[row]
+          : source?.shape === "config"
+            ? source.value
+            : {};
+      const owner = path
+        .slice(0, -1)
+        .reduce<unknown>(
+          (obj, key) =>
+            obj && typeof obj === "object"
+              ? (obj as Record<string | number, unknown>)[key]
+              : undefined,
+          root,
+        );
+      const current = resolveRowTexts([(owner as Record<string, unknown>) ?? {}], project)[0];
+      return (
+        <ItemValueField
+          projectId={projectId}
+          value={value}
+          onChange={set}
+          scope={{ item: current }}
+        />
+      );
     }
     case "actions":
       return <ActionFieldEditor projectId={projectId} value={value} onChange={set} />;

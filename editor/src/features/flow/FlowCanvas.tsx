@@ -806,6 +806,7 @@ function StateCard({
               useAccountStore.getState().setElementPositions({ projectId, ...target, positions })
             }
           >
+            {/* biome-ignore lint/a11y/noLabelWithoutControl: RevealField renders a labelable <button> facade (then an input) inside this label; Biome cannot see through the component */}
             <label className="field-label">
               {t("flow.titleLabel", { lang: activeLang })}
               <RevealField
@@ -816,6 +817,7 @@ function StateCard({
                 facade={<MiniMessageInline source={title || t("flow.titlePlaceholder")} />}
               />
             </label>
+            {/* biome-ignore lint/a11y/noLabelWithoutControl: RevealField renders a labelable <button> facade (then an input) inside this label; Biome cannot see through the component */}
             <label className="field-label">
               {t("flow.loreLabel", { lang: activeLang })}
               <RevealField

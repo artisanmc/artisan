@@ -1,8 +1,10 @@
 import { expect, test, vi } from "vitest";
-import { createEditorTourController } from "./editorTourController";
+import { createEditorTourController, type EditorTourDependencies } from "./editorTourController";
+
+type WriteResult = Awaited<ReturnType<EditorTourDependencies["writeAccount"]>>;
 
 test("switching account clears old progress immediately and ignores its late successful write", async () => {
-  let finishWrite!: (value: unknown) => void;
+  let finishWrite!: (value: WriteResult) => void;
   let finishRead!: (value: {
     id: string;
     editorTour: { step: number; completed: boolean };
@@ -18,7 +20,7 @@ test("switching account clears old progress immediately and ignores its late suc
           }),
     writeAccount: vi.fn(
       () =>
-        new Promise((resolve) => {
+        new Promise<WriteResult>((resolve) => {
           finishWrite = resolve;
         }),
     ),

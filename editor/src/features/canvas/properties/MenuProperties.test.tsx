@@ -166,7 +166,7 @@ describe("MenuProperties — background and decorations", () => {
       { kind: "glyph", assetId: "chosen-image", x: 0, y: 0 },
     ]);
     expect(current().layers).toEqual(before.layers);
-    expect(useAccountStore.getState().account.projects[0]!.i18nKeys["original-title"]).toEqual({
+    expect(useAccountStore.getState().account.projects[0]!.i18nKeys[value.key]).toEqual({
       fr: "Boutique",
       en: "Shop",
     });

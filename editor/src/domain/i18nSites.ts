@@ -147,7 +147,9 @@ export function adoptActionTexts(
 }
 
 /** Every action chain of a project with its canonical key prefix: click handlers, commands, dialog buttons. */
-export function* visitProjectStepChains(project: Project): Generator<{ steps: Step[]; prefix: string }> {
+export function* visitProjectStepChains(
+  project: Project,
+): Generator<{ steps: Step[]; prefix: string }> {
   for (const menu of menusOf(project)) {
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
@@ -163,9 +165,11 @@ export function* visitProjectStepChains(project: Project): Generator<{ steps: St
       }
     }
   }
-  for (const cmd of commandsOf(project)) yield { steps: cmd.steps, prefix: commandKeyPrefix(cmd.id) };
+  for (const cmd of commandsOf(project))
+    yield { steps: cmd.steps, prefix: commandKeyPrefix(cmd.id) };
   for (const dlg of dialogsOf(project)) {
-    for (const btn of dlg.buttons) yield { steps: btn.steps, prefix: dialogButtonKeyPrefix(dlg.id, btn.id) };
+    for (const btn of dlg.buttons)
+      yield { steps: btn.steps, prefix: dialogButtonKeyPrefix(dlg.id, btn.id) };
   }
 }
 
@@ -174,7 +178,8 @@ export function adoptProjectActionTexts(
   project: Project,
   declOf: DeclaredActionLookup = declaredActionOf,
 ): void {
-  for (const { steps, prefix } of visitProjectStepChains(project)) adoptActionTexts(project, steps, prefix, declOf);
+  for (const { steps, prefix } of visitProjectStepChains(project))
+    adoptActionTexts(project, steps, prefix, declOf);
 }
 
 /**
@@ -305,7 +310,7 @@ function* visitModelValueLTexts(
         yield* visitModelValueLTexts(
           obj[field.name],
           field.type,
-          base + "." + field.name,
+          `${base}.${field.name}`,
           models,
           visited,
         );
@@ -457,7 +462,7 @@ export function adoptBareLTexts(project: Project, ds: DataSource): void {
         if (!value || typeof value !== "object" || Array.isArray(value)) return value;
         const obj = { ...value } as Record<string, unknown>;
         for (const field of itemTextFields(value))
-          obj[field.name] = adopt(obj[field.name], field.type, base + "." + field.name, visited);
+          obj[field.name] = adopt(obj[field.name], field.type, `${base}.${field.name}`, visited);
         return obj;
       }
       case "ltext": {

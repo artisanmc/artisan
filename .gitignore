@@ -40,3 +40,6 @@ backend/data/resource-projects/
 backend/data/plugin-release/
 /data/
 docker/network/data/
+
+# Vite dependency cache (created when vite runs from the repo root)
+.vite/

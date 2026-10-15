@@ -59,7 +59,7 @@ describe("AssetDetailPanel", () => {
     render(<AssetDetailPanel projectId={"p1" as never} />);
     fireEvent.change(screen.getByLabelText(/^Nom$/i), { target: { value: "icon2" } });
     fireEvent.click(screen.getByRole("button", { name: /Enregistrer/i }));
-    await waitFor(() => expect(useAssetStore.getState().assets[0].name).toBe("icon2"));
+    await waitFor(() => expect(useAssetStore.getState().assets[0]!.name).toBe("icon2"));
   });
 
   it("deletes the asset with confirmation", async () => {

@@ -67,8 +67,8 @@ describe("buildDefaultFontJson", () => {
   test("skips glyphs with null codepoint (reference + space remain)", () => {
     const json = buildDefaultFontJson([glyph({ codepoint: null })]);
     expect(json.providers).toHaveLength(2);
-    expect(json.providers[0].type).toBe("reference");
-    expect(json.providers[1].type).toBe("space");
+    expect(json.providers[0]!.type).toBe("reference");
+    expect(json.providers[1]!.type).toBe("space");
   });
 
   test("skips non-glyph rows (texture, font)", () => {
@@ -77,8 +77,8 @@ describe("buildDefaultFontJson", () => {
       glyph({ type: "font" }),
     ]);
     expect(json.providers).toHaveLength(2);
-    expect(json.providers[0].type).toBe("reference");
-    expect(json.providers[1].type).toBe("space");
+    expect(json.providers[0]!.type).toBe("reference");
+    expect(json.providers[1]!.type).toBe("space");
   });
 
   test("sorts providers by codepoint for deterministic output", () => {
