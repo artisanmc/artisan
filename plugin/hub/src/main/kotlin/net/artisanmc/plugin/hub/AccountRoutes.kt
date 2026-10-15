@@ -32,9 +32,9 @@ class AccountRoutes(private val servers: Servers, private val sessions: Sessions
         "permissions" to EditorPermissions.ALL.filter(session::can),
     )
 
-    /** A server by its id (UUID), with what the editor shows of it: its label, presence and versions. */
+    /** A server by its id, with what the editor shows of it: its name, presence and versions. */
     private fun status(server: EditorServer) = mapOf(
-        "id" to server.uuid, "label" to server.label, "online" to server.online,
+        "id" to server.id, "label" to server.label, "online" to server.online,
         "minecraftVersion" to server.minecraftVersion, "pluginVersion" to server.pluginVersion,
         "lastSeenAt" to servers.lastSeen(server.id)?.toString(), "updateRequired" to server.updateRequired,
     )

@@ -30,9 +30,9 @@ Reconnexion avec backoff exponentiel (1 s → 60 s) ; ping OkHttp toutes les 30 
 |---|---|
 | `protocol_version` | `ProtocolVersion.CURRENT` (`"1.1"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). |
 | `server_key` | Le **secret du réseau** (nom de champ hérité). Comparé en temps constant ; faux ou vide : fermeture 1008. |
-| `server_uuid` | Server id du serveur (`plugins/Artisan/server-id`) : ce par quoi l'éditeur et l'API le nomment (`/api/v1/servers/:server`). |
+| `server_uuid` | Server id du serveur (`plugins/Artisan/server-id`) : son identité partout — `/api/v1/servers/:server`, `server_key_id`, préfixe de ses Projects (`<server id>.<dossier>`), clé de `Servers`. Absent, ou égal à celui du hub (dossier copié) : fermeture 1008. |
 | `database_id` | Identifiant de la base de suite (`artisan_meta`, généré une fois). Le hub refuse un `hello` dont l'identifiant diffère du sien, et tout `hello` s'il est lui-même en H2 : un réseau partage une base MySQL/MariaDB. |
-| `proxy_name` | Nom du serveur dans le réseau (clé racine `name`, sinon le nom du dossier du serveur). `[A-Za-z0-9_-]{1,64}`, jamais `local`. Identité du serveur et préfixe de ses Projects (`<serveur>.<dossier>`). |
+| `proxy_name` | Nom du serveur dans le réseau (clé racine `name`, sinon le nom du dossier du serveur). `[A-Za-z0-9_-]{1,64}`. Un attribut : le libellé dans la liste des serveurs ; un serveur renommé garde son id. |
 | `plugin_version`, `minecraft_version` | Affichés dans la liste des serveurs ; la version Minecraft choisit le catalogue d'items. |
 | `installed_modules` | `[{id, version}]` : présence des modules (`GET …/modules`). |
 | `data_sources` | `[{ref, module_id?, schema?, schema_hint?, stability?, key_field?}]` (`DataSourceReport`). |
@@ -44,12 +44,13 @@ Reconnexion avec backoff exponentiel (1 s → 60 s) ; ping OkHttp toutes les 30 
 l'envoie plus, l'empreinte suit par `custom_items_changed`.
 
 **`hello_ack`** (hub → feuille) : `{session_id, server_id, editor_url, network_name,
-resource_pack}`. `resource_pack` vaut le dernier pack que le hub a servi à ce serveur
+resource_pack}`. `server_id` reprend le `server_uuid` du `hello`, `network_name` le nom du
+serveur du hub. `resource_pack` vaut le dernier pack que le hub a servi à ce serveur
 (`{url, hash}`), ou `{}` : un objet sans adresse laisse au serveur le pack qu'il a déjà
 (`PackUpdate.Incomplete`), `null` le lui retirerait. Avant `hello_ack`, `WsClient.request`
 répond `null` sans rien envoyer.
 
-**`session_replaced`** (hub → feuille) : un autre serveur s'est connecté avec le même nom ;
+**`session_replaced`** (hub → feuille) : un autre serveur s'est connecté avec le même server id ;
 l'ancienne connexion est fermée (dernier arrivé gagne, cf. `invariants.md`).
 
 ## Messages
@@ -87,7 +88,7 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 
 | Message | Contenu |
 |---|---|
-| `projects_reloaded` | `{projects:[{id, hash}]}` après chaque rechargement (`/artisan reload`, écriture, publication). Le hub le relaie aux onglets de l'éditeur sur `/ws/editor`, ids préfixés `<serveur>.` pour une feuille. Fire-and-forget. |
+| `projects_reloaded` | `{projects:[{id, hash}]}` après chaque rechargement (`/artisan reload`, écriture, publication). Le hub le relaie aux onglets de l'éditeur sur `/ws/editor`, ids préfixés `<server id>.`. Fire-and-forget. |
 | `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens}` : un module s'est enregistré après le `hello` ; le hub remplace ces champs. |
 | `custom_items_changed` | `{hash}` : Nexo/Oraxen/ItemsAdder rechargé ; le hub redemande le bundle. |
 | `editor_link` | `{request_id, player_id, player_name, permissions, host?}` : `/artisan editor` tapé sur une feuille. Le hub ne consulte aucune permission, il reprend celles lues par la feuille (`artisan.editor.view` requis) et répond `editor_link_result` `{ok, url}` ou `{error: "too_soon", retry_after}` / `invalid_input`. Timeout feuille 15 s. |
@@ -118,7 +119,8 @@ n'en envoie jamais : aucune limite ne s'applique.
 
 WebSocket navigateur ← hub (`EditorChannel`). Ouverture : cookie de session portant
 `artisan.editor.view` et en-tête `Origin` de même hôte, sinon 403. Le hub n'y envoie que
-`projects_reloaded` `{server_key_id, projects:[{id, hash}]}` ; il ne lit rien du navigateur.
+`projects_reloaded` `{server_key_id, projects:[{id, hash}]}` (`server_key_id` = server id, le hub
+compris) ; il ne lit rien du navigateur.
 L'éditeur l'ouvre directement (`new EditorWs(handlers)`), sans ticket : le cookie suffit.
 
 ## Supprimé en phase F (ne pas réintroduire sans ADR)

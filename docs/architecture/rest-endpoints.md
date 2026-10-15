@@ -7,9 +7,9 @@
 
 Depuis la phase F (2026-10), il n'y a plus de backend. Le hub sert ses propres routes, sans
 plus imiter celles du backend (phase H, issue #44) : ses serveurs sous `/api/v1/servers`
-(celui qui héberge le hub en premier, puis chaque feuille), et un Project identifié par le
-nom de son dossier (`shop`) ou `<serveur>.<dossier>` hors du serveur du hub (`survie2.shop`,
-`Servers.project`). Plus de `network`, de ticket WS ni d'`editor-access` : le cookie de
+(celui qui héberge le hub en premier, puis chaque feuille par nom), et un Project identifié par
+`<server id>.<dossier>` sur tout serveur, celui du hub compris (`f3a1….shop`, `Servers.project` ;
+le dossier seul répond `unknown_project`). Plus de `network`, de ticket WS ni d'`editor-access` : le cookie de
 session suffit partout, et aucun quota ne s'applique.
 
 ## Conventions
@@ -50,7 +50,7 @@ session suffit partout, et aucun quota ne s'applique.
 
 ## Index par fichier de routes
 
-`SERVER` = `/api/v1/servers/:server`, `:server` = server id (UUID de `plugins/Artisan/server-id`). Partout où le hub renvoie un serveur (`servers[].id`, `serverKeyId` d'un Project, `server_key_id` de `projects_reloaded`), c'est son UUID ; les ids de Project restent `<dossier>` (hub) et `<nom>.<dossier>` (feuille).
+`SERVER` = `/api/v1/servers/:server`, `:server` = server id (UUID de `plugins/Artisan/server-id`). Partout où le hub renvoie un serveur (`servers[].id`, `serverKeyId` d'un Project, `server_key_id` de `projects_reloaded`), c'est son UUID, le serveur du hub compris ; un id de Project est `<server id>.<dossier>` partout (issue #43 : plus de sentinelle `local`).
 
 | Fichier | Routes | Notes |
 |---|---|---|

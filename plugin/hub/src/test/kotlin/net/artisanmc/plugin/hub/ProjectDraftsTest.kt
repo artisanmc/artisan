@@ -40,7 +40,7 @@ class ProjectDraftsTest {
 
     private fun request(vararg fields: Pair<String, Any?>): Map<String, Any?> {
         var out: Map<String, Any?> = emptyMap()
-        drafts.handle("local", "shop", Call.mapper.valueToTree<ObjectNode>(mapOf("owner_id" to "alice") + fields), publisher) { out = it }
+        drafts.handle("u-hub", "shop", Call.mapper.valueToTree<ObjectNode>(mapOf("owner_id" to "alice") + fields), publisher) { out = it }
         return out
     }
 
@@ -62,7 +62,7 @@ class ProjectDraftsTest {
         assertEquals("draft_conflict", stale["error"])
         assertEquals(1, (request("action" to "list")["drafts"] as List<*>).size)
         var other: Map<String, Any?> = emptyMap()
-        drafts.handle("local", "shop", Call.mapper.valueToTree(mapOf("owner_id" to "bob", "action" to "read", "draft_id" to "d1")), publisher) { other = it }
+        drafts.handle("u-hub", "shop", Call.mapper.valueToTree(mapOf("owner_id" to "bob", "action" to "read", "draft_id" to "d1")), publisher) { other = it }
         assertEquals("draft_not_found", other["error"])
     }
 
@@ -140,7 +140,7 @@ class ProjectDraftsTest {
     @Test
     fun `an unknown project and an invalid snapshot are refused`() {
         var out: Map<String, Any?> = emptyMap()
-        drafts.handle("local", "missing", Call.mapper.valueToTree(mapOf("owner_id" to "alice", "action" to "list")), publisher) { out = it }
+        drafts.handle("u-hub", "missing", Call.mapper.valueToTree(mapOf("owner_id" to "alice", "action" to "list")), publisher) { out = it }
         assertEquals("unknown_project", out["error"])
         assertEquals("invalid_draft", request("action" to "create", "draft_id" to "d1", "operation_id" to "op", "name" to "", "snapshot" to snapshot(emptyMap()))["error"])
     }

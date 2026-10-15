@@ -14,7 +14,7 @@ class ItemRoutes(private val servers: Servers, private val relay: Relay, private
         }
         router.on("GET", "/api/v1/user/projects/:project/custom-items", VIEW) { call ->
             val project = servers.projectOf(call) ?: return@on call.error(404, "not_found")
-            call.json(mapOf("serverKeyId" to project.server.uuid, "items" to project.server.customItems()))
+            call.json(mapOf("serverKeyId" to project.server.id, "items" to project.server.customItems()))
         }
         // The requested version is ignored: one server, one texture version.
         router.on("GET", "/api/v1/textures/:version/*", VIEW) { call ->
