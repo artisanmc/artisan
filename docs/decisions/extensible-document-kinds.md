@@ -208,6 +208,15 @@ Kotlin. Le moment : **entre le lot 2 (conteneur) et le lot 3 (actions par contra
 définitive au lieu d'être écrits deux fois. Les surfaces `@Beta` du lot 2 côté `core`
 (`DocumentKinds`, `BundleDocument`) ne sont pas exposées à l'api avant cette réécriture.
 
+**Fait (2026-10-15, API 2.0.0)** : `plugin/api/src/main/java`, 45 fichiers. Formes retenues :
+interfaces à getters Java (`getId()`), classes finales immuables avec `equals` plutôt que des
+`record` — un `record` expose `ref()` là où Bukkit et tout le code Kotlin du plugin lisent `getRef()` /
+`decl.ref` ; ainsi aucun site de lecture Kotlin ne change, seuls les implémenteurs (`override fun
+getId()`) et les constructions par arguments nommés. `ArtisanAPI` se construit par un `Builder`
+`@Internal`. La nullabilité est annotée (`org.jetbrains.annotations.Nullable`). Retirés comme annoncé
+par `@Sunset` : `ModuleMessagesApi`, `ArtisanAPI.messages`, `DataSourceDeclaration.schemaHint`.
+`ApiSurfaceIsJavaFriendlyTest` refuse désormais toute classe Kotlin dans `src/main` de l'api.
+
 Précision retenue sans débat : un slot de chaîne est un **site** (`{ name, steps, path }`),
 comme `LTextSite`, pas un simple nom — l'extracteur générique d'arêtes a besoin des steps
 et du chemin pour conserver les triggers que la planche affiche.

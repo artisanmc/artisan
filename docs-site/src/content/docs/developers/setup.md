@@ -12,7 +12,7 @@ net.artisanmc:artisan-core-api:<version>
 ```
 
 It contains only the `net.artisanmc.modules.api` packages, with a sources jar
-(KDoc included). Nothing under `net.artisanmc.plugin.*` ships in it — that is
+(Javadoc included). Nothing under `net.artisanmc.plugin.*` ships in it — that is
 Artisan's internals, not API. License: GPL-3.0, like Artisan.
 
 The classes are provided at runtime by the installed Artisan plugin: declare the
@@ -20,7 +20,7 @@ dependency as `compileOnly` (Gradle) or `provided` (Maven), and **never shade it
 
 | Repository | Contents |
 |---|---|
-| `https://repo.artisanmc.net/releases` | Released versions (`1.7.1`, …) |
+| `https://repo.artisanmc.net/releases` | Released versions (`2.0.0`, …) |
 | `https://repo.artisanmc.net/snapshots` | `X.Y.0-SNAPSHOT` of the next minor, rebuilt on every API change |
 
 ### Gradle (Kotlin DSL)
@@ -34,7 +34,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
-    compileOnly("net.artisanmc:artisan-core-api:1.7.1")
+    compileOnly("net.artisanmc:artisan-core-api:2.0.0")
 }
 
 java {
@@ -66,7 +66,7 @@ java {
     <dependency>
         <groupId>net.artisanmc</groupId>
         <artifactId>artisan-core-api</artifactId>
-        <version>1.7.1</version>
+        <version>2.0.0</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -76,21 +76,29 @@ Artisan targets Paper 1.21+ (Folia and Leaf included) on Java 21.
 
 ### Java or Kotlin
 
-The API is written in Kotlin but **no Kotlin type crosses its boundary**:
-callbacks are functional interfaces (`DataFetcher`, `CommandHandler`,
-`ModuleEventHandler`, `SchemaVersionReader`), enums are Java enums. A Java
-add-on needs no Kotlin dependency at all.
+The API is written in **Java** since 2.0.0: interfaces, immutable classes, enums
+and functional interfaces (`DataFetcher`, `CommandHandler`, `ModuleEventHandler`,
+`SchemaVersionReader`). No `kotlin.*` type appears in it and its POM declares no
+dependency: a Java add-on needs nothing else.
 
 From Java:
 
-- properties are getters — `api.getDataSources()`, `module.getId()`;
-- declaration constructors have Java overloads for their optional parameters
-  (`new DataSourceDeclaration(ref, fetcher)`, `new DataSourceField(name, kind)`,
-  since API 1.8.0); interface methods with optional parameters
-  (`api.getActions().execute(…)`) still take every argument;
+- members are getters — `api.getDataSources()`, `module.getId()`,
+  `declaration.getRef()`, `event.hasActions()`;
+- declarations are built with constructors — `new DataSourceDeclaration(ref, fetcher)`,
+  `new DataSourceDeclaration(ref, fetcher, schema)`,
+  `new DataSourceDeclaration(ref, fetcher, schema, stability, keyField)`,
+  `new DataSourceField(name, kind)`; `api.getActions().execute(player, actions)`
+  has overloads for its optional arguments;
 - lambdas are plain Java lambdas; a `CommandHandler` returns `void`;
-- `ArtisanModule.onReload()` is a default method since API 1.8.0: override it
-  only if you need it. Against an older API, implement it.
+- `ArtisanModule.onReload()` is a default method: override it only if you need it.
+
+From Kotlin, a getter reads as a property (`api.dataSources`, `module.id`), a
+functional interface takes a lambda, and your module implements the getters:
+`override fun getId() = "homes"`. Constructors take positional arguments (no
+named arguments, no `copy`). Before 2.0.0 the API was Kotlin with the same JVM
+names, so a 1.x add-on recompiles with those two changes and the removed members
+(`api.messages`, `DataSourceDeclaration.schemaHint`).
 
 A **Kotlin** add-on must bring its own Kotlin standard library: shade it into
 your jar and relocate it (Shadow's `relocate("kotlin", "com.example.myplugin.kotlin")`),
@@ -229,4 +237,3 @@ val hasDatabase = try {
 | `models` | Declare `model/v1` shapes for your config | `@Beta` | 1.5.0 |
 | `screens` | Declare config screens in the editor | `@Beta` | 1.6.0 |
 | `database` | A connection pool on the suite's shared database | `@Beta` | 1.7.0 |
-| `messages` | Fire-and-forget messages — no receiver any more, do not use (`@Sunset` since 1.8.0, removed in 2.0.0) | `@Beta` | 1.4.0 |

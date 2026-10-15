@@ -27,14 +27,15 @@ class MenuRendererPlacementTest {
 
     private fun catalog() = DataSourceRegistry().apply {
         register(DataSourceDeclaration(
-            ref = "boutique:items",
-            fetcher = { _, _ -> listOf(
+            "boutique:items",
+            { _, _ -> listOf(
                 mapOf("id" to "sword", "name" to "Sword", "material" to "DIAMOND_SWORD"),
                 mapOf("id" to "apple", "name" to "Apple", "material" to "APPLE"),
                 mapOf("id" to "shield", "name" to "Shield", "material" to "SHIELD"),
             ) },
-            stability = Stability.STATIC,
-            keyField = "id",
+            emptyList(),
+            Stability.STATIC,
+            "id",
         ))
     }
 

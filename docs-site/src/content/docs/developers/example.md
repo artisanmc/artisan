@@ -14,7 +14,7 @@ This page builds **Kits**, a small but complete level-3 add-on, in Kotlin:
 - a command `kits:claim` gives a kit when a menu button calls it;
 - a starter menu and a `/kits` command ship with the plugin, editable by admins.
 
-The Kotlin sources on this page compile against `artisan-core-api` 1.7.1.
+The Kotlin sources on this page compile against `artisan-core-api` 2.0.0 (the API is Java; Kotlin reads its getters as properties).
 
 ## Layout
 
@@ -63,7 +63,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
-    compileOnly("net.artisanmc:artisan-core-api:1.7.1")   // provided by Artisan at runtime
+    compileOnly("net.artisanmc:artisan-core-api:2.0.0")   // provided by Artisan at runtime
 }
 
 kotlin {
@@ -137,8 +137,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 class KitsModule(private val plugin: KitsPlugin) : ArtisanModule {
-    override val id = "kits"
-    override val schemaVersion = "kits/v1"
+    override fun getId() = "kits"
+    override fun getSchemaVersion() = "kits/v1"
 
     private lateinit var api: ArtisanAPI
 
@@ -163,17 +163,17 @@ class KitsModule(private val plugin: KitsPlugin) : ArtisanModule {
         // 3. A data source menus can iterate over.
         api.dataSources.register(
             DataSourceDeclaration(
-                ref = "kits:list",
-                fetcher = { player, _ -> kits.values.map { kit -> row(kit, player) } },
-                schema = listOf(
+                "kits:list",
+                { player, _ -> kits.values.map { kit -> row(kit, player) } },
+                listOf(
                     DataSourceField("id", FieldKind.STRING, "Kit id"),
                     DataSourceField("name", FieldKind.STRING, "Display name"),
                     DataSourceField("icon", FieldKind.ITEM, "Icon"),
                     DataSourceField("ready", FieldKind.BOOLEAN, "Can the player claim it now?"),
                     DataSourceField("status", FieldKind.STRING, "\"Ready\" or the time left"),
                 ),
-                stability = Stability.STATIC,
-                keyField = "id",
+                Stability.STATIC,
+                "id",
             )
         )
 
