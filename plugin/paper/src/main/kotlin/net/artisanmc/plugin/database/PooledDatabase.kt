@@ -26,7 +26,9 @@ fun readDatabaseSettings(
         name = env("name", "minecraft"),
         user = env("user", "root"),
         password = env("password", ""),
-        poolSize = config.getInt("database.pool-size", DatabaseSettings.DEFAULT_POOL_SIZE),
+        // Before environment.yml held it, the pool size lived in config.yml: still read from there.
+        poolSize = env("pool-size", config.getInt("database.pool-size", DatabaseSettings.DEFAULT_POOL_SIZE).toString())
+            .toIntOrNull() ?: DatabaseSettings.DEFAULT_POOL_SIZE,
         dataFolder = dataFolder,
     )
 }
