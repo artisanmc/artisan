@@ -54,7 +54,7 @@ GRANT ALL PRIVILEGES ON artisan.* TO 'artisan'@'10.0.0.%';
 
 The user needs to create tables: the add-ons manage their own schema.
 
-Pool size per plugin is `database.pool-size` in `config.yml` (default 4). With N
+Pool size per plugin is `database.pool-size` in `environment.yml` (default 4). With N
 servers and P plugins using the database, plan for up to N × P × pool-size
 connections on the database server.
 

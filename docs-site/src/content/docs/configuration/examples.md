@@ -38,9 +38,6 @@ database:
 
 ```yaml
 # plugins/Artisan/config.yml
-database:
-  pool-size: 4
-
 language: "en"
 per_player_language: true
 

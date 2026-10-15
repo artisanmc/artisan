@@ -1618,9 +1618,6 @@ const fr: typeof en = {
     fields: {
       language: "Langue",
       per_player_language: "Langue de chaque joueur",
-      database: {
-        "pool-size": "Connexions à la base par plugin",
-      },
       "resource-pack": {
         "delegate-to-dir": "Dossier du pack de Nexo, Oraxen ou ItemsAdder (chemin)",
         "delegate-reload-command": "Commande de rechargement après délégation",

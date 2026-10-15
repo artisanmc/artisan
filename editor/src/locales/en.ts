@@ -1572,9 +1572,6 @@ export default {
     fields: {
       language: "Language",
       per_player_language: "Per-player language",
-      database: {
-        "pool-size": "Database connections per plugin",
-      },
       "resource-pack": {
         "delegate-to-dir": "Pack folder of Nexo, Oraxen or ItemsAdder (path)",
         "delegate-reload-command": "Reload command after delegation",
