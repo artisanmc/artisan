@@ -15,7 +15,7 @@ vi.mock("@artisan/editor-sdk", () => ({
 }));
 
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import type { ProjectSummary } from "@/lib/api/networks";
+import type { ProjectSummary } from "@/lib/api/servers";
 import { buildProjectGroups, diskProjectsToSummaries } from "./projectGroups";
 
 const project = (id: string, extra: Partial<ProjectSummary> = {}): ProjectSummary => ({
@@ -23,7 +23,6 @@ const project = (id: string, extra: Partial<ProjectSummary> = {}): ProjectSummar
   name: id,
   slug: id,
   hash: "",
-  networkId: "net_1",
   serverKeyId: "sk_1",
   ...extra,
 });
@@ -38,7 +37,10 @@ const screen = (id: string, moduleId: string, projectId: string): ServerEditorSc
 
 describe("buildProjectGroups", () => {
   it("preserves backend identities and rename capabilities for listed disk folders", () => {
-    const metadata = project("immutable", { externalId: "shop", capabilities: { canRename: true } });
+    const metadata = project("immutable", {
+      externalId: "shop",
+      capabilities: { canRename: true },
+    });
     expect(diskProjectsToSummaries("sk_1", ["shop"], [metadata])).toEqual([metadata]);
     expect(diskProjectsToSummaries("sk_1", ["legacy"])[0]?.capabilities).toBeUndefined();
   });

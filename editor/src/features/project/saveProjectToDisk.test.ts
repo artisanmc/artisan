@@ -41,7 +41,7 @@ describe("saveProjectToDisk", () => {
         "AccessDeniedException: menus/shop.yaml",
       ),
     );
-    expect(await saveProjectToDisk(emptyProject(), "n1", "s1")).toMatchObject({
+    expect(await saveProjectToDisk(emptyProject(), "s1")).toMatchObject({
       ok: false,
       code: "write_error",
       status: 422,
@@ -64,7 +64,7 @@ describe("saveProjectToDisk", () => {
     const publish = vi
       .spyOn(persistedDrafts, "publishPersistedDraft")
       .mockResolvedValue({ wrote: 1, tree: projectTree(emptyProject()) });
-    const result = await saveProjectToDisk(emptyProject(), "n1", "s1");
+    const result = await saveProjectToDisk(emptyProject(), "s1");
     expect(result).toEqual({ ok: true, wrote: 1 });
     expect(publish).toHaveBeenCalledWith("p1");
     expect(writeProjectFiles).not.toHaveBeenCalled();
@@ -75,10 +75,10 @@ describe("saveProjectToDisk", () => {
     const project = emptyProject();
     // First pass: capture what the project produces and make it the base.
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
-    await saveProjectToDisk(project, "n1", "s1");
+    await saveProjectToDisk(project, "s1");
     vi.mocked(writeProjectFiles).mockClear();
 
-    const second = await saveProjectToDisk(project, "n1", "s1");
+    const second = await saveProjectToDisk(project, "s1");
 
     expect(second).toEqual({ ok: true, wrote: 0 });
     expect(writeProjectFiles).not.toHaveBeenCalled();
@@ -100,7 +100,7 @@ describe("saveProjectToDisk", () => {
       });
       return { wrote: 1, tree: published, renames: [{ from: "menus/a.yaml", to: "menus/b.yaml" }] };
     });
-    expect(await saveProjectToDisk(emptyProject(), "n1", "s1")).toEqual({ ok: true, wrote: 1 });
+    expect(await saveProjectToDisk(emptyProject(), "s1")).toEqual({ ok: true, wrote: 1 });
     expect(useProjectDraftStore.getState().get("p1")?.baseline).toEqual(published);
     expect(useProjectDraftStore.getState().pendingRenames.p1).toEqual([
       { from: "menus/b.yaml", to: "menus/c.yaml" },
@@ -120,7 +120,7 @@ describe("saveProjectToDisk", () => {
         .save("p1", { baseline: tree, tree, at: 1, binaryTree: after });
       return { wrote: 1, tree, binaryTree: before };
     });
-    expect(await saveProjectToDisk(emptyProject(), "n1", "s1")).toEqual({ ok: true, wrote: 1 });
+    expect(await saveProjectToDisk(emptyProject(), "s1")).toEqual({ ok: true, wrote: 1 });
     expect(useProjectDraftStore.getState().get("p1")?.binaryTree).toEqual(after);
     expect(useProjectDraftStore.getState().get("p1")?.binaryBaseline).toEqual(before);
   });
@@ -129,7 +129,7 @@ describe("saveProjectToDisk", () => {
     const project = emptyProject();
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
 
-    await saveProjectToDisk(project, "n1", "s1");
+    await saveProjectToDisk(project, "s1");
 
     const baseline = useProjectBaselineStore.getState().get("p1");
     expect(baseline).toBeDefined();
@@ -147,7 +147,7 @@ describe("saveProjectToDisk", () => {
       diskFiles: ["manifest.yaml"],
     });
 
-    const res = await saveProjectToDisk(project, "n1", "s1");
+    const res = await saveProjectToDisk(project, "s1");
 
     expect(res).toEqual({
       ok: false,
@@ -161,7 +161,7 @@ describe("saveProjectToDisk", () => {
   it("surfaces a server failure as is", async () => {
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: false, error: "server_offline" });
 
-    const res = await saveProjectToDisk(emptyProject(), "n1", "s1");
+    const res = await saveProjectToDisk(emptyProject(), "s1");
 
     expect(res).toEqual({ ok: false, error: "server_offline" });
     expect(useProjectBaselineStore.getState().get("p1")).toBeUndefined();
@@ -170,7 +170,7 @@ describe("saveProjectToDisk", () => {
   it("binds publication to immutable project identity", async () => {
     vi.mocked(writeProjectFiles).mockResolvedValue({ ok: true });
 
-    await saveProjectToDisk(emptyProject(), "n1", "s1");
+    await saveProjectToDisk(emptyProject(), "s1");
 
     expect(writeProjectFiles).toHaveBeenCalledWith("p1", expect.anything());
   });

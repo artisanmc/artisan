@@ -11,12 +11,11 @@ export type EditorTourAction =
 
 export interface AuthUserDto {
   id: string;
-  email: string;
+  email?: string;
   name: string;
-  avatarUrl: string | null;
+  avatarUrl?: string | null;
   editorLanguage?: string | null;
   theme?: "dark" | "light" | null;
-  isAdmin?: boolean;
   editorTour?: EditorTourProgress | null;
 }
 

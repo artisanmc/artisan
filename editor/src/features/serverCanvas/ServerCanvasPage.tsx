@@ -1,14 +1,14 @@
 import type { Project } from "@/domain/types";
 import type { ProjectId } from "@/domain/types";
+import { BoardGroupFrames } from "@/features/canvas/BoardGroupFrames";
 import { CommandGroup } from "@/features/canvas/CommandGroup";
 import { DialogGroup } from "@/features/canvas/DialogGroup";
 import { MenuGroup } from "@/features/canvas/MenuGroup";
 import { GUTTER_LABEL_HEIGHT } from "@/features/canvas/arrangeBoard";
-import { BoardGroupFrames } from "@/features/canvas/BoardGroupFrames";
-import { groupEdges, serverBoard, type BoardGroup } from "@/features/canvas/groupedBoard";
 import type { Edge } from "@/features/canvas/deriveEdges";
 import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
 import { fitViewport } from "@/features/canvas/focusViewport";
+import { type BoardGroup, groupEdges, serverBoard } from "@/features/canvas/groupedBoard";
 import {
   type BoardNode,
   type DocumentKind,
@@ -17,8 +17,8 @@ import {
 import { usePanZoom } from "@/features/canvas/usePanZoom";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
-import { type ProjectSummary, getNetwork } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
+import { type ProjectSummary, listServers } from "@/lib/api/servers";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useCssVar } from "@/lib/themeColors";
 import { useUiStore } from "@/state/uiStore";
@@ -69,9 +69,9 @@ export function ServerCanvasPage() {
   useEffect(() => {
     let cancelled = false;
     setListing("loading");
-    getNetwork()
-      .then(async (network) => {
-        const key = network.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
+    listServers()
+      .then(async (servers) => {
+        const key = servers.find((k) => k.id === serverId);
         if (!key) throw new Error("unknown_server");
         const res = await listServerProjects(key.id);
         if (cancelled) return;
@@ -139,11 +139,7 @@ export function ServerCanvasPage() {
         />
       ))}
       <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-        <Link
-          to="/servers/$serverId"
-          params={{ serverId }}
-          className="btn-ghost btn-sm"
-        >
+        <Link to="/servers/$serverId" params={{ serverId }} className="btn-ghost btn-sm">
           ← {t("serverCanvas.back")}
         </Link>
         <h1 className="text-[15px] font-semibold text-[var(--text)]">{t("serverCanvas.title")}</h1>
@@ -322,7 +318,10 @@ function Board({
     }
     return out;
   }, [nodes, positions]);
-  const routed = useMemo(() => routeEdges({ edges: groupEdges(edges, representatives), boxes }), [edges, boxes, representatives]);
+  const routed = useMemo(
+    () => routeEdges({ edges: groupEdges(edges, representatives), boxes }),
+    [edges, boxes, representatives],
+  );
 
   const byProject = useMemo(() => new Map(projects.map((p) => [p.id as string, p])), [projects]);
   const layouts = useMemo(() => {
@@ -360,7 +359,9 @@ function Board({
           setViewport({ x: stage.x(), y: stage.y(), scale: stage.scaleX() });
         }}
       >
-        <Layer><BoardGroupFrames groups={groups} /></Layer>
+        <Layer>
+          <BoardGroupFrames groups={groups} />
+        </Layer>
         <Layer listening={false}>
           {routed.map((r) => (
             <Arrow

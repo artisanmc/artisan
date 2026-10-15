@@ -19,7 +19,6 @@ test("hosted project opens with zero servers and never inherits the previous liv
   useProjectDraftStore.setState({ drafts: {}, pendingRenames: {}, ownerId: null, backups: {} });
   vi.spyOn(metadata, "loadUserProject").mockResolvedValue({
     project: { id: "host", name: "Demo", externalId: "demo", serverKeyId: null },
-    networkId: "network",
     serverKeyId: null,
     minecraftVersion: "1.21.4",
     capabilities: { preview: true, liveData: false, captureInGame: false, canRename: true },

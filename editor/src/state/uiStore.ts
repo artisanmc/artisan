@@ -173,15 +173,6 @@ interface UiState {
    */
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
-  /**
-   * AI assistant overlay — whether the right-side chat Sheet is open.
-   * Transient session state: deliberately NOT persisted (see partialize).
-   */
-  assistantPanelOpen: boolean;
-  setAssistantPanelOpen: (open: boolean) => void;
-  /** Width (px) of the AI assistant pane when docked on the right (desktop). */
-  assistantPaneWidth: number;
-  setAssistantPaneWidth: (w: number) => void;
   /** Canvas interaction mode: hand (pan, default) or select (click + marquee). Persisted. */
   canvasMode: "select" | "hand";
   setCanvasMode: (m: "select" | "hand") => void;
@@ -374,10 +365,6 @@ export const useUiStore = create<UiState>()(
       setDraggingNewLayer: (payload) => set({ draggingNewLayer: payload }),
       searchOpen: false,
       setSearchOpen: (open) => set({ searchOpen: open }),
-      assistantPanelOpen: false,
-      setAssistantPanelOpen: (open) => set({ assistantPanelOpen: open }),
-      assistantPaneWidth: 380,
-      setAssistantPaneWidth: (w) => set({ assistantPaneWidth: w }),
       canvasMode: "hand",
       setCanvasMode: (m) => set({ canvasMode: m }),
       arrangeMode: "columns",
@@ -421,7 +408,6 @@ export const useUiStore = create<UiState>()(
         editorLang: state.editorLang,
         flowCanvasHeight: state.flowCanvasHeight,
         editorPaneWidth: state.editorPaneWidth,
-        assistantPaneWidth: state.assistantPaneWidth,
         canvasMode: state.canvasMode,
         arrangeMode: state.arrangeMode,
         canvasViewports: state.canvasViewports,
@@ -430,10 +416,17 @@ export const useUiStore = create<UiState>()(
         // after a reload.
         documentViewport: state.documentViewport,
       }),
-      // Discard retired inspector tabs and restore the editor language.
+      // Discard retired inspector tabs and the retired assistant pane width,
+      // and restore the editor language.
       merge: (persisted, current) => {
-        const p = { ...(persisted ?? {}) } as Partial<UiState> & { editorTab?: unknown };
-        delete p.editorTab;
+        const {
+          editorTab: _editorTab,
+          assistantPaneWidth: _assistantPaneWidth,
+          ...p
+        } = (persisted ?? {}) as Partial<UiState> & {
+          editorTab?: unknown;
+          assistantPaneWidth?: unknown;
+        };
         if (p.editorLang) {
           import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(p.editorLang));
         }

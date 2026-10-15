@@ -8,10 +8,10 @@ vi.mock("@/lib/api/dataSources", async () => {
   const actual = await vi.importActual<object>("@/lib/api/dataSources");
   return { ...actual, previewDataSource: (...a: unknown[]) => previewDataSource(...a) };
 });
-const getNetworkServersStatus = vi.fn();
-vi.mock("@/lib/api/networks", async () => {
-  const actual = await vi.importActual<object>("@/lib/api/networks");
-  return { ...actual, getNetworkServersStatus: (...a: unknown[]) => getNetworkServersStatus(...a) };
+const listServers = vi.fn();
+vi.mock("@/lib/api/servers", async () => {
+  const actual = await vi.importActual<object>("@/lib/api/servers");
+  return { ...actual, listServers: (...a: unknown[]) => listServers(...a) };
 });
 
 const source: ServerDataSource = {
@@ -24,12 +24,8 @@ const source: ServerDataSource = {
 describe("ServerSourceDetail", () => {
   beforeEach(() => {
     previewDataSource.mockReset();
-    getNetworkServersStatus.mockReset();
-    getNetworkServersStatus.mockResolvedValue({
-      servers: [{ id: "sk1", online: true }],
-      online: 1,
-      total: 1,
-    });
+    listServers.mockReset();
+    listServers.mockResolvedValue([{ id: "sk1", online: true }]);
   });
 
   it("renders ref, module badge, and the schema table", async () => {
@@ -62,11 +58,7 @@ describe("ServerSourceDetail", () => {
   });
 
   it("disables preview with an explanation when the server is offline", async () => {
-    getNetworkServersStatus.mockResolvedValue({
-      servers: [{ id: "sk1", online: false }],
-      online: 0,
-      total: 1,
-    });
+    listServers.mockResolvedValue([{ id: "sk1", online: false }]);
     render(<ServerSourceDetail serverId="sk1" source={source} />);
     await waitFor(() => expect(screen.getByTestId("server-source-preview")).toBeDisabled());
     expect(screen.getByTestId("preview-offline-hint")).toBeInTheDocument();
