@@ -553,9 +553,9 @@ Non-examples:
 ## Network
 
 The servers one editor reaches: a **Hub** and the **Leaves** that share its
-**Network secret**. A lone server is a Network of one (its hub). The editor still
-names it `local` (a leftover of the cloud routes). It is not an ownership or
-billing unit any more, and not the proxy topology either — though in practice the
+**Network secret**. A lone server is a Network of one (its hub). It has no name of
+its own: the hub's server name is what leaves see as `network_name`. It is not an
+ownership or billing unit any more, and not the proxy topology either — though in practice the
 hub and leaves are often the servers behind one Velocity proxy, whose forwarding
 secret can serve as the Network secret.
 
@@ -682,9 +682,9 @@ so a renamed folder — by the editor or by hand — keeps its Versions and Draf
 copied folder that arrives with an id already used on the same Server gets a new
 one. An Add-on's Project is identified by its manifest instead (`boutique_addon`
 names a different Project on every server that runs the Boutique Add-on). Its
-**folder name**, unique **per server**, is what people see: seen from the **Hub**,
-a Project of a **Leaf** is named `<server>.<folder>` (`survie2.shop`); a Project
-of the hub itself keeps its bare folder name.
+**folder name**, unique **per server**, is what people see; its id, everywhere the
+hub and the editor name it, is `<server id>.<folder>` (`f3a1….shop`), on the Hub's
+own server as on a Leaf (issue #43).
 
 This is the **canonical** domain term, and code/DB/API/UI **now all say `project`**
 (`projectId`, `/projects` routes, `project_id` WS fields, the
@@ -740,9 +740,11 @@ Non-examples:
 
 A single Minecraft server running Artisan — what **Projects** attach to and
 deploy onto. It holds one or more Projects on its disk. In a **Network** it is
-either the **Hub** (id `local` in the editor) or a **Leaf**. Its identity is a
-**server id** generated once, at its first start; its **name** (`name`, else its
-server folder name, the name Velocity routes by) is an attribute that may change:
+either the **Hub** or a **Leaf**. Its identity is a **server id** generated once, at
+its first start, and that id names it everywhere: hub routes, editor URLs,
+`server_key_id`, the prefix of its Project ids (`<server id>.<folder>`), the hub's own
+server included (issue #43). Its **name** (`name`, else its server folder name, the
+name Velocity routes by) is an attribute that may change:
 a renamed Server keeps its Versions and everything else attached to it. Two
 Servers of a Network never share a name. Whether it is **online** is its
 **Presence**, a runtime fact, not part of the entity.

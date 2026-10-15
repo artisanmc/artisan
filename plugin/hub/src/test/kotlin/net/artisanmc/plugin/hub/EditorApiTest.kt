@@ -22,8 +22,7 @@ class EditorApiTest {
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
     private var answer: (Map<String, Any?>) -> Map<String, Any?> = { mapOf("ok" to true) }
     private val server = object : EditorServer {
-        override val id = Servers.LOCAL
-        override val uuid = "u-local"
+        override val id = "u-local"
         override val online = true
         override val link = ServerLink { message ->
             sent += message
@@ -54,7 +53,7 @@ class EditorApiTest {
     }
     private val history = object : ProjectHistory {
         override fun versions(server: String, folder: String) =
-            if (server == Servers.LOCAL && folder == "shop") listOf(mapOf<String, Any?>("id" to "7", "hash" to "h7")) else null
+            if (server == "u-local" && folder == "shop") listOf(mapOf<String, Any?>("id" to "7", "hash" to "h7")) else null
         override fun version(server: String, folder: String, id: String) =
             if (folder == "shop" && id == "7") mapOf<String, Any?>("id" to "7", "previousId" to null) else null
         override fun versionBinary(server: String, folder: String, id: String, path: String) =
@@ -142,10 +141,14 @@ class EditorApiTest {
         assertEquals("shop", body["projects"][0]["externalId"].asText())
         assertEquals("u-local", body["projects"][0]["serverKeyId"].asText())
 
-        val (status, identity) = call("GET", "/api/v1/user/projects/shop?server=local&network=local")
+        val (status, identity) = call("GET", "/api/v1/user/projects/u-local.shop")
         assertEquals(200, status)
-        assertEquals("shop", identity!!["project"]["id"].asText())
-        assertEquals(404, call("GET", "/api/v1/user/projects/missing").first)
+        assertEquals("u-local.shop", identity!!["project"]["id"].asText())
+        assertEquals("shop", identity["project"]["externalId"].asText())
+        assertEquals(404, call("GET", "/api/v1/user/projects/u-local.missing").first)
+        // The folder name alone names no Project, the hub's own server included.
+        assertEquals("unknown_project", call("GET", "/api/v1/user/projects/shop").second!!["error"].asText())
+        assertEquals("unknown_project", call("GET", "/api/v1/projects/shop/files").second!!["error"].asText())
     }
 
     @Test
@@ -159,21 +162,21 @@ class EditorApiTest {
             assertEquals(200, response.statusCode())
             return response.headers().firstValue("Cache-Control").orElse("")
         }
-        assertEquals("private, max-age=31536000, immutable", cacheOf("/api/v1/projects/shop/binary?path=assets/a.png&h=$hash"))
-        assertEquals("private, no-cache", cacheOf("/api/v1/projects/shop/binary?path=assets/a.png&h=${"0".repeat(64)}"))
-        assertEquals("private, no-cache", cacheOf("/api/v1/projects/shop/binary?path=assets/a.png"))
-        assertEquals("private, max-age=31536000, immutable", cacheOf("/api/v1/user/projects/shop/drafts/d1/blobs/$hash"))
+        assertEquals("private, max-age=31536000, immutable", cacheOf("/api/v1/projects/u-local.shop/binary?path=assets/a.png&h=$hash"))
+        assertEquals("private, no-cache", cacheOf("/api/v1/projects/u-local.shop/binary?path=assets/a.png&h=${"0".repeat(64)}"))
+        assertEquals("private, no-cache", cacheOf("/api/v1/projects/u-local.shop/binary?path=assets/a.png"))
+        assertEquals("private, max-age=31536000, immutable", cacheOf("/api/v1/user/projects/u-local.shop/drafts/d1/blobs/$hash"))
     }
 
     @Test
     fun `versions and file history come from the database`() {
-        assertEquals("h7", call("GET", "/api/v1/projects/shop/versions").second!!["versions"][0]["hash"].asText())
-        assertEquals(0, call("GET", "/api/v1/projects/other/versions").second!!["versions"].size())
-        assertEquals("7", call("GET", "/api/v1/projects/shop/versions/7").second!!["id"].asText())
-        assertEquals(404, call("GET", "/api/v1/projects/shop/versions/8").first)
-        assertEquals(200, call("GET", "/api/v1/projects/shop/versions/7/binary?path=logo.png").first)
-        assertEquals(404, call("GET", "/api/v1/projects/shop/versions/7/binary?path=a.yml").first)
-        assertEquals("a: 1", call("GET", "/api/v1/projects/shop/history?path=a.yml").second!!["versions"][0]["content"].asText())
+        assertEquals("h7", call("GET", "/api/v1/projects/u-local.shop/versions").second!!["versions"][0]["hash"].asText())
+        assertEquals(0, call("GET", "/api/v1/projects/u-local.other/versions").second!!["versions"].size())
+        assertEquals("7", call("GET", "/api/v1/projects/u-local.shop/versions/7").second!!["id"].asText())
+        assertEquals(404, call("GET", "/api/v1/projects/u-local.shop/versions/8").first)
+        assertEquals(200, call("GET", "/api/v1/projects/u-local.shop/versions/7/binary?path=logo.png").first)
+        assertEquals(404, call("GET", "/api/v1/projects/u-local.shop/versions/7/binary?path=a.yml").first)
+        assertEquals("a: 1", call("GET", "/api/v1/projects/u-local.shop/history?path=a.yml").second!!["versions"][0]["content"].asText())
         assertTrue(sent.none { it["type"] == "project_history" })
     }
 
@@ -181,17 +184,17 @@ class EditorApiTest {
     fun `projects are read from the database, without asking the server`() {
         stored = true
         assertEquals("kept", call("GET", "/api/v1/servers/u-local/projects").second!!["projects"][0]["externalId"].asText())
-        assertEquals("s1", call("GET", "/api/v1/projects/kept/files").second!!["hash"].asText())
-        assertEquals(true, call("GET", "/api/v1/projects/kept/files?if_hash=s1").second!!["unchanged"].asBoolean())
-        assertEquals(200, call("GET", "/api/v1/projects/kept/binary?path=logo.png").first)
-        assertEquals(200, call("GET", "/api/v1/user/projects/kept").first)
+        assertEquals("s1", call("GET", "/api/v1/projects/u-local.kept/files").second!!["hash"].asText())
+        assertEquals(true, call("GET", "/api/v1/projects/u-local.kept/files?if_hash=s1").second!!["unchanged"].asBoolean())
+        assertEquals(200, call("GET", "/api/v1/projects/u-local.kept/binary?path=logo.png").first)
+        assertEquals(200, call("GET", "/api/v1/user/projects/u-local.kept").first)
         assertTrue(sent.isEmpty(), "nothing relayed: $sent")
     }
 
     @Test
     fun `an offline server's project opens from the database, dated by its last presence`() {
         stored = true
-        val servers = Servers(server, known = { mapOf("survie" to Servers.Seen("u-survie", java.time.Instant.parse("2026-10-14T10:00:00Z"))) })
+        val servers = Servers(server, known = { mapOf("u-survie" to Servers.Seen("survie", java.time.Instant.parse("2026-10-14T10:00:00Z"))) })
         val offline = HubServer(
             WebConfig(port = 0, bind = "127.0.0.1"), EditorApi.router(servers, sessions, null, loaded = loaded), sessions,
             EditorAssets(javaClass.classLoader), EditorChannel(null), Logger.getAnonymousLogger(),
@@ -201,9 +204,9 @@ class EditorApiTest {
                 HttpRequest.newBuilder(URI("http://127.0.0.1:${offline.port}$path")).header("Cookie", cookie).GET().build(),
                 HttpResponse.BodyHandlers.ofString(),
             ).let { mapper.readTree(it.body()) }
-            assertEquals("2026-10-14T10:00:00Z", get("/api/v1/projects/survie.kept/files")["offlineSince"].asText())
-            assertEquals(false, get("/api/v1/user/projects/survie.kept")["connection"]["available"].asBoolean())
-            assertEquals(true, get("/api/v1/user/projects/kept")["connection"]["available"].asBoolean())
+            assertEquals("2026-10-14T10:00:00Z", get("/api/v1/projects/u-survie.kept/files")["offlineSince"].asText())
+            assertEquals(false, get("/api/v1/user/projects/u-survie.kept")["connection"]["available"].asBoolean())
+            assertEquals(true, get("/api/v1/user/projects/u-local.kept")["connection"]["available"].asBoolean())
         } finally {
             offline.stop()
         }
@@ -211,7 +214,7 @@ class EditorApiTest {
 
     @Test
     fun `a publication names its author`() {
-        call("PUT", "/api/v1/projects/shop/files", mapOf("operation_id" to "op-1", "files" to emptyList<Any>()))
+        call("PUT", "/api/v1/projects/u-local.shop/files", mapOf("operation_id" to "op-1", "files" to emptyList<Any>()))
         assertEquals(player.toString(), sent.last()["author_id"])
         assertEquals("Iban", sent.last()["author_name"])
     }
@@ -219,56 +222,56 @@ class EditorApiTest {
     @Test
     fun `reading a project passes the plugin tree through`() {
         answer = { mapOf("ok" to true, "files" to listOf(mapOf("path" to "main.yml", "content" to "a")), "hash" to "h1") }
-        val (status, body) = call("GET", "/api/v1/projects/shop/files?if_hash=h0")
+        val (status, body) = call("GET", "/api/v1/projects/u-local.shop/files?if_hash=h0")
         assertEquals(200, status)
         assertEquals("h1", body!!["hash"].asText())
         assertEquals("h0", sent.last()["if_hash"])
         answer = { mapOf("ok" to false, "error" to "unknown_project") }
-        assertEquals(404, call("GET", "/api/v1/projects/shop/files").first)
+        assertEquals(404, call("GET", "/api/v1/projects/u-local.shop/files").first)
     }
 
     @Test
     fun `a conflicting write answers 409 with the conflicts`() {
         answer = { mapOf("ok" to false, "error" to "conflict", "conflicts" to listOf(mapOf("path" to "main.yml", "disk" to "b")), "disk_files" to listOf("main.yml")) }
-        val (status, body) = call("PUT", "/api/v1/projects/shop/files", mapOf("files" to listOf(mapOf("path" to "main.yml", "content" to "a", "base_hash" to null)), "operationId" to "op1"))
+        val (status, body) = call("PUT", "/api/v1/projects/u-local.shop/files", mapOf("files" to listOf(mapOf("path" to "main.yml", "content" to "a", "base_hash" to null)), "operationId" to "op1"))
         assertEquals(409, status)
         assertEquals("main.yml", body!!["disk_files"][0].asText())
         val message = sent.last()
         assertEquals("project_write", message["type"])
         assertEquals("op1", message["operation_id"])
-        assertEquals(422, call("PUT", "/api/v1/projects/shop/files", mapOf("operationId" to "op1")).first)
+        assertEquals(422, call("PUT", "/api/v1/projects/u-local.shop/files", mapOf("operationId" to "op1")).first)
     }
 
     @Test
     fun `drafts belong to the signed-in player`() {
         answer = { mapOf("ok" to true, "draft" to mapOf("id" to "d1", "revision" to 1)) }
-        val (status, body) = call("POST", "/api/v1/user/projects/shop/drafts", mapOf("id" to "d1", "name" to "x", "snapshot" to mapOf("tree" to emptyMap<String, Any>())))
+        val (status, body) = call("POST", "/api/v1/user/projects/u-local.shop/drafts", mapOf("id" to "d1", "name" to "x", "snapshot" to mapOf("tree" to emptyMap<String, Any>())))
         assertEquals(201, status)
-        assertEquals("shop", body!!["draft"]["projectId"].asText())
+        assertEquals("u-local.shop", body!!["draft"]["projectId"].asText())
         assertEquals(player.toString(), sent.last()["owner_id"])
         assertEquals("create", sent.last()["action"])
 
         answer = { mapOf("ok" to false, "error" to "draft_conflict") }
-        assertEquals(409, call("PUT", "/api/v1/user/projects/shop/drafts/d1", mapOf("revision" to 1, "snapshot" to emptyMap<String, Any>())).first)
-        assertEquals(422, call("PUT", "/api/v1/user/projects/shop/drafts/d1", mapOf("snapshot" to emptyMap<String, Any>())).first)
+        assertEquals(409, call("PUT", "/api/v1/user/projects/u-local.shop/drafts/d1", mapOf("revision" to 1, "snapshot" to emptyMap<String, Any>())).first)
+        assertEquals(422, call("PUT", "/api/v1/user/projects/u-local.shop/drafts/d1", mapOf("snapshot" to emptyMap<String, Any>())).first)
     }
 
     @Test
     fun `projects are created, renamed and deleted on the server disk`() {
         val (created, body) = call("POST", "/api/v1/servers/u-local/projects", mapOf("name" to "shop"))
         assertEquals(201, created)
-        assertEquals("shop", body!!["project"]["id"].asText())
+        assertEquals("u-local.shop", body!!["project"]["id"].asText())
         assertEquals(mapOf("type" to "project_create", "project_id" to "shop"), sent.last())
         assertEquals(404, call("POST", "/api/v1/servers/nope/projects", mapOf("name" to "shop")).first)
         assertEquals(422, call("POST", "/api/v1/servers/u-local/projects", emptyMap<String, Any>()).first)
 
-        val (renamed, identity) = call("POST", "/api/v1/projects/shop/rename", mapOf("operationId" to "op1", "targetId" to "store"))
+        val (renamed, identity) = call("POST", "/api/v1/projects/u-local.shop/rename", mapOf("operationId" to "op1", "targetId" to "store"))
         assertEquals(200, renamed)
-        assertEquals("store", identity!!["projectId"].asText())
+        assertEquals("u-local.store", identity!!["projectId"].asText())
         assertEquals("store", identity["diskId"].asText())
         assertEquals(mapOf("type" to "project_rename", "project_id" to "shop", "target_project_id" to "store"), sent.last())
 
-        assertEquals(200, call("DELETE", "/api/v1/user/projects/store").first)
+        assertEquals(200, call("DELETE", "/api/v1/user/projects/u-local.store").first)
         assertEquals(mapOf("type" to "project_delete", "project_id" to "store"), sent.last())
 
         for ((error, status) in listOf("project_exists" to 409, "invalid_name" to 422)) {
@@ -278,18 +281,18 @@ class EditorApiTest {
             assertEquals(error, refused!!["error"].asText())
         }
         answer = { mapOf("ok" to false, "error" to "destination_exists") }
-        assertEquals(409, call("POST", "/api/v1/projects/shop/rename", mapOf("targetId" to "store")).first)
+        assertEquals(409, call("POST", "/api/v1/projects/u-local.shop/rename", mapOf("targetId" to "store")).first)
         answer = { mapOf("ok" to false, "error" to "unknown_project") }
-        assertEquals(404, call("DELETE", "/api/v1/user/projects/shop").first)
+        assertEquals(404, call("DELETE", "/api/v1/user/projects/u-local.shop").first)
     }
 
     @Test
     fun `a folder project can be renamed and deleted, an add-on project cannot`() {
         answer = { mapOf("ok" to true, "project_roots" to listOf(mapOf("project_id" to "shop", "identity" to "folder"), mapOf("project_id" to "quests", "identity" to "addon"))) }
-        val shop = call("GET", "/api/v1/user/projects/shop").second!!["capabilities"]
+        val shop = call("GET", "/api/v1/user/projects/u-local.shop").second!!["capabilities"]
         assertEquals(true, shop["canRename"].asBoolean())
         assertEquals(true, shop["canDelete"].asBoolean())
-        assertEquals(false, call("GET", "/api/v1/user/projects/quests").second!!["capabilities"]["canDelete"].asBoolean())
+        assertEquals(false, call("GET", "/api/v1/user/projects/u-local.quests").second!!["capabilities"]["canDelete"].asBoolean())
     }
 
     @Test
@@ -327,10 +330,10 @@ class EditorApiTest {
 
     @Test
     fun `items and textures come from the server`() {
-        val items = call("GET", "/api/v1/user/projects/shop/items").second!!
+        val items = call("GET", "/api/v1/user/projects/u-local.shop/items").second!!
         assertEquals("1.21.4", items["version"].asText())
         assertEquals("stone", items["items"][0]["id"].asText())
-        assertEquals("nexo:coin", call("GET", "/api/v1/user/projects/shop/custom-items").second!!["items"][0]["id"].asText())
+        assertEquals("nexo:coin", call("GET", "/api/v1/user/projects/u-local.shop/custom-items").second!!["items"][0]["id"].asText())
 
         val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/textures/1.21.4/icons/stone")).header("Cookie", cookie).build()
         val png = client.send(request, HttpResponse.BodyHandlers.ofString())
@@ -348,12 +351,12 @@ class EditorApiTest {
                 else -> mapOf("ok" to false, "error" to "not_found")
             }
         }
-        assertEquals("bg", call("GET", "/api/v1/user/projects/shop/nexo-glyphs").second!!["glyphs"][0]["id"].asText())
-        val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/user/projects/shop/nexo-glyphs/bg")).header("Cookie", cookie).build()
+        assertEquals("bg", call("GET", "/api/v1/user/projects/u-local.shop/nexo-glyphs").second!!["glyphs"][0]["id"].asText())
+        val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/user/projects/u-local.shop/nexo-glyphs/bg")).header("Cookie", cookie).build()
         val png = client.send(request, HttpResponse.BodyHandlers.ofString())
         assertEquals("image/png", png.headers().firstValue("Content-Type").get())
         assertEquals("png", png.body())
-        assertEquals(404, call("GET", "/api/v1/user/projects/shop/nexo-glyphs/nope").first)
+        assertEquals(404, call("GET", "/api/v1/user/projects/u-local.shop/nexo-glyphs/nope").first)
     }
 
     @Test
@@ -380,12 +383,12 @@ class EditorApiTest {
     fun `rights follow permissions`() {
         val token = (sessions.issueLink(UUID.randomUUID(), "Guest", setOf(EditorPermissions.VIEW)) as Sessions.LinkResult.Issued).token
         cookie = "${HubServer.COOKIE}=" + sessions.redeem(token)!!.id
-        assertEquals(403, call("PUT", "/api/v1/projects/shop/files", mapOf("files" to emptyList<Any>())).first)
+        assertEquals(403, call("PUT", "/api/v1/projects/u-local.shop/files", mapOf("files" to emptyList<Any>())).first)
         assertEquals(403, call("PATCH", "/api/v1/servers/u-local/server-config", mapOf("changes" to mapOf("a" to 1))).first)
         val write = mapOf("project_id" to "warps", "files" to listOf(mapOf("path" to "a.yml", "content" to "")))
         assertEquals(403, call("POST", "/api/v1/servers/u-local/config/write", write).first)
-        assertEquals(403, call("DELETE", "/api/v1/user/projects/shop").first)
-        assertEquals(403, call("POST", "/api/v1/projects/shop/rename", mapOf("targetId" to "store")).first)
+        assertEquals(403, call("DELETE", "/api/v1/user/projects/u-local.shop").first)
+        assertEquals(403, call("POST", "/api/v1/projects/u-local.shop/rename", mapOf("targetId" to "store")).first)
         assertEquals(403, call("POST", "/api/v1/servers/u-local/projects", mapOf("name" to "shop")).first)
     }
 }

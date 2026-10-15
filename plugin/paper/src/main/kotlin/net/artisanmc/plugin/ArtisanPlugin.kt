@@ -310,8 +310,7 @@ open class ArtisanPlugin : JavaPlugin() {
     /** This server as seen by the editor it serves: always the current provider, which changes on each reload. */
     private val localServer = object : net.artisanmc.plugin.hub.EditorServer {
         private val provider get() = menuProvider as SyncedMenuProvider
-        override val id = net.artisanmc.plugin.hub.Servers.LOCAL
-        override val uuid: String get() = serverId.toString()
+        override val id: String get() = serverId.toString()
         override val online = true
         override val link: net.artisanmc.plugin.protocol.ServerLink get() = provider.link
         override val label: String get() = serverName.ifBlank { "Minecraft" }
@@ -337,7 +336,7 @@ open class ArtisanPlugin : JavaPlugin() {
     /** This server's name in the network: `name`, else its folder name; null (logged) when `name` is invalid. */
     private fun networkName(web: net.artisanmc.plugin.hub.WebConfig): String? =
         net.artisanmc.plugin.config.serverName(web.name, File(".").absoluteFile.normalize().name) ?: null.also {
-            logger.severe("[Artisan] name \"${web.name}\" in environment.yml is invalid: letters, digits, _ and - only, 64 max, not \"local\". Use this server's name in velocity.toml.")
+            logger.severe("[Artisan] name \"${web.name}\" in environment.yml is invalid: letters, digits, _ and - only, 64 max. Use this server's name in velocity.toml.")
         }
 
     val serverUuid: String get() = serverId.toString()
@@ -444,11 +443,11 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
-    /** The other servers of `artisan_servers` and their last presence, cached a few seconds; null without a registry. */
+    /** The other servers of `artisan_servers` by server id, with their name and last presence, cached a few seconds; null without a registry. */
     private fun knownServers(): Map<String, net.artisanmc.plugin.hub.Servers.Seen>? {
         val registry = serverRegistry ?: return null
         knownCache?.takeIf { System.currentTimeMillis() - it.first < 5_000 }?.let { return it.second }
-        return runCatching { registry.others(serverId).associate { it.name to net.artisanmc.plugin.hub.Servers.Seen(it.uuid, it.lastSeen) } }.getOrNull()
+        return runCatching { registry.others(serverId).associate { it.uuid to net.artisanmc.plugin.hub.Servers.Seen(it.name, it.lastSeen) } }.getOrNull()
             ?.also { knownCache = System.currentTimeMillis() to it }
     }
 
@@ -473,8 +472,8 @@ open class ArtisanPlugin : JavaPlugin() {
         try {
             val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
-            val servers = net.artisanmc.plugin.hub.Servers(localServer, ::knownServers) { name, uuid ->
-                net.artisanmc.plugin.hub.RemoteServer(name, uuid, publicUrl = { editorBase() })
+            val servers = net.artisanmc.plugin.hub.Servers(localServer, ::knownServers) { id, name ->
+                net.artisanmc.plugin.hub.RemoteServer(id, name, publicUrl = { editorBase() })
             }
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
             val data = suiteData?.takeIf { serverRow != null }
@@ -662,7 +661,7 @@ open class ArtisanPlugin : JavaPlugin() {
         pluginVersion = description.version,
         nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
         serverConfig = serverConfigAccess,
-        editorEvents = { editorChannel.relay(it, serverUuid = serverId.toString()) },
+        editorEvents = { editorChannel.relay(it, serverId.toString()) },
         hub = hubLink(cfg.web),
         menuEvents = menuEvents,
         onSnapshot = ::recordVersions,
@@ -720,8 +719,12 @@ open class ArtisanPlugin : JavaPlugin() {
         return net.artisanmc.plugin.protocol.ProjectReads.listBody(snapshot, projectRoots) + ("projects" to projects)
     }
 
-    /** The `artisan_servers` row of a hub server id. */
-    private fun row(server: String) = if (server == net.artisanmc.plugin.hub.Servers.LOCAL) serverRow else serverRegistry?.rowId(server)
+    /** The `artisan_servers` row of a server id: this server's, read once, else looked up. */
+    private fun row(server: String): Int? {
+        if (server == serverId.toString()) return serverRow
+        val id = runCatching { UUID.fromString(server) }.getOrNull() ?: return null
+        return serverRegistry?.rowId(id)
+    }
 
     /** A failing database falls back to the sessions in memory: signed-in players stay signed in until a restart. */
     private fun editorSessionStore(data: javax.sql.DataSource) = object : net.artisanmc.plugin.hub.SessionStore {
