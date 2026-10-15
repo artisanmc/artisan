@@ -7,13 +7,13 @@ import org.bukkit.entity.Player
 data class PageInfo(val page: Int, val pageCount: Int)
 
 /**
- * The engine's context: what an [ActionContext] shows a module's handler (player, args,
- * language, project), plus Artisan's own navigation and pagination state.
+ * The engine's context: what a module's handler sees through [EngineActionContext]
+ * (player, args, language, project), plus Artisan's own navigation and pagination state.
  */
 data class ExecutionContext(
-    override val player: Player,
-    override val args: Map<String, Any> = emptyMap(),
-    override val lang: String = "en",
+    val player: Player,
+    val args: Map<String, Any> = emptyMap(),
+    val lang: String = "en",
     /** Project default language — fallback for field-local maps ([LocalizedText]). */
     val defaultLang: String = "en",
     val langMap: Map<String, String> = emptyMap(),
@@ -30,12 +30,10 @@ data class ExecutionContext(
      * An `open_menu` / `open_dialog` with a bare id resolves there first.
      * `null` = no project (API, `/artisan menu`): resolved server-wide.
      */
-    override val projectId: String? = null,
+    val projectId: String? = null,
     /** Lore wrap width of the menu being rendered (MC pixels, 0 = never). */
     val loreMaxWidth: Int = 0,
-) : ActionContext {
-    override fun withArgs(args: Map<String, Any>): ActionContext = copy(args = this.args + args)
-
+) {
     val navigationArgs: Map<String, Any>
         get() = args.filter { (name, value) -> name !in sourceArgs || value !== sourceArgs[name] }
 
@@ -46,4 +44,18 @@ data class ExecutionContext(
      */
     val resolvedArgs: Map<String, Any>
         get() = if ("player" in args) args else args + ("player" to player)
+}
+
+/**
+ * The engine's context as the API shows it to a handler ([ActionContext]). A Kotlin
+ * property cannot implement a Java getter, so this view wraps [engine] instead of
+ * [ExecutionContext] implementing the interface; [ActionExecutor.context] unwraps it.
+ */
+class EngineActionContext(val engine: ExecutionContext) : ActionContext {
+    override fun getPlayer(): Player = engine.player
+    override fun getArgs(): Map<String, Any> = engine.args
+    override fun getLang(): String = engine.lang
+    override fun getProjectId(): String? = engine.projectId
+    override fun withArgs(args: Map<String, Any>): ActionContext =
+        EngineActionContext(engine.copy(args = engine.args + args))
 }
