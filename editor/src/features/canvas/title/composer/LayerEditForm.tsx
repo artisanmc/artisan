@@ -23,6 +23,7 @@ import { useUiStore } from "@/state/uiStore";
 
 import { TextSizeSelector } from "./TextSizeSelector";
 import { asTextFrame, patchTextFrame, textAnchorOffset } from "./textFrame";
+import { menusOf } from "@/domain/documents";
 
 interface LayerEditFormProps {
   projectId: ProjectId;
@@ -40,7 +41,7 @@ export function LayerEditForm({ projectId }: LayerEditFormProps) {
   const { t } = useTranslation();
   const selectedKey = useUiStore((s) => s.selectedLayerKey);
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = project?.menus.find((m) => m.id === selectedKey?.menuId);
+  const menu = menusOf(project).find((m) => m.id === selectedKey?.menuId);
   const layer =
     selectedKey && menu && selectedKey.index >= 0 && selectedKey.index < menu.title.length
       ? menu.title[selectedKey.index]

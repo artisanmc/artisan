@@ -1,6 +1,7 @@
 import type { Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { autoLayout, projectBoard, rearrangeProjectLayout } from "./autoLayout";
+import { menusOf } from "@/domain/documents";
 
 const menu = (id: string, opens?: string) =>
   ({
@@ -38,14 +39,16 @@ function makeProject(over: Partial<Project> = {}): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
     ...over,
   } as Project;
@@ -54,36 +57,42 @@ function makeProject(over: Partial<Project> = {}): Project {
 describe("autoLayout", () => {
   it("places every Document of the project, even those never put on the board", () => {
     const project = makeProject({
-      menus: [menu("m1", "m2"), menu("m2")],
-      commands: [{ id: "c1", steps: [], arguments: [] } as never],
-      dialogs: [{ id: "d1", buttons: [] } as never],
+      documents: {
+        menu: [menu("m1", "m2"), menu("m2")],
+        command: [{ id: "c1", steps: [], arguments: [] } as never],
+        dialog: [{ id: "d1", buttons: [] } as never],
+      },
     });
     expect(Object.keys(autoLayout(project)).sort()).toEqual(["c1", "d1", "m1", "m2"]);
   });
 
   it("keeps a position the user set by hand", () => {
     const project = makeProject({
-      menus: [menu("m1", "m2"), menu("m2")],
+      documents: {
+        menu: [menu("m1", "m2"), menu("m2")],
+      },
       canvasLayout: { m2: { x: 900, y: 12 } } as never,
     });
     expect(autoLayout(project).m2).toEqual({ x: 900, y: 12 });
   });
 
   it("arranges linked menus in navigation order", () => {
-    const project = makeProject({ menus: [menu("m1", "m2"), menu("m2")] });
+    const project = makeProject({ documents: { menu: [menu("m1", "m2"), menu("m2")] } });
     const layout = autoLayout(project);
     expect(layout.m1!.x).toBeLessThan(layout.m2!.x);
   });
 
   it("reports the gutter of unlinked Documents", () => {
-    const project = makeProject({ menus: [menu("m1", "m2"), menu("m2"), menu("lonely")] });
+    const project = makeProject({
+      documents: { menu: [menu("m1", "m2"), menu("m2"), menu("lonely")] },
+    });
     const board = projectBoard(project);
     expect(board.gutter).not.toBeNull();
     expect(board.layout.lonely!.y).toBeGreaterThan(board.gutter!.y);
   });
 
   it("does not recompute for an edit that leaves the graph unchanged", () => {
-    const project = makeProject({ menus: [menu("m1", "m2"), menu("m2")] });
+    const project = makeProject({ documents: { menu: [menu("m1", "m2"), menu("m2")] } });
     const edited = { ...project, updatedAt: "later" };
     expect(projectBoard(edited)).toBe(projectBoard(project));
   });
@@ -114,7 +123,9 @@ describe("rearrangeProjectLayout — modes", () => {
   const fanout = () => {
     const children = ["a", "b", "c", "d", "e", "f", "g", "h"];
     return makeProject({
-      menus: [opens("main", children), ...children.map((c) => opens(c, []))] as never,
+      documents: {
+        menu: [opens("main", children), ...children.map((c) => opens(c, []))] as never,
+      },
     });
   };
 
@@ -123,7 +134,7 @@ describe("rearrangeProjectLayout — modes", () => {
     expect(rearrangeProjectLayout(project, undefined, "columns")!.canvasLayout).toEqual({});
     for (const mode of ["wrap", "auto", "cluster", "force"] as const) {
       const layout = rearrangeProjectLayout(project, undefined, mode)!.canvasLayout;
-      expect(Object.keys(layout), mode).toHaveLength(project.menus.length);
+      expect(Object.keys(layout), mode).toHaveLength(menusOf(project).length);
     }
   });
 

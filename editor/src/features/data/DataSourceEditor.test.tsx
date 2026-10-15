@@ -24,22 +24,25 @@ function makeProject(sourceNames = ["settings"]): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataModels: [],
-    dataSources: sourceNames.map((name, index) =>
-      ({
-        id: `ds_${index + 1}` as never,
-        name,
-        shape: "config",
-        fields: [{ name: "currency", type: { kind: "string" } }],
-        value: { currency: "coins" },
-      }) as const,
+    dataSources: sourceNames.map(
+      (name, index) =>
+        ({
+          id: `ds_${index + 1}` as never,
+          name,
+          shape: "config",
+          fields: [{ name: "currency", type: { kind: "string" } }],
+          value: { currency: "coins" },
+        }) as const,
     ),
     i18nKeys: {} as Project["i18nKeys"],
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   } as unknown as Project;
 }
@@ -96,7 +99,9 @@ describe("DataSourceEditor", () => {
   it("shows the source's YAML", () => {
     render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
-    expect((screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value).toContain("coins");
+    expect((screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value).toContain(
+      "coins",
+    );
   });
 
   /**
@@ -110,7 +115,11 @@ describe("DataSourceEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));
 
     useAccountStore.getState().setSourceValue({
-      projectId: PID, sourceId: "ds_1" as never, row: null, path: ["currency"], value: "jetons",
+      projectId: PID,
+      sourceId: "ds_1" as never,
+      row: null,
+      path: ["currency"],
+      value: "jetons",
     });
     view.rerender(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
 

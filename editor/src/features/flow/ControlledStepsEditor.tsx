@@ -1,17 +1,12 @@
 import type { StepFrame } from "@/domain/stepPath";
 import { resolveParentMut } from "@/domain/stepPath";
 import type { ProjectId, Step } from "@/domain/types";
-import {
-  DndContext,
-  type DragEndEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { produce } from "immer";
 import { useAccountStore } from "@/state/accountStore";
 import { ActionLine, AddStepLine, IfBlock, SortableStep, useStepIds } from "./PseudocodeView";
+import { menusOf } from "@/domain/documents";
 
 /**
  * CONTROLLED pseudocode step editor — `value: Step[]` + `onChange`, no store
@@ -56,7 +51,7 @@ function ControlledStepTree({ projectId, steps, frames, indent, mutate }: TreePr
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const ids = useStepIds(steps);
   const firstMenuId = useAccountStore(
-    (s) => s.account.projects.find((p) => p.id === projectId)?.menus[0]?.id,
+    (s) => menusOf(s.account.projects.find((p) => p.id === projectId))[0]?.id,
   );
 
   const parentOf = (root: Step[]) => resolveParentMut(root, frames);

@@ -20,6 +20,7 @@ import {
   type ProjectDocumentItem,
   buildProjectDocuments,
 } from "./useProjectDocuments";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 const TYPE_ICON: Record<DocumentType, typeof LayoutGrid> = {
   menu: LayoutGrid,
@@ -108,9 +109,9 @@ export function ProjectDocumentTree({
   if (!project) return null;
 
   const empty =
-    project.menus.length === 0 &&
-    project.commands.length === 0 &&
-    (project.dialogs ?? []).length === 0;
+    menusOf(project).length === 0 &&
+    commandsOf(project).length === 0 &&
+    dialogsOf(project).length === 0;
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.

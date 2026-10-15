@@ -6,6 +6,7 @@ import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useUiStore } from "@/state/uiStore";
 import { getTextureUrl } from "./textureStore";
 import type { BoardGroup } from "./groupedBoard";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 interface EdgeTooltipProps {
   project: Project;
@@ -23,20 +24,20 @@ export function EdgeTooltip({ project, groups }: EdgeTooltipProps) {
   const nodeName = (id: string): string => {
     const group = groups?.find((g) => g.key === id);
     if (group) return group.name;
-    const menu = project.menus.find((m) => m.id === id);
+    const menu = menusOf(project).find((m) => m.id === id);
     if (menu) {
       const lt = getFirstTitleText(menu);
       return (lt ? getText(project, lt, activeLang) : "") || id;
     }
-    const cmd = project.commands.find((c) => c.id === id);
+    const cmd = commandsOf(project).find((c) => c.id === id);
     if (cmd) return `/${cmd.name}`;
-    const dialog = (project.dialogs ?? []).find((d) => d.id === id);
+    const dialog = dialogsOf(project).find((d) => d.id === id);
     if (dialog) return `[dialog] ${id}`;
     return id;
   };
 
   const elementLabel = (elementId: string): string => {
-    for (const menu of project.menus) {
+    for (const menu of menusOf(project)) {
       for (const layer of menu.layers) {
         const el = layer.elements.find((e) => e.id === elementId);
         if (el) {
@@ -80,7 +81,7 @@ export function EdgeTooltip({ project, groups }: EdgeTooltipProps) {
             <div key={i} className="flex items-center gap-1.5">
               <span className="font-mono text-xs text-[var(--text-mut)]">
                 /
-                {project.commands.find((c) => c.id === trigger.commandId)?.name ??
+                {commandsOf(project).find((c) => c.id === trigger.commandId)?.name ??
                   trigger.commandId}
               </span>
             </div>

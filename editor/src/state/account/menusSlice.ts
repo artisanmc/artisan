@@ -28,6 +28,7 @@ import {
   titleLayerKeys,
 } from "./helpers";
 import type { AccountSliceContext, AccountState, MenuRows } from "./types";
+import { commandsOf, menusOf, mutableMenus } from "@/domain/documents";
 
 /** Menus as Documents: fields, title layers, context inputs, captured items, ids. */
 export interface MenusSlice {
@@ -133,7 +134,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        project.menus.push({
+        mutableMenus(project).push({
           id,
           projectId: pId,
           // Default to a single Plain (vanilla) title layer. Vanilla mode
@@ -156,7 +157,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
     const next = produce(get().account, (draft) => {
       const project = draft.projects.find((p) => p.id === pId);
       if (!project) return;
-      const menu = project.menus.find((m) => m.id === mId);
+      const menu = menusOf(project).find((m) => m.id === mId);
       if (!menu) return;
       if (field === "permission") {
         if (typeof value !== "string") return;
@@ -203,7 +204,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         // menu.title is MenuTitleLayer[]. Write into the first text-bearing
         // layer (plain, text, or textarea) if present; otherwise prepend a
@@ -233,7 +234,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         // Release the i18n keys of text-bearing layers that the new layer
         // set drops, so switching title modes (composed ↔ vanilla) doesn't
@@ -252,7 +253,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         const layer = menu.title[index];
         if (!layer) return;
@@ -265,7 +266,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         menu.title.push(layer);
         project.updatedAt = new Date().toISOString();
@@ -276,7 +277,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         const [removed] = menu.title.splice(index, 1);
         // GC the removed layer's i18n key (text-bearing layers only) so a
@@ -292,7 +293,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         const [moved] = menu.title.splice(fromIndex, 1);
         if (moved) menu.title.splice(toIndex, 0, moved);
@@ -304,7 +305,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         if (!menu.contextInputs) menu.contextInputs = [];
         const used = new Set(menu.contextInputs.map((c) => c.name));
@@ -327,7 +328,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu?.contextInputs) return;
         if (index < 0 || index >= menu.contextInputs.length) return;
         menu.contextInputs[index] = input;
@@ -339,7 +340,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu?.contextInputs) return;
         if (index < 0 || index >= menu.contextInputs.length) return;
         menu.contextInputs.splice(index, 1);
@@ -382,7 +383,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = project?.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         // `inputName` may be a DOTTED PATH into an object param (e.g.
         // `category.items`) — the guard checks the ROOT input exists.
         const rootName = inputName.split(".")[0]!;
@@ -444,15 +445,15 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
     {
       const project = get().account.projects.find((p) => p.id === pId);
       if (!project) return;
-      if (project.menus.some((m) => m.id === newId)) {
+      if (menusOf(project).some((m) => m.id === newId)) {
         throw new Error(`menu id "${newId}" already exists in project`);
       }
-      if (!project.menus.some((m) => m.id === oldId)) return;
+      if (!menusOf(project).some((m) => m.id === oldId)) return;
     }
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId)!;
-        const menu = project.menus.find((m) => m.id === oldId)!;
+        const menu = menusOf(project).find((m) => m.id === oldId)!;
         menu.id = newId;
         // Rewrite open_menu refs across the entire project — both
         // element click handlers and command step trees.
@@ -461,7 +462,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
             action.menuId = newId;
           }
         };
-        for (const m of project.menus) {
+        for (const m of menusOf(project)) {
           for (const layer of m.layers) {
             for (const el of layer.elements) {
               for (const appearance of addressedAppearances(el)) {
@@ -474,7 +475,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
             }
           }
         }
-        for (const cmd of project.commands) {
+        for (const cmd of commandsOf(project)) {
           for (const a of walkActions(cmd.steps)) rewrite(a);
         }
         const layout = project.canvasLayout as Record<string, { x: number; y: number }>;

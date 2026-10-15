@@ -67,6 +67,28 @@ mappings:
       - "testdata/action-wire-conformance.json"
     reason: "Structured action wire codec (the only writer) — locked by shared vector"
 
+  - touches: "editor/src/domain/documentKinds.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "docs/decisions/extensible-document-kinds.md"
+    reason: "Document kind registry (editor): a kind's folder, id prefix and schema label decide the project layout"
+
+  - touches: "editor/src/schema/documentCodecs.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+    reason: "Per-kind file codecs driving projectFromFiles and transform"
+
+  - touches: "plugin/*/src/main/kotlin/**/model/DocumentKinds.kt"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "docs/decisions/extensible-document-kinds.md"
+    reason: "Document kind registry (plugin) — mirror of domain/documentKinds.ts: folders, schema labels read by ProjectReader and ResourceInventory"
+
+  - touches: "plugin/*/src/main/kotlin/**/model/ProjectBundle.kt"
+    updates:
+      - "docs/architecture/project-files.md"
+    reason: "ProjectBundle.documents is the one store of a project's Documents; menus/commands/dialogs are its typed façade"
+
   - touches: "plugin/*/src/main/kotlin/**/I18nAddresses.kt"
     updates:
       - "docs/architecture/project-files.md"

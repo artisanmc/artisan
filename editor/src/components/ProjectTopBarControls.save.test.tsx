@@ -59,9 +59,11 @@ function baseProject(name: string): Project {
     updatedAt: "2026-09-14T00:00:00.000Z",
     defaultLang: "en",
     i18nKeys: {},
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     canvasLayout: {},
@@ -247,7 +249,10 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       projects: Project[];
       failed: string[];
     }) {
-      const p = { ...baseProject("revue"), commands: [command("c1", "craft")] } as unknown as Project;
+      const p = {
+        ...baseProject("revue"),
+        documents: { ...baseProject("revue").documents, command: [command("c1", "craft")] },
+      } as unknown as Project;
       useAccountStore.setState({
         account: { id: "n1", projects: [p], projectOrder: [p.id] },
       } as never);
@@ -267,13 +272,17 @@ describe("ProjectTopBarControls — Enregistrer", () => {
         ...baseProject("Boutique"),
         id: "shop" as ProjectId,
         diskId: "shop",
-        commands: [command("c2", "craft")],
+        documents: {
+          command: [command("c2", "craft")],
+        },
       } as unknown as Project;
       openReviewWith({ scope: "n1/s1", status: "ready", projects: [shop], failed: [] });
       const review = await screen.findByRole("dialog");
       expect(review).toHaveTextContent(/\/craft .* p1:c1, shop:c2/);
       expect(
-        within(review).getByRole("button", { name: /Deploy to the server|Déployer sur le serveur/ }),
+        within(review).getByRole("button", {
+          name: /Deploy to the server|Déployer sur le serveur/,
+        }),
       ).toBeEnabled();
     });
 

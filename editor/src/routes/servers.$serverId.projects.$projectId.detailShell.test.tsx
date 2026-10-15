@@ -13,7 +13,8 @@ vi.mock("@/features/onboarding/editorTourRuntime", () => ({
 // renders a marker, so we can assert the shell (topbar) persists AROUND the
 // detail view instead of the page early-returning to a bare Outlet.
 vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
     useParams: () => ({ serverId: "sk_1", projectId: "p1" }),
@@ -53,9 +54,11 @@ vi.mock("@/features/project/useProjectLoader", () => ({
       name: "Hub",
       defaultLang: "en",
       i18nKeys: {},
-      menus: [],
-      commands: [],
-      dialogs: [],
+      documents: {
+        menu: [],
+        command: [],
+        dialog: [],
+      },
       assets: [],
     },
   }),

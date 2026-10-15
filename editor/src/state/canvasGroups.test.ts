@@ -5,6 +5,7 @@ import { mockAccount } from "@/mock/fixtures";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { beforeEach, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
+import { menusOf } from "@/domain/documents";
 
 const pid = projectId("p_personal");
 const project = () => useAccountStore.getState().account.projects.find((p) => p.id === pid)!;
@@ -62,14 +63,14 @@ it("moves a group as one undoable operation", () => {
 });
 
 it("groups selected menus, survives rename, and can undo grouping without changing menus", () => {
-  const before = structuredClone(project().menus);
+  const before = structuredClone(menusOf(project()));
   const id = useAccountStore.getState().createCanvasGroup({
     projectId: pid,
     name: "Crafts",
     nodeIds: ["craft_a", "craft_b"],
   });
   expect(project().canvasGroups).toEqual([{ id, name: "Crafts", nodeIds: ["craft_a", "craft_b"] }]);
-  expect(project().menus).toEqual(before);
+  expect(menusOf(project())).toEqual(before);
   useAccountStore.temporal.getState().undo();
   expect(project().canvasGroups ?? []).toEqual([]);
   useAccountStore.temporal.getState().redo();
@@ -101,7 +102,9 @@ it("keeps membership exclusive, supports color and dissolve, and prunes deleted 
   expect(project().canvasGroups!.map((g) => g.id)).toEqual([second]);
   store.dissolveCanvasGroup({ projectId: pid, groupId: second });
   expect(project().canvasGroups).toEqual([]);
-  expect(project().menus.map((m) => m.id)).toEqual(expect.arrayContaining(["craft_b", "craft_c"]));
+  expect(menusOf(project()).map((m) => m.id)).toEqual(
+    expect.arrayContaining(["craft_b", "craft_c"]),
+  );
 });
 
 it("groups commands and dialogs alongside menus, and rekeys a renamed command", () => {
@@ -133,7 +136,7 @@ it("groups commands and dialogs alongside menus, and rekeys a renamed command", 
 it("rearranges the board as blocks without changing group interiors, including after reload", () => {
   const id = customizedGroup();
   const before = projectBoard(project());
-  const documents = structuredClone(project().menus);
+  const documents = structuredClone(menusOf(project()));
   const store = useAccountStore.getState();
   store.setEdgeAnchor({
     projectId: pid,
@@ -154,7 +157,7 @@ it("rearranges the board as blocks without changing group interiors, including a
   expect(project().canvasEdges).toEqual({
     "craft_a->craft_b": { from: { side: "bottom", t: 0.3 } },
   });
-  expect(project().menus).toEqual(documents);
+  expect(menusOf(project())).toEqual(documents);
   const restored = projectFromFiles(pid, transform(project()));
   expect(relative(projectBoard(restored), id)).toEqual(relative(after, id));
   store.releaseBoardPositions({ projectId: pid });

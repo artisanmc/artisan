@@ -6,7 +6,11 @@ import { GhostChips } from "./GhostChips";
 
 vi.mock("react-konva", () => ({
   Group: (p: any) => (
-    <div data-testid="konva-group" data-name={p.name} onClick={(e) => p.onClick?.({ ...e, cancelBubble: false })}>
+    <div
+      data-testid="konva-group"
+      data-name={p.name}
+      onClick={(e) => p.onClick?.({ ...e, cancelBubble: false })}
+    >
       {p.children}
     </div>
   ),
@@ -25,14 +29,26 @@ vi.mock("./deriveEdges", () => ({
 const PID = "p1" as ProjectId;
 function project(): Project {
   return {
-    id: PID, name: "p", source: "user_created", createdAt: "", updatedAt: "",
-    menus: [
-      { id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
-      { id: "shop", projectId: PID, title: [], rows: 3, layers: [] } as any,
-      { id: "bank", projectId: PID, title: [], rows: 3, layers: [] } as any,
-    ],
-    commands: [], assets: [], dataSources: [], importedConnectors: [],
-    i18nKeys: {}, defaultLang: "en", dialogs: [], canvasLayout: { m1: { x: 0, y: 0 } } as any,
+    id: PID,
+    name: "p",
+    source: "user_created",
+    createdAt: "",
+    updatedAt: "",
+    documents: {
+      menu: [
+        { id: "m1", projectId: PID, title: [], rows: 3, layers: [] } as any,
+        { id: "shop", projectId: PID, title: [], rows: 3, layers: [] } as any,
+        { id: "bank", projectId: PID, title: [], rows: 3, layers: [] } as any,
+      ],
+      command: [],
+      dialog: [],
+    },
+    assets: [],
+    dataSources: [],
+    importedConnectors: [],
+    i18nKeys: {},
+    defaultLang: "en",
+    canvasLayout: { m1: { x: 0, y: 0 } } as any,
   } as Project;
 }
 
@@ -47,9 +63,7 @@ describe("GhostChips", () => {
   it("renders a chip for an off-board target from a node on the board", () => {
     const layout = { m1: { x: 0, y: 0 } };
     render(<GhostChips project={project()} layout={layout} />);
-    expect(screen.getByTestId("konva-group").getAttribute("data-name")).toBe(
-      "ghostchip:m1->shop",
-    );
+    expect(screen.getByTestId("konva-group").getAttribute("data-name")).toBe("ghostchip:m1->shop");
   });
 
   it("on the board, the pill flags a missing target without writing anything", () => {
@@ -79,9 +93,7 @@ describe("GhostChips", () => {
     ];
     const layout = { m1: { x: 0, y: 0 } };
     render(<GhostChips project={project()} layout={layout} />);
-    const names = screen
-      .getAllByTestId("konva-group")
-      .map((g) => g.getAttribute("data-name"));
+    const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
     expect(names).toContain("ghostchip:m1->shop");
     expect(names).toContain("ghostchip:m1->bank");
     expect(new Set(names).size).toBe(2);

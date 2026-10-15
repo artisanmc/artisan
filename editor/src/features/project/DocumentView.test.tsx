@@ -35,24 +35,26 @@ beforeEach(() => {
           source: "user_created",
           createdAt: "",
           updatedAt: "",
-          menus: [
-            {
-              id: "m1",
-              projectId: PID,
-              title: [],
-              rows: 3,
-              layers: [
-                {
-                  id: "L0",
-                  elements: [
-                    { id: "el1", positions: "13", display: { material: "DIAMOND" }, states: [] },
-                  ],
-                },
-              ],
-            } as any,
-          ],
-          commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
-          dialogs: [],
+          documents: {
+            menu: [
+              {
+                id: "m1",
+                projectId: PID,
+                title: [],
+                rows: 3,
+                layers: [
+                  {
+                    id: "L0",
+                    elements: [
+                      { id: "el1", positions: "13", display: { material: "DIAMOND" }, states: [] },
+                    ],
+                  },
+                ],
+              } as any,
+            ],
+            command: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+            dialog: [],
+          },
           assets: [],
           dataSources: [],
           importedConnectors: [],
@@ -69,12 +71,23 @@ describe("DocumentView", () => {
   it("uses the parent anchor when another cached project has the same public folder ID", () => {
     const account = useAccountStore.getState().account;
     const own = { ...account.projects[0]!, diskId: "shared", serverKeyId: "s1" };
-    const other = { ...own, id: "shared" as ProjectId, serverKeyId: "s2", menus: [], commands: [] };
+    const other = {
+      ...own,
+      id: "shared" as ProjectId,
+      serverKeyId: "s2",
+      documents: { menu: [], command: [] },
+    };
     useAccountStore.setState({ account: { ...account, projects: [other, own] } });
-    render(<ResolvedProjectContext.Provider value={PID}><DocumentView projectId={"shared" as ProjectId} documentId={"m1" as any} /></ResolvedProjectContext.Provider>);
+    render(
+      <ResolvedProjectContext.Provider value={PID}>
+        <DocumentView projectId={"shared" as ProjectId} documentId={"m1" as any} />
+      </ResolvedProjectContext.Provider>,
+    );
     expect(screen.getByTestId("focus-stage")).toBeInTheDocument();
     fireEvent.click(screen.getByText(/back to canvas|retour au canvas/i));
-    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ params: { serverId: "s1", projectId: "shared" } }));
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ params: { serverId: "s1", projectId: "shared" } }),
+    );
   });
   it("renders the focused stage + EditorPane for a menu", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);

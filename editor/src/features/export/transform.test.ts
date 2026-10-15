@@ -6,6 +6,7 @@ import type {
   Dialog,
   Element,
   I18nKey,
+  Menu,
   Project,
 } from "@/domain/types";
 import { flattenLangTree } from "@/lib/langTree";
@@ -25,9 +26,11 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
     createdAt: "",
     updatedAt: "",
     i18nKeys: {},
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     canvasLayout: {},
     ...overrides,
@@ -41,38 +44,58 @@ const parseEditorState = (files: Record<string, string>) => {
 describe("transform", () => {
   it("exports localized presentation inside an extended item as text and translation addresses", () => {
     const project = makeProject({
-      i18nKeys: { iconTitle: { en: "{item.name}", fr: "Article {item.name}" }, iconLore: { en: "{base.lore}\nRare", fr: "{base.lore}\nPrécieux" } } as never,
-      dataSources: [{ id: "settings", name: "settings", shape: "config", fields: [{ name: "icon", type: { kind: "item" } }], value: {
-        icon: { extends: "item:sword", title: { key: "iconTitle" }, lore: { key: "iconLore" } },
-      } }] as never,
+      i18nKeys: {
+        iconTitle: { en: "{item.name}", fr: "Article {item.name}" },
+        iconLore: { en: "{base.lore}\nRare", fr: "{base.lore}\nPrécieux" },
+      } as never,
+      dataSources: [
+        {
+          id: "settings",
+          name: "settings",
+          shape: "config",
+          fields: [{ name: "icon", type: { kind: "item" } }],
+          value: {
+            icon: { extends: "item:sword", title: { key: "iconTitle" }, lore: { key: "iconLore" } },
+          },
+        },
+      ] as never,
     });
     const result = { files: transform(project) };
-    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yaml"]).toContain("{base.lore}");
-    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yaml"]).not.toContain("iconLore");
-    expect(flattenLangTree(parse(result.files["plugins/Artisan/projects/p_test/lang/fr.yaml"]!))).toMatchObject({
-      "sources.settings.icon.title": "Article {item.name}", "sources.settings.icon.lore": "{base.lore}\nPrécieux",
+    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yaml"]).toContain(
+      "{base.lore}",
+    );
+    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yaml"]).not.toContain(
+      "iconLore",
+    );
+    expect(
+      flattenLangTree(parse(result.files["plugins/Artisan/projects/p_test/lang/fr.yaml"]!)),
+    ).toMatchObject({
+      "sources.settings.icon.title": "Article {item.name}",
+      "sources.settings.icon.lore": "{base.lore}\nPrécieux",
     });
   });
   it("emits manifest.yaml with menu and command ids", () => {
     const project = makeProject({
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5 }],
-          layers: [],
-        },
-      ],
-      commands: [
-        {
-          id: commandId("heal"),
-          projectId: projectId("p_test"),
-          name: "heal",
-          arguments: [],
-          steps: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5 }],
+            layers: [],
+          },
+        ],
+        command: [
+          {
+            id: commandId("heal"),
+            projectId: projectId("p_test"),
+            name: "heal",
+            arguments: [],
+            steps: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
@@ -98,29 +121,31 @@ describe("transform", () => {
 
   it("emits board layout in .artisan/editor.yaml with menu/command/dialog positions", () => {
     const project = makeProject({
-      menus: [
-        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
-      ],
-      commands: [
-        {
-          id: commandId("heal"),
-          projectId: projectId("p_test"),
-          name: "heal",
-          arguments: [],
-          steps: [],
-        },
-      ],
-      dialogs: [
-        {
-          id: dialogId("confirm"),
-          projectId: projectId("p_test"),
-          title: { key: "k" as I18nKey },
-          canCloseWithEscape: true,
-          body: [],
-          inputs: [],
-          buttons: [],
-        } as unknown as Dialog,
-      ],
+      documents: {
+        menu: [
+          { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+        ],
+        command: [
+          {
+            id: commandId("heal"),
+            projectId: projectId("p_test"),
+            name: "heal",
+            arguments: [],
+            steps: [],
+          },
+        ],
+        dialog: [
+          {
+            id: dialogId("confirm"),
+            projectId: projectId("p_test"),
+            title: { key: "k" as I18nKey },
+            canCloseWithEscape: true,
+            body: [],
+            inputs: [],
+            buttons: [],
+          } as unknown as Dialog,
+        ],
+      },
       canvasLayout: {
         [menuId("shop")]: { x: 40, y: 40 },
         [commandId("heal")]: { x: 260, y: 40 },
@@ -138,9 +163,11 @@ describe("transform", () => {
 
   it("omits .artisan/editor.yaml when canvasLayout is empty", () => {
     const project = makeProject({
-      menus: [
-        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
-      ],
+      documents: {
+        menu: [
+          { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+        ],
+      },
       canvasLayout: {},
     });
     const files = transform(project);
@@ -150,38 +177,40 @@ describe("transform", () => {
 
   it("serializes an element in placement mode with key_field (no per-placement overrides)", () => {
     const project = makeProject({
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 6,
-          title: [],
-          contextInputs: [{ kind: "sourceRef", name: "items", ref: "boutique:items" as never }],
-          layers: [
-            {
-              id: layerId("main"),
-              name: "Main",
-              elements: [
-                {
-                  id: elementId("grid"),
-                  positions: "",
-                  display: { material: "{item.icon}", title: { key: "k" as I18nKey } },
-                  states: [],
-                  places: {
-                    source: "items",
-                    alias: "item",
-                    keyField: "id",
-                    placements: [
-                      { key: "sword", page: 0, position: 10 },
-                      { key: "apple", page: 1, position: 12 },
-                    ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 6,
+            title: [],
+            contextInputs: [{ kind: "sourceRef", name: "items", ref: "boutique:items" as never }],
+            layers: [
+              {
+                id: layerId("main"),
+                name: "Main",
+                elements: [
+                  {
+                    id: elementId("grid"),
+                    positions: "",
+                    display: { material: "{item.icon}", title: { key: "k" as I18nKey } },
+                    states: [],
+                    places: {
+                      source: "items",
+                      alias: "item",
+                      keyField: "id",
+                      placements: [
+                        { key: "sword", page: 0, position: 10 },
+                        { key: "apple", page: 1, position: 12 },
+                      ],
+                    },
                   },
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
@@ -266,12 +295,14 @@ describe("transform", () => {
 
   it("filters orphaned ids from the board layout (id no longer in project)", () => {
     const project = makeProject({
-      menus: [
-        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
-      ],
+      documents: {
+        menu: [
+          { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+        ],
+      },
       canvasLayout: {
         [menuId("shop")]: { x: 40, y: 40 },
-        // "ghost_menu" is NOT in project.menus — stale entry, should be dropped:
+        // "ghost_menu" is NOT in menusOf(project) — stale entry, should be dropped:
         ghost_menu: { x: 999, y: 999 },
       } as Project["canvasLayout"],
     });
@@ -282,9 +313,11 @@ describe("transform", () => {
 
   it("emits the board layout in block-style YAML the backend round-trip test parses", () => {
     const project = makeProject({
-      menus: [
-        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
-      ],
+      documents: {
+        menu: [
+          { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+        ],
+      },
       canvasLayout: { [menuId("shop")]: { x: 123, y: 456 } },
     });
     const files = transform(project);
@@ -300,10 +333,12 @@ describe("transform", () => {
 
   it("emits board edges in .artisan/editor.yaml with live-edge overrides", () => {
     const project = makeProject({
-      menus: [
-        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
-        { id: menuId("home"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
-      ],
+      documents: {
+        menu: [
+          { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+          { id: menuId("home"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+        ],
+      },
       canvasEdges: {
         "home->shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
       },
@@ -317,9 +352,11 @@ describe("transform", () => {
 
   it("omits board edges when canvasEdges is empty or absent", () => {
     const project = makeProject({
-      menus: [
-        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
-      ],
+      documents: {
+        menu: [
+          { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+        ],
+      },
     });
     const files = transform(project);
     const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
@@ -328,10 +365,12 @@ describe("transform", () => {
 
   it("filters board edges whose source or target is no longer in the project", () => {
     const project = makeProject({
-      menus: [
-        { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
-        { id: menuId("home"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
-      ],
+      documents: {
+        menu: [
+          { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+          { id: menuId("home"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
+        ],
+      },
       canvasEdges: {
         "home->shop": { from: { side: "right", t: 0.5 } },
         "home->ghost": { from: { side: "right", t: 0.5 } },
@@ -348,15 +387,17 @@ describe("transform", () => {
   it("emits a menu yaml with title array containing the text layer", () => {
     const project = makeProject({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
@@ -382,46 +423,48 @@ describe("transform", () => {
         "menus.shop.elements.btn.default.lore": { en: "Click here" },
         "menus.shop.elements.btn.default.click.left.message": { en: "Hello" },
       } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("btn"),
-                  positions: "13",
-                  display: {
-                    title: { key: "menus.shop.elements.btn.default.title" as I18nKey },
-                    lore: { key: "menus.shop.elements.btn.default.lore" as I18nKey },
-                    click: {
-                      left: {
-                        steps: [
-                          {
-                            kind: "action",
-                            action: {
-                              type: "send_message",
-                              text: {
-                                key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("btn"),
+                    positions: "13",
+                    display: {
+                      title: { key: "menus.shop.elements.btn.default.title" as I18nKey },
+                      lore: { key: "menus.shop.elements.btn.default.lore" as I18nKey },
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: {
+                                type: "send_message",
+                                text: {
+                                  key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
+                                },
                               },
                             },
-                          },
-                        ],
+                          ],
+                        },
                       },
                     },
+                    states: [],
                   },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
@@ -434,31 +477,33 @@ describe("transform", () => {
 
   it("serializes appearance.head", () => {
     const project = makeProject({
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("btn"),
-                  positions: "13",
-                  display: {
-                    material: "PLAYER_HEAD",
-                    head: "basehead:eyJ0ZXh0dXJlcyI6e319",
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("btn"),
+                    positions: "13",
+                    display: {
+                      material: "PLAYER_HEAD",
+                      head: "basehead:eyJ0ZXh0dXJlcyI6e319",
+                    },
+                    states: [],
                   },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
@@ -474,50 +519,52 @@ describe("transform", () => {
         "menus.shop.elements.btn.default.click.left.show_title": { en: "Hello" },
         "menus.shop.elements.btn.default.click.left.show_subtitle": { en: "World" },
       } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("btn"),
-                  positions: "0",
-                  display: {
-                    click: {
-                      left: {
-                        steps: [
-                          {
-                            kind: "action",
-                            action: {
-                              type: "show_title",
-                              title: {
-                                key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("btn"),
+                    positions: "0",
+                    display: {
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: {
+                                type: "show_title",
+                                title: {
+                                  key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
+                                },
+                                subtitle: {
+                                  key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
+                                },
+                                fadeIn: 5,
+                                stay: 40,
+                                fadeOut: 15,
                               },
-                              subtitle: {
-                                key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
-                              },
-                              fadeIn: 5,
-                              stay: 40,
-                              fadeOut: 15,
                             },
-                          },
-                        ],
+                          ],
+                        },
                       },
                     },
+                    states: [],
                   },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
@@ -533,44 +580,46 @@ describe("transform", () => {
         "menus.shop.title": { en: "Shop" },
         "menus.shop.elements.btn.default.click.left.show_title": { en: "Hello" },
       } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("btn"),
-                  positions: "0",
-                  display: {
-                    click: {
-                      left: {
-                        steps: [
-                          {
-                            kind: "action",
-                            action: {
-                              type: "show_title",
-                              title: {
-                                key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("btn"),
+                    positions: "0",
+                    display: {
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: {
+                                type: "show_title",
+                                title: {
+                                  key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
+                                },
                               },
                             },
-                          },
-                        ],
+                          ],
+                        },
                       },
                     },
+                    states: [],
                   },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
@@ -583,39 +632,41 @@ describe("transform", () => {
     const targetId = menuId("profile");
     const project = makeProject({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("btn"),
-                  positions: "0",
-                  display: {
-                    click: {
-                      left: {
-                        steps: [
-                          {
-                            kind: "action",
-                            action: { type: "open_menu", menuId: targetId, clearContext: true },
-                          },
-                        ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("btn"),
+                    positions: "0",
+                    display: {
+                      click: {
+                        left: {
+                          steps: [
+                            {
+                              kind: "action",
+                              action: { type: "open_menu", menuId: targetId, clearContext: true },
+                            },
+                          ],
+                        },
                       },
                     },
+                    states: [],
                   },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
@@ -625,23 +676,25 @@ describe("transform", () => {
 
   it("round-trips a row-model context input (type object + row_of)", () => {
     const project = makeProject({
-      menus: [
-        {
-          id: menuId("shop_category"),
-          projectId: projectId("p_test"),
-          rows: 6,
-          title: [],
-          contextInputs: [
-            {
-              kind: "primitive",
-              name: "cat",
-              type: "object",
-              rowOf: "boutique:categories" as never,
-            },
-          ],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop_category"),
+            projectId: projectId("p_test"),
+            rows: 6,
+            title: [],
+            contextInputs: [
+              {
+                kind: "primitive",
+                name: "cat",
+                type: "object",
+                rowOf: "boutique:categories" as never,
+              },
+            ],
+            layers: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop_category.yaml"]!);
@@ -651,44 +704,46 @@ describe("transform", () => {
   it("serializes paginate to pagination_next/prev with element_id", () => {
     const project = makeProject({
       i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [
-            {
-              id: layerId("l1"),
-              name: "default",
-              elements: [
-                {
-                  id: elementId("nav"),
-                  positions: "0",
-                  display: {
-                    click: {
-                      left: {
-                        steps: [
-                          { kind: "action", action: { type: "paginate", direction: "next" } },
-                          {
-                            kind: "action",
-                            action: {
-                              type: "paginate",
-                              direction: "prev",
-                              targetElementId: elementId("grid"),
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [
+              {
+                id: layerId("l1"),
+                name: "default",
+                elements: [
+                  {
+                    id: elementId("nav"),
+                    positions: "0",
+                    display: {
+                      click: {
+                        left: {
+                          steps: [
+                            { kind: "action", action: { type: "paginate", direction: "next" } },
+                            {
+                              kind: "action",
+                              action: {
+                                type: "paginate",
+                                direction: "prev",
+                                targetElementId: elementId("grid"),
+                              },
                             },
-                          },
-                        ],
+                          ],
+                        },
                       },
                     },
+                    states: [],
                   },
-                  states: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
@@ -698,16 +753,18 @@ describe("transform", () => {
 
   it("emits a command yaml", () => {
     const project = makeProject({
-      commands: [
-        {
-          id: commandId("heal"),
-          projectId: projectId("p_test"),
-          name: "heal",
-          aliases: ["h"],
-          arguments: [{ name: "target", type: "player", required: true }],
-          steps: [],
-        },
-      ],
+      documents: {
+        command: [
+          {
+            id: commandId("heal"),
+            projectId: projectId("p_test"),
+            name: "heal",
+            aliases: ["h"],
+            arguments: [{ name: "target", type: "player", required: true }],
+            steps: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const cmd = parse(files["plugins/Artisan/projects/p_test/commands/heal.yaml"]!);
@@ -723,15 +780,17 @@ describe("transform", () => {
 
   it("emits command name only when it differs from id", () => {
     const project = makeProject({
-      commands: [
-        {
-          id: commandId("boutique_open"),
-          projectId: projectId("p_test"),
-          name: "boutique",
-          arguments: [],
-          steps: [],
-        },
-      ],
+      documents: {
+        command: [
+          {
+            id: commandId("boutique_open"),
+            projectId: projectId("p_test"),
+            name: "boutique",
+            arguments: [],
+            steps: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const cmd = parse(files["plugins/Artisan/projects/p_test/commands/boutique_open.yaml"]!);
@@ -746,15 +805,17 @@ describe("transform", () => {
         lt_orphan: { en: "Orphan" },
         greeting: { en: "Welcome" },
       } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "menus.shop.title" as I18nKey }, x: 8, y: 5 }],
+            layers: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const en = flattenLangTree(parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!));
@@ -809,7 +870,7 @@ describe("transform — dialogs", () => {
         },
       ],
     };
-    const files = transform(makeProject({ dialogs: [dialog] }));
+    const files = transform(makeProject({ documents: { dialog: [dialog] } }));
     expect(files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]).toBeDefined();
   });
 
@@ -829,7 +890,7 @@ describe("transform — dialogs", () => {
         },
       ],
     };
-    const files = transform(makeProject({ dialogs: [dialog] }));
+    const files = transform(makeProject({ documents: { dialog: [dialog] } }));
     const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]!;
     expect(yaml).toContain("schema: dialog/v1");
     expect(yaml).not.toContain("id: d_test");
@@ -854,7 +915,7 @@ describe("transform — dialogs", () => {
         },
       ],
     };
-    const files = transform(makeProject({ dialogs: [dialog] }));
+    const files = transform(makeProject({ documents: { dialog: [dialog] } }));
     const manifest = files["plugins/Artisan/projects/p_test/manifest.yaml"]!;
     expect(manifest).not.toContain("d_test");
     expect(files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]).toBeDefined();
@@ -876,13 +937,13 @@ describe("transform — dialogs", () => {
         },
       ],
     };
-    const files = transform(makeProject({ dialogs: [dialog] }));
+    const files = transform(makeProject({ documents: { dialog: [dialog] } }));
     const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]!;
     expect(yaml).toContain("close_dialog");
   });
 
   it("open_dialog action uses snake_case dialog_id", () => {
-    const projectWithDialog = (dialog: Dialog) => makeProject({ dialogs: [dialog] });
+    const projectWithDialog = (dialog: Dialog) => makeProject({ documents: { dialog: [dialog] } });
     const pid = projectId;
     const dialog: Dialog = {
       id: dialogId("d_test"),
@@ -910,17 +971,19 @@ describe("transform — dialogs", () => {
 });
 
 describe("transform — title layers", () => {
-  const menuWithTitle = (title: Project["menus"][number]["title"]): Project =>
+  const menuWithTitle = (title: Menu["title"]): Project =>
     makeProject({
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title,
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title,
+            layers: [],
+          },
+        ],
+      },
     });
 
   it("emits a plain-only title as a bare string (canonical sugar)", () => {
@@ -1045,17 +1108,19 @@ describe("transform — title layers", () => {
 });
 
 describe("transform — textarea title layer", () => {
-  const menuWithTitle = (title: Project["menus"][number]["title"]): Project =>
+  const menuWithTitle = (title: Menu["title"]): Project =>
     makeProject({
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title,
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title,
+            layers: [],
+          },
+        ],
+      },
     });
 
   it("serializeTitleLayer emits snake_case fields for textarea with all fields", () => {
@@ -1113,25 +1178,27 @@ describe("transform — textarea title layer", () => {
       i18nKeys: {
         k_ta: { en: "Hello\nWorld" },
       } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("shop"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [
-            {
-              kind: "textarea",
-              value: { key: "k_ta" as I18nKey },
-              x: 8,
-              y: 6,
-              width: 168,
-              lineHeight: 10,
-              alignment: "left",
-            },
-          ],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("shop"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [
+              {
+                kind: "textarea",
+                value: { key: "k_ta" as I18nKey },
+                x: 8,
+                y: 6,
+                width: 168,
+                lineHeight: 10,
+                alignment: "left",
+              },
+            ],
+            layers: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
@@ -1361,15 +1428,17 @@ describe("transform — size field on text/textarea layers", () => {
   it("emits size on text layer when not default (8)", () => {
     const project = makeProject({
       i18nKeys: { k: { en: "Big" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("m"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [{ kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5, size: 16 }],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("m"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [{ kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5, size: 16 }],
+            layers: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menuYaml = parse(files["plugins/Artisan/projects/p_test/menus/m.yaml"]!);
@@ -1379,18 +1448,20 @@ describe("transform — size field on text/textarea layers", () => {
   it("omits size on text layer when default (8) or undefined", () => {
     const project = makeProject({
       i18nKeys: { k: { en: "Plain" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("m"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [
-            { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5 },
-            { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 15, size: 8 },
-          ],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("m"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [
+              { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5 },
+              { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 15, size: 8 },
+            ],
+            layers: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menuYaml = parse(files["plugins/Artisan/projects/p_test/menus/m.yaml"]!);
@@ -1401,26 +1472,28 @@ describe("transform — size field on text/textarea layers", () => {
   it("emits size on textarea layer when not default", () => {
     const project = makeProject({
       i18nKeys: { k: { en: "A\nB" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("m"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [
-            {
-              kind: "textarea",
-              value: { key: "k" as I18nKey },
-              x: 8,
-              y: 20,
-              width: 168,
-              lineHeight: 14,
-              alignment: "left",
-              size: 12,
-            },
-          ],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("m"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [
+              {
+                kind: "textarea",
+                value: { key: "k" as I18nKey },
+                x: 8,
+                y: 20,
+                width: 168,
+                lineHeight: 14,
+                alignment: "left",
+                size: 12,
+              },
+            ],
+            layers: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menuYaml = parse(files["plugins/Artisan/projects/p_test/menus/m.yaml"]!);
@@ -1430,27 +1503,29 @@ describe("transform — size field on text/textarea layers", () => {
   it("imports size from text/textarea layer YAML", () => {
     const project = makeProject({
       i18nKeys: { k: { en: "X" } } as Project["i18nKeys"],
-      menus: [
-        {
-          id: menuId("m"),
-          projectId: projectId("p_test"),
-          rows: 3,
-          title: [
-            { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5, size: 16 },
-            {
-              kind: "textarea",
-              value: { key: "k" as I18nKey },
-              x: 8,
-              y: 20,
-              width: 168,
-              lineHeight: 14,
-              alignment: "left",
-              size: 12,
-            },
-          ],
-          layers: [],
-        },
-      ],
+      documents: {
+        menu: [
+          {
+            id: menuId("m"),
+            projectId: projectId("p_test"),
+            rows: 3,
+            title: [
+              { kind: "text", value: { key: "k" as I18nKey }, x: 8, y: 5, size: 16 },
+              {
+                kind: "textarea",
+                value: { key: "k" as I18nKey },
+                x: 8,
+                y: 20,
+                width: 168,
+                lineHeight: 14,
+                alignment: "left",
+                size: 12,
+              },
+            ],
+            layers: [],
+          },
+        ],
+      },
     });
     const files = transform(project);
     const menuYaml = files["plugins/Artisan/projects/p_test/menus/m.yaml"]!;
@@ -1491,7 +1566,9 @@ describe("transform — appearance conditions", () => {
 
   it("single condition is written as a one-element array", () => {
     const project = makeProject({
-      menus: [baseMenu([{ if: [{ type: "has_permission", perm: "vip" }] }])],
+      documents: {
+        menu: [baseMenu([{ if: [{ type: "has_permission", perm: "vip" }] }])],
+      },
     });
     const app = getApp(transform(project));
     expect(app.if).toEqual([{ has_permission: "vip" }]);
@@ -1499,17 +1576,19 @@ describe("transform — appearance conditions", () => {
 
   it("AND-joined conditions are an ANDed array", () => {
     const project = makeProject({
-      menus: [
-        baseMenu([
-          {
-            if: [
-              { type: "has_permission", perm: "vip" } as Condition,
-              { type: "has_money", amount: 100 } as Condition,
-            ],
-            ifJoins: ["and"],
-          },
-        ]),
-      ],
+      documents: {
+        menu: [
+          baseMenu([
+            {
+              if: [
+                { type: "has_permission", perm: "vip" } as Condition,
+                { type: "has_money", amount: 100 } as Condition,
+              ],
+              ifJoins: ["and"],
+            },
+          ]),
+        ],
+      },
     });
     const app = getApp(transform(project));
     expect(app.if).toEqual([{ has_permission: "vip" }, { has_money: 100 }]);
@@ -1517,27 +1596,29 @@ describe("transform — appearance conditions", () => {
 
   it("OR-joined conditions are wrapped in a single { or: [...] }", () => {
     const project = makeProject({
-      menus: [
-        baseMenu([
-          {
-            if: [
-              { type: "has_permission", perm: "vip" } as Condition,
-              { type: "has_permission", perm: "admin" } as Condition,
-            ],
-            ifJoins: ["or"],
-          },
-        ]),
-      ],
+      documents: {
+        menu: [
+          baseMenu([
+            {
+              if: [
+                { type: "has_permission", perm: "vip" } as Condition,
+                { type: "has_permission", perm: "admin" } as Condition,
+              ],
+              ifJoins: ["or"],
+            },
+          ]),
+        ],
+      },
     });
     const app = getApp(transform(project));
-    expect(app.if).toEqual([
-      { or: [{ has_permission: "vip" }, { has_permission: "admin" }] },
-    ]);
+    expect(app.if).toEqual([{ or: [{ has_permission: "vip" }, { has_permission: "admin" }] }]);
   });
 
   it("composite 'and' condition uses 'and'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
-    const project = makeProject({ menus: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])] });
+    const project = makeProject({
+      documents: { menu: [baseMenu([{ if: [{ type: "and", of: [inner] }] }])] },
+    });
     const app = getApp(transform(project));
     expect(app.if[0].and).toBeDefined();
     expect(app.if[0].of).toBeUndefined();
@@ -1545,7 +1626,9 @@ describe("transform — appearance conditions", () => {
 
   it("composite 'or' condition uses 'or'", () => {
     const inner: Condition = { type: "has_permission", perm: "vip" };
-    const project = makeProject({ menus: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])] });
+    const project = makeProject({
+      documents: { menu: [baseMenu([{ if: [{ type: "or", of: [inner] }] }])] },
+    });
     const app = getApp(transform(project));
     expect(app.if[0].or).toBeDefined();
     expect(app.if[0].any).toBeUndefined();
@@ -1555,15 +1638,17 @@ describe("transform — appearance conditions", () => {
 describe("projectToCommandV1 / projectToDialogV1", () => {
   it("serializes a command to command/v1 with actions", () => {
     const project = makeProject({
-      commands: [
-        {
-          id: commandId("heal"),
-          projectId: projectId("p_test"),
-          name: "heal",
-          arguments: [{ name: "n", type: "integer", required: true }],
-          steps: [{ kind: "action", action: { type: "close_menu" } }],
-        },
-      ],
+      documents: {
+        command: [
+          {
+            id: commandId("heal"),
+            projectId: projectId("p_test"),
+            name: "heal",
+            arguments: [{ name: "n", type: "integer", required: true }],
+            steps: [{ kind: "action", action: { type: "close_menu" } }],
+          },
+        ],
+      },
     });
     const [cmd] = projectToCommandV1(project);
     expect(cmd).toMatchObject({ schema: "command/v1", id: "heal" });
@@ -1575,23 +1660,25 @@ describe("projectToCommandV1 / projectToDialogV1", () => {
   it("serializes a dialog to dialog/v1 with flat button actions", () => {
     const project = makeProject({
       i18nKeys: { ["k_t" as I18nKey]: { en: "T" }, ["k_b" as I18nKey]: { en: "OK" } },
-      dialogs: [
-        {
-          id: dialogId("confirm"),
-          projectId: projectId("p_test"),
-          title: { key: "k_t" as I18nKey },
-          canCloseWithEscape: true,
-          body: [],
-          inputs: [],
-          buttons: [
-            {
-              id: "ok",
-              label: { key: "k_b" as I18nKey },
-              steps: [{ kind: "action", action: { type: "close_dialog" } }],
-            },
-          ],
-        } as any,
-      ],
+      documents: {
+        dialog: [
+          {
+            id: dialogId("confirm"),
+            projectId: projectId("p_test"),
+            title: { key: "k_t" as I18nKey },
+            canCloseWithEscape: true,
+            body: [],
+            inputs: [],
+            buttons: [
+              {
+                id: "ok",
+                label: { key: "k_b" as I18nKey },
+                steps: [{ kind: "action", action: { type: "close_dialog" } }],
+              },
+            ],
+          } as any,
+        ],
+      },
     });
     const [dlg] = projectToDialogV1(project);
     expect(dlg).toMatchObject({ schema: "dialog/v1", id: "confirm" });

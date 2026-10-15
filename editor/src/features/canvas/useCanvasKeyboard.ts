@@ -14,6 +14,7 @@ import {
   writeClipboard,
 } from "./clipboard";
 import { positionCount } from "./inventoryTypes";
+import { commandsOf, menusOf } from "@/domain/documents";
 
 /**
  * Locate an element by id within a project and return enough context
@@ -27,7 +28,7 @@ const findElement = (
   const account = useAccountStore.getState().account;
   const project = account.projects.find((p) => p.id === projectId);
   if (!project) return null;
-  for (const menu of project.menus) {
+  for (const menu of menusOf(project)) {
     // Element ids collide across menus — honour the selection's owning menu.
     if (scopeMenuId && menu.id !== scopeMenuId) continue;
     for (const layer of menu.layers) {
@@ -56,7 +57,7 @@ export const findSelectedEntities = (
     return { menus: [] as Menu[], commands: [] as Command[], elements: [] as ElementCopy[] };
   const idSet = new Set(ids);
   const elements: ElementCopy[] = [];
-  for (const menu of project.menus) {
+  for (const menu of menusOf(project)) {
     // Scope element matching to the selection's menu so a shared id (e.g.
     // `grid` in two menus) doesn't copy/duplicate both.
     if (scopeMenuId && menu.id !== scopeMenuId) continue;
@@ -70,8 +71,8 @@ export const findSelectedEntities = (
   // view keeps its menu selected): copying the items must not copy the menu.
   const owners = new Set(elements.map((e) => e.sourceMenuId));
   return {
-    menus: project.menus.filter((m) => idSet.has(m.id) && !owners.has(m.id)),
-    commands: project.commands.filter((c) => idSet.has(c.id)),
+    menus: menusOf(project).filter((m) => idSet.has(m.id) && !owners.has(m.id)),
+    commands: commandsOf(project).filter((c) => idSet.has(c.id)),
     elements,
   };
 };
@@ -89,17 +90,17 @@ const resolveTargetMenu = (projectId: ProjectId, elements: ElementCopy[]): MenuI
   if (!project) return null;
   const sel = [...useSelectionStore.getState().ids];
   for (const id of sel) {
-    if (project.menus.some((m) => m.id === id)) return id as MenuId;
+    if (menusOf(project).some((m) => m.id === id)) return id as MenuId;
   }
   for (const id of sel) {
-    for (const m of project.menus) {
+    for (const m of menusOf(project)) {
       if (m.layers.some((l) => l.elements.some((el) => el.id === id))) return m.id;
     }
   }
   for (const ec of elements) {
-    if (project.menus.some((m) => m.id === ec.sourceMenuId)) return ec.sourceMenuId;
+    if (menusOf(project).some((m) => m.id === ec.sourceMenuId)) return ec.sourceMenuId;
   }
-  return project.menus[0]?.id ?? null;
+  return menusOf(project)[0]?.id ?? null;
 };
 
 /**
@@ -141,7 +142,7 @@ const placeElements = (
 ) => {
   const account = useAccountStore.getState().account;
   const project = account.projects.find((p) => p.id === projectId);
-  const menu = project?.menus.find((m) => m.id === menuId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
   if (!menu) {
     onError?.("Target menu not found");
     return;

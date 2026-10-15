@@ -7,6 +7,7 @@ import { useAssetStore } from "@/features/assets/assetStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { LayerListItem } from "./LayerListItem";
+import { menusOf } from "@/domain/documents";
 
 const PACK_ID = "p1" as ProjectId;
 const MENU_ID = "m1" as MenuId;
@@ -30,7 +31,10 @@ function asset(id: string, name: string): Asset {
   };
 }
 
-function seedProject(layers: MenuTitleLayer[], i18nKeys: Record<string, Record<string, string>> = {}) {
+function seedProject(
+  layers: MenuTitleLayer[],
+  i18nKeys: Record<string, Record<string, string>> = {},
+) {
   useAccountStore.setState({
     account: {
       id: "acc" as any,
@@ -41,14 +45,16 @@ function seedProject(layers: MenuTitleLayer[], i18nKeys: Record<string, Record<s
           source: "user_created",
           createdAt: "",
           updatedAt: "",
-          menus: [{ id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] }],
-          commands: [],
+          documents: {
+            menu: [{ id: MENU_ID, projectId: PACK_ID, title: layers, rows: 3, layers: [] }],
+            command: [],
+            dialog: [],
+          },
           assets: [],
           dataSources: [],
           importedConnectors: [],
           i18nKeys,
           defaultLang: "en",
-          dialogs: [],
           canvasLayout: {},
         },
       ],
@@ -128,14 +134,30 @@ describe("LayerListItem — auto-name", () => {
   });
 
   it("renders 'Texte • <first-line>' for a textarea layer with single-line text", () => {
-    const layer: MenuTitleLayer = { kind: "textarea", value: { key: K("k_single") }, x: 0, y: 0, width: 168, lineHeight: 10, alignment: "left" };
+    const layer: MenuTitleLayer = {
+      kind: "textarea",
+      value: { key: K("k_single") },
+      x: 0,
+      y: 0,
+      width: 168,
+      lineHeight: 10,
+      alignment: "left",
+    };
     seedProject([layer], { k_single: { en: "Single line content" } });
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
     expect(screen.getByText(/Texte • Single line co/)).toBeInTheDocument();
   });
 
   it("renders 'Texte • <first-line>…' for a textarea layer with multiple lines", () => {
-    const layer: MenuTitleLayer = { kind: "textarea", value: { key: K("k_multi") }, x: 0, y: 0, width: 168, lineHeight: 10, alignment: "left" };
+    const layer: MenuTitleLayer = {
+      kind: "textarea",
+      value: { key: K("k_multi") },
+      x: 0,
+      y: 0,
+      width: 168,
+      lineHeight: 10,
+      alignment: "left",
+    };
     seedProject([layer], { k_multi: { en: "First line\nSecond line" } });
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
     // Should show first line + ellipsis
@@ -143,7 +165,15 @@ describe("LayerListItem — auto-name", () => {
   });
 
   it("renders 'Texte • <key>' for a textarea layer when no i18n value found", () => {
-    const layer: MenuTitleLayer = { kind: "textarea", value: { key: K("k_missing") }, x: 0, y: 0, width: 168, lineHeight: 10, alignment: "left" };
+    const layer: MenuTitleLayer = {
+      kind: "textarea",
+      value: { key: K("k_missing") },
+      x: 0,
+      y: 0,
+      width: 168,
+      lineHeight: 10,
+      alignment: "left",
+    };
     seedProject([layer]); // no i18n keys defined
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
     // Should fallback to key name
@@ -218,7 +248,7 @@ describe("LayerListItem — delete", () => {
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
     fireEvent.click(screen.getByTestId("layer-list-item-delete"));
     expect(confirmSpy).toHaveBeenCalledTimes(1);
-    const layers = useAccountStore.getState().account.projects[0]!.menus[0]!.title;
+    const layers = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title;
     expect(layers).toHaveLength(0);
   });
 
@@ -228,7 +258,7 @@ describe("LayerListItem — delete", () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
     fireEvent.click(screen.getByTestId("layer-list-item-delete"));
-    const layers = useAccountStore.getState().account.projects[0]!.menus[0]!.title;
+    const layers = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title;
     expect(layers).toHaveLength(1);
   });
 

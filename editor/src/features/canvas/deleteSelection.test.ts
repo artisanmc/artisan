@@ -3,6 +3,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { expect, it } from "vitest";
 import { canvasClipboardActions } from "./useCanvasKeyboard";
+import { menusOf } from "@/domain/documents";
 
 const PID = "p1" as ProjectId;
 
@@ -31,9 +32,11 @@ it("deletes the selected items of a menu but never the menu that holds them", ()
       projects: [
         {
           id: PID,
-          menus: [menu],
-          commands: [],
-          dialogs: [],
+          documents: {
+            menu: [menu],
+            command: [],
+            dialog: [],
+          },
           dataSources: [],
           i18nKeys: {},
           defaultLang: "fr",
@@ -46,7 +49,7 @@ it("deletes the selected items of a menu but never the menu that holds them", ()
 
   canvasClipboardActions.deleteSelection(PID, ["shop", "a", "b"]);
 
-  const left = useAccountStore.getState().account.projects[0]!.menus[0]!.layers[0]!.elements;
+  const left = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements;
   expect(left.map((el) => el.id)).toEqual(["keep"]);
-  expect(useAccountStore.getState().account.projects[0]!.menus).toHaveLength(1);
+  expect(menusOf(useAccountStore.getState().account.projects[0]!)).toHaveLength(1);
 });

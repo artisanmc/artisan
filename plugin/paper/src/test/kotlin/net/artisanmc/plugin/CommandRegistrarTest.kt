@@ -30,7 +30,7 @@ class CommandRegistrarTest {
 
     private fun bundle(vararg commands: CommandYaml) = ProjectBundle(
         projectId = "test", defaultLang = "en", languages = emptyList(),
-        menus = emptyList(), commands = commands.toList(), dialogs = emptyList(),
+        documents = mapOf(DocumentKinds.COMMAND.kind to commands.toList()),
     )
 
     private fun cmdYaml(name: String) = CommandYaml(

@@ -7,6 +7,7 @@ import type { DataModelId, DataSourceId, MenuId, Project, ProjectId } from "@/do
 import { transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
 import { projectFromFiles } from "./projectFromFiles";
+import { menusOf } from "@/domain/documents";
 
 const PID = "p_roundtrip" as ProjectId;
 const base = `plugins/Artisan/projects/${PID}`;
@@ -41,64 +42,66 @@ function fixture(): Project {
       "dialogs.d1.title": { en: "Confirm" },
       k_btn_ok: { en: "OK" },
     },
-    menus: [
-      {
-        id: "m1" as MenuId,
-        projectId: PID,
-        title: [{ kind: "plain", value: { key: "menus.m1.title" } }],
-        rows: 3,
-        contextInputs: [{ kind: "sourceRef", name: "items", ref: "pack:ds_items" }],
-        layers: [
-          {
-            id: "l1" as never,
-            name: "default",
-            elements: [
-              {
-                id: "grid",
-                positions: "10-16",
-                display: {
-                  material: "STONE",
-                  title: { key: "k_row_title" },
-                  click: {
-                    left: {
-                      steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }],
+    documents: {
+      menu: [
+        {
+          id: "m1" as MenuId,
+          projectId: PID,
+          title: [{ kind: "plain", value: { key: "menus.m1.title" } }],
+          rows: 3,
+          contextInputs: [{ kind: "sourceRef", name: "items", ref: "pack:ds_items" }],
+          layers: [
+            {
+              id: "l1" as never,
+              name: "default",
+              elements: [
+                {
+                  id: "grid",
+                  positions: "10-16",
+                  display: {
+                    material: "STONE",
+                    title: { key: "k_row_title" },
+                    click: {
+                      left: {
+                        steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }],
+                      },
                     },
                   },
+                  states: [],
                 },
-                states: [],
-              },
-              {
-                id: "tplbound",
-                positions: "20",
-                display: { material: "{item.icon}", title: { key: "k_tpl_title" } },
-                states: [],
-                iterates: { source: "items", alias: "item" },
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    commands: [
-      {
-        id: "c1" as never,
-        projectId: PID,
-        name: "shop",
-        arguments: [{ name: "target", type: "player", required: true }],
-        steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }],
-      },
-    ],
-    dialogs: [
-      {
-        id: "d1" as never,
-        projectId: PID,
-        title: { key: "dialogs.d1.title" },
-        canCloseWithEscape: true,
-        body: [],
-        inputs: [],
-        buttons: [{ id: "ok", label: { key: "k_btn_ok" }, steps: [] }],
-      },
-    ],
+                {
+                  id: "tplbound",
+                  positions: "20",
+                  display: { material: "{item.icon}", title: { key: "k_tpl_title" } },
+                  states: [],
+                  iterates: { source: "items", alias: "item" },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      command: [
+        {
+          id: "c1" as never,
+          projectId: PID,
+          name: "shop",
+          arguments: [{ name: "target", type: "player", required: true }],
+          steps: [{ kind: "action", action: { type: "open_menu", menuId: "m1" } }],
+        },
+      ],
+      dialog: [
+        {
+          id: "d1" as never,
+          projectId: PID,
+          title: { key: "dialogs.d1.title" },
+          canCloseWithEscape: true,
+          body: [],
+          inputs: [],
+          buttons: [{ id: "ok", label: { key: "k_btn_ok" }, steps: [] }],
+        },
+      ],
+    },
     capturedItems: [
       {
         id: "ci_key" as never,
@@ -215,19 +218,36 @@ function fixture(): Project {
 describe("projectFromFiles (files → domain, inverse of transform)", () => {
   it("ignores malformed group metadata and stale or duplicate memberships", () => {
     const files = transform(fixture());
-    files[`plugins/Artisan/projects/${PID}/.artisan/editor.yaml`] = JSON.stringify({ groups: [
-      null, { id: "bad", name: 42, menuIds: ["m1"] },
-      { id: "valid", name: "Crafts", menuIds: ["m1", "m1", "missing"], position: { x: "wrong", y: 4 } },
-      { id: "duplicate", name: "Other", menuIds: ["m1"] },
-    ] });
-    expect(projectFromFiles(PID, files).canvasGroups).toEqual([{ id: "valid", name: "Crafts", nodeIds: ["m1"] }]);
+    files[`plugins/Artisan/projects/${PID}/.artisan/editor.yaml`] = JSON.stringify({
+      groups: [
+        null,
+        { id: "bad", name: 42, menuIds: ["m1"] },
+        {
+          id: "valid",
+          name: "Crafts",
+          menuIds: ["m1", "m1", "missing"],
+          position: { x: "wrong", y: 4 },
+        },
+        { id: "duplicate", name: "Other", menuIds: ["m1"] },
+      ],
+    });
+    expect(projectFromFiles(PID, files).canvasGroups).toEqual([
+      { id: "valid", name: "Crafts", nodeIds: ["m1"] },
+    ]);
   });
   it("round-trips visual groups of any Document kind without changing any file", () => {
     const original = fixture();
     const grouped = {
       ...original,
-      canvasGroups: [{ id: "crafts", name: "Crafts", nodeIds: ["m1", "c1", "d1"], color: "#a855f7",
-        position: { x: 120, y: 240 } }],
+      canvasGroups: [
+        {
+          id: "crafts",
+          name: "Crafts",
+          nodeIds: ["m1", "c1", "d1"],
+          color: "#a855f7",
+          position: { x: 120, y: 240 },
+        },
+      ],
     };
     const files = transform(grouped);
     const restored = projectFromFiles(PID, files, { name: "Round Trip" });
@@ -308,7 +328,9 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
     const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
     expect(p2.canvasLayout).toEqual({ m1: { x: 40, y: 80 } });
     expect(p2.canvasEdges).toEqual({ "m1->d1": { from: { side: "right", t: 0.5 } } });
-    const el = p2.menus[0]!.layers.flatMap((l) => l.elements).find((e) => e.id === "tplbound")!;
+    const el = menusOf(p2)[0]!
+      .layers.flatMap((l) => l.elements)
+      .find((e) => e.id === "tplbound")!;
     expect(el.iterates).toEqual({ source: "items", alias: "item" });
     expect(el.display!.material).toBe("{item.icon}");
   });
@@ -444,7 +466,7 @@ describe("disk id ≠ internal id", () => {
     expect(project.id).toBe(INTERNAL);
     expect(project.diskId).toBe(DISK);
     // The menu is found — before the prefix normalisation the tree parsed empty.
-    expect(project.menus.map((m) => m.id)).toEqual(["shop"]);
+    expect(menusOf(project).map((m) => m.id)).toEqual(["shop"]);
   });
 
   it("writes back under the disk id, not the internal id", () => {

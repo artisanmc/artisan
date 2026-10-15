@@ -15,8 +15,11 @@ function makeProject(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
@@ -26,12 +29,13 @@ function makeProject(): Project {
       ovr1: { en: "SALE {item.name}" },
     } as Project["i18nKeys"],
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   } as Project;
 }
 
-const PLACES = (over: Partial<NonNullable<Element["places"]>> = {}): NonNullable<Element["places"]> => ({
+const PLACES = (
+  over: Partial<NonNullable<Element["places"]>> = {},
+): NonNullable<Element["places"]> => ({
   source: "shops",
   alias: "item",
   keyField: "id",

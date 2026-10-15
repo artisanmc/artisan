@@ -21,84 +21,86 @@ function goldenProject(): Project {
       "t.buy.lore": { en: "Click" },
       "t.buy.msg": { en: "Bought!" },
     } as Project["i18nKeys"],
-    menus: [
-      {
-        id: menuId("shop"),
-        projectId: projectId("p_gold"),
-        rows: 3,
-        title: [{ kind: "plain", value: { key: "t.title" as I18nKey } }],
-        layers: [
-          {
-            id: layerId("l1"),
-            name: "default",
-            elements: [
-              {
-                id: elementId("buy"),
-                positions: "13",
-                display: {
-                  if: [
-                    { type: "has_permission", perm: "vip" },
-                    { type: "has_money", amount: 100 },
-                  ],
-                  ifJoins: ["and"],
-                  material: "DIAMOND",
-                  title: { key: "t.buy.title" as I18nKey },
-                  lore: { key: "t.buy.lore" as I18nKey },
-                  click: {
-                    left: {
-                      steps: [
-                        {
-                          kind: "if",
-                          cases: [
-                            {
-                              conditions: [{ type: "has_money", amount: 50 }],
-                              steps: [
-                                { kind: "action", action: { type: "take_money", amount: 50 } },
-                              ],
-                            },
-                          ],
-                          else: [
-                            {
-                              kind: "action",
-                              action: {
-                                type: "send_message",
-                                text: { key: "t.buy.msg" as I18nKey },
+    documents: {
+      menu: [
+        {
+          id: menuId("shop"),
+          projectId: projectId("p_gold"),
+          rows: 3,
+          title: [{ kind: "plain", value: { key: "t.title" as I18nKey } }],
+          layers: [
+            {
+              id: layerId("l1"),
+              name: "default",
+              elements: [
+                {
+                  id: elementId("buy"),
+                  positions: "13",
+                  display: {
+                    if: [
+                      { type: "has_permission", perm: "vip" },
+                      { type: "has_money", amount: 100 },
+                    ],
+                    ifJoins: ["and"],
+                    material: "DIAMOND",
+                    title: { key: "t.buy.title" as I18nKey },
+                    lore: { key: "t.buy.lore" as I18nKey },
+                    click: {
+                      left: {
+                        steps: [
+                          {
+                            kind: "if",
+                            cases: [
+                              {
+                                conditions: [{ type: "has_money", amount: 50 }],
+                                steps: [
+                                  { kind: "action", action: { type: "take_money", amount: 50 } },
+                                ],
                               },
-                            },
-                          ],
-                        },
-                        {
-                          kind: "action",
-                          action: {
-                            type: "open_menu",
-                            menuId: menuId("shop"),
-                            clearContext: true,
+                            ],
+                            else: [
+                              {
+                                kind: "action",
+                                action: {
+                                  type: "send_message",
+                                  text: { key: "t.buy.msg" as I18nKey },
+                                },
+                              },
+                            ],
                           },
-                        },
-                        { kind: "action", action: { type: "paginate", direction: "next" } },
-                      ],
+                          {
+                            kind: "action",
+                            action: {
+                              type: "open_menu",
+                              menuId: menuId("shop"),
+                              clearContext: true,
+                            },
+                          },
+                          { kind: "action", action: { type: "paginate", direction: "next" } },
+                        ],
+                      },
                     },
                   },
+                  states: [
+                    {
+                      if: [
+                        { type: "has_permission", perm: "a" },
+                        { type: "has_permission", perm: "b" },
+                      ],
+                      ifJoins: ["or"],
+                      material: "STONE",
+                      title: { key: "t.buy.title" as I18nKey },
+                    },
+                  ],
                 },
-                states: [
-                  {
-                    if: [
-                      { type: "has_permission", perm: "a" },
-                      { type: "has_permission", perm: "b" },
-                    ],
-                    ifJoins: ["or"],
-                    material: "STONE",
-                    title: { key: "t.buy.title" as I18nKey },
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    commands: [],
-    dialogs: [],
+              ],
+            },
+          ],
+        },
+      ],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],

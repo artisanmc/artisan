@@ -19,9 +19,11 @@ function project(name: string): Project {
   return {
     id: "p1",
     name,
-    menus: [{ id: "menu", projectId: "p1", rows: 3, title: [], notes: name, layers: [] }],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [{ id: "menu", projectId: "p1", rows: 3, title: [], notes: name, layers: [] }],
+      command: [],
+      dialog: [],
+    },
     i18nKeys: {},
     translations: {},
     dataSources: [],

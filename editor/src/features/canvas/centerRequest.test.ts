@@ -6,9 +6,11 @@ import { COMMAND_BOX } from "./menuLayout";
 
 const project = {
   id: "p1",
-  menus: [],
-  commands: [{ id: "cmd", name: "cmd", arguments: [], steps: [] }],
-  dialogs: [],
+  documents: {
+    menu: [],
+    command: [{ id: "cmd", name: "cmd", arguments: [], steps: [] }],
+    dialog: [],
+  },
 } as unknown as Project;
 const layout = { cmd: { x: 400, y: 200 } };
 const size = { w: 1200, h: 900 };

@@ -15,6 +15,7 @@ import {
   validateArgOrder,
 } from "./helpers";
 import type { AccountSliceContext, AccountState } from "./types";
+import { commandsOf, mutableCommands } from "@/domain/documents";
 
 /** Commands: fields, aliases, arguments and their steps. */
 export interface CommandsSlice {
@@ -128,7 +129,7 @@ export const createCommandsSlice = ({ set, get }: AccountSliceContext): Commands
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        project.commands.push({
+        mutableCommands(project).push({
           id,
           projectId: pId,
           name: name ?? "newcmd",
@@ -148,7 +149,7 @@ export const createCommandsSlice = ({ set, get }: AccountSliceContext): Commands
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const cmd = project.commands.find((c) => c.id === cId);
+        const cmd = commandsOf(project).find((c) => c.id === cId);
         if (!cmd) return;
         if (field === "name") cmd.name = value;
         else if (field === "permission") cmd.permission = value || undefined;
@@ -161,7 +162,7 @@ export const createCommandsSlice = ({ set, get }: AccountSliceContext): Commands
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const cmd = project.commands.find((c) => c.id === cId);
+        const cmd = commandsOf(project).find((c) => c.id === cId);
         if (!cmd) return;
         cmd.aliases = aliases.length > 0 ? aliases : undefined;
         project.updatedAt = new Date().toISOString();
@@ -172,9 +173,9 @@ export const createCommandsSlice = ({ set, get }: AccountSliceContext): Commands
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const idx = project.commands.findIndex((c) => c.id === command.id);
+        const idx = commandsOf(project).findIndex((c) => c.id === command.id);
         if (idx === -1) return;
-        project.commands[idx] = command;
+        mutableCommands(project)[idx] = command;
         project.updatedAt = new Date().toISOString();
       }),
     ),
@@ -182,7 +183,7 @@ export const createCommandsSlice = ({ set, get }: AccountSliceContext): Commands
     const next = produce(get().account, (draft) => {
       const project = draft.projects.find((p) => p.id === pId);
       if (!project) return;
-      const cmd = project.commands.find((c) => c.id === cId);
+      const cmd = commandsOf(project).find((c) => c.id === cId);
       if (!cmd) return;
       const used = new Set(cmd.arguments.map((a) => a.name));
       const defaultName = (() => {
@@ -202,7 +203,7 @@ export const createCommandsSlice = ({ set, get }: AccountSliceContext): Commands
     const next = produce(get().account, (draft) => {
       const project = draft.projects.find((p) => p.id === pId);
       if (!project) return;
-      const cmd = project.commands.find((c) => c.id === cId);
+      const cmd = commandsOf(project).find((c) => c.id === cId);
       if (!cmd || index < 0 || index >= cmd.arguments.length) return;
       const newArgs = [...cmd.arguments];
       newArgs[index] = arg;
@@ -217,7 +218,7 @@ export const createCommandsSlice = ({ set, get }: AccountSliceContext): Commands
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const cmd = project.commands.find((c) => c.id === cId);
+        const cmd = commandsOf(project).find((c) => c.id === cId);
         if (!cmd || index < 0 || index >= cmd.arguments.length) return;
         cmd.arguments.splice(index, 1);
         project.updatedAt = new Date().toISOString();
@@ -229,15 +230,15 @@ export const createCommandsSlice = ({ set, get }: AccountSliceContext): Commands
     {
       const project = get().account.projects.find((p) => p.id === pId);
       if (!project) return;
-      if (project.commands.some((c) => c.id === newId)) {
+      if (commandsOf(project).some((c) => c.id === newId)) {
         throw new Error(`command id "${newId}" already exists in project`);
       }
-      if (!project.commands.some((c) => c.id === oldId)) return;
+      if (!commandsOf(project).some((c) => c.id === oldId)) return;
     }
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId)!;
-        const cmd = project.commands.find((c) => c.id === oldId)!;
+        const cmd = commandsOf(project).find((c) => c.id === oldId)!;
         cmd.id = newId;
         const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
         if (oldId in layout) {

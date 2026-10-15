@@ -1,6 +1,16 @@
-import type { CommandId, DataSourceId, DialogId, ElementId, MenuId, Project, SourceRef } from "@/domain/types";
+import type {
+  CommandId,
+  DataSourceId,
+  DialogId,
+  ElementId,
+  Menu,
+  MenuId,
+  Project,
+  SourceRef,
+} from "@/domain/types";
 import { describe, expect, it, vi } from "vitest";
 import { compute } from "./compute";
+import { mutableCommands, mutableMenus } from "@/domain/documents";
 
 const emptyProject = (): Project => ({
   id: "p1" as Project["id"],
@@ -8,14 +18,16 @@ const emptyProject = (): Project => ({
   source: "user_created",
   createdAt: "2026-05-30",
   updatedAt: "2026-05-30",
-  menus: [],
-  commands: [],
+  documents: {
+    menu: [],
+    command: [],
+    dialog: [],
+  },
   assets: [],
   dataSources: [],
   importedConnectors: [],
   i18nKeys: {},
   defaultLang: "en",
-  dialogs: [],
   canvasLayout: {},
 });
 
@@ -51,7 +63,7 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("includes the builtin {player} entries for a menu with no contextInputs", () => {
     const project = emptyProject();
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
@@ -65,7 +77,7 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("emits a primitive contextInput as a single entry with coerced sample", () => {
     const project = emptyProject();
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
@@ -101,7 +113,7 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("emits dotted subfields for a player-typed contextInput (e.g. command arg `target`)", () => {
     const project = emptyProject();
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
@@ -127,14 +139,14 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("emits the same primitive entries when locating an element inside the menu", () => {
     const project = emptyProject();
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Project["menus"][number]["layers"][number]["id"],
+          id: "l1" as Menu["layers"][number]["id"],
           name: "default",
           elements: [{ id: "e1" as ElementId, positions: "0", display: {}, states: [] }],
         },
@@ -161,7 +173,7 @@ describe("PlaceholderCatalog.compute", () => {
       ],
       value: { name: "Tuer 10 zombies", reward: 500 },
     });
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
@@ -179,7 +191,7 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("row-model input (type object + rowOf) exposes the source's declared fields", () => {
     const project = emptyProject();
-    project.menus.push({
+    mutableMenus(project).push({
       id: "shop_category" as MenuId,
       projectId: project.id,
       title: [],
@@ -229,7 +241,7 @@ describe("PlaceholderCatalog.compute", () => {
       modelId: "m2" as never,
       rows: [],
     });
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
@@ -261,14 +273,14 @@ describe("PlaceholderCatalog.compute", () => {
       modelId: "m3" as never,
       rows: [{ name: "Q1", reward: 100 }],
     });
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Project["menus"][number]["layers"][number]["id"],
+          id: "l1" as Menu["layers"][number]["id"],
           name: "default",
           elements: [
             {
@@ -297,14 +309,14 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("exposes a placed element's alias from a server source's reported schema", () => {
     const project = emptyProject();
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
       rows: 6,
       layers: [
         {
-          id: "l1" as Project["menus"][number]["layers"][number]["id"],
+          id: "l1" as Menu["layers"][number]["id"],
           name: "default",
           elements: [
             {
@@ -322,7 +334,12 @@ describe("PlaceholderCatalog.compute", () => {
     const out = compute(
       project,
       { kind: "action", menuId: "m1" as MenuId, elementId: "e1" as ElementId, clickType: "left" },
-      { "boutique:items": [{ name: "id", type: "string" }, { name: "final_price", type: "integer" }] },
+      {
+        "boutique:items": [
+          { name: "id", type: "string" },
+          { name: "final_price", type: "integer" },
+        ],
+      },
     );
     expect(out.filter((e) => e.origin === "iteration")).toEqual([
       { path: "item.final_price", type: "integer", sample: null, origin: "iteration" },
@@ -332,14 +349,14 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("resolves an iteration whose source names a server ref directly", () => {
     const project = emptyProject();
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
       rows: 6,
       layers: [
         {
-          id: "l1" as Project["menus"][number]["layers"][number]["id"],
+          id: "l1" as Menu["layers"][number]["id"],
           name: "default",
           elements: [
             {
@@ -364,7 +381,7 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("command scope exposes its arguments next to the builtin {player}", () => {
     const project = emptyProject();
-    project.commands.push({
+    mutableCommands(project).push({
       id: "c1" as CommandId,
       projectId: project.id,
       name: "shop",
@@ -390,14 +407,14 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("does not emit iteration entries when the element does not iterate", () => {
     const project = emptyProject();
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Project["menus"][number]["layers"][number]["id"],
+          id: "l1" as Menu["layers"][number]["id"],
           name: "default",
           elements: [{ id: "e1" as ElementId, positions: "0", display: {}, states: [] }],
         },
@@ -431,14 +448,14 @@ describe("PlaceholderCatalog.compute", () => {
       modelId: "m_list" as never,
       rows: [{ label: "hello" }],
     });
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Project["menus"][number]["layers"][number]["id"],
+          id: "l1" as Menu["layers"][number]["id"],
           name: "default",
           elements: [
             {
@@ -487,7 +504,7 @@ describe("PlaceholderCatalog.compute", () => {
 
   it("omits sourceRef inputs whose dataSource was deleted, and warns once per render", () => {
     const project = emptyProject();
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
@@ -520,14 +537,14 @@ describe("PlaceholderCatalog.compute", () => {
       modelId: "m4" as never,
       rows: [{ name: "Q1" }],
     });
-    project.menus.push({
+    mutableMenus(project).push({
       id: "m1" as MenuId,
       projectId: project.id,
       title: [],
       rows: 3,
       layers: [
         {
-          id: "l1" as Project["menus"][number]["layers"][number]["id"],
+          id: "l1" as Menu["layers"][number]["id"],
           name: "default",
           elements: [
             {

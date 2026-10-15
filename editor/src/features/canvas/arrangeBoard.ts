@@ -1,5 +1,6 @@
 import { graphlib, layout } from "@dagrejs/dagre";
 import type { DocumentKind } from "./serverGraph";
+import { documentKindDef, isDocumentKind } from "@/domain/documentKinds";
 
 /**
  * Arrangement strategy:
@@ -40,7 +41,9 @@ const ROW_WIDTH = 2400;
 const GUTTER_GAP = 160;
 export const GUTTER_LABEL_HEIGHT = 36;
 const GUTTER_CELL_GAP = 48;
-const GUTTER_KIND_ORDER: Record<DocumentKind, number> = { menu: 0, dialog: 1, command: 2 };
+/** Orphans group by kind in the gutter, registered kinds by their rank, unknown kinds last. */
+const gutterRank = (kind: string): number =>
+  isDocumentKind(kind) ? documentKindDef(kind).rank : Number.MAX_SAFE_INTEGER;
 
 /** Height (wrap) or width (TB) budget of a sub-column before folding. */
 const WRAP_STACK_MAX = 1500;
@@ -85,7 +88,11 @@ function components(keys: string[], edges: ArrangeEdge[]): string[][] {
  * node still on the stack closes a cycle; it is left out of the layering so a
  * "back to the main menu" does not push the main menu down a layer.
  */
-function forwardEdges(keys: string[], edges: ArrangeEdge[], preferredRoots: string[] = []): ArrangeEdge[] {
+function forwardEdges(
+  keys: string[],
+  edges: ArrangeEdge[],
+  preferredRoots: string[] = [],
+): ArrangeEdge[] {
   const out = new Map<string, string[]>(keys.map((k) => [k, []]));
   const indegree = new Map<string, number>(keys.map((k) => [k, 0]));
   for (const e of edges) {
@@ -271,7 +278,7 @@ function arrangeFree(
 
   const orphans = nodes
     .filter((n) => !linked.has(n.key))
-    .sort((a, b) => GUTTER_KIND_ORDER[a.kind] - GUTTER_KIND_ORDER[b.kind] || compare(a.key, b.key));
+    .sort((a, b) => gutterRank(a.kind) - gutterRank(b.kind) || compare(a.key, b.key));
   if (orphans.length === 0) return { positions, gutter: null };
 
   const gutter = {
@@ -298,11 +305,7 @@ type Rect = Point & { width: number; height: number };
 const overlaps = (a: Rect, b: Rect) =>
   a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
-type PlaceFn = (
-  nodes: ArrangeNode[],
-  forward: ArrangeEdge[],
-  preferredRoots: string[],
-) => Placed;
+type PlaceFn = (nodes: ArrangeNode[], forward: ArrangeEdge[], preferredRoots: string[]) => Placed;
 
 interface Sized {
   w: number;
@@ -588,9 +591,7 @@ function packBySprings(
 ): Map<string, Point> {
   const byKey = new Map(nodes.map((n) => [n.key, n]));
   const keys = nodes.map((n) => n.key);
-  const centers = new Map<string, Point>(
-    keys.map((key) => [key, { ...seedCenters.get(key)! }]),
-  );
+  const centers = new Map<string, Point>(keys.map((key) => [key, { ...seedCenters.get(key)! }]));
   const toRects = () =>
     keys.map((key) => {
       const n = byKey.get(key)!;

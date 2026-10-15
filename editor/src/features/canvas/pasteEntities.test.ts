@@ -3,6 +3,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { expect, it } from "vitest";
 import { rewriteIds } from "./clipboard";
 import { findSelectedEntities } from "./useCanvasKeyboard";
+import { menusOf } from "@/domain/documents";
 
 const PID = "p1" as ProjectId;
 const KEY = "menus.crafter.title" as I18nKey;
@@ -22,9 +23,11 @@ it("gives a pasted menu's plain title its own key, leaving the original's intact
       projects: [
         {
           id: PID,
-          menus: [crafter],
-          commands: [],
-          dialogs: [],
+          documents: {
+            menu: [crafter],
+            command: [],
+            dialog: [],
+          },
           dataSources: [],
           i18nKeys: { [KEY]: { fr: "Crafter" } },
           defaultLang: "fr",
@@ -39,7 +42,7 @@ it("gives a pasted menu's plain title its own key, leaving the original's intact
     .pasteEntities({ projectId: PID, menus, commands: [], offset: { x: 0, y: 0 } });
 
   const project = useAccountStore.getState().account.projects[0]!;
-  const [original, copy] = project.menus;
+  const [original, copy] = menusOf(project);
   const keyOf = (m: Menu) => (m.title[0] as { value: { key: I18nKey } }).value.key;
   expect(keyOf(original!)).toBe(KEY);
   expect(project.i18nKeys[KEY]).toEqual({ fr: "Crafter" });
@@ -61,7 +64,9 @@ it("copies only the items when their menu is selected alongside them", () => {
     account: {
       id: "acc",
       projectOrder: [PID],
-      projects: [{ id: PID, menus: [menu], commands: [], i18nKeys: {} } as unknown as Project],
+      projects: [
+        { id: PID, documents: { menu: [menu], command: [] }, i18nKeys: {} } as unknown as Project,
+      ],
     },
   } as never);
   const copied = findSelectedEntities(PID, ["crafter", "iron"], null);

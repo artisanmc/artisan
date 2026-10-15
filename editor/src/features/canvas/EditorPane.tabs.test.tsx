@@ -33,19 +33,21 @@ beforeEach(() => {
           source: "user_created",
           createdAt: "",
           updatedAt: "",
-          menus: [
-            {
-              id: "m1",
-              projectId: PID,
-              title: [],
-              rows: 3,
-              layers: [
-                { id: "L0", elements: [{ id: "el1", positions: "0", display: {}, states: [] }] },
-              ],
-            } as any,
-          ],
-          commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
-          dialogs: [],
+          documents: {
+            menu: [
+              {
+                id: "m1",
+                projectId: PID,
+                title: [],
+                rows: 3,
+                layers: [
+                  { id: "L0", elements: [{ id: "el1", positions: "0", display: {}, states: [] }] },
+                ],
+              } as any,
+            ],
+            command: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+            dialog: [],
+          },
           assets: [],
           dataSources: [],
           importedConnectors: [],

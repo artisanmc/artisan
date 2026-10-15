@@ -4,16 +4,16 @@ import { setStageSlotHitTest } from "@/features/canvas/stageDropTarget";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
+import { menusOf } from "@/domain/documents";
 
 const p = projectId("p_personal");
 let m: ReturnType<typeof menuId>;
 const e = elementId("image");
 const target = () => ({ projectId: p, menuId: m, elementId: e });
 const current = () =>
-  useAccountStore
-    .getState()
-    .account.projects.find((project) => project.id === p)!
-    .menus.find((menu) => menu.id === m)!;
+  menusOf(useAccountStore.getState().account.projects.find((project) => project.id === p)!).find(
+    (menu) => menu.id === m,
+  )!;
 beforeEach(() => {
   useAccountStore.setState({ account: mockAccount() });
   m = useAccountStore.getState().createMenu({ projectId: p, id: "images" });
@@ -25,29 +25,31 @@ beforeEach(() => {
           ? project
           : {
               ...project,
-              menus: project.menus.map((menu) =>
-                menu.id !== m
-                  ? menu
-                  : {
-                      ...menu,
-                      rows: 3,
-                      layers: [
-                        {
-                          id: "main" as never,
-                          name: "main",
-                          elements: [
-                            { id: e, positions: "0", display: { material: "STONE" }, states: [] },
-                            {
-                              id: elementId("other"),
-                              positions: "8",
-                              display: { material: "DIAMOND" },
-                              states: [],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-              ),
+              documents: {
+                menu: menusOf(project).map((menu) =>
+                  menu.id !== m
+                    ? menu
+                    : {
+                        ...menu,
+                        rows: 3,
+                        layers: [
+                          {
+                            id: "main" as never,
+                            name: "main",
+                            elements: [
+                              { id: e, positions: "0", display: { material: "STONE" }, states: [] },
+                              {
+                                id: elementId("other"),
+                                positions: "8",
+                                display: { material: "DIAMOND" },
+                                states: [],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                ),
+              },
             },
       ),
     },
