@@ -88,7 +88,7 @@ class ActionExecutor(
         }
         val args = decl.bind(step.value)
         val result = try {
-            decl.handler.execute(ctx, args, EngineRuntime(this, step.i18n))
+            decl.handler.execute(EngineActionContext(ctx), args, EngineRuntime(this, step.i18n))
         } catch (e: Exception) {
             warn("action '${step.name}' failed: ${e.message}")
             return ctx
@@ -98,7 +98,8 @@ class ActionExecutor(
 
     /** A module's own [ActionContext] folded back into the engine's: its bindings are kept. */
     fun context(ctx: ActionContext): ExecutionContext =
-        ctx as? ExecutionContext ?: ExecutionContext(ctx.player, ctx.args, ctx.lang, projectId = ctx.projectId)
+        (ctx as? EngineActionContext)?.engine
+            ?: ExecutionContext(ctx.player, ctx.args, ctx.lang, projectId = ctx.projectId)
 
     private fun warn(message: String) = Bukkit.getLogger().warning("[Artisan] $message")
 
@@ -325,8 +326,10 @@ class ActionExecutor(
         return cycleArg(ctx, arg, Args.str(args, "list") ?: "", forward)
     }
 
-    internal fun runActions(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext =
-        runActions(Args.str(args, "actions") ?: return ctx, ctx)
+    internal fun runActions(ctx: ExecutionContext, args: Map<String, Any>): ExecutionContext {
+        val expr = Args.str(args, "actions") ?: return ctx
+        return runActions(expr, ctx)
+    }
 
     /**
      * Bridge (modules.md §4.2): a "namespace:name args…" known to the CommandRegistry is
