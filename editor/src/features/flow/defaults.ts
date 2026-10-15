@@ -1,4 +1,6 @@
+import { defaultValueForModelType } from "@/domain/dataModels";
 import type { Action, DialogId, I18nKey, MenuId } from "@/domain/types";
+import type { DeclaredAction } from "@/lib/api/declaredActions";
 
 /**
  * Sensible-empty Action seed for "+ Add action" pickers. Open-menu picks
@@ -57,7 +59,28 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
       return { type: "close_dialog" };
     case "run_actions":
       return { type: "run_actions", actions: "" };
+    case "module":
+      // Seeded from a declaration by `defaultModuleAction`; a bare type has no name yet.
+      return { type: "module", name: "", value: null };
   }
+}
+
+/**
+ * The seed of a module-declared action (ADR `extensible-document-kinds`, R1): every
+ * argument that carries a default or is required starts set, so the chain the
+ * editor writes is what the server binds. No argument → the bare name.
+ */
+export function defaultModuleAction(decl: DeclaredAction): Action {
+  const value: Record<string, unknown> = {};
+  for (const arg of decl.args) {
+    if (arg.default !== undefined) value[arg.name] = arg.default;
+    else if (arg.required) value[arg.name] = defaultValueForModelType(arg.type);
+  }
+  const keys = Object.keys(value);
+  if (keys.length === 0) return { type: "module", name: decl.name, value: null };
+  if (decl.primary && keys.length === 1 && keys[0] === decl.primary)
+    return { type: "module", name: decl.name, value: value[decl.primary] };
+  return { type: "module", name: decl.name, value };
 }
 
 export const ACTION_TYPES: Action["type"][] = [

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.actiondsl.compileActionDsl
-import net.artisanmc.plugin.engine.Action
 import net.artisanmc.plugin.engine.I18nAddress
 import net.artisanmc.plugin.model.MenuTitleLayer
 import net.artisanmc.plugin.engine.MenuTitleParser
@@ -110,14 +109,10 @@ class I18nAddressConformanceTest {
         val out = mutableListOf<String>()
         fun walk(list: List<Step>) {
             for (s in list) when (s) {
-                is Step.ActionStep -> when (val a = s.action) {
-                    is Action.SendMessage -> a.i18n?.let { out.add(it) }
-                    is Action.Broadcast -> a.i18n?.let { out.add(it) }
-                    is Action.ShowTitle -> {
-                        a.i18nTitle?.let { out.add(it) }
-                        a.i18nSubtitle?.let { out.add(it) }
-                    }
-                    else -> {}
+                is Step.ActionStep -> {
+                    s.i18n["text"]?.let { out.add(it) }
+                    s.i18n["title"]?.let { out.add(it) }
+                    s.i18n["subtitle"]?.let { out.add(it) }
                 }
                 is Step.IfStep -> { s.cases.forEach { walk(it.steps) }; walk(s.elseSteps) }
             }

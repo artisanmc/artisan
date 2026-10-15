@@ -426,6 +426,10 @@ export default {
     closeMenuLabel: "Closes the active menu — no parameters.",
     openPreviousMenuLabel:
       "Returns to the previous screen (back button). Does nothing when there is no history.",
+    moduleValueLabel: "arguments (JSON)",
+    moduleUnknown: "This action is not declared by the connected server: its arguments are edited as raw JSON.",
+    moduleValueInvalid: "Invalid JSON: the value was not changed.",
+    moduleAction: "Module action",
     runActionsLabel: "actions to run",
     runActionsHint:
       "An expression pointing at an actions field (e.g. item.on_buy). Runs it inline.",

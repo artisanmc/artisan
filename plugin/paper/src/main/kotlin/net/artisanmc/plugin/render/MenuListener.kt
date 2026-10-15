@@ -94,7 +94,7 @@ class MenuListener(
         scheduler.player(player.uniqueId) {
             if (store.current(player) !== shown) return@player
             if (player.openInventory.topInventory?.holder is ArtisanMenuHolder) return@player
-            if (goBack && ctx != null && store.hasPrevious(player)) executor.execute(listOf(Action.OpenPreviousMenu), ctx)
+            if (goBack && ctx != null && store.hasPrevious(player)) executor.executeSteps(listOf(Step.ActionStep("open_previous_menu")), ctx)
             else store.clear(player)
         }
     }

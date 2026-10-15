@@ -41,6 +41,7 @@ en 1008 (« not open yet: retry ») ; la feuille revient par son backoff.
 | `data_sources` | `[{ref, module_id?, schema?, schema_hint?, stability?, key_field?}]` (`DataSourceReport`). |
 | `declared_models` | Documents `model/v1` déclarés par les modules, verbatim. |
 | `editor_screens` | Écrans de config déclarés : `{id, module_id, label, table, project_id}`. |
+| `declared_actions` | Actions enregistrées dans `ActionRegistry`, celles d'Artisan comprises : `{name, args: [ModelField], primary?, module_id?}` (`module_id` absent = action core). L'éditeur en tire le sélecteur et le formulaire des actions de module (`GET …/actions`, ADR `extensible-document-kinds` R1). |
 | `server_config` | `config.yml` éditable en clés pointées (jamais `environment.yml`). |
 
 `RemoteServer` lit aussi `custom_items_hash` s'il est présent (ancien `hello`) ; `WsClient` ne
@@ -94,7 +95,7 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | Message | Contenu |
 |---|---|
 | `projects_reloaded` | `{projects:[{id, hash}]}` après chaque rechargement (`/artisan reload`, écriture, publication). Le hub le relaie aux onglets de l'éditeur sur `/ws/editor`, ids préfixés `<server id>.`. Fire-and-forget. |
-| `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens}` : un module s'est enregistré après le `hello` ; le hub remplace ces champs. |
+| `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens, declared_actions}` : un module s'est enregistré après le `hello` ; le hub remplace ces champs. |
 | `custom_items_changed` | `{hash}` : Nexo/Oraxen/ItemsAdder rechargé ; le hub redemande le bundle. |
 | `editor_link` | `{request_id, player_id, player_name, permissions, host?}` : `/artisan editor` tapé sur une feuille. Le hub ne consulte aucune permission, il reprend celles lues par la feuille (`artisan.editor.view` requis) et répond `editor_link_result` `{ok, url}` ou `{error: "too_soon", retry_after}` / `invalid_input`. Timeout feuille 15 s. |
 | `editor_permissions` | `{players: {uuid: [permissions]}}` : chaque minute, les permissions éditeur des joueurs en ligne. Le hub les applique aux sessions que ce serveur a émises et ferme celles d'un joueur sans `artisan.editor.view`. Pas de réponse. |

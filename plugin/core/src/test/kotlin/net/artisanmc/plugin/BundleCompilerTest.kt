@@ -75,7 +75,7 @@ class BundleCompilerTest {
         val ca = compiled[0]
         assertTrue(ca.conditions.isEmpty())
         assertEquals(1, ca.clicks.size)
-        assertIs<Action.CloseMenu>(ca.clicks[ClickType.LEFT]?.actions?.firstOrNull())
+        assertEquals(Step.ActionStep("close_menu"), ca.clicks[ClickType.LEFT]?.steps?.firstOrNull())
     }
 
     @Test fun `compile skips unknown click type`() {
@@ -124,13 +124,15 @@ class BundleCompilerTest {
         assertEquals(1, result.compiledAppearances["btn"]?.size)
     }
 
-    @Test fun `compile skips appearance with invalid action but keeps others`() {
+    @Test fun `compile keeps an appearance whose action name is unknown here`() {
+        // The name may belong to a module's registered action: the compiler keeps the
+        // step and the executor reports it when it runs.
         val goodApp = appearance("STONE", mapOf("left" to handler(mapOf("type" to "close_menu"))))
-        val badApp  = appearance("DIAMOND", mapOf("left" to handler(mapOf("type" to "nonexistent_action"))))
-        val m = menu(element("el", "0", goodApp, badApp))
+        val moduleApp = appearance("DIAMOND", mapOf("left" to handler(mapOf("type" to "quests:start"))))
+        val m = menu(element("el", "0", goodApp, moduleApp))
         val result = BundleCompiler.compile(m, emptyMap())
         val compiled = result.compiledAppearances["el"]
         assertNotNull(compiled)
-        assertEquals(1, compiled.size)
+        assertEquals(2, compiled.size)
     }
 }

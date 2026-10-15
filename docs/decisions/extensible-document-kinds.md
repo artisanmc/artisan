@@ -217,6 +217,23 @@ getId()`) et les constructions par arguments nommés. `ArtisanAPI` se construit 
 par `@Sunset` : `ModuleMessagesApi`, `ArtisanAPI.messages`, `DataSourceDeclaration.schemaHint`.
 `ApiSurfaceIsJavaFriendlyTest` refuse désormais toute classe Kotlin dans `src/main` de l'api.
 
+**Fait (2026-10-15, lot 3 — R1)** : toute action passe par `ActionRegistry` (`plugin/api`, `@Beta`) :
+`ActionDeclaration(name, args: ModelField[], primary?, handler)`, `ActionHandler.execute(ctx, args,
+runtime) → ctx`, `ActionContext` (joueur, args, langue, projet, `withArgs`), `ActionRuntime` (`text`,
+`run`, `warn`). `normalize` plie les trois formes du wire (nu, scalaire, map) en map d'arguments,
+`bind` ajoute les défauts déclarés, `canonical` écrit la forme la plus courte. Le step du moteur est
+générique (`Step.ActionStep(name, value, i18n)`) ; `core` ne connaît plus le vocabulaire — ses
+codecs (DSL, `{type}`) émettent des steps keyed. Les actions core sont des schémas `CoreActions`
+(`core`, verrouillés sur `$defs.Action` du schéma menu par `CoreActionSchemaConformanceTest`) joints
+à leurs handlers dans `paper` (`CoreActionHandlers`), enregistrés comme ceux d'un module ;
+`open_menu` n'a plus de cas spécial. `ModelFieldType.documentRef(kind)` existe (R3) ; l'éditeur
+l'accepte (`document_ref`) et le rend comme un id. Présence : `declared_actions` (hello,
+`modules_changed`, `GET …/actions`) ; l'éditeur propose les actions de module dans le sélecteur de
+step, rend leur formulaire depuis la déclaration et les écrit telles quelles (`{type: "module", name,
+value}`). Dettes assumées : les formulaires des actions core restent écrits à la main (W4) ;
+l'adressage i18n positionnel du DSL legacy reste une table par nom dans `I18nAddresses` ; les textes
+des actions de module ne sont pas encore des sites i18n.
+
 Précision retenue sans débat : un slot de chaîne est un **site** (`{ name, steps, path }`),
 comme `LTextSite`, pas un simple nom — l'extracteur générique d'arêtes a besoin des steps
 et du chemin pour conserver les triggers que la planche affiche.

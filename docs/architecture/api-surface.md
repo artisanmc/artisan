@@ -82,6 +82,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `apiVersion` | `String` | 1.8.0 |
 | `isCompatibleWith` compares `apiVersion` | | 1.8.0 |
 | `messages` removed; built through `ArtisanAPI.builder(...)` | | 2.0.0 |
+| `actionRegistry` (`getActionRegistry()`, `@Beta`) | `ActionRegistry` | 2.0.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -94,7 +95,7 @@ Manages the set of active modules for a running Artisan instance.
 | `register(module: ArtisanModule)` | `@Stable` | `Unit` | Register a module. Throws `DuplicateModuleException` if the id is already registered. Triggers `modules_changed` WS message if the plugin is connected. |
 | `active()` | `@Stable` | `List<ArtisanModule>` | Returns all currently registered modules. |
 | `has(id: String)` | `@Stable` | `Boolean` | Returns true if a module with that id is registered. |
-| `unregister(id: String)` | `@Stable` | `Boolean` | Calls the module's `onDisable()`, removes it and the data sources, commands, models and screens registered from its `onEnable`, triggers `modules_changed`. False for an unknown id. Since 1.8.0 |
+| `unregister(id: String)` | `@Stable` | `Boolean` | Calls the module's `onDisable()`, removes it and the data sources, commands, models, screens and actions registered from its `onEnable`, triggers `modules_changed`. False for an unknown id. Since 1.8.0 |
 | `bind(api: ArtisanAPI, onChange: Runnable)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
 | `unregisterLoadedBy(loader: ClassLoader)` | `@Internal` | `List<Exception>` | Called by Artisan on `PluginDisableEvent`: unregisters the modules loaded by that plugin's class loader, then the data sources and commands whose callback it loaded. Returns the `onDisable()` failures. |
 
@@ -180,6 +181,26 @@ Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 
 ### `net.artisanmc.modules.api.ModuleActionsApi` (`@Beta`)
 
 `api.actions.execute(player, steps, args, projectId?)` (Java overloads without `args` and `projectId` since 2.0.0) — runs a canonical step tree (the wire shape of the editor's `actions` field kit widget: `[{kind: "action", action: {...}}, {kind: "if", ...}]`, literal text) through the core `StepParser`/`ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); malformed steps are skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. `projectId` (since 1.6.0, optional) puts that Project's `lang/` in scope so an action may carry `@key` (ADR `yaml-assisted-editing` ④); without it, action text stays literal. Since 1.4.0.
+
+### `net.artisanmc.modules.api.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
+
+Every action of a chain, Artisan's own included, runs through this registry (ADR `extensible-document-kinds`, R1). A module registers its actions from `onEnable`; they are removed with the module. Names: `^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`, a module's namespaced (`quests:start`).
+
+| Member | Type | Since |
+|---|---|---|
+| `ActionRegistry.register(decl)` (throws `DuplicateActionException`), `unregister(name)`, `find(name)`, `has(name)`, `names()`, `declarations()`, `registered()` | | 2.0.0 |
+| `ActionDeclaration(name, handler)`, `(name, args, handler)`, `(name, args, primary, handler)` ; `getName()`, `getArgs()`, `getPrimary()`, `getHandler()`, `arg(name)` | `ActionDeclaration` | 2.0.0 |
+| `ActionDeclaration.normalize(wire)` (null → `{}`, argument map → map, else `{primary: value}`), `bind(wire)` (+ declared defaults), `canonical(args)`, `toWire()` | `Map<String, Object>` / `Object` / `Map` | 2.0.0 |
+| `ActionHandler.execute(ctx, args, runtime): ActionContext` (`@FunctionalInterface`) | `ActionContext` | 2.0.0 |
+| `ActionContext.getPlayer()`, `getArgs()`, `getLang()`, `getProjectId()`, `withArgs(args)` | | 2.0.0 |
+| `ActionRuntime.text(ctx, ltext)`, `run(ctx, chain)`, `warn(message)` | | 2.0.0 |
+| `RegisteredAction.getDeclaration()`, `getModuleId()`, `toWire()` (`{name, args, primary?, module_id?}`, the `declared_actions` wire) | `RegisteredAction` | 2.0.0 |
+| `ModelField(name, type[, required])`, `withDefault`, `withLabel`, `withHelp`, `withRequired`, `toWire()` | `ModelField` | 2.0.0 |
+| `ModelFieldType.string()`, `number()`, `integer()`, `bool()`, `ltext()`, `minimessage()`, `minimessageMultiline()`, `item()`, `actions()`, `conditions()`, `list(of)`, `object(fields)`, `model(ref)`, `map(of)`, `enumOf(values)`, `union(tag, variants)`, `documentRef(kind)` ; `toWire()` (the editor's `ModelFieldType` shape) | `ModelFieldType` | 2.0.0 |
+| `UnionVariant(name, fields)` | `UnionVariant` | 2.0.0 |
+| `ArtisanAPI.Builder.actionRegistry(registry)` (`@Internal`) | `Builder` | 2.0.0 |
+
+The three wire forms (`- name`, `- name: value`, `- name: {args}`) bind to one argument map: the scalar form binds `primary` (the only argument when there is exactly one, unless given). The runtime is tolerant (an unknown key is kept, an unknown name is skipped with a warning); the editor's form is strict.
 
 ### `net.artisanmc.modules.api.ModelRegistry` (`@Beta`)
 

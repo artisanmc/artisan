@@ -138,6 +138,9 @@ function encodeAction(a: Action, c: ActionTextCodec): StructuredStep {
       return { set_arg_cycle_prev: { arg: a.arg, list: a.list } };
     case "run_actions":
       return { run_actions: a.actions };
+    case "module":
+      // A module's action: its wire value verbatim, the bare name when it has none.
+      return a.value == null ? a.name : { [a.name]: a.value };
   }
 }
 
@@ -243,8 +246,9 @@ function decodeAction(name: string, value: unknown, c: ActionTextCodec): Action 
     case "run_actions":
       return { type: "run_actions", actions: str(value) };
     default:
-      // Unknown verb → a no-op run_actions on the raw name (tolerant, never throws).
-      return { type: "run_actions", actions: "" };
+      // A name the core vocabulary doesn't know: a module's action (or a typo).
+      // Kept verbatim; the plugin's registry binds it or reports it.
+      return { type: "module", name, value: value ?? null };
   }
 }
 

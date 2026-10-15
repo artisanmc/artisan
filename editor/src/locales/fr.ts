@@ -438,6 +438,10 @@ const fr: typeof en = {
     closeMenuLabel: "Ferme le menu actif — aucun paramètre.",
     openPreviousMenuLabel:
       "Revient à l'écran précédent (bouton retour). Sans effet s'il n'y a pas d'historique.",
+    moduleValueLabel: "arguments (JSON)",
+    moduleUnknown: "Cette action n'est pas déclarée par le serveur connecté : ses arguments s'éditent en JSON brut.",
+    moduleValueInvalid: "JSON invalide : la valeur n'a pas été modifiée.",
+    moduleAction: "Action de module",
     runActionsLabel: "actions à exécuter",
     runActionsHint: "Une expression pointant un champ actions (ex. item.on_buy). Exécutée inline.",
     command: "commande",
