@@ -13,13 +13,12 @@ export function ThemeSwitcher() {
   const setTheme = useThemeStore((s) => s.setTheme);
 
   const options: { value: Theme; label: string; Icon: typeof Moon }[] = [
-    { value: "dark",  label: t("settings.appearance.themeDark"),  Icon: Moon },
-    { value: "light", label: t("settings.appearance.themeLight"), Icon: Sun  },
+    { value: "dark", label: t("settings.appearance.themeDark"), Icon: Moon },
+    { value: "light", label: t("settings.appearance.themeLight"), Icon: Sun },
   ];
 
   return (
-    <div
-      role="group"
+    <fieldset
       aria-label={t("settings.appearance.theme")}
       className="inline-flex rounded-[var(--r-md)] border border-[var(--border)] overflow-hidden"
     >
@@ -41,6 +40,6 @@ export function ThemeSwitcher() {
           {label}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }

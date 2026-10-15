@@ -46,11 +46,6 @@ function normalized(files: Record<string, string | Uint8Array>) {
   return { projectId: "shop", files };
 }
 
-async function hashMeta(content: string): Promise<{ hash: string; size: number }> {
-  const bytes = new TextEncoder().encode(content);
-  return { hash: await hashBytes(bytes), size: bytes.length };
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.createDraft.mockResolvedValue({ revision: 1, id: "d1" });

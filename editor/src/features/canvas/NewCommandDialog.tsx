@@ -24,7 +24,7 @@ function slugify(name: string): string {
 }
 
 function deriveUniqueId(name: string, existingIds: Set<string>): string {
-  const base = "cmd_" + (slugify(name) || "cmd");
+  const base = `cmd_${slugify(name) || "cmd"}`;
   if (!existingIds.has(base)) return base;
   let n = 1;
   while (existingIds.has(`${base}_${n}`)) n++;

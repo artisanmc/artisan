@@ -163,7 +163,7 @@ describe("normalizeDataSources", () => {
     };
     const project = stubProject();
     project.dataSources = [legacy as unknown as DataSource, table];
-    delete (project as { dataModels?: unknown }).dataModels;
+    Reflect.deleteProperty(project, "dataModels");
     normalizeDataSources(project);
     expect(project.dataSources).toEqual([table]);
     expect(project.dataModels).toEqual([]);

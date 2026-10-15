@@ -96,8 +96,8 @@ describe("buildAssetIndex", () => {
     });
     const index = buildAssetIndex([g]);
     expect(index.assets.asset_g2).not.toHaveProperty("codepoint");
-    expect(index.assets.asset_g2.name).toBe("ghost");
-    expect(index.assets.asset_g2.type).toBe("glyph");
+    expect(index.assets.asset_g2!.name).toBe("ghost");
+    expect(index.assets.asset_g2!.type).toBe("glyph");
   });
 
   test("multiple assets keyed by id, all present", () => {
@@ -106,9 +106,9 @@ describe("buildAssetIndex", () => {
     const c = row({ id: "asset_c", type: "glyph", name: "c", codepoint: 0xe002 });
     const index = buildAssetIndex([a, b, c]);
     expect(Object.keys(index.assets).sort()).toEqual(["asset_a", "asset_b", "asset_c"]);
-    expect(index.assets.asset_a.codepoint).toBe(0xe001);
+    expect(index.assets.asset_a!.codepoint).toBe(0xe001);
     expect(index.assets.asset_b).not.toHaveProperty("codepoint");
-    expect(index.assets.asset_c.codepoint).toBe(0xe002);
+    expect(index.assets.asset_c!.codepoint).toBe(0xe002);
   });
 
   test("font asset has no codepoint regardless of value", () => {
@@ -144,7 +144,7 @@ describe("buildAssetIndex", () => {
       fontMeta: { namespace: "myfont_ns" },
     });
     const index = buildAssetIndex([f]);
-    expect(index.assets.asset_f_ns.namespace).toBe("myfont_ns");
+    expect(index.assets.asset_f_ns!.namespace).toBe("myfont_ns");
     expect(index.assets.asset_f_ns).toEqual({
       name: "myfont",
       type: "font",
@@ -252,7 +252,7 @@ describe("buildAssetIndex", () => {
       height: 256,
     });
     const index = buildAssetIndex([g]);
-    expect(index.assets.asset_bg.width).toBe(176);
+    expect(index.assets.asset_bg!.width).toBe(176);
   });
 
   test("width falls back to header width when contentWidth is null (old asset)", () => {
@@ -267,6 +267,6 @@ describe("buildAssetIndex", () => {
       height: 256,
     });
     const index = buildAssetIndex([g]);
-    expect(index.assets.asset_old.width).toBe(176);
+    expect(index.assets.asset_old!.width).toBe(176);
   });
 });

@@ -7,7 +7,12 @@ describe("catalog item preview", () => {
   it("wraps rendered lore lines at the project's lore_max_width, like the plugin", () => {
     const project = { defaultLang: "en", i18nKeys: {}, loreMaxWidth: 30 } as unknown as Project;
     expect(
-      resolveItem({ material: "STONE", lore: ["<red>{desc}"] }, { desc: "aaaa bbbb" }, project, "en").lore,
+      resolveItem(
+        { material: "STONE", lore: ["<red>{desc}"] },
+        { desc: "aaaa bbbb" },
+        project,
+        "en",
+      ).lore,
     ).toEqual(["<red>aaaa", "<red>bbbb"]);
   });
   it("keeps old menu lore references usable after a catalogue-only migration", () => {
@@ -87,7 +92,9 @@ describe("catalog item preview", () => {
         },
       },
     };
-    project.i18nKeys = { menuLore: { en: "Offer\n{base.lore}\nPrice: {item.price}" } };
+    project.i18nKeys = {
+      menuLore: { en: "Offer\n{base.lore}\nPrice: {item.price}" },
+    } as Project["i18nKeys"];
     expect(
       previewItem(
         { item: "{item.icon}", lore: { key: "menuLore" }, loreMode: "replace" } as never,

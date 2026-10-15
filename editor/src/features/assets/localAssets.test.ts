@@ -45,7 +45,9 @@ function fakeHub(snapshot: ProjectDraft, published: Record<string, Uint8Array> =
     const blob = url.pathname.match(/\/drafts\/d1\/blobs\/([a-f0-9]{64})$/);
     if (method === "GET" && blob) {
       const bytes = state.blobs.get(blob[1]!);
-      return bytes ? new Response(bytes) : json({ ok: false, error: "not_found" }, 404);
+      return bytes
+        ? new Response(bytes as Uint8Array<ArrayBuffer>)
+        : json({ ok: false, error: "not_found" }, 404);
     }
     if (method === "POST" && url.pathname.endsWith("/drafts/d1/blobs")) {
       const bytes = new Uint8Array(Buffer.from(body.contentBase64, "base64"));
@@ -64,7 +66,9 @@ function fakeHub(snapshot: ProjectDraft, published: Record<string, Uint8Array> =
       return json({ ok: true, draft: state.draft });
     if (method === "GET" && url.pathname.endsWith("/binary")) {
       const bytes = published[url.searchParams.get("path")!];
-      return bytes ? new Response(bytes) : json({ error: "not_found" }, 404);
+      return bytes
+        ? new Response(bytes as Uint8Array<ArrayBuffer>)
+        : json({ error: "not_found" }, 404);
     }
     if (method === "GET" && url.pathname.endsWith("/files"))
       return json({

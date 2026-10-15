@@ -30,10 +30,10 @@ beforeEach(() => {
   }
   // Stub setPointerCapture/releasePointerCapture — jsdom doesn't implement them.
   if (!HTMLElement.prototype.setPointerCapture) {
-    HTMLElement.prototype.setPointerCapture = function () {};
+    HTMLElement.prototype.setPointerCapture = () => {};
   }
   if (!HTMLElement.prototype.releasePointerCapture) {
-    HTMLElement.prototype.releasePointerCapture = function () {};
+    HTMLElement.prototype.releasePointerCapture = () => {};
   }
 });
 
@@ -80,7 +80,6 @@ describe("AddLayerControls", () => {
     expect(onPlace).toHaveBeenCalledTimes(1);
     expect(onPlace).toHaveBeenCalledWith("text", null);
   });
-
 
   it("pointerdown + significant move + pointerup fires onPlace(kind, { x, y })", () => {
     const onPlace = vi.fn();
@@ -178,7 +177,6 @@ describe("AddLayerControls", () => {
     expect(onPlace).toHaveBeenCalledTimes(1);
     expect(onPlace).toHaveBeenCalledWith("text", null);
   });
-
 
   it("pointerdown + pointerup + synthetic click (detail >= 1) fires onPlace exactly once", () => {
     // Reproduces the full browser sequence for a real mouse click:

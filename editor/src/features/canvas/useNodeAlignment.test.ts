@@ -38,11 +38,17 @@ function seed() {
   } as any);
 }
 function fakeNode(x0: number, y0: number) {
-  let nx = x0,
-    ny = y0;
+  let nx = x0;
+  let ny = y0;
   return {
-    x: (v?: number) => (v === undefined ? nx : ((nx = v), nx)),
-    y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)),
+    x: (v?: number) => {
+      if (v !== undefined) nx = v;
+      return nx;
+    },
+    y: (v?: number) => {
+      if (v !== undefined) ny = v;
+      return ny;
+    },
   };
 }
 describe("computeAndApplyAlignment", () => {
@@ -69,12 +75,18 @@ describe("useNodeAlignment.onDragMove", () => {
     seed();
     useAlignmentStore.getState().clear();
     const { result } = renderHook(() => useNodeAlignment(PID, "m2"));
-    let nx = 104,
-      ny = 600;
+    let nx = 104;
+    let ny = 600;
     const slotNode = {
       id: () => "some_slot",
-      x: (v?: number) => (v === undefined ? nx : ((nx = v), nx)),
-      y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)),
+      x: (v?: number) => {
+        if (v !== undefined) nx = v;
+        return nx;
+      },
+      y: (v?: number) => {
+        if (v !== undefined) ny = v;
+        return ny;
+      },
     };
     result.current.onDragMove({ target: slotNode, evt: { altKey: false } } as any);
     expect(nx).toBe(104); // no snap (event ignored)
@@ -85,12 +97,18 @@ describe("useNodeAlignment.onDragMove", () => {
     seed();
     useAlignmentStore.getState().clear();
     const { result } = renderHook(() => useNodeAlignment(PID, "m2"));
-    let nx = 104,
-      ny = 600;
+    let nx = 104;
+    let ny = 600;
     const menuNode = {
       id: () => "m2",
-      x: (v?: number) => (v === undefined ? nx : ((nx = v), nx)),
-      y: (v?: number) => (v === undefined ? ny : ((ny = v), ny)),
+      x: (v?: number) => {
+        if (v !== undefined) nx = v;
+        return nx;
+      },
+      y: (v?: number) => {
+        if (v !== undefined) ny = v;
+        return ny;
+      },
     };
     result.current.onDragMove({ target: menuNode, evt: { altKey: false } } as any);
     expect(nx).toBe(100); // snap applied (m1.left)

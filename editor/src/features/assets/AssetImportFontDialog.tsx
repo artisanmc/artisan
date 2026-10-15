@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import type { ProjectId } from "@/domain/types";
 import { uploadFontAsset } from "@/lib/api/userAssets";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useAssetStore } from "./assetStore";
 
 interface AssetImportFontDialogProps {
@@ -32,6 +32,7 @@ export function AssetImportFontDialog({ projectId, open, onClose }: AssetImportF
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const nameInputId = useId();
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
@@ -99,20 +100,22 @@ export function AssetImportFontDialog({ projectId, open, onClose }: AssetImportF
           {file && (
             <div className="text-xs text-muted-foreground">Ready to import — {file.size} bytes</div>
           )}
-          <label className="text-xs">
+          <label htmlFor={nameInputId} className="text-xs">
             Name
             <Input
+              id={nameInputId}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="lowercase, digits, _ and - only"
             />
           </label>
           {warnings.length > 0 && (
-            <div className="text-xs text-yellow-400 flex flex-col gap-1" role="status">
+            <output className="text-xs text-yellow-400 flex flex-col gap-1">
               {warnings.map((w, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: server warnings may repeat verbatim and the list is only ever replaced wholesale, never reordered
                 <div key={i}>{w}</div>
               ))}
-            </div>
+            </output>
           )}
           {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
           <div className="flex justify-end gap-2">

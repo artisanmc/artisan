@@ -2,7 +2,7 @@
 
 import { strFromU8, unzipSync } from "fflate";
 import { describe, expect, test } from "vitest";
-import { buildResourcePackZip } from "./resourcePackBuilder";
+import { type AssetRow, buildResourcePackZip } from "./resourcePackBuilder";
 
 const PNG_1x1 = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -36,7 +36,7 @@ function row(
     contentHash: "h",
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as never;
+  } as AssetRow;
 }
 
 function fontRow(
@@ -73,7 +73,7 @@ describe("buildResourcePackZip", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
     expect(entries["pack.mcmeta"]).toBeDefined();
-    const meta = JSON.parse(strFromU8(entries["pack.mcmeta"]));
+    const meta = JSON.parse(strFromU8(entries["pack.mcmeta"]!));
     // Minecraft reads the `pack` section: under another root name, the client
     // rejects the whole pack.
     expect(meta.pack.pack_format).toBe(64);
@@ -88,7 +88,7 @@ describe("buildResourcePackZip", () => {
     const pngs = new Map([[g.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([g], pngs, new Map());
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]!));
     expect(json.providers[0].id).toBe("minecraft:default");
     expect(json.providers[1].file).toBe("artisan:font/coin.png");
   });
@@ -99,7 +99,7 @@ describe("buildResourcePackZip", () => {
     const { zipBytes } = buildResourcePackZip([g], pngs, new Map());
     const entries = unzipSync(zipBytes);
     expect(entries["assets/artisan/textures/font/coin.png"]).toBeDefined();
-    expect(entries["assets/artisan/textures/font/coin.png"].length).toBe(PNG_1x1.length);
+    expect(entries["assets/artisan/textures/font/coin.png"]!.length).toBe(PNG_1x1.length);
   });
 
   test("returns a stable SHA1 hex hash", () => {
@@ -140,7 +140,7 @@ describe("buildResourcePackZip", () => {
     const pngs = new Map([[t.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([t], pngs, new Map());
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]!));
     // reference + space (no bitmap for texture without codepoint)
     expect(json.providers).toHaveLength(2);
     expect(json.providers[0].type).toBe("reference");
@@ -175,7 +175,7 @@ describe("buildResourcePackZip", () => {
     const pngs = new Map([[g.id, PNG_1x1]]);
     const { zipBytes } = buildResourcePackZip([g, t], pngs, new Map());
     const entries = unzipSync(zipBytes);
-    const index = JSON.parse(strFromU8(entries["assets/artisan/asset-index.json"]));
+    const index = JSON.parse(strFromU8(entries["assets/artisan/asset-index.json"]!));
     expect(index.version).toBe(2);
     expect(index.assets.asset_g1).toEqual({
       name: "coin",
@@ -241,7 +241,7 @@ describe("buildResourcePackZip", () => {
     ]);
     const { zipBytes } = buildResourcePackZip([f], new Map(), fontPngs);
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/artisan/font/myfont.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/myfont.json"]!));
     expect(json.providers).toHaveLength(2);
     expect(json.providers[0]).toEqual({
       type: "bitmap",
@@ -268,7 +268,9 @@ describe("buildResourcePackZip", () => {
     const { zipBytes } = buildResourcePackZip([f], new Map(), fontPngs);
     const entries = unzipSync(zipBytes);
     expect(entries["assets/artisan/textures/font/myfont/glyphs/a.png"]).toBeDefined();
-    expect(entries["assets/artisan/textures/font/myfont/glyphs/a.png"].length).toBe(PNG_1x1.length);
+    expect(entries["assets/artisan/textures/font/myfont/glyphs/a.png"]!.length).toBe(
+      PNG_1x1.length,
+    );
   });
 
   test("missing PNG in fontGlyphPngs map skips the file without crashing", () => {
@@ -284,7 +286,7 @@ describe("buildResourcePackZip", () => {
     const { zipBytes } = buildResourcePackZip([f], new Map(), fontPngs);
     const entries = unzipSync(zipBytes);
     // json still includes both providers (font.json reflects metadata, not file presence)
-    const json = JSON.parse(strFromU8(entries["assets/artisan/font/myfont.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/myfont.json"]!));
     expect(json.providers).toHaveLength(2);
     // present PNG written, missing one skipped
     expect(entries["assets/artisan/textures/font/myfont/glyphs/a.png"]).toBeDefined();
@@ -336,7 +338,7 @@ describe("buildResourcePackZip", () => {
   test("text_y6_h8.json has space + ascii + accented + nonlatin providers in vanilla order", () => {
     const { zipBytes } = buildResourcePackZip([], new Map(), new Map());
     const entries = unzipSync(zipBytes);
-    const json = JSON.parse(strFromU8(entries["assets/artisan/font/text_y6_h8.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/text_y6_h8.json"]!));
     expect(json.providers[0].type).toBe("space");
     expect(json.providers[0].advances[" "]).toBe(4);
     // Y=6 is the vanilla title position → bitmap ascents match vanilla unchanged.
@@ -353,7 +355,7 @@ describe("buildResourcePackZip", () => {
     const entries = unzipSync(zipBytes);
     // y=0 with h=8 would need ascent=13 > height=8 (invalid, skipped). h=16 is
     // the smallest valid size for y=0: ASCII ascent 13 <= height 16.
-    const json = JSON.parse(strFromU8(entries["assets/artisan/font/text_y0_h16.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/text_y0_h16.json"]!));
     // shift = 6 - 0 = 6. Vanilla ascents +6, independent of h.
     expect(json.providers[1].ascent).toBe(7 + 6);
     expect(json.providers[2].ascent).toBe(10 + 6);
@@ -380,7 +382,7 @@ describe("buildResourcePackZip", () => {
     const entries = unzipSync(zipBytes);
 
     // The default font.json bitmap provider for "alpha" must reference U+E042.
-    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]));
+    const json = JSON.parse(strFromU8(entries["assets/artisan/font/default.json"]!));
     const bitmapProvider = json.providers.find(
       (p: { type: string; file?: string }) =>
         p.type === "bitmap" && p.file === "artisan:font/alpha.png",
@@ -390,7 +392,7 @@ describe("buildResourcePackZip", () => {
     expect(bitmapProvider.chars[0].codePointAt(0)).toBe(0xe042);
 
     // The asset-index.json also reflects the final codepoint.
-    const index = JSON.parse(strFromU8(entries["assets/artisan/asset-index.json"]));
+    const index = JSON.parse(strFromU8(entries["assets/artisan/asset-index.json"]!));
     expect(index.assets.asset_g1.codepoint).toBe(0xe042);
   });
 });

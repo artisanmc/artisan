@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { makeStepConverter, type ConverterCtx } from "./actionV1ToDomain";
 import type { I18nKey, LText } from "@/domain/types";
 
-function ctx(): ConverterCtx & { unsupported: string[]; keys: Record<string, Record<string, string>> } {
+function ctx(): ConverterCtx & {
+  unsupported: string[];
+  keys: Record<string, Record<string, string>>;
+} {
   const unsupported: string[] = [];
   const keys: Record<string, Record<string, string>> = {};
   let n = 0;
@@ -10,9 +13,9 @@ function ctx(): ConverterCtx & { unsupported: string[]; keys: Record<string, Rec
     unsupported,
     keys,
     pushUnsupported: (s: string) => unsupported.push(s),
-    text: (raw?: string): LText => {
+    text: (raw: string | Record<string, string> | undefined): LText => {
       const key = `k_${n++}`;
-      keys[key] = { en: raw ?? "" };
+      keys[key] = typeof raw === "object" ? raw : { en: raw ?? "" };
       return { key: key as I18nKey };
     },
     ref: (key: string): LText => ({ key: key as I18nKey }),
@@ -71,7 +74,10 @@ describe("makeStepConverter — DSL steps (Phase 2)", () => {
   it("still maps appearance-level conditions and if-arrays (unchanged)", () => {
     const c = ctx();
     const { condition, ifArray } = makeStepConverter(c);
-    expect(condition({ type: "has_money", amount: 100 })).toEqual({ type: "has_money", amount: 100 });
+    expect(condition({ type: "has_money", amount: 100 })).toEqual({
+      type: "has_money",
+      amount: 100,
+    });
     expect(ifArray([{ type: "has_permission", perm: "vip" }])).toEqual({
       conds: [{ type: "has_permission", perm: "vip" }],
       joins: [],

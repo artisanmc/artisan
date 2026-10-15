@@ -19,7 +19,12 @@ interface SourceShapingEditorProps {
  * `{arg}` interpolation, single-key `sort`, `limit`) — no runtime change,
  * imported YAML values become editable and round-trip unchanged.
  */
-export function SourceShapingEditor({ input, schemaFields, argNames, onChange }: SourceShapingEditorProps) {
+export function SourceShapingEditor({
+  input,
+  schemaFields,
+  argNames,
+  onChange,
+}: SourceShapingEditorProps) {
   const { t } = useTranslation();
   const fieldsListId = useId();
   const valuesListId = useId();
@@ -27,6 +32,7 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
   // interim names — the record is rebuilt on every emit.
   const [rows, setRows] = useState<[string, string][]>(() => Object.entries(input.filter ?? {}));
   const filterKey = JSON.stringify(input.filter ?? {});
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `filterKey` (JSON de input.filter) remplace input.filter pour ne resynchroniser que sur un changement de contenu, pas de référence ; input.ref/input.name forcent la resynchro au changement de source
   useEffect(() => {
     setRows((prev) => {
       const next = Object.entries(input.filter ?? {});
@@ -37,7 +43,6 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
     });
     // Re-sync whenever the external filter changes (undo/redo, version-guard
     // revert, source picked) — never trust stale local rows.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input.ref, input.name, filterKey]);
 
   const emit = (next: [string, string][]) => {
@@ -102,7 +107,9 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
       </button>
 
       <div className="flex items-center gap-1.5">
-        <span className="font-mono text-[10px] text-[var(--text-faint)]">{t("menuProperties.sortLabel")}:</span>
+        <span className="font-mono text-[10px] text-[var(--text-faint)]">
+          {t("menuProperties.sortLabel")}:
+        </span>
         <Input
           data-testid="sort-by"
           value={input.sort?.by ?? ""}
@@ -110,7 +117,10 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
           placeholder={t("menuProperties.sortNone")}
           onChange={(e) =>
             onChange({
-              sort: e.target.value === "" ? undefined : { by: e.target.value, direction: input.sort?.direction ?? "asc" },
+              sort:
+                e.target.value === ""
+                  ? undefined
+                  : { by: e.target.value, direction: input.sort?.direction ?? "asc" },
             })
           }
           className="h-7 w-24! shrink-0 px-2 py-0 font-mono text-xs"
@@ -121,7 +131,9 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
           disabled={!input.sort?.by}
           onChange={(e) =>
             input.sort?.by
-              ? onChange({ sort: { by: input.sort.by, direction: e.target.value as "asc" | "desc" } })
+              ? onChange({
+                  sort: { by: input.sort.by, direction: e.target.value as "asc" | "desc" },
+                })
               : undefined
           }
           className="h-7 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-xs text-[var(--text)] disabled:opacity-40"
@@ -129,13 +141,17 @@ export function SourceShapingEditor({ input, schemaFields, argNames, onChange }:
           <option value="asc">{t("menuProperties.sortAsc")}</option>
           <option value="desc">{t("menuProperties.sortDesc")}</option>
         </select>
-        <span className="ml-2 font-mono text-[10px] text-[var(--text-faint)]">{t("menuProperties.limitLabel")}:</span>
+        <span className="ml-2 font-mono text-[10px] text-[var(--text-faint)]">
+          {t("menuProperties.limitLabel")}:
+        </span>
         <Input
           data-testid="limit-input"
           type="number"
           min={1}
           value={input.limit ?? ""}
-          onChange={(e) => onChange({ limit: e.target.value === "" ? undefined : Number(e.target.value) })}
+          onChange={(e) =>
+            onChange({ limit: e.target.value === "" ? undefined : Number(e.target.value) })
+          }
           className="h-7 w-16! shrink-0 px-2 py-0 font-mono text-xs"
         />
       </div>

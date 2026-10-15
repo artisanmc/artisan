@@ -10,7 +10,6 @@ function makeFontAsset(overrides: Partial<Asset> = {}): Asset {
   return {
     id: "font-1",
     projectId: "p1",
-    serverKeyId: "sk1",
     type: "font",
     name: "fancy",
     width: 0,
@@ -35,7 +34,6 @@ function makeGlyphAsset(overrides: Partial<Asset> = {}): Asset {
   return {
     id: "glyph-1",
     projectId: "p1",
-    serverKeyId: "sk1",
     type: "glyph",
     name: "icon",
     width: 16,

@@ -15,12 +15,17 @@ interface FieldProps {
 
 function FieldRouter(p: FieldProps) {
   switch (p.schema.type) {
-    case "string":  return <StringField {...p} />;
+    case "string":
+      return <StringField {...p} />;
     case "number":
-    case "integer": return <NumberField {...p} />;
-    case "boolean": return <BooleanField {...p} />;
-    case "object":  return <ObjectField {...p} schema={p.schema as ObjectSchema} />;
-    case "array":   return <ArrayField {...p} schema={p.schema as ArraySchema} />;
+    case "integer":
+      return <NumberField {...p} />;
+    case "boolean":
+      return <BooleanField {...p} />;
+    case "object":
+      return <ObjectField {...p} schema={p.schema as ObjectSchema} />;
+    case "array":
+      return <ArrayField {...p} schema={p.schema as ArraySchema} />;
   }
 }
 
@@ -44,7 +49,11 @@ function StringField({ schema, value, onChange, widgets, fieldId }: FieldProps) 
           onChange={(e) => onChange(e.target.value)}
           className="rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-1"
         >
-          {s.enum.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+          {s.enum.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
         </select>
       </label>
     );
@@ -140,6 +149,7 @@ function ArrayField({ schema, value, onChange, widgets }: FieldProps & { schema:
     <div className="flex flex-col gap-2 rounded border border-[var(--border-soft)] p-2">
       {schema.title && <h3 className="text-sm font-semibold">{schema.title}</h3>}
       {arr.map((item, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: items are raw JSON values with no stable id; the field is position-addressed (edits write next[i])
         <div key={i} className="flex items-start gap-2">
           <FieldRouter
             schema={schema.items}
