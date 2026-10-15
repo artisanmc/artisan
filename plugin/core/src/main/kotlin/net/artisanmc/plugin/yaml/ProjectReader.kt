@@ -54,7 +54,7 @@ class ProjectReader(
      * in [readProject] knows no kind by name; a registered kind without a reader
      * here is left on disk for the module that owns it.
      */
-    private val coreReaders: Map<String, (File, String, ReadContext) -> Any> = mapOf(
+    private val coreReaders: Map<String, (File, String, ReadContext) -> BundleDocument> = mapOf(
         DocumentKinds.MENU.kind to { f, menuId, ctx ->
             val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
             requireSchema(f, menuYaml.schema, *DocumentKinds.MENU.schemaVersions.toTypedArray())
@@ -204,7 +204,7 @@ class ProjectReader(
         // Document — e.g. a stale-format file mid-migration — logs + skips
         // instead of failing the whole reload and the plugin enable.
         val ctx = ReadContext(projectId, manifest, langMaps, templates)
-        val documents: Map<String, List<Any>> = DocumentKinds.all().mapNotNull { kind ->
+        val documents: Map<String, List<BundleDocument>> = DocumentKinds.all().mapNotNull { kind ->
             val reader = coreReaders[kind.kind] ?: return@mapNotNull null
             kind.kind to documentIds(projectDir, kind.dir, manifest.files[kind.dir].orEmpty()).mapNotNull { docId ->
                 val f = File(projectDir, "${kind.dir}/$docId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
