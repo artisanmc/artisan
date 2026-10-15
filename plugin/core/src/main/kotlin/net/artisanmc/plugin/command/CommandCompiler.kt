@@ -14,9 +14,8 @@ object CommandCompiler {
         // Canonical wire: keyed steps (a step or a list); a string is the old DSL.
         // A flat list of `{type:…}` actions is the pre-DSL legacy wire.
         val legacy       = yaml.legacyActions
-        val steps        = if (legacy.isNotEmpty()) emptyList()
+        val steps        = if (legacy.isNotEmpty()) legacy.map { ActionParser.parse(it) }
                            else ActionChainCompiler.compile(yaml.handler, I18nAddress.command(yaml.id))
-        val actions      = legacy.map { ActionParser.parse(it) }
         val fallback     = ActionChainCompiler.compile(yaml.fallback)
         val cooldown     = yaml.cooldown?.let { cy -> Cooldown(cy.id, cy.duration, cy.scope, cy.message) }
         val argDefs      = ArgDefParser.parseAll(yaml.arguments)
@@ -27,7 +26,7 @@ object CommandCompiler {
             permission  = yaml.permission,
             description = yaml.description ?: "",
             argDefs     = argDefs,
-            handler     = ClickHandler(requirements, actions, fallback, cooldown, steps),
+            handler     = ClickHandler(requirements, fallback, cooldown, steps),
         )
     }.getOrElse { e ->
         logger?.warning("Failed to compile command '${yaml.name}': ${e.message}")

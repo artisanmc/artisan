@@ -47,6 +47,8 @@ export function actionTypeLabel(type: Action["type"]): string {
       return "close_dlg";
     case "run_actions":
       return "run";
+    case "module":
+      return "module";
   }
 }
 

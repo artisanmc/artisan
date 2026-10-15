@@ -60,6 +60,7 @@ sources jar and your IDE, not at runtime); `@Sunset` is kept at runtime.
 | `actions` | `ModuleActionsApi` | `@Beta` | 1.4.0 |
 | `models` | `ModelRegistry` | `@Beta` | 1.5.0 |
 | `screens` | `EditorScreenRegistry` | `@Beta` | 1.6.0 |
+| `actionRegistry` | `ActionRegistry` | `@Beta` | 2.0.0 |
 | `database` | `DatabaseApi` | `@Beta` | 1.7.0 |
 | `menus` | `MenuApi` | `@Beta` | 1.8.0 |
 | `scheduler` | `SchedulerApi` | `@Beta` | 1.8.0 |
@@ -117,6 +118,11 @@ Guide: [Menus](/wiki/developers/menus/).
 | [`PlaceholderResolver`][PlaceholderRegistry] | `@Beta` | 1.8.0 | `resolve(player: Player?, key): String?` |
 | [`ModuleActionsApi`][ModuleActionsApi] | `@Beta` | 1.4.0 | `execute(player, actions, args = {}, projectId = null)` — runs Action DSL on the player's thread; `projectId` since 1.6.0 |
 | [`ItemStackApi`][ItemStackApi] | `@Beta` | 1.4.0 | `serialize(stack): String`, `describe(stack): Map<String, Any>` |
+| [`ActionRegistry`][ActionRegistry] | `@Beta` | 2.0.0 | `register(decl)`, `unregister(name)`, `find(name)`, `has(name)`, `names()`, `declarations()`, `registered()` — every chain action, Artisan's own included, dispatches here; a module's actions are removed with it |
+| [`ActionDeclaration`][ActionDeclaration] | `@Beta` | 2.0.0 | `(name, args: List<ModelField>, primary?, handler)`; `normalize(wire)`, `bind(wire)` (defaults added), `canonical(args)`, `toWire()`. Names `ns:name`; the scalar wire form (`- quests:start: intro`) binds `primary` |
+| [`ActionHandler`][ActionHandler] | `@Beta` | 2.0.0 | `execute(ctx: ActionContext, args: Map<String, Object>, runtime: ActionRuntime): ActionContext` — return `ctx`, or `ctx.withArgs(...)` to bind values for the rest of the chain |
+| [`ActionContext`][ActionContext], [`ActionRuntime`][ActionRuntime] | `@Beta` | 2.0.0 | `getPlayer()`, `getArgs()`, `getLang()`, `getProjectId()`, `withArgs(args)`; `text(ctx, ltext)`, `run(ctx, chain)`, `warn(message)` |
+| [`ModelField`][ModelField], [`ModelFieldType`][ModelFieldType] | `@Beta` | 2.0.0 | `ModelField(name, type[, required])` + `withDefault/withLabel/withHelp`; `ModelFieldType.string()/number()/integer()/bool()/ltext()/…/enumOf(values)/documentRef(kind)` — what the editor's form shows for the action's arguments |
 
 ## Scheduling
 
@@ -206,6 +212,13 @@ project. The JSON Schemas live in the repository under
 [CommandDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/CommandDeclaration.java
 [ModuleActionsApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModuleActionsApi.java
 [ItemStackApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ItemStackApi.java
+[ActionRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionRegistry.java
+[ActionDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionDeclaration.java
+[ActionHandler]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionHandler.java
+[ActionContext]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionContext.java
+[ActionRuntime]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionRuntime.java
+[ModelField]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModelField.java
+[ModelFieldType]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModelFieldType.java
 [ProjectContentApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ProjectContentApi.java
 [ProjectRootRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ProjectRootRegistry.java
 [SchemaRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/schemas/SchemaRegistry.java

@@ -57,6 +57,8 @@ class SyncedMenuProvider(
     private val declaredModelsReport: () -> List<Map<String, Any?>> = { emptyList() },
     /** Module-declared Config screens, reported at Presence (ADR module-config-screens). */
     private val editorScreensReport: () -> List<Map<String, Any?>> = { emptyList() },
+    /** Registered actions, core and modules' (`{name, args, primary?, module_id?}`), reported at Presence. */
+    private val declaredActionsReport: () -> List<Map<String, Any?>> = { emptyList() },
     /** Fetchers touch the Bukkit API: they run on the thread that owns the state they read. */
     private val scheduler: Scheduler = Scheduler.Direct,
     private val menuWindows: net.artisanmc.plugin.render.MenuWindows? = null,
@@ -238,6 +240,7 @@ class SyncedMenuProvider(
                 dataSources       = dataSourcesReport,
                 declaredModels    = declaredModelsReport,
                 editorScreens     = editorScreensReport,
+                declaredActions   = declaredActionsReport,
                 serverConfig      = { serverConfig?.report() },
                 onMessage         = ::handleMessage,
                 logger            = logger,
@@ -409,6 +412,7 @@ class SyncedMenuProvider(
             "data_sources" to dataSourcesReport(),
             "declared_models" to declaredModelsReport(),
             "editor_screens" to editorScreensReport(),
+            "declared_actions" to declaredActionsReport(),
         ))
     }
 

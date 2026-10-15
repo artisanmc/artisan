@@ -351,6 +351,36 @@ api.commands.register(CommandDeclaration(
 - **Testabilité** : chaque module peut être testé isolément en mockant le registry.
 - **Compatibilité plugins tiers (V2+)** : un plugin tiers peut s'enregistrer dans le même registry et devenir une data source / command disponible à tous les modules.
 
+### 4.4 Actions (ADR `extensible-document-kinds`, R1 — API 2.0.0)
+
+Une **action** est un verbe d'une chaîne (`click`, `steps` d'une commande, bouton de dialog) : `- name`,
+`- name: valeur`, `- name: {args}` (ADR `structured-action-wire`). Toute action, celles d'Artisan comprises
+(`open_menu`, `give_item`…), passe par `api.getActionRegistry()` : le step du moteur est un nom et une
+valeur, le registre nomme le handler, la déclaration lie la valeur aux arguments déclarés (défauts
+compris), le handler s'exécute. Un nom que personne ne déclare est ignoré avec un avertissement.
+
+**Déclaré par le module qui owns** (dans `onEnable`, retiré avec le module) :
+
+```java
+api.getActionRegistry().register(new ActionDeclaration(
+    "quests:start",
+    List.of(
+        new ModelField("quest", ModelFieldType.documentRef("quest"), true),
+        new ModelField("silent", ModelFieldType.bool()).withDefault(false)),
+    "quest",                                   // `- quests:start: intro` lie `quest`
+    (ctx, args, runtime) -> {
+        quests.start(ctx.getPlayer(), (String) args.get("quest"), Boolean.TRUE.equals(args.get("silent")));
+        return ctx;                            // ou ctx.withArgs(Map.of("quest_started", ...)) pour la suite de la chaîne
+    }));
+```
+
+`ActionRuntime` prête au handler ce que le moteur sait faire : `text(ctx, ltext)` (langue du joueur,
+`{i18n:key}`, placeholders, PlaceholderAPI), `run(ctx, chaîne)` (un argument `actions`), `warn`.
+Les arguments sont des `ModelField` typés (`ModelFieldType`, dont `document_ref(kind)`) : l'éditeur en
+rend le formulaire et les propose dans le sélecteur de step dès que le serveur les a rapportés
+(`declared_actions` à la Presence, `GET …/actions`). Les actions core sont déclarées de la même façon
+(`CoreActions` dans `core`, handlers dans `paper`), verrouillées sur `docs/schema/menu/v1/schema.json`.
+
 ## 5. Module bootstrap : content bundles
 
 Chaque module non-trivial **ship un bundle de contenu par défaut** qui sert de bootstrap quand l'admin installe le module pour la première fois. Ce bundle n'est PAS juste un menu — c'est un set complet de **toutes les ressources** dont le module a besoin pour fonctionner out-of-the-box.

@@ -83,19 +83,26 @@ private fun suffixed(prefix: String, leaf: String, index: Int): String =
     if (index == 0) "$prefix.$leaf" else "$prefix.${leaf}_$index"
 
 private fun stamp(step: Step, prefix: String, c: Counters): Step = when (step) {
-    is Step.ActionStep -> Step.ActionStep(stampAction(step.action, prefix, c))
+    is Step.ActionStep -> stampAction(step, prefix, c)
     is Step.IfStep -> Step.IfStep(
         cases = step.cases.map { case -> case.copy(steps = case.steps.map { stamp(it, prefix, c) }) },
         elseSteps = step.elseSteps.map { stamp(it, prefix, c) },
     )
 }
 
-private fun stampAction(action: Action, prefix: String, c: Counters): Action = when (action) {
-    is Action.SendMessage -> action.copy(i18n = suffixed(prefix, "message", c.message++))
-    is Action.Broadcast -> action.copy(i18n = suffixed(prefix, "message", c.message++))
-    is Action.ShowTitle -> action.copy(
-        i18nTitle = suffixed(prefix, "show_title", c.title++),
-        i18nSubtitle = action.subtitle?.let { suffixed(prefix, "show_subtitle", c.subtitle++) },
-    )
-    else -> action
+/**
+ * The legacy DSL's addressing table: only the DSL (read-only since ADR
+ * `structured-action-wire`) addresses action text by position; the keyed wire is
+ * field-local. The three addressed actions are therefore fixed here, by wire name,
+ * and the addresses land on the step keyed by argument name.
+ */
+private fun stampAction(step: Step.ActionStep, prefix: String, c: Counters): Step.ActionStep = when (step.name) {
+    "send_message", "broadcast" -> step.copy(i18n = mapOf("text" to suffixed(prefix, "message", c.message++)))
+    "show_title" -> {
+        val hasSubtitle = (step.value as? Map<*, *>)?.get("subtitle") != null
+        val addresses = linkedMapOf("title" to suffixed(prefix, "show_title", c.title++))
+        if (hasSubtitle) addresses["subtitle"] = suffixed(prefix, "show_subtitle", c.subtitle++)
+        step.copy(i18n = addresses)
+    }
+    else -> step
 }

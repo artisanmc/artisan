@@ -24,8 +24,11 @@ import type {
   ElementId,
   I18nKey,
   MenuId,
+  ModelField,
   ProjectId,
 } from "@/domain/types";
+import { canonicalModuleValue, normalizeModuleArgs } from "@/lib/actions/moduleActions";
+import { useServerActionsStore } from "@/state/serverActionsStore";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { UNALLOCATED_LTEXT_KEY } from "@/features/flow/defaults";
@@ -141,7 +144,198 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
       return <div className="text-[11px] text-[var(--text-faint)]">Ferme le dialogue actuel.</div>;
     case "run_actions":
       return <RunActionsEditor action={action} onChange={onChange} />;
+    case "module":
+      return <ModuleActionEditor action={action} onChange={onChange} />;
   }
+}
+
+/**
+ * A module's action (ADR `extensible-document-kinds`, R1): its form is rendered from the
+ * declaration the connected server reported (`declared_actions`), argument by argument;
+ * without a declaration the wire value is edited as JSON, so nothing is lost.
+ */
+function ModuleActionEditor({
+  action,
+  onChange,
+}: {
+  action: Extract<Action, { type: "module" }>;
+  onChange: (a: Action) => void;
+}) {
+  const { t } = useTranslation();
+  const decl = useServerActionsStore((s) => s.actions.find((a) => a.name === action.name));
+  if (!decl) {
+    return (
+      <div>
+        <FieldLabel>{t("actionEditor.moduleValueLabel")}</FieldLabel>
+        <JsonValueInput
+          value={action.value}
+          onChange={(value) => onChange({ type: "module", name: action.name, value })}
+          ariaLabel={action.name}
+        />
+        <p className="mt-1 text-[10px] text-[var(--text-faint)]">
+          {t("actionEditor.moduleUnknown")}
+        </p>
+      </div>
+    );
+  }
+  const args = normalizeModuleArgs(decl, action.value);
+  const setArg = (name: string, value: unknown) =>
+    onChange({
+      type: "module",
+      name: action.name,
+      value: canonicalModuleValue(decl, { ...args, [name]: value }),
+    });
+  if (decl.args.length === 0) {
+    return <div className="text-[11px] text-[var(--text-faint)]">{decl.name}</div>;
+  }
+  return (
+    <div className="space-y-2">
+      {decl.args.map((arg) => (
+        <div key={arg.name}>
+          <FieldLabel>
+            {arg.label ?? arg.name}
+            {arg.required ? " *" : ""}
+          </FieldLabel>
+          <ModuleArgInput
+            field={arg}
+            value={args[arg.name]}
+            onChange={(v) => setArg(arg.name, v)}
+          />
+          {arg.help ? (
+            <p className="mt-1 text-[10px] text-[var(--text-faint)]">{arg.help}</p>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** One declared argument: scalars get a typed input, structured kinds a JSON field. */
+function ModuleArgInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: ModelField;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const type = field.type;
+  switch (type.kind) {
+    case "string":
+    case "document_ref":
+    case "minimessage":
+    case "minimessage_multiline":
+    case "ltext":
+      if (typeof value === "string" || value == null) {
+        return (
+          <Input
+            className="h-7 w-full font-mono text-[12px]"
+            value={typeof value === "string" ? value : ""}
+            onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value)}
+            aria-label={field.name}
+          />
+        );
+      }
+      // A language map or another structured text: edited as is.
+      return <JsonValueInput value={value} onChange={onChange} ariaLabel={field.name} />;
+    case "number":
+    case "integer":
+      return (
+        <Input
+          type="number"
+          className="h-7 w-32 font-mono text-[12px]"
+          value={typeof value === "number" ? value : ""}
+          onChange={(e) => {
+            const n =
+              type.kind === "integer"
+                ? Number.parseInt(e.target.value, 10)
+                : Number(e.target.value);
+            onChange(e.target.value === "" || Number.isNaN(n) ? undefined : n);
+          }}
+          aria-label={field.name}
+        />
+      );
+    case "boolean":
+      return (
+        <input
+          type="checkbox"
+          checked={value === true}
+          onChange={(e) => onChange(e.target.checked)}
+          aria-label={field.name}
+        />
+      );
+    case "enum":
+      return (
+        <select
+          className="input h-7 w-full text-[12px]"
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value)}
+          aria-label={field.name}
+        >
+          <option value="">—</option>
+          {type.values.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+      );
+    default:
+      return <JsonValueInput value={value} onChange={onChange} ariaLabel={field.name} />;
+  }
+}
+
+/** A JSON-edited value: the draft is parsed on blur, an invalid draft changes nothing. */
+function JsonValueInput({
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+  ariaLabel: string;
+}) {
+  const { t } = useTranslation();
+  const printed = value === undefined ? "" : JSON.stringify(value, null, 2);
+  const [draft, setDraft] = useState(printed);
+  const [edited, setEdited] = useState(false);
+  const [invalid, setInvalid] = useState(false);
+  const shown = edited ? draft : printed;
+  const commit = () => {
+    setEdited(false);
+    if (draft.trim() === "") {
+      setInvalid(false);
+      onChange(undefined);
+      return;
+    }
+    try {
+      onChange(JSON.parse(draft));
+      setInvalid(false);
+    } catch {
+      setInvalid(true);
+    }
+  };
+  return (
+    <div>
+      <textarea
+        className="input min-h-16 w-full font-mono text-[11px]"
+        value={shown}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setEdited(true);
+        }}
+        onBlur={commit}
+        aria-label={ariaLabel}
+        aria-invalid={invalid}
+      />
+      {invalid ? (
+        <p className="mt-1 text-[10px] text-[var(--danger)]">
+          {t("actionEditor.moduleValueInvalid")}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function RunActionsEditor({

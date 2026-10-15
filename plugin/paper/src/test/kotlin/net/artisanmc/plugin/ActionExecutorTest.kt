@@ -57,8 +57,8 @@ class ActionExecutorTest {
         val p = player()
         val handler = ClickHandler(
             requirements = emptyList(),
-            actions = listOf(Action.SendMessage("hi")),
             fallback = emptyList(),
+            steps = listOf(Step.ActionStep("send_message", "hi")),
         )
         executor().handle(handler, ctx(p))
         // No exception = actions path taken
@@ -68,8 +68,8 @@ class ActionExecutorTest {
         val p = player()
         val handler = ClickHandler(
             requirements = listOf(Condition.HasPermission("never.granted")),
-            actions  = listOf(Action.SendMessage("<green>Success")),
-            fallback = listOf(Step.ActionStep(Action.SendMessage("<red>No permission"))),
+            fallback = listOf(Step.ActionStep("send_message", "<red>No permission")),
+            steps    = listOf(Step.ActionStep("send_message", "<green>Success")),
         )
         executor().handle(handler, ctx(p))
         // No exception = fallback taken
@@ -82,8 +82,8 @@ class ActionExecutorTest {
         val exec = ActionExecutor(pluginInstance, stubProvider, sessions, deps, cooldowns2, eval2)
         val handler = ClickHandler(
             requirements = emptyList(),
-            actions  = listOf(Action.SendMessage("ok")),
             fallback = emptyList(),
+            steps  = listOf(Step.ActionStep("send_message", "ok")),
             cooldown = Cooldown("cd_set_test", 3600L),
         )
         assertFalse(cooldowns2.isOnCooldown("cd_set_test", p.uniqueId, "player"))
@@ -98,8 +98,8 @@ class ActionExecutorTest {
         val exec = ActionExecutor(pluginInstance, stubProvider, sessions, deps, cooldowns2, eval2)
         val handler = ClickHandler(
             requirements = emptyList(),
-            actions  = listOf(Action.SendMessage("ok")),
             fallback = emptyList(),
+            steps  = listOf(Step.ActionStep("send_message", "ok")),
             cooldown = Cooldown("test_cd", 3600L),
         )
         exec.handle(handler, ctx(p))
@@ -121,7 +121,7 @@ class ActionExecutorTest {
     @Test fun `OpenDialog delegates to menuProvider with merged context`() {
         val p = player()
         val e = executor()
-        val action = Action.OpenDialog("d_confirm", context = mapOf("tab" to "shop"))
+        val action = Step.ActionStep("open_dialog", mapOf("dialog_id" to "d_confirm", "context" to mapOf("tab" to "shop")))
         e.execute(listOf(action), ctx(p).copy(args = mapOf("existing" to "val")))
         assertEquals("d_confirm", lastOpenedDialogId)
     }
@@ -135,15 +135,15 @@ class ActionExecutorTest {
         // Whole-token values pass the RAW value (type-preserving); mixed
         // templates interpolate to strings.
         val row = mapOf("id" to "diamond_sword", "name" to "Épée", "final_price" to 80)
-        val action = Action.OpenDialog(
-            "confirm_purchase",
-            context = mapOf(
+        val action = Step.ActionStep("open_dialog", mapOf(
+            "dialog_id" to "confirm_purchase",
+            "context" to mapOf(
                 "item_id" to "{item.id}",
                 "item_name" to "{item.name}",
                 "item_price" to "{item.final_price}",
                 "item_label" to "Item {item.name}",
             ),
-        )
+        ))
         e.execute(listOf(action), ctx(p).copy(args = mapOf("item" to row)))
         assertEquals("confirm_purchase", lastOpenedDialogId)
         val args = lastDialogCtx!!.args
@@ -159,7 +159,7 @@ class ActionExecutorTest {
         val row = mapOf("id" to "weapons", "name" to "Armes")
         // `context: { cat: "{cat}" }` — the target menu then uses {cat.name}
         // in its title and {cat.id} in filters, no per-field re-plumbing.
-        val action = Action.OpenMenu("shop_category", context = mapOf("cat" to "{cat}"))
+        val action = Step.ActionStep("open_menu", mapOf("menu_id" to "shop_category", "context" to mapOf("cat" to "{cat}")))
         e.execute(listOf(action), ctx(p).copy(args = mapOf("cat" to row)))
         assertEquals("shop_category", lastOpenedMenuId)
         assertEquals(row, lastMenuCtx!!.args["cat"])
@@ -169,10 +169,10 @@ class ActionExecutorTest {
         val p = player()
         val e = executor()
         val row = mapOf("id" to "weapons", "name" to "Armes")
-        val action = Action.OpenMenu(
-            "shop_category",
-            context = mapOf("category_id" to "{cat.id}", "category_name" to "{cat.name}"),
-        )
+        val action = Step.ActionStep("open_menu", mapOf(
+            "menu_id" to "shop_category",
+            "context" to mapOf("category_id" to "{cat.id}", "category_name" to "{cat.name}"),
+        ))
         e.execute(listOf(action), ctx(p).copy(args = mapOf("cat" to row)))
         assertEquals("shop_category", lastOpenedMenuId)
         assertEquals("weapons", lastMenuCtx!!.args["category_id"])
@@ -183,7 +183,7 @@ class ActionExecutorTest {
         val p = player()
         lastOpenedDialogId = null
         val e = executor()
-        val action = Action.OpenDialog("d_form", context = mapOf("preset" to "x"), clearContext = true)
+        val action = Step.ActionStep("open_dialog", mapOf("dialog_id" to "d_form", "context" to mapOf("preset" to "x"), "clear_context" to true))
         e.execute(listOf(action), ctx(p).copy(args = mapOf("old" to "gone")))
         assertEquals("d_form", lastOpenedDialogId)
     }
@@ -192,18 +192,18 @@ class ActionExecutorTest {
         val p = player()
         val e = executor()
         // MockBukkit may not support player.closeDialog() — runCatching prevents crash
-        runCatching { e.execute(listOf(Action.CloseDialog), ctx(p)) }
+        runCatching { e.execute(listOf(Step.ActionStep("close_dialog")), ctx(p)) }
     }
 
     @Test fun `executeOne show_title sends Adventure title to player`() {
         val p = player()
-        val action = Action.ShowTitle(
-            title    = "<gold>Welcome",
-            subtitle = "<gray>traveler",
-            fadeIn   = 5,
-            stay     = 40,
-            fadeOut  = 15,
-        )
+        val action = Step.ActionStep("show_title", mapOf(
+            "title" to "<gold>Welcome",
+            "subtitle" to "<gray>traveler",
+            "fade_in" to 5,
+            "stay" to 40,
+            "fade_out" to 15,
+        ))
         // No exception — MockBukkit's player accepts Adventure showTitle calls.
         executor().execute(listOf(action), ctx(p))
     }
@@ -212,28 +212,28 @@ class ActionExecutorTest {
         val p = player()
         val langMap = mapOf("k_title" to "<gold>Hello", "k_sub" to "<gray>world")
         val context = ExecutionContext(p, lang = "en", langMap = langMap)
-        val action = Action.ShowTitle(
-            title    = "{i18n:k_title}",
-            subtitle = "{i18n:k_sub}",
-        )
+        val action = Step.ActionStep("show_title", mapOf(
+            "title" to "{i18n:k_title}",
+            "subtitle" to "{i18n:k_sub}",
+        ))
         executor().execute(listOf(action), context)
         // Smoke test: no exception thrown by resolveText/MiniMessage on i18n refs.
     }
 
     @Test fun `executeOne show_title with null subtitle does not throw`() {
         val p = player()
-        executor().execute(listOf(Action.ShowTitle(title = "<red>x")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("show_title", "<red>x")), ctx(p))
     }
 
     // canonical step-tree execution (kind: action / if)
 
-    private fun give(material: String) = Step.ActionStep(Action.GiveItem(material, 1))
+    private fun give(material: String) = Step.ActionStep("give_item", material)
 
     private fun ifStep(conditions: List<Condition>, then: List<Step>, els: List<Step>, joins: List<String> = emptyList()) =
         Step.IfStep(cases = listOf(IfCase(conditions, joins, then)), elseSteps = els)
 
     private fun handlerWithSteps(vararg steps: Step) = ClickHandler(
-        requirements = emptyList(), actions = emptyList(), fallback = emptyList(), steps = steps.toList(),
+        requirements = emptyList(), fallback = emptyList(), steps = steps.toList(),
     )
 
     @Test fun `handle executes the matching if-case steps`() {
@@ -313,11 +313,10 @@ class ActionExecutorTest {
         assertTrue(p.inventory.contains(org.bukkit.Material.APPLE))
     }
 
-    @Test fun `step tree takes precedence over legacy flat actions`() {
+    @Test fun `handle runs the step tree through the registry`() {
         val p = player()
         val handler = ClickHandler(
             requirements = emptyList(),
-            actions = listOf(Action.GiveItem("STONE", 1)),
             fallback = emptyList(),
             steps = listOf(give("DIAMOND")),
         )
@@ -326,12 +325,17 @@ class ActionExecutorTest {
         assertFalse(p.inventory.contains(org.bukkit.Material.STONE))
     }
 
+    @Test fun `an unknown action name is skipped and the chain goes on`() {
+        val p = player()
+        executor().execute(listOf(Step.ActionStep("quests:start", "intro"), give("DIAMOND")), ctx(p))
+        assertTrue(p.inventory.contains(org.bukkit.Material.DIAMOND))
+    }
+
     @Test fun `legacy requirements gate still applies before steps`() {
         val p = player()
         val handler = ClickHandler(
             requirements = listOf(Condition.HasPermission("never.granted")),
-            actions = emptyList(),
-            fallback = listOf(Step.ActionStep(Action.GiveItem("STONE", 1))),
+            fallback = listOf(Step.ActionStep("give_item", "STONE")),
             steps = listOf(give("DIAMOND")),
         )
         executor().handle(handler, ctx(p))
@@ -348,7 +352,7 @@ class ActionExecutorTest {
     @Test fun `set_arg re-renders the current menu with the updated arg`() {
         val p = player()
         openSession(p, "shop", args = mapOf("category" to "all"))
-        executor().execute(listOf(Action.SetArg("category", "tools")), ExecutionContext(p, args = mapOf("category" to "all")))
+        executor().execute(listOf(Step.ActionStep("set_arg", mapOf("arg" to "category", "value" to "tools"))), ExecutionContext(p, args = mapOf("category" to "all")))
         assertEquals("shop", lastOpenedMenuId)
         assertEquals("tools", lastMenuCtx?.args?.get("category"))
     }
@@ -358,7 +362,7 @@ class ActionExecutorTest {
         val fetched = listOf(mapOf("key" to "KICK_MEMBER", "granted" to false))
         openSession(p)
         executor().execute(
-            listOf(Action.SetArg("refresh", "1")),
+            listOf(Step.ActionStep("set_arg", mapOf("arg" to "refresh", "value" to "1"))),
             ExecutionContext(p, args = mapOf("rank" to "admin", "perms" to fetched), sourceArgs = mapOf("perms" to fetched)),
         )
         assertEquals("admin", lastMenuCtx?.args?.get("rank"))
@@ -369,7 +373,7 @@ class ActionExecutorTest {
         val p = player()
         openSession(p)
         executor().execute(
-            listOf(Action.SetArg("picked", "{candidate}")),
+            listOf(Step.ActionStep("set_arg", mapOf("arg" to "picked", "value" to "{candidate}"))),
             ExecutionContext(p, args = mapOf("candidate" to "iron")),
         )
         assertEquals("iron", lastMenuCtx?.args?.get("picked"))
@@ -377,7 +381,7 @@ class ActionExecutorTest {
 
     @Test fun `set_arg without an open menu does not re-render`() {
         val p = player()
-        executor().execute(listOf(Action.SetArg("x", "1")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("set_arg", mapOf("arg" to "x", "value" to "1"))), ctx(p))
         assertNull(lastOpenedMenuId)
     }
 
@@ -385,7 +389,7 @@ class ActionExecutorTest {
         val p = player()
         openSession(p)
         executor().execute(
-            listOf(Action.SetArgCycleNext("sort", "price,name,level")),
+            listOf(Step.ActionStep("set_arg_cycle_next", mapOf("arg" to "sort", "list" to "price,name,level"))),
             ExecutionContext(p, args = mapOf("sort" to "price")),
         )
         assertEquals("name", lastMenuCtx?.args?.get("sort"))
@@ -395,7 +399,7 @@ class ActionExecutorTest {
         val p = player()
         openSession(p)
         executor().execute(
-            listOf(Action.SetArgCycleNext("sort", "price,name,level")),
+            listOf(Step.ActionStep("set_arg_cycle_next", mapOf("arg" to "sort", "list" to "price,name,level"))),
             ExecutionContext(p, args = mapOf("sort" to "level")),
         )
         assertEquals("price", lastMenuCtx?.args?.get("sort"))
@@ -404,7 +408,7 @@ class ActionExecutorTest {
     @Test fun `set_arg_cycle_next starts at the first value when unset`() {
         val p = player()
         openSession(p)
-        executor().execute(listOf(Action.SetArgCycleNext("sort", "price,name,level")), ctx(p))
+        executor().execute(listOf(Step.ActionStep("set_arg_cycle_next", mapOf("arg" to "sort", "list" to "price,name,level"))), ctx(p))
         assertEquals("price", lastMenuCtx?.args?.get("sort"))
     }
 
@@ -422,7 +426,7 @@ class ActionExecutorTest {
         val p = player()
         openSession(p)
         executor().execute(
-            listOf(Action.SetArgCyclePrev("sort", "price,name,level")),
+            listOf(Step.ActionStep("set_arg_cycle_prev", mapOf("arg" to "sort", "list" to "price,name,level"))),
             ExecutionContext(p, args = mapOf("sort" to "price")),
         )
         assertEquals("level", lastMenuCtx?.args?.get("sort"))
@@ -431,7 +435,7 @@ class ActionExecutorTest {
     @Test fun `open_menu resets pagination state for the target menu`() {
         val p = player()
         val ctx = ExecutionContext(p, pagination = mapOf("grid" to 2), pageInfo = mapOf("grid" to PageInfo(2, 3)))
-        executor().execute(listOf(Action.OpenMenu("other")), ctx)
+        executor().execute(listOf(Step.ActionStep("open_menu", "other")), ctx)
         assertEquals("other", lastOpenedMenuId)
         assertTrue(lastMenuCtx?.pagination?.isEmpty() == true)
         assertTrue(lastMenuCtx?.pageInfo?.isEmpty() == true)
@@ -441,7 +445,7 @@ class ActionExecutorTest {
         val p = player()
         sessions.set(p, MenuSession("shop", ExecutionContext(p), emptyMap()))
         val ctx = ExecutionContext(p, pageInfo = mapOf("grid" to PageInfo(0, 3)))
-        executor().execute(listOf(Action.PaginationNext("grid")), ctx)
+        executor().execute(listOf(Step.ActionStep("pagination_next", "grid")), ctx)
         assertEquals("shop", lastOpenedMenuId)
         assertEquals(1, lastMenuCtx?.pagination?.get("grid"))
     }
@@ -450,7 +454,7 @@ class ActionExecutorTest {
         val p = player()
         sessions.set(p, MenuSession("shop", ExecutionContext(p), emptyMap()))
         val ctx = ExecutionContext(p, pagination = mapOf("grid" to 2), pageInfo = mapOf("grid" to PageInfo(2, 3)))
-        executor().execute(listOf(Action.PaginationNext("grid")), ctx)
+        executor().execute(listOf(Step.ActionStep("pagination_next", "grid")), ctx)
         assertNull(lastOpenedMenuId)
     }
 
@@ -462,7 +466,7 @@ class ActionExecutorTest {
             pagination = mapOf("grid" to 1, "side" to 1),
             pageInfo = mapOf("grid" to PageInfo(1, 3), "side" to PageInfo(1, 2)),
         )
-        executor().execute(listOf(Action.PaginationPrev(null)), ctx)
+        executor().execute(listOf(Step.ActionStep("pagination_prev")), ctx)
         assertEquals(0, lastMenuCtx?.pagination?.get("grid"))
         assertEquals(0, lastMenuCtx?.pagination?.get("side"))
     }
@@ -472,8 +476,8 @@ class ActionExecutorTest {
         openSession(p)
         executor().executeSteps(
             listOf(
-                Step.ActionStep(Action.SetArg("picked", "yes")),
-                Step.ActionStep(Action.OpenDialog("confirm")),
+                Step.ActionStep("set_arg", mapOf("arg" to "picked", "value" to "yes")),
+                Step.ActionStep("open_dialog", "confirm"),
             ),
             ctx(p),
         )
