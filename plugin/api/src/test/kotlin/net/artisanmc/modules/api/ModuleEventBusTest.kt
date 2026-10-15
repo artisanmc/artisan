@@ -10,7 +10,7 @@ class ModuleEventBusTest {
         val received = mutableListOf<String>()
         bus.subscribe(DataReloadEvent::class.java) { received.add((it as DataReloadEvent).dataSourceRef) }
 
-        bus.publish(DataReloadEvent(dataSourceRef = "shop:items"))
+        bus.publish(DataReloadEvent("shop:items"))
 
         assertEquals(listOf("shop:items"), received)
     }
@@ -21,7 +21,7 @@ class ModuleEventBusTest {
         val received = mutableListOf<String>()
         bus.subscribe(DataReloadEvent::class.java) { received.add((it as DataReloadEvent).dataSourceRef) }
 
-        bus.publish(ConfigReloadEvent(moduleId = "shop"))
+        bus.publish(ConfigReloadEvent("shop"))
 
         assertTrue(received.isEmpty())
     }

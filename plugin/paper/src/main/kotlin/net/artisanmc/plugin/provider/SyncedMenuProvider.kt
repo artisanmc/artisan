@@ -167,7 +167,7 @@ class SyncedMenuProvider(
 
     val minecraftVersion: String get() = copyMinecraftVersion
 
-    /** Module-message escape hatch (api.messages) — fire-and-forget over the WS. */
+    /** Module-message escape hatch (editor_permissions) — fire-and-forget over the WS. */
     fun sendModuleMessage(payload: Map<String, Any>) = send(payload)
 
     /** The hub serves packs at its public address; a leaf downloads them through the address it joined. */

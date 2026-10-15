@@ -15,14 +15,14 @@ You write the fetcher; the editor and the menu runtime do the rest.
 ```kotlin
 api.dataSources.register(
     DataSourceDeclaration(
-        ref = "homes:list",
-        fetcher = { player, params ->
+        "homes:list",
+        { player, params ->
             if (player == null) throw PlayerRequiredException("homes are per player")
             homeCache.of(player.uniqueId).map { home ->
                 mapOf("id" to home.name, "world" to home.world, "x" to home.x, "z" to home.z)
             }
         },
-        schema = listOf(
+        listOf(
             DataSourceField("id", FieldKind.STRING, "Home name"),
             DataSourceField("world", FieldKind.STRING),
             DataSourceField("x", FieldKind.NUMBER),
@@ -41,12 +41,10 @@ api.getDataSources().register(new DataSourceDeclaration(
         },
         List.of(
                 new DataSourceField("id", FieldKind.STRING, "Home name"),
-                new DataSourceField("world", FieldKind.STRING, null),
-                new DataSourceField("x", FieldKind.NUMBER, null),
-                new DataSourceField("z", FieldKind.NUMBER, null)),
-        null,               // schemaHint — @Sunset, always null
-        Stability.DYNAMIC,  // stability
-        null));             // keyField
+                new DataSourceField("world", FieldKind.STRING),
+                new DataSourceField("x", FieldKind.NUMBER),
+                new DataSourceField("z", FieldKind.NUMBER))));
+// Static sources take two more arguments: new DataSourceDeclaration(ref, fetcher, schema, Stability.STATIC, "id")
 ```
 
 Since API 1.8.0 the optional parameters can be left out from Java too:
@@ -64,7 +62,6 @@ anywhere else works, but the source is listed as unattributed.
 | `ref` | — | Globally unique `namespace:id`, lowercase (`boutique:items`). Use your module id as namespace. A second registration throws `DuplicateDataSourceException`; `unregister(ref)` (Since 1.8.0) frees it |
 | `fetcher` | — | `DataFetcher`: `(Player?, Map<String, Any?>) -> List<Map<String, Any?>>` |
 | `schema` | empty | Declared row fields — powers the editor's field pickers, filter autocomplete and schema table |
-| `schemaHint` | `null` | `@Sunset` (removed in 2.0.0) — use `schema` |
 | `stability` | `DYNAMIC` | Whether the set of rows is knowable at design time — see [Static or dynamic](#static-or-dynamic) |
 | `keyField` | `null` | The field identifying each row; required when `stability = STATIC` |
 

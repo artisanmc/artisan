@@ -11,8 +11,14 @@ Everything in `net.artisanmc.modules.api` (artifact
 
 **Since** is the API version a member appeared in; compile against the lowest
 version that has everything you use ([Versions](/wiki/developers/setup/#versions-and-compatibility)).
-Sources (with KDoc) are
+Sources (with Javadoc) are
 published next to the jar; the links below go to the repository.
+
+The API is Java since **2.0.0**: a property listed below is the getter `getX()`
+(`getId()`, `getDataSources()`, `getRef()`; a Kotlin caller reads it as `x`), a
+Kotlin implementor overrides the getter, and declarations are built with the
+constructors named here. Removed in 2.0.0: `ArtisanAPI.messages` /
+`ModuleMessagesApi`, `DataSourceDeclaration.schemaHint`.
 
 ## Stability annotations
 
@@ -43,7 +49,7 @@ sources jar and your IDE, not at runtime); `@Sunset` is kept at runtime.
 | `dataSources` | `DataSourceRegistry` | `@Stable` | 1.0.0 |
 | `commands` | `CommandRegistry` | `@Stable` | 1.0.0 |
 | `events` | `ModuleEventBus` | `@Stable` | 1.0.0 |
-| `schemas` | `SchemaRegistry<MutableMap<String, Any?>>` | `@Stable` | 1.0.0 |
+| `schemas` | `SchemaRegistry<Map<String, Object>>` | `@Stable` | 1.0.0 |
 | `modules` | `ModuleRegistry` | `@Stable` | 1.1.0 |
 | `coreVersion` | `String` — the Artisan **plugin** version | `@Stable` | 1.1.0 |
 | `apiVersion` | `String` — the API version | `@Stable` | 1.8.0 |
@@ -51,7 +57,6 @@ sources jar and your IDE, not at runtime); `@Sunset` is kept at runtime.
 | `project` | `ProjectContentApi` | `@Stable` | 1.2.0 |
 | `projectRoots` | `ProjectRootRegistry` | `@Stable` | 1.5.0 |
 | `items` | `ItemStackApi` | `@Beta` | 1.4.0 |
-| `messages` | `ModuleMessagesApi` | `@Beta`, `@Sunset` (1.8.0) | 1.4.0 |
 | `actions` | `ModuleActionsApi` | `@Beta` | 1.4.0 |
 | `models` | `ModelRegistry` | `@Beta` | 1.5.0 |
 | `screens` | `EditorScreenRegistry` | `@Beta` | 1.6.0 |
@@ -68,7 +73,7 @@ Guide: [Data sources](/wiki/developers/data-sources/).
 |---|---|---|---|
 | [`DataSourceRegistry`][DataSourceRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `unregister(ref)` (1.8.0), `fetch(ref, player?, params)`, `has(ref)`, `refs()`, `declarations()` (1.2.0), `registered()` (1.3.0) |
 | [`DataSourceDeclaration`][DataSourceDeclaration] | `@Stable` | 1.0.0 | `ref`, `fetcher` (1.3.0, type 1.5.0), `schema` (1.3.0), `stability` (1.4.0), `keyField` (1.4.0), `schemaHint` (`@Sunset`, removed in 2.0.0); Java overloads (1.8.0) |
-| [`DataFetcher`][Callbacks] | `@Stable` | 1.5.0 | `fetch(player: Player?, params): List<Map<String, Any?>>` |
+| [`DataFetcher`][DataFetcher] | `@Stable` | 1.5.0 | `fetch(player: Player?, params): List<Map<String, Any?>>` |
 | [`DataSourceField`][DataSourceDeclaration] | `@Stable` | 1.3.0 | `name`, `type: FieldKind`, `description?` |
 | [`FieldKind`][FieldKind] | `@Stable` | 1.3.0 | `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`, `ITEM` (Java enum) |
 | [`Stability`][Stability] | `@Stable` | 1.4.0 | `STATIC`, `DYNAMIC` (Java enum) |
@@ -89,7 +94,7 @@ Guide: [Commands](/wiki/developers/commands/).
 |---|---|---|---|
 | [`CommandRegistry`][CommandRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `unregister(name)` (1.8.0), `dispatch(name, player, args)`, `has(name)`, `names()` |
 | [`CommandDeclaration`][CommandDeclaration] | `@Stable` | 1.0.0 | `name`, `handler: CommandHandler` |
-| [`CommandHandler`][Callbacks] | `@Stable` | 1.5.0 | `handle(player: Player, args: Map<String, Any?>)` — `args = {argv: List<String>, raw: String}` from menus; `argv` honours double quotes |
+| [`CommandHandler`][CommandHandler] | `@Stable` | 1.5.0 | `handle(player: Player, args: Map<String, Any?>)` — `args = {argv: List<String>, raw: String}` from menus; `argv` honours double quotes |
 | `UnknownCommandException`, `DuplicateCommandException` | `@Stable` | 1.0.0 | Unknown name on `dispatch`; name registered twice |
 
 Since 1.2.0, `run_command "<ns:name> …" as player` actions dispatch to this
@@ -105,14 +110,13 @@ Guide: [Menus](/wiki/developers/menus/).
 | [`MenuRef`][MenuApi] | `@Beta` | 1.8.0 | `projectId?`, `menuId`, `parse(ref)`; `toString()` = `project:menu` |
 | [`MenuOpenListener`, `MenuClickListener`, `MenuCloseListener`][MenuApi] | `@Beta` | 1.8.0 | `onOpen(event)`, `onClick(event)`, `onClose(event)` |
 | [`MenuSubscription`][MenuApi] | `@Beta` | 1.8.0 | `cancel()` |
-| [`MenuOpenEvent`][MenuEvents] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `args` |
-| [`MenuClickEvent`][MenuEvents] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `slot`, `click: ClickType`, `hasActions` |
-| [`MenuCloseEvent`][MenuEvents] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`: `menu`, `reason: InventoryCloseEvent.Reason` |
+| [`MenuOpenEvent`][MenuOpenEvent] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `args` |
+| [`MenuClickEvent`][MenuClickEvent] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `slot`, `click: ClickType`, `hasActions()` |
+| [`MenuCloseEvent`][MenuCloseEvent] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`: `menu`, `reason: InventoryCloseEvent.Reason` |
 | [`PlaceholderRegistry`][PlaceholderRegistry] | `@Beta` | 1.8.0 | `register(namespace, resolver[, exposeToPapi])`, `unregister(namespace)`, `namespaces()`, `resolve(player, text)`, `NOOP` |
 | [`PlaceholderResolver`][PlaceholderRegistry] | `@Beta` | 1.8.0 | `resolve(player: Player?, key): String?` |
 | [`ModuleActionsApi`][ModuleActionsApi] | `@Beta` | 1.4.0 | `execute(player, actions, args = {}, projectId = null)` — runs Action DSL on the player's thread; `projectId` since 1.6.0 |
 | [`ItemStackApi`][ItemStackApi] | `@Beta` | 1.4.0 | `serialize(stack): String`, `describe(stack): Map<String, Any>` |
-| [`ModuleMessagesApi`][ModuleMessagesApi] | `@Beta`, `@Sunset` (1.8.0, removed in 2.0.0) | 1.4.0 | `send(type, payload)` — has had no receiver since the editor moved into the plugin; do not use |
 
 ## Scheduling
 
@@ -133,7 +137,7 @@ Guide: [Modules](/wiki/developers/modules/).
 | [`ProjectRootRegistry`][ProjectRootRegistry] | `@Stable` | 1.5.0 | `register(projectId, dir)`, `register(projectId, dir, moduleId)` (1.6.0), `NOOP`; the reload it triggers runs on the next tick since 1.8.0 |
 | [`SchemaRegistry<T>`][SchemaRegistry] | `@Stable` | 1.0.0 | `register(migration)`, `loadToCurrent(data, currentVersion, versionOf)`, `has(from)` |
 | [`SchemaMigration<T>`][SchemaMigration] | `@Stable` | 1.0.0 | `from`, `to`, `migrate(data)` — pure, idempotent, write-once |
-| [`SchemaVersionReader<T>`][Callbacks] | `@Stable` | 1.5.0 | `versionOf(document): String` |
+| [`SchemaVersionReader<T>`][SchemaVersionReader] | `@Stable` | 1.5.0 | `versionOf(document): String` |
 | `UnsupportedSchemaVersionException`, `CircularMigrationException` | `@Stable` | 1.0.0 | No migration from a version; migration loop |
 | `DuplicateModuleException` | `@Stable` | 1.1.0 | Module id registered twice |
 
@@ -173,7 +177,7 @@ Guide: [Events & reloads](/wiki/developers/events/).
 | [`ModuleEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | Marker interface; open to add-on events since 1.8.0 (sealed before) |
 | [`ConfigReloadEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | `moduleId` — published by Artisan (`"menus"`) after every content reload |
 | [`DataReloadEvent`][ModuleEventBus] | `@Stable` | 1.0.0 | `dataSourceRef` — between add-ons only: Artisan neither publishes nor reads it |
-| [`ModuleEventHandler`][Callbacks] | `@Stable` | 1.5.0 | `onEvent(event: ModuleEvent)` |
+| [`ModuleEventHandler`][ModuleEventHandler] | `@Stable` | 1.5.0 | `onEvent(event: ModuleEvent)` |
 
 The menu Bukkit events (`MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent`) are
 listed under [Menus and actions](#menus-and-actions).
@@ -186,30 +190,34 @@ files under `data/`. Artisan rejects unsupported versions when it reads a
 project. The JSON Schemas live in the repository under
 [`docs/schema/`](https://github.com/artisanmc/artisan/tree/main/docs/schema).
 
-[ArtisanAPI]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ArtisanAPI.kt
-[ArtisanModule]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ArtisanModule.kt
-[ModuleRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleRegistry.kt
-[SemVer]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/SemVer.kt
-[Callbacks]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/Callbacks.kt
-[DataSourceRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/DataSourceRegistry.kt
-[DataSourceDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/DataSourceDeclaration.kt
+[ArtisanAPI]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ArtisanAPI.java
+[ArtisanModule]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ArtisanModule.java
+[ModuleRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModuleRegistry.java
+[SemVer]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/SemVer.java
+[DataFetcher]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DataFetcher.java
+[CommandHandler]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/CommandHandler.java
+[SchemaVersionReader]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/SchemaVersionReader.java
+[ModuleEventHandler]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModuleEventHandler.java
+[DataSourceRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DataSourceRegistry.java
+[DataSourceDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DataSourceDeclaration.java
 [FieldKind]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/FieldKind.java
 [Stability]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/Stability.java
-[CommandRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/CommandRegistry.kt
-[CommandDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/CommandDeclaration.kt
-[ModuleActionsApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleActionsApi.kt
-[ItemStackApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ItemStackApi.kt
-[ModuleMessagesApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleMessagesApi.kt
-[ProjectContentApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ProjectContentApi.kt
-[ProjectRootRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ProjectRootRegistry.kt
-[SchemaRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/schemas/SchemaRegistry.kt
-[SchemaMigration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/schemas/SchemaMigration.kt
-[ModelRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModelRegistry.kt
-[EditorScreenRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/EditorScreenRegistry.kt
-[DatabaseApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/DatabaseApi.kt
+[CommandRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/CommandRegistry.java
+[CommandDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/CommandDeclaration.java
+[ModuleActionsApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModuleActionsApi.java
+[ItemStackApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ItemStackApi.java
+[ProjectContentApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ProjectContentApi.java
+[ProjectRootRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ProjectRootRegistry.java
+[SchemaRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/schemas/SchemaRegistry.java
+[SchemaMigration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/schemas/SchemaMigration.java
+[ModelRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModelRegistry.java
+[EditorScreenRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/EditorScreenRegistry.java
+[DatabaseApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DatabaseApi.java
 [DatabaseDialect]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DatabaseDialect.java
-[ModuleEventBus]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/ModuleEventBus.kt
-[MenuApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/MenuApi.kt
-[MenuEvents]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/MenuEvents.kt
-[PlaceholderRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/PlaceholderRegistry.kt
-[SchedulerApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/kotlin/net/artisanmc/modules/api/SchedulerApi.kt
+[ModuleEventBus]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModuleEventBus.java
+[MenuApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/MenuApi.java
+[MenuOpenEvent]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/MenuOpenEvent.java
+[MenuClickEvent]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/MenuClickEvent.java
+[MenuCloseEvent]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/MenuCloseEvent.java
+[PlaceholderRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/PlaceholderRegistry.java
+[SchedulerApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/SchedulerApi.java

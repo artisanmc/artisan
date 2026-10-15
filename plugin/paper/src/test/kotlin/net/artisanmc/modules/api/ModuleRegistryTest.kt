@@ -14,8 +14,8 @@ class ModuleRegistryTest {
     @AfterEach fun tearDown() { MockBukkit.unmock() }
 
     private fun module(moduleId: String, declare: (ArtisanAPI) -> Unit = {}) = object : ArtisanModule {
-        override val id = moduleId
-        override val schemaVersion = "$moduleId/v1"
+        override fun getId() = moduleId
+        override fun getSchemaVersion() = "$moduleId/v1"
         var enabled = false
         var disabled = false
         override fun onEnable(api: ArtisanAPI) { enabled = true; declare(api) }
@@ -28,21 +28,22 @@ class ModuleRegistryTest {
     private fun boundRegistry(onChange: () -> Unit = {}): ModuleRegistry {
         val plugin = MockBukkit.load(ArtisanPlugin::class.java)
         val reg = ModuleRegistry()
-        val api = ArtisanAPI(
-            plugin = plugin,
-            dataSources = DataSourceRegistry(),
-            commands = CommandRegistry(),
-            events = ModuleEventBus(),
-            schemas = SchemaRegistry(),
-            modules = reg,
-            coreVersion = "1.0.0",
-            project = object : ProjectContentApi {
+        val api = ArtisanAPI.builder(
+            plugin,
+            DataSourceRegistry(),
+            CommandRegistry(),
+            ModuleEventBus(),
+            SchemaRegistry(),
+            reg,
+            "1.0.0",
+            object : ProjectContentApi {
                 override fun projectIds() = emptyList<String>()
                 override fun list(projectId: String, dir: String) = emptyList<String>()
                 override fun read(projectId: String, relPath: String): String? = null
                 override fun hasContent(dir: String) = false
             },
         )
+            .build()
         reg.bind(api, onChange)
         this.api = api
         return reg
