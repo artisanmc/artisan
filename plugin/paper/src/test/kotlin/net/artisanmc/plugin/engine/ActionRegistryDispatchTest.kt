@@ -67,14 +67,14 @@ class ActionRegistryDispatchTest {
         })
         val p = MockBukkit.getMock()!!.addPlayer()
         val end = executor(registry).execute(
-            listOf(Step.ActionStep("quests:start", "intro"), Step.ActionStep("open_menu", "{started}_menu")),
+            listOf(Step.ActionStep("quests:start", "intro"), Step.ActionStep("open_menu", "shop")),
             ExecutionContext(p, projectId = "shop"),
         )
         assertEquals(mapOf("quest" to "intro", "silent" to false), received)
         assertEquals("shop", seenProject)
-        // The rebound context flows to the next action of the chain.
+        // The rebound context flows to the next action of the chain, which still runs.
         assertEquals("intro", end.args["started"])
-        assertEquals("intro_menu", lastOpenedMenuId)
+        assertEquals("shop", lastOpenedMenuId)
     }
 
     @Test fun `a throwing handler is skipped and the chain goes on`() {
