@@ -37,6 +37,8 @@ jobs:
         working-directory: editor
       - run: npx biome lint .
         working-directory: editor
+      - run: npm run check:boundaries
+        working-directory: editor
       # Formatting is enforced on the files a PR touches, so the backlog shrinks without
       # one repository-wide reformat that would conflict with every open branch.
       - if: github.event_name == 'pull_request'
