@@ -178,10 +178,15 @@ function decodeAction(name: string, value: unknown, c: ActionTextCodec): Action 
       return typeof value === "string"
         ? { type: "run_command", command: value, as: "player" }
         : { type: "run_command", command: str(o.command), as: o.as === "console" ? "console" : "player" };
+    // A bare material means one of it (same reading as the plugin's KeyedStepParser).
     case "give_item":
-      return { type: "give_item", material: str(o.material), count: num(o.count) };
+      return typeof value === "string"
+        ? { type: "give_item", material: value, count: 1 }
+        : { type: "give_item", material: str(o.material), count: o.count === undefined ? 1 : num(o.count) };
     case "take_item":
-      return { type: "take_item", material: str(o.material), count: num(o.count) };
+      return typeof value === "string"
+        ? { type: "take_item", material: value, count: 1 }
+        : { type: "take_item", material: str(o.material), count: o.count === undefined ? 1 : num(o.count) };
     case "play_sound":
       return typeof value === "string"
         ? { type: "play_sound", sound: value }
@@ -219,6 +224,8 @@ function decodeAction(name: string, value: unknown, c: ActionTextCodec): Action 
     case "pagination_prev":
       return { type: "paginate", direction: "prev", ...(typeof value === "string" ? { targetElementId: value as ElementId } : {}) };
     case "show_title":
+      // A bare text (string or language map) is the title alone.
+      if (!isRecord(value) || !("title" in value)) return { type: "show_title", title: decodeText(value, c) };
       return {
         type: "show_title",
         title: decodeText(o.title, c),

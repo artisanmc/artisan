@@ -22,7 +22,8 @@ l'algo = mettre à jour les deux côtés **et** régénérer le vecteur.
 
 | Vecteur | Asservi par |
 |---|---|
-| `testdata/action-dsl-conformance.json`, `action-dsl-eval-conformance.json` | `ActionDslConformanceTest`, `LeafEvalConformanceTest` (plugin) + `lib/actionDsl/*.test.ts` (éditeur) |
+| `testdata/action-wire-conformance.json` | `ActionWireConformanceTest` (plugin, `KeyedStepParser`) + `lib/actions/actionWireConformance.test.ts` (éditeur, `structuredSteps.ts`) : le wire structuré keyed (ADR `structured-action-wire`). Chaque cas donne un `wire` (variante acceptée), sa forme `canonical` (ce que l'éditeur écrit) et les `names` des steps de tête ; les deux stacks doivent lire `wire` et `canonical` comme la même chaîne, l'éditeur doit réécrire `canonical`. Les clés d'Action inconnues (Actions de module) y entreront avec le lot qui les implémente. |
+| `testdata/action-dsl-conformance.json`, `action-dsl-eval-conformance.json` | `ActionDslConformanceTest`, `LeafEvalConformanceTest` (plugin) + `lib/actionDsl/*.test.ts` (éditeur) — le DSL legacy, lu mais plus écrit |
 | `testdata/template-conformance.json` | `TemplateConformanceTest` (plugin) + `lib/expr/template/conformance.test.ts` (éditeur) |
 | `testdata/lang-tree-conformance.json` | `LangFlattener` (plugin) + `langTree.ts` (éditeur) |
 | `testdata/lore-wrap-conformance.json` | `LoreWrapConformanceTest` (plugin) + `loreWrap.test.ts` (éditeur) |

@@ -1,6 +1,12 @@
 # Wire d'action structuré — YAML keyed par nom, DSL éliminé
 
-**Status:** proposed (2026-09-30)
+**Status:** accepted (2026-10-15) — proposé le 2026-09-30. Le wire est en production des
+deux côtés : l'éditeur écrit keyed (`features/export/transform.ts`, `lib/actions/structuredSteps.ts`),
+le plugin lit keyed (`engine/KeyedStepParser.kt` via `ActionChainCompiler`), le schéma
+`menu/v1` `$defs.Action` décrit la map à une clé. Verrou cross-stack :
+`testdata/action-wire-conformance.json`. Restent à faire, hors chemin critique : le retrait du
+codec DSL (décision 5 — il ne sert plus qu'à lire les fichiers d'avant) et le retrait des adresses
+d'action (décision 7, `assignI18nAddresses` survit pour le mode inline des anciens fichiers).
 
 ## Contexte
 
