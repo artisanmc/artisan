@@ -4,7 +4,7 @@ import { FONT_DIR } from "@/lib/pack/fontOnDisk";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { API_URL } from "@/lib/api/client";
 type BinaryTree = Record<string, { hash: string; size: number }>;
 
 /**

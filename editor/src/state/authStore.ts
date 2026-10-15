@@ -1,6 +1,7 @@
 import type { Account } from "@/domain/types";
 import type { AuthUserDto } from "@/lib/api/auth";
-import { AuthUnreachableError, logout as apiLogout, getMe } from "@/lib/api/auth";
+import { logout as apiLogout, getMe } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 import { create } from "zustand";
 import { useProjectCacheStore } from "./projectCacheStore";
 import { useProjectDraftStore } from "./projectDraftStore";
@@ -14,8 +15,8 @@ interface AuthState {
   isLoading: boolean;
   sessionStatus: SessionStatus;
   error: string | null;
-  hydrate: (apiUrl: string) => Promise<void>;
-  logout: (apiUrl: string) => Promise<void>;
+  hydrate: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 /** Delays between two `/me` calls while the hub is unreachable, then plateau. */
@@ -55,7 +56,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
   sessionStatus: "unknown",
   error: null,
-  async hydrate(apiUrl) {
+  async hydrate() {
     const generation = ++hydrateGeneration;
     set({ isLoading: true });
     // An unreachable server (restart, network cut) does not mean "signed out":
@@ -64,10 +65,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     for (let attempt = 0; ; attempt++) {
       if (generation !== hydrateGeneration) return;
       try {
-        user = await getMe({ apiUrl });
+        user = await getMe();
         break;
       } catch (e) {
-        if (!(e instanceof AuthUnreachableError)) throw e;
+        if (!(e instanceof ApiError)) throw e;
         // An already known user stays known: the app can serve them.
         set((s) => ({
           error: "auth_unreachable",
@@ -108,8 +109,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     }
   },
-  async logout(apiUrl) {
-    await apiLogout({ apiUrl });
+  async logout() {
+    await apiLogout();
     set({
       currentUser: null,
       sessionStatus: "signed-out",

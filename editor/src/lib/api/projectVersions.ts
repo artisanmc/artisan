@@ -1,6 +1,4 @@
-import { projectFetch } from "@/lib/projectFetch";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { ApiError, apiFetch, apiRequest, errorOf } from "./client";
 
 /** A Version of a server Project: a Snapshot the server loaded. */
 export interface ProjectVersionSummary {
@@ -24,37 +22,51 @@ export interface ProjectVersionContent {
   binaries: { path: string; hash: string; size: number }[];
 }
 
-const url = (projectId: string, suffix = "") =>
-  `${API_URL}/api/v1/projects/${encodeURIComponent(projectId)}/versions${suffix}`;
+const path = (projectId: string, suffix = "") =>
+  `/api/v1/projects/${encodeURIComponent(projectId)}/versions${suffix}`;
 
+/** Rejects with an `ApiError` (`versions_unavailable` when the hub refused). */
 export async function listProjectVersions(projectId: string): Promise<ProjectVersionSummary[]> {
-  const res = await projectFetch(projectId, url(projectId), { credentials: "include" });
-  if (!res.ok) throw new Error("versions_unavailable");
-  return ((await res.json()) as { versions: ProjectVersionSummary[] }).versions;
+  try {
+    return (await apiFetch<{ versions: ProjectVersionSummary[] }>(path(projectId))).versions;
+  } catch (error) {
+    throw unavailable(error, "versions_unavailable");
+  }
 }
 
 export async function readProjectVersion(
   projectId: string,
   versionId: string,
 ): Promise<ProjectVersionContent> {
-  const res = await projectFetch(projectId, url(projectId, `/${encodeURIComponent(versionId)}`), {
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error("version_unavailable");
-  return (await res.json()) as ProjectVersionContent;
+  try {
+    return await apiFetch<ProjectVersionContent>(
+      path(projectId, `/${encodeURIComponent(versionId)}`),
+    );
+  } catch (error) {
+    throw unavailable(error, "version_unavailable");
+  }
 }
 
 /** The bytes of one of a Version's images or fonts, kept by the server. */
 export async function readVersionBinary(
   projectId: string,
   versionId: string,
-  path: string,
+  filePath: string,
 ): Promise<Uint8Array> {
-  const res = await projectFetch(
-    projectId,
-    url(projectId, `/${encodeURIComponent(versionId)}/binary?path=${encodeURIComponent(path)}`),
-    { credentials: "include" },
+  const response = await apiRequest(
+    path(
+      projectId,
+      `/${encodeURIComponent(versionId)}/binary?path=${encodeURIComponent(filePath)}`,
+    ),
   );
-  if (!res.ok) throw new Error("version_unavailable");
-  return new Uint8Array(await res.arrayBuffer());
+  if (!response.ok) throw unavailable(await errorOf(response), "version_unavailable");
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+/** A refusal keeps the route's historical code; a transport failure stays what it is. */
+function unavailable(error: unknown, code: string): ApiError {
+  const failure = ApiError.from(error);
+  return failure.status === 0
+    ? failure
+    : new ApiError(code, failure.status, failure.body, failure.detail);
 }

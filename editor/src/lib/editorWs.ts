@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { API_URL } from "@/lib/api/client";
 const WS_URL = (API_URL || window.location.origin).replace(/^http/, "ws");
 
 export interface EditorWsHandlers {

@@ -1,6 +1,7 @@
 import dispenserTextureUrl from "@/assets/minecraft/dispenser.png";
 import chestTextureUrl from "@/assets/minecraft/generic_54.png";
 import hopperTextureUrl from "@/assets/minecraft/hopper.png";
+import { ApiError, apiFetch, apiRequest } from "@/lib/api/client";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { getServerConfig } from "@/lib/api/serverConfig";
 import { projectClient } from "@/lib/projectClient";
@@ -15,8 +16,6 @@ import {
   containerTextureSource,
   transparentContainersFromMenus,
 } from "./vanillaGui";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 const VANILLA_TEXTURES: Record<GuiContainer, string> = {
   chest: chestTextureUrl,
@@ -125,8 +124,8 @@ function containerTextureRefs(
 }
 
 async function fetchBytes(url: string): Promise<Uint8Array> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("vanilla_texture_failed");
+  const response = await apiRequest(url);
+  if (!response.ok) throw new ApiError("vanilla_texture_failed", response.status);
   return new Uint8Array(await response.arrayBuffer());
 }
 
@@ -135,14 +134,20 @@ export async function uploadResourcePack(
   serverId: string,
   zip: Uint8Array,
 ): Promise<{ hash: string }> {
-  const response = await fetch(`${API_URL}/api/v1/servers/${serverId}/resource-pack`, {
-    method: "PUT",
-    credentials: "include",
-    headers: { "Content-Type": "application/zip" },
-    body: zip as BodyInit,
-  });
-  if (!response.ok) throw new Error(`resource_pack_upload_failed:${response.status}`);
-  return response.json();
+  try {
+    return await apiFetch<{ hash: string }>(`/api/v1/servers/${serverId}/resource-pack`, {
+      method: "PUT",
+      contentType: "application/zip",
+      body: zip as BodyInit,
+    });
+  } catch (error) {
+    const failure = ApiError.from(error);
+    throw new ApiError(
+      `resource_pack_upload_failed:${failure.status}`,
+      failure.status,
+      failure.body,
+    );
+  }
 }
 
 const running = new Map<string, Promise<void>>();
