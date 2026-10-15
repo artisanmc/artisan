@@ -230,9 +230,9 @@ codecs (DSL, `{type}`) émettent des steps keyed. Les actions core sont des sch�
 l'accepte (`document_ref`) et le rend comme un id. Présence : `declared_actions` (hello,
 `modules_changed`, `GET …/actions`) ; l'éditeur propose les actions de module dans le sélecteur de
 step, rend leur formulaire depuis la déclaration et les écrit telles quelles (`{type: "module", name,
-value}`). Dettes assumées : les formulaires des actions core restent écrits à la main (W4) ;
-l'adressage i18n positionnel du DSL legacy reste une table par nom dans `I18nAddresses` ; les textes
-des actions de module ne sont pas encore des sites i18n.
+value}`). Dettes assumées, levées aux lots 4 et 5 : les formulaires des actions core restent écrits à la
+main (W4) ; l'adressage i18n positionnel du DSL legacy reste une table par nom dans
+`I18nAddresses` ; les textes des actions de module ne sont pas encore des sites i18n.
 
 **Fait (2026-10-15, lot 4 — dettes i18n)** : l'adressage des textes d'action est piloté par le
 schéma de chaque action, des deux côtés, verrouillé par `testdata/i18n-address-conformance.json`
@@ -249,9 +249,27 @@ comme table des actions core ; `domain/actionTextSlots.ts` (`walkStepTextSlots`)
 sites i18n : adoptés en nœuds `LText` à leur adresse quand la déclaration est connue (chargement du
 projet, ou Présence plus tard — `adoptProjectActionTexts`), listés dans le panneau Traductions,
 édités par langue dans le formulaire (`ModuleTextInput`), réécrits en texte field-local à l'export.
-Dette restante : les formulaires des actions core (W4) — l'union typée `Action` de l'éditeur reste
-la cause ; sa suppression (toute action en `{name, value}` rendue depuis la table core) est la
-prochaine étape.
+La dette restante (formulaires des actions core, W4) est levée au lot 5 ci-dessous.
+
+**Fait (2026-10-15, lot 5 — W4, « unification complète » tranchée par Iban)** : l'union typée
+`Action` de l'éditeur est supprimée. Une action du domaine est `{ name, value }` — le nom du wire
+et sa valeur canonique, ses textes en nœuds `LText` aux emplacements `ltext` — core ou module
+sans distinction ; `{type: "module", name, value}` disparaît. Tout lecteur passe par la
+déclaration (`domain/actionArgs.ts` : `normalizeActionArgs`, `canonicalActionValue`,
+`actionArgs`, `actionDocumentRefs`) : le formulaire (`ActionEditor` rend un `DeclaredActionForm`
+depuis `CORE_ACTIONS` ∪ `declared_actions`, un widget par kind d'argument, quelques surcharges
+par `<action>.<arg>` pour le confort — material, son, expression, cible d'itération — et un
+JSON brut pour une action non déclarée), le pseudocode, les slots de texte, et les arêtes de la
+planche, le presse-papiers, le renommage d'un Document et les contextes d'aperçu, qui lisent les
+arguments `document_ref` (R3) au lieu de connaître `open_menu`. Règle canonique écrite par
+l'éditeur (vecteur `action-wire-conformance.json`) : un argument requis est toujours écrit (son
+défaut déclaré le remplit s'il manque — le schéma menu/v1 exige `{material, count}`), un
+argument optionnel absent ou égal à son défaut est omis, le primaire seul s'écrit nu, aucun
+argument → `null` si la déclaration a des arguments, nom nu sinon. Le DSL legacy garde son AST
+typé (`lib/actionDsl/ast.ts`, verrouillé par `action-dsl-conformance.json`) ; `domainSteps.ts` le
+projette vers `{name, value}` et sert aussi à replier la forme typée d'un projet persisté
+(`i18nMigration.ts`). Ajouter une action core au formulaire se fait désormais dans
+`CoreActions.kt` (plus deux libellés i18n) ; une action de module n'a rien à ajouter.
 
 Précision retenue sans débat : un slot de chaîne est un **site** (`{ name, steps, path }`),
 comme `LTextSite`, pas un simple nom — l'extracteur générique d'arêtes a besoin des steps

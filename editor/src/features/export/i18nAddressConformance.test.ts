@@ -188,7 +188,7 @@ describe("i18n address conformance — action texts", () => {
       "commands.give.quests.notify_1.text": { en: "Bye" },
     });
     const first = steps[0];
-    expect(first?.kind === "action" && first.action.type === "module" ? first.action.value : null).toEqual({
+    expect(first?.kind === "action" ? first.action.value : null).toEqual({
       key: "commands.give.quests.notify.text",
     });
   });

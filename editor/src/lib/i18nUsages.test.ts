@@ -143,11 +143,7 @@ describe("findKeyUsages", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: {
-                                type: "show_title",
-                                title: { key: k("lt_st_title") },
-                                subtitle: { key: k("lt_st_sub") },
-                              },
+                              action: { name: "show_title", value: { title: { key: k("lt_st_title") }, subtitle: { key: k("lt_st_sub") } } },
                             },
                           ],
                         },
@@ -209,7 +205,7 @@ describe("findKeyUsages — dialogs", () => {
                 steps: [
                   {
                     kind: "action",
-                    action: { type: "send_message", text: { key: k("lt_d_btn_msg") } },
+                    action: { name: "send_message", value: { key: k("lt_d_btn_msg") } },
                   },
                 ],
               },

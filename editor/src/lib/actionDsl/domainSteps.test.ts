@@ -11,7 +11,7 @@ describe("action DSL ↔ domain steps adapter", () => {
   it("literal text maps to a verbatim LText key", () => {
     const steps = parseToSteps('broadcast "hi {player}"');
     expect(steps).toEqual([
-      { kind: "action", action: { type: "broadcast", text: { key: "hi {player}" } } },
+      { kind: "action", action: { name: "broadcast", value: { key: "hi {player}" } } },
     ]);
     expect(printFromSteps(steps)).toBe('broadcast "hi {player}"');
   });
@@ -19,7 +19,7 @@ describe("action DSL ↔ domain steps adapter", () => {
   it("@key maps to an @-prefixed LText key, reversibly", () => {
     const steps = parseToSteps("broadcast @shop.vip");
     expect(steps).toEqual([
-      { kind: "action", action: { type: "broadcast", text: { key: "@shop.vip" } } },
+      { kind: "action", action: { name: "broadcast", value: { key: "@shop.vip" } } },
     ]);
     expect(printFromSteps(steps)).toBe("broadcast @shop.vip");
   });
@@ -49,8 +49,8 @@ describe("data source actions — explicit i18n keys", () => {
     const dsl = 'send_message @shop.bought\nsend_message "merci !"';
     const steps = parseToSteps(dsl);
     expect(steps).toEqual([
-      { kind: "action", action: { type: "send_message", text: { key: "@shop.bought" } } },
-      { kind: "action", action: { type: "send_message", text: { key: "merci !" } } },
+      { kind: "action", action: { name: "send_message", value: { key: "@shop.bought" } } },
+      { kind: "action", action: { name: "send_message", value: { key: "merci !" } } },
     ]);
     // The literal goes back quoted, the reference unquoted — otherwise the runtime
     // would show "@shop.bought" to the player, or look up a key "merci !".

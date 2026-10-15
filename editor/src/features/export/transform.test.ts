@@ -446,12 +446,9 @@ describe("transform", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: {
-                                type: "send_message",
-                                text: {
+                              action: { name: "send_message", value: {
                                   key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
-                                },
-                              },
+                                } },
                             },
                           ],
                         },
@@ -540,18 +537,11 @@ describe("transform", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: {
-                                type: "show_title",
-                                title: {
+                              action: { name: "show_title", value: { title: {
                                   key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
-                                },
-                                subtitle: {
+                                }, subtitle: {
                                   key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
-                                },
-                                fadeIn: 5,
-                                stay: 40,
-                                fadeOut: 15,
-                              },
+                                }, fade_in: 5, stay: 40, fade_out: 15 } },
                             },
                           ],
                         },
@@ -601,12 +591,9 @@ describe("transform", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: {
-                                type: "show_title",
-                                title: {
+                              action: { name: "show_title", value: {
                                   key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
-                                },
-                              },
+                                } },
                             },
                           ],
                         },
@@ -624,8 +611,8 @@ describe("transform", () => {
     const files = transform(project);
     const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
     const steps = menu.elements[0].click.left;
-    // No subtitle / timings → only the title is carried.
-    expect(steps).toEqual([{ show_title: { title: "Hello" } }]);
+    // No subtitle / timings → only the title is carried, as the bare primary.
+    expect(steps).toEqual([{ show_title: "Hello" }]);
   });
 
   it("serializes open_menu action with snake_case fields", () => {
@@ -653,7 +640,7 @@ describe("transform", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: { type: "open_menu", menuId: targetId, clearContext: true },
+                              action: { name: "open_menu", value: { menu_id: targetId, clear_context: true } },
                             },
                           ],
                         },
@@ -723,14 +710,10 @@ describe("transform", () => {
                       click: {
                         left: {
                           steps: [
-                            { kind: "action", action: { type: "paginate", direction: "next" } },
+                            { kind: "action", action: { name: "pagination_next", value: null } },
                             {
                               kind: "action",
-                              action: {
-                                type: "paginate",
-                                direction: "prev",
-                                targetElementId: elementId("grid"),
-                              },
+                              action: { name: "pagination_prev", value: elementId("grid") },
                             },
                           ],
                         },
@@ -933,7 +916,7 @@ describe("transform — dialogs", () => {
         {
           id: "btn_close",
           label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey },
-          steps: [{ kind: "action", action: { type: "close_dialog" } }],
+          steps: [{ kind: "action", action: { name: "close_dialog", value: null } }],
         },
       ],
     };
@@ -957,7 +940,7 @@ describe("transform — dialogs", () => {
           id: "btn_open",
           label: { key: "dialogs.d_test.buttons.btn_confirm.label" as I18nKey },
           steps: [
-            { kind: "action", action: { type: "open_dialog", dialogId: dialogId("d_other") } },
+            { kind: "action", action: { name: "open_dialog", value: dialogId("d_other") } },
           ],
         },
       ],
@@ -1645,7 +1628,7 @@ describe("projectToCommandV1 / projectToDialogV1", () => {
             projectId: projectId("p_test"),
             name: "heal",
             arguments: [{ name: "n", type: "integer", required: true }],
-            steps: [{ kind: "action", action: { type: "close_menu" } }],
+            steps: [{ kind: "action", action: { name: "close_menu", value: null } }],
           },
         ],
       },
@@ -1673,7 +1656,7 @@ describe("projectToCommandV1 / projectToDialogV1", () => {
               {
                 id: "ok",
                 label: { key: "k_b" as I18nKey },
-                steps: [{ kind: "action", action: { type: "close_dialog" } }],
+                steps: [{ kind: "action", action: { name: "close_dialog", value: null } }],
               },
             ],
           } as any,

@@ -40,7 +40,7 @@ function project(id = "p"): Project {
                 click: {
                   left: {
                     steps: [
-                      { kind: "action", action: { type: "open_menu", menuId: `${id}_${target}` } },
+                      { kind: "action", action: { name: "open_menu", value: `${id}_${target}` } },
                     ],
                   },
                 },
