@@ -121,6 +121,15 @@ class SessionsTest {
         assertNull(Sessions(clock, store = store).find(second.id))
     }
 
+    @Test
+    fun `a session opened before the database is counted when closed`() {
+        val store = MemoryStore()
+        val sessions = Sessions(clock, store = store)
+        signIn(sessions)
+        store.rows.clear()
+        assertEquals(1, sessions.closeAll(player))
+    }
+
     private fun signIn(sessions: Sessions, origin: String = ""): EditorSession {
         val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(player, "Iban", setOf(EditorPermissions.VIEW), origin))
         return assertNotNull(sessions.redeem(link.token))

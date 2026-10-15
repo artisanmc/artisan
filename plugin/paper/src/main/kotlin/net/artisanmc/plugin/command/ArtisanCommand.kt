@@ -11,6 +11,7 @@ import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
+import java.util.UUID
 
 class ArtisanCommand(
     private val plugin: ArtisanPlugin,
@@ -184,12 +185,13 @@ class ArtisanCommand(
     private fun logout(sender: CommandSender, name: String?) {
         val senderLang = lang.playerLang(sender)
         if (name != null && !sender.hasPermission("artisan.admin")) return sender.sendMessage(lang.get("cmd.no_permission", sender))
-        val target = when {
-            name != null -> plugin.server.getPlayerExact(name) ?: plugin.server.getOfflinePlayerIfCached(name)
-            sender is Player -> sender
-            else -> return sender.sendMessage(lang.get("artisan.usage_editor", senderLang))
-        } ?: return sender.sendMessage(lang.get("artisan.editor_unknown_player", senderLang, "player" to name.orEmpty()))
-        val playerName = target.name ?: name.orEmpty()
+        val (targetId, playerName) = when {
+            name.equals(CONSOLE_NAME, ignoreCase = true) -> CONSOLE_ID to CONSOLE_NAME
+            name != null -> (plugin.server.getPlayerExact(name) ?: plugin.server.getOfflinePlayerIfCached(name))
+                ?.let { it.uniqueId to (it.name ?: name) }
+                ?: return sender.sendMessage(lang.get("artisan.editor_unknown_player", senderLang, "player" to name))
+            else -> identity(sender)
+        }
         fun done(count: Int?) = sender.sendMessage(
             if (count == null) lang.get("artisan.editor_hub_offline", senderLang)
             else lang.get("artisan.editor_logged_out", senderLang, "count" to count.toString(), "player" to playerName),
@@ -197,31 +199,36 @@ class ArtisanCommand(
         val cfg = plugin.currentConfig()
         if (!(cfg.web.enabled && cfg.web.leaf)) {
             if (plugin.editor == null) return sender.sendMessage(lang.get("artisan.editor_disabled", senderLang))
-            return done(plugin.editorSessions.closeAll(target.uniqueId))
+            return done(plugin.editorSessions.closeAll(targetId))
         }
         val provider = plugin.menuProvider as? SyncedMenuProvider ?: return done(null)
-        provider.requestEditorLogout(target.uniqueId).whenComplete { reply, _ ->
+        provider.requestEditorLogout(targetId).whenComplete { reply, _ ->
             if (!plugin.isEnabled) return@whenComplete
             plugin.scheduler.global { done(reply?.takeIf { it.path("ok").asBoolean() }?.path("closed")?.asInt()) }
         }
     }
 
-    /** A single-use link: the identity in the editor is the player who asked for it. */
+    /** Who the editor signs in: the player who asked, or the one shared Console identity. */
+    private fun identity(sender: CommandSender): Pair<UUID, String> =
+        if (sender is Player) sender.uniqueId to sender.name else CONSOLE_ID to CONSOLE_NAME
+
+    /** A console has no clickable chat: it gets the address itself. */
+    private fun sendLink(sender: CommandSender, senderLang: String, url: String) =
+        sender.sendMessage(lang.get(if (sender is Player) "artisan.editor_link" else "artisan.editor_link_console", senderLang, "url" to url))
+
+    /** A single-use link for the sender's [identity]. */
     private fun editorLink(sender: CommandSender, senderLang: String, port: Int) {
-        if (sender !is Player) {
-            sender.sendMessage(lang.get("artisan.editor_in_game_only", senderLang))
-            return
-        }
         val permissions = EditorPermissions.ALL.filter(sender::hasPermission).toSet()
         if (EditorPermissions.VIEW !in permissions) {
             sender.sendMessage(lang.get("artisan.editor_no_permission", senderLang))
             return
         }
-        when (val link = plugin.editorSessions.issueLink(sender.uniqueId, sender.name, permissions, plugin.serverUuid)) {
+        val (id, name) = identity(sender)
+        when (val link = plugin.editorSessions.issueLink(id, name, permissions, plugin.serverUuid)) {
             is Sessions.LinkResult.Issued -> {
-                val host = sender.virtualHost?.hostString ?: plugin.server.ip.ifBlank { "localhost" }
+                val host = (sender as? Player)?.virtualHost?.hostString ?: plugin.server.ip.ifBlank { "localhost" }
                 val base = plugin.editorUrl.ifEmpty { "http://$host:$port" }
-                sender.sendMessage(lang.get("artisan.editor_link", senderLang, "url" to "$base/login/${link.token}"))
+                sendLink(sender, senderLang, "$base/login/${link.token}")
             }
             is Sessions.LinkResult.TooSoon ->
                 sender.sendMessage(lang.get("artisan.editor_link_too_soon", senderLang, "seconds" to link.retryAfter.seconds.coerceAtLeast(1).toString()))
@@ -230,10 +237,6 @@ class ArtisanCommand(
 
     /** On a leaf, the hub issues the link, with the permissions this server read for the player. */
     private fun hubLink(sender: CommandSender, senderLang: String) {
-        if (sender !is Player) {
-            sender.sendMessage(lang.get("artisan.editor_in_game_only", senderLang))
-            return
-        }
         val permissions = EditorPermissions.ALL.filter(sender::hasPermission).toSet()
         if (EditorPermissions.VIEW !in permissions) {
             sender.sendMessage(lang.get("artisan.editor_no_permission", senderLang))
@@ -241,12 +244,13 @@ class ArtisanCommand(
         }
         val provider = plugin.menuProvider as? SyncedMenuProvider
             ?: return sender.sendMessage(lang.get("artisan.editor_hub_offline", senderLang))
-        provider.requestEditorLink(sender.uniqueId, sender.name, permissions, sender.virtualHost?.hostString).whenComplete { reply, _ ->
+        val (id, name) = identity(sender)
+        provider.requestEditorLink(id, name, permissions, (sender as? Player)?.virtualHost?.hostString).whenComplete { reply, _ ->
             if (!plugin.isEnabled) return@whenComplete
             plugin.scheduler.global {
                 val message = when {
                     reply == null -> lang.get("artisan.editor_hub_offline", senderLang)
-                    reply.path("ok").asBoolean() -> lang.get("artisan.editor_link", senderLang, "url" to reply.path("url").asText())
+                    reply.path("ok").asBoolean() -> return@global sendLink(sender, senderLang, reply.path("url").asText())
                     reply.path("error").asText() == "too_soon" ->
                         lang.get("artisan.editor_link_too_soon", senderLang, "seconds" to reply.path("retry_after").asText("60"))
                     else -> lang.get("artisan.editor_hub_offline", senderLang)
@@ -256,9 +260,13 @@ class ArtisanCommand(
         }
     }
 
-    private companion object {
+    companion object {
+        /** The editor identity of the console, shared by whoever runs it: one set of drafts, one author name. */
+        val CONSOLE_ID: UUID = UUID(0L, 0L)
+        const val CONSOLE_NAME = "Console"
+
         /** `editor` checks its own rights, finer grained. */
-        val PERMISSIONS = mapOf(
+        private val PERMISSIONS = mapOf(
             "menu" to "artisan.menu",
             "reload" to "artisan.admin",
             "sync" to "artisan.admin",
