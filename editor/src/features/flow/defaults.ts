@@ -70,10 +70,15 @@ export function defaultAction(type: Action["type"], firstMenuId?: MenuId): Actio
  * argument that carries a default or is required starts set, so the chain the
  * editor writes is what the server binds. No argument → the bare name.
  */
-export function defaultModuleAction(decl: DeclaredAction): Action {
+export function defaultModuleAction(decl: DeclaredAction, literalText = false): Action {
   const value: Record<string, unknown> = {};
   for (const arg of decl.args) {
     if (arg.default !== undefined) value[arg.name] = arg.default;
+    // A required text starts as the unallocated LText sentinel, minted by the store
+    // mutator at the slot's address like a `send_message` text; in literal-text mode
+    // (module-data steps) the string itself is the value.
+    else if (arg.required && arg.type.kind === "ltext" && !literalText)
+      value[arg.name] = { key: UNALLOCATED_LTEXT_KEY };
     else if (arg.required) value[arg.name] = defaultValueForModelType(arg.type);
   }
   const keys = Object.keys(value);

@@ -16,8 +16,18 @@ data class ActionSchema(
     val args: List<ModelField> = emptyList(),
     /** The argument a scalar wire value binds; the only argument by default, none when several. */
     val primary: String? = if (args.size == 1) args[0].name else null,
+    /**
+     * Legacy i18n slot of a text argument (argument name → slot), for the positional
+     * addressing of the Action DSL ([assignI18nAddresses]): `send_message.text` and
+     * `broadcast.text` share the `message` slot, `show_title` has `show_title` and
+     * `show_subtitle`. A text argument without a slot is addressed under the action's name.
+     */
+    val i18nSlots: Map<String, String> = emptyMap(),
 ) {
     fun declare(handler: ActionHandler): ActionDeclaration = ActionDeclaration(name, args, primary, handler)
+
+    /** The argument map of a wire value, without defaults (see [ActionDeclaration.normalize]). */
+    fun normalize(wire: Any?): Map<String, Any> = declare(NOOP).normalize(wire)
 
     /** The bound argument map of a wire value, defaults included (see [ActionDeclaration.bind]). */
     fun bind(wire: Any?): Map<String, Any> = declare(NOOP).bind(wire)
@@ -76,8 +86,9 @@ object CoreActions {
     val GIVE_XP = ActionSchema("give_xp", listOf(field("amount", ModelFieldType.integer(), required = true)))
     val GIVE_LEVEL = ActionSchema("give_level", listOf(field("amount", ModelFieldType.integer(), required = true)))
 
-    val SEND_MESSAGE = ActionSchema("send_message", listOf(ltext("text", required = true)))
-    val BROADCAST = ActionSchema("broadcast", listOf(ltext("text", required = true)))
+    private val MESSAGE_SLOT = mapOf("text" to "message")
+    val SEND_MESSAGE = ActionSchema("send_message", listOf(ltext("text", required = true)), i18nSlots = MESSAGE_SLOT)
+    val BROADCAST = ActionSchema("broadcast", listOf(ltext("text", required = true)), i18nSlots = MESSAGE_SLOT)
 
     val PLAY_SOUND = ActionSchema("play_sound", listOf(
         field("sound", ModelFieldType.string(), required = true),
@@ -103,7 +114,7 @@ object CoreActions {
         field("fade_in", ModelFieldType.integer()).withDefault(10),
         field("stay", ModelFieldType.integer()).withDefault(70),
         field("fade_out", ModelFieldType.integer()).withDefault(20),
-    ), primary = "title")
+    ), primary = "title", i18nSlots = mapOf("title" to "show_title", "subtitle" to "show_subtitle"))
 
     val OPEN_DIALOG = ActionSchema("open_dialog", listOf(
         field("dialog_id", ModelFieldType.documentRef("dialog"), required = true),

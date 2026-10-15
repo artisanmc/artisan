@@ -23,10 +23,12 @@ import type {
   DialogId,
   ElementId,
   I18nKey,
+  LText,
   MenuId,
   ModelField,
   ProjectId,
 } from "@/domain/types";
+import { isLTextNode } from "@/domain/actionTextSlots";
 import { canonicalModuleValue, normalizeModuleArgs } from "@/lib/actions/moduleActions";
 import { useServerActionsStore } from "@/state/serverActionsStore";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
@@ -145,7 +147,14 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
     case "run_actions":
       return <RunActionsEditor action={action} onChange={onChange} />;
     case "module":
-      return <ModuleActionEditor action={action} onChange={onChange} />;
+      return (
+        <ModuleActionEditor
+          projectId={projectId}
+          action={action}
+          onChange={onChange}
+          literalText={literalText}
+        />
+      );
   }
 }
 
@@ -155,11 +164,15 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
  * without a declaration the wire value is edited as JSON, so nothing is lost.
  */
 function ModuleActionEditor({
+  projectId,
   action,
   onChange,
+  literalText,
 }: {
+  projectId: ProjectId;
   action: Extract<Action, { type: "module" }>;
   onChange: (a: Action) => void;
+  literalText?: boolean;
 }) {
   const { t } = useTranslation();
   const decl = useServerActionsStore((s) => s.actions.find((a) => a.name === action.name));
@@ -197,9 +210,11 @@ function ModuleActionEditor({
             {arg.required ? " *" : ""}
           </FieldLabel>
           <ModuleArgInput
+            projectId={projectId}
             field={arg}
             value={args[arg.name]}
             onChange={(v) => setArg(arg.name, v)}
+            literalText={literalText}
           />
           {arg.help ? (
             <p className="mt-1 text-[10px] text-[var(--text-faint)]">{arg.help}</p>
@@ -212,15 +227,34 @@ function ModuleActionEditor({
 
 /** One declared argument: scalars get a typed input, structured kinds a JSON field. */
 function ModuleArgInput({
+  projectId,
   field,
   value,
   onChange,
+  literalText,
 }: {
+  projectId: ProjectId;
   field: ModelField;
   value: unknown;
   onChange: (value: unknown) => void;
+  literalText?: boolean;
 }) {
   const type = field.type;
+  switch (type.kind) {
+    case "ltext":
+      // A translated text: an LText node edited like a send_message text (its key stays,
+      // so the other languages survive the edit). An absent text starts as the unallocated
+      // sentinel the store mutator mints at the slot's address. Literal-text mode (module
+      // data) and a wire text not adopted yet are edited as the plain string.
+      if (literalText) break;
+      if (isLTextNode(value)) return <ModuleTextInput projectId={projectId} lt={value} />;
+      if (value == null) {
+        return <AddTextButton onClick={() => onChange({ key: UNALLOCATED_LTEXT_KEY })} />;
+      }
+      break;
+    default:
+      break;
+  }
   switch (type.kind) {
     case "string":
     case "document_ref":
@@ -284,6 +318,41 @@ function ModuleArgInput({
     default:
       return <JsonValueInput value={value} onChange={onChange} ariaLabel={field.name} />;
   }
+}
+
+/** The translated text of a module action's argument, in the active language. */
+function ModuleTextInput({ projectId, lt }: { projectId: ProjectId; lt: LText }) {
+  const { t } = useTranslation();
+  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const edit = useTextEdit(projectId, lt);
+  const placeholderEntries = useActionEntries();
+  return (
+    <div>
+      <p className="mb-1 text-[10px] text-[var(--text-faint)]">
+        {edit.isFallback
+          ? t("actionEditor.textLangFallback", { lang: edit.lang })
+          : t("actionEditor.textLang", { lang: edit.lang })}
+      </p>
+      <RevealField
+        multiline
+        rows={2}
+        placeholder={t("actionEditor.textPlaceholder")}
+        value={edit.value}
+        onChange={(value) => setI18nValue({ projectId, lt, lang: edit.lang, value })}
+        entries={placeholderEntries}
+        facade={<MiniMessageInline source={edit.value} className="font-mono text-xs" />}
+      />
+    </div>
+  );
+}
+
+function AddTextButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button type="button" className="btn btn-ghost h-7 text-[11px]" onClick={onClick}>
+      {t("actionEditor.moduleAddText")}
+    </button>
+  );
 }
 
 /** A JSON-edited value: the draft is parsed on blur, an invalid draft changes nothing. */

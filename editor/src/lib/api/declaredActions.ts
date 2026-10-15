@@ -11,6 +11,12 @@ export interface DeclaredAction {
   args: ModelField[];
   primary: string | null;
   moduleId: string | null;
+  /**
+   * Legacy i18n slot of a text argument (argument name → slot), core actions only: the
+   * positional addressing of the Action DSL counts `send_message`/`broadcast` texts as
+   * `message`, `show_title` as `show_title`/`show_subtitle` (`domain/actionTextSlots.ts`).
+   */
+  i18nSlots?: Record<string, string>;
 }
 
 /** Declared actions of a server. [] on any failure. */

@@ -234,6 +234,25 @@ value}`). Dettes assumées : les formulaires des actions core restent écrits à
 l'adressage i18n positionnel du DSL legacy reste une table par nom dans `I18nAddresses` ; les textes
 des actions de module ne sont pas encore des sites i18n.
 
+**Fait (2026-10-15, lot 4 — dettes i18n)** : l'adressage des textes d'action est piloté par le
+schéma de chaque action, des deux côtés, verrouillé par `testdata/i18n-address-conformance.json`
+(cas `steps` keyed et actions de module avec leurs `declared_actions`) : `ActionSchema.i18nSlots`
+porte le slot legacy d'un argument texte (`send_message`/`broadcast` → `message`, `show_title` →
+`show_title`/`show_subtitle`, compteur par slot), tout autre argument `ltext` est adressé sous le nom
+de l'action (`<prefix>.quests.notify.text`, numéroté par occurrence ; une `list(ltext)` numérote ses
+entrées `_2`, `_3`…), un texte optionnel absent ne consomme rien, une action non déclarée n'a pas de
+site. `assignI18nAddresses(steps, prefix, schemaOf)` ne contient plus aucun nom d'action (le DSL est
+un codec core-only : `CoreActions::schema` par défaut). `testdata/core-actions.json` est généré
+depuis `CoreActions` (`CoreActionsVectorTest`) et **importé** par l'éditeur (`lib/actions/coreActions.ts`)
+comme table des actions core ; `domain/actionTextSlots.ts` (`walkStepTextSlots`) est le miroir
+éditeur de l'adresseur, `visitStepLTexts` en est un pli. Les textes des actions de module sont des
+sites i18n : adoptés en nœuds `LText` à leur adresse quand la déclaration est connue (chargement du
+projet, ou Présence plus tard — `adoptProjectActionTexts`), listés dans le panneau Traductions,
+édités par langue dans le formulaire (`ModuleTextInput`), réécrits en texte field-local à l'export.
+Dette restante : les formulaires des actions core (W4) — l'union typée `Action` de l'éditeur reste
+la cause ; sa suppression (toute action en `{name, value}` rendue depuis la table core) est la
+prochaine étape.
+
 Précision retenue sans débat : un slot de chaîne est un **site** (`{ name, steps, path }`),
 comme `LTextSite`, pas un simple nom — l'extracteur générique d'arêtes a besoin des steps
 et du chemin pour conserver les triggers que la planche affiche.

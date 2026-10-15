@@ -440,6 +440,7 @@ const fr: typeof en = {
       "Revient à l'écran précédent (bouton retour). Sans effet s'il n'y a pas d'historique.",
     moduleValueLabel: "arguments (JSON)",
     moduleUnknown: "Cette action n'est pas déclarée par le serveur connecté : ses arguments s'éditent en JSON brut.",
+    moduleAddText: "Ajouter un texte",
     moduleValueInvalid: "JSON invalide : la valeur n'a pas été modifiée.",
     moduleAction: "Action de module",
     runActionsLabel: "actions à exécuter",

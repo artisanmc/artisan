@@ -3,6 +3,7 @@ import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
 import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
+import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useServerActionsStore } from "@/state/serverActionsStore";
@@ -53,6 +54,15 @@ export function RootLayout() {
     useServerDataSourcesStore.getState().load({ serverId: activeServerId });
     useServerScreensStore.getState().load({ serverId: activeServerId });
     useServerActionsStore.getState().load({ serverId: activeServerId });
+    // Declared actions arriving after a project was read: adopt the texts of the module
+    // actions it holds, so they are i18n sites like a core action's.
+    const unsubscribeActions = useServerActionsStore.subscribe((s, prev) => {
+      if (s.status !== "ready" || prev.status === "ready") return;
+      const { account, adoptActionTexts } = useAccountStore.getState();
+      for (const p of account.projects) {
+        if (p.serverKeyId === activeServerId) adoptActionTexts({ projectId: p.id });
+      }
+    });
 
     let cancelled = false;
     const ws = new EditorWs({
@@ -75,6 +85,7 @@ export function RootLayout() {
 
     return () => {
       cancelled = true;
+      unsubscribeActions();
       ws?.disconnect();
     };
   }, [user, activeServerId]);
