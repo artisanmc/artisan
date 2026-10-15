@@ -1559,8 +1559,6 @@ const fr: typeof en = {
     signIn: "Se connecter",
   },
   auth: {
-    privacy: "Confidentialité",
-    terms: "Conditions",
     logout: "Déconnexion",
   },
   placeholderInput: {
