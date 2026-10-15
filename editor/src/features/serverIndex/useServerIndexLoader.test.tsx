@@ -9,7 +9,11 @@ vi.mock("./serverIndexLoader", () => ({
 import { useServerIndexStore } from "./serverIndexStore";
 import { useServerIndexLoader } from "./useServerIndexLoader";
 
-const project = (id: string) => ({ id, name: id, menus: [], commands: [], dialogs: [] });
+const project = (id: string) => ({
+  id,
+  name: id,
+  documents: { menu: [], command: [], dialog: [] },
+});
 
 beforeEach(() => {
   loadServerProjects.mockReset();

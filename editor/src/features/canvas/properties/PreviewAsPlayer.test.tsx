@@ -42,7 +42,14 @@ describe("preview as player", () => {
     listOnlinePlayers.mockClear();
     useAccountStore.setState({
       account: {
-        projects: [{ id: "p1", menus: [], commands: [], dialogs: [], dataSources: [], i18nKeys: {} }],
+        projects: [
+          {
+            id: "p1",
+            documents: { menu: [], command: [], dialog: [] },
+            dataSources: [],
+            i18nKeys: {},
+          },
+        ],
       },
     } as unknown as ReturnType<typeof useAccountStore.getState>);
   });

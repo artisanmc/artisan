@@ -14,6 +14,7 @@ import { LayerEditForm } from "./LayerEditForm";
 import { LayerListItem } from "./LayerListItem";
 import { VanillaTextureLayer } from "./VanillaTextureLayer";
 import { attachLayerAtCursor } from "./attachLayerAtCursor";
+import { menusOf } from "@/domain/documents";
 
 interface LayersPanelProps {
   imageControl?: ReactNode;
@@ -57,7 +58,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
 
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const menu = project?.menus.find((m) => m.id === menuId);
+  const menu = menusOf(project).find((m) => m.id === menuId);
 
   const addMenuTitleLayer = useAccountStore((s) => s.addMenuTitleLayer);
   const setMenuTitleLayers = useAccountStore((s) => s.setMenuTitleLayers);
@@ -144,7 +145,7 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
       if (geometry) {
         const placement = attachLayerAtCursor(project, geometry, cursor);
         if (placement) {
-          const targetMenu = project.menus.find((m) => m.id === placement.menuId);
+          const targetMenu = menusOf(project).find((m) => m.id === placement.menuId);
           if (targetMenu) {
             const newIndex = targetMenu.title.length;
             const layer = buildLayer(kind, { x: placement.x, y: placement.y });

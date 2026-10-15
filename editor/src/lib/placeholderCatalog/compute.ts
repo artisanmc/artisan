@@ -7,12 +7,8 @@ import {
   SAMPLE_PLAYER_WORLD,
 } from "@/features/canvas/menuPreviewScope";
 import { renderSample, walkPath } from "./sample";
-import type {
-  FieldLocation,
-  PlaceholderEntry,
-  PlaceholderOrigin,
-  PlaceholderType,
-} from "./types";
+import type { FieldLocation, PlaceholderEntry, PlaceholderOrigin, PlaceholderType } from "./types";
+import { commandsOf, menusOf } from "@/domain/documents";
 
 const ORDER: Record<PlaceholderOrigin, number> = {
   context: 0,
@@ -38,7 +34,7 @@ export function compute(
     case "menu":
     case "element":
     case "action": {
-      const menu = project.menus.find((m) => m.id === location.menuId);
+      const menu = menusOf(project).find((m) => m.id === location.menuId);
       if (!menu) return [];
       // Build the preview scope once; thread it through all helpers.
       const scope = buildPreviewScope(menu, project);
@@ -56,13 +52,21 @@ export function compute(
         // Placement binds its alias exactly like an iteration (MenuRenderer).
         const iteration = element?.iterates ?? element?.places;
         if (iteration) {
-          collectIterationLeaves(iteration.source, iteration.alias, project, menu, scope, out, rowSchemas);
+          collectIterationLeaves(
+            iteration.source,
+            iteration.alias,
+            project,
+            menu,
+            scope,
+            out,
+            rowSchemas,
+          );
         }
       }
       return sorted(out);
     }
     case "command": {
-      const command = project.commands.find((c) => c.id === location.commandId);
+      const command = commandsOf(project).find((c) => c.id === location.commandId);
       const out: PlaceholderEntry[] = [];
       const args = command?.arguments ?? [];
       if (!args.some((a) => a.name === "player")) out.push(...builtinPlayerEntries());
@@ -137,7 +141,9 @@ function collectMenuContextInputs(
       });
       if (type === "player") {
         // Player-valued args expose name/uuid/world at runtime.
-        out.push(...playerSubfieldEntries(input.name, sampleFromScope(scope, `${input.name}.name`)));
+        out.push(
+          ...playerSubfieldEntries(input.name, sampleFromScope(scope, `${input.name}.name`)),
+        );
       }
       // Row-model input (`rowOf`): expose the source's fields as subpaths —
       // {cat.name}, {cat.id}… typed from the declared schema.
@@ -260,12 +266,18 @@ function typeOfSourceRef(ref: string, project: Project): FieldType | null {
 
 function fieldTypeToPlaceholderType(t: FieldType): PlaceholderType {
   switch (t.kind) {
-    case "string": return "string";
-    case "integer": return "integer";
-    case "number": return "number";
-    case "boolean": return "boolean";
-    case "list": return "list";
-    case "object": return "object";
+    case "string":
+      return "string";
+    case "integer":
+      return "integer";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "list":
+      return "list";
+    case "object":
+      return "object";
   }
 }
 
@@ -290,7 +302,11 @@ function collectIterationLeaves(
   );
   // Direct-ref sugar: `source: "ns:id"` names the source itself.
   const ref =
-    sourceInput?.kind === "sourceRef" ? sourceInput.ref : sourcePath.includes(":") ? sourcePath : null;
+    sourceInput?.kind === "sourceRef"
+      ? sourceInput.ref
+      : sourcePath.includes(":")
+        ? sourcePath
+        : null;
   if (!ref) return;
   const type = typeOfSourceRef(ref, project);
   if (!type) {
@@ -335,6 +351,9 @@ function iterationSample(
 ): string | null {
   const list = walkPath(scope, sourcePath);
   if (!Array.isArray(list) || list.length === 0) return null;
-  const enriched: Record<string, unknown> = { ...(scope as Record<string, unknown>), [alias]: list[0] };
+  const enriched: Record<string, unknown> = {
+    ...(scope as Record<string, unknown>),
+    [alias]: list[0],
+  };
   return renderSample(walkPath(enriched, fullPath));
 }

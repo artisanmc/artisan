@@ -1,5 +1,6 @@
 import type { LText } from "@/domain/types";
 import { newI18nKey } from "@/lib/i18n";
+import { commandsOf, menusOf } from "@/domain/documents";
 
 /**
  * Walk a legacy project object whose user-facing strings are still plain
@@ -35,7 +36,9 @@ export function migrateProjectToI18n(project: any, fallbackDefaultLang: string):
     return { key };
   };
 
-  for (const menu of project.menus ?? []) {
+  // biome-ignore lint/suspicious/noExplicitAny: legacy menus carry plain-string titles
+  const menus: any[] = menusOf(project);
+  for (const menu of menus) {
     if (typeof menu.title === "string") menu.title = lift(menu.title);
     for (const layer of menu.layers ?? []) {
       for (const el of layer.elements ?? []) {
@@ -57,7 +60,7 @@ export function migrateProjectToI18n(project: any, fallbackDefaultLang: string):
       }
     }
   }
-  for (const cmd of project.commands ?? []) {
+  for (const cmd of commandsOf(project)) {
     migrateStepsI18n(cmd.steps ?? [], lift);
   }
   for (const tpl of project.templates ?? []) {

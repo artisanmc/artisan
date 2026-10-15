@@ -25,9 +25,11 @@ function baseProject(): Record<string, unknown> {
     defaultLang: "fr",
     languages: ["fr", "en"],
     i18nKeys: {},
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     dataModels: [],
     dataSources: [],
     canvasLayout: {},
@@ -337,7 +339,11 @@ describe("schema hints become per-key comments", () => {
         type: {
           kind: "object",
           fields: [
-            { name: "price_display", type: { kind: "string" }, help: "Placeholder disponible : %price%." },
+            {
+              name: "price_display",
+              type: { kind: "string" },
+              help: "Placeholder disponible : %price%.",
+            },
           ],
         },
       },
@@ -361,7 +367,9 @@ describe("schema hints become per-key comments", () => {
   }
 
   it("puts each help line directly above its key, at any depth", () => {
-    const files = transform(projectWith({ whole_shop_discount: 10, placeholders: { price_display: "%price% tokens" } }));
+    const files = transform(
+      projectWith({ whole_shop_discount: 10, placeholders: { price_display: "%price% tokens" } }),
+    );
     const out = files[`${base}/data/shop_settings.yaml`]!;
     const lines = out.split("\n");
     const at = (key: string) => lines.findIndex((l) => l.trimStart().startsWith(key));
@@ -373,7 +381,9 @@ describe("schema hints become per-key comments", () => {
   });
 
   it("states that hand-written comments are overwritten", () => {
-    const out = transform(projectWith({ whole_shop_discount: 10 }))[`${base}/data/shop_settings.yaml`]!;
+    const out = transform(projectWith({ whole_shop_discount: 10 }))[
+      `${base}/data/shop_settings.yaml`
+    ]!;
     expect(out).toMatch(/^# ──/m);
     expect(out.toLowerCase()).toContain("overwritten");
   });

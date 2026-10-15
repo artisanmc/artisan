@@ -1,5 +1,6 @@
 import type { Asset, AssetUsage } from "./asset";
 import type { Menu, Project } from "./types";
+import { menusOf } from "@/domain/documents";
 
 export const ASSET_USAGES: AssetUsage[] = ["button", "menu"];
 
@@ -35,11 +36,13 @@ export function assetUsages(asset: Asset, project?: Project): AssetUsage[] {
       ),
     ];
   if (!project || asset.projectId !== project.id) return [];
-  const inferred = new Set(project.menus.flatMap((menu) => menuUsages(asset, menu)));
+  const inferred = new Set(menusOf(project).flatMap((menu) => menuUsages(asset, menu)));
   return ASSET_USAGES.filter((usage) => inferred.has(usage));
 }
 
 export function assetMenuReferences(asset: Asset, project?: Project): string[] {
   if (!project || asset.projectId !== project.id) return [];
-  return project.menus.filter((menu) => menuUsages(asset, menu).length > 0).map((menu) => menu.id);
+  return menusOf(project)
+    .filter((menu) => menuUsages(asset, menu).length > 0)
+    .map((menu) => menu.id);
 }

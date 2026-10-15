@@ -1,4 +1,6 @@
 import { normalizeCanvasGroups } from "@/domain/canvasGroups";
+import { listDocumentKinds } from "@/domain/documentKinds";
+import { commandsOf, dialogsOf, documentIds, documentsOf, menusOf } from "@/domain/documents";
 import { visitDataSourceLTexts } from "@/domain/i18nSites";
 import { writeAdvanced } from "@/domain/itemAdvanced";
 import type {
@@ -30,6 +32,7 @@ import {
 import { DURATION_DEFAULTS, DURATION_KEYS } from "@/lib/expr/duration";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
+import { documentCodec } from "@/schema/documentCodecs";
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { Document as YamlDocument, stringify } from "yaml";
 
@@ -440,7 +443,7 @@ export function serializeMenuToV1(
 
 /** Serialize every menu in a project to canonical `menu/v1` objects (one per menu). */
 export function projectToMenuV1(project: Project): ({ id: string } & Record<string, unknown>)[] {
-  return project.menus.map((m) => serializeMenuToV1(m, project));
+  return menusOf(project).map((m) => serializeMenuToV1(m, project));
 }
 
 // Command serialization
@@ -471,7 +474,7 @@ export function serializeCommand(cmd: Command, project: Project): Record<string,
 
 /** Serialize every command in a project to canonical command/v1 objects. */
 export function projectToCommandV1(project: Project): Record<string, unknown>[] {
-  return project.commands.map((c) => serializeCommand(c, project));
+  return commandsOf(project).map((c) => serializeCommand(c, project));
 }
 
 // Dialog serialization
@@ -531,7 +534,7 @@ export function serializeDialog(dialog: Dialog, project: Project): Record<string
 
 /** Serialize every dialog in a project to canonical dialog/v1 objects. */
 export function projectToDialogV1(project: Project): Record<string, unknown>[] {
-  return project.dialogs.map((d) => serializeDialog(d, project));
+  return dialogsOf(project).map((d) => serializeDialog(d, project));
 }
 
 // Translations serialization
@@ -1092,25 +1095,16 @@ export function transform(project: Project): Record<string, string> {
   // project under its own folder name (cf. `Project.diskId`).
   const base = `plugins/Artisan/projects/${project.diskId ?? project.id}`;
 
-  for (const menu of project.menus) {
-    files[`${base}/menus/${menu.id}.yaml`] = stringify(
-      withoutId(serializeMenuToV1(menu, project)),
-      yamlOpts,
-    );
-  }
-
-  for (const cmd of project.commands) {
-    files[`${base}/commands/${cmd.id}.yaml`] = stringify(
-      withoutId(serializeCommand(cmd, project)),
-      yamlOpts,
-    );
-  }
-
-  for (const dialog of project.dialogs) {
-    files[`${base}/dialogs/${dialog.id}.yaml`] = stringify(
-      withoutId(serializeDialog(dialog, project)),
-      yamlOpts,
-    );
+  // One file per document, in its kind's folder, through its kind's codec
+  // (ADR `extensible-document-kinds`): the export knows no kind by name.
+  for (const def of listDocumentKinds()) {
+    const codec = documentCodec(def.kind);
+    for (const doc of documentsOf(project, def.kind)) {
+      files[`${base}/${def.dir}/${doc.id}.yaml`] = stringify(
+        withoutId(codec.serialize(doc, project)),
+        yamlOpts,
+      );
+    }
   }
 
   // Captured items: the opaque serialized stack is the runtime truth — emit it
@@ -1143,11 +1137,7 @@ export function transform(project: Project): Record<string, string> {
     files[`${base}/lang/${lang}.yaml`] = stringify(tree, yamlOpts);
   }
 
-  const liveIds = new Set<string>([
-    ...project.menus.map((m) => m.id as string),
-    ...project.commands.map((c) => c.id as string),
-    ...project.dialogs.map((d) => d.id as string),
-  ]);
+  const liveIds = new Set<string>(documentIds(project));
   const editorLayout = Object.fromEntries(
     Object.entries(project.canvasLayout).filter(([id]) => liveIds.has(id)),
   );

@@ -10,12 +10,13 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { FileHistory } from "./FileHistory";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 /** A Document's file: its folder says its kind, its name its identity. */
 export function documentRelPath(project: Project, id: string): string | null {
-  if (project.menus.some((m) => m.id === id)) return `menus/${id}.yaml`;
-  if (project.commands.some((c) => c.id === id)) return `commands/${id}.yaml`;
-  if ((project.dialogs ?? []).some((d) => d.id === id)) return `dialogs/${id}.yaml`;
+  if (menusOf(project).some((m) => m.id === id)) return `menus/${id}.yaml`;
+  if (commandsOf(project).some((c) => c.id === id)) return `commands/${id}.yaml`;
+  if (dialogsOf(project).some((d) => d.id === id)) return `dialogs/${id}.yaml`;
   return null;
 }
 

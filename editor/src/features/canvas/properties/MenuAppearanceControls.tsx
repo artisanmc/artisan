@@ -7,6 +7,7 @@ import { useUiStore } from "@/state/uiStore";
 import { ImagePlus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { menusOf } from "@/domain/documents";
 
 export function MenuAppearanceControls({
   projectId,
@@ -14,9 +15,9 @@ export function MenuAppearanceControls({
 }: { projectId: ProjectId; menuId: MenuId }) {
   const { t } = useTranslation();
   const menu = useAccountStore((state) =>
-    state.account.projects
-      .find((project) => project.id === projectId)
-      ?.menus.find((entry) => entry.id === menuId),
+    menusOf(state.account.projects.find((project) => project.id === projectId)).find(
+      (entry) => entry.id === menuId,
+    ),
   );
   const [picking, setPicking] = useState(false);
   if (!menu) return null;

@@ -81,10 +81,10 @@ export function nodeBox(
 ): Box | null {
   const pos = layout[id];
   if (!pos) return null;
-  const menu = project.menus.find((m) => m.id === id);
+  const menu = menusOf(project).find((m) => m.id === id);
   if (menu) return { ...pos, ...menuBoxSize(menu.inventoryType ?? "chest", menu.rows) };
-  if (project.commands.some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
-  if ((project.dialogs ?? []).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
+  if (commandsOf(project).some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
+  if (dialogsOf(project).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
   return null;
 }
 
@@ -128,6 +128,7 @@ export const singleBackgroundCrop = (type: InventoryType) => ({
 });
 
 export { slotCount } from "./inventoryTypes";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 /**
  * Faint guides for a menu whose vanilla texture is off (`vanilla_texture:

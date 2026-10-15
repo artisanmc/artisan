@@ -13,6 +13,7 @@ import type { I18nKey, ProjectId } from "@/domain/types";
 import { transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
 import { projectFromFiles } from "./projectFromFiles";
+import { menusOf } from "@/domain/documents";
 
 const PID = "p_mig" as ProjectId;
 const base = `plugins/Artisan/projects/${PID}`;
@@ -88,7 +89,7 @@ function legacyFiles(): Record<string, string> {
 }
 
 const elementsOf = (p: ReturnType<typeof projectFromFiles>) =>
-  p.menus[0]!.layers.flatMap((l) => l.elements);
+  menusOf(p)[0]!.layers.flatMap((l) => l.elements);
 
 /**
  * The same tree, but with the template rewritten in the current format: FLAT

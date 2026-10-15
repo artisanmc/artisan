@@ -7,7 +7,8 @@ lossless, l'éditeur n'a pas de représentation privilégiée.
 plugins/Artisan/projects/
   <project_id>/
     manifest.yaml
-    menus/<menu_id>.yaml
+    menus/<menu_id>.yaml           ← un dossier par kind de Document (cf. ci-dessous)
+    commands/<command_id>.yaml
     dialogs/<dialog_id>.yaml
     lang/<lang>.yaml               ← arborescence YAML (cf. ci-dessous)
     items/<captured_item_id>.yml   ← ItemStacks capturés (refs material `item:<id>`), YAML Bukkit verbatim
@@ -25,6 +26,22 @@ plugins/Artisan/projects/
 Un Project s'identifie par le nom de son dossier sur son serveur ; pour le hub et l'éditeur, il
 s'appelle `<server id>.<dossier>`, quel que soit le serveur (cf. `entities.md`). `.artisan-sync.yaml` (ancienne
 métadonnée de synchro cloud) peut subsister sur un vieux serveur : il reste exclu et ignoré.
+
+## Dossiers de Documents — le registre des kinds
+
+Les dossiers `menus/`, `commands/` et `dialogs/` ne sont nommés nulle part en dur (ADR
+`extensible-document-kinds`, décision 10). Chaque **kind** de Document est une entrée d'un registre
+— `editor/src/domain/documentKinds.ts` (`kind`, `dir`, `idPrefix`, `schemaVersion`, `rank`) et
+`plugin/core/.../model/DocumentKinds.kt` (`kind`, `dir`, `schemaVersions`) — et tout ce qui parcourt
+un projet boucle sur ce registre : l'import (`projectFromFiles`) et l'export (`transform`) de
+l'éditeur via les codecs par kind (`schema/documentCodecs.ts`), le `ProjectReader` du plugin via
+un lecteur par kind, l'inventaire de ressources et les tables de références du provider.
+
+En mémoire, un Project est un **conteneur unique** : `Project.documents[kind]` (éditeur) et
+`ProjectBundle.documents[kind]` (plugin). `menusOf(project)`, `bundle.menus` et leurs semblables
+sont des accesseurs typés de **lecture** sur ce conteneur, jamais un second stockage. Un dossier
+dont le kind n'est pas enregistré reste opaque : l'éditeur le round-trip dans
+`moduleData.<dir>.__files`, le plugin ne le lit pas.
 
 Les fichiers `data/` portent les Data models **inlinés** ; les valeurs `ltext` sont des clés i18n
 résolues au bind, les valeurs item des refs material.

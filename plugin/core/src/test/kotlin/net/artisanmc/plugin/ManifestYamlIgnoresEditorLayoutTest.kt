@@ -28,7 +28,7 @@ class ManifestYamlIgnoresEditorLayoutTest {
         val manifest = yaml.readValue(src, ManifestYaml::class.java)
 
         assertEquals("p_test", manifest.projectId)
-        assertEquals(listOf("shop"), manifest.files.menus)
+        assertEquals(listOf("shop"), manifest.files["menus"])
         // No exception thrown — that's the contract this test pins.
     }
 }

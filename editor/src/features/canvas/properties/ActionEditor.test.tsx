@@ -1,6 +1,15 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Action, CommandId, ElementId, MenuId, Project, ProjectId, SourceRef } from "@/domain/types";
+import type {
+  Action,
+  CommandId,
+  ElementId,
+  Menu,
+  MenuId,
+  Project,
+  ProjectId,
+  SourceRef,
+} from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { ActionEditor, ActionScopeProvider } from "./ActionEditor";
@@ -14,45 +23,47 @@ function project(): Project {
     source: "user_created",
     createdAt: "2026-09-19",
     updatedAt: "2026-09-19",
-    menus: [
-      {
-        id: "shop_category" as MenuId,
-        projectId: PID,
-        title: [],
-        rows: 6,
-        layers: [
-          {
-            id: "l1" as Project["menus"][number]["layers"][number]["id"],
-            name: "default",
-            elements: [
-              {
-                id: "grid" as ElementId,
-                positions: "",
-                display: {},
-                states: [],
-                places: { source: "items", alias: "item", keyField: "id", placements: [] },
-              },
-            ],
-          },
-        ],
-        contextInputs: [{ kind: "sourceRef", name: "items", ref: "boutique:items" as SourceRef }],
-      },
-    ],
-    commands: [
-      {
-        id: "give" as CommandId,
-        projectId: PID,
-        name: "give",
-        arguments: [{ name: "target", type: "player", required: true }],
-        steps: [],
-      },
-    ],
+    documents: {
+      menu: [
+        {
+          id: "shop_category" as MenuId,
+          projectId: PID,
+          title: [],
+          rows: 6,
+          layers: [
+            {
+              id: "l1" as Menu["layers"][number]["id"],
+              name: "default",
+              elements: [
+                {
+                  id: "grid" as ElementId,
+                  positions: "",
+                  display: {},
+                  states: [],
+                  places: { source: "items", alias: "item", keyField: "id", placements: [] },
+                },
+              ],
+            },
+          ],
+          contextInputs: [{ kind: "sourceRef", name: "items", ref: "boutique:items" as SourceRef }],
+        },
+      ],
+      command: [
+        {
+          id: "give" as CommandId,
+          projectId: PID,
+          name: "give",
+          arguments: [{ name: "target", type: "player", required: true }],
+          steps: [],
+        },
+      ],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "fr",
-    dialogs: [],
     canvasLayout: {},
   };
 }
@@ -69,14 +80,28 @@ describe("ActionEditor placeholders", () => {
       account: { id: "a" as never, projectOrder: [PID], projects: [project()] },
     } as never);
     useServerDataSourcesStore.setState({
-      sources: [{ ref: "boutique:items", moduleId: "boutique", schemaHint: null,
-        schema: [{ name: "final_price", type: "integer" }] as never }],
+      sources: [
+        {
+          ref: "boutique:items",
+          moduleId: "boutique",
+          schemaHint: null,
+          schema: [{ name: "final_price", type: "integer" }] as never,
+        },
+      ],
     });
   });
 
   it("autocompletes a click action's command from the lore catalog, with the hint and no insert bar", () => {
-    render(<ActionEditor projectId={PID} action={command} onChange={vi.fn()}
-      menuId={"shop_category" as MenuId} elementId={"grid" as ElementId} clickType="left" />);
+    render(
+      <ActionEditor
+        projectId={PID}
+        action={command}
+        onChange={vi.fn()}
+        menuId={"shop_category" as MenuId}
+        elementId={"grid" as ElementId}
+        clickType="left"
+      />,
+    );
     expect(screen.getByText("Tape « { » pour insérer une variable")).toBeInTheDocument();
     expect(screen.queryByText("insérer :")).toBeNull();
     typeBrace();

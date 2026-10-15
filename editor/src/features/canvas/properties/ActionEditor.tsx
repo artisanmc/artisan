@@ -35,6 +35,7 @@ import { useGetText, useTextEdit } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
 import { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { dialogsOf, menusOf } from "@/domain/documents";
 
 interface ActionEditorProps {
   projectId: ProjectId;
@@ -95,9 +96,17 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
     case "open_menu":
       return <OpenMenuEditor projectId={projectId} action={action} onChange={onChange} />;
     case "close_menu":
-      return <div className="text-[11px] text-[var(--text-faint)]">{t("actionEditor.closeMenuLabel")}</div>;
+      return (
+        <div className="text-[11px] text-[var(--text-faint)]">
+          {t("actionEditor.closeMenuLabel")}
+        </div>
+      );
     case "open_previous_menu":
-      return <div className="text-[11px] text-[var(--text-faint)]">{t("actionEditor.openPreviousMenuLabel")}</div>;
+      return (
+        <div className="text-[11px] text-[var(--text-faint)]">
+          {t("actionEditor.openPreviousMenuLabel")}
+        </div>
+      );
     case "run_command":
       return <RunCommandEditor action={action} onChange={onChange} />;
     case "send_message":
@@ -153,7 +162,9 @@ function RunActionsEditor({
         placeholder="item.on_buy"
         aria-label={t("actionEditor.runActionsLabel")}
       />
-      <p className="mt-1 text-[10px] text-[var(--text-faint)]">{t("actionEditor.runActionsHint")}</p>
+      <p className="mt-1 text-[10px] text-[var(--text-faint)]">
+        {t("actionEditor.runActionsHint")}
+      </p>
     </div>
   );
 }
@@ -186,7 +197,7 @@ function OpenMenuEditor({
   onChange: (a: Action) => void;
 }) {
   const { t } = useTranslation();
-  const menus = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId)?.menus ?? []);
+  const menus = useAccountStore((s) => menusOf(s.account.projects.find((p) => p.id === projectId)));
   const others = useOtherServerProjects(projectId);
   const activeLang = useUiStore((s) => s.activeLang);
   // A qualified target (`boutique:main`) lives in another project: it is read
@@ -198,7 +209,9 @@ function OpenMenuEditor({
       : (others
           .filter((p) => projectNamespace(p) === ref.namespace)
           .flatMap((p) =>
-            p.menus.filter((m) => m.id === ref.id).map((m) => ({ project: p, menu: m })),
+            menusOf(p)
+              .filter((m) => m.id === ref.id)
+              .map((m) => ({ project: p, menu: m })),
           )[0] ?? null);
   const targetMenu = remote ? remote.menu : menus.find((m) => m.id === action.menuId);
   const targetTitle = remote
@@ -253,14 +266,14 @@ function OpenMenuEditor({
                 </DropdownMenuRadioItem>
               ))}
               {others
-                .filter((p) => p.menus.length > 0)
+                .filter((p) => menusOf(p).length > 0)
                 .map((p) => (
                   <DropdownMenuGroup key={p.id}>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel className="text-[10px] uppercase text-[var(--text-faint)]">
                       {p.name}
                     </DropdownMenuLabel>
-                    {p.menus.map((m) => (
+                    {menusOf(p).map((m) => (
                       <DropdownMenuRadioItem
                         key={m.id}
                         value={`${projectNamespace(p)}:${m.id}`}
@@ -283,7 +296,10 @@ function OpenMenuEditor({
           <FieldLabel>{t("actionEditor.contextToPass")}</FieldLabel>
           <div className="flex flex-col gap-1.5">
             {targetInputs.map((input) => (
-              <div key={input.name} className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5">
+              <div
+                key={input.name}
+                className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5"
+              >
                 <div className="mb-1 flex items-center gap-2 font-mono text-[10px]">
                   <span className="text-[var(--brand)]">{input.name}</span>
                   <span className="text-[var(--text-faint)]">
@@ -308,10 +324,15 @@ function OpenMenuEditor({
             {Object.keys(ctxValues)
               .filter((k) => !targetInputs.some((i) => i.name === k))
               .map((k) => (
-                <div key={k} className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5">
+                <div
+                  key={k}
+                  className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5"
+                >
                   <div className="mb-1 flex items-center gap-2 font-mono text-[10px]">
                     <span className="text-[var(--brand)]">{k}</span>
-                    <span className="text-[var(--text-faint)]">{t("actionEditor.contextUndeclared")}</span>
+                    <span className="text-[var(--text-faint)]">
+                      {t("actionEditor.contextUndeclared")}
+                    </span>
                     <button
                       type="button"
                       title={t("actionEditor.contextRemoveKey")}
@@ -399,12 +420,14 @@ function OpenDialogEditor({
   onChange: (a: Action) => void;
 }) {
   const { t } = useTranslation();
-  const dialogs = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId)?.dialogs ?? []);
-  const others = useOtherServerProjects(projectId).filter((p) => (p.dialogs ?? []).length > 0);
+  const dialogs = useAccountStore((s) =>
+    dialogsOf(s.account.projects.find((p) => p.id === projectId)),
+  );
+  const others = useOtherServerProjects(projectId).filter((p) => dialogsOf(p).length > 0);
   const known =
     dialogs.some((d) => d.id === action.dialogId) ||
     others.some((p) =>
-      (p.dialogs ?? []).some((d) => `${projectNamespace(p)}:${d.id}` === action.dialogId),
+      dialogsOf(p).some((d) => `${projectNamespace(p)}:${d.id}` === action.dialogId),
     );
 
   return (
@@ -426,7 +449,7 @@ function OpenDialogEditor({
           ))}
           {others.map((p) => (
             <optgroup key={p.id} label={p.name}>
-              {(p.dialogs ?? []).map((d) => (
+              {dialogsOf(p).map((d) => (
                 <option key={d.id} value={`${projectNamespace(p)}:${d.id}`}>
                   {d.id}
                 </option>
@@ -466,7 +489,9 @@ function RunCommandEditor({
           onChange={(command) => onChange({ ...action, command })}
           entries={entries}
         />
-        <div className="mt-1 text-[10px] text-[var(--text-faint)]">{t("actionEditor.commandHint")}</div>
+        <div className="mt-1 text-[10px] text-[var(--text-faint)]">
+          {t("actionEditor.commandHint")}
+        </div>
       </div>
       <div>
         <FieldLabel>{t("actionEditor.runAs")}</FieldLabel>
@@ -756,7 +781,9 @@ function ShowTitleEditor({
           />
         </div>
       </div>
-      <div className="text-[10px] text-[var(--text-faint)]">{t("actionEditor.showTitleTicksHint")}</div>
+      <div className="text-[10px] text-[var(--text-faint)]">
+        {t("actionEditor.showTitleTicksHint")}
+      </div>
     </div>
   );
 }
@@ -876,7 +903,9 @@ function PlaySoundEditor({
           onChange={(e) => onChange({ ...action, sound: e.target.value.toUpperCase() })}
           className="font-mono"
         />
-        <div className="mt-1 text-[10px] text-[var(--text-faint)]">{t("actionEditor.soundHint")}</div>
+        <div className="mt-1 text-[10px] text-[var(--text-faint)]">
+          {t("actionEditor.soundHint")}
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -1000,7 +1029,7 @@ function PaginateEditor({
   const targets = useMemo(() => {
     if (!project) return [];
     const out: { id: ElementId; menuTitle: string; alias: string; source: string }[] = [];
-    for (const m of project.menus) {
+    for (const m of menusOf(project)) {
       for (const layer of m.layers) {
         for (const el of layer.elements) {
           if (el.iterates) {
@@ -1061,7 +1090,9 @@ function PaginateEditor({
             </option>
           ))}
         </select>
-        <div className="mt-1 text-[10px] text-[var(--text-faint)]">{t("actionEditor.paginateHint")}</div>
+        <div className="mt-1 text-[10px] text-[var(--text-faint)]">
+          {t("actionEditor.paginateHint")}
+        </div>
       </div>
     </div>
   );
@@ -1096,7 +1127,9 @@ function SetArgEditor({
           entries={entries}
           className="h-7 text-[11px] font-mono"
         />
-        <div className="mt-1 text-[10px] text-[var(--text-faint)]">{t("actionEditor.setArgValueHint")}</div>
+        <div className="mt-1 text-[10px] text-[var(--text-faint)]">
+          {t("actionEditor.setArgValueHint")}
+        </div>
       </div>
     </div>
   );

@@ -90,8 +90,10 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
     createdAt: "",
     updatedAt: "",
     i18nKeys: {},
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+    },
     assets: [],
     canvasLayout: {},
     ...overrides,
