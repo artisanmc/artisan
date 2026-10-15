@@ -21,10 +21,9 @@ describe("NewProjectDialog", () => {
     await user.click(screen.getByRole("button", { name: /nouveau projet/i }));
     await user.type(screen.getByPlaceholderText("mon_projet"), "mon_projet{Enter}{Enter}");
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({
-      name: "mon_projet",
-      serverKeyId: "server",
-    });
+    // The server is the URL, the body only names the folder (issue #44).
+    expect(fetch.mock.calls[0]![0]).toMatch(/\/api\/v1\/servers\/server\/projects$/);
+    expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({ name: "mon_projet" });
     expect(onCreated).not.toHaveBeenCalled();
     await act(async () =>
       finish(new Response(JSON.stringify({ project: { id: "mon_projet" } }), { status: 201 })),

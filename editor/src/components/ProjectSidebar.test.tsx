@@ -1,10 +1,9 @@
-import * as networksApi from "@/lib/api/networks";
-import { listServerProjects } from "@/lib/api/projectFiles";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
+import { listServerProjects } from "@/lib/api/projectFiles";
+import * as serversApi from "@/lib/api/servers";
 import { useAccountStore } from "@/state/accountStore";
-import { useNetworksStore } from "@/state/networksStore";
 import { useServersStore } from "@/state/serversStore";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
 
@@ -38,6 +37,14 @@ vi.mock("@tanstack/react-router", async () => {
   };
 });
 
+const srv = (id: string, label: string): serversApi.ServerSummary => ({
+  id,
+  label,
+  online: true,
+  minecraftVersion: null,
+  lastSeenAt: null,
+});
+
 describe("ProjectSidebar", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -48,36 +55,13 @@ describe("ProjectSidebar", () => {
       projectIds: ["pack_a", "pack_b"],
     });
     mockParams.current = { serverId: "sk_1" };
-    useNetworksStore.setState({
-      networks: [{ id: "net_1", name: "Mon Network", tier: "free" }],
-    } as any);
     useServersStore.setState({ activeServerId: null } as any);
     useAccountStore.setState({ account: { id: "", projects: [], projectOrder: [] } } as any);
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
   });
 
   it("lists the active server's Projects from its disk, sorted", async () => {
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [
-        {
-          id: "pack_b",
-          name: "Menu principal",
-          hash: "h2",
-          updatedAt: "2026-05-26T10:00:00Z",
-          networkId: "net_1",
-          serverKeyId: "sk_1",
-        },
-        {
-          id: "pack_a",
-          name: "Lobby",
-          hash: "h1",
-          updatedAt: "2026-05-25T10:00:00Z",
-          networkId: "net_1",
-          serverKeyId: "sk_1",
-        },
-      ],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     const items = await screen.findAllByRole("link", { name: /pack_a|pack_b/ });
     // The order comes from the plugin (sorted folders): pack_a before pack_b. The
@@ -87,13 +71,7 @@ describe("ProjectSidebar", () => {
   });
 
   it("workspace links use the server-scoped URL pattern", async () => {
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [
-        { id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" },
-      ],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     const link = await screen.findByRole("link", { name: /pack_a/ });
     expect(link).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
@@ -112,11 +90,7 @@ describe("ProjectSidebar", () => {
       }) as never;
 
     beforeEach(() => {
-      vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-        network: { id: "net_1", name: "Mon Network", tier: "free" },
-        projects: [],
-        serverKeys: [{ id: "sk_1", label: "Survival" }],
-      });
+      vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
       useAccountStore.setState({
         account: { id: "", projects: [loaded("pack_a"), loaded("pack_b")], projectOrder: [] },
       } as never);
@@ -177,9 +151,8 @@ describe("ProjectSidebar", () => {
       expect(toggle).toHaveAttribute("aria-expanded", "true");
     });
 
-    it("shows the open project even when it is not listed (demo, no network)", async () => {
+    it("shows the open project even when it is not listed (demo, no server)", async () => {
       mockParams.current = { projectId: "pack_a" };
-      useNetworksStore.setState({ networks: [] } as never);
       render(<ProjectSidebar />);
       const tree = await screen.findByRole("group", { name: /Documents de pack_a/ });
       expect(tree).toHaveTextContent("accueil");
@@ -193,86 +166,46 @@ describe("ProjectSidebar", () => {
   });
 
   it("renders the Modules empty state", async () => {
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);
     expect(await screen.findByText(/Aucun module installé/i)).toBeInTheDocument();
   });
 
   it("renders the + Nouveau workspace link", async () => {
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);
     expect(await screen.findByText(/Nouveau projet/i)).toBeInTheDocument();
   });
 
   it("renders the user menu pill (Settings link lives inside its dropdown)", async () => {
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);
     expect(await screen.findByText(/Anonymous|Anonyme/i)).toBeInTheDocument();
-  });
-
-  it("resolves slug URL params and lists the active server's workspaces", async () => {
-    // Routes may put a slug (not the id) in the serverId param.
-    mockParams.current = { serverId: "survival" };
-    useNetworksStore.setState({
-      networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
-    } as any);
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
-      projects: [
-        { id: "pack_a", name: "Lobby", hash: "h1", networkId: "net_1", serverKeyId: "sk_1" },
-      ],
-      serverKeys: [{ id: "sk_1", label: "Survival", slug: "survival" }],
-    });
-    render(<ProjectSidebar />);
-    expect(await screen.findByRole("link", { name: /pack_a/ })).toBeInTheDocument();
   });
 
   it("falls back to the persisted server selection on routes without a serverId param", async () => {
     // e.g. /settings or /credits — no serverId in the URL.
     mockParams.current = {};
     useServersStore.setState({ activeServerId: "sk_1" } as any);
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [
-        { id: "p1", name: "Lobby", hash: "h", networkId: "net_1", serverKeyId: "sk_1" },
-        { id: "p2", name: "Shop", hash: "h", networkId: "net_1", serverKeyId: "sk_2" },
-      ],
-      serverKeys: [
-        { id: "sk_1", label: "Survival" },
-        { id: "sk_2", label: "Creatif" },
-      ],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([
+      srv("sk_1", "Survival"),
+      srv("sk_2", "Creatif"),
+    ]);
     render(<ProjectSidebar />);
     expect(await screen.findByRole("link", { name: /pack_a/ })).toBeInTheDocument();
-    // Still scoped to the persisted server, not the whole network.
+    // Still scoped to the persisted server.
     expect(screen.queryByRole("link", { name: /Shop/ })).not.toBeInTheDocument();
   });
 
-  // A persisted server that no longer exists cannot "fall back to the whole
-  // network": a Project belongs to a server and is read from ITS disk
+  // A persisted server that no longer exists cannot "fall back to another
+  // server": a Project belongs to a server and is read from ITS disk
   // (ADR `server-disk-only-storage`). There is nothing to list — the server
   // picker stays there to choose a real one.
   it("a persisted server that vanished lists nothing rather than another server's list", async () => {
     mockParams.current = {};
     useServersStore.setState({ activeServerId: "sk_deleted" } as any);
     vi.mocked(listServerProjects).mockResolvedValueOnce({ ok: false, error: "forbidden" });
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [{ id: "p1", name: "Lobby", hash: "h", networkId: "net_1", serverKeyId: "sk_1" }],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
     expect(screen.queryByRole("link", { name: /pack_a|Lobby/ })).toBeNull();
@@ -285,11 +218,7 @@ describe("ProjectSidebar", () => {
    */
   it("says it is reading rather than showing an empty list", async () => {
     vi.mocked(listServerProjects).mockReturnValue(new Promise(() => {}) as never);
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     expect(await screen.findByText("Lecture en cours…")).toBeInTheDocument();
     expect(screen.queryByText("+ Nouveau projet")).toBeNull();
@@ -297,11 +226,7 @@ describe("ProjectSidebar", () => {
 
   it("says the server is unreachable, and no longer invites creating a project there", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({ ok: false, error: "server_offline" });
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
     expect(await screen.findByText("Serveur injoignable")).toBeInTheDocument();
@@ -310,60 +235,16 @@ describe("ProjectSidebar", () => {
 
   it("brings the create button back once the read has succeeded", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({ ok: true, projectIds: ["pack_a"] });
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
     expect(await screen.findByText("+ Nouveau projet")).toBeInTheDocument();
   });
 
-  it("persists the URL server (slug resolved to id) into the store", async () => {
-    mockParams.current = { serverId: "survival" };
-    useNetworksStore.setState({
-      networks: [{ id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" }],
-    } as any);
-    vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", slug: "mon-network", tier: "free" },
-      projects: [],
-      serverKeys: [{ id: "sk_1", label: "Survival", slug: "survival" }],
-    });
+  it("persists the URL server into the store", async () => {
+    mockParams.current = { serverId: "sk_1" };
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     await waitFor(() => expect(useServersStore.getState().activeServerId).toBe("sk_1"));
-  });
-
-  it("reads the hub's single network", async () => {
-    const getNetwork = vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [],
-    });
-    render(<ProjectSidebar />);
-    await waitFor(() => expect(getNetwork).toHaveBeenCalledWith());
-  });
-
-  it("refetches when the store refresh token is bumped (server/workspace created elsewhere)", async () => {
-    const getNetwork = vi.spyOn(networksApi, "getNetwork").mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [{ id: "sk_1", label: "Survival" }],
-    });
-    render(<ProjectSidebar />);
-    await waitFor(() => expect(getNetwork).toHaveBeenCalledTimes(1));
-
-    // A page (network hub, wizard…) creates a server, then signals the refresh.
-    getNetwork.mockResolvedValue({
-      network: { id: "net_1", name: "Mon Network", tier: "free" },
-      projects: [],
-      serverKeys: [
-        { id: "sk_1", label: "Survival" },
-        { id: "sk_2", label: "Creatif" },
-      ],
-    });
-    act(() => useNetworksStore.getState().bumpRefresh());
-
-    await waitFor(() => expect(getNetwork.mock.calls.length).toBeGreaterThanOrEqual(2));
   });
 });

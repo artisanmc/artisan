@@ -40,12 +40,12 @@ vi.mock("@tanstack/react-router", async () => {
   };
 });
 
-vi.mock("@/lib/api/networks", () => ({
-  getNetwork: vi.fn().mockResolvedValue({
-    network: { id: "net_1", name: "Mon Réseau", tier: "free" },
-    serverKeys: [{ id: "sk_1", slug: "primal", label: "Survival" }],
-    projects: [],
-  }),
+vi.mock("@/lib/api/servers", () => ({
+  listServers: vi
+    .fn()
+    .mockResolvedValue([
+      { id: "sk_1", label: "Survival", online: true, minecraftVersion: null, lastSeenAt: null },
+    ]),
 }));
 
 vi.mock("@/lib/api/projectFiles", () => ({
@@ -82,8 +82,8 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (k: string) => k }),
 }));
 
-import { getNetwork } from "@/lib/api/networks";
 import { listServerProjects } from "@/lib/api/projectFiles";
+import { listServers } from "@/lib/api/servers";
 import ServerDetailPage from "./servers.$serverId";
 
 describe("ServerDetailPage", () => {
@@ -95,7 +95,7 @@ describe("ServerDetailPage", () => {
     screensState.screens = [];
     screensState.load.mockClear();
     vi.mocked(listServerProjects).mockClear();
-    vi.mocked(getNetwork).mockClear();
+    vi.mocked(listServers).mockClear();
     vi.mocked(listServerProjects).mockResolvedValue({
       ok: true,
       projectIds: ["Hub", "boutique_shop"],
@@ -240,18 +240,16 @@ describe("ServerDetailPage", () => {
   it("does not read the disk when a child route is shown", async () => {
     routerState.childMatches = [{ id: "child" }];
     render(<ServerDetailPage />);
-    await waitFor(() => expect(getNetwork).toHaveBeenCalled());
+    await waitFor(() => expect(listServers).toHaveBeenCalled());
     expect(listServerProjects).not.toHaveBeenCalled();
   });
 
   /** Server unknown to the hub: the URL is stale, go back to the server list
    *  rather than spinning forever on "reading". */
   it("redirects to the server list when the server does not exist", async () => {
-    vi.mocked(getNetwork).mockResolvedValueOnce({
-      network: { id: "net_1", name: "Mon Réseau", tier: "free" },
-      serverKeys: [{ id: "sk_9", slug: "autre", label: "Autre" }],
-      projects: [],
-    } as never);
+    vi.mocked(listServers).mockResolvedValueOnce([
+      { id: "sk_9", label: "Autre", online: true, minecraftVersion: null, lastSeenAt: null },
+    ]);
     render(<ServerDetailPage />);
     await waitFor(() =>
       expect(navigateSpy).toHaveBeenCalledWith({ to: "/servers", replace: true }),
@@ -259,7 +257,7 @@ describe("ServerDetailPage", () => {
   });
 
   it("403 for a logged-in user says access is denied instead of bouncing", async () => {
-    vi.mocked(getNetwork).mockRejectedValueOnce(
+    vi.mocked(listServers).mockRejectedValueOnce(
       Object.assign(new Error("forbidden"), { status: 403 }),
     );
     render(<ServerDetailPage />);
@@ -268,7 +266,7 @@ describe("ServerDetailPage", () => {
   });
 
   it("404 still bounces to /servers", async () => {
-    vi.mocked(getNetwork).mockRejectedValueOnce(
+    vi.mocked(listServers).mockRejectedValueOnce(
       Object.assign(new Error("not found"), { status: 404 }),
     );
     render(<ServerDetailPage />);

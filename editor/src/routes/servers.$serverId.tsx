@@ -4,8 +4,7 @@ import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
 import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection";
 import { onProjectRenamed, type ProjectRenamed } from "@/features/project/onProjectRenamed";
-import { getNetwork } from "@/lib/api/networks";
-import type { ProjectSummary } from "@/lib/api/networks";
+import { type ProjectSummary, listServers } from "@/lib/api/servers";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAccountStore } from "@/state/accountStore";
@@ -60,10 +59,9 @@ export default function ServerDetailPage() {
 
   useEffect(() => {
     if (!serverId) return;
-    getNetwork()
-      .then((d) => {
-        // serverId param is the server slug (old links may still pass the id).
-        const sk = d.serverKeys.find((k) => k.slug === serverId || k.id === serverId);
+    listServers()
+      .then((servers) => {
+        const sk = servers.find((k) => k.id === serverId);
         if (!sk) {
           // This server does not exist: the URL is stale. Go back to the server list —
           // the alternative would be waiting forever for a disk read that cannot be

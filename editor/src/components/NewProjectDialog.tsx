@@ -7,7 +7,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { createProject } from "@/lib/api/networks";
+import { createProject } from "@/lib/api/servers";
 import { type ReactElement, useState } from "react";
 import { useTranslation } from "react-i18next";
 

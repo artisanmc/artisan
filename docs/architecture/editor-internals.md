@@ -690,9 +690,11 @@ Les propriétés activent aussi `SplitPane.animatePresence` sur desktop (`Projec
 La marge gauche de la topbar réserve 48 px au bouton de navigation flottant ; elle passe à 12 px sur desktop lorsque la navigation est fixe et occupe déjà sa propre colonne.
 Sur desktop, la topbar et le lien de marque des sidebars partagent une hauteur de 48 px et commencent à 8 px du haut. Le panneau flottant retire son padding supérieur interne pour compenser son décalage de 8 px ; son contour utilise un ring sans modifier les dimensions. Le toggle de 36 px est centré à 32 px du haut.
 
-La sidebar (`components/NewProjectDialog`) suit la même soumission native. Les deux
-modals restent ouvertes avec le nom saisi si le serveur refuse la création ; elles
-affichent une erreur traduite et le placeholder `mon_projet` / `my_project`.
+La sidebar (`components/NewProjectDialog.tsx`, la seule modale de création — le doublon
+`features/account/NewProjectDialog.tsx` a été supprimé avec le code de l'ère cloud, issue #44)
+suit la même soumission native. Les deux modals restent ouvertes avec le nom saisi si le
+serveur refuse la création ; elles affichent une erreur traduite et le placeholder
+`mon_projet` / `my_project`.
 Le succès de `createProject` confirme l'écriture du manifeste sur le disque serveur,
 puis la liste est relue depuis ce disque.
 
@@ -787,69 +789,9 @@ manifest, sinon du nom de dossier. Erreurs typées `not_a_zip` / `no_manifest`.
 - **Remaps** : `size`→`rows` (÷9), `pagination_next/prev`→`paginate{direction}`, `context_inputs`→`contextInputs` (`primitive` vs `sourceRef` selon présence de `ref`).
 - **Round-trip** : l'oracle `menuV1ToDomain.roundtrip.test.ts` exporte un project domain riche puis le ré-importe. Note : un `if` d'appearance OR-joiné ne round-trip **pas** structurellement (l'export enrobe une liste pure-OR en une condition composite `{type:"or", of:[…]}`) — l'oracle utilise donc des AND-joins.
 
-## Pipeline d'application IA (panel assistant — sous-plan 4a)
+## Assistant IA (supprimé)
 
-> Phase F : l'assistant et la migration zMenu/DeluxeMenus sont hors du build auto-hébergé (`SELF_HOSTED`), leur moteur backend supprimé. Sections 4a, 4b et migration gardées pour une réintroduction.
-
-**Depuis le 2026-09-09 :** le chat envoie `background:true` et un `requestId` idempotent. `TaskTimeline` suit les tâches persistées via GET, restaure leurs résultats après rechargement et n'appelle Stop que sur clic explicite. Le temps écoulé, l'activité réelle et la présence du worker sont distincts ; le raisonnement reçu du fournisseur est dépliable. `taskProposals.ts` applique uniquement sur clic et après comparaison du hash de base avec le brouillon courant. `start_migration` rend le moteur de migration accessible au chat ; `MigrationPanel` montre ses résultats et reprises, sans mode à choisir. Les descriptions SSE/application immédiate ci-dessous documentent seulement le chemin historique de compatibilité.
-
-La logique qui relie le moteur backend SSE à l'éditeur (avant l'UI 4b) tient en trois morceaux découplés :
-
-- **Seed** (`features/export/transform.ts`) : `packToMenuV1(project)` → `serializeMenuToV1(menu, project)[]` produit les objets canoniques `menu/v1` qui seedent une conversation (`openConversation`). Même fonction que l'export fichier (`transform()` l'appelle) → la forme wire envoyée à l'IA est identique à celle déployée.
-- **Client SSE** (`lib/api/assistant.ts`) : l'endpoint étant **POST** (avec corps + auth Bearer), `EventSource` est inutilisable. `streamAssistant(token, conversationId, body)` est un async generator qui `fetch`, lit `response.body` via un reader, bufferise et découpe les frames sur `\n\n`, parsant chaque `event:`/`data:` en `{ type, ...payload }`.
-- **Apply** (`state/accountStore.ts` → `applyAssistantMenu`) : à réception d'un event `menu_written`, l'UI appelle l'action qui convertit le `menu/v1` via `menuV1ToDomain`, merge les clés i18n retournées dans `project.i18nKeys`, et insert/replace le menu par id. La suppression (`menu_deleted`) réutilise `deleteFromProject` existant — pas de nouvelle action.
-
-Chaîne complète : `packToMenuV1` (seed) → backend → SSE → `streamAssistant` → `menuV1ToDomain` → `applyAssistantMenu`.
-
-## Panel chat de l'assistant (sous-plan 4b — l'UI)
-
-Les réponses du chat et les réponses/raisonnements de `TaskTimeline` utilisent
-`features/assistant/AssistantMarkdown.tsx` : `react-markdown` + `remark-gfm`
-rendent titres, listes, liens, tableaux et code (inline ou blocs). Les fragments
-de réponse sont concaténés avant le rendu, y compris pendant une tâche en cours.
-Le HTML brut est ignoré et les URL utilisent le filtrage par défaut de
-`react-markdown`. Le style utilise les tokens du thème ; tableaux et blocs de
-code disposent d'un défilement horizontal. Les messages utilisateur restent du texte.
-
-**Depuis 2026-07-19/07-20**, l'assistant n'a plus de pane docké ni de drawer (`AssistantPane`/`AssistantPanel`/`assistantPanelOpen` supprimés). C'est une **vue secondaire comme les autres** : `?tab=assistant` ouvre `features/assistant/AssistantBody.tsx` dans un `WorkspaceView` qui remplace le canvas (cf. section « UI shell »). Corps `AssistantChat` :
-
-- **Ouverture** : entrée `Sparkles` du `WorkspaceViewNav` (topbar) → `?tab=assistant`. Monté keep-alive dans la zone centrale de la route project (le chat en cours survit au retour au canvas).
-- **Composer** : `<textarea>` (Enter = envoyer, Shift+Enter = nouvelle ligne) + bouton Envoyer (désactivé tant que vide / pendant le stream). Drag-drop de fichiers sur le panel → `file.text()` est stocké dans l'état `attachments` (`{ [filename]: contenu }`), un compteur s'affiche. Les `attachments` sont ré-envoyés à chaque message.
-- **Boucle SSE** : `send()` résout le project via `useAccountStore.getState()`, calcule `menus = packToMenuV1(project)` + `lang = project.defaultLang`, ouvre la conversation au premier message (`convId` mémorisé dans un `useRef`), puis itère `streamAssistant`. Événements : `text` → coalescé dans la bulle assistant courante (`appendAssistant`) ; `menu_written` → `applyAssistantMenu` + carte « créé/modifié » ; `menu_deleted` → `deleteFromProject` + carte « supprimé » ; `error` → toast. Toutes les strings passent par `t("assistant.*")` (namespace en + fr).
-
-Le re-seed (`menus` + `attachments`) à **chaque** message garantit que la working-copy backend reste alignée sur l'état éditeur (last-writer), même si l'admin a édité le project entre deux messages.
-
-### Sélection de modèle + solde de crédits (plan 4 de `2026-07-02-ai-model-system-design.md`)
-### Migration zMenu reprenable (2026-09-07)
-
-`MigrationPanel` et `lib/api/assistantMigration.ts` proposent un flux explicite
-distinct du chat SSE : analyse de la sélection serveur, information sur les crédits, démarrage,
-pause/reprise et lecture des propositions. La reconnexion utilise des GET de suivi,
-jamais un nouveau démarrage payant. Les réponses tardives sont filtrées par portée
-Project/conversation ; généré, appliqué au brouillon et à vérifier restent distincts.
-
-Depuis le 2026-09-08, aucun plafond de crédits propre à la migration n'est demandé ;
-seule la consommation s'affiche. `source_analysis_incomplete` est un avertissement :
-l'IA lit le fichier brut même si le parseur YAML échoue, sans expansion d'alias.
-`lib/analytics.ts` initialise PostHog et capture les pages uniquement si le token est renseigné.
-
-`features/assistant/migrationProposal.ts` vérifie le SHA-256 du JSON canonique sur
-un snapshot immuable, puis recontrôle la portée et le store courant après le calcul
-asynchrone, sans autre attente avant la mutation synchrone. V1 crée uniquement des
-cibles absentes (`baseHash: null`) : résultat sémantiquement identique déjà appliqué,
-cible différente en conflit, jamais de remplacement. La comparaison normalise le
-round-trip domain/wire et les clés i18n aléatoires, avec les valeurs de toutes les
-langues référencées. Les constructions non représentables et les changements de
-traductions séparés sont bloqués plutôt que perdus silencieusement.
-
-L'application passe par `applyAssistantMenu` et ne modifie que le brouillon local ;
-**Déployer** reste explicite. Le backend ne stocke pas un état « appliqué » global :
-il est dérivé du brouillon présent. La sonde de stockage écrit puis retire une petite
-clé temporaire ; son succès ne garantit pas la place nécessaire au brouillon entier.
-En cas d'indisponibilité, l'UI avertit sans masquer une application déjà réussie.
-
-
-Le sélecteur de modèle `ModelSelector` rend les tiers (`cheap` / `balanced` / `premium`) en badges cliquables avec estimation de coût (`~50 credits`), choix mémorisé dans l'action store. Chaque message SSE reçoit le `modelId` dans le header ; une soumission `send()` inclut le modèle choisi. Le solde de crédits s'affiche dans la barre top du panel via `BalanceChip` ; à la réception de l'event SSE final `credits {debited, balance}`, le composant met à jour le compte. Erreur 402 (`insufficient_credits`) → toast + CTA `/credits` (placeholder).
+Le pipeline d'application IA (`applyAssistant*` dans `accountStore`, client SSE, panel chat, migration zMenu reprenable) a été retiré avec le backend : il n'existe plus dans l'éditeur (issue #44). Les convertisseurs `menuV1ToDomain` / `commandV1ToDomain` / `dialogV1ToDomain` restent pour l'import `menu/v1 → domain` ci-dessus.
 
 ## Design system (tokens + composants)
 

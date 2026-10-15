@@ -1,7 +1,6 @@
 package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
-import net.artisanmc.plugin.hub.Servers.Companion.LOCAL
 import net.artisanmc.plugin.hub.EditorPermissions.EDIT
 import net.artisanmc.plugin.hub.EditorPermissions.PUBLISH
 import net.artisanmc.plugin.hub.EditorPermissions.VIEW
@@ -9,7 +8,6 @@ import net.artisanmc.plugin.hub.Relay.Companion.body
 import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
 import net.artisanmc.plugin.hub.Relay.Companion.readError
-import net.artisanmc.plugin.hub.ServerRoutes.Companion.EDITOR_ACCESS
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
 import net.artisanmc.plugin.protocol.ProtocolVersion
 import java.util.Base64
@@ -50,24 +48,15 @@ class ProjectRoutes(
                 val movable = movable(server, root)
                 call.json(mapOf(
                     "project" to summary(server, root),
-                    "networkId" to LOCAL,
                     "serverKeyId" to server.uuid,
                     "capabilities" to mapOf(
-                        "liveData" to true, "captureInGame" to false, "preview" to true, "canRename" to movable,
-                        // No assistant or migration in the self-hosted editor.
-                        "canUseAssistant" to false, "canDelete" to movable, "canCopyToServer" to false,
+                        "liveData" to true, "captureInGame" to false, "preview" to true,
+                        "canRename" to movable, "canDelete" to movable,
                     ),
                     "minecraftVersion" to server.minecraftVersion,
                     // Offline: the Project opens from the database, without live data or capture.
                     "connection" to mapOf("available" to server.online),
                 ))
-            }
-        }
-        onProject(router, "GET", "/api/v1/projects/:project/editor-access", VIEW) { call, project ->
-            listed(call, project.server) { reply ->
-                val root = roots(reply).firstOrNull { it["project_id"] == project.folder }
-                val origin = if (root?.get("identity") == "addon") "module" else "personal"
-                call.json(EDITOR_ACCESS + ("projectOrigin" to origin))
             }
         }
 
@@ -98,13 +87,10 @@ class ProjectRoutes(
 
     /** Create, delete (to the server's trash) and rename a Project folder. */
     private fun lifecycle(router: Router) {
-        router.on("POST", "/api/v1/network/projects", PUBLISH) { call ->
-            val request = call.body()
-            val name = request?.get("name")?.takeIf { it.isTextual }?.asText()?.trim()
-            val serverId = request?.get("serverKeyId")?.takeIf { it.isTextual }?.asText()
-            if (name.isNullOrEmpty() || serverId == null) return@on call.error(422, "invalid_input")
-            val server = servers.byUuid(serverId)
-                ?: return@on call.error(404, "server_key_not_in_network")
+        router.on("POST", "$SERVER/projects", PUBLISH) { call ->
+            val server = servers.of(call) ?: return@on call.error(404, "not_found")
+            val name = call.body()?.get("name")?.takeIf { it.isTextual }?.asText()?.trim()
+            if (name.isNullOrEmpty()) return@on call.error(422, "invalid_input")
             if (!speaksFolders(call, server)) return@on
             relay.send(call, server, mapOf("type" to "project_create", "project_id" to name)) { reply ->
                 if (!ok(reply)) return@send folderError(call, reply)
@@ -332,7 +318,7 @@ class ProjectRoutes(
         val id = ProjectRef.id(server.id, folder)
         return mapOf(
             "id" to id, "name" to folder, "externalId" to folder, "slug" to id,
-            "networkId" to LOCAL, "serverKeyId" to server.uuid, "hash" to "",
+            "serverKeyId" to server.uuid, "hash" to "",
             "identityKind" to root["identity"], "ownerModule" to root["module_id"], "projectKey" to root["project_key"],
             "capabilities" to mapOf("canRename" to movable(server, root)),
         )
