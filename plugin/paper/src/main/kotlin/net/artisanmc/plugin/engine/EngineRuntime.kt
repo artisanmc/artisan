@@ -28,12 +28,12 @@ class EngineRuntime(
 
     override fun run(ctx: ActionContext, chain: Any?): ActionContext {
         val base = executor.context(ctx)
-        if (chain == null) return base
+        if (chain == null) return EngineActionContext(base)
         val steps = runCatching { ActionChainCompiler.compile(chain) }.getOrElse {
             warn("action chain failed to parse: ${it.message}")
-            return base
+            return EngineActionContext(base)
         }
-        return executor.executeSteps(steps, base)
+        return EngineActionContext(executor.executeSteps(steps, base))
     }
 
     override fun warn(message: String) {

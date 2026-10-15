@@ -57,6 +57,6 @@ object CoreActionHandlers {
         ActionHandler { ctx, args, runtime ->
             val engine = runtime as? EngineRuntime
                 ?: error("core actions run inside Artisan's engine only")
-            body(engine.executor.context(ctx), args, engine)
+            EngineActionContext(body(engine.executor.context(ctx), args, engine))
         }
 }
