@@ -1,11 +1,11 @@
+import type { CustomItemsData, LibraryItem } from "@/domain/library";
 import { create } from "zustand";
-import type { LibraryItem, CustomItemsData } from "@/domain/library";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { API_URL } from "@/lib/api/client";
 
 interface TextureState {
   version: string;
-  byMaterial: Record<string, string>;       // vanilla: lowercase material id → texture path
+  byMaterial: Record<string, string>; // vanilla: lowercase material id → texture path
   renderedByMaterial: Record<string, string>; // 3D render data URLs, set after Three.js render
   // Library UI state — populated by useTextureInit in ProjectLibraryWorkspace
   libraryItems: LibraryItem[];
@@ -37,7 +37,9 @@ export const useTextureStore = create<TextureState>()((set) => ({
     set({ version, byMaterial });
   },
   setRendered: (materialId, dataUrl) =>
-    set((s) => ({ renderedByMaterial: { ...s.renderedByMaterial, [materialId.toLowerCase()]: dataUrl } })),
+    set((s) => ({
+      renderedByMaterial: { ...s.renderedByMaterial, [materialId.toLowerCase()]: dataUrl },
+    })),
   setLibraryItems: (items) => set({ libraryItems: items }),
   setLibraryCustomData: (data) => set({ libraryCustomData: data }),
   setLibraryBundleReady: (ready) => set({ libraryBundleReady: ready }),

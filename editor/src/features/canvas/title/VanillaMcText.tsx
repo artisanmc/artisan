@@ -4,7 +4,7 @@ import useImage from "use-image";
 
 import { parseMiniMessage } from "@/lib/miniMessage";
 import { CHAR_ADVANCES } from "./charAdvances";
-import { ATLAS_META, charCell, type AtlasName } from "./charCells";
+import { ATLAS_META, type AtlasName, charCell } from "./charCells";
 
 /**
  * Per-character advance lookup. Backed by the generated CHAR_ADVANCES map
@@ -17,7 +17,7 @@ function advance(ch: string): number {
   return cp !== undefined ? (CHAR_ADVANCES[cp] ?? 1) : 1;
 }
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { API_URL } from "@/lib/api/client";
 
 const ATLAS_URLS: Record<AtlasName, string> = {
   ascii: `${API_URL}/api/v1/textures/1.21.4/font/ascii`,
@@ -113,8 +113,22 @@ export function VanillaMcText({
 
     // Reuse a small offscreen canvas for per-glyph coloring. Sized to the
     // tallest possible cell so any atlas glyph fits.
-    const tempW = Math.max(ATLAS_META.ascii.cellW, ATLAS_META.accented.cellW, ATLAS_META.nonlatin_european.cellW) * scale * sizeScale;
-    const tempH = Math.max(ATLAS_META.ascii.cellH, ATLAS_META.accented.cellH, ATLAS_META.nonlatin_european.cellH) * scale * sizeScale;
+    const tempW =
+      Math.max(
+        ATLAS_META.ascii.cellW,
+        ATLAS_META.accented.cellW,
+        ATLAS_META.nonlatin_european.cellW,
+      ) *
+      scale *
+      sizeScale;
+    const tempH =
+      Math.max(
+        ATLAS_META.ascii.cellH,
+        ATLAS_META.accented.cellH,
+        ATLAS_META.nonlatin_european.cellH,
+      ) *
+      scale *
+      sizeScale;
     if (!tempRef.current || tempRef.current.width !== tempW || tempRef.current.height !== tempH) {
       tempRef.current = document.createElement("canvas");
       tempRef.current.width = tempW;
@@ -163,7 +177,8 @@ export function VanillaMcText({
           // Blit the tinted glyph to the main canvas. MC bold: draw twice,
           // second pass shifted 1px right.
           ctx.drawImage(temp, 0, 0, cw, cellH, cursor, yOffset, cw, cellH);
-          if (bold) ctx.drawImage(temp, 0, 0, cw, cellH, cursor + scale * sizeScale, yOffset, cw, cellH);
+          if (bold)
+            ctx.drawImage(temp, 0, 0, cw, cellH, cursor + scale * sizeScale, yOffset, cw, cellH);
         }
         cursor += adv;
       }

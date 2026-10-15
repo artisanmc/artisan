@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { apiFetch } from "./client";
 
 /** A server the hub serves, by its server id (the UUID of `plugins/Artisan/server-id`). */
 export interface ServerSummary {
@@ -36,30 +36,14 @@ export interface ProjectSummary {
   ownerModule?: string | null;
 }
 
-/** The hub's servers, its own first: ids, labels, presence and versions. */
+/** The hub's servers, its own first: ids, labels, presence and versions. Rejects with an `ApiError`. */
 export async function listServers(): Promise<ServerSummary[]> {
-  const res = await fetch(`${API_URL}/api/v1/servers`, { credentials: "include" });
-  if (!res.ok) {
-    // Attach the HTTP status so callers can react (e.g. 403/404 → redirect to
-    // the server list rather than loop a broken page).
-    const err = new Error(`listServers failed: ${res.status}`) as Error & { status: number };
-    err.status = res.status;
-    throw err;
-  }
-  return ((await res.json()) as { servers: ServerSummary[] }).servers;
+  return (await apiFetch<{ servers: ServerSummary[] }>("/api/v1/servers")).servers;
 }
 
-/** Creates a Project folder on a server's disk. Rejects with the hub's error code. */
+/** Creates a Project folder on a server's disk. Rejects with an `ApiError` carrying the hub's code. */
 export async function createProject(serverId: string, name: string): Promise<ProjectSummary> {
-  const res = await fetch(`${API_URL}/api/v1/servers/${encodeURIComponent(serverId)}/projects`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? "create_failed");
-  }
-  return ((await res.json()) as { project: ProjectSummary }).project;
+  const path = `/api/v1/servers/${encodeURIComponent(serverId)}/projects`;
+  return (await apiFetch<{ project: ProjectSummary }>(path, { method: "POST", json: { name } }))
+    .project;
 }

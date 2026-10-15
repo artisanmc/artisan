@@ -2,12 +2,8 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
-import {
-  type ServerConfig,
-  ServerConfigError,
-  getServerConfig,
-  patchServerConfig,
-} from "@/lib/api/serverConfig";
+import { ApiError } from "@/lib/api/client";
+import { type ServerConfig, getServerConfig, patchServerConfig } from "@/lib/api/serverConfig";
 import type { ProjectSummary } from "@/lib/api/servers";
 import { listAssets } from "@/lib/api/userAssets";
 import { useEffect, useState } from "react";
@@ -100,9 +96,7 @@ export function ServerConfigSection({
         rebuildServerPackInBackground(t, serverKeyId);
     } catch (e) {
       setError(
-        e instanceof ServerConfigError && e.detail
-          ? refusal(e.detail)
-          : t("serverConfig.saveFailed"),
+        e instanceof ApiError && e.detail ? refusal(e.detail) : t("serverConfig.saveFailed"),
       );
     } finally {
       setSaving(false);
