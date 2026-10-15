@@ -8,9 +8,9 @@ class DataSourceOwnerTest {
     @Test
     fun `register captures currentOwner as moduleId, null otherwise`() {
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration(ref = "core:free", fetcher = { _, _ -> emptyList() }))
+        registry.register(DataSourceDeclaration("core:free", { _, _ -> emptyList() }))
         registry.currentOwner = "boutique"
-        registry.register(DataSourceDeclaration(ref = "boutique:items", fetcher = { _, _ -> emptyList() }))
+        registry.register(DataSourceDeclaration("boutique:items", { _, _ -> emptyList() }))
         registry.currentOwner = null
 
         val byRef = registry.registered().associateBy { it.declaration.ref }

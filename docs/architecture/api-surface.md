@@ -1,9 +1,9 @@
-# Artisan Public API Surface (v1.x)
+# Artisan Public API Surface (v2.x)
 
 This document lists the **stable** API surface of Artisan Core that modules can safely depend on.
 Anything not listed here is internal and may change without notice.
 
-> Source of truth : the `@Stable` annotations in `plugin/api/src/main/kotlin/net/artisanmc/modules/api/`.
+> Source of truth : the `@Stable` annotations in `plugin/api/src/main/java/net/artisanmc/modules/api/`.
 > This doc is hand-maintained; future versions will auto-generate it (see `versioning.md` §9.2).
 
 ## Annotations
@@ -15,9 +15,30 @@ Anything not listed here is internal and may change without notice.
 | `@Internal` | `net.artisanmc.modules.api.annotations.Internal` | DO NOT USE from modules. |
 | `@Sunset(reason, removeInVersion, replacement)` | `net.artisanmc.modules.api.annotations.Sunset` | Scheduled for removal. Replacement is provided. |
 
-Note : we use `@Sunset` (not `@Deprecated`) to avoid clashing with `kotlin.Deprecated`. The schedule-aware annotation carries removal version + replacement.
+Note : we use `@Sunset` rather than `@Deprecated`: the schedule-aware annotation carries removal version + replacement.
 
-## Stable APIs (v1.x)
+## 2.0.0 — the surface is Java
+
+`plugin/api` is written in Java since 2.0.0 (ADR `extensible-document-kinds`, « Langue de l'API publique »): interfaces, immutable final classes, enums, `@FunctionalInterface` callbacks, nothing from `kotlin.*` and no `kotlin-stdlib` in the POM. The internals of the plugin (`core`, `database`, `hub`, `paper`) stay Kotlin and implement these interfaces.
+
+- A property `x` of the 1.x tables below is the Java getter `getX()` (`ArtisanModule.getId()`, `DataSourceDeclaration.getRef()`, `api.getDataSources()`). Kotlin callers keep writing `module.id` and `api.dataSources`; a Kotlin implementor writes `override fun getId() = "shop"`. Boolean flags read as `MenuClickEvent.hasActions()`.
+- Value classes (`DataSourceDeclaration`, `DataSourceField`, `CommandDeclaration`, `RegisteredDataSource`, `MenuRef`, `DeclaredModel`, `EditorScreenDeclaration`, `DataReloadEvent`, `ConfigReloadEvent`) are final classes with constructors, getters, `equals`/`hashCode`/`toString`. Kotlin's named arguments and `copy` are gone: `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)` or `(ref, fetcher, schema, stability, keyField)`.
+- `ArtisanAPI` is built by Artisan through `ArtisanAPI.builder(plugin, dataSources, commands, events, schemas, modules, coreVersion, project)` (`@Internal`), the optional surfaces defaulting to their inert implementations; add-ons never construct it.
+- Nullability is declared with `org.jetbrains.annotations.Nullable` where null is a value (`DataFetcher.fetch(player)`, `MenuRef.getProjectId()`, `ProjectContentApi.read`, …); everything else is non-null.
+- Removed, as announced by `@Sunset`: `ModuleMessagesApi` and `ArtisanAPI.messages`, `DataSourceDeclaration.schemaHint` (and `schema_hint` on the `data_sources` wire). The Kotlin `DefaultImpls` of 1.x are gone too: interface members with a body are plain Java default methods.
+- `ModuleActionsApi.execute` has Java overloads for its former default arguments: `execute(player, actions)`, `execute(player, actions, args)`, `execute(player, actions, args, projectId)`.
+
+| Member | Type | Since |
+|---|---|---|
+| The whole `net.artisanmc.modules.api` surface in Java, bean getters | | 2.0.0 |
+| `ArtisanAPI.builder(...)`, `ArtisanAPI.Builder` (`@Internal`) | `Builder` | 2.0.0 |
+| `MenuClickEvent.hasActions()` (was `getHasActions()`) | `boolean` | 2.0.0 |
+| `ModuleActionsApi.execute(player, actions)`, `execute(player, actions, args)` | `void` | 2.0.0 |
+| `ModuleMessagesApi`, `ArtisanAPI.messages`, `DataSourceDeclaration.schemaHint` removed | | 2.0.0 |
+
+An add-on built against 1.x recompiles against 2.0.0: the getters keep their JVM names, the removed members and the `DataSourceDeclaration` constructors are the source changes to expect.
+
+## Stable APIs
 
 ### `net.artisanmc.modules.api.ArtisanModule`
 
@@ -35,15 +56,15 @@ Contract implemented by every module.
 
 `onDisable()` runs when the module is unregistered: when the plugin whose class loader loaded the module disables (`PluginDisableEvent`, fired before that plugin's own `onDisable`), on `ModuleRegistry.unregister`, or, for the modules still registered, when Artisan disables. Before 1.8.0 it only ran at Artisan's disable, after the add-on's plugin was already disabled.
 
-The api module compiles with `-Xjvm-default=all-compatibility`: interface members with a body (`onReload()`, `ProjectContentApi.reload()`, `ProjectRootRegistry.register(projectId, dir, moduleId)`) are JVM default methods, and their `DefaultImpls` stay for add-ons compiled against 1.7.x and earlier.
+Interface members with a body (`onReload()`, `ProjectContentApi.reload()`, `ProjectRootRegistry.register(projectId, dir, moduleId)`) are Java default methods. Before 2.0.0 the Kotlin api compiled them with `-Xjvm-default=all-compatibility`, with `DefaultImpls` twins for add-ons compiled against 1.7.x and earlier; those twins are gone.
 
 ### `net.artisanmc.modules.api.ArtisanAPI`
 
 The facade passed to every module at `onEnable(api)`. Also available to external plugins via Bukkit `ServicesManager`:
 
-```kotlin
-val api = server.servicesManager.getRegistration(ArtisanAPI::class.java)?.provider
-    ?: error("Artisan not loaded")
+```java
+ArtisanAPI api = getServer().getServicesManager().load(ArtisanAPI.class);
+if (api == null) throw new IllegalStateException("Artisan not loaded");
 ```
 
 | Member | Type | Since |
@@ -60,6 +81,7 @@ val api = server.servicesManager.getRegistration(ArtisanAPI::class.java)?.provid
 | `projectRoots` | `ProjectRootRegistry` | 1.5.0 |
 | `apiVersion` | `String` | 1.8.0 |
 | `isCompatibleWith` compares `apiVersion` | | 1.8.0 |
+| `messages` removed; built through `ArtisanAPI.builder(...)` | | 2.0.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -105,13 +127,13 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 | `schema` | `List<DataSourceField>` | `@Stable` | 1.3.0 |
 | `stability` | `Stability` | `@Stable` | 1.4.0 |
 | `keyField` | `String?` | `@Stable` | 1.4.0 |
-| `schemaHint` | `String?` | `@Sunset` | 1.0.0 → 2.0.0 |
+| `schemaHint` | `String?` | removed in 2.0.0 | 1.0.0 → 2.0.0 |
 
 Constructing a `Stability.STATIC` declaration without a non-blank `keyField` throws (`require`) — a static source must declare its Row key.
 
-The constructors of `DataSourceDeclaration`, `DataSourceField` and `PlayerRequiredException` carry `@JvmOverloads` since 1.8.0: from Java, `new DataSourceDeclaration(ref, fetcher)` works. `ApiSurfaceIsJavaFriendlyTest` fails on a public constructor with default arguments and no overloads (except `ArtisanAPI`, built by Artisan only).
+Constructors (2.0.0): `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)`, `(ref, fetcher, schema, stability, keyField)`; `DataSourceField(name, type)`, `(name, type, description)`; `PlayerRequiredException()`, `(message)`. Before 2.0.0 the same overloads came from `@JvmOverloads` on Kotlin constructors with default arguments (since 1.8.0).
 
-### Aucun type Kotlin ne traverse la frontière (1.5.0)
+### Aucun type Kotlin ne traverse la frontière (1.5.0, api en Java depuis 2.0.0)
 
 Une lambda Kotlin se compile en `kotlin.jvm.functions.FunctionN`, et une fonction
 Kotlin sans valeur de retour en `kotlin.Unit`. Tant que ces types apparaissaient
@@ -135,8 +157,10 @@ Ce sont des `fun interface` : côté Kotlin comme côté Java, on passe toujours
 lambda. `FieldKind` et `Stability` sont déclarés **en Java** — un enum Kotlin
 expose un `getEntries()` typé `kotlin.enums.EnumEntries`.
 
-L'implémentation, elle, reste en Kotlin : seule la frontière est contrainte, et
-`ApiSurfaceIsJavaFriendlyTest` échoue si un type `kotlin.*` y réapparaît.
+Depuis 2.0.0 la surface entière est écrite en Java (section « 2.0.0 » ci-dessus) :
+`ApiSurfaceIsJavaFriendlyTest` échoue si une classe Kotlin apparaît dans `plugin/api/src/main`
+ou si un type `kotlin.*` réapparaît dans une signature. L'implémentation (`core`, `paper`…)
+reste en Kotlin.
 
 **Ce que ça ne fait pas** : le JAR du plugin embarque toujours la kotlin-stdlib
 sous ses noms d'origine. Elle ne peut pas être relocalisée — `kotlin-reflect`
@@ -149,13 +173,13 @@ qui est corrigé, c'est qu'aucun add-on Artisan n'a plus de raison d'en chercher
 
 Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonical wrapped YAML (what a project stores under `items/<id>.yml`) — and `describe(stack)` — the generic display descriptor (material enriched to a recognized custom ref, head_texture, enchanted, count, name). Since 1.4.0.
 
-### `net.artisanmc.modules.api.ModuleMessagesApi` (`@Beta`, `@Sunset`)
+### `net.artisanmc.modules.api.ModuleMessagesApi` (removed in 2.0.0)
 
-Fire-and-forget module messages (`api.messages.send(type, payload)`). Since 1.4.0. **Sans destinataire depuis la phase F (2026-10)** : il n'y a plus de couche module côté serveur web ; sur une feuille le message part au hub, qui ignore les types inconnus, et sur le hub il n'est relayé nulle part. `@Sunset` (removal in 2.0.0, no replacement) on the interface and on `ArtisanAPI.messages` since 1.8.0. ⚠️ **Ne pas s'en servir pour muter un project** : le contenu vit sur le disque et le module y écrit lui-même (ADR `server-disk-only-storage`). `boutique_additem` en fut l'exemple, et ne l'est plus.
+Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 2.0.0. Without a receiver since the editor moved into the plugin (phase F, 2026-10), `@Sunset` since 1.8.0, removed in 2.0.0 with no replacement. A module that wants to change its own project files writes them itself and calls `api.project.reload()` (ADR `server-disk-only-storage`).
 
 ### `net.artisanmc.modules.api.ModuleActionsApi` (`@Beta`)
 
-`api.actions.execute(player, steps, args, projectId?)` — runs a canonical step tree (the wire shape of the editor's `actions` field kit widget: `[{kind: "action", action: {...}}, {kind: "if", ...}]`, literal text) through the core `StepParser`/`ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); malformed steps are skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. `projectId` (since 1.6.0, optional) puts that Project's `lang/` in scope so an action may carry `@key` (ADR `yaml-assisted-editing` ④); without it, action text stays literal. Since 1.4.0.
+`api.actions.execute(player, steps, args, projectId?)` (Java overloads without `args` and `projectId` since 2.0.0) — runs a canonical step tree (the wire shape of the editor's `actions` field kit widget: `[{kind: "action", action: {...}}, {kind: "if", ...}]`, literal text) through the core `StepParser`/`ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); malformed steps are skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. `projectId` (since 1.6.0, optional) puts that Project's `lang/` in scope so an action may carry `@key` (ADR `yaml-assisted-editing` ④); without it, action text stays literal. Since 1.4.0.
 
 ### `net.artisanmc.modules.api.ModelRegistry` (`@Beta`)
 
@@ -200,6 +224,7 @@ Fire-and-forget module messages (`api.messages.send(type, payload)`). Since 1.4.
 |---|---|---|
 | `MenuOpenEvent.menu`, `.args` | `MenuRef`, `Map<String, Any>` | 1.8.0 |
 | `MenuClickEvent.menu`, `.slot`, `.click`, `.hasActions` | `MenuRef`, `Int`, `ClickType`, `Boolean` | 1.8.0 |
+| `MenuClickEvent.hasActions()` is the Java name of the flag (was `getHasActions()`) | | 2.0.0 |
 | `MenuCloseEvent.menu`, `.reason` | `MenuRef`, `InventoryCloseEvent.Reason` | 1.8.0 |
 
 ### `net.artisanmc.modules.api.SchedulerApi` (`@Beta`)
@@ -299,7 +324,7 @@ Event types: `DataReloadEvent`, `ConfigReloadEvent`. Add-ons may define their ow
 | Member | Type | Since |
 |---|---|---|
 | `register(migration: SchemaMigration<T>)` | `Unit` | 1.0.0 |
-| `loadToCurrent(data: T, currentVersion: String, versionOf: (T) -> String)` | `T` | 1.0.0 |
+| `loadToCurrent(data: T, currentVersion: String, versionOf: SchemaVersionReader<T>)` | `T` | 1.0.0 (type 1.5.0) |
 | `has(from: String)` | `Boolean` | 1.0.0 |
 
 Exceptions: `UnsupportedSchemaVersionException`, `CircularMigrationException`.
@@ -361,8 +386,10 @@ None at this time.
 
 | Member | Sunset since | Removed in | Replacement |
 |---|---|---|---|
-| `DataSourceDeclaration.schemaHint` | 1.3.0 | 2.0.0 | `schema` |
-| `ModuleMessagesApi`, `ArtisanAPI.messages` | 1.8.0 | 2.0.0 | none — nothing receives the messages |
+| `DataSourceDeclaration.schemaHint` | 1.3.0 | 2.0.0 (done) | `schema` |
+| `ModuleMessagesApi`, `ArtisanAPI.messages` | 1.8.0 | 2.0.0 (done) | none — nothing receives the messages |
+
+Nothing is under `@Sunset` in 2.x yet.
 
 ## Internal — DO NOT USE
 
@@ -385,7 +412,7 @@ The version is **this document**: the highest `Since` version above (last table 
 
 Releasing a new member = marking it with the next version here, in the same PR. The `API version` check (`.github/workflows/api-version-check.yml`) fails a PR that changes `net/artisanmc/modules/api/**` without raising the highest `Since` above the latest release; label `api:no-release` exempts a change with no published effect (KDoc, formatting). A patch release (1.6.1) is the same mechanism: mark the fixed member with the patch version (`Since` 1.6.1).
 
-The publication carries a sources jar (KDoc) and a POM declaring `kotlin-stdlib`. License: GPL-3.0, like the repo. External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
+The publication carries a sources jar (Javadoc) and a POM with no dependency: the surface is Java (2.0.0; the 1.x POM declared `kotlin-stdlib`). License: GPL-3.0, like the repo. External module plugins declare it as `compileOnly` (the jar is provided by the running Artisan plugin at runtime):
 
 ```kotlin
 // build.gradle.kts

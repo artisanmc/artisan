@@ -18,8 +18,8 @@ A **module** is your plugin's identity inside Artisan. Implementing
 
 ```kotlin
 class HomesModule(private val plugin: HomesPlugin) : ArtisanModule {
-    override val id = "homes"                 // lowercase; also your namespace
-    override val schemaVersion = "homes/v1"   // the shape of your own files
+    override fun getId() = "homes"                 // lowercase; also your namespace
+    override fun getSchemaVersion() = "homes/v1"   // the shape of your own files
 
     private lateinit var api: ArtisanAPI
 
@@ -228,8 +228,8 @@ installs:
 
 ```kotlin
 api.schemas.register(object : SchemaMigration<MutableMap<String, Any?>> {
-    override val from = "homes/v1"
-    override val to = "homes/v2"
+    override fun getFrom() = "homes/v1"
+    override fun getTo() = "homes/v2"
     override fun migrate(data: MutableMap<String, Any?>): MutableMap<String, Any?> {
         data["max_homes"] = data.remove("limit")
         data["schema"] = to
