@@ -25,8 +25,8 @@ function menu(id: string, links: Link[] = [], rows = 3) {
                     kind: "action",
                     action:
                       link.kind === "dialog"
-                        ? { type: "open_dialog", dialogId: link.to }
-                        : { type: "open_menu", menuId: link.to },
+                        ? { name: "open_dialog", value: link.to }
+                        : { name: "open_menu", value: link.to },
                   },
                 ],
               },
@@ -56,7 +56,7 @@ function project(
         id: c.id,
         name: c.id,
         arguments: [],
-        steps: [{ kind: "action", action: { type: "open_menu", menuId: c.opens } }],
+        steps: [{ kind: "action", action: { name: "open_menu", value: c.opens } }],
       })),
       dialog: (docs.dialogs ?? []).map((d) => ({ id: d, buttons: [] })),
     },

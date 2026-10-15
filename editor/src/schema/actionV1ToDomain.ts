@@ -1,18 +1,17 @@
+import { canonicalActionValue } from "@/domain/actionArgs";
 import type {
   Action as DomainAction,
   Condition as DomainCondition,
   Step as DomainStep,
-  DialogId,
-  ElementId,
   LText,
-  MenuId,
 } from "@/domain/types";
 import type { DslText } from "@/lib/actionDsl";
 import { dslStepsToSteps, parseActionDsl } from "@/lib/actionDsl";
+import { coreActionOf } from "@/lib/actions/coreActions";
 import {
+  type ActionTextCodec,
   conditionFromStructured,
   structuredToSteps,
-  type ActionTextCodec,
 } from "@/lib/actions/structuredSteps";
 
 // The menu/v1 wire object is parsed YAML (snake_case, loosely typed). We model
@@ -171,7 +170,12 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
    */
   function steps(raw: unknown): DomainStep[] {
     if (typeof raw === "string") return dslToSteps(raw);
-    if (raw && typeof raw === "object" && !Array.isArray(raw) && typeof (raw as Json).steps === "string") {
+    if (
+      raw &&
+      typeof raw === "object" &&
+      !Array.isArray(raw) &&
+      typeof (raw as Json).steps === "string"
+    ) {
       return dslToSteps((raw as Json).steps);
     }
     // Pre-DSL legacy wire: a flat list of type-tagged actions (`{type:…}`).
@@ -196,99 +200,32 @@ export function makeStepConverter(ctx: ConverterCtx): StepConverter {
   }
 
   // Legacy structured actions/steps (module-data literal path only)
+  /**
+   * A type-tagged legacy action (`{type, menu_id, …}`) is already keyed by the wire's
+   * argument names: it becomes `{name: type, value}` through the core table, its texts
+   * going through `ctx.text`. A type the table does not know is unsupported.
+   */
   function action(a: Json): DomainAction | null {
-    switch (a.type) {
-      case "open_menu":
-        return {
-          type: "open_menu",
-          menuId: a.menu_id as MenuId,
-          ...(a.clear_context ? { clearContext: true } : {}),
-          ...(a.context ? { context: a.context } : {}),
-        };
-      case "close_menu":
-        return { type: "close_menu" };
-      case "open_previous_menu":
-        return { type: "open_previous_menu" };
-      case "run_command":
-        return { type: "run_command", command: a.command, as: a.as ?? "player" };
-      case "send_message":
-        return { type: "send_message", text: text(a.text) };
-      case "show_title":
-        return {
-          type: "show_title",
-          title: text(a.title),
-          ...(a.subtitle !== undefined ? { subtitle: text(a.subtitle) } : {}),
-          ...(a.fade_in !== undefined ? { fadeIn: a.fade_in } : {}),
-          ...(a.stay !== undefined ? { stay: a.stay } : {}),
-          ...(a.fade_out !== undefined ? { fadeOut: a.fade_out } : {}),
-        };
-      case "give_item":
-        return { type: "give_item", material: a.material, count: a.count };
-      case "take_item":
-        return { type: "take_item", material: a.material, count: a.count ?? 1 };
-      case "take_money":
-        return { type: "take_money", amount: a.amount };
-      case "give_money":
-        return { type: "give_money", amount: a.amount };
-      case "give_xp":
-        return { type: "give_xp", amount: a.amount };
-      case "give_level":
-        return { type: "give_level", amount: a.amount };
-      case "broadcast":
-        return { type: "broadcast", text: text(a.text) };
-      case "play_sound":
-        return {
-          type: "play_sound",
-          sound: a.sound,
-          ...(a.volume !== undefined ? { volume: a.volume } : {}),
-          ...(a.pitch !== undefined ? { pitch: a.pitch } : {}),
-        };
-      case "teleport": {
-        if (typeof a.world !== "string" || a.world === "") {
-          pushUnsupported("action: teleport (missing world)");
-          return null;
-        }
-        return {
-          type: "teleport",
-          world: a.world,
-          x: a.x ?? 0,
-          y: a.y ?? 0,
-          z: a.z ?? 0,
-          ...(a.yaw !== undefined ? { yaw: a.yaw } : {}),
-          ...(a.pitch !== undefined ? { pitch: a.pitch } : {}),
-        };
-      }
-      case "pagination_next":
-        return {
-          type: "paginate",
-          direction: "next",
-          ...(a.element_id ? { targetElementId: a.element_id as ElementId } : {}),
-        };
-      case "pagination_prev":
-        return {
-          type: "paginate",
-          direction: "prev",
-          ...(a.element_id ? { targetElementId: a.element_id as ElementId } : {}),
-        };
-      case "set_arg":
-        return { type: "set_arg", arg: a.arg, value: a.value };
-      case "set_arg_cycle_next":
-        return { type: "set_arg_cycle_next", arg: a.arg, list: a.list };
-      case "set_arg_cycle_prev":
-        return { type: "set_arg_cycle_prev", arg: a.arg, list: a.list };
-      case "open_dialog":
-        return {
-          type: "open_dialog",
-          dialogId: a.dialog_id as DialogId,
-          ...(a.clear_context ? { clearContext: true } : {}),
-          ...(a.context ? { context: a.context } : {}),
-        };
-      case "close_dialog":
-        return { type: "close_dialog" };
-      default:
-        pushUnsupported(`action: ${a.type}`);
-        return null;
+    const name = typeof a.type === "string" ? a.type : "";
+    const decl = coreActionOf(name);
+    if (!decl) {
+      pushUnsupported(`action: ${name || "<invalid>"}`);
+      return null;
     }
+    if (name === "teleport" && (typeof a.world !== "string" || a.world === "")) {
+      pushUnsupported("action: teleport (missing world)");
+      return null;
+    }
+    const args: Record<string, unknown> = {};
+    for (const arg of decl.args) {
+      const v = a[arg.name];
+      if (v === undefined || v === null) continue;
+      if (arg.type.kind === "ltext") args[arg.name] = text(v);
+      else if (arg.type.kind === "list" && arg.type.of.kind === "ltext" && Array.isArray(v))
+        args[arg.name] = v.map((e) => text(e));
+      else args[arg.name] = v;
+    }
+    return { name, value: canonicalActionValue(decl, args) };
   }
 
   function step(s: Json): DomainStep | null {

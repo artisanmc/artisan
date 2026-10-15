@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { defaultModuleAction } from "./defaults";
+import { defaultAction, defaultDeclaredAction } from "./defaults";
 
-describe("defaultModuleAction", () => {
+describe("defaultDeclaredAction", () => {
   it("seeds the required and defaulted arguments in the canonical shape", () => {
     expect(
-      defaultModuleAction({ name: "quests:refresh", moduleId: "quests", primary: null, args: [] }),
-    ).toEqual({ type: "module", name: "quests:refresh", value: null });
+      defaultDeclaredAction({ name: "quests:refresh", moduleId: "quests", primary: null, args: [] }),
+    ).toEqual({ name: "quests:refresh", value: null });
     expect(
-      defaultModuleAction({
+      defaultDeclaredAction({
         name: "quests:start",
         moduleId: "quests",
         primary: "quest",
@@ -16,9 +16,9 @@ describe("defaultModuleAction", () => {
           { name: "silent", type: { kind: "boolean" } },
         ],
       }),
-    ).toEqual({ type: "module", name: "quests:start", value: "" });
+    ).toEqual({ name: "quests:start", value: "" });
     expect(
-      defaultModuleAction({
+      defaultDeclaredAction({
         name: "quests:start",
         moduleId: "quests",
         primary: "quest",
@@ -27,6 +27,23 @@ describe("defaultModuleAction", () => {
           { name: "silent", type: { kind: "boolean" }, default: false },
         ],
       }),
-    ).toEqual({ type: "module", name: "quests:start", value: { quest: "", silent: false } });
+    ).toEqual({ name: "quests:start", value: "" });
+  });
+});
+
+describe("defaultAction", () => {
+  it("seeds a core action from the shared table, with the editor's starting values", () => {
+    expect(defaultAction("close_menu")).toEqual({ name: "close_menu", value: null });
+    expect(defaultAction("open_menu", "shop" as never)).toEqual({ name: "open_menu", value: "shop" });
+    expect(defaultAction("give_item")).toEqual({
+      name: "give_item",
+      value: { material: "DIAMOND", count: 1 },
+    });
+    expect(defaultAction("send_message")).toEqual({ name: "send_message", value: { key: "" } });
+    expect(defaultAction("set_arg")).toEqual({ name: "set_arg", value: { arg: "", value: '""' } });
+    expect(defaultAction("teleport")).toEqual({
+      name: "teleport",
+      value: { world: "world", x: 0, y: 64, z: 0 },
+    });
   });
 });

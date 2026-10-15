@@ -1,7 +1,7 @@
-import { addressedAppearances } from "@/domain/element";
-import { walkActions } from "@/domain/stepPath";
-import type { Project } from "@/domain/types";
+import { walkDocumentRefs } from "@/domain/actionArgs";
 import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { addressedAppearances } from "@/domain/element";
+import type { Project } from "@/domain/types";
 
 export type EdgeTrigger =
   | { kind: "element"; elementId: string; material: string; clickType: string }
@@ -15,6 +15,12 @@ export interface Edge {
   triggers: EdgeTrigger[];
 }
 
+/**
+ * The board's edges: one per (source Document, target Document) pair, carrying the
+ * triggers that open the target. A trigger is any action with a `document_ref` argument
+ * (`open_menu`, `open_dialog`, a module's action referencing a Document), read through
+ * its declaration (ADR `extensible-document-kinds`, R3).
+ */
 export function deriveEdges(project: Project): Edge[] {
   const edgeMap = new Map<string, Edge>();
   const triggerSeen = new Map<string, Set<string>>();
@@ -49,22 +55,14 @@ export function deriveEdges(project: Project): Edge[] {
           const material = appearance.material ?? el.display.material ?? "";
           for (const [clickType, handler] of Object.entries(appearance.click)) {
             if (!handler) continue;
-            for (const action of walkActions(handler.steps)) {
-              if (action.type === "open_menu") {
-                addTrigger(menu.id, action.menuId, {
-                  kind: "element",
-                  elementId: el.id,
-                  material,
-                  clickType,
-                });
-              } else if (action.type === "open_dialog") {
-                addTrigger(menu.id, action.dialogId, {
-                  kind: "element",
-                  elementId: el.id,
-                  material,
-                  clickType,
-                });
-              }
+            for (const ref of walkDocumentRefs(handler.steps)) {
+              if (ref.id === "") continue;
+              addTrigger(menu.id, ref.id, {
+                kind: "element",
+                elementId: el.id,
+                material,
+                clickType,
+              });
             }
           }
         }
@@ -73,31 +71,20 @@ export function deriveEdges(project: Project): Edge[] {
   }
 
   for (const cmd of commandsOf(project)) {
-    for (const action of walkActions(cmd.steps)) {
-      if (action.type === "open_menu") {
-        addTrigger(cmd.id, action.menuId, { kind: "command", commandId: cmd.id });
-      } else if (action.type === "open_dialog") {
-        addTrigger(cmd.id, action.dialogId, { kind: "command", commandId: cmd.id });
-      }
+    for (const ref of walkDocumentRefs(cmd.steps)) {
+      if (ref.id !== "") addTrigger(cmd.id, ref.id, { kind: "command", commandId: cmd.id });
     }
   }
 
   for (const dialog of dialogsOf(project)) {
     for (const btn of dialog.buttons) {
-      for (const action of walkActions(btn.steps)) {
-        if (action.type === "open_menu") {
-          addTrigger(dialog.id, action.menuId, {
-            kind: "dialog_button",
-            dialogId: dialog.id,
-            buttonId: btn.id,
-          });
-        } else if (action.type === "open_dialog") {
-          addTrigger(dialog.id, action.dialogId, {
-            kind: "dialog_button",
-            dialogId: dialog.id,
-            buttonId: btn.id,
-          });
-        }
+      for (const ref of walkDocumentRefs(btn.steps)) {
+        if (ref.id === "") continue;
+        addTrigger(dialog.id, ref.id, {
+          kind: "dialog_button",
+          dialogId: dialog.id,
+          buttonId: btn.id,
+        });
       }
     }
   }

@@ -1,3 +1,5 @@
+import { actionDocumentRefs } from "@/domain/actionArgs";
+import { commandsOf, menusOf, mutableMenus } from "@/domain/documents";
 import { addressedAppearances } from "@/domain/element";
 import { rekeyMenu } from "@/domain/i18nSites";
 import { newElementId, newLayerId } from "@/domain/ids";
@@ -28,7 +30,6 @@ import {
   titleLayerKeys,
 } from "./helpers";
 import type { AccountSliceContext, AccountState, MenuRows } from "./types";
-import { commandsOf, menusOf, mutableMenus } from "@/domain/documents";
 
 /** Menus as Documents: fields, title layers, context inputs, captured items, ids. */
 export interface MenusSlice {
@@ -458,8 +459,8 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
         // Rewrite open_menu refs across the entire project — both
         // element click handlers and command step trees.
         const rewrite = (action: Action) => {
-          if (action.type === "open_menu" && action.menuId === oldId) {
-            action.menuId = newId;
+          for (const ref of actionDocumentRefs(action)) {
+            if (ref.document === "menu" && ref.id === oldId) ref.set(newId);
           }
         };
         for (const m of menusOf(project)) {

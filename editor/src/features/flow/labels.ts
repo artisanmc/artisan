@@ -1,55 +1,34 @@
-import type { Action, ClickType, Condition } from "@/domain/types";
+import type { ClickType, Condition } from "@/domain/types";
 
-/** Short label for a click action's discriminator. */
-export function actionTypeLabel(type: Action["type"]): string {
-  switch (type) {
-    case "open_menu":
-      return "menu";
-    case "close_menu":
-      return "close";
-    case "open_previous_menu":
-      return "back";
-    case "run_command":
-      return "cmd";
-    case "send_message":
-      return "msg";
-    case "show_title":
-      return "title";
-    case "give_item":
-      return "give";
-    case "take_item":
-      return "take";
-    case "take_money":
-      return "-$";
-    case "give_money":
-      return "+$";
-    case "give_xp":
-      return "xp";
-    case "give_level":
-      return "lvl";
-    case "broadcast":
-      return "bcast";
-    case "play_sound":
-      return "sound";
-    case "teleport":
-      return "tp";
-    case "paginate":
-      return "page";
-    case "set_arg":
-      return "set";
-    case "set_arg_cycle_next":
-      return "next";
-    case "set_arg_cycle_prev":
-      return "prev";
-    case "open_dialog":
-      return "dialog";
-    case "close_dialog":
-      return "close_dlg";
-    case "run_actions":
-      return "run";
-    case "module":
-      return "module";
-  }
+const ACTION_LABELS: Record<string, string> = {
+  open_menu: "menu",
+  close_menu: "close",
+  open_previous_menu: "back",
+  run_command: "cmd",
+  send_message: "msg",
+  show_title: "title",
+  give_item: "give",
+  take_item: "take",
+  take_money: "-$",
+  give_money: "+$",
+  give_xp: "xp",
+  give_level: "lvl",
+  broadcast: "bcast",
+  play_sound: "sound",
+  teleport: "tp",
+  pagination_next: "page",
+  pagination_prev: "page",
+  set_arg: "set",
+  set_arg_cycle_next: "next",
+  set_arg_cycle_prev: "prev",
+  open_dialog: "dialog",
+  close_dialog: "close_dlg",
+  run_actions: "run",
+};
+
+/** Short label for an action's wire name: a core tag, or a module action's module id. */
+export function actionTypeLabel(name: string): string {
+  return ACTION_LABELS[name] ?? (name.includes(":") ? name.slice(0, name.indexOf(":")) : "module");
 }
 
 /** One-line summary of a visibility / requirement predicate. */
