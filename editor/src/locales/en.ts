@@ -428,6 +428,7 @@ export default {
       "Returns to the previous screen (back button). Does nothing when there is no history.",
     moduleValueLabel: "arguments (JSON)",
     moduleUnknown: "This action is not declared by the connected server: its arguments are edited as raw JSON.",
+    moduleAddText: "Add a text",
     moduleValueInvalid: "Invalid JSON: the value was not changed.",
     moduleAction: "Module action",
     runActionsLabel: "actions to run",

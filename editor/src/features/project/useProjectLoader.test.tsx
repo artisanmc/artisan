@@ -1,4 +1,5 @@
 import * as dataSourcesApi from "@/lib/api/dataSources";
+import * as declaredActionsApi from "@/lib/api/declaredActions";
 import * as draftsApi from "@/lib/api/projectDrafts";
 import * as projectFilesApi from "@/lib/api/projectFiles";
 import * as userProjectsApi from "@/lib/api/userProjects";
@@ -15,6 +16,8 @@ describe("useProjectLoader", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(draftsApi, "listDrafts").mockResolvedValue([]);
+    // Like the models, the server's declared actions are fetched at build: never the network here.
+    vi.spyOn(declaredActionsApi, "fetchServerDeclaredActions").mockResolvedValue([]);
     useAuthStore.setState({ currentUser: null } as never);
     useProjectCacheStore.setState({ entries: {} } as never);
     useProjectDraftStore.setState({ drafts: {}, pendingRenames: {}, ownerId: null, backups: {} });

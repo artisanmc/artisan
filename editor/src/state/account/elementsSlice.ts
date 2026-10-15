@@ -9,7 +9,7 @@ import {
   rectanglePositions,
 } from "@/domain/imageButton";
 import type { AdvancedFields } from "@/domain/itemAdvanced";
-import { type StepFrame, type StepPath, resolveParentMut, walkActions } from "@/domain/stepPath";
+import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
 import type {
   Appearance,
   ClickType,
@@ -48,6 +48,7 @@ import {
   gcStepLTexts,
   nextElementIdForMaterial,
   touch,
+  duplicateStepLTexts,
 } from "./helpers";
 import type { AccountSliceContext, AccountState, AppearanceTarget } from "./types";
 import { menusOf, mutableCommands, mutableMenus } from "@/domain/documents";
@@ -1172,23 +1173,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
               if (a.click) {
                 const click = { ...a.click };
                 for (const handler of Object.values(click)) {
-                  if (!handler) continue;
-                  for (const action of walkActions(handler.steps)) {
-                    if (action.type === "send_message" || action.type === "broadcast") {
-                      const src = project.i18nKeys[action.text.key];
-                      action.text = createLText(project, "", project.defaultLang);
-                      if (src) project.i18nKeys[action.text.key] = { ...src };
-                    } else if (action.type === "show_title") {
-                      const srcT = project.i18nKeys[action.title.key];
-                      action.title = createLText(project, "", project.defaultLang);
-                      if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
-                      if (action.subtitle) {
-                        const srcS = project.i18nKeys[action.subtitle.key];
-                        action.subtitle = createLText(project, "", project.defaultLang);
-                        if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
-                      }
-                    }
-                  }
+                  if (handler) duplicateStepLTexts(project, handler.steps);
                 }
                 cloned.click = click;
               }
@@ -1359,22 +1344,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       }
       for (const c of commands) {
         const stamped: Command = { ...c, projectId: pId };
-        for (const action of walkActions(stamped.steps)) {
-          if (action.type === "send_message" || action.type === "broadcast") {
-            const src = project.i18nKeys[action.text.key];
-            action.text = createLText(project, "", project.defaultLang);
-            if (src) project.i18nKeys[action.text.key] = { ...src };
-          } else if (action.type === "show_title") {
-            const srcT = project.i18nKeys[action.title.key];
-            action.title = createLText(project, "", project.defaultLang);
-            if (srcT) project.i18nKeys[action.title.key] = { ...srcT };
-            if (action.subtitle) {
-              const srcS = project.i18nKeys[action.subtitle.key];
-              action.subtitle = createLText(project, "", project.defaultLang);
-              if (srcS) project.i18nKeys[action.subtitle.key] = { ...srcS };
-            }
-          }
-        }
+        duplicateStepLTexts(project, stamped.steps);
         mutableCommands(project).push(stamped);
         rekeyCommand(project, stamped);
         (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
