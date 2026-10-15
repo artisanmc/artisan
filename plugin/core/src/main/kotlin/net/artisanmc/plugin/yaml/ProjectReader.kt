@@ -39,13 +39,48 @@ class ProjectReader(
 
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
+    /** What a kind's reader needs from the project being read. */
+    private class ReadContext(
+        val projectId: String,
+        val manifest: ManifestYaml,
+        val langMaps: Map<String, Map<String, String>>,
+        val templates: Map<String, TemplateYaml>,
+    )
+
     /**
-     * `menu/v2` and `menu/v3` shipped as pure version bumps — neither migration
-     * touched the data — and were folded back into `menu/v1`. Projects written
-     * while they existed are still on servers' disks, so reads accept the retired
-     * labels; the editor only ever writes `menu/v1`.
+     * One reader per core kind: a file of that kind, its id (the file name) and
+     * the project's context, to the runtime Document the bundle carries under
+     * that kind (ADR `extensible-document-kinds`, decision 10). The folder loop
+     * in [readProject] knows no kind by name; a registered kind without a reader
+     * here is left on disk for the module that owns it.
      */
-    private val menuSchemaVersions = arrayOf("menu/v1", "menu/v2", "menu/v3")
+    private val coreReaders: Map<String, (File, String, ReadContext) -> Any> = mapOf(
+        DocumentKinds.MENU.kind to { f, menuId, ctx ->
+            val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
+            requireSchema(f, menuYaml.schema, *DocumentKinds.MENU.schemaVersions.toTypedArray())
+            val currentMenu =
+                if (menuYaml.schema == DocumentKinds.MENU.canonicalSchema) menuYaml
+                else menuYaml.copy(schema = DocumentKinds.MENU.canonicalSchema)
+            BundleCompiler.compile(
+                resolveTemplates(currentMenu, ctx.templates),
+                ctx.langMaps, logger, defaultLang = ctx.manifest.defaultLang,
+            ).copy(
+                projectId = ctx.projectId,
+                loreMaxWidth = ctx.manifest.loreMaxWidth,
+                escapeGoesBack = ctx.manifest.escapeGoesBack,
+            )
+        },
+        DocumentKinds.COMMAND.kind to { f, cmdId, _ ->
+            val cmdYaml = withFileId(mapper.readValue(f, CommandYaml::class.java), cmdId, f)
+            requireSchema(f, cmdYaml.schema, *DocumentKinds.COMMAND.schemaVersions.toTypedArray())
+            cmdYaml
+        },
+        DocumentKinds.DIALOG.kind to { f, dialogId, ctx ->
+            val dialogYaml = withFileId(mapper.readValue(f, DialogYaml::class.java), dialogId, f)
+            requireSchema(f, dialogYaml.schema, *DocumentKinds.DIALOG.schemaVersions.toTypedArray())
+            BundleDialog(dialogYaml, ctx.langMaps, defaultLang = ctx.manifest.defaultLang, projectId = ctx.projectId)
+        },
+    )
 
     /**
      * Verify the YAML's `schema` field is either empty (legacy / pre-versioning)
@@ -164,55 +199,23 @@ class ProjectReader(
             }
             ?.associateBy { it.id } ?: emptyMap()
 
+        // One folder per registered kind, each file through its kind's reader.
         // Tolerant per file (like data sources below): a single unparseable
-        // menu/command/dialog — e.g. a stale-format file mid-migration — logs +
-        // skips instead of failing the whole reload and the plugin enable.
-        val menus = documentIds(projectDir, "menus", manifest.files.menus).mapNotNull { menuId ->
-            val f = File(projectDir, "menus/$menuId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
-            runCatching {
-                val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
-                requireSchema(f, menuYaml.schema, *menuSchemaVersions)
-                val currentMenu =
-                    if (menuYaml.schema == "menu/v1") menuYaml else menuYaml.copy(schema = "menu/v1")
-                BundleCompiler.compile(
-                    resolveTemplates(currentMenu, templates),
-                    langMaps, logger, defaultLang = manifest.defaultLang,
-                ).copy(projectId = projectId, loreMaxWidth = manifest.loreMaxWidth, escapeGoesBack = manifest.escapeGoesBack)
-            }.getOrElse { e ->
-                if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
-                logger?.warning("[Artisan] skipping menu ${f.name}: ${e.message}")
-                onSkip(projectId, "menus/${f.name}", e.message ?: e::class.simpleName.orEmpty())
-                null
+        // Document — e.g. a stale-format file mid-migration — logs + skips
+        // instead of failing the whole reload and the plugin enable.
+        val ctx = ReadContext(projectId, manifest, langMaps, templates)
+        val documents: Map<String, List<Any>> = DocumentKinds.all().mapNotNull { kind ->
+            val reader = coreReaders[kind.kind] ?: return@mapNotNull null
+            kind.kind to documentIds(projectDir, kind.dir, manifest.files[kind.dir].orEmpty()).mapNotNull { docId ->
+                val f = File(projectDir, "${kind.dir}/$docId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
+                runCatching { reader(f, docId, ctx) }.getOrElse { e ->
+                    if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
+                    logger?.warning("[Artisan] skipping ${kind.kind} ${f.name}: ${e.message}")
+                    onSkip(projectId, "${kind.dir}/${f.name}", e.message ?: e::class.simpleName.orEmpty())
+                    null
+                }
             }
-        }
-
-        val commands = documentIds(projectDir, "commands", manifest.files.commands).mapNotNull { cmdId ->
-            val f = File(projectDir, "commands/$cmdId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
-            runCatching {
-                val cmdYaml = withFileId(mapper.readValue(f, CommandYaml::class.java), cmdId, f)
-                requireSchema(f, cmdYaml.schema, "command/v1")
-                cmdYaml
-            }.getOrElse { e ->
-                if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
-                logger?.warning("[Artisan] skipping command ${f.name}: ${e.message}")
-                onSkip(projectId, "commands/${f.name}", e.message ?: e::class.simpleName.orEmpty())
-                null
-            }
-        }
-
-        val dialogs = documentIds(projectDir, "dialogs", manifest.files.dialogs).mapNotNull { dialogId ->
-            val f = File(projectDir, "dialogs/$dialogId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
-            runCatching {
-                val dialogYaml = withFileId(mapper.readValue(f, DialogYaml::class.java), dialogId, f)
-                requireSchema(f, dialogYaml.schema, "dialog/v1")
-                BundleDialog(dialogYaml, langMaps, defaultLang = manifest.defaultLang, projectId = projectId)
-            }.getOrElse { e ->
-                if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
-                logger?.warning("[Artisan] skipping dialog ${f.name}: ${e.message}")
-                onSkip(projectId, "dialogs/${f.name}", e.message ?: e::class.simpleName.orEmpty())
-                null
-            }
-        }
+        }.toMap()
 
         // Project sources — scanned, not manifest-listed. Tolerant per file: a
         // bad source logs + skips, never blocks the project load. Two accepted
@@ -281,7 +284,7 @@ class ProjectReader(
 
         return ProjectBundle(
             projectId, manifest.defaultLang, manifest.languages,
-            menus, commands, dialogs, dataSources, langMaps,
+            documents, dataSources, langMaps,
         )
     }
 

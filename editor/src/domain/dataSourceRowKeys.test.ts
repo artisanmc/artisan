@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { dataModelId, dataSourceId } from "./ids";
-import {
-  nextAvailableSourceRowKey,
-  validateSourceRowKey,
-} from "./dataSourceRowKeys";
+import { nextAvailableSourceRowKey, validateSourceRowKey } from "./dataSourceRowKeys";
 import type { DataModel, DataSource, Project } from "./types";
 
-function tableSource(kind: "string" | "number" | "integer", rows: Record<string, unknown>[]): Extract<DataSource, { shape: "table" }> {
+function tableSource(
+  kind: "string" | "number" | "integer",
+  rows: Record<string, unknown>[],
+): Extract<DataSource, { shape: "table" }> {
   return {
     id: dataSourceId("members"),
     name: "members",
@@ -26,14 +26,16 @@ function projectFor(kind: "string" | "number" | "integer"): Project {
   return {
     id: "project",
     name: "Project",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     dataModels: [model],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   } as unknown as Project;
 }
@@ -57,21 +59,30 @@ describe("source row keys", () => {
     const project = projectFor("string");
     const source = tableSource("string", [{ id: "vip" }]);
 
-    expect(validateSourceRowKey(project, source, -1, " VIP ")).toEqual({ ok: false, reason: "duplicate" });
+    expect(validateSourceRowKey(project, source, -1, " VIP ")).toEqual({
+      ok: false,
+      reason: "duplicate",
+    });
   });
 
   it("returns the normalized string key when available", () => {
     const project = projectFor("string");
     const source = tableSource("string", [{ id: "vip" }]);
 
-    expect(validateSourceRowKey(project, source, -1, " Elite ")).toEqual({ ok: true, value: "elite" });
+    expect(validateSourceRowKey(project, source, -1, " Elite ")).toEqual({
+      ok: true,
+      value: "elite",
+    });
   });
 
   it("rejects a whitespace-only string key as required", () => {
     const project = projectFor("string");
     const source = tableSource("string", []);
 
-    expect(validateSourceRowKey(project, source, -1, "   ")).toEqual({ ok: false, reason: "required" });
+    expect(validateSourceRowKey(project, source, -1, "   ")).toEqual({
+      ok: false,
+      reason: "required",
+    });
   });
 
   it("accepts a numeric key already held by the current row", () => {

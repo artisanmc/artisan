@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.project
 
+import net.artisanmc.plugin.model.DocumentKinds
 import java.io.File
 
 data class ResourceEntry(val projectId: String, val path: String, val origin: String)
@@ -9,12 +10,7 @@ object ResourceInventory {
     fun kind(path: String): String? {
         val parts = path.replace('\\', '/').split('/')
         if (parts.size !in 2..3 || parts.drop(1).any { it.isEmpty() || it.startsWith('.') }) return null
-        val type = when (parts[0]) {
-            "menus" -> "menu"
-            "dialogs" -> "dialog"
-            "commands" -> "command"
-            else -> return null
-        }
+        val type = DocumentKinds.byDir(parts[0])?.kind ?: return null
         if (!parts.last().endsWith(".yaml", true) && !parts.last().endsWith(".yml", true)) return null
         return type
     }
@@ -28,7 +24,7 @@ object ResourceInventory {
             roots.registeredRoots().map { (id, dir) -> Triple(id, dir, "module") }
         return sources.flatMap { (id, dir, origin) ->
             if (!dir.isDirectory || !dir.canRead()) error("inventory_unavailable: $id")
-            listOf("menus", "dialogs", "commands").flatMap { rootName ->
+            DocumentKinds.all().map { it.dir }.flatMap { rootName ->
                 val resourceRoot = File(dir, rootName)
                 if (!resourceRoot.exists()) return@flatMap emptyList()
                 if (!resourceRoot.isDirectory || !resourceRoot.canRead()) error("inventory_unavailable: $id/$rootName")

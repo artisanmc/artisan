@@ -5,6 +5,7 @@ import Ajv2020 from "ajv/dist/2020";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { transform } from "./transform";
+import { mutableDialogs } from "@/domain/documents";
 
 /**
  * Fixture oracle for the published dialog/v1 schema: what the editor exports
@@ -26,14 +27,16 @@ function buildProject(): Project {
     source: "user_created",
     createdAt: "2026-06-11T00:00:00.000Z",
     updatedAt: "2026-06-11T00:00:00.000Z",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    dialogs: [],
     canvasLayout: {},
   };
 
@@ -49,7 +52,14 @@ function buildProject(): Project {
     inputs: [
       { type: "text", id: "note", label: lt(project, "Note"), default: "", maxLength: 32 },
       { type: "bool", id: "gift", label: lt(project, "Gift wrap"), default: false },
-      { type: "number_range", id: "qty", label: lt(project, "Quantity"), min: 1, max: 64, default: 1 },
+      {
+        type: "number_range",
+        id: "qty",
+        label: lt(project, "Quantity"),
+        min: 1,
+        max: 64,
+        default: 1,
+      },
       {
         type: "single_option",
         id: "currency",
@@ -77,7 +87,7 @@ function buildProject(): Project {
       },
     ],
   };
-  project.dialogs.push(dialog);
+  mutableDialogs(project).push(dialog);
   return project;
 }
 

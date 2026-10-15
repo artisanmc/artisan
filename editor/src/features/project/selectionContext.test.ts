@@ -1,6 +1,7 @@
 import type { ElementId, Project, ProjectId } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { selectionContext } from "./selectionContext";
+import { menusOf } from "@/domain/documents";
 
 const PID = "p1" as ProjectId;
 
@@ -11,24 +12,30 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      {
-        id: "m1",
-        projectId: PID,
-        title: [],
-        rows: 3,
-        layers: [{ id: "L0", elements: [{ id: "grid", positions: "0", display: {}, states: [] }] }],
-      } as any,
-      {
-        id: "m2",
-        projectId: PID,
-        title: [],
-        rows: 3,
-        layers: [{ id: "L0", elements: [{ id: "grid", positions: "1", display: {}, states: [] }] }],
-      } as any,
-    ],
-    commands: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
-    dialogs: [{ id: "d1", projectId: PID } as any],
+    documents: {
+      menu: [
+        {
+          id: "m1",
+          projectId: PID,
+          title: [],
+          rows: 3,
+          layers: [
+            { id: "L0", elements: [{ id: "grid", positions: "0", display: {}, states: [] }] },
+          ],
+        } as any,
+        {
+          id: "m2",
+          projectId: PID,
+          title: [],
+          rows: 3,
+          layers: [
+            { id: "L0", elements: [{ id: "grid", positions: "1", display: {}, states: [] }] },
+          ],
+        } as any,
+      ],
+      command: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+      dialog: [{ id: "d1", projectId: PID } as any],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
@@ -44,7 +51,7 @@ const ctx = (ids: string[], menuId: string | null = null) =>
 describe("selectionContext", () => {
   it.each(["c1", "d1", "m1"])("keeps a scoped element distinct from entity %s", (id) => {
     const p = project();
-    p.menus[1]!.layers[0]!.elements[0]!.id = id as ElementId;
+    menusOf(p)[1]!.layers[0]!.elements[0]!.id = id as ElementId;
     expect(selectionContext(p, new Set([id]), "m2")).toEqual({
       kind: "element",
       menuId: "m2",

@@ -22,6 +22,7 @@ import type {
   DataSource,
   DataSourceId,
   Dialog,
+  Document,
   Element,
   ElementId,
   I18nKey,
@@ -36,6 +37,7 @@ import { createLText } from "@/lib/i18n";
 import { clickHandlerKeyPrefix, elementLoreKey, elementTitleKey } from "@/lib/i18nKeys";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import type { AccountState, AppearanceTarget } from "./types";
+import { commandsOf, menusOf } from "@/domain/documents";
 
 /**
  * Helpers shared by the account slices: they walk the immer draft and return live
@@ -89,7 +91,7 @@ export function cloneAppearanceLTextsInto(project: Project, a: Appearance): void
 }
 
 export function findAppearanceOwner(project: Project, target: AppearanceTarget): Element | null {
-  const menu = project.menus.find((m) => m.id === target.menuId);
+  const menu = menusOf(project).find((m) => m.id === target.menuId);
   if (!menu) return null;
   for (const layer of menu.layers) {
     for (const el of layer.elements) {
@@ -137,7 +139,7 @@ export const appearanceClickPrefixFor = (
 export function findCommand(draft: AccountState, projectId: ProjectId, commandId: CommandId) {
   const project = draft.account.projects.find((p) => p.id === projectId);
   if (!project) return null;
-  return project.commands.find((c) => c.id === commandId) ?? null;
+  return commandsOf(project).find((c) => c.id === commandId) ?? null;
 }
 
 export function touch(draft: AccountState, projectId: ProjectId) {
@@ -298,7 +300,7 @@ export function nextElementIdForMaterial(
   const base = (material ?? "button").toLowerCase();
   const prefix = `${base}_`;
   let max = 0;
-  for (const menu of project.menus) {
+  for (const menu of menusOf(project)) {
     for (const layer of menu.layers) {
       for (const el of layer.elements) {
         if (el.id.startsWith(prefix)) {
@@ -351,4 +353,15 @@ export function rewriteCanvasEdgeIds(project: Project, oldId: string, newId: str
     project.canvasEdges[newKey] = project.canvasEdges[key]!;
     delete project.canvasEdges[key];
   }
+}
+
+/**
+ * Releases the text a document owns before it leaves the project. The core
+ * kinds are the ones with text in `i18nKeys`; a kind of another module keeps
+ * its text in its own files.
+ */
+export function gcDocumentLTexts(project: Project, kind: string, doc: Document): void {
+  if (kind === "menu") gcMenuLTexts(project, doc as Menu);
+  else if (kind === "command") gcCommandLTexts(project, doc as Command);
+  else if (kind === "dialog") gcDialogLTexts(project, doc as Dialog);
 }

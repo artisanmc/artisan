@@ -33,6 +33,7 @@ import { type CSSProperties, createContext, useContext, useMemo, useRef, useStat
 import { useTranslation } from "react-i18next";
 import { ACTION_TYPES, defaultAction } from "./defaults";
 import { CLICK_TYPE_ORDER, actionTypeLabel, clickTypeLabel, conditionsSummary } from "./labels";
+import { menusOf } from "@/domain/documents";
 
 const INDENT = 16;
 
@@ -133,7 +134,10 @@ interface ElementClickHandlersPseudocodeProps {
   click: { [k in ClickType]?: ClickHandler } | undefined;
 }
 
-const targetOf = (menuId: MenuId, elementId: ElementId): AppearanceTarget => ({ menuId, elementId });
+const targetOf = (menuId: MenuId, elementId: ElementId): AppearanceTarget => ({
+  menuId,
+  elementId,
+});
 
 export function ElementClickHandlersPseudocode({
   projectId,
@@ -195,7 +199,10 @@ export function ElementClickHandlersPseudocode({
               {t("flow.clickAdd")}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
+          <DropdownMenuContent
+            align="start"
+            className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+          >
             {unpopulated.map((opt) => (
               <DropdownMenuItem
                 key={opt}
@@ -233,12 +240,11 @@ interface ElementStepTreeProps {
 }
 
 function ElementStepTree(props: ElementStepTreeProps) {
-  const { projectId, menuId, elementId, stateIndex, clickType, steps, frames, indent } =
-    props;
+  const { projectId, menuId, elementId, stateIndex, clickType, steps, frames, indent } = props;
   const addElementStep = useAccountStore((s) => s.addElementStep);
   const moveElementStep = useAccountStore((s) => s.moveElementStep);
   const firstMenuId = useAccountStore(
-    (s) => s.account.projects.find((p) => p.id === projectId)?.menus[0]?.id,
+    (s) => menusOf(s.account.projects.find((p) => p.id === projectId))[0]?.id,
   );
   const activeLang = useUiStore((s) => s.activeLang);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -492,7 +498,7 @@ function CommandStepTree({
   const addCommandStep = useAccountStore((s) => s.addCommandStep);
   const moveCommandStep = useAccountStore((s) => s.moveCommandStep);
   const firstMenuId = useAccountStore(
-    (s) => s.account.projects.find((p) => p.id === projectId)?.menus[0]?.id,
+    (s) => menusOf(s.account.projects.find((p) => p.id === projectId))[0]?.id,
   );
   const activeLang = useUiStore((s) => s.activeLang);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -876,7 +882,10 @@ export function AddStepLine({
             {t("flow.addStep")}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
+        <DropdownMenuContent
+          align="start"
+          className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+        >
           {ACTION_TYPES.map((type) => (
             <DropdownMenuItem
               key={type}
@@ -897,7 +906,9 @@ export function AddStepLine({
               <span className="rounded bg-[var(--brand-soft)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--brand)]">
                 if
               </span>
-              <span className="font-mono text-[11px] text-[var(--text)]">{t("flow.addStepIfBranch")}</span>
+              <span className="font-mono text-[11px] text-[var(--text)]">
+                {t("flow.addStepIfBranch")}
+              </span>
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -974,7 +985,9 @@ function Expansion({ indent, children }: { indent: number; children: React.React
   return (
     <div className="flex">
       <div style={{ width: indent * INDENT }} className="shrink-0" />
-      <div className="my-1 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">{children}</div>
+      <div className="my-1 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">
+        {children}
+      </div>
     </div>
   );
 }
@@ -1131,7 +1144,7 @@ function summarizeConditions(
 }
 
 // Dialog button step pseudocode — mirrors CommandStepPseudocode but scoped
-// to a dialog button's `steps` (`project.dialogs[d].buttons[b].steps`).
+// to a dialog button's `steps` (`dialogsOf(project)[d].buttons[b].steps`).
 
 interface DialogButtonStepPseudocodeProps {
   projectId: ProjectId;
@@ -1180,7 +1193,7 @@ function DialogButtonStepTree({
   const addDialogButtonStep = useAccountStore((s) => s.addDialogButtonStep);
   const moveDialogButtonStep = useAccountStore((s) => s.moveDialogButtonStep);
   const firstMenuId = useAccountStore(
-    (s) => s.account.projects.find((p) => p.id === projectId)?.menus[0]?.id,
+    (s) => menusOf(s.account.projects.find((p) => p.id === projectId))[0]?.id,
   );
   const activeLang = useUiStore((s) => s.activeLang);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -1228,7 +1241,12 @@ function DialogButtonStepTree({
               />
             </SortableStep>
           ))}
-          <AddStepLine indent={indent} firstMenuId={firstMenuId} onPick={handleAdd} allowIf={false} />
+          <AddStepLine
+            indent={indent}
+            firstMenuId={firstMenuId}
+            onPick={handleAdd}
+            allowIf={false}
+          />
         </div>
       </SortableContext>
     </DndContext>
@@ -1256,9 +1274,7 @@ function DialogButtonStepLine({
   const removeDialogButtonStep = useAccountStore((s) => s.removeDialogButtonStep);
   const addDialogButtonIfCase = useAccountStore((s) => s.addDialogButtonIfCase);
   const removeDialogButtonIfCase = useAccountStore((s) => s.removeDialogButtonIfCase);
-  const setDialogButtonIfCaseConditions = useAccountStore(
-    (s) => s.setDialogButtonIfCaseConditions,
-  );
+  const setDialogButtonIfCaseConditions = useAccountStore((s) => s.setDialogButtonIfCaseConditions);
   const setDialogButtonIfCaseJoin = useAccountStore((s) => s.setDialogButtonIfCaseJoin);
   const toggleDialogButtonIfElse = useAccountStore((s) => s.toggleDialogButtonIfElse);
   const activeLang = useUiStore((s) => s.activeLang);

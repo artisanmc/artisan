@@ -50,6 +50,7 @@ import {
   touch,
 } from "./helpers";
 import type { AccountSliceContext, AccountState, AppearanceTarget } from "./types";
+import { menusOf, mutableCommands, mutableMenus } from "@/domain/documents";
 
 /** A menu's content: elements, slots, appearances, positions, steps and click handlers. */
 export interface ElementsSlice {
@@ -394,7 +395,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         for (const layer of menu.layers) {
           const el = layer.elements.find((e) => e.id === eId);
@@ -411,7 +412,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = project?.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!project || !menu) return;
         for (const layer of menu.layers) {
           const el = layer.elements.find((e) => e.id === eId);
@@ -428,7 +429,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = project?.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!project || !menu) return;
         for (const layer of menu.layers) {
           const el = layer.elements.find((e) => e.id === eId);
@@ -447,7 +448,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = project?.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!project || !menu) return;
         for (const layer of menu.layers) {
           const el = layer.elements.find((e) => e.id === eId);
@@ -466,7 +467,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         const allElements = menu.layers.flatMap((l) => l.elements);
         if (allElements.some((el) => el.id === newId)) {
@@ -489,7 +490,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         // Find the element that currently owns this position (single OR
         // multi-pos), update its material — preserves title/lore/count.
@@ -523,7 +524,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === input.projectId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === input.menuId);
+        const menu = menusOf(project).find((m) => m.id === input.menuId);
         const element = menu?.layers
           .flatMap((l) => l.elements)
           .find((el) => el.id === input.elementId);
@@ -624,7 +625,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         for (const layer of menu.layers) {
           for (const el of layer.elements) {
@@ -651,7 +652,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         const imageElement = menu.layers
           .flatMap((l) => l.elements)
@@ -720,7 +721,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         const source = menu.layers.flatMap((l) => l.elements).find((el) => el.id === elementId);
         if (source && hasImageButton(source))
@@ -757,7 +758,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         for (const layer of menu.layers) {
           const idx = layer.elements.findIndex((el) => el.id === elementId);
@@ -1093,7 +1094,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
     set(
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = project?.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!project || !menu) return;
         const size = imageButtonSize(asset.width, asset.height);
         const element: Element = {
@@ -1124,7 +1125,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         const newPositions = parsePositions(element.positions);
         for (const layer of menu.layers) {
@@ -1207,7 +1208,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
     const next = produce(get().account, (draft) => {
       const project = draft.projects.find((p) => p.id === pId);
       if (!project) return;
-      const menu = project.menus.find((m) => m.id === mId);
+      const menu = menusOf(project).find((m) => m.id === mId);
       if (!menu) return;
       const targetSet = new Set(elementIds);
       // Grid is type-dependent: chest 9×rows, hopper 5×1, dropper 3×3, then
@@ -1303,7 +1304,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
       produce((draft: AccountState) => {
         const project = draft.account.projects.find((p) => p.id === pId);
         if (!project) return;
-        const menu = project.menus.find((m) => m.id === mId);
+        const menu = menusOf(project).find((m) => m.id === mId);
         if (!menu) return;
         for (const layer of menu.layers) {
           const idx = layer.elements.findIndex((el) => positionsContains(el.positions, position));
@@ -1347,7 +1348,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
             for (const a of addressedAppearances(el)) cloneAppearanceLTexts(a);
           }
         }
-        project.menus.push(stamped);
+        mutableMenus(project).push(stamped);
         rekeyMenu(project, stamped);
         (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
           x: offset.x,
@@ -1374,7 +1375,7 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
             }
           }
         }
-        project.commands.push(stamped);
+        mutableCommands(project).push(stamped);
         rekeyCommand(project, stamped);
         (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
           x: offset.x,

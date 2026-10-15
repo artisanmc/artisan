@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { menuV1ToDomain } from "./menuV1ToDomain";
 import { validateMenuV1 } from "./validateMenuV1";
+import { menusOf, mutableMenus } from "@/domain/documents";
 
 /**
  * Round-trip oracle: domain Menu → export (menu/v1 YAML) → re-import → assert
@@ -47,14 +48,16 @@ function buildProject(): Project {
     source: "user_created",
     createdAt: "2026-06-08T00:00:00.000Z",
     updatedAt: "2026-06-08T00:00:00.000Z",
-    menus: [],
-    commands: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: LANG,
-    dialogs: [],
     canvasLayout: {},
   };
 
@@ -232,7 +235,7 @@ function buildProject(): Project {
     ],
   };
 
-  project.menus.push(menu);
+  mutableMenus(project).push(menu);
   return project;
 }
 
@@ -247,7 +250,7 @@ function resolve(
 
 describe("menuV1ToDomain — round-trip oracle", () => {
   const project = buildProject();
-  const original = project.menus[0]!;
+  const original = menusOf(project)[0]!;
   const files = transform(project);
   const menuYaml = files[`plugins/Artisan/projects/${PACK}/menus/shop.yaml`]!;
   const wire = parse(menuYaml) as Record<string, unknown>;
@@ -456,9 +459,11 @@ describe("serializeMenuToV1 inventory_type", () => {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
   } as any;
 
@@ -504,9 +509,11 @@ describe("inventory_type round-trip (domain -> v1 -> domain)", () => {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for round-trip
   } as any;
   for (const [type, rows, size] of [
@@ -539,9 +546,11 @@ describe("player_inventory", () => {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
   } as any;
 
@@ -574,9 +583,11 @@ describe("vanilla_texture", () => {
     id: "p",
     i18nKeys: {},
     defaultLang: "en",
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
     // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
   } as any;
   const read = (extra: Record<string, unknown>) =>

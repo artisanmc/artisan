@@ -2,8 +2,10 @@ import { projectNamespace, resolveDocRef } from "@/domain/docRef";
 import type { Project, ProjectId } from "@/domain/types";
 import { type Edge, deriveEdges } from "./deriveEdges";
 import { COMMAND_BOX, DIALOG_BOX, menuBoxSize } from "./menuLayout";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
-export type DocumentKind = "menu" | "command" | "dialog";
+/** A document kind id, as registered in `domain/documentKinds.ts`. */
+export type DocumentKind = string;
 
 export interface BoardNode {
   key: string;
@@ -62,7 +64,7 @@ export function deriveServerGraph(projects: Project[]): ServerGraph {
     resolveDocRef((id) => targets.get(id) ?? [], from.id, raw);
 
   for (const project of projects) {
-    for (const menu of project.menus) {
+    for (const menu of menusOf(project)) {
       const key = documentKey(project.id, menu.id);
       nodes.push({
         key,
@@ -73,7 +75,7 @@ export function deriveServerGraph(projects: Project[]): ServerGraph {
       });
       addTarget(project, menu.id, key);
     }
-    for (const command of project.commands) {
+    for (const command of commandsOf(project)) {
       nodes.push({
         key: documentKey(project.id, command.id),
         projectId: project.id,
@@ -82,7 +84,7 @@ export function deriveServerGraph(projects: Project[]): ServerGraph {
         ...COMMAND_BOX,
       });
     }
-    for (const dialog of project.dialogs ?? []) {
+    for (const dialog of dialogsOf(project)) {
       const key = documentKey(project.id, dialog.id);
       nodes.push({ key, projectId: project.id, docId: dialog.id, kind: "dialog", ...DIALOG_BOX });
       addTarget(project, dialog.id, key);

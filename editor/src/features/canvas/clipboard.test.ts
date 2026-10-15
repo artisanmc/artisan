@@ -1,13 +1,14 @@
 import { mockAccount } from "@/mock/fixtures";
 import { describe, expect, it } from "vitest";
 import { rewriteIds } from "./clipboard";
+import { menusOf } from "@/domain/documents";
 
 describe("rewriteIds", () => {
   const personal = mockAccount().projects[0]!;
 
   it("assigns new menu/command/layer/element ids", () => {
-    const { menus } = rewriteIds({ menus: [personal.menus[0]!], commands: [] });
-    const original = personal.menus[0]!;
+    const { menus } = rewriteIds({ menus: [menusOf(personal)[0]!], commands: [] });
+    const original = menusOf(personal)[0]!;
     expect(menus[0]!.id).not.toBe(original.id);
     expect(menus[0]!.layers[0]!.id).not.toBe(original.layers[0]!.id);
     if (original.layers[0]!.elements[0]) {
@@ -18,8 +19,8 @@ describe("rewriteIds", () => {
   it("rewrites open_menu actions targeting menus inside the same paste set", () => {
     // m_shop_main + m_profile together — the shop main has a click → m_profile,
     // and rewriteIds should remap that target to the new m_profile id.
-    const shopMain = personal.menus.find((m) => m.id === "m_shop_main")!;
-    const profile = personal.menus.find((m) => m.id === "m_profile")!;
+    const shopMain = menusOf(personal).find((m) => m.id === "m_shop_main")!;
+    const profile = menusOf(personal).find((m) => m.id === "m_profile")!;
     const { menus } = rewriteIds({ menus: [shopMain, profile], commands: [] });
     const newShopMain = menus[0]!;
     const newProfile = menus[1]!;
@@ -33,7 +34,7 @@ describe("rewriteIds", () => {
   });
 
   it("leaves open_menu targets that aren't in the paste set untouched", () => {
-    const shopMain = personal.menus.find((m) => m.id === "m_shop_main")!;
+    const shopMain = menusOf(personal).find((m) => m.id === "m_shop_main")!;
     const { menus } = rewriteIds({ menus: [shopMain], commands: [] });
     const firstStep = menus[0]!.layers[0]!.elements[0]!.display!.click!.left!.steps[0]!;
     if (firstStep.kind !== "action") throw new Error("expected action step");

@@ -17,6 +17,7 @@ import {
   visitMenuLTexts,
   visitProjectLTexts,
 } from "./i18nSites";
+import { dialogsOf, menusOf } from "@/domain/documents";
 
 const lt = (key: string) => ({ key: key as I18nKey });
 
@@ -31,89 +32,91 @@ function makeFixture(): Project {
     updatedAt: "",
     i18nKeys: {},
     assets: [],
-    dialogs: [
-      {
-        id: "dlg" as never,
-        projectId: "p" as never,
-        title: lt("lt_dt"),
-        canCloseWithEscape: true,
-        body: [
-          { type: "item", material: "STONE", count: 1 },
-          { type: "text", text: lt("lt_db") },
-        ],
-        inputs: [
-          { type: "text", id: "name", label: lt("lt_il"), default: "", maxLength: 16 },
-          {
-            type: "single_option",
-            id: "color",
-            label: lt("lt_ol"),
-            default: "red",
-            options: [{ value: "red", label: lt("lt_or") }],
-          },
-        ],
-        buttons: [
-          {
-            id: "ok",
-            label: lt("lt_btnl"),
-            steps: [{ kind: "action", action: { type: "send_message", text: lt("lt_bm") } }],
-          },
-        ],
-      },
-    ],
-    commands: [
-      {
-        id: "give" as never,
-        projectId: "p" as never,
-        name: "give",
-        arguments: [],
-        steps: [{ kind: "action", action: { type: "send_message", text: lt("lt_cm") } }],
-      },
-    ],
-    menus: [
-      {
-        id: "shop" as never,
-        projectId: "p" as never,
-        rows: 6,
-        title: [
-          { kind: "background", assetId: "a" as never },
-          { kind: "text", value: lt("lt_t0"), x: 0, y: 0 },
-          { kind: "text", value: lt("lt_t1"), x: 0, y: 0 },
-        ],
-        layers: [
-          {
-            id: "lay" as never,
-            name: "L",
-            elements: [
-              {
-                id: "buy" as never,
-                positions: "0",
-                display: {
-                  title: lt("lt_bt"),
-                  lore: lt("lt_bl"),
-                  click: {
-                    left: {
-                      steps: [
-                        { kind: "action", action: { type: "send_message", text: lt("lt_m0") } },
-                        { kind: "action", action: { type: "send_message", text: lt("lt_m1") } },
-                        {
-                          kind: "action",
-                          action: {
-                            type: "show_title",
-                            title: lt("lt_st"),
-                            subtitle: lt("lt_ss"),
+    documents: {
+      dialog: [
+        {
+          id: "dlg" as never,
+          projectId: "p" as never,
+          title: lt("lt_dt"),
+          canCloseWithEscape: true,
+          body: [
+            { type: "item", material: "STONE", count: 1 },
+            { type: "text", text: lt("lt_db") },
+          ],
+          inputs: [
+            { type: "text", id: "name", label: lt("lt_il"), default: "", maxLength: 16 },
+            {
+              type: "single_option",
+              id: "color",
+              label: lt("lt_ol"),
+              default: "red",
+              options: [{ value: "red", label: lt("lt_or") }],
+            },
+          ],
+          buttons: [
+            {
+              id: "ok",
+              label: lt("lt_btnl"),
+              steps: [{ kind: "action", action: { type: "send_message", text: lt("lt_bm") } }],
+            },
+          ],
+        },
+      ],
+      command: [
+        {
+          id: "give" as never,
+          projectId: "p" as never,
+          name: "give",
+          arguments: [],
+          steps: [{ kind: "action", action: { type: "send_message", text: lt("lt_cm") } }],
+        },
+      ],
+      menu: [
+        {
+          id: "shop" as never,
+          projectId: "p" as never,
+          rows: 6,
+          title: [
+            { kind: "background", assetId: "a" as never },
+            { kind: "text", value: lt("lt_t0"), x: 0, y: 0 },
+            { kind: "text", value: lt("lt_t1"), x: 0, y: 0 },
+          ],
+          layers: [
+            {
+              id: "lay" as never,
+              name: "L",
+              elements: [
+                {
+                  id: "buy" as never,
+                  positions: "0",
+                  display: {
+                    title: lt("lt_bt"),
+                    lore: lt("lt_bl"),
+                    click: {
+                      left: {
+                        steps: [
+                          { kind: "action", action: { type: "send_message", text: lt("lt_m0") } },
+                          { kind: "action", action: { type: "send_message", text: lt("lt_m1") } },
+                          {
+                            kind: "action",
+                            action: {
+                              type: "show_title",
+                              title: lt("lt_st"),
+                              subtitle: lt("lt_ss"),
+                            },
                           },
-                        },
-                      ],
+                        ],
+                      },
                     },
                   },
+                  states: [],
                 },
-                states: [],
-              },
-            ],
-          },
-        ],
-      },
-    ],
+              ],
+            },
+          ],
+        },
+      ],
+    },
     canvasLayout: {},
   } as unknown as Project;
 }
@@ -211,10 +214,10 @@ describe("visitProjectLTexts", () => {
 
   it("yields live nodes — reassigning site.lText.key mutates the project", () => {
     const project = makeFixture();
-    for (const s of visitMenuLTexts(project.menus[0]!)) {
+    for (const s of visitMenuLTexts(menusOf(project)[0]!)) {
       if (s.lText.key === ("lt_m0" as I18nKey)) s.lText.key = "claimed" as I18nKey;
     }
-    const handler = project.menus[0]!.layers[0]!.elements[0]!.display!.click!.left!;
+    const handler = menusOf(project)[0]!.layers[0]!.elements[0]!.display!.click!.left!;
     const firstAction = handler.steps[0]!;
     expect(firstAction.kind).toBe("action");
     if (firstAction.kind === "action" && firstAction.action.type === "send_message") {
@@ -238,7 +241,7 @@ describe("findKeyUsages parity (guards the step-2 refold)", () => {
 
 describe("visitDialogLTexts tolerance", () => {
   it("skips item body entries and yields button step messages", () => {
-    const dlg = makeFixture().dialogs[0]!;
+    const dlg = dialogsOf(makeFixture())[0]!;
     const kinds = [...visitDialogLTexts(dlg)].map((s) => s.kind);
     expect(kinds).toEqual([
       "dialogTitle",

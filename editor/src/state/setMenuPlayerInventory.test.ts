@@ -2,14 +2,14 @@ import { type ElementId, type menuId, projectId } from "@/domain/ids";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
+import { menusOf } from "@/domain/documents";
 
 const PERSONAL = projectId("p_personal");
 
 const getMenu = (mId: ReturnType<typeof menuId>) =>
-  useAccountStore
-    .getState()
-    .account.projects.find((p) => p.id === PERSONAL)!
-    .menus.find((m) => m.id === mId)!;
+  menusOf(useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!).find(
+    (m) => m.id === mId,
+  )!;
 
 const store = () => useAccountStore.getState();
 

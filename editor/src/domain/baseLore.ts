@@ -1,6 +1,7 @@
 import { deleteLText } from "@/lib/i18n";
 import { addressedAppearances } from "./element";
 import type { Appearance, LText, Project } from "./types";
+import { menusOf } from "@/domain/documents";
 
 /** Placeholder rendering the base item's lore where it is written. */
 export const BASE_LORE_TOKEN = "{base.lore}";
@@ -19,7 +20,7 @@ export const BASE_LORE_TOKEN = "{base.lore}";
  * really positions the base lore and is left alone.
  */
 export function normalizeBaseLore(project: Project): void {
-  for (const menu of project.menus ?? [])
+  for (const menu of menusOf(project))
     for (const layer of menu.layers)
       for (const element of layer.elements)
         for (const appearance of addressedAppearances(element))

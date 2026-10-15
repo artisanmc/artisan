@@ -34,9 +34,11 @@ beforeEach(() => {
   projectFromFiles.mockImplementation((id: string, _files: unknown, meta: { name?: string }) => ({
     id,
     name: meta.name,
-    menus: [],
-    commands: [],
-    dialogs: [],
+    documents: {
+      menu: [],
+      command: [],
+      dialog: [],
+    },
   }));
 });
 

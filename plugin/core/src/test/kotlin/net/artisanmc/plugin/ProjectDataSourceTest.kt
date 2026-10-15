@@ -145,7 +145,7 @@ class ProjectDataSourceTest {
 
     @Test
     fun `resolver searches across projects`() {
-        val empty = ProjectBundle("p_empty", "en", listOf("en"), emptyList(), emptyList(), emptyList())
+        val empty = ProjectBundle("p_empty", "en", listOf("en"))
         val bundle = ProjectReader(writeTempProject()).readAll().single()
         val resolver = ProjectDataResolver { listOf(empty, bundle) }
         @Suppress("UNCHECKED_CAST")

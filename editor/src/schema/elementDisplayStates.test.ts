@@ -187,9 +187,11 @@ describe("writing — flat display + states", () => {
     const project = {
       id: projectId("p"),
       name: "p",
-      menus: [menu],
-      commands: [],
-      dialogs: [],
+      documents: {
+        menu: [menu],
+        command: [],
+        dialog: [],
+      },
       assets: [],
       dataSources: [],
       dataModels: [],

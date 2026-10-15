@@ -22,25 +22,27 @@ function project(): Project {
     source: "user_created",
     createdAt: "",
     updatedAt: "",
-    menus: [
-      {
-        id: "m_shop",
-        projectId: PID,
-        title: [{ kind: "plain", value: { key: "k" } }],
-        rows: 3,
-        layers: [
-          {
-            id: "L",
-            name: "d",
-            elements: [
-              { id: "el_buy", positions: "13", display: { material: "DIAMOND" }, states: [] },
-            ],
-          },
-        ],
-      } as any,
-    ],
-    commands: [{ id: "c_heal", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
-    dialogs: [],
+    documents: {
+      menu: [
+        {
+          id: "m_shop",
+          projectId: PID,
+          title: [{ kind: "plain", value: { key: "k" } }],
+          rows: 3,
+          layers: [
+            {
+              id: "L",
+              name: "d",
+              elements: [
+                { id: "el_buy", positions: "13", display: { material: "DIAMOND" }, states: [] },
+              ],
+            },
+          ],
+        } as any,
+      ],
+      command: [{ id: "c_heal", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
+      dialog: [],
+    },
     assets: [],
     dataSources: [],
     importedConnectors: [],
@@ -101,17 +103,19 @@ describe("SearchPalette", () => {
         id: "boutique" as ProjectId,
         diskId: "boutique",
         name: "Boutique",
-        menus: [
-          {
-            id: "catalogue",
-            projectId: "boutique",
-            title: [{ kind: "plain", value: { key: "kc" } }],
-            rows: 3,
-            layers: [],
-          },
-        ],
-        commands: [],
-        dialogs: [],
+        documents: {
+          menu: [
+            {
+              id: "catalogue",
+              projectId: "boutique",
+              title: [{ kind: "plain", value: { key: "kc" } }],
+              rows: 3,
+              layers: [],
+            },
+          ],
+          command: [],
+          dialog: [],
+        },
         i18nKeys: { kc: { en: "Catalogue" } },
         defaultLang: "en",
       }) as unknown as Project;
@@ -156,7 +160,17 @@ describe("SearchPalette", () => {
 
     it("keeps the edited project's results before the others'", () => {
       useServerIndexStore.setState({
-        projects: [{ ...boutique(), commands: [{ id: "c", projectId: "boutique", name: "heal2", arguments: [], steps: [] }] } as unknown as Project],
+        projects: [
+          {
+            ...boutique(),
+            documents: {
+              ...boutique().documents,
+              command: [
+                { id: "c", projectId: "boutique", name: "heal2", arguments: [], steps: [] },
+              ],
+            },
+          } as unknown as Project,
+        ],
       });
       render(<SearchPalette projectId={PID} />);
       fireEvent.change(screen.getByRole("combobox"), { target: { value: "heal" } });

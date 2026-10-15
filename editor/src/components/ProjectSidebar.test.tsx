@@ -84,9 +84,11 @@ describe("ProjectSidebar", () => {
         name: id,
         defaultLang: "fr",
         i18nKeys: {},
-        menus: [{ id: "accueil", rows: 3, layers: [], title: [] }],
-        commands: [{ id: "c_heal", name: "heal", arguments: [], steps: [] }],
-        dialogs: [],
+        documents: {
+          menu: [{ id: "accueil", rows: 3, layers: [], title: [] }],
+          command: [{ id: "c_heal", name: "heal", arguments: [], steps: [] }],
+          dialog: [],
+        },
       }) as never;
 
     beforeEach(() => {
@@ -135,9 +137,11 @@ describe("ProjectSidebar", () => {
             name: "pack_b",
             defaultLang: "fr",
             i18nKeys: {},
-            menus: [{ id: "catalogue", rows: 3, layers: [], title: [] }],
-            commands: [],
-            dialogs: [],
+            documents: {
+              menu: [{ id: "catalogue", rows: 3, layers: [], title: [] }],
+              command: [],
+              dialog: [],
+            },
           } as never,
         ],
       });

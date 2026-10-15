@@ -1,3 +1,4 @@
+import { menusOf } from "../../../src/domain/documents";
 import type { Appearance, I18nKey, Project } from "../../../src/domain/types";
 
 /** Move catalogue lore into icons and adapt their menu consumers. */
@@ -11,7 +12,7 @@ export function migrateIcons(raw: unknown): void {
   const model = project.dataModels?.find((m) => m.id === "boutique:item");
   if (!model) return;
   const refs: { app: Appearance; alias: string }[] = [];
-  for (const menu of project.menus ?? [])
+  for (const menu of menusOf(project))
     for (const layer of menu.layers)
       for (const element of layer.elements) {
         const iteration = element.iterates ?? element.places;

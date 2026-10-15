@@ -7,6 +7,7 @@ import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { MenuSetBlock, extractArgTokens } from "./MenuDataSection";
+import { menusOf } from "@/domain/documents";
 
 const sourceInput: Extract<ContextInput, { kind: "sourceRef" }> = {
   kind: "sourceRef",
@@ -57,9 +58,11 @@ describe("MenuSetBlock", () => {
             updatedAt: "",
             defaultLang: "en",
             i18nKeys: {},
-            menus: [structuredClone(menu)],
-            commands: [],
-            dialogs: [],
+            documents: {
+              menu: [structuredClone(menu)],
+              command: [],
+              dialog: [],
+            },
             dataSources: [],
             dataModels: [],
             canvasLayout: {},
@@ -71,7 +74,7 @@ describe("MenuSetBlock", () => {
   });
 
   const menuNow = () =>
-    useAccountStore.getState().account.projects.find((p) => p.id === ("p1" as never))!.menus[0]!;
+    menusOf(useAccountStore.getState().account.projects.find((p) => p.id === ("p1" as never))!)[0]!;
 
   it("creates the menu-level item set (paginated) from the choice buttons", () => {
     render(<MenuSetBlock projectId={"p1" as never} menu={menu} input={sourceInput} />);

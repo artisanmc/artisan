@@ -2,14 +2,14 @@ import { type menuId, projectId } from "@/domain/ids";
 import { mockAccount } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
+import { menusOf } from "@/domain/documents";
 
 const PERSONAL = projectId("p_personal");
 
 const getMenu = (mId: ReturnType<typeof menuId>) =>
-  useAccountStore
-    .getState()
-    .account.projects.find((p) => p.id === PERSONAL)!
-    .menus.find((m) => m.id === mId)!;
+  menusOf(useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!).find(
+    (m) => m.id === mId,
+  )!;
 
 describe("setMenuField inventoryType (keep+warn)", () => {
   beforeEach(() => {
@@ -18,7 +18,9 @@ describe("setMenuField inventoryType (keep+warn)", () => {
   });
 
   it("switches to hopper without throwing and keeps out-of-range elements", () => {
-    const mId = useAccountStore.getState().createMenu({ projectId: PERSONAL, id: "m_inv", rows: 6 });
+    const mId = useAccountStore
+      .getState()
+      .createMenu({ projectId: PERSONAL, id: "m_inv", rows: 6 });
     // Position 30 is valid for a 6-row chest (0-53) but out of range for a
     // 5-slot hopper (0-4).
     useAccountStore
@@ -29,9 +31,12 @@ describe("setMenuField inventoryType (keep+warn)", () => {
     expect(before).toBeGreaterThan(0);
 
     expect(() =>
-      useAccountStore
-        .getState()
-        .setMenuField({ projectId: PERSONAL, menuId: mId, field: "inventoryType", value: "hopper" }),
+      useAccountStore.getState().setMenuField({
+        projectId: PERSONAL,
+        menuId: mId,
+        field: "inventoryType",
+        value: "hopper",
+      }),
     ).not.toThrow();
 
     const menu = getMenu(mId);
@@ -41,7 +46,9 @@ describe("setMenuField inventoryType (keep+warn)", () => {
   });
 
   it("dropper then back to chest leaves inventoryType undefined (absent = chest)", () => {
-    const mId = useAccountStore.getState().createMenu({ projectId: PERSONAL, id: "m_inv2", rows: 6 });
+    const mId = useAccountStore
+      .getState()
+      .createMenu({ projectId: PERSONAL, id: "m_inv2", rows: 6 });
 
     useAccountStore
       .getState()

@@ -1,10 +1,11 @@
 import type { CanvasGroup, Project } from "./types";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 /** Every Document id in a project — the live set groups may reference. */
 export const liveDocumentIds = (project: Project): string[] => [
-  ...project.menus.map((m) => m.id),
-  ...project.commands.map((c) => c.id),
-  ...(project.dialogs ?? []).map((d) => d.id),
+  ...menusOf(project).map((m) => m.id),
+  ...commandsOf(project).map((c) => c.id),
+  ...dialogsOf(project).map((d) => d.id),
 ];
 
 export const DEFAULT_GROUP_COLOR = "#60a5fa";
