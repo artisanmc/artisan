@@ -6,7 +6,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { useUniqueDocumentId } from "./newDocumentId";
 
 interface NewCommandDialogProps {
   projectId: ProjectId;
@@ -23,14 +23,6 @@ function slugify(name: string): string {
     .replace(/[^a-z0-9_]/g, "");
 }
 
-function deriveUniqueId(name: string, existingIds: Set<string>): string {
-  const base = `cmd_${slugify(name) || "cmd"}`;
-  if (!existingIds.has(base)) return base;
-  let n = 1;
-  while (existingIds.has(`${base}_${n}`)) n++;
-  return `${base}_${n}`;
-}
-
 export function NewCommandDialog({
   projectId,
   open,
@@ -40,18 +32,11 @@ export function NewCommandDialog({
   const [name, setName] = useState("");
   const { t } = useTranslation();
 
-  const existingIdsStr = useAccountStore((s) => {
-    const project = s.account.projects.find((p) => p.id === projectId);
-    if (!project) return "";
-    return [
-      ...commandsOf(project).map((c) => c.id),
-      ...menusOf(project).map((m) => m.id),
-      ...dialogsOf(project).map((d) => d.id),
-    ].join(",");
-  });
-  const existingIds = new Set(existingIdsStr ? existingIdsStr.split(",") : []);
-
-  const derivedId = name.trim() ? deriveUniqueId(name, existingIds) : "";
+  // Free across every kind of the project, module kinds included.
+  const derivedId = useUniqueDocumentId(
+    projectId,
+    name.trim() ? `cmd_${slugify(name) || "cmd"}` : "",
+  );
 
   const submit = () => {
     if (!name.trim()) return;
