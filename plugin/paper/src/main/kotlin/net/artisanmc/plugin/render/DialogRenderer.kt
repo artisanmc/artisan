@@ -32,7 +32,7 @@ object DialogRenderer {
         val langMap = dialog.langMapWithFallback(lang)
         val ctxWithLang = ctx.copy(lang = lang, defaultLang = dialog.defaultLang, langMap = langMap)
         // i18n then args ({player} & co): same chain as MenuRenderer.resolveText.
-        val texts = DialogTextResolver.resolveAll(dialog, langMap, ctxWithLang)
+        val texts = DialogTextResolver.resolveAll(dialog, ctxWithLang)
 
         val bodyComponents: List<DialogBody> = dialog.yaml.body.mapIndexedNotNull { i, b ->
             val body: DialogBody? = when (b.type) {
