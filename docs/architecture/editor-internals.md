@@ -378,7 +378,9 @@ Avant `FrontendModule.localPreviewRows`, l'hôte résout les `LText` des `dataSo
 
 Depuis le 2026-10-16 (Stage était remonté à 791 lignes) : `useStageBoard` (table `layout` planche / focus + glissement de groupe), `useStageFraming` (viewport restauré, persisté, cadrage focus `refitFocus`, `centerRequest` ; `useElementSize`), `useHeldPanKeys` (Espace / Alt), `useStageDropTargets` (les trois registres mono-locataires + ancre de collage), `StageContextMenu` (menu contextuel branché sur les commandes canvas). Ce que seule la planche possède vit dans `BoardChrome.tsx` : `BoardChrome` (état vide, contrôles de groupe, minimap), `BoardGroupsLayer`, `useBoardCreation` + `BoardCreationDialogs` (créer « ici »). Le focus n'en monte rien ; `Stage` ne garde que le noyau commun (~400 lignes).
 
-Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 591, Stage 351) — split supplémentaire différé.
+Depuis le 2026-10-16 (MenuGroup était remonté à 855 lignes, un composant de 772) : `menuSlots.ts` (pur, testé : `resolveMenuSlots` — contenu de chaque slot, itération paginée, placements, fanout — `paginationContext`, `edgeTriggerPositions`), `useSlotPointer.ts` (clic / tap sur un slot : dépôt de la ligne de placement armée ou du matériau armé, sinon sélection), `useMenuPreviewSnapshots.ts` (snapshots live des sources du menu), `MenuBackground.tsx` (texture vanilla / fenêtre transparente), `SlotDragGhosts.tsx`. `MenuGroup` : 397 lignes.
+
+Note : cible ≤250 pour Stage non atteinte (399) — le noyau commun planche / focus y reste.
 
 ### Clic droit et sélection multiple (depuis 2026-10-05)
 

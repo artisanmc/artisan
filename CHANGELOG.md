@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Internal: editor refactors with no behaviour change: the publish workflow (deploy compare-and-swap, conflicts, review) moves to `features/project/publish/` as a pure reducer driven by `usePublishFlow`; `useProjectLoader` keeps its state in one reducer (`projectLoadState.ts`); `ProjectCanvasPage` (renamed from `ProjectWorkspace.tsx`) delegates gating, URL sync and drag-and-drop to named hooks; `Stage` and `MenuGroup` are split back under 400 lines.
 - **Fixed**: pressing Space or Alt in a drop-down list of the editor no longer pans the canvas, and Delete, copy/paste or Escape there no longer act on the board or close the Document; every editor-wide shortcut now ignores keys typed in an input, text area, drop-down list or editable text.
 - **Fixed**: creating a menu, dialog or command in the editor no longer accepts an id a module's Document already holds (all "new Document" dialogs check ids across every kind), and their id preview and conflict message are translated (the `canvas.idPreviewLabel` / `canvas.idConflict` keys were missing).
 - **Removed**: the about, privacy and terms pages of the editor (`about.html`, `privacy.html`, `terms.html`, `legal.css`) and the footer column that linked to them.
