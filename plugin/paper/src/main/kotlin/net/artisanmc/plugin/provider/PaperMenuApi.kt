@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.provider
 
+import net.artisanmc.plugin.engine.MenuProvider
 import net.artisanmc.modules.api.menu.MenuApi
 import net.artisanmc.modules.api.menu.MenuClickListener
 import net.artisanmc.modules.api.menu.MenuCloseListener

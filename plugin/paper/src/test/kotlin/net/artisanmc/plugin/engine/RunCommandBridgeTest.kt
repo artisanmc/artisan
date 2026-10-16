@@ -6,7 +6,7 @@ import net.artisanmc.modules.api.command.CommandRegistry
 import net.artisanmc.plugin.ArtisanPlugin
 import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.engine.RuntimeProject
-import net.artisanmc.plugin.provider.MenuProvider
+import net.artisanmc.plugin.engine.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
 

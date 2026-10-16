@@ -5,8 +5,8 @@ import net.artisanmc.modules.api.action.ActionRegistry
 import net.artisanmc.modules.api.command.CommandRegistry
 import net.artisanmc.plugin.model.LocalizedText
 import net.artisanmc.plugin.scheduling.schedulerFor
-import net.artisanmc.plugin.provider.MenuProvider
-import net.artisanmc.plugin.render.LenientText
+import net.artisanmc.plugin.engine.MenuProvider
+import net.artisanmc.plugin.text.LenientText
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
 

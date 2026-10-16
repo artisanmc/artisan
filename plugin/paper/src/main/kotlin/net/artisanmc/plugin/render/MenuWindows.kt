@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.render
 
+import net.artisanmc.plugin.session.MenuSlots
 import org.bukkit.entity.Player
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
