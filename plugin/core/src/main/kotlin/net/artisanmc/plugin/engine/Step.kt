@@ -9,7 +9,7 @@ sealed class Step {
      * One action of the chain, as the wire names it (ADR `structured-action-wire`): the
      * action's [name] (`open_menu`, `quests:start`) and its wire [value] — null for a bare
      * name, a scalar for the primary argument, a map of arguments. The engine folds the
-     * value into the declared arguments at dispatch ([net.artisanmc.modules.api.ActionDeclaration.normalize]);
+     * value into the declared arguments at dispatch ([net.artisanmc.modules.api.action.ActionDeclaration.normalize]);
      * the core knows no action by name (ADR `extensible-document-kinds`, R1).
      *
      * [i18n] holds the canonical i18n ADDRESS of the text arguments stamped by

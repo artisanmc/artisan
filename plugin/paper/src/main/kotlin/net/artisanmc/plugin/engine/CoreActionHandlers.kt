@@ -1,8 +1,8 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.modules.api.ActionDeclaration
-import net.artisanmc.modules.api.ActionHandler
-import net.artisanmc.modules.api.ActionRegistry
+import net.artisanmc.modules.api.action.ActionDeclaration
+import net.artisanmc.modules.api.action.ActionHandler
+import net.artisanmc.modules.api.action.ActionRegistry
 
 /** A core action's game logic: the engine's context, the bound arguments, the step's runtime. */
 private typealias CoreActionBody = (ExecutionContext, Map<String, Any>, EngineRuntime) -> ExecutionContext
