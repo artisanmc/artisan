@@ -66,3 +66,12 @@ Stop the server, replace the jar, start it again. Projects, `config.yml` and
 `environment.yml` are kept. In a network, update every server together: a server
 whose protocol differs from the hub's cannot be edited (see
 [Protocol versions](/wiki/network/concepts/#protocol-versions)).
+
+### Updating the editor alone
+
+A change to the editor that does not touch the plugin can go live without a restart: copy the
+editor build (`npm run build` in `editor/`, which writes `editor/dist-self-hosted/`) into
+`plugins/Artisan/editor/` on the hub. While that folder holds an `index.html`, the hub serves it
+instead of the editor in the jar; reload the page in the browser to get it. Delete the folder
+when you next update the jar, or the old editor keeps being served over the new plugin; the
+console warns about it at each start.

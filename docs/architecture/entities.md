@@ -37,6 +37,7 @@ demande (`artisan.editor` les donne toutes). L'accès se donne avec un plugin de
 | `cache/minecraft/<version>/` | Textures vanilla extraites du jar client Mojang (SHA-1 vérifié) | Le hub, à la première texture demandée. |
 | `cache/resource-pack/`, `cache/resource-pack.json`, `cache/asset-index.json` | Packs servis (hub), dernier pack appliqué, index d'assets | `PackStore`, `ResourcePackManager`, `AssetCatalog`. |
 | `database/suite.mv.db` | Base H2 par défaut | Les plugins de la suite. |
+| `editor/` | Build de l'éditeur (`editor/dist-self-hosted`) qui remplace celui du jar tant qu'il contient un `index.html`, relu à chaque requête : l'éditeur se met à jour sans redémarrage (`EditorAssets`). Avertissement au démarrage tant qu'il est là. | L'admin, à la main. |
 
 ## Base de la suite
 
