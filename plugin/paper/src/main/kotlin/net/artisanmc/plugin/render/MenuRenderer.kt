@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.render
 
-import net.artisanmc.modules.api.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml
 import net.artisanmc.plugin.model.BundleMenu
@@ -8,6 +8,7 @@ import net.artisanmc.plugin.model.MenuTitleLayer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.resourcepack.AssetEntry
+import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.Style
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
@@ -62,6 +63,12 @@ object MenuRenderer {
             )
         }.getOrNull()
 
+    /**
+     * Renders [menu] for [player] and opens it, in named steps: bind the inputs
+     * ([bindArgs]), window each paginated element ([paginate]), pick the image
+     * buttons ([imageButtons]) whose glyphs join the title, create the inventory
+     * ([createInventory]), fill its slots ([layout]), then open it.
+     */
     fun open(
         player: Player,
         menu: BundleMenu,
@@ -76,15 +83,65 @@ object MenuRenderer {
     ): MenuSession {
         // Deterministic fallback chain: requested lang → project defaultLang → empty.
         val langMap = menu.langMapWithFallback(lang)
+        val boundCtx = bindArgs(player, menu, lang, ctx, dataSources, projectData)
 
-        // Declared defaults (the caller wins by name) + ConnectorBinding fetches:
-        // `pack:` (the bundle's Project sources, ltext resolved here in the viewer's
-        // language) then the DataSourceRegistry curried on the player. See
-        // ProjectDataResolver for why Project sources stay out of the registry.
+        // Content addressed by rawSlot: in `hidden` mode, positions
+        // `size until size + 36` are the window's player slots.
+        val invType = INVENTORY_TYPES[menu.yaml.inventoryType]
+        val content = MenuSlots(invType?.defaultSize ?: menu.yaml.size, PlayerInventoryMode.parse(menu.yaml.playerInventory))
+        val pageInfo = paginate(menu, boundCtx, content.slotLimit)
+        // The context carries the viewer's language and lang map from here on:
+        // every text of the render resolves through it (TemplateScope.localize).
+        val renderCtx = boundCtx.copy(
+            pageInfo = pageInfo, lang = lang, defaultLang = menu.defaultLang,
+            langMap = langMap, loreMaxWidth = menu.loreMaxWidth,
+        )
+
+        // A menu title is a Template like any other player-facing string — the
+        // renderer resolves `{…}` and `%papi%` in one pass (ADR `expression-parity` §5).
+        val papi = evaluator.deps.papi
+        val interpolate: (String) -> String = { raw -> renderCtx.render(raw, papi) { k -> langMap[k] } }
+        val images = imageButtons(menu, renderCtx, evaluator, lookupAsset)
+        val title = TitleCompiler.compileTitle(
+            layers = menu.title + images.layers,
+            lang = lang,
+            langMap = langMap,
+            lookupAsset = lookupAsset,
+            offsetEncoder = offsetEncoder,
+            interpolate = interpolate,
+            defaultLang = menu.defaultLang,
+        )
+        val inv = createInventory(menu, invType, title)
+        val fill = SlotFill(content, menu.compiledAppearances, evaluator)
+        layout(menu, renderCtx, images, fill)
+
+        // Empty anchor: the content goes out as packets. Registered before opening,
+        // whose packets must already be rewritten; released if another plugin
+        // cancelled the open (otherwise its next window would be captured).
+        windows?.open(player, inv, content, menu.yaml.vanillaTexture)
+        player.openInventory(inv)
+        if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
+        return MenuSession(menu.id, renderCtx, fill.activeClicks, fill.slotArgs, content, menu.escapeGoesBack)
+    }
+
+    /**
+     * Declared defaults (the caller wins by name) + ConnectorBinding fetches:
+     * `pack:` (the bundle's Project sources, ltext resolved here in the viewer's
+     * language) then the DataSourceRegistry curried on the player. See
+     * ProjectDataResolver for why Project sources stay out of the registry.
+     */
+    private fun bindArgs(
+        player: Player,
+        menu: BundleMenu,
+        lang: String,
+        ctx: ExecutionContext,
+        dataSources: DataSourceRegistry?,
+        projectData: ProjectDataResolver?,
+    ): ExecutionContext {
         val fetch: ((String, Map<String, Any?>) -> Any?)? =
             if (dataSources == null && projectData == null) null
             else { ref, params ->
-                if (projectData != null && projectData.canResolve(ref)) projectData.resolve(ref, lang)
+                if (projectData != null && projectData.canResolve(ref)) projectData.resolve(ref, lang, menu.projectId)
                 else dataSources?.fetch(ref, player, params)
             }
         val boundArgs = ContextBinder.bind(menu.yaml, ctx.args, fetch, Bukkit.getLogger())
@@ -109,18 +166,14 @@ object MenuRenderer {
             if (input.name !in ctx.args && input.source["ref"] is String &&
                 (value is List<*> || value is Map<*, *>)) input.name to value else null
         }.toMap()
-        val boundCtx = ctx.copy(
+        return ctx.copy(
             args = boundArgs + directArgs,
             sourceArgs = ctx.sourceArgs + fetchedArgs + directArgs,
         )
+    }
 
-        // Content addressed by rawSlot: in `hidden` mode, positions
-        // `size until size + 36` are the window's player slots.
-        val invType = INVENTORY_TYPES[menu.yaml.inventoryType]
-        val content = MenuSlots(invType?.defaultSize ?: menu.yaml.size, PlayerInventoryMode.parse(menu.yaml.playerInventory))
-        val slotLimit = content.slotLimit
-
-        // Pagination window of each iterating element.
+    /** Pagination window of each iterating / placing element, clamped to its page count. */
+    private fun paginate(menu: BundleMenu, ctx: ExecutionContext, slotLimit: Int): Map<String, PageInfo> {
         val pageInfo = mutableMapOf<String, PageInfo>()
         for (element in menu.yaml.allElements) {
             val iter = element.iterates
@@ -128,7 +181,7 @@ object MenuRenderer {
             val pageCount = when {
                 iter != null -> {
                     val slots = parsePositions(element.positionsSpec, slotLimit)
-                    val list = sourceList(boundCtx.args, iter.source)
+                    val list = sourceList(ctx.args, iter.source)
                     val pageSize = slots.size.coerceAtLeast(1)
                     ((list.size + pageSize - 1) / pageSize).coerceAtLeast(1)
                 }
@@ -137,43 +190,54 @@ object MenuRenderer {
                 places != null -> (places.placements.maxOfOrNull { it.page + 1 } ?: 1).coerceAtLeast(1)
                 else -> continue
             }
-            val requested = boundCtx.pagination[element.id] ?: 0
+            val requested = ctx.pagination[element.id] ?: 0
             pageInfo[element.id] = PageInfo(requested.coerceIn(0, pageCount - 1), pageCount)
         }
-        val renderCtx = boundCtx.copy(pageInfo = pageInfo, lang = lang, defaultLang = menu.defaultLang, loreMaxWidth = menu.loreMaxWidth)
+        return pageInfo
+    }
 
-        // A menu title is a Template like any other player-facing string — the
-        // renderer resolves `{…}` and `%papi%` in one pass (ADR `expression-parity` §5).
-        val papi = evaluator.deps.papi
-        val interpolate: (String) -> String = { raw -> renderCtx.render(raw, papi) { k -> langMap[k] } }
+    /**
+     * The image buttons of a menu: per element carrying an image appearance, the
+     * appearance chosen for this render, its layout, and the title glyphs of the
+     * images that can be drawn (asset known, fit supported).
+     */
+    private class ImageButtons(
+        val choices: Map<String, CompiledAppearance?>,
+        val layouts: Map<String, ImageButtonLayout?>,
+        val layers: List<MenuTitleLayer.Glyph>,
+    )
+
+    private fun imageButtons(
+        menu: BundleMenu,
+        ctx: ExecutionContext,
+        evaluator: ConditionEvaluator,
+        lookupAsset: (String) -> AssetEntry?,
+    ): ImageButtons {
         val imageElements = menu.yaml.allElements.filter { el -> (listOf(el.display) + el.states).any { it.image != null } }
-        val imageChoices = imageElements.associate { el -> el.id to
-            menu.compiledAppearances[el.id]?.firstOrNull { evaluator.evaluateAll(it.conditions, renderCtx) } }
-        val imageLayouts = imageElements.associate { it.id to ImageButtonLayout.of(menu.yaml, it) }
-        val imageLayers = imageElements.mapNotNull { el ->
-            val image = imageChoices[el.id]?.yaml?.image ?: return@mapNotNull null
-            val layout = imageLayouts[el.id] ?: return@mapNotNull null
+        val choices = imageElements.associate { el -> el.id to
+            menu.compiledAppearances[el.id]?.firstOrNull { evaluator.evaluateAll(it.conditions, ctx) } }
+        val layouts = imageElements.associate { it.id to ImageButtonLayout.of(menu.yaml, it) }
+        val layers = imageElements.mapNotNull { el ->
+            val image = choices[el.id]?.yaml?.image ?: return@mapNotNull null
+            val layout = layouts[el.id] ?: return@mapNotNull null
             if (image.asset.isBlank() || image.fit !in listOf("contain", "stretch", "native")) return@mapNotNull null
             val key = layout.assetKey(image)
             if (lookupAsset(key) == null) return@mapNotNull null
             MenuTitleLayer.Glyph(assetId = key, x = layout.x, y = layout.y)
         }
-        val title = TitleCompiler.compileTitle(
-            layers = menu.title + imageLayers,
-            lang = lang,
-            langMap = langMap,
-            lookupAsset = lookupAsset,
-            offsetEncoder = offsetEncoder,
-            interpolate = interpolate,
-            defaultLang = menu.defaultLang,
-        )
-        // MockBukkit does not implement createInventory's Component overload: legacy
-        // fallback only in that case (production keeps the Component, required for
-        // pixel-perfect font titles).
-        // Branches on inventory_type: hopper/dropper create a container of the right
-        // TYPE (a dropper has 9 slots like a 1-row chest but a distinct type), so size
-        // alone is not enough. Chest keeps the size-based createInventory.
-        val inv = if (invType != null) {
+        return ImageButtons(choices, layouts, layers)
+    }
+
+    /**
+     * MockBukkit does not implement createInventory's Component overload: legacy
+     * fallback only in that case (production keeps the Component, required for
+     * pixel-perfect font titles).
+     * Branches on inventory_type: hopper/dropper create a container of the right
+     * TYPE (a dropper has 9 slots like a 1-row chest but a distinct type), so size
+     * alone is not enough. Chest keeps the size-based createInventory.
+     */
+    private fun createInventory(menu: BundleMenu, invType: InventoryType?, title: Component): Inventory =
+        if (invType != null) {
             runCatching { Bukkit.createInventory(ArtisanMenuHolder(), invType, title) }
                 .getOrElse {
                     Bukkit.createInventory(
@@ -190,22 +254,59 @@ object MenuRenderer {
                     )
                 }
         }
+
+    /**
+     * What the four slot modes (image, placement, static, iteration) write, through
+     * ONE rule: the first appearance whose conditions pass is built and put in each
+     * of its slots, with its clicks. A row-bound slot (placement, iteration) also
+     * keeps the row it shows ([slotArgs]) so its click sees it; a static or image
+     * slot has no row, hence no slot args.
+     */
+    private class SlotFill(
+        val content: MenuSlots,
+        val compiledAppearances: Map<String, List<CompiledAppearance>>,
+        val evaluator: ConditionEvaluator,
+    ) {
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val slotArgs = mutableMapOf<Int, Map<String, Any>>()
-        for (element in menu.yaml.allElements) {
-            val compiledList = menu.compiledAppearances[element.id] ?: emptyList()
-            val slots = parsePositions(element.positionsSpec, slotLimit)
-            if (element.id in imageChoices) {
-                val chosen = imageChoices[element.id] ?: continue
-                val layout = imageLayouts[element.id] ?: continue
-                val image = chosen.yaml.image
-                if (image != null && imageLayers.none { it.assetId == layout.assetKey(image) }) continue
-                val item = if (image == null) buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps, chosen.i18nBase)
-                    else buildImageHitItem(chosen.yaml, langMap, renderCtx, evaluator.deps, chosen.i18nBase)
-                for (slot in layout.slots) {
-                    content[slot] = item
-                    if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
+
+        /** The first appearance of [elementId] whose conditions pass in [ctx]. */
+        fun choose(elementId: String, ctx: ExecutionContext): CompiledAppearance? =
+            compiledAppearances[elementId].orEmpty().firstOrNull { evaluator.evaluateAll(it.conditions, ctx) }
+
+        fun build(chosen: CompiledAppearance, ctx: ExecutionContext): ItemStack =
+            buildItem(chosen.yaml, ctx, evaluator.deps, chosen.i18nBase)
+
+        fun place(slots: List<Int>, chosen: CompiledAppearance, item: ItemStack, rowArgs: Map<String, Any>? = null) {
+            for (slot in slots) {
+                content[slot] = item
+                if (chosen.clicks.isNotEmpty()) {
+                    activeClicks[slot] = chosen.clicks
+                    if (rowArgs != null) slotArgs[slot] = rowArgs
                 }
+            }
+        }
+
+        /** One row of a source in one slot: the row is bound under its alias for the conditions, the item and the click. */
+        fun placeRow(elementId: String, slot: Int, rowArgs: Map<String, Any>, ctx: ExecutionContext) {
+            val itemCtx = ctx.copy(args = ctx.args + rowArgs)
+            val chosen = choose(elementId, itemCtx) ?: return
+            place(listOf(slot), chosen, build(chosen, itemCtx), rowArgs)
+        }
+    }
+
+    /** Fills the slots, element by element in stacking order (later wins per slot). */
+    private fun layout(menu: BundleMenu, ctx: ExecutionContext, images: ImageButtons, fill: SlotFill) {
+        val slotLimit = fill.content.slotLimit
+        for (element in menu.yaml.allElements) {
+            if (element.id in images.choices) {
+                val chosen = images.choices[element.id] ?: continue
+                val layout = images.layouts[element.id] ?: continue
+                val image = chosen.yaml.image
+                if (image != null && images.layers.none { it.assetId == layout.assetKey(image) }) continue
+                val item = if (image == null) fill.build(chosen, ctx)
+                    else buildImageHitItem(chosen.yaml, ctx, fill.evaluator.deps, chosen.i18nBase)
+                fill.place(layout.slots, chosen, item)
                 continue
             }
 
@@ -215,69 +316,37 @@ object MenuRenderer {
             // and its slot is simply left empty.
             val places = element.places
             if (places != null) {
-                val list = sourceList(renderCtx.args, places.source)
-                val byKey = list.filterIsInstance<Map<*, *>>()
+                val byKey = sourceList(ctx.args, places.source).filterIsInstance<Map<*, *>>()
                     .associateBy { it[places.keyField]?.toString() }
-                val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
+                val info = ctx.pageInfo[element.id] ?: PageInfo(0, 1)
                 for (placement in places.placements) {
                     if (placement.page != info.page) continue
                     if (placement.position !in 0 until slotLimit) continue
                     val row = byKey[placement.key] ?: continue
-                    val itemArgs = mapOf(places.alias to row)
-                    val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
-                    val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
-                        ?: continue
-                    content[placement.position] = buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps, chosen.i18nBase)
-                    if (chosen.clicks.isNotEmpty()) {
-                        activeClicks[placement.position] = chosen.clicks
-                        slotArgs[placement.position] = itemArgs
-                    }
+                    fill.placeRow(element.id, placement.position, mapOf(places.alias to row), ctx)
                 }
                 continue
             }
 
+            val slots = parsePositions(element.positionsSpec, slotLimit)
             val iter = element.iterates
             if (iter == null) {
-                val chosen = compiledList.firstOrNull { ca ->
-                    evaluator.evaluateAll(ca.conditions, renderCtx)
-                } ?: continue
-                val item = buildItem(chosen.yaml, langMap, renderCtx, evaluator.deps, chosen.i18nBase)
-                for (slot in slots) {
-                    content[slot] = item
-                    if (chosen.clicks.isNotEmpty()) activeClicks[slot] = chosen.clicks
-                }
+                val chosen = fill.choose(element.id, ctx) ?: continue
+                fill.place(slots, chosen, fill.build(chosen, ctx))
                 continue
             }
             // Iterating element: one list entry per slot, windowed by page.
-            val list = sourceList(renderCtx.args, iter.source)
-            val info = renderCtx.pageInfo[element.id] ?: PageInfo(0, 1)
-            val window = list.drop(info.page * slots.size).take(slots.size)
+            val info = ctx.pageInfo[element.id] ?: PageInfo(0, 1)
+            val window = sourceList(ctx.args, iter.source).drop(info.page * slots.size).take(slots.size)
             window.forEachIndexed { i, entry ->
-                val slot = slots[i]
-                val itemArgs = mapOf(iter.alias to (entry ?: ""))
-                val itemCtx = renderCtx.copy(args = renderCtx.args + itemArgs)
-                val chosen = compiledList.firstOrNull { evaluator.evaluateAll(it.conditions, itemCtx) }
-                    ?: return@forEachIndexed
-                content[slot] = buildItem(chosen.yaml, langMap, itemCtx, evaluator.deps, chosen.i18nBase)
-                if (chosen.clicks.isNotEmpty()) {
-                    activeClicks[slot] = chosen.clicks
-                    slotArgs[slot] = itemArgs
-                }
+                fill.placeRow(element.id, slots[i], mapOf(iter.alias to (entry ?: "")), ctx)
             }
         }
-
-        // Empty anchor: the content goes out as packets. Registered before opening,
-        // whose packets must already be rewritten; released if another plugin
-        // cancelled the open (otherwise its next window would be captured).
-        windows?.open(player, inv, content, menu.yaml.vanillaTexture)
-        player.openInventory(inv)
-        if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
-        return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs, content, menu.escapeGoesBack)
     }
 
-    private fun buildImageHitItem(app: AppearanceYaml, langMap: Map<String, String>, ctx: ExecutionContext,
+    private fun buildImageHitItem(app: AppearanceYaml, ctx: ExecutionContext,
                                   deps: SoftDepRegistry, i18nBase: String): ItemStack {
-        val item = buildItem(AppearanceYaml(material = "PAPER", title = app.title, lore = app.lore), langMap, ctx, deps, i18nBase)
+        val item = buildItem(AppearanceYaml(material = "PAPER", title = app.title, lore = app.lore), ctx, deps, i18nBase)
         val meta = item.itemMeta
         try {
             meta.setItemModel(NamespacedKey("artisan", "buttons/hit_area"))
@@ -292,7 +361,6 @@ object MenuRenderer {
 
     private fun buildItem(
         app: AppearanceYaml,
-        langMap: Map<String, String>,
         ctx: ExecutionContext,
         deps: SoftDepRegistry,
         i18nBase: String = "",
@@ -318,8 +386,8 @@ object MenuRenderer {
         // The material may be a placeholder ({input} or {alias.field}), resolved
         // through the context before the vanilla/custom lookup.
         val resolvedMaterial = rawMaterial?.let { ctx.render(it, papi) }
-        var item = base?.let { buildItem(it, langMap, ctx, deps, depth = depth + 1) }
-            ?: (value as? String)?.let { buildItem(AppearanceYaml(item = it), langMap, ctx, deps, depth = depth + 1) }
+        var item = base?.let { buildItem(it, ctx, deps, depth = depth + 1) }
+            ?: (value as? String)?.let { buildItem(AppearanceYaml(item = it), ctx, deps, depth = depth + 1) }
             ?: resolvedMaterial?.let { mat ->
             deps.buildCustomStack(mat, count)
                 ?: runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()
@@ -335,7 +403,7 @@ object MenuRenderer {
         if (app.count != null) item.amount = count
         val head = app.head
         if (item.type == Material.PLAYER_HEAD && head != null) {
-            item = HeadApplier.apply(item, resolveText(head, langMap, localCtx, papi), deps)
+            item = HeadApplier.apply(item, resolveText(head, localCtx, papi), deps)
         }
         val meta: ItemMeta = item.itemMeta ?: return item
         if (app.title != null) {
@@ -344,8 +412,9 @@ object MenuRenderer {
             if (value != null) {
                 // A field-local map is authoritative (ADR field-local-translations); a
                 // bare literal keeps the legacy address lookup for non-default langs.
+                // (A map's value still honours a whole `{i18n:key}`, as it always has.)
                 val address = if (lt.isMap) null else addressOf(i18nBase, "title")
-                meta.displayName(parse(resolveText(value, langMap, localCtx, papi, address)))
+                meta.displayName(parse(resolveText(value, localCtx, papi, address)))
             }
         }
         if (app.lore.isNotEmpty() || app.loreMode == "replace") {
@@ -355,21 +424,14 @@ object MenuRenderer {
             val icon = row?.get("icon") as? Map<*, *>
             val legacyToken = if (icon?.containsKey("extends") == true && icon.containsKey("lore") &&
                 (row?.get("lore") == null || row["lore"] == "" || row["lore"] == emptyList<Any>())) "{$alias.lore}" else null
-            val rawLines = app.lore.mapNotNull { lt ->
-                val value = lt.forLang(localCtx.lang, localCtx.defaultLang) ?: return@mapNotNull null
-                when {
-                    lt.isMap -> value
-                    value.startsWith("{i18n:") -> langMap[value.removePrefix("{i18n:").removeSuffix("}")] ?: value
-                    else -> loreAddress?.let { langMap[it] } ?: value
-                }
-            }
+            val rawLines = app.lore.mapNotNull { lt -> localCtx.localize(lt, loreAddress) }
             val legacy = legacyToken != null && rawLines.any { it.contains(legacyToken) }
             val tokened = rawLines.map { if (legacy) it.replace(legacyToken!!, BASE_LORE) else it }
             // The base lore stays by default: it goes away only with `lore_mode: replace`
             // or when `{base.lore}` places it itself (otherwise it would show twice).
             val replacement = tokened.any { it.contains(BASE_LORE) } || app.loreMode == "replace"
             val base = if (replacement) emptyList() else meta.lore() ?: emptyList()
-            val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> langMap[key] }.split("\n") }
+            val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> localCtx.langMap[key] }.split("\n") }
                 .flatMap { LoreWrap.wrap(LenientText.legacyToMini(it), localCtx.loreMaxWidth) }
             meta.lore(if (lines == listOf("")) base else base + lines.map { parse(it).colorIfAbsent(NamedTextColor.WHITE) })
         }
@@ -382,37 +444,18 @@ object MenuRenderer {
     private fun addressOf(base: String, leaf: String): String? =
         if (base.isEmpty()) null else "$base.$leaf"
 
-    /**
-     * Explicit `{i18n:key}` ref wins; otherwise the literal is looked up at its
-     * canonical ADDRESS (inline mode — the literal is the default language, the
-     * other languages sit at `address` in `lang/<lang>.yaml`); otherwise the
-     * literal stands as written.
-     */
+    /** [lookupLocalized] against the context's lang map, then the Template. */
     private fun resolveText(
         raw: String,
-        langMap: Map<String, String>,
         ctx: ExecutionContext,
         papi: PapiProvider?,
         address: String? = null,
     ): String {
-        var text = if (raw.startsWith("{i18n:")) {
-            langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw
-        } else {
-            address?.let { langMap[it] } ?: raw
-        }
         // The lang map also backs the presentation keys (`artisan.duration.*`), so a
         // duration reads in the viewer's language like any other string.
-        return ctx.render(text, papi) { key -> langMap[key] }
+        return ctx.render(lookupLocalized(raw, ctx.langMap, address), papi) { key -> ctx.langMap[key] }
     }
 
     private fun parsePositions(positions: String, size: Int): List<Int> =
-        positions.split(",").flatMap { part ->
-            val t = part.trim()
-            if (t.contains("-")) {
-                val (a, b) = t.split("-").map { it.trim().toInt() }
-                (a..b).toList()
-            } else {
-                listOf(t.toIntOrNull() ?: return@flatMap emptyList())
-            }
-        }.filter { it in 0 until size }
+        BundleCompiler.parsePositions(positions, size)
 }

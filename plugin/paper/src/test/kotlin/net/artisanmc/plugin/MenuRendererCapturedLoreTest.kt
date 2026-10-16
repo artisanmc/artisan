@@ -83,7 +83,6 @@ class MenuRendererCapturedLoreTest {
     ): ItemStack? {
         val deps = SoftDepRegistry(
             vault = null, papi = null, worldGuard = null,
-            nexoItems = null, oraxenItems = null, itemsAdderItems = null,
             hdbHeads = null, capturedItems = captured?.let { FakeStore("ci_sword", it) },
         )
         val p = MockBukkit.getMock()!!.addPlayer()

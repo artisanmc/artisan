@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.model
 
-import net.artisanmc.modules.api.DocumentKindDeclaration
-import net.artisanmc.modules.api.DocumentKindRegistry
+import net.artisanmc.modules.api.document.DocumentKindDeclaration
+import net.artisanmc.modules.api.document.DocumentKindRegistry
 
 /**
  * One kind of Document a project folder holds (ADR `extensible-document-kinds`,
@@ -64,7 +64,7 @@ object DocumentKinds {
      * Registers a kind. Two kinds may not share an id or a folder: the folder is
      * what tells a Document's kind on disk.
      *
-     * @throws net.artisanmc.modules.api.DuplicateDocumentKindException on a shared id or folder.
+     * @throws net.artisanmc.modules.api.document.DuplicateDocumentKindException on a shared id or folder.
      */
     fun register(kind: DocumentKind) = registry.register(kind.toDeclaration())
 

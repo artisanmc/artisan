@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.protocol
 
+import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectPathPolicy
 
 /** What the editor can see and write in a Project. */
@@ -8,10 +9,7 @@ object EditorPaths {
      * What `project_read` removes from the disk tree: every `.artisan*` metadata but
      * `.artisan/editor.yaml` (board layout, `i18n_mode`), the only one the editor owns.
      */
-    fun isInvisible(rel: String): Boolean {
-        if (ProjectPathPolicy.isPrivate(rel)) return true
-        return rel.substringBefore('/').startsWith(".artisan") && rel != ".artisan/editor.yaml"
-    }
+    fun isInvisible(rel: String): Boolean = ProjectMetadataPaths.isHiddenFromEditor(rel)
 
     /**
      * Path guard for `project_write`. Distinct from [isSafeRelPath], which rejects
@@ -29,11 +27,10 @@ object EditorPaths {
     /** Traversal guard for relay-provided relative paths (mirror of ProjectContentReader.resolve). */
     fun isSafeRelPath(p: String): Boolean {
         if (!ProjectPathPolicy.valid(p)) return false
-        if (ProjectPathPolicy.isPrivate(p)) return false
         if (p.isBlank()) return false
         val norm = p.replace('\\', '/')
         if (norm.startsWith("/") || norm.contains("..") || norm.contains(":")) return false
-        return !norm.substringBefore('/').startsWith(".artisan")
+        return !ProjectMetadataPaths.isHiddenFromContent(norm)
     }
 
     /** projectId feeds ProjectRoots.dirFor — must be a bare directory name. */

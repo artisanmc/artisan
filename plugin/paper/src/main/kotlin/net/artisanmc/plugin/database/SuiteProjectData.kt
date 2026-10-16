@@ -1,10 +1,13 @@
 package net.artisanmc.plugin.database
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseDialect
+import net.artisanmc.plugin.hub.DraftCommit
+import net.artisanmc.plugin.hub.DraftReceipt
 import net.artisanmc.plugin.hub.DraftStorage
 import net.artisanmc.plugin.hub.LoadedProjects
 import net.artisanmc.plugin.hub.ProjectHistory
+import net.artisanmc.plugin.protocol.LoadedState
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
@@ -33,12 +36,12 @@ class SuiteProjectData(
     private val contents = ContentRows(data, dialect)
     private val mapper = ObjectMapper()
 
-    private class Cached(val at: Long, val row: Int?, val state: Map<String, Any?>?)
+    private class Cached(val at: Long, val row: Int?, val state: LoadedState?)
     private val cache = ConcurrentHashMap<String, Cached>()
 
     /** The Project list and, per Project, the Snapshot hash, failed files and editor metadata: what the hub serves. */
-    fun recordState(server: Int, state: Map<String, Any?>, now: Instant) {
-        states.put(server, mapper.writeValueAsString(state), now)
+    fun recordState(server: Int, state: LoadedState, now: Instant) {
+        states.put(server, mapper.writeValueAsString(state.toMap()), now)
         cache.entries.removeIf { it.value.row == server }
     }
 
@@ -51,22 +54,19 @@ class SuiteProjectData(
     private fun cached(server: String): Cached {
         cache[server]?.takeIf { clock() - it.at < CACHE_MS }?.let { return it }
         val row = rowOf(server)
-        @Suppress("UNCHECKED_CAST")
-        val state = row?.let(states::get)?.let { mapper.readValue(it, Map::class.java) as Map<String, Any?> }
+        val state = row?.let(states::get)?.let { LoadedState.from(mapper.readValue(it, Map::class.java)) }
         return Cached(clock(), row, state).also { cache[server] = it }
     }
 
     private fun row(server: String): Int? = cached(server).row
 
     /** What [server] recorded at its last load, see [recordState]. */
-    fun state(server: String): Map<String, Any?>? = cached(server).state
+    fun state(server: String): LoadedState? = cached(server).state
 
     /** A Project's row and `project_key`, from its folder in the server's loaded state. */
-    @Suppress("UNCHECKED_CAST")
     private fun projectKey(server: String, folder: String): Pair<Int, String>? {
         val cached = cached(server)
-        val roots = cached.state?.get("project_roots") as? List<Map<String, Any?>> ?: return null
-        val key = roots.firstOrNull { it["project_id"] == folder }?.get("project_key") as? String ?: return null
+        val key = cached.state?.list?.root(folder)?.projectKey ?: return null
         return (cached.row ?: return null) to key
     }
 
@@ -84,11 +84,16 @@ class SuiteProjectData(
             return draftRows.get(row, key, id)
         }
 
-        override fun receipt(operationId: String) = draftRows.receipt(operationId)
+        override fun receipt(operationId: String) =
+            draftRows.receipt(operationId)?.let { (fingerprint, result) -> DraftReceipt(operationId, fingerprint, result) }
 
-        override fun commit(server: String, folder: String, id: String, draft: String, status: String, operationId: String, fingerprint: String, result: String): Boolean {
+        override fun commit(server: String, folder: String, commit: DraftCommit): Boolean {
             val (row, key) = projectKey(server, folder) ?: return false
-            draftRows.commit(row, key, id, draft, status, operationId, fingerprint, result)
+            val receipt = commit.receipt
+            draftRows.commit(
+                row, key, id = commit.draftId, draft = commit.body, status = commit.status.wire,
+                operationId = receipt.operationId, fingerprint = receipt.fingerprint, result = receipt.result,
+            )
             return true
         }
 
@@ -98,18 +103,17 @@ class SuiteProjectData(
 
     /** Projects as their server loaded them, read from the suite database by the editor's routes. */
     val loaded: LoadedProjects = object : LoadedProjects {
-        override fun list(server: String): Map<String, Any?>? = state(server)?.minus("projects")
+        override fun list(server: String): Map<String, Any?>? = state(server)?.list?.toMap()
 
-        @Suppress("UNCHECKED_CAST")
         override fun read(server: String, folder: String): Map<String, Any?>? {
             val cached = cached(server)
-            val project = (cached.state?.get("projects") as? Map<String, Map<String, Any?>>)?.get(folder) ?: return null
+            val project = cached.state?.projects?.get(folder) ?: return null
             val version = versions.latest(cached.row ?: return null, folder) ?: return null
-            val files = version.files + (project["meta"] as? Map<String, String>).orEmpty()
+            val files = version.files + project.meta
             return mapOf(
-                "hash" to project["hash"],
+                "hash" to project.hash,
                 "files" to files.toSortedMap().map { (path, content) -> mapOf("path" to path, "content" to content) },
-                "failed" to project["failed"],
+                "failed" to project.failed.map { it.toMap() },
                 "binaries" to version.binaries.map { mapOf("path" to it.path, "hash" to it.hash, "size" to it.size) },
             )
         }

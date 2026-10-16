@@ -92,7 +92,6 @@ class CapturedItemStoreTest {
         store.reload()
         val deps = net.artisanmc.plugin.engine.SoftDepRegistry(
             vault = null, papi = null, worldGuard = null,
-            nexoItems = null, oraxenItems = null, itemsAdderItems = null,
             hdbHeads = null, capturedItems = store,
         )
         // Default count (1) keeps the captured amount (a 5-key bundle stays 5).

@@ -11,15 +11,15 @@ import net.artisanmc.plugin.hub.Relay.Companion.readError
 /** `/api/v1/servers/:server/…`: what the server declares, its configuration, its live data. */
 class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     fun register(router: Router) {
-        on(router, "GET", "modules", VIEW) { call, server -> call.json(mapOf("modules" to server.modules())) }
-        on(router, "GET", "data-sources", VIEW) { call, server -> call.json(mapOf("data_sources" to server.dataSources())) }
+        on(router, "GET", "modules", VIEW) { call, server -> call.json(mapOf("modules" to server.announcement().modules)) }
+        on(router, "GET", "data-sources", VIEW) { call, server -> call.json(mapOf("data_sources" to server.announcement().dataSources)) }
         on(router, "GET", "models", VIEW) { call, server ->
-            val models = server.models().filter { (it["id"] as? String)?.contains(':') == true }.sortedBy { it["id"] as String }
+            val models = server.announcement().models.filter { (it["id"] as? String)?.contains(':') == true }.sortedBy { it["id"] as String }
             call.json(mapOf("models" to models))
         }
-        on(router, "GET", "screens", VIEW) { call, server -> call.json(mapOf("screens" to server.screens())) }
-        on(router, "GET", "actions", VIEW) { call, server -> call.json(mapOf("actions" to server.actions())) }
-        on(router, "GET", "document-kinds", VIEW) { call, server -> call.json(mapOf("document_kinds" to server.documentKinds())) }
+        on(router, "GET", "screens", VIEW) { call, server -> call.json(mapOf("screens" to server.announcement().screens)) }
+        on(router, "GET", "actions", VIEW) { call, server -> call.json(mapOf("actions" to server.announcement().actions)) }
+        on(router, "GET", "document-kinds", VIEW) { call, server -> call.json(mapOf("document_kinds" to server.announcement().documentKinds)) }
 
         on(router, "GET", "server-config", VIEW) { call, server -> call.json(mapOf("config" to server.serverConfig(), "online" to server.online)) }
         on(router, "PATCH", "server-config", CONFIG) { call, server ->

@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.engine
 
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
-import net.artisanmc.modules.api.PlaceholderResolver
+import net.artisanmc.modules.api.placeholder.PlaceholderResolver
 import org.bukkit.OfflinePlayer
 import org.bukkit.plugin.Plugin
 
