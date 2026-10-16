@@ -14,7 +14,7 @@ import java.io.File
 internal object ArtisanApiFactory {
     fun build(plugin: ArtisanPlugin): ArtisanAPI {
         val registry = ModuleRegistry()
-        val nexoForCapture = net.artisanmc.plugin.engine.NexoItemRenderer.tryInit()
+        val customForCapture = net.artisanmc.plugin.customitems.CustomItemPlugins.withApi()
         plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(File(plugin.dataFolder, "projects"), plugin.logger)
         plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger)
         val api = ArtisanAPI.builder(
@@ -41,7 +41,7 @@ internal object ArtisanApiFactory {
                 override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                     net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
                 override fun describe(stack: org.bukkit.inventory.ItemStack): Map<String, Any> =
-                    net.artisanmc.plugin.items.ItemDescriptor.derive(stack, nexoForCapture)
+                    net.artisanmc.plugin.items.ItemDescriptor.derive(stack, customForCapture)
             })
             .actions(object : net.artisanmc.modules.api.ModuleActionsApi {
                 override fun execute(

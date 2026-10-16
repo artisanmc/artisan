@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.items
 
-import net.artisanmc.plugin.engine.NexoItemRenderer
+import net.artisanmc.plugin.customitems.CustomItemPlugin
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Material
 import org.bukkit.configuration.file.YamlConfiguration
@@ -26,11 +26,13 @@ object ItemDescriptor {
         return yml.saveToString()
     }
 
-    fun derive(stack: ItemStack, nexo: NexoItemRenderer?): Map<String, Any> {
+    fun derive(stack: ItemStack, customItems: List<CustomItemPlugin> = emptyList()): Map<String, Any> {
         val out = HashMap<String, Any>()
         // Material — enriched to a recognized custom ref when possible.
-        val nexoId = runCatching { nexo?.idFrom(stack) }.getOrNull()
-        out["material"] = if (nexoId != null) "nexo:$nexoId" else stack.type.name
+        val custom = customItems.firstNotNullOfOrNull { plugin ->
+            runCatching { plugin.idFrom(stack) }.getOrNull()?.let { "${plugin.namespace}:$it" }
+        }
+        out["material"] = custom ?: stack.type.name
         if (stack.amount > 1) out["count"] = stack.amount
 
         val meta = runCatching { stack.itemMeta }.getOrNull()
