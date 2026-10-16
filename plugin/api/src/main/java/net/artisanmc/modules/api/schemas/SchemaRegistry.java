@@ -3,7 +3,7 @@ package net.artisanmc.modules.api.schemas;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import net.artisanmc.modules.api.SchemaVersionReader;
+import net.artisanmc.modules.api.schemas.SchemaVersionReader;
 import net.artisanmc.modules.api.annotations.Stable;
 
 /**
