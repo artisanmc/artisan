@@ -11,6 +11,7 @@ import net.artisanmc.plugin.database.SuiteProjectData
 import net.artisanmc.plugin.hub.DraftCommit
 import net.artisanmc.plugin.hub.DraftReceipt
 import net.artisanmc.plugin.hub.DraftStatus
+import net.artisanmc.plugin.protocol.LoadedState
 import java.nio.file.Files
 import java.time.Instant
 import java.util.UUID
@@ -37,11 +38,11 @@ class SuiteProjectDataTest {
 
     @AfterTest fun teardown() = pools.closeAll()
 
-    private fun state(vararg hashes: Pair<String, String>) = mapOf(
+    private fun state(vararg hashes: Pair<String, String>) = LoadedState.from(mapOf(
         "project_ids" to hashes.map { it.first },
         "project_roots" to hashes.map { (folder, _) -> mapOf("project_id" to folder, "project_key" to "key-$folder", "identity" to "folder") },
         "projects" to hashes.associate { (folder, hash) -> folder to mapOf("hash" to hash, "failed" to emptyList<Any>(), "meta" to mapOf(".artisan/editor.yaml" to "zoom: 1")) },
-    )
+    ))
 
     @Test
     fun `the loaded state serves the list, a project's files with its metadata, and its drafts`() {
@@ -66,18 +67,18 @@ class SuiteProjectDataTest {
     @Test
     fun `a server's state is read once per window, and again after it records or announces a reload`() {
         data.recordState(hubRow, state("shop" to "h1"), t0)
-        assertEquals("h1", (data.state(hub)!!["projects"] as Map<*, *>).let { (it["shop"] as Map<*, *>)["hash"] })
+        assertEquals("h1", data.state(hub)!!.projects.getValue("shop").hash)
         // Written behind the cache's back: the copy holds until the window ends.
         ServerStateStore(ds).put(hubRow, "{\"project_ids\":[],\"project_roots\":[],\"projects\":{}}", t0.plusSeconds(1))
-        assertEquals(listOf("shop"), data.state(hub)!!["project_ids"])
+        assertEquals(listOf("shop"), data.state(hub)!!.list.projectIds)
         now += SuiteProjectData.CACHE_MS
-        assertEquals(emptyList<Any>(), data.state(hub)!!["project_ids"])
+        assertEquals(emptyList<Any>(), data.state(hub)!!.list.projectIds)
         // This server's own record drops its copy at once; a remote reload announcement does the same by id.
         data.recordState(hubRow, state("shop" to "h2"), t0.plusSeconds(2))
-        assertEquals(listOf("shop"), data.state(hub)!!["project_ids"])
+        assertEquals(listOf("shop"), data.state(hub)!!.list.projectIds)
         ServerStateStore(ds).put(hubRow, "{\"project_ids\":[\"x\"],\"project_roots\":[],\"projects\":{}}", t0.plusSeconds(3))
         data.invalidate(hub)
-        assertEquals(listOf("x"), data.state(hub)!!["project_ids"])
+        assertEquals(listOf("x"), data.state(hub)!!.list.projectIds)
     }
 
     @Test
