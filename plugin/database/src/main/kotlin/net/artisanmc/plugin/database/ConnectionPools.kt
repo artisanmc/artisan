@@ -2,7 +2,7 @@ package net.artisanmc.plugin.database
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseDialect
 import java.io.File
 import java.util.logging.Logger
 import javax.sql.DataSource

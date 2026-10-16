@@ -353,7 +353,9 @@ Non-examples:
   server-wide, so two Projects claiming one name still conflict (the deploy
   review warns).
 - A data-source ref (`pack:<id>`, `boutique:category`) is not a Document
-  reference — `ns:id` there names a module or Project source.
+  reference — `ns:id` there names a module or Project source. A `pack:<id>`
+  still resolves by the bare-id rule above: the fetching menu's Project first,
+  then the one Project of the server that defines it (no qualified form).
 
 ## Draft
 

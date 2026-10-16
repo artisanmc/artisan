@@ -37,13 +37,13 @@ internal object ArtisanApiFactory {
             // The one kind registry: the core kinds registered first, then
             // what modules add through api.documentKinds (W6).
             .documentKinds(DocumentKinds.coreRegistry().also(DocumentKinds::bind))
-            .items(object : net.artisanmc.modules.api.ItemStackApi {
+            .items(object : net.artisanmc.modules.api.item.ItemStackApi {
                 override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                     net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
                 override fun describe(stack: org.bukkit.inventory.ItemStack): Map<String, Any> =
                     net.artisanmc.plugin.items.ItemDescriptor.derive(stack, customForCapture)
             })
-            .actions(object : net.artisanmc.modules.api.ModuleActionsApi {
+            .actions(object : net.artisanmc.modules.api.action.ModuleActionsApi {
                 override fun execute(
                     player: org.bukkit.entity.Player,
                     actions: String,
@@ -100,9 +100,7 @@ internal object ArtisanApiFactory {
             .build()
         // A module reports the core plugin version: ArtisanModule has no version of its own.
         registry.bind(api) {
-            (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged(
-                registry.active().map { mapOf("id" to it.id, "version" to plugin.description.version) },
-            )
+            (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged()
         }
         return api
     }

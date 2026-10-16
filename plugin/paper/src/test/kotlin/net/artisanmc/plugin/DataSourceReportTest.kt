@@ -1,11 +1,12 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.modules.api.DataSourceDeclaration
-import net.artisanmc.modules.api.DataSourceField
-import net.artisanmc.modules.api.DataSourceRegistry
-import net.artisanmc.modules.api.FieldKind
-import net.artisanmc.modules.api.RegisteredDataSource
-import net.artisanmc.modules.api.Stability
+import net.artisanmc.modules.api.datasource.DataSourceDeclaration
+import net.artisanmc.modules.api.datasource.DataSourceField
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.FieldKind
+import net.artisanmc.modules.api.datasource.RegisteredDataSource
+import net.artisanmc.modules.api.datasource.Stability
+import net.artisanmc.modules.api.model.ModelFieldType
 import net.artisanmc.plugin.ws.DataSourceReport
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -32,6 +33,21 @@ class DataSourceReportTest {
         val schema = entry["schema"] as List<Map<String, Any?>>
         assertEquals(mapOf("name" to "id", "type" to "string", "description" to null), schema[0])
         assertEquals(mapOf("name" to "price", "type" to "number", "description" to "Unit price"), schema[1])
+    }
+
+    @Test
+    fun `a ModelFieldType field reports its kind`() {
+        val declaration = DataSourceDeclaration(
+            "boutique:items",
+            { _, _ -> emptyList() },
+            listOf(
+                DataSourceField("title", ModelFieldType.ltext()),
+                DataSourceField("lore", ModelFieldType.list(ModelFieldType.ltext())),
+            ),
+        )
+        @Suppress("UNCHECKED_CAST")
+        val schema = DataSourceReport.build(listOf(RegisteredDataSource(declaration, "boutique")))[0]["schema"] as List<Map<String, Any?>>
+        assertEquals(listOf("ltext", "list"), schema.map { it["type"] })
     }
 
     @Test

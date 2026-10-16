@@ -1,11 +1,11 @@
 package net.artisanmc.plugin.provider
 
-import net.artisanmc.modules.api.MenuApi
-import net.artisanmc.modules.api.MenuClickListener
-import net.artisanmc.modules.api.MenuCloseListener
-import net.artisanmc.modules.api.MenuOpenListener
-import net.artisanmc.modules.api.MenuRef
-import net.artisanmc.modules.api.MenuSubscription
+import net.artisanmc.modules.api.menu.MenuApi
+import net.artisanmc.modules.api.menu.MenuClickListener
+import net.artisanmc.modules.api.menu.MenuCloseListener
+import net.artisanmc.modules.api.menu.MenuOpenListener
+import net.artisanmc.modules.api.menu.MenuRef
+import net.artisanmc.modules.api.menu.MenuSubscription
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.engine.MenuSessionStore
 import net.artisanmc.plugin.render.MenuEventDispatcher

@@ -1,6 +1,6 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.modules.api.ConfigReloadEvent
+import net.artisanmc.modules.api.event.ConfigReloadEvent
 import net.artisanmc.plugin.command.CommandRegistrar
 import net.artisanmc.plugin.config.PluginConfig
 import net.artisanmc.plugin.customitems.CustomItemPlugins
@@ -137,13 +137,9 @@ internal class RuntimeAssembly(
         executorProvider = { executor },
         lookupAsset      = assetCatalog::lookup,
         offsetEncoderProvider = assetCatalog::offsetEncoder,
-        installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
         dataSources = api.dataSources,
-        dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
-        declaredModelsReport = { api.models.declared().map { it.document } },
-        editorScreensReport = { api.screens.declared().map { it.toWire() } },
-        declaredActionsReport = { api.actionRegistry.registered().map { it.toWire() } },
-        documentKindsReport = { api.documentKinds.registered().map { it.toWire() } },
+        announcement = plugin::announcement,
+        declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,
         menuWindows = menuWindows,
         pluginVersion = description.version,
