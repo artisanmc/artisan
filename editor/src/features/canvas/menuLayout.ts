@@ -136,7 +136,6 @@ export const singleBackgroundCrop = (type: InventoryType) => ({
   height: INVENTORY_TYPES[type].boxHeight ?? MC_BOTTOM_Y,
 });
 
-export { slotCount } from "./inventoryTypes";
 import { commandsOf, dialogsOf, findDocument, menusOf } from "@/domain/documents";
 import { documentKindContribution } from "@artisan/editor-sdk";
 
