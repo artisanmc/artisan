@@ -1,10 +1,12 @@
 import { EmptyState } from "@/components/ui/empty-state";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import type { ElementId, ProjectId } from "@/domain/types";
 import { Stage } from "@/features/canvas/Stage";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { isTypingTarget } from "@/lib/keyboard";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -12,10 +14,9 @@ import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useContext, useEffect, useState } from "react";
-import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { useTranslation } from "react-i18next";
+import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { documentLabel } from "./useProjectDocuments";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export function DocumentView({
   projectId,
@@ -64,9 +65,7 @@ export function DocumentView({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
-      const el = e.target as HTMLElement | null;
-      const tag = el?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || el?.isContentEditable) return;
+      if (isTypingTarget(e.target)) return;
       if (document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]')) return;
       back();
     };
