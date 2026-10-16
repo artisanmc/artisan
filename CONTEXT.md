@@ -723,6 +723,17 @@ names a different Project on every server that runs the Boutique Add-on). Its
 hub and the editor name it, is `<server id>.<folder>` (`f3a1….shop`), on the Hub's
 own server as on a Leaf (issue #43).
 
+**Which "project id" is which.** Three values go by that name; the wire keeps
+its spellings (the protocol does not move fast), the code says which one it holds:
+- the generated identity above — `.artisan/project-id`, `project_key` in the suite
+  database, `projectKey` in Kotlin;
+- the **folder** — `project_id` in the `/ws/plugin` messages (`EditorRequest`), and
+  `projectId` in the runtime model and the add-on API (`RuntimeProject.projectId`,
+  `ProjectRootRegistry.register(projectId, …)`): a folder name, the namespace of
+  Document references;
+- the editor's id, `<server id>.<folder>` — `projectId` in the hub's REST answers
+  and in the editor.
+
 This is the **canonical** domain term, and code/DB/API/UI **now all say `project`**
 (`projectId`, `/projects` routes, `project_id` WS fields, the
 `plugins/Artisan/projects/` disk dir, and the editor UI). It was historically called **`pack`** in code/DB/API and labelled
@@ -785,6 +796,11 @@ name Velocity routes by) is an attribute that may change:
 a renamed Server keeps its Versions and everything else attached to it. Two
 Servers of a Network never share a name. Whether it is **online** is its
 **Presence**, a runtime fact, not part of the entity.
+
+On the wire the server id is `server_uuid` (`hello`), `server_id` (`hello_ack`) and
+`server_key_id` (editor channel). In the suite database every table keys a server
+by its `artisan_servers` row instead (`server_id INT`): that is the **server row**
+(`ServerRow` in Kotlin), never the server id.
 
 Non-examples:
 - The cloud server key and "unlinked Server" are gone (phase F, 2026-10): a
