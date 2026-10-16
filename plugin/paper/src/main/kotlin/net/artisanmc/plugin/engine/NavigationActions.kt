@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.engine
 
 import org.bukkit.entity.Player
+import net.artisanmc.plugin.session.NavigationEntry
 
 /**
  * Game logic of the core navigation actions: menus, dialogs, the back stack and

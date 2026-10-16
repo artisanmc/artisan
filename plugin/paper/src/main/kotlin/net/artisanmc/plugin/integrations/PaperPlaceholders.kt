@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.engine
+package net.artisanmc.plugin.integrations
 
 import net.artisanmc.modules.api.placeholder.PlaceholderRegistry
 import net.artisanmc.modules.api.placeholder.PlaceholderResolver
@@ -6,6 +6,9 @@ import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Level
+import net.artisanmc.plugin.engine.PapiPlaceholderCatalog
+import net.artisanmc.plugin.engine.expandPlaceholders
+import net.artisanmc.plugin.engine.isPlaceholderNamespace
 
 /**
  * `api.placeholders`. Survives `/artisan reload`; each runtime's [SoftDepRegistry]

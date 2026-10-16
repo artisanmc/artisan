@@ -11,7 +11,7 @@ import net.artisanmc.modules.api.datasource.Stability
 import net.artisanmc.plugin.engine.MenuCompiler
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.render.menu.MenuRenderer
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import org.bukkit.Material
 import kotlin.test.*

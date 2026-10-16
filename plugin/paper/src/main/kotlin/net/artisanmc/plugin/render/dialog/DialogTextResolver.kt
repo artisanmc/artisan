@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.render.dialog
 
 import net.artisanmc.plugin.engine.I18nAddress
 import net.artisanmc.plugin.engine.ExecutionContext

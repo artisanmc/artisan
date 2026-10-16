@@ -90,7 +90,7 @@ class CapturedItemStoreTest {
         writeWrapped("shop", "ci_key", Material.PAPER, 5)
         val store = CapturedItemStore(projectsDir, null)
         store.reload()
-        val deps = net.artisanmc.plugin.engine.SoftDepRegistry(
+        val deps = net.artisanmc.plugin.integrations.SoftDepRegistry(
             vault = null, papi = null, worldGuard = null,
             hdbHeads = null, capturedItems = store,
         )

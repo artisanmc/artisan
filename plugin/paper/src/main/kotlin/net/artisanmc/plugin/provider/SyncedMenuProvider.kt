@@ -17,8 +17,8 @@ import net.artisanmc.plugin.model.DocumentKind
 import net.artisanmc.plugin.model.DocumentKinds
 import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.engine.RuntimeProject
-import net.artisanmc.plugin.render.DialogRenderer
-import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.render.dialog.DialogRenderer
+import net.artisanmc.plugin.render.menu.MenuRenderer
 import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.artisanmc.plugin.project.ProjectSnapshot
 import net.artisanmc.plugin.protocol.EditorPaths
@@ -44,7 +44,7 @@ class SyncedMenuProvider(
     private val logger: Logger?,
     private val evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
     private val sessions: MenuSessionStore? = null,
-    private val history: net.artisanmc.plugin.engine.NavigationHistoryStore? = null,
+    private val history: net.artisanmc.plugin.session.NavigationHistoryStore? = null,
     private val onReload: (() -> Unit)? = null,
     private val executorProvider: (() -> ActionExecutor)? = null,
     private val langManager: LangManager? = null,
@@ -58,7 +58,7 @@ class SyncedMenuProvider(
     private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
     /** Fetchers touch the Bukkit API: they run on the thread that owns the state they read. */
     private val scheduler: Scheduler = Scheduler.Direct,
-    private val menuWindows: net.artisanmc.plugin.render.MenuWindows? = null,
+    private val menuWindows: net.artisanmc.plugin.render.packets.MenuWindows? = null,
     private val pluginVersion: String = "1.0.0",
     private val nexoGlyphs: net.artisanmc.plugin.customitems.NexoGlyphReader? = null,
     private val serverConfig: net.artisanmc.plugin.config.ServerConfigAccess? = null,
@@ -67,7 +67,7 @@ class SyncedMenuProvider(
     /** On a leaf, the hub to connect to; null on the hub or a standalone server. */
     private val hub: HubLink? = null,
     /** `api.menus` listeners and the Bukkit menu events. */
-    private val menuEvents: net.artisanmc.plugin.render.MenuEventDispatcher? = null,
+    private val menuEvents: net.artisanmc.plugin.listener.MenuEventDispatcher? = null,
     /** Each loaded Snapshot, with the editor players whose publication it loads, by project id. */
     /** Each loaded Snapshot, with its publications' authors by project id; [done] announces the reload once it is recorded. */
     private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.project.PublicationAuthor>, done: () -> Unit) -> Unit =
@@ -290,8 +290,8 @@ class SyncedMenuProvider(
         if (menuEvents?.open(net.artisanmc.modules.api.menu.MenuOpenEvent(player, ref, ctx.navigationArgs)) == false) return
         history?.setCurrent(
             player,
-            net.artisanmc.plugin.engine.NavigationEntry(
-                kind = net.artisanmc.plugin.engine.NavigationEntry.Kind.MENU,
+            net.artisanmc.plugin.session.NavigationEntry(
+                kind = net.artisanmc.plugin.session.NavigationEntry.Kind.MENU,
                 id = menu.id,
                 args = ctx.navigationArgs,
                 pagination = ctx.pagination,
@@ -324,8 +324,8 @@ class SyncedMenuProvider(
         val opened = ctx.copy(projectId = dialog.projectId.ifEmpty { null } ?: ctx.projectId)
         history?.setCurrent(
             player,
-            net.artisanmc.plugin.engine.NavigationEntry(
-                kind = net.artisanmc.plugin.engine.NavigationEntry.Kind.DIALOG,
+            net.artisanmc.plugin.session.NavigationEntry(
+                kind = net.artisanmc.plugin.session.NavigationEntry.Kind.DIALOG,
                 id = dialog.id,
                 args = ctx.args,
                 lang = lang,
@@ -350,7 +350,7 @@ class SyncedMenuProvider(
             if (previous != null) {
                 put(
                     "previous_menu",
-                    net.artisanmc.plugin.engine.ScreenValue(
+                    net.artisanmc.plugin.session.ScreenValue(
                         mapOf("id" to previous.id, "title" to screenTitle(previous)),
                         previous.id,
                     ),
@@ -361,11 +361,11 @@ class SyncedMenuProvider(
     }
 
     /** Best-effort display title of a history entry (first text layer / dialog title). */
-    private fun screenTitle(entry: net.artisanmc.plugin.engine.NavigationEntry): String =
+    private fun screenTitle(entry: net.artisanmc.plugin.session.NavigationEntry): String =
         when (entry.kind) {
-            net.artisanmc.plugin.engine.NavigationEntry.Kind.MENU ->
+            net.artisanmc.plugin.session.NavigationEntry.Kind.MENU ->
                 findMenu(entry.ref)?.let { firstTitleText(it, entry.lang) } ?: entry.id
-            net.artisanmc.plugin.engine.NavigationEntry.Kind.DIALOG ->
+            net.artisanmc.plugin.session.NavigationEntry.Kind.DIALOG ->
                 findDialog(entry.ref)?.let { it.yaml.title?.forLang(entry.lang, it.defaultLang) } ?: entry.id
         }
 
