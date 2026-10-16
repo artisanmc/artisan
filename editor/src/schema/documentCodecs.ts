@@ -1,4 +1,3 @@
-import { listDocumentKinds } from "@/domain/documentKinds";
 import type { Command, Dialog, Document, Menu, Project, ProjectId } from "@/domain/types";
 import { serializeCommand, serializeDialog, serializeMenuToV1 } from "@/features/export/transform";
 import { commandV1ToDomain } from "./commandV1ToDomain";
@@ -46,14 +45,6 @@ export function documentCodec(kind: string): DocumentCodec {
   const codec = codecs.get(kind);
   if (!codec) throw new Error(`document kind ${kind} has no codec`);
   return codec;
-}
-
-/** Registered kinds that have a codec, in registry order. */
-export function codecsByKind(): DocumentCodec[] {
-  return listDocumentKinds().flatMap((def) => {
-    const codec = codecs.get(def.kind);
-    return codec ? [codec] : [];
-  });
 }
 
 function registerCoreCodecs(): void {

@@ -593,5 +593,3 @@ function LibraryDragGhost({ material }: { material: string }) {
     </div>
   );
 }
-
-export { ProjectCanvasPage as ServerProjectPage };

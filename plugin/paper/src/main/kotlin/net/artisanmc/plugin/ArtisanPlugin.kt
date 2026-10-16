@@ -560,11 +560,6 @@ open class ArtisanPlugin : JavaPlugin() {
         }
     }
 
-    /** Test-only seam: swap in a fake [MenuProvider] after onEnable has run. */
-    internal fun setMenuProviderForTesting(provider: MenuProvider) {
-        menuProvider = provider
-    }
-
     val environmentFile: File get() = File(dataFolder, "environment.yml")
 
     /** Called on the main thread; reloads on the next tick, once the reply is sent. */

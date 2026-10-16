@@ -32,10 +32,6 @@ export function registerDocumentKindVisitors(kind: string, v: DocumentKindVisito
   visitors.set(kind, v);
 }
 
-export function unregisterDocumentKindVisitors(kind: string): void {
-  visitors.delete(kind);
-}
-
 export function documentKindVisitors(kind: string): DocumentKindVisitors | undefined {
   return visitors.get(kind);
 }
