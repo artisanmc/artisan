@@ -140,17 +140,9 @@ describe("codec round trip — dialog/v1", () => {
   });
 });
 
-// Known bug, pinned so its fix flips this test: an owned table model whose id
-// differs from its source's id (`mdl_ranks` here, `dm_…` for every table the
-// editor creates) is written at models/<sourceId>.yaml with `id: <modelId>`,
-// but `projectFromFiles` indexes models/ files by that inner id, so the lookup
-// beside the data (by file name) misses: the rows come back untyped against a
-// synthesized empty model, and the next write blanks every ltext value.
-const KNOWN_LOSSY = new Set(["ranks.yaml"]);
-
 describe("codec round trip — data/v1 examples", () => {
   for (const [name, yaml] of examples("data")) {
-    (KNOWN_LOSSY.has(name) ? it.fails : it)(name, () => {
+    it(name, () => {
       const id = (parse(yaml) as { id: string }).id;
       const { p1, p2, p3, f1, f2 } = roundTrip(treeWith(`data/${id}.yaml`, yaml));
       expect(p1.dataSources ?? []).toHaveLength(1);
