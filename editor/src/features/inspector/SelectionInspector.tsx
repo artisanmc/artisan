@@ -49,7 +49,7 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
 
   switch (ctx.kind) {
     case "multi":
-      return <EmptyHint label="Multi-edit not supported in v1. Select one item." />;
+      return <EmptyHint label={t("projectPanel.multiSelection")} />;
     case "none":
       return (
         <div className="h-full overflow-y-auto p-3">
@@ -110,7 +110,7 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
       );
     }
     default:
-      return <EmptyHint label="Selection has no editor." />;
+      return <EmptyHint label={t("projectPanel.selectionNoEditor")} />;
   }
 }
 
