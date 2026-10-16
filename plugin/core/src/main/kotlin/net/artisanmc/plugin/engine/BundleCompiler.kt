@@ -145,12 +145,21 @@ object BundleCompiler {
         }
     }
 
-    private fun parsePositions(positions: String, size: Int): List<Int> =
+    /**
+     * An element's `positions` spec (`"0,2,10-14"`) to its slots in `0 until size`.
+     *
+     * Tolerant per range: a malformed part (`"10-"`, `"a-3"`, `"1-2-3"`) is
+     * skipped, never thrown. A typo in one menu must not fail the reload of every
+     * Project. Shared with the renderer, which re-reads the same spec.
+     */
+    fun parsePositions(positions: String, size: Int): List<Int> =
         positions.split(",").flatMap { part ->
             val t = part.trim()
             if (t.contains("-")) {
-                val (a, b) = t.split("-").map { it.trim().toInt() }
-                (a..b).toList()
+                val bounds = t.split("-").map { it.trim().toIntOrNull() }
+                val a = bounds.getOrNull(0)
+                val b = bounds.getOrNull(1)
+                if (bounds.size != 2 || a == null || b == null) emptyList() else (a..b).toList()
             } else {
                 listOf(t.toIntOrNull() ?: return@flatMap emptyList())
             }

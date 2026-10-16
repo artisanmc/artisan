@@ -75,7 +75,7 @@ function loadedProject() {
     },
   };
 }
-vi.mock("@/components/ProjectTopBarControls", () => ({
+vi.mock("@/features/project/ProjectTopBarControls", () => ({
   ProjectTopBarControls: () => <div data-testid="topbar" />,
 }));
 vi.mock("@/features/assets/AssetsTab", () => ({
@@ -100,7 +100,7 @@ vi.mock("@dnd-kit/core", () => ({
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
 
-import { validateProjectSearch } from "@/features/project/ProjectWorkspace";
+import { validateProjectSearch } from "@/features/project/ProjectCanvasPage";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { useUiStore } from "@/state/uiStore";
 import { ServerProjectPage } from "./servers.$serverId.projects.$projectId";
