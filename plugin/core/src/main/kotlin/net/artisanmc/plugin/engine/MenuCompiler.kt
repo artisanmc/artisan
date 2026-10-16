@@ -2,19 +2,19 @@ package net.artisanmc.plugin.engine
 
 import net.artisanmc.plugin.actiondsl.compileActionDsl
 import net.artisanmc.plugin.model.AppearanceYaml
-import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.RuntimeMenu
 import net.artisanmc.plugin.expr.warmTemplate
 import net.artisanmc.plugin.model.MenuYaml
 import java.util.logging.Logger
 
-object BundleCompiler {
+object MenuCompiler {
 
     fun compile(
         yaml: MenuYaml,
         langMaps: Map<String, Map<String, String>>,
         logger: Logger? = null,
         defaultLang: String = "en",
-    ): BundleMenu {
+    ): RuntimeMenu {
         val compiledAppearances = mutableMapOf<String, List<CompiledAppearance>>()
         val slotToElement = mutableMapOf<Int, String>()
 
@@ -36,7 +36,7 @@ object BundleCompiler {
             if (compiled.isNotEmpty()) compiledAppearances[element.id] = compiled
         }
 
-        return BundleMenu(yaml, langMaps, compiledAppearances, slotToElement, defaultLang = defaultLang)
+        return RuntimeMenu(yaml, langMaps, compiledAppearances, slotToElement, defaultLang = defaultLang)
     }
 
     /**

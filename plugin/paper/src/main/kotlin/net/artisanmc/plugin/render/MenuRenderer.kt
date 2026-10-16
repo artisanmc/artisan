@@ -3,7 +3,7 @@ package net.artisanmc.plugin.render
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml
-import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.RuntimeMenu
 import net.artisanmc.plugin.model.MenuTitleLayer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -71,7 +71,7 @@ object MenuRenderer {
      */
     fun open(
         player: Player,
-        menu: BundleMenu,
+        menu: RuntimeMenu,
         lang: String,
         ctx: ExecutionContext = ExecutionContext(player),
         evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
@@ -126,13 +126,13 @@ object MenuRenderer {
 
     /**
      * Declared defaults (the caller wins by name) + ConnectorBinding fetches:
-     * `pack:` (the bundle's Project sources, ltext resolved here in the viewer's
+     * `pack:` (the Project's sources, ltext resolved here in the viewer's
      * language) then the DataSourceRegistry curried on the player. See
      * ProjectDataResolver for why Project sources stay out of the registry.
      */
     private fun bindArgs(
         player: Player,
-        menu: BundleMenu,
+        menu: RuntimeMenu,
         lang: String,
         ctx: ExecutionContext,
         dataSources: DataSourceRegistry?,
@@ -173,7 +173,7 @@ object MenuRenderer {
     }
 
     /** Pagination window of each iterating / placing element, clamped to its page count. */
-    private fun paginate(menu: BundleMenu, ctx: ExecutionContext, slotLimit: Int): Map<String, PageInfo> {
+    private fun paginate(menu: RuntimeMenu, ctx: ExecutionContext, slotLimit: Int): Map<String, PageInfo> {
         val pageInfo = mutableMapOf<String, PageInfo>()
         for (element in menu.yaml.allElements) {
             val iter = element.iterates
@@ -208,7 +208,7 @@ object MenuRenderer {
     )
 
     private fun imageButtons(
-        menu: BundleMenu,
+        menu: RuntimeMenu,
         ctx: ExecutionContext,
         evaluator: ConditionEvaluator,
         lookupAsset: (String) -> AssetEntry?,
@@ -236,7 +236,7 @@ object MenuRenderer {
      * TYPE (a dropper has 9 slots like a 1-row chest but a distinct type), so size
      * alone is not enough. Chest keeps the size-based createInventory.
      */
-    private fun createInventory(menu: BundleMenu, invType: InventoryType?, title: Component): Inventory =
+    private fun createInventory(menu: RuntimeMenu, invType: InventoryType?, title: Component): Inventory =
         if (invType != null) {
             runCatching { Bukkit.createInventory(ArtisanMenuHolder(), invType, title) }
                 .getOrElse {
@@ -296,7 +296,7 @@ object MenuRenderer {
     }
 
     /** Fills the slots, element by element in stacking order (later wins per slot). */
-    private fun layout(menu: BundleMenu, ctx: ExecutionContext, images: ImageButtons, fill: SlotFill) {
+    private fun layout(menu: RuntimeMenu, ctx: ExecutionContext, images: ImageButtons, fill: SlotFill) {
         val slotLimit = fill.content.slotLimit
         for (element in menu.yaml.allElements) {
             if (element.id in images.choices) {
@@ -457,5 +457,5 @@ object MenuRenderer {
     }
 
     private fun parsePositions(positions: String, size: Int): List<Int> =
-        BundleCompiler.parsePositions(positions, size)
+        MenuCompiler.parsePositions(positions, size)
 }

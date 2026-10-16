@@ -14,7 +14,7 @@ import net.artisanmc.plugin.hub.DraftRequest.Revised
 import net.artisanmc.plugin.hub.DraftRequest.Update
 import net.artisanmc.plugin.hub.DraftRequest.WriteBlob
 import net.artisanmc.plugin.project.ProjectPathPolicy
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 import java.time.Instant
 import java.util.Base64
 
@@ -114,7 +114,7 @@ class ProjectDrafts(private val storage: DraftStorage) {
 
     /** What identifies an operation's content: the request less its envelope. */
     private fun fingerprint(node: ObjectNode) =
-        BundleHasher.hashBytes(mapper.writeValueAsBytes(node.deepCopy().also { it.remove(listOf("request_id", "project_id", "type")) }))
+        ContentHash.hashBytes(mapper.writeValueAsBytes(node.deepCopy().also { it.remove(listOf("request_id", "project_id", "type")) }))
 
     /** An operation being applied to [target]: its commit, or the answer it already gave. */
     private inner class Applying(val target: Target, val operationId: String, val fingerprint: String, val respond: (Map<String, Any?>) -> Unit) {
@@ -183,7 +183,7 @@ class ProjectDrafts(private val storage: DraftStorage) {
 
     private fun writeBlob(applying: Applying, current: Draft, request: WriteBlob) {
         val bytes = runCatching { Base64.getDecoder().decode(request.contentBase64) }.getOrNull()
-        if (bytes == null || bytes.size > MAX_BLOB || BundleHasher.hashBytes(bytes) != request.hash) return applying.respond(fail("invalid_blob"))
+        if (bytes == null || bytes.size > MAX_BLOB || ContentHash.hashBytes(bytes) != request.hash) return applying.respond(fail("invalid_blob"))
         storage.putContent(request.hash, bytes)
         applying.commit(current, ok("draft" to current.json))
     }

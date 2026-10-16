@@ -77,7 +77,7 @@ internal class RuntimeAssembly(
     /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
     private fun applyReload() {
         capturedItems.reload((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
-        commandRegistrar.reload(menuProvider.allBundles(), executor, evaluator)
+        commandRegistrar.reload(menuProvider.runtimeProjects(), executor, evaluator)
         api.modules.active().forEach { runCatching { it.onReload() } }
         api.events.publish(ConfigReloadEvent("menus"))
     }
@@ -124,7 +124,7 @@ internal class RuntimeAssembly(
         provider.load()
 
         executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry)
-        commandRegistrar.reload(provider.allBundles(), executor, evaluator)
+        commandRegistrar.reload(provider.runtimeProjects(), executor, evaluator)
     }
 
     private fun createProvider(cfg: PluginConfig) = SyncedMenuProvider(

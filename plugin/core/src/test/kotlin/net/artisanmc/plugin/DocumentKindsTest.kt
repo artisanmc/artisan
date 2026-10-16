@@ -2,8 +2,8 @@ package net.artisanmc.plugin
 
 import net.artisanmc.modules.api.document.DocumentKindDeclaration
 import net.artisanmc.modules.api.document.DuplicateDocumentKindException
-import net.artisanmc.plugin.model.BundleMenu
-import net.artisanmc.plugin.model.BundleRawDocument
+import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.model.RuntimeRawDocument
 import net.artisanmc.plugin.model.DocumentKind
 import net.artisanmc.plugin.model.DocumentKinds
 import net.artisanmc.plugin.project.ProjectRoots
@@ -53,19 +53,19 @@ class DocumentKindsTest {
     }
 
     @Test
-    fun `the bundle stores documents by kind and the typed getters read that store`(@TempDir tmp: Path) {
+    fun `the runtime stores documents by kind and the typed getters read that store`(@TempDir tmp: Path) {
         val p = project(tmp)
         write(p, "manifest.yaml", "schema: manifest/v1\n")
         write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
         write(p, "commands/menu.yaml", "schema: command/v1\nname: menu\n")
-        val bundle = read(p)
-        assertEquals(setOf("menu", "command", "dialog"), bundle.documents.keys)
-        assertEquals(listOf("accueil"), bundle.documents["menu"]!!.map { it.id })
-        assertEquals(listOf("accueil"), bundle.menus.map { it.id })
-        assertEquals(listOf("menu"), bundle.commands.map { it.id })
-        assertTrue(bundle.dialogs.isEmpty())
-        assertEquals(bundle.menus, bundle.documentsOf<BundleMenu>("menu"))
-        assertTrue(bundle.documentsOf<BundleMenu>("unknown").isEmpty())
+        val runtime = read(p)
+        assertEquals(setOf("menu", "command", "dialog"), runtime.documents.keys)
+        assertEquals(listOf("accueil"), runtime.documents["menu"]!!.map { it.id })
+        assertEquals(listOf("accueil"), runtime.menus.map { it.id })
+        assertEquals(listOf("menu"), runtime.commands.map { it.id })
+        assertTrue(runtime.dialogs.isEmpty())
+        assertEquals(runtime.menus, runtime.documentsOf<RuntimeMenu>("menu"))
+        assertTrue(runtime.documentsOf<RuntimeMenu>("unknown").isEmpty())
     }
 
     @Test
@@ -75,14 +75,14 @@ class DocumentKindsTest {
         write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
         write(p, "quests/first.yaml", "schema: quest/v1\nid: ignored\nname: First\nsteps:\n  - kill: 3\n")
         write(p, "quests/second.yaml", "schema: quest/v0\nname: Second\n")
-        val bundle = read(p)
-        assertFalse("quest" in bundle.documents)
-        assertEquals(listOf("accueil"), bundle.menus.map { it.id })
+        val runtime = read(p)
+        assertFalse("quest" in runtime.documents)
+        assertEquals(listOf("accueil"), runtime.menus.map { it.id })
 
         // Registered (by a module, through the API): read as raw documents, the
         // file name as id, the mapping untouched (W6).
         DocumentKinds.register(DocumentKind("quest", "quests", listOf("quest/v1", "quest/v0")))
-        val quests = read(p).documentsOf<BundleRawDocument>("quest")
+        val quests = read(p).documentsOf<RuntimeRawDocument>("quest")
         assertEquals(listOf("first", "second"), quests.map { it.id })
         assertEquals("quest/v1", quests[0].schema)
         assertEquals("proj", quests[0].projectId)

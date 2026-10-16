@@ -93,7 +93,7 @@ Seule la graphie canonique `.artisan/editor.yaml` appartient à l'éditeur.
 
 ## Le hash n'est pas un invariant inter-langage
 
-Le hash d'arbre (`BundleHasher.snapshotHash`) n'est calculé que par le plugin : l'éditeur le
+Le hash d'arbre (`ContentHash.snapshotHash`) n'est calculé que par le plugin : l'éditeur le
 garde et le rend en `if_hash`, sans le recalculer. `testdata/project-snapshot-hash-conformance.json`
 le fige côté plugin (`ProjectSnapshotHashConformanceTest`).
 

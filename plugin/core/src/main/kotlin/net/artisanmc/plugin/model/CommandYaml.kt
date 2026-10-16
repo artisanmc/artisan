@@ -20,7 +20,7 @@ data class CommandYaml(
     val cooldown:     CooldownYaml? = null,
     /** Legacy spelling of the Action DSL string (`actions` is canonical). */
     val steps:        String = "",
-) : BundleDocument {
+) : RuntimeDocument {
     /** The Action DSL string: canonical `actions` (string form) or legacy `steps`. */
     val dsl: String get() = (actions as? String) ?: steps
 

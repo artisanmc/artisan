@@ -34,7 +34,7 @@ internal object ArtisanApiFactory {
             net.artisanmc.plugin.project.ProjectContentReader(
                 plugin.projectRoots,
                 onReloadRequested = { plugin.refreshProjectsFromDisk() },
-                bundles = { plugin.menuProviderOrNull?.allBundles() ?: emptyList() },
+                runtimes = { plugin.menuProviderOrNull?.runtimeProjects() ?: emptyList() },
             ),
         )
             .projectRoots(plugin.projectRoots)
@@ -71,9 +71,9 @@ internal object ArtisanApiFactory {
                         // The project's i18n scope: without it an action
                         // carrying `@key` would show a raw "{i18n:key}".
                         val lang = plugin.langManagerOrNull?.playerLang(player) ?: "en"
-                        val bundles = plugin.menuProviderOrNull?.allBundles() ?: emptyList()
+                        val runtimes = plugin.menuProviderOrNull?.runtimeProjects() ?: emptyList()
                         val langMap =
-                            net.artisanmc.plugin.provider.projectLangMap(bundles, projectId, lang)
+                            net.artisanmc.plugin.provider.projectLangMap(runtimes, projectId, lang)
                         executor.executeSteps(
                             parsed,
                             net.artisanmc.plugin.engine.ExecutionContext(

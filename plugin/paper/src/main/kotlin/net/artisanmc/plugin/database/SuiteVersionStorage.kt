@@ -2,7 +2,7 @@ package net.artisanmc.plugin.database
 
 import net.artisanmc.plugin.project.VersionStorage
 import net.artisanmc.plugin.protocol.PublicationAuthor
-import net.artisanmc.plugin.sync.ProjectFilesReader
+import net.artisanmc.plugin.project.ProjectFilesReader
 import java.time.Instant
 
 /** [VersionStorage] in the suite database, for this server's `artisan_servers` [row]. */

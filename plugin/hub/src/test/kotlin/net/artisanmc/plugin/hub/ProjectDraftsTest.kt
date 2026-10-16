@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -115,7 +115,7 @@ class ProjectDraftsTest {
     fun `publishing sends the draft and its new blobs, then closes the draft`() {
         create()
         val png = byteArrayOf(1, 2, 3)
-        val hash = BundleHasher.hashBytes(png)
+        val hash = ContentHash.hashBytes(png)
         request("action" to "write_blob", "draft_id" to "d1", "expected_revision" to 1, "operation_id" to "op-b", "hash" to hash, "content_base64" to Base64.getEncoder().encodeToString(png))
         request(
             "action" to "update", "draft_id" to "d1", "expected_revision" to 1, "operation_id" to "op-u", "name" to "B",

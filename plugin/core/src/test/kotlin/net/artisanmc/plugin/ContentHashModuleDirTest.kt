@@ -1,13 +1,13 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
-class BundleHasherModuleDirTest {
+class ContentHashModuleDirTest {
 
     @Test
     fun `module-owned dirs participate in the project hash`() {
@@ -15,20 +15,20 @@ class BundleHasherModuleDirTest {
         try {
             File(dir, "menus").mkdirs()
             File(dir, "menus/main.yaml").writeText("id: main")
-            val base = BundleHasher.hash(dir)
+            val base = ContentHash.hash(dir)
 
             File(dir, "shop").mkdirs()
             File(dir, "shop/items.yaml").writeText("items: []")
-            val withModule = BundleHasher.hash(dir)
+            val withModule = ContentHash.hash(dir)
             assertNotEquals(base, withModule)
 
             File(dir, "shop/items.yaml").writeText("items: [sword]")
-            assertNotEquals(withModule, BundleHasher.hash(dir))
+            assertNotEquals(withModule, ContentHash.hash(dir))
 
             // The .artisan namespace stays excluded.
-            val beforeSyncFile = BundleHasher.hash(dir)
+            val beforeSyncFile = ContentHash.hash(dir)
             File(dir, ".artisan-sync.yaml").writeText("x: 1")
-            assertEquals(beforeSyncFile, BundleHasher.hash(dir))
+            assertEquals(beforeSyncFile, ContentHash.hash(dir))
         } finally {
             dir.deleteRecursively()
         }

@@ -7,7 +7,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeProject
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.MenuRenderer
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -52,7 +52,7 @@ class MenuRendererIterationTest {
 
     @Test fun `renders one item per list entry within the element slots`() {
         val p = player()
-        val menu = BundleCompiler.compile(gridMenu(), emptyMap())
+        val menu = MenuCompiler.compile(gridMenu(), emptyMap())
         val session = MenuRenderer.open(p, menu, "en", ExecutionContext(p, args = mapOf("shops" to shops(2))))
         val inv = session.slots
         assertEquals(Material.EMERALD, inv[10]?.type)  // s1
@@ -63,7 +63,7 @@ class MenuRendererIterationTest {
 
     @Test fun `windowing — page 1 shows the remainder and pageInfo is exposed`() {
         val p = player()
-        val menu = BundleCompiler.compile(gridMenu(), emptyMap())
+        val menu = MenuCompiler.compile(gridMenu(), emptyMap())
         val session = MenuRenderer.open(
             p, menu, "en",
             ExecutionContext(p, args = mapOf("shops" to shops(5)), pagination = mapOf("grid" to 1)),
@@ -77,7 +77,7 @@ class MenuRendererIterationTest {
 
     @Test fun `requested page beyond the end is clamped`() {
         val p = player()
-        val menu = BundleCompiler.compile(gridMenu(), emptyMap())
+        val menu = MenuCompiler.compile(gridMenu(), emptyMap())
         val session = MenuRenderer.open(
             p, menu, "en",
             ExecutionContext(p, args = mapOf("shops" to shops(5)), pagination = mapOf("grid" to 99)),
@@ -87,7 +87,7 @@ class MenuRendererIterationTest {
 
     @Test fun `slotArgs carry the per-item alias for click execution`() {
         val p = player()
-        val menu = BundleCompiler.compile(gridMenu(), emptyMap())
+        val menu = MenuCompiler.compile(gridMenu(), emptyMap())
         val session = MenuRenderer.open(p, menu, "en", ExecutionContext(p, args = mapOf("shops" to shops(2))))
         @Suppress("UNCHECKED_CAST")
         val item0 = session.slotArgs[10]?.get("shop") as? Map<String, Any>
@@ -150,13 +150,13 @@ class MenuRendererIterationTest {
             """,
         ).mapValues { (_, raw) ->
             val yaml: MenuYaml = mapper.readValue(raw.trimIndent())
-            BundleCompiler.compile(yaml, emptyMap())
+            MenuCompiler.compile(yaml, emptyMap())
         }
         val sessions = MenuSessionStore()
         val provider = object : MenuProvider {
             override fun load() {}
             override fun findMenu(menuId: String) = menus[menuId]
-            override fun allBundles(): List<ProjectBundle> = emptyList()
+            override fun runtimeProjects(): List<RuntimeProject> = emptyList()
             override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
                 sessions.set(player, MenuRenderer.open(player, menus.getValue(menuId), lang, ctx, dataSources = sources))
             }
@@ -191,7 +191,7 @@ class MenuRendererIterationTest {
 
     @Test fun `empty or missing list renders nothing and yields one empty page`() {
         val p = player()
-        val menu = BundleCompiler.compile(gridMenu(), emptyMap())
+        val menu = MenuCompiler.compile(gridMenu(), emptyMap())
         val session = MenuRenderer.open(p, menu, "en", ExecutionContext(p))
         assertNull(session.slots[10])
         assertEquals(PageInfo(0, 1), session.ctx.pageInfo["grid"])
@@ -200,7 +200,7 @@ class MenuRendererIterationTest {
     @Test fun `full loop — pagination_next re-renders the next window`() {
         val p = player()
         val pluginInstance = MockBukkit.load(ArtisanPlugin::class.java)
-        val menu = BundleCompiler.compile(gridMenu(), emptyMap())
+        val menu = MenuCompiler.compile(gridMenu(), emptyMap())
         val sessions = MenuSessionStore()
         val provider = object : MenuProvider {
             override fun load() {}
@@ -208,7 +208,7 @@ class MenuRendererIterationTest {
             override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
                 sessions.set(player, MenuRenderer.open(player, menu, lang, ctx))
             }
-            override fun allBundles(): List<ProjectBundle> = emptyList()
+            override fun runtimeProjects(): List<RuntimeProject> = emptyList()
         }
         val executor = ActionExecutor(pluginInstance, provider, sessions, SoftDepRegistry.EMPTY, CooldownStore(), ConditionEvaluator.EMPTY)
 
@@ -243,7 +243,7 @@ class MenuRendererIterationTest {
                     title: "{label}"
             """.trimIndent(),
         )
-        val menu = BundleCompiler.compile(yaml, emptyMap())
+        val menu = MenuCompiler.compile(yaml, emptyMap())
         val session = MenuRenderer.open(p, menu, "en", ExecutionContext(p))
         assertEquals("Hi", session.ctx.args["label"])
     }
@@ -266,7 +266,7 @@ class MenuRendererIterationTest {
                     title: "Hello {player.name}"
             """.trimIndent(),
         )
-        val menu = BundleCompiler.compile(yaml, emptyMap())
+        val menu = MenuCompiler.compile(yaml, emptyMap())
         val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p)).slots
         val display = slots[0]?.itemMeta?.displayName()
         assertNotNull(display)

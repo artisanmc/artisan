@@ -12,8 +12,8 @@ import net.artisanmc.plugin.protocol.EditorRequest.ProjectDelete
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectDraftPublish
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectRename
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectWrite
-import net.artisanmc.plugin.sync.BundleHasher
-import net.artisanmc.plugin.sync.ProjectFilesReader
+import net.artisanmc.plugin.project.ContentHash
+import net.artisanmc.plugin.project.ProjectFilesReader
 import java.io.File
 import java.util.Base64
 import java.util.logging.Level
@@ -89,19 +89,19 @@ class ProjectWrites(
             val current = textOf(from)
             val dest = ProjectPathPolicy.resolve(projectDir, to)
             listOfNotNull(
-                if (current?.let(BundleHasher::hashContent) == expected) null else mapOf("path" to from, "disk" to current),
+                if (current?.let(ContentHash::hashContent) == expected) null else mapOf("path" to from, "disk" to current),
                 // The destination must be free: a rename never overwrites an existing file.
                 if (dest.exists()) mapOf("path" to to, "disk" to dest.takeIf { it.isFile }?.readText(Charsets.UTF_8)) else null,
             )
         }
         val binary = binaries.mapNotNull { b ->
-            val actual = ProjectPathPolicy.resolve(projectDir, b.path).takeIf { it.isFile }?.readBytes()?.let(BundleHasher::hashBytes)
+            val actual = ProjectPathPolicy.resolve(projectDir, b.path).takeIf { it.isFile }?.readBytes()?.let(ContentHash::hashBytes)
             if (actual == b.baseHash) null else mapOf("path" to b.path, "disk" to null)
         }
         val text = (request.writes.map { it.path to it.baseHash } + request.deletes.map { it.path to it.baseHash })
             .mapNotNull { (path, expected) ->
                 val current = textOf(path)
-                if (current?.let(BundleHasher::hashContent) == expected) null else mapOf("path" to path, "disk" to current)
+                if (current?.let(ContentHash::hashContent) == expected) null else mapOf("path" to path, "disk" to current)
             }
         return renames + binary + text
     }

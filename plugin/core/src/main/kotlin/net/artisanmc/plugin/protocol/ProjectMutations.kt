@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import net.artisanmc.plugin.project.ProjectPublisher
 import net.artisanmc.plugin.project.ProjectRoots
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 import java.io.File
 import java.util.UUID
 
@@ -17,7 +17,7 @@ internal class ProjectMutations(private val roots: ProjectRoots) {
     private val mapper = ObjectMapper()
 
     private fun fingerprint(message: JsonNode): String =
-        BundleHasher.hashBytes(mapper.writeValueAsBytes(message.deepCopy<ObjectNode>().also { it.remove("request_id") }))
+        ContentHash.hashBytes(mapper.writeValueAsBytes(message.deepCopy<ObjectNode>().also { it.remove("request_id") }))
 
     /** True if [message] was already applied: the original reply is sent again. */
     fun replayed(projectDir: File, message: JsonNode, reply: Replies.Reply): Boolean {
