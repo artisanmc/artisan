@@ -127,23 +127,21 @@ class WsClientTest {
         val client = WsClient(
             hub = hub(server),
             mcVersion = "1.21.4",
-            installedModules = {
-                listOf(
-                    mapOf("id" to "menus", "version" to "1.0.0"),
-                    mapOf("id" to "commands", "version" to "1.0.0"),
+            announcement = {
+                net.artisanmc.plugin.protocol.ServerAnnouncement(
+                    modules = listOf(
+                        mapOf("id" to "menus", "version" to "1.0.0"),
+                        mapOf("id" to "commands", "version" to "1.0.0"),
+                    ),
+                    dataSources = listOf(mapOf("ref" to "shop:items", "schema_hint" to "id, name, price")),
+                    screens = listOf(mapOf(
+                        "id" to "boutique:catalog",
+                        "module_id" to "boutique",
+                        "label" to "Catalogue",
+                        "table" to "data/categories",
+                        "project_id" to "boutique",
+                    )),
                 )
-            },
-            dataSources = {
-                listOf(mapOf("ref" to "shop:items", "schema_hint" to "id, name, price"))
-            },
-            editorScreens = {
-                listOf(mapOf(
-                    "id" to "boutique:catalog",
-                    "module_id" to "boutique",
-                    "label" to "Catalogue",
-                    "table" to "data/categories",
-                    "project_id" to "boutique",
-                ))
             },
             onMessage = {},
         )

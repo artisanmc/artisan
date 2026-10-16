@@ -1,6 +1,14 @@
 package net.artisanmc.plugin
 
 import net.artisanmc.modules.api.*
+import net.artisanmc.modules.api.action.ActionRegistry
+import net.artisanmc.modules.api.action.ModuleActionsApi
+import net.artisanmc.modules.api.command.CommandRegistry
+import net.artisanmc.modules.api.database.DatabaseDialect
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.event.ConfigReloadEvent
+import net.artisanmc.modules.api.event.ModuleEventBus
+import net.artisanmc.modules.api.item.ItemStackApi
 import net.artisanmc.plugin.scheduling.Scheduler
 import net.artisanmc.plugin.scheduling.schedulerFor
 import net.artisanmc.modules.commands.CommandsModule
@@ -190,6 +198,16 @@ open class ArtisanPlugin : JavaPlugin() {
     val serverUuid: String get() = suite.serverId.toString()
 
     internal fun stopEditor() = editorHost.stop()
+
+    /** What this server announces at Presence: to the editor it serves, and in its `hello` to a hub. */
+    internal fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
+        modules = api.modules.active().map { net.artisanmc.plugin.protocol.ServerAnnouncement.module(it.id, description.version) },
+        dataSources = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources),
+        models = api.models.declared().map { it.document },
+        screens = api.screens.declared().map { it.toWire() },
+        actions = api.actionRegistry.registered().map { it.toWire() },
+        documentKinds = api.documentKinds.registered().map { it.toWire() },
+    )
 
     val environmentFile: File get() = File(dataFolder, "environment.yml")
 

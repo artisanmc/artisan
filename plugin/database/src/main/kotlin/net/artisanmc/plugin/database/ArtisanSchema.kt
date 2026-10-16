@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.database
 
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseDialect
 import java.util.logging.Logger
 import javax.sql.DataSource
 

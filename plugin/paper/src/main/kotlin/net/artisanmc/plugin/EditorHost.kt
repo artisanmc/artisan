@@ -41,12 +41,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
         override val label: String get() = serverName.ifBlank { "Minecraft" }
         override val minecraftVersion: String get() = provider.minecraftVersion
         override val pluginVersion: String get() = description.version
-        override fun modules() = api.modules.active().map { mapOf("id" to it.id, "version" to description.version) }
-        override fun dataSources() = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources)
-        override fun models() = api.models.declared().map { it.document }
-        override fun screens() = api.screens.declared().map { it.toWire() }
-        override fun actions() = api.actionRegistry.registered().map { it.toWire() }
-        override fun documentKinds() = api.documentKinds.registered().map { it.toWire() }
+        override fun announcement() = plugin.announcement()
         override fun serverConfig() = serverConfigAccess.report()
         override fun customItems() = provider.customItems()
         override fun applyResourcePack(hash: String, path: String) {
@@ -114,7 +109,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val data = net.artisanmc.plugin.database.LateSuiteData { suite.suiteData }
             val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts)
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
-                if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) null
+                if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null
                 else suite.databaseId()
             }) { suite.artisanData != null }
             val server = net.artisanmc.plugin.hub.HubServer(
@@ -131,7 +126,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
         if (!web.leaf) return null
         val secret = networkSecret(web).ifEmpty { return null }
         val name = plugin.networkName(web) ?: return null
-        if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) {
+        if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) {
             logger.severe("[Artisan] Not connecting to the hub: a network needs a shared MySQL or MariaDB database, this server uses H2 (database.type in environment.yml).")
             return null
         }

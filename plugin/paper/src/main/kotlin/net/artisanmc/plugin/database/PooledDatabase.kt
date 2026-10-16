@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.database
 
-import net.artisanmc.modules.api.DatabaseApi
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseApi
+import net.artisanmc.modules.api.database.DatabaseDialect
 import net.artisanmc.plugin.config.EnvironmentFile
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.event.EventHandler

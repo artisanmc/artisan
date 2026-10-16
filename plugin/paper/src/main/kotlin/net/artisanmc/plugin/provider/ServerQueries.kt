@@ -1,8 +1,8 @@
 package net.artisanmc.plugin.provider
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.modules.api.DataSourceRegistry
-import net.artisanmc.modules.api.PlayerRequiredException
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.PlayerRequiredException
 import net.artisanmc.plugin.config.ServerConfigAccess
 import net.artisanmc.plugin.customitems.NexoGlyphReader
 import net.artisanmc.plugin.engine.ConditionEvaluator

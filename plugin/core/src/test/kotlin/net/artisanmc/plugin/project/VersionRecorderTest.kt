@@ -38,9 +38,9 @@ class VersionRecorderTest {
             return skipping[folder].orEmpty()
         }
 
-        override fun recordState(state: Map<String, Any?>, at: Instant) {
+        override fun recordState(state: net.artisanmc.plugin.protocol.LoadedState, at: Instant) {
             if (failState) error("state table gone")
-            states += state to at
+            states += state.toMap() to at
         }
     }
 

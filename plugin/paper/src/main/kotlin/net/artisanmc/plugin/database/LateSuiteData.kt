@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.database
 
+import net.artisanmc.plugin.hub.DraftCommit
 import net.artisanmc.plugin.hub.DraftStorage
 import net.artisanmc.plugin.hub.LoadedProjects
 import net.artisanmc.plugin.hub.ProjectHistory
@@ -31,8 +32,7 @@ class LateSuiteData(private val source: () -> SuiteProjectData?) {
         override fun drafts(server: String, folder: String) = open().drafts(server, folder)
         override fun draft(server: String, folder: String, id: String) = open().draft(server, folder, id)
         override fun receipt(operationId: String) = open().receipt(operationId)
-        override fun commit(server: String, folder: String, id: String, draft: String, status: String, operationId: String, fingerprint: String, result: String) =
-            open().commit(server, folder, id, draft, status, operationId, fingerprint, result)
+        override fun commit(server: String, folder: String, commit: DraftCommit) = open().commit(server, folder, commit)
         override fun content(hash: String) = open().content(hash)
         override fun putContent(hash: String, bytes: ByteArray) = open().putContent(hash, bytes)
     }

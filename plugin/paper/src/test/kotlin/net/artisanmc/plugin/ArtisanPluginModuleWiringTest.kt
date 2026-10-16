@@ -56,7 +56,7 @@ class ArtisanPluginModuleWiringTest {
             override fun getId() = "homes"
             override fun getSchemaVersion() = "homes/v1"
             override fun onEnable(api: ArtisanAPI) {
-                api.commands.register(net.artisanmc.modules.api.CommandDeclaration("homes:go") { _, _ -> })
+                api.commands.register(net.artisanmc.modules.api.command.CommandDeclaration("homes:go") { _, _ -> })
             }
             override fun onDisable() { disabled = true }
         })
