@@ -1,5 +1,6 @@
 import type { Modifier } from "@dnd-kit/core";
 import { getEventCoordinates } from "@dnd-kit/utilities";
+import { readDrag } from "./dragPayload";
 import { TEX_SCALE } from "./menuLayout";
 import { getStageGeometry } from "./stageGeometry";
 
@@ -13,7 +14,8 @@ export const anchorImageDragToCursor: Modifier = ({
   activatorEvent,
   transform,
 }) => {
-  const asset = active?.data.current?.imageButton;
+  const drag = readDrag(active);
+  const asset = drag?.kind === "imageButton" ? drag.asset : null;
   const pointer = activatorEvent ? getEventCoordinates(activatorEvent) : null;
   if (!asset || !activeNodeRect || !pointer) return transform;
   const size = imageDragSize(asset, getStageGeometry()?.viewport.scale ?? 1);

@@ -2,12 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { ContextInput, Element, Menu, Project, ProjectId } from "@/domain/types";
+import { draggableProps } from "@/features/canvas/dragPayload";
 import { previewItem } from "@/features/canvas/itemValuePreview";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
-import {
-  PLACEMENT_ROW_DRAG_PREFIX,
-  type PlacementRowDragData,
-} from "@/features/canvas/placementDrop";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { getText } from "@/lib/i18n";
@@ -455,13 +452,15 @@ function PlaceableRowTile({
   const title = titleRaw ? renderPreview(titleRaw, ctx, project, activeLang) : rowKey;
   const materialUrl = useTextureUrl(material);
   const textureUrl = useHeadPreviewUrl(display.head) ?? materialUrl;
-  const data: PlacementRowDragData = {
-    placementRow: { menuId: menu.id, elementId: element.id, key: rowKey, material },
-  };
   // Hook order: useDraggable runs unconditionally; listeners only bind when free.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `${PLACEMENT_ROW_DRAG_PREFIX}${element.id}:${rowKey}`,
-    data,
+    ...draggableProps({
+      kind: "placementRow",
+      menuId: menu.id,
+      elementId: element.id,
+      key: rowKey,
+      material,
+    }),
     disabled: placed,
   });
 

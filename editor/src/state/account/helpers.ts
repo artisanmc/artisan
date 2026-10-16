@@ -1,7 +1,6 @@
 import { isLTextNode, walkStepTextSlots } from "@/domain/actionTextSlots";
 import { normalizeDataSourceName } from "@/domain/dataModels";
-import { commandsOf, menusOf } from "@/domain/documents";
-import { appearanceAt } from "@/domain/element";
+import { menusOf } from "@/domain/documents";
 import {
   mintLTexts,
   rekeyDataSource,
@@ -15,7 +14,6 @@ import type {
   Appearance,
   ClickType,
   CommandArg,
-  CommandId,
   DataSource,
   DataSourceId,
   Dialog,
@@ -25,14 +23,13 @@ import type {
   Menu,
   MenuTitleLayer,
   Project,
-  ProjectId,
   Step,
 } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { createLText } from "@/lib/i18n";
 import { clickHandlerKeyPrefix, elementLoreKey, elementTitleKey } from "@/lib/i18nKeys";
 import { formatPositions, parsePositions } from "@/lib/positions";
-import type { AccountState, AppearanceTarget } from "./types";
+import type { AppearanceTarget } from "./types";
 
 /**
  * Helpers shared by the account slices: they walk the immer draft and return live
@@ -41,10 +38,6 @@ import type { AccountState, AppearanceTarget } from "./types";
 /**
  * Tiny helpers shared by the step-tree mutations. They walk the immer
  * draft and return live references so callers can splice in place.
- */
-/**
- * Resolve an AppearanceTarget to its owning element inside the given project
- * draft. Null when the target doesn't exist.
  */
 /**
  * Re-key every LText an appearance holds, copying the source values — so a copy
@@ -85,41 +78,6 @@ export function duplicateStepLTexts(project: Project, steps: Step[]): void {
   }
 }
 
-export function findAppearanceOwner(project: Project, target: AppearanceTarget): Element | null {
-  const menu = menusOf(project).find((m) => m.id === target.menuId);
-  if (!menu) return null;
-  for (const layer of menu.layers) {
-    for (const el of layer.elements) {
-      if (el.id === target.elementId) return el;
-    }
-  }
-  return null;
-}
-
-/** The appearance an {@link AppearanceTarget} + index addresses: 0 is the
- *  element's display, N is its `states[N - 1]`. */
-export function findAddressedAppearance(
-  project: Project,
-  target: AppearanceTarget,
-  index: number,
-): Appearance | undefined {
-  const owner = findAppearanceOwner(project, target);
-  return owner ? appearanceAt(owner, index) : undefined;
-}
-
-export function findElementHandler(
-  draft: AccountState,
-  projectId: ProjectId,
-  target: AppearanceTarget,
-  appearanceIndex: number,
-  clickType: ClickType,
-) {
-  const project = draft.account.projects.find((p) => p.id === projectId);
-  if (!project) return null;
-  const owner = findAppearanceOwner(project, target);
-  return (owner ? appearanceAt(owner, appearanceIndex) : undefined)?.click?.[clickType] ?? null;
-}
-
 /** Canonical i18n key/prefix for an appearance site. */
 export const appearanceTitleKeyFor = (target: AppearanceTarget, appIdx: number) =>
   elementTitleKey(target.menuId as string, target.elementId as string, appIdx);
@@ -130,17 +88,6 @@ export const appearanceClickPrefixFor = (
   appIdx: number,
   clickType: ClickType,
 ) => clickHandlerKeyPrefix(target.menuId as string, target.elementId as string, appIdx, clickType);
-
-export function findCommand(draft: AccountState, projectId: ProjectId, commandId: CommandId) {
-  const project = draft.account.projects.find((p) => p.id === projectId);
-  if (!project) return null;
-  return commandsOf(project).find((c) => c.id === commandId) ?? null;
-}
-
-export function touch(draft: AccountState, projectId: ProjectId) {
-  const project = draft.account.projects.find((p) => p.id === projectId);
-  if (project) project.updatedAt = new Date().toISOString();
-}
 
 /**
  * Per-mutation i18n key lifecycle, folded over the single project traversal in

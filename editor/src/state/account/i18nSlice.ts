@@ -1,9 +1,9 @@
-import type { LText, ProjectId } from "@/domain/types";
 import { adoptProjectActionTexts } from "@/domain/i18nSites";
+import type { LText, ProjectId } from "@/domain/types";
 import { setLText } from "@/lib/i18n";
 import { findUnusedI18nKeys } from "@/lib/i18nUsages";
-import { current, produce } from "immer";
-import type { AccountSliceContext, AccountState } from "./types";
+import { current } from "immer";
+import type { AccountSliceContext } from "./types";
 
 /** The Project's languages. */
 export interface I18nSlice {
@@ -41,89 +41,60 @@ export interface I18nSlice {
   setProjectDefaultLang: (input: { projectId: ProjectId; lang: string }) => void;
 }
 
-export const createI18nSlice = ({ set }: AccountSliceContext): I18nSlice => ({
+export const createI18nSlice = ({ mutateProject }: AccountSliceContext): I18nSlice => ({
   setI18nValue: ({ projectId: pId, lt, lang, value }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        setLText(project, lt, lang, value);
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateProject(pId, (project) => {
+      setLText(project, lt, lang, value);
+    }),
   adoptActionTexts: ({ projectId: pId }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (project) adoptProjectActionTexts(project);
-      }),
+    mutateProject(
+      pId,
+      (project) => {
+        adoptProjectActionTexts(project);
+      },
+      { touch: false },
     ),
   addLanguage: ({ projectId: pId, lang }) => {
     if (!lang) throw new Error("language code cannot be empty");
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        // Idempotent: re-adding an existing lang is a no-op. We
-        // don't seed empty entries for every key — fallback to
-        // defaultLang at read time covers untranslated keys. Just
-        // touch one entry so future enumeration code can spot the
-        // language. (If the project has no keys at all, the language
-        // doesn't need recording anywhere.)
-        for (const entry of Object.values(project.i18nKeys)) {
-          if (!entry) continue;
-          if (!(lang in entry)) entry[lang] = "";
-          break;
-        }
-        project.updatedAt = new Date().toISOString();
-      }),
-    );
+    mutateProject(pId, (project) => {
+      // Idempotent: re-adding an existing lang is a no-op. We
+      // don't seed empty entries for every key — fallback to
+      // defaultLang at read time covers untranslated keys. Just
+      // touch one entry so future enumeration code can spot the
+      // language. (If the project has no keys at all, the language
+      // doesn't need recording anywhere.)
+      for (const entry of Object.values(project.i18nKeys)) {
+        if (!entry) continue;
+        if (!(lang in entry)) entry[lang] = "";
+        break;
+      }
+    });
   },
   setProjectI18nMode: ({ projectId: pId, mode }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        // `extract` is the default and leaves no marker — on disk as here,
-        // so a project that never touched the toggle stays clean.
-        if (mode === "inline") project.i18nMode = "inline";
-        else Reflect.deleteProperty(project, "i18nMode");
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateProject(pId, (project) => {
+      // `extract` is the default and leaves no marker — on disk as here,
+      // so a project that never touched the toggle stays clean.
+      if (mode === "inline") project.i18nMode = "inline";
+      else Reflect.deleteProperty(project, "i18nMode");
+    }),
   removeLanguage: ({ projectId: pId, lang }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        if (lang === project.defaultLang) return; // refuse to drop the default
-        for (const entry of Object.values(project.i18nKeys)) {
-          if (entry) delete entry[lang];
-        }
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateProject(pId, (project) => {
+      if (lang === project.defaultLang) return false; // refuse to drop the default
+      for (const entry of Object.values(project.i18nKeys)) {
+        if (entry) delete entry[lang];
+      }
+    }),
   removeUnusedI18nKeys: ({ projectId: pId }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        // Walk a plain snapshot (`current`) rather than the immer draft —
-        // findKeyUsages only reads, and the proxy walk is needless overhead.
-        const unused = findUnusedI18nKeys(current(project));
-        if (unused.length === 0) return;
-        for (const key of unused) delete project.i18nKeys[key];
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateProject(pId, (project) => {
+      // Walk a plain snapshot (`current`) rather than the immer draft —
+      // findKeyUsages only reads, and the proxy walk is needless overhead.
+      const unused = findUnusedI18nKeys(current(project));
+      if (unused.length === 0) return false;
+      for (const key of unused) delete project.i18nKeys[key];
+    }),
   setProjectDefaultLang: ({ projectId: pId, lang }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        if (!lang) return;
-        project.defaultLang = lang;
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateProject(pId, (project) => {
+      if (!lang) return false;
+      project.defaultLang = lang;
+    }),
 });

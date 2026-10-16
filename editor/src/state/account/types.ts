@@ -8,6 +8,7 @@ import type { DocumentsSlice } from "./documentsSlice";
 import type { ElementsSlice } from "./elementsSlice";
 import type { I18nSlice } from "./i18nSlice";
 import type { MenusSlice } from "./menusSlice";
+import type { ProjectMutators } from "./mutate";
 import type { ProjectsSlice } from "./projectsSlice";
 
 export type MenuRows = 1 | 2 | 3 | 4 | 5 | 6;
@@ -34,8 +35,11 @@ export type AccountState = { account: Account } & ProjectsSlice &
   I18nSlice &
   DataSlice;
 
-/** What a slice is built with: the store's `set` and `get`, and the undo stack's reset. */
-export interface AccountSliceContext {
+/**
+ * What a slice is built with: the store's `set` and `get`, the undo stack's reset, and
+ * the {@link ProjectMutators} every project-internal action goes through.
+ */
+export interface AccountSliceContext extends ProjectMutators {
   set: StoreApi<AccountState>["setState"];
   get: StoreApi<AccountState>["getState"];
   /** Account-level mutations clear the undo history, so it only holds Project-internal edits. */

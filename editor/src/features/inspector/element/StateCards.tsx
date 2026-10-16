@@ -17,6 +17,7 @@ import type {
 import { useAssetStore } from "@/features/assets/assetStore";
 import { ItemEditor } from "@/features/canvas/ItemEditor";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
+import { droppableProps } from "@/features/canvas/dragPayload";
 import { ItemBindingEditor } from "@/features/canvas/item/ItemBindingEditor";
 import { previewItem } from "@/features/canvas/itemValuePreview";
 import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
@@ -24,7 +25,6 @@ import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { lookupPath } from "@/lib/placeholders";
-import { stateDropId } from "@/lib/stateDropId";
 import { useGetText } from "@/lib/useText";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
@@ -176,7 +176,9 @@ function StateMaterialIcon({
   onPick,
 }: StateMaterialIconProps) {
   const { t } = useTranslation();
-  const droppable = useDroppable({ id: stateDropId(menuId, elementId, stateIndex) });
+  const droppable = useDroppable(
+    droppableProps({ kind: "stateMaterial", menuId, elementId, stateIndex }),
+  );
   return (
     <div ref={droppable.setNodeRef}>
       <MaterialPicker
