@@ -4,11 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nKey, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { setStageGeometryProvider } from "@/features/canvas/stageGeometry";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 
-import { LayersPanel } from "./LayersPanel";
 import { menusOf } from "@/domain/documents";
+import { LayersPanel } from "./LayersPanel";
 
 // Mock AssetPicker (used by LayerEditForm sub-form) so opening it doesn't
 // drag in the real picker (which needs an auth token + fetch).
@@ -63,9 +63,8 @@ function seedProject(
   i18nKeys: Record<string, Record<string, string>> = {},
   canvasLayout: Record<string, { x: number; y: number }> = {},
 ) {
-  useAccountStore.setState({
-    account: {
-      id: "acc" as any,
+  useProjectsStore.setState({
+    openProjects: {
       projects: [
         {
           id: PACK_ID,
@@ -134,17 +133,17 @@ it("keeps the appearance when clicking the already active composed mode", () => 
   seedProject(layers, { title: { en: "Shop", fr: "Boutique" } });
   render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
   fireEvent.click(screen.getByRole("button", { name: /composé/i }));
-  const project = useAccountStore.getState().account.projects[0]!;
+  const project = useProjectsStore.getState().openProjects.projects[0]!;
   expect(menusOf(project)[0]!.title).toEqual(layers);
   expect(project.i18nKeys[K("title")]).toEqual({ en: "Shop", fr: "Boutique" });
 });
 
 it("shows the default texture first and restores it when going back to a vanilla title", () => {
   seedProject([{ kind: "text", value: { key: K("title") }, x: 8, y: 5 }]);
-  const project = () => useAccountStore.getState().account.projects[0]!;
-  useAccountStore.setState((s) => {
-    menusOf(s.account.projects[0]!)[0]!.vanillaTexture = false;
-    return { account: { ...s.account } };
+  const project = () => useProjectsStore.getState().openProjects.projects[0]!;
+  useProjectsStore.setState((s) => {
+    menusOf(s.openProjects.projects[0]!)[0]!.vanillaTexture = false;
+    return { openProjects: { ...s.openProjects } };
   });
   render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
   const rows = screen.getAllByTestId(/vanilla-texture-layer|layer-row-wrapper/);
@@ -206,7 +205,7 @@ describe("LayersPanel — AddLayerControls wiring", () => {
     // detail=0 which matches that path.
     fireEvent.click(screen.getByTestId("add-layer-image"));
 
-    const title = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title;
+    const title = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title;
     expect(title).toHaveLength(1);
     expect(title[0]!.kind).toBe("glyph");
     // Selection moved to the new layer
@@ -218,7 +217,7 @@ describe("LayersPanel — AddLayerControls wiring", () => {
 
     fireEvent.click(screen.getByTestId("add-layer-text"));
 
-    const project = useAccountStore.getState().account.projects[0]!;
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
     const title = menusOf(project)[0]!.title;
     expect(title).toHaveLength(1);
     expect(title[0]).toMatchObject({
@@ -272,7 +271,7 @@ describe("LayersPanel — drag-to-reorder", () => {
     fireEvent.dragOver(wrappers[2]!, { dataTransfer });
     fireEvent.drop(wrappers[2]!, { dataTransfer });
 
-    const title = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title;
+    const title = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title;
     // alpha moved from 0 → 2, beta and gamma shift left
     expect((title[0] as any).value.key).toBe("k2");
     expect((title[1] as any).value.key).toBe("k3");
@@ -306,7 +305,7 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 220, 50);
     dispatchWindowPointer("pointerup", 220, 50);
 
-    const project = useAccountStore.getState().account.projects[0]!;
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
     const targetMenu = menusOf(project).find((m) => m.id === MENU_ID)!;
     const otherMenu = menusOf(project).find((m) => m.id === OTHER_MENU_ID)!;
     expect(targetMenu.title).toHaveLength(1);
@@ -339,7 +338,7 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 9000, 9000);
     dispatchWindowPointer("pointerup", 9000, 9000);
 
-    const project = useAccountStore.getState().account.projects[0]!;
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
     const targetMenu = menusOf(project).find((m) => m.id === MENU_ID)!;
     // Fallback path → MENU_ID gets the new layer at default (0, 0) coords
     // (image kind default).
@@ -360,7 +359,7 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     dispatchWindowPointer("pointermove", 220, 50);
     dispatchWindowPointer("pointerup", 220, 50);
 
-    const project = useAccountStore.getState().account.projects[0]!;
+    const project = useProjectsStore.getState().openProjects.projects[0]!;
     const targetMenu = menusOf(project).find((m) => m.id === MENU_ID)!;
     expect(targetMenu.title).toHaveLength(1);
     const layer = targetMenu.title[0]!;

@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/state/authStore";
 
 export interface ProjectPrincipal {
-  kind: "account";
+  kind: "player";
   id: string;
 }
 export interface ProjectPrincipalProvider {
@@ -28,7 +28,7 @@ export function watchProjectPrincipal(projectId: string) {
 export const projectPrincipal: ProjectPrincipalProvider = {
   current() {
     const user = useAuthStore.getState().currentUser;
-    return user ? { kind: "account", id: user.id } : null;
+    return user ? { kind: "player", id: user.id } : null;
   },
 };
 export function useProjectPrincipalId(_projectId?: string) {

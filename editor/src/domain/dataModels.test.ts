@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { dataModelId, dataSourceId } from "./ids";
-import type { DataModel, DataSource, Project } from "./types";
 import {
   applyFieldEdit,
   defaultValueForModelType,
@@ -10,6 +8,8 @@ import {
   tableRowType,
   wouldCreateModelCycle,
 } from "./dataModels";
+import { dataModelId, dataSourceId } from "./ids";
+import type { DataModel, DataSource, Project } from "./types";
 
 const RANK: DataModel = {
   id: dataModelId("m_rank"),

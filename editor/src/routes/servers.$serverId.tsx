@@ -1,15 +1,15 @@
-import { projectUrlId } from "@/lib/projectUrlId";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
-import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
+import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
+import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection";
-import { onProjectRenamed, type ProjectRenamed } from "@/features/project/onProjectRenamed";
-import { type ProjectSummary, listServers } from "@/lib/api/servers";
 import { listServerProjects } from "@/lib/api/projectFiles";
+import { type ProjectSummary, listServers } from "@/lib/api/servers";
+import { projectUrlId } from "@/lib/projectUrlId";
 import { displayServerLabel } from "@/lib/serverLabel";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import {
   Link,
@@ -117,15 +117,23 @@ function ServerOverview({
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const serverScreens = useServerScreensStore((s) => s.screens);
-  const localProjects = useAccountStore((s) => s.account.projects);
+  const localProjects = useProjectsStore((s) => s.openProjects.projects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   useEffect(() => {
     const renamed = (raw: Event) => {
       const event = (raw as CustomEvent<ProjectRenamed>).detail;
       if (event.serverKeyId !== serverKeyId) return;
-      setProjects((current) => current.map((project) => project.id === event.projectId
-        ? { ...project, externalId: event.diskId, name: project.name === event.previousDiskId ? event.diskId : project.name }
-        : project));
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === event.projectId
+            ? {
+                ...project,
+                externalId: event.diskId,
+                name: project.name === event.previousDiskId ? event.diskId : project.name,
+              }
+            : project,
+        ),
+      );
     };
     window.addEventListener("ifz:project_renamed", renamed);
     return () => window.removeEventListener("ifz:project_renamed", renamed);
@@ -206,11 +214,7 @@ function ServerOverview({
             >
               {t("topbar.import")}
             </button>
-            <Link
-              to="/servers/$serverId/canvas"
-              params={{ serverId }}
-              className="btn-ghost btn-sm"
-            >
+            <Link to="/servers/$serverId/canvas" params={{ serverId }} className="btn-ghost btn-sm">
               {t("serverDetail.openBoard")}
             </Link>
           </div>
@@ -244,7 +248,20 @@ function ServerOverview({
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>
                   </Link>
                   {/* The ID is changed in the project Properties; only resuming a pending change remains here. */}
-                  {w.pendingRename && <RenameProjectButton project={w} onRenamed={(diskId) => { if (serverKeyId) onProjectRenamed({ projectId: w.id, serverKeyId, previousDiskId: w.externalId ?? w.id, diskId }); }} />}
+                  {w.pendingRename && (
+                    <RenameProjectButton
+                      project={w}
+                      onRenamed={(diskId) => {
+                        if (serverKeyId)
+                          onProjectRenamed({
+                            projectId: w.id,
+                            serverKeyId,
+                            previousDiskId: w.externalId ?? w.id,
+                            diskId,
+                          });
+                      }}
+                    />
+                  )}
                 </li>
               ))}
             </ul>

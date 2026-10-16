@@ -1,5 +1,5 @@
-import * as React from "react";
 import { cx } from "@/lib/cx";
+import * as React from "react";
 
 export const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...p }, ref) => (
@@ -19,7 +19,10 @@ export const TBody = (p: React.HTMLAttributes<HTMLTableSectionElement>) => <tbod
 
 export const TR = ({ className, ...p }: React.HTMLAttributes<HTMLTableRowElement>) => (
   <tr
-    className={cx("border-[var(--border-soft)] border-b hover:bg-[var(--surface-raised)]", className)}
+    className={cx(
+      "border-[var(--border-soft)] border-b hover:bg-[var(--surface-raised)]",
+      className,
+    )}
     {...p}
   />
 );
@@ -41,7 +44,11 @@ export const TD = ({
   ...p
 }: React.TdHTMLAttributes<HTMLTableCellElement> & { align?: "left" | "right" }) => (
   <td
-    className={cx("px-3 py-2", align === "right" ? "text-right tabular-nums" : "text-left", className)}
+    className={cx(
+      "px-3 py-2",
+      align === "right" ? "text-right tabular-nums" : "text-left",
+      className,
+    )}
     {...p}
   />
 );

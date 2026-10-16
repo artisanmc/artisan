@@ -38,8 +38,8 @@ import { listServerProjects } from "@/lib/api/projectFiles";
 import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlServerId } from "@/lib/urlIds";
-import { useAccountStore } from "@/state/accountStore";
 import { useModulesStore } from "@/state/modulesStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
@@ -52,9 +52,9 @@ import { useServersStatus } from "./useServersStatus";
 
 export function ProjectSidebar() {
   const { t } = useTranslation();
-  const localProjects = useAccountStore((s) => s.account.projects);
-  const projectOrder = useAccountStore((s) => s.account.projectOrder);
-  const reorderProjects = useAccountStore((s) => s.reorderProjects);
+  const localProjects = useProjectsStore((s) => s.openProjects.projects);
+  const projectOrder = useProjectsStore((s) => s.openProjects.projectOrder);
+  const reorderProjects = useProjectsStore((s) => s.reorderProjects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   const serverScreens = useServerScreensStore((s) => s.screens);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -429,7 +429,7 @@ function ScreenItem({
 
 /**
  * The open project's Documents, under its row. Only shown once the project is
- * loaded in the account, so never for a project that is merely listed.
+ * loaded in the projects store, so never for a project that is merely listed.
  */
 function ActiveProjectDocuments({
   id,
@@ -441,8 +441,8 @@ function ActiveProjectDocuments({
   serverId: string | null;
 }) {
   const navigate = useNavigate();
-  const project = useAccountStore((s) =>
-    s.account.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
   );
   if (!project) return null;
   return (
@@ -471,8 +471,8 @@ function UnlistedOpenProject({
   urlId: string;
   serverId: string | null;
 }) {
-  const project = useAccountStore((s) =>
-    s.account.projects.find((p) => p.id === urlId || projectUrlId(p) === urlId),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((p) => p.id === urlId || projectUrlId(p) === urlId),
   );
   if (!project) return null;
   return (
@@ -491,8 +491,8 @@ function UnlistedOpenProject({
 
 /** Settings and creation, on the open project's row — once loaded. */
 function ActiveProjectActions({ id, urlId }: { id: string; urlId?: string }) {
-  const project = useAccountStore((s) =>
-    s.account.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
   );
   return project ? <ProjectActions projectId={project.id} /> : null;
 }

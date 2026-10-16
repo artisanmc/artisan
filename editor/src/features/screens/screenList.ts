@@ -42,7 +42,11 @@ export function parseFallbackScreenId(
   const rest = screenId.slice(i + FALLBACK_MARK.length);
   const j = rest.indexOf("__");
   if (j === -1) return null;
-  return { moduleId: screenId.slice(0, i), projectId: rest.slice(0, j), sourceId: rest.slice(j + 2) };
+  return {
+    moduleId: screenId.slice(0, i),
+    projectId: rest.slice(0, j),
+    sourceId: rest.slice(j + 2),
+  };
 }
 
 /** Resolve a route's screenId: declared screen first, else a parsed fallback. */

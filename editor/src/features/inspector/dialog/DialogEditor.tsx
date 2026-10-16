@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import type { Dialog, DialogId, DialogInput, ProjectId } from "@/domain/types";
 import { useGetText } from "@/lib/useText";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,7 @@ import { FieldLabel, Lane } from "../layout";
 
 function DialogIdField({ projectId, dialogId }: { projectId: ProjectId; dialogId: DialogId }) {
   const { t } = useTranslation();
-  const setDialogId = useAccountStore((s) => s.setDialogId);
+  const setDialogId = useProjectsStore((s) => s.setDialogId);
   const [draft, setDraft] = useState(dialogId as string);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -61,19 +61,19 @@ function DialogIdField({ projectId, dialogId }: { projectId: ProjectId; dialogId
 
 export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dialog }) {
   const { t } = useTranslation();
-  const setDialogTitle = useAccountStore((s) => s.setDialogTitle);
-  const setDialogField = useAccountStore((s) => s.setDialogField);
-  const addDialogBody = useAccountStore((s) => s.addDialogBody);
-  const removeDialogBody = useAccountStore((s) => s.removeDialogBody);
-  const setDialogBodyText = useAccountStore((s) => s.setDialogBodyText);
-  const setDialogBodyMaterial = useAccountStore((s) => s.setDialogBodyMaterial);
-  const addDialogInput = useAccountStore((s) => s.addDialogInput);
-  const removeDialogInput = useAccountStore((s) => s.removeDialogInput);
-  const setDialogInput = useAccountStore((s) => s.setDialogInput);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const addDialogButton = useAccountStore((s) => s.addDialogButton);
-  const removeDialogButton = useAccountStore((s) => s.removeDialogButton);
-  const setDialogButtonLabel = useAccountStore((s) => s.setDialogButtonLabel);
+  const setDialogTitle = useProjectsStore((s) => s.setDialogTitle);
+  const setDialogField = useProjectsStore((s) => s.setDialogField);
+  const addDialogBody = useProjectsStore((s) => s.addDialogBody);
+  const removeDialogBody = useProjectsStore((s) => s.removeDialogBody);
+  const setDialogBodyText = useProjectsStore((s) => s.setDialogBodyText);
+  const setDialogBodyMaterial = useProjectsStore((s) => s.setDialogBodyMaterial);
+  const addDialogInput = useProjectsStore((s) => s.addDialogInput);
+  const removeDialogInput = useProjectsStore((s) => s.removeDialogInput);
+  const setDialogInput = useProjectsStore((s) => s.setDialogInput);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
+  const addDialogButton = useProjectsStore((s) => s.addDialogButton);
+  const removeDialogButton = useProjectsStore((s) => s.removeDialogButton);
+  const setDialogButtonLabel = useProjectsStore((s) => s.setDialogButtonLabel);
   const activeLang = useUiStore((s) => s.activeLang);
   const getText = useGetText(projectId);
 

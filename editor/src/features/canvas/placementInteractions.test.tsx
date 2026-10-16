@@ -1,6 +1,7 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { act, render, renderHook, screen } from "@testing-library/react";
@@ -10,7 +11,6 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { PlacementTray } from "./PlacementTray";
 import { slotXY } from "./menuLayout";
 import { useSlotDrag } from "./useSlotDrag";
-import { menusOf } from "@/domain/documents";
 
 vi.mock("react-konva", () => ({
   Group: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -64,8 +64,8 @@ beforeEach(() => {
       ],
     },
   } as unknown as Project;
-  useAccountStore.setState({
-    account: { id: "acc" as never, projects: [project], projectOrder: [projectId] },
+  useProjectsStore.setState({
+    openProjects: { projects: [project], projectOrder: [projectId] },
   });
   usePaginationStore.setState({ pageByElement: { [elementId]: 1 } });
   useSelectionStore.getState().clear();
@@ -83,7 +83,7 @@ it.each(["paste", "move", "duplicate", "selection"])(
     };
     menusOf(project)[0]!.layers[0]!.elements.push(ordinary);
     const before = structuredClone(menusOf(project)[0]!.layers[0]!.elements[0]);
-    const store = useAccountStore.getState();
+    const store = useProjectsStore.getState();
     const target = { projectId, menuId, elementId: ordinary.id };
     if (operation === "paste")
       store.addElement({ projectId, menuId, element: { ...ordinary, positions: "7" } });
@@ -98,7 +98,7 @@ it.each(["paste", "move", "duplicate", "selection"])(
         dCol: -1,
         dRow: 0,
       });
-    const elements = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!
+    const elements = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!
       .elements;
     expect(elements.find((el) => el.id === elementId)).toEqual(before);
     expect(elements.some((el) => el.positions.includes("7"))).toBe(true);
@@ -153,7 +153,8 @@ it.each([
   } as unknown as Konva.KonvaEventObject<DragEvent>;
   act(() => result.current.onSlotDragStart(event, 0, elementId));
   act(() => result.current.onSlotDragEnd(event, 0, elementId));
-  const elements = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements;
+  const elements = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!
+    .elements;
   expect(elements).toHaveLength(1);
   expect(elements[0]!.places!.placements).toEqual([
     ...(contextual ? [{ key: "hidden", page: 1, position: 0 }] : []),

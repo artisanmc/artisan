@@ -5,7 +5,7 @@ import { ItemBindingEditor } from "@/features/canvas/item/ItemBindingEditor";
 import { isScreenScratchId } from "@/features/screens/screenScratch";
 import { getText } from "@/lib/i18n";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useTranslation } from "react-i18next";
 import { ItemEditor } from "./ItemEditor";
@@ -23,9 +23,9 @@ export function ItemValueField({
   scope?: Record<string, unknown>;
 }) {
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   if (!project) return null;
   const lang = isScreenScratchId(projectId)
     ? project.defaultLang

@@ -63,9 +63,9 @@ vi.mock("@/state/serverScreensStore", () => ({
   ),
 }));
 
-const accountState = vi.hoisted(() => ({ account: { projects: [] as unknown[] } }));
-vi.mock("@/state/accountStore", () => ({
-  useAccountStore: (sel: (s: typeof accountState) => unknown) => sel(accountState),
+const accountState = vi.hoisted(() => ({ openProjects: { projects: [] as unknown[] } }));
+vi.mock("@/state/projectsStore", () => ({
+  useProjectsStore: (sel: (s: typeof accountState) => unknown) => sel(accountState),
 }));
 
 const modulesState = vi.hoisted(() => ({ mountedIds: [] as string[] }));

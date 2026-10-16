@@ -12,7 +12,14 @@ export type MigrationStep =
   | { op: "rename_field"; from: string; to: string; path?: string[] }
   | { op: "set_default"; field: string; value: unknown; path?: string[] }
   | { op: "rename_enum_value"; field: string; from: string; to: string; path?: string[] }
-  | { op: "rename_variant"; field: string; tag?: string; from: string; to: string; path?: string[] };
+  | {
+      op: "rename_variant";
+      field: string;
+      tag?: string;
+      from: string;
+      to: string;
+      path?: string[];
+    };
 
 export interface ModelMigration {
   from: number;

@@ -1,5 +1,5 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -58,13 +58,13 @@ function makeProject(): Project {
   } as unknown as Project;
 }
 
-const project = () => useAccountStore.getState().account.projects[0]!;
+const project = () => useProjectsStore.getState().openProjects.projects[0]!;
 const tableSource = () =>
   project().dataSources[0] as Extract<Project["dataSources"][number], { shape: "table" }>;
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: { id: "acc" as never, projects: [makeProject()], projectOrder: [PID] },
+  useProjectsStore.setState({
+    openProjects: { projects: [makeProject()], projectOrder: [PID] },
   } as never);
   useUiStore.setState({ activeLang: "en" } as never);
 });
@@ -128,8 +128,8 @@ describe("SourceRowsTable", () => {
   });
 
   it("shows a duplicate Row key error without changing the stored value", () => {
-    useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
-    useAccountStore.getState().setSourceValue({
+    useProjectsStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
+    useProjectsStore.getState().setSourceValue({
       projectId: PID,
       sourceId: "ranks" as never,
       row: 1,
@@ -149,8 +149,8 @@ describe("SourceRowsTable", () => {
   });
 
   it("clears a Row key error when an index-keyed editor is reused", () => {
-    useAccountStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
-    useAccountStore.getState().setSourceValue({
+    useProjectsStore.getState().addSourceRow({ projectId: PID, sourceId: "ranks" as never });
+    useProjectsStore.getState().setSourceValue({
       projectId: PID,
       sourceId: "ranks" as never,
       row: 1,
@@ -334,8 +334,8 @@ describe("ModelFieldsEditor", () => {
 // the Row key value.
 describe("SourceRowsTable — stable row keys", () => {
   it("keeps a row's in-progress key draft bound to the SAME row when the row above is deleted", () => {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       const ds = p.dataSources[0] as { rows: Record<string, unknown>[] };
       ds.rows = [
         { id: "alpha", name: { key: "k_a" }, price: 1, tagline: "", rules: "" },
@@ -354,8 +354,8 @@ describe("SourceRowsTable — stable row keys", () => {
     expect((betaInput as HTMLInputElement).value).toBe("beta-renamed");
 
     // Delete the FIRST row (alpha) from the store (as the ✕ button would).
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       const ds = p.dataSources[0] as { rows: Record<string, unknown>[] };
       ds.rows = ds.rows.filter((r) => r.id !== "alpha");
       return s;
@@ -374,8 +374,8 @@ describe("SourceRowsTable — stable row keys", () => {
 
 describe("ValueEditor — map / enum / union widgets", () => {
   function seedComposable() {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       p.dataModels = [
         {
           id: "m_q" as never,
@@ -472,8 +472,8 @@ describe("ValueEditor — map / enum / union widgets", () => {
 
 describe("form generator — hints + validation (§7)", () => {
   function seedHinted(masterDetail = false) {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       p.dataModels = [
         {
           id: "m_h" as never,
@@ -575,8 +575,8 @@ describe("form generator — hints + validation (§7)", () => {
 
 describe("ConfigValueForm — schemaless file", () => {
   function seedUntyped() {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       p.dataModels = [];
       p.dataSources = [
         {
@@ -615,8 +615,8 @@ describe("ConfigValueForm — schemaless file", () => {
 
 describe("field hints in the form", () => {
   function seedHinted() {
-    useAccountStore.setState((s) => {
-      const p = s.account.projects[0]!;
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
       p.dataModels = [];
       p.dataSources = [
         {

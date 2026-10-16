@@ -12,7 +12,7 @@ import {
   listLanguages,
 } from "@/lib/i18nUsages";
 import { flattenLangTree } from "@/lib/langTree";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { AlertCircle, ArrowDown, Check, Copy as CopyIcon, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -63,19 +63,18 @@ function MMLines({ text, className }: { text: string; className?: string }) {
   );
 }
 
-
 /**
  * Inner content of the Translation panel — all hooks + UI, no Sheet chrome.
  * Used both by the modal wrapper (`TranslationPanel`) and the inline workspace tab.
  */
 export function TranslationPanelContent({ projectId }: { projectId: ProjectId }) {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);
-  const addLanguage = useAccountStore((s) => s.addLanguage);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const removeUnusedI18nKeys = useAccountStore((s) => s.removeUnusedI18nKeys);
-  const setProjectI18nMode = useAccountStore((s) => s.setProjectI18nMode);
+  const addLanguage = useProjectsStore((s) => s.addLanguage);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
+  const removeUnusedI18nKeys = useProjectsStore((s) => s.removeUnusedI18nKeys);
+  const setProjectI18nMode = useProjectsStore((s) => s.setProjectI18nMode);
   const { t } = useTranslation();
 
   const rows = useMemo(
@@ -85,10 +84,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   // Per-language missing counts power both the in-panel tabs and the
   // header copy. Recomputed whenever the project ref shifts (immer keeps
   // it stable across unrelated edits).
-  const missingByLang = useMemo(
-    () => (project ? countMissingPerLang(project) : {}),
-    [project],
-  );
+  const missingByLang = useMemo(() => (project ? countMissingPerLang(project) : {}), [project]);
   const langs = useMemo(() => (project ? listLanguages(project) : []), [project]);
 
   const [mode, setMode] = useState<Mode>("visual");
@@ -137,10 +133,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   return (
     <>
       {/* Left card — vertical language list */}
-      <nav
-        className="card flex shrink-0 flex-col gap-1 p-3 lg:w-[224px]"
-        aria-label="Languages"
-      >
+      <nav className="card flex shrink-0 flex-col gap-1 p-3 lg:w-[224px]" aria-label="Languages">
         {langs.map((lang) => {
           const isActive = lang === activeLang;
           const isDefault = lang === project.defaultLang;
@@ -458,9 +451,7 @@ function VisualBody({
   if (rows.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-[11px] text-[var(--text-faint)]">
-        {filter === "missing"
-          ? t("translations.nothingMissing")
-          : t("translations.noMatch")}
+        {filter === "missing" ? t("translations.nothingMissing") : t("translations.noMatch")}
       </div>
     );
   }
@@ -536,7 +527,9 @@ function VisualRow({
                 <MMLines text={row.source} />
               </div>
             ) : (
-              <span className="text-[var(--text-faint)] italic">{t("translations.emptySource")}</span>
+              <span className="text-[var(--text-faint)] italic">
+                {t("translations.emptySource")}
+              </span>
             )}
           </div>
           {row.source ? (
@@ -600,7 +593,7 @@ function YamlBody({
   rows: ReadonlyArray<TranslationRow>;
   modeKey: Mode;
 }) {
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const { t } = useTranslation();
   const [includeContext, setIncludeContext] = useState(true);
   const [draft, setDraft] = useState("");
@@ -735,4 +728,3 @@ function YamlBody({
     </>
   );
 }
-

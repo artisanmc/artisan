@@ -141,7 +141,7 @@ interface UiState {
   toggleHiddenLayer: (menuId: MenuId, index: number) => void;
   clearHiddenLayers: () => void;
   /**
-   * v3 title composer — invoke AFTER `accountStore.removeMenuTitleLayer` to
+   * v3 title composer — invoke AFTER `projectsStore.removeMenuTitleLayer` to
    * keep UI state in sync with the new layer indices. Without this, a stale
    * `selectedLayerKey` would point at the shifted-up neighbour (or nothing),
    * and `hiddenLayerKeys` would still flag indices that no longer exist.
@@ -154,7 +154,7 @@ interface UiState {
    */
   applyLayerDeleted: (menuId: MenuId, deletedIndex: number) => void;
   /**
-   * v3 title composer — invoke AFTER `accountStore.reorderMenuTitleLayers`
+   * v3 title composer — invoke AFTER `projectsStore.reorderMenuTitleLayers`
    * to remap `selectedLayerKey` and `hiddenLayerKeys` indices to match the
    * post-move ordering. Mirrors the splice semantics: pull element out at
    * `fromIndex`, insert at `toIndex`. Entries in other menus are untouched.
@@ -224,7 +224,7 @@ export const useUiStore = create<UiState>()(
         // Sync the i18next instance lazily — importing here keeps the
         // store free of a hard dep on the i18n module at module load.
         import("@/i18n").then(({ default: i18n }) => i18n.changeLanguage(lang));
-        // Sync to the account if logged-in. Fire-and-forget — UI doesn't block.
+        // Sync to the player's profile if logged-in. Fire-and-forget — UI doesn't block.
         // Dynamic imports avoid module-load-time circular deps with authStore.
         import("./authStore").then(({ useAuthStore }) => {
           const user = useAuthStore.getState().currentUser;

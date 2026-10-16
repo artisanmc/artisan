@@ -1,6 +1,6 @@
 import { listServerProjects } from "@/lib/api/projectFiles";
 import * as serversApi from "@/lib/api/servers";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServersStore } from "@/state/serversStore";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -56,7 +56,7 @@ describe("ProjectSidebar served by the plugin", () => {
     vi.restoreAllMocks();
     vi.mocked(listServerProjects).mockResolvedValue({ ok: true, projectIds: ["shop"] });
     useServersStore.setState({ activeServerId: null } as any);
-    useAccountStore.setState({ account: { id: "", projects: [], projectOrder: [] } } as any);
+    useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } } as any);
     vi.spyOn(serversApi, "listServers").mockResolvedValue([
       status("u-local", { label: "Hub" }),
       status("lobby", { online: false }),
