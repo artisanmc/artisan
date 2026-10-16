@@ -89,9 +89,7 @@ class ModuleRegistrationIntegrationTest {
             .build()
         registry.bind(api) {
             // onChange fires whenever the active module list changes.
-            provider?.notifyModulesChanged(
-                registry.active().map { mapOf("id" to it.id, "version" to "1.0.0") }
-            )
+            provider?.notifyModulesChanged()
         }
 
         MockWebServer().use { server ->
@@ -121,7 +119,11 @@ class ModuleRegistrationIntegrationTest {
                 roots            = net.artisanmc.plugin.project.ProjectRoots(packsDir),
                 logger           = null,
                 hub              = net.artisanmc.plugin.ws.HubLink(server.url("/ws/plugin").toString(), "secret", "survie"),
-                installedModules = { registry.active().map { mapOf("id" to it.id, "version" to "1.0.0") } },
+                announcement     = {
+                    net.artisanmc.plugin.protocol.ServerAnnouncement(
+                        modules = registry.active().map { net.artisanmc.plugin.protocol.ServerAnnouncement.module(it.id, "1.0.0") },
+                    )
+                },
             )
             provider!!.load()
 
