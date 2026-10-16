@@ -5,6 +5,7 @@ import { hasDocument } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -44,6 +45,9 @@ export function NewDocumentDialog({
     const project = s.account.projects.find((p) => p.id === projectId);
     return prefixedId !== "" && !!project && hasDocument(project, prefixedId);
   });
+  // The editor's module knows the kind; does the server's? A kind the active server
+  // does not register is written to a folder nothing there reads (W6).
+  const synced = useServerDocumentKindsStore((s) => isKindSyncedOn(s, kind));
 
   const submit = () => {
     if (!trimmed || conflict || !contribution) return;
@@ -79,6 +83,11 @@ export function NewDocumentDialog({
             )}
             {conflict && (
               <span className="text-xs text-[var(--danger)]">{t("canvas.idConflict")}</span>
+            )}
+            {!synced && (
+              <output className="text-xs text-[var(--warning)]">
+                {t("canvas.kindNotSynced", { kind: kindLabel })}
+              </output>
             )}
           </div>
           <div className="flex justify-end gap-2">

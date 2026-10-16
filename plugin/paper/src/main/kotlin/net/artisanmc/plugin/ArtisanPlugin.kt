@@ -11,6 +11,7 @@ import net.artisanmc.plugin.command.ArtisanCommand
 import net.artisanmc.plugin.config.PluginConfig
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.lang.LangManager
+import net.artisanmc.plugin.model.DocumentKinds
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import com.github.retrooper.packetevents.PacketEvents
@@ -108,11 +109,16 @@ open class ArtisanPlugin : JavaPlugin() {
                 plugin.description.version,
                 // The provider is created later (it needs the API): the reload
                 // resolves at call time, not at construction.
-                net.artisanmc.plugin.project.ProjectContentReader(plugin.projectRoots) {
-                    plugin.refreshProjectsFromDisk()
-                },
+                net.artisanmc.plugin.project.ProjectContentReader(
+                    plugin.projectRoots,
+                    onReloadRequested = { plugin.refreshProjectsFromDisk() },
+                    bundles = { if (plugin::menuProvider.isInitialized) plugin.menuProvider.allBundles() else emptyList() },
+                ),
             )
                 .projectRoots(plugin.projectRoots)
+                // The one kind registry: the core kinds registered first, then
+                // what modules add through api.documentKinds (W6).
+                .documentKinds(DocumentKinds.coreRegistry().also(DocumentKinds::bind))
                 .items(object : net.artisanmc.modules.api.ItemStackApi {
                     override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                         net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
@@ -314,6 +320,7 @@ open class ArtisanPlugin : JavaPlugin() {
         override fun models() = api.models.declared().map { it.document }
         override fun screens() = api.screens.declared().map { it.toWire() }
         override fun actions() = api.actionRegistry.registered().map { it.toWire() }
+        override fun documentKinds() = api.documentKinds.registered().map { it.toWire() }
         override fun serverConfig() = serverConfigAccess.report()
         override fun customItems() = provider.customItems()
         override fun applyResourcePack(hash: String, path: String) {
@@ -657,6 +664,7 @@ open class ArtisanPlugin : JavaPlugin() {
         declaredModelsReport = { api.models.declared().map { it.document } },
         editorScreensReport = { api.screens.declared().map { it.toWire() } },
         declaredActionsReport = { api.actionRegistry.registered().map { it.toWire() } },
+        documentKindsReport = { api.documentKinds.registered().map { it.toWire() } },
         scheduler = scheduler,
         menuWindows = menuWindows,
         pluginVersion = description.version,

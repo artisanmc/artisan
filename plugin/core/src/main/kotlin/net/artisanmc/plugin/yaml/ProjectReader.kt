@@ -83,6 +83,24 @@ class ProjectReader(
     )
 
     /**
+     * The reader of a kind the core does not know (one a module registered):
+     * the file's mapping as is, checked against the kind's declared `schema:`
+     * labels, under the id its file name gives (ADR `extensible-document-kinds`,
+     * W6). The owning module reads it back through `ProjectContentApi.documents`.
+     */
+    private fun rawReader(kind: DocumentKind): (File, String, ReadContext) -> BundleDocument = { f, docId, ctx ->
+        val root = mapper.readValue(f, Map::class.java)
+        val data: Map<String, Any?> = root?.entries?.associate { it.key.toString() to it.value } ?: emptyMap()
+        val schema = data["schema"]?.toString().orEmpty()
+        requireSchema(f, schema, *kind.schemaVersions.toTypedArray())
+        val declaredId = data["id"]?.toString()
+        if (!declaredId.isNullOrEmpty() && declaredId != docId) {
+            logger?.warning("[Artisan] ${f.path}: id '$declaredId' ignored; the file name '$docId' is the id.")
+        }
+        BundleRawDocument(docId, kind.kind, schema, ctx.projectId, data - "id")
+    }
+
+    /**
      * Verify the YAML's `schema` field is either empty (legacy / pre-versioning)
      * or matches the expected version. Reject everything else with a clear error
      * pointing at the schema migration framework (see api.schemas).
@@ -204,8 +222,8 @@ class ProjectReader(
         // Document — e.g. a stale-format file mid-migration — logs + skips
         // instead of failing the whole reload and the plugin enable.
         val ctx = ReadContext(projectId, manifest, langMaps, templates)
-        val documents: Map<String, List<BundleDocument>> = DocumentKinds.all().mapNotNull { kind ->
-            val reader = coreReaders[kind.kind] ?: return@mapNotNull null
+        val documents: Map<String, List<BundleDocument>> = DocumentKinds.all().map { kind ->
+            val reader = coreReaders[kind.kind] ?: rawReader(kind)
             kind.kind to documentIds(projectDir, kind.dir, manifest.files[kind.dir].orEmpty()).mapNotNull { docId ->
                 val f = File(projectDir, "${kind.dir}/$docId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
                 runCatching { reader(f, docId, ctx) }.getOrElse { e ->
