@@ -83,6 +83,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `isCompatibleWith` compares `apiVersion` | | 1.8.0 |
 | `messages` removed; built through `ArtisanAPI.builder(...)` | | 2.0.0 |
 | `actionRegistry` (`getActionRegistry()`, `@Beta`) | `ActionRegistry` | 2.0.0 |
+| `documentKinds` (`getDocumentKinds()`, `@Beta`) | `DocumentKindRegistry` | 2.1.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -201,6 +202,27 @@ Every action of a chain, Artisan's own included, runs through this registry (ADR
 | `ArtisanAPI.Builder.actionRegistry(registry)` (`@Internal`) | `Builder` | 2.0.0 |
 
 The three wire forms (`- name`, `- name: value`, `- name: {args}`) bind to one argument map: the scalar form binds `primary` (the only argument when there is exactly one, unless given). The runtime is tolerant (an unknown key is kept, an unknown name is skipped with a warning); the editor's form is strict.
+
+### `net.artisanmc.modules.api.DocumentKindRegistry` and the document-kind contract (`@Beta`, 2.1.0)
+
+Every kind of Document a project folder holds, Artisan's own (menu, command, dialog) included, is declared here (ADR `extensible-document-kinds`, decisions 1 and 10, W6). A module declares its kinds from `onEnable`; they are removed with the module. The folder is what tells a Document's kind on disk, so two kinds may not share a kind id or a folder. Kind ids: `^[a-z][a-z0-9_]*$`; folders: `^[a-z][a-z0-9_-]*$`.
+
+A file of a declared kind is read by Artisan as a **raw document** (its YAML mapping, the file name as `id`, its `schema:` checked against the declared labels — an undeclared label is a loud reload error, like a core kind's), listed in the resource inventory, resolvable by reference, reported at Presence (`document_kinds`) and handed back to the module through `ProjectContentApi.documents(projectId, kind)`. What a Document of that kind *does* is the module's business: Artisan dispatches nothing for it.
+
+| Member | Type | Since |
+|---|---|---|
+| `DocumentKindRegistry.register(decl)` (throws `DuplicateDocumentKindException` on a shared kind or folder), `unregister(kind)`, `find(kind)`, `byDir(dir)`, `has(kind)`, `declarations()` (registration order), `registered()` | | 2.1.0 |
+| `DocumentKindDeclaration(kind, dir, schemaVersion)`, `(kind, dir, schemaVersions, idPrefix)` ; `getKind()`, `getDir()`, `getSchemaVersions()` (first = canonical), `getCanonicalSchema()`, `getIdPrefix()`, `acceptsSchema(schema)` (empty accepted), `toWire()` (`{kind, dir, schema_versions, id_prefix?}`) | `DocumentKindDeclaration` | 2.1.0 |
+| `RegisteredDocumentKind.getDeclaration()`, `getModuleId()`, `toWire()` (+ `module_id?`, the `document_kinds` wire) | `RegisteredDocumentKind` | 2.1.0 |
+| `DuplicateDocumentKindException` (extends `IllegalStateException`) | | 2.1.0 |
+| `ProjectContentApi.documents(projectId, kind)` : the raw documents of a module kind as the last load read them (`id` = file name); `[]` for a core kind or an unknown project | `List<Map<String, Object>>` | 2.1.0 |
+| `ArtisanAPI.Builder.documentKinds(registry)` (`@Internal`) | `Builder` | 2.1.0 |
+
+```java
+api.getDocumentKinds().register(new DocumentKindDeclaration("quest", "quests", List.of("quest/v1"), "quest_"));
+// after api.getProject().reload(), or in onReload():
+for (Map<String, Object> quest : api.getProject().documents(projectId, "quest")) { … }
+```
 
 ### `net.artisanmc.modules.api.ModelRegistry` (`@Beta`)
 
@@ -371,6 +393,7 @@ Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*`
 | `read(projectId: String, relPath: String)` | `String?` | 1.2.0 |
 | `hasContent(dir: String)` | `Boolean` | 1.2.0 |
 | `reload()` | `Unit` | 1.6.0 — asynchronous since 1.8.0: the disk is read on Artisan's reload thread, and modules' `onReload()` follows on the global thread |
+| `documents(projectId: String, kind: String)` (`@Beta`) | `List<Map<String, Object>>` | 2.1.0 — see `DocumentKindRegistry` |
 
 ### `net.artisanmc.modules.api.ProjectRootRegistry`
 

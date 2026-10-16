@@ -32,7 +32,9 @@ métadonnée de synchro cloud) peut subsister sur un vieux serveur : il reste ex
 Les dossiers `menus/`, `commands/` et `dialogs/` ne sont nommés nulle part en dur (ADR
 `extensible-document-kinds`, décision 10). Chaque **kind** de Document est une entrée d'un registre
 — `editor/src/domain/documentKinds.ts` (`kind`, `dir`, `idPrefix`, `schemaVersion`, `rank`) et
-`plugin/core/.../model/DocumentKinds.kt` (`kind`, `dir`, `schemaVersions`) — et tout ce qui parcourt
+`plugin/core/.../model/DocumentKinds.kt`, façade Kotlin du `DocumentKindRegistry` de l'API
+(`kind`, `dir`, `schemaVersions`, `idPrefix` ; les kinds core y sont enregistrés par
+`coreRegistry()`, un module ajoute les siens par `api.getDocumentKinds()`) — et tout ce qui parcourt
 un projet boucle sur ce registre : l'import (`projectFromFiles`) et l'export (`transform`) de
 l'éditeur via les codecs par kind (`schema/documentCodecs.ts`), le `ProjectReader` du plugin via
 un lecteur par kind, l'inventaire de ressources et les tables de références du provider.
@@ -41,7 +43,10 @@ En mémoire, un Project est un **conteneur unique** : `Project.documents[kind]` 
 `ProjectBundle.documents[kind]` (plugin). `menusOf(project)`, `bundle.menus` et leurs semblables
 sont des accesseurs typés de **lecture** sur ce conteneur, jamais un second stockage. Un dossier
 dont le kind n'est pas enregistré reste opaque : l'éditeur le round-trip dans
-`moduleData.<dir>.__files`, le plugin ne le lit pas.
+`moduleData.<dir>.__files`, le plugin ne le lit pas. Un kind enregistré par un module sans lecteur
+core est lu en **document brut** (`BundleRawDocument` : le mapping YAML, `schema:` vérifié contre les
+labels déclarés, le nom du fichier pour id) et rendu au module par
+`ProjectContentApi.documents(projectId, kind)` (W6).
 
 Les fichiers `data/` portent les Data models **inlinés** ; les valeurs `ltext` sont des clés i18n
 résolues au bind, les valeurs item des refs material.
