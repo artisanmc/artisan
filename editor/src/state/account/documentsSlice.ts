@@ -7,9 +7,8 @@ import type { ProjectId } from "@/domain/types";
 import { createDocumentOfKind } from "@/lib/moduleDocumentKinds";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
-import { produce } from "immer";
 import { rewriteCanvasEdgeIds, rewriteCanvasGroupMembers } from "./helpers";
-import type { AccountSliceContext, AccountState } from "./types";
+import type { AccountSliceContext } from "./types";
 
 /**
  * Documents of any kind, through the kind registry (ADR `extensible-document-kinds`,
@@ -36,52 +35,43 @@ export interface DocumentsSlice {
   }) => void;
 }
 
-export const createDocumentsSlice = ({ set, get }: AccountSliceContext): DocumentsSlice => ({
+export const createDocumentsSlice = ({
+  get,
+  mutateProject,
+}: AccountSliceContext): DocumentsSlice => ({
   createDocument: ({ projectId: pId, kind, id, position }) => {
     const contribution = documentKindContribution(kind);
     if (!contribution) throw new Error(`no module contributes the document kind "${kind}"`);
     const project = get().account.projects.find((p) => p.id === pId);
     if (!project) throw new Error("project not found");
     if (hasDocument(project, id)) throw new Error(`document id "${id}" already exists`);
-    set(
-      produce((draft: AccountState) => {
-        const p = draft.account.projects.find((p) => p.id === pId);
-        if (!p) return;
-        const doc = createDocumentOfKind(contribution, id, pId);
-        mutableDocuments(p, kind).push(doc);
-        mintLTexts(p, documentLTextSites(kind, doc), p.defaultLang);
-        if (position) {
-          (p.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
-        }
-        p.updatedAt = new Date().toISOString();
-      }),
-    );
+    mutateProject(pId, (p) => {
+      const doc = createDocumentOfKind(contribution, id, pId);
+      mutableDocuments(p, kind).push(doc);
+      mintLTexts(p, documentLTextSites(kind, doc), p.defaultLang);
+      if (position) {
+        (p.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+      }
+    });
     return id;
   },
   updateDocument: ({ projectId: pId, kind, id, doc }) =>
-    set(
-      produce((draft: AccountState) => {
-        const p = draft.account.projects.find((p) => p.id === pId);
-        if (!p) return;
-        const docs = mutableDocuments(p, kind);
-        const index = docs.findIndex((d) => d.id === id);
-        if (index < 0) return;
-        docs[index] = doc as (typeof docs)[number];
-        p.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateProject(pId, (p) => {
+      const docs = mutableDocuments(p, kind);
+      const index = docs.findIndex((d) => d.id === id);
+      if (index < 0) return false;
+      docs[index] = doc as (typeof docs)[number];
+    }),
   setDocumentId: ({ projectId: pId, kind, oldId, newId }) => {
     if (oldId === newId) return;
     if (!newId) throw new Error("document id cannot be empty");
-    const state = get();
-    const project = state.account.projects.find((p) => p.id === pId);
+    const project = get().account.projects.find((p) => p.id === pId);
     if (!project) throw new Error("project not found");
     if (!documentsOf(project, kind).some((d) => d.id === oldId)) {
       throw new Error(`no ${kind} document "${oldId}"`);
     }
     if (hasDocument(project, newId)) throw new Error(`document id "${newId}" already exists`);
-    const next = produce(state.account, (draft) => {
-      const p = draft.projects.find((p) => p.id === pId)!;
+    mutateProject(pId, (p) => {
       const doc = documentsOf(p, kind).find((d) => d.id === oldId)!;
       doc.id = newId as typeof doc.id;
       // Texts are addressed by the id: the visitor moves each one to its new home.
@@ -101,9 +91,7 @@ export const createDocumentsSlice = ({ set, get }: AccountSliceContext): Documen
           }
         }
       }
-      p.updatedAt = new Date().toISOString();
     });
-    set({ account: next });
     // A rename is a move on disk; see `setDialogId` for why it is recorded after the apply.
     const dir = documentKindDef(kind).dir;
     useProjectDraftStore

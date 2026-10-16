@@ -9,6 +9,7 @@ import { createDocumentsSlice } from "./account/documentsSlice";
 import { createElementsSlice } from "./account/elementsSlice";
 import { createI18nSlice } from "./account/i18nSlice";
 import { createMenusSlice } from "./account/menusSlice";
+import { createProjectMutators } from "./account/mutate";
 import { createProjectsSlice } from "./account/projectsSlice";
 import type { AccountSliceContext, AccountState } from "./account/types";
 
@@ -38,7 +39,12 @@ const clearTemporal = () => useAccountStore.temporal.getState().clear();
 export const useAccountStore = create<AccountState>()(
   temporal(
     (set, get) => {
-      const context: AccountSliceContext = { set, get, clearTemporal };
+      const context: AccountSliceContext = {
+        set,
+        get,
+        clearTemporal,
+        ...createProjectMutators(set),
+      };
       return {
         account: { id: "" as Account["id"], projects: [], projectOrder: [] },
         ...createProjectsSlice(context),

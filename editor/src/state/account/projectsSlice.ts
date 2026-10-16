@@ -1,8 +1,8 @@
 import { liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
+import { allDocuments, emptyDocuments, menusOf, mutableMenus } from "@/domain/documents";
 import { newProjectId } from "@/domain/ids";
 import { migrateTitle } from "@/domain/migrateTitle";
 import type { Account, MenuId, Project, ProjectId } from "@/domain/types";
-import { allDocuments, emptyDocuments, menusOf, mutableMenus } from "@/domain/documents";
 import { migrateProjectToI18n } from "@/lib/i18nMigration";
 import { migrateProjectDocuments } from "@/lib/projectDocumentsMigration";
 import { produce } from "immer";
@@ -46,6 +46,7 @@ export const createProjectsSlice = ({
   set,
   get,
   clearTemporal,
+  mutateProject,
 }: AccountSliceContext): ProjectsSlice => ({
   setAccount: (account) => {
     clearTemporal();
@@ -161,14 +162,9 @@ export const createProjectsSlice = ({
     );
   },
   setModuleData: (projectId, moduleId, data) => {
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        project.moduleData = { ...(project.moduleData ?? {}), [moduleId]: data };
-        project.updatedAt = new Date().toISOString();
-      }),
-    );
+    mutateProject(projectId, (project) => {
+      project.moduleData = { ...(project.moduleData ?? {}), [moduleId]: data };
+    });
   },
   removeProject: (projectId) => {
     set(
@@ -213,47 +209,44 @@ export const createProjectsSlice = ({
     set({ account: next });
   },
   setProjectField: ({ projectId: pId, field, value }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        if (field === "escapeGoesBack") project.escapeGoesBack = value === true || undefined;
-        else if (typeof value !== "string") return;
-        else if (field === "name") project.name = value;
-        else if (field === "description") project.description = value || undefined;
-        else if (field === "loreMaxWidth") {
-          project.loreMaxWidth = Math.max(0, Math.floor(Number(value)) || 0) || undefined;
-        }
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateProject(pId, (project) => {
+      if (field === "escapeGoesBack") project.escapeGoesBack = value === true || undefined;
+      else if (typeof value !== "string") return false;
+      else if (field === "name") project.name = value;
+      else if (field === "description") project.description = value || undefined;
+      else if (field === "loreMaxWidth") {
+        project.loreMaxWidth = Math.max(0, Math.floor(Number(value)) || 0) || undefined;
+      }
+    }),
   deleteFromProject: ({ projectId: pId, nodeIds }) => {
     const ids = new Set(nodeIds);
-    const next = produce(get().account, (draft) => {
-      const project = draft.projects.find((p) => p.id === pId);
-      if (!project) return;
-      for (const { kind, doc } of allDocuments(project)) {
-        if (ids.has(doc.id)) gcDocumentLTexts(project, kind, doc);
-      }
-      for (const kind of Object.keys(project.documents)) {
-        project.documents[kind] = (project.documents[kind] ?? []).filter((d) => !ids.has(d.id));
-      }
-      if (project.canvasGroups) {
-        project.canvasGroups = normalizeCanvasGroups(
-          project.canvasGroups,
-          liveDocumentIds(project),
-        );
-      }
-      for (const id of ids) {
-        delete (project.canvasLayout as Record<string, { x: number; y: number }>)[id];
-      }
-      if (project.canvasEdges) {
-        for (const key of Object.keys(project.canvasEdges)) {
-          const [src, tgt] = key.split("->") as [string, string];
-          if (ids.has(src) || ids.has(tgt)) delete project.canvasEdges[key];
+    mutateProject(
+      pId,
+      (project) => {
+        for (const { kind, doc } of allDocuments(project)) {
+          if (ids.has(doc.id)) gcDocumentLTexts(project, kind, doc);
         }
-      }
-    });
-    set({ account: next });
+        for (const kind of Object.keys(project.documents)) {
+          project.documents[kind] = (project.documents[kind] ?? []).filter((d) => !ids.has(d.id));
+        }
+        if (project.canvasGroups) {
+          project.canvasGroups = normalizeCanvasGroups(
+            project.canvasGroups,
+            liveDocumentIds(project),
+          );
+        }
+        for (const id of ids) {
+          delete (project.canvasLayout as Record<string, { x: number; y: number }>)[id];
+        }
+        if (project.canvasEdges) {
+          for (const key of Object.keys(project.canvasEdges)) {
+            const [src, tgt] = key.split("->") as [string, string];
+            if (ids.has(src) || ids.has(tgt)) delete project.canvasEdges[key];
+          }
+        }
+      },
+      // A deletion has never stamped `updatedAt`; kept as is.
+      { touch: false },
+    );
   },
 });
