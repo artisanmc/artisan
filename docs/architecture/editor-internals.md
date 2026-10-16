@@ -125,11 +125,32 @@ footprints produce no active image button. Plain title text renders after images
 
 ## Project display name
 
-`ProjectTopBarControls` subscribes to the current project's name so
+`features/project/ProjectTopBarControls` subscribes to the current project's name so
 settings edits update the header immediately, falling back to the loaded name.
 `projectFromFiles` defaults Boutique-owned projects (`manifest.module: boutique`)
 to `Boutique` when their metadata name is absent or matches their internal/disk ID.
 Explicit custom names remain unchanged; IDs and folder names are unaffected.
+
+## Publish workflow (`features/project/publish/`)
+
+Save (account draft) and Deploy (the only disk write, compare-and-swap) live in
+`features/project/publish/`: `publishFlow.ts` is the pure reducer (`saving`, the
+deploy `review`, the `conflict` modal with its source `save | open | draft`, tree,
+disk files and per-file choices, the last failure), tested without React;
+`usePublishFlow(projectId, offline)` runs the workflow against the stores and the hub
+(conflicts found at draft open, silent rebase of a draft conflict without diverging
+file, the `OPEN_DEPLOY_REVIEW` event of the History tab); `SaveControls` and
+`ConflictResolutionDialog` only render. A new conflict always starts with no choice.
+
+## Page du workspace (`features/project/ProjectCanvasPage.tsx`)
+
+La page ne garde que le chargement (`useProjectLoader`) et la mise en page (topbar, canvas,
+vues secondaires `?tab=`). Le reste est nommé : `WorkspaceGate` (hydratation auth, redirection
+login, échec de chargement, squelette — via `projectLoadStatus`), `useProjectDeepLinks` (`?doc=`,
+id canonique du dossier, renommage, ouverture d'un Document depuis la planche),
+`useActiveLangFallback`, `useWorkspaceDnd` (capteurs + callbacks du `DndContext`) au-dessus du
+décodage pur `workspaceDrop.ts` (`dragStartMaterial`, `decodeDragEnd` → `WorkspaceDrop`), et
+`WorkspaceDragOverlay`.
 
 ## Tests et CI
 
@@ -313,6 +334,12 @@ hors-ligne et son infobulle (`downHint` de `LinkedServersDropdown`) en donne la
 raison exacte (date de la copie, brouillon, jamais publié). L'état reste local à
 la topbar du Project ouvert.
 
+Depuis le 2026-10-16, l'état du loader est un reducer pur (`projectLoadState.ts`,
+événements nommés `started` / `located` / `opened` / `settled` / `connectionLost` /
+`readFailed` / `loadFailed` / `validated`, testé sans React) ; la lecture elle-même
+(`readFromHub` → `readAndOpen`, `resumeDraft`, `settleOffline`) vit hors du hook.
+`projectLoadStatus` dit ce que le workspace montre (`loading | ready | error`).
+
 ### Paramètres avancés d'un item (depuis 2026-07-29)
 
 Sous le lore de chaque state card, `features/flow/AdvancedItemSection.tsx` replie derrière un `<Collapsible>` tout ce qui dépasse material/titre/lore : **enchantements** (id + niveau, `datalist` sur le catalogue vanilla de `domain/itemAdvanced.ts` mais **saisie libre acceptée** pour le moddé), effet brillant sans enchant, custom model data, incassable, sections de tooltip masquées, **couleur** (affichée uniquement si le material est teintable — cuir / potion / étoile de feu d'artifice), et **NBT brut**. Un badge sur le trigger compte les valeurs posées (`countAdvanced`) pour qu'un item configuré ne cache pas sa propre configuration. Les mutations passent par l'action de store unique `setAppearanceAdvanced` (patch partiel ; une clé à `undefined` efface le champ).
@@ -349,7 +376,11 @@ Avant `FrontendModule.localPreviewRows`, l'hôte résout les `LText` des `dataSo
 
 `features/canvas/Stage.tsx` (528 → 351 lignes) éclaté : `ArmedBanner.tsx`, `useStageTouch.ts` (long-press → context menu), `useStageContextMenu.ts`.
 
-Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 591, Stage 351) — split supplémentaire différé.
+Depuis le 2026-10-16 (Stage était remonté à 791 lignes) : `useStageBoard` (table `layout` planche / focus + glissement de groupe), `useStageFraming` (viewport restauré, persisté, cadrage focus `refitFocus`, `centerRequest` ; `useElementSize`), `useHeldPanKeys` (Espace / Alt), `useStageDropTargets` (les trois registres mono-locataires + ancre de collage), `StageContextMenu` (menu contextuel branché sur les commandes canvas). Ce que seule la planche possède vit dans `BoardChrome.tsx` : `BoardChrome` (état vide, contrôles de groupe, minimap), `BoardGroupsLayer`, `useBoardCreation` + `BoardCreationDialogs` (créer « ici »). Le focus n'en monte rien ; `Stage` ne garde que le noyau commun (~400 lignes).
+
+Depuis le 2026-10-16 (MenuGroup était remonté à 855 lignes, un composant de 772) : `menuSlots.ts` (pur, testé : `resolveMenuSlots` — contenu de chaque slot, itération paginée, placements, fanout — `paginationContext`, `edgeTriggerPositions`), `useSlotPointer.ts` (clic / tap sur un slot : dépôt de la ligne de placement armée ou du matériau armé, sinon sélection), `useMenuPreviewSnapshots.ts` (snapshots live des sources du menu), `MenuBackground.tsx` (texture vanilla / fenêtre transparente), `SlotDragGhosts.tsx`. `MenuGroup` : 397 lignes.
+
+Note : cible ≤250 pour Stage non atteinte (399) — le noyau commun planche / focus y reste.
 
 ### Clic droit et sélection multiple (depuis 2026-10-05)
 
@@ -640,7 +671,7 @@ Le clic dépend du mode, via la prop optionnelle `onOpen` : sur la **planche**, 
 
 `features/project/goToDocument.ts` est la **seule** façon d'aller à un Document depuis l'arbre (gauche et droite), la palette ⌘K et la planche générale. Dans le project courant, il **reste sur la planche** : sélection du Document (l'inspecteur s'ouvre), puis `uiStore.requestCenter(projectId, docId)` et retour à la planche (on quitte la vue focus ou un onglet). Le `Stage` de la planche consomme la demande (`viewportForCenterRequest` → `centerViewport`, même cadrage que `fitViewport` mais à la position du Document, jamais au-delà de 1:1) dès qu'il a une taille et que le Document est placé, puis l'efface ; le `nonce` fait qu'un second clic sur le même Document recentre. `centerRequest` est éphémère (hors `partialize`).
 
-Vers un autre project (référence qualifiée `boutique:main`, arbre d'un autre project, planche générale), la navigation passe par le **lien profond `?doc=<id>`** (`ProjectSearch.doc`) : `ProjectCanvasPage` le transforme en `goToDocument` une fois le project chargé, ce qui retire le paramètre de l'URL.
+Vers un autre project (référence qualifiée `boutique:main`, arbre d'un autre project, planche générale), la navigation passe par le **lien profond `?doc=<id>`** (`ProjectSearch.doc`) : `ProjectCanvasPage` (hook `useProjectDeepLinks`) le transforme en `goToDocument` une fois le project chargé, ce qui retire le paramètre de l'URL.
 
 ### Entrées dans la vue individuelle
 

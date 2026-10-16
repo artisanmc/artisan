@@ -63,7 +63,7 @@ vi.mock("@/features/project/useProjectLoader", () => ({
     },
   }),
 }));
-vi.mock("@/components/ProjectTopBarControls", () => ({
+vi.mock("@/features/project/ProjectTopBarControls", () => ({
   ProjectTopBarControls: () => <div data-testid="topbar" />,
 }));
 vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div data-testid="stage" /> }));
