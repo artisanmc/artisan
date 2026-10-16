@@ -1,3 +1,4 @@
+import { menusOf } from "@/domain/documents";
 // Item templates were a PROJECT-level shared view (`templates/<id>.yaml`) that
 // menu elements bound to by ref. They are gone: a set now lives entirely on the
 // element that renders it, in the menu it belongs to. This suite locks the
@@ -10,10 +11,9 @@
 // would strip the translation off the second. Each element must get its own
 // clone AND its own duplicated i18n entries.
 import type { I18nKey, ProjectId } from "@/domain/types";
-import { transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
 import { projectFromFiles } from "./projectFromFiles";
-import { menusOf } from "@/domain/documents";
+import { projectToFiles } from "./projectToFiles";
 
 const PID = "p_mig" as ProjectId;
 const base = `plugins/Artisan/projects/${PID}`;
@@ -179,7 +179,7 @@ describe("legacy templates/ migration", () => {
   });
 
   it("never writes templates/ back out", () => {
-    const files = transform(projectFromFiles(PID, legacyFiles()));
+    const files = projectToFiles(projectFromFiles(PID, legacyFiles()));
 
     expect(Object.keys(files).filter((f) => f.includes("/templates/"))).toEqual([]);
     expect(files[`${base}/menus/m1.yaml`]).not.toContain("template:");

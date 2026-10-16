@@ -58,7 +58,7 @@ export async function planWrite(
 }
 
 /**
- * `transform()` produces canonical paths
+ * `projectToFiles()` produces canonical paths
  * (`plugins/Artisan/projects/<diskId>/<rel>`); the plugin protocol speaks in
  * project-relative paths. Anything outside the project is dropped — a write
  * never leaves its own tree.
