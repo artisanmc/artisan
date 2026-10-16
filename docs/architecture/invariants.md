@@ -135,7 +135,7 @@ Rien de bloquant dans `onEnable` ni sur le thread global après lui (issue #42) 
 
 - La base de la suite (pool, migrations et leur `GET_LOCK`, enregistrement dans
   `artisan_servers`, import H2 → MySQL) s'ouvre sur le thread `Artisan-versions`
-  (`ArtisanPlugin.openSuiteDatabase`), en tête de file : la première Version, mise en file par
+  (`SuiteDatabase.open`, `paper`), en tête de file : la première Version, mise en file par
   le premier chargement, la trouve ouverte. Tant qu'elle ne l'est pas, le hub le dit plutôt que
   de servir du vide (`LateSuiteData`) : Versions et états chargés absents (les routes relaient
   au serveur, comme sans base), brouillons refusés `storage_error` 503 (l'éditeur réessaie),
