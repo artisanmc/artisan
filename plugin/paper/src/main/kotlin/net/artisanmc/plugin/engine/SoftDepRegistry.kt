@@ -1,5 +1,7 @@
 package net.artisanmc.plugin.engine
 
+import net.artisanmc.plugin.customitems.CustomItemPlugin
+import net.artisanmc.plugin.customitems.CustomItemPlugins
 import net.milkbowl.vault.economy.Economy
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
@@ -63,63 +65,6 @@ class WorldGuardProvider {
     }
 }
 
-class NexoItemRenderer {
-    fun buildStack(id: String, count: Int): ItemStack? = runCatching {
-        val nexoItems = Class.forName("com.nexomc.nexo.api.NexoItems")
-        val builder = nexoItems.getMethod("itemFromId", String::class.java).invoke(null, id)
-            ?: return@runCatching null
-        (builder.javaClass.getMethod("getFinalItemStack").invoke(builder) as ItemStack)
-            .clone().also { it.amount = count.coerceAtLeast(1) }
-    }.getOrNull()
-
-    /** Reverse lookup: the Nexo id of an arbitrary stack, or null (capture enrichment). */
-    fun idFrom(stack: ItemStack): String? = runCatching {
-        val nexoItems = Class.forName("com.nexomc.nexo.api.NexoItems")
-        nexoItems.getMethod("idFromItem", ItemStack::class.java).invoke(null, stack) as? String
-    }.getOrNull()
-
-    companion object {
-        fun tryInit(): NexoItemRenderer? = runCatching {
-            Class.forName("com.nexomc.nexo.api.NexoItems")
-            NexoItemRenderer()
-        }.getOrNull()
-    }
-}
-
-class OraxenItemRenderer {
-    fun buildStack(id: String, count: Int): ItemStack? = runCatching {
-        val oraxenItems = Class.forName("io.th0rgal.oraxen.api.OraxenItems")
-        val builder = oraxenItems.getMethod("getItemById", String::class.java).invoke(null, id)
-            ?: return@runCatching null
-        (builder.javaClass.getMethod("build").invoke(builder) as ItemStack)
-            .also { it.amount = count.coerceAtLeast(1) }
-    }.getOrNull()
-
-    companion object {
-        fun tryInit(): OraxenItemRenderer? = runCatching {
-            Class.forName("io.th0rgal.oraxen.api.OraxenItems")
-            OraxenItemRenderer()
-        }.getOrNull()
-    }
-}
-
-class ItemsAdderItemRenderer {
-    fun buildStack(id: String, count: Int): ItemStack? = runCatching {
-        val customStack = Class.forName("dev.lone.itemsadder.api.CustomStack")
-        val instance = customStack.getMethod("getInstance", String::class.java).invoke(null, id)
-            ?: return@runCatching null
-        (instance.javaClass.getMethod("getItemStack").invoke(instance) as ItemStack)
-            .clone().also { it.amount = count.coerceAtLeast(1) }
-    }.getOrNull()
-
-    companion object {
-        fun tryInit(): ItemsAdderItemRenderer? = runCatching {
-            Class.forName("dev.lone.itemsadder.api.CustomStack")
-            ItemsAdderItemRenderer()
-        }.getOrNull()
-    }
-}
-
 class HeadDatabaseRenderer {
     fun buildStack(id: String, count: Int): ItemStack? = runCatching {
         val apiClass = Class.forName("me.arcaniax.hdb.api.HeadDatabaseAPI")
@@ -140,9 +85,8 @@ class SoftDepRegistry(
     val vault: VaultProvider?,
     val papi: PapiProvider?,
     val worldGuard: WorldGuardProvider?,
-    val nexoItems: NexoItemRenderer?,
-    val oraxenItems: OraxenItemRenderer?,
-    val itemsAdderItems: ItemsAdderItemRenderer?,
+    /** The custom-items plugins whose API loads, building their `<namespace>:<id>` materials. */
+    val customItems: List<CustomItemPlugin> = emptyList(),
     val hdbHeads: HeadDatabaseRenderer? = null,
     /** Captured project items (`item:<id>` refs) — exact deserialized stacks. */
     val capturedItems: net.artisanmc.plugin.items.CapturedItemStore? = null,
@@ -156,9 +100,7 @@ class SoftDepRegistry(
         vault           = VaultProvider.tryInit(plugin),
         papi            = PapiProvider.tryInit().let { placeholders?.pipeline(it) ?: it },
         worldGuard      = WorldGuardProvider.tryInit(),
-        nexoItems       = NexoItemRenderer.tryInit(),
-        oraxenItems     = OraxenItemRenderer.tryInit(),
-        itemsAdderItems = ItemsAdderItemRenderer.tryInit(),
+        customItems     = CustomItemPlugins.withApi(),
         hdbHeads        = HeadDatabaseRenderer.tryInit(),
         capturedItems   = capturedItems,
     )
@@ -169,21 +111,17 @@ class SoftDepRegistry(
         val ns = material.substring(0, colon)
         val id = material.substring(colon + 1)
         return when (ns) {
-            "nexo"       -> nexoItems?.buildStack(id, count)
-            "oraxen"     -> oraxenItems?.buildStack(id, count)
-            "itemsadder" -> itemsAdderItems?.buildStack(id, count)
             // Captured item: the exact stored stack. The appearance count only
             // overrides when explicitly > 1 — otherwise the captured amount
             // (e.g. a 5-key bundle) is the intent.
             "item"       -> capturedItems?.resolve(id)?.also { if (count > 1) it.amount = count }
-            else         -> null
+            else         -> customItems.firstOrNull { it.namespace == ns }?.buildStack(id, count)
         }
     }
 
     companion object {
         val EMPTY = SoftDepRegistry(
             vault = null, papi = null, worldGuard = null,
-            nexoItems = null, oraxenItems = null, itemsAdderItems = null,
             hdbHeads = null,
         )
     }

@@ -77,12 +77,12 @@ class ProjectDataSourceTest {
               motd: sources.settings.motd
             """.trimIndent(),
         )
-        File(dir, "data/broken.yaml").writeText("schema: data/v99\nid: broken\n")
         return root
     }
 
     @Test
-    fun `reader parses data sources and skips unsupported schema versions`() {
+    // An unsupported schema version is loud instead (ProjectReaderTest).
+    fun `reader parses data sources`() {
         val bundles = ProjectReader(writeTempProject()).readAll()
         val bundle = bundles.single()
         assertEquals(listOf("ranks", "settings"), bundle.dataSources.map { it.id }.sorted())
@@ -151,6 +151,45 @@ class ProjectDataSourceTest {
         @Suppress("UNCHECKED_CAST")
         val value = resolver.resolve("pack:settings", "en") as Map<String, Any?>
         assertEquals("coins", value["currency"])
+    }
+
+    private fun configProject(projectId: String, sourceId: String, owner: String) = ProjectBundle(
+        projectId, "en", listOf("en"),
+        dataSources = listOf(
+            BundleDataSource(DataSourceYaml(id = sourceId, shape = "config", value = mapOf("owner" to owner)), emptyMap()),
+        ),
+    )
+
+    private fun ownerOf(resolver: ProjectDataResolver, ref: String, from: String?): Any? =
+        (resolver.resolve(ref, "en", from) as? Map<*, *>)?.get("owner")
+
+    @Test
+    fun `resolver looks in the calling Project first`() {
+        // Two Projects with the same data/items.yaml (an add-on's Project beside an
+        // admin one): each menu reads its own, not the first Project loaded.
+        val resolver = ProjectDataResolver { listOf(configProject("a", "items", "a"), configProject("b", "items", "b")) }
+        assertEquals("a", ownerOf(resolver, "pack:items", "a"))
+        assertEquals("b", ownerOf(resolver, "pack:items", "b"))
+    }
+
+    @Test
+    fun `resolver falls back to the server, first loaded wins when ambiguous`() {
+        val resolver = ProjectDataResolver {
+            listOf(configProject("a", "items", "a"), configProject("b", "items", "b"), configProject("c", "only_c", "c"))
+        }
+        assertEquals("c", ownerOf(resolver, "pack:only_c", "a"))
+        assertEquals("a", ownerOf(resolver, "pack:items", "c"))
+        assertEquals("a", ownerOf(resolver, "pack:items", null))
+        assertNull(resolver.resolve("pack:a:items", "en", "b")) // no qualified form
+    }
+
+    @Test
+    fun `resolver follows a reload that swaps the bundle list`() {
+        var bundles = listOf(configProject("a", "items", "old"))
+        val resolver = ProjectDataResolver { bundles }
+        assertEquals("old", ownerOf(resolver, "pack:items", "a"))
+        bundles = listOf(configProject("a", "items", "new"))
+        assertEquals("new", ownerOf(resolver, "pack:items", "a"))
     }
 
     @Test
