@@ -59,6 +59,12 @@ export const TEXTURE_URLS: Record<"generic_54" | "hopper" | "dispenser", string>
 
 export const COMMAND_BOX = { width: 140, height: 48 };
 export const DIALOG_BOX = { width: 140, height: 60 };
+/** The box of a Document whose kind declares no `board.size`. */
+export const DOCUMENT_BOX = { width: 140, height: 48 };
+
+/** The box of a Document of a module's kind: its contribution's `board.size`, else the default. */
+export const documentBoxSize = (kind: string): { width: number; height: number } =>
+  documentKindContribution(kind)?.board?.size ?? DOCUMENT_BOX;
 
 export const menuBoxSize = (type: InventoryType, rows: number) => {
   const fixedH = INVENTORY_TYPES[type].boxHeight;
@@ -71,7 +77,8 @@ export const menuBoxSize = (type: InventoryType, rows: number) => {
 
 /**
  * Canvas bounding box for a node id, or null if it has no layout position.
- * Type-dispatched: menu → menuBoxSize(rows), command → COMMAND_BOX, dialog → DIALOG_BOX.
+ * Type-dispatched: menu → menuBoxSize(rows), command → COMMAND_BOX, dialog → DIALOG_BOX,
+ * any other kind → its contribution's `board.size` (else DOCUMENT_BOX).
  * Shared by Edges.tsx (box map) and GhostChips.tsx (chip anchor) to keep sizing in sync.
  */
 export function nodeBox(
@@ -85,6 +92,8 @@ export function nodeBox(
   if (menu) return { ...pos, ...menuBoxSize(menu.inventoryType ?? "chest", menu.rows) };
   if (commandsOf(project).some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
   if (dialogsOf(project).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
+  const other = findDocument(project, id);
+  if (other) return { ...pos, ...documentBoxSize(other.kind) };
   return null;
 }
 
@@ -128,7 +137,8 @@ export const singleBackgroundCrop = (type: InventoryType) => ({
 });
 
 export { slotCount } from "./inventoryTypes";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { commandsOf, dialogsOf, findDocument, menusOf } from "@/domain/documents";
+import { documentKindContribution } from "@artisan/editor-sdk";
 
 /**
  * Faint guides for a menu whose vanilla texture is off (`vanilla_texture:

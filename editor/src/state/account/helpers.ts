@@ -1,4 +1,6 @@
+import { isLTextNode, walkStepTextSlots } from "@/domain/actionTextSlots";
 import { normalizeDataSourceName } from "@/domain/dataModels";
+import { commandsOf, menusOf } from "@/domain/documents";
 import { appearanceAt } from "@/domain/element";
 import {
   mintLTexts,
@@ -12,7 +14,6 @@ import {
   visitMenuLTexts,
   visitStepLTexts,
 } from "@/domain/i18nSites";
-import { isLTextNode, walkStepTextSlots } from "@/domain/actionTextSlots";
 import type {
   Appearance,
   ClickType,
@@ -22,7 +23,6 @@ import type {
   DataSource,
   DataSourceId,
   Dialog,
-  Document,
   Element,
   ElementId,
   I18nKey,
@@ -37,7 +37,6 @@ import { createLText } from "@/lib/i18n";
 import { clickHandlerKeyPrefix, elementLoreKey, elementTitleKey } from "@/lib/i18nKeys";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import type { AccountState, AppearanceTarget } from "./types";
-import { commandsOf, menusOf } from "@/domain/documents";
 
 /**
  * Helpers shared by the account slices: they walk the immer draft and return live
@@ -342,13 +341,5 @@ export function rewriteCanvasEdgeIds(project: Project, oldId: string, newId: str
   }
 }
 
-/**
- * Releases the text a document owns before it leaves the project. The core
- * kinds are the ones with text in `i18nKeys`; a kind of another module keeps
- * its text in its own files.
- */
-export function gcDocumentLTexts(project: Project, kind: string, doc: Document): void {
-  if (kind === "menu") gcMenuLTexts(project, doc as Menu);
-  else if (kind === "command") gcCommandLTexts(project, doc as Command);
-  else if (kind === "dialog") gcDialogLTexts(project, doc as Dialog);
-}
+/** Releases the text a Document owns before it leaves the project, through its kind's visitor. */
+export { gcDocumentLTexts } from "@/domain/i18nSites";

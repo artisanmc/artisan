@@ -1,4 +1,5 @@
 import type { FrontendModule } from "@artisan/editor-sdk";
+import { menuKind } from "./menuKind";
 
 /**
  * V1 editor MenusModule — wraps the existing project/menu editing routes.
@@ -17,4 +18,5 @@ export const menusModule: FrontendModule = {
     to: "/",
   },
   routes: [],
+  documents: [menuKind],
 };

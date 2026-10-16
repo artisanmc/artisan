@@ -280,14 +280,17 @@ const fr: typeof en = {
     description: "description",
     descriptionPlaceholder: "(aucune)",
     loreMaxWidth: "largeur max du lore (px)",
-    loreMaxWidthHint: "Au-delà, les lignes du lore passent à la ligne, en jeu comme dans l'aperçu. ~6 px par caractère, 0 = jamais.",
+    loreMaxWidthHint:
+      "Au-delà, les lignes du lore passent à la ligne, en jeu comme dans l'aperçu. ~6 px par caractère, 0 = jamais.",
     escapeGoesBack: "Échap revient en arrière",
-    escapeGoesBackHint: "Échap dans un menu rouvre l'écran précédent, comme un bouton retour. Sur le premier menu, Échap ferme.",
+    escapeGoesBackHint:
+      "Échap dans un menu rouvre l'écran précédent, comme un bouton retour. Sur le premier menu, Échap ferme.",
     sourceUser: "perso",
     sourceImported: "importé",
     sourceForked: "forké",
     newMenu: "Nouveau menu",
     create: "Créer un document",
+    newDocument: "Nouveau · {{kind}}",
     newCommand: "Nouvelle commande",
     newDialog: "Nouveau dialogue",
     countAssets: "{{assets}} {{assetsPlural}}",
@@ -305,7 +308,8 @@ const fr: typeof en = {
     deleting: "Suppression…",
     errors: {
       server_offline: "Le serveur est hors ligne. Connectez-le pour supprimer le projet.",
-      fetch_timeout: "Le serveur n'a pas répondu à temps. Vérifiez la liste des projets avant de réessayer.",
+      fetch_timeout:
+        "Le serveur n'a pas répondu à temps. Vérifiez la liste des projets avant de réessayer.",
       plugin_update_required:
         "Ce serveur utilise une version plus ancienne d'Artisan. Mettez son plugin à jour pour supprimer des projets.",
       addon_immutable: "Ce projet est géré par un add-on et ne peut pas être supprimé.",
@@ -439,7 +443,8 @@ const fr: typeof en = {
     openPreviousMenuLabel:
       "Revient à l'écran précédent (bouton retour). Sans effet s'il n'y a pas d'historique.",
     moduleValueLabel: "arguments (JSON)",
-    moduleUnknown: "Cette action n'est pas déclarée par le serveur connecté : ses arguments s'éditent en JSON brut.",
+    moduleUnknown:
+      "Cette action n'est pas déclarée par le serveur connecté : ses arguments s'éditent en JSON brut.",
     moduleAddText: "Ajouter un texte",
     moduleValueInvalid: "JSON invalide : la valeur n'a pas été modifiée.",
     moduleAction: "Action de module",
@@ -513,13 +518,35 @@ const fr: typeof en = {
     },
     enum: { player: "joueur", console: "console" },
     args: {
-      open_menu: { menu_id: "menu cible", context: "contexte à transmettre", clear_context: "vider le contexte", close_current: "fermer le menu courant" },
-      open_dialog: { dialog_id: "dialogue cible", context: "contexte à transmettre", clear_context: "vider le contexte" },
+      open_menu: {
+        menu_id: "menu cible",
+        context: "contexte à transmettre",
+        clear_context: "vider le contexte",
+        close_current: "fermer le menu courant",
+      },
+      open_dialog: {
+        dialog_id: "dialogue cible",
+        context: "contexte à transmettre",
+        clear_context: "vider le contexte",
+      },
       run_command: { command: "commande", as: "exécuter en tant que" },
       send_message: { text: "texte (MiniMessage)" },
       broadcast: { text: "texte (MiniMessage)" },
-      show_title: { title: "titre (MiniMessage)", subtitle: "sous-titre (MiniMessage)", fade_in: "apparition (ticks)", stay: "maintien (ticks)", fade_out: "disparition (ticks)" },
-      give_item: { material: "matériau", count: "quantité", nbt: "NBT", name: "nom de l'objet", lore: "description", lore_mode: "mode de description" },
+      show_title: {
+        title: "titre (MiniMessage)",
+        subtitle: "sous-titre (MiniMessage)",
+        fade_in: "apparition (ticks)",
+        stay: "maintien (ticks)",
+        fade_out: "disparition (ticks)",
+      },
+      give_item: {
+        material: "matériau",
+        count: "quantité",
+        nbt: "NBT",
+        name: "nom de l'objet",
+        lore: "description",
+        lore_mode: "mode de description",
+      },
       take_item: { material: "matériau", count: "quantité", nbt: "NBT" },
       give_money: { amount: "montant", currency: "monnaie" },
       take_money: { amount: "montant", currency: "monnaie" },
@@ -530,15 +557,23 @@ const fr: typeof en = {
       pagination_next: { element_id: "cible" },
       pagination_prev: { element_id: "cible" },
       set_arg: { arg: "entrée de contexte à modifier", value: "nouvelle valeur (expression)" },
-      set_arg_cycle_next: { arg: "entrée de contexte à faire défiler", list: "liste à parcourir (expression)" },
-      set_arg_cycle_prev: { arg: "entrée de contexte à faire défiler", list: "liste à parcourir (expression)" },
+      set_arg_cycle_next: {
+        arg: "entrée de contexte à faire défiler",
+        list: "liste à parcourir (expression)",
+      },
+      set_arg_cycle_prev: {
+        arg: "entrée de contexte à faire défiler",
+        list: "liste à parcourir (expression)",
+      },
       run_actions: { actions: "actions à exécuter" },
     },
     help: {
       open_menu: { clear_context: "Oublie l'historique du menu parent." },
       open_dialog: { clear_context: "Oublie l'historique du menu parent." },
       run_command: { command: "Sans slash initial — le runtime l'ajoute." },
-      show_title: { fade_out: "20 ticks = 1 seconde. Laisser vide pour les valeurs vanilla (10/70/20)." },
+      show_title: {
+        fade_out: "20 ticks = 1 seconde. Laisser vide pour les valeurs vanilla (10/70/20).",
+      },
       play_sound: { sound: "Nom de Sound Bukkit (ex. ENTITY_PLAYER_LEVELUP)." },
       pagination_next: {
         element_id:
@@ -548,10 +583,19 @@ const fr: typeof en = {
         element_id:
           "Laisser sur « Tous » pour un menu à une seule liste. Choisir un élément quand plusieurs itérables coexistent avec leur propre pagination.",
       },
-      set_arg: { value: "Une expression — les chaînes entre guillemets (ex. \"weapon\"), les nombres sans (ex. 5)." },
-      set_arg_cycle_next: { list: "Expression évaluée en liste — typiquement un nom d'entrée de contexte comme categories ou quest.tags." },
-      set_arg_cycle_prev: { list: "Expression évaluée en liste — typiquement un nom d'entrée de contexte comme categories ou quest.tags." },
-      run_actions: { actions: "Une expression désignant un champ actions (ex. item.on_buy). Exécuté en ligne." },
+      set_arg: {
+        value:
+          'Une expression — les chaînes entre guillemets (ex. "weapon"), les nombres sans (ex. 5).',
+      },
+      set_arg_cycle_next: {
+        list: "Expression évaluée en liste — typiquement un nom d'entrée de contexte comme categories ou quest.tags.",
+      },
+      set_arg_cycle_prev: {
+        list: "Expression évaluée en liste — typiquement un nom d'entrée de contexte comme categories ou quest.tags.",
+      },
+      run_actions: {
+        actions: "Une expression désignant un champ actions (ex. item.on_buy). Exécuté en ligne.",
+      },
     },
   },
   itemBinding: {
@@ -802,6 +846,7 @@ const fr: typeof en = {
     unavailable: "Catalogue indisponible — serveur hors ligne",
   },
   projectPanel: {
+    noEditor: "Pas encore d'éditeur pour ce {{kind}}",
     menus: "Menus",
     commands: "Commandes",
     dialogs: "Dialogs",
@@ -1000,6 +1045,7 @@ const fr: typeof en = {
     newMenuHere: "Nouveau menu ici",
     pasteHere: "Coller ici",
     newCommandHere: "Nouvelle commande ici",
+    newDocumentDialogTitle: "Nouveau · {{kind}}",
     newDialogDialogTitle: "Nouveau dialogue",
     newMenuDialogTitle: "Nouveau menu",
     newCommandDialogTitle: "Nouvelle commande",
@@ -1054,7 +1100,8 @@ const fr: typeof en = {
   layerEditForm: {
     emptySelection: "Sélectionne un élément pour modifier ses détails",
     plainHint: "Titre vanilla — aucun resource project requis. MiniMessage supporté",
-    plainHintFont: "Titre vanilla — aucun resource project requis. Le texte s'affiche avec la police MC par défaut. MiniMessage supporté",
+    plainHintFont:
+      "Titre vanilla — aucun resource project requis. Le texte s'affiche avec la police MC par défaut. MiniMessage supporté",
     plainLabel: "Titre (MiniMessage) — {{lang}}",
     preview: "Aperçu",
     imageMissing: "<image manquante>",
@@ -1063,7 +1110,8 @@ const fr: typeof en = {
     pickerTitle: "Choisir une image",
     duplicateImage: "Dupliquer l'image",
     duplicating: "Duplication…",
-    duplicateConfirm: "Dupliquer cette image pour ce menu uniquement ? Les autres menus garderont l'originale.",
+    duplicateConfirm:
+      "Dupliquer cette image pour ce menu uniquement ? Les autres menus garderont l'originale.",
     provider: "Provider",
     glyphName: "Glyph name",
     textLabel: "Texte (MiniMessage, multi-ligne) — {{lang}}",
@@ -1343,18 +1391,23 @@ const fr: typeof en = {
   },
   adminDesign: {
     specimens: {
-      skeletonHint: "À la forme de ce qui va s'afficher : la mise en page ne saute pas quand les données arrivent. Pour une attente courte et localisée, préférer <Spinner>.",
+      skeletonHint:
+        "À la forme de ce qui va s'afficher : la mise en page ne saute pas quand les données arrivent. Pour une attente courte et localisée, préférer <Spinner>.",
       spinnerLabel: "Lecture des fichiers du serveur…",
-      spinnerHint: "Toujours accompagné de ce qu'on attend : un rond qui tourne seul n'informe de rien.",
+      spinnerHint:
+        "Toujours accompagné de ce qu'on attend : un rond qui tourne seul n'informe de rien.",
       collapsibleTitle: "Paramètres avancés",
       collapsibleBody: "Contenu démonté tant que la section est repliée.",
       collapsibleOpenTitle: "Section ouverte par défaut",
-      workspaceViewBody: "Vue de travail qui remplace le canvas dans la zone centrale (panneau opaque, keep-alive). Le canvas reste monté dessous — jamais display:none. Échap / × reviennent au canvas.",
+      workspaceViewBody:
+        "Vue de travail qui remplace le canvas dans la zone centrale (panneau opaque, keep-alive). Le canvas reste monté dessous — jamais display:none. Échap / × reviennent au canvas.",
       applyToAll: "Appliquer à tous",
       disabled: "Désactivé",
-      checkboxHint: "Pour un état de formulaire confirmé explicitement. Un réglage persistant qui change le résultat en jeu garde <Switch>.",
+      checkboxHint:
+        "Pour un état de formulaire confirmé explicitement. Un réglage persistant qui change le résultat en jeu garde <Switch>.",
       defaultTexture: "Texture par défaut",
-      switchHint: "Pour un réglage enregistré qui change le résultat en jeu. Un masquage d'aperçu garde l'œil.",
+      switchHint:
+        "Pour un réglage enregistré qui change le résultat en jeu. Un masquage d'aperçu garde l'œil.",
     },
     title: "Design system",
     intro:
@@ -1526,7 +1579,8 @@ const fr: typeof en = {
     deploying: "Déploiement…",
     deployTitle: "Relire puis écrire les changements sur le serveur",
     nothing: "Rien à déployer",
-    offline: "Le serveur est hors ligne : la publication attend son retour. Ton brouillon reste modifiable.",
+    offline:
+      "Le serveur est hors ligne : la publication attend son retour. Ton brouillon reste modifiable.",
     cannotDeployTitle: "Serveur inconnu — impossible de déployer",
     deployed: "Déployé sur le serveur",
     packFailed: "Le resource pack n’a pas pu être reconstruit ; les joueurs gardent le précédent.",
@@ -1643,7 +1697,8 @@ const fr: typeof en = {
     noProjects: "Aucun projet sur ce serveur.",
     loadingProjects: "Chargement des projets…",
     projectsUnavailable: "Serveur injoignable — impossible de lister ses projets.",
-    serverOffline: "Ce serveur est hors ligne — ses projets s'afficheront dès qu'il se reconnectera.",
+    serverOffline:
+      "Ce serveur est hors ligne — ses projets s'afficheront dès qu'il se reconnectera.",
     updateRequired:
       "Le plugin Artisan de ce serveur n'est pas compatible avec celui du hub. Mets-le à jour pour éditer ce serveur.",
     documentCount_one: "{{count}} élément",
