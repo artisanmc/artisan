@@ -31,12 +31,13 @@ class ProjectContentReader(
     override fun list(projectId: String, dir: String): List<String> = synchronized(roots) {
         val root = resolve(projectId, dir) ?: return emptyList()
         if (!root.isDirectory) return emptyList()
+        // The metadata rule reads paths from the Project's folder, not from `dir`.
+        val projectRoot = roots.all()[projectId] ?: return emptyList()
         return root.walkTopDown()
             .onEnter { !java.nio.file.Files.isSymbolicLink(it.toPath()) }
             .filter { file ->
-                file.isFile && !java.nio.file.Files.isSymbolicLink(file.toPath()) && !file.relativeTo(root).path
-                    .split('/', '\\')
-                    .any { it.startsWith(".artisan", ignoreCase = true) }
+                file.isFile && !java.nio.file.Files.isSymbolicLink(file.toPath()) &&
+                    !ProjectMetadataPaths.isHiddenFromContent(file.relativeTo(projectRoot).invariantSeparatorsPath)
             }
             .map { it.relativeTo(root).path.replace('\\', '/') }
             .sorted()
@@ -53,7 +54,7 @@ class ProjectContentReader(
     /** Rejects traversal out of the project ('..', separators in the id) and the .artisan* namespace. */
     private fun resolve(projectId: String, relPath: String): File? {
         if (!ProjectPathPolicy.valid(projectId) || projectId.contains('/') || projectId.startsWith('.')) return null
-        if (ProjectPathPolicy.isPrivate(relPath) || relPath.split('/', '\\').any { it.startsWith(".artisan", ignoreCase = true) }) return null
+        if (ProjectMetadataPaths.isHiddenFromContent(relPath)) return null
         return runCatching {
             val projectRoot = roots.all()[projectId] ?: return null
             if (relPath.isEmpty()) projectRoot else ProjectPathPolicy.resolve(projectRoot, relPath)
