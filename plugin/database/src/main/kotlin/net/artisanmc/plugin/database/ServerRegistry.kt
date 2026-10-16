@@ -56,13 +56,13 @@ class ServerRegistry(
         }
     }
 
-    /** The `artisan_servers.id` of a server id, or of a server name. */
-    fun rowId(id: UUID): Int? = dataSource.connection.use { c -> rowId(c, "uuid = ?", id.toString()) }
-    fun rowId(name: String): Int? = dataSource.connection.use { c -> rowId(c, "LOWER(name) = LOWER(?)", name) }
+    /** The [ServerRow] of a server id, or of a server name. */
+    fun rowId(id: UUID): ServerRow? = dataSource.connection.use { c -> rowId(c, "uuid = ?", id.toString()) }
+    fun rowId(name: String): ServerRow? = dataSource.connection.use { c -> rowId(c, "LOWER(name) = LOWER(?)", name) }
 
-    private fun rowId(c: java.sql.Connection, where: String, value: String): Int? =
+    private fun rowId(c: java.sql.Connection, where: String, value: String): ServerRow? =
         c.prepareStatement("SELECT id FROM artisan_servers WHERE $where").use { s ->
-            s.setString(1, value); s.executeQuery().use { if (it.next()) it.getInt(1) else null }
+            s.setString(1, value); s.executeQuery().use { if (it.next()) ServerRow(it.getInt(1)) else null }
         }
 
     /** A clean stop: the server id may come back under another name at once. */
