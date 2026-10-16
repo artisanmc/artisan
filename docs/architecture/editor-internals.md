@@ -376,6 +376,8 @@ Avant `FrontendModule.localPreviewRows`, l'hôte résout les `LText` des `dataSo
 
 `features/canvas/Stage.tsx` (528 → 351 lignes) éclaté : `ArmedBanner.tsx`, `useStageTouch.ts` (long-press → context menu), `useStageContextMenu.ts`.
 
+Depuis le 2026-10-16 (Stage était remonté à 791 lignes) : `useStageBoard` (table `layout` planche / focus + glissement de groupe), `useStageFraming` (viewport restauré, persisté, cadrage focus `refitFocus`, `centerRequest` ; `useElementSize`), `useHeldPanKeys` (Espace / Alt), `useStageDropTargets` (les trois registres mono-locataires + ancre de collage), `StageContextMenu` (menu contextuel branché sur les commandes canvas). Ce que seule la planche possède vit dans `BoardChrome.tsx` : `BoardChrome` (état vide, contrôles de groupe, minimap), `BoardGroupsLayer`, `useBoardCreation` + `BoardCreationDialogs` (créer « ici »). Le focus n'en monte rien ; `Stage` ne garde que le noyau commun (~400 lignes).
+
 Note : cibles de taille (≤400/≤250) pas entièrement atteintes (MenuGroup 591, Stage 351) — split supplémentaire différé.
 
 ### Clic droit et sélection multiple (depuis 2026-10-05)
