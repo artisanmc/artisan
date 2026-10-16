@@ -1,6 +1,6 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.plugin.render.LenientText
+import net.artisanmc.plugin.text.LenientText
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
