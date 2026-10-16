@@ -51,7 +51,7 @@ class ProjectRootsTest {
     @Test fun `the key is metadata, outside the project hash`() {
         roots.key("user_proj")
         assertTrue(File(coreRoot, "user_proj/.artisan/project-id").isFile)
-        assertTrue(net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(".artisan/project-id"))
+        assertTrue(net.artisanmc.plugin.project.ContentHash.isArtisanMeta(".artisan/project-id"))
     }
 
     @Test fun `an add-on root reports the module that owns it`() {

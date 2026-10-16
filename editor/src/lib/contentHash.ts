@@ -4,7 +4,7 @@ import { sha256Hex } from "./sha256";
  * SHA-256 of a file's content, lowercase hex.
  *
  * The save's compare-and-swap token (ADR `server-disk-only-storage`): exact
- * mirror of the plugin's `BundleHasher.hashContent`. Unrelated to the tree
+ * mirror of the plugin's `ContentHash.hashContent`. Unrelated to the tree
  * hash — no key, no sorting, just the UTF-8 content.
  */
 export async function hashContent(content: string): Promise<string> {
@@ -14,7 +14,7 @@ export async function hashContent(content: string): Promise<string> {
 /**
  * SHA-256 of a binary file's bytes (image, font), lowercase hex.
  *
- * Mirror of the plugin's `BundleHasher.hashBytes`, and of an asset's `hash`
+ * Mirror of the plugin's `ContentHash.hashBytes`, and of an asset's `hash`
  * metadata: the identity of a binary in the trees (disk, mirror, draft).
  */
 export async function hashBytes(bytes: Uint8Array): Promise<string> {

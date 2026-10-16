@@ -6,17 +6,17 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption.*
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 
 /** Caller holds ProjectRoots' monitor. Replay finishes an accepted lot before any runtime read. */
 class ProjectPublisher(private val root: File, private val afterApply: (Int) -> Unit = {}) {
     private val mapper = ObjectMapper()
-    private fun journal(id: String) = ProjectPathPolicy.resolve(root, ".artisan/transactions/${BundleHasher.hashContent(id)}")
+    private fun journal(id: String) = ProjectPathPolicy.resolve(root, ".artisan/transactions/${ContentHash.hashContent(id)}")
     private fun receipt(key: String) = ProjectPathPolicy.resolve(root, ".artisan/transactions/.receipts/$key/intent.json")
     private fun journalFile(dir: File, name: String) = ProjectPathPolicy.resolve(root, "${dir.relativeTo(root).invariantSeparatorsPath}/$name")
 
     fun previous(id: String, fingerprint: String): JsonNode? {
-        val archived = receipt(BundleHasher.hashContent(id))
+        val archived = receipt(ContentHash.hashContent(id))
         val file = if (archived.isFile) archived else journalFile(journal(id), "intent.json")
         if (!file.isFile) return null
         val intent = mapper.readTree(file)
@@ -73,7 +73,7 @@ class ProjectPublisher(private val root: File, private val afterApply: (Int) -> 
         val revocations = ProjectPathPolicy.resolve(root, ".artisan/drafts/.revoked")
         revocations.listFiles()?.filter { it.isFile }?.forEach { marker ->
             val owner = ProjectPathPolicy.resolve(root, ".artisan/drafts/.revoked/${marker.name}").readText()
-            require(BundleHasher.hashContent(owner) == marker.name) { "invalid_revocation" }
+            require(ContentHash.hashContent(owner) == marker.name) { "invalid_revocation" }
             val drafts = ProjectPathPolicy.resolve(root, ".artisan/drafts")
             drafts.listFiles()?.filter { it.isDirectory && !it.name.startsWith('.') }?.forEach { draftDir ->
                 val envelope = ProjectPathPolicy.resolve(root, ".artisan/drafts/${draftDir.name}/draft.json")

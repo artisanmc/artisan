@@ -8,7 +8,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.modules.api.datasource.DataSourceDeclaration
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.modules.api.datasource.Stability
-import net.artisanmc.plugin.engine.BundleCompiler
+import net.artisanmc.plugin.engine.MenuCompiler
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.render.MenuRenderer
@@ -70,7 +70,7 @@ class MenuRendererPlacementTest {
 
     @Test fun `places pins specific rows to slots and omits unplaced rows`() {
         val p = player()
-        val m = BundleCompiler.compile(menu(
+        val m = MenuCompiler.compile(menu(
             "[ { key: sword, page: 0, position: 10 }, { key: shield, page: 0, position: 12 } ]"
         ), emptyMap())
         val inv = MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog()).slots
@@ -82,7 +82,7 @@ class MenuRendererPlacementTest {
 
     @Test fun `placements are windowed by hand-assigned page`() {
         val p = player()
-        val m = BundleCompiler.compile(menu(
+        val m = MenuCompiler.compile(menu(
             "[ { key: sword, page: 0, position: 10 }, { key: shield, page: 1, position: 10 } ]"
         ), emptyMap())
 
@@ -96,7 +96,7 @@ class MenuRendererPlacementTest {
 
     @Test fun `a placement whose key is absent dangles and leaves the slot empty`() {
         val p = player()
-        val m = BundleCompiler.compile(menu(
+        val m = MenuCompiler.compile(menu(
             "[ { key: ghost, page: 0, position: 10 }, { key: sword, page: 0, position: 11 } ]"
         ), emptyMap())
         val inv = MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog()).slots
@@ -106,10 +106,10 @@ class MenuRendererPlacementTest {
 
     @Test fun `legacy override key in YAML is ignored — template supplies everything`() {
         // Per-placement overrides were dropped (CONTEXT.md "Placement"); old
-        // bundles carrying `override:` still load (ignoreUnknown) but render
+        // files carrying `override:` still load (ignoreUnknown) but render
         // purely from the template.
         val p = player()
-        val m = BundleCompiler.compile(menu(
+        val m = MenuCompiler.compile(menu(
             "[ { key: apple, page: 0, position: 12, override: { title: \"PROMO\", lore: [\"-50%\"] } } ]"
         ), emptyMap())
         val session = MenuRenderer.open(p, m, "en", ExecutionContext(p), dataSources = catalog())

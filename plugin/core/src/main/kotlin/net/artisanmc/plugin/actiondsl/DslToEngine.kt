@@ -25,7 +25,7 @@ fun dslToEngineSteps(steps: List<DslStep>): List<Step> = steps.map(::mapStep)
  * wire, ADR `action-dsl`) into the engine [Step] tree. Blank
  * input → empty list. A malformed string throws [DslParseError] — callers
  * compile inside a `runCatching` so one bad chain drops its own handler with a
- * WARN rather than the whole bundle.
+ * WARN rather than the whole Project.
  */
 fun compileActionDsl(dsl: String): List<Step> =
     if (dsl.isBlank()) emptyList() else dslToEngineSteps(parseActionDsl(dsl))

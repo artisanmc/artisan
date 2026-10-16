@@ -10,7 +10,7 @@ package net.artisanmc.plugin.engine
  * object is the legacy wrapped form; a **string list entry** is an action without
  * arguments. An action is kept as its name and wire value ([Step.ActionStep]): the
  * vocabulary lives in the action registry, not here. The parser never throws: an
- * invalid entry is ignored, like the rest of the bundle loader.
+ * invalid entry is ignored, like the rest of the Project loader.
  */
 object KeyedStepParser {
 

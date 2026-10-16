@@ -136,7 +136,7 @@ class SyncedMenuProviderTest {
     @Test
     fun `unload preserves httpClient executor (reload safety)`() {
         // Regression: pre-fix unload() called executorService.shutdown(), which broke
-        // every subsequent bundle download after /artisan reload because the executor is
+        // every subsequent download after /artisan reload because the executor is
         // shared across load/unload cycles. After the fix, only shutdown() may stop it.
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null)
@@ -146,7 +146,7 @@ class SyncedMenuProviderTest {
         val client = httpField.get(provider) as okhttp3.OkHttpClient
         assertFalse(
             client.dispatcher.executorService.isShutdown,
-            "unload() must not shut down the httpClient executor — that breaks bundle downloads after /artisan reload",
+            "unload() must not shut down the httpClient executor — that breaks downloads after /artisan reload",
         )
     }
 

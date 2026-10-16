@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
 import net.artisanmc.plugin.protocol.PublicationAuthor
-import net.artisanmc.plugin.sync.ProjectFilesReader.BinaryInfo
+import net.artisanmc.plugin.project.ProjectFilesReader.BinaryInfo
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue

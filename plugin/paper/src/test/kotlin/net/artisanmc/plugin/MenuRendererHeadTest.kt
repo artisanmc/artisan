@@ -41,7 +41,7 @@ class MenuRendererHeadTest {
 
     private fun render(material: String, head: String, args: Map<String, Any> = emptyMap()): org.bukkit.inventory.ItemStack? {
         val p = player()
-        val menu = BundleCompiler.compile(headMenu(material, head), emptyMap())
+        val menu = MenuCompiler.compile(headMenu(material, head), emptyMap())
         val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p, args = args)).slots
         return slots[0]
     }
@@ -74,7 +74,7 @@ class MenuRendererHeadTest {
 
     @Test fun `playerhead resolves PAPI placeholders like title and lore do`() {
         val p = player()
-        val menu = BundleCompiler.compile(headMenu("PLAYER_HEAD", "playerhead:%player_name%"), emptyMap())
+        val menu = MenuCompiler.compile(headMenu("PLAYER_HEAD", "playerhead:%player_name%"), emptyMap())
         val fakePapi = object : PapiProvider() {
             override fun resolve(player: org.bukkit.entity.Player, text: String): String =
                 text.replace("%player_name%", player.name)

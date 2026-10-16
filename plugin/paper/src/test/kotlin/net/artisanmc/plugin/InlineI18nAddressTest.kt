@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import net.artisanmc.plugin.engine.BundleCompiler
+import net.artisanmc.plugin.engine.MenuCompiler
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.render.MenuRenderer
@@ -59,7 +59,7 @@ class InlineI18nAddressTest {
 
     private fun render(lang: String, langMaps: Map<String, Map<String, String>>): List<String?> {
         val p = player()
-        val m = BundleCompiler.compile(menu(), langMaps, defaultLang = "en")
+        val m = MenuCompiler.compile(menu(), langMaps, defaultLang = "en")
         val inv = MenuRenderer.open(p, m, lang, ExecutionContext(p)).slots
         return listOf(
             legacy(inv[10]?.itemMeta?.displayName()),
@@ -86,7 +86,7 @@ class InlineI18nAddressTest {
     }
 
     @Test fun `the compiled appearance carries the address the editor would mint`() {
-        val m = BundleCompiler.compile(menu(), emptyMap(), defaultLang = "en")
+        val m = MenuCompiler.compile(menu(), emptyMap(), defaultLang = "en")
         assertEquals(
             "menus.shop.elements.buy.default",
             m.compiledAppearances["buy"]?.first()?.i18nBase,
@@ -103,7 +103,7 @@ class InlineI18nAddressTest {
             elements: []
             """.trimIndent(),
         )
-        val plain = BundleCompiler.compile(titled, emptyMap()).title.single()
+        val plain = MenuCompiler.compile(titled, emptyMap()).title.single()
             as net.artisanmc.plugin.model.MenuTitleLayer.Plain
         assertEquals("menus.shop.title", plain.value.address)
         assertTrue(plain.value.literal)
@@ -119,7 +119,7 @@ class InlineI18nAddressTest {
             elements: []
             """.trimIndent(),
         )
-        val refLayer = BundleCompiler.compile(ref, emptyMap()).title.single()
+        val refLayer = MenuCompiler.compile(ref, emptyMap()).title.single()
             as net.artisanmc.plugin.model.MenuTitleLayer.Plain
         assertFalse(refLayer.value.literal)
     }
@@ -143,7 +143,7 @@ class InlineI18nAddressTest {
                     title: "C"
             """.trimIndent(),
         )
-        val bases = BundleCompiler.compile(multi, emptyMap()).compiledAppearances["buy"]!!.map { it.i18nBase }
+        val bases = MenuCompiler.compile(multi, emptyMap()).compiledAppearances["buy"]!!.map { it.i18nBase }
         // Compiled in RESOLUTION order — states first, the display last as the
         // fallback — while the ADDRESSES stay display-first (ADR
         // `element-display-and-states`).

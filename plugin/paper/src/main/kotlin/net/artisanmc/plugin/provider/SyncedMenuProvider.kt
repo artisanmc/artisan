@@ -10,12 +10,12 @@ import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.engine.MenuSessionStore
 import net.artisanmc.plugin.lang.LangManager
-import net.artisanmc.plugin.model.BundleDialog
-import net.artisanmc.plugin.model.BundleDocument
+import net.artisanmc.plugin.model.RuntimeDialog
+import net.artisanmc.plugin.model.RuntimeDocument
 import net.artisanmc.plugin.model.DocumentKind
 import net.artisanmc.plugin.model.DocumentKinds
-import net.artisanmc.plugin.model.BundleMenu
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.model.RuntimeProject
 import net.artisanmc.plugin.render.DialogRenderer
 import net.artisanmc.plugin.render.MenuRenderer
 import net.artisanmc.plugin.resourcepack.AssetEntry
@@ -27,7 +27,7 @@ import net.artisanmc.plugin.protocol.ProjectReads
 import net.artisanmc.plugin.protocol.ProjectWorkspace
 import net.artisanmc.plugin.protocol.ProjectWrites
 import net.artisanmc.plugin.protocol.Replies
-import net.artisanmc.plugin.sync.ProjectFilesReader
+import net.artisanmc.plugin.project.ProjectFilesReader
 import net.artisanmc.plugin.ws.HubLink
 import net.artisanmc.plugin.ws.WsClient
 import net.artisanmc.plugin.yaml.ProjectReader
@@ -84,26 +84,26 @@ class SyncedMenuProvider(
 
     /**
      * Menus and dialogs of every project, resolved by reference (`main`,
-     * `boutique:main`); see [net.artisanmc.plugin.engine.DocumentTable]. Bundles
+     * `boutique:main`); see [net.artisanmc.plugin.engine.DocumentTable]. Projects
      * load in project order: on ambiguity, the last one wins.
      */
-    @Volatile private var tables: Map<String, net.artisanmc.plugin.engine.DocumentTable<BundleDocument>> = emptyMap()
+    @Volatile private var tables: Map<String, net.artisanmc.plugin.engine.DocumentTable<RuntimeDocument>> = emptyMap()
     @Suppress("UNCHECKED_CAST")
-    private fun <T : BundleDocument> table(kind: DocumentKind): net.artisanmc.plugin.engine.DocumentTable<T> =
-        (tables[kind.kind] ?: net.artisanmc.plugin.engine.DocumentTable<BundleDocument>(emptyList()) { it.id })
+    private fun <T : RuntimeDocument> table(kind: DocumentKind): net.artisanmc.plugin.engine.DocumentTable<T> =
+        (tables[kind.kind] ?: net.artisanmc.plugin.engine.DocumentTable<RuntimeDocument>(emptyList()) { it.id })
             as net.artisanmc.plugin.engine.DocumentTable<T>
-    private val menuTable: net.artisanmc.plugin.engine.DocumentTable<BundleMenu> get() = table(DocumentKinds.MENU)
-    private val dialogTable: net.artisanmc.plugin.engine.DocumentTable<BundleDialog> get() = table(DocumentKinds.DIALOG)
+    private val menuTable: net.artisanmc.plugin.engine.DocumentTable<RuntimeMenu> get() = table(DocumentKinds.MENU)
+    private val dialogTable: net.artisanmc.plugin.engine.DocumentTable<RuntimeDialog> get() = table(DocumentKinds.DIALOG)
     /** One warning per ambiguous reference and calling project, not one log per click. */
     private val warnedAmbiguous = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
-    @Volatile private var bundles = listOf<ProjectBundle>()
-    /** `pack:` refs resolve against the live bundle list (survives hot-reload swaps). */
-    private val projectDataResolver = net.artisanmc.plugin.engine.ProjectDataResolver { bundles }
+    @Volatile private var runtimes = listOf<RuntimeProject>()
+    /** `pack:` refs resolve against the live Project list (survives hot-reload swaps). */
+    private val projectDataResolver = net.artisanmc.plugin.engine.ProjectDataResolver { runtimes }
 
     /** One table per registered kind (ADR `extensible-document-kinds`): a module's kind resolves by reference like a menu. */
-    private fun indexDocuments(loaded: List<ProjectBundle>) {
+    private fun indexDocuments(loaded: List<RuntimeProject>) {
         tables = DocumentKinds.all().associate { kind ->
-            kind.kind to net.artisanmc.plugin.engine.DocumentTable<BundleDocument>(
+            kind.kind to net.artisanmc.plugin.engine.DocumentTable<RuntimeDocument>(
                 loaded.flatMap { b -> b.documents[kind.kind].orEmpty().map { b.projectId to it } },
             ) { it.id }
         }
@@ -269,11 +269,11 @@ class SyncedMenuProvider(
         wsClient?.request(mapOf("type" to "editor_logout", "player_id" to player.toString()))
             ?: java.util.concurrent.CompletableFuture.completedFuture(null)
 
-    override fun findMenu(menuId: String): BundleMenu? = findMenu(menuId, null)
-    override fun findMenu(ref: String, fromProject: String?): BundleMenu? =
+    override fun findMenu(menuId: String): RuntimeMenu? = findMenu(menuId, null)
+    override fun findMenu(ref: String, fromProject: String?): RuntimeMenu? =
         resolveRef(menuTable, "Menu", ref, fromProject)
     override fun listMenuIds(): List<String> = menuTable.ids.distinct().sorted()
-    override fun allBundles(): List<ProjectBundle> = bundles
+    override fun runtimeProjects(): List<RuntimeProject> = runtimes
     /** The loaded Snapshot's project dirs, without the registry lock a reload in progress holds. */
     fun projectDirs(): Map<String, File> = projects.projectIds.associateWith(roots::dirFor)
 
@@ -306,8 +306,8 @@ class SyncedMenuProvider(
         logger?.info("[ART-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
     }
 
-    override fun findDialog(dialogId: String): BundleDialog? = findDialog(dialogId, null)
-    override fun findDialog(ref: String, fromProject: String?): BundleDialog? =
+    override fun findDialog(dialogId: String): RuntimeDialog? = findDialog(dialogId, null)
+    override fun findDialog(ref: String, fromProject: String?): RuntimeDialog? =
         resolveRef(dialogTable, "Dialog", ref, fromProject)
 
     override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
@@ -368,7 +368,7 @@ class SyncedMenuProvider(
                 findDialog(entry.ref)?.let { it.yaml.title?.forLang(entry.lang, it.defaultLang) } ?: entry.id
         }
 
-    private fun firstTitleText(menu: BundleMenu, lang: String): String? {
+    private fun firstTitleText(menu: RuntimeMenu, lang: String): String? {
         val langMap = menu.langMapWithFallback(lang)
         for (layer in menu.title) {
             val value = when (layer) {
@@ -432,7 +432,7 @@ class SyncedMenuProvider(
             },
             skipped = failures,
         )
-        bundles = loaded
+        runtimes = loaded
         indexDocuments(loaded)
         val authors = HashMap(pendingAuthors).also { pendingAuthors.clear() }
         runCatching { onSnapshot(projects, authors, ::announceReload) }.onFailure {
