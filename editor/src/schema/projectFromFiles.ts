@@ -149,12 +149,14 @@ function leadingHandComment(text: string): string {
   return (gen === -1 ? head : head.slice(0, gen)).join("\n");
 }
 
-/** Scan `<dir>/<id>.yaml` entries, sorted by path (deterministic). */
+/** Scan `<dir>/<name>.yaml` entries, sorted by path (deterministic). `id` is
+ *  the doc's own `id:` when present, else the file name; `file` is always the
+ *  file name. */
 function scanDir(
   files: Record<string, string>,
   projectId: string,
   dir: string,
-): { id: string; parsed: Json }[] {
+): { id: string; file: string; parsed: Json }[] {
   const prefix = `${baseOf(projectId)}${dir}/`;
   return Object.keys(files)
     .filter((k) => k.startsWith(prefix) && k.endsWith(".yaml"))
@@ -162,8 +164,9 @@ function scanDir(
     .flatMap((k) => {
       const parsed = tryParse<Json>(files[k]!);
       if (!parsed) return [];
-      const id = (parsed.id as string) ?? k.slice(prefix.length, -".yaml".length);
-      return [{ id, parsed }];
+      const file = k.slice(prefix.length, -".yaml".length);
+      const id = (parsed.id as string) ?? file;
+      return [{ id, file, parsed }];
     });
 }
 
@@ -596,11 +599,17 @@ export function projectFromFiles(
   // the bare-source schema resolution below.
   const modelRefs: Record<string, { model: string; name?: string; version?: number }> = {};
   const modelFileDoc: Record<string, { docId: string; name?: string }> = {};
+  // Keyed by the FILE NAME: the writer emits a source's model at
+  // models/<sourceId>.yaml whatever its `id:` (an editor-created table's model
+  // is `dm_…`), and the lookup beside the data is by source id. The doc's own
+  // `id:` is a fallback key only, first file wins — the plugin's
+  // ProjectReader.readProjectModels applies the same rule.
+  const modelDocById: Record<string, { docId: string; name?: string }> = {};
   const dataModels: DataModel[] = scanDir(files, projectId, "models").flatMap(
-    ({ id, parsed: y }) => {
+    ({ id, file, parsed: y }) => {
       const fields = ((y.fields as ModelField[]) ?? []) as ModelField[];
       if (fields.length === 0 && typeof y.model === "string") {
-        modelRefs[id] = {
+        modelRefs[file] = {
           model: y.model,
           ...(typeof y.name === "string" ? { name: y.name } : {}),
           ...(typeof y.model_version === "number" ? { version: y.model_version } : {}),
@@ -609,8 +618,10 @@ export function projectFromFiles(
       }
       // Identity lives INSIDE the doc when present (owned model emitted at the
       // source's filename — ADR bare-data-files ⑤); the filename is the lookup.
-      const docId = (y.id as string) ?? id;
-      modelFileDoc[id] = { docId, ...(typeof y.name === "string" ? { name: y.name } : {}) };
+      const docId = id;
+      const doc = { docId, ...(typeof y.name === "string" ? { name: y.name } : {}) };
+      modelFileDoc[file] = doc;
+      modelDocById[docId] ??= doc;
       return [
         {
           id: docId as DataModelId,
@@ -636,7 +647,7 @@ export function projectFromFiles(
   const besideOf = (sourceId: string): { model?: string; name?: string; version?: number } => {
     const r = modelRefs[sourceId];
     if (r) return r;
-    const d = modelFileDoc[sourceId];
+    const d = modelFileDoc[sourceId] ?? modelDocById[sourceId];
     if (d) return { model: d.docId, name: d.name };
     return {};
   };
