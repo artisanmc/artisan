@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.engine
 
 import net.artisanmc.plugin.command.ModuleCommandLine
-import net.artisanmc.plugin.render.LenientText
+import net.artisanmc.plugin.text.LenientText
 import net.kyori.adventure.title.Title
 import java.time.Duration
 import org.bukkit.Bukkit

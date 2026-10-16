@@ -1,5 +1,8 @@
 package net.artisanmc.plugin.render
 
+import net.artisanmc.plugin.session.MenuSlots
+import net.artisanmc.plugin.session.PlayerInventoryMode
+import net.artisanmc.plugin.text.LenientText
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml

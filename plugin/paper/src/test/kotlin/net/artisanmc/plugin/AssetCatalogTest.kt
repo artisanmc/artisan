@@ -67,7 +67,7 @@ class AssetCatalogTest {
         assertEquals(emptySet(), catalog.transparentTextures)
         cache.writeText("""{ "version": 2, "assets": {}, "vanilla_gui": { "transparent_chests": true, "transparent_hoppers": false, "transparent_dispensers": true } }""")
         catalog.loadFromDisk()
-        assertEquals(setOf(net.artisanmc.plugin.render.ContainerTexture.CHEST, net.artisanmc.plugin.render.ContainerTexture.DISPENSER), catalog.transparentTextures)
+        assertEquals(setOf(net.artisanmc.plugin.resourcepack.ContainerTexture.CHEST, net.artisanmc.plugin.resourcepack.ContainerTexture.DISPENSER), catalog.transparentTextures)
         cache.writeText(INDEX_JSON)
         catalog.loadFromDisk()
         assertEquals(emptySet(), catalog.transparentTextures)

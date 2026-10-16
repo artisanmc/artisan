@@ -2,8 +2,8 @@ package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import be.seeseemelk.mockbukkit.entity.PlayerMock
-import net.artisanmc.plugin.render.ContainerTexture
-import net.artisanmc.plugin.render.MenuSlots
+import net.artisanmc.plugin.resourcepack.ContainerTexture
+import net.artisanmc.plugin.session.MenuSlots
 import net.artisanmc.plugin.render.MenuWindows
 import net.artisanmc.plugin.render.OpenedContainers
 import net.artisanmc.plugin.render.VanillaGuiTitle

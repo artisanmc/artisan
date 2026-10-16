@@ -4,7 +4,7 @@ import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.plugin.ArtisanPlugin
 import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.engine.RuntimeProject
-import net.artisanmc.plugin.provider.MenuProvider
+import net.artisanmc.plugin.engine.MenuProvider
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.entity.Player
 import kotlin.test.AfterTest

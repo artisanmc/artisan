@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.provider
 
+import net.artisanmc.plugin.engine.MenuProvider
 import net.artisanmc.plugin.scheduling.Scheduler
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
