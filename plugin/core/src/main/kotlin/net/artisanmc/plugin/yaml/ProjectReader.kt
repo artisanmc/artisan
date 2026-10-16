@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.yaml
 
+import net.artisanmc.plugin.engine.RuntimeProject
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory

@@ -2,7 +2,7 @@ package net.artisanmc.plugin.project
 
 import net.artisanmc.modules.api.project.ProjectContentApi
 import net.artisanmc.plugin.model.RuntimeRawDocument
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeProject
 import java.io.File
 
 class ProjectContentReader(

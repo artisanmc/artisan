@@ -77,7 +77,7 @@ data class MenuYaml(
      *  - `String` (legacy) → single text layer at the default position
      *  - `Map` → one layer
      *  - `List<Map>` → multiple layers
-     * Parsed into a `List<MenuTitleLayer>` on [RuntimeMenu.title] by [net.artisanmc.plugin.engine.MenuTitleParser].
+     * Parsed into a `List<MenuTitleLayer>` on [net.artisanmc.plugin.engine.RuntimeMenu.title] by [net.artisanmc.plugin.engine.MenuTitleParser].
      */
     val title: Any? = null,
     val size: Int = 27,

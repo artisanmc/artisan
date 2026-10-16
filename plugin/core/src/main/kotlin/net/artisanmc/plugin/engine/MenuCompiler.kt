@@ -1,8 +1,8 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.plugin.actiondsl.compileActionDsl
+import net.artisanmc.plugin.engine.compileActionDsl
 import net.artisanmc.plugin.model.AppearanceYaml
-import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.expr.warmTemplate
 import net.artisanmc.plugin.model.MenuYaml
 import java.util.logging.Logger
