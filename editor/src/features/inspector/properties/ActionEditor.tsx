@@ -30,7 +30,6 @@ import type {
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
 import { useTextureUrl } from "@/features/canvas/textureStore";
-import { UNALLOCATED_LTEXT_KEY } from "@/features/flow/defaults";
 import { useOtherServerProjects } from "@/features/serverIndex/useOtherServerProjects";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
@@ -42,6 +41,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { UNALLOCATED_LTEXT_KEY } from "../chain/defaults";
 
 interface ActionEditorProps {
   projectId: ProjectId;
