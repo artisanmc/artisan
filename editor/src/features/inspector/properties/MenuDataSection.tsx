@@ -9,7 +9,7 @@ import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -46,7 +46,7 @@ export function ObjectParamLists({
   input: Extract<ContextInput, { kind: "primitive" }>;
 }) {
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const serverSources = useServerDataSourcesStore((s) => s.sources);
   // Hand-typed paths: local until a set is created on them, then the ELEMENT
   // keeps them alive.
@@ -215,7 +215,7 @@ export function MenuSetBlock({
   menu: Menu;
   input: SourceRefInput;
 }) {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const serverSource = useServerDataSourcesStore((s) => s.sources.find((x) => x.ref === input.ref));
   if (!project) return null;
 
@@ -260,9 +260,9 @@ function MenuSetBlockCore({
   keyField: string;
 }) {
   const { t } = useTranslation();
-  const createMenuSet = useAccountStore((s) => s.createMenuSet);
-  const deleteElement = useAccountStore((s) => s.deleteElement);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const createMenuSet = useProjectsStore((s) => s.createMenuSet);
+  const deleteElement = useProjectsStore((s) => s.deleteElement);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   if (!project) return null;
   const el = findSetElement(menu, listName);
 
@@ -441,7 +441,7 @@ function PlaceableRowTile({
   activeLang: string;
 }) {
   const { t } = useTranslation();
-  const removeElementPlacement = useAccountStore((s) => s.removeElementPlacement);
+  const removeElementPlacement = useProjectsStore((s) => s.removeElementPlacement);
   const app = element.display;
   const alias = element.places?.alias ?? "item";
   const ctx = { [alias]: row };

@@ -37,7 +37,7 @@ import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { getText as libGetText } from "@/lib/i18n";
 import type { FieldLocation, PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useGetText, useTextEdit } from "@/lib/useText";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -461,7 +461,7 @@ function IterableTargetSelect({ projectId, field, value, onChange }: ArgInputPro
   // The project ref itself is stable thanks to immer — selecting it from the store doesn't
   // allocate. Derive `targets` via useMemo so we don't hand zustand a fresh array on every
   // render (that'd loop the identity check, same trap as ItemTooltip's findElementAndMenu).
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const getText = useGetText(projectId);
   const targets = useMemo(() => {
     if (!project) return [];
@@ -604,7 +604,7 @@ function TextArgInput({
   onRemove,
 }: { projectId: ProjectId; lt: LText; onRemove?: () => void }) {
   const { t } = useTranslation();
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const edit = useTextEdit(projectId, lt);
   const placeholderEntries = useActionEntries();
   return (
@@ -740,7 +740,9 @@ function DocumentRefInput(p: ArgInputProps & { document: string }) {
 function MenuRefInput({ projectId, value, onChange }: ArgInputProps) {
   const { t } = useTranslation();
   const menuId = (typeof value === "string" ? value : "") as MenuId;
-  const menus = useAccountStore((s) => menusOf(s.account.projects.find((p) => p.id === projectId)));
+  const menus = useProjectsStore((s) =>
+    menusOf(s.openProjects.projects.find((p) => p.id === projectId)),
+  );
   const others = useOtherServerProjects(projectId);
   const activeLang = useUiStore((s) => s.activeLang);
   const getText = useGetText(projectId);
@@ -821,9 +823,9 @@ function KindRefSelect({
 }: ArgInputProps & { document: string }) {
   const { t } = useTranslation();
   const id = typeof value === "string" ? value : "";
-  const local = useAccountStore((s) =>
+  const local = useProjectsStore((s) =>
     documentsOf(
-      s.account.projects.find((p) => p.id === projectId),
+      s.openProjects.projects.find((p) => p.id === projectId),
       document,
     ),
   );
@@ -875,7 +877,9 @@ function ContextMapInput({ projectId, decl, args, value, onChange }: ArgInputPro
   const targetId =
     refArg && typeof args[refArg.name] === "string" ? (args[refArg.name] as string) : "";
   const targetKind = refArg?.type.kind === "document_ref" ? refArg.type.document : "";
-  const menus = useAccountStore((s) => menusOf(s.account.projects.find((p) => p.id === projectId)));
+  const menus = useProjectsStore((s) =>
+    menusOf(s.openProjects.projects.find((p) => p.id === projectId)),
+  );
   const others = useOtherServerProjects(projectId);
   const ref = parseDocRef(targetId);
   const targetMenu =

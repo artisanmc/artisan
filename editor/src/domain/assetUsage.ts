@@ -1,6 +1,6 @@
+import { menusOf } from "@/domain/documents";
 import type { Asset, AssetUsage } from "./asset";
 import type { Menu, Project } from "./types";
-import { menusOf } from "@/domain/documents";
 
 export const ASSET_USAGES: AssetUsage[] = ["button", "menu"];
 

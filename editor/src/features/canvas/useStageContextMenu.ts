@@ -1,17 +1,17 @@
-import type { useAccountStore } from "@/state/accountStore";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { parsePositions } from "@/lib/positions";
+import type { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { type RefObject, useCallback, useState } from "react";
 import type { ContextMenuState, ContextMenuTarget } from "./ContextMenu";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import type { ViewportState } from "./usePanZoom";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 const emptyTarget: ContextMenuTarget = { kind: "entity", selectedIds: [] };
 
 const slotIsFilled = (
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number],
+  project: ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number],
   menuId: string,
   position: number,
 ): boolean => {
@@ -24,7 +24,7 @@ const slotIsFilled = (
 };
 
 const selectedElementAt = (
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number],
+  project: ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number],
   menuId: string,
   position: number,
   ids: ReadonlySet<string>,
@@ -36,7 +36,9 @@ const selectedElementAt = (
     );
 
 interface UseStageContextMenuArgs {
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined;
+  project:
+    | ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number]
+    | undefined;
   layout: Record<string, { x: number; y: number }>;
   viewport: ViewportState;
   wrapperRef: RefObject<HTMLDivElement | null>;

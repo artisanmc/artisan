@@ -227,7 +227,9 @@ describe("rekeyMenu", () => {
     const action = menu.layers[0]!.elements[0]!.display!.click!.left!.steps[0]!;
     if (action.kind !== "action" || action.action.name !== "send_message")
       throw new Error("unexpected");
-    expect((action.action.value as { key: string }).key).toBe("menus.shop.elements.btn.default.click.left.message");
+    expect((action.action.value as { key: string }).key).toBe(
+      "menus.shop.elements.btn.default.click.left.message",
+    );
     expect(project.i18nKeys["lt_msg" as I18nKey]).toBeUndefined();
   });
 });
@@ -299,7 +301,13 @@ describe("rekeyCommand", () => {
       steps: [
         {
           kind: "action",
-          action: { name: "show_title", value: { title: { key: "stale.title" as I18nKey }, subtitle: { key: "stale.subtitle" as I18nKey } } },
+          action: {
+            name: "show_title",
+            value: {
+              title: { key: "stale.title" as I18nKey },
+              subtitle: { key: "stale.subtitle" as I18nKey },
+            },
+          },
         },
       ],
     };
@@ -308,8 +316,12 @@ describe("rekeyCommand", () => {
 
     const a0 = cmd.steps[0]!;
     if (a0.kind !== "action" || a0.action.name !== "show_title") throw new Error();
-    expect((a0.action.value as { title: { key: string } }).title.key).toBe("commands.heal.show_title");
-    expect((a0.action.value as { subtitle: { key: string } }).subtitle.key).toBe("commands.heal.show_subtitle");
+    expect((a0.action.value as { title: { key: string } }).title.key).toBe(
+      "commands.heal.show_title",
+    );
+    expect((a0.action.value as { subtitle: { key: string } }).subtitle.key).toBe(
+      "commands.heal.show_subtitle",
+    );
     expect(project.i18nKeys["commands.heal.show_title" as I18nKey]).toEqual({ en: "Welcome" });
     expect(project.i18nKeys["commands.heal.show_subtitle" as I18nKey]).toEqual({
       en: "to the shop",

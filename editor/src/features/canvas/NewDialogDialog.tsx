@@ -1,5 +1,5 @@
 import type { ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useTranslation } from "react-i18next";
 import { NewPrefixedIdDialog } from "./NewPrefixedIdDialog";
 
@@ -20,7 +20,7 @@ export function NewDialogDialog({ projectId, open, position, onOpenChange }: New
       title={t("canvas.newDialogDialogTitle")}
       prefix="dialog_"
       placeholder="confirm_buy"
-      onCreate={(id) => useAccountStore.getState().createDialog({ projectId, id, position })}
+      onCreate={(id) => useProjectsStore.getState().createDialog({ projectId, id, position })}
     />
   );
 }

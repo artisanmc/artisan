@@ -18,7 +18,7 @@ import { ConditionListEditor } from "@/features/inspector/properties/ConditionLi
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -129,7 +129,7 @@ interface RowKeyEditorProps {
 
 function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowKeyEditorProps) {
   const { t } = useTranslation();
-  const setSourceValue = useAccountStore((s) => s.setSourceValue);
+  const setSourceValue = useProjectsStore((s) => s.setSourceValue);
   const [draft, setDraft] = useState(String(value ?? ""));
   const [error, setError] = useState<"required" | "duplicate" | null>(null);
   const errorId = `row-key-error-${sourceId}-${row}`;
@@ -210,11 +210,11 @@ export function ValueEditor({
   field?: ModelField;
 }) {
   const { t } = useTranslation();
-  const setSourceValue = useAccountStore((s) => s.setSourceValue);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const addSourceListItem = useAccountStore((s) => s.addSourceListItem);
-  const removeSourceListItem = useAccountStore((s) => s.removeSourceListItem);
-  const replaceSourceValueTyped = useAccountStore((s) => s.replaceSourceValueTyped);
+  const setSourceValue = useProjectsStore((s) => s.setSourceValue);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
+  const addSourceListItem = useProjectsStore((s) => s.addSourceListItem);
+  const removeSourceListItem = useProjectsStore((s) => s.removeSourceListItem);
+  const replaceSourceValueTyped = useProjectsStore((s) => s.replaceSourceValueTyped);
   const activeLang = useUiStore((s) => s.activeLang);
   const models = project.dataModels ?? [];
   const set = (v: unknown) => setSourceValue({ projectId, sourceId, row, path, value: v });
@@ -600,8 +600,8 @@ export function SourceRowsTable({
   source: DataSource & { shape: "table" };
 }) {
   const { t } = useTranslation();
-  const addSourceRow = useAccountStore((s) => s.addSourceRow);
-  const removeSourceRow = useAccountStore((s) => s.removeSourceRow);
+  const addSourceRow = useProjectsStore((s) => s.addSourceRow);
+  const removeSourceRow = useProjectsStore((s) => s.removeSourceRow);
   const fields = sourceRootFields(project, source);
   const model = (project.dataModels ?? []).find((candidate) => candidate.id === source.modelId);
   const rowKeys = stableKeys(source.rows.map((row) => row[model?.keyField ?? "id"]));
@@ -730,8 +730,8 @@ function MasterDetailTable({
   rowKeys: string[];
 }) {
   const { t } = useTranslation();
-  const addSourceRow = useAccountStore((s) => s.addSourceRow);
-  const removeSourceRow = useAccountStore((s) => s.removeSourceRow);
+  const addSourceRow = useProjectsStore((s) => s.addSourceRow);
+  const removeSourceRow = useProjectsStore((s) => s.removeSourceRow);
   const [selectedKey, setSelectedKey] = useState<string | null>(rowKeys[0] ?? null);
   // Selection is by Row key (identity, not position — a row must never inherit
   // its neighbour's form state). But editing the key field IS a rename: the
