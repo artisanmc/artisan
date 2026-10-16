@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { DocumentYamlView } from "./DocumentYamlView";
+import type { Project, ProjectId } from "@/domain/types";
 import { writeProjectFiles } from "@/lib/api/projectFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
-import type { Project, ProjectId } from "@/domain/types";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DocumentYamlView } from "./DocumentYamlView";
 
 vi.mock("@/lib/api/projectFiles", () => ({ writeProjectFiles: vi.fn(async () => ({ ok: true })) }));
 

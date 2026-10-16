@@ -1,16 +1,16 @@
+import { menusOf } from "@/domain/documents";
 import * as dataSourcesApi from "@/lib/api/dataSources";
 import * as declaredActionsApi from "@/lib/api/declaredActions";
 import * as draftsApi from "@/lib/api/projectDrafts";
 import * as projectFilesApi from "@/lib/api/projectFiles";
 import * as userProjectsApi from "@/lib/api/userProjects";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectLoader } from "./useProjectLoader";
-import { menusOf } from "@/domain/documents";
 
 const IDENTITY = {
   project: { id: "p1", name: "Boutique", hash: "h", externalId: "boutique_shop" },
@@ -36,8 +36,8 @@ describe("useProjectLoader — the fresh version always wins", () => {
     vi.spyOn(declaredActionsApi, "fetchServerDeclaredActions").mockResolvedValue([]);
     useProjectCacheStore.setState({ entries: {}, reloadToken: 0 } as never);
     useProjectDraftStore.setState({ drafts: {}, pendingRenames: {}, ownerId: null, backups: {} });
-    useAccountStore.setState({
-      account: { id: "", projects: [], projectOrder: [] },
+    useProjectsStore.setState({
+      openProjects: { projects: [], projectOrder: [] },
     } as never);
     useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
   });
@@ -75,7 +75,7 @@ describe("useProjectLoader — the fresh version always wins", () => {
     await waitFor(() => expect(result.current.project).not.toBeNull());
     expect(result.current.stale).toBe(false);
 
-    const stored = useAccountStore.getState().account.projects.find((p) => p.id === "p1");
+    const stored = useProjectsStore.getState().openProjects.projects.find((p) => p.id === "p1");
     const menuIds = (menusOf(stored) ?? []).map((m) => m.id);
     expect(menuIds).toContain("frais");
     expect(menuIds).not.toContain("perime");

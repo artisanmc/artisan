@@ -25,7 +25,7 @@ interface SelectionState {
 }
 
 /**
- * Ephemeral selection state. Outside accountStore (so it isn't persisted to
+ * Ephemeral selection state. Outside projectsStore (so it isn't persisted to
  * localStorage) and outside zundo (so undo/redo don't move the selection
  * back and forth).
  */

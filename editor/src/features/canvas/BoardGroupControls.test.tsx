@@ -1,6 +1,6 @@
 import { projectId } from "@/domain/ids";
-import { mockAccount } from "@/mock/fixtures";
-import { useAccountStore } from "@/state/accountStore";
+import { mockOpenProjects } from "@/mock/fixtures";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -11,12 +11,12 @@ import { projectBoard } from "./autoLayout";
 
 it("creates a named group from the selected menus through the canvas controls", async () => {
   const pid = projectId("p_personal");
-  useAccountStore.setState({ account: mockAccount() });
+  useProjectsStore.setState({ openProjects: mockOpenProjects() });
   for (const id of ["craft_a", "craft_b"])
-    useAccountStore.getState().createMenu({ projectId: pid, id });
+    useProjectsStore.getState().createMenu({ projectId: pid, id });
   useSelectionStore.getState().set(["craft_a", "craft_b"]);
   function Harness() {
-    const project = useAccountStore((s) => s.account.projects.find((p) => p.id === pid)!);
+    const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === pid)!);
     const [dialog, setDialog] = useState<GroupDialogState>(null);
     return <BoardGroupControls project={project} dialog={dialog} onDialogChange={setDialog} />;
   }
@@ -29,7 +29,7 @@ it("creates a named group from the selected menus through the canvas controls", 
   });
   await user.click(screen.getByRole("button", { name: /Créer le groupe|Create group/i }));
   expect(
-    useAccountStore.getState().account.projects.find((p) => p.id === pid)!.canvasGroups,
+    useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!.canvasGroups,
   ).toEqual([
     expect.objectContaining({ name: "Crafts", nodeIds: ["craft_a", "craft_b"], color: "#a855f7" }),
   ]);
@@ -37,13 +37,13 @@ it("creates a named group from the selected menus through the canvas controls", 
 
 it("groups a command and a menu from the selection", async () => {
   const pid = projectId("p_personal");
-  useAccountStore.setState({ account: mockAccount() });
-  const store = useAccountStore.getState();
+  useProjectsStore.setState({ openProjects: mockOpenProjects() });
+  const store = useProjectsStore.getState();
   store.createMenu({ projectId: pid, id: "craft_a" });
   const cmdId = store.createCommand({ projectId: pid, id: "cmd_a" });
   useSelectionStore.getState().set(["craft_a", cmdId]);
   function Harness() {
-    const project = useAccountStore((s) => s.account.projects.find((p) => p.id === pid)!);
+    const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === pid)!);
     const [dialog, setDialog] = useState<GroupDialogState>(null);
     return <BoardGroupControls project={project} dialog={dialog} onDialogChange={setDialog} />;
   }
@@ -53,14 +53,14 @@ it("groups a command and a menu from the selection", async () => {
   await user.type(screen.getByRole("textbox", { name: /Nom du groupe|Group name/i }), "Mixed");
   await user.click(screen.getByRole("button", { name: /Créer le groupe|Create group/i }));
   expect(
-    useAccountStore.getState().account.projects.find((p) => p.id === pid)!.canvasGroups,
+    useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!.canvasGroups,
   ).toEqual([expect.objectContaining({ name: "Mixed", nodeIds: ["craft_a", cmdId] })]);
 });
 
 it("rearranges a group's contents from its menu", async () => {
   const pid = projectId("p_personal");
-  useAccountStore.setState({ account: mockAccount() });
-  const store = useAccountStore.getState();
+  useProjectsStore.setState({ openProjects: mockOpenProjects() });
+  const store = useProjectsStore.getState();
   for (const id of ["craft_a", "craft_b"]) store.createMenu({ projectId: pid, id });
   const groupId = store.createCanvasGroup({
     projectId: pid,
@@ -68,7 +68,8 @@ it("rearranges a group's contents from its menu", async () => {
     nodeIds: ["craft_a", "craft_b"],
   });
   store.setCanvasPosition({ projectId: pid, nodeId: "craft_b", x: 5000, y: 3000 });
-  const project = () => useAccountStore.getState().account.projects.find((p) => p.id === pid)!;
+  const project = () =>
+    useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!;
   const before = projectBoard(project());
   render(<BoardGroupControls project={project()} dialog={null} onDialogChange={() => {}} />);
   const user = userEvent.setup();
@@ -89,8 +90,8 @@ it("rearranges a group's contents from its menu", async () => {
 
 it("edits a saved group's color and supports undo", async () => {
   const pid = projectId("p_personal");
-  useAccountStore.setState({ account: mockAccount() });
-  const store = useAccountStore.getState();
+  useProjectsStore.setState({ openProjects: mockOpenProjects() });
+  const store = useProjectsStore.getState();
   for (const id of ["craft_a", "craft_b"]) store.createMenu({ projectId: pid, id });
   const groupId = store.createCanvasGroup({
     projectId: pid,
@@ -98,13 +99,14 @@ it("edits a saved group's color and supports undo", async () => {
     nodeIds: ["craft_a", "craft_b"],
     color: "#a855f7",
   });
-  const project = () => useAccountStore.getState().account.projects.find((p) => p.id === pid)!;
+  const project = () =>
+    useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!;
   render(<BoardGroupControls project={project()} dialog={{ groupId }} onDialogChange={() => {}} />);
   const input = screen.getByLabelText(/Couleur du groupe|Group color/i);
   expect(input).toHaveValue("#a855f7");
   fireEvent.change(input, { target: { value: "#22c55e" } });
   await userEvent.setup().click(screen.getByRole("button", { name: /Enregistrer|Save/i }));
   expect(project().canvasGroups![0]!.color).toBe("#22c55e");
-  useAccountStore.temporal.getState().undo();
+  useProjectsStore.temporal.getState().undo();
   expect(project().canvasGroups![0]!.color).toBe("#a855f7");
 });

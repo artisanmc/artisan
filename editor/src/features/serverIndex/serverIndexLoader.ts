@@ -25,7 +25,7 @@ export const clearServerIndexCache = (): void => cache.clear();
  * effects**.
  *
  * `useProjectLoader` opens ONE project to edit it: it sets the runtime, the
- * active server, the draft, the account. Here we only read: no shared store
+ * active server, the draft, the projects store. Here we only read: no shared store
  * is touched, so loading every project cannot disturb the one being edited.
  * The hub serves each read from its mirror as long as the announced hash has
  * not moved; we present ours so nothing is transferred again.

@@ -9,7 +9,7 @@ import { documentChainSlots, documentLTextSites } from "@/domain/documentKindVis
 import { documentKindDef, listDocumentKinds, resetDocumentKinds } from "@/domain/documentKinds";
 import { documentsOf } from "@/domain/documents";
 import { rekeyProject, visitProjectStepChains } from "@/domain/i18nSites";
-import type { Account, I18nKey, LText, Project, ProjectId, Step } from "@/domain/types";
+import type { I18nKey, LText, OpenProjects, Project, ProjectId, Step } from "@/domain/types";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { deriveEdges } from "@/features/canvas/deriveEdges";
 import { nodeBox } from "@/features/canvas/menuLayout";
@@ -21,8 +21,8 @@ import { buildProjectDocuments, documentLabel } from "@/features/project/useProj
 import { buildSearchIndex } from "@/features/search/searchIndex";
 import { getText } from "@/lib/i18n";
 import { documentCodec, resetDocumentCodecs } from "@/schema/documentCodecs";
-import { useAccountStore } from "@/state/accountStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
@@ -140,12 +140,11 @@ describe("a module's Document kind on the host", () => {
         },
       ],
     } as never);
-    const account: Account = {
-      id: "acc" as Account["id"],
+    const openProjects: OpenProjects = {
       projects: [project()],
       projectOrder: [PID],
     };
-    useAccountStore.setState({ account });
+    useProjectsStore.setState({ openProjects });
     useSelectionStore.getState().clear();
   });
   afterEach(() => {
@@ -272,25 +271,25 @@ describe("a module's Document kind on the host", () => {
   });
 
   it("is created from the contribution's seed, with its texts minted", () => {
-    const id = useAccountStore
+    const id = useProjectsStore
       .getState()
       .createDocument({ projectId: PID, kind: "quest", id: "quest_c", position: { x: 5, y: 6 } });
     expect(id).toBe("quest_c");
-    const p = useAccountStore.getState().account.projects[0]!;
+    const p = useProjectsStore.getState().openProjects.projects[0]!;
     const c = (documentsOf(p, "quest") as unknown as Quest[]).find((q) => q.id === "quest_c")!;
     expect(c.title.key).toBe("quests.quest_c.title");
     expect(p.i18nKeys["quests.quest_c.title" as I18nKey]).toEqual({ en: "" });
     expect((p.canvasLayout as Record<string, unknown>).quest_c).toEqual({ x: 5, y: 6 });
     expect(() =>
-      useAccountStore.getState().createDocument({ projectId: PID, kind: "quest", id: "quest_c" }),
+      useProjectsStore.getState().createDocument({ projectId: PID, kind: "quest", id: "quest_c" }),
     ).toThrow(/already exists/);
   });
 
   it("is renamed with its texts, its layout and every reference to it", () => {
-    useAccountStore
+    useProjectsStore
       .getState()
       .setDocumentId({ projectId: PID, kind: "quest", oldId: "quest_a", newId: "quest_z" });
-    const p = useAccountStore.getState().account.projects[0]!;
+    const p = useProjectsStore.getState().openProjects.projects[0]!;
     const quests = documentsOf(p, "quest") as unknown as Quest[];
     const z = quests.find((q) => q.id === "quest_z")!;
     expect(z.title.key).toBe("quests.quest_z.title");

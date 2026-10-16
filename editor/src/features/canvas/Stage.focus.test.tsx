@@ -1,12 +1,12 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Stage } from "./Stage";
 import { INVENTORY_TYPES } from "./inventoryTypes";
 import { TEX_SCALE } from "./menuLayout";
 import { tryStageDrop } from "./stageDropTarget";
-import { menusOf } from "@/domain/documents";
 
 vi.mock("react-konva", () => ({
   Stage: (p: any) => <div data-testid="konva-stage">{p.children}</div>,
@@ -61,8 +61,8 @@ function groupNames(): (string | null)[] {
 
 describe("Stage — mode focus", () => {
   beforeEach(() => {
-    useAccountStore.setState({
-      account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
+    useProjectsStore.setState({
+      openProjects: { projects: [project()], projectOrder: [PID] },
     } as any);
   });
 
@@ -117,7 +117,7 @@ describe("Stage — mode focus", () => {
     );
 
     expect(placed).toBe(true);
-    const menu = menusOf(useAccountStore.getState().account.projects[0]!).find(
+    const menu = menusOf(useProjectsStore.getState().openProjects.projects[0]!).find(
       (m) => m.id === "m2",
     )!;
     expect(menu.layers.flatMap((l) => l.elements)).not.toHaveLength(0);

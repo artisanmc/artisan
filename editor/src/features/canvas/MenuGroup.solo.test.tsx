@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import type { Menu, MenuId, ProjectId } from "@/domain/types";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { OPEN_ELEMENT_EVENT } from "./canvasEvents";
 
 vi.mock("react-konva", () => ({

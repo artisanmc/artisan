@@ -8,7 +8,7 @@ import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types"
 import { useAssetStore } from "@/features/assets/assetStore";
 import { cn } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 
 interface LayerListItemProps {
@@ -30,7 +30,7 @@ interface LayerListItemProps {
  *  3. Auto-name label — derived from `layer.kind` + asset name / i18n value.
  *     Falls back to a truncated asset id when the asset isn't loaded.
  *  4. Delete — confirms via `window.confirm` then calls
- *     `accountStore.removeMenuTitleLayer`. Cancel = no-op.
+ *     `projectsStore.removeMenuTitleLayer`. Cancel = no-op.
  *
  * Row-level click sets `selectedLayerKey`. Sub-button clicks `stopPropagation`
  * so they don't also select the row.
@@ -44,9 +44,9 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
   const toggleHidden = useUiStore((s) => s.toggleHiddenLayer);
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
 
-  const removeLayer = useAccountStore((s) => s.removeMenuTitleLayer);
+  const removeLayer = useProjectsStore((s) => s.removeMenuTitleLayer);
   const applyLayerDeleted = useUiStore((s) => s.applyLayerDeleted);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
 
@@ -155,7 +155,9 @@ export function LayerListItem({ projectId, menuId, index, layer }: LayerListItem
 function deriveAutoName(
   layer: MenuTitleLayer,
   assets: Asset[],
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
+  project:
+    | ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number]
+    | undefined,
   activeLang: string,
   t: TFunction,
 ): string {

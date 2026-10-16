@@ -1,11 +1,11 @@
 import type { Menu, MenuId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { parsePositions } from "@/lib/positions";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { parsePositions } from "@/lib/positions";
 import { hitTestSlot } from "./hitTest";
 
 const itemUnderPointer = (
@@ -16,7 +16,7 @@ const itemUnderPointer = (
 ): string | undefined => {
   const stage = e.target.getStage();
   const pointer = stage?.getPointerPosition();
-  const project = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+  const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
   if (!stage || !pointer || !project) return undefined;
   const hit = hitTestSlot(
     project,
@@ -55,13 +55,13 @@ export function useMenuClick({ projectId, menu, layout }: UseMenuClickArgs) {
             x: (pointer.x - stage.x()) / stage.scaleX(),
             y: (pointer.y - stage.y()) / stage.scaleY(),
           };
-          const account = useAccountStore.getState().account;
-          const project = account.projects.find((p) => p.id === projectId);
+          const openProjects = useProjectsStore.getState().openProjects;
+          const project = openProjects.projects.find((p) => p.id === projectId);
           if (project) {
             const hit = hitTestSlot(project, layout, world.x, world.y);
             if (hit && hit.menuId === menu.id) {
               try {
-                useAccountStore.getState().setSlotMaterial({
+                useProjectsStore.getState().setSlotMaterial({
                   projectId,
                   menuId: hit.menuId as MenuId,
                   position: hit.position,
@@ -89,8 +89,13 @@ export function useMenuClick({ projectId, menu, layout }: UseMenuClickArgs) {
       useUiStore.getState().setSelectedLayerKey(null);
 
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
-      const { ids, menuId: selectionMenuId, set, toggle, toggleElement } =
-        useSelectionStore.getState();
+      const {
+        ids,
+        menuId: selectionMenuId,
+        set,
+        toggle,
+        toggleElement,
+      } = useSelectionStore.getState();
       // A modifier-click that lands on an item (one whose slot overlay didn't
       // catch it) toggles the item, never the whole menu.
       const itemId = additive ? itemUnderPointer(e, projectId, menu, layout) : undefined;

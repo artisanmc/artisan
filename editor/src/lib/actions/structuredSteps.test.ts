@@ -64,7 +64,10 @@ describe("structuredSteps — actions", () => {
   it("round-trips action steps through the wire", () => {
     const steps: Step[] = [
       { kind: "action", action: { name: "send_message", value: { key: "m1" as I18nKey } } },
-      { kind: "action", action: { name: "open_dialog", value: { dialog_id: "confirm", clear_context: true } } },
+      {
+        kind: "action",
+        action: { name: "open_dialog", value: { dialog_id: "confirm", clear_context: true } },
+      },
       { kind: "action", action: { name: "play_sound", value: { sound: "PLING", pitch: 1.2 } } },
       {
         kind: "action",

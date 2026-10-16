@@ -28,7 +28,7 @@ import {
   shiftPlayerPositions,
   titleLayerKeys,
 } from "./helpers";
-import type { AccountSliceContext, AccountState, MenuRows } from "./types";
+import type { MenuRows, ProjectsSliceContext, ProjectsState } from "./types";
 
 /** Menus as Documents: fields, title layers, context inputs, captured items, ids. */
 export interface MenusSlice {
@@ -131,7 +131,7 @@ export const createMenusSlice = ({
   get,
   mutateProject,
   mutateMenu,
-}: AccountSliceContext): MenusSlice => ({
+}: ProjectsSliceContext): MenusSlice => ({
   createMenu: ({ projectId: pId, id: rawId, rows, position }) => {
     const id = rawId as MenuId;
     mutateProject(pId, (project) => {
@@ -298,7 +298,7 @@ export const createMenusSlice = ({
     schema,
     positions,
   }) => {
-    let result: ReturnType<AccountState["createMenuSet"]> = { ok: false, reason: "not_found" };
+    let result: ReturnType<ProjectsState["createMenuSet"]> = { ok: false, reason: "not_found" };
     mutateMenu(
       pId,
       mId,
@@ -364,7 +364,7 @@ export const createMenusSlice = ({
     if (oldId === newId) return;
     if (!newId) throw new Error("menu id cannot be empty");
     {
-      const project = get().account.projects.find((p) => p.id === pId);
+      const project = get().openProjects.projects.find((p) => p.id === pId);
       if (!project) return;
       if (menusOf(project).some((m) => m.id === newId)) {
         throw new Error(`menu id "${newId}" already exists in project`);

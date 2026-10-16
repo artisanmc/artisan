@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
-import type { DataSource, Project, ProjectId } from "@/domain/types";
-import { applySourceYaml, sourceYamlFiles } from "./sourceYaml";
 import { menusOf } from "@/domain/documents";
+import type { DataSource, Project, ProjectId } from "@/domain/types";
+import { describe, expect, it } from "vitest";
+import { applySourceYaml, sourceYamlFiles } from "./sourceYaml";
 
 const PID = "p_yaml" as ProjectId;
 

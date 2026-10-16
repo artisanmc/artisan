@@ -26,8 +26,8 @@ import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { lookupPath } from "@/lib/placeholders";
 import { useGetText } from "@/lib/useText";
-import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import {
@@ -75,7 +75,7 @@ export function SortableStates({
   onDuplicate: () => void;
 }) {
   const { t } = useTranslation();
-  const moveAppearance = useAccountStore((s) => s.moveAppearance);
+  const moveAppearance = useProjectsStore((s) => s.moveAppearance);
   const setSub = useFlowSelectionStore((s) => s.set);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const ids = useStableAppearanceIds(appearances);
@@ -282,16 +282,16 @@ function StateCard({
     opacity: sortable.isDragging ? 0.5 : 1,
   };
   const setSub = useFlowSelectionStore((s) => s.set);
-  const setAppearanceField = useAccountStore((s) => s.setAppearanceField);
-  const setAppearanceAdvanced = useAccountStore((s) => s.setAppearanceAdvanced);
-  const setAppearanceTitle = useAccountStore((s) => s.setAppearanceTitle);
-  const setAppearanceLore = useAccountStore((s) => s.setAppearanceLore);
-  const setAppearanceConditions = useAccountStore((s) => s.setAppearanceConditions);
-  const setAppearanceJoin = useAccountStore((s) => s.setAppearanceJoin);
-  const removeAppearance = useAccountStore((s) => s.removeAppearance);
+  const setAppearanceField = useProjectsStore((s) => s.setAppearanceField);
+  const setAppearanceAdvanced = useProjectsStore((s) => s.setAppearanceAdvanced);
+  const setAppearanceTitle = useProjectsStore((s) => s.setAppearanceTitle);
+  const setAppearanceLore = useProjectsStore((s) => s.setAppearanceLore);
+  const setAppearanceConditions = useProjectsStore((s) => s.setAppearanceConditions);
+  const setAppearanceJoin = useProjectsStore((s) => s.setAppearanceJoin);
+  const removeAppearance = useProjectsStore((s) => s.removeAppearance);
   const activeLang = useUiStore((s) => s.activeLang);
   const getText = useGetText(projectId);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const target = { menuId: menu.id, elementId: element.id };
 
   const isDefault = stateIndex === 0;
@@ -527,7 +527,7 @@ function StateCard({
             element={element}
             image={appearance.image}
             onImage={(image, positions) =>
-              useAccountStore.getState().setAppearanceImage({
+              useProjectsStore.getState().setAppearanceImage({
                 projectId,
                 ...target,
                 appearanceIndex: stateIndex,
@@ -539,7 +539,7 @@ function StateCard({
               if (appearance.image) update("material", "STONE");
             }}
             onPositions={(positions) =>
-              useAccountStore.getState().setElementPositions({ projectId, ...target, positions })
+              useProjectsStore.getState().setElementPositions({ projectId, ...target, positions })
             }
           >
             {/* biome-ignore lint/a11y/noLabelWithoutControl: RevealField renders a labelable <button> facade (then an input) inside this label; Biome cannot see through the component */}
