@@ -125,11 +125,22 @@ footprints produce no active image button. Plain title text renders after images
 
 ## Project display name
 
-`ProjectTopBarControls` subscribes to the current project's name so
+`features/project/ProjectTopBarControls` subscribes to the current project's name so
 settings edits update the header immediately, falling back to the loaded name.
 `projectFromFiles` defaults Boutique-owned projects (`manifest.module: boutique`)
 to `Boutique` when their metadata name is absent or matches their internal/disk ID.
 Explicit custom names remain unchanged; IDs and folder names are unaffected.
+
+## Publish workflow (`features/project/publish/`)
+
+Save (account draft) and Deploy (the only disk write, compare-and-swap) live in
+`features/project/publish/`: `publishFlow.ts` is the pure reducer (`saving`, the
+deploy `review`, the `conflict` modal with its source `save | open | draft`, tree,
+disk files and per-file choices, the last failure), tested without React;
+`usePublishFlow(projectId, offline)` runs the workflow against the stores and the hub
+(conflicts found at draft open, silent rebase of a draft conflict without diverging
+file, the `OPEN_DEPLOY_REVIEW` event of the History tab); `SaveControls` and
+`ConflictResolutionDialog` only render. A new conflict always starts with no choice.
 
 ## Tests et CI
 

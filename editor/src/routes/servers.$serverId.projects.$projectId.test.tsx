@@ -75,7 +75,7 @@ function loadedProject() {
     },
   };
 }
-vi.mock("@/components/ProjectTopBarControls", () => ({
+vi.mock("@/features/project/ProjectTopBarControls", () => ({
   ProjectTopBarControls: () => <div data-testid="topbar" />,
 }));
 vi.mock("@/features/assets/AssetsTab", () => ({
