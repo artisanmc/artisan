@@ -5,6 +5,7 @@ import { createCanvasSlice } from "./account/canvasSlice";
 import { createCommandsSlice } from "./account/commandsSlice";
 import { createDataSlice } from "./account/dataSlice";
 import { createDialogsSlice } from "./account/dialogsSlice";
+import { createDocumentsSlice } from "./account/documentsSlice";
 import { createElementsSlice } from "./account/elementsSlice";
 import { createI18nSlice } from "./account/i18nSlice";
 import { createMenusSlice } from "./account/menusSlice";
@@ -42,6 +43,7 @@ export const useAccountStore = create<AccountState>()(
         account: { id: "" as Account["id"], projects: [], projectOrder: [] },
         ...createProjectsSlice(context),
         ...createDialogsSlice(context),
+        ...createDocumentsSlice(context),
         ...createCommandsSlice(context),
         ...createMenusSlice(context),
         ...createElementsSlice(context),

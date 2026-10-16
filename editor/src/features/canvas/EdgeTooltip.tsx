@@ -1,12 +1,12 @@
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { getText } from "@/lib/i18n";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useUiStore } from "@/state/uiStore";
-import { getTextureUrl } from "./textureStore";
 import type { BoardGroup } from "./groupedBoard";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { getTextureUrl } from "./textureStore";
 
 interface EdgeTooltipProps {
   project: Project;
@@ -75,6 +75,13 @@ export function EdgeTooltip({ project, groups }: EdgeTooltipProps) {
             <div key={i} className="flex items-center gap-1.5">
               <span className="badge badge-sage shrink-0 font-mono">dialog</span>
               <span className="font-mono text-xs text-[var(--text-mut)]">{trigger.buttonId}</span>
+            </div>
+          ) : trigger.kind === "chain" ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="font-mono text-xs text-[var(--text-mut)]">
+                {trigger.label ?? trigger.slot}
+              </span>
             </div>
           ) : (
             // biome-ignore lint/suspicious/noArrayIndexKey: stable per tooltip render

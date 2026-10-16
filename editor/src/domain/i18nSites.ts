@@ -1,4 +1,4 @@
-import { itemTextFields } from "./itemTextFields";
+import { type DeclaredActionLookup, declaredActionOf } from "@/lib/actions/coreActions";
 import { createLTextAt, deleteLText } from "@/lib/i18n";
 import {
   commandKeyPrefix,
@@ -12,9 +12,16 @@ import {
   moveLTextKey,
   stateLabel,
 } from "@/lib/i18nKeys";
-import { addressedAppearances } from "./element";
 import { isLTextNode, walkStepTextSlots } from "./actionTextSlots";
-import { type DeclaredActionLookup, declaredActionOf } from "@/lib/actions/coreActions";
+import {
+  type ChainSlot,
+  documentChainSlots,
+  documentLTextSites,
+  registerDocumentKindVisitors,
+} from "./documentKindVisitors";
+import { allDocuments } from "./documents";
+import { addressedAppearances } from "./element";
+import { itemTextFields } from "./itemTextFields";
 import type {
   Appearance,
   Command,
@@ -22,6 +29,7 @@ import type {
   DataModelId,
   DataSource,
   Dialog,
+  Document,
   Element,
   I18nKey,
   LText,
@@ -30,7 +38,6 @@ import type {
   Project,
   Step,
 } from "./types";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 /**
  * Single traversal of every localizable-text **key site** in a project tree.
@@ -150,27 +157,41 @@ export function adoptActionTexts(
 export function* visitProjectStepChains(
   project: Project,
 ): Generator<{ steps: Step[]; prefix: string }> {
-  for (const menu of menusOf(project)) {
-    for (const layer of menu.layers) {
-      for (const el of layer.elements) {
-        const appearances = addressedAppearances(el);
-        for (let i = 0; i < appearances.length; i++) {
-          const click = appearances[i]!.click;
-          if (!click) continue;
-          const base = `menus.${menu.id}.elements.${el.id}.${stateLabel(i)}`;
-          for (const [clickType, handler] of Object.entries(click)) {
-            if (handler) yield { steps: handler.steps, prefix: `${base}.click.${clickType}` };
-          }
+  for (const { kind, doc } of allDocuments(project)) yield* documentChainSlots(kind, doc);
+}
+
+/** The action chains of a menu: one per click handler of each element appearance. */
+export function* menuChainSlots(menu: Menu): Generator<ChainSlot> {
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      const appearances = addressedAppearances(el);
+      for (let i = 0; i < appearances.length; i++) {
+        const appearance = appearances[i]!;
+        if (!appearance.click) continue;
+        const base = `menus.${menu.id}.elements.${el.id}.${stateLabel(i)}`;
+        for (const [clickType, handler] of Object.entries(appearance.click)) {
+          if (!handler) continue;
+          yield {
+            name: `${el.id}.${clickType}`,
+            steps: handler.steps,
+            prefix: `${base}.click.${clickType}`,
+            label: appearance.material ?? el.display.material ?? "",
+          };
         }
       }
     }
   }
-  for (const cmd of commandsOf(project))
-    yield { steps: cmd.steps, prefix: commandKeyPrefix(cmd.id) };
-  for (const dlg of dialogsOf(project)) {
-    for (const btn of dlg.buttons)
-      yield { steps: btn.steps, prefix: dialogButtonKeyPrefix(dlg.id, btn.id) };
-  }
+}
+
+/** The action chain of a command: its invocation. */
+export function* commandChainSlots(command: Command): Generator<ChainSlot> {
+  yield { name: "invoke", steps: command.steps, prefix: commandKeyPrefix(command.id) };
+}
+
+/** The action chains of a dialog: one per button. */
+export function* dialogChainSlots(dialog: Dialog): Generator<ChainSlot> {
+  for (const btn of dialog.buttons)
+    yield { name: btn.id, steps: btn.steps, prefix: dialogButtonKeyPrefix(dialog.id, btn.id) };
 }
 
 /** {@link adoptActionTexts} over every action chain of the project. */
@@ -431,11 +452,13 @@ export function* visitDataSourceLTexts(project: Project, ds: DataSource): Genera
   }
 }
 
-/** Yield every key site in a project: menus, commands, dialogs, sources. */
+/**
+ * Yield every key site in a project: every Document through its kind's visitor
+ * (`documentKindVisitors`), then the data sources. A kind without a visitor has no
+ * site: its texts are not in `i18nKeys`.
+ */
 export function* visitProjectLTexts(project: Project): Generator<LTextSite> {
-  for (const menu of menusOf(project)) yield* visitMenuLTexts(menu);
-  for (const cmd of commandsOf(project)) yield* visitCommandLTexts(cmd);
-  for (const dlg of dialogsOf(project)) yield* visitDialogLTexts(dlg);
+  for (const { kind, doc } of allDocuments(project)) yield* documentLTextSites(kind, doc);
   for (const ds of project.dataSources ?? []) yield* visitDataSourceLTexts(project, ds);
 }
 
@@ -600,6 +623,16 @@ export function rekeyDataSource(project: Project, dataSource: DataSource): void 
   rekey(project, visitDataSourceLTexts(project, dataSource));
 }
 
+/** Canonicalize one Document's LText keys through its kind's visitor (after a rename, say). */
+export function rekeyDocument(project: Project, kind: string, doc: Document): void {
+  rekey(project, documentLTextSites(kind, doc));
+}
+
+/** Release every text one Document owns, before it leaves the project. */
+export function gcDocumentLTexts(project: Project, kind: string, doc: Document): void {
+  releaseLTexts(project, documentLTextSites(kind, doc));
+}
+
 /**
  * Canonicalize every LText key in the project — menus, commands, templates, and
  * dialogs. The single deploy-time canonicalizer; replaces the per-entity
@@ -637,3 +670,18 @@ export function mintLTexts(project: Project, sites: Iterable<LTextSite>, lang: s
 export function releaseLTexts(project: Project, sites: Iterable<LTextSite>): void {
   for (const site of sites) deleteLText(project, site.lText);
 }
+
+// The core kinds walk themselves the way a module's kind does (dogfood): the same
+// registry serves `visitProjectLTexts`, `visitProjectStepChains`, the rekey and the GC.
+registerDocumentKindVisitors("menu", {
+  ltextSites: (doc) => visitMenuLTexts(doc as Menu),
+  chainSlots: (doc) => menuChainSlots(doc as Menu),
+});
+registerDocumentKindVisitors("command", {
+  ltextSites: (doc) => visitCommandLTexts(doc as Command),
+  chainSlots: (doc) => commandChainSlots(doc as Command),
+});
+registerDocumentKindVisitors("dialog", {
+  ltextSites: (doc) => visitDialogLTexts(doc as Dialog),
+  chainSlots: (doc) => dialogChainSlots(doc as Dialog),
+});

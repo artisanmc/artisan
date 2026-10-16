@@ -1,3 +1,4 @@
+import { documentIds, hasDocument, menusOf } from "@/domain/documents";
 import type { EdgeAnchor, Project } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
 import { useAccountStore } from "@/state/accountStore";
@@ -9,13 +10,12 @@ import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useEffect, useMemo, useState } from "react";
 import { Arrow, Circle } from "react-konva";
-import { deriveEdges, type Edge } from "./deriveEdges";
-import { anchorPoint, closestAnchorOnBox, routeEdges, type Box } from "./edgeRouting";
+import { type Edge, deriveEdges } from "./deriveEdges";
+import { type Box, anchorPoint, closestAnchorOnBox, routeEdges } from "./edgeRouting";
+import { groupEdges } from "./groupedBoard";
 import { nodeBox } from "./menuLayout";
 import { findPreviewCallContexts } from "./previewCallContexts";
 import { nextCallContext } from "./previewCallNavigation";
-import { groupEdges } from "./groupedBoard";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 /** Keeps only the edges whose two ends are on the board. */
 export function visibleEdges(
@@ -34,11 +34,7 @@ interface EdgesProps {
 function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<string> {
   const out = new Set<string>();
   for (const id of ids) {
-    if (
-      menusOf(project).some((m) => m.id === id) ||
-      commandsOf(project).some((c) => c.id === id) ||
-      dialogsOf(project).some((d) => d.id === id)
-    ) {
+    if (hasDocument(project, id)) {
       out.add(id);
       continue;
     }
@@ -95,17 +91,9 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
 
   const boxes = useMemo(() => {
     const out: Record<string, Box> = {};
-    for (const m of menusOf(project)) {
-      const box = nodeBox(project, m.id, layout);
-      if (box) out[m.id] = box;
-    }
-    for (const c of commandsOf(project)) {
-      const box = nodeBox(project, c.id, layout);
-      if (box) out[c.id] = box;
-    }
-    for (const d of dialogsOf(project)) {
-      const box = nodeBox(project, d.id, layout);
-      if (box) out[d.id] = box;
+    for (const id of documentIds(project)) {
+      const box = nodeBox(project, id, layout);
+      if (box) out[id] = box;
     }
     return out;
   }, [project, layout]);

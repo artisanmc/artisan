@@ -1,12 +1,16 @@
 import { walkDocumentRefs } from "@/domain/actionArgs";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { documentChainSlots } from "@/domain/documentKindVisitors";
+import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
+import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { addressedAppearances } from "@/domain/element";
 import type { Project } from "@/domain/types";
 
 export type EdgeTrigger =
   | { kind: "element"; elementId: string; material: string; clickType: string }
   | { kind: "command"; commandId: string }
-  | { kind: "dialog_button"; dialogId: string; buttonId: string };
+  | { kind: "dialog_button"; dialogId: string; buttonId: string }
+  /** A chain slot of a Document of another kind (its `chainSlots` visitor). */
+  | { kind: "chain"; documentId: string; slot: string; label?: string };
 
 export interface Edge {
   id: string;
@@ -32,7 +36,9 @@ export function deriveEdges(project: Project): Edge[] {
         ? `el:${trigger.elementId}:${trigger.clickType}`
         : trigger.kind === "dialog_button"
           ? `dlg:${trigger.dialogId}:${trigger.buttonId}`
-          : `cmd:${trigger.commandId}`;
+          : trigger.kind === "chain"
+            ? `chain:${trigger.documentId}:${trigger.slot}`
+            : `cmd:${trigger.commandId}`;
 
     let edge = edgeMap.get(id);
     if (!edge) {
@@ -84,6 +90,23 @@ export function deriveEdges(project: Project): Edge[] {
           kind: "dialog_button",
           dialogId: dialog.id,
           buttonId: btn.id,
+        });
+      }
+    }
+  }
+
+  // Any other kind: its chains come from its visitor, the trigger is the slot itself.
+  const core = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
+  for (const { kind, doc } of allDocuments(project)) {
+    if (core.has(kind)) continue;
+    for (const slot of documentChainSlots(kind, doc)) {
+      for (const ref of walkDocumentRefs(slot.steps)) {
+        if (ref.id === "") continue;
+        addTrigger(doc.id, ref.id, {
+          kind: "chain",
+          documentId: doc.id,
+          slot: slot.name,
+          ...(slot.label !== undefined ? { label: slot.label } : {}),
         });
       }
     }

@@ -5,33 +5,51 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { documentCount } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
+import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
-import { LayoutGrid, MessageSquare, Plus, Settings, TerminalSquare } from "lucide-react";
+import { documentKindContribution, listDocumentKindContributions } from "@artisan/editor-sdk";
+import type { TFunction } from "i18next";
+import { FileText, LayoutGrid, MessageSquare, Plus, Settings, TerminalSquare } from "lucide-react";
 import { useState } from "react";
+import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { openProjectSettings } from "./projectSettings";
 import {
   type DocumentType,
   type ProjectDocumentItem,
   buildProjectDocuments,
+  isCoreDocumentType,
 } from "./useProjectDocuments";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
-const TYPE_ICON: Record<DocumentType, typeof LayoutGrid> = {
+type KindIcon = ComponentType<{ className?: string }>;
+const TYPE_ICON: Record<string, KindIcon> = {
   menu: LayoutGrid,
   command: TerminalSquare,
   dialog: MessageSquare,
 };
-const TYPE_LABEL_KEY: Record<DocumentType, string> = {
+const TYPE_LABEL_KEY: Record<string, string> = {
   menu: "projectPanel.menus",
   command: "projectPanel.commands",
   dialog: "projectPanel.dialogs",
 };
+
+/** A kind's icon: the core table, else its contribution, else a plain file. */
+function typeIcon(type: DocumentType): KindIcon {
+  return TYPE_ICON[type] ?? documentKindContribution(type)?.icon ?? FileText;
+}
+/** A kind's group label: the core key, else the contribution's (an i18n key or a literal), else the kind. */
+function typeLabel(type: DocumentType, t: TFunction): string {
+  const key = TYPE_LABEL_KEY[type];
+  if (key) return t(key);
+  const label = documentKindContribution(type)?.label ?? type;
+  return t(label, { defaultValue: label });
+}
 
 /**
  * A project's settings and creation: two icon buttons, to the right of the
@@ -42,6 +60,9 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [newCommandOpen, setNewCommandOpen] = useState(false);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
+  // A module's kind: one "+" entry and one dialog per contribution.
+  const [newKind, setNewKind] = useState<string | null>(null);
+  const moduleKinds = listDocumentKindContributions().filter((c) => !isCoreDocumentType(c.kind));
   const iconButton =
     "flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]";
   return (
@@ -75,6 +96,11 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
           <DropdownMenuItem onSelect={() => setNewDialogOpen(true)}>
             {t("projectProperties.newDialog")}
           </DropdownMenuItem>
+          {moduleKinds.map((c) => (
+            <DropdownMenuItem key={c.kind} onSelect={() => setNewKind(c.kind)}>
+              {t("projectProperties.newDocument", { kind: typeLabel(c.kind, t) })}
+            </DropdownMenuItem>
+          ))}
         </DropdownMenuContent>
       </DropdownMenu>
       <NewMenuDialog projectId={projectId} open={newMenuOpen} onOpenChange={setNewMenuOpen} />
@@ -84,6 +110,16 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
         onOpenChange={setNewCommandOpen}
       />
       <NewDialogDialog projectId={projectId} open={newDialogOpen} onOpenChange={setNewDialogOpen} />
+      {newKind !== null && (
+        <NewDocumentDialog
+          projectId={projectId}
+          kind={newKind}
+          open
+          onOpenChange={(open) => {
+            if (!open) setNewKind(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -108,10 +144,7 @@ export function ProjectDocumentTree({
   const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
   if (!project) return null;
 
-  const empty =
-    menusOf(project).length === 0 &&
-    commandsOf(project).length === 0 &&
-    dialogsOf(project).length === 0;
+  const empty = documentCount(project) === 0;
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.
@@ -159,8 +192,8 @@ export function DocumentGroups({
         if (g.items.length === 0) return null;
         // One icon per category, in its header: repeated on every row it said
         // nothing more than the header and ate the width.
-        const Icon = TYPE_ICON[g.type];
-        const label = t(TYPE_LABEL_KEY[g.type]);
+        const Icon = typeIcon(g.type);
+        const label = typeLabel(g.type, t);
         return (
           <div key={g.type} className="flex flex-col">
             <div className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]">

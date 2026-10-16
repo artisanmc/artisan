@@ -14,18 +14,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // middle button for panning (handled manually via useMiddleClickPan) without it
 // accidentally starting a node drag when pressed over a menu.
 Konva.dragButtons = [0];
+import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
+import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { dismissInspector, openProjectSettings } from "@/features/project/projectSettings";
 import { useTranslation } from "react-i18next";
 import { Stage as KonvaStage, Layer, Text } from "react-konva";
 import { toast } from "sonner";
 import { AlignmentGuides } from "./AlignmentGuidesOverlay";
 import { ArmedBanner } from "./ArmedBanner";
-import { CanvasToolbar } from "./CanvasToolbar";
 import { BoardGroupControls, type GroupDialogState } from "./BoardGroupControls";
 import { BoardGroupFrames, type GroupDrag } from "./BoardGroupFrames";
 import { CanvasMinimap } from "./CanvasMinimap";
+import { CanvasToolbar } from "./CanvasToolbar";
 import { CommandGroup } from "./CommandGroup";
 import { ContextMenu } from "./ContextMenu";
 import { DialogGroup } from "./DialogGroup";
+import { DocumentGroup } from "./DocumentGroup";
 import { EdgeTooltip } from "./EdgeTooltip";
 import { Edges } from "./Edges";
 import { GhostChips } from "./GhostChips";
@@ -37,7 +41,6 @@ import { NewDialogDialog } from "./NewDialogDialog";
 import { NewMenuDialog } from "./NewMenuDialog";
 import { Selection } from "./Selection";
 import { projectBoard } from "./autoLayout";
-import { dismissInspector, openProjectSettings } from "@/features/project/projectSettings";
 import { dispatchOpenElement } from "./canvasEvents";
 import { viewportForCenterRequest } from "./centerRequest";
 import { fitViewport } from "./focusViewport";
@@ -48,11 +51,12 @@ import { setStageGeometryProvider } from "./stageGeometry";
 import { type PasteAnchor, canvasClipboardActions, useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useMarqueeSelection } from "./useMarqueeSelection";
 import { useMiddleClickPan } from "./useMiddleClickPan";
-import { usePrimaryButtonOnly } from "./usePrimaryButtonOnly";
 import { usePanZoom } from "./usePanZoom";
+import { usePrimaryButtonOnly } from "./usePrimaryButtonOnly";
 import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageTouch } from "./useStageTouch";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+
+const CORE_KINDS = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
 
 interface StageProps {
   projectId: ProjectId;
@@ -648,6 +652,17 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 projectId={projectId}
                 dialog={dialog}
                 position={layout[dialog.id]!}
+              />
+            ))}
+          {allDocuments(project)
+            .filter(({ kind, doc }) => !CORE_KINDS.has(kind) && layout[doc.id])
+            .map(({ kind, doc }) => (
+              <DocumentGroup
+                key={doc.id}
+                project={project}
+                kind={kind}
+                doc={doc}
+                position={layout[doc.id]!}
               />
             ))}
           <GhostChips
