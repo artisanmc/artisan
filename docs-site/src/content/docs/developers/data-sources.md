@@ -23,10 +23,10 @@ api.dataSources.register(
             }
         },
         listOf(
-            DataSourceField("id", FieldKind.STRING, "Home name"),
-            DataSourceField("world", FieldKind.STRING),
-            DataSourceField("x", FieldKind.NUMBER),
-            DataSourceField("z", FieldKind.NUMBER),
+            DataSourceField("id", ModelFieldType.string(), "Home name"),
+            DataSourceField("world", ModelFieldType.string()),
+            DataSourceField("x", ModelFieldType.number()),
+            DataSourceField("z", ModelFieldType.number()),
         ),
     )
 )
@@ -40,16 +40,23 @@ api.getDataSources().register(new DataSourceDeclaration(
             return homeCache.of(player.getUniqueId()).stream().map(Home::toRow).toList();
         },
         List.of(
-                new DataSourceField("id", FieldKind.STRING, "Home name"),
-                new DataSourceField("world", FieldKind.STRING),
-                new DataSourceField("x", FieldKind.NUMBER),
-                new DataSourceField("z", FieldKind.NUMBER))));
+                new DataSourceField("id", ModelFieldType.string(), "Home name"),
+                new DataSourceField("world", ModelFieldType.string()),
+                new DataSourceField("x", ModelFieldType.number()),
+                new DataSourceField("z", ModelFieldType.number()))));
 // Static sources take two more arguments: new DataSourceDeclaration(ref, fetcher, schema, Stability.STATIC, "id")
 ```
 
 Since API 1.8.0 the optional parameters can be left out from Java too:
 `new DataSourceDeclaration(ref, fetcher)`, `new DataSourceDeclaration(ref, fetcher, schema)`,
-`new DataSourceField(name, kind)`.
+`new DataSourceField(name, type)`.
+
+A row field is typed with `ModelFieldType` (Since 2.0.0), the same field kinds as
+[Data models](/wiki/developers/data-models/#field-kinds) and action arguments.
+The 1.x `FieldKind` constructors (`DataSourceField("x", FieldKind.NUMBER)`) still
+compile, `@Sunset` until 3.0.0: `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN` and
+`ITEM` map to the kind of the same name, `LIST` to `list(string())`, `OBJECT`
+to `object([])`.
 
 Register from your module's `onEnable(api)` so the editor shows the source
 under your module ([Modules](/wiki/developers/modules/)). Registering from

@@ -20,7 +20,7 @@ private const val KEY_FILE = ".artisan/project-id"
 class ProjectRoots(
     val coreRoot: File,
     private val logger: java.util.logging.Logger? = null,
-) : net.artisanmc.modules.api.ProjectRootRegistry {
+) : net.artisanmc.modules.api.project.ProjectRootRegistry {
 
     /** projectId -> project dir, for Add-on-owned projects registered at onEnable. */
     private val registered = ConcurrentHashMap<String, File>()

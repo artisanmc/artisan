@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.hub
 
 import net.artisanmc.plugin.protocol.ProtocolVersion
+import net.artisanmc.plugin.protocol.ServerAnnouncement
 import net.artisanmc.plugin.protocol.ServerLink
 
 /**
@@ -23,14 +24,8 @@ interface EditorServer {
     val protocolVersion: String get() = ProtocolVersion.CURRENT
     val minecraftVersion: String
     val pluginVersion: String
-    fun modules(): List<Map<String, Any?>>
-    fun dataSources(): List<Map<String, Any?>>
-    fun models(): List<Map<String, Any?>>
-    fun screens(): List<Map<String, Any?>>
-    /** Registered actions, core and modules': `{name, args, primary?, module_id?}` (ADR extensible-document-kinds). */
-    fun actions(): List<Map<String, Any?>> = emptyList()
-    /** Registered Document kinds, core and modules': `{kind, dir, schema_versions, id_prefix?, module_id?}` (W6). */
-    fun documentKinds(): List<Map<String, Any?>> = emptyList()
+    /** Its modules and what they declare: modules, data sources, models, screens, actions, Document kinds. */
+    fun announcement(): ServerAnnouncement
     fun serverConfig(): Map<String, Any?>?
     /** Nexo, Oraxen, ItemsAdder items: `{id, label, category}`. */
     fun customItems(): List<Map<String, String>>

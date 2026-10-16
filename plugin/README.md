@@ -6,7 +6,7 @@
 | `core` | Domaine : projets, modèle, langage d'actions, expressions, parseurs. | Bukkit, JDBC, HTTP. |
 | `database` | Pools de connexions par plugin (H2, MySQL, MariaDB). | Bukkit. |
 | `hub` | Serveur web de l'éditeur (Jetty) : fichiers de l'éditeur, API, sessions ouvertes par `/artisan editor`. | Bukkit. |
-| `paper` | Intégration Paper : listeners, commandes, rendu, WebSocket. Racine de composition dans `ArtisanPlugin.onEnable`. Produit le jar. | — |
+| `paper` | Intégration Paper : listeners, commandes, rendu, WebSocket. Racine de composition dans `ArtisanPlugin.onEnable`, qui assemble `ArtisanApiFactory` (API des add-ons), `SuiteDatabase` (base de la suite, Versions), `EditorHost` (éditeur ou lien au hub) et `RuntimeAssembly` (ce que `/artisan reload` reconstruit). Produit le jar. | — |
 
 ```bash
 ./gradlew test        # tous les modules
