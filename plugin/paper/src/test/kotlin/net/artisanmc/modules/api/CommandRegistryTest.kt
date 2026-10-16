@@ -1,6 +1,10 @@
 package net.artisanmc.modules.api
 
 import be.seeseemelk.mockbukkit.MockBukkit
+import net.artisanmc.modules.api.command.CommandDeclaration
+import net.artisanmc.modules.api.command.CommandRegistry
+import net.artisanmc.modules.api.command.DuplicateCommandException
+import net.artisanmc.modules.api.command.UnknownCommandException
 import org.bukkit.entity.Player
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*

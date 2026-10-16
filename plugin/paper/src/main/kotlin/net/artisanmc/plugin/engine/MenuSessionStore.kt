@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.modules.api.MenuRef
+import net.artisanmc.modules.api.menu.MenuRef
 import org.bukkit.entity.Player
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
