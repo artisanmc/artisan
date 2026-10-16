@@ -1,17 +1,17 @@
 import { menusOf } from "@/domain/documents";
 import { menuId, projectId } from "@/domain/ids";
 import { projectBoard } from "@/features/canvas/autoLayout";
-import { mockAccount } from "@/mock/fixtures";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { projectToFiles } from "@/schema/projectToFiles";
 import { beforeEach, expect, it } from "vitest";
-import { useAccountStore } from "./accountStore";
+import { useProjectsStore } from "./projectsStore";
 
 const pid = projectId("p_personal");
-const project = () => useAccountStore.getState().account.projects.find((p) => p.id === pid)!;
+const project = () => useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!;
 
 function customizedGroup() {
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   const id = store.createCanvasGroup({
     projectId: pid,
     name: "Crafts",
@@ -35,15 +35,15 @@ function relative(board: ReturnType<typeof projectBoard>, groupId: string) {
   );
 }
 beforeEach(() => {
-  useAccountStore.setState({ account: mockAccount() });
+  useProjectsStore.setState({ openProjects: mockOpenProjects() });
   for (const id of ["craft_a", "craft_b", "craft_c"]) {
-    useAccountStore.getState().createMenu({ projectId: pid, id });
+    useProjectsStore.getState().createMenu({ projectId: pid, id });
   }
-  useAccountStore.temporal.getState().clear();
+  useProjectsStore.temporal.getState().clear();
 });
 
 it("moves a group as one undoable operation", () => {
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   const id = store.createCanvasGroup({
     projectId: pid,
     name: "Crafts",
@@ -58,30 +58,30 @@ it("moves a group as one undoable operation", () => {
       y: before.layout[key]!.y + 180,
     });
   }
-  useAccountStore.temporal.getState().undo();
+  useProjectsStore.temporal.getState().undo();
   expect(projectBoard(project()).layout).toEqual(before.layout);
 });
 
 it("groups selected menus, survives rename, and can undo grouping without changing menus", () => {
   const before = structuredClone(menusOf(project()));
-  const id = useAccountStore.getState().createCanvasGroup({
+  const id = useProjectsStore.getState().createCanvasGroup({
     projectId: pid,
     name: "Crafts",
     nodeIds: ["craft_a", "craft_b"],
   });
   expect(project().canvasGroups).toEqual([{ id, name: "Crafts", nodeIds: ["craft_a", "craft_b"] }]);
   expect(menusOf(project())).toEqual(before);
-  useAccountStore.temporal.getState().undo();
+  useProjectsStore.temporal.getState().undo();
   expect(project().canvasGroups ?? []).toEqual([]);
-  useAccountStore.temporal.getState().redo();
-  useAccountStore
+  useProjectsStore.temporal.getState().redo();
+  useProjectsStore
     .getState()
     .setMenuId({ projectId: pid, oldId: menuId("craft_a"), newId: menuId("craft_new") });
   expect(project().canvasGroups![0]!.nodeIds).toEqual(["craft_new", "craft_b"]);
 });
 
 it("keeps membership exclusive, supports color and dissolve, and prunes deleted menus", () => {
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   const first = store.createCanvasGroup({
     projectId: pid,
     name: "First",
@@ -108,7 +108,7 @@ it("keeps membership exclusive, supports color and dissolve, and prunes deleted 
 });
 
 it("groups commands and dialogs alongside menus, and rekeys a renamed command", () => {
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   const cmdId = store.createCommand({ projectId: pid, id: "cmd_a" });
   const dlgId = store.createDialog({ projectId: pid, id: "dlg_a" });
   const groupId = store.createCanvasGroup({
@@ -137,7 +137,7 @@ it("rearranges the board as blocks without changing group interiors, including a
   const id = customizedGroup();
   const before = projectBoard(project());
   const documents = structuredClone(menusOf(project()));
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   store.setEdgeAnchor({
     projectId: pid,
     edgeId: "craft_a->craft_b",
@@ -162,14 +162,14 @@ it("rearranges the board as blocks without changing group interiors, including a
   expect(relative(projectBoard(restored), id)).toEqual(relative(after, id));
   store.releaseBoardPositions({ projectId: pid });
   expect(projectBoard(project()).layout).toEqual(after.layout);
-  useAccountStore.temporal.getState().undo();
-  useAccountStore.temporal.getState().undo();
+  useProjectsStore.temporal.getState().undo();
+  useProjectsStore.temporal.getState().undo();
   expect(projectBoard(project()).layout).toEqual(before.layout);
 });
 
 it("rearranges only the chosen group's contents, keeping its origin and all other documents fixed", () => {
   const id = customizedGroup();
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   store.createMenu({ projectId: pid, id: "craft_d" });
   const other = store.createCanvasGroup({
     projectId: pid,
@@ -201,6 +201,6 @@ it("rearranges only the chosen group's contents, keeping its origin and all othe
     before.groups.find((g) => g.id === other),
   );
   expect(project().canvasEdges).toEqual({ "craft_c->craft_d": { from: { side: "top", t: 0.7 } } });
-  useAccountStore.temporal.getState().undo();
+  useProjectsStore.temporal.getState().undo();
   expect(projectBoard(project()).layout).toEqual(before.layout);
 });

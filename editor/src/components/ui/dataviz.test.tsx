@@ -27,8 +27,16 @@ describe("dataviz primitives", () => {
   it("Table renders rows", () => {
     render(
       <Table>
-        <THead><TR><TH>Col</TH></TR></THead>
-        <TBody><TR><TD>Val</TD></TR></TBody>
+        <THead>
+          <TR>
+            <TH>Col</TH>
+          </TR>
+        </THead>
+        <TBody>
+          <TR>
+            <TD>Val</TD>
+          </TR>
+        </TBody>
       </Table>,
     );
     expect(screen.getByText("Col")).toBeInTheDocument();

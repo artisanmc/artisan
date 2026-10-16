@@ -1,7 +1,7 @@
 import type { I18nKey, LText } from "@/domain/types";
-import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
-import { stepsToStructured, structuredToSteps, type ActionTextCodec } from "./structuredSteps";
+import { parse } from "yaml";
+import { type ActionTextCodec, stepsToStructured, structuredToSteps } from "./structuredSteps";
 
 /**
  * Locks the reference examples in `docs/architecture/action-steps.md` — each wire

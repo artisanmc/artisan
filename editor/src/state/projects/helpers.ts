@@ -32,7 +32,7 @@ import { formatPositions, parsePositions } from "@/lib/positions";
 import type { AppearanceTarget } from "./types";
 
 /**
- * Helpers shared by the account slices: they walk the immer draft and return live
+ * Helpers shared by the projects store slices: they walk the immer draft and return live
  * references, so a mutation can splice in place.
  */
 /**

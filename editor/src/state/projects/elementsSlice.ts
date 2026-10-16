@@ -49,7 +49,7 @@ import {
   nextElementIdForMaterial,
 } from "./helpers";
 import { type Mutation, findElement } from "./mutate";
-import type { AccountSliceContext, AppearanceTarget } from "./types";
+import type { AppearanceTarget, ProjectsSliceContext } from "./types";
 
 /** A menu's content: elements, slots, appearances, positions, steps and click handlers. */
 export interface ElementsSlice {
@@ -394,7 +394,7 @@ export const createElementsSlice = ({
   mutateElement,
   mutateAppearance,
   mutateClickHandler,
-}: AccountSliceContext): ElementsSlice => {
+}: ProjectsSliceContext): ElementsSlice => {
   /** The `if` step at `ifStepIndex` under `frames` in an element's click handler. */
   const mutateIfStep = (
     input: AppearanceTarget & {

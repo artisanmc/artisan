@@ -164,9 +164,12 @@ describe("validate", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: { name: "send_message", value: {
+                              action: {
+                                name: "send_message",
+                                value: {
                                   key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
-                                } },
+                                },
+                              },
                             },
                           ],
                         },
@@ -214,11 +217,17 @@ describe("validate", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: { name: "show_title", value: { title: {
-                                  key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
-                                }, subtitle: {
-                                  key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
-                                } } },
+                              action: {
+                                name: "show_title",
+                                value: {
+                                  title: {
+                                    key: "menus.shop.elements.btn.default.click.left.show_title" as I18nKey,
+                                  },
+                                  subtitle: {
+                                    key: "menus.shop.elements.btn.default.click.left.show_subtitle" as I18nKey,
+                                  },
+                                },
+                              },
                             },
                           ],
                         },
@@ -262,7 +271,10 @@ describe("validate", () => {
             steps: [
               {
                 kind: "action",
-                action: { name: "send_message", value: { key: "commands.heal.message" as I18nKey } },
+                action: {
+                  name: "send_message",
+                  value: { key: "commands.heal.message" as I18nKey },
+                },
               },
             ],
           },

@@ -1,6 +1,6 @@
-import { Line } from "react-konva";
 import { useCssVar } from "@/lib/themeColors";
 import { useAlignmentStore } from "@/state/alignmentStore";
+import { Line } from "react-konva";
 
 // Note: file named *Overlay to avoid a case-insensitive-filesystem (Windows)
 // clash with the pure `alignmentGuides.ts` module in this directory — importing

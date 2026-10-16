@@ -14,7 +14,7 @@ import { readProjectFiles } from "@/lib/api/projectFiles";
 import { cx } from "@/lib/cx";
 import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { STALE_NOTICE_DELAY_MS, useSettledFlag } from "@/lib/useSettledFlag";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { screenCacheKey, useScreenCacheStore } from "@/state/screenCacheStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { getModule } from "@artisan/editor-sdk";
@@ -34,7 +34,7 @@ type Phase = "loading" | "offline" | "error" | "ready";
 /**
  * Generic module Config screen (ADR module-config-screens): reads the table's
  * files live from the server over the WS relay, edits a scratch working copy
- * in the account store (reusing the core form generator), writes back over the
+ * in the projects store (reusing the core form generator), writes back over the
  * same relay. Greyed out while the server is offline — the disk is the truth.
  */
 export function ConfigScreenPage({
@@ -46,16 +46,16 @@ export function ConfigScreenPage({
 }) {
   const { t } = useTranslation();
   const declared = useServerScreensStore((s) => s.screens);
-  const localProjects = useAccountStore((s) => s.account.projects);
-  const removeProject = useAccountStore((s) => s.removeProject);
+  const localProjects = useProjectsStore((s) => s.openProjects.projects);
+  const removeProject = useProjectsStore((s) => s.removeProject);
 
   const screen = useMemo(
     () => resolveScreen(screenId, declared, localProjects),
     [screenId, declared, localProjects],
   );
   const scratchId = screen ? screenScratchId(screen.id) : null;
-  const scratch = useAccountStore((s) =>
-    scratchId ? s.account.projects.find((p) => p.id === scratchId) : undefined,
+  const scratch = useProjectsStore((s) =>
+    scratchId ? s.openProjects.projects.find((p) => p.id === scratchId) : undefined,
   );
 
   // The screen edits a module-owned project without opening its canvas — load
@@ -92,7 +92,7 @@ export function ConfigScreenPage({
   // rewrite must not be mistaken for an edit: opening a screen changes nothing.
   const [baselineEmit, setBaselineEmit] = useState<Map<string, string>>(new Map());
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `screen` is re-memoized whenever account projects change, which `upsertScratchProject` below does — depending on the object would refetch in a loop; only the screen's identity (id/projectId/table) must reload
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `screen` is re-memoized whenever the open projects change, which `upsertScratchProject` below does — depending on the object would refetch in a loop; only the screen's identity (id/projectId/table) must reload
   const load = useCallback(async () => {
     if (!screen) return;
     // A declared screen can open before the presence-driven lazy loader finishes.
@@ -108,7 +108,7 @@ export function ConfigScreenPage({
       // Nothing to wait for: everything needed to render the screen was stored on
       // the previous visit, declared models included.
       const fromCache = buildScratchProject(screen, known.files, known.models as never);
-      useAccountStore.getState().upsertScratchProject(fromCache);
+      useProjectsStore.getState().upsertScratchProject(fromCache);
       setDeclaredModels(known.models as never);
       setOriginal(known.files);
       setDraft(null);
@@ -146,7 +146,7 @@ export function ConfigScreenPage({
         : [];
     setItemContext(contextFiles);
     const project = buildScratchProject(screen, files, models, contextFiles);
-    useAccountStore.getState().upsertScratchProject(project);
+    useProjectsStore.getState().upsertScratchProject(project);
     setDeclaredModels(models);
     setBaselineEmit(
       new Map(diffScratchForWrite(project, screen, files).files.map((f) => [f.path, f.content])),
@@ -271,7 +271,7 @@ export function ConfigScreenPage({
                 onClick={() => {
                   if (draft && yamlErrors.length === 0 && screen) {
                     const rebuilt = buildScratchProject(screen, draft, declaredModels, itemContext);
-                    useAccountStore.getState().upsertScratchProject(rebuilt);
+                    useProjectsStore.getState().upsertScratchProject(rebuilt);
                     setDraft(null);
                   }
                   setMode("form");

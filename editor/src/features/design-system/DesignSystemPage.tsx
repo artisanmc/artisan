@@ -1,6 +1,12 @@
 import { SplitPane } from "@/components/SplitPane";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { Badge } from "@/components/ui/badge";
+import {
+  Breadcrumb,
+  BreadcrumbCurrent,
+  BreadcrumbSwitcher,
+  breadcrumbLinkClass,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChangeList } from "@/components/ui/change-list";
@@ -40,12 +46,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Breadcrumb,
-  BreadcrumbCurrent,
-  BreadcrumbSwitcher,
-  breadcrumbLinkClass,
-} from "@/components/ui/breadcrumb";
 import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
 import { Switch } from "@/components/ui/switch";
@@ -486,7 +486,10 @@ export function DesignSystemPage() {
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Collapsible>"}</span>
             <div className="max-w-md">
-              <Collapsible title={t("adminDesign.specimens.collapsibleTitle")} meta={<Badge variant="sage">3</Badge>}>
+              <Collapsible
+                title={t("adminDesign.specimens.collapsibleTitle")}
+                meta={<Badge variant="sage">3</Badge>}
+              >
                 <p className="text-[13px] text-[var(--text-mut)]">
                   {t("adminDesign.specimens.collapsibleBody")}
                 </p>
@@ -605,8 +608,8 @@ export function DesignSystemPage() {
           <span className="text-[12px] text-[var(--text-mut)]">
             Bottom-center DOM toolbar (absolute, z-20). Two mode buttons (Select / Pan), active
             state via --brand-soft, plus a rearrange-mode dropdown. Hotkeys:{" "}
-            <kbd className="mono text-[11px]">V</kbd> /{" "}
-            <kbd className="mono text-[11px]">H</kbd> / Space-hold (temporary pan).
+            <kbd className="mono text-[11px]">V</kbd> / <kbd className="mono text-[11px]">H</kbd> /
+            Space-hold (temporary pan).
           </span>
           {/* Live render in a relative container to avoid absolute positioning overflow */}
           <div className="relative h-16 overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)]">
@@ -778,8 +781,17 @@ function CheckboxSpecimen() {
         {"<Checkbox checked onCheckedChange>"}
       </span>
       <div className="flex items-center gap-3">
-        <Checkbox checked={on} onCheckedChange={setOn} aria-label={t("adminDesign.specimens.applyToAll")} />
-        <Checkbox checked={false} disabled onCheckedChange={() => {}} aria-label={t("adminDesign.specimens.disabled")} />
+        <Checkbox
+          checked={on}
+          onCheckedChange={setOn}
+          aria-label={t("adminDesign.specimens.applyToAll")}
+        />
+        <Checkbox
+          checked={false}
+          disabled
+          onCheckedChange={() => {}}
+          aria-label={t("adminDesign.specimens.disabled")}
+        />
       </div>
       <p className="text-[11.5px] text-[var(--text-faint)]">
         {t("adminDesign.specimens.checkboxHint")}
@@ -797,8 +809,17 @@ function SwitchSpecimen() {
         {"<Switch checked onCheckedChange>"}
       </span>
       <div className="flex items-center gap-3">
-        <Switch checked={on} onCheckedChange={setOn} aria-label={t("adminDesign.specimens.defaultTexture")} />
-        <Switch checked={false} disabled onCheckedChange={() => {}} aria-label={t("adminDesign.specimens.disabled")} />
+        <Switch
+          checked={on}
+          onCheckedChange={setOn}
+          aria-label={t("adminDesign.specimens.defaultTexture")}
+        />
+        <Switch
+          checked={false}
+          disabled
+          onCheckedChange={() => {}}
+          aria-label={t("adminDesign.specimens.disabled")}
+        />
       </div>
       <p className="text-[11.5px] text-[var(--text-faint)]">
         {t("adminDesign.specimens.switchHint")}

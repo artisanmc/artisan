@@ -1,14 +1,14 @@
 import { Badge } from "@/components/ui/badge";
+import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import type { DataSource, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { yamlErrorsOf } from "@/features/screens/YamlFileEditor";
+import { cx } from "@/lib/cx";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ModelFieldsEditor } from "./ModelFieldsEditor";
 import { ConfigValueForm, SourceRowsTable } from "./SourceValueEditor";
-import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
-import { yamlErrorsOf } from "@/features/screens/YamlFileEditor";
-import { applySourceYaml, sourceYamlFiles, type SourceFile } from "./sourceYaml";
-import { cx } from "@/lib/cx";
+import { type SourceFile, applySourceYaml, sourceYamlFiles } from "./sourceYaml";
 
 interface DataSourceEditorProps {
   projectId: ProjectId;
@@ -22,16 +22,16 @@ interface DataSourceEditorProps {
  */
 export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
   const { t } = useTranslation();
-  const renameDataSource = useAccountStore((s) => s.renameProjectDataSource);
-  const removeDataSource = useAccountStore((s) => s.removeProjectDataSource);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const renameDataSource = useProjectsStore((s) => s.renameProjectDataSource);
+  const removeDataSource = useProjectsStore((s) => s.removeProjectDataSource);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const [schemaOpen, setSchemaOpen] = useState(true);
   // Two modes on the SAME file (ADR yaml-assisted-editing ⑦/⑧): the data panel
   // and the config screen speak the same language.
   const [mode, setMode] = useState<"form" | "yaml">("form");
   const [draft, setDraft] = useState<SourceFile[] | null>(null);
   const [selectedFile, setSelectedFile] = useState("");
-  const replaceProject = useAccountStore((s) => s.replaceProject);
+  const replaceProject = useProjectsStore((s) => s.replaceProject);
   const [nameDraft, setNameDraft] = useState(source.name.toLowerCase());
   const [nameError, setNameError] = useState<string | null>(null);
 

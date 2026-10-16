@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import type { Asset, AssetId } from "@/domain/asset";
+import { create } from "zustand";
 
 interface AssetState {
   assets: Asset[];
@@ -27,17 +27,19 @@ export const useAssetStore = create<AssetState>()((set) => ({
   ...initial,
 
   setAssets: (assets) => set({ assets }),
-  upsertAsset: (asset) => set((state) => {
-    const idx = state.assets.findIndex((a) => a.id === asset.id);
-    if (idx === -1) return { assets: [...state.assets, asset] };
-    const next = state.assets.slice();
-    next[idx] = asset;
-    return { assets: next };
-  }),
-  removeAsset: (id) => set((state) => ({
-    assets: state.assets.filter((a) => a.id !== id),
-    selectedId: state.selectedId === id ? null : state.selectedId,
-  })),
+  upsertAsset: (asset) =>
+    set((state) => {
+      const idx = state.assets.findIndex((a) => a.id === asset.id);
+      if (idx === -1) return { assets: [...state.assets, asset] };
+      const next = state.assets.slice();
+      next[idx] = asset;
+      return { assets: next };
+    }),
+  removeAsset: (id) =>
+    set((state) => ({
+      assets: state.assets.filter((a) => a.id !== id),
+      selectedId: state.selectedId === id ? null : state.selectedId,
+    })),
   setSelectedId: (selectedId) => set({ selectedId }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),

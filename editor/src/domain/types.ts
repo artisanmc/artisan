@@ -11,7 +11,6 @@ import type { ItemEnchant, ItemHideFlag } from "./itemAdvanced";
 
 export type { ItemEnchant, ItemHideFlag };
 
-export type AccountId = string & { __brand: "AccountId" };
 export type ProjectId = string & { __brand: "ProjectId" };
 export type MenuId = string & { __brand: "MenuId" };
 export type CommandId = string & { __brand: "CommandId" };
@@ -88,8 +87,7 @@ export type MenuTitleLayer =
 
 export type ProjectSource = "user_created" | "imported" | "forked";
 
-export interface Account {
-  id: AccountId;
+export interface OpenProjects {
   projects: Project[];
   projectOrder: ProjectId[];
 }

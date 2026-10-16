@@ -28,7 +28,7 @@ import {
   updateDialogLTextKey,
 } from "./helpers";
 import type { Mutation } from "./mutate";
-import type { AccountSliceContext } from "./types";
+import type { ProjectsSliceContext } from "./types";
 
 /** Dialogs: bodies, inputs, buttons and the steps behind them. */
 export interface DialogsSlice {
@@ -174,7 +174,7 @@ export const createDialogsSlice = ({
   get,
   mutateProject,
   mutateDialog,
-}: AccountSliceContext): DialogsSlice => {
+}: ProjectsSliceContext): DialogsSlice => {
   /** A button of a dialog; a no-op when either is missing. */
   const mutateButton = (
     pId: ProjectId,
@@ -236,7 +236,7 @@ export const createDialogsSlice = ({
     setDialogId: ({ projectId: pId, oldId, newId }) => {
       if (oldId === newId) return;
       if (!newId) throw new Error("dialog id cannot be empty");
-      const project = get().account.projects.find((p) => p.id === pId);
+      const project = get().openProjects.projects.find((p) => p.id === pId);
       if (!project) throw new Error("project not found");
       if (dialogsOf(project).some((d) => d.id === newId))
         throw new Error(`dialog id "${newId}" already exists`);

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { snapDragPosition } from "./snap";
 
 describe("snapDragPosition", () => {
@@ -11,19 +11,18 @@ describe("snapDragPosition", () => {
   });
 
   it("shift: passes raw sub-pixel coords through", () => {
-    expect(snapDragPosition(21.0, 11.0, scale, { shift: true, alt: false }))
-      .toEqual({ x: 10.5, y: 5.5 });
+    expect(snapDragPosition(21.0, 11.0, scale, { shift: true, alt: false })).toEqual({
+      x: 10.5,
+      y: 5.5,
+    });
   });
 
   it("alt: snaps to multiples of 18 (slot grid)", () => {
-    expect(snapDragPosition(36, 36, scale, { shift: false, alt: true }))
-      .toEqual({ x: 18, y: 18 });
-    expect(snapDragPosition(0, 70, scale, { shift: false, alt: true }))
-      .toEqual({ x: 0, y: 36 });
+    expect(snapDragPosition(36, 36, scale, { shift: false, alt: true })).toEqual({ x: 18, y: 18 });
+    expect(snapDragPosition(0, 70, scale, { shift: false, alt: true })).toEqual({ x: 0, y: 36 });
   });
 
   it("alt wins over shift", () => {
-    expect(snapDragPosition(36, 36, scale, { shift: true, alt: true }))
-      .toEqual({ x: 18, y: 18 });
+    expect(snapDragPosition(36, 36, scale, { shift: true, alt: true })).toEqual({ x: 18, y: 18 });
   });
 });

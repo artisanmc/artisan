@@ -1,6 +1,6 @@
 import type { MenuId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ interface UseMenuDragArgs {
 }
 
 export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
-  const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
+  const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
 
   const onMenuDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.moveToTop();
@@ -52,7 +52,7 @@ export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
         if (!targetProjectId || targetProjectId === projectId) continue;
         e.target.position({ x: position.x, y: position.y });
         try {
-          useAccountStore
+          useProjectsStore
             .getState()
             .moveMenuToProject({ menuId, fromProjectId: projectId, toProjectId: targetProjectId });
           toast.success(`Moved ${menuId} to ${targetProjectId}`);

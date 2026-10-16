@@ -1,10 +1,10 @@
 import { isDirty } from "@/features/project/draft";
 import { projectTree } from "@/features/project/saveProjectToDisk";
 import { projectPrincipal, useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect } from "react";
 import { subscribeDraftSaved } from "./draftBroadcast";
 import { registerDraftFlush } from "./draftFlush";
@@ -70,17 +70,17 @@ export function useDraftSync(): void {
   }, [userId]);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    let pendingAccount: ReturnType<typeof useAccountStore.getState>["account"] | null = null;
+    let pendingProjects: ReturnType<typeof useProjectsStore.getState>["openProjects"] | null = null;
 
     const flush = () => {
       if (timer === null) return;
       clearTimeout(timer);
       timer = null;
-      const previousAccount = pendingAccount;
-      pendingAccount = null;
+      const previousProjects = pendingProjects;
+      pendingProjects = null;
       const baselines = useProjectBaselineStore.getState().baselines;
       const drafts = useProjectDraftStore.getState();
-      for (const project of useAccountStore.getState().account.projects) {
+      for (const project of useProjectsStore.getState().openProjects.projects) {
         if (drafts.ownerId !== (projectPrincipal.current(project.id)?.id ?? null)) continue;
         const baseline = baselines[project.id];
         // Without a base, this Project was never read from the server: keeping a
@@ -90,7 +90,7 @@ export function useDraftSync(): void {
         const previous = drafts.get(project.id);
         const sameLoad = previous !== undefined && !isDirty(previous.baseline, baseline);
         const tree = projectTree(project);
-        const beforeEdit = previousAccount?.projects.find((p) => p.id === project.id);
+        const beforeEdit = previousProjects?.projects.find((p) => p.id === project.id);
         // A save clears the draft. Recognize its exact baseline before the
         // first edit, without treating load-time normalization as user work.
         const initialTree =
@@ -116,9 +116,9 @@ export function useDraftSync(): void {
     };
 
     const unregisterFlush = registerDraftFlush(flush);
-    const unsubscribe = useAccountStore.subscribe((state, prev) => {
-      if (state.account === prev.account) return;
-      if (timer === null) pendingAccount = prev.account;
+    const unsubscribe = useProjectsStore.subscribe((state, prev) => {
+      if (state.openProjects === prev.openProjects) return;
+      if (timer === null) pendingProjects = prev.openProjects;
       if (timer) clearTimeout(timer);
       timer = setTimeout(flush, DEBOUNCE_MS);
     });
