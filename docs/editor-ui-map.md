@@ -483,7 +483,7 @@ Tous dans `editor/src/components/ui/`.
 
 ## 17. Inventaire des composants custom (par feature)
 
-**Layout** : `ProjectSidebar`, `ProjectTabs`, `NetworkDropdown`, `NewProjectDialog`, `TopBarKebabMenu`, `SplitPane`, `Toaster`, `EditorLangSwitcher`.
+**Layout** : `ProjectSidebar`, `NetworkDropdown`, `NewProjectDialog`, `TopBarKebabMenu`, `SplitPane`, `Toaster`, `EditorLangSwitcher`.
 
 **Canvas (`features/canvas/`)** : `Stage`, `MenuGroup`, `CommandGroup`, `DialogGroup`, `Edges`, `Selection`, `ContextMenu`, `EdgeTooltip`, `ItemTooltip`, `TextEditor`, `ArmedBanner`, `EmptyState`, `ConditionListEditor`.
 
