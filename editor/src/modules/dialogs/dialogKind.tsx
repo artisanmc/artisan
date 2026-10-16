@@ -1,9 +1,9 @@
 import { DIALOG_KIND } from "@/domain/documentKinds";
 import { dialogChainSlots, visitDialogLTexts } from "@/domain/i18nSites";
 import type { Dialog, DialogId, I18nKey, Project, ProjectId } from "@/domain/types";
-import { serializeDialog } from "@/features/export/transform";
-import { DialogEditor } from "@/features/flow/FlowCanvas";
+import { DialogEditor } from "@/features/inspector/dialog/DialogEditor";
 import { getText } from "@/lib/i18n";
+import { dialogV1FromDomain } from "@/schema/dialogV1FromDomain";
 import { dialogV1ToDomain } from "@/schema/dialogV1ToDomain";
 import type { DocumentParseOpts } from "@/schema/documentCodecs";
 import type { DocumentEditorProps, DocumentKindContribution } from "@artisan/editor-sdk";
@@ -35,7 +35,7 @@ export const dialogKind: DocumentKindContribution = {
     const r = dialogV1ToDomain(src, ctx as DocumentParseOpts);
     return { doc: r.dialog, i18nKeys: r.i18nKeys, unsupported: r.unsupported };
   },
-  serialize: (doc, project) => serializeDialog(doc as Dialog, project as Project),
+  serialize: (doc, project) => dialogV1FromDomain(doc as Dialog, project as Project),
   ltextSites: (doc) => visitDialogLTexts(doc as Dialog),
   chainSlots: (doc) => dialogChainSlots(doc as Dialog),
 };
