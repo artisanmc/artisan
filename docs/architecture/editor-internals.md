@@ -324,6 +324,12 @@ hors-ligne et son infobulle (`downHint` de `LinkedServersDropdown`) en donne la
 raison exacte (date de la copie, brouillon, jamais publié). L'état reste local à
 la topbar du Project ouvert.
 
+Depuis le 2026-10-16, l'état du loader est un reducer pur (`projectLoadState.ts`,
+événements nommés `started` / `located` / `opened` / `settled` / `connectionLost` /
+`readFailed` / `loadFailed` / `validated`, testé sans React) ; la lecture elle-même
+(`readFromHub` → `readAndOpen`, `resumeDraft`, `settleOffline`) vit hors du hook.
+`projectLoadStatus` dit ce que le workspace montre (`loading | ready | error`).
+
 ### Paramètres avancés d'un item (depuis 2026-07-29)
 
 Sous le lore de chaque state card, `features/flow/AdvancedItemSection.tsx` replie derrière un `<Collapsible>` tout ce qui dépasse material/titre/lore : **enchantements** (id + niveau, `datalist` sur le catalogue vanilla de `domain/itemAdvanced.ts` mais **saisie libre acceptée** pour le moddé), effet brillant sans enchant, custom model data, incassable, sections de tooltip masquées, **couleur** (affichée uniquement si le material est teintable — cuir / potion / étoile de feu d'artifice), et **NBT brut**. Un badge sur le trigger compte les valeurs posées (`countAdvanced`) pour qu'un item configuré ne cache pas sa propre configuration. Les mutations passent par l'action de store unique `setAppearanceAdvanced` (patch partiel ; une clé à `undefined` efface le champ).
