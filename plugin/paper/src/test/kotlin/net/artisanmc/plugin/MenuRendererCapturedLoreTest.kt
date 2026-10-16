@@ -86,7 +86,7 @@ class MenuRendererCapturedLoreTest {
             hdbHeads = null, capturedItems = captured?.let { FakeStore("ci_sword", it) },
         )
         val p = MockBukkit.getMock()!!.addPlayer()
-        val menu = BundleCompiler.compile(menuYaml(material, title, lore), emptyMap())
+        val menu = MenuCompiler.compile(menuYaml(material, title, lore), emptyMap())
         val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), ConditionEvaluator(deps, CooldownStore())).slots
         return slots[0]
     }

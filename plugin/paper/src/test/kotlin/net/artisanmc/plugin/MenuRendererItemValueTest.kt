@@ -38,7 +38,7 @@ class MenuRendererItemValueTest {
         """.trimIndent())
         val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Original")), "lore" to listOf("{base.lore}", "Rare"))
         val player = MockBukkit.getMock()!!.addPlayer()
-        val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+        val slots = MenuRenderer.open(player, MenuCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
             args = mapOf("item" to mapOf("icon" to icon, "lore" to "")))).slots
         val plain = PlainTextComponentSerializer.plainText()
         assertEquals(listOf("Original", "Rare", "Price"), slots[0]!!.itemMeta!!.lore()!!.map(plain::serialize))
@@ -59,7 +59,7 @@ class MenuRendererItemValueTest {
         val original = mapOf("material" to "DIAMOND_SWORD", "title" to "Original", "lore" to listOf("Captured lore"), "count" to 2)
         val icon = mapOf("extends" to "{original}", "title" to "{item.name}", "lore" to listOf("{base.lore}", "Rare"), "count" to 4)
         val player = MockBukkit.getMock()!!.addPlayer()
-        val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+        val slots = MenuRenderer.open(player, MenuCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
             args = mapOf("original" to original, "item" to mapOf("name" to "Rare sword", "price" to 100, "icon" to icon)))).slots
         val stack = slots[0]!!
         val plain = PlainTextComponentSerializer.plainText()
@@ -84,7 +84,7 @@ class MenuRendererItemValueTest {
             """.trimIndent())
             val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Captured")))
             val player = MockBukkit.getMock()!!.addPlayer()
-            val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+            val slots = MenuRenderer.open(player, MenuCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
                 args = mapOf("item" to mapOf("icon" to icon)))).slots
             val plain = PlainTextComponentSerializer.plainText()
             assertEquals(if (replace) listOf("Added") else listOf("Captured", "Added"),
@@ -105,7 +105,7 @@ class MenuRendererItemValueTest {
         """.trimIndent())
         val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Captured")))
         val player = MockBukkit.getMock()!!.addPlayer()
-        val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+        val slots = MenuRenderer.open(player, MenuCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
             args = mapOf("item" to mapOf("icon" to icon)))).slots
         val plain = PlainTextComponentSerializer.plainText()
         assertEquals(listOf("Offer", "Captured"),
@@ -126,7 +126,7 @@ class MenuRendererItemValueTest {
         """.trimIndent())
         val player = MockBukkit.getMock()!!.addPlayer()
         val icon = mapOf("extends" to mapOf("material" to "STONE", "lore" to listOf("Inherited")))
-        val slots = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
+        val slots = MenuRenderer.open(player, MenuCompiler.compile(yaml, emptyMap()), "en", ExecutionContext(player,
             args = mapOf("item" to mapOf("icon" to icon)))).slots
         assertTrue(slots[0]!!.itemMeta!!.lore().isNullOrEmpty())
     }
@@ -148,7 +148,7 @@ class MenuRendererItemValueTest {
             "title" to "Sword", "lore" to listOf("Rare"), "unbreakable" to true,
             "enchants" to mapOf("sharpness" to 5))
         val player = MockBukkit.getMock()!!.addPlayer()
-        val menu = BundleCompiler.compile(yaml, emptyMap())
+        val menu = MenuCompiler.compile(yaml, emptyMap())
         val slots = MenuRenderer.open(player, menu, "en", ExecutionContext(player, args = mapOf("item" to mapOf("icon" to icon)))).slots
         val stack = slots[0]!!
         assertEquals(Material.DIAMOND_SWORD, stack.type)

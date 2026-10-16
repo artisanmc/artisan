@@ -33,8 +33,8 @@ class FilenameIdentityTest {
         write(p, "manifest.yaml", "schema: manifest/v1\n")
         write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
 
-        val bundle = read(p).single()
-        assertEquals(listOf("accueil"), bundle.menus.map { it.id })
+        val runtime = read(p).single()
+        assertEquals(listOf("accueil"), runtime.menus.map { it.id })
     }
 
     @Test
@@ -44,8 +44,8 @@ class FilenameIdentityTest {
         // Legacy project: the file claims another name.
         write(p, "menus/accueil.yaml", "schema: menu/v1\nid: vieux_nom\nsize: 27\n")
 
-        val bundle = read(p).single()
-        assertEquals(listOf("accueil"), bundle.menus.map { it.id })
+        val runtime = read(p).single()
+        assertEquals(listOf("accueil"), runtime.menus.map { it.id })
     }
 
     @Test
@@ -58,10 +58,10 @@ class FilenameIdentityTest {
         write(p, "commands/menu.yaml", "schema: command/v1\nopens: accueil\n")
         write(p, "dialogs/confirmer.yaml", "schema: dialog/v1\ntitle: T\n")
 
-        val bundle = read(p).single()
-        assertEquals(listOf("accueil", "boutique"), bundle.menus.map { it.id })
-        assertEquals(listOf("menu"), bundle.commands.map { it.id })
-        assertEquals(listOf("confirmer"), bundle.dialogs.map { it.id })
+        val runtime = read(p).single()
+        assertEquals(listOf("accueil", "boutique"), runtime.menus.map { it.id })
+        assertEquals(listOf("menu"), runtime.commands.map { it.id })
+        assertEquals(listOf("confirmer"), runtime.dialogs.map { it.id })
     }
 
     @Test
@@ -74,8 +74,8 @@ class FilenameIdentityTest {
         write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
         write(p, "menus/oublie.yaml", "schema: menu/v1\nsize: 9\n")
 
-        val bundle = read(p).single()
-        assertEquals(listOf("accueil", "oublie"), bundle.menus.map { it.id })
+        val runtime = read(p).single()
+        assertEquals(listOf("accueil", "oublie"), runtime.menus.map { it.id })
     }
 
     @Test
@@ -85,8 +85,8 @@ class FilenameIdentityTest {
         write(p, "commands/boutique.yaml", "schema: command/v1\nid: autre\nopens: x\n")
         write(p, "dialogs/confirmer.yaml", "schema: dialog/v1\nid: autre\ntitle: T\n")
 
-        val bundle = read(p).single()
-        assertEquals(listOf("boutique"), bundle.commands.map { it.id })
-        assertEquals(listOf("confirmer"), bundle.dialogs.map { it.id })
+        val runtime = read(p).single()
+        assertEquals(listOf("boutique"), runtime.commands.map { it.id })
+        assertEquals(listOf("confirmer"), runtime.dialogs.map { it.id })
     }
 }

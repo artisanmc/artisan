@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.sync
+package net.artisanmc.plugin.project
 
 import java.io.File
 import java.security.MessageDigest
@@ -12,7 +12,7 @@ import java.security.MessageDigest
  *   of `project_write`. The editor reproduces it in TypeScript
  *   (`lib/contentHash.ts`): SHA-256 of the UTF-8 bytes, lowercase hex.
  */
-object BundleHasher {
+object ContentHash {
 
     /**
      * Hash of a relPath → content map: keys sorted in byte order (Kotlin `String`

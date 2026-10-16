@@ -8,7 +8,7 @@ package net.artisanmc.plugin.model
  * in-game for every untranslated key.
  *
  * The one implementation behind every `langMapWithFallback` of the runtime
- * model ([ProjectBundle], [BundleMenu], [BundleDialog], [BundleDataSource]).
+ * model ([RuntimeProject], [RuntimeMenu], [RuntimeDialog], [RuntimeDataSource]).
  */
 fun withLangFallback(
     langMaps: Map<String, Map<String, String>>,

@@ -123,7 +123,7 @@ private val PAPI_RE = Regex("""%([a-z_][a-z0-9_]*)%""")
  * Parsed-expression cache. Parsing is a pure function of the expression text, so
  * it is shared across rows, players and menus; evaluation is not and runs every
  * time. Expression texts come from Project files, so the set is finite — the
- * Bundle pre-warms this at load, which is also when a malformed expression is
+ * Project loading pre-warms this at load, which is also when a malformed expression is
  * reported (ADR `expression-parity` §2).
  *
  * Note the *segments* of a template cannot be cached the same way: `{i18n:…}`
@@ -187,7 +187,7 @@ private fun evalSegment(expr: String, scope: ExprScope): String {
  * Parse every expression of [source] up front, returning one message per
  * malformed segment (empty when the template is sound).
  *
- * Called at bundle load so a broken expression is reported **once, with its
+ * Called at Project load so a broken expression is reported **once, with its
  * file**, instead of surfacing as a ⚠️ to the first player who opens the menu
  * (ADR `expression-parity` §2). It also warms [ExprCache], so rendering a row
  * never parses.

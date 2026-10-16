@@ -87,13 +87,13 @@ class KeyedStepParserTest {
         assertEquals(Condition.RandomChance(0.1), ifStep.cases[1].conditions.single())
     }
 
-    @Test fun `BundleCompiler compiles a keyed click into a step tree`() {
+    @Test fun `MenuCompiler compiles a keyed click into a step tree`() {
         val app = AppearanceYaml(
             material = "STONE",
             click = mapOf("left" to listOf(mapOf("send_message" to mapOf("en" to "Hi", "fr" to "Salut")))),
         )
         val m = menu(ElementYaml(id = "e", positions = "0", display = app))
-        val ca = BundleCompiler.compile(m, emptyMap()).compiledAppearances["e"]!!.first()
+        val ca = MenuCompiler.compile(m, emptyMap()).compiledAppearances["e"]!!.first()
         val step = ca.clicks[ClickType.LEFT]!!.steps.single() as Step.ActionStep
         assertEquals(Step.ActionStep("send_message", mapOf("en" to "Hi", "fr" to "Salut")), step)
     }
@@ -101,7 +101,7 @@ class KeyedStepParserTest {
     @Test fun `legacy DSL string still compiles`() {
         val app = AppearanceYaml(material = "STONE", click = mapOf("left" to "close_menu"))
         val m = menu(ElementYaml(id = "e", positions = "0", display = app))
-        val ca = BundleCompiler.compile(m, emptyMap()).compiledAppearances["e"]!!.first()
+        val ca = MenuCompiler.compile(m, emptyMap()).compiledAppearances["e"]!!.first()
         val step = ca.clicks[ClickType.LEFT]!!.steps.single() as Step.ActionStep
         assertEquals(Step.ActionStep("close_menu"), step)
     }

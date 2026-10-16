@@ -3,7 +3,7 @@ package net.artisanmc.plugin.command
 import net.artisanmc.plugin.engine.ActionExecutor
 import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.lang.LangManager
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeProject
 import org.bukkit.Bukkit
 import org.bukkit.command.SimpleCommandMap
 import org.bukkit.plugin.java.JavaPlugin
@@ -13,17 +13,17 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
     private val logger: Logger get() = plugin.logger
     private val registered = mutableListOf<String>()
 
-    fun reload(bundles: List<ProjectBundle>, executor: ActionExecutor, evaluator: ConditionEvaluator) {
+    fun reload(runtimes: List<RuntimeProject>, executor: ActionExecutor, evaluator: ConditionEvaluator) {
         unregisterAll()
         val commandMap = Bukkit.getCommandMap()
         val namespace = plugin.name.lowercase()
         val seen = mutableSetOf<String>()
-        val totalCmds = bundles.sumOf { it.commands.size }
-        logger.info("[ART-DEBUG] CommandRegistrar.reload: ${bundles.size} bundles, $totalCmds commands total")
+        val totalCmds = runtimes.sumOf { it.commands.size }
+        logger.info("[ART-DEBUG] CommandRegistrar.reload: ${runtimes.size} projects, $totalCmds commands total")
 
-        for (bundle in bundles) {
-            logger.info("[ART-DEBUG] Bundle ${bundle.projectId}: ${bundle.commands.size} commands: ${bundle.commands.map { it.name }}")
-            for (cmdYaml in bundle.commands) {
+        for (runtime in runtimes) {
+            logger.info("[ART-DEBUG] Project ${runtime.projectId}: ${runtime.commands.size} commands: ${runtime.commands.map { it.name }}")
+            for (cmdYaml in runtime.commands) {
                 val name = cmdYaml.name.ifEmpty { cmdYaml.id }.lowercase()
                 logger.info("[ART-DEBUG] Processing command '$name' actions=${cmdYaml.legacyActions.size} dsl.len=${cmdYaml.dsl.length}")
 
@@ -50,7 +50,7 @@ class CommandRegistrar(private val plugin: JavaPlugin, private val lang: LangMan
                         logger.warning("Alias '/$alias' for command '/$name' conflicts with an existing command — alias may not work.")
                     }
                 }
-                val projectCommand = PackCommand(compiled, executor, lang, bundle.projectId)
+                val projectCommand = PackCommand(compiled, executor, lang, runtime.projectId)
                 commandMap.register(namespace, projectCommand)
                 registered += name
                 seen += name

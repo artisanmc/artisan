@@ -6,8 +6,8 @@ import net.artisanmc.modules.api.action.ActionRegistry
 import net.artisanmc.modules.api.model.ModelField
 import net.artisanmc.modules.api.model.ModelFieldType
 import net.artisanmc.plugin.ArtisanPlugin
-import net.artisanmc.plugin.model.BundleMenu
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.model.RuntimeProject
 import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
@@ -30,10 +30,10 @@ class ActionRegistryDispatchTest {
     private var lastOpenedMenuId: String? = null
     private val stubProvider = object : MenuProvider {
         override fun load() {}
-        override fun findMenu(menuId: String): BundleMenu? = null
+        override fun findMenu(menuId: String): RuntimeMenu? = null
         override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) { lastOpenedMenuId = menuId }
         override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {}
-        override fun allBundles(): List<ProjectBundle> = emptyList()
+        override fun runtimeProjects(): List<RuntimeProject> = emptyList()
     }
 
     private fun executor(registry: ActionRegistry) =
