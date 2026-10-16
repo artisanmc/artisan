@@ -57,6 +57,14 @@ class BundleCompilerTest {
         (0..8).forEach { assertEquals("row", result.slotToElement[it]) }
     }
 
+    @Test fun `a malformed range is skipped, the rest of the spec still places`() {
+        // "10-" used to throw NumberFormatException out of compile (and out of the
+        // whole reload, since it is an IllegalArgumentException).
+        val m = menu(element("row", "0, 10-, a-3, 1-2-3, 4-5", appearance()))
+        val result = BundleCompiler.compile(m, emptyMap())
+        assertEquals(setOf(0, 4, 5), result.slotToElement.keys)
+    }
+
     @Test fun `compile populates slotToElement for comma list`() {
         val m = menu(element("corners", "0,8,18,26", appearance()))
         val result = BundleCompiler.compile(m, emptyMap())

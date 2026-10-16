@@ -6,6 +6,7 @@ import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { isTypingTarget } from "@/lib/keyboard";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useAccountStore } from "@/state/accountStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -64,9 +65,7 @@ export function DocumentView({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
-      const el = e.target as HTMLElement | null;
-      const tag = el?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || el?.isContentEditable) return;
+      if (isTypingTarget(e.target)) return;
       if (document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]')) return;
       back();
     };

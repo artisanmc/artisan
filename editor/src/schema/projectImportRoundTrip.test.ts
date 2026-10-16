@@ -4,11 +4,11 @@
 // the seeded content. Fixtures are the ACTUAL Boutique add-on bootstrap files
 // (Boutique/src/main/resources/bootstrap/), inlined verbatim.
 import type { Project, ProjectId } from "@/domain/types";
-import { transform } from "@/features/export/transform";
 import { flattenLangTree } from "@/lib/langTree";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { projectFromFiles } from "./projectFromFiles";
+import { projectToFiles } from "./projectToFiles";
 
 const PROJECT_ID = "boutique_shop";
 const base = `plugins/Artisan/projects/${PROJECT_ID}`;
@@ -147,7 +147,7 @@ function roundTrip(): {
   rawOut: Record<string, string>;
 } {
   const project = projectFromFiles(PROJECT_ID as ProjectId, bootstrapFiles);
-  const rawOut = transform(project);
+  const rawOut = projectToFiles(project);
   const out: Record<string, Json> = {};
   for (const [path, content] of Object.entries(rawOut)) {
     if (!path.endsWith(".yaml")) continue;
@@ -160,7 +160,7 @@ function roundTrip(): {
   return { project, out, rawOut };
 }
 
-describe("projectImport round-trip (Boutique bootstrap → import → transform)", () => {
+describe("projectImport round-trip (Boutique bootstrap → import → projectToFiles)", () => {
   it("moves structural title text into the document (field-local)", () => {
     const { out } = roundTrip();
     // A single plain layer whose value is a bare string re-exports as that string.
@@ -261,8 +261,10 @@ describe("manifest lore_max_width", () => {
     };
     const project = projectFromFiles(PROJECT_ID as ProjectId, withWidth);
     expect(project.loreMaxWidth).toBe(240);
-    expect(parse(transform(project)[`${base}/manifest.yaml`]!).lore_max_width).toBe(240);
-    expect(parse(roundTrip().rawOut[`${base}/manifest.yaml`]!)).not.toHaveProperty("lore_max_width");
+    expect(parse(projectToFiles(project)[`${base}/manifest.yaml`]!).lore_max_width).toBe(240);
+    expect(parse(roundTrip().rawOut[`${base}/manifest.yaml`]!)).not.toHaveProperty(
+      "lore_max_width",
+    );
   });
 });
 
@@ -276,7 +278,9 @@ escape_goes_back: true
     };
     const project = projectFromFiles(PROJECT_ID as ProjectId, withBack);
     expect(project.escapeGoesBack).toBe(true);
-    expect(parse(transform(project)[`${base}/manifest.yaml`]!).escape_goes_back).toBe(true);
-    expect(parse(roundTrip().rawOut[`${base}/manifest.yaml`]!)).not.toHaveProperty("escape_goes_back");
+    expect(parse(projectToFiles(project)[`${base}/manifest.yaml`]!).escape_goes_back).toBe(true);
+    expect(parse(roundTrip().rawOut[`${base}/manifest.yaml`]!)).not.toHaveProperty(
+      "escape_goes_back",
+    );
   });
 });

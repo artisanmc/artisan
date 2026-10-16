@@ -1,11 +1,11 @@
+import { menusOf } from "@/domain/documents";
 import { menuId, projectId } from "@/domain/ids";
 import { projectBoard } from "@/features/canvas/autoLayout";
-import { transform } from "@/features/export/transform";
 import { mockAccount } from "@/mock/fixtures";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { projectToFiles } from "@/schema/projectToFiles";
 import { beforeEach, expect, it } from "vitest";
 import { useAccountStore } from "./accountStore";
-import { menusOf } from "@/domain/documents";
 
 const pid = projectId("p_personal");
 const project = () => useAccountStore.getState().account.projects.find((p) => p.id === pid)!;
@@ -158,7 +158,7 @@ it("rearranges the board as blocks without changing group interiors, including a
     "craft_a->craft_b": { from: { side: "bottom", t: 0.3 } },
   });
   expect(menusOf(project())).toEqual(documents);
-  const restored = projectFromFiles(pid, transform(project()));
+  const restored = projectFromFiles(pid, projectToFiles(project()));
   expect(relative(projectBoard(restored), id)).toEqual(relative(after, id));
   store.releaseBoardPositions({ projectId: pid });
   expect(projectBoard(project()).layout).toEqual(after.layout);

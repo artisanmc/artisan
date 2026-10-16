@@ -76,6 +76,43 @@ describe("bare data files (ADR bare-data-files)", () => {
     expect(p.i18nKeys[mvp!.name.key]).toEqual({ en: "MVP direct" });
   });
 
+  it("models/<sourceId>.yaml types its source even when its own id differs (editor dm_… ids)", () => {
+    const p = projectFromFiles(
+      PID,
+      baseFiles({
+        [`${base}/models/ranks.yaml`]:
+          "schema: model/v1\nid: dm_k3x9\nname: Ranks\nfields:\n  - name: id\n    type: { kind: string }\n  - name: name\n    type: { kind: ltext }\n",
+        [`${base}/lang/en.yaml`]: "sources.ranks.vip.name: VIP\n",
+        [`${base}/data/ranks.yaml`]: "- id: vip\n  name: sources.ranks.vip.name\n",
+      }),
+      { name: "Bare" },
+    );
+
+    const t = p.dataSources.find((d) => d.id === ("ranks" as DataSourceId));
+    if (t?.shape !== "table") throw new Error("expected table shape");
+    expect(t.modelId).toBe("dm_k3x9");
+    expect((p.dataModels ?? []).map((m) => m.id)).toEqual(["dm_k3x9"]);
+    const [vip] = t.rows as { name: { key: I18nKey } }[];
+    expect(vip!.name.key).toBe("sources.ranks.vip.name");
+  });
+
+  it("a model file named apart from its source still types it through its inner id", () => {
+    const p = projectFromFiles(
+      PID,
+      baseFiles({
+        [`${base}/models/ranks_model.yaml`]:
+          "schema: model/v1\nid: ranks\nname: Ranks\nfields:\n  - name: id\n    type: { kind: string }\n  - name: name\n    type: { kind: ltext }\n",
+        [`${base}/data/ranks.yaml`]: "- id: vip\n  name: VIP\n",
+      }),
+      { name: "Bare" },
+    );
+
+    const t = p.dataSources.find((d) => d.id === ("ranks" as DataSourceId));
+    if (t?.shape !== "table") throw new Error("expected table shape");
+    expect(t.modelId).toBe("ranks");
+    expect((p.dataModels ?? []).map((m) => m.id)).toEqual(["ranks"]);
+  });
+
   it("models/<sourceId>.yaml may be a one-line ref to a declared (namespaced) model", () => {
     const p = projectFromFiles(
       PID,
