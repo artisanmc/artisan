@@ -4,7 +4,7 @@ import type { Project } from "@/domain/types";
 
 /**
  * What the current selection designates, for the given project. A single
- * derivation, shared by the panel's dispatch (`FlowCanvas`) and its tab
+ * derivation, shared by the panel's dispatch (`SelectionInspector`) and its tab
  * gating — writing them twice makes them diverge.
  */
 /**

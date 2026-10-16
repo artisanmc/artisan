@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 const navigate = vi.fn();
 
@@ -63,13 +63,13 @@ vi.mock("@/features/project/useProjectLoader", () => ({
     },
   }),
 }));
-vi.mock("@/components/ProjectTopBarControls", () => ({
+vi.mock("@/features/project/ProjectTopBarControls", () => ({
   ProjectTopBarControls: () => <div data-testid="topbar" />,
 }));
 vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div data-testid="stage" /> }));
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
 vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
-vi.mock("@/features/canvas/EditorPane", () => ({
+vi.mock("@/features/inspector/EditorPane", () => ({
   EditorPane: () => <div data-testid="editor-pane" />,
 }));
 vi.mock("@/features/help/PatternsGallery", () => ({ PatternsGallery: () => null }));

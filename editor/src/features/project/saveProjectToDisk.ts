@@ -1,10 +1,10 @@
 import { rekeyProject } from "@/domain/i18nSites";
 import type { Project } from "@/domain/types";
-import { transform } from "@/features/export/transform";
 import { DraftApiError } from "@/lib/api/projectDrafts";
 import type { ProjectFileConflict, ProjectFilesError } from "@/lib/api/projectFiles";
 import { projectClient } from "@/lib/projectClient";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { projectToFiles } from "@/schema/projectToFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { applyRenames, planWrite, toRelative } from "./diskSave";
@@ -14,7 +14,7 @@ import { publishPersistedDraft, usePersistedDraftStore } from "./persistedDrafts
 export function projectTree(project: Project): Record<string, string> {
   const cloned = structuredClone(project);
   rekeyProject(cloned);
-  return toRelative(transform(cloned), project.diskId ?? project.id);
+  return toRelative(projectToFiles(cloned), project.diskId ?? project.id);
 }
 
 /**

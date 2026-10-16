@@ -126,18 +126,18 @@ class CustomItemsManagerTest {
         assertEquals("Iron Coin", mgr.stripColorCodes("§6Iron §rCoin"))
     }
 
-    @Test fun `NexoSource isAvailable returns false when Nexo plugin not installed`() {
-        val source = net.artisanmc.plugin.customitems.NexoSource(java.io.File("/nonexistent"))
+    @Test fun `NexoItemPlugin isAvailable returns false when Nexo plugin not installed`() {
+        val source = net.artisanmc.plugin.customitems.NexoItemPlugin
         assertFalse(source.isAvailable())
     }
 
-    @Test fun `OraxenSource isAvailable returns false when Oraxen plugin not installed`() {
-        val source = net.artisanmc.plugin.customitems.OraxenSource(java.io.File("/nonexistent"))
+    @Test fun `OraxenItemPlugin isAvailable returns false when Oraxen plugin not installed`() {
+        val source = net.artisanmc.plugin.customitems.OraxenItemPlugin
         assertFalse(source.isAvailable())
     }
 
-    @Test fun `ItemsAdderSource isAvailable returns false when ItemsAdder plugin not installed`() {
-        val source = net.artisanmc.plugin.customitems.ItemsAdderSource(java.io.File("/nonexistent"))
+    @Test fun `ItemsAdderItemPlugin isAvailable returns false when ItemsAdder plugin not installed`() {
+        val source = net.artisanmc.plugin.customitems.ItemsAdderItemPlugin
         assertFalse(source.isAvailable())
     }
 }

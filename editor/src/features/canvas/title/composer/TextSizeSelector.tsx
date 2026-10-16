@@ -8,7 +8,7 @@ interface TextSizeSelectorProps {
   id: string;
   value: TextSize | undefined;
   /** Receives `undefined` when the user picks the vanilla default (8) — keeps
-   *  in-memory state compact, mirroring transform.ts's default-omit convention. */
+   *  in-memory state compact, mirroring menuV1FromDomain.ts's default-omit convention. */
   onChange: (size: TextSize | undefined) => void;
 }
 

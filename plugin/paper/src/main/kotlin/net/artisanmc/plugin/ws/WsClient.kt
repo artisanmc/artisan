@@ -20,12 +20,8 @@ data class HubLink(val url: String, val secret: String, val serverName: String, 
 class WsClient(
     private val hub: HubLink,
     private val mcVersion: String,
-    private val installedModules: () -> List<Map<String, String>> = { emptyList() },
-    private val dataSources: () -> List<Map<String, Any?>> = { emptyList() },
-    private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
-    private val editorScreens: () -> List<Map<String, Any?>> = { emptyList() },
-    private val declaredActions: () -> List<Map<String, Any?>> = { emptyList() },
-    private val documentKinds: () -> List<Map<String, Any?>> = { emptyList() },
+    /** Its fields go in the `hello`, after the server's identity. */
+    private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
     private val serverConfig: () -> Map<String, Any?>? = { null },
     private val onMessage: (String) -> Unit,
     private val logger: Logger? = null,
@@ -100,14 +96,7 @@ class WsClient(
                 "database_id" to hub.databaseId().orEmpty(),
                 "plugin_version" to pluginVersion,
                 "minecraft_version" to mcVersion,
-                "installed_modules" to installedModules(),
-                "data_sources" to dataSources(),
-                "declared_models" to declaredModels(),
-                "editor_screens" to editorScreens(),
-                "declared_actions" to declaredActions(),
-                "document_kinds" to documentKinds(),
-                "server_config" to serverConfig(),
-            )
+            ) + announcement().toMap() + ("server_config" to serverConfig())
             ws.send(mapper.writeValueAsString(hello))
         }
 

@@ -509,6 +509,8 @@ const fr: typeof en = {
   flow: {
     headerStateOne: "{{count}} état",
     headerStateOther: "{{count}} états",
+    pickMaterialHint: "Choisir un item dans la bibliothèque — ou y glisser un item",
+    dragStateHint: "Glisser pour réordonner l'état",
     elementId: "id",
     propertiesLabel: "propriétés",
     positionsLabelOne: "positions ({{count}} slot)",
@@ -658,6 +660,8 @@ const fr: typeof en = {
   },
   projectPanel: {
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",
+    multiSelection: "Édition multiple non prise en charge en v1. Sélectionnez un seul élément.",
+    selectionNoEditor: "Aucun éditeur pour cette sélection.",
     kindNotSynced: "{{kind}} : non lu par le serveur actif (module absent là-bas)",
     menus: "Menus",
     commands: "Commandes",
@@ -830,6 +834,8 @@ const fr: typeof en = {
     newDialogDialogTitle: "Nouveau dialogue",
     newMenuDialogTitle: "Nouveau menu",
     newCommandDialogTitle: "Nouvelle commande",
+    idPreviewLabel: "Id :",
+    idConflict: "Cet id est déjà utilisé par un autre document du projet.",
     cancel: "Annuler",
     create: "Créer",
     modeSelect: "Sélection",

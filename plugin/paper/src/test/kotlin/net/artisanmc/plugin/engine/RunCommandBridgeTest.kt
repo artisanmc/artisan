@@ -1,8 +1,8 @@
 package net.artisanmc.plugin.engine
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import net.artisanmc.modules.api.CommandDeclaration
-import net.artisanmc.modules.api.CommandRegistry
+import net.artisanmc.modules.api.command.CommandDeclaration
+import net.artisanmc.modules.api.command.CommandRegistry
 import net.artisanmc.plugin.ArtisanPlugin
 import net.artisanmc.plugin.model.BundleMenu
 import net.artisanmc.plugin.model.ProjectBundle

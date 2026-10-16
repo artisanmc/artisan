@@ -2,7 +2,7 @@ package net.artisanmc.plugin.engine
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.modules.api.ModelField
+import net.artisanmc.modules.api.model.ModelField
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
