@@ -11,6 +11,8 @@ interface MiniMessageKonvaTextProps {
    *  for our editor's light gray title bar we pass #404040). */
   defaultColor?: string;
   listening?: boolean;
+  /** Per-char advance; defaults to the MC font ratio (fontSize × 0.75). */
+  charWidth?: number;
 }
 
 /**
@@ -27,10 +29,10 @@ export function MiniMessageKonvaText({
   fontFamily = "ui-monospace, monospace",
   defaultColor = "#404040",
   listening = false,
+  // MC default font: ~6px advance per 8px-tall glyph → 0.75 ratio.
+  charWidth = fontSize * 0.75,
 }: MiniMessageKonvaTextProps) {
   const segments = parseMiniMessage(source);
-  // MC default font: ~6px advance per 8px-tall glyph → 0.75 ratio.
-  const charWidth = fontSize * 0.75;
   let cursor = 0;
 
   return (
