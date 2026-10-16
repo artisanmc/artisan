@@ -1,7 +1,7 @@
 import { projectId } from "@/domain/ids";
 import type { Project } from "@/domain/types";
-import { serializeMenuToV1 } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
+import { menuV1FromDomain } from "./menuV1FromDomain";
 import { menuV1ToDomain } from "./menuV1ToDomain";
 
 /**
@@ -128,7 +128,7 @@ describe("reading — the former `appearances:` format stays readable", () => {
       opts,
     );
     const project = { id: projectId("p"), defaultLang: "en", i18nKeys: {} } as unknown as Project;
-    const out = serializeMenuToV1(menu, project);
+    const out = menuV1FromDomain(menu, project);
     expect(JSON.stringify(out)).not.toContain("appearances");
     expect(JSON.stringify(out)).toContain("DIAMOND");
   });
@@ -199,7 +199,7 @@ describe("writing — flat display + states", () => {
       defaultLang: "en",
       langs: ["en"],
     } as unknown as Project;
-    const wire = serializeMenuToV1(menu, project);
+    const wire = menuV1FromDomain(menu, project);
     return (wire.elements as Record<string, unknown>[])[0]!;
   }
 

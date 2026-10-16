@@ -6,6 +6,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import net.artisanmc.modules.api.document.DocumentKindDeclaration
+import net.artisanmc.modules.api.document.DocumentKindRegistry
+import net.artisanmc.modules.api.document.DuplicateDocumentKindException
 
 /** ADR `extensible-document-kinds`, W6: a module declares its Document kinds through the API. */
 class DocumentKindRegistryTest {
@@ -40,9 +43,9 @@ class DocumentKindRegistryTest {
     @Test
     fun `unregister by kind and by owner`() {
         val reg = DocumentKindRegistry()
-        reg.currentOwner = "quests"
+        reg.bindOwner("quests")
         reg.register(quest())
-        reg.currentOwner = null
+        reg.bindOwner(null)
         reg.register(DocumentKindDeclaration("menu", "menus", "menu/v1"))
 
         assertEquals("quests", reg.registered().first { it.declaration.kind == "quest" }.moduleId)
@@ -70,7 +73,7 @@ class DocumentKindRegistryTest {
     @Test
     fun `toWire serializes snake_case fields and the owner`() {
         val reg = DocumentKindRegistry()
-        reg.currentOwner = "quests"
+        reg.bindOwner("quests")
         reg.register(quest())
         val wire = reg.registered().single().toWire()
         assertEquals("quest", wire["kind"])

@@ -5,6 +5,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import net.artisanmc.modules.api.action.ActionDeclaration
+import net.artisanmc.modules.api.action.ActionHandler
+import net.artisanmc.modules.api.action.ActionRegistry
+import net.artisanmc.modules.api.action.DuplicateActionException
+import net.artisanmc.modules.api.model.ModelField
+import net.artisanmc.modules.api.model.ModelFieldType
 
 /** The three wire forms of an action fold into one argument map, and back (ADR extensible-document-kinds, R1 b). */
 class ActionDeclarationTest {
@@ -86,9 +92,9 @@ class ActionDeclarationTest {
     @Test fun `the registry owns a module's actions`() {
         val registry = ActionRegistry()
         registry.register(closeMenu)
-        registry.currentOwner = "quests"
+        registry.bindOwner("quests")
         registry.register(ActionDeclaration("quests:start", noop))
-        registry.currentOwner = null
+        registry.bindOwner(null)
         assertFailsWith<DuplicateActionException> { registry.register(ActionDeclaration("close_menu", noop)) }
         assertEquals(setOf("close_menu", "quests:start"), registry.names())
         assertEquals("quests", registry.registered().first { it.declaration.name == "quests:start" }.moduleId)

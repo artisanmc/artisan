@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import net.artisanmc.plugin.protocol.ProtocolVersion
+import net.artisanmc.plugin.protocol.ServerAnnouncement
 import net.artisanmc.plugin.protocol.ServerLink
 import org.eclipse.jetty.websocket.api.Callback
 import org.eclipse.jetty.websocket.api.Session
@@ -35,6 +36,7 @@ class RemoteServer(
 ) : EditorServer {
     @Volatile private var session: Session? = null
     @Volatile private var hello: ObjectNode = Call.mapper.createObjectNode()
+    @Volatile private var announcement = ServerAnnouncement.EMPTY
     @Volatile private var serverConfig: Map<String, Any?>? = null
     @Volatile private var customItems: List<Map<String, String>> = emptyList()
     @Volatile var pack: Map<String, String>? = null
@@ -49,12 +51,7 @@ class RemoteServer(
     override val protocolVersion: String get() = hello.path("protocol_version").asText("1")
     override val updateRequired: Boolean get() = !ProtocolVersion.compatible(protocolVersion)
 
-    override fun modules() = list("installed_modules")
-    override fun dataSources() = list("data_sources")
-    override fun models() = list("declared_models")
-    override fun screens() = list("editor_screens")
-    override fun actions() = list("declared_actions")
-    override fun documentKinds() = list("document_kinds")
+    override fun announcement() = announcement
     override fun serverConfig() = serverConfig
     override fun customItems() = customItems
 
@@ -68,6 +65,7 @@ class RemoteServer(
     fun attach(session: Session, hello: ObjectNode) {
         val previous = this.session
         this.hello = hello
+        announcement = ServerAnnouncement.from(Call.mapper.convertValue(hello, MAP))
         hello.path("proxy_name").asText("").takeIf { it.isNotEmpty() }?.let { name = it }
         serverConfig = map(hello["server_config"])
         this.session = session
@@ -97,11 +95,7 @@ class RemoteServer(
             return
         }
         when (message.path("type").asText()) {
-            "modules_changed" -> hello = hello.deepCopy().apply {
-                for (field in listOf("installed_modules", "data_sources", "declared_models", "editor_screens", "declared_actions", "document_kinds")) {
-                    message[field]?.let { set<JsonNode>(field, it) }
-                }
-            }
+            "modules_changed" -> announcement = announcement.updatedBy(Call.mapper.convertValue(message, MAP))
             "custom_items_changed" -> requestCustomItems(message.path("hash").asText(""))
             "custom_items_bundle" -> customItems = decodeCustomItems(message.path("data").asText(""))
             "projects_reloaded" -> editors.relay(Call.mapper.convertValue(message, MAP), id)
@@ -131,9 +125,6 @@ class RemoteServer(
         if (hash.isNotEmpty()) send(mapOf("type" to "custom_items_request"))
     }
 
-    private fun list(field: String): List<Map<String, Any?>> =
-        hello[field]?.takeIf { it.isArray }?.let { Call.mapper.convertValue(it, LIST) }.orEmpty()
-
     private fun map(node: JsonNode?): Map<String, Any?>? =
         node?.takeIf { it.isObject }?.let { Call.mapper.convertValue(it, MAP) }
 
@@ -147,7 +138,6 @@ class RemoteServer(
 
     private companion object {
         val MAP = object : TypeReference<Map<String, Any?>>() {}
-        val LIST = object : TypeReference<List<Map<String, Any?>>>() {}
         val ITEMS = object : TypeReference<List<Map<String, String>>>() {}
     }
 }

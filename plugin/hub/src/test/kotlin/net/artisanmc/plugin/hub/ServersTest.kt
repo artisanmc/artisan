@@ -16,10 +16,7 @@ class ServersTest {
         override val label = "lobby"
         override val minecraftVersion = "1.21.7"
         override val pluginVersion = "2.0.0"
-        override fun modules() = emptyList<Map<String, Any?>>()
-        override fun dataSources() = emptyList<Map<String, Any?>>()
-        override fun models() = emptyList<Map<String, Any?>>()
-        override fun screens() = emptyList<Map<String, Any?>>()
+        override fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY
         override fun serverConfig() = null
         override fun customItems() = emptyList<Map<String, String>>()
         override fun applyResourcePack(hash: String, path: String) {}

@@ -1,9 +1,9 @@
 package net.artisanmc.plugin.render
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import net.artisanmc.modules.api.MenuClickEvent
-import net.artisanmc.modules.api.MenuOpenEvent
-import net.artisanmc.modules.api.MenuRef
+import net.artisanmc.modules.api.menu.MenuClickEvent
+import net.artisanmc.modules.api.menu.MenuOpenEvent
+import net.artisanmc.modules.api.menu.MenuRef
 import org.bukkit.event.inventory.ClickType
 import java.util.logging.Logger
 import kotlin.test.*
