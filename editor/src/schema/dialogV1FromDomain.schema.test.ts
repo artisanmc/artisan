@@ -1,15 +1,15 @@
-import dialogSchema from "../../../../docs/schema/dialog/v1/schema.json";
+import { mutableDialogs } from "@/domain/documents";
 import { dialogId, menuId, projectId } from "@/domain/ids";
 import type { Dialog, I18nKey, Project } from "@/domain/types";
 import Ajv2020 from "ajv/dist/2020";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { transform } from "./transform";
-import { mutableDialogs } from "@/domain/documents";
+import dialogSchema from "../../../docs/schema/dialog/v1/schema.json";
+import { projectToFiles } from "./projectToFiles";
 
 /**
  * Fixture oracle for the published dialog/v1 schema: what the editor exports
- * (transform → dialogs/<id>.yaml) must validate against docs/schema/dialog/v1.
+ * (projectToFiles → dialogs/<id>.yaml) must validate against docs/schema/dialog/v1.
  */
 
 const PACK = projectId("p_dialog");
@@ -94,7 +94,7 @@ function buildProject(): Project {
 describe("dialog/v1 schema fixture", () => {
   it("the editor's exported dialog YAML validates against docs/schema/dialog/v1", () => {
     const project = buildProject();
-    const files = transform(project);
+    const files = projectToFiles(project);
     const yaml = files[`plugins/Artisan/projects/${PACK}/dialogs/confirm_purchase.yaml`];
     expect(yaml).toBeTruthy();
     const wire = parse(yaml!) as Record<string, unknown>;

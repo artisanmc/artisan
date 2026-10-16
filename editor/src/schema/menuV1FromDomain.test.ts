@@ -1,9 +1,9 @@
+import { menusOf } from "@/domain/documents";
 import { elementId, layerId, menuId, projectId } from "@/domain/ids";
 import type { I18nKey, Project } from "@/domain/types";
 import { validateMenuV1 } from "@/schema/validateMenuV1";
 import { describe, expect, it } from "vitest";
-import { projectToMenuV1, serializeMenuToV1 } from "./transform";
-import { menusOf } from "@/domain/documents";
+import { menuV1FromDomain, projectToMenuV1 } from "./menuV1FromDomain";
 
 function project(): Project {
   return {
@@ -42,10 +42,10 @@ function project(): Project {
   } as Project;
 }
 
-describe("serializeMenuToV1 / projectToMenuV1", () => {
+describe("menuV1FromDomain / projectToMenuV1", () => {
   it("produces a canonical menu/v1 object that validates", () => {
     const p = project();
-    const m = serializeMenuToV1(menusOf(p)[0]!, p);
+    const m = menuV1FromDomain(menusOf(p)[0]!, p);
     expect(m.schema).toBe("menu/v1");
     expect(m.size).toBe(27);
     expect(validateMenuV1(m)).toEqual({ valid: true, errors: [] });
