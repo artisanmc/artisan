@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.engine
 
+import net.artisanmc.plugin.model.BundleDataSource
 import net.artisanmc.plugin.model.ProjectBundle
 
 /**
@@ -17,20 +18,37 @@ class ProjectDataResolver(private val bundles: () -> List<ProjectBundle>) {
         const val PREFIX = "pack:"
     }
 
+    /** The table of the last bundle list seen, rebuilt only when a reload swaps the list. */
+    @Volatile private var cache: Pair<List<ProjectBundle>, DocumentTable<BundleDataSource>>? = null
+
+    private fun table(): DocumentTable<BundleDataSource> {
+        val current = bundles()
+        cache?.let { (list, table) -> if (list === current) return table }
+        // Reversed: on an ambiguous id DocumentTable keeps the LAST entry, and the
+        // historical winner here is the first source in load order.
+        val table = DocumentTable(
+            current.flatMap { b -> b.dataSources.map { b.projectId to it } }.asReversed(),
+        ) { it.id }
+        cache = current to table
+        return table
+    }
+
     fun canResolve(ref: String): Boolean = ref.startsWith(PREFIX)
 
     /**
      * Table → localized rows (List<Map>); config → localized object (Map);
-     * unknown id → null. Projects of the server are searched in load order
-     * (source ids are project-scoped ds_* — collisions are improbable).
+     * unknown id → null.
+     *
+     * The rule of a bare Document reference ([DocumentTable]): the id is looked
+     * up in [fromProject] (the Project of the menu that fetches) first, then on
+     * the server if a single Project defines it. Defined by several other
+     * Projects, it is ambiguous and the first in load order wins, as before.
+     * There is no qualified form: an id holding `:` names no source.
      */
-    fun resolve(ref: String, lang: String): Any? {
+    fun resolve(ref: String, lang: String, fromProject: String? = null): Any? {
         if (!canResolve(ref)) return null
         val id = ref.removePrefix(PREFIX)
-        for (bundle in bundles()) {
-            val ds = bundle.dataSources.find { it.id == id } ?: continue
-            return ds.resolved(lang)
-        }
-        return null
+        if (':' in id) return null
+        return table().resolve(id, fromProject).value?.resolved(lang)
     }
 }

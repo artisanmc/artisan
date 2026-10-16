@@ -103,11 +103,13 @@ class ProjectReader(
     /**
      * Verify the YAML's `schema` field is either empty (legacy / pre-versioning)
      * or matches the expected version. Reject everything else with a clear error
-     * pointing at the schema migration framework (see api.schemas).
+     * pointing at the schema migration framework (see api.schemas), as an
+     * [UnsupportedSchemaException]: the per-file `runCatching` blocks below let
+     * that type (and only it) fail the reload.
      */
     private fun requireSchema(file: File, actual: String, vararg expected: String) {
         if (actual.isEmpty() || actual in expected) return
-        throw IllegalArgumentException(
+        throw UnsupportedSchemaException(
             "Unsupported schema version '$actual' in ${file.absolutePath} — " +
             "this plugin reads ${expected.joinToString(", ")} only. Register a SchemaMigration via " +
             "api.schemas.register(...) to migrate from older versions."
@@ -164,7 +166,7 @@ class ProjectReader(
             // whole reload (which would fail plugin enable + cascade to
             // add-ons that `depend: Artisan`).
             runCatching { readProject(projectId, dir) }.getOrElse { e ->
-                if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
+                if (e is UnsupportedSchemaException) throw e // schema-version rejection stays loud
                 logger?.warning("[Artisan] skipping project ${dir.name}: ${e.message}")
                 null
             }
@@ -227,7 +229,7 @@ class ProjectReader(
             kind.kind to documentIds(projectDir, kind.dir, manifest.files[kind.dir].orEmpty()).mapNotNull { docId ->
                 val f = File(projectDir, "${kind.dir}/$docId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
                 runCatching { reader(f, docId, ctx) }.getOrElse { e ->
-                    if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
+                    if (e is UnsupportedSchemaException) throw e // schema-version rejection stays loud
                     logger?.warning("[Artisan] skipping ${kind.kind} ${f.name}: ${e.message}")
                     onSkip(projectId, "${kind.dir}/${f.name}", e.message ?: e::class.simpleName.orEmpty())
                     null
@@ -251,6 +253,7 @@ class ProjectReader(
                     val dsYaml = readSourceDocument(f, sourceId, projectModels)
                     BundleDataSource(dsYaml, langMaps, manifest.defaultLang)
                 }.getOrElse { e ->
+                    if (e is UnsupportedSchemaException) throw e // loud, like a Document's
                     logger?.warning("[Artisan] skipping data source ${f.name}: ${e.message}")
                     null
                 }
@@ -294,6 +297,7 @@ class ProjectReader(
                     }
                     BundleDataSource(meta.copy(shape = "table", rows = rows), langMaps, manifest.defaultLang)
                 }.getOrElse { e ->
+                    if (e is UnsupportedSchemaException) throw e // loud, like a Document's
                     logger?.warning("[Artisan] skipping data source dir ${dir.name}: ${e.message}")
                     null
                 }
