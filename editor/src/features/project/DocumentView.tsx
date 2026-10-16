@@ -8,7 +8,7 @@ import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYa
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { isTypingTarget } from "@/lib/keyboard";
 import { projectDestination } from "@/lib/projectNavigation";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -27,7 +27,7 @@ export function DocumentView({
   const params = useParams({ strict: false }) as { serverId?: string };
   // The parent resolves the location before any document is selected.
   const resolvedId = useContext(ResolvedProjectContext) ?? projectId;
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === resolvedId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === resolvedId));
   const pId = (project?.id ?? projectId) as ProjectId;
   const activeLang = useUiStore((s) => s.activeLang);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);

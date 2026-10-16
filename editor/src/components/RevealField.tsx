@@ -1,6 +1,6 @@
-import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/cx";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
+import { type ReactNode, useState } from "react";
 import { ServerPlaceholderInput as PlaceholderInput } from "./ServerPlaceholderInput";
 
 export interface RevealFieldProps {
@@ -62,15 +62,15 @@ export function RevealField({
         {value.trim() ? (
           <span
             className={cn(
-              multiline ? "block w-full whitespace-pre-wrap break-words" : "min-w-0 flex-1 truncate",
+              multiline
+                ? "block w-full whitespace-pre-wrap break-words"
+                : "min-w-0 flex-1 truncate",
             )}
           >
             {facade}
           </span>
         ) : (
-          <span
-            className={cn("text-[var(--text-faint)]", !multiline && "min-w-0 flex-1 truncate")}
-          >
+          <span className={cn("text-[var(--text-faint)]", !multiline && "min-w-0 flex-1 truncate")}>
             {placeholder}
           </span>
         )}

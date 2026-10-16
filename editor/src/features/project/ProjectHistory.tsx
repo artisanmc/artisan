@@ -8,15 +8,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { performLocalAssetMutation } from "@/features/assets/localAssets";
 import {
   type ProjectVersionContent,
   type ProjectVersionSummary,
   listProjectVersions,
   readProjectVersion,
 } from "@/lib/api/projectVersions";
-import { performLocalAssetMutation } from "@/features/assets/localAssets";
-import { useAccountStore } from "@/state/accountStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -33,8 +33,8 @@ export const OPEN_DEPLOY_REVIEW = "artisan:open-deploy-review";
  * was restored from this one.
  */
 export async function restoreVersionIntoDraft(projectId: string, version: ProjectVersionContent) {
-  const { account, replaceProject } = useAccountStore.getState();
-  const project = account.projects.find((p) => p.id === projectId);
+  const { openProjects, replaceProject } = useProjectsStore.getState();
+  const project = openProjects.projects.find((p) => p.id === projectId);
   if (!project) throw new Error("project_unavailable");
   const files = Object.fromEntries(version.files.map((f) => [f.path, f.content]));
   const removed = Object.keys(projectTree(project)).filter((path) => !(path in files));

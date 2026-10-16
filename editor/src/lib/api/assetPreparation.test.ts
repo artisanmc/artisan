@@ -2,8 +2,8 @@ import * as persisted from "@/features/project/persistedDrafts";
 import { useAuthStore } from "@/state/authStore";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { uploadAsset, uploadFontAsset } from "./userAssets";
-vi.mock("@/state/accountStore", () => ({
-  useAccountStore: { getState: () => ({ setAccount: vi.fn() }) },
+vi.mock("@/state/projectsStore", () => ({
+  useProjectsStore: { getState: () => ({ setOpenProjects: vi.fn() }) },
 }));
 let readers: Array<{ result: string; onload?: () => void }>;
 beforeEach(() => {

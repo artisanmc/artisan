@@ -1,6 +1,6 @@
+import { useUiStore } from "@/state/uiStore";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { useUiStore } from "@/state/uiStore";
 import { useGlobalSearchShortcut } from "./useGlobalSearchShortcut";
 
 describe("useGlobalSearchShortcut", () => {

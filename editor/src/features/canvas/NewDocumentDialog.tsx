@@ -1,5 +1,5 @@
 import type { ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useTranslation } from "react-i18next";
@@ -44,7 +44,7 @@ export function NewDocumentDialog({
       prefix={contribution?.idPrefix ?? ""}
       canCreate={!!contribution}
       onCreate={(id) =>
-        useAccountStore.getState().createDocument({ projectId, kind, id, position })
+        useProjectsStore.getState().createDocument({ projectId, kind, id, position })
       }
     >
       {!synced && (

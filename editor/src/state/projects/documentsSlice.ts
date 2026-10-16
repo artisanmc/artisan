@@ -8,7 +8,7 @@ import { createDocumentOfKind } from "@/lib/moduleDocumentKinds";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { rewriteCanvasEdgeIds, rewriteCanvasGroupMembers } from "./helpers";
-import type { AccountSliceContext } from "./types";
+import type { ProjectsSliceContext } from "./types";
 
 /**
  * Documents of any kind, through the kind registry (ADR `extensible-document-kinds`,
@@ -38,11 +38,11 @@ export interface DocumentsSlice {
 export const createDocumentsSlice = ({
   get,
   mutateProject,
-}: AccountSliceContext): DocumentsSlice => ({
+}: ProjectsSliceContext): DocumentsSlice => ({
   createDocument: ({ projectId: pId, kind, id, position }) => {
     const contribution = documentKindContribution(kind);
     if (!contribution) throw new Error(`no module contributes the document kind "${kind}"`);
-    const project = get().account.projects.find((p) => p.id === pId);
+    const project = get().openProjects.projects.find((p) => p.id === pId);
     if (!project) throw new Error("project not found");
     if (hasDocument(project, id)) throw new Error(`document id "${id}" already exists`);
     mutateProject(pId, (p) => {
@@ -65,7 +65,7 @@ export const createDocumentsSlice = ({
   setDocumentId: ({ projectId: pId, kind, oldId, newId }) => {
     if (oldId === newId) return;
     if (!newId) throw new Error("document id cannot be empty");
-    const project = get().account.projects.find((p) => p.id === pId);
+    const project = get().openProjects.projects.find((p) => p.id === pId);
     if (!project) throw new Error("project not found");
     if (!documentsOf(project, kind).some((d) => d.id === oldId)) {
       throw new Error(`no ${kind} document "${oldId}"`);

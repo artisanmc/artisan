@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type Konva from "konva";
 import type { Project } from "@/domain/types";
-import { screenToWorld } from "./hitTest";
-import { nodeBox } from "./menuLayout";
-import { rectIntersectsBoxes } from "./marqueeHitTest";
 import { useSelectionStore } from "@/state/selectionStore";
+import type Konva from "konva";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { screenToWorld } from "./hitTest";
+import { rectIntersectsBoxes } from "./marqueeHitTest";
+import { nodeBox } from "./menuLayout";
 
 interface Args {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -81,7 +81,10 @@ export function useMarqueeSelection({ stageRef, viewport, project, layout, activ
   // On a normal on-stage release onMouseUp runs first (selects), then this
   // fires harmlessly on an already-cleared rect.
   useEffect(() => {
-    const onWindowUp = () => { setRect(null); setStart(null); };
+    const onWindowUp = () => {
+      setRect(null);
+      setStart(null);
+    };
     window.addEventListener("mouseup", onWindowUp);
     return () => window.removeEventListener("mouseup", onWindowUp);
   }, []);

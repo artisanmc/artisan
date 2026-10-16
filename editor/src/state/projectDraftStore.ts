@@ -1,11 +1,14 @@
+import type { PendingRename, ProjectDraft } from "@/features/project/draft";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { PendingRename, ProjectDraft } from "@/features/project/draft";
 
-/** Account-scoped recovery copies of persisted Project drafts, including unacknowledged edits. */
+/** Per-player recovery copies of persisted Project drafts, including unacknowledged edits. */
 interface ProjectDraftState {
   ownerId: string | null;
-  backups: Record<string, { drafts: Record<string, ProjectDraft>; pendingRenames: Record<string, PendingRename[]> }>;
+  backups: Record<
+    string,
+    { drafts: Record<string, ProjectDraft>; pendingRenames: Record<string, PendingRename[]> }
+  >;
   setOwner: (ownerId: string | null) => void;
   drafts: Record<string, ProjectDraft>;
   save: (projectId: string, draft: ProjectDraft) => void;
@@ -25,16 +28,22 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
     (set, get) => ({
       ownerId: null,
       backups: {},
-      setOwner: (ownerId) => set(s => {
-        if (ownerId === s.ownerId) return s;
-        const backups = { ...s.backups };
-        if (s.ownerId) backups[s.ownerId] = { drafts: s.drafts, pendingRenames: s.pendingRenames };
-        // Unscoped legacy drafts are claimed on the first authenticated load.
-        const restored = ownerId ? backups[ownerId] : undefined;
-        const legacy = s.ownerId === null && Object.keys(s.backups).length === 0;
-        return { ownerId, backups, drafts: restored?.drafts ?? (legacy ? s.drafts : {}),
-          pendingRenames: restored?.pendingRenames ?? (legacy ? s.pendingRenames : {}) };
-      }),
+      setOwner: (ownerId) =>
+        set((s) => {
+          if (ownerId === s.ownerId) return s;
+          const backups = { ...s.backups };
+          if (s.ownerId)
+            backups[s.ownerId] = { drafts: s.drafts, pendingRenames: s.pendingRenames };
+          // Unscoped legacy drafts are claimed on the first authenticated load.
+          const restored = ownerId ? backups[ownerId] : undefined;
+          const legacy = s.ownerId === null && Object.keys(s.backups).length === 0;
+          return {
+            ownerId,
+            backups,
+            drafts: restored?.drafts ?? (legacy ? s.drafts : {}),
+            pendingRenames: restored?.pendingRenames ?? (legacy ? s.pendingRenames : {}),
+          };
+        }),
       drafts: {},
       pendingRenames: {},
       recordRename: (projectId, from, to) =>
@@ -52,8 +61,7 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
             },
           };
         }),
-      save: (projectId, draft) =>
-        set((s) => ({ drafts: { ...s.drafts, [projectId]: draft } })),
+      save: (projectId, draft) => set((s) => ({ drafts: { ...s.drafts, [projectId]: draft } })),
       get: (projectId) => get().drafts[projectId],
       clear: (projectId) =>
         set((s) => {
@@ -68,7 +76,12 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
       name: "artisan.projectDrafts",
       // Renames travel with the draft: the tree already carries the new name;
       // losing the intent would degrade it to delete+create.
-      partialize: (s) => ({ drafts: s.drafts, pendingRenames: s.pendingRenames, ownerId: s.ownerId, backups: s.backups }),
+      partialize: (s) => ({
+        drafts: s.drafts,
+        pendingRenames: s.pendingRenames,
+        ownerId: s.ownerId,
+        backups: s.backups,
+      }),
     },
   ),
 );

@@ -1,7 +1,7 @@
 import type {
-  Command as DomainCommand,
   CommandArg,
   CommandId,
+  Command as DomainCommand,
   I18nKey,
   LText,
   ProjectId,
@@ -24,7 +24,11 @@ const ARG_TYPES = new Set(["player", "string", "integer", "number", "boolean"]);
 
 export function commandV1ToDomain(
   src: Json,
-  opts: { projectId: ProjectId; lang: string; translations?: Record<string, Record<string, string>> },
+  opts: {
+    projectId: ProjectId;
+    lang: string;
+    translations?: Record<string, Record<string, string>>;
+  },
 ): CommandImportResult {
   const i18nKeys: Record<string, Record<string, string>> = {};
   const unsupported: string[] = [];

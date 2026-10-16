@@ -1,8 +1,8 @@
 import { liveDocumentIds } from "@/domain/canvasGroups";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
-import { useAccountStore } from "@/state/accountStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import Konva from "konva";
 import { useCallback, useRef, useState } from "react";
@@ -77,7 +77,7 @@ export function Stage({ projectId, focus }: StageProps) {
 function StageCanvas({ projectId, focus }: StageProps) {
   const focusMode = focus != null;
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const size = useElementSize(wrapperRef);
@@ -135,7 +135,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
           const hit = hitTestSlot(project, layout, world.x, world.y);
           if (hit) {
             try {
-              useAccountStore.getState().setSlotMaterial({
+              useProjectsStore.getState().setSlotMaterial({
                 projectId,
                 menuId: hit.menuId as MenuId,
                 position: hit.position,
@@ -237,7 +237,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
         onRearrange={
           focusMode
             ? undefined
-            : (mode) => useAccountStore.getState().releaseBoardPositions({ projectId, mode })
+            : (mode) => useProjectsStore.getState().releaseBoardPositions({ projectId, mode })
         }
         rearrangeDisabled={
           !project ||

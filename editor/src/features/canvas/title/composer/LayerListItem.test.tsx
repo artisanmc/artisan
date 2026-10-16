@@ -2,12 +2,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Asset } from "@/domain/asset";
+import { menusOf } from "@/domain/documents";
 import type { AssetId, I18nKey, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { LayerListItem } from "./LayerListItem";
-import { menusOf } from "@/domain/documents";
 
 const PACK_ID = "p1" as ProjectId;
 const MENU_ID = "m1" as MenuId;
@@ -35,9 +35,8 @@ function seedProject(
   layers: MenuTitleLayer[],
   i18nKeys: Record<string, Record<string, string>> = {},
 ) {
-  useAccountStore.setState({
-    account: {
-      id: "acc" as any,
+  useProjectsStore.setState({
+    openProjects: {
       projects: [
         {
           id: PACK_ID,
@@ -248,7 +247,7 @@ describe("LayerListItem — delete", () => {
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
     fireEvent.click(screen.getByTestId("layer-list-item-delete"));
     expect(confirmSpy).toHaveBeenCalledTimes(1);
-    const layers = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title;
+    const layers = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title;
     expect(layers).toHaveLength(0);
   });
 
@@ -258,7 +257,7 @@ describe("LayerListItem — delete", () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<LayerListItem projectId={PACK_ID} menuId={MENU_ID} index={0} layer={layer} />);
     fireEvent.click(screen.getByTestId("layer-list-item-delete"));
-    const layers = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title;
+    const layers = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title;
     expect(layers).toHaveLength(1);
   });
 

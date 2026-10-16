@@ -1,5 +1,4 @@
 import type {
-  AccountId,
   AssetId,
   CapturedItemId,
   CommandId,
@@ -15,7 +14,6 @@ import type {
 let counter = 0;
 const next = () => ++counter;
 
-export const accountId = (s: string): AccountId => s as AccountId;
 export const projectId = (s: string): ProjectId => s as ProjectId;
 export const menuId = (s: string): MenuId => s as MenuId;
 export const commandId = (s: string): CommandId => s as CommandId;
@@ -30,8 +28,7 @@ export const newElementId = () => elementId(`el_${next()}_${Date.now().toString(
 export const newLayerId = () => layerId(`l_${next()}_${Date.now().toString(36)}`);
 export const newCommandId = () => commandId(`c_${next()}_${Date.now().toString(36)}`);
 export const dialogId = (s: string): DialogId => s as DialogId;
-export const newCapturedItemId = () =>
-  capturedItemId(`ci_${next()}_${Date.now().toString(36)}`);
+export const newCapturedItemId = () => capturedItemId(`ci_${next()}_${Date.now().toString(36)}`);
 export const dataSourceId = (s: string): DataSourceId => s as DataSourceId;
 export const dataModelId = (s: string): DataModelId => s as DataModelId;
 export const newDataModelId = () => dataModelId(`dm_${next()}_${Date.now().toString(36)}`);

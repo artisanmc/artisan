@@ -1,5 +1,5 @@
 import type { ContextInput, Menu, ProjectId, SourceRef } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServersStore } from "@/state/serversStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -40,8 +40,8 @@ describe("preview as player", () => {
     // The picker only fetches once a server is selected.
     useServersStore.setState({ activeServerId: "s1" } as never);
     listOnlinePlayers.mockClear();
-    useAccountStore.setState({
-      account: {
+    useProjectsStore.setState({
+      openProjects: {
         projects: [
           {
             id: "p1",
@@ -51,7 +51,7 @@ describe("preview as player", () => {
           },
         ],
       },
-    } as unknown as ReturnType<typeof useAccountStore.getState>);
+    } as unknown as ReturnType<typeof useProjectsStore.getState>);
   });
 
   it("offers the control as soon as the menu reads a live server source", () => {

@@ -1,10 +1,10 @@
+import type { Menu, MenuId, Project, ProjectId } from "@/domain/types";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import { act, render, renderHook, screen } from "@testing-library/react";
 import type Konva from "konva";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Menu, MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
-import { useSelectionStore } from "@/state/selectionStore";
-import { useUiStore } from "@/state/uiStore";
 import { Stage } from "./Stage";
 import { useMarqueeSelection } from "./useMarqueeSelection";
 
@@ -47,8 +47,8 @@ function project(): Project {
 }
 describe("Stage — modes", () => {
   beforeEach(() =>
-    useAccountStore.setState({
-      account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
+    useProjectsStore.setState({
+      openProjects: { projects: [project()], projectOrder: [PID] },
     } as any),
   );
   it("hand mode → stage draggable", () => {

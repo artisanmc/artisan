@@ -1,11 +1,11 @@
 import type { LText, ProjectId } from "@/domain/types";
 import { getText } from "@/lib/i18n";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useCallback } from "react";
 
 export function useGetText(projectId: ProjectId): (lt: LText | undefined) => string {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   return useCallback(
     (lt) => (project && lt ? getText(project, lt, activeLang) : ""),
@@ -22,7 +22,7 @@ export function useTextEdit(
   projectId: ProjectId,
   lt: LText | undefined,
 ): { value: string; lang: string; isFallback: boolean } {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   if (!project || !lt) return { value: "", lang: activeLang, isFallback: false };
   const entry = project.i18nKeys[lt.key];
