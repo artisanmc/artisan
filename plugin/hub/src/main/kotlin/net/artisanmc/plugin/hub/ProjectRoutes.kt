@@ -9,8 +9,8 @@ import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
 import net.artisanmc.plugin.hub.Relay.Companion.readError
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
-import net.artisanmc.plugin.protocol.ProjectListing
-import net.artisanmc.plugin.protocol.ProjectRootInfo
+import net.artisanmc.plugin.project.ProjectListing
+import net.artisanmc.plugin.project.ProjectRootInfo
 import net.artisanmc.plugin.protocol.ProtocolVersion
 import java.util.Base64
 import java.util.UUID

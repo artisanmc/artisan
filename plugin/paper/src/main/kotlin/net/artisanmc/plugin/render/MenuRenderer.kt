@@ -3,7 +3,7 @@ package net.artisanmc.plugin.render
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml
-import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.model.MenuTitleLayer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule

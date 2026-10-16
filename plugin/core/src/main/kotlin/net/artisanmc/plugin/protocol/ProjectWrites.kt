@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.protocol
 
+import net.artisanmc.plugin.project.PublicationAuthor
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.project.DraftPublication

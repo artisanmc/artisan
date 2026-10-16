@@ -2,7 +2,7 @@ package net.artisanmc.plugin
 
 import net.artisanmc.modules.api.document.DocumentKindDeclaration
 import net.artisanmc.modules.api.document.DuplicateDocumentKindException
-import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.model.RuntimeRawDocument
 import net.artisanmc.plugin.model.DocumentKind
 import net.artisanmc.plugin.model.DocumentKinds

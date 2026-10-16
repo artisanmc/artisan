@@ -3,7 +3,7 @@ package net.artisanmc.plugin.command
 import net.artisanmc.plugin.engine.ActionExecutor
 import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.lang.LangManager
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeProject
 import org.bukkit.Bukkit
 import org.bukkit.command.SimpleCommandMap
 import org.bukkit.plugin.java.JavaPlugin

@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.project
 
-import net.artisanmc.plugin.protocol.PublicationAuthor
+import net.artisanmc.plugin.project.PublicationAuthor
 import net.artisanmc.plugin.project.ProjectFilesReader.BinaryInfo
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -38,7 +38,7 @@ class VersionRecorderTest {
             return skipping[folder].orEmpty()
         }
 
-        override fun recordState(state: net.artisanmc.plugin.protocol.LoadedState, at: Instant) {
+        override fun recordState(state: net.artisanmc.plugin.project.LoadedState, at: Instant) {
             if (failState) error("state table gone")
             states += state.toMap() to at
         }

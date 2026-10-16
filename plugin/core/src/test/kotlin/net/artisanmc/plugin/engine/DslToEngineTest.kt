@@ -1,8 +1,6 @@
-package net.artisanmc.plugin.actiondsl
+package net.artisanmc.plugin.engine
 
-import net.artisanmc.plugin.engine.Condition
-import net.artisanmc.plugin.engine.IfCase
-import net.artisanmc.plugin.engine.Step
+import net.artisanmc.plugin.actiondsl.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

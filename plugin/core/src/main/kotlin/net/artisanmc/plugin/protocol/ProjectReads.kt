@@ -1,5 +1,7 @@
 package net.artisanmc.plugin.protocol
 
+import net.artisanmc.plugin.project.LoadedState
+import net.artisanmc.plugin.project.ProjectListing
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import net.artisanmc.plugin.project.ProjectPublisher
 import net.artisanmc.plugin.protocol.EditorRequest.AssetRead
