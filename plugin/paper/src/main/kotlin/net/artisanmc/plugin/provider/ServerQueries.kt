@@ -70,7 +70,7 @@ class ServerQueries(
             scheduler.global {
                 try {
                     val hdb = evaluator.deps.hdbHeads ?: return@global reply.error("hdb_unavailable")
-                    val texture = hdb.buildStack(request.id, 1)?.let { ItemDescriptor.derive(it, null)["head_texture"] as? String }
+                    val texture = hdb.buildStack(request.id, 1)?.let { ItemDescriptor.derive(it)["head_texture"] as? String }
                     if (texture.isNullOrEmpty() || texture.length > 16_384) reply.error("head_not_found")
                     else reply.ok("texture" to texture)
                 } catch (_: Exception) {
@@ -90,13 +90,13 @@ class ServerQueries(
             val player = Bukkit.getPlayerExact(name) ?: return reply.error("player_not_found")
             scheduler.player(player.uniqueId, onGone = { reply.error("player_not_found") }) {
                 try {
-                    val nexo = evaluator.deps.nexoItems
+                    val customItems = evaluator.deps.customItems
                     // 0-35 storage, 36-39 armor, 40 off hand: the vanilla numbering.
                     val inv = player.inventory
                     val all = inv.contents.toList() + inv.armorContents.toList() + listOf(inv.itemInOffHand)
                     val slots = all.mapIndexedNotNull { slot, stack ->
                         if (stack == null || stack.type.isAir) null
-                        else mapOf("slot" to slot, "stack_yaml" to ItemDescriptor.serialize(stack), "display" to ItemDescriptor.derive(stack, nexo))
+                        else mapOf("slot" to slot, "stack_yaml" to ItemDescriptor.serialize(stack), "display" to ItemDescriptor.derive(stack, customItems))
                     }
                     reply.ok("slots" to slots)
                 } catch (e: Throwable) {

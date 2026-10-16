@@ -3,6 +3,7 @@ package net.artisanmc.plugin
 import net.artisanmc.modules.api.ConfigReloadEvent
 import net.artisanmc.plugin.command.CommandRegistrar
 import net.artisanmc.plugin.config.PluginConfig
+import net.artisanmc.plugin.customitems.CustomItemPlugins
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.provider.SyncedMenuProvider
@@ -107,16 +108,7 @@ internal class RuntimeAssembly(
         beforeLoad()
         // Before load(): the first hello already carries the custom items hash. Nexo and
         // Oraxen announce their items before Artisan starts (softdepend order).
-        val pluginsDir = server.pluginsFolder
-        provider.setCustomItemsManager(
-            net.artisanmc.plugin.customitems.CustomItemsManager(
-                listOf(
-                    net.artisanmc.plugin.customitems.NexoSource(pluginsDir),
-                    net.artisanmc.plugin.customitems.OraxenSource(pluginsDir),
-                    net.artisanmc.plugin.customitems.ItemsAdderSource(pluginsDir),
-                ),
-            ),
-        )
+        provider.setCustomItemsManager(net.artisanmc.plugin.customitems.CustomItemsManager(CustomItemPlugins.ALL))
         val packs = net.artisanmc.plugin.resourcepack.ResourcePackManager(
             plugin = plugin,
             config = cfg.resourcePack,
@@ -184,30 +176,12 @@ internal class RuntimeAssembly(
             }
         }, plugin)
 
-        if (mgr.getPlugin("Nexo") != null) {
-            // Fires on /nexo reload.
-            mgr.registerEvents(object : org.bukkit.event.Listener {
-                @org.bukkit.event.EventHandler
-                fun on(event: com.nexomc.nexo.api.events.NexoItemsLoadedEvent) {
-                    notify()
-                }
-            }, plugin)
-        }
-
-        if (mgr.getPlugin("Oraxen") != null) {
-            mgr.registerEvents(object : org.bukkit.event.Listener {
-                @org.bukkit.event.EventHandler
-                fun on(event: io.th0rgal.oraxen.api.events.OraxenItemsLoadedEvent) {
-                    notify()
-                }
-            }, plugin)
-        }
-
-        if (mgr.getPlugin("ItemsAdder") != null) {
+        // Hot reload: the event each installed custom-items plugin fires once its items reload.
+        for (custom in CustomItemPlugins.ALL) {
+            if (mgr.getPlugin(custom.pluginName) == null) continue
             try {
                 @Suppress("UNCHECKED_CAST")
-                val eventClass = Class.forName("dev.lone.itemsadder.api.Events.CustomItemsLoadedEvent")
-                    as Class<out org.bukkit.event.Event>
+                val eventClass = Class.forName(custom.itemsLoadedEvent) as Class<out org.bukkit.event.Event>
                 mgr.registerEvent(
                     eventClass,
                     object : org.bukkit.event.Listener {},
@@ -220,7 +194,7 @@ internal class RuntimeAssembly(
                     plugin,
                 )
             } catch (_: Exception) {
-                logger.warning("ItemsAdder found but could not register hot-reload listener")
+                logger.warning("${custom.pluginName} found but could not register hot-reload listener")
             }
         }
     }
