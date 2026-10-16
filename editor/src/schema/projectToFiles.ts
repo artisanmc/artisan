@@ -110,7 +110,8 @@ export function projectToFiles(project: Project): Record<string, string> {
   };
   // Data models: models/<id>.yaml (model/v1), fields VERBATIM (cross-model refs
   // preserved) — the lossless editor store. data/<id>.yaml stays denormalized
-  // and self-contained for the runtime; the plugin ignores models/ entirely.
+  // and self-contained for the runtime (the plugin reads models/ only to type
+  // a bare source beside its data).
   // Module-DECLARED models are NOT project content — their truth is the
   // declaration (Presence), never a project file (ADR composable-data-models §4).
   for (const m of project.dataModels ?? []) {

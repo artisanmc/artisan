@@ -14,7 +14,7 @@ plugins/Artisan/projects/
     items/<captured_item_id>.yml   ← ItemStacks capturés (refs material `item:<id>`), YAML Bukkit verbatim
     data/<source_id>.yaml          ← Project sources (schema data/v1, refs `pack:<id>`)
     templates/<id>.yaml            ← schema template/v1, résolus au load plugin
-    models/<id>.yaml               ← schema model/v1, ignorés par le plugin
+    models/<id>.yaml               ← schema model/v1 ; `<id>` = la source qu'il type (model possédé) sinon l'id du model, l'identité reste l'`id:` interne
     assets/{glyphs,textures,fonts}/ ← images et polices (binaires, écrits par la publication)
     .artisan/editor.yaml           ← état de la planche éditeur (seul `.artisan*` que l'éditeur écrit)
     .artisan/project-id            ← UUID du projet, écrit une fois par le plugin (garde Versions et brouillons à travers un renommage)
