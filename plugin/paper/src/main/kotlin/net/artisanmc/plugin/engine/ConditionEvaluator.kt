@@ -3,6 +3,7 @@ package net.artisanmc.plugin.engine
 import java.util.concurrent.atomic.AtomicBoolean
 import org.bukkit.Bukkit
 import org.bukkit.Material
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore) {
 

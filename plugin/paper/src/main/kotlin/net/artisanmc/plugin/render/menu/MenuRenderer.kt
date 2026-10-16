@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.render.menu
 
 import net.artisanmc.plugin.session.MenuSlots
 import net.artisanmc.plugin.session.PlayerInventoryMode
@@ -26,6 +26,12 @@ import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
+import net.artisanmc.plugin.integrations.PapiProvider
+import net.artisanmc.plugin.integrations.SoftDepRegistry
+import net.artisanmc.plugin.render.LoreWrap
+import net.artisanmc.plugin.render.OffsetEncoder
+import net.artisanmc.plugin.render.packets.MenuWindows
+import net.artisanmc.plugin.render.title.TitleCompiler
 
 class ArtisanMenuHolder : InventoryHolder {
     override fun getInventory(): Inventory = error("not used")

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import net.artisanmc.plugin.session.ScreenValue
 
 /**
  * The placeholder contract for the previous-menu feature, as injected by

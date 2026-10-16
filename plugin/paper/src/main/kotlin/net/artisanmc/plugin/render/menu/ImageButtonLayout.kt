@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.render.menu
 
 import net.artisanmc.plugin.session.MenuSlots
 import net.artisanmc.plugin.session.PlayerInventoryMode

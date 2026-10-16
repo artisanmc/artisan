@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.engine
+package net.artisanmc.plugin.integrations
 
 import net.artisanmc.plugin.customitems.CustomItemPlugin
 import net.artisanmc.plugin.customitems.CustomItemPlugins
@@ -6,6 +6,8 @@ import net.milkbowl.vault.economy.Economy
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
+import net.artisanmc.plugin.engine.PapiExpansion
+import net.artisanmc.plugin.engine.PapiPlaceholderCatalog
 
 class VaultProvider(private val economy: Economy) {
     fun balance(player: Player): Double = economy.getBalance(player)

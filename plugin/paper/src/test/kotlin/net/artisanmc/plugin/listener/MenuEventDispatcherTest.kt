@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.listener
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.modules.api.menu.MenuClickEvent

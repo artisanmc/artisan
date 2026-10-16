@@ -8,7 +8,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.MenuCompiler
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.render.menu.MenuRenderer
 import org.bukkit.Material
 import kotlin.test.*
 

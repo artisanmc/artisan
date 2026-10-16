@@ -9,9 +9,10 @@ import net.artisanmc.plugin.model.ContextInputYaml
 import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.engine.MenuProvider
-import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.render.menu.MenuRenderer
 import org.bukkit.entity.Player
 import kotlin.test.*
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class MenuSourceContextTest {
     @BeforeTest fun setup() { MockBukkit.mock() }

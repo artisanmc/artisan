@@ -13,7 +13,7 @@ import java.util.zip.ZipInputStream
  * @param codepoint Unicode codepoint (for glyph-type assets), or null for non-glyph types.
  * @param ascent    Pixel ascent used by the font glyph (defaults to 0 when absent).
  * @param height    Pixel height used by the font glyph (defaults to 0 when absent).
- * @param width     Pixel width of the source PNG. Used by [net.artisanmc.plugin.render.TitleCompiler]
+ * @param width     Pixel width of the source PNG. Used by [net.artisanmc.plugin.render.title.TitleCompiler]
  *                  to advance the cursor past an image layer. 0 when absent
  *                  (legacy packs); TitleCompiler then falls back to a default.
  * @param namespace Font namespace (e.g. `artisan:my_font`) for font-type assets;
