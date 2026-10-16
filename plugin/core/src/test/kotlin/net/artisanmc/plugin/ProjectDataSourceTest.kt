@@ -77,12 +77,12 @@ class ProjectDataSourceTest {
               motd: sources.settings.motd
             """.trimIndent(),
         )
-        File(dir, "data/broken.yaml").writeText("schema: data/v99\nid: broken\n")
         return root
     }
 
     @Test
-    fun `reader parses data sources and skips unsupported schema versions`() {
+    // An unsupported schema version is loud instead (ProjectReaderTest).
+    fun `reader parses data sources`() {
         val bundles = ProjectReader(writeTempProject()).readAll()
         val bundle = bundles.single()
         assertEquals(listOf("ranks", "settings"), bundle.dataSources.map { it.id }.sorted())
