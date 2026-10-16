@@ -52,9 +52,14 @@ porte l'explication du plugin). Tests : `src/lib/api/client.test.ts`.
 code vit par domaine dans `state/account/` : une tranche par fichier (`projectsSlice`,
 `dialogsSlice`, `commandsSlice`, `menusSlice`, `elementsSlice`, `canvasSlice`, `i18nSlice`,
 `dataSlice`), chacune exportant son interface et `createXSlice(context)`, et `helpers.ts` pour
-ce que plusieurs tranches partagent (`touch`, `findCommand`, les `gc*LTexts`…). `AccountState`
+ce que plusieurs tranches partagent (les `gc*LTexts`, `shiftPlayerPositions`…). `AccountState`
 (`types.ts`) est l'intersection des tranches plus `account` ; `AccountSliceContext` est ce
-qu'une tranche reçoit : `set`, `get` et `clearTemporal`. Le store compose les tranches sous
+qu'une tranche reçoit : `set`, `get`, `clearTemporal` et les mutateurs de `mutate.ts`
+(`mutateProject`, `mutateMenu`, `mutateElement`, `mutateAppearance`, `mutateClickHandler`,
+`mutateCommand`, `mutateDialog`). Une action interne au Project passe par l'un d'eux : un seul
+`produce`, la recherche de la cible, **rien du tout** si elle manque, le corps, puis `updatedAt`
+estampillé — sauf si le corps renvoie `false` (sortie anticipée) ou avec `{ touch: false }`
+(board, sources : ces actions n'ont jamais estampillé). Le store compose les tranches sous
 `temporal` (zundo, `partialize` sur `account`) : mêmes actions, même historique d'annulation,
 rien ne change pour l'éditeur.
 

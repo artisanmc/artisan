@@ -1,11 +1,14 @@
+import { dialogsOf, mutableDialogs } from "@/domain/documents";
 import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
 import type {
   Condition,
   Dialog,
   DialogBody,
+  DialogButton,
   DialogId,
   DialogInput,
   I18nKey,
+  Project,
   ProjectId,
   Step,
 } from "@/domain/types";
@@ -17,17 +20,15 @@ import {
   dialogTitleKey,
 } from "@/lib/i18nKeys";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { produce } from "immer";
 import {
   allocStepLTexts,
   gcStepLTexts,
   rewriteCanvasEdgeIds,
   rewriteCanvasGroupMembers,
-  touch,
   updateDialogLTextKey,
 } from "./helpers";
-import type { AccountSliceContext, AccountState } from "./types";
-import { dialogsOf, mutableDialogs } from "@/domain/documents";
+import type { Mutation } from "./mutate";
+import type { AccountSliceContext } from "./types";
 
 /** Dialogs: bodies, inputs, buttons and the steps behind them. */
 export interface DialogsSlice {
@@ -169,15 +170,43 @@ export interface DialogsSlice {
   updateDialog: (input: { projectId: ProjectId; dialog: Dialog }) => void;
 }
 
-export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSlice => ({
-  createDialog: ({ projectId: pId, id, position }) => {
-    const dId = id as DialogId;
-    const titleKey = dialogTitleKey(id);
-    const btnLabelKey = dialogButtonLabelKey(id, "btn_confirm");
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
+export const createDialogsSlice = ({
+  get,
+  mutateProject,
+  mutateDialog,
+}: AccountSliceContext): DialogsSlice => {
+  /** A button of a dialog; a no-op when either is missing. */
+  const mutateButton = (
+    pId: ProjectId,
+    dId: DialogId,
+    buttonIndex: number,
+    fn: Mutation<[btn: DialogButton, project: Project]>,
+  ) =>
+    mutateDialog(pId, dId, (dialog, project) => {
+      const btn = dialog.buttons[buttonIndex];
+      return btn ? fn(btn, project) : false;
+    });
+  /** The `if` step at `ifStepIndex` under `frames` in a button's chain. */
+  const mutateButtonIf = (
+    pId: ProjectId,
+    dId: DialogId,
+    buttonIndex: number,
+    frames: StepFrame[],
+    ifStepIndex: number,
+    fn: Mutation<[ifStep: Extract<Step, { kind: "if" }>, project: Project]>,
+  ) =>
+    mutateButton(pId, dId, buttonIndex, (btn, project) => {
+      const ifStep = resolveParentMut(btn.steps, frames)?.[ifStepIndex];
+      if (!ifStep || ifStep.kind !== "if") return false;
+      return fn(ifStep, project);
+    });
+
+  return {
+    createDialog: ({ projectId: pId, id, position }) => {
+      const dId = id as DialogId;
+      const titleKey = dialogTitleKey(id);
+      const btnLabelKey = dialogButtonLabelKey(id, "btn_confirm");
+      mutateProject(pId, (project) => {
         project.i18nKeys[titleKey] = { [project.defaultLang]: "" };
         project.i18nKeys[btnLabelKey] = { [project.defaultLang]: "Confirm" };
         mutableDialogs(project).push({
@@ -192,135 +221,90 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
         if (position) {
           (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
         }
-        project.updatedAt = new Date().toISOString();
-      }),
-    );
-    return dId;
-  },
-  setDialogTitle: ({ projectId: pId, dialogId: dId, lang, value }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        if (!dialog) return;
+      });
+      return dId;
+    },
+    setDialogTitle: ({ projectId: pId, dialogId: dId, lang, value }) =>
+      mutateDialog(pId, dId, (dialog, project) => {
         if (!project.i18nKeys[dialog.title.key]) project.i18nKeys[dialog.title.key] = {};
         project.i18nKeys[dialog.title.key]![lang] = value;
-        touch(draft, pId);
       }),
-    ),
-  setDialogField: ({ projectId: pId, dialogId: dId, field, value }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        if (!dialog) return;
+    setDialogField: ({ projectId: pId, dialogId: dId, field, value }) =>
+      mutateDialog(pId, dId, (dialog) => {
         if (field === "canCloseWithEscape") dialog.canCloseWithEscape = value;
-        touch(draft, pId);
       }),
-    ),
-  setDialogId: ({ projectId: pId, oldId, newId }) => {
-    if (oldId === newId) return;
-    if (!newId) throw new Error("dialog id cannot be empty");
-    const state = get();
-    const project = state.account.projects.find((p) => p.id === pId);
-    if (!project) throw new Error("project not found");
-    if (dialogsOf(project).some((d) => d.id === newId))
-      throw new Error(`dialog id "${newId}" already exists`);
-    const next = produce(state.account, (draft) => {
-      const p = draft.projects.find((p) => p.id === pId)!;
-      const d = dialogsOf(p).find((d) => d.id === oldId)!;
-      d.id = newId;
-      const oldPrefix = `dialogs.${oldId}.`;
-      const newPrefix = `dialogs.${newId}.`;
-      for (const key of Object.keys(p.i18nKeys)) {
-        if (key.startsWith(oldPrefix)) {
-          const newKey = (newPrefix + key.slice(oldPrefix.length)) as I18nKey;
-          p.i18nKeys[newKey] = p.i18nKeys[key as I18nKey]!;
-          delete p.i18nKeys[key as I18nKey];
-          updateDialogLTextKey(d, key as I18nKey, newKey);
+    setDialogId: ({ projectId: pId, oldId, newId }) => {
+      if (oldId === newId) return;
+      if (!newId) throw new Error("dialog id cannot be empty");
+      const project = get().account.projects.find((p) => p.id === pId);
+      if (!project) throw new Error("project not found");
+      if (dialogsOf(project).some((d) => d.id === newId))
+        throw new Error(`dialog id "${newId}" already exists`);
+      mutateProject(pId, (p) => {
+        const d = dialogsOf(p).find((d) => d.id === oldId)!;
+        d.id = newId;
+        const oldPrefix = `dialogs.${oldId}.`;
+        const newPrefix = `dialogs.${newId}.`;
+        for (const key of Object.keys(p.i18nKeys)) {
+          if (key.startsWith(oldPrefix)) {
+            const newKey = (newPrefix + key.slice(oldPrefix.length)) as I18nKey;
+            p.i18nKeys[newKey] = p.i18nKeys[key as I18nKey]!;
+            delete p.i18nKeys[key as I18nKey];
+            updateDialogLTextKey(d, key as I18nKey, newKey);
+          }
         }
-      }
-      const layout = p.canvasLayout as Record<string, { x: number; y: number }>;
-      if (layout[oldId as string]) {
-        layout[newId as string] = layout[oldId as string]!;
-        delete layout[oldId as string];
-      }
-      rewriteCanvasEdgeIds(p, oldId as string, newId as string);
-      rewriteCanvasGroupMembers(p, oldId as string, newId as string);
-      p.updatedAt = new Date().toISOString();
-    });
-    set({ account: next });
-    // Renaming is a MOVE, and only the editor knows it: the tree alone would
-    // only show a disappearance and an appearance. Without this intent, the
-    // trash archives a deletion that is not one and the file's history is
-    // orphaned from its new name. Recorded once the rename is applied: a
-    // refused one must leave no intent behind in the draft.
-    useProjectDraftStore
-      .getState()
-      .recordRename(pId, `dialogs/${oldId}.yaml`, `dialogs/${newId}.yaml`);
-  },
-  addDialogBody: ({ projectId: pId, dialogId: dId, body }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        if (!dialog) return;
+        const layout = p.canvasLayout as Record<string, { x: number; y: number }>;
+        if (layout[oldId as string]) {
+          layout[newId as string] = layout[oldId as string]!;
+          delete layout[oldId as string];
+        }
+        rewriteCanvasEdgeIds(p, oldId as string, newId as string);
+        rewriteCanvasGroupMembers(p, oldId as string, newId as string);
+      });
+      // Renaming is a MOVE, and only the editor knows it: the tree alone would
+      // only show a disappearance and an appearance. Without this intent, the
+      // trash archives a deletion that is not one and the file's history is
+      // orphaned from its new name. Recorded once the rename is applied: a
+      // refused one must leave no intent behind in the draft.
+      useProjectDraftStore
+        .getState()
+        .recordRename(pId, `dialogs/${oldId}.yaml`, `dialogs/${newId}.yaml`);
+    },
+    addDialogBody: ({ projectId: pId, dialogId: dId, body }) =>
+      mutateDialog(pId, dId, (dialog, project) => {
         if (body.type === "text") {
           const key = dialogBodyTextKey(dId, dialog.body.length);
-          project!.i18nKeys[key] = { [project!.defaultLang]: "" };
+          project.i18nKeys[key] = { [project.defaultLang]: "" };
           dialog.body.push({ type: "text", text: { key } });
         } else {
           dialog.body.push(body);
         }
-        touch(draft, pId);
       }),
-    ),
-  removeDialogBody: ({ projectId: pId, dialogId: dId, index }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        if (!dialog) return;
+    removeDialogBody: ({ projectId: pId, dialogId: dId, index }) =>
+      mutateDialog(pId, dId, (dialog, project) => {
         const body = dialog.body[index];
-        if (body?.type === "text") delete project!.i18nKeys[body.text.key];
+        if (body?.type === "text") delete project.i18nKeys[body.text.key];
         dialog.body.splice(index, 1);
-        touch(draft, pId);
       }),
-    ),
-  setDialogBodyText: ({ projectId: pId, dialogId: dId, index, lang, value }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const body = dialog?.body[index];
-        if (!body || body.type !== "text") return;
-        if (!project!.i18nKeys[body.text.key]) project!.i18nKeys[body.text.key] = {};
-        project!.i18nKeys[body.text.key]![lang] = value;
-        touch(draft, pId);
+    setDialogBodyText: ({ projectId: pId, dialogId: dId, index, lang, value }) =>
+      mutateDialog(pId, dId, (dialog, project) => {
+        const body = dialog.body[index];
+        if (!body || body.type !== "text") return false;
+        if (!project.i18nKeys[body.text.key]) project.i18nKeys[body.text.key] = {};
+        project.i18nKeys[body.text.key]![lang] = value;
       }),
-    ),
-  setDialogBodyMaterial: ({ projectId: pId, dialogId: dId, index, material, count }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const body = dialog?.body[index];
-        if (!body || body.type !== "item") return;
+    setDialogBodyMaterial: ({ projectId: pId, dialogId: dId, index, material, count }) =>
+      mutateDialog(pId, dId, (dialog) => {
+        const body = dialog.body[index];
+        if (!body || body.type !== "item") return false;
         body.material = material;
         body.count = count;
-        touch(draft, pId);
       }),
-    ),
-  addDialogInput: ({ projectId: pId, dialogId: dId, inputType }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        if (!dialog) return;
+    addDialogInput: ({ projectId: pId, dialogId: dId, inputType }) =>
+      mutateDialog(pId, dId, (dialog, project) => {
         const inputId = `input_${dialog.inputs.length}`;
         const labelKey = dialogInputLabelKey(dId, inputId);
-        project!.i18nKeys[labelKey] = { [project!.defaultLang]: "" };
+        project.i18nKeys[labelKey] = { [project.defaultLang]: "" };
         let newInput: DialogInput;
         if (inputType === "text") {
           newInput = {
@@ -356,261 +340,153 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
           };
         }
         dialog.inputs.push(newInput);
-        touch(draft, pId);
       }),
-    ),
-  removeDialogInput: ({ projectId: pId, dialogId: dId, index }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        if (!dialog) return;
+    removeDialogInput: ({ projectId: pId, dialogId: dId, index }) =>
+      mutateDialog(pId, dId, (dialog, project) => {
         const input = dialog.inputs[index];
         if (input) {
-          delete project!.i18nKeys[input.label.key];
+          delete project.i18nKeys[input.label.key];
           if (input.type === "single_option") {
-            for (const opt of input.options) delete project!.i18nKeys[opt.label.key];
+            for (const opt of input.options) delete project.i18nKeys[opt.label.key];
           }
           dialog.inputs.splice(index, 1);
         }
-        touch(draft, pId);
       }),
-    ),
-  setDialogInput: ({ projectId: pId, dialogId: dId, index, patch }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        if (!dialog?.inputs[index]) return;
+    setDialogInput: ({ projectId: pId, dialogId: dId, index, patch }) =>
+      mutateDialog(pId, dId, (dialog) => {
+        if (!dialog.inputs[index]) return false;
         Object.assign(dialog.inputs[index]!, patch);
-        touch(draft, pId);
       }),
-    ),
-  addDialogButton: ({ projectId: pId, dialogId: dId }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        if (!dialog) return;
+    addDialogButton: ({ projectId: pId, dialogId: dId }) =>
+      mutateDialog(pId, dId, (dialog, project) => {
         const btnId = `btn_${dialog.buttons.length}`;
         const labelKey = dialogButtonLabelKey(dId, btnId);
-        project!.i18nKeys[labelKey] = { [project!.defaultLang]: "" };
+        project.i18nKeys[labelKey] = { [project.defaultLang]: "" };
         dialog.buttons.push({ id: btnId, label: { key: labelKey }, steps: [] });
-        touch(draft, pId);
       }),
-    ),
-  removeDialogButton: ({ projectId: pId, dialogId: dId, buttonIndex }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        if (!dialog) return;
+    removeDialogButton: ({ projectId: pId, dialogId: dId, buttonIndex }) =>
+      mutateDialog(pId, dId, (dialog, project) => {
         const btn = dialog.buttons[buttonIndex];
         if (btn) {
-          delete project!.i18nKeys[btn.label.key];
-          gcStepLTexts(project!, btn.steps);
+          delete project.i18nKeys[btn.label.key];
+          gcStepLTexts(project, btn.steps);
           dialog.buttons.splice(buttonIndex, 1);
         }
-        touch(draft, pId);
       }),
-    ),
-  setDialogButtonLabel: ({ projectId: pId, dialogId: dId, buttonIndex, lang, value }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!btn) return;
-        if (!project!.i18nKeys[btn.label.key]) project!.i18nKeys[btn.label.key] = {};
-        project!.i18nKeys[btn.label.key]![lang] = value;
-        touch(draft, pId);
+    setDialogButtonLabel: ({ projectId: pId, dialogId: dId, buttonIndex, lang, value }) =>
+      mutateButton(pId, dId, buttonIndex, (btn, project) => {
+        if (!project.i18nKeys[btn.label.key]) project.i18nKeys[btn.label.key] = {};
+        project.i18nKeys[btn.label.key]![lang] = value;
       }),
-    ),
-  addDialogButtonStep: ({
-    projectId: pId,
-    dialogId: dId,
-    buttonIndex,
-    frames,
-    index,
-    step,
-    lang,
-  }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!project || !btn) return;
+    addDialogButtonStep: ({
+      projectId: pId,
+      dialogId: dId,
+      buttonIndex,
+      frames,
+      index,
+      step,
+      lang,
+    }) =>
+      mutateButton(pId, dId, buttonIndex, (btn, project) => {
         const parent = resolveParentMut(btn.steps, frames);
-        if (!parent) return;
+        if (!parent) return false;
         const at = index < 0 || index > parent.length ? parent.length : index;
         parent.splice(at, 0, step);
         allocStepLTexts(project, btn.steps, lang, dialogButtonKeyPrefix(dId, btn.id));
-        touch(draft, pId);
       }),
-    ),
-  moveDialogButtonStep: ({
-    projectId: pId,
-    dialogId: dId,
-    buttonIndex,
-    frames,
-    fromIndex,
-    toIndex,
-  }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!btn) return;
+    moveDialogButtonStep: ({
+      projectId: pId,
+      dialogId: dId,
+      buttonIndex,
+      frames,
+      fromIndex,
+      toIndex,
+    }) =>
+      mutateButton(pId, dId, buttonIndex, (btn) => {
         const parent = resolveParentMut(btn.steps, frames);
-        if (!parent) return;
-        if (fromIndex < 0 || fromIndex >= parent.length) return;
-        if (toIndex < 0 || toIndex >= parent.length) return;
+        if (!parent) return false;
+        if (fromIndex < 0 || fromIndex >= parent.length) return false;
+        if (toIndex < 0 || toIndex >= parent.length) return false;
         const [moved] = parent.splice(fromIndex, 1);
         if (moved) parent.splice(toIndex, 0, moved);
-        touch(draft, pId);
       }),
-    ),
-  setDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, path, step, lang }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!project || !btn) return;
+    setDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, path, step, lang }) =>
+      mutateButton(pId, dId, buttonIndex, (btn, project) => {
         const parent = resolveParentMut(btn.steps, path.frames);
-        if (!parent || path.index < 0 || path.index >= parent.length) return;
+        if (!parent || path.index < 0 || path.index >= parent.length) return false;
         gcStepLTexts(project, [parent[path.index]!]);
         parent[path.index] = step;
         allocStepLTexts(project, btn.steps, lang, dialogButtonKeyPrefix(dId, btn.id));
-        touch(draft, pId);
       }),
-    ),
-  removeDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, path }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!project || !btn) return;
+    removeDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, path }) =>
+      mutateButton(pId, dId, buttonIndex, (btn, project) => {
         const parent = resolveParentMut(btn.steps, path.frames);
-        if (!parent || path.index < 0 || path.index >= parent.length) return;
+        if (!parent || path.index < 0 || path.index >= parent.length) return false;
         gcStepLTexts(project, [parent[path.index]!]);
         parent.splice(path.index, 1);
-        touch(draft, pId);
       }),
-    ),
-  addDialogButtonIfCase: ({ projectId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!btn) return;
-        const parent = resolveParentMut(btn.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
+    addDialogButtonIfCase: ({ projectId: pId, dialogId: dId, buttonIndex, frames, ifStepIndex }) =>
+      mutateButtonIf(pId, dId, buttonIndex, frames, ifStepIndex, (ifStep) => {
         ifStep.cases.push({ conditions: [], steps: [] });
-        touch(draft, pId);
       }),
-    ),
-  removeDialogButtonIfCase: ({
-    projectId: pId,
-    dialogId: dId,
-    buttonIndex,
-    frames,
-    ifStepIndex,
-    caseIndex,
-  }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!project || !btn) return;
-        const parent = resolveParentMut(btn.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
-        if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
+    removeDialogButtonIfCase: ({
+      projectId: pId,
+      dialogId: dId,
+      buttonIndex,
+      frames,
+      ifStepIndex,
+      caseIndex,
+    }) =>
+      mutateButtonIf(pId, dId, buttonIndex, frames, ifStepIndex, (ifStep, project) => {
+        if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return false;
         if (ifStep.cases.length > 1) {
           gcStepLTexts(project, ifStep.cases[caseIndex]!.steps);
           ifStep.cases.splice(caseIndex, 1);
         }
-        touch(draft, pId);
       }),
-    ),
-  setDialogButtonIfCaseConditions: ({
-    projectId: pId,
-    dialogId: dId,
-    buttonIndex,
-    frames,
-    ifStepIndex,
-    caseIndex,
-    conditions,
-    op,
-  }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!btn) return;
-        const parent = resolveParentMut(btn.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
+    setDialogButtonIfCaseConditions: ({
+      projectId: pId,
+      dialogId: dId,
+      buttonIndex,
+      frames,
+      ifStepIndex,
+      caseIndex,
+      conditions,
+      op,
+    }) =>
+      mutateButtonIf(pId, dId, buttonIndex, frames, ifStepIndex, (ifStep) => {
         const c = ifStep.cases[caseIndex];
-        if (!c) return;
+        if (!c) return false;
         c.conditions = conditions;
         if (op !== undefined)
           c.joins = new Array(Math.max(0, conditions.length - 1)).fill(op) as ("and" | "or")[];
-        touch(draft, pId);
       }),
-    ),
-  setDialogButtonIfCaseJoin: ({
-    projectId: pId,
-    dialogId: dId,
-    buttonIndex,
-    frames,
-    ifStepIndex,
-    caseIndex,
-    joinIndex,
-    op,
-  }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!btn) return;
-        const parent = resolveParentMut(btn.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
+    setDialogButtonIfCaseJoin: ({
+      projectId: pId,
+      dialogId: dId,
+      buttonIndex,
+      frames,
+      ifStepIndex,
+      caseIndex,
+      joinIndex,
+      op,
+    }) =>
+      mutateButtonIf(pId, dId, buttonIndex, frames, ifStepIndex, (ifStep) => {
         const c = ifStep.cases[caseIndex];
-        if (!c) return;
+        if (!c) return false;
         if (!c.joins) c.joins = [];
         c.joins[joinIndex] = op;
-        touch(draft, pId);
       }),
-    ),
-  toggleDialogButtonIfElse: ({
-    projectId: pId,
-    dialogId: dId,
-    buttonIndex,
-    frames,
-    ifStepIndex,
-    lang: _lang,
-    enabled,
-  }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const dialog = dialogsOf(project).find((d) => d.id === dId);
-        const btn = dialog?.buttons[buttonIndex];
-        if (!project || !btn) return;
-        const parent = resolveParentMut(btn.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
+    toggleDialogButtonIfElse: ({
+      projectId: pId,
+      dialogId: dId,
+      buttonIndex,
+      frames,
+      ifStepIndex,
+      lang: _lang,
+      enabled,
+    }) =>
+      mutateButtonIf(pId, dId, buttonIndex, frames, ifStepIndex, (ifStep, project) => {
         if (enabled) {
           if (!ifStep.else) ifStep.else = [];
         } else {
@@ -619,18 +495,12 @@ export const createDialogsSlice = ({ set, get }: AccountSliceContext): DialogsSl
             ifStep.else = undefined;
           }
         }
-        touch(draft, pId);
       }),
-    ),
-  updateDialog: ({ projectId: pId, dialog }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
+    updateDialog: ({ projectId: pId, dialog }) =>
+      mutateProject(pId, (project) => {
         const idx = dialogsOf(project).findIndex((d) => d.id === dialog.id);
-        if (idx === -1) return;
+        if (idx === -1) return false;
         mutableDialogs(project)[idx] = dialog;
-        project.updatedAt = new Date().toISOString();
       }),
-    ),
-});
+  };
+};

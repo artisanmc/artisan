@@ -1,3 +1,4 @@
+import { mutableCommands, mutableMenus } from "@/domain/documents";
 import { addressedAppearances, appearanceAt } from "@/domain/element";
 import { rekeyCommand, rekeyMenu } from "@/domain/i18nSites";
 import { newLayerId } from "@/domain/ids";
@@ -21,6 +22,7 @@ import type {
   Menu,
   MenuId,
   Placement,
+  Project,
   ProjectId,
   Step,
 } from "@/domain/types";
@@ -33,25 +35,21 @@ import {
   positionsContains,
   removePosition,
 } from "@/lib/positions";
-import { current, produce } from "immer";
+import { current } from "immer";
 import {
   allocStepLTexts,
   appearanceClickPrefixFor,
   appearanceLoreKeyFor,
   appearanceTitleKeyFor,
   cloneAppearanceLTextsInto,
-  findAddressedAppearance,
-  findAppearanceOwner,
-  findElementHandler,
+  duplicateStepLTexts,
   gcAppearanceLTexts,
   gcElementLTexts,
   gcStepLTexts,
   nextElementIdForMaterial,
-  touch,
-  duplicateStepLTexts,
 } from "./helpers";
-import type { AccountSliceContext, AccountState, AppearanceTarget } from "./types";
-import { menusOf, mutableCommands, mutableMenus } from "@/domain/documents";
+import { type Mutation, findElement } from "./mutate";
+import type { AccountSliceContext, AppearanceTarget } from "./types";
 
 /** A menu's content: elements, slots, appearances, positions, steps and click handlers. */
 export interface ElementsSlice {
@@ -390,109 +388,75 @@ export interface ElementsSlice {
   }) => void;
 }
 
-export const createElementsSlice = ({ set, get }: AccountSliceContext): ElementsSlice => ({
-  setElementIterates: ({ projectId: pId, menuId: mId, elementId: eId, iterates }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        for (const layer of menu.layers) {
-          const el = layer.elements.find((e) => e.id === eId);
-          if (el) {
-            el.iterates = iterates;
-            if (iterates) el.places = undefined; // XOR: iterates and places are exclusive
-            project.updatedAt = new Date().toISOString();
-            return;
-          }
-        }
+export const createElementsSlice = ({
+  mutateProject,
+  mutateMenu,
+  mutateElement,
+  mutateAppearance,
+  mutateClickHandler,
+}: AccountSliceContext): ElementsSlice => {
+  /** The `if` step at `ifStepIndex` under `frames` in an element's click handler. */
+  const mutateIfStep = (
+    input: AppearanceTarget & {
+      projectId: ProjectId;
+      appearanceIndex: number;
+      clickType: ClickType;
+      frames: StepFrame[];
+      ifStepIndex: number;
+    },
+    fn: Mutation<[ifStep: Extract<Step, { kind: "if" }>, project: Project]>,
+  ) =>
+    mutateClickHandler(
+      input.projectId,
+      input,
+      input.appearanceIndex,
+      input.clickType,
+      (handler, project) => {
+        const ifStep = resolveParentMut(handler.steps, input.frames)?.[input.ifStepIndex];
+        if (!ifStep || ifStep.kind !== "if") return false;
+        return fn(ifStep, project);
+      },
+    );
+
+  return {
+    setElementIterates: ({ projectId: pId, menuId: mId, elementId: eId, iterates }) =>
+      mutateElement(pId, mId, eId, (el) => {
+        el.iterates = iterates;
+        if (iterates) el.places = undefined; // XOR: iterates and places are exclusive
       }),
-    ),
-  setElementPlaces: ({ projectId: pId, menuId: mId, elementId: eId, places }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!project || !menu) return;
-        for (const layer of menu.layers) {
-          const el = layer.elements.find((e) => e.id === eId);
-          if (el) {
-            el.places = places;
-            if (places) el.iterates = undefined; // XOR: exclusive with iteration
-            project.updatedAt = new Date().toISOString();
-            return;
-          }
-        }
+    setElementPlaces: ({ projectId: pId, menuId: mId, elementId: eId, places }) =>
+      mutateElement(pId, mId, eId, (el) => {
+        el.places = places;
+        if (places) el.iterates = undefined; // XOR: exclusive with iteration
       }),
-    ),
-  setElementPlacement: ({ projectId: pId, menuId: mId, elementId: eId, placement }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!project || !menu) return;
-        for (const layer of menu.layers) {
-          const el = layer.elements.find((e) => e.id === eId);
-          if (el?.places) {
-            const list = el.places.placements;
-            const i = list.findIndex((p) => p.key === placement.key);
-            if (i >= 0) list[i] = placement;
-            else list.push(placement);
-            project.updatedAt = new Date().toISOString();
-            return;
-          }
-        }
+    setElementPlacement: ({ projectId: pId, menuId: mId, elementId: eId, placement }) =>
+      mutateElement(pId, mId, eId, (el) => {
+        if (!el.places) return false;
+        const list = el.places.placements;
+        const i = list.findIndex((p) => p.key === placement.key);
+        if (i >= 0) list[i] = placement;
+        else list.push(placement);
       }),
-    ),
-  removeElementPlacement: ({ projectId: pId, menuId: mId, elementId: eId, key }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!project || !menu) return;
-        for (const layer of menu.layers) {
-          const el = layer.elements.find((e) => e.id === eId);
-          if (el?.places) {
-            el.places.placements = el.places.placements.filter((p) => p.key !== key);
-            project.updatedAt = new Date().toISOString();
-            return;
-          }
-        }
+    removeElementPlacement: ({ projectId: pId, menuId: mId, elementId: eId, key }) =>
+      mutateElement(pId, mId, eId, (el) => {
+        if (!el.places) return false;
+        el.places.placements = el.places.placements.filter((p) => p.key !== key);
       }),
-    ),
-  setElementId: ({ projectId: pId, menuId: mId, oldId, newId }) => {
-    if (oldId === newId) return;
-    if (!newId) throw new Error("element id cannot be empty");
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        const allElements = menu.layers.flatMap((l) => l.elements);
-        if (allElements.some((el) => el.id === newId)) {
+    setElementId: ({ projectId: pId, menuId: mId, oldId, newId }) => {
+      if (oldId === newId) return;
+      if (!newId) throw new Error("element id cannot be empty");
+      mutateMenu(pId, mId, (menu, project) => {
+        if (findElement(menu, newId)) {
           throw new Error(`element id "${newId}" already exists in menu`);
         }
-        for (const layer of menu.layers) {
-          const el = layer.elements.find((e) => e.id === oldId);
-          if (el) {
-            el.id = newId;
-            rekeyMenu(project, menu);
-            project.updatedAt = new Date().toISOString();
-            return;
-          }
-        }
-      }),
-    );
-  },
-  setSlotMaterial: ({ projectId: pId, menuId: mId, position, material }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
+        const el = findElement(menu, oldId);
+        if (!el) return false;
+        el.id = newId;
+        rekeyMenu(project, menu);
+      });
+    },
+    setSlotMaterial: ({ projectId: pId, menuId: mId, position, material }) =>
+      mutateMenu(pId, mId, (menu, project) => {
         // Find the element that currently owns this position (single OR
         // multi-pos), update its material — preserves title/lore/count.
         for (const layer of menu.layers) {
@@ -502,7 +466,6 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
               throw new Error("Change the image button's appearance in its properties.");
             const appearance = el.display;
             if (appearance) appearance.material = material;
-            project.updatedAt = new Date().toISOString();
             return;
           }
         }
@@ -517,20 +480,11 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           display: { material },
           states: [],
         });
-        project.updatedAt = new Date().toISOString();
       }),
-    ),
-  setAppearanceImage: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === input.projectId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === input.menuId);
-        const element = menu?.layers
-          .flatMap((l) => l.elements)
-          .find((el) => el.id === input.elementId);
-        const appearance = findAddressedAppearance(project, input, input.appearanceIndex ?? 0);
-        if (!menu || !element || !appearance) return;
+    setAppearanceImage: (input) =>
+      mutateElement(input.projectId, input.menuId, input.elementId, (element, menu) => {
+        const appearance = appearanceAt(element, input.appearanceIndex ?? 0);
+        if (!appearance) return false;
         if (input.image) {
           assertImageButtonPlacement(menu, element, input.positions ?? element.positions);
           if (input.positions !== undefined) element.positions = input.positions;
@@ -540,19 +494,12 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
         } else {
           Reflect.deleteProperty(appearance, "image");
         }
-        project.updatedAt = new Date().toISOString();
       }),
-    ),
-  setAppearanceField: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex = 0, field, value } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const appearance = findAddressedAppearance(project, input, appearanceIndex);
-        if (!appearance) return;
+    setAppearanceField: (input) => {
+      const { projectId: pId, appearanceIndex = 0, field, value } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance) => {
         if (field === "title" || field === "lore") {
-          if (value !== undefined) return;
+          if (value !== undefined) return false;
           appearance[field] = undefined;
           if (field === "lore") appearance.loreMode = undefined;
         } else if (field === "loreMode") {
@@ -562,50 +509,38 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
             appearance.count = undefined;
           } else {
             const n = typeof value === "number" ? value : Number(value);
-            if (!Number.isInteger(n) || n < 1 || n > 64) return;
+            if (!Number.isInteger(n) || n < 1 || n > 64) return false;
             appearance.count = n;
           }
         } else if (field === "material") {
-          if (typeof value !== "string") return;
+          if (typeof value !== "string") return false;
           appearance.material = value || undefined;
           appearance.item = undefined;
           appearance.image = undefined;
         } else if (field === "item") {
-          if (typeof value !== "string") return;
+          if (typeof value !== "string") return false;
           appearance.item = value;
           appearance.material = undefined;
           appearance.image = undefined;
         } else if (field === "head") {
-          if (typeof value !== "string") return;
+          if (typeof value !== "string") return false;
           appearance.head = value || undefined;
         }
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
-  setAppearanceAdvanced: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex = 0, patch } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const appearance = findAddressedAppearance(project, input, appearanceIndex);
-        if (!appearance) return;
+      });
+    },
+    setAppearanceAdvanced: (input) => {
+      const { projectId: pId, appearanceIndex = 0, patch } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance) => {
         for (const [key, value] of Object.entries(patch)) {
           // An explicit `undefined` clears the field rather than storing a hole.
           if (value === undefined) delete (appearance as Record<string, unknown>)[key];
           else (appearance as Record<string, unknown>)[key] = value;
         }
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
-  setAppearanceTitle: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex = 0, lang, value } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const appearance = findAddressedAppearance(project, input, appearanceIndex);
-        if (!appearance) return;
+      });
+    },
+    setAppearanceTitle: (input) => {
+      const { projectId: pId, appearanceIndex = 0, lang, value } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance, project) => {
         // Lazy-allocate: brand-new appearances start with no title
         // LText, so the first edit creates one. If the user clears
         // the field, we keep the LText (they may want to re-edit
@@ -618,46 +553,25 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
             lang,
           );
         else setLText(project, appearance.title, lang, value);
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
-  setElementPositions: ({ projectId: pId, menuId: mId, elementId, positions }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        for (const layer of menu.layers) {
-          for (const el of layer.elements) {
-            if (el.id !== elementId) continue;
-            if (hasImageButton(el)) assertImageButtonPlacement(menu, el, positions);
-            for (const other of menu.layers.flatMap((l) => l.elements)) {
-              if (
-                other.id !== el.id &&
-                hasImageButton(other) &&
-                parsePositions(other.positions).some((slot) => positionsContains(positions, slot))
-              ) {
-                throw new Error("This area belongs to an image button.");
-              }
-            }
-            el.positions = positions;
-            project.updatedAt = new Date().toISOString();
-            return;
+      });
+    },
+    setElementPositions: ({ projectId: pId, menuId: mId, elementId, positions }) =>
+      mutateElement(pId, mId, elementId, (el, menu) => {
+        if (hasImageButton(el)) assertImageButtonPlacement(menu, el, positions);
+        for (const other of menu.layers.flatMap((l) => l.elements)) {
+          if (
+            other.id !== el.id &&
+            hasImageButton(other) &&
+            parsePositions(other.positions).some((slot) => positionsContains(positions, slot))
+          ) {
+            throw new Error("This area belongs to an image button.");
           }
         }
+        el.positions = positions;
       }),
-    ),
-  moveElementPosition: ({ projectId: pId, menuId: mId, elementId, fromPosition, toPosition }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        const imageElement = menu.layers
-          .flatMap((l) => l.elements)
-          .find((el) => el.id === elementId);
+    moveElementPosition: ({ projectId: pId, menuId: mId, elementId, fromPosition, toPosition }) =>
+      mutateMenu(pId, mId, (menu) => {
+        const imageElement = findElement(menu, elementId);
         if (imageElement && hasImageButton(imageElement)) {
           const type = menu.inventoryType ?? "chest";
           const rect = imageButtonRect(
@@ -689,7 +603,6 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           );
           assertImageButtonPlacement(menu, imageElement, positions);
           imageElement.positions = positions;
-          project.updatedAt = new Date().toISOString();
           return;
         }
         for (const other of menu.layers.flatMap((l) => l.elements)) {
@@ -707,24 +620,13 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           layer.elements = layer.elements.filter((el) => el.places || el.positions !== "");
         }
         // Then update the source element: remove from, add to.
-        for (const layer of menu.layers) {
-          for (const el of layer.elements) {
-            if (el.id !== elementId) continue;
-            el.positions = addPosition(removePosition(el.positions, fromPosition), toPosition);
-            project.updatedAt = new Date().toISOString();
-            return;
-          }
-        }
+        const el = findElement(menu, elementId);
+        if (!el) return false;
+        el.positions = addPosition(removePosition(el.positions, fromPosition), toPosition);
       }),
-    ),
-  addElementPosition: ({ projectId: pId, menuId: mId, elementId, position }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        const source = menu.layers.flatMap((l) => l.elements).find((el) => el.id === elementId);
+    addElementPosition: ({ projectId: pId, menuId: mId, elementId, position }) =>
+      mutateMenu(pId, mId, (menu) => {
+        const source = findElement(menu, elementId);
         if (source && hasImageButton(source))
           assertImageButtonPlacement(menu, source, addPosition(source.positions, position));
         for (const other of menu.layers.flatMap((l) => l.elements)) {
@@ -744,44 +646,27 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           }
           layer.elements = layer.elements.filter((el) => el.places || el.positions !== "");
         }
-        for (const layer of menu.layers) {
-          for (const el of layer.elements) {
-            if (el.id !== elementId) continue;
-            el.positions = addPosition(el.positions, position);
-            project.updatedAt = new Date().toISOString();
-            return;
-          }
-        }
+        const el = findElement(menu, elementId);
+        if (!el) return false;
+        el.positions = addPosition(el.positions, position);
       }),
-    ),
-  deleteElement: ({ projectId: pId, menuId: mId, elementId }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
+    deleteElement: ({ projectId: pId, menuId: mId, elementId }) =>
+      mutateMenu(pId, mId, (menu, project) => {
         for (const layer of menu.layers) {
           const idx = layer.elements.findIndex((el) => el.id === elementId);
           if (idx !== -1) {
             gcElementLTexts(project, layer.elements[idx]!);
             layer.elements.splice(idx, 1);
-            project.updatedAt = new Date().toISOString();
             return;
           }
         }
+        return false;
       }),
-    ),
-  setElementStep: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, clickType, path, step, lang } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
-        if (!handler) return;
+    setElementStep: (input) => {
+      const { projectId: pId, appearanceIndex, clickType, path, step, lang } = input;
+      mutateClickHandler(pId, input, appearanceIndex, clickType, (handler, project) => {
         const parent = resolveParentMut(handler.steps, path.frames);
-        if (!parent || path.index < 0 || path.index >= parent.length) return;
+        if (!parent || path.index < 0 || path.index >= parent.length) return false;
         gcStepLTexts(project, [parent[path.index]!]);
         parent[path.index] = step;
         allocStepLTexts(
@@ -790,19 +675,13 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           lang,
           appearanceClickPrefixFor(input, appearanceIndex, clickType),
         );
-        touch(draft, pId);
-      }),
-    ),
-  addElementStep: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, clickType, frames, index, step, lang } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
-        if (!handler) return;
+      });
+    },
+    addElementStep: (input) => {
+      const { projectId: pId, appearanceIndex, clickType, frames, index, step, lang } = input;
+      mutateClickHandler(pId, input, appearanceIndex, clickType, (handler, project) => {
         const parent = resolveParentMut(handler.steps, frames);
-        if (!parent) return;
+        if (!parent) return false;
         const at = index < 0 || index > parent.length ? parent.length : index;
         parent.splice(at, 0, step);
         allocStepLTexts(
@@ -811,201 +690,95 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           lang,
           appearanceClickPrefixFor(input, appearanceIndex, clickType),
         );
-        touch(draft, pId);
-      }),
-    ),
-  removeElementStep: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, clickType, path } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
-        if (!handler) return;
+      });
+    },
+    removeElementStep: (input) => {
+      const { projectId: pId, appearanceIndex, clickType, path } = input;
+      mutateClickHandler(pId, input, appearanceIndex, clickType, (handler, project) => {
         const parent = resolveParentMut(handler.steps, path.frames);
-        if (!parent || path.index < 0 || path.index >= parent.length) return;
+        if (!parent || path.index < 0 || path.index >= parent.length) return false;
         gcStepLTexts(project, [parent[path.index]!]);
         parent.splice(path.index, 1);
-        touch(draft, pId);
-      }),
-    ),
-  moveElementStep: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, clickType, frames, fromIndex, toIndex } = input;
-        const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
-        if (!handler) return;
+      });
+    },
+    moveElementStep: (input) => {
+      const { projectId: pId, appearanceIndex, clickType, frames, fromIndex, toIndex } = input;
+      mutateClickHandler(pId, input, appearanceIndex, clickType, (handler) => {
         const parent = resolveParentMut(handler.steps, frames);
-        if (!parent) return;
-        if (fromIndex < 0 || fromIndex >= parent.length) return;
-        if (toIndex < 0 || toIndex >= parent.length) return;
+        if (!parent) return false;
+        if (fromIndex < 0 || fromIndex >= parent.length) return false;
+        if (toIndex < 0 || toIndex >= parent.length) return false;
         const [moved] = parent.splice(fromIndex, 1);
         if (moved) parent.splice(toIndex, 0, moved);
-        touch(draft, pId);
-      }),
-    ),
-  addIfCase: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, clickType, frames, ifStepIndex } = input;
-        const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
-        if (!handler) return;
-        const parent = resolveParentMut(handler.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
+      });
+    },
+    addIfCase: (input) =>
+      mutateIfStep(input, (ifStep) => {
         ifStep.cases.push({ conditions: [], steps: [] });
-        touch(draft, pId);
       }),
-    ),
-  removeIfCase: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const {
-          projectId: pId,
-          appearanceIndex,
-          clickType,
-          frames,
-          ifStepIndex,
-          caseIndex,
-        } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
-        if (!handler) return;
-        const parent = resolveParentMut(handler.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
-        if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return;
+    removeIfCase: (input) =>
+      mutateIfStep(input, (ifStep, project) => {
+        const { caseIndex } = input;
+        if (caseIndex < 0 || caseIndex >= ifStep.cases.length) return false;
         gcStepLTexts(project, ifStep.cases[caseIndex]!.steps);
         ifStep.cases.splice(caseIndex, 1);
-        touch(draft, pId);
       }),
-    ),
-  setIfCaseConditions: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const {
-          projectId: pId,
-          appearanceIndex,
-          clickType,
-          frames,
-          ifStepIndex,
-          caseIndex,
-          conditions,
-        } = input;
-        const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
-        if (!handler) return;
-        const parent = resolveParentMut(handler.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
-        const c = ifStep.cases[caseIndex];
-        if (!c) return;
-        c.conditions = conditions;
-        touch(draft, pId);
+    setIfCaseConditions: (input) =>
+      mutateIfStep(input, (ifStep) => {
+        const c = ifStep.cases[input.caseIndex];
+        if (!c) return false;
+        c.conditions = input.conditions;
       }),
-    ),
-  setIfCaseJoin: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const {
-          projectId: pId,
-          appearanceIndex,
-          clickType,
-          frames,
-          ifStepIndex,
-          caseIndex,
-          joinIndex,
-          op,
-        } = input;
-        const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
-        if (!handler) return;
-        const parent = resolveParentMut(handler.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
+    setIfCaseJoin: (input) =>
+      mutateIfStep(input, (ifStep) => {
+        const { caseIndex, joinIndex, op } = input;
         const c = ifStep.cases[caseIndex];
-        if (!c) return;
+        if (!c) return false;
         const max = Math.max(0, c.conditions.length - 1);
-        if (joinIndex < 0 || joinIndex >= max) return;
+        if (joinIndex < 0 || joinIndex >= max) return false;
         if (!c.joins) c.joins = Array(max).fill("and");
         while (c.joins.length < max) c.joins.push("and");
         c.joins[joinIndex] = op;
-        touch(draft, pId);
       }),
-    ),
-  toggleIfElse: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, clickType, frames, ifStepIndex, enabled } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const handler = findElementHandler(draft, pId, input, appearanceIndex, clickType);
-        if (!handler) return;
-        const parent = resolveParentMut(handler.steps, frames);
-        const ifStep = parent?.[ifStepIndex];
-        if (!ifStep || ifStep.kind !== "if") return;
-        if (enabled) {
+    toggleIfElse: (input) =>
+      mutateIfStep(input, (ifStep, project) => {
+        if (input.enabled) {
           if (!ifStep.else) ifStep.else = [];
         } else {
           if (ifStep.else) gcStepLTexts(project, ifStep.else);
           ifStep.else = undefined;
         }
-        touch(draft, pId);
       }),
-    ),
-  addElementClickHandler: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, clickType } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const appearance = findAddressedAppearance(project, input, appearanceIndex);
-        if (!appearance) return;
+    addElementClickHandler: (input) => {
+      const { projectId: pId, appearanceIndex, clickType } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance) => {
         if (!appearance.click) appearance.click = {};
-        if (!appearance.click[clickType]) {
-          appearance.click[clickType] = { steps: [] };
-          project.updatedAt = new Date().toISOString();
-        }
-      }),
-    ),
-  removeElementClickHandler: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, clickType } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const appearance = findAddressedAppearance(project, input, appearanceIndex);
-        if (!appearance?.click) return;
+        if (appearance.click[clickType]) return false;
+        appearance.click[clickType] = { steps: [] };
+      });
+    },
+    removeElementClickHandler: (input) => {
+      const { projectId: pId, appearanceIndex, clickType } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance, project) => {
+        if (!appearance.click) return false;
         const handler = appearance.click[clickType];
         if (handler) gcStepLTexts(project, handler.steps);
         delete appearance.click[clickType];
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
-  addAppearance: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === input.projectId);
-        if (!project) return;
-        const owner = findAppearanceOwner(project, input);
-        if (!owner) return;
+      });
+    },
+    addAppearance: (input) =>
+      mutateElement(input.projectId, input.menuId, input.elementId, (owner) => {
         // A new state starts EMPTY — it is a whole appearance, not a patch,
         // and the bare stone block it renders says so at a glance (ADR
         // `element-display-and-states`). Duplicating the display is the
         // separate "duplicate" affordance. The placeholder condition keeps
         // it from matching, and so from shadowing the display.
         owner.states.push({ if: [{ type: "has_permission", perm: "" }] });
-        project.updatedAt = new Date().toISOString();
       }),
-    ),
-  duplicateAppearance: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const owner = findAppearanceOwner(project, input);
-        const source = owner ? appearanceAt(owner, appearanceIndex) : undefined;
-        if (!owner || !source) return;
+    duplicateAppearance: (input) =>
+      mutateElement(input.projectId, input.menuId, input.elementId, (owner, _menu, project) => {
+        const source = appearanceAt(owner, input.appearanceIndex);
+        if (!source) return false;
         const copy = structuredClone(current(source)) as Appearance;
         cloneAppearanceLTextsInto(project, copy);
         // A duplicate of the display would match always and shadow it, so
@@ -1014,33 +787,19 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           copy.if = [{ type: "has_permission", perm: "" }];
         }
         owner.states.push(copy);
-        project.updatedAt = new Date().toISOString();
       }),
-    ),
-  removeAppearance: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const owner = findAppearanceOwner(project, input);
-        if (!owner) return;
+    removeAppearance: (input) =>
+      mutateElement(input.projectId, input.menuId, input.elementId, (owner, _menu, project) => {
+        const { appearanceIndex } = input;
         // Index 0 is the display — an Element always has one, so only
         // states are removable.
-        if (appearanceIndex < 1 || appearanceIndex > owner.states.length) return;
+        if (appearanceIndex < 1 || appearanceIndex > owner.states.length) return false;
         gcAppearanceLTexts(project, owner.states[appearanceIndex - 1]!);
         owner.states.splice(appearanceIndex - 1, 1);
-        project.updatedAt = new Date().toISOString();
       }),
-    ),
-  moveAppearance: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, fromIndex, toIndex } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const owner = findAppearanceOwner(project, input);
-        if (!owner) return;
+    moveAppearance: (input) =>
+      mutateElement(input.projectId, input.menuId, input.elementId, (owner) => {
+        const { fromIndex, toIndex } = input;
         // Only states reorder: the display is neither first nor last in
         // resolution order, it is the fallback.
         if (
@@ -1049,20 +808,13 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           toIndex < 1 ||
           toIndex > owner.states.length
         )
-          return;
+          return false;
         const [moved] = owner.states.splice(fromIndex - 1, 1);
         if (moved) owner.states.splice(toIndex - 1, 0, moved);
-        project.updatedAt = new Date().toISOString();
       }),
-    ),
-  setAppearanceConditions: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, conditions } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const appearance = findAddressedAppearance(project, input, appearanceIndex);
-        if (!appearance) return;
+    setAppearanceConditions: (input) => {
+      const { projectId: pId, appearanceIndex, conditions } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance) => {
         appearance.if = conditions.length > 0 ? conditions : undefined;
         // Trim joins past the new conditions length so the array
         // doesn't carry stale entries when conditions shrink.
@@ -1071,32 +823,21 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           if (maxJoins === 0) appearance.ifJoins = undefined;
           else if (appearance.ifJoins.length > maxJoins) appearance.ifJoins.length = maxJoins;
         }
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
-  setAppearanceJoin: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex, joinIndex, op } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const appearance = findAddressedAppearance(project, input, appearanceIndex);
-        if (!appearance) return;
+      });
+    },
+    setAppearanceJoin: (input) => {
+      const { projectId: pId, appearanceIndex, joinIndex, op } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance) => {
         const max = Math.max(0, (appearance.if?.length ?? 0) - 1);
-        if (joinIndex < 0 || joinIndex >= max) return;
+        if (joinIndex < 0 || joinIndex >= max) return false;
         if (!appearance.ifJoins) appearance.ifJoins = Array(max).fill("and");
         while (appearance.ifJoins.length < max) appearance.ifJoins.push("and");
         appearance.ifJoins[joinIndex] = op;
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
-  addImageButton: ({ projectId: pId, menuId: mId, position, asset }) => {
-    let created: ElementId | undefined;
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!project || !menu) return;
+      });
+    },
+    addImageButton: ({ projectId: pId, menuId: mId, position, asset }) => {
+      let created: ElementId | undefined;
+      mutateMenu(pId, mId, (menu, project) => {
         const size = imageButtonSize(asset.width, asset.height);
         const element: Element = {
           id: nextElementIdForMaterial(project, undefined),
@@ -1115,19 +856,12 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
         if (!menu.layers.length)
           menu.layers.push({ id: newLayerId(), name: "default", elements: [] });
         menu.layers[0]!.elements.push(element);
-        project.updatedAt = new Date().toISOString();
         created = element.id;
-      }),
-    );
-    return created;
-  },
-  addElement: ({ projectId: pId, menuId: mId, element }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
+      });
+      return created;
+    },
+    addElement: ({ projectId: pId, menuId: mId, element }) =>
+      mutateMenu(pId, mId, (menu, project) => {
         const newPositions = parsePositions(element.positions);
         for (const layer of menu.layers) {
           for (const otherEl of layer.elements) {
@@ -1186,82 +920,68 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           })(),
         };
         firstLayer.elements.push(elementToAdd);
-        project.updatedAt = new Date().toISOString();
       }),
-    ),
-  moveSelectionByDelta: ({ projectId: pId, menuId: mId, elementIds, dCol, dRow }) => {
-    const next = produce(get().account, (draft) => {
-      const project = draft.projects.find((p) => p.id === pId);
-      if (!project) return;
-      const menu = menusOf(project).find((m) => m.id === mId);
-      if (!menu) return;
-      const targetSet = new Set(elementIds);
-      // Grid is type-dependent: chest 9×rows, hopper 5×1, dropper 3×3, then
-      // the 4 player rows (9 columns) when the bottom is hidden.
-      const type = menu.inventoryType ?? "chest";
-      // First pass: compute new positions and validate bounds.
-      const plans = new Map<ElementId, number[]>();
-      for (const layer of menu.layers) {
-        for (const el of layer.elements) {
-          if (!targetSet.has(el.id)) continue;
-          const newPositions: number[] = [];
-          for (const p of parsePositions(el.positions)) {
-            const cell = positionToCell(p, type, menu.rows);
-            const target = cellToPosition(
-              { col: cell.col + dCol, row: cell.row + dRow },
-              type,
-              menu.rows,
-              menu.playerInventory,
-            );
-            if (target === null) throw new Error("selection drag would land outside the menu");
-            newPositions.push(target);
+    moveSelectionByDelta: ({ projectId: pId, menuId: mId, elementIds, dCol, dRow }) =>
+      mutateMenu(pId, mId, (menu) => {
+        const targetSet = new Set(elementIds);
+        // Grid is type-dependent: chest 9×rows, hopper 5×1, dropper 3×3, then
+        // the 4 player rows (9 columns) when the bottom is hidden.
+        const type = menu.inventoryType ?? "chest";
+        // First pass: compute new positions and validate bounds.
+        const plans = new Map<ElementId, number[]>();
+        for (const layer of menu.layers) {
+          for (const el of layer.elements) {
+            if (!targetSet.has(el.id)) continue;
+            const newPositions: number[] = [];
+            for (const p of parsePositions(el.positions)) {
+              const cell = positionToCell(p, type, menu.rows);
+              const target = cellToPosition(
+                { col: cell.col + dCol, row: cell.row + dRow },
+                type,
+                menu.rows,
+                menu.playerInventory,
+              );
+              if (target === null) throw new Error("selection drag would land outside the menu");
+              newPositions.push(target);
+            }
+            plans.set(el.id, newPositions);
           }
-          plans.set(el.id, newPositions);
         }
-      }
-      if (plans.size === 0) return;
-      for (const el of menu.layers.flatMap((l) => l.elements)) {
-        const plan = plans.get(el.id);
-        if (plan && hasImageButton(el))
-          assertImageButtonPlacement(menu, el, formatPositions(plan), targetSet);
-        if (
-          !plan &&
-          hasImageButton(el) &&
-          [...plans.values()].flat().some((slot) => positionsContains(el.positions, slot))
-        ) {
-          throw new Error("This area belongs to an image button.");
-        }
-      }
-      // Strip new positions from non-target elements (takeover).
-      const claimed = new Set<number>();
-      for (const ps of plans.values()) for (const p of ps) claimed.add(p);
-      for (const layer of menu.layers) {
-        for (const otherEl of layer.elements) {
-          if (targetSet.has(otherEl.id)) continue;
-          const filtered = parsePositions(otherEl.positions).filter((p) => !claimed.has(p));
-          otherEl.positions = formatPositions(filtered);
-        }
-        layer.elements = layer.elements.filter((el) => el.places || el.positions !== "");
-      }
-      // Apply new positions to target elements.
-      for (const layer of menu.layers) {
-        for (const el of layer.elements) {
+        if (plans.size === 0) return false;
+        for (const el of menu.layers.flatMap((l) => l.elements)) {
           const plan = plans.get(el.id);
-          if (plan) el.positions = formatPositions(plan);
+          if (plan && hasImageButton(el))
+            assertImageButtonPlacement(menu, el, formatPositions(plan), targetSet);
+          if (
+            !plan &&
+            hasImageButton(el) &&
+            [...plans.values()].flat().some((slot) => positionsContains(el.positions, slot))
+          ) {
+            throw new Error("This area belongs to an image button.");
+          }
         }
-      }
-      project.updatedAt = new Date().toISOString();
-    });
-    set({ account: next });
-  },
-  setAppearanceLore: (input) =>
-    set(
-      produce((draft: AccountState) => {
-        const { projectId: pId, appearanceIndex = 0, lang, value } = input;
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const appearance = findAddressedAppearance(project, input, appearanceIndex);
-        if (!appearance) return;
+        // Strip new positions from non-target elements (takeover).
+        const claimed = new Set<number>();
+        for (const ps of plans.values()) for (const p of ps) claimed.add(p);
+        for (const layer of menu.layers) {
+          for (const otherEl of layer.elements) {
+            if (targetSet.has(otherEl.id)) continue;
+            const filtered = parsePositions(otherEl.positions).filter((p) => !claimed.has(p));
+            otherEl.positions = formatPositions(filtered);
+          }
+          layer.elements = layer.elements.filter((el) => el.places || el.positions !== "");
+        }
+        // Apply new positions to target elements.
+        for (const layer of menu.layers) {
+          for (const el of layer.elements) {
+            const plan = plans.get(el.id);
+            if (plan) el.positions = formatPositions(plan);
+          }
+        }
+      }),
+    setAppearanceLore: (input) => {
+      const { projectId: pId, appearanceIndex = 0, lang, value } = input;
+      mutateAppearance(pId, input, appearanceIndex, (appearance, project) => {
         if (appearance.loreMode === "replace") {
           if (!appearance.lore)
             appearance.lore = createLTextAt(
@@ -1281,16 +1001,10 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           deleteLText(project, appearance.lore);
           appearance.lore = undefined;
         }
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
-  clearSlot: ({ projectId: pId, menuId: mId, position }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
+      });
+    },
+    clearSlot: ({ projectId: pId, menuId: mId, position }) =>
+      mutateMenu(pId, mId, (menu, project) => {
         for (const layer of menu.layers) {
           const idx = layer.elements.findIndex((el) => positionsContains(el.positions, position));
           if (idx === -1) continue;
@@ -1303,58 +1017,59 @@ export const createElementsSlice = ({ set, get }: AccountSliceContext): Elements
           } else {
             el.positions = remaining;
           }
-          project.updatedAt = new Date().toISOString();
           return;
         }
+        return false;
       }),
-    ),
-  pasteEntities: ({ projectId: pId, menus, commands, offset }) => {
-    const next = produce(get().account, (draft) => {
-      const project = draft.projects.find((p) => p.id === pId);
-      if (!project) return;
-      // Clone every LText held by the pasted entities under fresh
-      // keys, copying the value map from the source. Otherwise the
-      // copies would share keys with the originals — editing one
-      // would silently alter the other.
-      const cloneAppearanceLTexts = (a: Appearance) => cloneAppearanceLTextsInto(project, a);
-      for (const m of menus) {
-        const stamped: Menu = { ...m, projectId: pId };
-        // Clone each text layer's LText under a fresh key, copying the
-        // value map so the pasted copy doesn't share keys with the original.
-        stamped.title = stamped.title.map((titleLayer) => {
-          if (!("value" in titleLayer)) return titleLayer;
-          const src = project.i18nKeys[titleLayer.value.key];
-          const cloned = createLText(project, "", project.defaultLang);
-          if (src) project.i18nKeys[cloned.key] = { ...src };
-          return { ...titleLayer, value: cloned };
-        });
-        for (const layer of stamped.layers) {
-          for (const el of layer.elements) {
-            for (const a of addressedAppearances(el)) cloneAppearanceLTexts(a);
+    pasteEntities: ({ projectId: pId, menus, commands, offset }) =>
+      mutateProject(
+        pId,
+        (project) => {
+          // Clone every LText held by the pasted entities under fresh
+          // keys, copying the value map from the source. Otherwise the
+          // copies would share keys with the originals — editing one
+          // would silently alter the other.
+          const cloneAppearanceLTexts = (a: Appearance) => cloneAppearanceLTextsInto(project, a);
+          for (const m of menus) {
+            const stamped: Menu = { ...m, projectId: pId };
+            // Clone each text layer's LText under a fresh key, copying the
+            // value map so the pasted copy doesn't share keys with the original.
+            stamped.title = stamped.title.map((titleLayer) => {
+              if (!("value" in titleLayer)) return titleLayer;
+              const src = project.i18nKeys[titleLayer.value.key];
+              const cloned = createLText(project, "", project.defaultLang);
+              if (src) project.i18nKeys[cloned.key] = { ...src };
+              return { ...titleLayer, value: cloned };
+            });
+            for (const layer of stamped.layers) {
+              for (const el of layer.elements) {
+                for (const a of addressedAppearances(el)) cloneAppearanceLTexts(a);
+              }
+            }
+            mutableMenus(project).push(stamped);
+            rekeyMenu(project, stamped);
+            (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
+              x: offset.x,
+              y: offset.y,
+            };
+            offset.x += 24;
+            offset.y += 24;
           }
-        }
-        mutableMenus(project).push(stamped);
-        rekeyMenu(project, stamped);
-        (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
-          x: offset.x,
-          y: offset.y,
-        };
-        offset.x += 24;
-        offset.y += 24;
-      }
-      for (const c of commands) {
-        const stamped: Command = { ...c, projectId: pId };
-        duplicateStepLTexts(project, stamped.steps);
-        mutableCommands(project).push(stamped);
-        rekeyCommand(project, stamped);
-        (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
-          x: offset.x,
-          y: offset.y,
-        };
-        offset.x += 24;
-        offset.y += 24;
-      }
-    });
-    set({ account: next });
-  },
-});
+          for (const c of commands) {
+            const stamped: Command = { ...c, projectId: pId };
+            duplicateStepLTexts(project, stamped.steps);
+            mutableCommands(project).push(stamped);
+            rekeyCommand(project, stamped);
+            (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
+              x: offset.x,
+              y: offset.y,
+            };
+            offset.x += 24;
+            offset.y += 24;
+          }
+        },
+        // A paste has never stamped `updatedAt`; kept as is.
+        { touch: false },
+      ),
+  };
+};

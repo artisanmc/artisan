@@ -13,8 +13,14 @@ import {
 import { nextAvailableSourceRowKey, validateSourceRowKey } from "@/domain/dataSourceRowKeys";
 import { rekeyDataSource, releaseLTexts, visitDataSourceLTexts } from "@/domain/i18nSites";
 import { newDataModelId } from "@/domain/ids";
-import type { DataModelId, DataSourceId, ProjectId } from "@/domain/types";
-import { produce } from "immer";
+import type {
+  DataModel,
+  DataModelId,
+  DataSource,
+  DataSourceId,
+  Project,
+  ProjectId,
+} from "@/domain/types";
 import {
   generateDataSourceId,
   mintSourceLTexts,
@@ -87,39 +93,67 @@ export interface DataSlice {
   }) => void;
 }
 
-export const createDataSlice = ({ set, get }: AccountSliceContext): DataSlice => ({
-  addProjectDataSource: ({ projectId, shape = "table" }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        if (!project.dataSources) project.dataSources = [];
-        if (!project.dataModels) project.dataModels = [];
-        const id = generateDataSourceId();
-        const name = nextAvailableName(project.dataSources, "new_source");
-        if (shape === "config") {
-          project.dataSources.push({ id, name, shape: "config", fields: [], value: {} });
-          return;
-        }
-        // A Table is a table OF a Data model — auto-created with it (ADR
-        // project-sources-and-data-models), seeded with its Row key field.
-        const modelId = newDataModelId();
-        project.dataModels.push({
-          id: modelId,
-          name,
-          keyField: "id",
-          fields: [{ name: "id", type: { kind: "string" } }],
-        });
-        project.dataSources.push({ id, name, shape: "table", modelId, rows: [] });
-      }),
-    ),
-  removeProjectDataSource: ({ projectId, id }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        const ds = project.dataSources.find((d) => d.id === id);
-        if (!ds) return;
+/** These edits have never stamped the Project's `updatedAt`; kept as is. */
+const SOURCES = { touch: false } as const;
+
+export const createDataSlice = ({ get, mutateProject }: AccountSliceContext): DataSlice => {
+  /** A Project source by id; a no-op when the project or the source is missing. */
+  const mutateSource = (
+    projectId: ProjectId,
+    sourceId: DataSourceId,
+    fn: (ds: DataSource, project: Project) => void,
+  ) =>
+    mutateProject(
+      projectId,
+      (project) => {
+        const ds = project.dataSources.find((d) => d.id === sourceId);
+        if (ds) fn(ds, project);
+      },
+      SOURCES,
+    );
+  /** A Data model by id; a no-op when the project or the model is missing. */
+  const mutateModel = (
+    projectId: ProjectId,
+    modelId: DataModelId,
+    fn: (model: DataModel, project: Project) => void,
+  ) =>
+    mutateProject(
+      projectId,
+      (project) => {
+        const m = project.dataModels?.find((x) => x.id === modelId);
+        if (m) fn(m, project);
+      },
+      SOURCES,
+    );
+
+  return {
+    addProjectDataSource: ({ projectId, shape = "table" }) =>
+      mutateProject(
+        projectId,
+        (project) => {
+          if (!project.dataSources) project.dataSources = [];
+          if (!project.dataModels) project.dataModels = [];
+          const id = generateDataSourceId();
+          const name = nextAvailableName(project.dataSources, "new_source");
+          if (shape === "config") {
+            project.dataSources.push({ id, name, shape: "config", fields: [], value: {} });
+            return;
+          }
+          // A Table is a table OF a Data model — auto-created with it (ADR
+          // project-sources-and-data-models), seeded with its Row key field.
+          const modelId = newDataModelId();
+          project.dataModels.push({
+            id: modelId,
+            name,
+            keyField: "id",
+            fields: [{ name: "id", type: { kind: "string" } }],
+          });
+          project.dataSources.push({ id, name, shape: "table", modelId, rows: [] });
+        },
+        SOURCES,
+      ),
+    removeProjectDataSource: ({ projectId, id }) =>
+      mutateSource(projectId, id, (ds, project) => {
         releaseLTexts(project, visitDataSourceLTexts(project, ds));
         project.dataSources = project.dataSources.filter((d) => d.id !== id);
         // GC the auto-created model when nothing else references it.
@@ -127,73 +161,53 @@ export const createDataSlice = ({ set, get }: AccountSliceContext): DataSlice =>
           project.dataModels = (project.dataModels ?? []).filter((m) => m.id !== ds.modelId);
         }
       }),
-    ),
-  renameProjectDataSource: ({ projectId, id, newName }) => {
-    const normalizedName = normalizeDataSourceName(newName);
-    const project = get().account.projects.find((p) => p.id === projectId);
-    if (
-      !project ||
-      normalizedName === "" ||
-      project.dataSources.some(
-        (source) => source.id !== id && normalizeDataSourceName(source.name) === normalizedName,
-      )
-    ) {
-      return false;
-    }
+    renameProjectDataSource: ({ projectId, id, newName }) => {
+      const normalizedName = normalizeDataSourceName(newName);
+      const project = get().account.projects.find((p) => p.id === projectId);
+      if (
+        !project ||
+        normalizedName === "" ||
+        project.dataSources.some(
+          (source) => source.id !== id && normalizeDataSourceName(source.name) === normalizedName,
+        )
+      ) {
+        return false;
+      }
 
-    let renamed = false;
-    set((state) =>
-      produce(state, (draft) => {
-        const draftProject = draft.account.projects.find((p) => p.id === projectId);
-        const dataSource = draftProject?.dataSources.find((source) => source.id === id);
-        if (!draftProject || !dataSource) return;
+      let renamed = false;
+      mutateSource(projectId, id, (dataSource, draftProject) => {
         dataSource.name = normalizedName;
         rekeyDataSource(draftProject, dataSource);
         renamed = true;
+      });
+      return renamed;
+    },
+    editSourceField: ({ projectId, target, edit }) =>
+      mutateProject(
+        projectId,
+        (project) => {
+          if (target.kind === "model" && (edit.op === "add" || edit.op === "retype")) {
+            const t = edit.op === "add" ? edit.field.type : edit.newType;
+            if (wouldTypeCreateModelCycle(project.dataModels ?? [], target.modelId, t)) return;
+          }
+          applyFieldEdit(project, target, edit);
+          mintSourceLTexts(project);
+        },
+        SOURCES,
+      ),
+    renameDataModel: ({ projectId, modelId, newName }) =>
+      mutateModel(projectId, modelId, (m) => {
+        m.name = newName;
       }),
-    );
-    return renamed;
-  },
-  editSourceField: ({ projectId, target, edit }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        if (target.kind === "model" && (edit.op === "add" || edit.op === "retype")) {
-          const t = edit.op === "add" ? edit.field.type : edit.newType;
-          if (wouldTypeCreateModelCycle(project.dataModels ?? [], target.modelId, t)) return;
-        }
-        applyFieldEdit(project, target, edit);
+    setModelKeyField: ({ projectId, modelId, keyField }) =>
+      mutateModel(projectId, modelId, (m, project) => {
+        // Placements pinned on the old key dangle — never rewritten (ADR).
+        m.keyField = keyField;
         mintSourceLTexts(project);
       }),
-    ),
-  renameDataModel: ({ projectId, modelId, newName }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        const m = project?.dataModels?.find((x) => x.id === modelId);
-        if (m) m.name = newName;
-      }),
-    ),
-  setModelKeyField: ({ projectId, modelId, keyField }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        const m = project?.dataModels?.find((x) => x.id === modelId);
-        // Placements pinned on the old key dangle — never rewritten (ADR).
-        if (m && project) {
-          m.keyField = keyField;
-          mintSourceLTexts(project);
-        }
-      }),
-    ),
-  addSourceRow: ({ projectId, sourceId }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        const ds = project.dataSources.find((d) => d.id === sourceId);
-        if (ds?.shape !== "table") return;
+    addSourceRow: ({ projectId, sourceId }) =>
+      mutateSource(projectId, sourceId, (ds, project) => {
+        if (ds.shape !== "table") return;
         const model = project.dataModels?.find((dataModel) => dataModel.id === ds.modelId);
         if (!model) return;
         const row = defaultValueForModelType(
@@ -204,14 +218,9 @@ export const createDataSlice = ({ set, get }: AccountSliceContext): DataSlice =>
         ds.rows.push(row);
         mintSourceLTexts(project);
       }),
-    ),
-  removeSourceRow: ({ projectId, sourceId, index }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        const ds = project.dataSources.find((d) => d.id === sourceId);
-        if (ds?.shape !== "table") return;
+    removeSourceRow: ({ projectId, sourceId, index }) =>
+      mutateSource(projectId, sourceId, (ds, project) => {
+        if (ds.shape !== "table") return;
         const row = ds.rows[index];
         if (row === undefined) return;
         releaseValueLTexts(project, row, {
@@ -221,60 +230,49 @@ export const createDataSlice = ({ set, get }: AccountSliceContext): DataSlice =>
         ds.rows.splice(index, 1);
         rekeyDataSource(project, ds);
       }),
-    ),
-  setSourceGranularity: ({ projectId, sourceId, granularity }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        const ds = project?.dataSources.find((d) => d.id === sourceId);
-        if (!ds || ds.shape !== "table") return;
+    setSourceGranularity: ({ projectId, sourceId, granularity }) =>
+      mutateSource(projectId, sourceId, (ds) => {
+        if (ds.shape !== "table") return;
         if (granularity === "row") ds.granularity = "row";
         else Reflect.deleteProperty(ds, "granularity");
       }),
-    ),
-  setSourceValue: ({ projectId, sourceId, row, path, value }) => {
-    let nextValue = value;
-    if (row !== null && path.length === 1) {
-      const project = get().account.projects.find((p) => p.id === projectId);
-      const ds = project?.dataSources.find((d) => d.id === sourceId);
-      const model =
-        ds?.shape === "table"
-          ? project?.dataModels?.find((dataModel) => dataModel.id === ds.modelId)
-          : undefined;
-      const container = ds ? sourceValueContainer(ds, row, []) : undefined;
-      if (ds?.shape === "table" && model && path[0] === model.keyField && container !== undefined) {
-        const validation = validateSourceRowKey(project!, ds, row, value);
-        if (!validation.ok) {
-          return {
-            ok: false,
-            reason: validation.reason === "required" ? "required_row_key" : "duplicate_row_key",
-          };
+    setSourceValue: ({ projectId, sourceId, row, path, value }) => {
+      let nextValue = value;
+      if (row !== null && path.length === 1) {
+        const project = get().account.projects.find((p) => p.id === projectId);
+        const ds = project?.dataSources.find((d) => d.id === sourceId);
+        const model =
+          ds?.shape === "table"
+            ? project?.dataModels?.find((dataModel) => dataModel.id === ds.modelId)
+            : undefined;
+        const container = ds ? sourceValueContainer(ds, row, []) : undefined;
+        if (
+          ds?.shape === "table" &&
+          model &&
+          path[0] === model.keyField &&
+          container !== undefined
+        ) {
+          const validation = validateSourceRowKey(project!, ds, row, value);
+          if (!validation.ok) {
+            return {
+              ok: false,
+              reason: validation.reason === "required" ? "required_row_key" : "duplicate_row_key",
+            };
+          }
+          nextValue = validation.value;
         }
-        nextValue = validation.value;
       }
-    }
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        const ds = project.dataSources.find((d) => d.id === sourceId);
-        if (!ds) return;
+      mutateSource(projectId, sourceId, (ds, project) => {
         const container = sourceValueContainer(ds, row, path.slice(0, -1));
         const last = path[path.length - 1];
         if (container === undefined || last === undefined) return;
         (container as Record<string | number, unknown>)[last] = nextValue;
         rekeyDataSource(project, ds);
-      }),
-    );
-    return { ok: true };
-  },
-  addSourceListItem: ({ projectId, sourceId, row, path }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        const ds = project.dataSources.find((d) => d.id === sourceId);
-        if (!ds) return;
+      });
+      return { ok: true };
+    },
+    addSourceListItem: ({ projectId, sourceId, row, path }) =>
+      mutateSource(projectId, sourceId, (ds, project) => {
         const listType = sourceTypeAtPath(project, ds, path);
         if (listType?.kind !== "list") return;
         const list = sourceValueContainer(ds, row, path);
@@ -282,14 +280,8 @@ export const createDataSlice = ({ set, get }: AccountSliceContext): DataSlice =>
         list.push(defaultValueForModelType(listType.of, project.dataModels ?? []));
         mintSourceLTexts(project);
       }),
-    ),
-  removeSourceListItem: ({ projectId, sourceId, row, path, index }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        const ds = project.dataSources.find((d) => d.id === sourceId);
-        if (!ds) return;
+    removeSourceListItem: ({ projectId, sourceId, row, path, index }) =>
+      mutateSource(projectId, sourceId, (ds, project) => {
         const listType = sourceTypeAtPath(project, ds, path);
         const list = sourceValueContainer(ds, row, path);
         if (!Array.isArray(list) || list[index] === undefined) return;
@@ -297,14 +289,8 @@ export const createDataSlice = ({ set, get }: AccountSliceContext): DataSlice =>
         list.splice(index, 1);
         rekeyDataSource(project, ds);
       }),
-    ),
-  replaceSourceValueTyped: ({ projectId, sourceId, row, path, value }) =>
-    set((state) =>
-      produce(state, (draft) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
-        if (!project) return;
-        const ds = project.dataSources.find((d) => d.id === sourceId);
-        if (!ds) return;
+    replaceSourceValueTyped: ({ projectId, sourceId, row, path, value }) =>
+      mutateSource(projectId, sourceId, (ds, project) => {
         const type = sourceTypeAtPath(project, ds, path);
         const container = sourceValueContainer(ds, row, path.slice(0, -1));
         const last = path[path.length - 1];
@@ -315,5 +301,5 @@ export const createDataSlice = ({ set, get }: AccountSliceContext): DataSlice =>
         mintSourceLTexts(project);
         rekeyDataSource(project, ds);
       }),
-    ),
-});
+  };
+};
