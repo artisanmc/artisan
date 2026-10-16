@@ -30,10 +30,7 @@ class PluginChannelTest {
         override val label = "Lobby"
         override val minecraftVersion = "1.21.7"
         override val pluginVersion = "2.0.0"
-        override fun modules() = emptyList<Map<String, Any?>>()
-        override fun dataSources() = emptyList<Map<String, Any?>>()
-        override fun models() = emptyList<Map<String, Any?>>()
-        override fun screens() = emptyList<Map<String, Any?>>()
+        override fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY
         override fun serverConfig() = null
         override fun customItems() = emptyList<Map<String, String>>()
         override fun applyResourcePack(hash: String, path: String) {}
@@ -195,6 +192,19 @@ class PluginChannelTest {
         assertEquals("shop", readRequest["project_id"].asText())
         leaf.send(mapOf("type" to "project_read_result", "request_id" to readRequest["request_id"].asText(), "ok" to true, "files" to emptyList<Any>()))
         assertEquals(200, read.get(5, TimeUnit.SECONDS).first)
+    }
+
+    @Test
+    fun `modules_changed updates the fields it carries, the others stay as announced`() {
+        val leaf = Leaf()
+        leaf.hello()
+        assertEquals("hello_ack", leaf.next()["type"].asText())
+        leaf.send(mapOf("type" to "modules_changed", "document_kinds" to listOf(mapOf("kind" to "quest", "dir" to "quests"))))
+        // The announcement has no reply: read until the hub applied it.
+        var kinds = get("/api/v1/servers/u-survie2/document-kinds").get().second!!["document_kinds"]
+        repeat(50) { if (kinds.isEmpty) { Thread.sleep(50); kinds = get("/api/v1/servers/u-survie2/document-kinds").get().second!!["document_kinds"] } }
+        assertEquals("quest", kinds[0]["kind"].asText())
+        assertEquals("quests", get("/api/v1/servers/u-survie2/modules").get().second!!["modules"][0]["id"].asText())
     }
 
     private fun send(method: String, path: String, body: Any? = null): CompletableFuture<Pair<Int, JsonNode?>> {

@@ -2,10 +2,25 @@ package net.artisanmc.modules.api;
 
 import java.util.Map;
 import java.util.Objects;
+import net.artisanmc.modules.api.action.ActionRegistry;
+import net.artisanmc.modules.api.action.ModuleActionsApi;
 import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Internal;
 import net.artisanmc.modules.api.annotations.Stable;
+import net.artisanmc.modules.api.command.CommandRegistry;
+import net.artisanmc.modules.api.database.DatabaseApi;
+import net.artisanmc.modules.api.datasource.DataSourceRegistry;
+import net.artisanmc.modules.api.document.DocumentKindRegistry;
+import net.artisanmc.modules.api.event.ModuleEventBus;
+import net.artisanmc.modules.api.item.ItemStackApi;
+import net.artisanmc.modules.api.menu.MenuApi;
+import net.artisanmc.modules.api.model.ModelRegistry;
+import net.artisanmc.modules.api.placeholder.PlaceholderRegistry;
+import net.artisanmc.modules.api.project.ProjectContentApi;
+import net.artisanmc.modules.api.project.ProjectRootRegistry;
+import net.artisanmc.modules.api.scheduler.SchedulerApi;
 import net.artisanmc.modules.api.schemas.SchemaRegistry;
+import net.artisanmc.modules.api.screen.EditorScreenRegistry;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
