@@ -5,7 +5,7 @@ import net.artisanmc.plugin.hub.EditorPermissions
 import net.artisanmc.plugin.hub.Sessions
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import net.artisanmc.plugin.lang.LangManager
-import net.artisanmc.plugin.render.TitleCompiler
+import net.artisanmc.plugin.render.title.TitleCompiler
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender

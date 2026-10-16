@@ -5,7 +5,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.render.ImageButtonLayout
+import net.artisanmc.plugin.render.menu.ImageButtonLayout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

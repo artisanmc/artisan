@@ -8,6 +8,8 @@ import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import java.io.File
+import net.artisanmc.plugin.integrations.SoftDepRegistry
+import net.artisanmc.plugin.session.NavigationHistoryStore
 
 /**
  * What `/artisan reload` rebuilds from the config ([start], [reinit]): captured items, the

@@ -1,11 +1,12 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.render.menu
 
 import com.destroystokyo.paper.profile.ProfileProperty
-import net.artisanmc.plugin.engine.SoftDepRegistry
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 import org.bukkit.Bukkit
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.SkullMeta
 import java.util.concurrent.ConcurrentHashMap
+import net.artisanmc.plugin.render.HeadRef
 
 /**
  * Applies AppearanceYaml.head (already interpolated) to a PLAYER_HEAD item.

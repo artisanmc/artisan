@@ -2,9 +2,9 @@ package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import be.seeseemelk.mockbukkit.entity.PlayerMock
-import net.artisanmc.plugin.render.ClientSlotSink
+import net.artisanmc.plugin.render.packets.ClientSlotSink
 import net.artisanmc.plugin.session.MenuSlots
-import net.artisanmc.plugin.render.MenuWindows
+import net.artisanmc.plugin.render.packets.MenuWindows
 import net.artisanmc.plugin.session.PlayerInventoryMode
 import net.artisanmc.plugin.session.SlotKind
 import org.bukkit.Bukkit

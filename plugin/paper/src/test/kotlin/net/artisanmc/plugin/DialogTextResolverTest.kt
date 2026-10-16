@@ -8,7 +8,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.model.RuntimeDialog
 import net.artisanmc.plugin.model.DialogYaml
-import net.artisanmc.plugin.render.DialogTextResolver
+import net.artisanmc.plugin.render.dialog.DialogTextResolver
 import kotlin.test.*
 
 /**

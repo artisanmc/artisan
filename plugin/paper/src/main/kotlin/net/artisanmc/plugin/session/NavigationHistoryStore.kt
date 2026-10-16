@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.engine
+package net.artisanmc.plugin.session
 
 import org.bukkit.entity.Player
 import java.util.UUID
