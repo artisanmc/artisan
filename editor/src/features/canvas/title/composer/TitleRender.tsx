@@ -1,11 +1,12 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
-import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
+import { menusOf } from "@/domain/documents";
 import type { MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { getText } from "@/lib/i18n";
 import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
-import { useAccountStore } from "@/state/accountStore";
+import { getText } from "@/lib/i18n";
+import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
@@ -16,9 +17,8 @@ import { McFontText } from "../McFontText";
 import { VanillaMcText, vanillaTextWidth } from "../VanillaMcText";
 import { WidthResizeHandle } from "./WidthResizeHandle";
 import { snapDragPosition } from "./snap";
-import { useTitleLayerDrag } from "./useTitleLayerDrag";
 import { asTextFrame, patchTextFrame, textAnchorOffset } from "./textFrame";
-import { menusOf } from "@/domain/documents";
+import { useTitleLayerDrag } from "./useTitleLayerDrag";
 
 const TAG_RX = /<[^>]+>/g;
 
@@ -156,7 +156,7 @@ interface TitleRenderProps {
  *  - external_glyph → dashed amber placeholder
  */
 export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const menu = menusOf(project).find((m) => m.id === menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const assets = useAssetStore((s) => s.assets);
@@ -589,7 +589,7 @@ function LayerNode({
               currentWidth={textFrame.width}
               scale={scale}
               onResize={(newWidth) => {
-                useAccountStore.getState().updateMenuTitleLayer({
+                useProjectsStore.getState().updateMenuTitleLayer({
                   projectId: _packId,
                   menuId,
                   index,

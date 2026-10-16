@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import schema from "../../../docs/schema/command/v1/schema.json";
 import pay from "../../../docs/schema/command/v1/examples/pay-player.json";
 import profile from "../../../docs/schema/command/v1/examples/profile-with-target.json";
 import heal from "../../../docs/schema/command/v1/examples/simple-heal.json";
+import schema from "../../../docs/schema/command/v1/schema.json";
 
 describe("command/v1 schema shape", () => {
   it("uses `actions` (ClickHandler) as the canonical body, `steps` as legacy", () => {

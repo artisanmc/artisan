@@ -1,7 +1,7 @@
+import type { Project, ProjectId } from "@/domain/types";
+import { useProjectsStore } from "@/state/projectsStore";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { Stage } from "./Stage";
 
 vi.mock("react-konva", () => ({
@@ -51,8 +51,8 @@ function project(): Project {
 
 describe("Stage — derived board", () => {
   beforeEach(() => {
-    useAccountStore.setState({
-      account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
+    useProjectsStore.setState({
+      openProjects: { projects: [project()], projectOrder: [PID] },
     } as any);
   });
   it("renders every Document of the project, even those never placed by hand", () => {
@@ -62,9 +62,8 @@ describe("Stage — derived board", () => {
     expect(names).toContain("menu:m2");
   });
   it("shows only manual frames in project view even when the project is folded", () => {
-    useAccountStore.setState({
-      account: {
-        id: "a" as any,
+    useProjectsStore.setState({
+      openProjects: {
         projects: [
           {
             ...project(),
@@ -83,9 +82,8 @@ describe("Stage — derived board", () => {
     expect(names).toContain("menu:m2");
   });
   it("keeps legacy folded group menus visible on the board and in document view", () => {
-    useAccountStore.setState({
-      account: {
-        id: "a" as any,
+    useProjectsStore.setState({
+      openProjects: {
         projects: [
           {
             ...project(),

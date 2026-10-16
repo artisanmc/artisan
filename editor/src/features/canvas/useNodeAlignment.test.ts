@@ -1,15 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { renderHook } from "@testing-library/react";
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
+import { useProjectsStore } from "@/state/projectsStore";
+import { renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { computeAndApplyAlignment, useNodeAlignment } from "./useNodeAlignment";
 
 const PID = "p1" as ProjectId;
 function seed() {
-  useAccountStore.setState({
-    account: {
-      id: "a" as any,
+  useProjectsStore.setState({
+    openProjects: {
       projectOrder: [PID],
       projects: [
         {

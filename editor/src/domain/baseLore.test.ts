@@ -1,7 +1,7 @@
+import { menusOf } from "@/domain/documents";
 import type { Appearance, Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { normalizeBaseLore } from "./baseLore";
-import { menusOf } from "@/domain/documents";
 
 const displayOf = (project: Project): Appearance =>
   menusOf(project)[0]!.layers[0]!.elements[0]!.display;

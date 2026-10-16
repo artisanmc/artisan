@@ -1,5 +1,5 @@
 import * as drafts from "@/lib/api/projectDrafts";
-import { mockAccount } from "@/mock/fixtures";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { afterEach, expect, it, vi } from "vitest";
@@ -12,7 +12,7 @@ vi.mock("@/lib/projectClient", () => ({ projectClient: () => ({ binary }) }));
 afterEach(() => vi.restoreAllMocks());
 
 it("exports the current draft: unchanged images from the server, changed ones from the draft", async () => {
-  const project = mockAccount().projects[0]!;
+  const project = mockOpenProjects().projects[0]!;
   const files: Record<string, string | Uint8Array> = {};
   vi.spyOn(zip, "buildZip").mockImplementation(async (entries) => {
     Object.assign(files, entries);

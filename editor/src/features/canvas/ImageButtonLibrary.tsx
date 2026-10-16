@@ -7,7 +7,7 @@ import type { ProjectId } from "@/domain/types";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { AssetUploadDialog } from "@/features/assets/AssetUploadDialog";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useDraggable } from "@dnd-kit/core";
 import { Upload } from "lucide-react";
 import { useState } from "react";
@@ -53,8 +53,8 @@ function ImageTile({ asset }: { asset: Asset }) {
 export function ImageButtonLibrary({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const assets = useAssetStore((s) => s.assets);
-  const project = useAccountStore((s) =>
-    s.account.projects.find((entry) => entry.id === projectId),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((entry) => entry.id === projectId),
   );
   const loading = useAssetStore((s) => s.loading);
   const error = useAssetStore((s) => s.error);

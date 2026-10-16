@@ -1,6 +1,6 @@
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type { DataSourceId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { useServersStore } from "@/state/serversStore";
 import { useState } from "react";
@@ -26,7 +26,7 @@ type DataPanelSelection =
  */
 export function DataSourcesPanelContent({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const [selection, setSelection] = useState<DataPanelSelection>(null);
   const activeServerId = useServersStore((s) => s.activeServerId);
   const serverSources = useServerDataSourcesStore((s) => s.sources);

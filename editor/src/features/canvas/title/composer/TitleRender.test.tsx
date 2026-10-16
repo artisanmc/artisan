@@ -1,6 +1,5 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Asset } from "@/domain/asset";
+import { menusOf } from "@/domain/documents";
 import type {
   AssetId,
   I18nKey,
@@ -11,12 +10,13 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MC_TITLE_H, TEX_SCALE } from "../../menuLayout";
-import { TitleRender } from "./TitleRender";
 import { LayerEditForm } from "./LayerEditForm";
-import { menusOf } from "@/domain/documents";
+import { TitleRender } from "./TitleRender";
 
 // Mock react-konva to render plain divs (no canvas in jsdom). Each shape
 // exposes its load-bearing props as data-* attrs so tests can assert layout.
@@ -323,9 +323,9 @@ function makeProject(layers: MenuTitleLayer[]): Project {
 
 function seedProject(layers: MenuTitleLayer[]): Menu {
   const project = makeProject(layers);
-  useAccountStore.setState((state) => ({
-    account: {
-      ...state.account,
+  useProjectsStore.setState((state) => ({
+    openProjects: {
+      ...state.openProjects,
       projects: [project],
       projectOrder: [PACK_ID],
     },
@@ -334,7 +334,7 @@ function seedProject(layers: MenuTitleLayer[]): Menu {
 }
 
 function getTitle(): MenuTitleLayer[] {
-  const project = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
+  const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === PACK_ID)!;
   return menusOf(project).find((m) => m.id === MENU_ID)!.title;
 }
 
@@ -850,9 +850,9 @@ describe("TitleRender — textarea layer", () => {
   it("renders N VanillaMcText children for N \\n-separated lines (3 lines)", () => {
     // The textarea's value resolves to "Line1\nLine2\nLine3" via the i18n key.
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
@@ -891,9 +891,9 @@ describe("TitleRender — textarea layer", () => {
   it("lines are stacked at y + i * lineHeight * scale", () => {
     // lineHeight=10, scale=2 → lines at y=0, 20, 40 (relative to group)
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
@@ -931,9 +931,9 @@ describe("TitleRender — textarea layer", () => {
   it("preserves the absolute position of legacy centered text", () => {
     // vanillaTextWidth mock: text.length * 6. "Hi" → 12px, center x = -6 * scale.
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
@@ -973,9 +973,9 @@ describe("TitleRender — textarea layer", () => {
   it("preserves the absolute position of legacy right-aligned text", () => {
     // "Hi" → 12px, right x = -12 * scale.
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
@@ -1014,9 +1014,9 @@ describe("TitleRender — textarea layer", () => {
 
   it("single-line textarea renders exactly one VanillaMcText", () => {
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
@@ -1052,9 +1052,9 @@ describe("TitleRender — textarea layer", () => {
 
   it("textarea group is positioned at layer.x * scale, layer.y * scale", () => {
     const project = makeProject([]);
-    useAccountStore.setState((state) => ({
-      account: {
-        ...state.account,
+    useProjectsStore.setState((state) => ({
+      openProjects: {
+        ...state.openProjects,
         projects: [
           {
             ...project,
@@ -1098,9 +1098,8 @@ function seedProjectWithI18n(
   layers: MenuTitleLayer[],
   i18nKeys: Record<string, Record<string, string>>,
 ) {
-  useAccountStore.setState({
-    account: {
-      id: "acc" as never,
+  useProjectsStore.setState({
+    openProjects: {
       projects: [
         {
           id: PACK_ID,
@@ -1180,7 +1179,9 @@ describe("TitleRender — textarea wrap and resize handle", () => {
     selectLayer(0);
     render(<TitleRender projectId={PACK_ID} menuId={MENU_ID} scale={1} />);
     fireEvent.click(screen.getByTestId("width-resize-handle"));
-    expect(menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title[0]).toMatchObject({
+    expect(
+      menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0],
+    ).toMatchObject({
       kind: "textarea",
       x: 8,
       width: 120,
@@ -1211,7 +1212,9 @@ describe("TitleRender — textarea wrap and resize handle", () => {
     act(() => {
       dispatchDragEnd(group, { x: 60, y: 40 });
     });
-    expect(menusOf(useAccountStore.getState().account.projects[0]!)[0]!.title[0]).toMatchObject({
+    expect(
+      menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.title[0],
+    ).toMatchObject({
       x: 90,
       y: 20,
       alignment: "center",

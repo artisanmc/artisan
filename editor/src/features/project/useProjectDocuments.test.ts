@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
-import type { Project, ProjectId } from "@/domain/types";
-import { buildProjectDocuments } from "./useProjectDocuments";
 import { menusOf } from "@/domain/documents";
+import type { Project, ProjectId } from "@/domain/types";
+import { describe, expect, it } from "vitest";
+import { buildProjectDocuments } from "./useProjectDocuments";
 
 const PID = "p1" as ProjectId;
 function project(): Project {

@@ -18,7 +18,14 @@ describe("serverDataSourcesStore", () => {
     vi.stubGlobal("fetch", fetchMock);
     await useServerDataSourcesStore.getState().load({ serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
+      {
+        ref: "shop:items",
+        moduleId: null,
+        schema: [],
+        schemaHint: null,
+        stability: null,
+        keyField: null,
+      },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/servers/srv1/data-sources"),
@@ -64,13 +71,27 @@ describe("serverDataSourcesStore", () => {
 
     await useServerDataSourcesStore.getState().load({ serverId: "srv1" });
     expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
+      {
+        ref: "shop:items",
+        moduleId: null,
+        schema: [],
+        schemaHint: null,
+        stability: null,
+        keyField: null,
+      },
     ]);
 
     await useServerDataSourcesStore.getState().load({ serverId: "srv2" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
+      {
+        ref: "boutique:npcs",
+        moduleId: null,
+        schema: [],
+        schemaHint: null,
+        stability: null,
+        keyField: null,
+      },
     ]);
   });
 
@@ -87,12 +108,8 @@ describe("serverDataSourcesStore", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const loadA = useServerDataSourcesStore
-      .getState()
-      .load({ serverId: "srv1" });
-    const loadB = useServerDataSourcesStore
-      .getState()
-      .load({ serverId: "srv2" });
+    const loadA = useServerDataSourcesStore.getState().load({ serverId: "srv1" });
+    const loadB = useServerDataSourcesStore.getState().load({ serverId: "srv2" });
     await loadB;
     expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:srv2");
 
@@ -101,7 +118,14 @@ describe("serverDataSourcesStore", () => {
 
     expect(useServerDataSourcesStore.getState().loadedKey).toBe("u:srv2");
     expect(useServerDataSourcesStore.getState().sources).toEqual([
-      { ref: "boutique:npcs", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
+      {
+        ref: "boutique:npcs",
+        moduleId: null,
+        schema: [],
+        schemaHint: null,
+        stability: null,
+        keyField: null,
+      },
     ]);
   });
 });

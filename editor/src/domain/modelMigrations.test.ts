@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyModelMigrations, type ModelMigration } from "./modelMigrations";
+import { type ModelMigration, applyModelMigrations } from "./modelMigrations";
 
 /**
  * Declarative model migrations (ADR composable-data-models §5): a closed

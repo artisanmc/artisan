@@ -1,11 +1,11 @@
+import { menusOf } from "@/domain/documents";
 import type { InventoryType, Menu, MenuId, Project } from "@/domain/types";
-import { mockAccount } from "@/mock/fixtures";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { describe, expect, it } from "vitest";
 import { autoLayout } from "./autoLayout";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { slotMcXY } from "./inventoryTypes";
 import { TEX_FIRST_SLOT_X, TEX_SCALE, TEX_SLOT_STRIDE, TEX_TITLE_H } from "./menuLayout";
-import { menusOf } from "@/domain/documents";
 
 /** Build a one-menu project of the given inventory type at layout origin {0,0}. */
 function singleMenuProject(inventoryType: InventoryType): {
@@ -26,7 +26,7 @@ function singleMenuProject(inventoryType: InventoryType): {
 }
 
 describe("hitTestSlot", () => {
-  const personal = mockAccount().projects[0]!;
+  const personal = mockOpenProjects().projects[0]!;
   const layout = autoLayout(personal);
 
   it("returns null when point is outside any menu box", () => {

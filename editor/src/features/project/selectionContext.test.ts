@@ -1,7 +1,7 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, Project, ProjectId } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { selectionContext } from "./selectionContext";
-import { menusOf } from "@/domain/documents";
 
 const PID = "p1" as ProjectId;
 

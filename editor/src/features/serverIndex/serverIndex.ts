@@ -1,10 +1,10 @@
 import { projectNamespace } from "@/domain/docRef";
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import type { SearchEntry } from "@/features/search/searchIndex";
 import { getText } from "@/lib/i18n";
 import { projectUrlId } from "@/lib/projectUrlId";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export type IndexedKind = "menu" | "command" | "dialog";
 
