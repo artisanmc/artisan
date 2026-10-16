@@ -1,11 +1,11 @@
 import { registerDocumentKind, resetDocumentKinds } from "@/domain/documentKinds";
 import { documentsOf } from "@/domain/documents";
 import type { Document, ProjectId } from "@/domain/types";
-import { transform } from "@/features/export/transform";
-import { parse } from "yaml";
 import { afterEach, describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import { registerDocumentCodec, resetDocumentCodecs } from "./documentCodecs";
 import { projectFromFiles } from "./projectFromFiles";
+import { projectToFiles } from "./projectToFiles";
 
 /**
  * The import and the export know no kind by name: a kind registered with its
@@ -48,7 +48,7 @@ describe("document codecs", () => {
     });
     expect(documentsOf(project, "note")).toEqual([{ id: "hello", text: "hi" }]);
     expect(project.moduleData).toBeUndefined();
-    const files = transform(project);
+    const files = projectToFiles(project);
     expect(parse(files[`${base}/notes/hello.yaml`]!)).toEqual({ schema: "note/v1", text: "hi" });
   });
 

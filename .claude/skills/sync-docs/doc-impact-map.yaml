@@ -76,7 +76,19 @@ mappings:
   - touches: "editor/src/schema/documentCodecs.ts"
     updates:
       - "docs/architecture/project-files.md"
-    reason: "Per-kind file codecs driving projectFromFiles and transform"
+    reason: "Per-kind file codecs driving projectFromFiles and projectToFiles"
+
+  - touches: "editor/src/schema/*FromDomain.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "docs/architecture/editor-internals.md"
+    reason: "Writing side of the editor's files <-> domain codec: a file form changes here and in its *ToDomain reader"
+
+  - touches: "editor/src/schema/projectToFiles.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "docs/architecture/editor-internals.md"
+    reason: "Writing side of the editor's files <-> domain codec: a file form changes here and in its *ToDomain reader"
 
   - touches: "plugin/*/src/main/kotlin/**/model/DocumentKinds.kt"
     updates:
