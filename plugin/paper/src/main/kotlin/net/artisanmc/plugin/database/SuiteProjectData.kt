@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.database
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseDialect
 import net.artisanmc.plugin.hub.DraftCommit
 import net.artisanmc.plugin.hub.DraftReceipt
 import net.artisanmc.plugin.hub.DraftStorage

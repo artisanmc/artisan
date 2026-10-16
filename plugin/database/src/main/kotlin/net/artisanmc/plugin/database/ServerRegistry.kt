@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.database
 
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseDialect
 import java.io.File
 import java.sql.Timestamp
 import java.time.Instant

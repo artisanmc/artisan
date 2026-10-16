@@ -4,6 +4,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import net.artisanmc.modules.api.command.CommandDeclaration
+import net.artisanmc.modules.api.command.CommandRegistry
+import net.artisanmc.modules.api.datasource.DataSourceDeclaration
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
 
 class RegistryUnregisterTest {
     @Test
@@ -31,9 +35,9 @@ class RegistryUnregisterTest {
     @Test
     fun `commands record their owning module`() {
         val registry = CommandRegistry()
-        registry.currentOwner = "homes"
+        registry.bindOwner("homes")
         registry.register(CommandDeclaration("homes:go") { _, _ -> })
-        registry.currentOwner = null
+        registry.bindOwner(null)
         registry.register(CommandDeclaration("free:go") { _, _ -> })
 
         registry.unregisterOwnedBy("homes")

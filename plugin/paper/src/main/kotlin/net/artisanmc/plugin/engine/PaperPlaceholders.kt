@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.modules.api.PlaceholderRegistry
-import net.artisanmc.modules.api.PlaceholderResolver
+import net.artisanmc.modules.api.placeholder.PlaceholderRegistry
+import net.artisanmc.modules.api.placeholder.PlaceholderResolver
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 import java.util.concurrent.ConcurrentHashMap
