@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import net.artisanmc.plugin.engine.BundleCompiler
+import net.artisanmc.plugin.engine.MenuCompiler
 import net.artisanmc.plugin.model.*
 import java.io.File
 import java.util.logging.Logger
@@ -49,19 +49,19 @@ class ProjectReader(
 
     /**
      * One reader per core kind: a file of that kind, its id (the file name) and
-     * the project's context, to the runtime Document the bundle carries under
+     * the project's context, to the runtime Document the loaded Project carries under
      * that kind (ADR `extensible-document-kinds`, decision 10). The folder loop
      * in [readDocuments] knows no kind by name; a registered kind without a reader
      * here is left on disk for the module that owns it.
      */
-    private val coreReaders: Map<String, (File, String, ReadContext) -> BundleDocument> = mapOf(
+    private val coreReaders: Map<String, (File, String, ReadContext) -> RuntimeDocument> = mapOf(
         DocumentKinds.MENU.kind to { f, menuId, ctx ->
             val menuYaml = withFileId(mapper.readValue(f, MenuYaml::class.java), menuId, f)
             requireSchema(f, menuYaml.schema, *DocumentKinds.MENU.schemaVersions.toTypedArray())
             val currentMenu =
                 if (menuYaml.schema == DocumentKinds.MENU.canonicalSchema) menuYaml
                 else menuYaml.copy(schema = DocumentKinds.MENU.canonicalSchema)
-            BundleCompiler.compile(
+            MenuCompiler.compile(
                 resolveTemplates(currentMenu, ctx.templates),
                 ctx.langMaps, logger, defaultLang = ctx.manifest.defaultLang,
             ).copy(
@@ -78,7 +78,7 @@ class ProjectReader(
         DocumentKinds.DIALOG.kind to { f, dialogId, ctx ->
             val dialogYaml = withFileId(mapper.readValue(f, DialogYaml::class.java), dialogId, f)
             requireSchema(f, dialogYaml.schema, *DocumentKinds.DIALOG.schemaVersions.toTypedArray())
-            BundleDialog(dialogYaml, ctx.langMaps, defaultLang = ctx.manifest.defaultLang, projectId = ctx.projectId)
+            RuntimeDialog(dialogYaml, ctx.langMaps, defaultLang = ctx.manifest.defaultLang, projectId = ctx.projectId)
         },
     )
 
@@ -88,7 +88,7 @@ class ProjectReader(
      * labels, under the id its file name gives (ADR `extensible-document-kinds`,
      * W6). The owning module reads it back through `ProjectContentApi.documents`.
      */
-    private fun rawReader(kind: DocumentKind): (File, String, ReadContext) -> BundleDocument = { f, docId, ctx ->
+    private fun rawReader(kind: DocumentKind): (File, String, ReadContext) -> RuntimeDocument = { f, docId, ctx ->
         val root = mapper.readValue(f, Map::class.java)
         val data: Map<String, Any?> = root?.entries?.associate { it.key.toString() to it.value } ?: emptyMap()
         val schema = data["schema"]?.toString().orEmpty()
@@ -97,7 +97,7 @@ class ProjectReader(
         if (!declaredId.isNullOrEmpty() && declaredId != docId) {
             logger?.warning("[Artisan] ${f.path}: id '$declaredId' ignored; the file name '$docId' is the id.")
         }
-        BundleRawDocument(docId, kind.kind, schema, ctx.projectId, data - "id")
+        RuntimeRawDocument(docId, kind.kind, schema, ctx.projectId, data - "id")
     }
 
     /**
@@ -160,7 +160,7 @@ class ProjectReader(
         return (scanned + legacy).distinct().sorted()
     }
 
-    fun readAll(): List<ProjectBundle> =
+    fun readAll(): List<RuntimeProject> =
         roots.all().mapNotNull { (projectId, dir) ->
             // Tolerant per project: a broken manifest/lang never nukes the
             // whole reload (which would fail plugin enable + cascade to
@@ -187,7 +187,7 @@ class ProjectReader(
     }
 
     /** One project, in named steps: manifest → lang → legacy templates → Documents → sources. */
-    private fun readProject(projectId: String, projectDir: File): ProjectBundle? {
+    private fun readProject(projectId: String, projectDir: File): RuntimeProject? {
         val manifest = readManifest(projectId, projectDir) ?: return null
         val langMaps = readLangMaps(projectDir, manifest)
         val templates = readLegacyTemplates(projectDir)
@@ -196,7 +196,7 @@ class ProjectReader(
         val projectModels = readProjectModels(projectDir)
         val dataSources = readSingleFileSources(dataDir, projectModels, langMaps, manifest.defaultLang) +
             readPerRowSources(dataDir, projectModels, langMaps, manifest.defaultLang)
-        return ProjectBundle(
+        return RuntimeProject(
             projectId, manifest.defaultLang, manifest.languages,
             documents, dataSources, langMaps,
         )
@@ -258,7 +258,7 @@ class ProjectReader(
      * through [onSkip]) instead of failing the whole reload and the plugin
      * enable.
      */
-    private fun readDocuments(projectDir: File, ctx: ReadContext): Map<String, List<BundleDocument>> =
+    private fun readDocuments(projectDir: File, ctx: ReadContext): Map<String, List<RuntimeDocument>> =
         DocumentKinds.all().associate { kind ->
             val reader = coreReaders[kind.kind] ?: rawReader(kind)
             kind.kind to documentIds(projectDir, kind.dir, ctx.manifest.files[kind.dir].orEmpty()).mapNotNull { docId ->
@@ -284,14 +284,14 @@ class ProjectReader(
         projectModels: Map<String, Map<String, Any?>>,
         langMaps: Map<String, Map<String, String>>,
         defaultLang: String,
-    ): List<BundleDataSource> = dataDir
+    ): List<RuntimeDataSource> = dataDir
         .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
         ?.sortedBy { it.name }
         ?.mapNotNull { f ->
             tolerant("data source ${f.name}") {
                 val sourceId = f.name.removeSuffix(".yaml")
                 val dsYaml = readSourceDocument(f, sourceId, projectModels)
-                BundleDataSource(dsYaml, langMaps, defaultLang)
+                RuntimeDataSource(dsYaml, langMaps, defaultLang)
             }
         } ?: emptyList()
 
@@ -306,12 +306,12 @@ class ProjectReader(
         projectModels: Map<String, Map<String, Any?>>,
         langMaps: Map<String, Map<String, String>>,
         defaultLang: String,
-    ): List<BundleDataSource> = dataDir
+    ): List<RuntimeDataSource> = dataDir
         .listFiles { f -> f.isDirectory }
         ?.sortedBy { it.name }
         ?.mapNotNull { dir ->
             tolerant("data source dir ${dir.name}") {
-                BundleDataSource(readPerRowSource(dir, projectModels), langMaps, defaultLang)
+                RuntimeDataSource(readPerRowSource(dir, projectModels), langMaps, defaultLang)
             }
         } ?: emptyList()
 

@@ -3,7 +3,7 @@ package net.artisanmc.plugin
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.project.ProjectPublisher
 import net.artisanmc.plugin.project.ProjectRoots
-import net.artisanmc.plugin.sync.ProjectFilesReader
+import net.artisanmc.plugin.project.ProjectFilesReader
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

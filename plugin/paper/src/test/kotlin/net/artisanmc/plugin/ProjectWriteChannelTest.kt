@@ -2,7 +2,7 @@ package net.artisanmc.plugin
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.provider.SyncedMenuProvider
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -154,7 +154,7 @@ class ProjectWriteChannelTest {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/shop_main.yaml", "title: Ancien\n")
-        val base = BundleHasher.hashContent("title: Ancien\n")
+        val base = ContentHash.hashContent("title: Ancien\n")
 
         h.send(writeMsg("boutique", """[
             {"path":"menus/shop_main.yaml","content":"title: Nouveau\n","base_hash":"$base"}
@@ -171,8 +171,8 @@ class ProjectWriteChannelTest {
         val p = h.project("boutique")
         h.write(p, "menus/a.yaml", "title: A disque\n")
         h.write(p, "menus/b.yaml", "title: B\n")
-        val staleHash = BundleHasher.hashContent("title: A que l'editeur croyait\n")
-        val freshHash = BundleHasher.hashContent("title: B\n")
+        val staleHash = ContentHash.hashContent("title: A que l'editeur croyait\n")
+        val freshHash = ContentHash.hashContent("title: B\n")
 
         h.send(writeMsg("boutique", """[
             {"path":"menus/a.yaml","content":"title: A edite\n","base_hash":"$staleHash"},
@@ -201,7 +201,7 @@ class ProjectWriteChannelTest {
         // deletion, and without the list below "keep my version" would recreate
         // a.yaml and leave renomme.yaml: two files for one menu, with nothing to say so.
         h.write(p, "menus/renomme.yaml", "title: A\n")
-        val base = BundleHasher.hashContent("title: A\n")
+        val base = ContentHash.hashContent("title: A\n")
 
         h.send(writeMsg("boutique", """[
             {"path":"menus/a.yaml","content":"title: A edite\n","base_hash":"$base"}
@@ -239,7 +239,7 @@ class ProjectWriteChannelTest {
         val h = Harness()
         val p = h.project("boutique")
         h.write(p, "menus/vieux.yaml", "title: Vieux\n")
-        val base = BundleHasher.hashContent("title: Vieux\n")
+        val base = ContentHash.hashContent("title: Vieux\n")
 
         h.send(writeMsg("boutique", "[]", """[{"path":"menus/vieux.yaml","base_hash":"$base"}]"""))
 

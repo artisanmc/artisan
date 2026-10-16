@@ -34,7 +34,7 @@ class MenuRendererImageButtonTest {
         """.trimIndent())
         val player = MockBukkit.getMock()!!.addPlayer()
         val lookups = mutableSetOf<String>()
-        val session = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en",
+        val session = MenuRenderer.open(player, MenuCompiler.compile(yaml, emptyMap()), "en",
             lookupAsset = { key ->
                 lookups.add(key)
                 AssetEntry(key, "glyph", 0xe000, -4, 36, 54, "artisan:$key")
@@ -64,7 +64,7 @@ class MenuRendererImageButtonTest {
                     click: { right: 'send_message "VIP"' }
         """.trimIndent())
         val player = MockBukkit.getMock()!!.addPlayer()
-        val menu = BundleCompiler.compile(yaml, emptyMap())
+        val menu = MenuCompiler.compile(yaml, emptyMap())
         val layout = ImageButtonLayout.of(yaml, yaml.allElements.single())!!
         for ((level, asset, click) in listOf(Triple(0, "buy", ClickType.LEFT), Triple(10, "vip", ClickType.RIGHT))) {
             player.level = level
@@ -96,7 +96,7 @@ class MenuRendererImageButtonTest {
                     material: DIAMOND
             """.trimIndent())
             val player = MockBukkit.getMock()!!.addPlayer()
-            val session = MenuRenderer.open(player, BundleCompiler.compile(yaml, emptyMap()), "en",
+            val session = MenuRenderer.open(player, MenuCompiler.compile(yaml, emptyMap()), "en",
                 lookupAsset = { key -> AssetEntry(key, "glyph", 0xe000, -4, 36, 54, "artisan:$key") })
             assertTrue(session.activeClicks.isEmpty())
             assertEquals(Material.DIAMOND, session.slots[10]?.type)

@@ -1,10 +1,10 @@
 package net.artisanmc.plugin
 
 import net.artisanmc.plugin.engine.ProjectDataResolver
-import net.artisanmc.plugin.model.BundleDataSource
+import net.artisanmc.plugin.model.RuntimeDataSource
 import net.artisanmc.plugin.model.DataFieldYaml
 import net.artisanmc.plugin.model.DataSourceYaml
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeProject
 import net.artisanmc.plugin.yaml.ProjectReader
 import java.io.File
 import kotlin.test.Test
@@ -83,18 +83,18 @@ class ProjectDataSourceTest {
     @Test
     // An unsupported schema version is loud instead (ProjectReaderTest).
     fun `reader parses data sources`() {
-        val bundles = ProjectReader(writeTempProject()).readAll()
-        val bundle = bundles.single()
-        assertEquals(listOf("ranks", "settings"), bundle.dataSources.map { it.id }.sorted())
-        val ranks = bundle.dataSources.first { it.id == "ranks" }
+        val runtimes = ProjectReader(writeTempProject()).readAll()
+        val runtime = runtimes.single()
+        assertEquals(listOf("ranks", "settings"), runtime.dataSources.map { it.id }.sorted())
+        val ranks = runtime.dataSources.first { it.id == "ranks" }
         assertEquals("id", ranks.yaml.keyField)
         assertEquals("ltext", ranks.yaml.fields.first { it.name == "perks" }.of?.kind)
     }
 
     @Test
     fun `resolved localizes ltext fields with per-key fallback chain`() {
-        val bundle = ProjectReader(writeTempProject()).readAll().single()
-        val ranks = bundle.dataSources.first { it.id == "ranks" }
+        val runtime = ProjectReader(writeTempProject()).readAll().single()
+        val ranks = runtime.dataSources.first { it.id == "ranks" }
         @Suppress("UNCHECKED_CAST")
         val fr = (ranks.resolved("fr") as List<Map<String, Any?>>).single()
         assertEquals("V.I.P.", fr["name"])
@@ -107,7 +107,7 @@ class ProjectDataSourceTest {
 
     @Test
     fun `unknown translation falls back to the raw key (non-hermetic)`() {
-        val ds = BundleDataSource(
+        val ds = RuntimeDataSource(
             yaml = DataSourceYaml(
                 id = "x", shape = "table",
                 fields = listOf(DataFieldYaml(name = "label", kind = "ltext")),
@@ -123,8 +123,8 @@ class ProjectDataSourceTest {
 
     @Test
     fun `config shape resolves to the localized value object`() {
-        val bundle = ProjectReader(writeTempProject()).readAll().single()
-        val settings = bundle.dataSources.first { it.id == "settings" }
+        val runtime = ProjectReader(writeTempProject()).readAll().single()
+        val settings = runtime.dataSources.first { it.id == "settings" }
         @Suppress("UNCHECKED_CAST")
         val value = settings.resolved("en") as Map<String, Any?>
         assertEquals("coins", value["currency"])
@@ -132,9 +132,9 @@ class ProjectDataSourceTest {
     }
 
     @Test
-    fun `resolver serves project refs from the bundle list and null otherwise`() {
-        val bundle = ProjectReader(writeTempProject()).readAll().single()
-        val resolver = ProjectDataResolver { listOf(bundle) }
+    fun `resolver serves project refs from the runtime list and null otherwise`() {
+        val runtime = ProjectReader(writeTempProject()).readAll().single()
+        val resolver = ProjectDataResolver { listOf(runtime) }
         assertTrue(resolver.canResolve("pack:ranks"))
         @Suppress("UNCHECKED_CAST")
         val rows = resolver.resolve("pack:ranks", "en") as List<Map<String, Any?>>
@@ -145,18 +145,18 @@ class ProjectDataSourceTest {
 
     @Test
     fun `resolver searches across projects`() {
-        val empty = ProjectBundle("p_empty", "en", listOf("en"))
-        val bundle = ProjectReader(writeTempProject()).readAll().single()
-        val resolver = ProjectDataResolver { listOf(empty, bundle) }
+        val empty = RuntimeProject("p_empty", "en", listOf("en"))
+        val runtime = ProjectReader(writeTempProject()).readAll().single()
+        val resolver = ProjectDataResolver { listOf(empty, runtime) }
         @Suppress("UNCHECKED_CAST")
         val value = resolver.resolve("pack:settings", "en") as Map<String, Any?>
         assertEquals("coins", value["currency"])
     }
 
-    private fun configProject(projectId: String, sourceId: String, owner: String) = ProjectBundle(
+    private fun configProject(projectId: String, sourceId: String, owner: String) = RuntimeProject(
         projectId, "en", listOf("en"),
         dataSources = listOf(
-            BundleDataSource(DataSourceYaml(id = sourceId, shape = "config", value = mapOf("owner" to owner)), emptyMap()),
+            RuntimeDataSource(DataSourceYaml(id = sourceId, shape = "config", value = mapOf("owner" to owner)), emptyMap()),
         ),
     )
 
@@ -184,11 +184,11 @@ class ProjectDataSourceTest {
     }
 
     @Test
-    fun `resolver follows a reload that swaps the bundle list`() {
-        var bundles = listOf(configProject("a", "items", "old"))
-        val resolver = ProjectDataResolver { bundles }
+    fun `resolver follows a reload that swaps the runtime list`() {
+        var runtimes = listOf(configProject("a", "items", "old"))
+        val resolver = ProjectDataResolver { runtimes }
         assertEquals("old", ownerOf(resolver, "pack:items", "a"))
-        bundles = listOf(configProject("a", "items", "new"))
+        runtimes = listOf(configProject("a", "items", "new"))
         assertEquals("new", ownerOf(resolver, "pack:items", "a"))
     }
 
@@ -227,8 +227,8 @@ class ProjectDataSourceTest {
         File(srcDir, "weekly.yaml").writeText("id: weekly\nlabel: W\n")
         File(srcDir, "handmade.yaml").writeText("id: handmade\nlabel: H\n")
 
-        val bundle = ProjectReader(root).readAll().single()
-        val cats = bundle.dataSources.first { it.id == "cats" }
+        val runtime = ProjectReader(root).readAll().single()
+        val cats = runtime.dataSources.first { it.id == "cats" }
         @Suppress("UNCHECKED_CAST")
         val rows = cats.resolved("en") as List<Map<String, Any?>>
         assertEquals(listOf("weekly", "daily", "handmade"), rows.map { it["id"] })
@@ -295,8 +295,8 @@ class ProjectDataSourceTest {
                     act: { type: command, run: say hi }
             """.trimIndent(),
         )
-        val bundle = ProjectReader(root).readAll().single()
-        val quests = bundle.dataSources.first { it.id == "quests" }
+        val runtime = ProjectReader(root).readAll().single()
+        val quests = runtime.dataSources.first { it.id == "quests" }
         @Suppress("UNCHECKED_CAST")
         val row = (quests.resolved("en") as List<Map<String, Any?>>).single()
         // enum passes through verbatim.

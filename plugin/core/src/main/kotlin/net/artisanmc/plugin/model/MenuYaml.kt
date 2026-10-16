@@ -77,7 +77,7 @@ data class MenuYaml(
      *  - `String` (legacy) → single text layer at the default position
      *  - `Map` → one layer
      *  - `List<Map>` → multiple layers
-     * Parsed into a `List<MenuTitleLayer>` on [BundleMenu.title] by [net.artisanmc.plugin.engine.MenuTitleParser].
+     * Parsed into a `List<MenuTitleLayer>` on [RuntimeMenu.title] by [net.artisanmc.plugin.engine.MenuTitleParser].
      */
     val title: Any? = null,
     val size: Int = 27,
@@ -185,7 +185,7 @@ data class ClickHandlerYaml(
     val fallback:     List<Map<String, Any>> = emptyList(),
     val cooldown:     CooldownYaml? = null,
     /** The Action DSL string (actions + if/else), compiled to a Step tree by
-     *  [BundleCompiler]. Canonical wire is the collapsed form (the handler IS
+     *  [MenuCompiler]. Canonical wire is the collapsed form (the handler IS
      *  the DSL string — see [fromDsl]); `{steps: "<dsl>"}` is the legacy wrap. */
     val steps:        String = "",
 ) {

@@ -4,10 +4,10 @@ import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.modules.api.datasource.DataSourceDeclaration
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
-import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.RuntimeMenu
 import net.artisanmc.plugin.model.ContextInputYaml
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeProject
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.MenuRenderer
 import org.bukkit.entity.Player
@@ -20,8 +20,8 @@ class MenuSourceContextTest {
     private var openedContext: ExecutionContext? = null
     private val provider = object : MenuProvider {
         override fun load() {}
-        override fun findMenu(menuId: String): BundleMenu? = null
-        override fun allBundles(): List<ProjectBundle> = emptyList()
+        override fun findMenu(menuId: String): RuntimeMenu? = null
+        override fun runtimeProjects(): List<RuntimeProject> = emptyList()
         override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
             openedContext = ctx
         }
@@ -40,7 +40,7 @@ class MenuSourceContextTest {
         val sources = DataSourceRegistry().apply {
             register(DataSourceDeclaration("boutique:items", { _, _ -> rows }))
         }
-        val menu = BundleCompiler.compile(MenuYaml(id = "category", size = 9, contextInputs = listOf(
+        val menu = MenuCompiler.compile(MenuYaml(id = "category", size = 9, contextInputs = listOf(
             ContextInputYaml(name = "items", type = "list", source = mapOf("ref" to "boutique:items")),
         )), emptyMap())
         return MenuRenderer.open(player, menu, "en", ExecutionContext(player, callerArgs), dataSources = sources).ctx

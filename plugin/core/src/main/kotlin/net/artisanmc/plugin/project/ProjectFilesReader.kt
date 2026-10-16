@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.sync
+package net.artisanmc.plugin.project
 
 import java.io.File
 
@@ -27,8 +27,8 @@ object ProjectFilesReader {
             .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
             .forEach { file ->
                 val rel = file.relativeTo(projectDir).path.replace('\\', '/')
-                if (isBinary(rel) && !BundleHasher.isArtisanMeta(rel)) {
-                    out[rel] = BinaryInfo(BundleHasher.hashBytes(file.readBytes()), file.length())
+                if (isBinary(rel) && !ContentHash.isArtisanMeta(rel)) {
+                    out[rel] = BinaryInfo(ContentHash.hashBytes(file.readBytes()), file.length())
                 }
             }
         return out
@@ -58,10 +58,10 @@ object ProjectFilesReader {
 
     /**
      * relPath-keyed map excluding `.artisan*` metadata. Both the hash
-     * (`BundleHasher`) and [read] derive from this.
+     * (`ContentHash`) and [read] derive from this.
      */
     fun readRelative(projectDir: File): Map<String, String> =
-        readAll(projectDir).filterKeys { !BundleHasher.isArtisanMeta(it) }
+        readAll(projectDir).filterKeys { !ContentHash.isArtisanMeta(it) }
 
     /**
      * Files map keyed by "plugins/Artisan/projects/<projectId>/<relPath>".

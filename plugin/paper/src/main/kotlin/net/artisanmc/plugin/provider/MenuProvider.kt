@@ -1,9 +1,9 @@
 package net.artisanmc.plugin.provider
 
 import net.artisanmc.plugin.engine.ExecutionContext
-import net.artisanmc.plugin.model.BundleDialog
-import net.artisanmc.plugin.model.BundleMenu
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeDialog
+import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.model.RuntimeProject
 import org.bukkit.entity.Player
 
 interface MenuProvider {
@@ -12,18 +12,18 @@ interface MenuProvider {
     fun unload() {}
     /** Hard tear-down used by `onDisable` — releases resources that cannot be reused. */
     fun shutdown() { unload() }
-    fun findMenu(menuId: String): BundleMenu?
+    fun findMenu(menuId: String): RuntimeMenu?
     /**
      * `ref` = bare id (looked up in [fromProject] first, then server-wide) or
      * `project:id`. The default ignores the project, for simple implementations.
      */
-    fun findMenu(ref: String, fromProject: String?): BundleMenu? = findMenu(ref)
+    fun findMenu(ref: String, fromProject: String?): RuntimeMenu? = findMenu(ref)
     fun listMenuIds(): List<String> = emptyList()
     fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext)
     fun openMenu(player: Player, menuId: String, lang: String) =
         openMenu(player, menuId, lang, ExecutionContext(player))
-    fun allBundles(): List<ProjectBundle> = emptyList()
-    fun findDialog(dialogId: String): BundleDialog? = null
-    fun findDialog(ref: String, fromProject: String?): BundleDialog? = findDialog(ref)
+    fun runtimeProjects(): List<RuntimeProject> = emptyList()
+    fun findDialog(dialogId: String): RuntimeDialog? = null
+    fun findDialog(ref: String, fromProject: String?): RuntimeDialog? = findDialog(ref)
     fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {}
 }

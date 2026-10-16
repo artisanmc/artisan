@@ -41,11 +41,11 @@ l'éditeur via les codecs par kind (`schema/documentCodecs.ts`, un lecteur `<kin
 un lecteur par kind, l'inventaire de ressources et les tables de références du provider.
 
 En mémoire, un Project est un **conteneur unique** : `Project.documents[kind]` (éditeur) et
-`ProjectBundle.documents[kind]` (plugin). `menusOf(project)`, `bundle.menus` et leurs semblables
+`RuntimeProject.documents[kind]` (plugin). `menusOf(project)`, `runtime.menus` et leurs semblables
 sont des accesseurs typés de **lecture** sur ce conteneur, jamais un second stockage. Un dossier
 dont le kind n'est pas enregistré reste opaque : l'éditeur le round-trip dans
 `moduleData.<dir>.__files`, le plugin ne le lit pas. Un kind enregistré par un module sans lecteur
-core est lu en **document brut** (`BundleRawDocument` : le mapping YAML, `schema:` vérifié contre les
+core est lu en **document brut** (`RuntimeRawDocument` : le mapping YAML, `schema:` vérifié contre les
 labels déclarés, le nom du fichier pour id) et rendu au module par
 `ProjectContentApi.documents(projectId, kind)` (W6).
 

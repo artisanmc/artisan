@@ -26,7 +26,7 @@ class CanonicalConformanceTest {
     @Test
     fun `canonical button example compiles with its actions`() {
         val menu = example("canonical-button.json")
-        val compiled = BundleCompiler.compile(menu, emptyMap())
+        val compiled = MenuCompiler.compile(menu, emptyMap())
         // The button element has one appearance with a left-click of two flat action steps,
         // compiled into the canonical Step tree.
         val apps = compiled.compiledAppearances.values.flatten()
@@ -40,7 +40,7 @@ class CanonicalConformanceTest {
     @Test
     fun `canonical conditional example compiles its appearance condition`() {
         val menu = example("canonical-conditional.json")
-        val compiled = BundleCompiler.compile(menu, emptyMap())
+        val compiled = MenuCompiler.compile(menu, emptyMap())
         val apps = compiled.compiledAppearances.values.flatten()
         // First appearance gates on has_permission (an `if` array of one condition).
         assertTrue(

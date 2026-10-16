@@ -7,8 +7,8 @@ import net.artisanmc.plugin.protocol.EditorRequest.ConfigRead
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectHistory
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectList
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectRead
-import net.artisanmc.plugin.sync.BundleHasher
-import net.artisanmc.plugin.sync.ProjectFilesReader
+import net.artisanmc.plugin.project.ContentHash
+import net.artisanmc.plugin.project.ProjectFilesReader
 import java.nio.file.Files
 import java.util.Base64
 
@@ -100,7 +100,7 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
                 val file = ProjectPathPolicy.resolve(root, path)
                 if (!file.isFile) return@offThread reply.error("not_found")
                 val bytes = file.readBytes()
-                reply.ok("content_base64" to Base64.getEncoder().encodeToString(bytes), "hash" to BundleHasher.hashBytes(bytes))
+                reply.ok("content_base64" to Base64.getEncoder().encodeToString(bytes), "hash" to ContentHash.hashBytes(bytes))
             } catch (e: Throwable) {
                 reply.failure("read_error", "asset_read '$projectId/$path'", e)
             }

@@ -3,7 +3,7 @@ package net.artisanmc.plugin
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import net.artisanmc.plugin.engine.BundleCompiler
+import net.artisanmc.plugin.engine.MenuCompiler
 import net.artisanmc.plugin.model.MenuYaml
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -107,7 +107,7 @@ class ElementDisplayStatesTest {
                     material: EMERALD
             """,
         )
-        val compiled = BundleCompiler.compile(menu, emptyMap()).compiledAppearances["buy"]!!
+        val compiled = MenuCompiler.compile(menu, emptyMap()).compiledAppearances["buy"]!!
         assertEquals(listOf("EMERALD", "DIAMOND"), compiled.map { it.yaml.material })
         // The display is the one that always applies — it carries no condition.
         assertTrue(compiled.last().conditions.isEmpty())
@@ -130,7 +130,7 @@ class ElementDisplayStatesTest {
                     material: EMERALD
             """,
         )
-        val compiled = BundleCompiler.compile(menu, emptyMap()).compiledAppearances["buy"]!!
+        val compiled = MenuCompiler.compile(menu, emptyMap()).compiledAppearances["buy"]!!
         // states[0] is addressed `state1`; the display keeps `default`.
         assertEquals("menus.shop.elements.buy.state1", compiled.first().i18nBase)
         assertEquals("menus.shop.elements.buy.default", compiled.last().i18nBase)

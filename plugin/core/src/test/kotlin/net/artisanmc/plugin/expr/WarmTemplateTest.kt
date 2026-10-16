@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Bundle-load pre-parsing (ADR `expression-parity` §2): the point is that a
+ * Project-load pre-parsing (ADR `expression-parity` §2): the point is that a
  * broken expression is found when the project loads, not when a player opens the
  * menu.
  */

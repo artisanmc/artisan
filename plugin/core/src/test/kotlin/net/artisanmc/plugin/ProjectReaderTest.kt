@@ -128,8 +128,8 @@ class ProjectReaderTest {
 
     @Test
     fun `legacy template refs still resolve into effective elements at load`() {
-        val bundle = ProjectReader(writeTemplateProject()).readAll().single()
-        val menu = bundle.menus.single()
+        val runtime = ProjectReader(writeTemplateProject()).readAll().single()
+        val menu = runtime.menus.single()
         val grid = menu.yaml.allElements.first { it.id == "grid" }
         val pins = menu.yaml.allElements.first { it.id == "pins" }
         // Template appearances injected + compiled; alias/key_field from the template.
@@ -145,8 +145,8 @@ class ProjectReaderTest {
     fun `dangling legacy template ref keeps local fields (non-hermetic)`() {
         val root = writeTemplateProject()
         File(root, "p_tpl/templates/tpl_view.yaml").delete()
-        val bundle = ProjectReader(root).readAll().single()
-        val grid = bundle.menus.single().yaml.allElements.first { it.id == "grid" }
+        val runtime = ProjectReader(root).readAll().single()
+        val grid = runtime.menus.single().yaml.allElements.first { it.id == "grid" }
         assertNull(grid.display.material)
         assertEquals(0, grid.states.size)
     }
@@ -154,23 +154,23 @@ class ProjectReaderTest {
     @Test
     fun `reads manifest and resolves menu title for default lang`() {
         val projectsRoot = writeTempProject()
-        val bundles = ProjectReader(projectsRoot).readAll()
+        val runtimes = ProjectReader(projectsRoot).readAll()
 
-        assertEquals(1, bundles.size)
-        val bundle = bundles.first()
-        assertEquals("p_test", bundle.projectId)
-        assertEquals("en", bundle.defaultLang)
-        assertEquals(1, bundle.menus.size)
-        assertNotNull(bundle.menus.first())
-        assertEquals("m_shop", bundle.menus.first().id)
-        assertEquals("Shop", bundle.menus.first().resolveTitle("en"))
+        assertEquals(1, runtimes.size)
+        val runtime = runtimes.first()
+        assertEquals("p_test", runtime.projectId)
+        assertEquals("en", runtime.defaultLang)
+        assertEquals(1, runtime.menus.size)
+        assertNotNull(runtime.menus.first())
+        assertEquals("m_shop", runtime.menus.first().id)
+        assertEquals("Shop", runtime.menus.first().resolveTitle("en"))
     }
 
     @Test
     fun `resolveTitle for non-default lang`() {
         val projectsRoot = writeTempProject()
-        val bundle = ProjectReader(projectsRoot).readAll().first()
-        assertEquals("Boutique", bundle.menus.first().resolveTitle("fr"))
+        val runtime = ProjectReader(projectsRoot).readAll().first()
+        assertEquals("Boutique", runtime.menus.first().resolveTitle("fr"))
     }
 
     @Test
@@ -183,8 +183,8 @@ class ProjectReaderTest {
                 title: Shop
             """.trimIndent(),
         )
-        val bundle = ProjectReader(projectsRoot).readAll().first()
-        assertEquals("Shop", bundle.menus.first().resolveTitle("en"))
+        val runtime = ProjectReader(projectsRoot).readAll().first()
+        assertEquals("Shop", runtime.menus.first().resolveTitle("en"))
     }
 
     @Test
@@ -193,15 +193,15 @@ class ProjectReaderTest {
         // Unterminated flow sequence — a plausible hand-edit typo.
         File(projectsRoot, "p_test/lang/en.yaml").writeText("menus: [oops\n")
 
-        val bundles = ProjectReader(projectsRoot).readAll()
+        val runtimes = ProjectReader(projectsRoot).readAll()
 
-        assertEquals(1, bundles.size, "the project must load despite the unreadable lang file")
-        val bundle = bundles.first()
-        assertEquals(1, bundle.menus.size)
+        assertEquals(1, runtimes.size, "the project must load despite the unreadable lang file")
+        val runtime = runtimes.first()
+        assertEquals(1, runtime.menus.size)
         // No translation available → the raw tag, same as an absent lang file.
-        assertEquals("{i18n:menus.m_shop.title}", bundle.menus.first().resolveTitle("en"))
+        assertEquals("{i18n:menus.m_shop.title}", runtime.menus.first().resolveTitle("en"))
         // The OTHER language is untouched.
-        assertEquals("Boutique", bundle.menus.first().resolveTitle("fr"))
+        assertEquals("Boutique", runtime.menus.first().resolveTitle("fr"))
     }
 
     @Test
@@ -209,18 +209,18 @@ class ProjectReaderTest {
         val projectsRoot = writeTempProject()
         File(projectsRoot, "p_test/lang/en.yaml").writeText("- a\n- b\n")
 
-        val bundle = ProjectReader(projectsRoot).readAll().first()
+        val runtime = ProjectReader(projectsRoot).readAll().first()
 
-        assertEquals(1, bundle.menus.size)
-        assertEquals("{i18n:menus.m_shop.title}", bundle.menus.first().resolveTitle("en"))
-        assertEquals("Boutique", bundle.menus.first().resolveTitle("fr"))
+        assertEquals(1, runtime.menus.size)
+        assertEquals("{i18n:menus.m_shop.title}", runtime.menus.first().resolveTitle("en"))
+        assertEquals("Boutique", runtime.menus.first().resolveTitle("fr"))
     }
 
     @Test
     fun `resolveTitle returns raw tag when lang file absent`() {
         val projectsRoot = writeTempProject()
-        val bundle = ProjectReader(projectsRoot).readAll().first()
-        assertEquals("{i18n:menus.m_shop.title}", bundle.menus.first().resolveTitle("de"))
+        val runtime = ProjectReader(projectsRoot).readAll().first()
+        assertEquals("{i18n:menus.m_shop.title}", runtime.menus.first().resolveTitle("de"))
     }
 
     @Test
@@ -255,12 +255,12 @@ class ProjectReaderTest {
         File(projectDir, "lang").mkdirs()
         File(projectDir, "lang/en.yaml").writeText("{}\n")
 
-        val bundles = ProjectReader(root).readAll()
-        assertEquals(1, bundles.size)
-        val bundle = bundles.first()
-        assertEquals(1, bundle.dialogs.size)
-        assertEquals("d_test", bundle.dialogs.first().id)
-        assertEquals("Test Dialog", bundle.dialogs.first().yaml.title?.forLang("en", "en"))
+        val runtimes = ProjectReader(root).readAll()
+        assertEquals(1, runtimes.size)
+        val runtime = runtimes.first()
+        assertEquals(1, runtime.dialogs.size)
+        assertEquals("d_test", runtime.dialogs.first().id)
+        assertEquals("Test Dialog", runtime.dialogs.first().yaml.title?.forLang("en", "en"))
     }
 
     @Test
@@ -424,8 +424,8 @@ class ProjectReaderTest {
         File(projectDir, "lang").mkdirs()
         File(projectDir, "lang/en.yaml").writeText("{}\n")
 
-        val bundles = ProjectReader(root).readAll()
-        assertEquals(0, bundles.first().dialogs.size)
+        val runtimes = ProjectReader(root).readAll()
+        assertEquals(0, runtimes.first().dialogs.size)
     }
 
     @Test
@@ -467,9 +467,9 @@ class ProjectReaderTest {
         File(projectDir, "lang").mkdirs()
         File(projectDir, "lang/en.yaml").writeText("{}\n")
 
-        val bundles = ProjectReader(root).readAll()
-        assertEquals(1, bundles.size)
-        assertEquals(1, bundles.first().menus.size) // m_bad skipped, m_ok loaded
+        val runtimes = ProjectReader(root).readAll()
+        assertEquals(1, runtimes.size)
+        assertEquals(1, runtimes.first().menus.size) // m_bad skipped, m_ok loaded
     }
 
     private fun tolerantProject(prefix: String): Pair<File, File> {
@@ -504,9 +504,9 @@ class ProjectReaderTest {
         File(root, "p_b/menus").mkdirs()
         File(root, "p_b/manifest.yaml").writeText("schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\n")
 
-        val bundles = ProjectReader(root).readAll()
-        assertEquals(setOf("p_a", "p_b"), bundles.map { it.projectId }.toSet())
-        val typo = bundles.single { it.projectId == "p_a" }.menus.single { it.yaml.id == "m_typo" }
+        val runtimes = ProjectReader(root).readAll()
+        assertEquals(setOf("p_a", "p_b"), runtimes.map { it.projectId }.toSet())
+        val typo = runtimes.single { it.projectId == "p_a" }.menus.single { it.yaml.id == "m_typo" }
         assertEquals(setOf(3), typo.slotToElement.keys) // the bad range alone is dropped
     }
 

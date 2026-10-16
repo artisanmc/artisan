@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
 import net.artisanmc.plugin.protocol.EditorPaths
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import kotlin.test.assertEquals
@@ -29,7 +29,7 @@ class ProjectMetadataPathsTest {
     fun `metadata rule`() = cases.map { c ->
         DynamicTest.dynamicTest(c.path) {
             assertEquals(c.meta, ProjectMetadataPaths.isMeta(c.path), "isMeta")
-            assertEquals(c.meta, BundleHasher.isArtisanMeta(c.path), "hash exclusion")
+            assertEquals(c.meta, ContentHash.isArtisanMeta(c.path), "hash exclusion")
             assertEquals(!c.editorSees, EditorPaths.isInvisible(c.path), "project_read")
             assertEquals(c.editorSees, EditorPaths.isWritable(c.path), "project_write")
             assertEquals(!c.meta, EditorPaths.isSafeRelPath(c.path), "relay writes")

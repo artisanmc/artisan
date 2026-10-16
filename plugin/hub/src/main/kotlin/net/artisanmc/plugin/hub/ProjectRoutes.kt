@@ -14,7 +14,7 @@ import net.artisanmc.plugin.protocol.ProjectRootInfo
 import net.artisanmc.plugin.protocol.ProtocolVersion
 import java.util.Base64
 import java.util.UUID
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 
 /**
  * Projects, publishing and drafts. A Project's id is its server's id and its folder name
@@ -132,7 +132,7 @@ class ProjectRoutes(
 
     /** A URL naming its content's hash never changes content: the browser keeps it for good. */
     private fun cacheFor(bytes: ByteArray, hash: String?): String =
-        if (hash != null && BundleHasher.hashBytes(bytes) == hash) "private, max-age=31536000, immutable" else "private, no-cache"
+        if (hash != null && ContentHash.hashBytes(bytes) == hash) "private, max-age=31536000, immutable" else "private, no-cache"
 
     /** `:project` names a server this hub knows and a folder, else `unknown_project`: not the `not_found` of a draft or a file. */
     private fun onProject(router: Router, method: String, pattern: String, permission: String, handler: (Call, ProjectRef) -> Unit) {
