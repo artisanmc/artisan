@@ -4,11 +4,11 @@ import { plainTextFromMiniMessage } from "@/lib/miniMessage";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useMemo } from "react";
-import { Group, Rect, Text } from "react-konva";
-import { MiniMessageKonvaText } from "./MiniMessageKonvaText";
+import { Group, Rect } from "react-konva";
 import { deriveEdges } from "./deriveEdges";
 import { nodeBox } from "./menuLayout";
 import { offBoardLinks } from "./offBoardLinks";
+import { VanillaMcText, vanillaTextWidth } from "./title/VanillaMcText";
 
 interface GhostChipsProps {
   project: Project;
@@ -25,9 +25,11 @@ interface GhostChipsProps {
 const CHIP_H = 22;
 const CHIP_PAD = 8;
 const CHIP_GAP = 4; // vertical gap between stacked chips of the same source
-// Char-width estimate calibrated for the chip Text (ui-monospace, ~11px).
-// If that font/size changes, re-tune this.
-const CHAR_W = 6.2;
+// The label renders in the vanilla MC font, like menu titles: 1 px per font
+// pixel, and a 12 px tall line (the tallest atlas cell, accented).
+const TEXT_SCALE = 1;
+const TEXT_H = 12;
+const ARROW = "<#a1a1aa>→</#a1a1aa> ";
 
 export function GhostChips({ project, layout, onOpen, representatives }: GhostChipsProps) {
   const activeLang = useUiStore((s) => s.activeLang);
@@ -57,9 +59,10 @@ export function GhostChips({ project, layout, onOpen, representatives }: GhostCh
 
         const i = indexBySource[idx] ?? 0;
         const label = documentLabel(project, target, activeLang);
+        const chipText = ARROW + label;
         const width = Math.max(
           48,
-          (plainTextFromMiniMessage(label).length + 2) * CHAR_W + CHIP_PAD * 2,
+          vanillaTextWidth(plainTextFromMiniMessage(chipText)) * TEXT_SCALE + CHIP_PAD * 2,
         );
         // Anchor: top-right corner of the source, offset vertically per chip.
         const x = box.x + box.width + 8;
@@ -90,21 +93,11 @@ export function GhostChips({ project, layout, onOpen, representatives }: GhostCh
               strokeWidth={1}
               perfectDrawEnabled={false}
             />
-            <Text
+            <VanillaMcText
+              source={chipText}
               x={CHIP_PAD}
-              y={CHIP_H / 2 - 6}
-              text="→ "
-              fontFamily="ui-monospace, monospace"
-              fontSize={11}
-              fill="#a1a1aa"
-              listening={false}
-            />
-            <MiniMessageKonvaText
-              source={label}
-              x={CHIP_PAD + 2 * CHAR_W}
-              y={CHIP_H / 2 - 6}
-              fontSize={11}
-              charWidth={CHAR_W}
+              y={(CHIP_H - TEXT_H * TEXT_SCALE) / 2}
+              scale={TEXT_SCALE}
               defaultColor="#e4e4e7"
             />
           </Group>

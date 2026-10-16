@@ -34,31 +34,3 @@ data class IfCase(
     val joins: List<String> = emptyList(),
     val steps: List<Step> = emptyList(),
 )
-
-/** Pre-DSL legacy wire: `{kind: action, action: {type…}}` / `{kind: if, cases, else}` step trees. */
-object StepParser {
-    fun parseAll(raw: List<Map<String, Any>>): List<Step> = raw.map { parse(it) }
-
-    @Suppress("UNCHECKED_CAST")
-    fun parse(raw: Map<String, Any>): Step = when (val kind = raw["kind"]?.toString()) {
-        "action" -> {
-            val action = raw["action"] as? Map<String, Any>
-                ?: throw IllegalArgumentException("Step kind 'action' missing 'action' map: $raw")
-            ActionParser.parse(action)
-        }
-        "if" -> {
-            val cases = (raw["cases"] as? List<*>).orEmpty().map { case ->
-                val m = case as Map<String, Any>
-                IfCase(
-                    conditions = (m["conditions"] as? List<*>).orEmpty()
-                        .map { ConditionParser.parse(it as Map<String, Any>) },
-                    joins = (m["joins"] as? List<*>).orEmpty().map { it.toString() },
-                    steps = parseAll((m["steps"] as? List<*>).orEmpty().map { it as Map<String, Any> }),
-                )
-            }
-            val elseSteps = parseAll((raw["else"] as? List<*>).orEmpty().map { it as Map<String, Any> })
-            Step.IfStep(cases, elseSteps)
-        }
-        else -> throw IllegalArgumentException("Unknown step kind: $kind")
-    }
-}
