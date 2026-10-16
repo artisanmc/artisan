@@ -814,6 +814,8 @@ export default {
     newDialogDialogTitle: "New dialog",
     newMenuDialogTitle: "New menu",
     newCommandDialogTitle: "New command",
+    idPreviewLabel: "Id:",
+    idConflict: "This id is already used by another document of the project.",
     cancel: "Cancel",
     create: "Create",
     modeSelect: "Select",

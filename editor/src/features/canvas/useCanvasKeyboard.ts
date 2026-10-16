@@ -1,4 +1,6 @@
+import { commandsOf, menusOf } from "@/domain/documents";
 import type { Command, Element, ElementId, Menu, MenuId, ProjectId } from "@/domain/types";
+import { isTypingTarget } from "@/lib/keyboard";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
@@ -14,7 +16,6 @@ import {
   writeClipboard,
 } from "./clipboard";
 import { positionCount } from "./inventoryTypes";
-import { commandsOf, menusOf } from "@/domain/documents";
 
 /**
  * Locate an element by id within a project and return enough context
@@ -37,13 +38,6 @@ const findElement = (
     }
   }
   return null;
-};
-
-const isEditableTarget = (target: EventTarget | null) => {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
 };
 
 export const findSelectedEntities = (
@@ -308,7 +302,7 @@ export function useCanvasKeyboard({
 }: UseCanvasKeyboardArgs): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return;
+      if (isTypingTarget(e.target)) return;
 
       const cmdOrCtrl = e.ctrlKey || e.metaKey;
 

@@ -8,6 +8,7 @@ import { ImageButtonLibrary } from "@/features/canvas/ImageButtonLibrary";
 import { Library } from "@/features/canvas/Library";
 import { useTextureInit } from "@/features/canvas/useTextureInit";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
+import { isTypingTarget } from "@/lib/keyboard";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -89,8 +90,7 @@ export function ProjectLibraryWorkspace({
     if (!open || !active) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
-      const target = event.target as HTMLElement | null;
-      if (target?.matches?.("input, textarea, select") || target?.isContentEditable) return;
+      if (isTypingTarget(event.target)) return;
       if (document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]')) return;
       event.preventDefault();
       event.stopPropagation();

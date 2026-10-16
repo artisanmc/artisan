@@ -17,6 +17,7 @@ Konva.dragButtons = [0];
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { dismissInspector, openProjectSettings } from "@/features/project/projectSettings";
+import { isTypingTarget } from "@/lib/keyboard";
 import { useTranslation } from "react-i18next";
 import { Stage as KonvaStage, Layer, Text } from "react-konva";
 import { toast } from "sonner";
@@ -111,18 +112,13 @@ function StageCanvas({ projectId, focus }: StageProps) {
   // (useNodeAlignment) — different target, no conflict.
   const [altHeld, setAltHeld] = useState(false);
   useEffect(() => {
-    const isEditable = (el: EventTarget | null) => {
-      const n = el as HTMLElement | null;
-      const tag = n?.tagName;
-      return tag === "INPUT" || tag === "TEXTAREA" || !!n?.isContentEditable;
-    };
     const down = (e: KeyboardEvent) => {
       if (e.repeat) return;
-      if (e.code === "Space" && !isEditable(e.target)) {
+      if (e.code === "Space" && !isTypingTarget(e.target)) {
         e.preventDefault();
         setSpaceHeld(true);
       }
-      if (e.key === "Alt" && !isEditable(e.target)) {
+      if (e.key === "Alt" && !isTypingTarget(e.target)) {
         e.preventDefault();
         setAltHeld(true);
       }
