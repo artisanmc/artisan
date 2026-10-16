@@ -3,7 +3,7 @@ import type { Command, CommandArg, CommandId, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CommandStepPseudocode } from "../chain/PseudocodeView";
+import { ActionChainEditor } from "../chain/StepTree";
 import { FieldLabel, Lane } from "../layout";
 import { ActionScopeProvider } from "../properties/ActionEditor";
 import { AliasesField } from "../properties/AliasesField";
@@ -139,12 +139,13 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
                 {/* Args declared above are referenceable as {name} in any text
                     field of the actions inside this step tree. */}
                 <ActionScopeProvider value={commandScope}>
-                  <CommandStepPseudocode
-                    projectId={projectId}
-                    commandId={command.id}
-                    steps={command.steps}
-                    frames={[]}
-                  />
+                  <div className="font-mono text-[12px]">
+                    <ActionChainEditor
+                      projectId={projectId}
+                      address={{ kind: "command", commandId: command.id }}
+                      steps={command.steps}
+                    />
+                  </div>
                 </ActionScopeProvider>
               </div>
             </Lane>

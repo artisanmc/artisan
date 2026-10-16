@@ -7,7 +7,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DialogButtonStepPseudocode } from "../chain/PseudocodeView";
+import { ActionChainEditor } from "../chain/StepTree";
 import { FieldLabel, Lane } from "../layout";
 
 function DialogIdField({ projectId, dialogId }: { projectId: ProjectId; dialogId: DialogId }) {
@@ -429,13 +429,13 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                   ) : null}
                 </div>
                 <div className="overflow-x-auto rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2">
-                  <DialogButtonStepPseudocode
-                    projectId={projectId}
-                    dialogId={dialog.id}
-                    buttonIndex={btnIndex}
-                    steps={btn.steps}
-                    frames={[]}
-                  />
+                  <div className="font-mono text-[12px]">
+                    <ActionChainEditor
+                      projectId={projectId}
+                      address={{ kind: "dialogButton", dialogId: dialog.id, buttonIndex: btnIndex }}
+                      steps={btn.steps}
+                    />
+                  </div>
                 </div>
               </div>
             ))}

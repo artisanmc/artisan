@@ -43,7 +43,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Wand2 } from "lucide-react";
 import { type CSSProperties, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ElementClickHandlersPseudocode } from "../chain/PseudocodeView";
+import { ElementClickHandlers } from "../chain/ElementClickHandlers";
 import { conditionsSummary } from "../chain/labels";
 import { FieldLabel } from "../layout";
 import { ConditionListEditor } from "../properties/ConditionListEditor";
@@ -677,7 +677,7 @@ function StateCard({
           ownership is obvious (these handlers belong to *this* state). */}
           <div className="mt-1">
             <FieldLabel>{t("flow.clickHandlers")}</FieldLabel>
-            <ElementClickHandlersPseudocode
+            <ElementClickHandlers
               projectId={projectId}
               menuId={menu.id}
               elementId={element.id}
