@@ -1,5 +1,7 @@
 package net.artisanmc.plugin.render
 
+import net.artisanmc.plugin.session.MenuSlots
+import net.artisanmc.plugin.session.PlayerInventoryMode
 import net.artisanmc.plugin.model.ElementYaml
 import net.artisanmc.plugin.model.ImageButtonYaml
 import net.artisanmc.plugin.model.MenuYaml

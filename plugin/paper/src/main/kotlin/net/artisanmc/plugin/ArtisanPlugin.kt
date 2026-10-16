@@ -17,7 +17,7 @@ import net.artisanmc.plugin.command.ArtisanCommand
 import net.artisanmc.plugin.config.PluginConfig
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.lang.LangManager
-import net.artisanmc.plugin.provider.MenuProvider
+import net.artisanmc.plugin.engine.MenuProvider
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import com.github.retrooper.packetevents.PacketEvents
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder

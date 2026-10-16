@@ -34,7 +34,7 @@ internal class RuntimeAssembly(
     private val serverConfigAccess get() = plugin.serverConfigAccess
     private val editorChannel get() = editorHost.editorChannel
     private val serverId get() = suite.serverId
-    private var menuProvider: net.artisanmc.plugin.provider.MenuProvider
+    private var menuProvider: net.artisanmc.plugin.engine.MenuProvider
         get() = plugin.menuProvider
         set(value) { plugin.menuProvider = value }
     private var capturedItems: net.artisanmc.plugin.items.CapturedItemStore
