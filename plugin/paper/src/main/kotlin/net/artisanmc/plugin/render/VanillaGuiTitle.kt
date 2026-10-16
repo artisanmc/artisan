@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.render
 
+import net.artisanmc.plugin.resourcepack.ContainerTexture
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -12,8 +13,6 @@ import org.bukkit.event.player.PlayerQuitEvent
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-/** Vanilla container texture a pack can make transparent (cf. editor/src/lib/pack/vanillaGui.ts). */
-enum class ContainerTexture { CHEST, HOPPER, DISPENSER }
 
 /**
  * Vanilla container textures drawn through the window title.

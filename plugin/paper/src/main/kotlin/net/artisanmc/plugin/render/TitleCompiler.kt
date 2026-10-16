@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.render
 
+import net.artisanmc.plugin.text.LenientText
 import net.artisanmc.plugin.model.LText
 import net.artisanmc.plugin.model.MenuTitleLayer
 import net.artisanmc.plugin.resourcepack.AssetEntry

@@ -5,7 +5,7 @@ import net.artisanmc.plugin.command.CommandRegistrar
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.model.*
-import net.artisanmc.plugin.provider.MenuProvider
+import net.artisanmc.plugin.engine.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
 
