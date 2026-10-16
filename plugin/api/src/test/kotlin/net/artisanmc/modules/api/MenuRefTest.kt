@@ -3,6 +3,7 @@ package net.artisanmc.modules.api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import net.artisanmc.modules.api.menu.MenuRef
 
 class MenuRefTest {
     @Test

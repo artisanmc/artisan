@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import net.artisanmc.modules.api.DataSourceDeclaration
-import net.artisanmc.modules.api.DataSourceRegistry
-import net.artisanmc.modules.api.Stability
+import net.artisanmc.modules.api.datasource.DataSourceDeclaration
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.Stability
 import net.artisanmc.plugin.engine.BundleCompiler
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.model.MenuYaml

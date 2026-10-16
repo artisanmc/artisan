@@ -51,7 +51,7 @@ class SyncedMenuProvider(
     private val lookupAsset: (String) -> AssetEntry? = { null },
     private val offsetEncoderProvider: () -> net.artisanmc.plugin.render.OffsetEncoder = { net.artisanmc.plugin.render.OffsetEncoder.EMPTY },
     private val installedModules: () -> List<Map<String, String>> = { emptyList() },
-    private val dataSources: net.artisanmc.modules.api.DataSourceRegistry? = null,
+    private val dataSources: net.artisanmc.modules.api.datasource.DataSourceRegistry? = null,
     private val dataSourcesReport: () -> List<Map<String, Any?>> = { emptyList() },
     /** Module-declared model/v1 documents, reported verbatim at Presence. */
     private val declaredModelsReport: () -> List<Map<String, Any?>> = { emptyList() },
@@ -296,8 +296,8 @@ class SyncedMenuProvider(
         }
         // This menu's clicks resolve in ITS project, not in the one we came from.
         val opened = ctx.copy(projectId = menu.projectId.ifEmpty { null } ?: ctx.projectId)
-        val ref = net.artisanmc.modules.api.MenuRef(opened.projectId, menu.id)
-        if (menuEvents?.open(net.artisanmc.modules.api.MenuOpenEvent(player, ref, ctx.navigationArgs)) == false) return
+        val ref = net.artisanmc.modules.api.menu.MenuRef(opened.projectId, menu.id)
+        if (menuEvents?.open(net.artisanmc.modules.api.menu.MenuOpenEvent(player, ref, ctx.navigationArgs)) == false) return
         history?.setCurrent(
             player,
             net.artisanmc.plugin.engine.NavigationEntry(
