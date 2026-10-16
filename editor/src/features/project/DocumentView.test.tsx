@@ -1,5 +1,5 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,9 +24,8 @@ const PID = "p1" as ProjectId;
 beforeEach(() => {
   navigate.mockClear();
   useSelectionStore.getState().clear();
-  useAccountStore.setState({
-    account: {
-      id: "a" as any,
+  useProjectsStore.setState({
+    openProjects: {
       projectOrder: [PID],
       projects: [
         {
@@ -69,15 +68,15 @@ beforeEach(() => {
 
 describe("DocumentView", () => {
   it("uses the parent anchor when another cached project has the same public folder ID", () => {
-    const account = useAccountStore.getState().account;
-    const own = { ...account.projects[0]!, diskId: "shared", serverKeyId: "s1" };
+    const openProjects = useProjectsStore.getState().openProjects;
+    const own = { ...openProjects.projects[0]!, diskId: "shared", serverKeyId: "s1" };
     const other = {
       ...own,
       id: "shared" as ProjectId,
       serverKeyId: "s2",
       documents: { menu: [], command: [] },
     };
-    useAccountStore.setState({ account: { ...account, projects: [other, own] } });
+    useProjectsStore.setState({ openProjects: { ...openProjects, projects: [other, own] } });
     render(
       <ResolvedProjectContext.Provider value={PID}>
         <DocumentView projectId={"shared" as ProjectId} documentId={"m1" as any} />

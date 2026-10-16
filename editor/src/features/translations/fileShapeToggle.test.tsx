@@ -1,13 +1,14 @@
 import { projectId } from "@/domain/ids";
-import { mockAccount } from "@/mock/fixtures";
-import { useAccountStore } from "@/state/accountStore";
+import { mockOpenProjects } from "@/mock/fixtures";
+import { useProjectsStore } from "@/state/projectsStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TranslationPanelContent } from "./TranslationPanel";
 
 const PERSONAL = projectId("p_personal");
 
-const project = () => useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+const project = () =>
+  useProjectsStore.getState().openProjects.projects.find((p) => p.id === PERSONAL)!;
 
 /** The two segmented buttons that choose how texts are written on disk. */
 const shapeButtons = () => ({
@@ -18,7 +19,7 @@ const shapeButtons = () => ({
 describe("Translations panel — file shape toggle", () => {
   beforeEach(() => {
     localStorage.clear();
-    useAccountStore.setState({ account: mockAccount() });
+    useProjectsStore.setState({ openProjects: mockOpenProjects() });
     vi.restoreAllMocks();
   });
 

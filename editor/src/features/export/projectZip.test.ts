@@ -123,7 +123,9 @@ describe("readProjectZip", () => {
     const zip = new JSZip();
     zip.file("shop/manifest.yaml", MANIFEST);
     zip.file("shop/assets/icon.png", new Uint8Array([137, 80, 78, 71, 0, 255]));
-    expect((await readProjectZip(await zip.generateAsync({ type: "blob" })))["shop/assets/icon.png"]).toEqual(new Uint8Array([137, 80, 78, 71, 0, 255]));
+    expect(
+      (await readProjectZip(await zip.generateAsync({ type: "blob" })))["shop/assets/icon.png"],
+    ).toEqual(new Uint8Array([137, 80, 78, 71, 0, 255]));
   });
   it("round-trips a zip built by the exporter", async () => {
     const blob = await buildZip({

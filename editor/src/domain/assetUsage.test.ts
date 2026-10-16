@@ -1,8 +1,8 @@
+import { menusOf } from "@/domain/documents";
 import { describe, expect, it } from "vitest";
 import type { Asset } from "./asset";
 import { assetMenuReferences, assetUsages } from "./assetUsage";
 import type { Project } from "./types";
-import { menusOf } from "@/domain/documents";
 
 const asset = { id: "image", projectId: "p", type: "glyph" } as Asset;
 const project = {

@@ -5,7 +5,7 @@ import { assetMenuReferences, assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { deleteAsset, patchAsset } from "@/lib/api/userAssets";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetUsageFields } from "./AssetUsageFields";
@@ -14,8 +14,8 @@ import { useAssetStore } from "./assetStore";
 export function AssetDetailPanel({ projectId }: { projectId: ProjectId }) {
   const inputId = useId();
   const { t } = useTranslation();
-  const project = useAccountStore((s) =>
-    s.account.projects.find((entry) => entry.id === projectId),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((entry) => entry.id === projectId),
   );
   const user = useProjectPrincipalId(projectId);
   const selectedId = useAssetStore((s) => s.selectedId);

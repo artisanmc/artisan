@@ -1,18 +1,18 @@
-import { mockAccount } from "@/mock/fixtures";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { useProjectRuntimeStore } from "@/state/projectRuntimeStore";
 import { cleanup, render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ProjectProperties } from "./ProjectProperties";
 
-vi.mock("@/features/account/DeleteProjectDialog", () => ({ DeleteProjectDialog: () => null }));
+vi.mock("@/features/project/DeleteProjectDialog", () => ({ DeleteProjectDialog: () => null }));
 beforeEach(async () => {
   await i18n.changeLanguage("en");
 });
 afterEach(cleanup);
 
 it("shows the current folder ID instead of the immutable anchor after rename", () => {
-  const project = mockAccount().projects[0]!;
+  const project = mockOpenProjects().projects[0]!;
   project.diskId = "principal";
   project.name = "Mon projet";
   render(<ProjectProperties project={project} />);
@@ -21,7 +21,7 @@ it("shows the current folder ID instead of the immutable anchor after rename", (
 });
 
 it("offers to edit the ID next to it when the server allows renaming", () => {
-  const project = mockAccount().projects[0]!;
+  const project = mockOpenProjects().projects[0]!;
   useProjectRuntimeStore.getState().set({
     projectId: project.id,
     serverId: "server",
@@ -35,6 +35,6 @@ it("offers to edit the ID next to it when the server allows renaming", () => {
 });
 
 it("hides the ID edit without the rename capability", () => {
-  render(<ProjectProperties project={mockAccount().projects[0]!} />);
+  render(<ProjectProperties project={mockOpenProjects().projects[0]!} />);
   expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
 });

@@ -6,11 +6,11 @@ import type {
   Project,
   SourceRef,
 } from "@/domain/types";
+import { useUiStore } from "@/state/uiStore";
 import { registerModule } from "@artisan/editor-sdk";
 import { afterEach, describe, expect, it } from "vitest";
-import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
 import boutiqueModule from "../../../packages/boutique-editor/src";
-import { useUiStore } from "@/state/uiStore";
+import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
 import { buildPreviewScope, renderPreview, resolveSourceRef } from "./menuPreviewScope";
 
 const stubProject = (overrides: Partial<Project> = {}): Project =>
@@ -109,7 +109,7 @@ describe("resolveSourceRef — module-local rows (authoring-time)", () => {
   });
 
   it("probes sibling projects: module data in ANOTHER project still resolves (plugin merges across projects)", async () => {
-    const { useAccountStore } = await import("@/state/accountStore");
+    const { useProjectsStore } = await import("@/state/projectsStore");
     registerModule({
       id: "boutique",
       displayName: "Boutique",
@@ -127,8 +127,8 @@ describe("resolveSourceRef — module-local rows (authoring-time)", () => {
       id: "p_shop" as Project["id"],
       moduleData: { boutique: { wholeShopDiscount: 0, categories: [] } },
     } as Partial<Project>);
-    useAccountStore.setState({
-      account: { id: "acc" as never, projects: [current, sibling], projectOrder: [] },
+    useProjectsStore.setState({
+      openProjects: { projects: [current, sibling], projectOrder: [] },
     } as never);
 
     const snapshots = { "boutique:items": [{ id: "stale_server" }] };

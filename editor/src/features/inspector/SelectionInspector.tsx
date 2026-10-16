@@ -1,8 +1,8 @@
 import { documentsOf, menusOf } from "@/domain/documents";
 import type { Command, Dialog, Menu, ProjectId } from "@/domain/types";
 import { selectionContext } from "@/features/project/selectionContext";
-import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useEffect } from "react";
@@ -33,7 +33,7 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
   const { t } = useTranslation();
   const ids = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const setSub = useFlowSelectionStore((s) => s.set);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ids change is the trigger

@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { Switch } from "@/components/ui/switch";
 import type { Menu, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 
 /**
  * First, fixed row of the composed title: the vanilla container texture. Off
@@ -11,7 +11,7 @@ import { useAccountStore } from "@/state/accountStore";
  */
 export function VanillaTextureLayer({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
   const { t } = useTranslation();
-  const setMenuField = useAccountStore((s) => s.setMenuField);
+  const setMenuField = useProjectsStore((s) => s.setMenuField);
   const on = menu.vanillaTexture !== false;
 
   return (

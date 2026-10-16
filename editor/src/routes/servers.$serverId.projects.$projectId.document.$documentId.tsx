@@ -1,6 +1,6 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
 import type { ElementId, ProjectId } from "@/domain/types";
 import { DocumentView } from "@/features/project/DocumentView";
+import { createFileRoute, useParams } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/servers/$serverId/projects/$projectId/document/$documentId")(
   { component: DocumentRoute },
