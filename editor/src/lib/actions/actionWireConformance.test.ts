@@ -32,7 +32,8 @@ const codec: ActionTextCodec = {
 const canonicalize = (wire: unknown) => stepsToStructured(structuredToSteps(wire, codec), codec);
 
 /** The wire name of each top-level step: an action's key, or `if`. */
-const names = (steps: Step[]): string[] => steps.map((s) => (s.kind === "if" ? "if" : s.action.name));
+const names = (steps: Step[]): string[] =>
+  steps.map((s) => (s.kind === "if" ? "if" : s.action.name));
 
 describe("action wire — shared vector with the plugin", () => {
   for (const c of vector.cases) {

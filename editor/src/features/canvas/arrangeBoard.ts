@@ -1,6 +1,6 @@
+import { documentKindDef, isDocumentKind } from "@/domain/documentKinds";
 import { graphlib, layout } from "@dagrejs/dagre";
 import type { DocumentKind } from "./serverGraph";
-import { documentKindDef, isDocumentKind } from "@/domain/documentKinds";
 
 /**
  * Arrangement strategy:

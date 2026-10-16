@@ -1,6 +1,6 @@
 import type { MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { type RefObject, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { hitTestSlot, screenToWorld } from "./hitTest";
@@ -61,7 +61,7 @@ export function useStageDropTargets({
       const hit = slotAtClient(wrapper, project, layout, viewport, clientX, clientY, true);
       if (!hit) return false;
       try {
-        useAccountStore.getState().setSlotMaterial({
+        useProjectsStore.getState().setSlotMaterial({
           projectId,
           menuId: hit.menuId as MenuId,
           position: hit.position,

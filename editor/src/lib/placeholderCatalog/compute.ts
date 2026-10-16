@@ -1,14 +1,14 @@
-import type { FieldType, Menu, Project } from "@/domain/types";
 import { sourceFieldType } from "@/domain/dataModels";
+import { commandsOf, menusOf } from "@/domain/documents";
+import type { FieldType, Menu, Project } from "@/domain/types";
 import {
-  buildPreviewScope,
   SAMPLE_PLAYER_NAME,
   SAMPLE_PLAYER_UUID,
   SAMPLE_PLAYER_WORLD,
+  buildPreviewScope,
 } from "@/features/canvas/menuPreviewScope";
 import { renderSample, walkPath } from "./sample";
 import type { FieldLocation, PlaceholderEntry, PlaceholderOrigin, PlaceholderType } from "./types";
-import { commandsOf, menusOf } from "@/domain/documents";
 
 const ORDER: Record<PlaceholderOrigin, number> = {
   context: 0,

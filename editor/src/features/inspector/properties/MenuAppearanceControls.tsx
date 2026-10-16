@@ -3,7 +3,7 @@ import type { Asset } from "@/domain/asset";
 import { menusOf } from "@/domain/documents";
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { ImagePlus } from "lucide-react";
 import { useState } from "react";
@@ -14,8 +14,8 @@ export function MenuAppearanceControls({
   menuId,
 }: { projectId: ProjectId; menuId: MenuId }) {
   const { t } = useTranslation();
-  const menu = useAccountStore((state) =>
-    menusOf(state.account.projects.find((project) => project.id === projectId)).find(
+  const menu = useProjectsStore((state) =>
+    menusOf(state.openProjects.projects.find((project) => project.id === projectId)).find(
       (entry) => entry.id === menuId,
     ),
   );
@@ -29,7 +29,7 @@ export function MenuAppearanceControls({
     );
     const index = layers.length;
     layers.push({ kind: "glyph", assetId: asset.id as AssetId, x: 0, y: 0 });
-    useAccountStore.getState().setMenuTitleLayers({ projectId, menuId, layers });
+    useProjectsStore.getState().setMenuTitleLayers({ projectId, menuId, layers });
     const ui = useUiStore.getState();
     ui.setSelectedLayerKey({ menuId, index });
     setPicking(false);

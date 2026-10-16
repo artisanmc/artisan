@@ -1,12 +1,12 @@
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { RevealField } from "@/components/RevealField";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
+import { menusOf } from "@/domain/documents";
 import type { MenuId, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useTextEdit } from "@/lib/useText";
-import { useAccountStore } from "@/state/accountStore";
-import { menusOf } from "@/domain/documents";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 interface PlainTitleFormProps {
   projectId: ProjectId;
@@ -19,9 +19,9 @@ interface PlainTitleFormProps {
  */
 export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const menu = menusOf(project).find((m) => m.id === menuId);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const placeholderLocation = useMemo(() => ({ kind: "menu" as const, menuId }), [menuId]);
   const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 

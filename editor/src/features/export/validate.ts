@@ -1,8 +1,8 @@
+import { menusOf } from "@/domain/documents";
 import { visitProjectLTexts } from "@/domain/i18nSites";
 import { assertImageButtonPlacement, hasImageButton } from "@/domain/imageButton";
 import type { I18nKey, Project } from "@/domain/types";
 import { isTranslationMissing, listLanguages } from "@/lib/i18nUsages";
-import { menusOf } from "@/domain/documents";
 
 export interface ValidationResult {
   valid: boolean;

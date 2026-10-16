@@ -1,7 +1,7 @@
 import type { DataSource, DataSourceId, Project } from "@/domain/types";
 import { resolveScreen } from "@/features/screens/screenList";
 import { urlServerId } from "@/lib/urlIds";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { Link } from "@tanstack/react-router";
@@ -24,11 +24,11 @@ export function DataSourcesSidebar({
   onSelectServerRef,
 }: DataSourcesSidebarProps) {
   const { t } = useTranslation();
-  const addProjectDataSource = useAccountStore((s) => s.addProjectDataSource);
+  const addProjectDataSource = useProjectsStore((s) => s.addProjectDataSource);
   const declaredScreens = useServerScreensStore((s) => s.screens);
   const serverId = useServersStore((s) => s.activeServerId);
   const servers = useServersStore((s) => s.servers);
-  const localProjects = useAccountStore((s) => s.account.projects);
+  const localProjects = useProjectsStore((s) => s.openProjects.projects);
 
   // A source with a module-declared model is edited in the module's screen, not
   // here (ADR module-config-screens) — whatever its shape: a Config typed by a

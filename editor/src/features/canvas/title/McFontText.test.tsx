@@ -1,6 +1,6 @@
+import type { Asset } from "@/domain/asset";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Asset } from "@/domain/asset";
 import { McFontText } from "./McFontText";
 
 // Render react-konva primitives as plain divs so jsdom can introspect them

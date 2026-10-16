@@ -1,11 +1,11 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { beforeEach, describe, expect, it } from "vitest";
 import { pinPlacementRow } from "./placementDrop";
-import { menusOf } from "@/domain/documents";
 
 const PID = "p1" as ProjectId;
 const MID = "m1" as MenuId;
@@ -56,13 +56,14 @@ function makeProject(): Project {
 }
 
 function currentPlaces() {
-  const el = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements[0]!;
+  const el = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!
+    .elements[0]!;
   return el.places!;
 }
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: { id: "acc" as never, projects: [makeProject()], projectOrder: [PID] },
+  useProjectsStore.setState({
+    openProjects: { projects: [makeProject()], projectOrder: [PID] },
   } as never);
   useUiStore.setState({ activeLang: "en" } as never);
   usePaginationStore.setState({ pageByElement: {} } as never);
@@ -84,7 +85,7 @@ describe("pinPlacementRow", () => {
   });
 
   it("re-pinning the same row moves it (upsert by key, single entry)", () => {
-    useAccountStore.getState().setElementPlacement({
+    useProjectsStore.getState().setElementPlacement({
       projectId: PID,
       menuId: MID,
       elementId: EID,
@@ -98,7 +99,7 @@ describe("pinPlacementRow", () => {
   });
 
   it("is a no-op when the element is not in placement mode", () => {
-    useAccountStore.getState().setElementPlaces({
+    useProjectsStore.getState().setElementPlaces({
       projectId: PID,
       menuId: MID,
       elementId: EID,
@@ -106,7 +107,8 @@ describe("pinPlacementRow", () => {
     });
     pinPlacementRow({ projectId: PID, menuId: MID, elementId: EID, key: "sword", position: 4 });
     expect(
-      menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements[0]!.places,
+      menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!.elements[0]!
+        .places,
     ).toBeUndefined();
   });
 });

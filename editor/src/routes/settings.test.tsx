@@ -1,12 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
     useNavigate: () => vi.fn(),
-    Link: ({ children, ...rest }: { children: React.ReactNode } & Record<string, unknown>) => <a {...(rest as any)}>{children}</a>,
+    Link: ({ children, ...rest }: { children: React.ReactNode } & Record<string, unknown>) => (
+      <a {...(rest as any)}>{children}</a>
+    ),
   };
 });
 
