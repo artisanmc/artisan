@@ -29,6 +29,8 @@ interface EditorServer {
     fun screens(): List<Map<String, Any?>>
     /** Registered actions, core and modules': `{name, args, primary?, module_id?}` (ADR extensible-document-kinds). */
     fun actions(): List<Map<String, Any?>> = emptyList()
+    /** Registered Document kinds, core and modules': `{kind, dir, schema_versions, id_prefix?, module_id?}` (W6). */
+    fun documentKinds(): List<Map<String, Any?>> = emptyList()
     fun serverConfig(): Map<String, Any?>?
     /** Nexo, Oraxen, ItemsAdder items: `{id, label, category}`. */
     fun customItems(): List<Map<String, String>>

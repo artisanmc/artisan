@@ -12,6 +12,7 @@ import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
 import { useAccountStore } from "@/state/accountStore";
+import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution, listDocumentKindContributions } from "@artisan/editor-sdk";
 import type { TFunction } from "i18next";
@@ -186,6 +187,7 @@ export function DocumentGroups({
 }) {
   const { t } = useTranslation();
   const activeLang = useUiStore((s) => s.activeLang);
+  const serverKinds = useServerDocumentKindsStore();
   return (
     <>
       {buildProjectDocuments(project, activeLang).map((g) => {
@@ -194,11 +196,27 @@ export function DocumentGroups({
         // nothing more than the header and ate the width.
         const Icon = typeIcon(g.type);
         const label = typeLabel(g.type, t);
+        // A module's kind the active server does not register: its files are not
+        // read back there (W6). The core kinds are always read.
+        const notSynced = !isCoreDocumentType(g.type) && !isKindSyncedOn(serverKinds, g.type);
+        const notSyncedHint = notSynced
+          ? t("projectPanel.kindNotSynced", { kind: label })
+          : undefined;
         return (
           <div key={g.type} className="flex flex-col">
-            <div className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]">
+            <div
+              className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]"
+              title={notSyncedHint}
+            >
               <Icon className="size-3 shrink-0" aria-hidden />
               <span>{label}</span>
+              {notSynced && (
+                <span
+                  role="img"
+                  aria-label={notSyncedHint}
+                  className="size-1.5 shrink-0 rounded-full bg-[var(--warning)]"
+                />
+              )}
             </div>
             <ul aria-label={label} className="flex flex-col">
               {g.items.map((it) => (

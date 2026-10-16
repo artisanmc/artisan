@@ -19,6 +19,7 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         }
         on(router, "GET", "screens", VIEW) { call, server -> call.json(mapOf("screens" to server.screens())) }
         on(router, "GET", "actions", VIEW) { call, server -> call.json(mapOf("actions" to server.actions())) }
+        on(router, "GET", "document-kinds", VIEW) { call, server -> call.json(mapOf("document_kinds" to server.documentKinds())) }
 
         on(router, "GET", "server-config", VIEW) { call, server -> call.json(mapOf("config" to server.serverConfig(), "online" to server.online)) }
         on(router, "PATCH", "server-config", CONFIG) { call, server ->
