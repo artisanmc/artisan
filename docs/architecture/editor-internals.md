@@ -142,6 +142,16 @@ disk files and per-file choices, the last failure), tested without React;
 file, the `OPEN_DEPLOY_REVIEW` event of the History tab); `SaveControls` and
 `ConflictResolutionDialog` only render. A new conflict always starts with no choice.
 
+## Page du workspace (`features/project/ProjectCanvasPage.tsx`)
+
+La page ne garde que le chargement (`useProjectLoader`) et la mise en page (topbar, canvas,
+vues secondaires `?tab=`). Le reste est nommé : `WorkspaceGate` (hydratation auth, redirection
+login, échec de chargement, squelette — via `projectLoadStatus`), `useProjectDeepLinks` (`?doc=`,
+id canonique du dossier, renommage, ouverture d'un Document depuis la planche),
+`useActiveLangFallback`, `useWorkspaceDnd` (capteurs + callbacks du `DndContext`) au-dessus du
+décodage pur `workspaceDrop.ts` (`dragStartMaterial`, `decodeDragEnd` → `WorkspaceDrop`), et
+`WorkspaceDragOverlay`.
+
 ## Tests et CI
 
 La sélection d'un élément est résolue dans son menu propriétaire avant toute recherche de commande, dialogue ou menu portant le même ID. Les nœuds de ces entités ignorent une sélection scoped pour leur surbrillance ; un clic sur le nœud réinitialise ce scope. Un élément scoped disparu reste inconnu, sans sélectionner une autre entité homonyme.
@@ -657,7 +667,7 @@ Le clic dépend du mode, via la prop optionnelle `onOpen` : sur la **planche**, 
 
 `features/project/goToDocument.ts` est la **seule** façon d'aller à un Document depuis l'arbre (gauche et droite), la palette ⌘K et la planche générale. Dans le project courant, il **reste sur la planche** : sélection du Document (l'inspecteur s'ouvre), puis `uiStore.requestCenter(projectId, docId)` et retour à la planche (on quitte la vue focus ou un onglet). Le `Stage` de la planche consomme la demande (`viewportForCenterRequest` → `centerViewport`, même cadrage que `fitViewport` mais à la position du Document, jamais au-delà de 1:1) dès qu'il a une taille et que le Document est placé, puis l'efface ; le `nonce` fait qu'un second clic sur le même Document recentre. `centerRequest` est éphémère (hors `partialize`).
 
-Vers un autre project (référence qualifiée `boutique:main`, arbre d'un autre project, planche générale), la navigation passe par le **lien profond `?doc=<id>`** (`ProjectSearch.doc`) : `ProjectCanvasPage` le transforme en `goToDocument` une fois le project chargé, ce qui retire le paramètre de l'URL.
+Vers un autre project (référence qualifiée `boutique:main`, arbre d'un autre project, planche générale), la navigation passe par le **lien profond `?doc=<id>`** (`ProjectSearch.doc`) : `ProjectCanvasPage` (hook `useProjectDeepLinks`) le transforme en `goToDocument` une fois le project chargé, ce qui retire le paramètre de l'URL.
 
 ### Entrées dans la vue individuelle
 

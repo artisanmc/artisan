@@ -1,7 +1,7 @@
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { validateProjectSearch } from "./ProjectWorkspace";
+import { validateProjectSearch } from "./ProjectCanvasPage";
 import { goToDocument } from "./goToDocument";
 
 const navigate = vi.fn();
