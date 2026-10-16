@@ -84,7 +84,7 @@ object MenuRenderer {
         val fetch: ((String, Map<String, Any?>) -> Any?)? =
             if (dataSources == null && projectData == null) null
             else { ref, params ->
-                if (projectData != null && projectData.canResolve(ref)) projectData.resolve(ref, lang)
+                if (projectData != null && projectData.canResolve(ref)) projectData.resolve(ref, lang, menu.projectId)
                 else dataSources?.fetch(ref, player, params)
             }
         val boundArgs = ContextBinder.bind(menu.yaml, ctx.args, fetch, Bukkit.getLogger())
