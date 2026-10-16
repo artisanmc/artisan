@@ -2,7 +2,7 @@ import { DIALOG_KIND } from "@/domain/documentKinds";
 import { dialogChainSlots, visitDialogLTexts } from "@/domain/i18nSites";
 import type { Dialog, DialogId, I18nKey, Project, ProjectId } from "@/domain/types";
 import { serializeDialog } from "@/features/export/transform";
-import { DialogEditor } from "@/features/flow/FlowCanvas";
+import { DialogEditor } from "@/features/inspector/dialog/DialogEditor";
 import { getText } from "@/lib/i18n";
 import { dialogV1ToDomain } from "@/schema/dialogV1ToDomain";
 import type { DocumentParseOpts } from "@/schema/documentCodecs";

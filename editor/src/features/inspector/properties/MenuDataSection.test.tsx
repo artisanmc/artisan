@@ -1,3 +1,4 @@
+import { menusOf } from "@/domain/documents";
 import type { ContextInput, Menu, SourceRef } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
@@ -7,7 +8,6 @@ import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { MenuSetBlock, extractArgTokens } from "./MenuDataSection";
-import { menusOf } from "@/domain/documents";
 
 const sourceInput: Extract<ContextInput, { kind: "sourceRef" }> = {
   kind: "sourceRef",

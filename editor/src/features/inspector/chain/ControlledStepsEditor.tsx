@@ -1,12 +1,12 @@
+import { menusOf } from "@/domain/documents";
 import type { StepFrame } from "@/domain/stepPath";
 import { resolveParentMut } from "@/domain/stepPath";
 import type { ProjectId, Step } from "@/domain/types";
+import { useAccountStore } from "@/state/accountStore";
 import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { produce } from "immer";
-import { useAccountStore } from "@/state/accountStore";
 import { ActionLine, AddStepLine, IfBlock, SortableStep, useStepIds } from "./PseudocodeView";
-import { menusOf } from "@/domain/documents";
 
 /**
  * CONTROLLED pseudocode step editor — `value: Step[]` + `onChange`, no store

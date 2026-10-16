@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import type { Asset } from "@/domain/asset";
+import { menusOf } from "@/domain/documents";
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { useAccountStore } from "@/state/accountStore";
@@ -7,7 +8,6 @@ import { useUiStore } from "@/state/uiStore";
 import { ImagePlus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { menusOf } from "@/domain/documents";
 
 export function MenuAppearanceControls({
   projectId,

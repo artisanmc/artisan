@@ -246,7 +246,7 @@ Conteneur observe sa taille via `ResizeObserver`. À l'intérieur : un `<Stage>`
 
 `<Tabs>` plein-hauteur. TabsList en haut, hauteur 36 px, `flex items-center gap-5 border-b border-zinc-800 px-3`. Indicateur d'onglet actif = soulignement emerald-500.
 
-### 9.1 Onglet **Edit** → `FlowCanvas`
+### 9.1 Onglet **Edit** → `SelectionInspector`
 
 Éditeur de propriétés unifié qui route selon la sélection actuelle :
 
@@ -489,7 +489,7 @@ Tous dans `editor/src/components/ui/`.
 
 **Title composer (`features/canvas/title/composer/`)** : `LayersPanel`, `LayerListItem`, `LayerEditForm`, `AddLayerControls`, `ResizeHandles`, `WidthResizeHandle`, `TextSizeSelector`, `TitleRender`, `PlainTitleForm`.
 
-**EditorPane** : `FlowCanvas`, `ProjectProperties`, `MenuProperties`, `ElementEditor`, `CommandEditor`, `DialogEditor`, `Library`, `ItemTile`, `MaterialPicker`, `LibraryDragOverlay`, `LibraryDragGhost`.
+**EditorPane** : `SelectionInspector`, `ProjectProperties`, `MenuProperties`, `ElementEditor`, `CommandEditor`, `DialogEditor`, `Library`, `ItemTile`, `MaterialPicker`, `LibraryDragOverlay`, `LibraryDragGhost`.
 
 **Assets (`features/assets/`)** : `AssetsTab`, `AssetGrid`, `AssetDetailPanel`, `AssetUploadDialog`, `AssetImportFontDialog`.
 
