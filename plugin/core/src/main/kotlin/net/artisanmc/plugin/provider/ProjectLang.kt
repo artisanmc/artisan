@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.provider
 
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeProject
 
 /**
  * A project's translation table, for an execution with no menu or dialog in
@@ -11,11 +11,11 @@ import net.artisanmc.plugin.model.ProjectBundle
  * error.
  */
 fun projectLangMap(
-    bundles: List<ProjectBundle>,
+    runtimes: List<RuntimeProject>,
     projectId: String?,
     lang: String,
 ): Map<String, String> {
     if (projectId == null) return emptyMap()
-    val bundle = bundles.firstOrNull { it.projectId == projectId } ?: return emptyMap()
-    return bundle.langMapWithFallback(lang)
+    val runtime = runtimes.firstOrNull { it.projectId == projectId } ?: return emptyMap()
+    return runtime.langMapWithFallback(lang)
 }

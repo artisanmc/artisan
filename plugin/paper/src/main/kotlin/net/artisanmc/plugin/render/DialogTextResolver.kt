@@ -4,7 +4,7 @@ import net.artisanmc.plugin.engine.I18nAddress
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.engine.localize
 import net.artisanmc.plugin.engine.render
-import net.artisanmc.plugin.model.BundleDialog
+import net.artisanmc.plugin.model.RuntimeDialog
 import net.artisanmc.plugin.model.LocalizedText
 
 /**
@@ -28,7 +28,7 @@ internal data class ResolvedDialogTexts(
 internal object DialogTextResolver {
 
     /** Resolves against [ExecutionContext.langMap], [ExecutionContext.lang] and [ExecutionContext.defaultLang] of [ctx]. */
-    fun resolveAll(dialog: BundleDialog, ctx: ExecutionContext): ResolvedDialogTexts {
+    fun resolveAll(dialog: RuntimeDialog, ctx: ExecutionContext): ResolvedDialogTexts {
         // Canonical i18n addresses, mirror of the editor's visitDialogLTexts:
         // body by INDEX, inputs/options/buttons by ID (stable under reordering).
         val d = dialog.yaml.id

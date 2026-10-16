@@ -22,13 +22,13 @@ class CommandRegistrarTest {
     private val lang = LangManager(emptyMap(), "en", false)
     private val stubProvider = object : MenuProvider {
         override fun load() {}
-        override fun findMenu(menuId: String): BundleMenu? = null
+        override fun findMenu(menuId: String): RuntimeMenu? = null
         override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {}
-        override fun allBundles(): List<ProjectBundle> = emptyList()
+        override fun runtimeProjects(): List<RuntimeProject> = emptyList()
     }
     private fun executor() = ActionExecutor(plugin.value, stubProvider, sessions, deps, cooldowns, evaluator)
 
-    private fun bundle(vararg commands: CommandYaml) = ProjectBundle(
+    private fun runtime(vararg commands: CommandYaml) = RuntimeProject(
         projectId = "test", defaultLang = "en", languages = emptyList(),
         documents = mapOf(DocumentKinds.COMMAND.kind to commands.toList()),
     )
@@ -46,7 +46,7 @@ class CommandRegistrarTest {
 
     @Test fun `reload registers commands`() {
         val registrar = CommandRegistrar(plugin.value, lang)
-        registrar.reload(listOf(bundle(cmdYaml("testcmd"))), executor(), evaluator)
+        registrar.reload(listOf(runtime(cmdYaml("testcmd"))), executor(), evaluator)
         val cmd = MockBukkit.getMock()!!.getCommandMap().getCommand("testcmd")
             ?: MockBukkit.getMock()!!.getCommandMap().getCommand("artisan:testcmd")
         assertNotNull(cmd)
@@ -55,22 +55,22 @@ class CommandRegistrarTest {
 
     @Test fun `reload after second call replaces commands`() {
         val registrar = CommandRegistrar(plugin.value, lang)
-        registrar.reload(listOf(bundle(cmdYaml("firstcmd"))), executor(), evaluator)
-        registrar.reload(listOf(bundle(cmdYaml("secondcmd"))), executor(), evaluator)
+        registrar.reload(listOf(runtime(cmdYaml("firstcmd"))), executor(), evaluator)
+        registrar.reload(listOf(runtime(cmdYaml("secondcmd"))), executor(), evaluator)
         registrar.unregisterAll()
     }
 
     @Test fun `unregisterAll removes commands`() {
         val registrar = CommandRegistrar(plugin.value, lang)
-        registrar.reload(listOf(bundle(cmdYaml("mycmd"))), executor(), evaluator)
+        registrar.reload(listOf(runtime(cmdYaml("mycmd"))), executor(), evaluator)
         registrar.unregisterAll()
         // No exception = pass
     }
 
     @Test fun `duplicate command names across projects uses first registered`() {
         val registrar = CommandRegistrar(plugin.value, lang)
-        val b1 = bundle(cmdYaml("shared"))
-        val b2 = bundle(cmdYaml("shared"))
+        val b1 = runtime(cmdYaml("shared"))
+        val b2 = runtime(cmdYaml("shared"))
         registrar.reload(listOf(b1, b2), executor(), evaluator)
         // No exception thrown — duplicate is detected and skipped
         registrar.unregisterAll()
@@ -83,13 +83,13 @@ class CommandRegistrarTest {
             actions = listOf(mapOf("type" to "definitely_not_an_action")),
         )
         val registrar = CommandRegistrar(plugin.value, lang)
-        registrar.reload(listOf(bundle(badYaml)), executor(), evaluator)
+        registrar.reload(listOf(runtime(badYaml)), executor(), evaluator)
         registrar.unregisterAll()
     }
 
     @Test fun `aliases are registered and retrievable by alias name`() {
         val registrar = CommandRegistrar(plugin.value, lang)
-        registrar.reload(listOf(bundle(cmdYamlWithAliases("heal", "h", "healme"))), executor(), evaluator)
+        registrar.reload(listOf(runtime(cmdYamlWithAliases("heal", "h", "healme"))), executor(), evaluator)
         val byAlias = MockBukkit.getMock()!!.getCommandMap().getCommand("h")
             ?: MockBukkit.getMock()!!.getCommandMap().getCommand("artisan:h")
         assertNotNull(byAlias, "alias 'h' should be registered in the command map")
@@ -98,10 +98,10 @@ class CommandRegistrarTest {
 
     @Test fun `aliases are removed from command map after unregisterAll`() {
         val registrar = CommandRegistrar(plugin.value, lang)
-        registrar.reload(listOf(bundle(cmdYamlWithAliases("heal", "h", "healme"))), executor(), evaluator)
+        registrar.reload(listOf(runtime(cmdYamlWithAliases("heal", "h", "healme"))), executor(), evaluator)
         registrar.unregisterAll()
         // If aliases were stale, registering a fresh "h" command would find a conflict.
-        registrar.reload(listOf(bundle(cmdYaml("h"))), executor(), evaluator)
+        registrar.reload(listOf(runtime(cmdYaml("h"))), executor(), evaluator)
         val cmd = MockBukkit.getMock()!!.getCommandMap().getCommand("h")
             ?: MockBukkit.getMock()!!.getCommandMap().getCommand("artisan:h")
         assertNotNull(cmd, "fresh 'h' command registered after unregisterAll should be found")
@@ -121,7 +121,7 @@ class CommandRegistrarTest {
         val registrar = CommandRegistrar(plugin.value, lang)
         // "shop" is main; "list" alias clashes with the pre-registered command.
         registrar.reload(
-            listOf(bundle(cmdYamlWithAliases("shop", "store", "list"))),
+            listOf(runtime(cmdYamlWithAliases("shop", "store", "list"))),
             executor(),
             evaluator,
         )

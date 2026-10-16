@@ -4,7 +4,7 @@ import net.artisanmc.plugin.actiondsl.compileActionDsl
 import net.artisanmc.plugin.engine.I18nAddress
 import net.artisanmc.plugin.engine.assignI18nAddresses
 import net.artisanmc.plugin.engine.*
-import net.artisanmc.plugin.model.BundleDialog
+import net.artisanmc.plugin.model.RuntimeDialog
 import net.artisanmc.plugin.model.DialogInputYaml
 import io.papermc.paper.dialog.Dialog
 import io.papermc.paper.dialog.DialogResponseView
@@ -28,7 +28,7 @@ import org.bukkit.inventory.ItemStack
 object DialogRenderer {
 
 
-    fun open(player: Player, dialog: BundleDialog, lang: String, ctx: ExecutionContext, executor: ActionExecutor) {
+    fun open(player: Player, dialog: RuntimeDialog, lang: String, ctx: ExecutionContext, executor: ActionExecutor) {
         val langMap = dialog.langMapWithFallback(lang)
         val ctxWithLang = ctx.copy(lang = lang, defaultLang = dialog.defaultLang, langMap = langMap)
         // i18n then args ({player} & co): same chain as MenuRenderer.resolveText.

@@ -3,7 +3,7 @@ package net.artisanmc.plugin.protocol
 import net.artisanmc.plugin.project.ProjectRoots
 import net.artisanmc.plugin.project.ProjectSnapshot
 import net.artisanmc.plugin.project.ResourceInventory
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 
 /*
  * The shapes a server's load is described in, shared by the leaf that writes them and the hub
@@ -115,7 +115,7 @@ data class LoadedState(val list: ProjectListing, val projects: Map<String, Loade
                     hash = snapshot.hash(id),
                     failed = snapshot.skipped[id].orEmpty().toSortedMap().map { (path, reason) -> FailedFile(path, reason) },
                     // `.artisan/editor.yaml`: read by the editor, outside the Versions.
-                    meta = snapshot.files[id].orEmpty().filterKeys(BundleHasher::isArtisanMeta),
+                    meta = snapshot.files[id].orEmpty().filterKeys(ContentHash::isArtisanMeta),
                 )
             }
             return LoadedState(ProjectListing.of(snapshot, roots), projects)

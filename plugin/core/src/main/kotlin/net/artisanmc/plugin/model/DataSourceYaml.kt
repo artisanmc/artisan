@@ -32,7 +32,7 @@ data class DataVariantYaml(
 )
 
 /** Parsed `data/<id>.yaml` (or a per-row dir's `_source.yaml`) — a Project
- *  source shipped in the Bundle. */
+ *  source shipped in its files. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class DataSourceYaml(
     val schema: String = "",

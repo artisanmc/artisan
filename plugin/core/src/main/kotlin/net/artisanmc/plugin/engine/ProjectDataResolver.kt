@@ -1,11 +1,11 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.plugin.model.BundleDataSource
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeDataSource
+import net.artisanmc.plugin.model.RuntimeProject
 
 /**
  * Resolver for the reserved `pack:` namespace — Project sources shipped in the
- * Bundle (`data/<id>.yaml`, ADR project-sources-and-data-models). Deliberately
+ * Project (`data/<id>.yaml`, ADR project-sources-and-data-models). Deliberately
  * NOT registered in the module [net.artisanmc.modules.api.datasource.DataSourceRegistry]:
  * Project sources are project content, not module capabilities — putting them
  * in the registry would leak them into the presence report (`data_sources` WS)
@@ -13,16 +13,16 @@ import net.artisanmc.plugin.model.ProjectBundle
  * the renderer's fetch seam instead, where the viewer's language is known
  * (ltext fields localize at bind).
  */
-class ProjectDataResolver(private val bundles: () -> List<ProjectBundle>) {
+class ProjectDataResolver(private val runtimes: () -> List<RuntimeProject>) {
     companion object {
         const val PREFIX = "pack:"
     }
 
-    /** The table of the last bundle list seen, rebuilt only when a reload swaps the list. */
-    @Volatile private var cache: Pair<List<ProjectBundle>, DocumentTable<BundleDataSource>>? = null
+    /** The table of the last Project list seen, rebuilt only when a reload swaps the list. */
+    @Volatile private var cache: Pair<List<RuntimeProject>, DocumentTable<RuntimeDataSource>>? = null
 
-    private fun table(): DocumentTable<BundleDataSource> {
-        val current = bundles()
+    private fun table(): DocumentTable<RuntimeDataSource> {
+        val current = runtimes()
         cache?.let { (list, table) -> if (list === current) return table }
         // Reversed: on an ambiguous id DocumentTable keeps the LAST entry, and the
         // historical winner here is the first source in load order.

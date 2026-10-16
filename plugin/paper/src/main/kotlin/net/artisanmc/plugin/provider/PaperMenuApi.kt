@@ -41,8 +41,8 @@ class PaperMenuApi(
     override fun openMenu(player: Player): MenuRef? = sessions()?.get(player)?.ref
 
     override fun menus(): List<MenuRef> =
-        provider()?.allBundles().orEmpty().flatMap { bundle ->
-            bundle.menus.map { MenuRef(bundle.projectId.ifEmpty { null }, it.id) }
+        provider()?.runtimeProjects().orEmpty().flatMap { runtime ->
+            runtime.menus.map { MenuRef(runtime.projectId.ifEmpty { null }, it.id) }
         }
 
     override fun onOpen(listener: MenuOpenListener): MenuSubscription = events.onOpen(listener)

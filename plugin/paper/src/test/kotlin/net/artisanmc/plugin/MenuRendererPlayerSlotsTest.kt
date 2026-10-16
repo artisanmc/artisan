@@ -45,7 +45,7 @@ class MenuRendererPlayerSlotsTest {
     @Test fun `hidden menu addresses the player slots and leaves the anchor empty`() {
         val p = player()
         val windows = MenuWindows(RecordingSink())
-        val session = MenuRenderer.open(p, BundleCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
+        val session = MenuRenderer.open(p, MenuCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
 
         assertTrue(p.openInventory.topInventory.isEmpty, "the anchor holds nothing")
         assertEquals(Material.STONE, session.slots[0]?.type)
@@ -58,7 +58,7 @@ class MenuRendererPlayerSlotsTest {
 
     @Test fun `visible is the default and ignores positions past the menu`() {
         val p = player()
-        val session = MenuRenderer.open(p, BundleCompiler.compile(menu(), emptyMap()), "en")
+        val session = MenuRenderer.open(p, MenuCompiler.compile(menu(), emptyMap()), "en")
 
         assertTrue(p.openInventory.topInventory.isEmpty)
         assertEquals(Material.STONE, session.slots[0]?.type)
@@ -85,7 +85,7 @@ class MenuRendererPlayerSlotsTest {
         val resynced = mutableListOf<Player>()
         val sessions = MenuSessionStore()
         val l = listener(sessions, windows, resynced)
-        MenuRenderer.open(p, BundleCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
+        MenuRenderer.open(p, MenuCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
 
         l.onClose(InventoryCloseEvent(p.openInventory))
         assertNull(windows.get(p.uniqueId))
@@ -99,9 +99,9 @@ class MenuRendererPlayerSlotsTest {
         val windows = MenuWindows(RecordingSink())
         val resynced = mutableListOf<Player>()
         val l = listener(MenuSessionStore(), windows, resynced)
-        MenuRenderer.open(p, BundleCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
+        MenuRenderer.open(p, MenuCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
         val viewA = p.openInventory
-        val b = MenuRenderer.open(p, BundleCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
+        val b = MenuRenderer.open(p, MenuCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
 
         l.onClose(InventoryCloseEvent(viewA))
         assertSame(b.slots, windows.get(p.uniqueId)?.slots)
@@ -114,7 +114,7 @@ class MenuRendererPlayerSlotsTest {
         val sink = RecordingSink()
         val windows = MenuWindows(sink)
         val l = listener(MenuSessionStore(), windows, mutableListOf())
-        MenuRenderer.open(p, BundleCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
+        MenuRenderer.open(p, MenuCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows)
         windows.onOpenWindow(p.uniqueId, 5)
 
         l.onClick(org.bukkit.event.inventory.InventoryClickEvent(
@@ -132,7 +132,7 @@ class MenuRendererPlayerSlotsTest {
         val windows = MenuWindows(RecordingSink())
         val sessions = MenuSessionStore()
         val l = listener(sessions, windows, mutableListOf())
-        sessions.set(p, MenuRenderer.open(p, BundleCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows))
+        sessions.set(p, MenuRenderer.open(p, MenuCompiler.compile(menu("hidden"), emptyMap()), "en", windows = windows))
 
         l.onQuit(PlayerQuitEvent(p, net.kyori.adventure.text.Component.empty(), PlayerQuitEvent.QuitReason.DISCONNECTED))
         assertNull(windows.get(p.uniqueId))

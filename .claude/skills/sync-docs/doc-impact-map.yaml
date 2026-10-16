@@ -37,7 +37,7 @@ mappings:
 
   # --- Plugin: sync, hashing, disk layout (the invariants) ---
 
-  - touches: "plugin/*/src/main/kotlin/**/BundleHasher.kt"
+  - touches: "plugin/*/src/main/kotlin/**/ContentHash.kt"
     updates:
       - "docs/architecture/invariants.md"
       - "testdata/project-snapshot-hash-conformance.json"
@@ -108,10 +108,10 @@ mappings:
       - "docs/architecture/editor-internals.md"
     reason: "Kinds the active server registers; drives the not-synchronised warning in the tree and NewDocumentDialog"
 
-  - touches: "plugin/*/src/main/kotlin/**/model/ProjectBundle.kt"
+  - touches: "plugin/*/src/main/kotlin/**/model/RuntimeProject.kt"
     updates:
       - "docs/architecture/project-files.md"
-    reason: "ProjectBundle.documents is the one store of a project's Documents; menus/commands/dialogs are its typed façade"
+    reason: "RuntimeProject.documents is the one store of a project's Documents; menus/commands/dialogs are its typed façade"
 
   - touches: "plugin/*/src/main/kotlin/**/I18nAddresses.kt"
     updates:

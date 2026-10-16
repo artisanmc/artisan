@@ -4,7 +4,7 @@ import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.*
 import kotlin.test.*
 
-class BundleCompilerTest {
+class MenuCompilerTest {
 
     private fun menu(vararg elements: ElementYaml) = MenuYaml(
         id = "test_menu", title = "Test", size = 27,
@@ -27,7 +27,7 @@ class BundleCompilerTest {
         ClickHandlerYaml(actions = actions.toList())
 
     @Test fun `compile empty menu has empty compiledAppearances and slotToElement`() {
-        val result = BundleCompiler.compile(MenuYaml(id = "m", size = 27), emptyMap())
+        val result = MenuCompiler.compile(MenuYaml(id = "m", size = 27), emptyMap())
         assertTrue(result.compiledAppearances.isEmpty())
         assertTrue(result.slotToElement.isEmpty())
     }
@@ -40,20 +40,20 @@ class BundleCompilerTest {
                 element("over", "13", appearance("DIRT")),
             ),
         )
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         assertEquals("over", result.slotToElement[13])
         assertTrue("under" in result.compiledAppearances)
     }
 
     @Test fun `compile populates slotToElement for single slot`() {
         val m = menu(element("btn", "13", appearance()))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         assertEquals("btn", result.slotToElement[13])
     }
 
     @Test fun `compile populates slotToElement for range`() {
         val m = menu(element("row", "0-8", appearance()))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         (0..8).forEach { assertEquals("row", result.slotToElement[it]) }
     }
 
@@ -61,13 +61,13 @@ class BundleCompilerTest {
         // "10-" used to throw NumberFormatException out of compile (and out of the
         // whole reload, since it is an IllegalArgumentException).
         val m = menu(element("row", "0, 10-, a-3, 1-2-3, 4-5", appearance()))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         assertEquals(setOf(0, 4, 5), result.slotToElement.keys)
     }
 
     @Test fun `compile populates slotToElement for comma list`() {
         val m = menu(element("corners", "0,8,18,26", appearance()))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         listOf(0, 8, 18, 26).forEach { assertEquals("corners", result.slotToElement[it]) }
     }
 
@@ -76,7 +76,7 @@ class BundleCompilerTest {
             "left" to handler(mapOf("type" to "close_menu")),
         ))
         val m = menu(element("btn", "13", app))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         val compiled = result.compiledAppearances["btn"]
         assertNotNull(compiled)
         assertEquals(1, compiled.size)
@@ -91,7 +91,7 @@ class BundleCompilerTest {
             "hover" to handler(mapOf("type" to "close_menu")),
         ))
         val m = menu(element("btn", "0", app))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         val compiled = result.compiledAppearances["btn"]?.firstOrNull()
         assertNotNull(compiled)
         assertTrue(compiled.clicks.isEmpty())
@@ -101,7 +101,7 @@ class BundleCompilerTest {
         val condMap = mapOf("type" to "has_permission", "perm" to "vip")
         val app = AppearanceYaml(material = "GOLD_BLOCK", conditions = condMap)
         val m = menu(element("el", "0", app))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         val ca = result.compiledAppearances["el"]?.firstOrNull()
         assertNotNull(ca)
         assertEquals(listOf(Condition.HasPermission("vip")), ca.conditions)
@@ -113,7 +113,7 @@ class BundleCompilerTest {
             steps = "if has_money(100):\n  take_money 100\nelse:\n  send_message \"no\"\nclose_menu",
         )
         val m = menu(element("btn", "13", appearance("STONE", mapOf("left" to clickYaml))))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         val clickHandler = result.compiledAppearances["btn"]!!.first().clicks[ClickType.LEFT]
         assertNotNull(clickHandler)
         assertEquals(2, clickHandler.steps.size)
@@ -128,7 +128,7 @@ class BundleCompilerTest {
         // An unknown verb makes the DSL parse throw → the appearance is dropped.
         val clickYaml = ClickHandlerYaml(steps = "does_not_exist")
         val m = menu(element("btn", "0", appearance("STONE", mapOf("left" to clickYaml)), appearance("DIRT")))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         assertEquals(1, result.compiledAppearances["btn"]?.size)
     }
 
@@ -138,7 +138,7 @@ class BundleCompilerTest {
         val goodApp = appearance("STONE", mapOf("left" to handler(mapOf("type" to "close_menu"))))
         val moduleApp = appearance("DIAMOND", mapOf("left" to handler(mapOf("type" to "quests:start"))))
         val m = menu(element("el", "0", goodApp, moduleApp))
-        val result = BundleCompiler.compile(m, emptyMap())
+        val result = MenuCompiler.compile(m, emptyMap())
         val compiled = result.compiledAppearances["el"]
         assertNotNull(compiled)
         assertEquals(2, compiled.size)

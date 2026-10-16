@@ -152,7 +152,7 @@ class MenuTitleParserTest {
         assertEquals(0, glyph.y)
     }
 
-    @Test fun `BundleMenu_title field is auto-populated from MenuTitleParser`() {
+    @Test fun `RuntimeMenu_title field is auto-populated from MenuTitleParser`() {
         // Sanity-check that the data class default `MenuTitleParser.parse(yaml.title)`
         // gives the same result as calling the parser directly.
         val yaml = net.artisanmc.plugin.model.MenuYaml(
@@ -160,10 +160,10 @@ class MenuTitleParserTest {
             title = "{i18n:menu.shop.title}",
             size = 27,
         )
-        val bundle = net.artisanmc.plugin.engine.BundleCompiler.compile(yaml, emptyMap())
-        assertEquals(MenuTitleParser.parse("{i18n:menu.shop.title}", "m"), bundle.title)
-        assertEquals(1, bundle.title.size)
-        val plain = bundle.title.single() as MenuTitleLayer.Plain
+        val runtime = net.artisanmc.plugin.engine.MenuCompiler.compile(yaml, emptyMap())
+        assertEquals(MenuTitleParser.parse("{i18n:menu.shop.title}", "m"), runtime.title)
+        assertEquals(1, runtime.title.size)
+        val plain = runtime.title.single() as MenuTitleLayer.Plain
         // The menu id yields the canonical address; the key itself is unchanged.
         assertEquals(LText("menu.shop.title", address = "menus.m.title"), plain.value)
     }

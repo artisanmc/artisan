@@ -2,8 +2,8 @@ package net.artisanmc.plugin.project
 
 import net.artisanmc.plugin.protocol.LoadedState
 import net.artisanmc.plugin.protocol.PublicationAuthor
-import net.artisanmc.plugin.sync.BundleHasher
-import net.artisanmc.plugin.sync.ProjectFilesReader
+import net.artisanmc.plugin.project.ContentHash
+import net.artisanmc.plugin.project.ProjectFilesReader
 import java.io.File
 import java.time.Instant
 import java.util.concurrent.Executor
@@ -61,7 +61,7 @@ class VersionRecorder(
             var failed = 0
             for (id in snapshot.projectIds) runCatching {
                 val dir = roots.dirFor(id)
-                val content = { path: String -> !BundleHasher.isArtisanMeta(path) }
+                val content = { path: String -> !ContentHash.isArtisanMeta(path) }
                 val skipped = data.recordVersion(
                     roots.key(id), id,
                     snapshot.files[id].orEmpty().filterKeys(content),
