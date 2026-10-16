@@ -14,8 +14,8 @@ import net.artisanmc.plugin.model.RuntimeDialog
 import net.artisanmc.plugin.model.RuntimeDocument
 import net.artisanmc.plugin.model.DocumentKind
 import net.artisanmc.plugin.model.DocumentKinds
-import net.artisanmc.plugin.model.RuntimeMenu
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeMenu
+import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.render.DialogRenderer
 import net.artisanmc.plugin.render.MenuRenderer
 import net.artisanmc.plugin.resourcepack.AssetEntry
@@ -69,7 +69,7 @@ class SyncedMenuProvider(
     private val menuEvents: net.artisanmc.plugin.render.MenuEventDispatcher? = null,
     /** Each loaded Snapshot, with the editor players whose publication it loads, by project id. */
     /** Each loaded Snapshot, with its publications' authors by project id; [done] announces the reload once it is recorded. */
-    private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>, done: () -> Unit) -> Unit =
+    private val onSnapshot: (ProjectSnapshot, Map<String, net.artisanmc.plugin.project.PublicationAuthor>, done: () -> Unit) -> Unit =
         { _, _, done -> done() },
     /**
      * Where a reload asked after [load] reads the disk and parses the YAML ([refreshFromDisk]):
@@ -77,7 +77,7 @@ class SyncedMenuProvider(
      */
     private val reloadExecutor: Executor = Executor { it.run() },
 ) : MenuProvider {
-    private val pendingAuthors = java.util.concurrent.ConcurrentHashMap<String, net.artisanmc.plugin.protocol.PublicationAuthor>()
+    private val pendingAuthors = java.util.concurrent.ConcurrentHashMap<String, net.artisanmc.plugin.project.PublicationAuthor>()
     private var copyMinecraftVersion = "1.21.4"
     /** What `project_read` serves: the state read at the last load, never the current disk. */
     @Volatile private var projects = ProjectSnapshot.EMPTY
@@ -139,7 +139,7 @@ class SyncedMenuProvider(
             reloadFromDisk()
             onReload?.invoke()
         }
-        override fun authoredBy(projectId: String, author: net.artisanmc.plugin.protocol.PublicationAuthor) {
+        override fun authoredBy(projectId: String, author: net.artisanmc.plugin.project.PublicationAuthor) {
             pendingAuthors[projectId] = author
         }
     }

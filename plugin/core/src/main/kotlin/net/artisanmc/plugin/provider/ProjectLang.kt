@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.provider
 
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeProject
 
 /**
  * A project's translation table, for an execution with no menu or dialog in

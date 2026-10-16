@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.database
 
 import net.artisanmc.plugin.project.VersionStorage
-import net.artisanmc.plugin.protocol.PublicationAuthor
+import net.artisanmc.plugin.project.PublicationAuthor
 import net.artisanmc.plugin.project.ProjectFilesReader
 import java.time.Instant
 
@@ -22,5 +22,5 @@ class SuiteVersionStorage(private val data: SuiteProjectData, private val row: S
         return data.versions.record(row, projectKey, folder, entries, at, by, author?.restoredFrom?.toIntOrNull(), readBinary).skipped
     }
 
-    override fun recordState(state: net.artisanmc.plugin.protocol.LoadedState, at: Instant) = data.recordState(row, state, at)
+    override fun recordState(state: net.artisanmc.plugin.project.LoadedState, at: Instant) = data.recordState(row, state, at)
 }

@@ -1,6 +1,6 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.provider.projectLangMap
 import kotlin.test.Test
 import kotlin.test.assertEquals
