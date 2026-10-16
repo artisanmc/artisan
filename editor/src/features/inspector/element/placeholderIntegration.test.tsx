@@ -2,16 +2,16 @@
  * Integration smoke test: catalog → hook → PlaceholderInput.
  *
  * Mounts a thin wrapper that wires usePlaceholderEntries → PlaceholderInput
- * with a real-shaped project seeded in the accountStore. Validates that a
+ * with a real-shaped project seeded in the projectsStore. Validates that a
  * primitive contextInput named "player" survives the full pipeline and
  * surfaces in the autocomplete popup when the user types "{".
  */
 import "@/i18n";
 import { PlaceholderInput } from "@/components/PlaceholderInput";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
-import type { Account, ElementId, Menu, MenuId, Project, ProjectId } from "@/domain/types";
+import type { ElementId, Menu, MenuId, OpenProjects, Project, ProjectId } from "@/domain/types";
 import type { FieldLocation } from "@/lib/placeholderCatalog";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -68,12 +68,11 @@ function TitleInput({ location }: { location: FieldLocation }) {
 
 describe("placeholder catalog → hook → PlaceholderInput integration", () => {
   beforeEach(() => {
-    const account: Account = {
-      id: "acc_smoke" as Account["id"],
+    const openProjects: OpenProjects = {
       projects: [makeProject()],
       projectOrder: [PACK_ID],
     };
-    useAccountStore.setState({ account });
+    useProjectsStore.setState({ openProjects });
   });
 
   it("shows 'player' in the popup when the element title input receives '{'", () => {

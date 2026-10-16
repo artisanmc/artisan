@@ -1,10 +1,10 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
 import { saveProjectToDisk } from "@/features/project/saveProjectToDisk";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePublishFlow } from "./usePublishFlow";
@@ -40,8 +40,8 @@ const conflict = { path: "menus/shop.yaml", disk: "title: Server\n" };
 beforeEach(() => {
   vi.mocked(saveProjectToDisk).mockReset();
   useAuthStore.setState({ currentUser: { id: "u1", name: "x", email: "x@a.b" } } as never);
-  useAccountStore.setState({
-    account: { id: "n1", projects: [project()], projectOrder: [ID] },
+  useProjectsStore.setState({
+    openProjects: { projects: [project()], projectOrder: [ID] },
   } as never);
   useProjectDraftStore.getState().save(ID, {
     baseline: {},

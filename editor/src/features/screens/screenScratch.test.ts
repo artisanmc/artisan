@@ -1,7 +1,12 @@
 import type { DataSourceId } from "@/domain/types";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { describe, expect, it } from "vitest";
-import { buildScratchProject, diffScratchForWrite, isScreenScratchId, screenScratchId } from "./screenScratch";
+import {
+  buildScratchProject,
+  diffScratchForWrite,
+  isScreenScratchId,
+  screenScratchId,
+} from "./screenScratch";
 
 const screen: ServerEditorScreen = {
   id: "boutique:catalog",
@@ -24,7 +29,10 @@ const model = {
 };
 
 const files = [
-  { path: "data/categories/_source.yaml", content: "name: Catégories\nmodel: boutique:category\nmodel_version: 1\norder: [weapons]\n" },
+  {
+    path: "data/categories/_source.yaml",
+    content: "name: Catégories\nmodel: boutique:category\nmodel_version: 1\norder: [weapons]\n",
+  },
   { path: "data/categories/weapons.yaml", content: "id: weapons\nname: Armes\n" },
 ];
 
@@ -41,7 +49,9 @@ describe("buildScratchProject", () => {
     const context = [{ path: "items/original.yaml", content: "type: DIAMOND_SWORD\namount: 3\n" }];
     const project = buildScratchProject(screen, files, [model], context);
     expect(project.capturedItems?.[0]?.display.count).toBe(3);
-    expect(diffScratchForWrite(project, screen, files).files.some(f => f.path.startsWith("items/"))).toBe(false);
+    expect(
+      diffScratchForWrite(project, screen, files).files.some((f) => f.path.startsWith("items/")),
+    ).toBe(false);
   });
   it("parses the table files into a project source with the declared model injected", () => {
     const project = buildScratchProject(screen, files, [model]);
@@ -61,7 +71,8 @@ describe("diffScratchForWrite", () => {
     // hold is the fixed point: once canonical, no edits → no writes.
     const first = buildScratchProject(screen, files, [model]);
     const canonical = new Map(files.map((f) => [f.path, f.content]));
-    for (const f of diffScratchForWrite(first, screen, files).files) canonical.set(f.path, f.content);
+    for (const f of diffScratchForWrite(first, screen, files).files)
+      canonical.set(f.path, f.content);
     const canonicalFiles = [...canonical].map(([path, content]) => ({ path, content }));
 
     const second = buildScratchProject(screen, canonicalFiles, [model]);
@@ -78,7 +89,11 @@ describe("diffScratchForWrite", () => {
 
     let diff = diffScratchForWrite(project, screen, files);
     expect(diff.deletes).toEqual([]);
-    expect(diff.files.some((f) => f.path === "data/categories/weapons.yaml" && f.content.includes("Armures"))).toBe(true);
+    expect(
+      diff.files.some(
+        (f) => f.path === "data/categories/weapons.yaml" && f.content.includes("Armures"),
+      ),
+    ).toBe(true);
     expect(diff.files.every((f) => f.path.startsWith("data/categories/"))).toBe(true);
 
     src.rows.splice(0, 1);
@@ -140,7 +155,11 @@ describe("diffScratchForWrite", () => {
       const after = new Map(legacy.map((f) => [f.path, f.content]));
       for (const [p, c] of written) after.set(p, c);
       for (const p of diff.deletes) after.delete(p);
-      const reread = buildScratchProject(settings, [...after].map(([path, content]) => ({ path, content })), []);
+      const reread = buildScratchProject(
+        settings,
+        [...after].map(([path, content]) => ({ path, content })),
+        [],
+      );
       const src2 = reread.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
       if (src2?.shape !== "config") throw new Error("expected config shape");
       expect(src2.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
@@ -154,12 +173,18 @@ describe("diffScratchForWrite", () => {
       src.value.whole_shop_discount = 10;
 
       const diff = diffScratchForWrite(project, settings, settingsFiles);
-      expect(diff.files.some((f) => f.path === "data/shop_settings.yaml" && f.content.includes("10"))).toBe(true);
+      expect(
+        diff.files.some((f) => f.path === "data/shop_settings.yaml" && f.content.includes("10")),
+      ).toBe(true);
       expect(diff.deletes).toEqual([]);
       // The schema survives the round-trip: re-reading the written set keeps it typed.
       const after = new Map(settingsFiles.map((f) => [f.path, f.content]));
       for (const f of diff.files) after.set(f.path, f.content);
-      const reread = buildScratchProject(settings, [...after].map(([path, content]) => ({ path, content })), []);
+      const reread = buildScratchProject(
+        settings,
+        [...after].map(([path, content]) => ({ path, content })),
+        [],
+      );
       const src2 = reread.dataSources.find((d) => d.id === ("shop_settings" as DataSourceId));
       if (src2?.shape !== "config") throw new Error("expected config shape");
       expect(src2.fields.map((f) => f.name)).toEqual(["whole_shop_discount"]);
@@ -182,7 +207,13 @@ describe("diffScratchForWrite", () => {
       id: "boutique:shop_settings",
       name: "Réglages boutique",
       fields: [
-        { name: "whole_shop_discount", type: { kind: "integer" }, label: "Remise globale", min: 0, max: 100 },
+        {
+          name: "whole_shop_discount",
+          type: { kind: "integer" },
+          label: "Remise globale",
+          min: 0,
+          max: 100,
+        },
       ],
     };
     const files = [
@@ -213,7 +244,9 @@ describe("diffScratchForWrite", () => {
         expect(beside.content).toContain("model: boutique:shop_settings");
         expect(beside.content).not.toContain("whole_shop_discount");
       }
-      expect(diff.files.some((f) => f.path === "data/shop_settings.yaml" && f.content.includes("20"))).toBe(true);
+      expect(
+        diff.files.some((f) => f.path === "data/shop_settings.yaml" && f.content.includes("20")),
+      ).toBe(true);
     });
   });
 

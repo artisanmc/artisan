@@ -176,12 +176,16 @@ describe("i18n address conformance — action texts", () => {
       primary: "text",
       moduleId: "quests",
     };
-    const declOf = (name: string) => coreActionOf(name) ?? (name === declared.name ? declared : undefined);
+    const declOf = (name: string) =>
+      coreActionOf(name) ?? (name === declared.name ? declared : undefined);
     const project = { defaultLang: "en", i18nKeys: {} } as unknown as Project;
-    const steps = structuredToSteps([{ "quests:notify": { en: "Hi", fr: "Salut" } }, { "quests:notify": "Bye" }], {
-      toWire: () => "",
-      fromWire: () => ({ key: "" as I18nKey }),
-    });
+    const steps = structuredToSteps(
+      [{ "quests:notify": { en: "Hi", fr: "Salut" } }, { "quests:notify": "Bye" }],
+      {
+        toWire: () => "",
+        fromWire: () => ({ key: "" as I18nKey }),
+      },
+    );
     adoptActionTexts(project, steps, "commands.give", declOf);
     expect(project.i18nKeys).toEqual({
       "commands.give.quests.notify.text": { en: "Hi", fr: "Salut" },

@@ -17,7 +17,7 @@ export function projectDestination(
           to: "/servers/$serverId/projects/$projectId" as const,
           params: { serverId, projectId },
         };
-  // Every account Project belongs to a server (ADR `server-only-projects`):
+  // Every open Project belongs to a server (ADR `server-only-projects`):
   // without a known server, go back to the server list.
   return { to: "/servers" as const };
 }

@@ -1,6 +1,6 @@
 import type { Command, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback } from "react";
@@ -16,7 +16,7 @@ interface CommandGroupProps {
 }
 
 export function CommandGroup({ projectId, command, position }: CommandGroupProps) {
-  const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
+  const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(command.id));
   const nodeAlign = useNodeAlignment(projectId, command.id);
 

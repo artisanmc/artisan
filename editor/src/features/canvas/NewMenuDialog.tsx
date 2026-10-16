@@ -1,5 +1,5 @@
 import type { ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useTranslation } from "react-i18next";
 import { NewPrefixedIdDialog } from "./NewPrefixedIdDialog";
 
@@ -20,7 +20,7 @@ export function NewMenuDialog({ projectId, open, position, onOpenChange }: NewMe
       title={t("canvas.newMenuDialogTitle")}
       prefix="menu_"
       placeholder="my_menu"
-      onCreate={(id) => useAccountStore.getState().createMenu({ projectId, id, position })}
+      onCreate={(id) => useProjectsStore.getState().createMenu({ projectId, id, position })}
     />
   );
 }

@@ -7,7 +7,10 @@ const lt = (s: string) => ({ key: s as I18nKey });
 describe("literalSteps (data-source / module `actions`, structured step wire)", () => {
   it("emits a keyed step tree (literal text) and reads it back", () => {
     const steps: Step[] = [
-      { kind: "action", action: { name: "run_command", value: { command: "give {player} diamond", as: "console" } } },
+      {
+        kind: "action",
+        action: { name: "run_command", value: { command: "give {player} diamond", as: "console" } },
+      },
       { kind: "action", action: { name: "send_message", value: lt("§aMerci pour ton achat !") } },
     ];
     const wire = stepsToWire(steps);
@@ -29,7 +32,12 @@ describe("literalSteps (data-source / module `actions`, structured step wire)", 
               { type: "has_money", amount: 100 },
             ],
             joins: ["and"],
-            steps: [{ kind: "action", action: { name: "run_command", value: { command: "kit vip", as: "console" } } }],
+            steps: [
+              {
+                kind: "action",
+                action: { name: "run_command", value: { command: "kit vip", as: "console" } },
+              },
+            ],
           },
         ],
         else: [{ kind: "action", action: { name: "send_message", value: lt("Pas assez !") } }],
@@ -53,7 +61,12 @@ describe("literalSteps (data-source / module `actions`, structured step wire)", 
               { type: "has_permission", perm: "shop.vip" },
               { type: "has_money", amount: 100 },
             ],
-            steps: [{ kind: "action", action: { name: "run_command", value: { command: "kit vip", as: "console" } } }],
+            steps: [
+              {
+                kind: "action",
+                action: { name: "run_command", value: { command: "kit vip", as: "console" } },
+              },
+            ],
           },
         ],
         else: [{ kind: "action", action: { name: "send_message", value: lt("Pas assez !") } }],

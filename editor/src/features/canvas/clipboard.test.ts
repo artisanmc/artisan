@@ -1,10 +1,10 @@
-import { mockAccount } from "@/mock/fixtures";
+import { menusOf } from "@/domain/documents";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { describe, expect, it } from "vitest";
 import { rewriteIds } from "./clipboard";
-import { menusOf } from "@/domain/documents";
 
 describe("rewriteIds", () => {
-  const personal = mockAccount().projects[0]!;
+  const personal = mockOpenProjects().projects[0]!;
 
   it("assigns new menu/command/layer/element ids", () => {
     const { menus } = rewriteIds({ menus: [menusOf(personal)[0]!], commands: [] });

@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { DEFAULT_GROUP_COLOR, liveDocumentIds } from "@/domain/canvasGroups";
 import type { Project } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -51,7 +51,7 @@ export function BoardGroupControls({
     setName(dialog ? (editing?.name ?? "") : "");
     setColor(editing?.color ?? DEFAULT_GROUP_COLOR);
   }, [dialog, editing?.name, editing?.color]);
-  const store = useAccountStore.getState();
+  const store = useProjectsStore.getState();
   const close = () => onDialogChange(null);
   const submit = (event: React.FormEvent) => {
     event.preventDefault();

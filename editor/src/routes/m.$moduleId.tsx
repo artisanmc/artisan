@@ -1,6 +1,6 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
 import { resolveModule } from "@/distribution/resolveModule";
 import { useModulesStore } from "@/state/modulesStore";
+import { createFileRoute, useParams } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/m/$moduleId")({ component: ModuleHost });
 

@@ -17,13 +17,13 @@ import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { duplicateAsset } from "@/lib/api/userAssets";
 import { cn } from "@/lib/cx";
 import { useTextEdit } from "@/lib/useText";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 
+import { menusOf } from "@/domain/documents";
 import { TextSizeSelector } from "./TextSizeSelector";
 import { asTextFrame, patchTextFrame, textAnchorOffset } from "./textFrame";
-import { menusOf } from "@/domain/documents";
 
 interface LayerEditFormProps {
   projectId: ProjectId;
@@ -40,7 +40,7 @@ interface LayerEditFormProps {
 export function LayerEditForm({ projectId }: LayerEditFormProps) {
   const { t } = useTranslation();
   const selectedKey = useUiStore((s) => s.selectedLayerKey);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const menu = menusOf(project).find((m) => m.id === selectedKey?.menuId);
   const layer =
     selectedKey && menu && selectedKey.index >= 0 && selectedKey.index < menu.title.length
@@ -125,7 +125,7 @@ interface ImageLayerFormProps {
 function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps) {
   const asset = useAssetStore((s) => s.assets.find((a) => a.id === layer.assetId));
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
-  const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
+  const updateLayer = useProjectsStore((s) => s.updateMenuTitleLayer);
   const user = useAuthStore((s) => s.currentUser);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
@@ -271,7 +271,7 @@ interface PlainLayerFormProps {
 function PlainLayerForm({ projectId, menuId, layer }: PlainLayerFormProps) {
   const { t } = useTranslation();
   const textEdit = useTextEdit(projectId, layer.value);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
   const placeholderLocation = useMemo(() => ({ kind: "menu" as const, menuId }), [menuId]);
   const placeholderEntries = usePlaceholderEntries(projectId, placeholderLocation);
 
@@ -324,7 +324,7 @@ interface ExternalGlyphFormProps {
 
 function ExternalGlyphForm({ projectId, menuId, index, layer }: ExternalGlyphFormProps) {
   const { t } = useTranslation();
-  const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
+  const updateLayer = useProjectsStore((s) => s.updateMenuTitleLayer);
 
   return (
     <div className="flex flex-col gap-3 text-xs text-zinc-300">
@@ -393,8 +393,8 @@ function TextLayerForm({ projectId, menuId, index, layer: originalLayer }: TextL
   const layer = asTextFrame(originalLayer);
   const { t } = useTranslation();
   const textEdit = useTextEdit(projectId, layer.value);
-  const setI18nValue = useAccountStore((s) => s.setI18nValue);
-  const updateLayer = useAccountStore((s) => s.updateMenuTitleLayer);
+  const setI18nValue = useProjectsStore((s) => s.setI18nValue);
+  const updateLayer = useProjectsStore((s) => s.updateMenuTitleLayer);
   const allAssets = useAssetStore((s) => s.assets);
   const fontAssets = allAssets.filter((a) => a.type === "font");
   const placeholderLocation = useMemo(() => ({ kind: "menu" as const, menuId }), [menuId]);

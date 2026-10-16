@@ -1,14 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import type { ProjectId } from "@/domain/types";
 import { deleteUserProject, loadUserProject } from "@/lib/api/userProjects";
 import { projectDestination } from "@/lib/projectNavigation";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useNavigate } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "@tanstack/react-router";
-import type { ProjectId } from "@/domain/types";
 
 interface DeleteProjectDialogProps {
   projectId: ProjectId;
@@ -28,8 +28,8 @@ export function DeleteProjectDialog({
   const [error, setError] = useState<string | null>(null);
   const confirmInputId = useId();
   const user = useAuthStore((s) => s.currentUser);
-  const removeProject = useAccountStore((s) => s.removeProject);
-  const projectOrder = useAccountStore((s) => s.account.projectOrder);
+  const removeProject = useProjectsStore((s) => s.removeProject);
+  const projectOrder = useProjectsStore((s) => s.openProjects.projectOrder);
   const { t } = useTranslation();
   const navigate = useNavigate();
 

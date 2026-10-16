@@ -20,7 +20,13 @@ afterEach(() => {
 // PointerEvent isn't constructible in jsdom; a MouseEvent on a pointer-type
 // carries button/clientX/clientY, which is all the hook reads.
 function pdown(target: Element, button: number, clientX: number, clientY: number) {
-  const e = new MouseEvent("pointerdown", { button, clientX, clientY, cancelable: true, bubbles: true });
+  const e = new MouseEvent("pointerdown", {
+    button,
+    clientX,
+    clientY,
+    cancelable: true,
+    bubbles: true,
+  });
   act(() => {
     target.dispatchEvent(e);
   });
