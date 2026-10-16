@@ -1,6 +1,6 @@
-import { useThemeStore, type Theme } from "@/state/themeStore";
-import { useTranslation } from "react-i18next";
+import { type Theme, useThemeStore } from "@/state/themeStore";
 import { Moon, Sun } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /**
  * Binary segmented-control: [☾ Dark] [☀ Light]

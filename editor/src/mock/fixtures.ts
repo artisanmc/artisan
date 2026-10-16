@@ -1,5 +1,5 @@
-import { accountId, commandId, elementId, layerId, menuId, projectId } from "@/domain/ids";
-import type { Account, I18nKey, MenuTitleLayer, Project } from "@/domain/types";
+import { commandId, elementId, layerId, menuId, projectId } from "@/domain/ids";
+import type { I18nKey, MenuTitleLayer, OpenProjects, Project } from "@/domain/types";
 
 /** Wrap an existing i18n key into a single text MenuTitleLayer (migration helper for fixtures). */
 const textLayer = (key: I18nKey): MenuTitleLayer[] => [
@@ -207,8 +207,7 @@ const dailyQuestsProject = (): Project => {
   };
 };
 
-export const mockAccount = (): Account => ({
-  id: accountId("acc_local"),
+export const mockOpenProjects = (): OpenProjects => ({
   projects: [personalProject(), shopSystemProject(), dailyQuestsProject()],
   projectOrder: [projectId("p_personal"), projectId("p_shop_system"), projectId("p_daily_quests")],
 });

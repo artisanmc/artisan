@@ -1,7 +1,7 @@
+import { menusOf } from "@/domain/documents";
 import { deleteLText } from "@/lib/i18n";
 import { addressedAppearances } from "./element";
 import type { Appearance, LText, Project } from "./types";
-import { menusOf } from "@/domain/documents";
 
 /** Placeholder rendering the base item's lore where it is written. */
 export const BASE_LORE_TOKEN = "{base.lore}";

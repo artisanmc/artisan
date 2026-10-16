@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { dataModelId, dataSourceId } from "./ids";
 import { nextAvailableSourceRowKey, validateSourceRowKey } from "./dataSourceRowKeys";
+import { dataModelId, dataSourceId } from "./ids";
 import type { DataModel, DataSource, Project } from "./types";
 
 function tableSource(rows: Record<string, unknown>[]): Extract<DataSource, { shape: "table" }> {

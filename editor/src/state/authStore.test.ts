@@ -84,7 +84,7 @@ describe("authStore.hydrate", () => {
   });
 
   /**
-   * Anonymous mode no longer exists (accounts-only): either we know who you
+   * Anonymous mode no longer exists (sign-in only): either we know who you
    * are, or you go to /login. An unreachable hub therefore allows NO
    * conclusion — least of all "signed out", since /login would be just as
    * unusable. Stay "unknown" and retry, indefinitely.
@@ -189,38 +189,38 @@ describe("authStore.logout", () => {
   });
 });
 
-describe("authStore — account-scoped state reset on identity switch", () => {
-  test("switching to a different user clears accountStore + lastActiveProjectId", async () => {
-    const { useAccountStore } = await import("./accountStore");
+describe("authStore — per-player state reset on identity switch", () => {
+  test("switching to a different user clears projectsStore + lastActiveProjectId", async () => {
+    const { useProjectsStore } = await import("./projectsStore");
     const { useUiStore } = await import("./uiStore");
-    // Sign in as user A and give the account some local state.
+    // Sign in as user A and give the player some local state.
     useAuthStore.setState({
       currentUser: { id: "uA", email: "a@e.com", name: "A", avatarUrl: null },
     });
     await Promise.resolve(); // let the subscriber observe user A
-    useAccountStore.getState().createProject({ id: "pack_a" });
+    useProjectsStore.getState().createProject({ id: "pack_a" });
     useUiStore.getState().setLastActiveProjectId("pack_a" as never);
     // Switch to user B in the same tab.
     useAuthStore.setState({
       currentUser: { id: "uB", email: "b@e.com", name: "B", avatarUrl: null },
     });
     await vi.waitFor(() => {
-      expect(useAccountStore.getState().account.projects).toHaveLength(0);
+      expect(useProjectsStore.getState().openProjects.projects).toHaveLength(0);
       expect(useUiStore.getState().lastActiveProjectId).toBeNull();
     });
   });
 
   test("first sign-in (null → user) keeps prior state", async () => {
-    const { useAccountStore } = await import("./accountStore");
+    const { useProjectsStore } = await import("./projectsStore");
     useAuthStore.setState({ currentUser: null });
     await Promise.resolve();
-    useAccountStore.getState().createProject({ id: "pack_pre_login" });
+    useProjectsStore.getState().createProject({ id: "pack_pre_login" });
     useAuthStore.setState({
       currentUser: { id: "uC", email: "c@e.com", name: "C", avatarUrl: null },
     });
     // Give the (async) subscriber a chance to run, then assert nothing was cleared.
     await new Promise((r) => setTimeout(r, 10));
-    expect(useAccountStore.getState().account.projects.map((p) => p.id)).toContain(
+    expect(useProjectsStore.getState().openProjects.projects.map((p) => p.id)).toContain(
       "pack_pre_login",
     );
   });

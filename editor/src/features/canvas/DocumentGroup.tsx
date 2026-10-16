@@ -1,6 +1,6 @@
 import type { Document, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { useAlignmentStore } from "@/state/alignmentStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
@@ -27,7 +27,7 @@ interface DocumentGroupProps {
  */
 export function DocumentGroup({ project, kind, doc, position }: DocumentGroupProps) {
   const projectId = project.id as ProjectId;
-  const setCanvasPosition = useAccountStore((s) => s.setCanvasPosition);
+  const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(doc.id));
   const lang = useUiStore((s) => s.activeLang);
   const nodeAlign = useNodeAlignment(projectId, doc.id);

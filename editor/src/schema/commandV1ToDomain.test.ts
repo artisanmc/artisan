@@ -1,6 +1,6 @@
+import { projectId } from "@/domain/ids";
 import { describe, expect, it } from "vitest";
 import { commandV1ToDomain } from "./commandV1ToDomain";
-import { projectId } from "@/domain/ids";
 
 const opts = { projectId: projectId("p1"), lang: "en" };
 
@@ -24,7 +24,9 @@ describe("commandV1ToDomain", () => {
     expect(command.permission).toBe("a.heal");
     expect(command.description).toBe("Heal");
     expect(command.projectId).toBe("p1");
-    expect(command.steps).toEqual([{ kind: "action", action: { name: "close_menu", value: null } }]);
+    expect(command.steps).toEqual([
+      { kind: "action", action: { name: "close_menu", value: null } },
+    ]);
   });
 
   it("maps arguments, online_player→player, and extracts send_message i18n", () => {
@@ -55,7 +57,9 @@ describe("commandV1ToDomain", () => {
       opts,
     );
     expect(command.name).toBe("boutique");
-    expect(command.steps).toEqual([{ kind: "action", action: { name: "close_menu", value: null } }]);
+    expect(command.steps).toEqual([
+      { kind: "action", action: { name: "close_menu", value: null } },
+    ]);
   });
 
   it("prefers `actions` over legacy `steps` when both are present", () => {
@@ -63,7 +67,9 @@ describe("commandV1ToDomain", () => {
       { schema: "command/v1", id: "c", actions: "close_menu", steps: 'send_message "old"' },
       opts,
     );
-    expect(command.steps).toEqual([{ kind: "action", action: { name: "close_menu", value: null } }]);
+    expect(command.steps).toEqual([
+      { kind: "action", action: { name: "close_menu", value: null } },
+    ]);
   });
 
   it("flags requirements/fallback/cooldown and unsupported arg types", () => {
@@ -81,6 +87,13 @@ describe("commandV1ToDomain", () => {
       opts,
     );
     expect(command.arguments[0]).toEqual({ name: "w", type: "string", required: false });
-    expect(unsupported).toEqual(expect.arrayContaining(["command.requirements", "command.fallback", "command.cooldown", "arg type: world"]));
+    expect(unsupported).toEqual(
+      expect.arrayContaining([
+        "command.requirements",
+        "command.fallback",
+        "command.cooldown",
+        "arg type: world",
+      ]),
+    );
   });
 });

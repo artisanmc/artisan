@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { JsonSchema, SchemaFormProps, ObjectSchema, ArraySchema } from "./types";
+import type { ArraySchema, JsonSchema, ObjectSchema, SchemaFormProps } from "./types";
 
 export function SchemaForm({ schema, value, onChange, widgets }: SchemaFormProps) {
   return <FieldRouter schema={schema} value={value} onChange={onChange} widgets={widgets} />;

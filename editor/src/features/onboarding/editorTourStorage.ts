@@ -4,7 +4,7 @@ export const EDITOR_TOUR_GUEST_KEY = "artisan:editor-tour:guest";
 export const EDITOR_TOUR_TRANSFER_KEY = "artisan:editor-tour:transfer";
 type TourStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 interface TransferIntent {
-  accountId: string | null;
+  playerId: string | null;
   progress: EditorTourProgress;
   returnTo: string;
 }
@@ -40,7 +40,7 @@ export function createEditorTourStorage(local: () => TourStorage, session: () =>
       const intent = parseStored(value) as TransferIntent | null;
       transferMemory =
         intent &&
-        (intent.accountId === null || typeof intent.accountId === "string") &&
+        (intent.playerId === null || typeof intent.playerId === "string") &&
         validProgress(intent.progress) &&
         typeof intent.returnTo === "string"
           ? intent
@@ -86,22 +86,22 @@ export function createEditorTourStorage(local: () => TourStorage, session: () =>
         guestMemoryOnly = true;
       }
     },
-    prepareTransfer(accountId: string | null, returnTo: string) {
-      if (accountId) return;
+    prepareTransfer(playerId: string | null, returnTo: string) {
+      if (playerId) return;
       const progress = storage.readGuest();
-      if (progress) writeIntent({ accountId: null, progress, returnTo });
+      if (progress) writeIntent({ playerId: null, progress, returnTo });
     },
-    bindTransfer(accountId: string, returnTo: string | null) {
+    bindTransfer(playerId: string, returnTo: string | null) {
       const intent = readIntent();
-      if (intent?.accountId === null)
-        writeIntent(intent.returnTo === returnTo ? { ...intent, accountId } : null);
+      if (intent?.playerId === null)
+        writeIntent(intent.returnTo === returnTo ? { ...intent, playerId } : null);
     },
-    readTransfer(accountId: string): EditorTourProgress | null {
+    readTransfer(playerId: string): EditorTourProgress | null {
       const intent = readIntent();
-      return intent?.accountId === accountId ? intent.progress : null;
+      return intent?.playerId === playerId ? intent.progress : null;
     },
-    clearTransfer(accountId: string) {
-      if (readIntent()?.accountId === accountId) writeIntent(null);
+    clearTransfer(playerId: string) {
+      if (readIntent()?.playerId === playerId) writeIntent(null);
     },
   };
   return storage;

@@ -1,5 +1,5 @@
+import { type ServerEditorScreen, fetchServerEditorScreens } from "@/lib/api/configScreens";
 import { create } from "zustand";
-import { fetchServerEditorScreens, type ServerEditorScreen } from "@/lib/api/configScreens";
 
 interface ScreensSource {
   serverId: string;

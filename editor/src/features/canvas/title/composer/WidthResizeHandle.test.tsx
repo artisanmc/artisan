@@ -14,15 +14,7 @@ vi.mock("react-konva", () => ({
 describe("WidthResizeHandle", () => {
   it("mounts without throwing", () => {
     const onResize = vi.fn();
-    render(
-      <WidthResizeHandle
-        x={100}
-        y={10}
-        height={30}
-        currentWidth={100}
-        onResize={onResize}
-      />,
-    );
+    render(<WidthResizeHandle x={100} y={10} height={30} currentWidth={100} onResize={onResize} />);
     expect(onResize).not.toHaveBeenCalled();
   });
 

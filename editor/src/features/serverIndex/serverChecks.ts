@@ -1,7 +1,7 @@
+import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { deriveServerGraph, documentKey } from "@/features/canvas/serverGraph";
 import { namespaceOf } from "./serverIndex";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 
 export interface IssueOwner {
   namespace: string;

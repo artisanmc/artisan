@@ -4,14 +4,8 @@ import {
   sourceRootFields,
   wouldTypeCreateModelCycle,
 } from "@/domain/dataModels";
-import type {
-  DataModel,
-  DataModelId,
-  ModelField,
-  ModelFieldType,
-  Project,
-} from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import type { DataModel, DataModelId, ModelField, ModelFieldType, Project } from "@/domain/types";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -34,7 +28,14 @@ const SCALAR_KINDS = [
   "actions",
   "conditions",
 ] as const;
-type KindChoice = (typeof SCALAR_KINDS)[number] | "list" | "object" | "model" | "map" | "enum" | "union";
+type KindChoice =
+  | (typeof SCALAR_KINDS)[number]
+  | "list"
+  | "object"
+  | "model"
+  | "map"
+  | "enum"
+  | "union";
 
 function kindOf(t: ModelFieldType): KindChoice {
   // `document_ref` is declared by modules (ADR extensible-document-kinds), not
@@ -105,7 +106,14 @@ function EnumValuesEditor({
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
-        const next = [...new Set(draft.split(",").map((v) => v.trim()).filter(Boolean))];
+        const next = [
+          ...new Set(
+            draft
+              .split(",")
+              .map((v) => v.trim())
+              .filter(Boolean),
+          ),
+        ];
         if (next.length === 0) {
           setDraft(values.join(", "));
           return;
@@ -205,7 +213,10 @@ function UnionShapeEditor({
                 <button
                   type="button"
                   onClick={() =>
-                    patchVariant(vi, { ...variant, fields: variant.fields.filter((_, j) => j !== fi) })
+                    patchVariant(vi, {
+                      ...variant,
+                      fields: variant.fields.filter((_, j) => j !== fi),
+                    })
                   }
                   className="rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
                   aria-label={t("dataSources.removeField", { name: f.name })}
@@ -241,7 +252,10 @@ function UnionShapeEditor({
   );
 }
 
-function VariantFieldAdder({ existing, onAdd }: { existing: string[]; onAdd: (name: string) => void }) {
+function VariantFieldAdder({
+  existing,
+  onAdd,
+}: { existing: string[]; onAdd: (name: string) => void }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
   const commit = () => {
@@ -287,7 +301,7 @@ function FieldRow({
   isKeyField: boolean;
 }) {
   const { t } = useTranslation();
-  const editSourceField = useAccountStore((s) => s.editSourceField);
+  const editSourceField = useProjectsStore((s) => s.editSourceField);
   const [name, setName] = useState(field.name);
   const models = project.dataModels ?? [];
 
@@ -305,10 +319,7 @@ function FieldRow({
     });
   };
   const retype = (newType: ModelFieldType) => {
-    if (
-      target.kind === "model" &&
-      wouldTypeCreateModelCycle(models, target.modelId, newType)
-    )
+    if (target.kind === "model" && wouldTypeCreateModelCycle(models, target.modelId, newType))
       return;
     editSourceField({ projectId, target, edit: { op: "retype", path, name: field.name, newType } });
   };
@@ -352,9 +363,7 @@ function FieldRow({
               value={kindOf(listElem)}
               allowComplex={false}
               labelFor={kindLabel}
-              onChange={(k) =>
-                retype({ kind: "list", of: defaultTypeForKind(k, models) })
-              }
+              onChange={(k) => retype({ kind: "list", of: defaultTypeForKind(k, models) })}
             />
           </>
         ) : null}
@@ -450,7 +459,12 @@ function FieldRow({
         </div>
       ) : null}
       {field.type.kind === "union" ? (
-        <UnionShapeEditor type={field.type} models={models} onCommit={retype} labelFor={kindLabel} />
+        <UnionShapeEditor
+          type={field.type}
+          models={models}
+          onCommit={retype}
+          labelFor={kindLabel}
+        />
       ) : null}
     </li>
   );
@@ -472,7 +486,7 @@ function FieldList({
   keyField: string | null;
 }) {
   const { t } = useTranslation();
-  const editSourceField = useAccountStore((s) => s.editSourceField);
+  const editSourceField = useProjectsStore((s) => s.editSourceField);
   // The draft stays hidden behind a dashed "+ Add a field" button:
   // always-visible inputs looked like an already-added field row.
   const [draftOpen, setDraftOpen] = useState(false);
@@ -569,9 +583,9 @@ export function ModelFieldsEditor({
   source: Project["dataSources"][number];
 }) {
   const { t } = useTranslation();
-  const renameDataModel = useAccountStore((s) => s.renameDataModel);
-  const setModelKeyField = useAccountStore((s) => s.setModelKeyField);
-  const setSourceGranularity = useAccountStore((s) => s.setSourceGranularity);
+  const renameDataModel = useProjectsStore((s) => s.renameDataModel);
+  const setModelKeyField = useProjectsStore((s) => s.setModelKeyField);
+  const setSourceGranularity = useProjectsStore((s) => s.setSourceGranularity);
   const models = project.dataModels ?? [];
   const model = source.shape === "table" ? models.find((m) => m.id === source.modelId) : null;
   const target: FieldEditTarget =
@@ -581,7 +595,9 @@ export function ModelFieldsEditor({
   const fields = sourceRootFields(project, source);
   // Row-key candidates: top-level scalar fields.
   const keyCandidates = fields
-    .filter((f) => f.type.kind === "string" || f.type.kind === "number" || f.type.kind === "integer")
+    .filter(
+      (f) => f.type.kind === "string" || f.type.kind === "number" || f.type.kind === "integer",
+    )
     .map((f) => f.name);
 
   // Module-declared model: the Add-on owns the shape — read-only for the admin
