@@ -1,9 +1,11 @@
 import type { Project } from "@/domain/types";
 import { documentLabel } from "@/features/project/useProjectDocuments";
+import { plainTextFromMiniMessage } from "@/lib/miniMessage";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
 import { useMemo } from "react";
 import { Group, Rect, Text } from "react-konva";
+import { MiniMessageKonvaText } from "./MiniMessageKonvaText";
 import { deriveEdges } from "./deriveEdges";
 import { nodeBox } from "./menuLayout";
 import { offBoardLinks } from "./offBoardLinks";
@@ -29,8 +31,13 @@ const CHAR_W = 6.2;
 
 export function GhostChips({ project, layout, onOpen, representatives }: GhostChipsProps) {
   const activeLang = useUiStore((s) => s.activeLang);
-  const links = useMemo(() => offBoardLinks(deriveEdges(project), layout).filter((e) =>
-    !representatives?.[e.target] || representatives[e.target] === e.target), [project, layout, representatives]);
+  const links = useMemo(
+    () =>
+      offBoardLinks(deriveEdges(project), layout).filter(
+        (e) => !representatives?.[e.target] || representatives[e.target] === e.target,
+      ),
+    [project, layout, representatives],
+  );
 
   // Index of each link within its source group — used to stagger overlapping chips.
   const indexBySource = useMemo(() => {
@@ -49,8 +56,11 @@ export function GhostChips({ project, layout, onOpen, representatives }: GhostCh
         if (!box) return null;
 
         const i = indexBySource[idx] ?? 0;
-        const label = `→ ${documentLabel(project, target, activeLang)}`;
-        const width = Math.max(48, label.length * CHAR_W + CHIP_PAD * 2);
+        const label = documentLabel(project, target, activeLang);
+        const width = Math.max(
+          48,
+          (plainTextFromMiniMessage(label).length + 2) * CHAR_W + CHIP_PAD * 2,
+        );
         // Anchor: top-right corner of the source, offset vertically per chip.
         const x = box.x + box.width + 8;
         const y = box.y + i * (CHIP_H + CHIP_GAP);
@@ -83,11 +93,19 @@ export function GhostChips({ project, layout, onOpen, representatives }: GhostCh
             <Text
               x={CHIP_PAD}
               y={CHIP_H / 2 - 6}
-              text={label}
+              text="→ "
               fontFamily="ui-monospace, monospace"
               fontSize={11}
               fill="#a1a1aa"
               listening={false}
+            />
+            <MiniMessageKonvaText
+              source={label}
+              x={CHIP_PAD + 2 * CHAR_W}
+              y={CHIP_H / 2 - 6}
+              fontSize={11}
+              charWidth={CHAR_W}
+              defaultColor="#e4e4e7"
             />
           </Group>
         );
