@@ -490,8 +490,11 @@ open class ArtisanPlugin : JavaPlugin() {
                 if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) null
                 else artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
             }) { artisanData != null }
+            // A build in plugins/Artisan/editor/ replaces the jar's, read on each request.
+            val assets = net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader, overrideDir = File(dataFolder, "editor"))
+            if (assets.overridden) logger.warning("[Artisan] Serving the editor from plugins/Artisan/editor/, not from the jar: delete that folder after updating Artisan.")
             val server = net.artisanmc.plugin.hub.HubServer(
-                web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(javaClass.classLoader), editorChannel, logger, plugins,
+                web, router, editorSessions, assets, editorChannel, logger, plugins,
             )
             if (server.start()) editor = server
         } catch (e: LinkageError) {
