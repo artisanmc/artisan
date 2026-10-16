@@ -16,48 +16,41 @@ You write no UI. The shape is versioned with your jar — admins cannot break it
 
 ## Declare a model
 
-A model is a plain `Map` passed verbatim to the registry. Nothing is interpreted
-plugin-side: the document travels to the editor, which renders the form.
+A model is a `ModelDeclaration` (Since 2.0.0): a namespaced id, the key field
+and `ModelField`s typed with `ModelFieldType`, the same types an action's
+arguments use. Nothing is interpreted plugin-side: its `model/v1` document
+(`toWire()`) travels to the editor, which renders the form.
 
 ```kotlin
-api.models.declare(mapOf(
-    "schema" to "model/v1",
-    "id" to "myplugin:kit",            // MUST be namespaced
-    "name" to "Kit",
-    "key_field" to "id",
-    "version" to 1,
-    "fields" to listOf(
-        mapOf("name" to "id",      "type" to mapOf("kind" to "string"),  "required" to true),
-        mapOf("name" to "name",    "type" to mapOf("kind" to "ltext"),   "required" to true),
-        mapOf("name" to "icon",    "type" to mapOf("kind" to "item")),
-        mapOf("name" to "cooldown","type" to mapOf("kind" to "integer"), "default" to 0, "min" to 0),
-        mapOf("name" to "on_give", "type" to mapOf("kind" to "actions"),
-              "help" to "Runs when the kit is claimed."),
-    ),
-))
+api.models.declare(
+    ModelDeclaration("myplugin:kit", "id", listOf(      // id MUST be namespaced
+        ModelField("id", ModelFieldType.string(), true),
+        ModelField("name", ModelFieldType.ltext(), true),
+        ModelField("icon", ModelFieldType.item()),
+        ModelField("cooldown", ModelFieldType.integer()).withDefault(0).withRange(0.0, null),
+        ModelField("on_give", ModelFieldType.actions()).withHelp("Runs when the kit is claimed."),
+    )).withName("Kit").withVersion(1)
+)
 ```
 
-In Java, build the documents in one dedicated class (the Boutique has
+In Java, build the declarations in one dedicated class (the Boutique has
 `ShopModels`) — keeping them together makes versioning them obvious:
 
 ```java
-static Map<String, Object> kit() {
-    Map<String, Object> doc = new LinkedHashMap<>();
-    doc.put("schema", "model/v1");
-    doc.put("id", "myplugin:kit");
-    doc.put("name", "Kit");
-    doc.put("key_field", "id");
-    doc.put("version", 1);
-    doc.put("fields", List.of(
-            Map.of("name", "id", "type", Map.of("kind", "string"), "required", true),
-            Map.of("name", "name", "type", Map.of("kind", "ltext"), "required", true),
-            Map.of("name", "cooldown", "type", Map.of("kind", "integer"), "default", 0, "min", 0)));
-    return doc;
+static ModelDeclaration kit() {
+    return new ModelDeclaration("myplugin:kit", "id", List.of(
+            new ModelField("id", ModelFieldType.string(), true),
+            new ModelField("name", ModelFieldType.ltext(), true),
+            new ModelField("cooldown", ModelFieldType.integer()).withDefault(0).withRange(0.0, null)))
+        .withName("Kit")
+        .withVersion(1);
 }
 ```
 
-`schema`, `id`, `key_field` and `fields` are required; `key_field` names the
-top-level scalar field that identifies a row.
+`key_field` names the top-level scalar field that identifies a row.
+
+`api.models.declare(Map)`, which takes the `model/v1` document as a raw map,
+still works for add-ons built on 1.x; it is `@Sunset` until 3.0.0.
 
 Declare from `onEnable(api)` so the model is attributed to your module.
 A duplicate or non-namespaced id throws at declare time.
@@ -86,13 +79,15 @@ forms nested inside the category form.
 
 Any field accepts: `label`, `help`, `section` (groups fields under a heading),
 `required`, `default`, `min`/`max` (numeric), `pattern` (regex), and `locked`
-(your plugin manages the value — read-only in the form).
+(your plugin manages the value — read-only in the form). On a `ModelField`:
+`withLabel`, `withHelp`, `withSection`, `withRequired`, `withDefault`,
+`withRange(min, max)`, `withPattern`, `withLocked`.
 
 These hints do double duty: they also become **comments in the YAML file on
 disk**, so an admin who opens the file over SSH reads the same explanations the
 form shows.
 
-A model may set `master_detail: true` to be rendered as a list of rows plus the
+A model may set `withMasterDetail(true)` (`master_detail: true`) to be rendered as a list of rows plus the
 selected row's form, instead of a spreadsheet — the right shape for catalogs.
 
 ## Version and migrate your shape
@@ -101,18 +96,17 @@ selected row's form, instead of a spreadsheet — the right shape for catalogs.
 migration **in the declaration** — declarative steps, never code:
 
 ```kotlin
-"version" to 2,
-"migrations" to listOf(mapOf(
-    "from" to 1, "to" to 2,
-    "steps" to listOf(
-        mapOf("op" to "rename_field", "from" to "cost", "to" to "price"),
-        mapOf("op" to "set_default", "field" to "discount", "value" to 0),
-    ),
-)),
+.withVersion(2, listOf(
+    ModelMigration(1, 2, listOf(
+        MigrationStep.renameField("cost", "price"),
+        MigrationStep.setDefault("discount", 0),
+    )),
+))
 ```
 
-Available steps: `rename_field`, `set_default`, `rename_enum_value`,
-`rename_variant` — each accepting an optional `path` for nested fields. Unknown
+Available steps: `renameField`, `setDefault`, `renameEnumValue`,
+`renameVariant` (`rename_field`, `set_default`, `rename_enum_value`,
+`rename_variant` in the document) — each accepting an optional `path` for nested fields. Unknown
 steps are ignored rather than fatal. Migrations are applied editor-side when
 admins open the data.
 

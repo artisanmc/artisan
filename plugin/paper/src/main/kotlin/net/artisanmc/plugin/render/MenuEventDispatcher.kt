@@ -1,12 +1,12 @@
 package net.artisanmc.plugin.render
 
-import net.artisanmc.modules.api.MenuClickEvent
-import net.artisanmc.modules.api.MenuClickListener
-import net.artisanmc.modules.api.MenuCloseEvent
-import net.artisanmc.modules.api.MenuCloseListener
-import net.artisanmc.modules.api.MenuOpenEvent
-import net.artisanmc.modules.api.MenuOpenListener
-import net.artisanmc.modules.api.MenuSubscription
+import net.artisanmc.modules.api.menu.MenuClickEvent
+import net.artisanmc.modules.api.menu.MenuClickListener
+import net.artisanmc.modules.api.menu.MenuCloseEvent
+import net.artisanmc.modules.api.menu.MenuCloseListener
+import net.artisanmc.modules.api.menu.MenuOpenEvent
+import net.artisanmc.modules.api.menu.MenuOpenListener
+import net.artisanmc.modules.api.menu.MenuSubscription
 import org.bukkit.Bukkit
 import org.bukkit.event.Event
 import java.util.concurrent.CopyOnWriteArrayList

@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.modules.api.ActionContext
-import net.artisanmc.modules.api.ActionRuntime
+import net.artisanmc.modules.api.action.ActionContext
+import net.artisanmc.modules.api.action.ActionRuntime
 import net.artisanmc.plugin.model.LocalizedText
 import org.bukkit.Bukkit
 

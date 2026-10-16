@@ -1,6 +1,12 @@
 package net.artisanmc.modules.api
 
 import be.seeseemelk.mockbukkit.MockBukkit
+import net.artisanmc.modules.api.command.CommandDeclaration
+import net.artisanmc.modules.api.command.CommandRegistry
+import net.artisanmc.modules.api.datasource.DataSourceDeclaration
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.event.ModuleEventBus
+import net.artisanmc.modules.api.project.ProjectContentApi
 import net.artisanmc.modules.api.schemas.SchemaRegistry
 import net.artisanmc.plugin.ArtisanPlugin
 import org.junit.jupiter.api.AfterEach

@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { projectFromFiles } from "./projectFromFiles";
-import { transform } from "@/features/export/transform";
-import { parse } from "yaml";
-import type { ProjectId } from "@/domain/types";
 import { menusOf } from "@/domain/documents";
+import type { ProjectId } from "@/domain/types";
+import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
+import { projectFromFiles } from "./projectFromFiles";
+import { projectToFiles } from "./projectToFiles";
 
 const BASE = "plugins/Artisan/projects/p1";
 
@@ -37,7 +37,7 @@ describe("a Document's identity comes from its file name", () => {
       [`${BASE}/manifest.yaml`]: "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n",
       [`${BASE}/menus/accueil.yaml`]: "schema: menu/v1\nsize: 27\n",
     });
-    const out = transform(project);
+    const out = projectToFiles(project);
     const doc = parse(out[`${BASE}/menus/accueil.yaml`]!) as Record<string, unknown>;
     expect(doc.schema).toBe("menu/v1");
     // The file already carries its identity in its name: repeating it inside
@@ -50,7 +50,7 @@ describe("a Document's identity comes from its file name", () => {
       [`${BASE}/manifest.yaml`]: "schema: manifest/v1\nfiles:\n  menus:\n    - accueil\n",
       [`${BASE}/menus/accueil.yaml`]: "schema: menu/v1\nsize: 27\n",
     });
-    const reloaded = load(transform(project));
+    const reloaded = load(projectToFiles(project));
     expect(menusOf(reloaded).map((m) => m.id)).toEqual(["accueil"]);
   });
 });
