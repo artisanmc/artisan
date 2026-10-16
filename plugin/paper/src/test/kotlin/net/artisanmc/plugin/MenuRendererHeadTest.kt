@@ -81,7 +81,7 @@ class MenuRendererHeadTest {
         }
         val deps = SoftDepRegistry(
             vault = null, papi = fakePapi, worldGuard = null,
-            nexoItems = null, oraxenItems = null, itemsAdderItems = null, hdbHeads = null,
+            hdbHeads = null,
         )
         val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), ConditionEvaluator(deps, CooldownStore())).slots
         val meta = slots[0]?.itemMeta as SkullMeta

@@ -2,6 +2,10 @@ package net.artisanmc.modules.menus
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.modules.api.*
+import net.artisanmc.modules.api.command.CommandRegistry
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.event.ModuleEventBus
+import net.artisanmc.modules.api.project.ProjectContentApi
 import net.artisanmc.modules.api.schemas.SchemaRegistry
 import net.artisanmc.plugin.ArtisanPlugin
 import org.junit.jupiter.api.AfterEach
@@ -39,7 +43,7 @@ class MenusModuleTest {
             SchemaRegistry(),
             reg,
             "1.0.0",
-            object : net.artisanmc.modules.api.ProjectContentApi {
+            object : net.artisanmc.modules.api.project.ProjectContentApi {
                 override fun projectIds() = emptyList<String>()
                 override fun list(projectId: String, dir: String) = emptyList<String>()
                 override fun read(projectId: String, relPath: String): String? = null

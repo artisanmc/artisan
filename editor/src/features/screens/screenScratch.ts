@@ -1,8 +1,8 @@
 import { injectDeclaredModels } from "@/domain/dataModels";
 import type { Project, ProjectId } from "@/domain/types";
-import { transform } from "@/features/export/transform";
 import type { ConfigFile, ServerEditorScreen } from "@/lib/api/configScreens";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { projectToFiles } from "@/schema/projectToFiles";
 import { listModules } from "@artisan/editor-sdk";
 
 /**
@@ -65,7 +65,7 @@ export function diffScratchForWrite(
   original: ConfigFile[],
 ): { files: ConfigFile[]; deletes: string[] } {
   const base = `plugins/Artisan/projects/${project.id}/`;
-  const emitted = transform(project);
+  const emitted = projectToFiles(project);
   const tablePrefix = `${screen.table}/`;
   const tableFile = (p: string) =>
     p === `${screen.table}.yaml` || p === `${screen.table}.yml` || p.startsWith(tablePrefix);

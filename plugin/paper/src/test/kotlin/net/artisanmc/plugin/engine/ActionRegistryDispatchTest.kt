@@ -1,10 +1,10 @@
 package net.artisanmc.plugin.engine
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import net.artisanmc.modules.api.ActionDeclaration
-import net.artisanmc.modules.api.ActionRegistry
-import net.artisanmc.modules.api.ModelField
-import net.artisanmc.modules.api.ModelFieldType
+import net.artisanmc.modules.api.action.ActionDeclaration
+import net.artisanmc.modules.api.action.ActionRegistry
+import net.artisanmc.modules.api.model.ModelField
+import net.artisanmc.modules.api.model.ModelFieldType
 import net.artisanmc.plugin.ArtisanPlugin
 import net.artisanmc.plugin.model.BundleMenu
 import net.artisanmc.plugin.model.ProjectBundle

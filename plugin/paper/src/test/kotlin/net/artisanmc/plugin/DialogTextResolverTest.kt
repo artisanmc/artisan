@@ -25,7 +25,8 @@ class DialogTextResolverTest {
     private fun dialog(yaml: String, langMap: Map<String, String> = emptyMap()): BundleDialog =
         BundleDialog(mapper.readValue<DialogYaml>(yaml), langMaps = mapOf("en" to langMap))
 
-    private fun ctx() = ExecutionContext(MockBukkit.getMock()!!.addPlayer("Steve"))
+    private fun ctx(langMap: Map<String, String> = emptyMap()) =
+        ExecutionContext(MockBukkit.getMock()!!.addPlayer("Steve"), langMap = langMap)
 
     @Test fun `title resolves builtin player placeholder`() {
         val d = dialog(
@@ -36,7 +37,7 @@ class DialogTextResolverTest {
               - { id: ok, label: OK }
             """.trimIndent(),
         )
-        val texts = DialogTextResolver.resolveAll(d, d.langMapWithFallback("en"), ctx())
+        val texts = DialogTextResolver.resolveAll(d, ctx(d.langMapWithFallback("en")))
         assertEquals("Hello Steve", texts.title)
     }
 
@@ -52,7 +53,7 @@ class DialogTextResolverTest {
               - { id: ok, label: "Confirm, {player.name}" }
             """.trimIndent(),
         )
-        val texts = DialogTextResolver.resolveAll(d, d.langMapWithFallback("en"), ctx())
+        val texts = DialogTextResolver.resolveAll(d, ctx(d.langMapWithFallback("en")))
         assertEquals(listOf<String?>("Welcome Steve", null), texts.bodyTexts)
         assertEquals(listOf("Confirm, Steve"), texts.buttonLabels)
     }
@@ -72,7 +73,7 @@ class DialogTextResolverTest {
               - { id: ok, label: OK }
             """.trimIndent(),
         )
-        val texts = DialogTextResolver.resolveAll(d, d.langMapWithFallback("en"), ctx())
+        val texts = DialogTextResolver.resolveAll(d, ctx(d.langMapWithFallback("en")))
         assertEquals(listOf("Tier for Steve"), texts.inputLabels)
         assertEquals(listOf(listOf("Basic (Steve)")), texts.inputOptionLabels)
     }
@@ -87,7 +88,7 @@ class DialogTextResolverTest {
             """.trimIndent(),
             langMap = mapOf("greet" to "Hi {player}"),
         )
-        val texts = DialogTextResolver.resolveAll(d, d.langMapWithFallback("en"), ctx())
+        val texts = DialogTextResolver.resolveAll(d, ctx(d.langMapWithFallback("en")))
         assertEquals("Hi Steve", texts.title)
     }
 
@@ -100,7 +101,7 @@ class DialogTextResolverTest {
               - { id: ok, label: OK }
             """.trimIndent(),
         )
-        val texts = DialogTextResolver.resolveAll(d, d.langMapWithFallback("en"), ctx())
+        val texts = DialogTextResolver.resolveAll(d, ctx(d.langMapWithFallback("en")))
         // ADR `expression-parity` §4, the two halves of the rule: an unbound ROOT
         // (`nope`) keeps its source so the typo is visible, while a bound root with
         // a missing FIELD renders empty — rows are allowed to omit fields, and the
