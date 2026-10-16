@@ -285,6 +285,11 @@ mappings:
       - "docs/architecture/editor-internals.md"
     reason: "UI shell — project tab structure"
 
+  - touches: "editor/src/features/project/publish/**"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "Publish workflow (deploy CAS, conflict sources, review)"
+
   - touches: "editor/src/components/ProjectSidebar.tsx"
     updates:
       - "docs/architecture/editor-internals.md"
