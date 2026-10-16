@@ -177,7 +177,7 @@ class ProjectDrafts(private val storage: DraftStorage) {
         listOf("binaryTree", "binaryBaseline").flatMap { key -> snapshot?.get(key)?.fields()?.asSequence()?.map { it.value["hash"].asText() }?.toList().orEmpty() }.toSet()
 
     private fun contentPath(path: String) =
-        ProjectPathPolicy.valid(path) && (!path.startsWith('.') || path == ".artisan/editor.yaml") && !ProjectPathPolicy.isPrivate(path)
+        ProjectPathPolicy.valid(path) && !net.artisanmc.plugin.project.ProjectMetadataPaths.isHiddenFromEditor(path)
 
     /** Why [snapshot] cannot be a draft body; null when it can. */
     private fun invalidBody(name: String, snapshot: JsonNode): String? {

@@ -77,14 +77,19 @@ suivent un renommage ; aucune écriture n'en crée. Il n'existe aucune Version d
 
 ## Exclusion `.artisan*` universelle (2026-07-23)
 
-Tout relPath dont le **premier segment** commence par `.artisan` est une métadonnée : hors hash,
-invisible au scan de contenu.
+Tout relPath dont le **premier segment** commence par `.artisan`, **casse ignorée**, est une
+métadonnée : hors hash, invisible au scan de contenu. La casse est ignorée parce que le disque peut
+l'ignorer (macOS, bind mount Docker depuis Windows) : `.ARTISAN/project-id` y est le fichier
+d'identité. Un `.artisan` plus profond (`data/.artisan/x`) est du contenu ordinaire. Règle codée une
+seule fois, `project/ProjectMetadataPaths` (core) ; tous les appelants y délèguent, sauf
+`EditorScreenRegistry` (module `api`, sans accès au core) qui applique la même règle.
 
 L'éditeur **possède** `.artisan/editor.yaml` (layout du board, `i18n_mode`) et doit pouvoir
 l'écrire. La règle de `project_read` / `project_write` (`EditorPaths`) est donc plus fine que
 l'exclusion hash — et symétrique : **ce que l'éditeur ne voit pas en lecture, il ne peut pas
 l'écrire**. Restent invisibles et interdits : `.artisan/history/`, `.artisan/drafts/`,
 `.artisan/transactions/` (`ProjectPathPolicy.isPrivate`), `.artisan-trash/`, `.artisan-sync.yaml`.
+Seule la graphie canonique `.artisan/editor.yaml` appartient à l'éditeur.
 
 ## Le hash n'est pas un invariant inter-langage
 

@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Fixed**: the `.artisan*` metadata rule ignores case and reads the first segment everywhere (`ProjectMetadataPaths`). `project_write` refused `.artisan/project-id` but accepted `.ARTISAN/project-id`, the same file on a case-insensitive disk; such paths are now hidden from the editor and excluded from the hash. The add-on content API (`api.getProject().list/read`) no longer hides a nested `.artisan*` folder (`shop/.artisan-x/`), which the editor already showed, and a draft may hold a dot-file other than `.artisan*` (`.gitignore`), as `project_write` already allowed.
 - **Fixed**: `pack:<id>` resolves in the menu's own Project first, then in the one Project of the server that defines the id, like a bare Document reference. Two Projects shipping the same `data/<id>.yaml` no longer show the first Project's rows in the other's menus.
 - **Fixed**: a malformed `positions` range in one menu (`"10-"`) no longer fails the reload of every Project; the bad range is skipped and the menu loads. Only an unsupported `schema:` version (`UnsupportedSchemaException`) still fails a reload, now for data sources too (`data/*.yaml`, `data/<id>/_source.yaml`), as it already did for Documents.
 - **Removed**: the about, privacy and terms pages of the editor (`about.html`, `privacy.html`, `terms.html`, `legal.css`) and the footer column that linked to them.
