@@ -1,14 +1,14 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, ProjectId } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GhostChips } from "./GhostChips";
 
 vi.mock("react-konva", () => ({
   Group: (p: any) => (
     // biome-ignore lint/a11y/useKeyWithClickEvents: test stub of a Konva node (canvas, no keyboard); the div only relays fireEvent.click to the handler
     <div
-      data-testid="konva-group"
+      data-testid={p.name ? "konva-group" : undefined}
       data-name={p.name}
       onClick={(e) => p.onClick?.({ ...e, cancelBubble: false })}
     >
@@ -16,13 +16,18 @@ vi.mock("react-konva", () => ({
     </div>
   ),
   Rect: () => <div />,
-  Text: () => <div />,
+  Text: (p: any) => <span data-testid="konva-text">{p.text}</span>,
 }));
 
 // The edges are controlled directly, reconfigurable per test through mockEdges.
 let mockEdges: { id: string; source: string; target: string; triggers: unknown[] }[] = [
   { id: "m1->shop", source: "m1", target: "shop", triggers: [] },
 ];
+vi.mock("@/features/project/useProjectDocuments", () => ({
+  documentLabel: (_p: unknown, id: string) =>
+    id === "shop" ? "<b><gradient:#A5F869:#0CAB27>Shop</gradient></b>" : id,
+}));
+
 vi.mock("./deriveEdges", () => ({
   deriveEdges: () => mockEdges,
 }));
@@ -98,5 +103,14 @@ describe("GhostChips", () => {
     expect(names).toContain("ghostchip:m1->shop");
     expect(names).toContain("ghostchip:m1->bank");
     expect(new Set(names).size).toBe(2);
+  });
+
+  it("renders the target label as MiniMessage, not raw tags", () => {
+    render(<GhostChips project={project()} layout={{ m1: { x: 0, y: 0 } }} />);
+    const text = screen
+      .getAllByTestId("konva-text")
+      .map((t) => t.textContent)
+      .join("");
+    expect(text).toBe("→ Shop");
   });
 });

@@ -90,7 +90,7 @@ Les sessions sont en mémoire (`activeSessions`, `sessionSenders` dans `hub.ts`)
 
 ### Konva
 
-Le canvas est un `<Stage>` Konva unique. Les menus sont des `<Group>` positionnés avec `menuLayout.ts`, les items des `<Rect>` + `<Image>`, le texte en MiniMessage rendu en police bitmap MC par `McFontText.tsx`. Pan/zoom géré par `usePanZoom.ts`.
+Le canvas est un `<Stage>` Konva unique. Les menus sont des `<Group>` positionnés avec `menuLayout.ts`, les items des `<Rect>` + `<Image>`, le texte en MiniMessage rendu par `MiniMessageKonvaText.tsx`. Pan/zoom géré par `usePanZoom.ts`.
 
 Pas de React Flow : les menus Artisan ne sont pas des nœuds dans un graphe. Ce sont des compositions d'items dans une grille. Les "edges" visuelles entre menus (actions `open_menu`) sont rendues custom avec `deriveEdges.ts`.
 

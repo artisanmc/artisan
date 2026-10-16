@@ -36,9 +36,15 @@ Désactiver l'auto-deploy sur push : seul le workflow GitHub déploie.
 
 ## Livraison GitHub Actions
 
-`.github/workflows/ci.yml` (job editor) : tests `deploy/*.test.mjs`, tests éditeur, `npm run build`
-(éditeur auto-hébergé), `npm run build:site` (vitrine + wiki), `npm run verify` dans `docs-site`
-(liens, ancres, assets, index de recherche). Le job plugin lance les tests Gradle et `shadowJar`.
+`.github/workflows/ci.yml` (job editor) : tests `deploy/*.test.mjs`, tests éditeur, smoke e2e,
+`npm run build` (éditeur auto-hébergé), `npm run build:site` (vitrine + wiki), `npm run verify` dans
+`docs-site` (liens, ancres, assets, index de recherche). `.github/workflows/plugin.yml` lance les tests
+Gradle et `shadowJar`.
+
+Le dépôt est privé : chaque minute de runner est décomptée du quota de l'organisation (2 000 min/mois
+incluses). Chaque workflow ne démarre donc que si ses entrées changent (`paths`, à tenir à jour quand
+un module lit un nouveau répertoire, cf. `deploy/ci-workflow.test.mjs`), et seul `main` a un run
+après merge (`deploy.yml` l'attend) : une PR vers `v2` est déjà testée sur son ref de merge.
 
 `.github/workflows/deploy.yml` se déclenche quand la CI réussit sur `main` : il refuse un SHA qui n'est
 plus la tête de `main`, puis `deploy/coolify-deploy.mjs` épingle `git_commit_sha` sur la ressource,
