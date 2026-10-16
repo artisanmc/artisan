@@ -1,9 +1,9 @@
+import { menusOf } from "@/domain/documents";
 import type { I18nKey, Menu, MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { expect, it } from "vitest";
 import { rewriteIds } from "./clipboard";
 import { findSelectedEntities } from "./useCanvasKeyboard";
-import { menusOf } from "@/domain/documents";
 
 const PID = "p1" as ProjectId;
 const KEY = "menus.crafter.title" as I18nKey;
@@ -16,9 +16,8 @@ it("gives a pasted menu's plain title its own key, leaving the original's intact
     rows: 3,
     layers: [],
   } as unknown as Menu;
-  useAccountStore.setState({
-    account: {
-      id: "acc",
+  useProjectsStore.setState({
+    openProjects: {
       projectOrder: [PID],
       projects: [
         {
@@ -37,11 +36,11 @@ it("gives a pasted menu's plain title its own key, leaving the original's intact
     },
   } as never);
   const { menus } = rewriteIds({ menus: [JSON.parse(JSON.stringify(crafter))], commands: [] });
-  useAccountStore
+  useProjectsStore
     .getState()
     .pasteEntities({ projectId: PID, menus, commands: [], offset: { x: 0, y: 0 } });
 
-  const project = useAccountStore.getState().account.projects[0]!;
+  const project = useProjectsStore.getState().openProjects.projects[0]!;
   const [original, copy] = menusOf(project);
   const keyOf = (m: Menu) => (m.title[0] as { value: { key: I18nKey } }).value.key;
   expect(keyOf(original!)).toBe(KEY);
@@ -60,9 +59,8 @@ it("copies only the items when their menu is selected alongside them", () => {
       { id: "l", name: "l", elements: [{ id: "iron", positions: "0", display: {}, states: [] }] },
     ],
   } as unknown as Menu;
-  useAccountStore.setState({
-    account: {
-      id: "acc",
+  useProjectsStore.setState({
+    openProjects: {
       projectOrder: [PID],
       projects: [
         { id: PID, documents: { menu: [menu], command: [] }, i18nKeys: {} } as unknown as Project,

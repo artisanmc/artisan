@@ -64,7 +64,9 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
           {t(`patterns.entries.${pattern.id}.name`)}
         </span>
       </div>
-      <p className="mb-2 text-[11px] text-[var(--text-mut)]">{t(`patterns.entries.${pattern.id}.desc`)}</p>
+      <p className="mb-2 text-[11px] text-[var(--text-mut)]">
+        {t(`patterns.entries.${pattern.id}.desc`)}
+      </p>
       <div className="flex items-center gap-2">
         <code className="flex-1 break-all rounded bg-[var(--surface)] px-2 py-1.5 font-mono text-[11px] text-[var(--text)]">
           {pattern.snippet}

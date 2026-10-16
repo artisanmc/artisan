@@ -3,16 +3,14 @@ import { projectClient } from "./projectClient";
 
 afterEach(() => vi.unstubAllGlobals());
 test("one immutable project client reads binary descriptors and uses no server URLs", async () => {
-  const fetcher = vi
-    .fn()
-    .mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          files: [{ path: "manifest.yaml", content: "name: Demo" }],
-          binaries: [{ path: "textures/a.png", hash: "hash", size: 3 }],
-        }),
-      ),
-    );
+  const fetcher = vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        files: [{ path: "manifest.yaml", content: "name: Demo" }],
+        binaries: [{ path: "textures/a.png", hash: "hash", size: 3 }],
+      }),
+    ),
+  );
   vi.stubGlobal("fetch", fetcher);
   const result = await projectClient("immutable").read();
   expect(fetcher.mock.calls[0]?.[0]).toContain("/api/v1/projects/immutable/files");

@@ -1,5 +1,5 @@
 import "@/i18n";
-import "@/state/accountStore";
+import "@/state/projectsStore";
 import "@/state/uiStore";
 import { useAuthStore } from "@/state/authStore";
 import { papiScopeKey, useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersStore";

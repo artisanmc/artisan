@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { mockAccount } from "./fixtures";
+import { mockOpenProjects } from "./fixtures";
 
-describe("mockAccount fixture", () => {
+describe("mockOpenProjects fixture", () => {
   it("contains three projects in order", () => {
-    const account = mockAccount();
-    expect(account.projects).toHaveLength(3);
-    expect(account.projects.map((p) => p.name)).toEqual(["Personal", "Shop System", "Daily Quests"]);
+    const openProjects = mockOpenProjects();
+    expect(openProjects.projects).toHaveLength(3);
+    expect(openProjects.projects.map((p) => p.name)).toEqual([
+      "Personal",
+      "Shop System",
+      "Daily Quests",
+    ]);
   });
 });

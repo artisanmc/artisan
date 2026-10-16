@@ -1,5 +1,5 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -24,9 +24,8 @@ const PID = "p1" as ProjectId;
 
 beforeEach(() => {
   useSelectionStore.getState().clear();
-  useAccountStore.setState({
-    account: {
-      id: "a" as any,
+  useProjectsStore.setState({
+    openProjects: {
       projectOrder: [PID],
       projects: [
         {

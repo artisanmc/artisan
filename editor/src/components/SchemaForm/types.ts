@@ -1,5 +1,4 @@
-export type JsonSchema =
-  | StringSchema | NumberSchema | BooleanSchema | ObjectSchema | ArraySchema;
+export type JsonSchema = StringSchema | NumberSchema | BooleanSchema | ObjectSchema | ArraySchema;
 
 export interface StringSchema {
   type: "string";
@@ -46,5 +45,8 @@ export interface SchemaFormProps {
   schema: JsonSchema;
   value: unknown;
   onChange: (next: unknown) => void;
-  widgets?: Record<string, React.ComponentType<{ value: unknown; onChange: (v: unknown) => void; schema: JsonSchema }>>;
+  widgets?: Record<
+    string,
+    React.ComponentType<{ value: unknown; onChange: (v: unknown) => void; schema: JsonSchema }>
+  >;
 }

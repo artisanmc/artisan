@@ -923,10 +923,10 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
     const current = useProjectDraftStore.getState().get(projectId);
     if (!current || current.remote?.id !== operation.id) throw new Error("draft_changed");
     const merged = mergeDraftAssetResult(operation.snapshot!, current, result.draft.snapshot);
-    const { useAccountStore } = await import("@/state/accountStore");
-    const project = useAccountStore
+    const { useProjectsStore } = await import("@/state/projectsStore");
+    const project = useProjectsStore
       .getState()
-      .account.projects.find((entry) => entry.id === projectId);
+      .openProjects.projects.find((entry) => entry.id === projectId);
     if (project) {
       const { adoptDiskIntoProject } = await import("./saveProjectToDisk");
       const paths = new Set([
@@ -936,7 +936,7 @@ async function mutateDraftAssetsOnce<T extends { draft: api.PersistedDraft }>(
       const changed = [...paths].filter(
         (path) => operation.snapshot!.tree[path] !== result.draft.snapshot.tree[path],
       );
-      useAccountStore.getState().replaceProject(
+      useProjectsStore.getState().replaceProject(
         adoptDiskIntoProject(
           project,
           Object.fromEntries(

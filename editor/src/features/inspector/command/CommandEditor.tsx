@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import type { Command, CommandArg, CommandId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionChainEditor } from "../chain/StepTree";
@@ -11,7 +11,7 @@ import { PropertyField } from "../properties/PropertyField";
 
 function CommandIdField({ projectId, commandId }: { projectId: ProjectId; commandId: CommandId }) {
   const { t } = useTranslation();
-  const setCommandId = useAccountStore((s) => s.setCommandId);
+  const setCommandId = useProjectsStore((s) => s.setCommandId);
   const [draft, setDraft] = useState(commandId as string);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -59,8 +59,8 @@ function CommandIdField({ projectId, commandId }: { projectId: ProjectId; comman
 }
 
 export function CommandEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
-  const setCommandField = useAccountStore((s) => s.setCommandField);
-  const setCommandAliases = useAccountStore((s) => s.setCommandAliases);
+  const setCommandField = useProjectsStore((s) => s.setCommandField);
+  const setCommandAliases = useProjectsStore((s) => s.setCommandAliases);
   const { t } = useTranslation();
   const commandScope = useMemo(
     () => ({ kind: "command" as const, commandId: command.id }),
@@ -173,9 +173,9 @@ function commandSignature(command: Command): string {
 }
 
 function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
-  const addCommandArg = useAccountStore((s) => s.addCommandArg);
-  const setCommandArg = useAccountStore((s) => s.setCommandArg);
-  const removeCommandArg = useAccountStore((s) => s.removeCommandArg);
+  const addCommandArg = useProjectsStore((s) => s.addCommandArg);
+  const setCommandArg = useProjectsStore((s) => s.setCommandArg);
+  const removeCommandArg = useProjectsStore((s) => s.removeCommandArg);
   const [orderError, setOrderError] = useState<string | null>(null);
   const { t } = useTranslation();
 

@@ -1,7 +1,7 @@
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import * as serversApi from "@/lib/api/servers";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServersStore } from "@/state/serversStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -56,7 +56,7 @@ describe("ProjectSidebar", () => {
     });
     mockParams.current = { serverId: "sk_1" };
     useServersStore.setState({ activeServerId: null } as any);
-    useAccountStore.setState({ account: { id: "", projects: [], projectOrder: [] } } as any);
+    useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } } as any);
     vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
   });
 
@@ -93,8 +93,8 @@ describe("ProjectSidebar", () => {
 
     beforeEach(() => {
       vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
-      useAccountStore.setState({
-        account: { id: "", projects: [loaded("pack_a"), loaded("pack_b")], projectOrder: [] },
+      useProjectsStore.setState({
+        openProjects: { projects: [loaded("pack_a"), loaded("pack_b")], projectOrder: [] },
       } as never);
       useServerIndexStore.getState().reset();
     });

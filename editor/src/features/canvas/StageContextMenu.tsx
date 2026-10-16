@@ -1,6 +1,6 @@
 import type { MenuId, ProjectId } from "@/domain/types";
 import { openProjectSettings } from "@/features/project/projectSettings";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type { ComponentProps } from "react";
 import { toast } from "sonner";
@@ -84,7 +84,7 @@ export function StageContextMenu({
       onMoveTo={(toProjectId) => {
         if (entityIds.length !== 1) return;
         try {
-          useAccountStore.getState().moveMenuToProject({
+          useProjectsStore.getState().moveMenuToProject({
             menuId: entityIds[0]! as MenuId,
             fromProjectId: projectId,
             toProjectId,

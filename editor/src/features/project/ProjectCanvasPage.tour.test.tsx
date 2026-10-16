@@ -1,8 +1,8 @@
 import type { Project } from "@/domain/types";
 import { editorTourController } from "@/features/onboarding/editorTourRuntime";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -77,8 +77,12 @@ beforeEach(() => {
     },
     assets: [],
   } as unknown as Project;
-  useAccountStore.setState((state) => ({
-    account: { ...state.account, projects: [setup.project!], projectOrder: [setup.project!.id] },
+  useProjectsStore.setState((state) => ({
+    openProjects: {
+      ...state.openProjects,
+      projects: [setup.project!],
+      projectOrder: [setup.project!.id],
+    },
   }));
   setup.navigate.mockClear();
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(

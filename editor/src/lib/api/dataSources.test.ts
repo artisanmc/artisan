@@ -18,7 +18,14 @@ describe("fetchServerDataSourcesUser", () => {
       expect.objectContaining({ credentials: "include" }),
     );
     expect(result).toEqual([
-      { ref: "shop:items", moduleId: null, schema: [], schemaHint: null, stability: null, keyField: null },
+      {
+        ref: "shop:items",
+        moduleId: null,
+        schema: [],
+        schemaHint: null,
+        stability: null,
+        keyField: null,
+      },
     ]);
   });
 

@@ -7,17 +7,17 @@
 import "@/i18n";
 import { menusOf } from "@/domain/documents";
 import type {
-  Account,
   DataSourceId,
   ElementId,
   I18nKey,
   Menu,
   MenuId,
+  OpenProjects,
   Project,
   ProjectId,
 } from "@/domain/types";
 import { SelectionInspector } from "@/features/inspector/SelectionInspector";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, within } from "@testing-library/react";
@@ -85,15 +85,16 @@ describe("state card title editing reaches the store", () => {
     menusOf(project)[0]!.contextInputs = [
       { kind: "sourceRef", name: "catalog", ref: "pack:settings" },
     ] as NonNullable<Menu["contextInputs"]>;
-    useAccountStore.setState({
-      account: { projects: [project], projectOrder: [PACK_ID] } as Account,
+    useProjectsStore.setState({
+      openProjects: { projects: [project], projectOrder: [PACK_ID] } as OpenProjects,
     });
     render(<SelectionInspector projectId={PACK_ID} />);
     fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
     fireEvent.click(screen.getByRole("button", { name: /^(icon|icône)$/i }));
     fireEvent.click(screen.getByRole("button", { name: "catalog.icon" }));
     const appearance = () =>
-      menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements[0]!.display!;
+      menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!.elements[0]!
+        .display!;
     expect(appearance()).toMatchObject({ item: "{catalog.icon}" });
     expect(appearance().material).toBeUndefined();
     const count = screen.getByRole("spinbutton", { name: /count|quantité/i });
@@ -111,26 +112,26 @@ describe("state card title editing reaches the store", () => {
     const input = screen.getByRole("spinbutton", { name: /count|quantité/i });
     fireEvent.change(input, { target: { value: "8" } });
     expect(
-      menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements[0]!.display!
-        .count,
+      menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!.elements[0]!
+        .display!.count,
     ).toBe(8);
     fireEvent.change(input, { target: { value: "" } });
     expect(
-      menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements[0]!.display!
-        .count,
+      menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!.elements[0]!
+        .display!.count,
     ).toBeUndefined();
     fireEvent.change(input, { target: { value: "1" } });
     expect(
-      menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements[0]!.display!
-        .count,
+      menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!.elements[0]!
+        .display!.count,
     ).toBe(1);
   });
   beforeEach(() => {
-    const account: Account = {
+    const openProjects: OpenProjects = {
       projects: [makeProject()],
       projectOrder: [PACK_ID],
-    } as unknown as Account;
-    useAccountStore.setState({ account });
+    } as unknown as OpenProjects;
+    useProjectsStore.setState({ openProjects });
     useSelectionStore.getState().set([ELEMENT_ID], null, MENU_ID);
   });
 
@@ -140,7 +141,7 @@ describe("state card title editing reaches the store", () => {
       render(<SelectionInspector projectId={PACK_ID} />);
       fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
       fireEvent.change(screen.getByDisplayValue("ARROW"), { target: { value: material } });
-      const project = useAccountStore.getState().account.projects[0]!;
+      const project = useProjectsStore.getState().openProjects.projects[0]!;
       expect(menusOf(project)[0]!.layers[0]!.elements[0]!.display!.material).toBe(material);
       expect(screen.getByDisplayValue(material)).toBeTruthy();
     },
@@ -161,7 +162,9 @@ describe("state card title editing reaches the store", () => {
     const input = screen.getByDisplayValue("§7Retour");
     fireEvent.change(input, { target: { value: "<gray>Retour" } });
 
-    const project = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
+    const project = useProjectsStore
+      .getState()
+      .openProjects.projects.find((p) => p.id === PACK_ID)!;
     const el = menusOf(project)[0]!.layers[0]!.elements[0]!;
     // The displayed "§7Retour" was the fr FALLBACK; typing writes en. This is
     // by design (the label says which language) — fr stays untouched.
@@ -183,7 +186,9 @@ describe("state card title editing reaches the store", () => {
     fireEvent.change(screen.getByDisplayValue("§7Retour"), {
       target: { value: "<gray>Retour" },
     });
-    const project = useAccountStore.getState().account.projects.find((p) => p.id === PACK_ID)!;
+    const project = useProjectsStore
+      .getState()
+      .openProjects.projects.find((p) => p.id === PACK_ID)!;
     const el = menusOf(project)[0]!.layers[0]!.elements[0]!;
     expect(project.i18nKeys[el.display!.title!.key]).toEqual({ fr: "<gray>Retour" });
   });
