@@ -70,12 +70,7 @@ public final class ModuleRegistry {
         } finally {
             ArtisanAPI boundApi = api;
             if (boundApi != null) {
-                boundApi.getDataSources().unregisterOwnedBy(id);
-                boundApi.getCommands().unregisterOwnedBy(id);
-                boundApi.getModels().unregisterOwnedBy(id);
-                boundApi.getScreens().unregisterOwnedBy(id);
-                boundApi.getActionRegistry().unregisterOwnedBy(id);
-                boundApi.getDocumentKinds().unregisterOwnedBy(id);
+                for (OwnedRegistry registry : owned(boundApi)) registry.unregisterOwnedBy(id);
             }
             signalChange();
         }
@@ -100,20 +95,18 @@ public final class ModuleRegistry {
         }
         ArtisanAPI boundApi = api;
         if (boundApi != null) {
-            boundApi.getDataSources().unregisterLoadedBy(loader);
-            boundApi.getCommands().unregisterLoadedBy(loader);
-            boundApi.getActionRegistry().unregisterLoadedBy(loader);
+            for (OwnedRegistry registry : owned(boundApi)) registry.unregisterLoadedBy(loader);
         }
         return failures;
     }
 
     private static void setOwner(ArtisanAPI api, @Nullable String moduleId) {
-        api.getDataSources().currentOwner = moduleId;
-        api.getCommands().currentOwner = moduleId;
-        api.getModels().currentOwner = moduleId;
-        api.getScreens().currentOwner = moduleId;
-        api.getActionRegistry().currentOwner = moduleId;
-        api.getDocumentKinds().currentOwner = moduleId;
+        for (OwnedRegistry registry : owned(api)) registry.bindOwner(moduleId);
+    }
+
+    /** The registries that record a module's registrations, in unregister order. */
+    private static List<OwnedRegistry> owned(ArtisanAPI api) {
+        return List.of(api.getDataSources(), api.getCommands(), api.getModels(), api.getScreens(), api.getActionRegistry(), api.getDocumentKinds());
     }
 
     private void signalChange() {

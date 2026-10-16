@@ -50,7 +50,7 @@ class SyncedMenuProvider(
     private val resourcePackManager: ResourcePackManager? = null,
     private val lookupAsset: (String) -> AssetEntry? = { null },
     private val offsetEncoderProvider: () -> net.artisanmc.plugin.render.OffsetEncoder = { net.artisanmc.plugin.render.OffsetEncoder.EMPTY },
-    private val dataSources: net.artisanmc.modules.api.DataSourceRegistry? = null,
+    private val dataSources: net.artisanmc.modules.api.datasource.DataSourceRegistry? = null,
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
     /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */
@@ -285,8 +285,8 @@ class SyncedMenuProvider(
         }
         // This menu's clicks resolve in ITS project, not in the one we came from.
         val opened = ctx.copy(projectId = menu.projectId.ifEmpty { null } ?: ctx.projectId)
-        val ref = net.artisanmc.modules.api.MenuRef(opened.projectId, menu.id)
-        if (menuEvents?.open(net.artisanmc.modules.api.MenuOpenEvent(player, ref, ctx.navigationArgs)) == false) return
+        val ref = net.artisanmc.modules.api.menu.MenuRef(opened.projectId, menu.id)
+        if (menuEvents?.open(net.artisanmc.modules.api.menu.MenuOpenEvent(player, ref, ctx.navigationArgs)) == false) return
         history?.setCurrent(
             player,
             net.artisanmc.plugin.engine.NavigationEntry(

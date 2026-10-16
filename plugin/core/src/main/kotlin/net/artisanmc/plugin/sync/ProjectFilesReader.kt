@@ -51,7 +51,7 @@ object ProjectFilesReader {
             .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
             .forEach { file ->
                 val rel = file.relativeTo(projectDir).path.replace('\\', '/')
-                if (!isBinary(rel) && !rel.startsWith(".artisan/history/", ignoreCase = true) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(rel)) out[rel] = file.readText(Charsets.UTF_8)
+                if (!isBinary(rel) && !net.artisanmc.plugin.project.ProjectMetadataPaths.isHistory(rel) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(rel)) out[rel] = file.readText(Charsets.UTF_8)
             }
         return out
     }
