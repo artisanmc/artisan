@@ -49,7 +49,7 @@ interface MiniMessageInlineProps {
 /**
  * DOM renderer: emit styled <span>s for each parsed segment. Use anywhere
  * MiniMessage text appears as HTML — properties pane previews, tooltips,
- * sidebar labels, etc. For Konva canvas text, use McFontText.
+ * sidebar labels, etc. For Konva canvas text, use MiniMessageKonvaText.
  *
  * Pass `style` (or class-based color/italic) on the wrapper to set defaults
  * — MM tags inside the source override on a per-segment basis (the segment

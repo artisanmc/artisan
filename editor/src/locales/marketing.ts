@@ -12,10 +12,6 @@ export const marketingEn = {
     product: "Product",
     resources: "Resources",
     install: "Install Artisan",
-    legal: "Legal",
-    terms: "Terms",
-    privacy: "Privacy",
-    about: "About",
     independent: "An independent project. Not affiliated with Mojang or Microsoft.",
   },
 };
@@ -34,10 +30,6 @@ export const marketingFr: typeof marketingEn = {
     product: "Produit",
     resources: "Ressources",
     install: "Installer Artisan",
-    legal: "Informations",
-    terms: "Conditions",
-    privacy: "Confidentialité",
-    about: "À propos",
     independent: "Un projet indépendant. Non affilié à Mojang ou Microsoft.",
   },
 };
