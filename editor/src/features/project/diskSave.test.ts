@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { planWrite, toRelative } from "./diskSave";
 
 /**
@@ -66,11 +66,14 @@ describe("planWrite", () => {
   });
 
   it("paths come out sorted — a readable diff and a deterministic write order", async () => {
-    const plan = await planWrite({}, {
-      "menus/z.yaml": "z\n",
-      "commands/a.yaml": "a\n",
-      "lang/fr.yaml": "f\n",
-    });
+    const plan = await planWrite(
+      {},
+      {
+        "menus/z.yaml": "z\n",
+        "commands/a.yaml": "a\n",
+        "lang/fr.yaml": "f\n",
+      },
+    );
 
     expect(plan.files.map((f) => f.path)).toEqual([
       "commands/a.yaml",
@@ -81,7 +84,7 @@ describe("planWrite", () => {
 });
 
 describe("toRelative", () => {
-  it("strips the canonical prefix that transform() produces", () => {
+  it("strips the canonical prefix that projectToFiles() produces", () => {
     const canonical = {
       "plugins/Artisan/projects/boutique_shop/menus/a.yaml": "title: A\n",
       "plugins/Artisan/projects/boutique_shop/.artisan/editor.yaml": "i18n_mode: inline\n",

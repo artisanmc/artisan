@@ -1,6 +1,6 @@
 import type { DataSource, Project } from "@/domain/types";
-import { transform } from "@/features/export/transform";
 import { projectFromFiles } from "@/schema/projectFromFiles";
+import { projectToFiles } from "@/schema/projectToFiles";
 
 export interface SourceFile {
   path: string;
@@ -24,10 +24,12 @@ function ownsPath(rel: string, sourceId: string): boolean {
  * YAML tab shows and edits (ADR `yaml-assisted-editing` ⑦/⑧).
  */
 export function sourceYamlFiles(project: Project, source: DataSource): SourceFile[] {
-  const emitted = transform(project);
+  const emitted = projectToFiles(project);
   const prefix = base(project);
   return Object.entries(emitted)
-    .filter(([full]) => full.startsWith(prefix) && ownsPath(full.slice(prefix.length), String(source.id)))
+    .filter(
+      ([full]) => full.startsWith(prefix) && ownsPath(full.slice(prefix.length), String(source.id)),
+    )
     .map(([full, content]) => ({ path: full.slice(prefix.length), content }))
     .sort((a, b) => (a.path < b.path ? -1 : 1));
 }
@@ -42,7 +44,7 @@ export function sourceYamlFiles(project: Project, source: DataSource): SourceFil
  * but does not destroy the domain with it).
  */
 export function applySourceYaml(project: Project, edited: SourceFile[]): Project | null {
-  const files: Record<string, string> = { ...transform(project) };
+  const files: Record<string, string> = { ...projectToFiles(project) };
   const prefix = base(project);
   // A file removed from the edited set also disappears from the project.
   const editedPaths = new Set(edited.map((f) => prefix + f.path));

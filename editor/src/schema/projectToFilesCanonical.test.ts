@@ -3,7 +3,7 @@ import type { I18nKey, Project } from "@/domain/types";
 import { validateMenuV1 } from "@/schema/validateMenuV1";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { transform } from "./transform";
+import { projectToFiles } from "./projectToFiles";
 
 // A project exercising: plain + text title layers, multi-appearance element with
 // AND and OR `if`, click step-tree with an if-case, and a spread of actions.
@@ -61,13 +61,19 @@ function goldenProject(): Project {
                             else: [
                               {
                                 kind: "action",
-                                action: { name: "send_message", value: { key: "t.buy.msg" as I18nKey } },
+                                action: {
+                                  name: "send_message",
+                                  value: { key: "t.buy.msg" as I18nKey },
+                                },
                               },
                             ],
                           },
                           {
                             kind: "action",
-                            action: { name: "open_menu", value: { menu_id: menuId("shop"), clear_context: true } },
+                            action: {
+                              name: "open_menu",
+                              value: { menu_id: menuId("shop"), clear_context: true },
+                            },
                           },
                           { kind: "action", action: { name: "pagination_next", value: null } },
                         ],
@@ -103,7 +109,7 @@ function goldenProject(): Project {
 
 describe("editor export conforms to canonical menu/v1", () => {
   it("every exported menu validates against the canonical schema", () => {
-    const files = transform(goldenProject());
+    const files = projectToFiles(goldenProject());
     const menuYamls = Object.entries(files).filter(([p]) => p.includes("/menus/"));
     expect(menuYamls.length).toBeGreaterThan(0);
     for (const [path, yaml] of menuYamls) {

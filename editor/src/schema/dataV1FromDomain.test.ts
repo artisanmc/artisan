@@ -8,7 +8,7 @@ import { flattenLangTree } from "@/lib/langTree";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { transform } from "./transform";
+import { projectToFiles } from "./projectToFiles";
 
 const PID = "p1" as ProjectId;
 
@@ -118,21 +118,21 @@ describe("bare data export", () => {
     const icon = { material: "item:ci_1", count: 3, enchants: { sharpness: 5 }, unbreakable: true };
     const source = p.dataSources[0] as Extract<Project["dataSources"][number], { shape: "table" }>;
     source.rows[0]!.icon = icon;
-    const files = transform(p);
+    const files = projectToFiles(p);
     expect(parse(files[`${BASE}/data/ranks.yaml`]!)[0].icon).toEqual(icon);
     const imported = projectFromFiles(PID, files);
     const importedSource = imported.dataSources.find((s) => s.id === "ranks") as typeof source;
     expect(importedSource.rows[0]!.icon).toEqual(icon);
   });
   it("emits one BARE data/<id>.yaml per table source — a list of pure-value rows", () => {
-    const files = transform(makeProject());
+    const files = projectToFiles(makeProject());
     const ranks = parse(files[`${BASE}/data/ranks.yaml`]!);
     // ltext values inline the DEFAULT language's literal; item refs verbatim.
     expect(ranks).toEqual([{ id: "vip", name: "VIP", icon: "item:ci_1", perks: ["Fly"] }]);
   });
 
   it("a model shared via a model-kind ref links through a one-line models/<sourceId>.yaml ref", () => {
-    const files = transform(makeProject());
+    const files = projectToFiles(makeProject());
     // m_rank is referenced by m_cat's `featured` field — shared, so the
     // source links by ref and the model keeps its own doc.
     expect(parse(files[`${BASE}/models/ranks.yaml`]!)).toEqual({ model: "m_rank" });
@@ -142,7 +142,7 @@ describe("bare data export", () => {
   });
 
   it("an OWNED model's doc lives at models/<sourceId>.yaml, cross-model refs preserved", () => {
-    const files = transform(makeProject());
+    const files = projectToFiles(makeProject());
     const cats = parse(files[`${BASE}/data/cats.yaml`]!);
     expect(cats).toEqual([
       { id: "c1", featured: { id: "vip", name: "Nested", icon: "", perks: [] } },
@@ -155,7 +155,7 @@ describe("bare data export", () => {
   });
 
   it("config sources are a bare mapping + a fields doc beside", () => {
-    const files = transform(makeProject());
+    const files = projectToFiles(makeProject());
     expect(parse(files[`${BASE}/data/settings.yaml`]!)).toEqual({
       currency: "coins",
       motd: "Welcome",
@@ -178,7 +178,7 @@ describe("bare data export", () => {
   });
 
   it("default-language file drops data-only keys; other languages keep the canonical address", () => {
-    const files = transform(makeProject());
+    const files = projectToFiles(makeProject());
     const en = flattenLangTree(parse(files[`${BASE}/lang/en.yaml`]!));
     expect(en?.["sources.ranks.vip.name"]).toBeUndefined();
     expect(en?.["sources.settings.motd"]).toBeUndefined();
@@ -267,7 +267,7 @@ describe("bare export — map / enum / union kinds", () => {
   }
 
   it("serializes values bare: enum as string, map entries by `of`, union by active variant (tag kept), ltext literal", () => {
-    const files = transform(questsProject());
+    const files = projectToFiles(questsProject());
     const data = parse(files[`${B}/data/quests.yaml`]!);
     expect(data).toEqual([
       {
@@ -282,7 +282,7 @@ describe("bare export — map / enum / union kinds", () => {
   });
 
   it("keeps the union/map shape verbatim in the owned model doc; nested ltext addresses reach lang/", () => {
-    const files = transform(questsProject());
+    const files = projectToFiles(questsProject());
     const doc = parse(files[`${B}/models/quests.yaml`]!);
     expect(doc.id).toBe("m_quest");
     expect(doc.fields[2]).toEqual({
@@ -348,7 +348,7 @@ describe("bare export — per-row file granularity", () => {
   }
 
   it("emits a MINIMAL _source.yaml (name/model/order) and bare row files", () => {
-    const files = transform(perRowProject());
+    const files = projectToFiles(perRowProject());
     expect(files[`${B}/data/cats2.yaml`]).toBeUndefined();
     expect(parse(files[`${B}/data/cats2/_source.yaml`]!)).toEqual({
       name: "categories",

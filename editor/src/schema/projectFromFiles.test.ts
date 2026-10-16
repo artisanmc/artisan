@@ -1,13 +1,13 @@
+import { menusOf } from "@/domain/documents";
 // ADR files-first-source-of-truth: the file tree is the
 // canonical, lossless Project representation. This suite locks the editor-side
 // full-project importer `projectFromFiles` as the exact inverse of
-// `transform()` — domain → files → domain → files must be a fixed point
+// `projectToFiles()` — domain → files → domain → files must be a fixed point
 // (total — the export is a pure function of the Project, no timestamps).
 import type { DataModelId, DataSourceId, MenuId, Project, ProjectId } from "@/domain/types";
-import { transform } from "@/features/export/transform";
 import { describe, expect, it } from "vitest";
 import { projectFromFiles } from "./projectFromFiles";
-import { menusOf } from "@/domain/documents";
+import { projectToFiles } from "./projectToFiles";
 
 const PID = "p_roundtrip" as ProjectId;
 const base = `plugins/Artisan/projects/${PID}`;
@@ -215,9 +215,9 @@ function fixture(): Project {
   return p as unknown as Project;
 }
 
-describe("projectFromFiles (files → domain, inverse of transform)", () => {
+describe("projectFromFiles (files → domain, inverse of projectToFiles)", () => {
   it("ignores malformed group metadata and stale or duplicate memberships", () => {
-    const files = transform(fixture());
+    const files = projectToFiles(fixture());
     files[`plugins/Artisan/projects/${PID}/.artisan/editor.yaml`] = JSON.stringify({
       groups: [
         null,
@@ -249,25 +249,25 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
         },
       ],
     };
-    const files = transform(grouped);
+    const files = projectToFiles(grouped);
     const restored = projectFromFiles(PID, files, { name: "Round Trip" });
     expect(restored.canvasGroups).toEqual(grouped.canvasGroups);
-    const before = transform(original);
+    const before = projectToFiles(original);
     for (const [path, content] of Object.entries(before)) {
       if (!path.endsWith(".artisan/editor.yaml")) expect(files[path]).toEqual(content);
     }
-    expect(transform(restored)).toEqual(files);
+    expect(projectToFiles(restored)).toEqual(files);
   });
 
   it("is a fixed point: domain → files → domain → files", () => {
-    const files1 = transform(fixture());
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
-    const files2 = transform(p2);
+    const files1 = projectToFiles(fixture());
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
+    const files2 = projectToFiles(p2);
     expect(files2).toEqual(files1);
   });
 
   it("reconstructs table sources with model identity and LText rows", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     const table = p2.dataSources.find((d) => d.id === ("ds_items" as DataSourceId));
     expect(table).toBeDefined();
     if (table?.shape !== "table") throw new Error("expected table shape");
@@ -299,7 +299,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
   });
 
   it("reconstructs config sources with LText values", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     const cfg = p2.dataSources.find((d) => d.id === ("ds_cfg" as DataSourceId));
     if (cfg?.shape !== "config") throw new Error("expected config shape");
     expect(cfg.name).toBe("Settings");
@@ -311,7 +311,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
   });
 
   it("preserves data models verbatim (minimessage kind survives via models/)", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     // The config source's beside-doc also imports as a model (ADR
     // bare-data-files) — the fixture's models must survive verbatim among them.
     for (const m of fixture().dataModels ?? []) {
@@ -320,12 +320,12 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
   });
 
   it("preserves captured item name + display through .artisan/editor.yaml", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     expect(p2.capturedItems).toEqual(fixture().capturedItems);
   });
 
   it("restores board state and the element's own iteration binding", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     expect(p2.canvasLayout).toEqual({ m1: { x: 40, y: 80 } });
     expect(p2.canvasEdges).toEqual({ "m1->d1": { from: { side: "right", t: 0.5 } } });
     const el = menusOf(p2)[0]!
@@ -336,14 +336,14 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
   });
 
   it("re-emits unclaimed module files verbatim via moduleData.__files", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     expect(p2.moduleData).toEqual({
       shopmod: { __files: { "shop.yaml": "schema: shopmod/v1\nitems: []\n" } },
     });
   });
 
   it("imports per-row Tables (granularity kept, rows ordered, hand-added file appended)", () => {
-    const p2 = projectFromFiles(PID, transform(fixture()), { name: "Round Trip" });
+    const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
     const cats = p2.dataSources.find((d) => d.id === ("ds_cats" as DataSourceId));
     if (cats?.shape !== "table") throw new Error("expected table shape");
     expect(cats.granularity).toBe("row");
@@ -351,7 +351,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
 
     // A row file dropped in by hand (FTP/agent), absent from _source.yaml's
     // order, is still imported — appended after the declared order.
-    const files = transform(fixture());
+    const files = projectToFiles(fixture());
     files[`${base}/data/ds_cats/handmade.yaml`] =
       "id: handmade\nname: sources.categories.handmade.name\ndesc: ''\nprice: 1\ntags: []\nrarity: common\non_buy: { type: command, run: say hi }\nprices: {}\n";
     const p3 = projectFromFiles(PID, files, { name: "Round Trip" });
@@ -433,7 +433,7 @@ describe("projectFromFiles (files → domain, inverse of transform)", () => {
   it("keeps the .artisan meta authoritative over the derived descriptor", () => {
     // The editor channel records what the capture panel showed; it wins so a
     // plugin-enriched material (nexo reverse-lookup) isn't downgraded on import.
-    const files = transform(fixture());
+    const files = projectToFiles(fixture());
     const p2 = projectFromFiles(PID, files, { name: "Round Trip" });
     expect(p2.capturedItems?.[0]?.display).toEqual({
       material: "nexo:arcanist_key",
@@ -474,7 +474,7 @@ describe("disk id ≠ internal id", () => {
       name: "boutique_shop",
       diskId: DISK,
     });
-    const out = transform(project);
+    const out = projectToFiles(project);
     const keys = Object.keys(out.files ?? out);
     expect(keys.every((k) => k.startsWith(`plugins/Artisan/projects/${DISK}/`))).toBe(true);
     expect(keys.some((k) => k.includes(INTERNAL))).toBe(false);
