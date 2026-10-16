@@ -27,6 +27,7 @@ import type {
   ProjectId,
 } from "@/domain/types";
 import { MaterialPicker } from "@/features/canvas/MaterialPicker";
+import { droppableProps } from "@/features/canvas/dragPayload";
 import { buildPreviewScope } from "@/features/canvas/menuPreviewScope";
 import { ActionScopeProvider } from "@/features/canvas/properties/ActionEditor";
 import { AliasesField } from "@/features/canvas/properties/AliasesField";
@@ -418,17 +419,6 @@ function SortableStates({
   );
 }
 
-export const STATE_DROP_PREFIX = "state:";
-
-/**
- * Build a stable drop target id for a state card's material icon. Format:
- * `state:{menuId}:{elementId}:{stateIndex}`. The project route's onDragEnd
- * checks for this prefix to dispatch a Library drop into the right state.
- */
-export function stateDropId(menuId: MenuId, elementId: ElementId, stateIndex: number): string {
-  return `${STATE_DROP_PREFIX}${menuId}:${elementId}:${stateIndex}`;
-}
-
 /**
  * Custom-head editor shown on a player_head state. Source `<select>` chooses
  * the ref kind (HeadDatabase id / Base64 texture / player name); the input
@@ -464,7 +454,9 @@ function StateMaterialIcon({
   textureUrl,
   onPick,
 }: StateMaterialIconProps) {
-  const droppable = useDroppable({ id: stateDropId(menuId, elementId, stateIndex) });
+  const droppable = useDroppable(
+    droppableProps({ kind: "stateMaterial", menuId, elementId, stateIndex }),
+  );
   return (
     <div ref={droppable.setNodeRef}>
       <MaterialPicker

@@ -1,3 +1,4 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, MenuId, Placement, ProjectId } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
 import { useAccountStore } from "@/state/accountStore";
@@ -6,16 +7,6 @@ import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { capturePlacementCache, matchPlacementRow } from "./placement";
-import { menusOf } from "@/domain/documents";
-
-/** @dnd-kit id prefix for a draggable palette row. Payload rides in `data`. */
-export const PLACEMENT_ROW_DRAG_PREFIX = "row:";
-
-/** `data.current` shape carried by a palette-row draggable. */
-export interface PlacementRowDragData {
-  /** `material` = resolved preview material — feeds the shared drag overlay. */
-  placementRow: { menuId: string; elementId: string; key: string; material?: string };
-}
 
 /**
  * Pin a static-source row into an element's placement layout at `position` on the

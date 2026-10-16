@@ -11,11 +11,11 @@ import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useHeadPreviewUrl } from "../useHeadPreviewUrl";
-import { buildPreviewScope, renderPreview } from "../menuPreviewScope";
+import { draggableProps } from "../dragPayload";
 import { previewItem } from "../itemValuePreview";
-import { PLACEMENT_ROW_DRAG_PREFIX, type PlacementRowDragData } from "../placementDrop";
+import { buildPreviewScope, renderPreview } from "../menuPreviewScope";
 import { useTextureUrl } from "../textureStore";
+import { useHeadPreviewUrl } from "../useHeadPreviewUrl";
 
 type SourceRefInput = Extract<ContextInput, { kind: "sourceRef" }>;
 
@@ -445,20 +445,22 @@ function PlaceableRowTile({
   const app = element.display;
   const alias = element.places?.alias ?? "item";
   const ctx = { [alias]: row };
-  const rawMaterial = app ? previewItem(app, ctx, project, activeLang).material ?? "" : "";
+  const rawMaterial = app ? (previewItem(app, ctx, project, activeLang).material ?? "") : "";
   const display = resolveDisplayRef(project, rawMaterial);
   const material = display.material;
   const titleRaw = app?.title ? getText(project, app.title, activeLang) : "";
   const title = titleRaw ? renderPreview(titleRaw, ctx, project, activeLang) : rowKey;
   const materialUrl = useTextureUrl(material);
   const textureUrl = useHeadPreviewUrl(display.head) ?? materialUrl;
-  const data: PlacementRowDragData = {
-    placementRow: { menuId: menu.id, elementId: element.id, key: rowKey, material },
-  };
   // Hook order: useDraggable runs unconditionally; listeners only bind when free.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `${PLACEMENT_ROW_DRAG_PREFIX}${element.id}:${rowKey}`,
-    data,
+    ...draggableProps({
+      kind: "placementRow",
+      menuId: menu.id,
+      elementId: element.id,
+      key: rowKey,
+      material,
+    }),
     disabled: placed,
   });
 
