@@ -35,8 +35,9 @@ Les dossiers `menus/`, `commands/` et `dialogs/` ne sont nommés nulle part en d
 `plugin/core/.../model/DocumentKinds.kt`, façade Kotlin du `DocumentKindRegistry` de l'API
 (`kind`, `dir`, `schemaVersions`, `idPrefix` ; les kinds core y sont enregistrés par
 `coreRegistry()`, un module ajoute les siens par `api.getDocumentKinds()`) — et tout ce qui parcourt
-un projet boucle sur ce registre : l'import (`projectFromFiles`) et l'export (`transform`) de
-l'éditeur via les codecs par kind (`schema/documentCodecs.ts`), le `ProjectReader` du plugin via
+un projet boucle sur ce registre : l'import (`projectFromFiles`) et l'écriture (`projectToFiles`) de
+l'éditeur via les codecs par kind (`schema/documentCodecs.ts`, un lecteur `<kind>V1ToDomain` et un
+écrivain `<kind>V1FromDomain` par kind), le `ProjectReader` du plugin via
 un lecteur par kind, l'inventaire de ressources et les tables de références du provider.
 
 En mémoire, un Project est un **conteneur unique** : `Project.documents[kind]` (éditeur) et

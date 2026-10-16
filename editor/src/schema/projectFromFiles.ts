@@ -1,16 +1,19 @@
+import { normalizeBaseLore } from "@/domain/baseLore";
 import { normalizeCanvasGroups } from "@/domain/canvasGroups";
-import { itemTextFields } from "@/domain/itemTextFields";
 import { parseCapturedStack } from "@/domain/capturedStack";
+import { listDocumentKinds } from "@/domain/documentKinds";
+import { documentIds as documentIdsOf, emptyDocuments, menusOf } from "@/domain/documents";
 import {
   adoptAddressedTranslations,
   visitDataSourceLTexts,
   visitElementLTexts,
 } from "@/domain/i18nSites";
+import { itemTextFields } from "@/domain/itemTextFields";
 // Full-project files → domain importer — the exact inverse of
-// `features/export/transform.ts` (ADR files-first-source-of-truth: the file
+// `projectToFiles.ts` (ADR files-first-source-of-truth: the file
 // tree is the canonical, lossless Project representation; the editor parses it
 // on open and serializes back on save). Locked by projectFromFiles.test.ts
-// (fixed-point round-trip) — any new file form added to transform() MUST gain
+// (fixed-point round-trip) — any new file form added to projectToFiles() MUST gain
 // its inverse here in the same commit.
 import type {
   Appearance,
@@ -31,9 +34,6 @@ import type {
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
 import { parse as parseYaml } from "yaml";
-import { normalizeBaseLore } from "@/domain/baseLore";
-import { listDocumentKinds } from "@/domain/documentKinds";
-import { documentIds as documentIdsOf, emptyDocuments, menusOf } from "@/domain/documents";
 import { documentCodec } from "./documentCodecs";
 import { makeAppearanceConverter } from "./menuV1ToDomain";
 

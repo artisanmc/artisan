@@ -5,7 +5,7 @@ import { flattenLangTree } from "@/lib/langTree";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { transform } from "./transform";
+import { projectToFiles } from "./projectToFiles";
 
 const BASE = "plugins/Artisan/projects/p_test";
 
@@ -53,9 +53,12 @@ const shopMenu = (): Menu =>
                   steps: [
                     {
                       kind: "action",
-                      action: { name: "send_message", value: {
+                      action: {
+                        name: "send_message",
+                        value: {
                           key: "menus.shop.elements.btn.default.click.left.message" as I18nKey,
-                        } },
+                        },
+                      },
                     },
                   ],
                 },
@@ -84,9 +87,9 @@ const langFile = (files: Record<string, string>, lang: string) => {
   return raw === undefined ? undefined : flattenLangTree(parse(raw));
 };
 
-describe("transform — structural text is field-local", () => {
+describe("projectToFiles — structural text is field-local", () => {
   it("writes a {lang: text} map for translated title, lore and layers", () => {
-    const menu = parse(transform(project())[`${BASE}/menus/shop.yaml`]!);
+    const menu = parse(projectToFiles(project())[`${BASE}/menus/shop.yaml`]!);
     expect(menu.title).toEqual([
       { kind: "text", value: { en: "Shop", fr: "Boutique" }, x: 8, y: 5 },
     ]);
@@ -97,7 +100,7 @@ describe("transform — structural text is field-local", () => {
 
   it("emits a bare string when only the default language has a value", () => {
     const menu = parse(
-      transform(
+      projectToFiles(
         project({ i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"] }),
       )[`${BASE}/menus/shop.yaml`]!,
     );
@@ -108,7 +111,7 @@ describe("transform — structural text is field-local", () => {
 
   it("keeps a text written only in a non-default language as a map", () => {
     const menu = parse(
-      transform(
+      projectToFiles(
         project({ i18nKeys: { "menus.shop.title": { fr: "Boutique" } } as Project["i18nKeys"] }),
       )[`${BASE}/menus/shop.yaml`]!,
     );
@@ -117,7 +120,7 @@ describe("transform — structural text is field-local", () => {
   });
 
   it("makes action text field-local too", () => {
-    const files = transform(project());
+    const files = projectToFiles(project());
     const menu = parse(files[`${BASE}/menus/shop.yaml`]!);
     expect(menu.elements[0].click.left).toEqual([
       { send_message: { en: "Bought!", fr: "Acheté !" } },
@@ -129,7 +132,7 @@ describe("transform — structural text is field-local", () => {
   });
 
   it("leaves structural keys out of lang/", () => {
-    const fr = langFile(transform(project()), "fr") ?? {};
+    const fr = langFile(projectToFiles(project()), "fr") ?? {};
     expect(fr["menus.shop.title"]).toBeUndefined();
     expect(fr["menus.shop.elements.btn.default.title"]).toBeUndefined();
     expect(fr["menus.shop.elements.btn.default.lore"]).toBeUndefined();
@@ -148,7 +151,10 @@ describe("transform — structural text is field-local", () => {
             steps: [
               {
                 kind: "action",
-                action: { name: "send_message", value: { key: "commands.heal.message" as I18nKey } },
+                action: {
+                  name: "send_message",
+                  value: { key: "commands.heal.message" as I18nKey },
+                },
               },
             ],
           },
@@ -178,7 +184,7 @@ describe("transform — structural text is field-local", () => {
         "dialogs.confirm.buttons.ok.label": { en: "OK", fr: "OK" },
       } as Project["i18nKeys"],
     });
-    const files = transform(p);
+    const files = projectToFiles(p);
     expect(parse(files[`${BASE}/commands/heal.yaml`]!).actions).toEqual([
       { send_message: { en: "Healed", fr: "Soigné" } },
     ]);
@@ -195,7 +201,7 @@ describe("transform — structural text is field-local", () => {
 
 describe("field-local — round-trip through the file tree", () => {
   const reimport = (p: Project) =>
-    projectFromFiles(projectId("p_test"), transform(p), { name: "Test" });
+    projectFromFiles(projectId("p_test"), projectToFiles(p), { name: "Test" });
 
   it("reattaches the languages to their key sites", () => {
     const back = reimport(project());
@@ -212,10 +218,10 @@ describe("field-local — round-trip through the file tree", () => {
   });
 
   it("is a fixed point — re-exporting the imported project yields the same tree", () => {
-    const once = transform(project());
+    const once = projectToFiles(project());
     const back = reimport(project());
     rekeyProject(back);
-    const twice = transform(back);
+    const twice = projectToFiles(back);
     for (const path of Object.keys(once)) expect([path, twice[path]]).toEqual([path, once[path]]);
     expect(Object.keys(twice).sort()).toEqual(Object.keys(once).sort());
   });
@@ -223,7 +229,7 @@ describe("field-local — round-trip through the file tree", () => {
 
 describe("legacy i18n_mode marker", () => {
   it("keeps the inline marker so a re-import round-trips it", () => {
-    const files = transform(project({ i18nMode: "inline" }));
+    const files = projectToFiles(project({ i18nMode: "inline" }));
     expect(parse(files[`${BASE}/.artisan/editor.yaml`]!).i18n_mode).toBe("inline");
   });
 });
