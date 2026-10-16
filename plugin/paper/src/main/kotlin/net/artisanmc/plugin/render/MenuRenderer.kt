@@ -90,7 +90,12 @@ object MenuRenderer {
         val invType = INVENTORY_TYPES[menu.yaml.inventoryType]
         val content = MenuSlots(invType?.defaultSize ?: menu.yaml.size, PlayerInventoryMode.parse(menu.yaml.playerInventory))
         val pageInfo = paginate(menu, boundCtx, content.slotLimit)
-        val renderCtx = boundCtx.copy(pageInfo = pageInfo, lang = lang, defaultLang = menu.defaultLang, loreMaxWidth = menu.loreMaxWidth)
+        // The context carries the viewer's language and lang map from here on:
+        // every text of the render resolves through it (TemplateScope.localize).
+        val renderCtx = boundCtx.copy(
+            pageInfo = pageInfo, lang = lang, defaultLang = menu.defaultLang,
+            langMap = langMap, loreMaxWidth = menu.loreMaxWidth,
+        )
 
         // A menu title is a Template like any other player-facing string — the
         // renderer resolves `{…}` and `%papi%` in one pass (ADR `expression-parity` §5).
@@ -107,7 +112,7 @@ object MenuRenderer {
             defaultLang = menu.defaultLang,
         )
         val inv = createInventory(menu, invType, title)
-        val fill = SlotFill(content, menu.compiledAppearances, evaluator, langMap)
+        val fill = SlotFill(content, menu.compiledAppearances, evaluator)
         layout(menu, renderCtx, images, fill)
 
         // Empty anchor: the content goes out as packets. Registered before opening,
@@ -116,7 +121,7 @@ object MenuRenderer {
         windows?.open(player, inv, content, menu.yaml.vanillaTexture)
         player.openInventory(inv)
         if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
-        return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), fill.activeClicks, fill.slotArgs, content, menu.escapeGoesBack)
+        return MenuSession(menu.id, renderCtx, fill.activeClicks, fill.slotArgs, content, menu.escapeGoesBack)
     }
 
     /**
@@ -261,7 +266,6 @@ object MenuRenderer {
         val content: MenuSlots,
         val compiledAppearances: Map<String, List<CompiledAppearance>>,
         val evaluator: ConditionEvaluator,
-        val langMap: Map<String, String>,
     ) {
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val slotArgs = mutableMapOf<Int, Map<String, Any>>()
@@ -271,7 +275,7 @@ object MenuRenderer {
             compiledAppearances[elementId].orEmpty().firstOrNull { evaluator.evaluateAll(it.conditions, ctx) }
 
         fun build(chosen: CompiledAppearance, ctx: ExecutionContext): ItemStack =
-            buildItem(chosen.yaml, langMap, ctx, evaluator.deps, chosen.i18nBase)
+            buildItem(chosen.yaml, ctx, evaluator.deps, chosen.i18nBase)
 
         fun place(slots: List<Int>, chosen: CompiledAppearance, item: ItemStack, rowArgs: Map<String, Any>? = null) {
             for (slot in slots) {
@@ -301,7 +305,7 @@ object MenuRenderer {
                 val image = chosen.yaml.image
                 if (image != null && images.layers.none { it.assetId == layout.assetKey(image) }) continue
                 val item = if (image == null) fill.build(chosen, ctx)
-                    else buildImageHitItem(chosen.yaml, fill.langMap, ctx, fill.evaluator.deps, chosen.i18nBase)
+                    else buildImageHitItem(chosen.yaml, ctx, fill.evaluator.deps, chosen.i18nBase)
                 fill.place(layout.slots, chosen, item)
                 continue
             }
@@ -340,9 +344,9 @@ object MenuRenderer {
         }
     }
 
-    private fun buildImageHitItem(app: AppearanceYaml, langMap: Map<String, String>, ctx: ExecutionContext,
+    private fun buildImageHitItem(app: AppearanceYaml, ctx: ExecutionContext,
                                   deps: SoftDepRegistry, i18nBase: String): ItemStack {
-        val item = buildItem(AppearanceYaml(material = "PAPER", title = app.title, lore = app.lore), langMap, ctx, deps, i18nBase)
+        val item = buildItem(AppearanceYaml(material = "PAPER", title = app.title, lore = app.lore), ctx, deps, i18nBase)
         val meta = item.itemMeta
         try {
             meta.setItemModel(NamespacedKey("artisan", "buttons/hit_area"))
@@ -357,7 +361,6 @@ object MenuRenderer {
 
     private fun buildItem(
         app: AppearanceYaml,
-        langMap: Map<String, String>,
         ctx: ExecutionContext,
         deps: SoftDepRegistry,
         i18nBase: String = "",
@@ -383,8 +386,8 @@ object MenuRenderer {
         // The material may be a placeholder ({input} or {alias.field}), resolved
         // through the context before the vanilla/custom lookup.
         val resolvedMaterial = rawMaterial?.let { ctx.render(it, papi) }
-        var item = base?.let { buildItem(it, langMap, ctx, deps, depth = depth + 1) }
-            ?: (value as? String)?.let { buildItem(AppearanceYaml(item = it), langMap, ctx, deps, depth = depth + 1) }
+        var item = base?.let { buildItem(it, ctx, deps, depth = depth + 1) }
+            ?: (value as? String)?.let { buildItem(AppearanceYaml(item = it), ctx, deps, depth = depth + 1) }
             ?: resolvedMaterial?.let { mat ->
             deps.buildCustomStack(mat, count)
                 ?: runCatching { Material.valueOf(mat.uppercase()) }.getOrNull()
@@ -400,7 +403,7 @@ object MenuRenderer {
         if (app.count != null) item.amount = count
         val head = app.head
         if (item.type == Material.PLAYER_HEAD && head != null) {
-            item = HeadApplier.apply(item, resolveText(head, langMap, localCtx, papi), deps)
+            item = HeadApplier.apply(item, resolveText(head, localCtx, papi), deps)
         }
         val meta: ItemMeta = item.itemMeta ?: return item
         if (app.title != null) {
@@ -409,8 +412,9 @@ object MenuRenderer {
             if (value != null) {
                 // A field-local map is authoritative (ADR field-local-translations); a
                 // bare literal keeps the legacy address lookup for non-default langs.
+                // (A map's value still honours a whole `{i18n:key}`, as it always has.)
                 val address = if (lt.isMap) null else addressOf(i18nBase, "title")
-                meta.displayName(parse(resolveText(value, langMap, localCtx, papi, address)))
+                meta.displayName(parse(resolveText(value, localCtx, papi, address)))
             }
         }
         if (app.lore.isNotEmpty() || app.loreMode == "replace") {
@@ -420,21 +424,14 @@ object MenuRenderer {
             val icon = row?.get("icon") as? Map<*, *>
             val legacyToken = if (icon?.containsKey("extends") == true && icon.containsKey("lore") &&
                 (row?.get("lore") == null || row["lore"] == "" || row["lore"] == emptyList<Any>())) "{$alias.lore}" else null
-            val rawLines = app.lore.mapNotNull { lt ->
-                val value = lt.forLang(localCtx.lang, localCtx.defaultLang) ?: return@mapNotNull null
-                when {
-                    lt.isMap -> value
-                    value.startsWith("{i18n:") -> langMap[value.removePrefix("{i18n:").removeSuffix("}")] ?: value
-                    else -> loreAddress?.let { langMap[it] } ?: value
-                }
-            }
+            val rawLines = app.lore.mapNotNull { lt -> localCtx.localize(lt, loreAddress) }
             val legacy = legacyToken != null && rawLines.any { it.contains(legacyToken) }
             val tokened = rawLines.map { if (legacy) it.replace(legacyToken!!, BASE_LORE) else it }
             // The base lore stays by default: it goes away only with `lore_mode: replace`
             // or when `{base.lore}` places it itself (otherwise it would show twice).
             val replacement = tokened.any { it.contains(BASE_LORE) } || app.loreMode == "replace"
             val base = if (replacement) emptyList() else meta.lore() ?: emptyList()
-            val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> langMap[key] }.split("\n") }
+            val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> localCtx.langMap[key] }.split("\n") }
                 .flatMap { LoreWrap.wrap(LenientText.legacyToMini(it), localCtx.loreMaxWidth) }
             meta.lore(if (lines == listOf("")) base else base + lines.map { parse(it).colorIfAbsent(NamedTextColor.WHITE) })
         }
@@ -447,27 +444,16 @@ object MenuRenderer {
     private fun addressOf(base: String, leaf: String): String? =
         if (base.isEmpty()) null else "$base.$leaf"
 
-    /**
-     * Explicit `{i18n:key}` ref wins; otherwise the literal is looked up at its
-     * canonical ADDRESS (inline mode — the literal is the default language, the
-     * other languages sit at `address` in `lang/<lang>.yaml`); otherwise the
-     * literal stands as written.
-     */
+    /** [lookupLocalized] against the context's lang map, then the Template. */
     private fun resolveText(
         raw: String,
-        langMap: Map<String, String>,
         ctx: ExecutionContext,
         papi: PapiProvider?,
         address: String? = null,
     ): String {
-        var text = if (raw.startsWith("{i18n:")) {
-            langMap[raw.removePrefix("{i18n:").removeSuffix("}")] ?: raw
-        } else {
-            address?.let { langMap[it] } ?: raw
-        }
         // The lang map also backs the presentation keys (`artisan.duration.*`), so a
         // duration reads in the viewer's language like any other string.
-        return ctx.render(text, papi) { key -> langMap[key] }
+        return ctx.render(lookupLocalized(raw, ctx.langMap, address), papi) { key -> ctx.langMap[key] }
     }
 
     private fun parsePositions(positions: String, size: Int): List<Int> =
