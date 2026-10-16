@@ -4,9 +4,9 @@ import be.seeseemelk.mockbukkit.MockBukkit
 import be.seeseemelk.mockbukkit.entity.PlayerMock
 import net.artisanmc.plugin.resourcepack.ContainerTexture
 import net.artisanmc.plugin.session.MenuSlots
-import net.artisanmc.plugin.render.MenuWindows
-import net.artisanmc.plugin.render.OpenedContainers
-import net.artisanmc.plugin.render.VanillaGuiTitle
+import net.artisanmc.plugin.render.packets.MenuWindows
+import net.artisanmc.plugin.render.title.OpenedContainers
+import net.artisanmc.plugin.render.title.VanillaGuiTitle
 import net.artisanmc.plugin.resourcepack.PackLoadTracker
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component

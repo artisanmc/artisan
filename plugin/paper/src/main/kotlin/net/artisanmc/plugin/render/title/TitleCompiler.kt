@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.render.title
 
 import net.artisanmc.plugin.text.LenientText
 import net.artisanmc.plugin.model.LText
@@ -7,6 +7,8 @@ import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.ShadowColor
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.artisanmc.plugin.render.CHAR_ADVANCES
+import net.artisanmc.plugin.render.OffsetEncoder
 
 /**
  * Compiles a list of [MenuTitleLayer]s into an Adventure [Component] suitable for

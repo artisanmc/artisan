@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.listener
 
 import net.artisanmc.modules.api.menu.MenuClickEvent
 import net.artisanmc.modules.api.menu.MenuClickListener

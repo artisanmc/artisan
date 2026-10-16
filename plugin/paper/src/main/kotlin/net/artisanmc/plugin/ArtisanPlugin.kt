@@ -21,13 +21,14 @@ import net.artisanmc.plugin.engine.MenuProvider
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import com.github.retrooper.packetevents.PacketEvents
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
-import net.artisanmc.plugin.render.ClientSlotSink
-import net.artisanmc.plugin.render.MenuListener
-import net.artisanmc.plugin.render.MenuWindows
-import net.artisanmc.plugin.render.PacketEventsMenuPackets
-import net.artisanmc.plugin.render.PacketEventsSlotSink
+import net.artisanmc.plugin.render.packets.ClientSlotSink
+import net.artisanmc.plugin.listener.MenuListener
+import net.artisanmc.plugin.render.packets.MenuWindows
+import net.artisanmc.plugin.render.packets.PacketEventsMenuPackets
+import net.artisanmc.plugin.render.packets.PacketEventsSlotSink
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
+import net.artisanmc.plugin.integrations.PaperPlaceholders
 
 open class ArtisanPlugin : JavaPlugin() {
     lateinit var menuProvider: MenuProvider
@@ -49,7 +50,7 @@ open class ArtisanPlugin : JavaPlugin() {
         private set
     /** Survives `/artisan reload`: the pack manager is swapped, the players' loaded packs are not. */
     private val packLoads = net.artisanmc.plugin.resourcepack.PackLoadTracker()
-    private val openedContainers = net.artisanmc.plugin.render.OpenedContainers()
+    private val openedContainers = net.artisanmc.plugin.render.title.OpenedContainers()
     private var packetEventsLoaded = false
     /** Exposed for /artisan dump-title diagnostics. */
     lateinit var assetCatalog: net.artisanmc.plugin.resourcepack.AssetCatalog
@@ -65,7 +66,7 @@ open class ArtisanPlugin : JavaPlugin() {
     lateinit var editorSessions: net.artisanmc.plugin.hub.Sessions
         private set
     /** `api.menus` listeners, fired with the Bukkit menu events. */
-    val menuEvents by lazy { net.artisanmc.plugin.render.MenuEventDispatcher(logger) }
+    val menuEvents by lazy { net.artisanmc.plugin.listener.MenuEventDispatcher(logger) }
     /** `api.placeholders`: survives `/artisan reload`. */
     val placeholders by lazy { PaperPlaceholders(this) }
     /** Pools lent through `api.database` (ADR `suite-foundation-database`). */
@@ -115,7 +116,7 @@ open class ArtisanPlugin : JavaPlugin() {
             if (packets) PacketEventsSlotSink { menuWindows.get(it.uniqueId)?.stateId ?: 0 } else ClientSlotSink.None,
         )
         if (packets) {
-            val chestTexture = net.artisanmc.plugin.render.VanillaGuiTitle.Rule(
+            val chestTexture = net.artisanmc.plugin.render.title.VanillaGuiTitle.Rule(
                 menuWindows,
                 { id, texture ->
                     packLoads.hasLoaded(id) && ::assetCatalog.isInitialized && texture in assetCatalog.transparentTextures

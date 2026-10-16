@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.engine
+package net.artisanmc.plugin.integrations
 
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import net.artisanmc.modules.api.placeholder.PlaceholderResolver

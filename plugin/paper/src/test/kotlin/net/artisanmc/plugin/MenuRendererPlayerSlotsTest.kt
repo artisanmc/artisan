@@ -8,14 +8,15 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.engine.MenuProvider
-import net.artisanmc.plugin.render.MenuListener
-import net.artisanmc.plugin.render.MenuRenderer
-import net.artisanmc.plugin.render.MenuWindows
+import net.artisanmc.plugin.listener.MenuListener
+import net.artisanmc.plugin.render.menu.MenuRenderer
+import net.artisanmc.plugin.render.packets.MenuWindows
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import kotlin.test.*
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class MenuRendererPlayerSlotsTest {
     @BeforeTest fun setup() { MockBukkit.mock() }

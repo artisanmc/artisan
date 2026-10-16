@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.customitems
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import net.artisanmc.plugin.engine.SoftDepRegistry
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 import net.artisanmc.plugin.items.ItemDescriptor
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack

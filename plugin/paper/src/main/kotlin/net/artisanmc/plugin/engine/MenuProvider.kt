@@ -1,8 +1,6 @@
 package net.artisanmc.plugin.engine
 
 import net.artisanmc.plugin.model.RuntimeDialog
-import net.artisanmc.plugin.engine.RuntimeMenu
-import net.artisanmc.plugin.engine.RuntimeProject
 import org.bukkit.entity.Player
 
 interface MenuProvider {

@@ -8,6 +8,7 @@ import net.artisanmc.plugin.model.*
 import net.artisanmc.plugin.engine.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class CommandRegistrarTest {
 

@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import net.artisanmc.plugin.integrations.PapiProvider
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class PapiPlaceholdersFetchTest {
     @Test fun `retrieves the current catalog on the main thread and returns the request identity`() {
