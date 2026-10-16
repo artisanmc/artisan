@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.database
 
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseDialect
 import java.sql.Connection
 import java.sql.SQLException
 import java.util.logging.Logger

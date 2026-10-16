@@ -1,7 +1,7 @@
 package net.artisanmc.plugin
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseDialect
 import net.artisanmc.plugin.database.ArtisanSchema
 import net.artisanmc.plugin.database.ConnectionPools
 import net.artisanmc.plugin.database.DatabaseSettings
@@ -10,6 +10,9 @@ import net.artisanmc.plugin.database.ServerRegistry
 import net.artisanmc.plugin.database.SuiteProjectData
 import net.artisanmc.plugin.hub.Call
 import net.artisanmc.plugin.hub.ProjectDrafts
+import net.artisanmc.plugin.protocol.LoadedState
+import net.artisanmc.plugin.protocol.ProjectListing
+import net.artisanmc.plugin.protocol.ProjectRootInfo
 import java.nio.file.Files
 import java.time.Instant
 import java.util.UUID
@@ -52,7 +55,7 @@ class LateSuiteDataTest {
         val hub = UUID.randomUUID().also { registry.register(it, "hub", Instant.EPOCH) }
         val row = registry.rowId(hub)!!
         val opened = SuiteProjectData(ds, DatabaseDialect.H2, { runCatching { UUID.fromString(it) }.getOrNull()?.let(registry::rowId) }, log)
-        opened.recordState(row, mapOf("project_ids" to listOf("shop"), "project_roots" to listOf(mapOf("project_id" to "shop", "project_key" to "k-1")), "projects" to emptyMap<String, Any>()), Instant.EPOCH)
+        opened.recordState(row, LoadedState(ProjectListing(listOf("shop"), listOf(ProjectRootInfo("shop", projectKey = "k-1"))), emptyMap()), Instant.EPOCH)
         data = opened
         assertEquals(listOf("shop"), late.loaded.list(hub.toString())!!["project_ids"])
         assertTrue(late.drafts.knownProject(hub.toString(), "shop"))

@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.actiondsl.compileActionDsl
-import net.artisanmc.modules.api.ModelField
-import net.artisanmc.modules.api.ModelFieldType
+import net.artisanmc.modules.api.model.ModelField
+import net.artisanmc.modules.api.model.ModelFieldType
 import net.artisanmc.plugin.engine.ActionSchema
 import net.artisanmc.plugin.engine.CoreActions
 import net.artisanmc.plugin.engine.I18nAddress

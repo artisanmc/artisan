@@ -9,6 +9,8 @@ import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
 import net.artisanmc.plugin.hub.Relay.Companion.readError
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
+import net.artisanmc.plugin.protocol.ProjectListing
+import net.artisanmc.plugin.protocol.ProjectRootInfo
 import net.artisanmc.plugin.protocol.ProtocolVersion
 import java.util.Base64
 import java.util.UUID
@@ -32,11 +34,11 @@ class ProjectRoutes(
             val server = servers.of(call) ?: return@on call.error(404, "unknown_project")
             listed(call, server) { reply ->
                 if (!ok(reply)) return@listed readError(call, reply)
-                val projects = roots(reply).map { summary(server, it) }
+                val list = ProjectListing.from(reply)
                 call.json(mapOf(
                     // Folder names, as the editor matches them to `projects[].externalId`; the Project ids are in `projects[].id`.
-                    "project_ids" to (reply["project_ids"] as? List<*>).orEmpty().map { it as String },
-                    "projects" to projects,
+                    "project_ids" to list.projectIds,
+                    "projects" to list.projectRoots.map { summary(server, it) },
                     "pending_renames" to emptyList<Any>(),
                 ))
             }
@@ -45,7 +47,7 @@ class ProjectRoutes(
             val server = project.server
             listed(call, server) { reply ->
                 if (!ok(reply)) return@listed readError(call, reply)
-                val root = roots(reply).firstOrNull { it["project_id"] == project.folder } ?: return@listed call.error(404, "not_found")
+                val root = ProjectListing.from(reply).root(project.folder) ?: return@listed call.error(404, "not_found")
                 val movable = movable(server, root)
                 call.json(mapOf(
                     "project" to summary(server, root),
@@ -95,7 +97,7 @@ class ProjectRoutes(
             if (!speaksFolders(call, server)) return@on
             relay.send(call, server, mapOf("type" to "project_create", "project_id" to name)) { reply ->
                 if (!ok(reply)) return@send folderError(call, reply)
-                call.json(mapOf("project" to summary(server, mapOf("project_id" to name, "identity" to "folder"))), 201)
+                call.json(mapOf("project" to summary(server, ProjectRootInfo(name, identity = "folder"))), 201)
             }
         }
         onProject(router, "DELETE", "/api/v1/user/projects/:project", PUBLISH) { call, project ->
@@ -125,8 +127,8 @@ class ProjectRoutes(
 
     private fun folderError(call: Call, reply: Map<String, Any?>) = readError(call, reply)
 
-    private fun movable(server: EditorServer, root: Map<String, Any?>) =
-        root["identity"] == "folder" && ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.PROJECT_FOLDERS
+    private fun movable(server: EditorServer, root: ProjectRootInfo) =
+        root.identity == "folder" && ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.PROJECT_FOLDERS
 
     /** A URL naming its content's hash never changes content: the browser keeps it for good. */
     private fun cacheFor(bytes: ByteArray, hash: String?): String =
@@ -311,16 +313,13 @@ class ProjectRoutes(
         return value.asText().takeIf { value.isTextual && IDENTIFIER.matches(it) }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun roots(reply: Map<String, Any?>) = (reply["project_roots"] as? List<Map<String, Any?>>).orEmpty()
-
-    private fun summary(server: EditorServer, root: Map<String, Any?>): Map<String, Any?> {
-        val folder = root["project_id"] as String
+    private fun summary(server: EditorServer, root: ProjectRootInfo): Map<String, Any?> {
+        val folder = root.projectId
         val id = ProjectRef.id(server.id, folder)
         return mapOf(
             "id" to id, "name" to folder, "externalId" to folder, "slug" to id,
             "serverKeyId" to server.id, "hash" to "",
-            "identityKind" to root["identity"], "ownerModule" to root["module_id"], "projectKey" to root["project_key"],
+            "identityKind" to root.identity, "ownerModule" to root.moduleId, "projectKey" to root.projectKey,
             "capabilities" to mapOf("canRename" to movable(server, root)),
         )
     }

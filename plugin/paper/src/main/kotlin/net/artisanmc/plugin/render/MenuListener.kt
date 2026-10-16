@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.render
 
-import net.artisanmc.modules.api.MenuClickEvent
-import net.artisanmc.modules.api.MenuCloseEvent
+import net.artisanmc.modules.api.menu.MenuClickEvent
+import net.artisanmc.modules.api.menu.MenuCloseEvent
 import net.artisanmc.plugin.engine.*
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler

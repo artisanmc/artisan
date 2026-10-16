@@ -471,4 +471,59 @@ class ProjectReaderTest {
         assertEquals(1, bundles.size)
         assertEquals(1, bundles.first().menus.size) // m_bad skipped, m_ok loaded
     }
+
+    private fun tolerantProject(prefix: String): Pair<File, File> {
+        val root = java.nio.file.Files.createTempDirectory(prefix).toFile()
+        val projectDir = File(root, "p_a").apply { mkdirs() }
+        File(projectDir, "manifest.yaml").writeText("""
+            schema: manifest/v1
+            default_lang: en
+            languages: [en]
+        """.trimIndent())
+        File(projectDir, "menus").mkdirs()
+        File(projectDir, "menus/m_ok.yaml").writeText("""
+            schema: menu/v1
+            size: 27
+            elements:
+              - id: e
+                positions: 0
+        """.trimIndent())
+        return root to projectDir
+    }
+
+    @Test
+    fun `a positions typo in one menu skips nothing else, never fails the reload`() {
+        val (root, projectDir) = tolerantProject("artisan_pos_typo_")
+        File(projectDir, "menus/m_typo.yaml").writeText("""
+            schema: menu/v1
+            size: 27
+            elements:
+              - id: e
+                positions: "3, 10-"
+        """.trimIndent())
+        File(root, "p_b/menus").mkdirs()
+        File(root, "p_b/manifest.yaml").writeText("schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\n")
+
+        val bundles = ProjectReader(root).readAll()
+        assertEquals(setOf("p_a", "p_b"), bundles.map { it.projectId }.toSet())
+        val typo = bundles.single { it.projectId == "p_a" }.menus.single { it.yaml.id == "m_typo" }
+        assertEquals(setOf(3), typo.slotToElement.keys) // the bad range alone is dropped
+    }
+
+    @Test
+    fun `a data source with an unsupported schema version is loud, like a Document`() {
+        val (root, projectDir) = tolerantProject("artisan_ds_schema_")
+        File(projectDir, "data").mkdirs()
+        File(projectDir, "data/items.yaml").writeText("schema: data/v99\nshape: table\nrows: []\n")
+        assertThrows<net.artisanmc.plugin.yaml.UnsupportedSchemaException> { ProjectReader(root).readAll() }
+    }
+
+    @Test
+    fun `a per-row source whose _source yaml has an unsupported schema version is loud`() {
+        val (root, projectDir) = tolerantProject("artisan_ds_rows_schema_")
+        File(projectDir, "data/items").mkdirs()
+        File(projectDir, "data/items/_source.yaml").writeText("schema: data/v99\n")
+        File(projectDir, "data/items/a.yaml").writeText("id: a\n")
+        assertThrows<net.artisanmc.plugin.yaml.UnsupportedSchemaException> { ProjectReader(root).readAll() }
+    }
 }
