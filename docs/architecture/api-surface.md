@@ -28,6 +28,7 @@ Note : we use `@Sunset` rather than `@Deprecated`: the schedule-aware annotation
 - Removed, as announced by `@Sunset`: `ModuleMessagesApi` and `ArtisanAPI.messages`, `DataSourceDeclaration.schemaHint` (and `schema_hint` on the `data_sources` wire). The Kotlin `DefaultImpls` of 1.x are gone too: interface members with a body are plain Java default methods.
 - One package per domain: `ArtisanAPI`, `ArtisanModule`, `ModuleRegistry`, `DuplicateModuleException` and `SemVer` stay in `net.artisanmc.modules.api`; the rest moves to `api.action`, `api.command`, `api.datasource`, `api.model`, `api.document`, `api.screen`, `api.menu`, `api.event`, `api.placeholder`, `api.project`, `api.scheduler`, `api.database`, `api.item`, and `SchemaVersionReader` to `api.schemas`. Each exception sits with its domain. Only imports change: names, members and behaviour are the same.
 - `ModuleActionsApi.execute` has Java overloads for its former default arguments: `execute(player, actions)`, `execute(player, actions, args)`, `execute(player, actions, args, projectId)`.
+- One field-type vocabulary: `ModelField` / `ModelFieldType` type a data source row field (`new DataSourceField(name, ModelFieldType)`), a Data model (`ModelRegistry.declare(ModelDeclaration)`) and an Action's arguments. `FieldKind`, the `FieldKind` constructors of `DataSourceField`, `DataSourceField.getType()` and `ModelRegistry.declare(Map)` stay, `@Sunset` until 3.0.0, so an add-on built on 1.x still compiles; the `data_sources` and `declared_models` wires are unchanged.
 
 | Member | Type | Since |
 |---|---|---|
@@ -37,6 +38,8 @@ Note : we use `@Sunset` rather than `@Deprecated`: the schedule-aware annotation
 | `MenuClickEvent.hasActions()` (was `getHasActions()`) | `boolean` | 2.0.0 |
 | `ModuleActionsApi.execute(player, actions)`, `execute(player, actions, args)` | `void` | 2.0.0 |
 | `ModuleMessagesApi`, `ArtisanAPI.messages`, `DataSourceDeclaration.schemaHint` removed | | 2.0.0 |
+| `DataSourceField(name, ModelFieldType[, description])`, `getFieldType()`; `FieldKind` `@Sunset` | | 2.0.0 |
+| `ModelRegistry.declare(ModelDeclaration)`, `declare(id, keyField, fields)`; `declare(Map)` `@Sunset` | | 2.0.0 |
 
 An add-on built against 1.x recompiles against 2.0.0: the getters keep their JVM names, the imports of the moved types, the removed members and the `DataSourceDeclaration` constructors are the source changes to expect.
 
@@ -135,7 +138,7 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 
 Constructing a `Stability.STATIC` declaration without a non-blank `keyField` throws (`require`) — a static source must declare its Row key.
 
-Constructors (2.0.0): `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)`, `(ref, fetcher, schema, stability, keyField)`; `DataSourceField(name, type)`, `(name, type, description)`; `PlayerRequiredException()`, `(message)`. Before 2.0.0 the same overloads came from `@JvmOverloads` on Kotlin constructors with default arguments (since 1.8.0).
+Constructors (2.0.0): `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)`, `(ref, fetcher, schema, stability, keyField)`; `DataSourceField(name, type)`, `(name, type, description)` with a `ModelFieldType` (or, `@Sunset`, a `FieldKind`); `PlayerRequiredException()`, `(message)`. Before 2.0.0 the same overloads came from `@JvmOverloads` on Kotlin constructors with default arguments (since 1.8.0).
 
 ### Aucun type Kotlin ne traverse la frontière (1.5.0, api en Java depuis 2.0.0)
 
@@ -228,7 +231,25 @@ for (Map<String, Object> quest : api.getProject().documents(projectId, "quest"))
 
 ### `net.artisanmc.modules.api.model.ModelRegistry` (`@Beta`)
 
-`api.models.declare(document)` — declares a Data model as a `model/v1` document (a plain `Map`, verbatim: `schema`, namespaced `id` (`ns:model`), `name`, `key_field`, `fields`, optional monotonic `version` + declarative `migrations`). Pure passthrough: nothing is interpreted plugin-side — the documents are reported at Presence (`hello.declared_models` / `modules_changed`) and consumed by the editor, which renders the schema-driven form and treats the shape as read-only for the admin (ADR `composable-data-models` §4/§5). Duplicate id or non-namespaced id throws at declare time. `has(id)`, `declared()` (sorted). Since 1.5.0.
+`api.models.declare(model)` — declares a Data model, typed: a `ModelDeclaration(id, keyField, fields)` (namespaced `id` (`ns:model`), `List<ModelField>`), with `withName`, `withVersion(version[, migrations])` (monotonic version, declarative `ModelMigration(from, to, steps)` whose `MigrationStep`s are `renameField`, `setDefault`, `renameEnumValue`, `renameVariant`, each with an optional `path`) and `withMasterDetail`. Its `toWire()` is the `model/v1` document (`schema`, `id`, `name?`, `key_field`, `fields`, `version?`, `master_detail?`, `migrations?`). Pure passthrough: nothing is interpreted plugin-side — the documents are reported at Presence (`hello.declared_models` / `modules_changed`) and consumed by the editor, which renders the schema-driven form and treats the shape as read-only for the admin (ADR `composable-data-models` §4/§5). Duplicate id or non-namespaced id throws at declare time. `has(id)`, `declared()` (sorted). Since 1.5.0; typed since 2.0.0.
+
+```java
+api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
+        new ModelField("id", ModelFieldType.string(), true).withLocked(true),
+        new ModelField("name", ModelFieldType.ltext()),
+        new ModelField("price", ModelFieldType.number()).withRange(0.0, null)))
+    .withName("Item")
+    .withVersion(2, List.of(new ModelMigration(1, 2, List.of(MigrationStep.renameField("cost", "price"))))));
+```
+
+| Member | Type | Since |
+|---|---|---|
+| `declare(document: Map)` (`@Sunset`, removed in 3.0.0: use `declare(ModelDeclaration)`), `has(id)`, `declared()` | | 1.5.0 |
+| `declare(ModelDeclaration)`, `declare(id, keyField, fields)` | | 2.0.0 |
+| `ModelDeclaration(id, keyField, fields)`, `withName`, `withVersion(version)`, `withVersion(version, migrations)`, `withMasterDetail`, getters, `toWire()` | `ModelDeclaration` | 2.0.0 |
+| `ModelMigration(from, to, steps)`, `toWire()` | `ModelMigration` | 2.0.0 |
+| `MigrationStep.renameField`, `setDefault`, `renameEnumValue`, `renameVariant` (each with an optional `path`), `getOp()`, `toWire()` | `MigrationStep` | 2.0.0 |
+| `ModelField.withSection`, `withRange(min, max)`, `withPattern`, `withLocked` and their getters (the rest of the `model/v1` field hints) | `ModelField` | 2.0.0 |
 
 ### `net.artisanmc.modules.api.screen.EditorScreenRegistry` (`@Beta`)
 
@@ -302,12 +323,24 @@ Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable k
 
 Values: `STATIC`, `DYNAMIC`.
 
-### `net.artisanmc.modules.api.datasource.FieldKind`
+### `net.artisanmc.modules.api.datasource.FieldKind` (`@Sunset`, removed in 3.0.0)
 
-Enum describing the type of a declared data-source row field. Drives editor schema table and filter autocomplete.
+Enum describing the type of a declared data-source row field before 2.0.0. Replaced by `ModelFieldType` (`new DataSourceField(name, ModelFieldType)`): one vocabulary for data source rows, Data models and Action arguments.
 `ITEM` declares a complete item value (reference or structured material/quantity/metadata), exposed as `item` in source schemas. The editor offers these fields in **Displayed item → Use an item from data**. Text fields remain `STRING`.
 
 Values: `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`, `ITEM`.
+
+| `FieldKind` | `ModelFieldType` (`toModelFieldType()`) | wire `type` |
+|---|---|---|
+| `STRING` | `string()` | `string` |
+| `NUMBER` | `number()` | `number` |
+| `INTEGER` | `integer()` | `integer` |
+| `BOOLEAN` | `bool()` | `boolean` |
+| `LIST` | `list(string())` (1.x did not type the elements) | `list` |
+| `OBJECT` | `object([])` (nor the fields) | `object` |
+| `ITEM` | `item()` | `item` |
+
+`FieldKind.closestTo(type)` goes the other way for `DataSourceField.getType()`: `ltext`, `minimessage*`, `enum` and `document_ref` read as `STRING`, `actions` and `conditions` as `LIST`, `map`, `model` and `union` as `OBJECT`. `toModelFieldType()` and `closestTo` since 2.0.0.
 
 ### `net.artisanmc.modules.api.datasource.DataSourceField`
 
@@ -316,8 +349,11 @@ One declared row field in a data source's schema.
 | Member | Type | Since |
 |---|---|---|
 | `name` | `String` | 1.3.0 |
-| `type` | `FieldKind` | 1.3.0 |
+| `type` | `FieldKind` (`@Sunset`: the closest kind of `fieldType`) | 1.3.0 |
 | `description` | `String?` | 1.3.0 |
+| `fieldType` | `ModelFieldType` | 2.0.0 |
+
+The `data_sources` wire reports `schema[].type` as `fieldType.kind`: the same strings as 1.x for a field declared with a `FieldKind`, and the richer kinds (`ltext`, `enum`, `map`…) for a `ModelFieldType` one.
 
 ### `net.artisanmc.modules.api.datasource.RegisteredDataSource`
 

@@ -335,6 +335,8 @@ class ShopModule : ArtisanModule {
 }
 ```
 
+Le `schema` est une `List<DataSourceField>` dont chaque champ est typé par un `ModelFieldType` (`new DataSourceField("price", ModelFieldType.number())`) : le même vocabulaire que les Data models (`api.getModels().declare(new ModelDeclaration(...))`) et les arguments d'action. `FieldKind` reste accepté, `@Sunset` jusqu'à 3.0.0.
+
 Au runtime, quand le module menus rend un Element avec `data_source.ref = "shop:items"`, le `DataSourceRegistry` route la requête au shop module qui retourne la data. Zéro couplage direct.
 
 ### 4.2 Commands
