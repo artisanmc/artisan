@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.engine
+package net.artisanmc.plugin.session
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import org.junit.jupiter.api.AfterEach

@@ -27,7 +27,7 @@ enum class SlotKind { DISPLAY, INPUT }
  * menu, `topSize until topSize + 27` the main inventory, then the 9 hotbar slots.
  *
  * The only write point for a menu's contents: the Bukkit anchor stays empty and the
- * client receives these items as packets ([net.artisanmc.plugin.render.MenuWindows]). While the menu is open,
+ * client receives these items as packets ([net.artisanmc.plugin.render.packets.MenuWindows]). While the menu is open,
  * every write is pushed to the client.
  *
  * Written on the main thread, read from network threads.
@@ -41,7 +41,7 @@ class MenuSlots(val topSize: Int, val playerInventory: PlayerInventoryMode = Pla
     private val items = AtomicReferenceArray<ItemStack?>(size)
     private val kinds = AtomicReferenceArray<SlotKind>(Array(size) { SlotKind.DISPLAY })
 
-    /** Open window receiving the writes, set by [net.artisanmc.plugin.render.MenuWindows]. */
+    /** Open window receiving the writes, set by [net.artisanmc.plugin.render.packets.MenuWindows]. */
     @Volatile internal var client: Client? = null
 
     internal interface Client {

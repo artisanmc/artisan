@@ -9,6 +9,7 @@ import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.engine.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class PackCommandTest {
 

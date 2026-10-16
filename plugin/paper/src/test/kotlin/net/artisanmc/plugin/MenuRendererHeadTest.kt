@@ -8,10 +8,12 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.render.HeadRef
-import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.render.menu.MenuRenderer
 import org.bukkit.Material
 import org.bukkit.inventory.meta.SkullMeta
 import kotlin.test.*
+import net.artisanmc.plugin.integrations.PapiProvider
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class MenuRendererHeadTest {
     @BeforeTest fun setup() { MockBukkit.mock() }

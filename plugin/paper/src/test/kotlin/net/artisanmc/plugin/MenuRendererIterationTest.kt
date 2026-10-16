@@ -9,11 +9,12 @@ import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.engine.MenuProvider
-import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.render.menu.MenuRenderer
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import kotlin.test.*
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class MenuRendererIterationTest {
     @BeforeTest fun setup() { MockBukkit.mock() }
@@ -162,7 +163,7 @@ class MenuRendererIterationTest {
             }
         }
         val executor = ActionExecutor(pluginInstance, provider, sessions, SoftDepRegistry.EMPTY, CooldownStore(), ConditionEvaluator.EMPTY)
-        val listener = net.artisanmc.plugin.render.MenuListener(pluginInstance, sessions, executor)
+        val listener = net.artisanmc.plugin.listener.MenuListener(pluginInstance, sessions, executor)
         fun click(slot: Int) {
             listener.onClick(org.bukkit.event.inventory.InventoryClickEvent(
                 p.openInventory, org.bukkit.event.inventory.InventoryType.SlotType.CONTAINER, slot,

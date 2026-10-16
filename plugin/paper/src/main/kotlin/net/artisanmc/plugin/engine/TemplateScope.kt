@@ -7,6 +7,7 @@ import net.artisanmc.plugin.expr.renderTemplate
 import net.artisanmc.plugin.model.LocalizedText
 import org.bukkit.World
 import org.bukkit.entity.Player
+import net.artisanmc.plugin.integrations.PapiProvider
 
 /**
  * The seam between the runtime's context and the platform-agnostic Expression

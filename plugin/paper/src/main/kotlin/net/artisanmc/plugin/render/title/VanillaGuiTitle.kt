@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.render.title
 
 import net.artisanmc.plugin.resourcepack.ContainerTexture
 import net.kyori.adventure.key.Key
@@ -12,6 +12,7 @@ import org.bukkit.event.inventory.InventoryType
 import org.bukkit.event.player.PlayerQuitEvent
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import net.artisanmc.plugin.render.packets.MenuWindows
 
 
 /**

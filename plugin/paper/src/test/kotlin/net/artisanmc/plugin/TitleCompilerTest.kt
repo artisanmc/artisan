@@ -3,7 +3,7 @@ package net.artisanmc.plugin
 import net.artisanmc.plugin.model.LText
 import net.artisanmc.plugin.model.MenuTitleLayer
 import net.artisanmc.plugin.render.OffsetEncoder
-import net.artisanmc.plugin.render.TitleCompiler
+import net.artisanmc.plugin.render.title.TitleCompiler
 import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.ShadowColor

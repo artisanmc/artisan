@@ -8,7 +8,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.items.CapturedItemStore
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.render.menu.MenuRenderer
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.Files
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 /**
  * A referenced item keeps its own presentation. The element's lore ADDS to the

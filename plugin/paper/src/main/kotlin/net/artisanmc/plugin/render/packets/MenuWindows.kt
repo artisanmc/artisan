@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.render.packets
 
 import net.artisanmc.plugin.session.MenuSlots
 import org.bukkit.entity.Player

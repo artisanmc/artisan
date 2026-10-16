@@ -3,6 +3,7 @@ package net.artisanmc.plugin
 import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.plugin.engine.*
 import kotlin.test.*
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class ConditionEvaluatorTest {
 
