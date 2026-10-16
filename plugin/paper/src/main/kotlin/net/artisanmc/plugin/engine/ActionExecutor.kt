@@ -116,23 +116,18 @@ class ActionExecutor(
 
     fun resolveArgs(text: String, ctx: ExecutionContext): String = ctx.render(text)
 
-    /**
-     * Explicit `{i18n:key}` ref wins; otherwise the literal is looked up at its
-     * canonical ADDRESS (inline mode — the literal is the default language, the
-     * other languages sit at `address` in `lang/<lang>.yaml`); otherwise the
-     * literal stands as written.
-     */
+    /** [lookupLocalized] against the context's lang map, then `{arg}` and `%papi%`. */
     fun resolveText(text: String, ctx: ExecutionContext, address: String? = null): String {
-        var resolved = if (text.startsWith("{i18n:")) {
-            val key = text.removePrefix("{i18n:").removeSuffix("}")
-            ctx.langMap[key] ?: text
-        } else address?.let { ctx.langMap[it] } ?: text
-        resolved = resolveArgs(resolved, ctx)
+        var resolved = resolveArgs(lookupLocalized(text, ctx.langMap, address), ctx)
         deps.papi?.let { resolved = it.resolve(ctx.player, resolved) }
         return resolved
     }
 
-    /** Field-local action text (post structured-action-wire): pick the language, then resolve. */
+    /**
+     * Field-local action text (post structured-action-wire): pick the language, then
+     * resolve. Unlike [ExecutionContext.localize], a map's value still goes through
+     * the bare-text lookup (kept as it was).
+     */
     fun resolveText(text: LocalizedText, ctx: ExecutionContext, address: String? = null): String =
         resolveText(text.forLang(ctx.lang, ctx.defaultLang) ?: "", ctx, address)
 
