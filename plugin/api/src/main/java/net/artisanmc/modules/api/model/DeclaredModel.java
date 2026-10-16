@@ -22,7 +22,7 @@ public final class DeclaredModel {
         return id;
     }
 
-    /** The model/v1 document, verbatim (may carry {@code version} + {@code migrations}). */
+    /** The model/v1 document: {@link ModelDeclaration#toWire()}, or the map given to the raw {@code declare}, verbatim. */
     public Map<String, Object> getDocument() {
         return document;
     }

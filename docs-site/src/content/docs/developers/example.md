@@ -129,8 +129,8 @@ import net.artisanmc.modules.api.ArtisanModule
 import net.artisanmc.modules.api.command.CommandDeclaration
 import net.artisanmc.modules.api.datasource.DataSourceDeclaration
 import net.artisanmc.modules.api.datasource.DataSourceField
-import net.artisanmc.modules.api.datasource.FieldKind
 import net.artisanmc.modules.api.datasource.Stability
+import net.artisanmc.modules.api.model.ModelFieldType
 import org.bukkit.entity.Player
 import java.io.File
 import java.util.UUID
@@ -157,7 +157,7 @@ class KitsModule(private val plugin: KitsPlugin) : ArtisanModule {
         if (Bootstrap.writeIfAbsent(plugin, projectDir)) api.project.reload()
 
         // 2. A generated config screen for data/kits/.
-        api.models.declare(KitModel.document())
+        api.models.declare(KitModel.declaration())
         api.screens.declare("kits:kits", "Kits", "data/kits", PROJECT_ID)
 
         // 3. A data source menus can iterate over.
@@ -166,11 +166,11 @@ class KitsModule(private val plugin: KitsPlugin) : ArtisanModule {
                 "kits:list",
                 { player, _ -> kits.values.map { kit -> row(kit, player) } },
                 listOf(
-                    DataSourceField("id", FieldKind.STRING, "Kit id"),
-                    DataSourceField("name", FieldKind.STRING, "Display name"),
-                    DataSourceField("icon", FieldKind.ITEM, "Icon"),
-                    DataSourceField("ready", FieldKind.BOOLEAN, "Can the player claim it now?"),
-                    DataSourceField("status", FieldKind.STRING, "\"Ready\" or the time left"),
+                    DataSourceField("id", ModelFieldType.string(), "Kit id"),
+                    DataSourceField("name", ModelFieldType.string(), "Display name"),
+                    DataSourceField("icon", ModelFieldType.item(), "Icon"),
+                    DataSourceField("ready", ModelFieldType.bool(), "Can the player claim it now?"),
+                    DataSourceField("status", ModelFieldType.string(), "\"Ready\" or the time left"),
                 ),
                 Stability.STATIC,
                 "id",
@@ -318,33 +318,26 @@ data class Kit(
 // src/main/kotlin/com/example/kits/KitModel.kt
 package com.example.kits
 
+import net.artisanmc.modules.api.model.ModelDeclaration
+import net.artisanmc.modules.api.model.ModelField
+import net.artisanmc.modules.api.model.ModelFieldType
+
 /** The shape of a kit, declared to the editor. Bump `version` and add a migration when it changes. */
 object KitModel {
-    fun document(): Map<String, Any?> = mapOf(
-        "schema" to "model/v1",
-        "id" to "kits:kit",
-        "name" to "Kit",
-        "key_field" to "id",
-        "version" to 1,
-        "master_detail" to true,
-        "fields" to listOf(
-            mapOf("name" to "id", "type" to mapOf("kind" to "string"), "required" to true,
-                "pattern" to "^[a-z0-9_]+$", "help" to "Used in commands: /kits claim <id>"),
-            mapOf("name" to "name", "type" to mapOf("kind" to "string"), "required" to true),
-            mapOf("name" to "icon", "type" to mapOf("kind" to "item")),
-            mapOf("name" to "cooldown", "label" to "Cooldown (seconds)",
-                "type" to mapOf("kind" to "integer"), "default" to 0, "min" to 0),
-            mapOf("name" to "items", "type" to mapOf(
-                "kind" to "list",
-                "of" to mapOf("kind" to "object", "fields" to listOf(
-                    mapOf("name" to "material", "type" to mapOf("kind" to "string"), "required" to true),
-                    mapOf("name" to "amount", "type" to mapOf("kind" to "integer"), "default" to 1, "min" to 1),
-                )),
-            )),
-            mapOf("name" to "on_claim", "type" to mapOf("kind" to "actions"),
-                "help" to "Runs after the items are given. {kit} is the kit id."),
-        ),
-    )
+    fun declaration(): ModelDeclaration = ModelDeclaration("kits:kit", "id", listOf(
+        ModelField("id", ModelFieldType.string(), true)
+            .withPattern("^[a-z0-9_]+$").withHelp("Used in commands: /kits claim <id>"),
+        ModelField("name", ModelFieldType.string(), true),
+        ModelField("icon", ModelFieldType.item()),
+        ModelField("cooldown", ModelFieldType.integer())
+            .withLabel("Cooldown (seconds)").withDefault(0).withRange(0.0, null),
+        ModelField("items", ModelFieldType.list(ModelFieldType.`object`(listOf(
+            ModelField("material", ModelFieldType.string(), true),
+            ModelField("amount", ModelFieldType.integer()).withDefault(1).withRange(1.0, null),
+        )))),
+        ModelField("on_claim", ModelFieldType.actions())
+            .withHelp("Runs after the items are given. {kit} is the kit id."),
+    )).withName("Kit").withVersion(1).withMasterDetail(true)
 }
 ```
 
