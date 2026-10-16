@@ -84,11 +84,6 @@ export function findDocument(project: Documents, id: string): KindedDocument | u
   return undefined;
 }
 
-/** The kind of the document with that id, or undefined when no document has it. */
-export function documentKindOf(project: Documents, id: string): string | undefined {
-  return findDocument(project, id)?.kind;
-}
-
 export function hasDocument(project: Documents, id: string): boolean {
   return findDocument(project, id) !== undefined;
 }
