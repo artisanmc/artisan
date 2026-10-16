@@ -64,15 +64,14 @@ export function useWorkspaceDnd(projectId: ProjectId) {
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
   );
   const onDragStart = (e: DragStartEvent) => {
-    const material = dragStartMaterial(String(e.active.id), e.active.data.current);
+    const material = dragStartMaterial(e.active);
     if (material !== undefined) setActiveDragMaterial(material);
   };
   const onDragEnd = (e: DragEndEvent) => {
     setActiveDragMaterial(null);
     const drop = decodeDragEnd({
-      activeId: String(e.active.id),
-      activeData: e.active.data.current,
-      overId: e.over ? String(e.over.id) : null,
+      active: e.active,
+      over: e.over,
       activatorEvent: e.activatorEvent,
       delta: e.delta,
     });

@@ -2,8 +2,7 @@ import { isGroupColor, liveDocumentIds, normalizeCanvasGroups } from "@/domain/c
 import type { EdgeAnchor, ProjectId } from "@/domain/types";
 import type { ArrangeMode } from "@/features/canvas/arrangeBoard";
 import { projectBoard, rearrangeProjectLayout } from "@/features/canvas/autoLayout";
-import { produce } from "immer";
-import type { AccountSliceContext, AccountState } from "./types";
+import type { AccountSliceContext } from "./types";
 
 /** The canvas: node positions, groups and edge anchors. */
 export interface CanvasSlice {
@@ -46,29 +45,33 @@ export interface CanvasSlice {
   clearEdgeAnchor: (input: { projectId: ProjectId; edgeId: string; end: "from" | "to" }) => void;
 }
 
-export const createCanvasSlice = ({ set, get }: AccountSliceContext): CanvasSlice => ({
+/** The board's layout is not Project content: these edits never stamp `updatedAt`. */
+const LAYOUT = { touch: false } as const;
+
+export const createCanvasSlice = ({ get, mutateProject }: AccountSliceContext): CanvasSlice => ({
   setCanvasPosition: ({ projectId: pId, nodeId, x, y }) => {
     const current = get().account.projects.find((p) => p.id === pId);
     const group = current?.canvasGroups?.find((g) => g.nodeIds.includes(nodeId));
     const layout = group && current ? projectBoard(current).allLayout : {};
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
+    mutateProject(
+      pId,
+      (project) => {
         for (const id of group?.nodeIds ?? []) {
           if (layout[id])
             (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = layout[id]!;
         }
         (project.canvasLayout as Record<string, { x: number; y: number }>)[nodeId] = { x, y };
-      }),
+      },
+      LAYOUT,
     );
   },
   createCanvasGroup: ({ projectId: pId, name, nodeIds, color }) => {
     const id = crypto.randomUUID();
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project || !name.trim()) throw new Error("Invalid group");
+    if (!get().account.projects.some((p) => p.id === pId) || !name.trim())
+      throw new Error("Invalid group");
+    mutateProject(
+      pId,
+      (project) => {
         const members = [...new Set(nodeIds)];
         const live = new Set(liveDocumentIds(project));
         if (members.length < 2 || members.some((key) => !live.has(key)))
@@ -78,26 +81,29 @@ export const createCanvasSlice = ({ set, get }: AccountSliceContext): CanvasSlic
           live,
         );
         for (const key of members) delete (project.canvasLayout as Record<string, unknown>)[key];
-      }),
+      },
+      LAYOUT,
     );
     return id;
   },
   updateCanvasGroup: ({ projectId: pId, groupId, name, color }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const group = project?.canvasGroups?.find((g) => g.id === groupId);
+    mutateProject(
+      pId,
+      (project) => {
+        const group = project.canvasGroups?.find((g) => g.id === groupId);
         if (!group) return;
         if (name?.trim()) group.name = name.trim();
         if (isGroupColor(color)) group.color = color;
-      }),
+      },
+      LAYOUT,
     ),
   dissolveCanvasGroup: ({ projectId: pId, groupId }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (project) project.canvasGroups = project.canvasGroups?.filter((g) => g.id !== groupId);
-      }),
+    mutateProject(
+      pId,
+      (project) => {
+        project.canvasGroups = project.canvasGroups?.filter((g) => g.id !== groupId);
+      },
+      LAYOUT,
     ),
   moveCanvasGroup: ({ projectId: pId, groupId, dx, dy }) => {
     if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return;
@@ -108,9 +114,9 @@ export const createCanvasSlice = ({ set, get }: AccountSliceContext): CanvasSlic
       groupId === null ? g.kind === "project" : g.kind === "group" && g.id === groupId,
     );
     if (!frame) return;
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId)!;
+    mutateProject(
+      pId,
+      (project) => {
         const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
         for (const id of frame.members) {
           const p = board.allLayout[id];
@@ -121,7 +127,8 @@ export const createCanvasSlice = ({ set, get }: AccountSliceContext): CanvasSlic
           const g = board.groups.find((f) => f.kind === "group" && f.id === group.id);
           if (g) group.position = { x: g.x + dx, y: g.y + dy };
         }
-      }),
+      },
+      LAYOUT,
     );
   },
   releaseBoardPositions: ({ projectId: pId, mode }) => {
@@ -129,10 +136,12 @@ export const createCanvasSlice = ({ set, get }: AccountSliceContext): CanvasSlic
     if (!current) return;
     const layout = rearrangeProjectLayout(current, undefined, mode);
     if (!layout) return;
-    set(
-      produce((draft: AccountState) => {
-        Object.assign(draft.account.projects.find((p) => p.id === pId)!, layout);
-      }),
+    mutateProject(
+      pId,
+      (project) => {
+        Object.assign(project, layout);
+      },
+      LAYOUT,
     );
   },
   rearrangeCanvasGroup: ({ projectId: pId, groupId }) => {
@@ -140,29 +149,32 @@ export const createCanvasSlice = ({ set, get }: AccountSliceContext): CanvasSlic
     if (!current) return;
     const layout = rearrangeProjectLayout(current, groupId);
     if (!layout) return;
-    set(
-      produce((draft: AccountState) => {
-        Object.assign(draft.account.projects.find((p) => p.id === pId)!, layout);
-      }),
+    mutateProject(
+      pId,
+      (project) => {
+        Object.assign(project, layout);
+      },
+      LAYOUT,
     );
   },
   setEdgeAnchor: ({ projectId: pId, edgeId, end, anchor }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
+    mutateProject(
+      pId,
+      (project) => {
         project.canvasEdges ??= {};
         project.canvasEdges[edgeId] = { ...project.canvasEdges[edgeId], [end]: anchor };
-      }),
+      },
+      LAYOUT,
     ),
   clearEdgeAnchor: ({ projectId: pId, edgeId, end }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const entry = project?.canvasEdges?.[edgeId];
-        if (!project || !entry) return;
+    mutateProject(
+      pId,
+      (project) => {
+        const entry = project.canvasEdges?.[edgeId];
+        if (!entry) return;
         delete entry[end];
         if (!entry.from && !entry.to) delete project.canvasEdges![edgeId];
-      }),
+      },
+      LAYOUT,
     ),
 });

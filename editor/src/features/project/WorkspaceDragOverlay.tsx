@@ -1,5 +1,5 @@
-import type { Asset } from "@/domain/asset";
 import { ImageButtonDragPreview } from "@/features/canvas/ImageButtonLibrary";
+import { readDrag } from "@/features/canvas/dragPayload";
 import { anchorImageDragToCursor } from "@/features/canvas/imageButtonDrag";
 import { getStageGeometry } from "@/features/canvas/stageGeometry";
 import { getTextureUrl } from "@/features/canvas/textureStore";
@@ -10,7 +10,8 @@ import { DragOverlay, useDndContext } from "@dnd-kit/core";
 export function WorkspaceDragOverlay() {
   const material = useUiStore((s) => s.activeDragMaterial);
   const { active } = useDndContext();
-  const asset = active?.data.current?.imageButton as Asset | undefined;
+  const drag = readDrag(active);
+  const asset = drag?.kind === "imageButton" ? drag.asset : undefined;
   return (
     <DragOverlay dropAnimation={null} modifiers={[anchorImageDragToCursor]}>
       {asset ? (

@@ -7,10 +7,8 @@ import { useDraggable } from "@dnd-kit/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { draggableProps } from "./dragPayload";
 import { useTextureStore } from "./textureStore";
-
-/** ID prefix for Library items inside the top-level DndContext. */
-export const LIBRARY_DRAG_PREFIX = "lib:";
 
 import { API_URL } from "@/lib/api/client";
 
@@ -28,10 +26,9 @@ interface ItemTileProps {
 function ItemTile({ item, textureBase, version, bundleReady, tints }: ItemTileProps) {
   const armed = useUiStore((s) => s.armedMaterial === item.id);
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `${LIBRARY_DRAG_PREFIX}${item.id}`,
-    data: { material: item.id },
-  });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable(
+    draggableProps({ kind: "material", material: item.id }),
+  );
   const tileRef = useRef<HTMLButtonElement>(null);
   const setRendered = useTextureStore((s) => s.setRendered);
   const renderedSrc = useTextureStore((s) =>

@@ -21,7 +21,6 @@ import { createLTextAt, deleteLText, setLText } from "@/lib/i18n";
 import { menuTitleKey } from "@/lib/i18nKeys";
 import { parsePositions } from "@/lib/positions";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { produce } from "immer";
 import {
   defaultIterateRange,
   rewriteCanvasEdgeIds,
@@ -128,43 +127,38 @@ export interface MenusSlice {
   setMenuId: (input: { projectId: ProjectId; oldId: MenuId; newId: MenuId }) => void;
 }
 
-export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice => ({
+export const createMenusSlice = ({
+  get,
+  mutateProject,
+  mutateMenu,
+}: AccountSliceContext): MenusSlice => ({
   createMenu: ({ projectId: pId, id: rawId, rows, position }) => {
     const id = rawId as MenuId;
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        mutableMenus(project).push({
-          id,
-          projectId: pId,
-          // Default to a single Plain (vanilla) title layer. Vanilla mode
-          // works without a resource project and matches what new users expect
-          // ("type a title, see a title"). The empty `key` is rekeyed to
-          // `menus.{id}.title` at deploy time by rekeyProject.
-          title: [{ kind: "plain", value: { key: "" as I18nKey } }],
-          rows: rows ?? 3,
-          layers: [{ id: newLayerId(), name: "default", elements: [] }],
-        });
-        if (position) {
-          (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
-        }
-        project.updatedAt = new Date().toISOString();
-      }),
-    );
+    mutateProject(pId, (project) => {
+      mutableMenus(project).push({
+        id,
+        projectId: pId,
+        // Default to a single Plain (vanilla) title layer. Vanilla mode
+        // works without a resource project and matches what new users expect
+        // ("type a title, see a title"). The empty `key` is rekeyed to
+        // `menus.{id}.title` at deploy time by rekeyProject.
+        title: [{ kind: "plain", value: { key: "" as I18nKey } }],
+        rows: rows ?? 3,
+        layers: [{ id: newLayerId(), name: "default", elements: [] }],
+      });
+      if (position) {
+        (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+      }
+    });
     return id;
   },
-  setMenuField: ({ projectId: pId, menuId: mId, field, value }) => {
-    const next = produce(get().account, (draft) => {
-      const project = draft.projects.find((p) => p.id === pId);
-      if (!project) return;
-      const menu = menusOf(project).find((m) => m.id === mId);
-      if (!menu) return;
+  setMenuField: ({ projectId: pId, menuId: mId, field, value }) =>
+    mutateMenu(pId, mId, (menu) => {
       if (field === "permission") {
-        if (typeof value !== "string") return;
+        if (typeof value !== "string") return false;
         menu.permission = value || undefined;
       } else if (field === "rows") {
-        if (typeof value !== "number") return;
+        if (typeof value !== "number") return false;
         const type = menu.inventoryType ?? "chest";
         const oldSize = slotCount(type, menu.rows);
         const maxPos = slotCount(type, value) - 1;
@@ -185,7 +179,7 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       } else if (field === "vanillaTexture") {
         menu.vanillaTexture = value === false ? false : undefined;
       } else if (field === "inventoryType") {
-        if (typeof value !== "string") return;
+        if (typeof value !== "string") return false;
         shiftPlayerPositions(
           menu,
           slotCount(menu.inventoryType ?? "chest", menu.rows),
@@ -196,180 +190,104 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
         // undefined for chest so "absent = chest" everywhere.
         menu.inventoryType = value === "chest" ? undefined : (value as InventoryType);
       }
-      project.updatedAt = new Date().toISOString();
-    });
-    set({ account: next });
-  },
+    }),
   setMenuTitle: ({ projectId: pId, menuId: mId, lang, value }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        // menu.title is MenuTitleLayer[]. Write into the first text-bearing
-        // layer (plain, text, or textarea) if present; otherwise prepend a
-        // new text layer. Plain is the createMenu default (vanilla mode),
-        // so the most common path is "write into the plain layer's LText".
-        const first = menu.title[0];
-        if (
-          first &&
-          (first.kind === "plain" || first.kind === "text" || first.kind === "textarea")
-        ) {
-          // Empty-key sentinel from createMenu default: allocate a canonical key.
-          if (first.value.key === "") {
-            const newLText = createLTextAt(project, menuTitleKey(mId), value, lang);
-            first.value = newLText;
-          } else {
-            setLText(project, first.value, lang, value);
-          }
-        } else {
+    mutateMenu(pId, mId, (menu, project) => {
+      // menu.title is MenuTitleLayer[]. Write into the first text-bearing
+      // layer (plain, text, or textarea) if present; otherwise prepend a
+      // new text layer. Plain is the createMenu default (vanilla mode),
+      // so the most common path is "write into the plain layer's LText".
+      const first = menu.title[0];
+      if (first && (first.kind === "plain" || first.kind === "text" || first.kind === "textarea")) {
+        // Empty-key sentinel from createMenu default: allocate a canonical key.
+        if (first.value.key === "") {
           const newLText = createLTextAt(project, menuTitleKey(mId), value, lang);
-          menu.title.unshift({ kind: "text", value: newLText, x: 8, y: 5 });
+          first.value = newLText;
+        } else {
+          setLText(project, first.value, lang, value);
         }
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+      } else {
+        const newLText = createLTextAt(project, menuTitleKey(mId), value, lang);
+        menu.title.unshift({ kind: "text", value: newLText, x: 8, y: 5 });
+      }
+    }),
   setMenuTitleLayers: ({ projectId: pId, menuId: mId, layers }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        // Release the i18n keys of text-bearing layers that the new layer
-        // set drops, so switching title modes (composed ↔ vanilla) doesn't
-        // leak orphaned "(unused)" keys. Keys kept in `layers` (e.g. a
-        // migrated title) are preserved.
-        const keptKeys = titleLayerKeys(layers);
-        for (const key of titleLayerKeys(menu.title)) {
-          if (!keptKeys.has(key)) deleteLText(project, { key });
-        }
-        menu.title = layers;
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateMenu(pId, mId, (menu, project) => {
+      // Release the i18n keys of text-bearing layers that the new layer
+      // set drops, so switching title modes (composed ↔ vanilla) doesn't
+      // leak orphaned "(unused)" keys. Keys kept in `layers` (e.g. a
+      // migrated title) are preserved.
+      const keptKeys = titleLayerKeys(layers);
+      for (const key of titleLayerKeys(menu.title)) {
+        if (!keptKeys.has(key)) deleteLText(project, { key });
+      }
+      menu.title = layers;
+    }),
   updateMenuTitleLayer: ({ projectId: pId, menuId: mId, index, patch }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        const layer = menu.title[index];
-        if (!layer) return;
-        menu.title[index] = { ...layer, ...patch } as MenuTitleLayer;
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateMenu(pId, mId, (menu) => {
+      const layer = menu.title[index];
+      if (!layer) return false;
+      menu.title[index] = { ...layer, ...patch } as MenuTitleLayer;
+    }),
   addMenuTitleLayer: ({ projectId: pId, menuId: mId, layer }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        menu.title.push(layer);
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateMenu(pId, mId, (menu) => {
+      menu.title.push(layer);
+    }),
   removeMenuTitleLayer: ({ projectId: pId, menuId: mId, index }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        const [removed] = menu.title.splice(index, 1);
-        // GC the removed layer's i18n key (text-bearing layers only) so a
-        // deleted title layer doesn't leave an orphaned "(unused)" key.
-        if (removed) {
-          for (const key of titleLayerKeys([removed])) deleteLText(project, { key });
-        }
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateMenu(pId, mId, (menu, project) => {
+      const [removed] = menu.title.splice(index, 1);
+      // GC the removed layer's i18n key (text-bearing layers only) so a
+      // deleted title layer doesn't leave an orphaned "(unused)" key.
+      if (removed) {
+        for (const key of titleLayerKeys([removed])) deleteLText(project, { key });
+      }
+    }),
   reorderMenuTitleLayers: ({ projectId: pId, menuId: mId, fromIndex, toIndex }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        const [moved] = menu.title.splice(fromIndex, 1);
-        if (moved) menu.title.splice(toIndex, 0, moved);
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateMenu(pId, mId, (menu) => {
+      const [moved] = menu.title.splice(fromIndex, 1);
+      if (moved) menu.title.splice(toIndex, 0, moved);
+    }),
   addMenuContextInput: ({ projectId: pId, menuId: mId, kind }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu) return;
-        if (!menu.contextInputs) menu.contextInputs = [];
-        const used = new Set(menu.contextInputs.map((c) => c.name));
-        const defaultName = (() => {
-          for (let i = 1; ; i++) {
-            const candidate = `ctx${i}`;
-            if (!used.has(candidate)) return candidate;
-          }
-        })();
-        const newInput: ContextInput =
-          kind === "sourceRef"
-            ? { kind: "sourceRef", name: defaultName, ref: "" as SourceRef }
-            : { kind: "primitive", name: defaultName, type: "string" };
-        menu.contextInputs.push(newInput);
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateMenu(pId, mId, (menu) => {
+      if (!menu.contextInputs) menu.contextInputs = [];
+      const used = new Set(menu.contextInputs.map((c) => c.name));
+      const defaultName = (() => {
+        for (let i = 1; ; i++) {
+          const candidate = `ctx${i}`;
+          if (!used.has(candidate)) return candidate;
+        }
+      })();
+      const newInput: ContextInput =
+        kind === "sourceRef"
+          ? { kind: "sourceRef", name: defaultName, ref: "" as SourceRef }
+          : { kind: "primitive", name: defaultName, type: "string" };
+      menu.contextInputs.push(newInput);
+    }),
   setMenuContextInput: ({ projectId: pId, menuId: mId, index, input }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu?.contextInputs) return;
-        if (index < 0 || index >= menu.contextInputs.length) return;
-        menu.contextInputs[index] = input;
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateMenu(pId, mId, (menu) => {
+      if (!menu.contextInputs) return false;
+      if (index < 0 || index >= menu.contextInputs.length) return false;
+      menu.contextInputs[index] = input;
+    }),
   removeMenuContextInput: ({ projectId: pId, menuId: mId, index }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        const menu = menusOf(project).find((m) => m.id === mId);
-        if (!menu?.contextInputs) return;
-        if (index < 0 || index >= menu.contextInputs.length) return;
-        menu.contextInputs.splice(index, 1);
-        if (menu.contextInputs.length === 0) menu.contextInputs = undefined;
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateMenu(pId, mId, (menu) => {
+      if (!menu.contextInputs) return false;
+      if (index < 0 || index >= menu.contextInputs.length) return false;
+      menu.contextInputs.splice(index, 1);
+      if (menu.contextInputs.length === 0) menu.contextInputs = undefined;
+    }),
   addCapturedItem: ({ projectId: pId, item }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project) return;
-        if (!project.capturedItems) project.capturedItems = [];
-        const i = project.capturedItems.findIndex((c) => c.id === item.id);
-        if (i >= 0) project.capturedItems[i] = item;
-        else project.capturedItems.push(item);
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateProject(pId, (project) => {
+      if (!project.capturedItems) project.capturedItems = [];
+      const i = project.capturedItems.findIndex((c) => c.id === item.id);
+      if (i >= 0) project.capturedItems[i] = item;
+      else project.capturedItems.push(item);
+    }),
   removeCapturedItem: ({ projectId: pId, itemId }) =>
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        if (!project?.capturedItems) return;
-        project.capturedItems = project.capturedItems.filter((c) => c.id !== itemId);
-        project.updatedAt = new Date().toISOString();
-      }),
-    ),
+    mutateProject(pId, (project) => {
+      if (!project.capturedItems) return false;
+      project.capturedItems = project.capturedItems.filter((c) => c.id !== itemId);
+    }),
   createMenuSet: ({
     projectId: pId,
     menuId: mId,
@@ -381,15 +299,15 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
     positions,
   }) => {
     let result: ReturnType<AccountState["createMenuSet"]> = { ok: false, reason: "not_found" };
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId);
-        const menu = menusOf(project).find((m) => m.id === mId);
+    mutateMenu(
+      pId,
+      mId,
+      (menu, project) => {
         // `inputName` may be a DOTTED PATH into an object param (e.g.
         // `category.items`) — the guard checks the ROOT input exists.
         const rootName = inputName.split(".")[0]!;
-        const input = menu?.contextInputs?.find((c) => c.name === rootName);
-        if (!project || !menu || !input) return;
+        const input = menu.contextInputs?.find((c) => c.name === rootName);
+        if (!input) return;
         const consumed = menu.layers
           .flatMap((l) => l.elements)
           .some((e) => e.iterates?.source === inputName || e.places?.source === inputName);
@@ -436,7 +354,9 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
               }),
         });
         result = { ok: true, elementId: elId };
-      }),
+      },
+      // This action has never stamped `updatedAt`; kept as is.
+      { touch: false },
     );
     return result;
   },
@@ -451,45 +371,40 @@ export const createMenusSlice = ({ set, get }: AccountSliceContext): MenusSlice 
       }
       if (!menusOf(project).some((m) => m.id === oldId)) return;
     }
-    set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === pId)!;
-        const menu = menusOf(project).find((m) => m.id === oldId)!;
-        menu.id = newId;
-        // Rewrite open_menu refs across the entire project — both
-        // element click handlers and command step trees.
-        const rewrite = (action: Action) => {
-          for (const ref of actionDocumentRefs(action)) {
-            if (ref.document === "menu" && ref.id === oldId) ref.set(newId);
-          }
-        };
-        for (const m of menusOf(project)) {
-          for (const layer of m.layers) {
-            for (const el of layer.elements) {
-              for (const appearance of addressedAppearances(el)) {
-                if (!appearance.click) continue;
-                for (const handler of Object.values(appearance.click)) {
-                  if (!handler) continue;
-                  for (const a of walkActions(handler.steps)) rewrite(a);
-                }
+    mutateMenu(pId, oldId, (menu, project) => {
+      menu.id = newId;
+      // Rewrite open_menu refs across the entire project — both
+      // element click handlers and command step trees.
+      const rewrite = (action: Action) => {
+        for (const ref of actionDocumentRefs(action)) {
+          if (ref.document === "menu" && ref.id === oldId) ref.set(newId);
+        }
+      };
+      for (const m of menusOf(project)) {
+        for (const layer of m.layers) {
+          for (const el of layer.elements) {
+            for (const appearance of addressedAppearances(el)) {
+              if (!appearance.click) continue;
+              for (const handler of Object.values(appearance.click)) {
+                if (!handler) continue;
+                for (const a of walkActions(handler.steps)) rewrite(a);
               }
             }
           }
         }
-        for (const cmd of commandsOf(project)) {
-          for (const a of walkActions(cmd.steps)) rewrite(a);
-        }
-        const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
-        if (oldId in layout) {
-          layout[newId] = layout[oldId]!;
-          delete layout[oldId];
-        }
-        rewriteCanvasEdgeIds(project, oldId as string, newId as string);
-        rewriteCanvasGroupMembers(project, oldId as string, newId as string);
-        rekeyMenu(project, menu);
-        project.updatedAt = new Date().toISOString();
-      }),
-    );
+      }
+      for (const cmd of commandsOf(project)) {
+        for (const a of walkActions(cmd.steps)) rewrite(a);
+      }
+      const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
+      if (oldId in layout) {
+        layout[newId] = layout[oldId]!;
+        delete layout[oldId];
+      }
+      rewriteCanvasEdgeIds(project, oldId as string, newId as string);
+      rewriteCanvasGroupMembers(project, oldId as string, newId as string);
+      rekeyMenu(project, menu);
+    });
     // Same intent as setDialogId, recorded once the rename is applied.
     useProjectDraftStore.getState().recordRename(pId, `menus/${oldId}.yaml`, `menus/${newId}.yaml`);
   },
