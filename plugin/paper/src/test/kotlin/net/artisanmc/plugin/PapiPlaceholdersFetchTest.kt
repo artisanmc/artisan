@@ -17,7 +17,7 @@ class PapiPlaceholdersFetchTest {
         val papi = object : PapiProvider() {
             override fun declaredPlaceholders() = PapiPlaceholderCatalog(listOf(PapiPlaceholder("%player_name%", "player")))
         }
-        val deps = SoftDepRegistry(null, papi, null, null, null, null)
+        val deps = SoftDepRegistry(null, papi, null)
         val provider = SyncedMenuProvider(
             roots = ProjectRoots(Files.createTempDirectory("papi-fetch").toFile()),
             logger = null,

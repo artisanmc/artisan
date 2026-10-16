@@ -43,7 +43,7 @@ class MenuRendererLoreWrapTest {
     private fun lore(width: Int, line: String, args: Map<String, Any> = emptyMap()) = run {
         val deps = SoftDepRegistry(
             vault = null, papi = null, worldGuard = null,
-            nexoItems = null, oraxenItems = null, itemsAdderItems = null, hdbHeads = null,
+            hdbHeads = null,
         )
         val p = MockBukkit.getMock()!!.addPlayer()
         val bundle = BundleCompiler.compile(menu(line), emptyMap()).copy(loreMaxWidth = width)

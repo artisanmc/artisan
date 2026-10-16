@@ -14,7 +14,7 @@ plugins/Artisan/projects/
     items/<captured_item_id>.yml   ← ItemStacks capturés (refs material `item:<id>`), YAML Bukkit verbatim
     data/<source_id>.yaml          ← Project sources (schema data/v1, refs `pack:<id>`)
     templates/<id>.yaml            ← schema template/v1, résolus au load plugin
-    models/<id>.yaml               ← schema model/v1, ignorés par le plugin
+    models/<id>.yaml               ← schema model/v1 ; `<id>` = la source qu'il type (model possédé) sinon l'id du model, l'identité reste l'`id:` interne
     assets/{glyphs,textures,fonts}/ ← images et polices (binaires, écrits par la publication)
     .artisan/editor.yaml           ← état de la planche éditeur (seul `.artisan*` que l'éditeur écrit)
     .artisan/project-id            ← UUID du projet, écrit une fois par le plugin (garde Versions et brouillons à travers un renommage)
@@ -35,8 +35,9 @@ Les dossiers `menus/`, `commands/` et `dialogs/` ne sont nommés nulle part en d
 `plugin/core/.../model/DocumentKinds.kt`, façade Kotlin du `DocumentKindRegistry` de l'API
 (`kind`, `dir`, `schemaVersions`, `idPrefix` ; les kinds core y sont enregistrés par
 `coreRegistry()`, un module ajoute les siens par `api.getDocumentKinds()`) — et tout ce qui parcourt
-un projet boucle sur ce registre : l'import (`projectFromFiles`) et l'export (`transform`) de
-l'éditeur via les codecs par kind (`schema/documentCodecs.ts`), le `ProjectReader` du plugin via
+un projet boucle sur ce registre : l'import (`projectFromFiles`) et l'écriture (`projectToFiles`) de
+l'éditeur via les codecs par kind (`schema/documentCodecs.ts`, un lecteur `<kind>V1ToDomain` et un
+écrivain `<kind>V1FromDomain` par kind), le `ProjectReader` du plugin via
 un lecteur par kind, l'inventaire de ressources et les tables de références du provider.
 
 En mémoire, un Project est un **conteneur unique** : `Project.documents[kind]` (éditeur) et
