@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.project
 
-import net.artisanmc.plugin.protocol.ProjectReads
+import net.artisanmc.plugin.protocol.LoadedState
 import net.artisanmc.plugin.protocol.PublicationAuthor
 import net.artisanmc.plugin.sync.BundleHasher
 import net.artisanmc.plugin.sync.ProjectFilesReader
@@ -30,7 +30,7 @@ interface VersionStorage {
     ): List<String>
 
     /** Replaces this server's loaded state (`artisan_server_state`): what the hub serves. */
-    fun recordState(state: Map<String, Any?>, at: Instant)
+    fun recordState(state: LoadedState, at: Instant)
 }
 
 /**
@@ -79,15 +79,5 @@ class VersionRecorder(
     }
 
     /** The Project list and, per Project, the Snapshot hash, failed files and editor metadata: what the hub serves. */
-    fun loadedState(snapshot: ProjectSnapshot): Map<String, Any?> {
-        val projects = snapshot.projectIds.associateWith { id ->
-            mapOf(
-                "hash" to snapshot.hash(id),
-                "failed" to snapshot.skipped[id].orEmpty().toSortedMap().map { (path, reason) -> mapOf("path" to path, "reason" to reason) },
-                // `.artisan/editor.yaml`: read by the editor, outside the Versions.
-                "meta" to snapshot.files[id].orEmpty().filterKeys { BundleHasher.isArtisanMeta(it) },
-            )
-        }
-        return ProjectReads.listBody(snapshot, roots) + ("projects" to projects)
-    }
+    fun loadedState(snapshot: ProjectSnapshot): LoadedState = LoadedState.of(snapshot, roots)
 }

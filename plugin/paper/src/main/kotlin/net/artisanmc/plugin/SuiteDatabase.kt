@@ -114,7 +114,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
 
     /** On MySQL/MariaDB, this server's history from the H2 file it ran on alone, once (ADR `server-identity-and-versions` ⑪). */
     private fun importEmbeddedDatabase(target: javax.sql.DataSource) {
-        if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) return
+        if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) return
         val file = File(dataFolder, "database/${net.artisanmc.plugin.database.ConnectionPools.H2_FILE}.mv.db")
         if (!file.isFile) return
         val embedded = net.artisanmc.plugin.database.ConnectionPools(
@@ -122,7 +122,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         )
         try {
             // The file may come from an older release: its tables are brought to this schema before they are read.
-            val source = embedded.dataSource("Artisan-import").also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, net.artisanmc.modules.api.DatabaseDialect.H2, logger) }
+            val source = embedded.dataSource("Artisan-import").also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, net.artisanmc.modules.api.database.DatabaseDialect.H2, logger) }
             net.artisanmc.plugin.database.EmbeddedImport.run(source, target, database.dialect, serverId, logger)
         } catch (e: Exception) {
             logger.warning("[Artisan] History of the embedded database not imported: ${e.message}")

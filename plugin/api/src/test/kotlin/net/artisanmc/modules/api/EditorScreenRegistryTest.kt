@@ -4,6 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import net.artisanmc.modules.api.screen.DuplicateEditorScreenException
+import net.artisanmc.modules.api.screen.EditorScreenRegistry
 
 class EditorScreenRegistryTest {
 
@@ -60,6 +62,9 @@ class EditorScreenRegistryTest {
             reg.declare("boutique:c", "C", ".artisan/editor", "boutique")
         }
         assertFailsWith<IllegalArgumentException> {
+            reg.declare("boutique:e", "E", ".ARTISAN/history", "boutique")
+        }
+        assertFailsWith<IllegalArgumentException> {
             reg.declare("boutique:d", "D", "", "boutique")
         }
     }
@@ -67,9 +72,9 @@ class EditorScreenRegistryTest {
     @Test
     fun `captures current owner as moduleId`() {
         val reg = registry()
-        reg.currentOwner = "boutique"
+        reg.bindOwner("boutique")
         reg.declare("boutique:catalog", "Catalogue", "data/categories", "boutique")
-        reg.currentOwner = null
+        reg.bindOwner(null)
         reg.declare("quests:board", "Quêtes", "data/quests", "quests")
         assertEquals("boutique", reg.declared().first { it.id == "boutique:catalog" }.moduleId)
         assertNull(reg.declared().first { it.id == "quests:board" }.moduleId)
@@ -78,7 +83,7 @@ class EditorScreenRegistryTest {
     @Test
     fun `toWire serializes snake_case fields`() {
         val reg = registry()
-        reg.currentOwner = "boutique"
+        reg.bindOwner("boutique")
         reg.declare("boutique:catalog", "Catalogue", "data/categories", "boutique")
         val wire = reg.declared().single().toWire()
         assertEquals("boutique:catalog", wire["id"])

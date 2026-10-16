@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.modules.api.ActionContext
+import net.artisanmc.modules.api.action.ActionContext
 import org.bukkit.entity.Player
 
 /** Current page + page count of an iterating element, computed at render. */

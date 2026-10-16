@@ -2,6 +2,17 @@ package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
+import net.artisanmc.plugin.hub.DraftRequest.Create
+import net.artisanmc.plugin.hub.DraftRequest.Discard
+import net.artisanmc.plugin.hub.DraftRequest.ListDrafts
+import net.artisanmc.plugin.hub.DraftRequest.OnDraft
+import net.artisanmc.plugin.hub.DraftRequest.Operation
+import net.artisanmc.plugin.hub.DraftRequest.Publish
+import net.artisanmc.plugin.hub.DraftRequest.Read
+import net.artisanmc.plugin.hub.DraftRequest.ReadBlob
+import net.artisanmc.plugin.hub.DraftRequest.Revised
+import net.artisanmc.plugin.hub.DraftRequest.Update
+import net.artisanmc.plugin.hub.DraftRequest.WriteBlob
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import net.artisanmc.plugin.sync.BundleHasher
 import java.time.Instant
@@ -17,9 +28,9 @@ interface DraftStorage {
     /** Every draft of the Project, whole: the list only, the other actions read one draft. */
     fun drafts(server: String, folder: String): List<String>?
     fun draft(server: String, folder: String, id: String): String?
-    /** The fingerprint and result of an operation already applied. */
-    fun receipt(operationId: String): Pair<String, String>?
-    fun commit(server: String, folder: String, id: String, draft: String, status: String, operationId: String, fingerprint: String, result: String): Boolean
+    /** The receipt of an operation already applied. */
+    fun receipt(operationId: String): DraftReceipt?
+    fun commit(server: String, folder: String, commit: DraftCommit): Boolean
     fun content(hash: String): ByteArray?
     fun putContent(hash: String, bytes: ByteArray)
 }
@@ -46,6 +57,7 @@ class ProjectDrafts(private val storage: DraftStorage) {
         fun publish(message: Map<String, Any?>, reply: (Map<String, Any?>) -> Unit)
     }
 
+    /** [request] is a `project_draft_request` as the server would get it; its fingerprint is taken on that JSON. */
     fun handle(server: String, folder: String, request: ObjectNode, publisher: Publisher, respond: (Map<String, Any?>) -> Unit) {
         try {
             handleOrThrow(server, folder, request, publisher, respond)
@@ -56,109 +68,151 @@ class ProjectDrafts(private val storage: DraftStorage) {
         }
     }
 
-    private fun handleOrThrow(server: String, folder: String, request: ObjectNode, publisher: Publisher, respond: (Map<String, Any?>) -> Unit) {
-        val action = request.path("action").asText()
-        val owner = request.path("owner_id").asText().ifBlank { return respond(fail("invalid_owner")) }
-        if (action == "list") {
-            val all = storage.drafts(server, folder)?.map { mapper.readTree(it) as ObjectNode } ?: return respond(fail("unknown_project"))
-            return respond(ok("drafts" to all.filter { it["ownerId"].asText() == owner && it["status"].asText() == "active" }))
+    private fun handleOrThrow(server: String, folder: String, node: ObjectNode, publisher: Publisher, respond: (Map<String, Any?>) -> Unit) {
+        val owner = node.path("owner_id").asText().ifBlank { return respond(fail("invalid_owner")) }
+        when (val request = DraftRequest.parse(node, owner) ?: return respond(fail("invalid_action"))) {
+            is ListDrafts -> respond(list(server, folder, owner))
+            is OnDraft -> onDraft(Target(server, folder, request.draftId), request, node, publisher, respond)
         }
-        if (!storage.knownProject(server, folder)) return respond(fail("unknown_project"))
-        val id = request.path("draft_id").asText().ifEmpty { return respond(fail("invalid_draft")) }
-        fun stored() = storage.draft(server, folder, id)?.let { mapper.readTree(it) as ObjectNode }?.takeIf { it["id"].asText() == id }
-        val current = stored()
-        if (current != null && current["ownerId"].asText() != owner) return respond(fail("draft_not_found"))
-        if (action == "read") return respond(current?.let { ok("draft" to it) } ?: fail("draft_not_found"))
-        if (action == "read_blob") {
-            val hash = request.path("hash").asText()
-            if (current == null || hash !in hashes(current["snapshot"])) return respond(fail("not_found"))
-            val bytes = storage.content(hash) ?: return respond(fail("not_found"))
-            return respond(ok("content_base64" to Base64.getEncoder().encodeToString(bytes)))
-        }
+    }
 
-        val operationId = request.path("operation_id").asText().takeIf { it.length in 1..256 } ?: return respond(fail("invalid_operation"))
-        val fingerprint = BundleHasher.hashBytes(mapper.writeValueAsBytes(request.deepCopy().also { it.remove(listOf("request_id", "project_id", "type")) }))
+    /** One draft of a Project, as stored. */
+    private inner class Target(val server: String, val folder: String, val id: String) {
+        fun stored(): Draft? = storage.draft(server, folder, id)?.let { Draft(mapper.readTree(it) as ObjectNode) }?.takeIf { it.id == id }
+    }
+
+    private fun list(server: String, folder: String, owner: String): Map<String, Any?> {
+        val all = storage.drafts(server, folder)?.map { Draft(mapper.readTree(it) as ObjectNode) } ?: return fail("unknown_project")
+        return ok("drafts" to all.filter { it.ownerId == owner && it.status == DraftStatus.ACTIVE }.map { it.json })
+    }
+
+    private fun onDraft(target: Target, request: OnDraft, node: ObjectNode, publisher: Publisher, respond: (Map<String, Any?>) -> Unit) {
+        if (!storage.knownProject(target.server, target.folder)) return respond(fail("unknown_project"))
+        if (target.id.isEmpty()) return respond(fail("invalid_draft"))
+        val current = target.stored()
+        if (current != null && current.ownerId != request.ownerId) return respond(fail("draft_not_found"))
+        when (request) {
+            is Read -> respond(current?.let { ok("draft" to it.json) } ?: fail("draft_not_found"))
+            is ReadBlob -> respond(readBlob(current, request.hash))
+            is Operation -> {
+                if (request.operationId.length !in 1..256) return respond(fail("invalid_operation"))
+                val applying = Applying(target, request.operationId, fingerprint(node), respond)
+                storage.receipt(request.operationId)?.let { return respond(applying.replay(it)) }
+                when (request) {
+                    is Create -> create(applying, current, request)
+                    is Revised -> revise(applying, current, request, publisher)
+                }
+            }
+        }
+    }
+
+    private fun readBlob(current: Draft?, hash: String): Map<String, Any?> {
+        if (current == null || hash !in hashes(current.snapshot)) return fail("not_found")
+        val bytes = storage.content(hash) ?: return fail("not_found")
+        return ok("content_base64" to Base64.getEncoder().encodeToString(bytes))
+    }
+
+    /** What identifies an operation's content: the request less its envelope. */
+    private fun fingerprint(node: ObjectNode) =
+        BundleHasher.hashBytes(mapper.writeValueAsBytes(node.deepCopy().also { it.remove(listOf("request_id", "project_id", "type")) }))
+
+    /** An operation being applied to [target]: its commit, or the answer it already gave. */
+    private inner class Applying(val target: Target, val operationId: String, val fingerprint: String, val respond: (Map<String, Any?>) -> Unit) {
         /** The answer an operation already gave, its draft read again. */
-        fun replay(printed: String, result: String): Map<String, Any?> {
-            if (printed != fingerprint) return fail("operation_conflict")
-            val saved = mapper.readTree(result) as ObjectNode
-            if (saved.has("draft")) stored()?.let { saved.set<JsonNode>("draft", it) }
+        fun replay(receipt: DraftReceipt): Map<String, Any?> {
+            if (receipt.fingerprint != fingerprint) return fail("operation_conflict")
+            val saved = mapper.readTree(receipt.result) as ObjectNode
+            if (saved.has("draft")) target.stored()?.let { saved.set<JsonNode>("draft", it.json) }
             return map(saved)
         }
-        storage.receipt(operationId)?.let { (printed, result) -> return respond(replay(printed, result)) }
-        fun commit(draft: ObjectNode, result: Map<String, Any?>) {
-            val status = draft["status"].asText()
-            val kept = result.mapValues { (key, value) -> if (key == "draft") mapOf("revision" to draft["revision"].asLong()) else value }
+
+        fun commit(draft: Draft, result: Map<String, Any?>) {
+            val status = draft.status ?: throw IllegalStateException("draft status ${draft.json.path("status")}")
+            val kept = result.mapValues { (key, value) -> if (key == "draft") mapOf("revision" to draft.revision) else value }
+            val receipt = DraftReceipt(operationId, fingerprint, mapper.writeValueAsString(kept))
             val written = try {
-                storage.commit(server, folder, id, mapper.writeValueAsString(draft), status, operationId, fingerprint, mapper.writeValueAsString(kept))
+                storage.commit(target.server, target.folder, DraftCommit(target.id, mapper.writeValueAsString(draft.json), status, receipt))
             } catch (e: Exception) {
                 // The same operation, sent twice at once: the other request's receipt is the answer.
-                val (printed, saved) = storage.receipt(operationId) ?: throw e
-                return respond(replay(printed, saved))
+                val saved = storage.receipt(operationId) ?: throw e
+                return respond(replay(saved))
             }
             if (!written) return respond(fail("unknown_project"))
             respond(result)
         }
+    }
 
-        if (action == "create") {
-            if (current != null) return respond(fail("draft_conflict"))
-            val name = request.path("name").asText()
-            val snapshot = request["snapshot"]
-            val invalid = if (snapshot == null) "snapshot missing" else invalidBody(name, snapshot)
-            if (invalid != null) return respond(fail("invalid_draft") + ("message" to invalid))
-            val now = Instant.now().toString()
-            val draft = mapper.valueToTree<ObjectNode>(
+    private fun create(applying: Applying, current: Draft?, request: Create) {
+        if (current != null) return applying.respond(fail("draft_conflict"))
+        invalid(request.name, request.snapshot)?.let { return applying.respond(it) }
+        val now = Instant.now().toString()
+        val draft = Draft(
+            mapper.valueToTree(
                 mapOf(
-                    "schema" to "artisan-draft/v1", "id" to id, "ownerId" to owner, "name" to name, "revision" to 1, "status" to "active",
-                    "snapshot" to snapshot, "updatedBy" to owner, "source" to request.path("source").asText("manual"),
-                    "createdAt" to now, "updatedAt" to now,
+                    "schema" to "artisan-draft/v1", "id" to request.draftId, "ownerId" to request.ownerId, "name" to request.name,
+                    "revision" to 1, "status" to DraftStatus.ACTIVE.wire, "snapshot" to request.snapshot, "updatedBy" to request.ownerId,
+                    "source" to request.source, "createdAt" to now, "updatedAt" to now,
                 ),
-            )
-            return commit(draft, ok("draft" to draft))
-        }
-        if (current == null) return respond(fail("draft_not_found"))
-        if (current["status"].asText() != "active") return respond(fail("draft_closed"))
-        if (!request.path("expected_revision").isIntegralNumber || request["expected_revision"].asLong() != current["revision"].asLong())
-            return respond(mapOf("ok" to false, "error" to "draft_conflict", "draft" to current))
+            ),
+        )
+        applying.commit(draft, ok("draft" to draft.json))
+    }
 
-        if (action == "write_blob") {
-            val hash = request.path("hash").asText()
-            val bytes = runCatching { Base64.getDecoder().decode(request.path("content_base64").asText()) }.getOrNull()
-            if (bytes == null || bytes.size > MAX_BLOB || BundleHasher.hashBytes(bytes) != hash) return respond(fail("invalid_blob"))
-            storage.putContent(hash, bytes)
-            return commit(current, ok("draft" to current))
+    /** Checks shared by the writes on an existing draft, then the write itself. */
+    private fun revise(applying: Applying, current: Draft?, request: Revised, publisher: Publisher) {
+        if (current == null) return applying.respond(fail("draft_not_found"))
+        if (current.status != DraftStatus.ACTIVE) return applying.respond(fail("draft_closed"))
+        if (request.expectedRevision != current.revision)
+            return applying.respond(mapOf("ok" to false, "error" to "draft_conflict", "draft" to current.json))
+        when (request) {
+            is WriteBlob -> writeBlob(applying, current, request)
+            is Update -> update(applying, next(current, request), request)
+            is Discard -> next(current, request).withStatus(DraftStatus.DISCARDED).let { applying.commit(it, ok("draft" to it.json)) }
+            is Publish -> publish(applying, current, next(current, request), request, publisher)
         }
-        val next = current.deepCopy().apply {
-            put("revision", current["revision"].asLong() + 1)
+    }
+
+    /** [current]'s next revision, by [request]'s owner. */
+    private fun next(current: Draft, request: Revised) = Draft(
+        current.json.deepCopy().apply {
+            put("revision", current.revision + 1)
             put("updatedAt", Instant.now().toString())
-            put("updatedBy", owner)
+            put("updatedBy", request.ownerId)
+        },
+    )
+
+    private fun writeBlob(applying: Applying, current: Draft, request: WriteBlob) {
+        val bytes = runCatching { Base64.getDecoder().decode(request.contentBase64) }.getOrNull()
+        if (bytes == null || bytes.size > MAX_BLOB || BundleHasher.hashBytes(bytes) != request.hash) return applying.respond(fail("invalid_blob"))
+        storage.putContent(request.hash, bytes)
+        applying.commit(current, ok("draft" to current.json))
+    }
+
+    private fun update(applying: Applying, next: Draft, request: Update) {
+        invalid(request.name, request.snapshot)?.let { return applying.respond(it) }
+        next.json.put("name", request.name)
+        next.json.set<JsonNode>("snapshot", request.snapshot)
+        applying.commit(next, ok("draft" to next.json))
+    }
+
+    private fun publish(applying: Applying, current: Draft, next: Draft, request: Publish, publisher: Publisher) {
+        val blobs = newBlobs(current.json["snapshot"]) ?: return applying.respond(fail("missing_blob"))
+        val message = mapOf(
+            "type" to "project_draft_publish", "project_id" to applying.target.folder, "operation_id" to applying.operationId,
+            "draft" to current.json, "blobs" to blobs, "author_id" to request.authorId, "author_name" to request.authorName,
+        )
+        publisher.publish(message) { reply ->
+            if (reply["ok"] != true) return@publish applying.respond(reply - setOf("type", "request_id"))
+            applying.commit(next.withStatus(DraftStatus.PUBLISHED), ok("draft" to next.json, "wrote" to reply["wrote"]))
         }
-        when (action) {
-            "update" -> {
-                val name = request.path("name").asText()
-                val snapshot = request["snapshot"]
-                val invalid = if (snapshot == null) "snapshot missing" else invalidBody(name, snapshot)
-                if (invalid != null) return respond(fail("invalid_draft") + ("message" to invalid))
-                next.put("name", name)
-                next.set<JsonNode>("snapshot", snapshot)
-                commit(next, ok("draft" to next))
-            }
-            "discard" -> commit(next.put("status", "discarded"), ok("draft" to next))
-            "publish" -> {
-                val blobs = newBlobs(current["snapshot"]) ?: return respond(fail("missing_blob"))
-                val message = mapOf(
-                    "type" to "project_draft_publish", "project_id" to folder, "operation_id" to operationId,
-                    "draft" to current, "blobs" to blobs,
-                    "author_id" to request.path("author_id").asText(""), "author_name" to request.path("author_name").asText(""),
-                )
-                publisher.publish(message) { reply ->
-                    if (reply["ok"] != true) return@publish respond(reply - setOf("type", "request_id"))
-                    next.put("status", "published")
-                    commit(next, ok("draft" to next, "wrote" to reply["wrote"]))
-                }
-            }
-            else -> respond(fail("invalid_action"))
-        }
+    }
+
+    private fun Draft.withStatus(status: DraftStatus) = also { json.put("status", status.wire) }
+
+    /** The refusal of a body that cannot be a draft's; null when it can. */
+    private fun invalid(name: String, snapshot: JsonNode?): Map<String, Any?>? {
+        val invalid = if (snapshot == null) "snapshot missing" else invalidBody(name, snapshot)
+        return invalid?.let { fail("invalid_draft") + ("message" to it) }
     }
 
     /** The bytes of each binary the draft changes, which the server does not have yet. */
@@ -177,7 +231,7 @@ class ProjectDrafts(private val storage: DraftStorage) {
         listOf("binaryTree", "binaryBaseline").flatMap { key -> snapshot?.get(key)?.fields()?.asSequence()?.map { it.value["hash"].asText() }?.toList().orEmpty() }.toSet()
 
     private fun contentPath(path: String) =
-        ProjectPathPolicy.valid(path) && (!path.startsWith('.') || path == ".artisan/editor.yaml") && !ProjectPathPolicy.isPrivate(path)
+        ProjectPathPolicy.valid(path) && !net.artisanmc.plugin.project.ProjectMetadataPaths.isHiddenFromEditor(path)
 
     /** Why [snapshot] cannot be a draft body; null when it can. */
     private fun invalidBody(name: String, snapshot: JsonNode): String? {

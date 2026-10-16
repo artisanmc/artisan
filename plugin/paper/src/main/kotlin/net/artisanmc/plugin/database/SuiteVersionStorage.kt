@@ -22,5 +22,5 @@ class SuiteVersionStorage(private val data: SuiteProjectData, private val row: I
         return data.versions.record(row, projectKey, folder, entries, at, by, author?.restoredFrom?.toIntOrNull(), readBinary).skipped
     }
 
-    override fun recordState(state: Map<String, Any?>, at: Instant) = data.recordState(row, state, at)
+    override fun recordState(state: net.artisanmc.plugin.protocol.LoadedState, at: Instant) = data.recordState(row, state, at)
 }

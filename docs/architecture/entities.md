@@ -77,7 +77,8 @@ directement dans le plugin à chaque requête.
   `artisan_server_state` (un JSON par serveur, réécrit à chaque chargement **si toutes les Versions
   du chargement ont été enregistrées** : sinon l'état précédent reste, cohérent avec les fichiers
   servis) : le contenu de `project_list` et, par Project, le hash du Snapshot, les fichiers en
-  échec et `.artisan/editor.yaml`. Le hub lit la liste, les Projects et leurs assets dans ces deux
+  échec et `.artisan/editor.yaml` — un `LoadedState` (`core/protocol`, champ `schema`, absent des
+  lignes plus anciennes qui se lisent comme `schema: 1` ; un champ inconnu est ignoré). Le hub lit la liste, les Projects et leurs assets dans ces deux
   tables (`LoadedProjects`, implémenté par `SuiteProjectData` dans `paper`, qui garde l'état parsé
   de chaque serveur 5 s et le jette dès que ce serveur enregistre ou annonce un rechargement) ;
   la dernière Version d'un dossier est lue par deux requêtes indexées, l'historique complet n'est
