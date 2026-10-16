@@ -4,6 +4,7 @@ import net.artisanmc.plugin.expr.ExprScope
 import net.artisanmc.plugin.expr.evaluateExpr
 import net.artisanmc.plugin.expr.parseExpr
 import net.artisanmc.plugin.expr.renderTemplate
+import net.artisanmc.plugin.model.LocalizedText
 import org.bukkit.World
 import org.bukkit.entity.Player
 
@@ -75,3 +76,26 @@ fun ExecutionContext.render(
  */
 fun ExecutionContext.exprValue(expr: String, papi: PapiProvider? = null): Any? =
     runCatching { evaluateExpr(parseExpr(expr), exprScope(papi)) }.getOrNull()
+
+/**
+ * The lookup chain of a BARE text (ADR `field-local-translations`): an explicit
+ * `{i18n:key}` ref wins; otherwise the literal is looked up at its canonical
+ * ADDRESS (inline mode — the literal is the default language, the other
+ * languages sit at `address` in `lang/<lang>.yaml`); otherwise the literal
+ * stands as written. The one implementation of the rule for the menu, dialog
+ * and action texts; interpolation (`{arg}`, `%papi%`) comes after, per caller.
+ */
+fun lookupLocalized(value: String, langMap: Map<String, String>, address: String? = null): String =
+    if (value.startsWith("{i18n:")) langMap[value.removePrefix("{i18n:").removeSuffix("}")] ?: value
+    else address?.let { langMap[it] } ?: value
+
+/**
+ * A text slot for this context's viewer, against its [ExecutionContext.langMap]:
+ * a field-local map is authoritative (its entry for [ExecutionContext.lang],
+ * falling back to [ExecutionContext.defaultLang]); a bare value goes through
+ * [lookupLocalized]. `null` when the slot holds nothing for any language.
+ */
+fun ExecutionContext.localize(text: LocalizedText, address: String? = null): String? {
+    val value = text.forLang(lang, defaultLang) ?: return null
+    return if (text.isMap) value else lookupLocalized(value, langMap, address)
+}
