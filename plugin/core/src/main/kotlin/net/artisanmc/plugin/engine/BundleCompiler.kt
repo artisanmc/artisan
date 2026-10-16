@@ -39,9 +39,6 @@ object BundleCompiler {
         return BundleMenu(yaml, langMaps, compiledAppearances, slotToElement, defaultLang = defaultLang)
     }
 
-    /** @see I18nAddress.state — kept as an alias for existing callers. */
-    fun stateLabel(index: Int): String = I18nAddress.state(index)
-
     /**
      * A state is a WHOLE appearance, not a patch on the display — so one that
      * names no item renders a bare stone block (`MenuRenderer` falls back to

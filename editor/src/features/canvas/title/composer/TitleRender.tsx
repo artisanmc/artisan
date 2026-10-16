@@ -121,8 +121,8 @@ const MC_TITLE_LABEL_Y = 6;
  */
 const GLYPH_Y_BASE = 13;
 /**
- * MC default font character height in pixels. Used as the approximated
- * font size for MiniMessageKonvaText (vector fallback, not pixel-perfect).
+ * MC default font character height in pixels. Used as a text layer's line
+ * height for its outline and hit area.
  */
 const MC_FONT_HEIGHT_PX = 8;
 
@@ -152,8 +152,7 @@ interface TitleRenderProps {
  *  - background → big glyph anchored below the title bar (matches negative
  *    ascent push in TitleCompiler)
  *  - glyph → image at intrinsic asset size, scaled
- *  - text → McFontText (bitmap font, if `fontAssetId` bound) or
- *    MiniMessageKonvaText (vector fallback)
+ *  - text → McFontText (bitmap font)
  *  - external_glyph → dashed amber placeholder
  */
 export function TitleRender({ projectId, menuId, scale }: TitleRenderProps) {
