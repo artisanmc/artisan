@@ -680,52 +680,20 @@ open class ArtisanPlugin : JavaPlugin() {
     /** Reloads asked after the start (`api.project.reload()`, a root registered): disk reads and YAML off the game threads. */
     private val reloadExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "Artisan-reload").apply { isDaemon = true } }
 
-    /**
-     * Each Project whose loaded Snapshot differs from its latest Version gets a new one, then the
-     * loaded state. A Version that failed keeps the state where it was: the hub would otherwise
-     * serve the new hash over the previous Version's files, and `if_hash` would call that unchanged.
-     */
+    /** Each loaded Snapshot becomes Versions, then the loaded state, on [versionWriter] (rules in [net.artisanmc.plugin.project.VersionRecorder]). */
+    private val versionRecorder by lazy {
+        net.artisanmc.plugin.project.VersionRecorder(projectRoots, {
+            val data = suiteData
+            val server = serverRow
+            if (data == null || server == null) null else net.artisanmc.plugin.database.SuiteVersionStorage(data, server)
+        }, versionWriter, logger)
+    }
+
     private fun recordVersions(
         snapshot: net.artisanmc.plugin.project.ProjectSnapshot,
         authors: Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>,
         done: () -> Unit,
-    ) {
-        val now = java.time.Instant.now()
-        versionWriter.execute {
-            // Read here, not before: the first Snapshot is queued while the database is still opening.
-            val data = suiteData ?: return@execute done()
-            val server = serverRow ?: return@execute done()
-            var failed = 0
-            for (id in snapshot.projectIds) runCatching {
-                val dir = projectRoots.dirFor(id)
-                val content = { path: String -> !net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(path) }
-                val entries = snapshot.files[id].orEmpty().filterKeys(content).mapValues { net.artisanmc.plugin.database.SnapshotEntry.text(it.value) } +
-                    snapshot.binaries[id].orEmpty().filterKeys(content).mapValues { net.artisanmc.plugin.database.SnapshotEntry.binary(it.value.hash, it.value.size) }
-                val published = authors[id]
-                val author = published?.let { net.artisanmc.plugin.database.VersionAuthor(it.id, it.name) }
-                val result = data.versions.record(server, projectRoots.key(id), id, entries, now, author, published?.restoredFrom?.toIntOrNull()) { File(dir, it).readBytes() }
-                if (result.skipped.isNotEmpty())
-                    logger.warning("[Artisan] Project $id: ${result.skipped.joinToString()} changed on disk since the reload, kept out of this Version")
-            }.onFailure { failed++; logger.warning("[Artisan] Version of project $id not recorded: ${it.message}") }
-            if (failed == 0) runCatching { data.recordState(server, loadedState(snapshot), now) }
-                .onFailure { logger.warning("[Artisan] Loaded state not recorded: ${it.message}") }
-            else logger.warning("[Artisan] Loaded state not recorded: $failed Version(s) failed, the editor keeps the previous one")
-            done()
-        }
-    }
-
-    /** The Project list and, per Project, the Snapshot hash, failed files and editor metadata: what the hub serves. */
-    private fun loadedState(snapshot: net.artisanmc.plugin.project.ProjectSnapshot): Map<String, Any?> {
-        val projects = snapshot.projectIds.associateWith { id ->
-            mapOf(
-                "hash" to snapshot.hash(id),
-                "failed" to snapshot.skipped[id].orEmpty().toSortedMap().map { (path, reason) -> mapOf("path" to path, "reason" to reason) },
-                // `.artisan/editor.yaml`: read by the editor, outside the Versions.
-                "meta" to snapshot.files[id].orEmpty().filterKeys { net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(it) },
-            )
-        }
-        return net.artisanmc.plugin.protocol.ProjectReads.listBody(snapshot, projectRoots) + ("projects" to projects)
-    }
+    ) = versionRecorder.record(snapshot, authors, done)
 
     /** The `artisan_servers` row of a server id: this server's, read once, else looked up. */
     private fun row(server: String): Int? {
