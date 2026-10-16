@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.project
 
-import net.artisanmc.modules.api.ProjectContentApi
+import net.artisanmc.modules.api.project.ProjectContentApi
 import net.artisanmc.plugin.model.BundleRawDocument
 import net.artisanmc.plugin.model.ProjectBundle
 import java.io.File

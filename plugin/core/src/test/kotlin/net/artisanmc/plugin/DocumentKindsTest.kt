@@ -1,7 +1,7 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.modules.api.DocumentKindDeclaration
-import net.artisanmc.modules.api.DuplicateDocumentKindException
+import net.artisanmc.modules.api.document.DocumentKindDeclaration
+import net.artisanmc.modules.api.document.DuplicateDocumentKindException
 import net.artisanmc.plugin.model.BundleMenu
 import net.artisanmc.plugin.model.BundleRawDocument
 import net.artisanmc.plugin.model.DocumentKind

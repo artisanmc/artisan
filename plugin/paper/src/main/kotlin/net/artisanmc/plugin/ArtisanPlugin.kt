@@ -1,6 +1,14 @@
 package net.artisanmc.plugin
 
 import net.artisanmc.modules.api.*
+import net.artisanmc.modules.api.action.ActionRegistry
+import net.artisanmc.modules.api.action.ModuleActionsApi
+import net.artisanmc.modules.api.command.CommandRegistry
+import net.artisanmc.modules.api.database.DatabaseDialect
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.event.ConfigReloadEvent
+import net.artisanmc.modules.api.event.ModuleEventBus
+import net.artisanmc.modules.api.item.ItemStackApi
 import net.artisanmc.plugin.scheduling.Scheduler
 import net.artisanmc.plugin.scheduling.schedulerFor
 import net.artisanmc.modules.api.schemas.SchemaRegistry
@@ -119,13 +127,13 @@ open class ArtisanPlugin : JavaPlugin() {
                 // The one kind registry: the core kinds registered first, then
                 // what modules add through api.documentKinds (W6).
                 .documentKinds(DocumentKinds.coreRegistry().also(DocumentKinds::bind))
-                .items(object : net.artisanmc.modules.api.ItemStackApi {
+                .items(object : net.artisanmc.modules.api.item.ItemStackApi {
                     override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                         net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
                     override fun describe(stack: org.bukkit.inventory.ItemStack): Map<String, Any> =
                         net.artisanmc.plugin.items.ItemDescriptor.derive(stack, nexoForCapture)
                 })
-                .actions(object : net.artisanmc.modules.api.ModuleActionsApi {
+                .actions(object : net.artisanmc.modules.api.action.ModuleActionsApi {
                     override fun execute(
                         player: org.bukkit.entity.Player,
                         actions: String,
@@ -433,7 +441,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     /** On MySQL/MariaDB, this server's history from the H2 file it ran on alone, once (ADR `server-identity-and-versions` ⑪). */
     private fun importEmbeddedDatabase(target: javax.sql.DataSource) {
-        if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) return
+        if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) return
         val file = File(dataFolder, "database/${net.artisanmc.plugin.database.ConnectionPools.H2_FILE}.mv.db")
         if (!file.isFile) return
         val embedded = net.artisanmc.plugin.database.ConnectionPools(
@@ -441,7 +449,7 @@ open class ArtisanPlugin : JavaPlugin() {
         )
         try {
             // The file may come from an older release: its tables are brought to this schema before they are read.
-            val source = embedded.dataSource("Artisan-import").also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, net.artisanmc.modules.api.DatabaseDialect.H2, logger) }
+            val source = embedded.dataSource("Artisan-import").also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, net.artisanmc.modules.api.database.DatabaseDialect.H2, logger) }
             net.artisanmc.plugin.database.EmbeddedImport.run(source, target, database.dialect, serverId, logger)
         } catch (e: Exception) {
             logger.warning("[Artisan] History of the embedded database not imported: ${e.message}")
@@ -487,7 +495,7 @@ open class ArtisanPlugin : JavaPlugin() {
             val data = net.artisanmc.plugin.database.LateSuiteData { suiteData }
             val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts)
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
-                if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) null
+                if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null
                 else artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
             }) { artisanData != null }
             val server = net.artisanmc.plugin.hub.HubServer(
@@ -767,7 +775,7 @@ open class ArtisanPlugin : JavaPlugin() {
         if (!web.leaf) return null
         val secret = networkSecret(web).ifEmpty { return null }
         val name = networkName(web) ?: return null
-        if (database.dialect == net.artisanmc.modules.api.DatabaseDialect.H2) {
+        if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) {
             logger.severe("[Artisan] Not connecting to the hub: a network needs a shared MySQL or MariaDB database, this server uses H2 (database.type in environment.yml).")
             return null
         }
