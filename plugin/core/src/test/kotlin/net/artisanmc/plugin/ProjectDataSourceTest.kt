@@ -153,6 +153,45 @@ class ProjectDataSourceTest {
         assertEquals("coins", value["currency"])
     }
 
+    private fun configProject(projectId: String, sourceId: String, owner: String) = ProjectBundle(
+        projectId, "en", listOf("en"),
+        dataSources = listOf(
+            BundleDataSource(DataSourceYaml(id = sourceId, shape = "config", value = mapOf("owner" to owner)), emptyMap()),
+        ),
+    )
+
+    private fun ownerOf(resolver: ProjectDataResolver, ref: String, from: String?): Any? =
+        (resolver.resolve(ref, "en", from) as? Map<*, *>)?.get("owner")
+
+    @Test
+    fun `resolver looks in the calling Project first`() {
+        // Two Projects with the same data/items.yaml (an add-on's Project beside an
+        // admin one): each menu reads its own, not the first Project loaded.
+        val resolver = ProjectDataResolver { listOf(configProject("a", "items", "a"), configProject("b", "items", "b")) }
+        assertEquals("a", ownerOf(resolver, "pack:items", "a"))
+        assertEquals("b", ownerOf(resolver, "pack:items", "b"))
+    }
+
+    @Test
+    fun `resolver falls back to the server, first loaded wins when ambiguous`() {
+        val resolver = ProjectDataResolver {
+            listOf(configProject("a", "items", "a"), configProject("b", "items", "b"), configProject("c", "only_c", "c"))
+        }
+        assertEquals("c", ownerOf(resolver, "pack:only_c", "a"))
+        assertEquals("a", ownerOf(resolver, "pack:items", "c"))
+        assertEquals("a", ownerOf(resolver, "pack:items", null))
+        assertNull(resolver.resolve("pack:a:items", "en", "b")) // no qualified form
+    }
+
+    @Test
+    fun `resolver follows a reload that swaps the bundle list`() {
+        var bundles = listOf(configProject("a", "items", "old"))
+        val resolver = ProjectDataResolver { bundles }
+        assertEquals("old", ownerOf(resolver, "pack:items", "a"))
+        bundles = listOf(configProject("a", "items", "new"))
+        assertEquals("new", ownerOf(resolver, "pack:items", "a"))
+    }
+
     @Test
     fun `per-row granularity dir aggregates row files in declared order, hand-added appended`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_data_pr_").toFile()
