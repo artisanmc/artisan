@@ -64,7 +64,7 @@ directement dans le plugin à chaque requête.
   (hash → octets, texte et binaires, stockés une fois ; `MERGE` H2 / `INSERT IGNORE` MySQL, deux
   serveurs peuvent insérer le même hash). Chaque serveur enregistre la sienne à
   chaque Snapshot dont le manifeste diffère du précédent (`SyncedMenuProvider.onSnapshot` →
-  `ArtisanPlugin.recordVersions`, thread `Artisan-versions`), **en une transaction** ; `.artisan*`
+  `VersionRecorder` (core), thread `Artisan-versions`), **en une transaction** ; `.artisan*`
   hors manifeste. Les octets d'un binaire sont relus du disque au moment de l'enregistrement et
   re-hachés : s'ils ne correspondent plus au hash du Snapshot (publication ou édition entre-temps),
   l'entrée n'est pas stockée (avertissement), la Version suivante la reprendra.
