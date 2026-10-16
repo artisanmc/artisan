@@ -187,9 +187,7 @@ open class ArtisanPlugin : JavaPlugin() {
             // A module reports the core plugin version: ArtisanModule has no version of its own.
             registry.bind(api) {
                 if (plugin::menuProvider.isInitialized) {
-                    (plugin.menuProvider as? SyncedMenuProvider)?.notifyModulesChanged(
-                        registry.active().map { mapOf("id" to it.id, "version" to plugin.description.version) },
-                    )
+                    (plugin.menuProvider as? SyncedMenuProvider)?.notifyModulesChanged()
                 }
             }
             return api
@@ -315,12 +313,7 @@ open class ArtisanPlugin : JavaPlugin() {
         override val label: String get() = serverName.ifBlank { "Minecraft" }
         override val minecraftVersion: String get() = provider.minecraftVersion
         override val pluginVersion: String get() = description.version
-        override fun modules() = api.modules.active().map { mapOf("id" to it.id, "version" to description.version) }
-        override fun dataSources() = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources)
-        override fun models() = api.models.declared().map { it.document }
-        override fun screens() = api.screens.declared().map { it.toWire() }
-        override fun actions() = api.actionRegistry.registered().map { it.toWire() }
-        override fun documentKinds() = api.documentKinds.registered().map { it.toWire() }
+        override fun announcement() = this@ArtisanPlugin.announcement()
         override fun serverConfig() = serverConfigAccess.report()
         override fun customItems() = provider.customItems()
         override fun applyResourcePack(hash: String, path: String) {
@@ -329,6 +322,16 @@ open class ArtisanPlugin : JavaPlugin() {
             provider.applyLocalResourcePack("${editorBase()}$path", "http://$local:$port$path", hash)
         }
     }
+
+    /** What this server announces at Presence: to the editor it serves, and in its `hello` to a hub. */
+    private fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
+        modules = api.modules.active().map { net.artisanmc.plugin.protocol.ServerAnnouncement.module(it.id, description.version) },
+        dataSources = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources),
+        models = api.models.declared().map { it.document },
+        screens = api.screens.declared().map { it.toWire() },
+        actions = api.actionRegistry.registered().map { it.toWire() },
+        documentKinds = api.documentKinds.registered().map { it.toWire() },
+    )
 
     /** The editor address for players and other servers: `web.url`, else [host] or the server IP. */
     private fun editorBase(host: String? = null): String =
@@ -653,13 +656,9 @@ open class ArtisanPlugin : JavaPlugin() {
         executorProvider = { executor },
         lookupAsset      = assetCatalog::lookup,
         offsetEncoderProvider = assetCatalog::offsetEncoder,
-        installedModules = { api.modules.active().map { mapOf("id" to it.id, "version" to description.version) } },
         dataSources = api.dataSources,
-        dataSourcesReport = { net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources) },
-        declaredModelsReport = { api.models.declared().map { it.document } },
-        editorScreensReport = { api.screens.declared().map { it.toWire() } },
-        declaredActionsReport = { api.actionRegistry.registered().map { it.toWire() } },
-        documentKindsReport = { api.documentKinds.registered().map { it.toWire() } },
+        announcement = ::announcement,
+        declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,
         menuWindows = menuWindows,
         pluginVersion = description.version,
