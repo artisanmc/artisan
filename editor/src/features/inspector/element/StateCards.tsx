@@ -175,6 +175,7 @@ function StateMaterialIcon({
   textureUrl,
   onPick,
 }: StateMaterialIconProps) {
+  const { t } = useTranslation();
   const droppable = useDroppable({ id: stateDropId(menuId, elementId, stateIndex) });
   return (
     <div ref={droppable.setNodeRef}>
@@ -183,7 +184,7 @@ function StateMaterialIcon({
         trigger={
           <button
             type="button"
-            title="Pick item from library — or drag a library item here"
+            title={t("flow.pickMaterialHint")}
             className={
               droppable.isOver
                 ? "flex h-8 w-8 shrink-0 items-center justify-center rounded border border-[var(--brand)] bg-[var(--brand-soft)] ring-2 ring-[var(--brand)]"
@@ -221,10 +222,11 @@ function DragHandleButton({
 }: {
   sortable: ReturnType<typeof useSortable>;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
-      title="Drag to reorder state"
+      title={t("flow.dragStateHint")}
       {...sortable.attributes}
       {...sortable.listeners}
       className="flex w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-l border-[var(--border-soft)] border-r font-mono text-[12px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] active:cursor-grabbing"
