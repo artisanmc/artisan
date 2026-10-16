@@ -2,6 +2,8 @@ package net.artisanmc.plugin.database
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.plugin.hub.DraftCommit
+import net.artisanmc.plugin.hub.DraftReceipt
 import net.artisanmc.plugin.hub.DraftStorage
 import net.artisanmc.plugin.hub.LoadedProjects
 import net.artisanmc.plugin.hub.ProjectHistory
@@ -84,11 +86,16 @@ class SuiteProjectData(
             return draftRows.get(row, key, id)
         }
 
-        override fun receipt(operationId: String) = draftRows.receipt(operationId)
+        override fun receipt(operationId: String) =
+            draftRows.receipt(operationId)?.let { (fingerprint, result) -> DraftReceipt(operationId, fingerprint, result) }
 
-        override fun commit(server: String, folder: String, id: String, draft: String, status: String, operationId: String, fingerprint: String, result: String): Boolean {
+        override fun commit(server: String, folder: String, commit: DraftCommit): Boolean {
             val (row, key) = projectKey(server, folder) ?: return false
-            draftRows.commit(row, key, id, draft, status, operationId, fingerprint, result)
+            val receipt = commit.receipt
+            draftRows.commit(
+                row, key, id = commit.draftId, draft = commit.body, status = commit.status.wire,
+                operationId = receipt.operationId, fingerprint = receipt.fingerprint, result = receipt.result,
+            )
             return true
         }
 
