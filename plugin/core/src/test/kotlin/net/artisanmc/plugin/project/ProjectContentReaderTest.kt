@@ -29,7 +29,7 @@ class ProjectContentReaderTest {
     }
 
     @Test fun `list returns relative file paths under the dir`() {
-        assertEquals(listOf("items.yaml"), reader.list("proj1", "shop"))
+        assertEquals(listOf("main.yaml"), reader.list("proj1", "menus"))
         assertEquals(emptyList(), reader.list("proj1", "quests"))
         assertEquals(emptyList(), reader.list("nope", "shop"))
     }
@@ -74,10 +74,18 @@ class ProjectContentReaderTest {
         assertNull(reader.read("pr oj", "shop/items.yaml"))
     }
 
-    @Test fun `list excludes nested artisan directories`() {
-        val files = reader.list("proj1", "shop")
-        assertEquals(listOf("items.yaml"), files)
-        assertTrue(files.none { it.contains(".artisan") })
+    @Test fun `list excludes the project's artisan metadata, not a nested lookalike`() {
+        // The rule reads the first segment from the Project's folder (invariants.md):
+        // `shop/.artisan-nested/` is content, the editor sees it too.
+        assertEquals(listOf(".artisan-nested/x.yaml", "items.yaml"), reader.list("proj1", "shop"))
+        assertTrue(reader.list("proj1", "").none { it.startsWith(".artisan") })
+    }
+
+    @Test fun `uppercase metadata is not exposed either`() {
+        File(projectsDir, "proj1/.ARTISAN").mkdirs()
+        File(projectsDir, "proj1/.ARTISAN/project-id").writeText("id")
+        assertNull(reader.read("proj1", ".ARTISAN/project-id"))
+        assertTrue(reader.list("proj1", "").none { it.contains("project-id") })
     }
 
     @Test fun `uppercase private namespace is not exposed through addon content API`() {

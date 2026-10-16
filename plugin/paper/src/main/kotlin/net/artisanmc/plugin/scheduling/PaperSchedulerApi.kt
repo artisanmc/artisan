@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.scheduling
 
-import net.artisanmc.modules.api.SchedulerApi
-import net.artisanmc.modules.api.TaskScheduler
+import net.artisanmc.modules.api.scheduler.SchedulerApi
+import net.artisanmc.modules.api.scheduler.TaskScheduler
 import org.bukkit.Location
 import org.bukkit.entity.Entity
 import org.bukkit.plugin.Plugin

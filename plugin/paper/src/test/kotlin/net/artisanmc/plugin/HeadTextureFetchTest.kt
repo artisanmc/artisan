@@ -24,7 +24,7 @@ class HeadTextureFetchTest {
     @Test fun `returns the real HDB profile texture and reports unknown ids`() {
         val skin = "eyJ0ZXh0dXJlcyI6e319"
         HeadDatabaseAPI.heads["128276"] = HeadApplier.apply(ItemStack(Material.PLAYER_HEAD), "basehead:$skin", SoftDepRegistry.EMPTY)
-        val deps = SoftDepRegistry(null, null, null, null, null, null, HeadDatabaseRenderer())
+        val deps = SoftDepRegistry(null, null, null, hdbHeads = HeadDatabaseRenderer())
         val mapper = ObjectMapper()
         val replies = java.util.Collections.synchronizedList(mutableListOf<Map<*, *>>())
         val latch = CountDownLatch(2)

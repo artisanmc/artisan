@@ -98,13 +98,13 @@ class MenuRendererIterationTest {
     @Test fun `returning to shop main then clicking another category refreshes its items`() {
         val p = player()
         val pluginInstance = MockBukkit.load(ArtisanPlugin::class.java)
-        val sources = net.artisanmc.modules.api.DataSourceRegistry()
+        val sources = net.artisanmc.modules.api.datasource.DataSourceRegistry()
         val categories = listOf(
             mapOf("id" to "keys", "name" to "Keys", "icon" to "TRIPWIRE_HOOK"),
             mapOf("id" to "tools", "name" to "Tools", "icon" to "DIAMOND_PICKAXE"),
         )
-        sources.register(net.artisanmc.modules.api.DataSourceDeclaration("boutique:categories", { _, _ -> categories }))
-        sources.register(net.artisanmc.modules.api.DataSourceDeclaration("boutique:items", { _, _ ->
+        sources.register(net.artisanmc.modules.api.datasource.DataSourceDeclaration("boutique:categories", { _, _ -> categories }))
+        sources.register(net.artisanmc.modules.api.datasource.DataSourceDeclaration("boutique:items", { _, _ ->
             categories.map { mapOf("id" to it.getValue("id"), "category" to it.getValue("id"),
                 "name" to it.getValue("name"), "icon" to it.getValue("icon"), "final_price" to 10) }
         }))
