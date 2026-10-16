@@ -59,7 +59,7 @@ class AssetCatalog(
      * (`vanilla_gui.transparent_chests|hoppers|dispensers`): those windows then
      * need their vanilla texture back as a title glyph (cf. VanillaGuiTitle).
      */
-    @Volatile var transparentTextures: Set<net.artisanmc.plugin.render.ContainerTexture> = emptySet()
+    @Volatile var transparentTextures: Set<net.artisanmc.plugin.resourcepack.ContainerTexture> = emptySet()
         private set
 
     /** Returns the cached entry for [assetId], or null if unknown. */
@@ -145,9 +145,9 @@ class AssetCatalog(
         encoderRef.set(encoder)
         val gui = mapper.readTree(json)["vanilla_gui"]
         transparentTextures = mapOf(
-            "transparent_chests" to net.artisanmc.plugin.render.ContainerTexture.CHEST,
-            "transparent_hoppers" to net.artisanmc.plugin.render.ContainerTexture.HOPPER,
-            "transparent_dispensers" to net.artisanmc.plugin.render.ContainerTexture.DISPENSER,
+            "transparent_chests" to net.artisanmc.plugin.resourcepack.ContainerTexture.CHEST,
+            "transparent_hoppers" to net.artisanmc.plugin.resourcepack.ContainerTexture.HOPPER,
+            "transparent_dispensers" to net.artisanmc.plugin.resourcepack.ContainerTexture.DISPENSER,
         ).filterKeys { gui?.get(it)?.asBoolean() == true }.values.toSet()
     }
 
