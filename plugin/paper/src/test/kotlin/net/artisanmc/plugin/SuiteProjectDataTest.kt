@@ -1,6 +1,6 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseDialect
 import net.artisanmc.plugin.database.ArtisanSchema
 import net.artisanmc.plugin.database.ConnectionPools
 import net.artisanmc.plugin.database.DatabaseSettings

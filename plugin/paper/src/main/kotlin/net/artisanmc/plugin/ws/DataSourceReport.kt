@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.ws
 
-import net.artisanmc.modules.api.DataSourceRegistry
-import net.artisanmc.modules.api.RegisteredDataSource
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.RegisteredDataSource
 
 /**
  * Builds the `data_sources` wire payload sent in `hello` / `modules_changed`.

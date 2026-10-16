@@ -1,7 +1,7 @@
 package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import net.artisanmc.modules.api.DatabaseDialect
+import net.artisanmc.modules.api.database.DatabaseDialect
 import net.artisanmc.plugin.database.PooledDatabase
 import net.artisanmc.plugin.database.readDatabaseSettings
 import org.bukkit.configuration.file.YamlConfiguration

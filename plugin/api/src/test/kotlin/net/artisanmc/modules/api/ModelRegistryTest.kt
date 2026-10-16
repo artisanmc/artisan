@@ -4,6 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import net.artisanmc.modules.api.model.DuplicateModelException
+import net.artisanmc.modules.api.model.ModelRegistry
 
 /**
  * ADR composable-data-models §4: an Add-on declares its Data models as
@@ -48,9 +50,9 @@ class ModelRegistryTest {
     @Test
     fun `owner is captured while a module is being enabled`() {
         val reg = ModelRegistry()
-        reg.currentOwner = "boutique"
+        reg.bindOwner("boutique")
         reg.declare(doc("boutique:category"))
-        reg.currentOwner = null
+        reg.bindOwner(null)
         reg.declare(doc("quests:action"))
         assertEquals("boutique", reg.declared().first { it.id == "boutique:category" }.moduleId)
         assertEquals(null, reg.declared().first { it.id == "quests:action" }.moduleId)

@@ -9,6 +9,26 @@ Everything in `net.artisanmc.modules.api` (artifact
 `net.artisanmc:artisan-core-api`) is API. Everything under
 `net.artisanmc.plugin.*` is internal — do not import it.
 
+Since 2.0.0 the types live in one package per domain. The entry points
+(`ArtisanAPI`, `ArtisanModule`, `ModuleRegistry`, `SemVer`) stay in
+`net.artisanmc.modules.api`; everything else is under it:
+
+| Package | Holds |
+|---|---|
+| `action` | Action vocabulary, handlers, `ModuleActionsApi` |
+| `command` | Command declarations and registry |
+| `datasource` | Data sources, their fields, `DataReloadEvent`, `PlayerRequiredException` |
+| `model` | Data models and their field kit |
+| `document` | Document kinds |
+| `screen` | Config screens |
+| `menu` | `MenuApi`, `MenuRef`, menu events and listeners |
+| `event` | Module event bus, `ConfigReloadEvent` |
+| `placeholder`, `project`, `scheduler`, `database`, `item` | One surface each (`api.placeholders`, `api.project`/`api.projectRoots`, `api.scheduler`, `api.database`, `api.items`) |
+| `schemas` | Schema versions and migrations |
+| `annotations` | `@Stable`, `@Beta`, `@Internal`, `@Sunset` |
+
+Each exception sits with its domain (`DuplicateCommandException` in `command`).
+
 **Since** is the API version a member appeared in; compile against the lowest
 version that has everything you use ([Versions](/wiki/developers/setup/#versions-and-compatibility)).
 Sources (with Javadoc) are
@@ -200,37 +220,37 @@ project. The JSON Schemas live in the repository under
 [ArtisanModule]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ArtisanModule.java
 [ModuleRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModuleRegistry.java
 [SemVer]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/SemVer.java
-[DataFetcher]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DataFetcher.java
-[CommandHandler]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/CommandHandler.java
-[SchemaVersionReader]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/SchemaVersionReader.java
-[ModuleEventHandler]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModuleEventHandler.java
-[DataSourceRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DataSourceRegistry.java
-[DataSourceDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DataSourceDeclaration.java
-[FieldKind]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/FieldKind.java
-[Stability]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/Stability.java
-[CommandRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/CommandRegistry.java
-[CommandDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/CommandDeclaration.java
-[ModuleActionsApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModuleActionsApi.java
-[ItemStackApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ItemStackApi.java
-[ActionRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionRegistry.java
-[ActionDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionDeclaration.java
-[ActionHandler]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionHandler.java
-[ActionContext]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionContext.java
-[ActionRuntime]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ActionRuntime.java
-[ModelField]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModelField.java
-[ModelFieldType]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModelFieldType.java
-[ProjectContentApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ProjectContentApi.java
-[ProjectRootRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ProjectRootRegistry.java
+[DataFetcher]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/datasource/DataFetcher.java
+[CommandHandler]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/command/CommandHandler.java
+[SchemaVersionReader]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/schemas/SchemaVersionReader.java
+[ModuleEventHandler]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/event/ModuleEventHandler.java
+[DataSourceRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/datasource/DataSourceRegistry.java
+[DataSourceDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/datasource/DataSourceDeclaration.java
+[FieldKind]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/datasource/FieldKind.java
+[Stability]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/datasource/Stability.java
+[CommandRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/command/CommandRegistry.java
+[CommandDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/command/CommandDeclaration.java
+[ModuleActionsApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/action/ModuleActionsApi.java
+[ItemStackApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/item/ItemStackApi.java
+[ActionRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/action/ActionRegistry.java
+[ActionDeclaration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/action/ActionDeclaration.java
+[ActionHandler]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/action/ActionHandler.java
+[ActionContext]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/action/ActionContext.java
+[ActionRuntime]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/action/ActionRuntime.java
+[ModelField]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/model/ModelField.java
+[ModelFieldType]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/model/ModelFieldType.java
+[ProjectContentApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/project/ProjectContentApi.java
+[ProjectRootRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/project/ProjectRootRegistry.java
 [SchemaRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/schemas/SchemaRegistry.java
 [SchemaMigration]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/schemas/SchemaMigration.java
-[ModelRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModelRegistry.java
-[EditorScreenRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/EditorScreenRegistry.java
-[DatabaseApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DatabaseApi.java
-[DatabaseDialect]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/DatabaseDialect.java
-[ModuleEventBus]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/ModuleEventBus.java
-[MenuApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/MenuApi.java
-[MenuOpenEvent]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/MenuOpenEvent.java
-[MenuClickEvent]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/MenuClickEvent.java
-[MenuCloseEvent]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/MenuCloseEvent.java
-[PlaceholderRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/PlaceholderRegistry.java
-[SchedulerApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/SchedulerApi.java
+[ModelRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/model/ModelRegistry.java
+[EditorScreenRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/screen/EditorScreenRegistry.java
+[DatabaseApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/database/DatabaseApi.java
+[DatabaseDialect]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/database/DatabaseDialect.java
+[ModuleEventBus]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/event/ModuleEventBus.java
+[MenuApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/menu/MenuApi.java
+[MenuOpenEvent]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/menu/MenuOpenEvent.java
+[MenuClickEvent]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/menu/MenuClickEvent.java
+[MenuCloseEvent]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/menu/MenuCloseEvent.java
+[PlaceholderRegistry]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/placeholder/PlaceholderRegistry.java
+[SchedulerApi]: https://github.com/artisanmc/artisan/blob/main/plugin/api/src/main/java/net/artisanmc/modules/api/scheduler/SchedulerApi.java
