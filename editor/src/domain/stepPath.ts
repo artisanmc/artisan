@@ -19,23 +19,6 @@ export interface StepFrame {
   descend: { case: number } | "else";
 }
 
-/** Resolve the parent Step[] for a path's terminal index. */
-export function resolveParent(root: Step[], frames: StepFrame[]): Step[] | null {
-  let list: Step[] = root;
-  for (const frame of frames) {
-    const step = list[frame.stepIndex];
-    if (!step || step.kind !== "if") return null;
-    if (frame.descend === "else") {
-      list = step.else ?? [];
-    } else {
-      const c = step.cases[frame.descend.case];
-      if (!c) return null;
-      list = c.steps;
-    }
-  }
-  return list;
-}
-
 /**
  * Walk to the parent step list inside an immer draft, ensuring
  * `if-step.else` exists when the path requires it. Returns the live
@@ -73,4 +56,3 @@ export function* walkActions(steps: Step[]): Generator<Action> {
     }
   }
 }
-
