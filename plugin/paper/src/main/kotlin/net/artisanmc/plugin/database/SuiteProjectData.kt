@@ -16,7 +16,7 @@ import javax.sql.DataSource
 /**
  * What the hub serves from the suite database, server by server: the loaded state recorded
  * at each reload ([recordState]), the Versions behind it ([loaded], [history]) and the drafts
- * ([drafts]). No Bukkit here: [rowOf] turns a hub server id into its `artisan_servers` row.
+ * ([drafts]). No Bukkit here: [rowOf] turns a hub server id into its [ServerRow].
  *
  * A server's state is one JSON document, parsed once and kept [CACHE_MS]: every Project read,
  * asset and draft operation starts from it. [recordState] drops this server's copy; a remote
@@ -26,7 +26,7 @@ import javax.sql.DataSource
 class SuiteProjectData(
     data: DataSource,
     dialect: DatabaseDialect,
-    private val rowOf: (server: String) -> Int?,
+    private val rowOf: (serverId: String) -> ServerRow?,
     private val logger: Logger,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
@@ -36,13 +36,13 @@ class SuiteProjectData(
     private val contents = ContentRows(data, dialect)
     private val mapper = ObjectMapper()
 
-    private class Cached(val at: Long, val row: Int?, val state: LoadedState?)
+    private class Cached(val at: Long, val row: ServerRow?, val state: LoadedState?)
     private val cache = ConcurrentHashMap<String, Cached>()
 
     /** The Project list and, per Project, the Snapshot hash, failed files and editor metadata: what the hub serves. */
-    fun recordState(server: Int, state: LoadedState, now: Instant) {
-        states.put(server, mapper.writeValueAsString(state.toMap()), now)
-        cache.entries.removeIf { it.value.row == server }
+    fun recordState(row: ServerRow, state: LoadedState, now: Instant) {
+        states.put(row, mapper.writeValueAsString(state.toMap()), now)
+        cache.entries.removeIf { it.value.row == row }
     }
 
     /** [server] announced a reload: its next read goes to the database. */
@@ -58,13 +58,13 @@ class SuiteProjectData(
         return Cached(clock(), row, state).also { cache[server] = it }
     }
 
-    private fun row(server: String): Int? = cached(server).row
+    private fun row(server: String): ServerRow? = cached(server).row
 
     /** What [server] recorded at its last load, see [recordState]. */
     fun state(server: String): LoadedState? = cached(server).state
 
     /** A Project's row and `project_key`, from its folder in the server's loaded state. */
-    private fun projectKey(server: String, folder: String): Pair<Int, String>? {
+    private fun projectKey(server: String, folder: String): Pair<ServerRow, String>? {
         val cached = cached(server)
         val key = cached.state?.list?.root(folder)?.projectKey ?: return null
         return (cached.row ?: return null) to key
