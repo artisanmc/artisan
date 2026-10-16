@@ -1,4 +1,5 @@
 import type { FrontendModule } from "@artisan/editor-sdk";
+import { commandKind } from "./commandKind";
 
 export const commandsModule: FrontendModule = {
   id: "commands",
@@ -10,4 +11,5 @@ export const commandsModule: FrontendModule = {
     to: "/",
   },
   routes: [],
+  documents: [commandKind],
 };

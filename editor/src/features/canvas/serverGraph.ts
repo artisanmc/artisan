@@ -1,8 +1,9 @@
 import { projectNamespace, resolveDocRef } from "@/domain/docRef";
+import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
+import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
 import { type Edge, deriveEdges } from "./deriveEdges";
-import { COMMAND_BOX, DIALOG_BOX, menuBoxSize } from "./menuLayout";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { COMMAND_BOX, DIALOG_BOX, documentBoxSize, menuBoxSize } from "./menuLayout";
 
 /** A document kind id, as registered in `domain/documentKinds.ts`. */
 export type DocumentKind = string;
@@ -36,6 +37,8 @@ export interface ServerGraph {
 }
 
 export const documentKey = (projectId: string, docId: string): string => `${projectId}/${docId}`;
+
+const CORE = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
 
 const byKey = (a: { key: string }, b: { key: string }) =>
   a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
@@ -88,6 +91,14 @@ export function deriveServerGraph(projects: Project[]): ServerGraph {
       const key = documentKey(project.id, dialog.id);
       nodes.push({ key, projectId: project.id, docId: dialog.id, kind: "dialog", ...DIALOG_BOX });
       addTarget(project, dialog.id, key);
+    }
+    // A module's kind: a node per Document, a target like any Document (a `document_ref`
+    // of that kind may point at it).
+    for (const { kind, doc } of allDocuments(project)) {
+      if (CORE.has(kind)) continue;
+      const key = documentKey(project.id, doc.id);
+      nodes.push({ key, projectId: project.id, docId: doc.id, kind, ...documentBoxSize(kind) });
+      addTarget(project, doc.id, key);
     }
   }
 

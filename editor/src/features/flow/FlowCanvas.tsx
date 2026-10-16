@@ -1,5 +1,5 @@
-import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import { RevealField } from "@/components/RevealField";
+import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import { assetPreviewUrl } from "@/domain/asset";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { ItemEditor } from "@/features/canvas/ItemEditor";
@@ -45,6 +45,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
+import { documentKindContribution } from "@artisan/editor-sdk";
 import {
   DndContext,
   type DragEndEvent,
@@ -62,12 +63,12 @@ import { useTranslation } from "react-i18next";
 import { previewItem } from "@/features/canvas/itemValuePreview";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { ItemBindingEditor } from "./ItemBindingEditor";
-import { conditionsSummary } from "./labels";
 import {
   CommandStepPseudocode,
   DialogButtonStepPseudocode,
   ElementClickHandlersPseudocode,
 } from "./PseudocodeView";
+import { conditionsSummary } from "./labels";
 
 interface FlowCanvasProps {
   projectId: ProjectId;
@@ -112,21 +113,49 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
           <ProjectProperties project={project} />
         </div>
       );
-    case "command": {
-      const command = commandsOf(project).find((c) => c.id === ctx.id)!;
-      return (
-        <div className="h-full overflow-hidden">
-          <CommandEditor projectId={projectId} command={command} />
-        </div>
-      );
-    }
-    case "dialog": {
-      const dialog = dialogsOf(project).find((d) => d.id === ctx.id)!;
-      return (
-        <div className="h-full overflow-hidden">
-          <DialogEditor projectId={projectId} dialog={dialog} />
-        </div>
-      );
+    case "command":
+    case "dialog":
+    case "menu":
+    case "document": {
+      // The Properties panel shows the `component` of the selected Document's kind, read
+      // from the kind registry (ADR `extensible-document-kinds`, lot 5). The core kinds
+      // register theirs like a module would; when their modules are not registered (a
+      // surface rendered on its own), their built-in editors still answer.
+      const kind =
+        ctx.kind === "menu" ? "menu" : ctx.kind === "document" ? ctx.documentKind : ctx.kind;
+      const id = ctx.kind === "menu" ? ctx.menuId : ctx.id;
+      const doc = documentsOf(project, kind).find((d) => d.id === id);
+      if (!doc) return <EmptyHint label={t("projectPanel.noEditor", { kind })} />;
+      const View = documentKindContribution(kind)?.component;
+      if (View) {
+        return (
+          <div className="h-full min-h-0 overflow-y-auto">
+            <View projectId={projectId} documentId={id} document={doc} />
+          </div>
+        );
+      }
+      if (kind === "command") {
+        return (
+          <div className="h-full overflow-hidden">
+            <CommandEditor projectId={projectId} command={doc as Command} />
+          </div>
+        );
+      }
+      if (kind === "dialog") {
+        return (
+          <div className="h-full overflow-hidden">
+            <DialogEditor projectId={projectId} dialog={doc as Dialog} />
+          </div>
+        );
+      }
+      if (kind === "menu") {
+        return (
+          <div className="h-full overflow-y-auto p-3">
+            <MenuProperties projectId={projectId} menu={doc as Menu} />
+          </div>
+        );
+      }
+      return <EmptyHint label={t("projectPanel.noEditor", { kind })} />;
     }
     case "element": {
       const menu = menusOf(project).find((m) => m.id === ctx.menuId)!;
@@ -134,14 +163,6 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
       return (
         <div className="h-full overflow-hidden">
           <ElementEditor projectId={projectId} menu={menu} element={el} />
-        </div>
-      );
-    }
-    case "menu": {
-      const menu = menusOf(project).find((m) => m.id === ctx.menuId)!;
-      return (
-        <div className="h-full overflow-y-auto p-3">
-          <MenuProperties projectId={projectId} menu={menu} />
         </div>
       );
     }
@@ -415,7 +436,7 @@ export function stateDropId(menuId: MenuId, elementId: ElementId, stateIndex: nu
  * users can paste a full `hdb:…`/`eyJ…` and the select snaps to match.
  */
 export { HeadField } from "./ItemHeadField";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { documentsOf, menusOf } from "@/domain/documents";
 
 interface StateMaterialIconProps {
   projectId: ProjectId;
@@ -1113,7 +1134,7 @@ function PositionsField({
 
 // Command editor
 
-function CommandEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
+export function CommandEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
   const setCommandField = useAccountStore((s) => s.setCommandField);
   const setCommandAliases = useAccountStore((s) => s.setCommandAliases);
   const { t } = useTranslation();
@@ -1434,7 +1455,7 @@ function DialogIdField({ projectId, dialogId }: { projectId: ProjectId; dialogId
   );
 }
 
-function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dialog }) {
+export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dialog: Dialog }) {
   const { t } = useTranslation();
   const setDialogTitle = useAccountStore((s) => s.setDialogTitle);
   const setDialogField = useAccountStore((s) => s.setDialogField);

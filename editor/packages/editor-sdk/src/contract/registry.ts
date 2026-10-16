@@ -1,4 +1,4 @@
-import type { FrontendModule } from "./types";
+import type { DocumentKindContribution, FrontendModule } from "./types";
 
 const modules: FrontendModule[] = [];
 const ids = new Set<string>();
@@ -7,8 +7,26 @@ export function registerModule(mod: FrontendModule): void {
   if (ids.has(mod.id)) {
     throw new Error(`duplicate module id: ${mod.id}`);
   }
+  for (const doc of mod.documents ?? []) {
+    const other = documentKindContribution(doc.kind);
+    if (other)
+      throw new Error(`document kind ${doc.kind} is already contributed by another module`);
+  }
   ids.add(mod.id);
   modules.push(mod);
+}
+
+/** Every Document kind contributed by a registered module, in registration order. */
+export function listDocumentKindContributions(): DocumentKindContribution[] {
+  return modules.flatMap((m) => m.documents ?? []);
+}
+
+export function documentKindContribution(kind: string): DocumentKindContribution | undefined {
+  for (const m of modules) {
+    const doc = m.documents?.find((d) => d.kind === kind);
+    if (doc) return doc;
+  }
+  return undefined;
 }
 
 export function listModules(): readonly FrontendModule[] {

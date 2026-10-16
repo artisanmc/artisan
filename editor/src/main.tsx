@@ -5,11 +5,13 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
 import "./styles/globals.css";
-import { detectInitialTheme } from "@/state/themeStore";
-import { registerModule, listModules } from "@artisan/editor-sdk";
-import { menusModule } from "./modules/menus";
-import { commandsModule } from "./modules/commands";
+import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { installRandomUuidFallback } from "@/lib/randomUuid";
+import { detectInitialTheme } from "@/state/themeStore";
+import { listModules } from "@artisan/editor-sdk";
+import { commandsModule } from "./modules/commands";
+import { dialogsModule } from "./modules/dialogs";
+import { menusModule } from "./modules/menus";
 
 installRandomUuidFallback();
 
@@ -17,10 +19,12 @@ installRandomUuidFallback();
 document.documentElement.dataset.theme = detectInitialTheme();
 
 // Core modules only — external modules (boutique, quests…) are lazy-loaded and
-// presence-gated by modulesStore via src/distribution/modules.manifest.ts.
+// presence-gated by modulesStore via src/distribution/modules.manifest.ts. A module's
+// Document kinds enter the host registries as it is registered.
 if (listModules().length === 0) {
-  registerModule(menusModule);
-  registerModule(commandsModule);
+  registerEditorModule(menusModule);
+  registerEditorModule(commandsModule);
+  registerEditorModule(dialogsModule);
 }
 
 const router = createRouter({ routeTree });

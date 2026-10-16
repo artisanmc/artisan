@@ -1,19 +1,18 @@
+import { listDocumentKinds } from "@/domain/documentKinds";
+import { commandsOf, dialogsOf, documentsOf, menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import type { ProjectId } from "@/domain/types";
 import { BoardGroupFrames } from "@/features/canvas/BoardGroupFrames";
 import { CommandGroup } from "@/features/canvas/CommandGroup";
 import { DialogGroup } from "@/features/canvas/DialogGroup";
+import { DocumentGroup } from "@/features/canvas/DocumentGroup";
 import { MenuGroup } from "@/features/canvas/MenuGroup";
 import { GUTTER_LABEL_HEIGHT } from "@/features/canvas/arrangeBoard";
 import type { Edge } from "@/features/canvas/deriveEdges";
 import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
 import { fitViewport } from "@/features/canvas/focusViewport";
 import { type BoardGroup, groupEdges, serverBoard } from "@/features/canvas/groupedBoard";
-import {
-  type BoardNode,
-  type DocumentKind,
-  deriveServerGraph,
-} from "@/features/canvas/serverGraph";
+import { type BoardNode, deriveServerGraph } from "@/features/canvas/serverGraph";
 import { usePanZoom } from "@/features/canvas/usePanZoom";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
@@ -22,17 +21,23 @@ import { type ProjectSummary, listServers } from "@/lib/api/servers";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useCssVar } from "@/lib/themeColors";
 import { useUiStore } from "@/state/uiStore";
+import { documentKindContribution } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
 import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Arrow, Stage as KonvaStage, Layer, Rect, Text } from "react-konva";
 import { type BoardFilter, filterBoard, parseBoardFilter } from "./boardFilter";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
-import { listDocumentKinds } from "@/domain/documentKinds";
 
 const ROUTE = "/servers/$serverId/canvas" as const;
-const KINDS: DocumentKind[] = listDocumentKinds().map((def) => def.kind);
+
+/** A kind's chip label: the host's for the core kinds, the contribution's for a module's. */
+function kindLabel(kind: string, t: TFunction): string {
+  const own = `serverCanvas.kinds.${kind}`;
+  const label = documentKindContribution(kind)?.label ?? kind;
+  return t(own, { defaultValue: t(label, { defaultValue: label }) });
+}
 
 export const validateServerCanvasSearch = (search: Record<string, unknown>): BoardFilter =>
   parseBoardFilter(search);
@@ -172,14 +177,14 @@ export function ServerCanvasPage() {
           >
             {t("serverCanvas.allKinds")}
           </button>
-          {KINDS.map((kind) => (
+          {listDocumentKinds().map(({ kind }) => (
             <button
               key={kind}
               type="button"
               className={`chip${filter.kind === kind ? " is-active" : ""}`}
               onClick={() => setFilter({ ...filter, kind })}
             >
-              {t(`serverCanvas.kinds.${kind}`)}
+              {kindLabel(kind, t)}
             </button>
           ))}
           <input
@@ -426,9 +431,26 @@ function Board({
                 />
               ) : null;
             }
-            const dialog = dialogsOf(project).find((d) => d.id === n.docId);
-            return dialog ? (
-              <DialogGroup key={n.key} projectId={project.id} dialog={dialog} position={position} />
+            if (n.kind === "dialog") {
+              const dialog = dialogsOf(project).find((d) => d.id === n.docId);
+              return dialog ? (
+                <DialogGroup
+                  key={n.key}
+                  projectId={project.id}
+                  dialog={dialog}
+                  position={position}
+                />
+              ) : null;
+            }
+            const doc = documentsOf(project, n.kind).find((d) => d.id === n.docId);
+            return doc ? (
+              <DocumentGroup
+                key={n.key}
+                project={project}
+                kind={n.kind}
+                doc={doc}
+                position={position}
+              />
             ) : null;
           })}
         </Layer>
