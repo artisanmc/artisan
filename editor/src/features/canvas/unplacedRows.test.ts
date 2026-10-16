@@ -18,10 +18,7 @@ const ROWS = [
 
 describe("unplacedRows", () => {
   it("renders only the rows that no placement claims", () => {
-    const out = unplacedRows(
-      { keyField: "id", placements: [{ key: "cle_rare" }] },
-      ROWS,
-    );
+    const out = unplacedRows({ keyField: "id", placements: [{ key: "cle_rare" }] }, ROWS);
     expect(out.map((r) => r.id)).toEqual(["cle_legendaire", "cle_cosmetique"]);
   });
 
@@ -39,10 +36,7 @@ describe("unplacedRows", () => {
   /** A placement matching no row (neighbouring category, deleted row) must
    *  hide nothing here — it lives on, silently. */
   it("ignores placements without a matching row", () => {
-    const out = unplacedRows(
-      { keyField: "id", placements: [{ key: "kit_mineur" }] },
-      ROWS,
-    );
+    const out = unplacedRows({ keyField: "id", placements: [{ key: "kit_mineur" }] }, ROWS);
     expect(out).toHaveLength(3);
   });
 

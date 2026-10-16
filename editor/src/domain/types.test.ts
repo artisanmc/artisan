@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { Account, Action, Condition, Element, Menu, Project } from "./types";
+import type { Action, Condition, Element, Menu, OpenProjects, Project } from "./types";
 
 describe("domain types — compile-time shape", () => {
-  it("an Account composes Projects", () => {
-    const account: Account = {
-      id: "acc_1" as Account["id"],
+  it("the open Projects compose Projects", () => {
+    const openProjects: OpenProjects = {
       projects: [],
       projectOrder: [],
     };
-    expect(account.projects).toHaveLength(0);
+    expect(openProjects.projects).toHaveLength(0);
   });
 
   it("an open_menu Action carries a MenuId", () => {
@@ -67,12 +66,18 @@ describe("Action union — context mutation variants", () => {
   });
 
   it("constructs set_arg_cycle_next", () => {
-    const a: Action = { name: "set_arg_cycle_next", value: { arg: "current_tag", list: "categories" } };
+    const a: Action = {
+      name: "set_arg_cycle_next",
+      value: { arg: "current_tag", list: "categories" },
+    };
     expect(a.name).toBe("set_arg_cycle_next");
   });
 
   it("constructs set_arg_cycle_prev", () => {
-    const a: Action = { name: "set_arg_cycle_prev", value: { arg: "current_tag", list: "categories" } };
+    const a: Action = {
+      name: "set_arg_cycle_prev",
+      value: { arg: "current_tag", list: "categories" },
+    };
     expect(a.name).toBe("set_arg_cycle_prev");
   });
 });

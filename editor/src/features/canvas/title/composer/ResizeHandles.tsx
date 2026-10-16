@@ -105,18 +105,21 @@ export function ResizeHandles({ x, y, width, height, onResize, onResizeEnd }: Re
     [x, y, width, height],
   );
 
-  const beginDrag = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-    // Stop the anchor drag from bubbling to the parent LayerNode Group — if
-    // it bubbles, the Group's onDragEnd reads the anchor's final position as
-    // the layer's new x/y, teleporting the layer to wherever the cursor went.
-    e.cancelBubble = true;
-    dragStartRef.current = {
-      origWidth: width,
-      origHeight: height,
-      origX: x,
-      origY: y,
-    };
-  }, [x, y, width, height]);
+  const beginDrag = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      // Stop the anchor drag from bubbling to the parent LayerNode Group — if
+      // it bubbles, the Group's onDragEnd reads the anchor's final position as
+      // the layer's new x/y, teleporting the layer to wherever the cursor went.
+      e.cancelBubble = true;
+      dragStartRef.current = {
+        origWidth: width,
+        origHeight: height,
+        origX: x,
+        origY: y,
+      };
+    },
+    [x, y, width, height],
+  );
 
   const handleDragMove = useCallback(
     (corner: Corner) => (e: Konva.KonvaEventObject<DragEvent>) => {

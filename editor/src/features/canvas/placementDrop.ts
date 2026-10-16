@@ -1,8 +1,8 @@
 import { menusOf } from "@/domain/documents";
 import type { ElementId, MenuId, Placement, ProjectId } from "@/domain/types";
 import { lookupPath } from "@/lib/placeholders";
-import { useAccountStore } from "@/state/accountStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { buildPreviewScope } from "./menuPreviewScope";
@@ -23,8 +23,8 @@ export function pinPlacementRow(opts: {
   position: number;
 }): void {
   const { projectId, menuId, elementId, key, position } = opts;
-  const account = useAccountStore.getState();
-  const project = account.account.projects.find((p) => p.id === projectId);
+  const openProjects = useProjectsStore.getState();
+  const project = openProjects.openProjects.projects.find((p) => p.id === projectId);
   const menu = menusOf(project).find((m) => m.id === menuId);
   const el = menu?.layers.flatMap((l) => l.elements).find((e) => e.id === elementId);
   if (!project || !menu || !el?.places) return;
@@ -50,5 +50,5 @@ export function pinPlacementRow(opts: {
   if (cachedDisplay && Object.keys(cachedDisplay).length > 0)
     placement.cachedDisplay = cachedDisplay;
 
-  account.setElementPlacement({ projectId, menuId, elementId, placement });
+  openProjects.setElementPlacement({ projectId, menuId, elementId, placement });
 }

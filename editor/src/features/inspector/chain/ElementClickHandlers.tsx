@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ClickHandler, ClickType, ElementId, MenuId, ProjectId } from "@/domain/types";
-import { type AppearanceTarget, useAccountStore } from "@/state/accountStore";
+import { type AppearanceTarget, useProjectsStore } from "@/state/projectsStore";
 import { useTranslation } from "react-i18next";
 import { ActionChainEditor } from "./StepTree";
 import { CLICK_TYPE_ORDER, clickTypeLabel } from "./labels";
@@ -35,8 +35,8 @@ export function ElementClickHandlers({
   const { t } = useTranslation();
   const populated = CLICK_TYPE_ORDER.filter((ct) => click?.[ct]);
   const unpopulated = CLICK_TYPE_ORDER.filter((ct) => !click?.[ct]);
-  const addHandler = useAccountStore((s) => s.addElementClickHandler);
-  const removeHandler = useAccountStore((s) => s.removeElementClickHandler);
+  const addHandler = useProjectsStore((s) => s.addElementClickHandler);
+  const removeHandler = useProjectsStore((s) => s.removeElementClickHandler);
   const target = targetOf(menuId, elementId);
 
   return (

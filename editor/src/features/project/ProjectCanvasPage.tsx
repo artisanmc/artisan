@@ -1,7 +1,6 @@
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import { menusOf } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
-import { DeleteProjectDialog } from "@/features/account/DeleteProjectDialog";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import { Stage } from "@/features/canvas/Stage";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
@@ -15,6 +14,7 @@ import {
 } from "@/features/onboarding/editorTourRuntime";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
+import { DeleteProjectDialog } from "@/features/project/DeleteProjectDialog";
 import { ProjectHistory } from "@/features/project/ProjectHistory";
 import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
 import { ProjectTopBarControls } from "@/features/project/ProjectTopBarControls";
@@ -84,16 +84,16 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const authLoading = useAuthStore((s) => s.isLoading);
   const tourState = useEditorTourState();
   const tourPresenting = useTourPresentation((s) => s.step !== null);
-  // The tour does not depend on the server: its progress lives in the account or
+  // The tour does not depend on the server: its progress lives in the player's profile or
   // the browser, and it shows the screen on display. Requiring a reachable
   // server silenced it ("Restart the tour" did nothing) on a project opened
   // from the hub's copy.
   const tourReady = !authLoading && !!principalId && !!project && !loadError;
-  const accountId = currentUser?.id ?? null;
+  const playerId = currentUser?.id ?? null;
   useEffect(() => {
     if (!pId) return;
-    return mountEditorTour({ accountId, ready: tourReady });
-  }, [accountId, tourReady, pId]);
+    return mountEditorTour({ playerId, ready: tourReady });
+  }, [playerId, tourReady, pId]);
   const navigate = useNavigate();
   const { tab = "overview", doc } = useSearch({ strict: false }) as ProjectSearch;
   useProjectDeepLinks({ project, urlId, projectId, serverId, documentId, doc });

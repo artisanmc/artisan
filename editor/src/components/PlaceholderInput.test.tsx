@@ -1,8 +1,8 @@
 import "@/i18n";
+import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { PlaceholderInput } from "./PlaceholderInput";
-import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 
 const entries: PlaceholderEntry[] = [
   { path: "player", type: "player", sample: "Steve", origin: "context" },
@@ -21,7 +21,14 @@ describe("PlaceholderInput", () => {
   it("opens pending % suggestions when the catalog arrives, then hides them offline", () => {
     const { rerender } = render(<PlaceholderInput value="" onChange={() => {}} entries={[]} />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "%" } });
-    rerender(<PlaceholderInput value="%" onChange={() => {}} entries={[]} papiPlaceholders={[{ placeholder: "%player_name%", expansion: "player" }]} />);
+    rerender(
+      <PlaceholderInput
+        value="%"
+        onChange={() => {}}
+        entries={[]}
+        papiPlaceholders={[{ placeholder: "%player_name%", expansion: "player" }]}
+      />,
+    );
     expect(screen.getByText("%player_name%")).toBeInTheDocument();
     rerender(<PlaceholderInput value="%" onChange={() => {}} entries={[]} />);
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
@@ -30,12 +37,30 @@ describe("PlaceholderInput", () => {
   it("keeps manual completed tokens closed and inserts at the textarea caret without dropping the suffix", () => {
     const calls: string[] = [];
     const papiPlaceholders = [{ placeholder: "%player_name%", expansion: "player" }];
-    const { rerender } = render(<PlaceholderInput multiline value="" onChange={(v) => calls.push(v)} entries={entries} papiPlaceholders={papiPlaceholders} />);
+    const { rerender } = render(
+      <PlaceholderInput
+        multiline
+        value=""
+        onChange={(v) => calls.push(v)}
+        entries={entries}
+        papiPlaceholders={papiPlaceholders}
+      />,
+    );
     const input = screen.getByRole("combobox") as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: "%player_name%" } });
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    fireEvent.change(input, { target: { value: "%player_name%\n%pla suffix", selectionStart: 18, selectionEnd: 18 } });
-    rerender(<PlaceholderInput multiline value={"%player_name%\n%pla suffix"} onChange={(v) => calls.push(v)} entries={entries} papiPlaceholders={papiPlaceholders} />);
+    fireEvent.change(input, {
+      target: { value: "%player_name%\n%pla suffix", selectionStart: 18, selectionEnd: 18 },
+    });
+    rerender(
+      <PlaceholderInput
+        multiline
+        value={"%player_name%\n%pla suffix"}
+        onChange={(v) => calls.push(v)}
+        entries={entries}
+        papiPlaceholders={papiPlaceholders}
+      />,
+    );
     input.setSelectionRange(18, 18);
     fireEvent.mouseDown(screen.getByRole("option", { name: /%player_name%/ }));
     expect(calls.at(-1)).toBe("%player_name%\n%player_name% suffix");
@@ -47,10 +72,24 @@ describe("PlaceholderInput", () => {
       { placeholder: "%player_name%", expansion: "player" },
       { placeholder: "%vault_eco_balance%", expansion: "vault" },
     ];
-    const { rerender } = render(<PlaceholderInput value="" onChange={(v) => calls.push(v)} entries={entries} papiPlaceholders={papiPlaceholders} />);
+    const { rerender } = render(
+      <PlaceholderInput
+        value=""
+        onChange={(v) => calls.push(v)}
+        entries={entries}
+        papiPlaceholders={papiPlaceholders}
+      />,
+    );
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "Hello %pla" } });
-    rerender(<PlaceholderInput value="Hello %pla" onChange={(v) => calls.push(v)} entries={entries} papiPlaceholders={papiPlaceholders} />);
+    rerender(
+      <PlaceholderInput
+        value="Hello %pla"
+        onChange={(v) => calls.push(v)}
+        entries={entries}
+        papiPlaceholders={papiPlaceholders}
+      />,
+    );
     expect(screen.getByText("%player_name%")).toBeInTheDocument();
     expect(screen.queryByText("%vault_eco_balance%")).not.toBeInTheDocument();
     expect(screen.queryByText("quest.name")).not.toBeInTheDocument();
@@ -123,7 +162,9 @@ describe("PlaceholderInput", () => {
   });
 
   it("typing } closes the popup without auto-insertion", () => {
-    const { rerender } = render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
+    const { rerender } = render(
+      <PlaceholderInput value="" onChange={() => {}} entries={entries} />,
+    );
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "{" } });
     rerender(<PlaceholderInput value="{" onChange={() => {}} entries={entries} />);
@@ -146,7 +187,9 @@ describe("PlaceholderInput", () => {
   });
 
   it("backspacing past the original { closes the popup", () => {
-    const { rerender } = render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
+    const { rerender } = render(
+      <PlaceholderInput value="" onChange={() => {}} entries={entries} />,
+    );
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "{" } });
     rerender(<PlaceholderInput value="{" onChange={() => {}} entries={entries} />);
@@ -242,7 +285,14 @@ describe("PlaceholderInput popup position", () => {
     render(<PlaceholderInput value="" onChange={() => {}} entries={entries} />);
     const input = screen.getByRole("combobox") as HTMLInputElement;
     input.getBoundingClientRect = () =>
-      ({ left: window.innerWidth - 50, right: window.innerWidth, top: 30, bottom: 66, width: 50, height: 36 }) as DOMRect;
+      ({
+        left: window.innerWidth - 50,
+        right: window.innerWidth,
+        top: 30,
+        bottom: 66,
+        width: 50,
+        height: 36,
+      }) as DOMRect;
     fireEvent.change(input, { target: { value: "{" } });
     const popup = screen.getByRole("listbox");
     expect(Number.parseFloat(popup.style.left) + 268).toBeLessThanOrEqual(window.innerWidth);

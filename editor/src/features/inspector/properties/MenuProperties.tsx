@@ -22,7 +22,7 @@ import { positionCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { parsePositions } from "@/lib/positions";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { Library as LibraryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -62,7 +62,7 @@ export function rowModelLabel(ref: string): string {
 }
 
 export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
-  const setMenuField = useAccountStore((s) => s.setMenuField);
+  const setMenuField = useProjectsStore((s) => s.setMenuField);
   const [rowsError, setRowsError] = useState<string | null>(null);
   const { t } = useTranslation();
 
@@ -215,7 +215,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
 }
 
 function MenuIdField({ projectId, menuId }: { projectId: ProjectId; menuId: MenuId }) {
-  const setMenuId = useAccountStore((s) => s.setMenuId);
+  const setMenuId = useProjectsStore((s) => s.setMenuId);
   const [draft, setDraft] = useState<string>(menuId);
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
@@ -272,9 +272,9 @@ function MenuIdField({ projectId, menuId }: { projectId: ProjectId; menuId: Menu
 }
 
 function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: Menu }) {
-  const addInput = useAccountStore((s) => s.addMenuContextInput);
-  const setInput = useAccountStore((s) => s.setMenuContextInput);
-  const removeInput = useAccountStore((s) => s.removeMenuContextInput);
+  const addInput = useProjectsStore((s) => s.addMenuContextInput);
+  const setInput = useProjectsStore((s) => s.setMenuContextInput);
+  const removeInput = useProjectsStore((s) => s.removeMenuContextInput);
   const inputs = menu.contextInputs ?? [];
   const { t } = useTranslation();
 
@@ -508,7 +508,7 @@ function SourceRefInputRow({
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const serverSources = useServerDataSourcesStore((s) => s.sources);
 
   const refLabel = (() => {

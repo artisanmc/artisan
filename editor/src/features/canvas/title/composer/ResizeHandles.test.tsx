@@ -457,9 +457,7 @@ describe("ResizeHandles", () => {
       />,
     );
     // Re-fetch the SE anchor (new DOM node after rerender).
-    se = screen
-      .getAllByTestId("konva-rect")
-      .find((a) => a.getAttribute("data-corner") === "se")!;
+    se = screen.getAllByTestId("konva-rect").find((a) => a.getAttribute("data-corner") === "se")!;
 
     onResize.mockClear();
     onResizeEnd.mockClear();
@@ -476,9 +474,7 @@ describe("ResizeHandles", () => {
         onResizeEnd={onResizeEnd}
       />,
     );
-    se = screen
-      .getAllByTestId("konva-rect")
-      .find((a) => a.getAttribute("data-corner") === "se")!;
+    se = screen.getAllByTestId("konva-rect").find((a) => a.getAttribute("data-corner") === "se")!;
 
     // Target (300, 120). Opposite NW=(0,0). dx=300, dy=120.
     //   With NEW origin (200×80, aspect=2.5): dx/origW=1.5, dy/origH=1.5

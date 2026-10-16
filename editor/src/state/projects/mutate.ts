@@ -17,7 +17,7 @@ import type {
 } from "@/domain/types";
 import { produce } from "immer";
 import type { StoreApi } from "zustand";
-import type { AccountState, AppearanceTarget } from "./types";
+import type { AppearanceTarget, ProjectsState } from "./types";
 
 /**
  * The body of a project-internal action. It edits the live immer draft it is handed.
@@ -37,12 +37,12 @@ export interface MutateOptions {
  * helper runs one `produce` over the store, finds its target in the Project, does
  * nothing at all when the target is missing, runs the body, then stamps the Project's
  * `updatedAt` unless the body returned `false`. Undo needs nothing more: the temporal
- * middleware records a step whenever `account` changed.
+ * middleware records a step whenever `openProjects` changed.
  */
 export interface ProjectMutators {
   mutateProject: (
     projectId: ProjectId,
-    fn: Mutation<[project: Project, draft: AccountState]>,
+    fn: Mutation<[project: Project, draft: ProjectsState]>,
     options?: MutateOptions,
   ) => void;
   mutateMenu: (
@@ -93,11 +93,11 @@ export function findElement(menu: Menu, elementId: ElementId): Element | undefin
   return undefined;
 }
 
-export function createProjectMutators(set: StoreApi<AccountState>["setState"]): ProjectMutators {
+export function createProjectMutators(set: StoreApi<ProjectsState>["setState"]): ProjectMutators {
   const mutateProject: ProjectMutators["mutateProject"] = (projectId, fn, options) =>
     set(
-      produce((draft: AccountState) => {
-        const project = draft.account.projects.find((p) => p.id === projectId);
+      produce((draft: ProjectsState) => {
+        const project = draft.openProjects.projects.find((p) => p.id === projectId);
         if (!project) return;
         // The recipe itself returns nothing: a returned value would replace the state.
         if (fn(project, draft) === false || options?.touch === false) return;

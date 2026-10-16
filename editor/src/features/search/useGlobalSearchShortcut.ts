@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { useUiStore } from "@/state/uiStore";
+import { useEffect } from "react";
 
 /** Opens the search palette on Cmd/Ctrl+K (global, even from an input). */
 export function useGlobalSearchShortcut(): void {

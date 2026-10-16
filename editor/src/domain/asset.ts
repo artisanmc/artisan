@@ -4,7 +4,12 @@ export type AssetType = "texture" | "glyph" | "font";
 export type AssetId = string;
 export type AssetUsage = "button" | "menu";
 /** Container textures moved to the server config (ADR `server-config-from-editor`). */
-type LegacyAssetUsage = "background" | "decoration" | "chest_texture" | "hopper_texture" | "dispenser_texture";
+type LegacyAssetUsage =
+  | "background"
+  | "decoration"
+  | "chest_texture"
+  | "hopper_texture"
+  | "dispenser_texture";
 
 export interface FontMeta {
   namespace: string;
@@ -38,7 +43,6 @@ export interface Asset {
   createdAt: string;
   updatedAt: string;
 }
-
 
 /** URL to fetch the raw PNG of an asset for preview. */
 export function assetPreviewUrl(asset: Asset): string {

@@ -1,5 +1,5 @@
 import type { ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect, useMemo } from "react";
@@ -22,7 +22,7 @@ export interface Inspector {
 export function useInspector(projectId: ProjectId): Inspector {
   const ids = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const projectSettingsOpen = useUiStore((s) => s.projectSettingsOpen);
   const setProjectSettingsOpen = useUiStore((s) => s.setProjectSettingsOpen);
 

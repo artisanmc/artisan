@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import type { ContextInput, Menu, ProjectId } from "@/domain/types";
 import { resolveSourceRef } from "@/features/canvas/menuPreviewScope";
 import { findPreviewCallContexts } from "@/features/canvas/previewCallContexts";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useId, useState } from "react";
@@ -22,7 +22,7 @@ type SourceRefInput = Extract<ContextInput, { kind: "sourceRef" }>;
 export function PreviewContextSection({ menu, projectId }: { menu: Menu; projectId: ProjectId }) {
   const { t } = useTranslation();
   const fieldId = useId();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const snapshots = useServerSnapshotsStore((s) => s.rowsByRef);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const setMenuPreviewArg = useUiStore((s) => s.setMenuPreviewArg);

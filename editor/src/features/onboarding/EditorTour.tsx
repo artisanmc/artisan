@@ -38,11 +38,7 @@ function visibleTarget(names: string[]) {
   return null;
 }
 
-export function EditorTour({
-  state,
-  storage,
-  actions,
-}: EditorTourProps) {
+export function EditorTour({ state, storage, actions }: EditorTourProps) {
   const { t } = useTranslation();
   const [blocked, setBlocked] = useState(hasPriorityDialog);
   const [target, setTarget] = useState<HTMLElement | null>(null);

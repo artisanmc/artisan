@@ -1,6 +1,6 @@
+import { projectId } from "@/domain/ids";
 import { describe, expect, it } from "vitest";
 import { dialogV1ToDomain } from "./dialogV1ToDomain";
-import { projectId } from "@/domain/ids";
 
 const opts = { projectId: projectId("p1"), lang: "en" };
 
@@ -19,7 +19,9 @@ describe("dialogV1ToDomain", () => {
     expect(dialog.projectId).toBe("p1");
     expect(dialog.canCloseWithEscape).toBe(true);
     expect(i18nKeys[dialog.title.key]).toEqual({ en: "Sure?" });
-    expect(dialog.buttons[0]!.steps).toEqual([{ kind: "action", action: { name: "close_dialog", value: null } }]);
+    expect(dialog.buttons[0]!.steps).toEqual([
+      { kind: "action", action: { name: "close_dialog", value: null } },
+    ]);
     expect(i18nKeys[dialog.buttons[0]!.label.key]).toEqual({ en: "Yes" });
   });
 
@@ -42,7 +44,12 @@ describe("dialogV1ToDomain", () => {
     expect(dialog.canCloseWithEscape).toBe(false);
     expect(dialog.body[0]).toMatchObject({ type: "text" });
     expect(dialog.body[1]).toEqual({ type: "item", material: "DIAMOND", count: 3 });
-    expect(dialog.inputs[0]).toMatchObject({ type: "text", id: "name", default: "x", maxLength: 16 });
+    expect(dialog.inputs[0]).toMatchObject({
+      type: "text",
+      id: "name",
+      default: "x",
+      maxLength: 16,
+    });
     expect(dialog.buttons[0]!.steps).toEqual([]);
   });
 
@@ -55,7 +62,13 @@ describe("dialogV1ToDomain", () => {
         inputs: [
           { id: "b", type: "bool", label: "B", default: "true" },
           { id: "n", type: "number_range", label: "N", min: 0, max: 10, default: "5" },
-          { id: "o", type: "single_option", label: "O", options: [{ value: "a", label: "A" }], default: "a" },
+          {
+            id: "o",
+            type: "single_option",
+            label: "O",
+            options: [{ value: "a", label: "A" }],
+            default: "a",
+          },
         ],
         buttons: [{ id: "ok", label: "OK" }],
       },
@@ -71,7 +84,9 @@ describe("dialogV1ToDomain", () => {
   it("drops an unknown input type and flags it, instead of coercing to text", () => {
     const { dialog, unsupported } = dialogV1ToDomain(
       {
-        schema: "dialog/v1", id: "d", title: "t",
+        schema: "dialog/v1",
+        id: "d",
+        title: "t",
         inputs: [
           { id: "c", type: "color_picker", label: "C" },
           { id: "ok", type: "text", label: "OK", default: "", max_length: 8 },
@@ -88,8 +103,13 @@ describe("dialogV1ToDomain", () => {
   it("drops an unknown body type and flags it", () => {
     const { dialog, unsupported } = dialogV1ToDomain(
       {
-        schema: "dialog/v1", id: "d", title: "t",
-        body: [{ type: "hologram", data: 1 }, { type: "text", text: "hi" }],
+        schema: "dialog/v1",
+        id: "d",
+        title: "t",
+        body: [
+          { type: "hologram", data: 1 },
+          { type: "text", text: "hi" },
+        ],
         buttons: [{ id: "ok", label: "OK" }],
       },
       opts,

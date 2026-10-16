@@ -37,10 +37,10 @@ vi.mock("@tanstack/react-router", async () => {
 vi.mock("@/state/authStore", () => ({
   useAuthStore: (sel: any) => sel({ currentUser: { id: "u1" } }),
 }));
-vi.mock("@/state/accountStore", () => ({
-  useAccountStore: (sel: any) =>
+vi.mock("@/state/projectsStore", () => ({
+  useProjectsStore: (sel: any) =>
     sel({
-      account: { projects: [], projectOrder: [] },
+      openProjects: { projects: [], projectOrder: [] },
       importProject: vi.fn(),
       reorderProjects: vi.fn(),
       setAppearanceField: vi.fn(),

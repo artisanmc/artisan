@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { makeStepConverter, type ConverterCtx } from "./actionV1ToDomain";
 import type { I18nKey, LText } from "@/domain/types";
+import { describe, expect, it } from "vitest";
+import { type ConverterCtx, makeStepConverter } from "./actionV1ToDomain";
 
 function ctx(): ConverterCtx & {
   unsupported: string[];

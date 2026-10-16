@@ -6,7 +6,7 @@ import { assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { patchAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -55,8 +55,8 @@ export function AssetPicker({
   const [error, setError] = useState<string | null>(null);
   const loading = useAssetStore((s) => s.loading);
   const loadError = useAssetStore((s) => s.error);
-  const project = useAccountStore((s) =>
-    s.account.projects.find((entry) => entry.id === projectId),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((entry) => entry.id === projectId),
   );
   const selectionEpoch = useRef(0);
   // A completed request may update its draft, but must not place into a dismissed picker.

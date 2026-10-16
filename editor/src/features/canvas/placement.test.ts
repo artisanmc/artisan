@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { Appearance, Element, Placement, Project } from "@/domain/types";
+import { describe, expect, it } from "vitest";
 import {
   capturePlacementCache,
   matchPlacementRow,

@@ -1,3 +1,4 @@
+import { mutableCommands, mutableMenus } from "@/domain/documents";
 import type {
   CommandId,
   DataSourceId,
@@ -10,7 +11,6 @@ import type {
 } from "@/domain/types";
 import { describe, expect, it, vi } from "vitest";
 import { compute } from "./compute";
-import { mutableCommands, mutableMenus } from "@/domain/documents";
 
 const emptyProject = (): Project => ({
   id: "p1" as Project["id"],

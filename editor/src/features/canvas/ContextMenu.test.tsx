@@ -1,8 +1,8 @@
+import type { ProjectId } from "@/domain/types";
+import { useProjectsStore } from "@/state/projectsStore";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { ContextMenu } from "./ContextMenu";
 
 const PID = "p1" as ProjectId;
@@ -27,8 +27,8 @@ const emptyTargetState = {
 };
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: { id: "a" as any, projectOrder: [PID], projects: [] },
+  useProjectsStore.setState({
+    openProjects: { projectOrder: [PID], projects: [] },
   } as any);
 });
 

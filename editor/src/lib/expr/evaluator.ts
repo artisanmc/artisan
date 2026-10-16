@@ -102,12 +102,7 @@ export function evaluate(node: AstNode, scope: Scope): unknown {
   }
 }
 
-function invokeMethod(
-  target: unknown,
-  method: string,
-  args: unknown[],
-  scope: Scope,
-): unknown {
+function invokeMethod(target: unknown, method: string, args: unknown[], scope: Scope): unknown {
   switch (method) {
     case "join": {
       if (!Array.isArray(target)) return "";
@@ -143,7 +138,9 @@ function invokeMethod(
       if (!Array.isArray(target)) return [];
       const field = args[0] === undefined ? "" : String(args[0]);
       return target.map((x) =>
-        x !== null && typeof x === "object" ? (x as Record<string, unknown>)[field] ?? null : null,
+        x !== null && typeof x === "object"
+          ? ((x as Record<string, unknown>)[field] ?? null)
+          : null,
       );
     }
     case "until": {

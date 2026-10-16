@@ -1,9 +1,9 @@
+import { menusOf } from "@/domain/documents";
 import type { Menu, MenuId, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { expect, it } from "vitest";
 import { canvasClipboardActions } from "./useCanvasKeyboard";
-import { menusOf } from "@/domain/documents";
 
 const PID = "p1" as ProjectId;
 
@@ -25,9 +25,8 @@ it("deletes the selected items of a menu but never the menu that holds them", ()
       },
     ],
   } as unknown as Menu;
-  useAccountStore.setState({
-    account: {
-      id: "acc",
+  useProjectsStore.setState({
+    openProjects: {
       projectOrder: [PID],
       projects: [
         {
@@ -49,7 +48,8 @@ it("deletes the selected items of a menu but never the menu that holds them", ()
 
   canvasClipboardActions.deleteSelection(PID, ["shop", "a", "b"]);
 
-  const left = menusOf(useAccountStore.getState().account.projects[0]!)[0]!.layers[0]!.elements;
+  const left = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!
+    .elements;
   expect(left.map((el) => el.id)).toEqual(["keep"]);
-  expect(menusOf(useAccountStore.getState().account.projects[0]!)).toHaveLength(1);
+  expect(menusOf(useProjectsStore.getState().openProjects.projects[0]!)).toHaveLength(1);
 });
