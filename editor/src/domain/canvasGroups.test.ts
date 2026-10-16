@@ -15,6 +15,9 @@ it("retains valid colors and discards invalid colors and legacy folding", () => 
 
 it("reads the legacy menuIds field, prunes stale members and any Document kind is live", () => {
   expect(
-    normalizeCanvasGroups([{ id: "g", name: "Crafts", menuIds: ["c1", "gone", "d1"] }], ["c1", "d1"]),
+    normalizeCanvasGroups(
+      [{ id: "g", name: "Crafts", menuIds: ["c1", "gone", "d1"] }],
+      ["c1", "d1"],
+    ),
   ).toEqual([{ id: "g", name: "Crafts", nodeIds: ["c1", "d1"] }]);
 });

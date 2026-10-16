@@ -1,11 +1,11 @@
 import { Switch } from "@/components/ui/switch";
 import type { Project } from "@/domain/types";
-import { DeleteProjectDialog } from "@/features/account/DeleteProjectDialog";
+import { DeleteProjectDialog } from "@/features/project/DeleteProjectDialog";
 import { onProjectRenamed } from "@/features/project/onProjectRenamed";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
 import { projectUrlId } from "@/lib/projectUrlId";
-import { useAccountStore } from "@/state/accountStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,7 +28,7 @@ const sourceColor = (source: Project["source"]) =>
       : "bg-[var(--success-soft)] text-[var(--success)]";
 
 export function ProjectProperties({ project }: ProjectPropertiesProps) {
-  const setProjectField = useAccountStore((s) => s.setProjectField);
+  const setProjectField = useProjectsStore((s) => s.setProjectField);
   const { t } = useTranslation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const runtime = useProjectRuntime(project.id);

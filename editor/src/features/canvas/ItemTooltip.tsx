@@ -1,18 +1,18 @@
+import { menusOf } from "@/domain/documents";
 import { formatEnchant } from "@/domain/itemAdvanced";
 import type { Element, Menu, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { lookupPath } from "@/lib/placeholders";
 import { parsePositions } from "@/lib/positions";
-import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useMemo } from "react";
 import { previewItem } from "./itemValuePreview";
 import { buildPreviewScope, renderPreview } from "./menuPreviewScope";
 import { matchPlacementRow, placementAtSlot, placementTotalPages } from "./placement";
-import { menusOf } from "@/domain/documents";
 
 interface ItemTooltipProps {
   projectId: ProjectId;
@@ -20,12 +20,14 @@ interface ItemTooltipProps {
 
 /**
  * Locate `id` within the hovered menu: element ids can repeat across menus. NOT a
- * zustand selector — wrapping this in `useAccountStore(...)` would return
+ * zustand selector — wrapping this in `useProjectsStore(...)` would return
  * a fresh object every call and trigger an infinite re-render loop. Call
  * it from `useMemo` against a stable project ref instead.
  */
 const findElementAndMenu = (
-  project: ReturnType<typeof useAccountStore.getState>["account"]["projects"][number] | undefined,
+  project:
+    | ReturnType<typeof useProjectsStore.getState>["openProjects"]["projects"][number]
+    | undefined,
   id: string | null,
   menuId: string | null,
 ): { element: Element; menu: Menu } | null => {
@@ -71,7 +73,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   // thanks to immer) and derive the {element, menu} pair via useMemo so
   // the tooltip doesn't allocate a new object on every render — a fresh
   // selector return value would loop zustand's identity check.
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const activeLang = useUiStore((s) => s.activeLang);
   // Live-server snapshots for real-data resolution. MUST stay above the early
   // returns below — a hook called conditionally throws "rendered more hooks

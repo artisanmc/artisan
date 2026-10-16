@@ -2,9 +2,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { projectId } from "@/domain/ids";
-import { mockAccount } from "@/mock/fixtures";
-import { useAccountStore } from "@/state/accountStore";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 
 import { Edges } from "./Edges";
@@ -45,12 +45,12 @@ vi.mock("./deriveEdges", () => ({
 const PERSONAL = projectId("p_personal");
 const layout = { m_shop_main: { x: 0, y: 0 }, m_profile: { x: 700, y: 0 } };
 const getProject = () =>
-  useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!;
+  useProjectsStore.getState().openProjects.projects.find((p) => p.id === PERSONAL)!;
 
 describe("Edges", () => {
   beforeEach(() => {
     localStorage.clear();
-    useAccountStore.setState({ account: mockAccount() });
+    useProjectsStore.setState({ openProjects: mockOpenProjects() });
     useEdgeSelectionStore.getState().select(null);
     useSelectionStore.getState().clear();
   });
@@ -75,7 +75,7 @@ describe("Edges", () => {
   });
 
   it("double-click on a handle clears the override", () => {
-    useAccountStore.getState().setEdgeAnchor({
+    useProjectsStore.getState().setEdgeAnchor({
       projectId: PERSONAL,
       edgeId: "m_shop_main->m_profile",
       end: "from",

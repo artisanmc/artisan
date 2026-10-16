@@ -143,7 +143,13 @@ describe("findKeyUsages", () => {
                           steps: [
                             {
                               kind: "action",
-                              action: { name: "show_title", value: { title: { key: k("lt_st_title") }, subtitle: { key: k("lt_st_sub") } } },
+                              action: {
+                                name: "show_title",
+                                value: {
+                                  title: { key: k("lt_st_title") },
+                                  subtitle: { key: k("lt_st_sub") },
+                                },
+                              },
                             },
                           ],
                         },

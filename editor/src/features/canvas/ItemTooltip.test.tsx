@@ -1,11 +1,11 @@
+import { menusOf } from "@/domain/documents";
 import type { ElementId, I18nKey, MenuId, Project } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
 import { useHoverStore } from "@/state/hoverStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ItemTooltip } from "./ItemTooltip";
-import { menusOf } from "@/domain/documents";
 
 const project = {
   id: "p1",
@@ -51,8 +51,11 @@ const project = {
 
 describe("ItemTooltip menu scope", () => {
   beforeEach(() => {
-    useAccountStore.setState({
-      account: { ...useAccountStore.getState().account, projects: [structuredClone(project)] },
+    useProjectsStore.setState({
+      openProjects: {
+        ...useProjectsStore.getState().openProjects,
+        projects: [structuredClone(project)],
+      },
     });
     useUiStore.setState({ activeLang: "fr" });
     useHoverStore.getState().setElement("player" as ElementId, 4, "second" as MenuId);
@@ -69,7 +72,7 @@ describe("ItemTooltip menu scope", () => {
         ["second_title", "Alex"],
         ["second_lore", "Nouveau lore"],
       ] as const) {
-        useAccountStore.getState().setI18nValue({
+        useProjectsStore.getState().setI18nValue({
           projectId: project.id,
           lt: { key: key as I18nKey },
           lang: "fr",
@@ -89,9 +92,9 @@ describe("ItemTooltip menu scope", () => {
   it("does not fall back to another menu when the hovered menu disappears", () => {
     render(<ItemTooltip projectId={project.id} />);
     act(() =>
-      useAccountStore.setState({
-        account: {
-          ...useAccountStore.getState().account,
+      useProjectsStore.setState({
+        openProjects: {
+          ...useProjectsStore.getState().openProjects,
           projects: [
             { ...project, documents: { ...project.documents, menu: [menusOf(project)[0]!] } },
           ],
@@ -165,8 +168,11 @@ describe("ItemTooltip over a captured item", () => {
   } as unknown as Project;
 
   it("shows the captured lore above the element's own lines", () => {
-    useAccountStore.setState({
-      account: { ...useAccountStore.getState().account, projects: [structuredClone(captured)] },
+    useProjectsStore.setState({
+      openProjects: {
+        ...useProjectsStore.getState().openProjects,
+        projects: [structuredClone(captured)],
+      },
     });
     useUiStore.setState({ activeLang: "fr" });
     useHoverStore.getState().setElement("product" as ElementId, 0, "shop" as MenuId);

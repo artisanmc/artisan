@@ -1,4 +1,4 @@
-import type { Account, ElementId, MenuId } from "@/domain/types";
+import type { ElementId, MenuId, OpenProjects } from "@/domain/types";
 import type { StoreApi } from "zustand";
 import type { CanvasSlice } from "./canvasSlice";
 import type { CommandsSlice } from "./commandsSlice";
@@ -24,8 +24,8 @@ export type SourceValueUpdateResult =
   | { ok: true }
   | { ok: false; reason: "required_row_key" | "duplicate_row_key" };
 
-/** The account store: one `account` object, mutated by the slices below (one per domain). */
-export type AccountState = { account: Account } & ProjectsSlice &
+/** The projects store: one `openProjects` object, mutated by the slices below (one per domain). */
+export type ProjectsState = { openProjects: OpenProjects } & ProjectsSlice &
   DialogsSlice &
   DocumentsSlice &
   CommandsSlice &
@@ -39,9 +39,9 @@ export type AccountState = { account: Account } & ProjectsSlice &
  * What a slice is built with: the store's `set` and `get`, the undo stack's reset, and
  * the {@link ProjectMutators} every project-internal action goes through.
  */
-export interface AccountSliceContext extends ProjectMutators {
-  set: StoreApi<AccountState>["setState"];
-  get: StoreApi<AccountState>["getState"];
-  /** Account-level mutations clear the undo history, so it only holds Project-internal edits. */
+export interface ProjectsSliceContext extends ProjectMutators {
+  set: StoreApi<ProjectsState>["setState"];
+  get: StoreApi<ProjectsState>["getState"];
+  /** Store-level mutations clear the undo history, so it only holds Project-internal edits. */
   clearTemporal: () => void;
 }
