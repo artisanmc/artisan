@@ -3,7 +3,7 @@ import type { LText, ProjectId } from "@/domain/types";
 import { setLText } from "@/lib/i18n";
 import { findUnusedI18nKeys } from "@/lib/i18nUsages";
 import { current } from "immer";
-import type { AccountSliceContext } from "./types";
+import type { ProjectsSliceContext } from "./types";
 
 /** The Project's languages. */
 export interface I18nSlice {
@@ -41,7 +41,7 @@ export interface I18nSlice {
   setProjectDefaultLang: (input: { projectId: ProjectId; lang: string }) => void;
 }
 
-export const createI18nSlice = ({ mutateProject }: AccountSliceContext): I18nSlice => ({
+export const createI18nSlice = ({ mutateProject }: ProjectsSliceContext): I18nSlice => ({
   setI18nValue: ({ projectId: pId, lt, lang, value }) =>
     mutateProject(pId, (project) => {
       setLText(project, lt, lang, value);

@@ -1,6 +1,6 @@
 import type { Asset } from "@/domain/asset";
-import { Group, Image as KonvaImage, Rect } from "react-konva";
 import { useAuthenticatedImage } from "@/lib/useAuthenticatedImage";
+import { Group, Image as KonvaImage, Rect } from "react-konva";
 import { fontGlyphUrl } from "./fontGlyphUrl";
 
 /**
@@ -148,16 +148,7 @@ interface GlyphProps {
  * (relative to the parent Group), so the top-left draw point is
  * `baselineY - ascent * scale`.
  */
-function McFontGlyph({
-  font,
-  char,
-  width,
-  height,
-  ascent,
-  x,
-  scale,
-  baselineY,
-}: GlyphProps) {
+function McFontGlyph({ font, char, width, height, ascent, x, scale, baselineY }: GlyphProps) {
   const url = fontGlyphUrl(font, char);
   const [image] = useAuthenticatedImage(url ?? "");
   if (!url) return null;
@@ -167,13 +158,6 @@ function McFontGlyph({
   return image ? (
     <KonvaImage image={image} x={x} y={drawY} width={w} height={h} listening={false} />
   ) : (
-    <Rect
-      x={x}
-      y={drawY}
-      width={w}
-      height={h}
-      fill="rgba(120,120,120,0.4)"
-      listening={false}
-    />
+    <Rect x={x} y={drawY} width={w} height={h} fill="rgba(120,120,120,0.4)" listening={false} />
   );
 }

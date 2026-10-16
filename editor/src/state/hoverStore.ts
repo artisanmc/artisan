@@ -19,7 +19,7 @@ interface HoverState {
 }
 
 /**
- * Ephemeral hover state for the in-canvas item tooltip. Outside accountStore
+ * Ephemeral hover state for the in-canvas item tooltip. Outside projectsStore
  * so it isn't persisted, outside zundo so the tooltip's visibility doesn't
  * fight with undo/redo.
  */

@@ -4,17 +4,17 @@ import { useTranslation } from "react-i18next";
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { cn } from "@/lib/cx";
 import { newI18nKey } from "@/lib/i18n";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { PlainTitleForm } from "./PlainTitleForm";
 
+import { menusOf } from "@/domain/documents";
 import { getStageGeometry } from "../../stageGeometry";
 import { AddLayerControls } from "./AddLayerControls";
 import { LayerEditForm } from "./LayerEditForm";
 import { LayerListItem } from "./LayerListItem";
 import { VanillaTextureLayer } from "./VanillaTextureLayer";
 import { attachLayerAtCursor } from "./attachLayerAtCursor";
-import { menusOf } from "@/domain/documents";
 
 interface LayersPanelProps {
   imageControl?: ReactNode;
@@ -57,13 +57,13 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
   const setSelectedLayerKey = useUiStore((s) => s.setSelectedLayerKey);
   const setSelectedMenuId = useUiStore((s) => s.setSelectedMenuId);
 
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const menu = menusOf(project).find((m) => m.id === menuId);
 
-  const addMenuTitleLayer = useAccountStore((s) => s.addMenuTitleLayer);
-  const setMenuTitleLayers = useAccountStore((s) => s.setMenuTitleLayers);
-  const setMenuField = useAccountStore((s) => s.setMenuField);
-  const reorderMenuTitleLayers = useAccountStore((s) => s.reorderMenuTitleLayers);
+  const addMenuTitleLayer = useProjectsStore((s) => s.addMenuTitleLayer);
+  const setMenuTitleLayers = useProjectsStore((s) => s.setMenuTitleLayers);
+  const setMenuField = useProjectsStore((s) => s.setMenuField);
+  const reorderMenuTitleLayers = useProjectsStore((s) => s.reorderMenuTitleLayers);
   const applyLayerMoved = useUiStore((s) => s.applyLayerMoved);
 
   const isVanillaMode =

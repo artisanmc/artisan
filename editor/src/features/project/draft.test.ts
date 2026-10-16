@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { isDirty, draftAge } from "./draft";
+import { describe, expect, it } from "vitest";
+import { draftAge, isDirty } from "./draft";
 
 /**
  * The draft (ADR `server-disk-only-storage`, revised decisions 3 and 7): the

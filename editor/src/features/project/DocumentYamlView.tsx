@@ -6,8 +6,8 @@ import { rebuildServerPackInBackground } from "@/features/project/resourcePackSy
 import { adoptDiskIntoProject } from "@/features/project/saveProjectToDisk";
 import { hashContent } from "@/lib/contentHash";
 import { projectClient } from "@/lib/projectClient";
-import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -45,7 +45,7 @@ export function DocumentYamlView({
 }) {
   const { t } = useTranslation();
   const baseline = useProjectBaselineStore((s) => s.baselines[project.id]);
-  const replaceProject = useAccountStore((s) => s.replaceProject);
+  const replaceProject = useProjectsStore((s) => s.replaceProject);
   const original = baseline?.[relPath] ?? "";
   const [text, setText] = useState(original);
   const [saving, setSaving] = useState(false);
@@ -83,7 +83,7 @@ export function DocumentYamlView({
         [relPath]: written,
       });
       const current =
-        useAccountStore.getState().account.projects.find((item) => item.id === project.id) ??
+        useProjectsStore.getState().openProjects.projects.find((item) => item.id === project.id) ??
         project;
       replaceProject(adoptDiskIntoProject(current, { [relPath]: written }, []));
       toast.success(t("save.saved"));

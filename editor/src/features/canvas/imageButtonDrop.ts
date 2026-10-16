@@ -1,6 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import type { MenuId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { tryStageSlotHit } from "./stageDropTarget";
 
@@ -14,7 +14,7 @@ export function dropImageButton(
   const hit = tryStageSlotHit(x, y);
   if (!hit) return false;
   const menuId = hit.menuId as MenuId;
-  const id = useAccountStore
+  const id = useProjectsStore
     .getState()
     .addImageButton({ projectId, menuId, position: hit.position, asset });
   if (!id) return false;

@@ -1,12 +1,12 @@
+import { PlayerNameInput } from "@/components/PlayerNameInput";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import { newCapturedItemId } from "@/domain/ids";
 import type { CapturedItem, ProjectId } from "@/domain/types";
-import { PlayerNameInput } from "@/components/PlayerNameInput";
-import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
-import { useAccountStore } from "@/state/accountStore";
 import { isScreenScratchId } from "@/features/screens/screenScratch";
-import { useServersStore } from "@/state/serversStore";
+import { type InventorySlotPayload, fetchPlayerInventory } from "@/lib/api/playerInventory";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useServersStore } from "@/state/serversStore";
 import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { useState } from "react";
@@ -14,8 +14,8 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { draggableProps } from "./dragPayload";
 import { headPreviewUrl } from "./headTexture";
-import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 import { useTextureUrl } from "./textureStore";
+import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 
 /**
  * "Captured items" section of the Library tab — the universal capture flow
@@ -35,12 +35,14 @@ export function CapturedItemsSection({
   onPick?: (ref: string) => void;
 }) {
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
-  const addCapturedItem = useAccountStore((s) => s.addCapturedItem);
-  const removeCapturedItem = useAccountStore((s) => s.removeCapturedItem);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const addCapturedItem = useProjectsStore((s) => s.addCapturedItem);
+  const removeCapturedItem = useProjectsStore((s) => s.removeCapturedItem);
   const serverId = useServersStore((s) => s.activeServerId);
   const runtime = useProjectRuntime(projectId);
-  const canCapture = runtime ? runtime.capabilities.captureInGame && runtime.connection.available : Boolean(serverId);
+  const canCapture = runtime
+    ? runtime.capabilities.captureInGame && runtime.connection.available
+    : Boolean(serverId);
 
   const [player, setPlayer] = useState("");
   const [state, setState] = useState<
@@ -90,7 +92,9 @@ export function CapturedItemsSection({
               projectId={projectId}
               item={ci}
               onPick={onPick}
-              onRemove={readOnly ? undefined : () => removeCapturedItem({ projectId, itemId: ci.id })}
+              onRemove={
+                readOnly ? undefined : () => removeCapturedItem({ projectId, itemId: ci.id })
+              }
             />
           ))}
         </div>
@@ -99,24 +103,26 @@ export function CapturedItemsSection({
       )}
 
       {/* Inventory mirror */}
-      {!readOnly && canCapture && <div className="flex items-center gap-1.5">
-        <PlayerNameInput
-          value={player}
-          onChange={setPlayer}
-          onCommit={() => void load()}
-          placeholder={t("capturedItems.playerPlaceholder")}
-          className="h-7 w-36 px-2 py-0 text-xs"
-        />
-        <button
-          type="button"
-          data-testid="load-inventory"
-          disabled={state.kind === "loading" || !player.trim()}
-          onClick={() => void load()}
-          className="rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2 py-1 text-[10px] text-[var(--brand)] hover:bg-[var(--brand)]/20 disabled:opacity-50"
-        >
-          {state.kind === "loading" ? t("capturedItems.loading") : t("capturedItems.load")}
-        </button>
-      </div>}
+      {!readOnly && canCapture && (
+        <div className="flex items-center gap-1.5">
+          <PlayerNameInput
+            value={player}
+            onChange={setPlayer}
+            onCommit={() => void load()}
+            placeholder={t("capturedItems.playerPlaceholder")}
+            className="h-7 w-36 px-2 py-0 text-xs"
+          />
+          <button
+            type="button"
+            data-testid="load-inventory"
+            disabled={state.kind === "loading" || !player.trim()}
+            onClick={() => void load()}
+            className="rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2 py-1 text-[10px] text-[var(--brand)] hover:bg-[var(--brand)]/20 disabled:opacity-50"
+          >
+            {state.kind === "loading" ? t("capturedItems.loading") : t("capturedItems.load")}
+          </button>
+        </div>
+      )}
       {state.kind === "error" ? (
         <div className="rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[10px] text-[var(--warning)]">
           {t(`capturedItems.err_${state.code}`, t("capturedItems.err_fetch_error"))}
@@ -155,7 +161,7 @@ function CapturedTile({
   onPick?: (ref: string) => void;
   onRemove?: () => void;
 }) {
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const setArmedMaterial = useUiStore((s) => s.setArmedMaterial);
   const armed = useUiStore((s) => s.armedMaterial === `item:${item.id}`);
   const ref = `item:${item.id}`;
@@ -204,14 +210,16 @@ function CapturedTile({
           </span>
         ) : null}
       </button>
-      {onRemove && <button
-        type="button"
-        data-testid={`remove-captured-${item.id}`}
-        onClick={onRemove}
-        className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised-2)] text-[9px] text-[var(--text-faint)] hover:text-[var(--danger)]"
-      >
-        ×
-      </button>}
+      {onRemove && (
+        <button
+          type="button"
+          data-testid={`remove-captured-${item.id}`}
+          onClick={onRemove}
+          className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised-2)] text-[9px] text-[var(--text-faint)] hover:text-[var(--danger)]"
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }
