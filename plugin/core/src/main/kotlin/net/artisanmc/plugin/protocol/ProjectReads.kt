@@ -2,7 +2,6 @@ package net.artisanmc.plugin.protocol
 
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import net.artisanmc.plugin.project.ProjectPublisher
-import net.artisanmc.plugin.project.ResourceInventory
 import net.artisanmc.plugin.protocol.EditorRequest.AssetRead
 import net.artisanmc.plugin.protocol.EditorRequest.ConfigRead
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectHistory
@@ -143,14 +142,9 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
     }
 
     companion object {
-        /** `project_list`'s content: also what the server records as its loaded state. */
-        fun listBody(snapshot: net.artisanmc.plugin.project.ProjectSnapshot, roots: net.artisanmc.plugin.project.ProjectRoots): Map<String, Any?> {
-            val ids = snapshot.projectIds
-            val inventory = ResourceInventory.scan(roots).map { entry ->
-                mapOf("project_id" to entry.projectId, "path" to entry.path, "origin" to entry.origin)
-            }
-            return mapOf("project_ids" to ids, "project_roots" to ids.map { roots.descriptor(it) }, "resource_inventory" to inventory)
-        }
+        /** `project_list`'s content ([ProjectListing]): also the list part of the server's [LoadedState]. */
+        fun listBody(snapshot: net.artisanmc.plugin.project.ProjectSnapshot, roots: net.artisanmc.plugin.project.ProjectRoots): Map<String, Any?> =
+            ProjectListing.of(snapshot, roots).toMap()
 
         /**
          * Safety cap for `project_read`, which sends a Project's whole tree. Real

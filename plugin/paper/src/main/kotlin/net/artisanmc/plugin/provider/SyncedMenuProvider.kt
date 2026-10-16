@@ -50,17 +50,11 @@ class SyncedMenuProvider(
     private val resourcePackManager: ResourcePackManager? = null,
     private val lookupAsset: (String) -> AssetEntry? = { null },
     private val offsetEncoderProvider: () -> net.artisanmc.plugin.render.OffsetEncoder = { net.artisanmc.plugin.render.OffsetEncoder.EMPTY },
-    private val installedModules: () -> List<Map<String, String>> = { emptyList() },
     private val dataSources: net.artisanmc.modules.api.datasource.DataSourceRegistry? = null,
-    private val dataSourcesReport: () -> List<Map<String, Any?>> = { emptyList() },
-    /** Module-declared model/v1 documents, reported verbatim at Presence. */
-    private val declaredModelsReport: () -> List<Map<String, Any?>> = { emptyList() },
-    /** Module-declared Config screens, reported at Presence (ADR module-config-screens). */
-    private val editorScreensReport: () -> List<Map<String, Any?>> = { emptyList() },
-    /** Registered actions, core and modules' (`{name, args, primary?, module_id?}`), reported at Presence. */
-    private val declaredActionsReport: () -> List<Map<String, Any?>> = { emptyList() },
-    /** Registered Document kinds, core and modules' (`{kind, dir, schema_versions, id_prefix?, module_id?}`), reported at Presence (W6). */
-    private val documentKindsReport: () -> List<Map<String, Any?>> = { emptyList() },
+    /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
+    private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
+    /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */
+    private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
     /** Fetchers touch the Bukkit API: they run on the thread that owns the state they read. */
     private val scheduler: Scheduler = Scheduler.Direct,
     private val menuWindows: net.artisanmc.plugin.render.MenuWindows? = null,
@@ -238,12 +232,7 @@ class SyncedMenuProvider(
             val client = WsClient(
                 hub               = hub,
                 mcVersion         = mcVersion,
-                installedModules  = installedModules,
-                dataSources       = dataSourcesReport,
-                declaredModels    = declaredModelsReport,
-                editorScreens     = editorScreensReport,
-                declaredActions   = declaredActionsReport,
-                documentKinds     = documentKindsReport,
+                announcement      = announcement,
                 serverConfig      = { serverConfig?.report() },
                 onMessage         = ::handleMessage,
                 logger            = logger,
@@ -408,16 +397,8 @@ class SyncedMenuProvider(
     }
 
     /** Re-report presence to the hub after the active module set changed. */
-    fun notifyModulesChanged(modules: List<Map<String, String>>) {
-        wsClient?.send(mapOf(
-            "type" to "modules_changed",
-            "installed_modules" to modules,
-            "data_sources" to dataSourcesReport(),
-            "declared_models" to declaredModelsReport(),
-            "editor_screens" to editorScreensReport(),
-            "declared_actions" to declaredActionsReport(),
-            "document_kinds" to documentKindsReport(),
-        ))
+    fun notifyModulesChanged() {
+        wsClient?.send(mapOf("type" to "modules_changed") + announcement().toMap())
     }
 
     fun setCustomItemsManager(manager: CustomItemsManager) {
@@ -433,7 +414,7 @@ class SyncedMenuProvider(
         // schema from the JAR declaration (ADR bare-data-files ①).
         val failures = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
         val loaded = ProjectReader(roots, logger, {
-            declaredModelsReport().mapNotNull { doc ->
+            declaredModels().mapNotNull { doc ->
                 (doc["id"] as? String)?.let { it to doc }
             }.toMap()
         }, { projectId, rel, reason ->
