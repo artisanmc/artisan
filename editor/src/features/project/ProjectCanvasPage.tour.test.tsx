@@ -7,7 +7,7 @@ import { useSelectionStore } from "@/state/selectionStore";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { ProjectCanvasPage } from "./ProjectWorkspace";
+import { ProjectCanvasPage } from "./ProjectCanvasPage";
 import { useProjectLibraryStore } from "./projectLibraryStore";
 
 const tour = vi.hoisted(() => ({
@@ -51,20 +51,7 @@ vi.mock("@/features/project/useProjectLoader", () => ({
     fromDraft: false,
   }),
 }));
-vi.mock("@/components/LinkedServersDropdown", () => ({ LinkedServersDropdown: () => null }));
 vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div>Demo canvas</div> }));
-vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
-vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
-vi.mock("@/features/canvas/EditorPane", () => ({ EditorPane: () => null }));
-vi.mock("@/features/assets/AssetsTab", () => ({ AssetsTab: () => <div>Resource library</div> }));
-vi.mock("@/features/translations/TranslationPanel", () => ({
-  TranslationPanelContent: () => null,
-}));
-vi.mock("@/features/data/DataSourcesPanel", () => ({ DataSourcesPanelContent: () => null }));
-vi.mock("@/features/help/PatternsGallery", () => ({ PatternsGallery: () => null }));
-vi.mock("@/features/search/SearchPalette", () => ({ SearchPalette: () => null }));
-vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
-
 beforeEach(() => {
   localStorage.clear();
   editorTourController.deactivate();
