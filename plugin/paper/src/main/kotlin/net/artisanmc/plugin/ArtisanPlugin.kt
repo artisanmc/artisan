@@ -707,24 +707,11 @@ open class ArtisanPlugin : JavaPlugin() {
                 if (result.skipped.isNotEmpty())
                     logger.warning("[Artisan] Project $id: ${result.skipped.joinToString()} changed on disk since the reload, kept out of this Version")
             }.onFailure { failed++; logger.warning("[Artisan] Version of project $id not recorded: ${it.message}") }
-            if (failed == 0) runCatching { data.recordState(server, loadedState(snapshot), now) }
+            if (failed == 0) runCatching { data.recordState(server, net.artisanmc.plugin.protocol.LoadedState.of(snapshot, projectRoots), now) }
                 .onFailure { logger.warning("[Artisan] Loaded state not recorded: ${it.message}") }
             else logger.warning("[Artisan] Loaded state not recorded: $failed Version(s) failed, the editor keeps the previous one")
             done()
         }
-    }
-
-    /** The Project list and, per Project, the Snapshot hash, failed files and editor metadata: what the hub serves. */
-    private fun loadedState(snapshot: net.artisanmc.plugin.project.ProjectSnapshot): Map<String, Any?> {
-        val projects = snapshot.projectIds.associateWith { id ->
-            mapOf(
-                "hash" to snapshot.hash(id),
-                "failed" to snapshot.skipped[id].orEmpty().toSortedMap().map { (path, reason) -> mapOf("path" to path, "reason" to reason) },
-                // `.artisan/editor.yaml`: read by the editor, outside the Versions.
-                "meta" to snapshot.files[id].orEmpty().filterKeys { net.artisanmc.plugin.sync.BundleHasher.isArtisanMeta(it) },
-            )
-        }
-        return net.artisanmc.plugin.protocol.ProjectReads.listBody(snapshot, projectRoots) + ("projects" to projects)
     }
 
     /** The `artisan_servers` row of a server id: this server's, read once, else looked up. */
