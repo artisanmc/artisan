@@ -5,7 +5,7 @@ import net.artisanmc.plugin.model.ProjectBundle
 /**
  * Resolver for the reserved `pack:` namespace — Project sources shipped in the
  * Bundle (`data/<id>.yaml`, ADR project-sources-and-data-models). Deliberately
- * NOT registered in the module [net.artisanmc.modules.api.DataSourceRegistry]:
+ * NOT registered in the module [net.artisanmc.modules.api.datasource.DataSourceRegistry]:
  * Project sources are project content, not module capabilities — putting them
  * in the registry would leak them into the presence report (`data_sources` WS)
  * and duplicate what the editor already authors locally. Resolution happens at
