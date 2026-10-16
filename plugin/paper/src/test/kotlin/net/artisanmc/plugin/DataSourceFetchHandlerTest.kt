@@ -3,9 +3,9 @@ package net.artisanmc.plugin
 import net.artisanmc.plugin.scheduling.DispatchingScheduler
 import be.seeseemelk.mockbukkit.MockBukkit
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.modules.api.DataSourceDeclaration
-import net.artisanmc.modules.api.DataSourceRegistry
-import net.artisanmc.modules.api.PlayerRequiredException
+import net.artisanmc.modules.api.datasource.DataSourceDeclaration
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.PlayerRequiredException
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*

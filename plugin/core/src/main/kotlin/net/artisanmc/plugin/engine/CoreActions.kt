@@ -1,9 +1,9 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.modules.api.ActionDeclaration
-import net.artisanmc.modules.api.ActionHandler
-import net.artisanmc.modules.api.ModelField
-import net.artisanmc.modules.api.ModelFieldType
+import net.artisanmc.modules.api.action.ActionDeclaration
+import net.artisanmc.modules.api.action.ActionHandler
+import net.artisanmc.modules.api.model.ModelField
+import net.artisanmc.modules.api.model.ModelFieldType
 
 /**
  * The typed shape of an action without its handler: what the editor's form shows, what the

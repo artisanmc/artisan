@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.ws
 
-import net.artisanmc.modules.api.DataSourceRegistry
-import net.artisanmc.modules.api.RegisteredDataSource
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.RegisteredDataSource
 
 /**
  * Builds the `data_sources` wire payload sent in `hello` / `modules_changed`.
@@ -18,7 +18,8 @@ object DataSourceReport {
                 "schema" to r.declaration.schema.map { f ->
                     mapOf(
                         "name" to f.name,
-                        "type" to f.type.name.lowercase(),
+                        // The ModelFieldType kind: a FieldKind-declared field keeps its 1.x string.
+                        "type" to f.fieldType.kind,
                         "description" to f.description,
                     )
                 },

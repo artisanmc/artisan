@@ -1,8 +1,8 @@
 package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
-import net.artisanmc.modules.api.DataSourceDeclaration
-import net.artisanmc.modules.api.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.DataSourceDeclaration
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.BundleMenu
 import net.artisanmc.plugin.model.ContextInputYaml
