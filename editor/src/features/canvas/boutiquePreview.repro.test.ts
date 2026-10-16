@@ -1,3 +1,4 @@
+import { menusOf } from "@/domain/documents";
 import { projectId } from "@/domain/ids";
 import { getText } from "@/lib/i18n";
 import { projectFromFiles } from "@/schema/projectFromFiles";
@@ -5,7 +6,6 @@ import { describe, expect, it } from "vitest";
 import { buildPreviewScope } from "./menuPreviewScope";
 import { matchPlacementRow, placementAtSlot, resolvePlacementSlot } from "./placement";
 import { sourceIsContextFiltered } from "./placementScope";
-import { menusOf } from "@/domain/documents";
 
 /**
  * Reproduction of a boutique preview bug: slots showed `{item.name}` /

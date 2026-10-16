@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { DslStep } from "./ast";
 // Shared cross-stack conformance contract (mirrored by the Kotlin suite).
 import fixtures from "../../../../testdata/action-dsl-conformance.json";
+import type { DslStep } from "./ast";
 import { parseActionDsl, printActionDsl } from "./index";
 
 /**

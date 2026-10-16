@@ -1,6 +1,6 @@
 import * as api from "@/lib/api/projectVersions";
-import { mockAccount } from "@/mock/fixtures";
-import { useAccountStore } from "@/state/accountStore";
+import { mockOpenProjects } from "@/mock/fixtures";
+import { useProjectsStore } from "@/state/projectsStore";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { ProjectHistory } from "./ProjectHistory";
@@ -14,9 +14,9 @@ vi.mock("@/lib/api/projectVersions", () => ({
 vi.mock("./persistedDrafts", () => ({ mutateDraftAssets: vi.fn().mockResolvedValue({}) }));
 
 it("lists deployments and server edits, shows a Version's diff, and restores it into the draft", async () => {
-  const previous = useAccountStore.getState().account;
-  const account = mockAccount();
-  const project = account.projects[0]!;
+  const previous = useProjectsStore.getState().openProjects;
+  const openProjects = mockOpenProjects();
+  const project = openProjects.projects[0]!;
   const tree = projectTree(project);
   const dropped = Object.keys(tree).find((path) => path !== "manifest.yaml")!;
   const kept = Object.entries(tree).filter(([path]) => path !== dropped);
@@ -51,7 +51,7 @@ it("lists deployments and server edits, shows a Version's diff, and restores it 
         },
   );
   try {
-    useAccountStore.setState({ account });
+    useProjectsStore.setState({ openProjects });
     render(<ProjectHistory projectId={project.id} active />);
     expect(await screen.findByText(/Alice/)).toBeInTheDocument();
     expect(screen.getByText(/Deployment|Déploiement/)).toBeInTheDocument();
@@ -72,7 +72,9 @@ it("lists deployments and server edits, shows a Version's diff, and restores it 
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     window.removeEventListener("artisan:open-deploy-review", opened);
-    const restored = useAccountStore.getState().account.projects.find((p) => p.id === project.id)!;
+    const restored = useProjectsStore
+      .getState()
+      .openProjects.projects.find((p) => p.id === project.id)!;
     expect(Object.keys(projectTree(restored)).sort()).toEqual(kept.map(([path]) => path).sort());
     expect(vi.mocked(mutateDraftAssets).mock.calls[0]![1]).toMatchObject({
       suffix: "/restore",
@@ -80,6 +82,6 @@ it("lists deployments and server edits, shows a Version's diff, and restores it 
     });
     expect(opened).toHaveBeenCalledOnce();
   } finally {
-    act(() => useAccountStore.setState({ account: previous }));
+    act(() => useProjectsStore.setState({ openProjects: previous }));
   }
 });

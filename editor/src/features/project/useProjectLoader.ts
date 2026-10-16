@@ -10,11 +10,11 @@ import { loadUserProject } from "@/lib/api/userProjects";
 import { projectClient } from "@/lib/projectClient";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { projectFromFiles } from "@/schema/projectFromFiles";
-import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { projectRuntime, useProjectRuntimeStore } from "@/state/projectRuntimeStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServersStore } from "@/state/serversStore";
 import { listModules } from "@artisan/editor-sdk";
 import { useEffect, useReducer, useRef } from "react";
@@ -112,14 +112,13 @@ async function buildProject(
 }
 
 /** Install a project only from the currently authorized, uncancelled load. */
-function mirrorIntoAccount(loaded: Project): void {
+function mirrorIntoStore(loaded: Project): void {
   // PRESERVING the existing order — overwriting it moved the visited project to
   // the top of the sidebar.
-  const current = useAccountStore.getState().account;
+  const current = useProjectsStore.getState().openProjects;
   const idx = current.projects.findIndex((p) => p.id === loaded.id);
   const loadedId = loaded.id as ProjectId;
-  useAccountStore.getState().setAccount({
-    id: current.id,
+  useProjectsStore.getState().setOpenProjects({
     projects:
       idx === -1
         ? [...current.projects, loaded]
@@ -188,9 +187,9 @@ function settleOffline(
   else outcome.validated = true;
 }
 
-/** Shows the built Project, keeping the account's copy in step. */
+/** Shows the built Project, keeping the projects store's copy in step. */
 function install(ctx: LoadContext, built: Project, fromDraft: boolean, failed?: FailedDocument[]) {
-  mirrorIntoAccount(built);
+  mirrorIntoStore(built);
   ctx.markOpen();
   ctx.dispatch({ type: "opened", project: built, fromDraft, failed });
 }

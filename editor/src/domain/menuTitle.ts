@@ -13,8 +13,7 @@ export function getFirstTitleText(menu: Menu): LText | undefined {
   const first = menu.title.find(
     (l) => l.kind === "text" || l.kind === "plain" || l.kind === "textarea",
   );
-  return first &&
-    (first.kind === "text" || first.kind === "plain" || first.kind === "textarea")
+  return first && (first.kind === "text" || first.kind === "plain" || first.kind === "textarea")
     ? first.value
     : undefined;
 }

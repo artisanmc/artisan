@@ -1,4 +1,4 @@
-import type { Account } from "@/domain/types";
+import type { OpenProjects } from "@/domain/types";
 import type { AuthUserDto } from "@/lib/api/auth";
 import { logout as apiLogout, getMe } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
@@ -119,14 +119,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 }));
 
-// Account-scoped local state must not leak across identities. Without this,
-// switching accounts in the same tab keeps the previous account's projects in
+// Per-player local state must not leak across identities. Without this,
+// switching players in the same tab keeps the previous player's projects in
 // the sidebar, and clicking one navigates into a network the new user can't
 // access (403 → bounced to /servers). We clear:
-//   - accountStore (in-memory projects of the previous account)
+//   - projectsStore (in-memory projects of the previous player)
 //   - uiStore last-active pointers (persisted; used by restore flows)
 // Deliberately NOT cleared on first sign-in (null → user): a page load may
-// have already populated accountStore (e.g. from a prior fetch in flight),
+// have already populated projectsStore (e.g. from a prior fetch in flight),
 // and that state must survive.
 let lastSeenUserId: string | null | undefined;
 useAuthStore.subscribe(async (state) => {
@@ -143,11 +143,11 @@ useAuthStore.subscribe(async (state) => {
   useProjectRuntimeStore.getState().set(null);
   useProjectCacheStore.setState({ entries: {} });
   // Dynamic imports to avoid store import cycles (same pattern as hydrate()).
-  const [{ useAccountStore }, { useUiStore }] = await Promise.all([
-    import("./accountStore"),
+  const [{ useProjectsStore }, { useUiStore }] = await Promise.all([
+    import("./projectsStore"),
     import("./uiStore"),
   ]);
-  const emptyAccount: Account = { id: "" as Account["id"], projects: [], projectOrder: [] };
-  useAccountStore.getState().setAccount(emptyAccount);
+  const emptyProjects: OpenProjects = { projects: [], projectOrder: [] };
+  useProjectsStore.getState().setOpenProjects(emptyProjects);
   useUiStore.getState().setLastActiveProjectId(null);
 });

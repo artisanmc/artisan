@@ -1,6 +1,6 @@
+import type { Project } from "@/domain/types";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Project } from "@/domain/types";
 import { DataSourcesSidebar } from "./DataSourcesSidebar";
 
 // The server-sources directory fetches; it is not what these tests are about.

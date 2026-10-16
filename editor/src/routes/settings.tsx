@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { Palette } from "lucide-react";
 import { AppearanceSection } from "@/features/settings/AppearanceSection";
+import { createFileRoute } from "@tanstack/react-router";
+import { Palette } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/settings")({ component: SettingsRoute });
 
@@ -17,15 +17,10 @@ export function SettingsRoute() {
           >
             {t("settings.appearance.title")}
           </h1>
-          <p className="text-[13px] text-[var(--text-mut)]">
-            {t("settingsPage.appearanceHelp")}
-          </p>
+          <p className="text-[13px] text-[var(--text-mut)]">{t("settingsPage.appearanceHelp")}</p>
         </header>
         <div className="flex flex-col gap-4 lg:flex-row">
-          <nav
-            aria-label="Settings sections"
-            className="card shrink-0 p-3 lg:w-[224px]"
-          >
+          <nav aria-label="Settings sections" className="card shrink-0 p-3 lg:w-[224px]">
             <div className="px-2 pt-1 pb-3 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
               {t("settingsPage.eyebrowSettings")}
             </div>

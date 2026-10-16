@@ -2,7 +2,7 @@ import { type ChainAddress, chainActionContext, chainAllowsIf } from "@/domain/c
 import { menusOf } from "@/domain/documents";
 import type { StepFrame } from "@/domain/stepPath";
 import type { ClickType, ElementId, MenuId, ProjectId, Step } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -23,7 +23,7 @@ export function ActionChainEditor({
   steps: Step[];
 }) {
   const activeLang = useUiStore((s) => s.activeLang);
-  const ops = storeChainOps(useAccountStore.getState, projectId, address, activeLang);
+  const ops = storeChainOps(useProjectsStore.getState, projectId, address, activeLang);
   return (
     <StepTree
       projectId={projectId}
@@ -56,8 +56,8 @@ export interface StepTreeProps {
 /** One Step[] of a chain, drag-sortable, followed by its "+ step" line; recurses into `if`. */
 export function StepTree(props: StepTreeProps) {
   const { projectId, ops, steps, frames, indent, allowIf = true, literalText = false } = props;
-  const firstMenuId = useAccountStore(
-    (s) => menusOf(s.account.projects.find((p) => p.id === projectId))[0]?.id,
+  const firstMenuId = useProjectsStore(
+    (s) => menusOf(s.openProjects.projects.find((p) => p.id === projectId))[0]?.id,
   );
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const ids = useStepIds(steps);

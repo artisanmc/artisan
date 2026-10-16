@@ -230,7 +230,7 @@ it("ignores a stale draft listing when this session acknowledged a newer revisio
   );
 });
 
-it("separates local backups between accounts and restores them on return", () => {
+it("separates local backups between players and restores them on return", () => {
   useProjectDraftStore.getState().setOwner("u1");
   useProjectDraftStore.getState().save("p1", snapshot);
   useProjectDraftStore.getState().setOwner("u2");

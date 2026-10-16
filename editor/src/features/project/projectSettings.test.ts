@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
+import { beforeEach, describe, expect, it } from "vitest";
 import { dismissInspector, openProjectSettings } from "./projectSettings";
 
 beforeEach(() => {

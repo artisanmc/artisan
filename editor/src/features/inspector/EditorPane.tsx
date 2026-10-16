@@ -4,7 +4,7 @@ import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
 import { dismissInspector } from "@/features/project/projectSettings";
 import { selectionContext } from "@/features/project/selectionContext";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { X } from "lucide-react";
@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 
 export function EditorPane({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const ids = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
   const projectSettingsOpen = useUiStore((s) => s.projectSettingsOpen);

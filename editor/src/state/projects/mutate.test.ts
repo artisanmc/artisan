@@ -1,12 +1,12 @@
 import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { commandId, dialogId, elementId, layerId, menuId, projectId } from "@/domain/ids";
-import type { Account, Dialog, Project } from "@/domain/types";
-import { mockAccount } from "@/mock/fixtures";
-import { useAccountStore } from "@/state/accountStore";
+import type { Dialog, OpenProjects, Project } from "@/domain/types";
+import { mockOpenProjects } from "@/mock/fixtures";
+import { useProjectsStore } from "@/state/projectsStore";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createStore } from "zustand/vanilla";
 import { createProjectMutators } from "./mutate";
-import type { AccountState } from "./types";
+import type { ProjectsState } from "./types";
 
 const P = projectId("p_personal");
 const MENU = menuId("m_shop_main");
@@ -16,10 +16,10 @@ const CMD = commandId("c_heal");
 const DIALOG = dialogId("d_confirm");
 const OLD_STAMP = "2000-01-01T00:00:00.000Z";
 
-/** The mock account, plus an element on a second layer, a state and a dialog. */
-function fixture(): Account {
-  const account = mockAccount();
-  const project = account.projects.find((p) => p.id === P)!;
+/** The mock open Projects, plus an element on a second layer, a state and a dialog. */
+function fixture(): OpenProjects {
+  const openProjects = mockOpenProjects();
+  const project = openProjects.projects.find((p) => p.id === P)!;
   project.updatedAt = OLD_STAMP;
   const menu = menusOf(project).find((m) => m.id === MENU)!;
   menu.layers[0]!.elements[0]!.states.push({ material: "STONE" });
@@ -29,12 +29,12 @@ function fixture(): Account {
     elements: [{ id: DEEP, positions: "1", display: { material: "DIRT" }, states: [] }],
   });
   project.documents.dialog = [{ id: DIALOG, projectId: P, buttons: [] } as unknown as Dialog];
-  return account;
+  return openProjects;
 }
 
 function setup() {
-  const store = createStore<AccountState>()(() => ({ account: fixture() }) as AccountState);
-  const project = (): Project => store.getState().account.projects.find((p) => p.id === P)!;
+  const store = createStore<ProjectsState>()(() => ({ openProjects: fixture() }) as ProjectsState);
+  const project = (): Project => store.getState().openProjects.projects.find((p) => p.id === P)!;
   return { store, project, ...createProjectMutators(store.setState) };
 }
 
@@ -153,20 +153,20 @@ describe("project mutators", () => {
   });
 });
 
-describe("project mutators in the account store", () => {
+describe("project mutators in the projects store", () => {
   beforeEach(() => {
-    useAccountStore.setState({ account: fixture() });
-    useAccountStore.temporal.getState().clear();
+    useProjectsStore.setState({ openProjects: fixture() });
+    useProjectsStore.temporal.getState().clear();
   });
 
   it("records one undo step per edit and none for a no-op", () => {
-    const { setCommandField } = useAccountStore.getState();
+    const { setCommandField } = useProjectsStore.getState();
     setCommandField({ projectId: P, commandId: commandId("c_missing"), field: "name", value: "x" });
-    expect(useAccountStore.temporal.getState().pastStates).toHaveLength(0);
+    expect(useProjectsStore.temporal.getState().pastStates).toHaveLength(0);
     setCommandField({ projectId: P, commandId: CMD, field: "name", value: "cure" });
-    expect(useAccountStore.temporal.getState().pastStates).toHaveLength(1);
-    useAccountStore.temporal.getState().undo();
-    const project = useAccountStore.getState().account.projects.find((p) => p.id === P)!;
+    expect(useProjectsStore.temporal.getState().pastStates).toHaveLength(1);
+    useProjectsStore.temporal.getState().undo();
+    const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === P)!;
     expect(commandsOf(project)[0]!.name).toBe("heal");
   });
 });

@@ -28,7 +28,12 @@ export interface ProjectDraft {
     pendingMutation?: {
       operationId: string;
       kind: "save" | "copy" | "publish" | "discard" | "asset";
-      asset?: { suffix: string; method: string; fields: Record<string, string>; file?: { name: string; type: string; base64: string } };
+      asset?: {
+        suffix: string;
+        method: string;
+        fields: Record<string, string>;
+        file?: { name: string; type: string; base64: string };
+      };
       id: string;
       revision: number;
       name: string;

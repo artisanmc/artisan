@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { MenuId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -64,8 +64,11 @@ export function ContextMenu({
 }: ContextMenuProps) {
   const { t } = useTranslation();
   // Stable selector to avoid the new-array-per-render pitfall — we filter in a memo.
-  const projects = useAccountStore((s) => s.account.projects);
-  const otherProjects = useMemo(() => projects.filter((p) => p.id !== projectId), [projects, projectId]);
+  const projects = useProjectsStore((s) => s.openProjects.projects);
+  const otherProjects = useMemo(
+    () => projects.filter((p) => p.id !== projectId),
+    [projects, projectId],
+  );
 
   return (
     <DropdownMenu open={state.open} onOpenChange={(o) => !o && onClose()}>
@@ -146,7 +149,11 @@ export function ContextMenu({
               <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘D</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {onGroup && <DropdownMenuItem onSelect={onGroup}>{t("canvas.groups.createSelection")}</DropdownMenuItem>}
+            {onGroup && (
+              <DropdownMenuItem onSelect={onGroup}>
+                {t("canvas.groups.createSelection")}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={onDelete} disabled={state.target.selectedIds.length === 0}>
               Delete
               <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌫</span>

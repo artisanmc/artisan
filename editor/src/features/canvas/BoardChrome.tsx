@@ -5,7 +5,7 @@
  */
 import { EmptyState } from "@/components/ui/empty-state";
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -163,7 +163,7 @@ export function BoardGroupsLayer({
         }}
         onDrag={onDrag}
         onMove={(group, dx, dy) =>
-          useAccountStore.getState().moveCanvasGroup({
+          useProjectsStore.getState().moveCanvasGroup({
             projectId,
             groupId: group.kind === "project" ? null : group.id,
             dx,
