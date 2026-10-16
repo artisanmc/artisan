@@ -9,7 +9,7 @@ import net.artisanmc.plugin.model.DialogYaml
 import net.artisanmc.plugin.model.LocalizedText
 import net.artisanmc.plugin.model.MenuTitleLayer
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.render.TitleCompiler
+import net.artisanmc.plugin.render.title.TitleCompiler
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

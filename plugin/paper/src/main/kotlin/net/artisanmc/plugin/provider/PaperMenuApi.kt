@@ -9,7 +9,7 @@ import net.artisanmc.modules.api.menu.MenuRef
 import net.artisanmc.modules.api.menu.MenuSubscription
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.engine.MenuSessionStore
-import net.artisanmc.plugin.render.MenuEventDispatcher
+import net.artisanmc.plugin.listener.MenuEventDispatcher
 import net.artisanmc.plugin.scheduling.Scheduler
 import org.bukkit.entity.Player
 

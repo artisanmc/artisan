@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.render.packets
 
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack

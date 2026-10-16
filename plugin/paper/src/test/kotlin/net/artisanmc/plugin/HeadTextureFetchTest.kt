@@ -5,7 +5,7 @@ import be.seeseemelk.mockbukkit.MockBukkit
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import net.artisanmc.plugin.engine.*
-import net.artisanmc.plugin.render.HeadApplier
+import net.artisanmc.plugin.render.menu.HeadApplier
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 import me.arcaniax.hdb.api.HeadDatabaseAPI
@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Assertions.*
 import java.nio.file.Files
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import net.artisanmc.plugin.integrations.HeadDatabaseRenderer
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 class HeadTextureFetchTest {
     @BeforeEach fun setup() { MockBukkit.mock() }

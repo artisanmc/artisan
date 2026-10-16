@@ -8,11 +8,14 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.engine.MenuProvider
-import net.artisanmc.plugin.render.MenuListener
-import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.listener.MenuListener
+import net.artisanmc.plugin.render.menu.MenuRenderer
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryCloseEvent
 import kotlin.test.*
+import net.artisanmc.plugin.integrations.SoftDepRegistry
+import net.artisanmc.plugin.session.NavigationEntry
+import net.artisanmc.plugin.session.NavigationHistoryStore
 
 /** Closing a menu without opening another screen ends the navigation. */
 class MenuListenerHistoryTest {

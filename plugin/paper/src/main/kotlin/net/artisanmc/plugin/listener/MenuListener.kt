@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.render
+package net.artisanmc.plugin.listener
 
 import net.artisanmc.modules.api.menu.MenuClickEvent
 import net.artisanmc.modules.api.menu.MenuCloseEvent
@@ -12,6 +12,10 @@ import org.bukkit.event.inventory.InventoryDragEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import net.artisanmc.plugin.scheduling.schedulerFor
 import org.bukkit.plugin.Plugin
+import net.artisanmc.plugin.render.menu.ArtisanMenuHolder
+import net.artisanmc.plugin.render.packets.MenuWindows
+import net.artisanmc.plugin.session.NavigationEntry
+import net.artisanmc.plugin.session.NavigationHistoryStore
 
 class MenuListener(
     private val plugin: Plugin,

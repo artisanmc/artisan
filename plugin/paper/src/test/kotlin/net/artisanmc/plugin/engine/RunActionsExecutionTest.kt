@@ -2,9 +2,6 @@ package net.artisanmc.plugin.engine
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.plugin.ArtisanPlugin
-import net.artisanmc.plugin.engine.RuntimeMenu
-import net.artisanmc.plugin.engine.RuntimeProject
-import net.artisanmc.plugin.engine.MenuProvider
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.entity.Player
 import kotlin.test.AfterTest
@@ -13,6 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import net.artisanmc.plugin.integrations.SoftDepRegistry
 
 /**
  * Executes `run_actions` end-to-end (ADR action-dsl): self-binding of

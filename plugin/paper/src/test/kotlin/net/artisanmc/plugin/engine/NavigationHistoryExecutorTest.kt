@@ -2,9 +2,6 @@ package net.artisanmc.plugin.engine
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.plugin.ArtisanPlugin
-import net.artisanmc.plugin.engine.RuntimeMenu
-import net.artisanmc.plugin.engine.RuntimeProject
-import net.artisanmc.plugin.engine.MenuProvider
 import org.bukkit.entity.Player
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -13,6 +10,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import net.artisanmc.plugin.integrations.SoftDepRegistry
+import net.artisanmc.plugin.session.NavigationEntry
+import net.artisanmc.plugin.session.NavigationHistoryStore
 
 /**
  * End-to-end shape of the back button: the executor pushes on navigation and the

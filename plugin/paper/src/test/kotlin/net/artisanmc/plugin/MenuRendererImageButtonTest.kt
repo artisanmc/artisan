@@ -7,10 +7,10 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.render.MenuRenderer
+import net.artisanmc.plugin.render.menu.MenuRenderer
 import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.artisanmc.plugin.model.ImageButtonYaml
-import net.artisanmc.plugin.render.ImageButtonLayout
+import net.artisanmc.plugin.render.menu.ImageButtonLayout
 import org.bukkit.Material
 import kotlin.test.*
 
