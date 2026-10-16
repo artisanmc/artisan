@@ -7,17 +7,13 @@ import {
   rekeyDataSource,
   releaseLTexts,
   visitAppearanceLTexts,
-  visitCommandLTexts,
   visitDataSourceLTexts,
-  visitDialogLTexts,
   visitElementLTexts,
-  visitMenuLTexts,
   visitStepLTexts,
 } from "@/domain/i18nSites";
 import type {
   Appearance,
   ClickType,
-  Command,
   CommandArg,
   CommandId,
   DataSource,
@@ -169,15 +165,6 @@ export function gcAppearanceLTexts(project: Project, appearance: Appearance): vo
 }
 export function gcElementLTexts(project: Project, element: Element): void {
   releaseLTexts(project, visitElementLTexts("", element));
-}
-export function gcMenuLTexts(project: Project, menu: Menu): void {
-  releaseLTexts(project, visitMenuLTexts(menu));
-}
-export function gcCommandLTexts(project: Project, command: Command): void {
-  releaseLTexts(project, visitCommandLTexts(command));
-}
-export function gcDialogLTexts(project: Project, dialog: Dialog): void {
-  releaseLTexts(project, visitDialogLTexts(dialog));
 }
 
 /**

@@ -181,7 +181,7 @@ Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 
 
 ### `net.artisanmc.modules.api.ModuleActionsApi` (`@Beta`)
 
-`api.actions.execute(player, steps, args, projectId?)` (Java overloads without `args` and `projectId` since 2.0.0) — runs a canonical step tree (the wire shape of the editor's `actions` field kit widget: `[{kind: "action", action: {...}}, {kind: "if", ...}]`, literal text) through the core `StepParser`/`ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); malformed steps are skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. `projectId` (since 1.6.0, optional) puts that Project's `lang/` in scope so an action may carry `@key` (ADR `yaml-assisted-editing` ④); without it, action text stays literal. Since 1.4.0.
+`api.actions.execute(player, actions, args, projectId?)` (Java overloads without `args` and `projectId` since 2.0.0) — runs an Action DSL string (`parseActionDsl` → `dslToEngineSteps`) through the core `ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); a malformed string is skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. `projectId` (since 1.6.0, optional) puts that Project's `lang/` in scope so an action may carry `@key` (ADR `yaml-assisted-editing` ④); without it, action text stays literal. Since 1.4.0.
 
 ### `net.artisanmc.modules.api.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
 
