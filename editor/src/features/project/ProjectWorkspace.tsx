@@ -1,4 +1,4 @@
-import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
+import { ProjectTopBarControls } from "@/features/project/ProjectTopBarControls";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import type { Asset } from "@/domain/asset";
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
