@@ -62,6 +62,9 @@ class EditorScreenRegistryTest {
             reg.declare("boutique:c", "C", ".artisan/editor", "boutique")
         }
         assertFailsWith<IllegalArgumentException> {
+            reg.declare("boutique:e", "E", ".ARTISAN/history", "boutique")
+        }
+        assertFailsWith<IllegalArgumentException> {
             reg.declare("boutique:d", "D", "", "boutique")
         }
     }

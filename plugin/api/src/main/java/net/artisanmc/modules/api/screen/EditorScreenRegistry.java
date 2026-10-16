@@ -65,6 +65,8 @@ public final class EditorScreenRegistry implements OwnedRegistry {
         String normalized = table.replace('\\', '/');
         int slash = normalized.indexOf('/');
         String first = slash == -1 ? normalized : normalized.substring(0, slash);
-        return !first.startsWith(".artisan");
+        // Same rule as the core's ProjectMetadataPaths.isMeta (this module cannot
+        // depend on core): a first segment starting with `.artisan`, any case.
+        return !first.regionMatches(true, 0, ".artisan", 0, ".artisan".length());
     }
 }

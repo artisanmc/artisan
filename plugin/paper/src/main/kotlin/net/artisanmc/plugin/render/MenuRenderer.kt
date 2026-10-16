@@ -84,7 +84,7 @@ object MenuRenderer {
         val fetch: ((String, Map<String, Any?>) -> Any?)? =
             if (dataSources == null && projectData == null) null
             else { ref, params ->
-                if (projectData != null && projectData.canResolve(ref)) projectData.resolve(ref, lang)
+                if (projectData != null && projectData.canResolve(ref)) projectData.resolve(ref, lang, menu.projectId)
                 else dataSources?.fetch(ref, player, params)
             }
         val boundArgs = ContextBinder.bind(menu.yaml, ctx.args, fetch, Bukkit.getLogger())
@@ -406,13 +406,5 @@ object MenuRenderer {
     }
 
     private fun parsePositions(positions: String, size: Int): List<Int> =
-        positions.split(",").flatMap { part ->
-            val t = part.trim()
-            if (t.contains("-")) {
-                val (a, b) = t.split("-").map { it.trim().toInt() }
-                (a..b).toList()
-            } else {
-                listOf(t.toIntOrNull() ?: return@flatMap emptyList())
-            }
-        }.filter { it in 0 until size }
+        BundleCompiler.parsePositions(positions, size)
 }
