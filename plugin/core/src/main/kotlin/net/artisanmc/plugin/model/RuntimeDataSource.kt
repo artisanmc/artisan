@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.model
 
+
 /**
  * A Project source with its project's lang maps. ltext field values travel as
  * i18n keys; [resolved] localizes them for the viewer's language at bind time
@@ -12,7 +13,7 @@ data class RuntimeDataSource(
 ) {
     val id: String get() = yaml.id
 
-    /** Same per-key fallback chain as [RuntimeMenu.langMapWithFallback]. */
+    /** Same per-key fallback chain as [net.artisanmc.plugin.engine.RuntimeMenu.langMapWithFallback]. */
     fun langMapWithFallback(lang: String): Map<String, String> = withLangFallback(langMaps, defaultLang, lang)
 
     /** Table → localized rows (List<Map>); config → the localized value object (Map). */

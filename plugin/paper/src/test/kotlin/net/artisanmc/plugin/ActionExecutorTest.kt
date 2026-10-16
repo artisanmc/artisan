@@ -2,8 +2,8 @@ package net.artisanmc.plugin
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.plugin.engine.*
-import net.artisanmc.plugin.model.RuntimeMenu
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeMenu
+import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
@@ -43,7 +43,7 @@ class ActionExecutorTest {
 
     @Test fun `quoted DSL set activates the target state after reopening the menu`() {
         val p = player()
-        val steps = net.artisanmc.plugin.actiondsl.compileActionDsl("""
+        val steps = net.artisanmc.plugin.engine.compileActionDsl("""
             set test_tag = "test"
             open_menu menu_zdzd
         """.trimIndent())

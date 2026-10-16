@@ -57,7 +57,7 @@ internal object ArtisanApiFactory {
                     if (actions.isBlank()) return
                     val run = Runnable {
                         val parsed = try {
-                            net.artisanmc.plugin.actiondsl.dslToEngineSteps(
+                            net.artisanmc.plugin.engine.dslToEngineSteps(
                                 net.artisanmc.plugin.actiondsl.parseActionDsl(actions),
                             )
                         } catch (e: Exception) {

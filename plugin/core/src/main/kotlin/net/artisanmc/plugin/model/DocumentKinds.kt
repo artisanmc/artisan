@@ -13,7 +13,7 @@ import net.artisanmc.modules.api.document.DocumentKindRegistry
  * The Kotlin view of a [DocumentKindDeclaration]: same fields, data-class
  * ergonomics for the core.
  *
- * @property kind the kind id, also the key of [RuntimeProject.documents] (`menu`).
+ * @property kind the kind id, also the key of [net.artisanmc.plugin.engine.RuntimeProject.documents] (`menu`).
  * @property dir the folder inside a project, without slash (`menus`).
  * @property schemaVersions the `schema:` labels a file of this kind may carry;
  *   the first one is canonical, the others are retired labels still read.

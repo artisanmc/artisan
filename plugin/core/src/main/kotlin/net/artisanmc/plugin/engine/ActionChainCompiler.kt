@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.plugin.actiondsl.compileActionDsl
+import net.artisanmc.plugin.engine.compileActionDsl
 
 /**
  * Compiles an action chain from its wire (ADR `structured-action-wire`):

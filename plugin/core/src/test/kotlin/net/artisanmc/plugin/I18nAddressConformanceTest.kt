@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import net.artisanmc.plugin.actiondsl.compileActionDsl
+import net.artisanmc.plugin.engine.compileActionDsl
 import net.artisanmc.modules.api.model.ModelField
 import net.artisanmc.modules.api.model.ModelFieldType
 import net.artisanmc.plugin.engine.ActionSchema

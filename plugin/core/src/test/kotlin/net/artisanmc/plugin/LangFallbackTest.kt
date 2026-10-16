@@ -1,7 +1,7 @@
 package net.artisanmc.plugin
 
 import net.artisanmc.plugin.model.RuntimeDialog
-import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.model.DialogYaml
 import net.artisanmc.plugin.model.MenuYaml
 import org.junit.jupiter.api.Assertions.assertEquals
