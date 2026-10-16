@@ -14,8 +14,8 @@ import type {
 import { useAccountStore } from "@/state/accountStore";
 import { useUiStore } from "@/state/uiStore";
 
-import { MenuProperties } from "./MenuProperties";
 import { menusOf } from "@/domain/documents";
+import { MenuProperties } from "./MenuProperties";
 
 // Mock AssetPicker so opening the LayerEditForm sub-form doesn't drag in
 // the real picker (which needs an auth token + fetch). Matches the mock in

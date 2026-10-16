@@ -11,10 +11,10 @@ vi.mock("@/lib/usePanelPresence", () => ({
 let inspecting = false;
 vi.mock("./useInspector", () => ({ useInspector: () => ({ open: inspecting }) }));
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => true }));
-vi.mock("@/features/canvas/EditorPane", () => ({
+vi.mock("@/features/inspector/EditorPane", () => ({
   EditorPane: () => <div>Selection properties</div>,
 }));
-vi.mock("@/features/canvas/FloatingEditorPane", () => ({
+vi.mock("@/features/inspector/FloatingEditorPane", () => ({
   FloatingEditorPane: () => <div>Floating properties</div>,
 }));
 beforeEach(() => {

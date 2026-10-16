@@ -11,7 +11,7 @@ import {
   PLACEMENT_ROW_DRAG_PREFIX,
   type PlacementRowDragData,
 } from "@/features/canvas/placementDrop";
-import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
+import { STATE_DROP_PREFIX } from "@/lib/stateDropId";
 
 export type WorkspaceDrop =
   /** An image button released at a screen point. */

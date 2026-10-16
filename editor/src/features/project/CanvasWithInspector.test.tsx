@@ -5,10 +5,10 @@ import { useUiStore } from "@/state/uiStore";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/features/canvas/FloatingEditorPane", () => ({
+vi.mock("@/features/inspector/FloatingEditorPane", () => ({
   FloatingEditorPane: () => <div data-testid="inspector" />,
 }));
-vi.mock("@/features/canvas/EditorPane", () => ({
+vi.mock("@/features/inspector/EditorPane", () => ({
   EditorPane: () => <div data-testid="inspector" />,
 }));
 

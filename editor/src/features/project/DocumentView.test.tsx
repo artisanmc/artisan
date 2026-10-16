@@ -10,11 +10,11 @@ vi.mock("@tanstack/react-router", () => ({
   useParams: () => ({ serverId: "s1", projectId: "p1", elementId: "m1" }),
 }));
 vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div data-testid="focus-stage" /> }));
-vi.mock("@/features/canvas/EditorPane", () => ({
+vi.mock("@/features/inspector/EditorPane", () => ({
   EditorPane: () => <div data-testid="editor-pane" />,
 }));
-vi.mock("@/features/flow/FlowCanvas", () => ({
-  FlowCanvas: () => <div data-testid="flow-canvas" />,
+vi.mock("@/features/inspector/SelectionInspector", () => ({
+  SelectionInspector: () => <div data-testid="flow-canvas" />,
 }));
 
 import { DocumentView } from "./DocumentView";
