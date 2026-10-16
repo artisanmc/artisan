@@ -70,11 +70,11 @@ object BundleHasher {
         MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     /**
-     * A first segment starting with `.artisan` is metadata (editor state, trash):
-     * excluded from the hash and invisible to the content scan.
+     * A first segment starting with `.artisan` (any case) is metadata (editor
+     * state, trash): excluded from the hash and invisible to the content scan.
      */
     fun isArtisanMeta(relPath: String): Boolean =
-        relPath.substringBefore('/').startsWith(".artisan")
+        net.artisanmc.plugin.project.ProjectMetadataPaths.isMeta(relPath)
 
     private fun sha256(input: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
