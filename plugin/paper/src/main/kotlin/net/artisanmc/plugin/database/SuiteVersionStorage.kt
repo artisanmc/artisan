@@ -5,8 +5,8 @@ import net.artisanmc.plugin.protocol.PublicationAuthor
 import net.artisanmc.plugin.project.ProjectFilesReader
 import java.time.Instant
 
-/** [VersionStorage] in the suite database, for this server's `artisan_servers` [row]. */
-class SuiteVersionStorage(private val data: SuiteProjectData, private val row: Int) : VersionStorage {
+/** [VersionStorage] in the suite database, for this server's [row]. */
+class SuiteVersionStorage(private val data: SuiteProjectData, private val row: ServerRow) : VersionStorage {
     override fun recordVersion(
         projectKey: String,
         folder: String,
