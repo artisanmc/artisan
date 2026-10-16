@@ -830,6 +830,8 @@ const fr: typeof en = {
     newDialogDialogTitle: "Nouveau dialogue",
     newMenuDialogTitle: "Nouveau menu",
     newCommandDialogTitle: "Nouvelle commande",
+    idPreviewLabel: "Id :",
+    idConflict: "Cet id est déjà utilisé par un autre document du projet.",
     cancel: "Annuler",
     create: "Créer",
     modeSelect: "Sélection",
