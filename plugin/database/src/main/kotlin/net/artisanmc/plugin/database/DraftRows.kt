@@ -13,16 +13,16 @@ class DraftRows(private val dataSource: DataSource) {
     /** Draft ids are case-sensitive; MySQL's default collation is not: rows are keyed by the id's hash. */
     private fun key(id: String) = sha256(id.toByteArray(Charsets.UTF_8))
 
-    fun all(server: Int, projectKey: String): List<String> = dataSource.connection.use { c ->
+    fun all(server: ServerRow, projectKey: String): List<String> = dataSource.connection.use { c ->
         c.prepareStatement("SELECT draft FROM artisan_drafts WHERE server_id = ? AND project_key = ? ORDER BY id").use { s ->
-            s.setInt(1, server); s.setString(2, projectKey)
+            s.setInt(1, server.value); s.setString(2, projectKey)
             s.executeQuery().use { rs -> generateSequence { if (rs.next()) rs.getString(1) else null }.toList() }
         }
     }
 
-    fun get(server: Int, projectKey: String, id: String): String? = dataSource.connection.use { c ->
+    fun get(server: ServerRow, projectKey: String, id: String): String? = dataSource.connection.use { c ->
         c.prepareStatement("SELECT draft FROM artisan_drafts WHERE server_id = ? AND project_key = ? AND id = ?").use { s ->
-            s.setInt(1, server); s.setString(2, projectKey); s.setString(3, key(id))
+            s.setInt(1, server.value); s.setString(2, projectKey); s.setString(3, key(id))
             s.executeQuery().use { if (it.next()) it.getString(1) else null }
         }
     }
@@ -40,7 +40,7 @@ class DraftRows(private val dataSource: DataSource) {
      * duplicate key; the caller answers with that receipt.
      */
     fun commit(
-        server: Int, projectKey: String, id: String, draft: String, status: String,
+        server: ServerRow, projectKey: String, id: String, draft: String, status: String,
         operationId: String, fingerprint: String, result: String, now: Instant = Instant.now(),
     ) = dataSource.connection.use { c ->
         transaction(c) {
@@ -48,12 +48,12 @@ class DraftRows(private val dataSource: DataSource) {
                 "UPDATE artisan_drafts SET draft = ?, status = ?, updated_at = ? WHERE server_id = ? AND project_key = ? AND id = ?",
             ).use {
                 it.setString(1, draft); it.setString(2, status); it.setTimestamp(3, Timestamp.from(now))
-                it.setInt(4, server); it.setString(5, projectKey); it.setString(6, key(id)); it.executeUpdate()
+                it.setInt(4, server.value); it.setString(5, projectKey); it.setString(6, key(id)); it.executeUpdate()
             }
             if (updated == 0) c.prepareStatement(
                 "INSERT INTO artisan_drafts (server_id, project_key, id, draft, status, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
             ).use {
-                it.setInt(1, server); it.setString(2, projectKey); it.setString(3, key(id)); it.setString(4, draft)
+                it.setInt(1, server.value); it.setString(2, projectKey); it.setString(3, key(id)); it.setString(4, draft)
                 it.setString(5, status); it.setTimestamp(6, Timestamp.from(now)); it.executeUpdate()
             }
             c.prepareStatement("INSERT INTO artisan_draft_receipts (operation_id, fingerprint, result, created_at) VALUES (?, ?, ?, ?)").use {

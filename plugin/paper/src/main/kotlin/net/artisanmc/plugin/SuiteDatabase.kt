@@ -30,7 +30,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
     /** Versions, loaded states and drafts in the suite database; null without a registered server. */
     @Volatile var suiteData: net.artisanmc.plugin.database.SuiteProjectData? = null
         private set
-    @Volatile private var serverRow: Int? = null
+    @Volatile private var serverRow: net.artisanmc.plugin.database.ServerRow? = null
     /** One writer: Versions are recorded in the order their Snapshots were loaded, after the database opened. */
     private val versionWriter = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "Artisan-versions").apply { isDaemon = true } }
 
@@ -38,8 +38,8 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
     private val versionRecorder by lazy {
         net.artisanmc.plugin.project.VersionRecorder(plugin.projectRoots, {
             val data = suiteData
-            val server = serverRow
-            if (data == null || server == null) null else net.artisanmc.plugin.database.SuiteVersionStorage(data, server)
+            val row = serverRow
+            if (data == null || row == null) null else net.artisanmc.plugin.database.SuiteVersionStorage(data, row)
         }, versionWriter, logger)
     }
 
@@ -143,10 +143,10 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
     fun databaseId(): String? =
         artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
 
-    /** The `artisan_servers` row of a server id: this server's, read once, else looked up. */
-    private fun row(server: String): Int? {
-        if (server == serverId.toString()) return serverRow
-        val id = runCatching { UUID.fromString(server) }.getOrNull() ?: return null
+    /** The [net.artisanmc.plugin.database.ServerRow] of a server id: this server's, read once, else looked up. */
+    private fun row(serverId: String): net.artisanmc.plugin.database.ServerRow? {
+        if (serverId == this.serverId.toString()) return serverRow
+        val id = runCatching { UUID.fromString(serverId) }.getOrNull() ?: return null
         return serverRegistry?.rowId(id)
     }
 
