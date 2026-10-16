@@ -12,14 +12,17 @@ import "@/i18n";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { HeadField } from "./FlowCanvas";
+import { HeadField } from "./ItemHeadField";
 
 /**
  * Controlled wrapper that holds `head` in state and feeds it back into
  * HeadField — reproduces the real re-render loop where a "" write would
  * unmount the input under the old logic.
  */
-function ControlledHeadField({ initial = "", onChange }: { initial?: string; onChange?: (v: string) => void }) {
+function ControlledHeadField({
+  initial = "",
+  onChange,
+}: { initial?: string; onChange?: (v: string) => void }) {
   const [head, setHead] = useState(initial);
   return (
     <HeadField

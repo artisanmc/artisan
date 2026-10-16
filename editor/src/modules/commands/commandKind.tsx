@@ -2,7 +2,7 @@ import { COMMAND_KIND } from "@/domain/documentKinds";
 import { commandChainSlots, visitCommandLTexts } from "@/domain/i18nSites";
 import type { Command, CommandId, Project, ProjectId } from "@/domain/types";
 import { serializeCommand } from "@/features/export/transform";
-import { CommandEditor } from "@/features/flow/FlowCanvas";
+import { CommandEditor } from "@/features/inspector/command/CommandEditor";
 import { commandV1ToDomain } from "@/schema/commandV1ToDomain";
 import type { DocumentParseOpts } from "@/schema/documentCodecs";
 import type { DocumentEditorProps, DocumentKindContribution } from "@artisan/editor-sdk";

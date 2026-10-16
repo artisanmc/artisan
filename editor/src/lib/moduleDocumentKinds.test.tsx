@@ -14,7 +14,7 @@ import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { deriveEdges } from "@/features/canvas/deriveEdges";
 import { nodeBox } from "@/features/canvas/menuLayout";
 import { deriveServerGraph } from "@/features/canvas/serverGraph";
-import { FlowCanvas } from "@/features/flow/FlowCanvas";
+import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { DocumentGroups } from "@/features/project/ProjectDocumentTree";
 import { selectionContext } from "@/features/project/selectionContext";
 import { buildProjectDocuments, documentLabel } from "@/features/project/useProjectDocuments";
@@ -222,7 +222,7 @@ describe("a module's Document kind on the host", () => {
     expect(ctx).toEqual({ kind: "document", documentKind: "quest", id: "quest_a" });
 
     useSelectionStore.getState().set(["quest_a"]);
-    render(<FlowCanvas projectId={PID} />);
+    render(<SelectionInspector projectId={PID} />);
     expect(screen.getByTestId("quest-view").textContent).toBe("quest_a");
   });
 

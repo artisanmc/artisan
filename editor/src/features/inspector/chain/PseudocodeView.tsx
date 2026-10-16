@@ -21,8 +21,8 @@ import type {
   ProjectId,
   Step,
 } from "@/domain/types";
-import { ActionEditor } from "@/features/canvas/properties/ActionEditor";
-import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
+import { ActionEditor } from "@/features/inspector/properties/ActionEditor";
+import { ConditionListEditor } from "@/features/inspector/properties/ConditionListEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
@@ -127,7 +127,7 @@ export function useStepIds(steps: Step[]): string[] {
   }, [steps]);
 }
 
-// Element click handlers (parallel to ClickHandlersGrid in FlowCanvas)
+// Element click handlers
 
 interface ElementClickHandlersPseudocodeProps {
   projectId: ProjectId;
@@ -458,7 +458,7 @@ function ElementStepLine({
   );
 }
 
-// Command step tree (parallel to CommandStepFlow in FlowCanvas)
+// Command step tree
 
 interface CommandStepPseudocodeProps {
   projectId: ProjectId;

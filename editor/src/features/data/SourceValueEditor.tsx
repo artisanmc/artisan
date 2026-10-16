@@ -13,8 +13,8 @@ import type {
 } from "@/domain/types";
 import { ItemValueField } from "@/features/canvas/ItemValueField";
 import { resolveRowTexts } from "@/features/canvas/menuPreviewScope";
-import { ConditionListEditor } from "@/features/canvas/properties/ConditionListEditor";
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
+import { ConditionListEditor } from "@/features/inspector/properties/ConditionListEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
 import { getText } from "@/lib/i18n";

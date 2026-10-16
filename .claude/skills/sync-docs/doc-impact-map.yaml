@@ -114,7 +114,7 @@ mappings:
       - "docs/architecture/editor-internals.md"
     reason: "Wire value ⇄ argument map rule (mirror of ActionDeclaration.normalize/canonical): the canonical form the editor writes is locked by the shared vector"
 
-  - touches: "editor/src/features/canvas/properties/ActionEditor.tsx"
+  - touches: "editor/src/features/inspector/properties/ActionEditor.tsx"
     updates:
       - "docs/architecture/editor-internals.md"
       - "editor/src/locales/en.ts"
