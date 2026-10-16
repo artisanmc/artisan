@@ -18,7 +18,8 @@ object DataSourceReport {
                 "schema" to r.declaration.schema.map { f ->
                     mapOf(
                         "name" to f.name,
-                        "type" to f.type.name.lowercase(),
+                        // The ModelFieldType kind: a FieldKind-declared field keeps its 1.x string.
+                        "type" to f.fieldType.kind,
                         "description" to f.description,
                     )
                 },
