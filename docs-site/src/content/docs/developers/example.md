@@ -126,11 +126,11 @@ package com.example.kits
 
 import net.artisanmc.modules.api.ArtisanAPI
 import net.artisanmc.modules.api.ArtisanModule
-import net.artisanmc.modules.api.CommandDeclaration
-import net.artisanmc.modules.api.DataSourceDeclaration
-import net.artisanmc.modules.api.DataSourceField
-import net.artisanmc.modules.api.FieldKind
-import net.artisanmc.modules.api.Stability
+import net.artisanmc.modules.api.command.CommandDeclaration
+import net.artisanmc.modules.api.datasource.DataSourceDeclaration
+import net.artisanmc.modules.api.datasource.DataSourceField
+import net.artisanmc.modules.api.datasource.FieldKind
+import net.artisanmc.modules.api.datasource.Stability
 import org.bukkit.entity.Player
 import java.io.File
 import java.util.UUID

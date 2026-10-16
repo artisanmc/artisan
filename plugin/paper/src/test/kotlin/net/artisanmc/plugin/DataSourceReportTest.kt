@@ -1,11 +1,11 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.modules.api.DataSourceDeclaration
-import net.artisanmc.modules.api.DataSourceField
-import net.artisanmc.modules.api.DataSourceRegistry
-import net.artisanmc.modules.api.FieldKind
-import net.artisanmc.modules.api.RegisteredDataSource
-import net.artisanmc.modules.api.Stability
+import net.artisanmc.modules.api.datasource.DataSourceDeclaration
+import net.artisanmc.modules.api.datasource.DataSourceField
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.FieldKind
+import net.artisanmc.modules.api.datasource.RegisteredDataSource
+import net.artisanmc.modules.api.datasource.Stability
 import net.artisanmc.plugin.ws.DataSourceReport
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test

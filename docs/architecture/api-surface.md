@@ -3,7 +3,7 @@
 This document lists the **stable** API surface of Artisan Core that modules can safely depend on.
 Anything not listed here is internal and may change without notice.
 
-> Source of truth : the `@Stable` annotations in `plugin/api/src/main/java/net/artisanmc/modules/api/`.
+> Source of truth : the `@Stable` annotations under `plugin/api/src/main/java/net/artisanmc/modules/api/` (one sub-package per domain since 2.0.0).
 > This doc is hand-maintained; future versions will auto-generate it (see `versioning.md` §9.2).
 
 ## Annotations
@@ -26,17 +26,19 @@ Note : we use `@Sunset` rather than `@Deprecated`: the schedule-aware annotation
 - `ArtisanAPI` is built by Artisan through `ArtisanAPI.builder(plugin, dataSources, commands, events, schemas, modules, coreVersion, project)` (`@Internal`), the optional surfaces defaulting to their inert implementations; add-ons never construct it.
 - Nullability is declared with `org.jetbrains.annotations.Nullable` where null is a value (`DataFetcher.fetch(player)`, `MenuRef.getProjectId()`, `ProjectContentApi.read`, …); everything else is non-null.
 - Removed, as announced by `@Sunset`: `ModuleMessagesApi` and `ArtisanAPI.messages`, `DataSourceDeclaration.schemaHint` (and `schema_hint` on the `data_sources` wire). The Kotlin `DefaultImpls` of 1.x are gone too: interface members with a body are plain Java default methods.
+- One package per domain: `ArtisanAPI`, `ArtisanModule`, `ModuleRegistry`, `DuplicateModuleException` and `SemVer` stay in `net.artisanmc.modules.api`; the rest moves to `api.action`, `api.command`, `api.datasource`, `api.model`, `api.document`, `api.screen`, `api.menu`, `api.event`, `api.placeholder`, `api.project`, `api.scheduler`, `api.database`, `api.item`, and `SchemaVersionReader` to `api.schemas`. Each exception sits with its domain. Only imports change: names, members and behaviour are the same.
 - `ModuleActionsApi.execute` has Java overloads for its former default arguments: `execute(player, actions)`, `execute(player, actions, args)`, `execute(player, actions, args, projectId)`.
 
 | Member | Type | Since |
 |---|---|---|
 | The whole `net.artisanmc.modules.api` surface in Java, bean getters | | 2.0.0 |
+| Sub-packages per domain (`api.action`, `api.command`, `api.datasource`, …) | | 2.0.0 |
 | `ArtisanAPI.builder(...)`, `ArtisanAPI.Builder` (`@Internal`) | `Builder` | 2.0.0 |
 | `MenuClickEvent.hasActions()` (was `getHasActions()`) | `boolean` | 2.0.0 |
 | `ModuleActionsApi.execute(player, actions)`, `execute(player, actions, args)` | `void` | 2.0.0 |
 | `ModuleMessagesApi`, `ArtisanAPI.messages`, `DataSourceDeclaration.schemaHint` removed | | 2.0.0 |
 
-An add-on built against 1.x recompiles against 2.0.0: the getters keep their JVM names, the removed members and the `DataSourceDeclaration` constructors are the source changes to expect.
+An add-on built against 1.x recompiles against 2.0.0: the getters keep their JVM names, the imports of the moved types, the removed members and the `DataSourceDeclaration` constructors are the source changes to expect.
 
 ## Stable APIs
 
@@ -104,7 +106,7 @@ A plugin that disables (server stop, `/reload`, PlugMan) loses everything it reg
 
 Exceptions: `DuplicateModuleException`.
 
-### `net.artisanmc.modules.api.DataSourceRegistry`
+### `net.artisanmc.modules.api.datasource.DataSourceRegistry`
 
 | Member | Type | Since |
 |---|---|---|
@@ -120,7 +122,7 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 
 **Breaking change (1.3.0)**: `fetch` signature changed from `(player: Player, …)` to `(player: Player?, …)`. Preview mode (editor) calls fetchers with `player = null`; modules that require a real player must either return generic data or throw `PlayerRequiredException`.
 
-### `net.artisanmc.modules.api.DataSourceDeclaration`
+### `net.artisanmc.modules.api.datasource.DataSourceDeclaration`
 
 | Member | Type | Stability | Since |
 |---|---|---|---|
@@ -171,7 +173,7 @@ built-ins par nom de chaîne et ne survit pas au renommage. Artisan reste donc u
 fournisseur possible de `kotlin.*` pour un plugin tiers qui en chercherait ; ce
 qui est corrigé, c'est qu'aucun add-on Artisan n'a plus de raison d'en chercher.
 
-### `net.artisanmc.modules.api.ItemStackApi` (`@Beta`)
+### `net.artisanmc.modules.api.item.ItemStackApi` (`@Beta`)
 
 Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonical wrapped YAML (what a project stores under `items/<id>.yml`) — and `describe(stack)` — the generic display descriptor (material enriched to a recognized custom ref, head_texture, enchanted, count, name). Since 1.4.0.
 
@@ -179,11 +181,11 @@ Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonica
 
 Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 2.0.0. Without a receiver since the editor moved into the plugin (phase F, 2026-10), `@Sunset` since 1.8.0, removed in 2.0.0 with no replacement. A module that wants to change its own project files writes them itself and calls `api.project.reload()` (ADR `server-disk-only-storage`).
 
-### `net.artisanmc.modules.api.ModuleActionsApi` (`@Beta`)
+### `net.artisanmc.modules.api.action.ModuleActionsApi` (`@Beta`)
 
 `api.actions.execute(player, steps, args, projectId?)` (Java overloads without `args` and `projectId` since 2.0.0) — runs a canonical step tree (the wire shape of the editor's `actions` field kit widget: `[{kind: "action", action: {...}}, {kind: "if", ...}]`, literal text) through the core `StepParser`/`ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); malformed steps are skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. `projectId` (since 1.6.0, optional) puts that Project's `lang/` in scope so an action may carry `@key` (ADR `yaml-assisted-editing` ④); without it, action text stays literal. Since 1.4.0.
 
-### `net.artisanmc.modules.api.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
+### `net.artisanmc.modules.api.action.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
 
 Every action of a chain, Artisan's own included, runs through this registry (ADR `extensible-document-kinds`, R1). A module registers its actions from `onEnable`; they are removed with the module. Names: `^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`, a module's namespaced (`quests:start`).
 
@@ -203,7 +205,7 @@ Every action of a chain, Artisan's own included, runs through this registry (ADR
 
 The three wire forms (`- name`, `- name: value`, `- name: {args}`) bind to one argument map: the scalar form binds `primary` (the only argument when there is exactly one, unless given). The runtime is tolerant (an unknown key is kept, an unknown name is skipped with a warning); the editor's form is strict.
 
-### `net.artisanmc.modules.api.DocumentKindRegistry` and the document-kind contract (`@Beta`, 2.1.0)
+### `net.artisanmc.modules.api.document.DocumentKindRegistry` and the document-kind contract (`@Beta`, 2.1.0)
 
 Every kind of Document a project folder holds, Artisan's own (menu, command, dialog) included, is declared here (ADR `extensible-document-kinds`, decisions 1 and 10, W6). A module declares its kinds from `onEnable`; they are removed with the module. The folder is what tells a Document's kind on disk, so two kinds may not share a kind id or a folder. Kind ids: `^[a-z][a-z0-9_]*$`; folders: `^[a-z][a-z0-9_-]*$`.
 
@@ -224,15 +226,15 @@ api.getDocumentKinds().register(new DocumentKindDeclaration("quest", "quests", L
 for (Map<String, Object> quest : api.getProject().documents(projectId, "quest")) { … }
 ```
 
-### `net.artisanmc.modules.api.ModelRegistry` (`@Beta`)
+### `net.artisanmc.modules.api.model.ModelRegistry` (`@Beta`)
 
 `api.models.declare(document)` — declares a Data model as a `model/v1` document (a plain `Map`, verbatim: `schema`, namespaced `id` (`ns:model`), `name`, `key_field`, `fields`, optional monotonic `version` + declarative `migrations`). Pure passthrough: nothing is interpreted plugin-side — the documents are reported at Presence (`hello.declared_models` / `modules_changed`) and consumed by the editor, which renders the schema-driven form and treats the shape as read-only for the admin (ADR `composable-data-models` §4/§5). Duplicate id or non-namespaced id throws at declare time. `has(id)`, `declared()` (sorted). Since 1.5.0.
 
-### `net.artisanmc.modules.api.EditorScreenRegistry` (`@Beta`)
+### `net.artisanmc.modules.api.screen.EditorScreenRegistry` (`@Beta`)
 
 `api.screens.declare(id, label, table, projectId)` — declares a **Config screen**: a named entry in the editor's sidebar under the module, whose core-generated form edits one declared-model Table/Config of the module's owned Project, live over the WS relay (ADR `module-config-screens` §2/§3). `id` must be namespaced (`boutique:catalog`); `table` is a Project-relative path (`data/categories`) — absolute paths, `..` and a first segment starting with `.artisan` are rejected at declare time, as is a duplicate id. Pure passthrough: nothing is interpreted plugin-side — the declarations are reported at Presence (`hello.editor_screens` / `modules_changed`) and the editor mounts the entries. A module that declares models + owns a Project but no screen gets a fallback "Données" screen synthesized by the editor. `declared()` (sorted by id). Since 1.6.0.
 
-### `net.artisanmc.modules.api.DatabaseApi` (`@Beta`)
+### `net.artisanmc.modules.api.database.DatabaseApi` (`@Beta`)
 
 `api.database.dataSource(plugin)` — the database lent to the plugins of the suite (ADR `suite-foundation-database`): one HikariCP pool **per plugin**, opened on the first call (it checks a connection, so call it from `onEnable`), returned as is afterwards, closed when that plugin is disabled. Credentials are set once by the admin in `plugins/Artisan/environment.yml`; only `javax.sql.DataSource` crosses the boundary, the plugin brings its own access layer and migrations. `dialect` (`DatabaseDialect`: `H2`, `MYSQL`, `MARIADB`, Java enum) lets a plugin branch on the few statements that differ. All plugins share one database (the configured MySQL/MariaDB one, or a single H2 file), so prefix your tables. Misconfiguration or an unreachable server throws `IllegalStateException` naming the plugin and the file to fix. Default `DatabaseApi.NONE` throws on every call. Since 1.7.0; a single shared H2 file since 1.7.1 (1.7.0 kept one file per plugin).
 
@@ -242,7 +244,7 @@ for (Map<String, Object> quest : api.getProject().documents(projectId, "quest"))
 | `dialect` | `DatabaseDialect` | 1.7.0 |
 | `dataSource(owner: Plugin)` | `javax.sql.DataSource` | 1.7.0 |
 
-### `net.artisanmc.modules.api.MenuApi` (`@Beta`)
+### `net.artisanmc.modules.api.menu.MenuApi` (`@Beta`)
 
 `api.menus` — open, close and query a player's Artisan menu, and listen to menus opening, clicks and closes. A menu is named by `MenuRef(projectId?, menuId)` (`toString()` = `project:menu`, `MenuRef.parse`) or by the same text ref the Action DSL takes (`shop:main`, or a bare id resolved server-wide). Callable from any thread: `open`/`close` run on the player's region thread (scheduled if needed); `open` returns false, opening nothing, when no menu matches. Listeners (`fun interface`s) return a `MenuSubscription` whose `cancel()` removes them, and run on the player's region thread. Implemented in `paper` by `PaperMenuApi` over the menu provider, the session store and `MenuEventDispatcher`.
 
@@ -270,7 +272,7 @@ for (Map<String, Object> quest : api.getProject().documents(projectId, "quest"))
 | `MenuClickEvent.hasActions()` is the Java name of the flag (was `getHasActions()`) | | 2.0.0 |
 | `MenuCloseEvent.menu`, `.reason` | `MenuRef`, `InventoryCloseEvent.Reason` | 1.8.0 |
 
-### `net.artisanmc.modules.api.SchedulerApi` (`@Beta`)
+### `net.artisanmc.modules.api.scheduler.SchedulerApi` (`@Beta`)
 
 `api.scheduler.forPlugin(owner)` — a `TaskScheduler` backed by the core `Scheduler` port (`RegionizedScheduler` on Paper/Folia/Leaf, `BukkitTaskScheduler` otherwise), whose tasks belong to `owner`. Global, region (`Location`), entity (skipped if removed) and async threads, each immediate or delayed (ticks; 0 = as soon as possible); `isOwnedByCurrentThread(entity)`, `isGlobalThread()`. No cancellation handle, no repeating tasks — Paper's schedulers remain available for those. `DIRECT` runs everything inline (tests).
 
@@ -281,7 +283,7 @@ for (Map<String, Object> quest : api.getProject().documents(projectId, "quest"))
 | `TaskScheduler.runGlobal`, `runGlobalLater`, `runAt`, `runAtLater`, `runFor`, `runForLater`, `runAsync`, `runAsyncLater` | `Unit` | 1.8.0 |
 | `TaskScheduler.isOwnedByCurrentThread(entity)`, `isGlobalThread()` | `Boolean` | 1.8.0 |
 
-### `net.artisanmc.modules.api.PlaceholderRegistry` (`@Beta`)
+### `net.artisanmc.modules.api.placeholder.PlaceholderRegistry` (`@Beta`)
 
 `api.placeholders.register(namespace, resolver[, exposeToPapi])` — every `%<namespace>_<key>%` in menu text, action text and conditions asks the `PlaceholderResolver` (`resolve(player: Player?, key): String?`; null leaves the token as written). Resolved in Artisan's own `%…%` step (the `PapiProvider` the renderer, executor and condition evaluator use) before PlaceholderAPI, so it works without PlaceholderAPI. `exposeToPapi = true` with PlaceholderAPI enabled also registers an expansion of that identifier. Namespace `[a-z][a-z0-9]*` (`IllegalArgumentException`), unique (`IllegalStateException`). `unregister`, `namespaces()`, `resolve(player, text)`. Not yet reported to the editor's placeholder autocompletion.
 
@@ -294,20 +296,20 @@ for (Map<String, Object> quest : api.getProject().documents(projectId, "quest"))
 | `resolve(player, text)` | `String` | 1.8.0 |
 | `PlaceholderResolver.resolve(player: Player?, key)` | `String?` | 1.8.0 |
 
-### `net.artisanmc.modules.api.Stability`
+### `net.artisanmc.modules.api.datasource.Stability`
 
 Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.
 
 Values: `STATIC`, `DYNAMIC`.
 
-### `net.artisanmc.modules.api.FieldKind`
+### `net.artisanmc.modules.api.datasource.FieldKind`
 
 Enum describing the type of a declared data-source row field. Drives editor schema table and filter autocomplete.
 `ITEM` declares a complete item value (reference or structured material/quantity/metadata), exposed as `item` in source schemas. The editor offers these fields in **Displayed item → Use an item from data**. Text fields remain `STRING`.
 
 Values: `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`, `ITEM`.
 
-### `net.artisanmc.modules.api.DataSourceField`
+### `net.artisanmc.modules.api.datasource.DataSourceField`
 
 One declared row field in a data source's schema.
 
@@ -317,7 +319,7 @@ One declared row field in a data source's schema.
 | `type` | `FieldKind` | 1.3.0 |
 | `description` | `String?` | 1.3.0 |
 
-### `net.artisanmc.modules.api.RegisteredDataSource`
+### `net.artisanmc.modules.api.datasource.RegisteredDataSource`
 
 A `DataSourceDeclaration` paired with its owning module id. Returned by `DataSourceRegistry.registered()`.
 
@@ -328,13 +330,13 @@ A `DataSourceDeclaration` paired with its owning module id. Returned by `DataSou
 
 `moduleId` is non-null when the data source was registered from a module's `onEnable`, null for third-party registrations via ServicesManager.
 
-### `net.artisanmc.modules.api.PlayerRequiredException`
+### `net.artisanmc.modules.api.datasource.PlayerRequiredException`
 
 Exception thrown by a `DataSourceDeclaration.fetcher` when it cannot produce meaningful rows without a real player (e.g., inventory-dependent data). The editor catches this on preview mode and surfaces a typed `player_required` error instead of crashing.
 
 Since 1.3.0.
 
-### `net.artisanmc.modules.api.CommandRegistry`
+### `net.artisanmc.modules.api.command.CommandRegistry`
 
 | Member | Type | Since |
 |---|---|---|
@@ -350,7 +352,7 @@ Commands registered from a module's `onEnable` record that module since 1.8.0, s
 
 Runtime consumer (since 1.2.0): `run_command … as player` actions whose command starts with a `namespace:name` ref registered here are dispatched to the module handler with `args = {argv: List<String>, raw: String}`. Unknown refs fall back to Bukkit; `as console` always goes to Bukkit. The ref matches ignoring case (exact match first), and `argv` honours double quotes (`"Diamond Sword"`, `\"` and `\\` escapes; an unbalanced quote falls back to splitting on spaces) — plugin behaviour, not an API change.
 
-### `net.artisanmc.modules.api.ModuleEventBus`
+### `net.artisanmc.modules.api.event.ModuleEventBus`
 
 | Member | Type | Since |
 |---|---|---|
@@ -382,7 +384,7 @@ Exceptions: `UnsupportedSchemaVersionException`, `CircularMigrationException`.
 
 Migrations MUST be pure, idempotent, and write-once. See `versioning.md` §2.5.
 
-### `net.artisanmc.modules.api.ProjectContentApi`
+### `net.artisanmc.modules.api.project.ProjectContentApi`
 
 Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*` namespace is never exposed. Re-read in `onReload()` after a sync.
 
@@ -395,7 +397,7 @@ Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*`
 | `reload()` | `Unit` | 1.6.0 — asynchronous since 1.8.0: the disk is read on Artisan's reload thread, and modules' `onReload()` follows on the global thread |
 | `documents(projectId: String, kind: String)` (`@Beta`) | `List<Map<String, Object>>` | 2.1.0 — see `DocumentKindRegistry` |
 
-### `net.artisanmc.modules.api.ProjectRootRegistry`
+### `net.artisanmc.modules.api.project.ProjectRootRegistry`
 
 Lets an Add-on host its Project in its **own plugin dir** instead of the core `plugins/Artisan/projects/` (ADR `addon-owned-project-roots`). Call once from `onEnable(api)`.
 

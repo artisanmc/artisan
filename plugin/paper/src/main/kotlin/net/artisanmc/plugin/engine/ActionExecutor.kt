@@ -1,8 +1,8 @@
 package net.artisanmc.plugin.engine
 
-import net.artisanmc.modules.api.ActionContext
-import net.artisanmc.modules.api.ActionRegistry
-import net.artisanmc.modules.api.CommandRegistry
+import net.artisanmc.modules.api.action.ActionContext
+import net.artisanmc.modules.api.action.ActionRegistry
+import net.artisanmc.modules.api.command.CommandRegistry
 import net.artisanmc.plugin.command.ModuleCommandLine
 import net.artisanmc.plugin.model.LocalizedText
 import net.artisanmc.plugin.scheduling.schedulerFor
