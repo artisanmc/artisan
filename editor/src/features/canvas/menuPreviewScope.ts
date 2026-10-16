@@ -1,12 +1,12 @@
 import type { I18nKey, LText, Menu, Project, SourceRef } from "@/domain/types";
-import { lookupPath } from "@/lib/placeholders";
 import { AstCache } from "@/lib/expr/cache";
 import { Scope } from "@/lib/expr/scope";
 import { renderTemplate } from "@/lib/expr/template/renderer";
-import { listModules } from "@artisan/editor-sdk";
-import { useAccountStore } from "@/state/accountStore";
-import { useUiStore } from "@/state/uiStore";
 import { getText } from "@/lib/i18n";
+import { lookupPath } from "@/lib/placeholders";
+import { useProjectsStore } from "@/state/projectsStore";
+import { useUiStore } from "@/state/uiStore";
+import { listModules } from "@artisan/editor-sdk";
 
 /** Cached live-server snapshots keyed by ref (see serverSnapshotsStore). */
 export type SourceSnapshots = Record<string, unknown[]>;
@@ -18,7 +18,7 @@ export type SourceSnapshots = Record<string, unknown[]>;
  *
  * Module data may live in a **sibling project** (the plugin merges module
  * files across ALL projects of the server at runtime — cf. BoutiqueModule
- * .reloadRepo), so after the current project we probe the account's other
+ * .reloadRepo), so after the current project we probe the store's other
  * projects. Null when no module owns the ref or no project holds local data.
  */
 export function moduleLocalRows(
@@ -29,11 +29,18 @@ export function moduleLocalRows(
   for (const mod of listModules()) {
     const fn = mod.localPreviewRows;
     if (!fn) continue;
-    const forPreview = (p: Project) => ({ ...p, dataSources: resolveLTexts(p.dataSources, p, useUiStore.getState().activeLang || p.defaultLang) });
+    const forPreview = (p: Project) => ({
+      ...p,
+      dataSources: resolveLTexts(
+        p.dataSources,
+        p,
+        useUiStore.getState().activeLang || p.defaultLang,
+      ),
+    });
     const own = fn(forPreview(project), r);
     if (own) return own;
-    // Lazy import avoided: accountStore never imports this module (no cycle).
-    for (const sibling of useAccountStore.getState().account.projects) {
+    // Lazy import avoided: projectsStore never imports this module (no cycle).
+    for (const sibling of useProjectsStore.getState().openProjects.projects) {
       if (sibling.id === project.id) continue;
       const rows = fn(forPreview(sibling), r);
       if (rows) return resolveRowTexts(rows, sibling);
@@ -61,7 +68,9 @@ export function resolveSourceRef(
   if (r === "" || !r.includes(":")) return undefined;
   if (r.startsWith("pack:")) {
     const id = r.slice("pack:".length);
-    const ds = project.dataSources.find((d) => d.id === (id as Project["dataSources"][number]["id"]));
+    const ds = project.dataSources.find(
+      (d) => d.id === (id as Project["dataSources"][number]["id"]),
+    );
     if (!ds) return undefined;
     return ds.shape === "table" ? ds.rows : ds.value;
   }
@@ -109,8 +118,11 @@ export function resolveRowTexts<T>(rows: T[], project: Project): T[] {
 /** True for an LText node — the domain's `{ key }` reference, nothing else. */
 function isLText(v: unknown): v is { key: string } {
   return (
-    typeof v === "object" && v !== null && !Array.isArray(v) &&
-    Object.keys(v).length === 1 && typeof (v as { key?: unknown }).key === "string"
+    typeof v === "object" &&
+    v !== null &&
+    !Array.isArray(v) &&
+    Object.keys(v).length === 1 &&
+    typeof (v as { key?: unknown }).key === "string"
   );
 }
 
@@ -169,7 +181,10 @@ export function buildPreviewScope(
     scope[input.name] =
       override !== undefined && override !== ""
         ? typeof override === "string"
-          ? coerceDefault(override, input.type as "player" | "string" | "integer" | "number" | "boolean")
+          ? coerceDefault(
+              override,
+              input.type as "player" | "string" | "integer" | "number" | "boolean",
+            )
           : override
         : coerceDefault(
             input.default,

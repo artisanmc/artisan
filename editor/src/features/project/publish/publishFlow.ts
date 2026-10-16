@@ -35,7 +35,7 @@ export interface ConflictState {
 export interface PublishState {
   /** A disk write is in flight. */
   saving: boolean;
-  /** The account draft is being saved by an explicit gesture. */
+  /** The player's draft is being saved by an explicit gesture. */
   savingDraft: boolean;
   conflict: ConflictState;
   /** The deploy review is open with these changes. */

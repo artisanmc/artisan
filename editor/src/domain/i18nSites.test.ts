@@ -1,3 +1,4 @@
+import { dialogsOf, menusOf } from "@/domain/documents";
 import type { I18nKey, Project } from "@/domain/types";
 import {
   clickHandlerKeyPrefix,
@@ -17,7 +18,6 @@ import {
   visitMenuLTexts,
   visitProjectLTexts,
 } from "./i18nSites";
-import { dialogsOf, menusOf } from "@/domain/documents";
 
 const lt = (key: string) => ({ key: key as I18nKey });
 
@@ -99,7 +99,10 @@ function makeFixture(): Project {
                           { kind: "action", action: { name: "send_message", value: lt("lt_m1") } },
                           {
                             kind: "action",
-                            action: { name: "show_title", value: { title: lt("lt_st"), subtitle: lt("lt_ss") } },
+                            action: {
+                              name: "show_title",
+                              value: { title: lt("lt_st"), subtitle: lt("lt_ss") },
+                            },
                           },
                         ],
                       },

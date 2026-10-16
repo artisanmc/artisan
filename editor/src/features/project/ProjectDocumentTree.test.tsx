@@ -1,5 +1,5 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, within } from "@testing-library/react";
@@ -32,8 +32,8 @@ function project(): Project {
 }
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: { id: "a" as never, projects: [project()], projectOrder: [PID] },
+  useProjectsStore.setState({
+    openProjects: { projects: [project()], projectOrder: [PID] },
   } as never);
 });
 

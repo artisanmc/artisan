@@ -3,8 +3,8 @@
  * steps around) an id a Document of any kind already holds, module kinds included.
  */
 import "@/i18n";
-import type { Account, Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import type { OpenProjects, Project, ProjectId } from "@/domain/types";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import i18n from "i18next";
@@ -41,16 +41,15 @@ function project(): Project {
 }
 
 const docCount = () =>
-  Object.values(useAccountStore.getState().account.projects[0]!.documents).flat().length;
+  Object.values(useProjectsStore.getState().openProjects.projects[0]!.documents).flat().length;
 
 describe("new Document dialogs", () => {
   beforeEach(() => {
-    const account: Account = {
-      id: "acc" as Account["id"],
+    const openProjects: OpenProjects = {
       projects: [project()],
       projectOrder: [PID],
     };
-    useAccountStore.setState({ account });
+    useProjectsStore.setState({ openProjects });
     useSelectionStore.getState().clear();
   });
 
@@ -72,8 +71,8 @@ describe("new Document dialogs", () => {
   it("the module kind dialog refuses an id a core Document holds", () => {
     const p = project();
     p.documents.menu = [{ id: "x" }] as never[];
-    useAccountStore.setState({
-      account: { id: "acc" as Account["id"], projects: [p], projectOrder: [PID] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [PID] },
     });
     // Unknown kind: no prefix, so the typed id is the full id.
     render(<NewDocumentDialog projectId={PID} kind="quest" open onOpenChange={() => {}} />);
@@ -86,7 +85,7 @@ describe("new Document dialogs", () => {
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "home" } });
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
     expect(
-      useAccountStore.getState().account.projects[0]!.documents.menu!.map((m) => m.id),
+      useProjectsStore.getState().openProjects.projects[0]!.documents.menu!.map((m) => m.id),
     ).toEqual(["menu_home"]);
   });
 
@@ -96,7 +95,7 @@ describe("new Document dialogs", () => {
     expect(screen.getByText("cmd_shop_1")).toBeTruthy();
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
     expect(
-      useAccountStore.getState().account.projects[0]!.documents.command!.map((c) => c.id),
+      useProjectsStore.getState().openProjects.projects[0]!.documents.command!.map((c) => c.id),
     ).toEqual(["cmd_shop_1"]);
   });
 });

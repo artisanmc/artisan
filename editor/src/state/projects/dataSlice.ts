@@ -27,7 +27,7 @@ import {
   nextAvailableName,
   sourceValueContainer,
 } from "./helpers";
-import type { AccountSliceContext, SourceValueUpdateResult } from "./types";
+import type { ProjectsSliceContext, SourceValueUpdateResult } from "./types";
 
 /** Data sources and data models of a Project. */
 export interface DataSlice {
@@ -96,7 +96,7 @@ export interface DataSlice {
 /** These edits have never stamped the Project's `updatedAt`; kept as is. */
 const SOURCES = { touch: false } as const;
 
-export const createDataSlice = ({ get, mutateProject }: AccountSliceContext): DataSlice => {
+export const createDataSlice = ({ get, mutateProject }: ProjectsSliceContext): DataSlice => {
   /** A Project source by id; a no-op when the project or the source is missing. */
   const mutateSource = (
     projectId: ProjectId,
@@ -163,7 +163,7 @@ export const createDataSlice = ({ get, mutateProject }: AccountSliceContext): Da
       }),
     renameProjectDataSource: ({ projectId, id, newName }) => {
       const normalizedName = normalizeDataSourceName(newName);
-      const project = get().account.projects.find((p) => p.id === projectId);
+      const project = get().openProjects.projects.find((p) => p.id === projectId);
       if (
         !project ||
         normalizedName === "" ||
@@ -239,7 +239,7 @@ export const createDataSlice = ({ get, mutateProject }: AccountSliceContext): Da
     setSourceValue: ({ projectId, sourceId, row, path, value }) => {
       let nextValue = value;
       if (row !== null && path.length === 1) {
-        const project = get().account.projects.find((p) => p.id === projectId);
+        const project = get().openProjects.projects.find((p) => p.id === projectId);
         const ds = project?.dataSources.find((d) => d.id === sourceId);
         const model =
           ds?.shape === "table"

@@ -1,6 +1,6 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -56,8 +56,8 @@ describe("SearchPalette", () => {
   beforeEach(() => {
     navigate.mockClear();
     useServerIndexStore.getState().reset();
-    useAccountStore.setState({
-      account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
+    useProjectsStore.setState({
+      openProjects: { projects: [project()], projectOrder: [PID] },
     } as any);
     useUiStore.setState({ searchOpen: true, activeLang: "en" } as any);
     useSelectionStore.getState().clear();

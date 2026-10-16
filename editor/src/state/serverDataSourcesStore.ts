@@ -1,5 +1,5 @@
+import { type ServerDataSource, fetchServerDataSourcesUser } from "@/lib/api/dataSources";
 import { create } from "zustand";
-import { fetchServerDataSourcesUser, type ServerDataSource } from "@/lib/api/dataSources";
 
 export interface DataSourcesSource {
   serverId: string;

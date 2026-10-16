@@ -26,8 +26,8 @@ import { SaveControls } from "@/features/project/publish/SaveControls";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
-import { useAccountStore } from "@/state/accountStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
@@ -49,7 +49,7 @@ export interface ProjectTopBarControlsProps {
   project: Project;
   projectId: ProjectId;
 
-  /** Initial display name, used until the project is available in the account store. */
+  /** Initial display name, used until the project is available in the projects store. */
   projectName?: string;
 
   // Kebab menu handlers (route-specific implementations).
@@ -84,8 +84,8 @@ export function ProjectTopBarControls({
   offlineSince,
   unpublished,
 }: ProjectTopBarControlsProps) {
-  const currentName = useAccountStore(
-    (s) => s.account.projects.find((p) => p.id === projectId)?.name,
+  const currentName = useProjectsStore(
+    (s) => s.openProjects.projects.find((p) => p.id === projectId)?.name,
   );
   const displayName = currentName ?? projectName ?? project.name;
   const { t } = useTranslation();
@@ -260,9 +260,9 @@ function WorkspaceViewNav({ project }: { project: Project }) {
 function LangSwitcher({ project }: { project: Project }) {
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);
-  const addLanguage = useAccountStore((s) => s.addLanguage);
-  const removeLanguage = useAccountStore((s) => s.removeLanguage);
-  const setProjectDefaultLang = useAccountStore((s) => s.setProjectDefaultLang);
+  const addLanguage = useProjectsStore((s) => s.addLanguage);
+  const removeLanguage = useProjectsStore((s) => s.removeLanguage);
+  const setProjectDefaultLang = useProjectsStore((s) => s.setProjectDefaultLang);
   const { t } = useTranslation();
 
   const sortedLangs = listLanguages(project);
@@ -358,10 +358,10 @@ function LangSwitcher({ project }: { project: Project }) {
  * ⌘⇧Z / ⌘Y) are wired separately in `useCanvasKeyboard`.
  */
 function UndoRedoButtons() {
-  const canUndo = useStore(useAccountStore.temporal, (s) => s.pastStates.length > 0);
-  const canRedo = useStore(useAccountStore.temporal, (s) => s.futureStates.length > 0);
-  const undo = () => useAccountStore.temporal.getState().undo();
-  const redo = () => useAccountStore.temporal.getState().redo();
+  const canUndo = useStore(useProjectsStore.temporal, (s) => s.pastStates.length > 0);
+  const canRedo = useStore(useProjectsStore.temporal, (s) => s.futureStates.length > 0);
+  const undo = () => useProjectsStore.temporal.getState().undo();
+  const redo = () => useProjectsStore.temporal.getState().redo();
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   const mod = isMac ? "⌘" : "Ctrl";
   const { t } = useTranslation();

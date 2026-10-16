@@ -1,9 +1,9 @@
 import { documentIds, hasDocument, menusOf } from "@/domain/documents";
 import type { EdgeAnchor, Project } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
-import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -182,7 +182,7 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
           if (!box) return null;
           const pt = end === "from" ? selectedRouted.from : selectedRouted.to;
           const reset = () =>
-            useAccountStore
+            useProjectsStore
               .getState()
               .clearEdgeAnchor({ projectId: project.id, edgeId: edge.id, end });
           return (
@@ -202,7 +202,7 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
               }}
               onDragEnd={() => {
                 if (dragOverride) {
-                  useAccountStore.getState().setEdgeAnchor({
+                  useProjectsStore.getState().setEdgeAnchor({
                     projectId: project.id,
                     edgeId: dragOverride.edgeId,
                     end: dragOverride.end,

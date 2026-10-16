@@ -1,10 +1,10 @@
 import { resolveDraftConflict, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import * as diskSave from "@/features/project/saveProjectToDisk";
-import { mockAccount } from "@/mock/fixtures";
-import { useAccountStore } from "@/state/accountStore";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectTopBarControls } from "./ProjectTopBarControls";
@@ -29,10 +29,10 @@ vi.mock("@tanstack/react-router", async () => {
 
 describe("ProjectTopBarControls", () => {
   it("shows the actual editor and server contents before choosing a conflict resolution", async () => {
-    const previousAccount = useAccountStore.getState().account;
+    const previousProjects = useProjectsStore.getState().openProjects;
     const previousUser = useAuthStore.getState().currentUser;
-    const account = mockAccount();
-    const project = account.projects[0]!;
+    const openProjects = mockOpenProjects();
+    const project = openProjects.projects[0]!;
     const mine = diskSave.projectTree(project)["manifest.yaml"]!;
     const save = vi.spyOn(diskSave, "saveProjectToDisk").mockResolvedValue({
       ok: false,
@@ -41,7 +41,7 @@ describe("ProjectTopBarControls", () => {
       diskFiles: ["manifest.yaml"],
     });
     try {
-      useAccountStore.setState({ account });
+      useProjectsStore.setState({ openProjects });
       useAuthStore.setState({
         currentUser: { id: "diff-user", email: "diff@example.test", name: "Diff", avatarUrl: null },
       });
@@ -66,21 +66,21 @@ describe("ProjectTopBarControls", () => {
     } finally {
       save.mockRestore();
       act(() => {
-        useAccountStore.setState({ account: previousAccount });
+        useProjectsStore.setState({ openProjects: previousProjects });
         useAuthStore.setState({ currentUser: previousUser });
         useProjectDraftStore.getState().clear(project.id);
       });
     }
   });
   it("opens the conflicts found when the draft opens, and applying them publishes nothing", async () => {
-    const previousAccount = useAccountStore.getState().account;
+    const previousProjects = useProjectsStore.getState().openProjects;
     const previousUser = useAuthStore.getState().currentUser;
-    const account = mockAccount();
-    const project = account.projects[0]!;
+    const openProjects = mockOpenProjects();
+    const project = openProjects.projects[0]!;
     const mine = diskSave.projectTree(project)["manifest.yaml"]!;
     const save = vi.spyOn(diskSave, "saveProjectToDisk");
     try {
-      useAccountStore.setState({ account });
+      useProjectsStore.setState({ openProjects });
       useAuthStore.setState({
         currentUser: { id: "open-user", email: "open@example.test", name: "Open", avatarUrl: null },
       });
@@ -114,7 +114,7 @@ describe("ProjectTopBarControls", () => {
     } finally {
       save.mockRestore();
       act(() => {
-        useAccountStore.setState({ account: previousAccount });
+        useProjectsStore.setState({ openProjects: previousProjects });
         useAuthStore.setState({ currentUser: previousUser });
         useProjectDraftStore.getState().clear(project.id);
         usePersistedDraftStore.setState({ sessions: {} });
@@ -134,9 +134,9 @@ describe("ProjectTopBarControls", () => {
       },
       assets: [],
     } as any;
-    const previous = useAccountStore.getState().account;
+    const previous = useProjectsStore.getState().openProjects;
     try {
-      useAccountStore.setState({ account: { ...previous, projects: [project] } });
+      useProjectsStore.setState({ openProjects: { ...previous, projects: [project] } });
       render(
         <ProjectTopBarControls
           project={project}
@@ -145,8 +145,8 @@ describe("ProjectTopBarControls", () => {
         />,
       );
       act(() =>
-        useAccountStore.setState({
-          account: { ...previous, projects: [{ ...project, name: "Mon atelier" }] },
+        useProjectsStore.setState({
+          openProjects: { ...previous, projects: [{ ...project, name: "Mon atelier" }] },
         }),
       );
       expect(
@@ -154,7 +154,7 @@ describe("ProjectTopBarControls", () => {
       ).toBeInTheDocument();
       expect(within(screen.getByTestId("project-header")).queryByText("named_project")).toBeNull();
     } finally {
-      act(() => useAccountStore.setState({ account: previous }));
+      act(() => useProjectsStore.setState({ openProjects: previous }));
     }
   });
   it("separates project actions, navigation and canvas tools", () => {
@@ -203,7 +203,7 @@ describe("ProjectTopBarControls", () => {
     // Titles may be in English or French depending on test locale.
     const undoMatches = screen.getAllByTitle(/Undo \(|Annuler \(/i);
     expect(undoMatches.length).toBeGreaterThanOrEqual(1);
-    // Deploy writes to the server; Save (account draft) only exists with a
+    // Deploy writes to the server; Save (player draft) only exists with a
     // drafts session.
     expect(screen.getByRole("button", { name: /^(Deploy|Déployer)/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^(Save|Enregistrer)$/ })).toBeNull();
@@ -232,13 +232,13 @@ describe("ProjectTopBarControls", () => {
   });
 
   it("opens the per-file modal when another session advanced the draft, and applies the choice", async () => {
-    const previousAccount = useAccountStore.getState().account;
+    const previousProjects = useProjectsStore.getState().openProjects;
     const previousUser = useAuthStore.getState().currentUser;
-    const account = mockAccount();
-    const project = account.projects[0]!;
+    const openProjects = mockOpenProjects();
+    const project = openProjects.projects[0]!;
     const mine = diskSave.projectTree(project)["manifest.yaml"]!;
     try {
-      useAccountStore.setState({ account });
+      useProjectsStore.setState({ openProjects });
       useAuthStore.setState({
         currentUser: { id: "u1", email: "draft@example.test", name: "Draft", avatarUrl: null },
       });
@@ -290,7 +290,7 @@ describe("ProjectTopBarControls", () => {
       );
     } finally {
       act(() => {
-        useAccountStore.setState({ account: previousAccount });
+        useProjectsStore.setState({ openProjects: previousProjects });
         useAuthStore.setState({ currentUser: previousUser });
         useProjectDraftStore.getState().clear(project.id);
         usePersistedDraftStore.setState({ sessions: {} });

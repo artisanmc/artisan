@@ -1,8 +1,8 @@
 import * as api from "@/lib/api/projectDrafts";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { beforeEach, expect, test, vi } from "vitest";
 import {
   mutateDraftAssets,
@@ -32,7 +32,7 @@ const input = {
 beforeEach(() => {
   vi.restoreAllMocks();
   useAuthStore.setState({ currentUser: { id: "owner" } } as never);
-  useAccountStore.setState({ account: { id: "network", projects: [], projectOrder: [] } } as never);
+  useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } } as never);
   useProjectDraftStore.setState({ drafts: {}, ownerId: "owner", pendingRenames: {}, backups: {} });
   useProjectDraftStore.getState().save("project", {
     ...snapshot,

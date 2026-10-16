@@ -13,12 +13,12 @@ export const editorTourController = createEditorTourController({
   writeGuest: storage.writeGuest,
   readTransfer: storage.readTransfer,
   clearTransfer: storage.clearTransfer,
-  readAccount: (accountId) => {
-    if (useAuthStore.getState().currentUser?.id !== accountId) return Promise.resolve(null);
+  readPlayer: (playerId) => {
+    if (useAuthStore.getState().currentUser?.id !== playerId) return Promise.resolve(null);
     return getMe();
   },
-  writeAccount: (accountId, action) => {
-    if (useAuthStore.getState().currentUser?.id !== accountId)
+  writePlayer: (playerId, action) => {
+    if (useAuthStore.getState().currentUser?.id !== playerId)
       return Promise.resolve({ error: "session_changed" });
     return patchMe({ editor_tour: action });
   },
@@ -30,12 +30,12 @@ function currentAuthReturn(): string | null {
   return window.location.pathname;
 }
 
-let accountId = useAuthStore.getState().currentUser?.id ?? null;
-if (accountId) storage.bindTransfer(accountId, currentAuthReturn());
+let playerId = useAuthStore.getState().currentUser?.id ?? null;
+if (playerId) storage.bindTransfer(playerId, currentAuthReturn());
 useAuthStore.subscribe((state) => {
   const nextId = state.currentUser?.id ?? null;
-  if (nextId !== accountId) {
-    accountId = nextId;
+  if (nextId !== playerId) {
+    playerId = nextId;
     if (nextId) storage.bindTransfer(nextId, currentAuthReturn());
     editorTourController.deactivate();
   }

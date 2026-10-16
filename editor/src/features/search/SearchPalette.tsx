@@ -8,7 +8,7 @@ import {
 } from "@/features/serverIndex/serverIndex";
 import { serverIndexScope, useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
@@ -59,7 +59,7 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const activeLang = useUiStore((s) => s.activeLang);
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);

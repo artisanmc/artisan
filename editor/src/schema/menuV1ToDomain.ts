@@ -109,7 +109,12 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
   function loreText(lore: unknown): LText | undefined {
     if (!Array.isArray(lore) || lore.length === 0) return undefined;
     if (lore.length === 1) return text(loreLine(lore[0]));
-    return text(lore.map(loreLine).filter((l): l is string => typeof l === "string").join("\n"));
+    return text(
+      lore
+        .map(loreLine)
+        .filter((l): l is string => typeof l === "string")
+        .join("\n"),
+    );
   }
 
   function appearance(a: Json): DomainAppearance {

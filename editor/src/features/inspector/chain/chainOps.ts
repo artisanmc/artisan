@@ -1,7 +1,7 @@
 import { type ChainAddress, chainTarget } from "@/domain/chainAddress";
 import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
 import type { Condition, ProjectId, Step } from "@/domain/types";
-import type { AccountState } from "@/state/accountStore";
+import type { ProjectsState } from "@/state/projectsStore";
 import { produce } from "immer";
 
 /**
@@ -32,9 +32,9 @@ export interface ChainOps {
   toggleElse(frames: StepFrame[], ifStepIndex: number, enabled: boolean): void;
 }
 
-/** The account store reducers that edit an Action chain, per owner. */
+/** The projects store reducers that edit an Action chain, per owner. */
 export type ChainStoreActions = Pick<
-  AccountState,
+  ProjectsState,
   | "addElementStep"
   | "moveElementStep"
   | "removeElementStep"
@@ -66,7 +66,7 @@ export type ChainStoreActions = Pick<
 
 /**
  * Chain edits routed to the store reducers of the chain's owner. `actions` is read at each
- * edit (pass `useAccountStore.getState`); `lang` is the language new texts are written in.
+ * edit (pass `useProjectsStore.getState`); `lang` is the language new texts are written in.
  */
 export function storeChainOps(
   actions: () => ChainStoreActions,
