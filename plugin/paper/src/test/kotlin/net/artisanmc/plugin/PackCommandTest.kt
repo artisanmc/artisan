@@ -4,8 +4,8 @@ import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.plugin.command.*
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.lang.LangManager
-import net.artisanmc.plugin.model.BundleMenu
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.model.RuntimeProject
 import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
@@ -23,9 +23,9 @@ class PackCommandTest {
     private val lang = LangManager(emptyMap(), "en", false)
     private val stubProvider = object : MenuProvider {
         override fun load() {}
-        override fun findMenu(menuId: String): BundleMenu? = null
+        override fun findMenu(menuId: String): RuntimeMenu? = null
         override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {}
-        override fun allBundles(): List<ProjectBundle> = emptyList()
+        override fun runtimeProjects(): List<RuntimeProject> = emptyList()
     }
     private fun executor() = ActionExecutor(plugin.value, stubProvider, sessions, deps, cooldowns, evaluator)
 
@@ -38,7 +38,7 @@ class PackCommandTest {
         var openedFrom: String? = "unset"
         val provider = object : MenuProvider {
             override fun load() {}
-            override fun findMenu(menuId: String): BundleMenu? = null
+            override fun findMenu(menuId: String): RuntimeMenu? = null
             override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
                 openedFrom = ctx.projectId
             }
@@ -82,8 +82,8 @@ class PackCommandTest {
             var opened: Pair<String, ExecutionContext>? = null
             val provider = object : MenuProvider {
                 override fun load() {}
-                override fun findMenu(menuId: String): BundleMenu? = null
-                override fun allBundles(): List<ProjectBundle> = emptyList()
+                override fun findMenu(menuId: String): RuntimeMenu? = null
+                override fun runtimeProjects(): List<RuntimeProject> = emptyList()
                 override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
                     assertEquals("menu_zdzd", menuId)
                     opened = lang to ctx

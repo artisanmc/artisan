@@ -3,8 +3,8 @@ package net.artisanmc.plugin.project
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
-import net.artisanmc.plugin.sync.BundleHasher
-import net.artisanmc.plugin.sync.ProjectFilesReader
+import net.artisanmc.plugin.project.ContentHash
+import net.artisanmc.plugin.project.ProjectFilesReader
 import java.io.File
 import java.util.Base64
 
@@ -24,7 +24,7 @@ class DraftPublication(private val root: File) {
     fun publish(message: JsonNode): JsonNode {
         publisher.recover()
         val operationId = message.path("operation_id").asText().takeIf { it.length in 1..256 } ?: return fail("invalid_operation")
-        val fingerprint = BundleHasher.hashBytes(mapper.writeValueAsBytes((message.deepCopy() as ObjectNode).also { it.remove(listOf("request_id", "type")) }))
+        val fingerprint = ContentHash.hashBytes(mapper.writeValueAsBytes((message.deepCopy() as ObjectNode).also { it.remove(listOf("request_id", "type")) }))
         publisher.previous(operationId, fingerprint)?.let { return it }
         val snapshot = message.path("draft").path("snapshot").takeIf { it.isObject } ?: return fail("invalid_draft")
         val blobs = message.path("blobs").fields().asSequence().associate { (hash, base64) -> hash to Base64.getDecoder().decode(base64.asText()) }
@@ -42,7 +42,7 @@ class DraftPublication(private val root: File) {
         val expected = linkedMapOf<String, String?>()
         (baseline.fieldNames().asSequence() + tree.fieldNames().asSequence()).toSet().forEach { path ->
             val before = baseline[path]?.asText(); val after = tree[path]?.asText()
-            if (before != after) { changes[path] = after?.toByteArray(Charsets.UTF_8); expected[path] = before?.let { BundleHasher.hashContent(it) } }
+            if (before != after) { changes[path] = after?.toByteArray(Charsets.UTF_8); expected[path] = before?.let { ContentHash.hashContent(it) } }
         }
         val binaryBase = snapshot["binaryBaseline"]; val binaryTree = snapshot["binaryTree"]
         (binaryBase?.fieldNames()?.asSequence().orEmpty() + binaryTree?.fieldNames()?.asSequence().orEmpty()).toSet().forEach { path ->
@@ -51,9 +51,9 @@ class DraftPublication(private val root: File) {
                 expected[path] = before
                 changes[path] = if (after == null) null else {
                     val target = ProjectPathPolicy.resolve(root, path)
-                    val bytes = blobs[after] ?: target.takeIf { it.isFile }?.readBytes()?.takeIf { BundleHasher.hashBytes(it) == after }
+                    val bytes = blobs[after] ?: target.takeIf { it.isFile }?.readBytes()?.takeIf { ContentHash.hashBytes(it) == after }
                         ?: return emptyMap<String, ByteArray?>() to fail("missing_blob")
-                    if (bytes.size.toLong() != binaryTree!![path]["size"].asLong() || BundleHasher.hashBytes(bytes) != after) return emptyMap<String, ByteArray?>() to fail("invalid_blob")
+                    if (bytes.size.toLong() != binaryTree!![path]["size"].asLong() || ContentHash.hashBytes(bytes) != after) return emptyMap<String, ByteArray?>() to fail("invalid_blob")
                     bytes
                 }
             }
@@ -61,14 +61,14 @@ class DraftPublication(private val root: File) {
         snapshot["renames"]?.forEach { rename ->
             val from = rename["from"].asText(); val to = rename["to"].asText()
             if (baseline[from] == null || tree[to] == null || tree[from] != null) return emptyMap<String, ByteArray?>() to fail("invalid_rename")
-            expected[from] = BundleHasher.hashContent(baseline[from].asText()); expected[to] = null
+            expected[from] = ContentHash.hashContent(baseline[from].asText()); expected[to] = null
             changes[from] = null; changes[to] = tree[to].asText().toByteArray(Charsets.UTF_8)
         }
         val conflicts = expected.mapNotNull { (path, hash) ->
             val file = ProjectPathPolicy.resolve(root, path)
             val bytes = file.takeIf { it.isFile }?.readBytes()
-            if (bytes?.let { BundleHasher.hashBytes(it) } == hash && !file.isDirectory) null
-            else mapOf("path" to path, "disk" to bytes?.takeIf { !ProjectFilesReader.isBinary(path) }?.toString(Charsets.UTF_8), "disk_hash" to bytes?.let { BundleHasher.hashBytes(it) })
+            if (bytes?.let { ContentHash.hashBytes(it) } == hash && !file.isDirectory) null
+            else mapOf("path" to path, "disk" to bytes?.takeIf { !ProjectFilesReader.isBinary(path) }?.toString(Charsets.UTF_8), "disk_hash" to bytes?.let { ContentHash.hashBytes(it) })
         }
         if (conflicts.isNotEmpty()) return emptyMap<String, ByteArray?>() to response("ok" to false, "error" to "conflict", "conflicts" to conflicts, "disk_files" to ProjectFilesReader.allPaths(root))
         return changes to null

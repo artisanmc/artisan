@@ -34,21 +34,21 @@ class ProjectContentReaderTest {
         assertEquals(emptyList(), reader.list("nope", "shop"))
     }
 
-    @Test fun `documents serves the raw documents of a module kind from the loaded bundles`() {
-        val bundles = listOf(
-            net.artisanmc.plugin.model.ProjectBundle(
+    @Test fun `documents serves the raw documents of a module kind from the loaded runtimes`() {
+        val runtimes = listOf(
+            net.artisanmc.plugin.model.RuntimeProject(
                 projectId = "proj1", defaultLang = "en", languages = listOf("en"),
                 documents = mapOf(
                     "quest" to listOf(
-                        net.artisanmc.plugin.model.BundleRawDocument("first", "quest", "quest/v1", "proj1", mapOf("schema" to "quest/v1", "name" to "First")),
+                        net.artisanmc.plugin.model.RuntimeRawDocument("first", "quest", "quest/v1", "proj1", mapOf("schema" to "quest/v1", "name" to "First")),
                     ),
                 ),
             ),
         )
-        val withBundles = ProjectContentReader(ProjectRoots(projectsDir), bundles = { bundles })
-        assertEquals(listOf(mapOf("schema" to "quest/v1", "name" to "First", "id" to "first")), withBundles.documents("proj1", "quest"))
-        assertEquals(emptyList(), withBundles.documents("proj1", "menu"))
-        assertEquals(emptyList(), withBundles.documents("proj2", "quest"))
+        val withRuntimes = ProjectContentReader(ProjectRoots(projectsDir), runtimes = { runtimes })
+        assertEquals(listOf(mapOf("schema" to "quest/v1", "name" to "First", "id" to "first")), withRuntimes.documents("proj1", "quest"))
+        assertEquals(emptyList(), withRuntimes.documents("proj1", "menu"))
+        assertEquals(emptyList(), withRuntimes.documents("proj2", "quest"))
         assertEquals(emptyList(), reader.documents("proj1", "quest"))
     }
 

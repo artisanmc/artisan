@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
-import net.artisanmc.plugin.sync.BundleHasher
-import net.artisanmc.plugin.sync.ProjectFilesReader
+import net.artisanmc.plugin.project.ContentHash
+import net.artisanmc.plugin.project.ProjectFilesReader
 
 /**
  * The Projects' state as read at the last load, replaced as a whole.
@@ -24,7 +24,7 @@ data class ProjectSnapshot(
     val projectIds: List<String> get() = files.keys.sorted()
 
     /** The `project_read` fingerprint, also announced by `projects_reloaded`. */
-    fun hash(projectId: String): String = BundleHasher.snapshotHash(
+    fun hash(projectId: String): String = ContentHash.snapshotHash(
         files[projectId] ?: emptyMap(),
         (binaries[projectId] ?: emptyMap()).mapValues { it.value.hash },
         skipped[projectId] ?: emptyMap(),

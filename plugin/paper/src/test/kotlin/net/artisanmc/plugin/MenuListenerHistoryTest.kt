@@ -54,8 +54,8 @@ class MenuListenerHistoryTest {
             history.pushCurrent(p)
         }
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, id))
-        val bundle = BundleCompiler.compile(menu(), emptyMap()).copy(escapeGoesBack = escapeGoesBack)
-        sessions.set(p, MenuRenderer.open(p, bundle, "en", ExecutionContext(p)))
+        val runtime = MenuCompiler.compile(menu(), emptyMap()).copy(escapeGoesBack = escapeGoesBack)
+        sessions.set(p, MenuRenderer.open(p, runtime, "en", ExecutionContext(p)))
     }
 
     private fun close(p: Player, l: MenuListener, reason: InventoryCloseEvent.Reason) {
@@ -86,7 +86,7 @@ class MenuListenerHistoryTest {
         // open_menu B: push A, record B, open B — then Bukkit closes A.
         history.pushCurrent(p)
         history.setCurrent(p, NavigationEntry(NavigationEntry.Kind.MENU, "b"))
-        MenuRenderer.open(p, BundleCompiler.compile(menu(), emptyMap()), "en")
+        MenuRenderer.open(p, MenuCompiler.compile(menu(), emptyMap()), "en")
 
         l.onClose(InventoryCloseEvent(viewA))
         tick()

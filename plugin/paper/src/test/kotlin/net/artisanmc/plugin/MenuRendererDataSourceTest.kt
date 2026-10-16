@@ -7,7 +7,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.modules.api.datasource.DataSourceDeclaration
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
-import net.artisanmc.plugin.engine.BundleCompiler
+import net.artisanmc.plugin.engine.MenuCompiler
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.model.MenuYaml
 import net.artisanmc.plugin.render.MenuRenderer
@@ -55,7 +55,7 @@ class MenuRendererDataSourceTest {
                 mapOf("id" to "apple", "name" to "Apple", "material" to "APPLE", "category" to "food"),
             ) },
         ))
-        val menu = BundleCompiler.compile(shopMenu(), emptyMap())
+        val menu = MenuCompiler.compile(shopMenu(), emptyMap())
         val inv = MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = registry).slots
         assertEquals(Material.DIAMOND_SWORD, inv[10]?.type)
         assertNull(inv[11]) // apple filtered out (category != weapons)
@@ -85,28 +85,28 @@ class MenuRendererDataSourceTest {
                 mapOf("id" to "sword", "name" to "Sword", "material" to "DIAMOND_SWORD"),
             ) },
         ))
-        val menu = BundleCompiler.compile(directRefMenu(), emptyMap())
+        val menu = MenuCompiler.compile(directRefMenu(), emptyMap())
         val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = registry).slots
         assertEquals(Material.DIAMOND_SWORD, slots[10]?.type)
     }
 
     @Test fun `direct ref that resolves nothing renders empty (non-hermetic)`() {
         val p = player()
-        val menu = BundleCompiler.compile(directRefMenu(), emptyMap())
+        val menu = MenuCompiler.compile(directRefMenu(), emptyMap())
         val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = DataSourceRegistry()).slots
         assertNull(slots[10])
     }
 
     @Test fun `unknown ref renders an empty grid without throwing`() {
         val p = player()
-        val menu = BundleCompiler.compile(shopMenu(), emptyMap())
+        val menu = MenuCompiler.compile(shopMenu(), emptyMap())
         val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), dataSources = DataSourceRegistry()).slots
         assertNull(slots[10])
     }
 
     @Test fun `no registry keeps the legacy behavior`() {
         val p = player()
-        val menu = BundleCompiler.compile(shopMenu(), emptyMap())
+        val menu = MenuCompiler.compile(shopMenu(), emptyMap())
         val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p)).slots
         assertNull(slots[10])
     }

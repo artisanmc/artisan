@@ -6,7 +6,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.engine.ExecutionContext
-import net.artisanmc.plugin.model.BundleDialog
+import net.artisanmc.plugin.model.RuntimeDialog
 import net.artisanmc.plugin.model.DialogYaml
 import net.artisanmc.plugin.render.DialogTextResolver
 import kotlin.test.*
@@ -22,8 +22,8 @@ class DialogTextResolverTest {
 
     private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
 
-    private fun dialog(yaml: String, langMap: Map<String, String> = emptyMap()): BundleDialog =
-        BundleDialog(mapper.readValue<DialogYaml>(yaml), langMaps = mapOf("en" to langMap))
+    private fun dialog(yaml: String, langMap: Map<String, String> = emptyMap()): RuntimeDialog =
+        RuntimeDialog(mapper.readValue<DialogYaml>(yaml), langMaps = mapOf("en" to langMap))
 
     private fun ctx(langMap: Map<String, String> = emptyMap()) =
         ExecutionContext(MockBukkit.getMock()!!.addPlayer("Steve"), langMap = langMap)

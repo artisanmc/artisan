@@ -1,7 +1,7 @@
 package net.artisanmc.plugin
 
-import net.artisanmc.plugin.model.BundleDialog
-import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.RuntimeDialog
+import net.artisanmc.plugin.model.RuntimeMenu
 import net.artisanmc.plugin.model.DialogYaml
 import net.artisanmc.plugin.model.MenuYaml
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -23,7 +23,7 @@ class LangFallbackTest {
 
     @Test
     fun `menu fallback merges default lang under the requested lang per key`() {
-        val menu = BundleMenu(yaml = MenuYaml(id = "shop"), langMaps = langMaps, defaultLang = "fr")
+        val menu = RuntimeMenu(yaml = MenuYaml(id = "shop"), langMaps = langMaps, defaultLang = "fr")
         val en = menu.langMapWithFallback("en")
         assertEquals("Shop", en["menus.shop.title"])
         assertEquals("{item.name}", en["item_templates.t1.default.title"])
@@ -31,13 +31,13 @@ class LangFallbackTest {
 
     @Test
     fun `menu fallback returns default map for an unshipped locale`() {
-        val menu = BundleMenu(yaml = MenuYaml(id = "shop"), langMaps = langMaps, defaultLang = "fr")
+        val menu = RuntimeMenu(yaml = MenuYaml(id = "shop"), langMaps = langMaps, defaultLang = "fr")
         assertEquals(langMaps["fr"], menu.langMapWithFallback("de"))
     }
 
     @Test
     fun `dialog fallback merges default lang under the requested lang per key`() {
-        val dialog = BundleDialog(yaml = DialogYaml(id = "d"), langMaps = langMaps, defaultLang = "fr")
+        val dialog = RuntimeDialog(yaml = DialogYaml(id = "d"), langMaps = langMaps, defaultLang = "fr")
         val en = dialog.langMapWithFallback("en")
         assertEquals("Shop", en["menus.shop.title"])
         assertEquals("{item.name}", en["item_templates.t1.default.title"])

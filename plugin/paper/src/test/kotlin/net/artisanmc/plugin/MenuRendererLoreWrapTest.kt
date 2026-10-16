@@ -46,8 +46,8 @@ class MenuRendererLoreWrapTest {
             hdbHeads = null,
         )
         val p = MockBukkit.getMock()!!.addPlayer()
-        val bundle = BundleCompiler.compile(menu(line), emptyMap()).copy(loreMaxWidth = width)
-        MenuRenderer.open(p, bundle, "en", ExecutionContext(p, args = args), ConditionEvaluator(deps, CooldownStore()))
+        val runtime = MenuCompiler.compile(menu(line), emptyMap()).copy(loreMaxWidth = width)
+        MenuRenderer.open(p, runtime, "en", ExecutionContext(p, args = args), ConditionEvaluator(deps, CooldownStore()))
             .slots[0]!!.itemMeta!!.lore()!!
     }
 

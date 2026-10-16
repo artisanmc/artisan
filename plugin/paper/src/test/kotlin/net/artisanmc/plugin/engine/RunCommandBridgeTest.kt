@@ -4,8 +4,8 @@ import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.modules.api.command.CommandDeclaration
 import net.artisanmc.modules.api.command.CommandRegistry
 import net.artisanmc.plugin.ArtisanPlugin
-import net.artisanmc.plugin.model.BundleMenu
-import net.artisanmc.plugin.model.ProjectBundle
+import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.model.RuntimeProject
 import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import kotlin.test.*
@@ -21,10 +21,10 @@ class RunCommandBridgeTest {
     private val evaluator = ConditionEvaluator(deps, cooldowns)
     private val stubProvider = object : MenuProvider {
         override fun load() {}
-        override fun findMenu(menuId: String): BundleMenu? = null
+        override fun findMenu(menuId: String): RuntimeMenu? = null
         override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {}
         override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {}
-        override fun allBundles(): List<ProjectBundle> = emptyList()
+        override fun runtimeProjects(): List<RuntimeProject> = emptyList()
     }
 
     private fun makeExecutor(commandRegistry: CommandRegistry?) =

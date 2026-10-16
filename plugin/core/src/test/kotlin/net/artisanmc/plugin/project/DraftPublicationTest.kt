@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.sync.BundleHasher
+import net.artisanmc.plugin.project.ContentHash
 import java.io.File
 import java.nio.file.Files
 import java.util.Base64
@@ -14,7 +14,7 @@ class DraftPublicationTest {
     private val root = Files.createTempDirectory("artisan-draft-publish").toFile().also { File(it, "a.yml").writeText("a: 0") }
     private val mapper = ObjectMapper()
     private val png = byteArrayOf(7, 7, 7)
-    private val hash = BundleHasher.hashBytes(png)
+    private val hash = ContentHash.hashBytes(png)
 
     @AfterTest fun teardown() { root.deleteRecursively() }
 
