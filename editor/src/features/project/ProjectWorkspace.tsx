@@ -1,29 +1,20 @@
 import { ProjectTopBarControls } from "@/components/ProjectTopBarControls";
 import { WorkspaceView } from "@/components/ui/workspace-view";
-import type { Asset } from "@/domain/asset";
-import type { ElementId, MenuId, ProjectId } from "@/domain/types";
+import type { MenuId, ProjectId } from "@/domain/types";
 import { DeleteProjectDialog } from "@/features/account/DeleteProjectDialog";
 import { AssetsTab } from "@/features/assets/AssetsTab";
-import {
-  IMAGE_BUTTON_DRAG_PREFIX,
-  ImageButtonDragPreview,
-} from "@/features/canvas/ImageButtonLibrary";
-import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
+import { ImageButtonDragPreview } from "@/features/canvas/ImageButtonLibrary";
 import { Stage } from "@/features/canvas/Stage";
 import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
+import { readDrag, readDrop } from "@/features/canvas/dragPayload";
 import { anchorImageDragToCursor } from "@/features/canvas/imageButtonDrag";
 import { dropImageButton } from "@/features/canvas/imageButtonDrop";
-import {
-  PLACEMENT_ROW_DRAG_PREFIX,
-  type PlacementRowDragData,
-  pinPlacementRow,
-} from "@/features/canvas/placementDrop";
+import { pinPlacementRow } from "@/features/canvas/placementDrop";
 import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget";
 import { getStageGeometry } from "@/features/canvas/stageGeometry";
 import { getTextureUrl } from "@/features/canvas/textureStore";
 import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
 import { runExportZip } from "@/features/export/runExportZip";
-import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { EditorTour } from "@/features/onboarding/EditorTour";
 import {
@@ -263,83 +254,64 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   }
 
   const onDragStart = (e: DragStartEvent) => {
-    const id = String(e.active.id);
-    if (id.startsWith(LIBRARY_DRAG_PREFIX)) {
-      setActiveDragMaterial(id.slice(LIBRARY_DRAG_PREFIX.length));
-      return;
-    }
-    if (id.startsWith(PLACEMENT_ROW_DRAG_PREFIX)) {
-      const material = (e.active.data.current as PlacementRowDragData | undefined)?.placementRow
-        ?.material;
-      setActiveDragMaterial(material || "CHEST");
-      return;
-    }
+    const drag = readDrag(e.active);
+    if (drag?.kind === "material") setActiveDragMaterial(drag.material);
+    else if (drag?.kind === "placementRow") setActiveDragMaterial(drag.material || "CHEST");
   };
 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveDragMaterial(null);
-    const id = String(e.active.id);
-    if (id.startsWith(IMAGE_BUTTON_DRAG_PREFIX)) {
-      const asset = e.active.data.current?.imageButton as Asset | undefined;
-      if (asset) {
-        const event = e.activatorEvent;
-        const start = "touches" in event ? (event as TouchEvent).touches[0] : (event as MouseEvent);
-        if (!start) return;
-        try {
-          dropImageButton(
-            pId,
-            asset,
-            (start.clientX ?? 0) + e.delta.x,
-            (start.clientY ?? 0) + e.delta.y,
-          );
-        } catch (error) {
-          toast.error(error instanceof Error ? error.message : String(error));
-        }
+    const drag = readDrag(e.active);
+    if (drag?.kind === "imageButton") {
+      const event = e.activatorEvent;
+      const start = "touches" in event ? (event as TouchEvent).touches[0] : (event as MouseEvent);
+      if (!start) return;
+      try {
+        dropImageButton(
+          pId,
+          drag.asset,
+          (start.clientX ?? 0) + e.delta.x,
+          (start.clientY ?? 0) + e.delta.y,
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error));
       }
       return;
     }
 
     // Placement-mode row drop: pin the dragged static-source row onto the slot
     // under the release point (must land on the row's own menu).
-    if (id.startsWith(PLACEMENT_ROW_DRAG_PREFIX)) {
-      const payload = (e.active.data.current as PlacementRowDragData | undefined)?.placementRow;
-      if (payload) {
-        const start = e.activatorEvent as PointerEvent;
-        const endX = (start.clientX ?? 0) + e.delta.x;
-        const endY = (start.clientY ?? 0) + e.delta.y;
-        const hit = tryStageSlotHit(endX, endY);
-        if (hit && hit.menuId === payload.menuId) {
-          pinPlacementRow({
-            projectId: pId,
-            menuId: hit.menuId as MenuId,
-            elementId: payload.elementId as ElementId,
-            key: payload.key,
-            position: hit.position,
-          });
-        }
+    if (drag?.kind === "placementRow") {
+      const start = e.activatorEvent as PointerEvent;
+      const endX = (start.clientX ?? 0) + e.delta.x;
+      const endY = (start.clientY ?? 0) + e.delta.y;
+      const hit = tryStageSlotHit(endX, endY);
+      if (hit && hit.menuId === drag.menuId) {
+        pinPlacementRow({
+          projectId: pId,
+          menuId: hit.menuId as MenuId,
+          elementId: drag.elementId,
+          key: drag.key,
+          position: hit.position,
+        });
       }
       return;
     }
 
-    if (!id.startsWith(LIBRARY_DRAG_PREFIX)) return;
-    const material = id.slice(LIBRARY_DRAG_PREFIX.length);
+    if (drag?.kind !== "material") return;
+    const { material } = drag;
 
-    const overId = e.over ? String(e.over.id) : null;
-    if (overId?.startsWith(STATE_DROP_PREFIX)) {
-      const rest = overId.slice(STATE_DROP_PREFIX.length);
-      const [menuId, elementId, idxStr] = rest.split(":");
-      const stateIndex = Number(idxStr);
-      if (menuId && elementId && Number.isFinite(stateIndex)) {
-        useAccountStore.getState().setAppearanceField({
-          projectId: pId,
-          menuId: menuId as MenuId,
-          elementId: elementId as ElementId,
-          appearanceIndex: stateIndex,
-          field: "material",
-          value: material,
-        });
-        return;
-      }
+    const drop = readDrop(e.over);
+    if (drop?.kind === "stateMaterial") {
+      useAccountStore.getState().setAppearanceField({
+        projectId: pId,
+        menuId: drop.menuId,
+        elementId: drop.elementId,
+        appearanceIndex: drop.stateIndex,
+        field: "material",
+        value: material,
+      });
+      return;
     }
 
     const start = e.activatorEvent as PointerEvent;
@@ -560,7 +532,8 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
 function LibraryDragOverlay() {
   const material = useUiStore((s) => s.activeDragMaterial);
   const { active } = useDndContext();
-  const asset = active?.data.current?.imageButton as Asset | undefined;
+  const drag = readDrag(active);
+  const asset = drag?.kind === "imageButton" ? drag.asset : undefined;
   return (
     <DragOverlay dropAnimation={null} modifiers={[anchorImageDragToCursor]}>
       {asset ? (

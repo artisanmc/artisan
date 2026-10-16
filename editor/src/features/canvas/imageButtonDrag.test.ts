@@ -1,5 +1,7 @@
+import type { Asset } from "@/domain/asset";
 import type { Modifier } from "@dnd-kit/core";
 import { afterEach, expect, it } from "vitest";
+import { draggableProps } from "./dragPayload";
 import { anchorImageDragToCursor } from "./imageButtonDrag";
 import { setStageGeometryProvider } from "./stageGeometry";
 
@@ -14,7 +16,12 @@ function drag(start: { x: number; y: number }, scale: number) {
     activatorEvent: new MouseEvent("mousedown", { clientX: start.x, clientY: start.y }),
     active: {
       id: "image",
-      data: { current: { imageButton: { width: 48, height: 16 } } },
+      data: {
+        current: draggableProps({
+          kind: "imageButton",
+          asset: { id: "a1", projectId: "p1", width: 48, height: 16 } as Asset,
+        }).data,
+      },
       rect: { current: { initial: null, translated: null } },
     },
     activeNodeRect: { left: 20, top: 100, width: 96, height: 108, right: 116, bottom: 208 },

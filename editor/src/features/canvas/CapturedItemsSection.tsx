@@ -12,7 +12,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { LIBRARY_DRAG_PREFIX } from "./Library";
+import { draggableProps } from "./dragPayload";
 import { headPreviewUrl } from "./headTexture";
 import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 import { useTextureUrl } from "./textureStore";
@@ -162,10 +162,9 @@ function CapturedTile({
   const display = project ? resolveDisplayRef(project, ref) : { material: ref };
   const materialUrl = useTextureUrl(display.material);
   const textureUrl = useHeadPreviewUrl(display.head) ?? materialUrl;
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `${LIBRARY_DRAG_PREFIX}${ref}`,
-    data: { material: ref },
-  });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable(
+    draggableProps({ kind: "material", material: ref }),
+  );
 
   return (
     <div className="relative">
