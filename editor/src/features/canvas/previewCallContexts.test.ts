@@ -1,3 +1,4 @@
+import { menusOf } from "@/domain/documents";
 import type {
   ContextInput,
   DataSource,
@@ -8,7 +9,6 @@ import type {
 } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { findPreviewCallContexts } from "./previewCallContexts";
-import { menusOf } from "@/domain/documents";
 
 const CATS = [
   { id: "weapons", name: "Armes" },
@@ -49,10 +49,16 @@ const project = (): Project =>
                         steps: [
                           {
                             kind: "action",
-                            action: { name: "open_menu", value: { menu_id: "shop_category", context: {
-                                category_id: "{cat.id}",
-                                category_name: "{cat.name}",
-                              } } },
+                            action: {
+                              name: "open_menu",
+                              value: {
+                                menu_id: "shop_category",
+                                context: {
+                                  category_id: "{cat.id}",
+                                  category_name: "{cat.name}",
+                                },
+                              },
+                            },
                           },
                         ],
                       },
@@ -106,7 +112,9 @@ describe("findPreviewCallContexts", () => {
     const p = project();
     // Rewrite the caller's context to the whole-model style: cat: "{cat}".
     const el = menusOf(p)[0]!.layers[0]!.elements[0]!;
-    const step = el.display!.click!.left!.steps[0]! as { action: { value: Record<string, unknown> } };
+    const step = el.display!.click!.left!.steps[0]! as {
+      action: { value: Record<string, unknown> };
+    };
     step.action.value.context = { cat: "{cat}" };
     const target = menusOf(p).find((m) => m.id === "shop_category") as Menu;
     const contexts = findPreviewCallContexts(target, p, undefined, "fr");

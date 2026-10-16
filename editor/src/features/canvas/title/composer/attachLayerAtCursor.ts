@@ -1,10 +1,10 @@
+import { menusOf } from "@/domain/documents";
 import type { MenuId, Project } from "@/domain/types";
 import { autoLayout } from "../../autoLayout";
 import { TEX_SCALE, TEX_TITLE_H, menuBoxSize } from "../../menuLayout";
 import type { StageGeometry } from "../../stageGeometry";
 import { type MenuBounds, findNearestMenu } from "./dragPlacement";
 import { type Cursor, screenToCanvasCoords } from "./screenToCanvasCoords";
-import { menusOf } from "@/domain/documents";
 
 export interface AttachPlacement {
   menuId: MenuId;

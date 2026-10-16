@@ -1,18 +1,18 @@
+import { menusOf } from "@/domain/documents";
 import { type menuId, projectId } from "@/domain/ids";
 import type { ElementId } from "@/domain/types";
-import { mockAccount } from "@/mock/fixtures";
+import { mockOpenProjects } from "@/mock/fixtures";
 import { beforeEach, describe, expect, it } from "vitest";
-import { useAccountStore } from "./accountStore";
-import { menusOf } from "@/domain/documents";
+import { useProjectsStore } from "./projectsStore";
 
 const PERSONAL = projectId("p_personal");
 
 const getMenu = (mId: ReturnType<typeof menuId>) =>
-  menusOf(useAccountStore.getState().account.projects.find((p) => p.id === PERSONAL)!).find(
+  menusOf(useProjectsStore.getState().openProjects.projects.find((p) => p.id === PERSONAL)!).find(
     (m) => m.id === mId,
   )!;
 
-const store = () => useAccountStore.getState();
+const store = () => useProjectsStore.getState();
 
 /** A 3-row chest with its bottom hidden, one STONE button at `position`. */
 function hiddenMenu(id: string, position: number) {
@@ -35,7 +35,7 @@ function hiddenMenu(id: string, position: number) {
 describe("menu player_inventory", () => {
   beforeEach(() => {
     localStorage.clear();
-    useAccountStore.setState({ account: mockAccount() });
+    useProjectsStore.setState({ openProjects: mockOpenProjects() });
   });
 
   it("stores hidden, and visible as absent", () => {
@@ -127,7 +127,7 @@ describe("menu player_inventory", () => {
 describe("menu vanilla_texture", () => {
   beforeEach(() => {
     localStorage.clear();
-    useAccountStore.setState({ account: mockAccount() });
+    useProjectsStore.setState({ openProjects: mockOpenProjects() });
   });
 
   it("stores the texture off, and on as absent", () => {

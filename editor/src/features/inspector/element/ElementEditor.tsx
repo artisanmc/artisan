@@ -10,8 +10,8 @@ import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { formatPositions, parsePositions } from "@/lib/positions";
 import { useGetText } from "@/lib/useText";
-import { useAccountStore } from "@/state/accountStore";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,7 +32,9 @@ export function ElementEditor({
   const focusedStateIndex =
     sub && (sub.kind === "state" || sub.kind === "step") ? (sub.stateIndex ?? 0) : 0;
 
-  const headerProject = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const headerProject = useProjectsStore((s) =>
+    s.openProjects.projects.find((p) => p.id === projectId),
+  );
   const appearances = addressedAppearances(element);
   const focusedState = appearances[focusedStateIndex] ?? appearances[0];
   const headerMaterial = focusedState?.material ?? "";
@@ -52,9 +54,9 @@ export function ElementEditor({
   const menuTitle = getText(getFirstTitleText(menu));
   const { t } = useTranslation();
 
-  const addAppearance = useAccountStore((s) => s.addAppearance);
-  const duplicateAppearance = useAccountStore((s) => s.duplicateAppearance);
-  const deleteElement = useAccountStore((s) => s.deleteElement);
+  const addAppearance = useProjectsStore((s) => s.addAppearance);
+  const duplicateAppearance = useProjectsStore((s) => s.duplicateAppearance);
+  const deleteElement = useProjectsStore((s) => s.deleteElement);
 
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
@@ -165,7 +167,7 @@ function ElementIdField({
   elementId: ElementId;
 }) {
   const { t } = useTranslation();
-  const setElementId = useAccountStore((s) => s.setElementId);
+  const setElementId = useProjectsStore((s) => s.setElementId);
   const [draft, setDraft] = useState(elementId as string);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -222,7 +224,7 @@ function PositionsField({
   element: Element;
 }) {
   const { t } = useTranslation();
-  const setElementPositions = useAccountStore((s) => s.setElementPositions);
+  const setElementPositions = useProjectsStore((s) => s.setElementPositions);
   const [draft, setDraft] = useState(element.positions);
   // biome-ignore lint/correctness/useExhaustiveDependencies: element.id forces draft reset on element switch
   useEffect(() => {

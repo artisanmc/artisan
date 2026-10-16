@@ -8,7 +8,7 @@ import type {
   ProjectId,
   SourceRef,
 } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -76,8 +76,8 @@ function typeBrace() {
 
 describe("ActionEditor placeholders", () => {
   beforeEach(() => {
-    useAccountStore.setState({
-      account: { id: "a" as never, projectOrder: [PID], projects: [project()] },
+    useProjectsStore.setState({
+      openProjects: { projectOrder: [PID], projects: [project()] },
     } as never);
     useServerDataSourcesStore.setState({
       sources: [

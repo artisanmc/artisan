@@ -1,10 +1,14 @@
-import { describe, it, expect } from "vitest";
-import { ownerModuleOf } from "./projectOwnership";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
+import { describe, expect, it } from "vitest";
+import { ownerModuleOf } from "./projectOwnership";
 
 const screen = (p: Partial<ServerEditorScreen>): ServerEditorScreen => ({
-  id: "boutique:catalog", moduleId: "boutique", label: "Catalogue",
-  table: "data/categories", projectId: "boutique_shop", ...p,
+  id: "boutique:catalog",
+  moduleId: "boutique",
+  label: "Catalogue",
+  table: "data/categories",
+  projectId: "boutique_shop",
+  ...p,
 });
 
 /**
@@ -24,10 +28,9 @@ describe("ownerModuleOf", () => {
   it("matches on the DISK id, the one the module declares", () => {
     // When another server already holds the disk id, the internal id differs —
     // but the module declared its disk id.
-    const owner = ownerModuleOf(
-      { id: "proj_58967c930e9e", externalId: "boutique_shop" },
-      [screen({})],
-    );
+    const owner = ownerModuleOf({ id: "proj_58967c930e9e", externalId: "boutique_shop" }, [
+      screen({}),
+    ]);
     expect(owner).toBe("boutique");
   });
 

@@ -2,16 +2,16 @@ import { liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { allDocuments, emptyDocuments, menusOf, mutableMenus } from "@/domain/documents";
 import { newProjectId } from "@/domain/ids";
 import { migrateTitle } from "@/domain/migrateTitle";
-import type { Account, MenuId, Project, ProjectId } from "@/domain/types";
+import type { MenuId, OpenProjects, Project, ProjectId } from "@/domain/types";
 import { migrateProjectToI18n } from "@/lib/i18nMigration";
 import { migrateProjectDocuments } from "@/lib/projectDocumentsMigration";
 import { produce } from "immer";
 import { gcDocumentLTexts, mintSourceLTexts } from "./helpers";
-import type { AccountSliceContext, AccountState } from "./types";
+import type { ProjectsSliceContext, ProjectsState } from "./types";
 
-/** The account and its Projects: creation, import, replacement, ordering, deletion of Documents. */
+/** The open Projects: creation, import, replacement, ordering, deletion of Documents. */
 export interface ProjectsSlice {
-  setAccount: (account: Account) => void;
+  setOpenProjects: (openProjects: OpenProjects) => void;
   createProject: (input: { id: string }) => ProjectId;
   /**
    * Import a project object as a *new* project: assigns a fresh ProjectId, marks
@@ -47,12 +47,12 @@ export const createProjectsSlice = ({
   get,
   clearTemporal,
   mutateProject,
-}: AccountSliceContext): ProjectsSlice => ({
-  setAccount: (account) => {
+}: ProjectsSliceContext): ProjectsSlice => ({
+  setOpenProjects: (openProjects) => {
     clearTemporal();
-    const migratedProjects = account.projects.map((p) => {
+    const migratedProjects = openProjects.projects.map((p) => {
       const next = { ...p };
-      // A stored account may predate `Project.documents` (ADR decision 10).
+      // A stored project list may predate `Project.documents` (ADR decision 10).
       migrateProjectDocuments(next);
       return {
         ...next,
@@ -62,16 +62,16 @@ export const createProjectsSlice = ({
         },
       };
     });
-    const migratedAccount = produce({ ...account, projects: migratedProjects }, (draft) => {
+    const migratedOpen = produce({ ...openProjects, projects: migratedProjects }, (draft) => {
       for (const project of draft.projects) mintSourceLTexts(project);
     });
-    set({ account: migratedAccount });
+    set({ openProjects: migratedOpen });
   },
   createProject: ({ id: rawId }) => {
     const id = rawId as ProjectId;
     set(
-      produce((draft: AccountState) => {
-        draft.account.projects.push({
+      produce((draft: ProjectsState) => {
+        draft.openProjects.projects.push({
           id,
           name: rawId,
           source: "user_created",
@@ -85,7 +85,7 @@ export const createProjectsSlice = ({
           loreMaxWidth: 240,
           canvasLayout: {},
         });
-        draft.account.projectOrder.push(id);
+        draft.openProjects.projectOrder.push(id);
       }),
     );
     clearTemporal();
@@ -110,7 +110,7 @@ export const createProjectsSlice = ({
 
     const id = newProjectId();
     set(
-      produce((draft: AccountState) => {
+      produce((draft: ProjectsState) => {
         const next: Project = {
           ...folded,
           id,
@@ -137,8 +137,8 @@ export const createProjectsSlice = ({
         for (const menu of mutableMenus(next)) {
           menu.title = migrateTitle(menu.title);
         }
-        draft.account.projects.push(next);
-        draft.account.projectOrder.push(id);
+        draft.openProjects.projects.push(next);
+        draft.openProjects.projectOrder.push(id);
       }),
     );
     clearTemporal();
@@ -147,10 +147,10 @@ export const createProjectsSlice = ({
   replaceProject: (project) => {
     clearTemporal();
     set(
-      produce((draft: AccountState) => {
-        const idx = draft.account.projects.findIndex((p) => p.id === project.id);
+      produce((draft: ProjectsState) => {
+        const idx = draft.openProjects.projects.findIndex((p) => p.id === project.id);
         if (idx !== -1) {
-          draft.account.projects[idx] = {
+          draft.openProjects.projects[idx] = {
             ...project,
             documents: {
               ...project.documents,
@@ -168,33 +168,35 @@ export const createProjectsSlice = ({
   },
   removeProject: (projectId) => {
     set(
-      produce((draft: AccountState) => {
-        draft.account.projects = draft.account.projects.filter((p) => p.id !== projectId);
-        draft.account.projectOrder = draft.account.projectOrder.filter((id) => id !== projectId);
+      produce((draft: ProjectsState) => {
+        draft.openProjects.projects = draft.openProjects.projects.filter((p) => p.id !== projectId);
+        draft.openProjects.projectOrder = draft.openProjects.projectOrder.filter(
+          (id) => id !== projectId,
+        );
       }),
     );
     clearTemporal();
   },
   upsertScratchProject: (project) => {
     set(
-      produce((draft: AccountState) => {
-        const idx = draft.account.projects.findIndex((p) => p.id === project.id);
-        if (idx === -1) draft.account.projects.push(project);
-        else draft.account.projects[idx] = project;
+      produce((draft: ProjectsState) => {
+        const idx = draft.openProjects.projects.findIndex((p) => p.id === project.id);
+        if (idx === -1) draft.openProjects.projects.push(project);
+        else draft.openProjects.projects[idx] = project;
       }),
     );
     clearTemporal();
   },
   reorderProjects: (newOrder) => {
     set(
-      produce((draft: AccountState) => {
-        draft.account.projectOrder = [...newOrder];
+      produce((draft: ProjectsState) => {
+        draft.openProjects.projectOrder = [...newOrder];
       }),
     );
     clearTemporal();
   },
   moveMenuToProject: ({ menuId: mId, fromProjectId, toProjectId }) => {
-    const next = produce(get().account, (draft) => {
+    const next = produce(get().openProjects, (draft) => {
       const from = draft.projects.find((p) => p.id === fromProjectId);
       const to = draft.projects.find((p) => p.id === toProjectId);
       if (!from || !to) throw new Error("project not found");
@@ -206,7 +208,7 @@ export const createProjectsSlice = ({
       moved.projectId = toProjectId;
       mutableMenus(to).push(moved);
     });
-    set({ account: next });
+    set({ openProjects: next });
   },
   setProjectField: ({ projectId: pId, field, value }) =>
     mutateProject(pId, (project) => {

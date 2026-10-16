@@ -1,5 +1,5 @@
 import type { ElementId, MenuId, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
@@ -42,7 +42,7 @@ export function useSlotPointer({
     const armed = useUiStore.getState().armedMaterial;
     if (armed) {
       try {
-        useAccountStore.getState().setSlotMaterial({
+        useProjectsStore.getState().setSlotMaterial({
           projectId,
           menuId,
           position,

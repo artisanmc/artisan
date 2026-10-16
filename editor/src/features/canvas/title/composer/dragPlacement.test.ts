@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  findNearestMenu,
-  type MenuBounds,
-  NEAREST_MENU_THRESHOLD_PX,
-} from "./dragPlacement";
+import { type MenuBounds, NEAREST_MENU_THRESHOLD_PX, findNearestMenu } from "./dragPlacement";
 
 // Canvas px. Mirrors `TEX_TITLE_H` (MC_TITLE_H × TEX_SCALE = 17 × 2 = 34) — used
 // by dragPlacement to compute title-bar centers. Tests don't import the editor

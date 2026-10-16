@@ -1,7 +1,7 @@
 /**
  * The publish workflow of a Project: deploy (the only gesture that writes the
  * server's disk, compare-and-swap — ADR `server-disk-only-storage`), its diff
- * review, the three conflict sources and the explicit account-draft save.
+ * review, the three conflict sources and the explicit draft save.
  *
  * A conflict opens the resolution modal; nothing has been written at that
  * point (the plugin applies all or nothing), and no file is decided without an
@@ -32,9 +32,9 @@ import {
 import { serverChecksFor } from "@/features/serverIndex/serverChecks";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { useAccountStore } from "@/state/accountStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useReducer } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -46,8 +46,8 @@ import { formatSaveError, initialPublishState, publishReducer } from "./publishF
  * automatically) enter the editor's tree. Only paths that differ are touched,
  * never unrelated files.
  */
-export function syncAccountFromDraft(projectId: ProjectId): void {
-  const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+export function syncStoreFromDraft(projectId: ProjectId): void {
+  const live = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
   const draft = useProjectDraftStore.getState().get(projectId);
   if (!live || !draft) return;
   const before = projectTree(live);
@@ -59,7 +59,7 @@ export function syncAccountFromDraft(projectId: ProjectId): void {
     else if (next !== before[path]) adopt[path] = next;
   }
   if (Object.keys(adopt).length > 0 || remove.length > 0)
-    useAccountStore.getState().replaceProject(adoptDiskIntoProject(live, adopt, remove));
+    useProjectsStore.getState().replaceProject(adoptDiskIntoProject(live, adopt, remove));
 }
 
 export function usePublishFlow(
@@ -69,12 +69,12 @@ export function usePublishFlow(
 ) {
   const { t } = useTranslation();
   const user = useProjectPrincipalId(projectId);
-  const replaceProject = useAccountStore((s) => s.replaceProject);
+  const replaceProject = useProjectsStore((s) => s.replaceProject);
   // The LIVE Project, not a prop: a prop comes from a `useState` frozen at load
-  // (`useProjectLoader`) while every edit lands in `useAccountStore`. Saving the
+  // (`useProjectLoader`) while every edit lands in `useProjectsStore`. Saving the
   // prop wrote the Project as it was when opened — the whole session's work was
   // silently lost.
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const [state, dispatch] = useReducer(publishReducer, initialPublishState);
   const draftSession = usePersistedDraftStore((s) => s.sessions[projectId]);
 
@@ -102,11 +102,11 @@ export function usePublishFlow(
     // only the editor tree update remains.
     if (draftConflict.conflicts.length === 0) {
       void resolveDraftConflict(projectId, {})
-        .then(() => syncAccountFromDraft(projectId))
+        .then(() => syncStoreFromDraft(projectId))
         .catch(() => {});
       return;
     }
-    const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+    const live = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
     dispatch({
       type: "conflictsFound",
       source: "draft",
@@ -172,7 +172,7 @@ export function usePublishFlow(
       return;
     }
     flushDraftEdits();
-    const live = useAccountStore.getState().account.projects.find((p) => p.id === projectId);
+    const live = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
     const current = useProjectDraftStore.getState().get(projectId);
     dispatch({
       type: "reviewOpened",
@@ -232,7 +232,7 @@ export function usePublishFlow(
     if (source === "draft") {
       try {
         await resolveDraftConflict(projectId, choices);
-        syncAccountFromDraft(projectId);
+        syncStoreFromDraft(projectId);
         dispatch({ type: "conflictsClosed" });
         toast.info(t("save.conflictDraftResolved"));
       } catch {

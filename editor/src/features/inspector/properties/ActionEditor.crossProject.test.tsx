@@ -1,6 +1,6 @@
 import type { Action, Project, ProjectId } from "@/domain/types";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,8 +57,8 @@ const boutique = () =>
   });
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: { id: "a" as never, projectOrder: [PID], projects: [edited()] },
+  useProjectsStore.setState({
+    openProjects: { projectOrder: [PID], projects: [edited()] },
   } as never);
   useServerIndexStore.setState({
     scope: "n/s",

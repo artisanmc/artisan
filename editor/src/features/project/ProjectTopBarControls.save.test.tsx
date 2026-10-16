@@ -2,9 +2,9 @@ import type { Project, ProjectId } from "@/domain/types";
 import { syncPersistedDraft, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import { saveProjectToDisk } from "@/features/project/saveProjectToDisk";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -74,14 +74,14 @@ function baseProject(name: string): Project {
 /**
  * Regression: the Save button serialised the `project` prop, which comes from
  * a `useState` frozen at load (`useProjectLoader`). All edits live in
- * `useAccountStore`, so saving wrote the Project as it was when OPENED and
+ * `useProjectsStore`, so saving wrote the Project as it was when OPENED and
  * silently lost the whole session's work.
  */
 describe("ProjectTopBarControls — Enregistrer", () => {
   it("explains how to recover a conflicting backend draft", async () => {
     const p = baseProject("Boutique");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     useProjectDraftStore.getState().save("p1", {
       baseline: {},
@@ -102,8 +102,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
   it("shows, copies and reopens the last save failure", async () => {
     const user = userEvent.setup();
     const p = baseProject("edited");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     useProjectDraftStore.getState().save("p1", {
       baseline: {},
@@ -151,8 +151,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
   it("saves the LIVE store state, not the prop frozen at load time", async () => {
     const stale = baseProject("état au chargement");
     const live = baseProject("état après édition");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [live], projectOrder: [live.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [live], projectOrder: [live.id] },
     } as never);
     // Save is only enabled when there is work in progress: the draft says so,
     // so a dirty draft is needed to be able to click.
@@ -178,8 +178,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
    */
   it("is inactive when nothing has changed since load", () => {
     const p = baseProject("intact");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     const tree = { "menus/m.yaml": "a\n" };
     useProjectDraftStore.getState().save("p1", {
@@ -195,8 +195,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
 
   it("waits for an offline server: Deploy explains why, opens no review and writes nothing", async () => {
     const p = baseProject("hors ligne");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     useProjectDraftStore.getState().save("p1", {
       baseline: { "menus/m.yaml": "a\n" },
@@ -216,8 +216,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
 
   it("shows the changes before deploying and writes nothing when cancelled", async () => {
     const p = baseProject("revue");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     useProjectDraftStore.getState().save("p1", {
       baseline: {},
@@ -253,8 +253,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
         ...baseProject("revue"),
         documents: { ...baseProject("revue").documents, command: [command("c1", "craft")] },
       } as unknown as Project;
-      useAccountStore.setState({
-        account: { id: "n1", projects: [p], projectOrder: [p.id] },
+      useProjectsStore.setState({
+        openProjects: { projects: [p], projectOrder: [p.id] },
       } as never);
       useProjectDraftStore.getState().save("p1", {
         baseline: {},
@@ -294,10 +294,10 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     });
   });
 
-  it("saves the draft to the account without deploying it", async () => {
+  it("saves the draft to the suite database without deploying it", async () => {
     const p = baseProject("brouillon");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     usePersistedDraftStore.setState({
       sessions: { p1: { ownerId: "u1", drafts: [], status: "pending" } },
@@ -314,8 +314,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
 
   it("shows Save as a disk icon with a tooltip, and Deploy with a play icon beside its label", () => {
     const p = baseProject("icônes");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     usePersistedDraftStore.setState({
       sessions: { p1: { ownerId: "u1", drafts: [], status: "pending" } },
@@ -335,14 +335,14 @@ describe("ProjectTopBarControls — Enregistrer", () => {
   });
 
   it.each([
-    ["pending", /not saved to your account yet|pas encore enregistrées sur votre compte/],
-    ["saved", /Draft saved to your account|Brouillon enregistré sur votre compte/],
+    ["pending", /not saved to your openProjects yet|pas encore enregistrées sur votre compte/],
+    ["saved", /Draft saved to your openProjects|Brouillon enregistré sur votre compte/],
     ["offline", /Local copy only|Copie locale seulement/],
     ["conflict", /another session|autre session/],
   ] as const)("explains the %s draft state in a tooltip", async (status, text) => {
     const p = baseProject("bulle");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     usePersistedDraftStore.setState({ sessions: { p1: { ownerId: "u1", drafts: [], status } } });
     try {
@@ -358,8 +358,8 @@ describe("ProjectTopBarControls — Enregistrer", () => {
 
   it("spins the save icon while the draft is being saved", () => {
     const p = baseProject("en cours");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     usePersistedDraftStore.setState({
       sessions: { p1: { ownerId: "u1", drafts: [], status: "saving" } },
@@ -374,10 +374,10 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     }
   });
 
-  it("marks the draft as saved once the account holds it", () => {
+  it("marks the draft as saved once the suite database holds it", () => {
     const p = baseProject("à jour");
-    useAccountStore.setState({
-      account: { id: "n1", projects: [p], projectOrder: [p.id] },
+    useProjectsStore.setState({
+      openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     usePersistedDraftStore.setState({
       sessions: { p1: { ownerId: "u1", drafts: [], status: "saved" } },

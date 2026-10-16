@@ -1,5 +1,5 @@
-import type { ComponentType } from "react";
 import { getModule } from "@artisan/editor-sdk";
+import type { ComponentType } from "react";
 
 export type ModuleResolution =
   | { kind: "component"; component: ComponentType }

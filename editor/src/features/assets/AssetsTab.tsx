@@ -4,7 +4,7 @@ import { assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { cx } from "@/lib/cx";
 import { useIsDesktop } from "@/lib/useMediaQuery";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetDetailPanel } from "./AssetDetailPanel";
@@ -29,8 +29,8 @@ export function AssetsTab({
   const assets = useAssetStore((s) => s.assets);
   const loading = useAssetStore((s) => s.loading);
   const error = useAssetStore((s) => s.error);
-  const project = useAccountStore((s) =>
-    s.account.projects.find((entry) => entry.id === projectId),
+  const project = useProjectsStore((s) =>
+    s.openProjects.projects.find((entry) => entry.id === projectId),
   );
   const selectedId = useAssetStore((s) => s.selectedId);
   const setSelectedId = useAssetStore((s) => s.setSelectedId);

@@ -13,8 +13,7 @@ export const onboardingEn = {
   replay: "Take the tour again",
   discover: "Discover the editor",
   navigationTitle: "Your projects, in one place",
-  navigationDescription:
-    "Open navigation to move between your Networks, servers and projects.",
+  navigationDescription: "Open navigation to move between your Networks, servers and projects.",
   canvasTitle: "See how your menus connect",
   canvasDescription:
     "The canvas brings your menus and their links together. Select a menu or one of its buttons to edit it.",
@@ -49,8 +48,7 @@ export const onboardingFr = {
   replay: "Refaire la visite",
   discover: "Découvrir l’éditeur",
   navigationTitle: "Vos projets au même endroit",
-  navigationDescription:
-    "Ouvrez la navigation pour retrouver vos Networks, serveurs et projets.",
+  navigationDescription: "Ouvrez la navigation pour retrouver vos Networks, serveurs et projets.",
   canvasTitle: "Visualisez les liens entre vos menus",
   canvasDescription:
     "Le canvas rassemble vos menus et leurs liens. Sélectionnez un menu ou l’un de ses boutons pour le modifier.",

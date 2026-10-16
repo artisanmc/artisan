@@ -67,7 +67,11 @@ export interface CachedProject {
  * exist on two servers: the key therefore carries both, as they come, without
  * resolution.
  */
-export function projectCacheKey(projectId: string, serverRef?: string | null, ownerId?: string | null): string {
+export function projectCacheKey(
+  projectId: string,
+  serverRef?: string | null,
+  ownerId?: string | null,
+): string {
   return JSON.stringify([ownerId, serverRef, projectId]);
 }
 

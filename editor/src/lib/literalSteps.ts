@@ -1,9 +1,9 @@
 import type { I18nKey, Step } from "@/domain/types";
 import { parseToSteps } from "@/lib/actionDsl";
 import {
+  type ActionTextCodec,
   stepsToStructured,
   structuredToSteps,
-  type ActionTextCodec,
 } from "@/lib/actions/structuredSteps";
 
 /**

@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeEach } from "vitest";
 import type { Asset } from "@/domain/asset";
+import { beforeEach, describe, expect, it } from "vitest";
 import { useAssetStore } from "./assetStore";
 
 const a1: Asset = {

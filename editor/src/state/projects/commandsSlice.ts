@@ -12,7 +12,7 @@ import {
   rewriteCanvasGroupMembers,
   validateArgOrder,
 } from "./helpers";
-import type { AccountSliceContext } from "./types";
+import type { ProjectsSliceContext } from "./types";
 
 /** Commands: fields, aliases, arguments and their steps. */
 export interface CommandsSlice {
@@ -123,7 +123,7 @@ export const createCommandsSlice = ({
   get,
   mutateProject,
   mutateCommand,
-}: AccountSliceContext): CommandsSlice => ({
+}: ProjectsSliceContext): CommandsSlice => ({
   createCommand: ({ projectId: pId, id: explicitId, name, position }) => {
     const id = explicitId ? commandId(explicitId) : newCommandId();
     mutateProject(pId, (project) => {
@@ -186,7 +186,7 @@ export const createCommandsSlice = ({
     if (oldId === newId) return;
     if (!newId) throw new Error("command id cannot be empty");
     {
-      const project = get().account.projects.find((p) => p.id === pId);
+      const project = get().openProjects.projects.find((p) => p.id === pId);
       if (!project) return;
       if (commandsOf(project).some((c) => c.id === newId)) {
         throw new Error(`command id "${newId}" already exists in project`);

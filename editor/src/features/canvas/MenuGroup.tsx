@@ -1,10 +1,10 @@
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { ElementId, Menu, ProjectId } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
-import { useAccountStore } from "@/state/accountStore";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
 import { useHoverStore } from "@/state/hoverStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { isElementSelected, useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useMemo } from "react";
@@ -123,7 +123,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
   // `project.i18nKeys[lt.key][activeLang]` with fallback to defaultLang.
   // For `iterates` elements, positions are unrolled against the preview
   // scope; each position i binds the i-th item with placeholder resolution.
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const snapshots = useMenuPreviewSnapshots(menu);
   // Build a preview scope from contextInputs — primitives are coerced to their
   // declared type; sourceRefs resolve against a live snapshot (server sources)
