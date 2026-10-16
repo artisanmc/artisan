@@ -112,7 +112,10 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
       menuWithClick("left", 'open_menu target clear with player="{player}"'),
       opts,
     );
-    expect(clickAction(r)).toEqual({ name: "open_menu", value: { menu_id: "target", context: { player: "{player}" }, clear_context: true } });
+    expect(clickAction(r)).toEqual({
+      name: "open_menu",
+      value: { menu_id: "target", context: { player: "{player}" }, clear_context: true },
+    });
   });
 
   it("reads template refs on iterates/places (the display lives in templates/)", () => {
@@ -324,7 +327,10 @@ describe("menuV1ToDomain — actions + steps (Action DSL)", () => {
     const steps = clickSteps(r) as Array<Record<string, any>>;
     expect(steps[0]!.kind).toBe("if");
     expect(steps[0]!.cases[0].conditions[0]).toEqual({ type: "has_permission", perm: "vip" });
-    expect(steps[0]!.cases[0].steps[0]).toEqual({ kind: "action", action: { name: "close_menu", value: null } });
+    expect(steps[0]!.cases[0].steps[0]).toEqual({
+      kind: "action",
+      action: { name: "close_menu", value: null },
+    });
     expect(steps[0]!.else[0]).toEqual({
       kind: "action",
       action: { name: "run_command", value: { command: "say no", as: "console" } },
@@ -704,8 +710,14 @@ describe("menuV1ToDomain — extended runtime-OK vocab", () => {
     const bc = steps[0] as { kind: "action"; action: { name: string; value: { key: string } } };
     expect(bc.action.name).toBe("broadcast");
     expect(r.i18nKeys[bc.action.value.key]).toEqual({ en: "<gold>Big news!</gold>" });
-    expect((steps[1] as { action: unknown }).action).toEqual({ name: "play_sound", value: { sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.2 } });
-    expect((steps[6] as { action: unknown }).action).toEqual({ name: "teleport", value: { world: "spawn", x: 0.5, y: 64, z: 0.5, yaw: 90, pitch: 0 } });
+    expect((steps[1] as { action: unknown }).action).toEqual({
+      name: "play_sound",
+      value: { sound: "ENTITY_PLAYER_LEVELUP", volume: 0.5, pitch: 1.2 },
+    });
+    expect((steps[6] as { action: unknown }).action).toEqual({
+      name: "teleport",
+      value: { world: "spawn", x: 0.5, y: 64, z: 0.5, yaw: 90, pitch: 0 },
+    });
   });
 });
 

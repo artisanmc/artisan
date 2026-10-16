@@ -1,9 +1,7 @@
 import { ConfigScreenPage } from "@/features/screens/ConfigScreenPage";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute(
-  "/servers/$serverId/screens/$screenId",
-)({
+export const Route = createFileRoute("/servers/$serverId/screens/$screenId")({
   component: ScreenRoute,
 });
 

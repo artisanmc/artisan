@@ -6,7 +6,7 @@ import { projectToFiles } from "@/schema/projectToFiles";
 import { listModules } from "@artisan/editor-sdk";
 
 /**
- * Config screens edit a live working copy held in the account store under a
+ * Config screens edit a live working copy held in the projects store under a
  * scratch project id (ADR module-config-screens). The scratch is NEVER
  * persisted (filtered out of drafts and the sidebar) — saving goes through the
  * WS live channel (`configWrite`) instead.

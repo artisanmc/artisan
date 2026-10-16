@@ -1,7 +1,7 @@
+import { menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
 import { autoLayout, projectBoard, rearrangeProjectLayout } from "./autoLayout";
-import { menusOf } from "@/domain/documents";
 
 const menu = (id: string, opens?: string) =>
   ({

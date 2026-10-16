@@ -61,17 +61,16 @@ function mockHub(
       return json({ project_ids: options.ids ?? ["beta", "alpha"], projects: options.projects });
     if (pathname === `/api/v1/servers/${server}/server-config`)
       return json({ config: {}, online: true });
-    if (
-      pathname === `/api/v1/servers/${server}/resource-pack` &&
-      init?.method === "PUT"
-    ) {
+    if (pathname === `/api/v1/servers/${server}/resource-pack` && init?.method === "PUT") {
       uploads.push(init.body as Uint8Array);
       return json({ hash: "abc" });
     }
     const files = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/files$/);
     if (files) {
       const tree = TREES[decodeURIComponent(files[1]!).replace("lobby.", "")];
-      return tree ? json({ ...tree, failed: [], hash: "h" }) : json({ error: "unknown_project" }, 404);
+      return tree
+        ? json({ ...tree, failed: [], hash: "h" })
+        : json({ error: "unknown_project" }, 404);
     }
     const binary = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/binary$/);
     if (binary) {
@@ -156,13 +155,25 @@ describe("buildServerPack", () => {
     const reads = fetchMock.mock.calls
       .map(([url]) => new URL(String(url), "http://x").pathname)
       .filter((path) => path.endsWith("/files"));
-    expect(reads).toEqual(["/api/v1/projects/lobby.alpha/files", "/api/v1/projects/lobby.beta/files"]);
+    expect(reads).toEqual([
+      "/api/v1/projects/lobby.alpha/files",
+      "/api/v1/projects/lobby.beta/files",
+    ]);
   });
 
   test("project ids listed by the hub win over the folder name", async () => {
     const { fetchMock } = mockHub({
       server: LOBBY,
-      projects: [{ id: "lobby.alpha", externalId: "alpha", name: "alpha", hash: "", networkId: "local", serverKeyId: LOBBY }],
+      projects: [
+        {
+          id: "lobby.alpha",
+          externalId: "alpha",
+          name: "alpha",
+          hash: "",
+          networkId: "local",
+          serverKeyId: LOBBY,
+        },
+      ],
     });
     await buildServerPack(LOBBY);
     const reads = fetchMock.mock.calls

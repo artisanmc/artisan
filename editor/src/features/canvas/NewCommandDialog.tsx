@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -40,7 +40,7 @@ export function NewCommandDialog({
 
   const submit = () => {
     if (!name.trim()) return;
-    const id = useAccountStore.getState().createCommand({
+    const id = useProjectsStore.getState().createCommand({
       projectId,
       id: derivedId,
       name: name.trim(),

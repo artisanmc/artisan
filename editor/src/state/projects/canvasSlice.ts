@@ -2,7 +2,7 @@ import { isGroupColor, liveDocumentIds, normalizeCanvasGroups } from "@/domain/c
 import type { EdgeAnchor, ProjectId } from "@/domain/types";
 import type { ArrangeMode } from "@/features/canvas/arrangeBoard";
 import { projectBoard, rearrangeProjectLayout } from "@/features/canvas/autoLayout";
-import type { AccountSliceContext } from "./types";
+import type { ProjectsSliceContext } from "./types";
 
 /** The canvas: node positions, groups and edge anchors. */
 export interface CanvasSlice {
@@ -48,9 +48,9 @@ export interface CanvasSlice {
 /** The board's layout is not Project content: these edits never stamp `updatedAt`. */
 const LAYOUT = { touch: false } as const;
 
-export const createCanvasSlice = ({ get, mutateProject }: AccountSliceContext): CanvasSlice => ({
+export const createCanvasSlice = ({ get, mutateProject }: ProjectsSliceContext): CanvasSlice => ({
   setCanvasPosition: ({ projectId: pId, nodeId, x, y }) => {
-    const current = get().account.projects.find((p) => p.id === pId);
+    const current = get().openProjects.projects.find((p) => p.id === pId);
     const group = current?.canvasGroups?.find((g) => g.nodeIds.includes(nodeId));
     const layout = group && current ? projectBoard(current).allLayout : {};
     mutateProject(
@@ -67,7 +67,7 @@ export const createCanvasSlice = ({ get, mutateProject }: AccountSliceContext): 
   },
   createCanvasGroup: ({ projectId: pId, name, nodeIds, color }) => {
     const id = crypto.randomUUID();
-    if (!get().account.projects.some((p) => p.id === pId) || !name.trim())
+    if (!get().openProjects.projects.some((p) => p.id === pId) || !name.trim())
       throw new Error("Invalid group");
     mutateProject(
       pId,
@@ -107,7 +107,7 @@ export const createCanvasSlice = ({ get, mutateProject }: AccountSliceContext): 
     ),
   moveCanvasGroup: ({ projectId: pId, groupId, dx, dy }) => {
     if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return;
-    const current = get().account.projects.find((p) => p.id === pId);
+    const current = get().openProjects.projects.find((p) => p.id === pId);
     if (!current) return;
     const board = projectBoard(current);
     const frame = board.groups.find((g) =>
@@ -132,7 +132,7 @@ export const createCanvasSlice = ({ get, mutateProject }: AccountSliceContext): 
     );
   },
   releaseBoardPositions: ({ projectId: pId, mode }) => {
-    const current = get().account.projects.find((p) => p.id === pId);
+    const current = get().openProjects.projects.find((p) => p.id === pId);
     if (!current) return;
     const layout = rearrangeProjectLayout(current, undefined, mode);
     if (!layout) return;
@@ -145,7 +145,7 @@ export const createCanvasSlice = ({ get, mutateProject }: AccountSliceContext): 
     );
   },
   rearrangeCanvasGroup: ({ projectId: pId, groupId }) => {
-    const current = get().account.projects.find((p) => p.id === pId);
+    const current = get().openProjects.projects.find((p) => p.id === pId);
     if (!current) return;
     const layout = rearrangeProjectLayout(current, groupId);
     if (!layout) return;

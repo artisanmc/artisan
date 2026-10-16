@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { planWrite, applyRenames } from "./diskSave";
+import { describe, expect, it } from "vitest";
+import { applyRenames, planWrite } from "./diskSave";
 
 const BASE = { "menus/ancien.yaml": "title: A\n", "lang/fr.yaml": "x: y\n" };
 
@@ -17,7 +17,11 @@ describe("applyRenames", () => {
     );
 
     expect(plan.renames).toEqual([
-      { from: "menus/ancien.yaml", to: "menus/nouveau.yaml", base_hash: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      {
+        from: "menus/ancien.yaml",
+        to: "menus/nouveau.yaml",
+        base_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      },
     ]);
     // Neither a delete of the old one nor a create of the new one: the file moves.
     expect(plan.deletes).toEqual([]);

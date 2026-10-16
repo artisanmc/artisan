@@ -1,6 +1,6 @@
 import { menusOf } from "@/domain/documents";
 import type { ContextInput, Menu, SourceRef } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 // Unified data section: the item set block lives inside each list card of the
 // menu panel. This suite covers the exported pieces — extractArgTokens (used
@@ -45,10 +45,10 @@ describe("MenuSetBlock", () => {
       status: "ready",
       loadedKey: "u:n1/sk1",
     } as never);
-    useAccountStore.setState((s) => ({
+    useProjectsStore.setState((s) => ({
       ...s,
-      account: {
-        ...s.account,
+      openProjects: {
+        ...s.openProjects,
         projects: [
           {
             id: "p1",
@@ -74,7 +74,9 @@ describe("MenuSetBlock", () => {
   });
 
   const menuNow = () =>
-    menusOf(useAccountStore.getState().account.projects.find((p) => p.id === ("p1" as never))!)[0]!;
+    menusOf(
+      useProjectsStore.getState().openProjects.projects.find((p) => p.id === ("p1" as never))!,
+    )[0]!;
 
   it("creates the menu-level item set (paginated) from the choice buttons", () => {
     render(<MenuSetBlock projectId={"p1" as never} menu={menu} input={sourceInput} />);

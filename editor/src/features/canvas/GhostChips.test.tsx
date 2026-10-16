@@ -1,5 +1,5 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GhostChips } from "./GhostChips";
@@ -74,8 +74,8 @@ function project(): Project {
 describe("GhostChips", () => {
   beforeEach(() => {
     mockEdges = [{ id: "m1->shop", source: "m1", target: "shop", triggers: [] }];
-    useAccountStore.setState({
-      account: { id: "a" as any, projects: [project()], projectOrder: [PID] },
+    useProjectsStore.setState({
+      openProjects: { projects: [project()], projectOrder: [PID] },
     } as any);
   });
 
@@ -86,11 +86,11 @@ describe("GhostChips", () => {
   });
 
   it("on the board, the pill flags a missing target without writing anything", () => {
-    const before = useAccountStore.getState().account;
+    const before = useProjectsStore.getState().openProjects;
     const layout = { m1: { x: 0, y: 0 } };
     render(<GhostChips project={project()} layout={layout} />);
     fireEvent.click(screen.getByTestId("konva-group"));
-    expect(useAccountStore.getState().account).toBe(before);
+    expect(useProjectsStore.getState().openProjects).toBe(before);
   });
 
   /**

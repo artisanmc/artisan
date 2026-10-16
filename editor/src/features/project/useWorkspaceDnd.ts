@@ -2,7 +2,7 @@ import type { ElementId, MenuId, ProjectId } from "@/domain/types";
 import { dropImageButton } from "@/features/canvas/imageButtonDrop";
 import { pinPlacementRow } from "@/features/canvas/placementDrop";
 import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import {
   type DragEndEvent,
@@ -41,7 +41,7 @@ export function applyWorkspaceDrop(projectId: ProjectId, drop: WorkspaceDrop): v
       return;
     }
     case "stateMaterial":
-      useAccountStore.getState().setAppearanceField({
+      useProjectsStore.getState().setAppearanceField({
         projectId,
         menuId: drop.menuId,
         elementId: drop.elementId,

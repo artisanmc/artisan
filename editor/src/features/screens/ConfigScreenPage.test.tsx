@@ -13,7 +13,9 @@ vi.mock("@/lib/api/configScreens", async (orig) => {
 });
 vi.mock("@/lib/api/dataSources", () => ({ fetchServerDeclaredModels: vi.fn(async () => []) }));
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
-vi.mock("@/lib/api/projectFiles", () => ({ readProjectFiles: vi.fn(async () => ({ ok: true, files: {} })) }));
+vi.mock("@/lib/api/projectFiles", () => ({
+  readProjectFiles: vi.fn(async () => ({ ok: true, files: {} })),
+}));
 // The page is what's under test, not CodeMirror: a textarea stands in for the
 // shared YAML editor so edits can be simulated.
 vi.mock("@/components/ui/yaml-code-editor", () => ({
@@ -28,8 +30,8 @@ vi.mock("@/components/ui/yaml-code-editor", () => ({
 
 import { screenCacheKey, useScreenCacheStore } from "@/state/screenCacheStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
-import { ConfigScreenPage } from "./ConfigScreenPage";
 import { getModule } from "@artisan/editor-sdk";
+import { ConfigScreenPage } from "./ConfigScreenPage";
 
 const SETTINGS = "whole_shop_discount: 10\n";
 
@@ -55,8 +57,7 @@ beforeEach(() => {
   } as never);
 });
 
-const renderPage = () =>
-  render(<ConfigScreenPage serverId="s" screenId="boutique:settings" />);
+const renderPage = () => render(<ConfigScreenPage serverId="s" screenId="boutique:settings" />);
 
 async function ready() {
   await waitFor(() => expect(screen.getByTestId("config-value-form")).toBeTruthy());

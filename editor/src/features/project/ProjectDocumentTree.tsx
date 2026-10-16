@@ -11,7 +11,7 @@ import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution, listDocumentKindContributions } from "@artisan/editor-sdk";
@@ -142,7 +142,7 @@ export function ProjectDocumentTree({
   header?: "name" | "none";
 }) {
   const { t } = useTranslation();
-  const project = useAccountStore((s) => s.account.projects.find((p) => p.id === projectId));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   if (!project) return null;
 
   const empty = documentCount(project) === 0;
@@ -282,7 +282,7 @@ function RowActions({
         <DropdownMenuItem onClick={onOpen}>{t("projectPanel.edit")}</DropdownMenuItem>
         <DropdownMenuItem
           onClick={() =>
-            useAccountStore.getState().deleteFromProject({ projectId, nodeIds: [item.id] })
+            useProjectsStore.getState().deleteFromProject({ projectId, nodeIds: [item.id] })
           }
         >
           {t("projectPanel.delete")}

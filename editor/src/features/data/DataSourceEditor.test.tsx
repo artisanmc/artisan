@@ -1,5 +1,5 @@
 import type { Project, ProjectId } from "@/domain/types";
-import { useAccountStore } from "@/state/accountStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DataSourceEditor } from "./DataSourceEditor";
@@ -47,11 +47,11 @@ function makeProject(sourceNames = ["settings"]): Project {
   } as unknown as Project;
 }
 
-const project = () => useAccountStore.getState().account.projects[0]!;
+const project = () => useProjectsStore.getState().openProjects.projects[0]!;
 
 beforeEach(() => {
-  useAccountStore.setState({
-    account: { id: "acc" as never, projects: [makeProject()], projectOrder: [PID] },
+  useProjectsStore.setState({
+    openProjects: { projects: [makeProject()], projectOrder: [PID] },
   } as never);
 });
 
@@ -76,9 +76,8 @@ describe("DataSourceEditor", () => {
   });
 
   it("lowercases the name input and reports a duplicate without renaming", () => {
-    useAccountStore.setState({
-      account: {
-        id: "acc" as never,
+    useProjectsStore.setState({
+      openProjects: {
         projects: [makeProject(["settings", "grades"])],
         projectOrder: [PID],
       },
@@ -114,7 +113,7 @@ describe("DataSourceEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
     fireEvent.click(screen.getByRole("button", { name: "Formulaire" }));
 
-    useAccountStore.getState().setSourceValue({
+    useProjectsStore.getState().setSourceValue({
       projectId: PID,
       sourceId: "ds_1" as never,
       row: null,

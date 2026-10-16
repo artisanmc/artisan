@@ -124,7 +124,9 @@ describe("validateMenuV1 — structured action wire", () => {
   });
 
   it("accepts the legacy wrapped {steps} handler", () => {
-    expect(validateMenuV1(withElement({ click: { left: { steps: 'send_message "hi"' } } })).valid).toBe(true);
+    expect(
+      validateMenuV1(withElement({ click: { left: { steps: 'send_message "hi"' } } })).valid,
+    ).toBe(true);
   });
 
   it("accepts keyed scalar, multi-arg, bare string and null actions", () => {
@@ -156,7 +158,9 @@ describe("validateMenuV1 — structured action wire", () => {
   });
 
   it("accepts a single action map as a handler (single-step sugar)", () => {
-    expect(validateMenuV1(withElement({ click: { left: { send_message: "Hello" } } })).valid).toBe(true);
+    expect(validateMenuV1(withElement({ click: { left: { send_message: "Hello" } } })).valid).toBe(
+      true,
+    );
   });
 
   it("accepts a keyed condition on an appearance if", () => {
@@ -164,6 +168,8 @@ describe("validateMenuV1 — structured action wire", () => {
   });
 
   it("rejects an unknown action verb", () => {
-    expect(validateMenuV1(withElement({ click: { left: [{ teleport_all: true }] } })).valid).toBe(false);
+    expect(validateMenuV1(withElement({ click: { left: [{ teleport_all: true }] } })).valid).toBe(
+      false,
+    );
   });
 });
