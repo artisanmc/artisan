@@ -1,7 +1,7 @@
 import { IMAGE_BUTTON_DRAG_PREFIX } from "@/features/canvas/ImageButtonLibrary";
 import { LIBRARY_DRAG_PREFIX } from "@/features/canvas/Library";
 import { PLACEMENT_ROW_DRAG_PREFIX } from "@/features/canvas/placementDrop";
-import { STATE_DROP_PREFIX } from "@/features/flow/FlowCanvas";
+import { STATE_DROP_PREFIX } from "@/lib/stateDropId";
 import { describe, expect, it } from "vitest";
 import { type DragEndFields, decodeDragEnd, dragStartMaterial } from "./workspaceDrop";
 

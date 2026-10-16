@@ -20,7 +20,6 @@ import type {
 } from "@/domain/types";
 import { positionCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
-import { summarizeFieldType } from "@/features/data/helpers";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { parsePositions } from "@/lib/positions";
 import { useAccountStore } from "@/state/accountStore";
@@ -33,6 +32,7 @@ import { MenuSetBlock, ObjectParamLists } from "./MenuDataSection";
 import { PreviewContextSection } from "./PreviewContextSection";
 import { PropertyField } from "./PropertyField";
 import { SourceShapingEditor } from "./SourceShapingEditor";
+import { summarizeFieldType } from "./fieldTypeSummary";
 
 interface MenuPropertiesProps {
   projectId: ProjectId;

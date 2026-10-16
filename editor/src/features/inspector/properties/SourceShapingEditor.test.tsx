@@ -1,7 +1,7 @@
+import type { ContextInput, SourceRef } from "@/domain/types";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { SourceShapingEditor } from "./SourceShapingEditor";
-import type { ContextInput, SourceRef } from "@/domain/types";
 
 type SR = Extract<ContextInput, { kind: "sourceRef" }>;
 const base: SR = {

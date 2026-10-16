@@ -1,5 +1,3 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Action,
   CommandId,
@@ -12,6 +10,8 @@ import type {
 } from "@/domain/types";
 import { useAccountStore } from "@/state/accountStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ActionEditor, ActionScopeProvider } from "./ActionEditor";
 
 const PID = "p1" as ProjectId;
