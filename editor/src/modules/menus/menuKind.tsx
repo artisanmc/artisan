@@ -3,10 +3,10 @@ import { menuChainSlots, visitMenuLTexts } from "@/domain/i18nSites";
 import { newLayerId } from "@/domain/ids";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { I18nKey, Menu, MenuId, Project, ProjectId } from "@/domain/types";
-import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
-import { serializeMenuToV1 } from "@/features/export/transform";
+import { MenuProperties } from "@/features/inspector/properties/MenuProperties";
 import { getText } from "@/lib/i18n";
 import type { DocumentParseOpts } from "@/schema/documentCodecs";
+import { menuV1FromDomain } from "@/schema/menuV1FromDomain";
 import { menuV1ToDomain } from "@/schema/menuV1ToDomain";
 import type { DocumentEditorProps, DocumentKindContribution } from "@artisan/editor-sdk";
 import { LayoutGrid } from "lucide-react";
@@ -46,7 +46,7 @@ export const menuKind: DocumentKindContribution = {
     const r = menuV1ToDomain(src, ctx as DocumentParseOpts);
     return { doc: r.menu, i18nKeys: r.i18nKeys, unsupported: r.unsupported };
   },
-  serialize: (doc, project) => serializeMenuToV1(doc as Menu, project as Project),
+  serialize: (doc, project) => menuV1FromDomain(doc as Menu, project as Project),
   ltextSites: (doc) => visitMenuLTexts(doc as Menu),
   chainSlots: (doc) => menuChainSlots(doc as Menu),
 };

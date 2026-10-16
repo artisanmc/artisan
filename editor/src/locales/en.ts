@@ -498,6 +498,8 @@ export default {
   flow: {
     headerStateOne: "{{count}} state",
     headerStateOther: "{{count}} states",
+    pickMaterialHint: "Pick item from library — or drag a library item here",
+    dragStateHint: "Drag to reorder state",
     elementId: "id",
     propertiesLabel: "properties",
     positionsLabelOne: "positions ({{count}} slot)",
@@ -645,6 +647,8 @@ export default {
   },
   projectPanel: {
     noEditor: "No editor for this {{kind}} yet",
+    multiSelection: "Multi-edit not supported in v1. Select one item.",
+    selectionNoEditor: "Selection has no editor.",
     kindNotSynced: "{{kind}}: not read by the active server (module not installed there)",
     menus: "Menus",
     commands: "Commands",
@@ -814,6 +818,8 @@ export default {
     newDialogDialogTitle: "New dialog",
     newMenuDialogTitle: "New menu",
     newCommandDialogTitle: "New command",
+    idPreviewLabel: "Id:",
+    idConflict: "This id is already used by another document of the project.",
     cancel: "Cancel",
     create: "Create",
     modeSelect: "Select",

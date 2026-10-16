@@ -1,7 +1,7 @@
 import { SplitPane } from "@/components/SplitPane";
 import type { ProjectId } from "@/domain/types";
-import { EditorPane } from "@/features/canvas/EditorPane";
-import { FloatingEditorPane } from "@/features/canvas/FloatingEditorPane";
+import { EditorPane } from "@/features/inspector/EditorPane";
+import { FloatingEditorPane } from "@/features/inspector/FloatingEditorPane";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useUiStore } from "@/state/uiStore";
 import { type ReactNode, useContext } from "react";

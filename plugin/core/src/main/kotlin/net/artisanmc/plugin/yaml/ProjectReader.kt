@@ -51,7 +51,7 @@ class ProjectReader(
      * One reader per core kind: a file of that kind, its id (the file name) and
      * the project's context, to the runtime Document the bundle carries under
      * that kind (ADR `extensible-document-kinds`, decision 10). The folder loop
-     * in [readProject] knows no kind by name; a registered kind without a reader
+     * in [readDocuments] knows no kind by name; a registered kind without a reader
      * here is left on disk for the module that owns it.
      */
     private val coreReaders: Map<String, (File, String, ReadContext) -> BundleDocument> = mapOf(
@@ -103,11 +103,13 @@ class ProjectReader(
     /**
      * Verify the YAML's `schema` field is either empty (legacy / pre-versioning)
      * or matches the expected version. Reject everything else with a clear error
-     * pointing at the schema migration framework (see api.schemas).
+     * pointing at the schema migration framework (see api.schemas), as an
+     * [UnsupportedSchemaException]: the per-file `runCatching` blocks below let
+     * that type (and only it) fail the reload.
      */
     private fun requireSchema(file: File, actual: String, vararg expected: String) {
         if (actual.isEmpty() || actual in expected) return
-        throw IllegalArgumentException(
+        throw UnsupportedSchemaException(
             "Unsupported schema version '$actual' in ${file.absolutePath} — " +
             "this plugin reads ${expected.joinToString(", ")} only. Register a SchemaMigration via " +
             "api.schemas.register(...) to migrate from older versions."
@@ -163,147 +165,183 @@ class ProjectReader(
             // Tolerant per project: a broken manifest/lang never nukes the
             // whole reload (which would fail plugin enable + cascade to
             // add-ons that `depend: Artisan`).
-            runCatching { readProject(projectId, dir) }.getOrElse { e ->
-                if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
-                logger?.warning("[Artisan] skipping project ${dir.name}: ${e.message}")
-                null
-            }
+            tolerant("project ${dir.name}") { readProject(projectId, dir) }
         }
 
+    /**
+     * The one failure rule of a read, per file: [read]'s exception is logged as
+     * `skipping <what>` and the file yields `null`, except an
+     * [UnsupportedSchemaException] when [loudSchema] (the default), which fails
+     * the reload. [onFail] lets a step report the skip further ([onSkip]).
+     */
+    private inline fun <T> tolerant(
+        what: String,
+        loudSchema: Boolean = true,
+        onFail: (Throwable) -> Unit = {},
+        read: () -> T,
+    ): T? = runCatching(read).getOrElse { e ->
+        if (loudSchema && e is UnsupportedSchemaException) throw e
+        logger?.warning("[Artisan] skipping $what: ${e.message}")
+        onFail(e)
+        null
+    }
+
+    /** One project, in named steps: manifest → lang → legacy templates → Documents → sources. */
     private fun readProject(projectId: String, projectDir: File): ProjectBundle? {
+        val manifest = readManifest(projectId, projectDir) ?: return null
+        val langMaps = readLangMaps(projectDir, manifest)
+        val templates = readLegacyTemplates(projectDir)
+        val documents = readDocuments(projectDir, ReadContext(projectId, manifest, langMaps, templates))
+        val dataDir = File(projectDir, "data")
+        val projectModels = readProjectModels(projectDir)
+        val dataSources = readSingleFileSources(dataDir, projectModels, langMaps, manifest.defaultLang) +
+            readPerRowSources(dataDir, projectModels, langMaps, manifest.defaultLang)
+        return ProjectBundle(
+            projectId, manifest.defaultLang, manifest.languages,
+            documents, dataSources, langMaps,
+        )
+    }
+
+    /** `manifest.yaml`, or `null` when the folder has none (not a project). */
+    private fun readManifest(projectId: String, projectDir: File): ManifestYaml? {
         val manifestFile = File(projectDir, "manifest.yaml").takeIf { it.exists() } ?: return null
         val manifest = mapper.readValue(manifestFile, ManifestYaml::class.java)
         requireSchema(manifestFile, manifest.schema, "manifest/v1")
         if (manifest.projectId.isNotEmpty() && manifest.projectId != projectId) {
             logger?.warning("[Artisan] ${manifestFile.path}: legacy project_id '${manifest.projectId}' ignored; resolved identity is '$projectId'. Remove project_id from this manifest.")
         }
+        return manifest
+    }
 
-        // Lang files are YAML trees; `LangFlattener` folds them back to the
-        // dotted keys the runtime looks up (and still reads the legacy flat form).
-        // Tolerant PER FILE, like menus/dialogs/data sources below: an unreadable
-        // lang file degrades to no translations for that language (raw `{i18n:…}`
-        // tags in game) instead of dropping the whole project, since this read
-        // sits above every menu, command and dialog.
-        val langMaps: Map<String, Map<String, String>> = manifest.languages.associateWith { lang ->
+    /**
+     * Lang files are YAML trees; `LangFlattener` folds them back to the dotted
+     * keys the runtime looks up (and still reads the legacy flat form).
+     * Tolerant PER FILE, like menus/dialogs/data sources: an unreadable lang
+     * file degrades to no translations for that language (raw `{i18n:…}` tags
+     * in game) instead of dropping the whole project, since this read sits
+     * above every menu, command and dialog.
+     */
+    private fun readLangMaps(projectDir: File, manifest: ManifestYaml): Map<String, Map<String, String>> =
+        manifest.languages.associateWith { lang ->
             val langFile = File(projectDir, "lang/$lang.yaml")
             if (!langFile.exists()) return@associateWith emptyMap()
-            runCatching {
+            tolerant("lang/$lang.yaml of project ${projectDir.name}") {
                 LangFlattener.flatten(mapper.readValue(langFile, object : TypeReference<Map<String, Any?>>() {}))
-            }.getOrElse { e ->
-                logger?.warning(
-                    "[Artisan] skipping lang/$lang.yaml of project ${projectDir.name}: ${e.message}"
-                )
-                emptyMap()
-            }
+            } ?: emptyMap()
         }
 
-        // LEGACY item templates (template/v1). Item sets are no longer a
-        // project-level shared entity — a set lives on the element that renders
-        // it, and the editor inlines any `templates/` file away on import. This
-        // read stays so a server whose disk still holds one keeps working until
-        // the project is re-saved; nothing writes these files anymore.
-        val templates: Map<String, TemplateYaml> = File(projectDir, "templates")
+    /**
+     * LEGACY item templates (template/v1). Item sets are no longer a
+     * project-level shared entity — a set lives on the element that renders
+     * it, and the editor inlines any `templates/` file away on import. This
+     * read stays so a server whose disk still holds one keeps working until
+     * the project is re-saved; nothing writes these files anymore. A template
+     * of an unknown schema is skipped like any broken one (not loud).
+     */
+    private fun readLegacyTemplates(projectDir: File): Map<String, TemplateYaml> =
+        File(projectDir, "templates")
             .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
             ?.sortedBy { it.name }
             ?.mapNotNull { f ->
-                runCatching {
+                tolerant("template ${f.name}", loudSchema = false) {
                     val t = mapper.readValue(f, TemplateYaml::class.java)
                     requireSchema(f, t.schema, "template/v1")
                     if (t.id.isEmpty()) t.copy(id = f.nameWithoutExtension) else t
-                }.getOrElse { e ->
-                    logger?.warning("[Artisan] skipping template ${f.name}: ${e.message}")
-                    null
                 }
             }
             ?.associateBy { it.id } ?: emptyMap()
 
-        // One folder per registered kind, each file through its kind's reader.
-        // Tolerant per file (like data sources below): a single unparseable
-        // Document — e.g. a stale-format file mid-migration — logs + skips
-        // instead of failing the whole reload and the plugin enable.
-        val ctx = ReadContext(projectId, manifest, langMaps, templates)
-        val documents: Map<String, List<BundleDocument>> = DocumentKinds.all().map { kind ->
+    /**
+     * One folder per registered kind, each file through its kind's reader.
+     * Tolerant per file (like data sources): a single unparseable Document —
+     * e.g. a stale-format file mid-migration — logs + skips (and is reported
+     * through [onSkip]) instead of failing the whole reload and the plugin
+     * enable.
+     */
+    private fun readDocuments(projectDir: File, ctx: ReadContext): Map<String, List<BundleDocument>> =
+        DocumentKinds.all().associate { kind ->
             val reader = coreReaders[kind.kind] ?: rawReader(kind)
-            kind.kind to documentIds(projectDir, kind.dir, manifest.files[kind.dir].orEmpty()).mapNotNull { docId ->
+            kind.kind to documentIds(projectDir, kind.dir, ctx.manifest.files[kind.dir].orEmpty()).mapNotNull { docId ->
                 val f = File(projectDir, "${kind.dir}/$docId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
-                runCatching { reader(f, docId, ctx) }.getOrElse { e ->
-                    if (e is IllegalArgumentException) throw e // schema-version rejection stays loud
-                    logger?.warning("[Artisan] skipping ${kind.kind} ${f.name}: ${e.message}")
-                    onSkip(projectId, "${kind.dir}/${f.name}", e.message ?: e::class.simpleName.orEmpty())
-                    null
-                }
+                tolerant(
+                    "${kind.kind} ${f.name}",
+                    onFail = { e -> onSkip(ctx.projectId, "${kind.dir}/${f.name}", e.message ?: e::class.simpleName.orEmpty()) },
+                ) { reader(f, docId, ctx) }
             }
-        }.toMap()
+        }
 
-        // Project sources — scanned, not manifest-listed. Tolerant per file: a
-        // bad source logs + skips, never blocks the project load. Two accepted
-        // forms (ADR bare-data-files): the legacy inline `schema: data/v1`
-        // document, or a BARE file (mapping = object source, list = table)
-        // whose schema resolves from models/<id>.yaml or a JAR declaration.
-        val dataDir = File(projectDir, "data")
-        val projectModels = readProjectModels(projectDir)
-        val singleFileSources = dataDir
-            .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
-            ?.sortedBy { it.name }
-            ?.mapNotNull { f ->
-                runCatching {
-                    val sourceId = f.name.removeSuffix(".yaml")
-                    val dsYaml = readSourceDocument(f, sourceId, projectModels)
-                    BundleDataSource(dsYaml, langMaps, manifest.defaultLang)
-                }.getOrElse { e ->
-                    logger?.warning("[Artisan] skipping data source ${f.name}: ${e.message}")
-                    null
-                }
-            } ?: emptyList()
-        // Per-row granularity: data/<id>/ holds one file per row. `_source.yaml`
-        // is OPTIONAL (ADR bare-data-files ③): absent → all files sorted by
-        // name; present → its `order:` first (it may be the legacy full meta,
-        // or minimal `model:` + `order:`).
-        val perRowSources = dataDir
-            .listFiles { f -> f.isDirectory }
-            ?.sortedBy { it.name }
-            ?.mapNotNull { dir ->
-                runCatching {
-                    val sourceId = dir.name
-                    // `_source.yaml` is always META (legacy full form, or minimal
-                    // `model:` + `order:`) — never bare values.
-                    val metaFile = File(dir, "_source.yaml")
-                    val meta = if (metaFile.isFile) {
-                        val m = mapper.readValue(metaFile, DataSourceYaml::class.java)
-                        requireSchema(metaFile, m.schema, "data/v1")
-                        m.copy(
-                            id = m.id.ifEmpty { sourceId },
-                            fields = m.fields.ifEmpty { resolveFields(sourceId, m.model, projectModels) },
-                        )
-                    } else {
-                        DataSourceYaml(id = sourceId, fields = resolveFields(sourceId, null, projectModels))
-                    }
-                    val onDisk = dir.listFiles { f -> f.isFile && f.name.endsWith(".yaml") && f.name != "_source.yaml" }
-                        ?.associateBy { it.name.removeSuffix(".yaml") } ?: emptyMap()
-                    // Declared order first, then hand-added files (byte-sorted).
-                    val names = meta.order.filter { it in onDisk } +
-                        onDisk.keys.filterNot { it in meta.order }.sorted()
-                    val rows = names.mapNotNull { n ->
-                        runCatching {
-                            @Suppress("UNCHECKED_CAST")
-                            mapper.readValue(onDisk[n]!!, Map::class.java) as Map<String, Any?>
-                        }.getOrElse { e ->
-                            logger?.warning("[Artisan] skipping row ${dir.name}/$n: ${e.message}")
-                            null
-                        }
-                    }
-                    BundleDataSource(meta.copy(shape = "table", rows = rows), langMaps, manifest.defaultLang)
-                }.getOrElse { e ->
-                    logger?.warning("[Artisan] skipping data source dir ${dir.name}: ${e.message}")
-                    null
-                }
-            } ?: emptyList()
-        val dataSources = singleFileSources + perRowSources
+    /*
+     * Project sources — scanned, not manifest-listed. Tolerant per file: a bad
+     * source logs + skips, never blocks the project load. Two accepted forms
+     * (ADR bare-data-files): the legacy inline `schema: data/v1` document, or a
+     * BARE file (mapping = object source, list = table) whose schema resolves
+     * from models/<id>.yaml or a JAR declaration.
+     */
 
-        return ProjectBundle(
-            projectId, manifest.defaultLang, manifest.languages,
-            documents, dataSources, langMaps,
-        )
+    /** `data/<id>.yaml`: one file per source. */
+    private fun readSingleFileSources(
+        dataDir: File,
+        projectModels: Map<String, Map<String, Any?>>,
+        langMaps: Map<String, Map<String, String>>,
+        defaultLang: String,
+    ): List<BundleDataSource> = dataDir
+        .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
+        ?.sortedBy { it.name }
+        ?.mapNotNull { f ->
+            tolerant("data source ${f.name}") {
+                val sourceId = f.name.removeSuffix(".yaml")
+                val dsYaml = readSourceDocument(f, sourceId, projectModels)
+                BundleDataSource(dsYaml, langMaps, defaultLang)
+            }
+        } ?: emptyList()
+
+    /**
+     * Per-row granularity: data/<id>/ holds one file per row. `_source.yaml`
+     * is OPTIONAL (ADR bare-data-files ③): absent → all files sorted by name;
+     * present → its `order:` first (it may be the legacy full meta, or minimal
+     * `model:` + `order:`).
+     */
+    private fun readPerRowSources(
+        dataDir: File,
+        projectModels: Map<String, Map<String, Any?>>,
+        langMaps: Map<String, Map<String, String>>,
+        defaultLang: String,
+    ): List<BundleDataSource> = dataDir
+        .listFiles { f -> f.isDirectory }
+        ?.sortedBy { it.name }
+        ?.mapNotNull { dir ->
+            tolerant("data source dir ${dir.name}") {
+                BundleDataSource(readPerRowSource(dir, projectModels), langMaps, defaultLang)
+            }
+        } ?: emptyList()
+
+    private fun readPerRowSource(dir: File, projectModels: Map<String, Map<String, Any?>>): DataSourceYaml {
+        val sourceId = dir.name
+        // `_source.yaml` is always META (legacy full form, or minimal
+        // `model:` + `order:`) — never bare values.
+        val metaFile = File(dir, "_source.yaml")
+        val meta = if (metaFile.isFile) {
+            val m = mapper.readValue(metaFile, DataSourceYaml::class.java)
+            requireSchema(metaFile, m.schema, "data/v1")
+            m.copy(
+                id = m.id.ifEmpty { sourceId },
+                fields = m.fields.ifEmpty { resolveFields(sourceId, m.model, projectModels) },
+            )
+        } else {
+            DataSourceYaml(id = sourceId, fields = resolveFields(sourceId, null, projectModels))
+        }
+        val onDisk = dir.listFiles { f -> f.isFile && f.name.endsWith(".yaml") && f.name != "_source.yaml" }
+            ?.associateBy { it.name.removeSuffix(".yaml") } ?: emptyMap()
+        // Declared order first, then hand-added files (byte-sorted).
+        val names = meta.order.filter { it in onDisk } +
+            onDisk.keys.filterNot { it in meta.order }.sorted()
+        val rows = names.mapNotNull { n ->
+            tolerant("row ${dir.name}/$n") {
+                @Suppress("UNCHECKED_CAST")
+                mapper.readValue(onDisk[n]!!, Map::class.java) as Map<String, Any?>
+            }
+        }
+        return meta.copy(shape = "table", rows = rows)
     }
 
     /**
