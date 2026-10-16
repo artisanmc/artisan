@@ -95,8 +95,8 @@ Guide: [Data sources](/wiki/developers/data-sources/).
 | [`DataSourceRegistry`][DataSourceRegistry] | `@Stable` | 1.0.0 | `register(decl)`, `unregister(ref)` (1.8.0), `fetch(ref, player?, params)`, `has(ref)`, `refs()`, `declarations()` (1.2.0), `registered()` (1.3.0) |
 | [`DataSourceDeclaration`][DataSourceDeclaration] | `@Stable` | 1.0.0 | `ref`, `fetcher` (1.3.0, type 1.5.0), `schema` (1.3.0), `stability` (1.4.0), `keyField` (1.4.0), `schemaHint` (`@Sunset`, removed in 2.0.0); Java overloads (1.8.0) |
 | [`DataFetcher`][DataFetcher] | `@Stable` | 1.5.0 | `fetch(player: Player?, params): List<Map<String, Any?>>` |
-| [`DataSourceField`][DataSourceDeclaration] | `@Stable` | 1.3.0 | `name`, `type: FieldKind`, `description?` |
-| [`FieldKind`][FieldKind] | `@Stable` | 1.3.0 | `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`, `ITEM` (Java enum) |
+| [`DataSourceField`][DataSourceDeclaration] | `@Stable` | 1.3.0 | `name`, `fieldType: ModelFieldType` (2.0.0), `description?`; `DataSourceField(name, ModelFieldType[, description])` (2.0.0); the `FieldKind` constructors and `type: FieldKind` are `@Sunset` (removed in 3.0.0) |
+| [`FieldKind`][FieldKind] | `@Stable`, `@Sunset` (3.0.0) | 1.3.0 | `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `LIST`, `OBJECT`, `ITEM` (Java enum); `toModelFieldType()` and `closestTo(type)` (2.0.0). Replaced by [`ModelFieldType`][ModelFieldType] |
 | [`Stability`][Stability] | `@Stable` | 1.4.0 | `STATIC`, `DYNAMIC` (Java enum) |
 | [`RegisteredDataSource`][DataSourceRegistry] | `@Stable` | 1.3.0 | `declaration`, `moduleId?` (null outside a module's `onEnable`) |
 | [`PlayerRequiredException`][DataSourceDeclaration] | `@Stable` | 1.3.0 | Thrown by a fetcher that needs a real player |
@@ -142,7 +142,7 @@ Guide: [Menus](/wiki/developers/menus/).
 | [`ActionDeclaration`][ActionDeclaration] | `@Beta` | 2.0.0 | `(name, args: List<ModelField>, primary?, handler)`; `normalize(wire)`, `bind(wire)` (defaults added), `canonical(args)`, `toWire()`. Names `ns:name`; the scalar wire form (`- quests:start: intro`) binds `primary` |
 | [`ActionHandler`][ActionHandler] | `@Beta` | 2.0.0 | `execute(ctx: ActionContext, args: Map<String, Object>, runtime: ActionRuntime): ActionContext` — return `ctx`, or `ctx.withArgs(...)` to bind values for the rest of the chain |
 | [`ActionContext`][ActionContext], [`ActionRuntime`][ActionRuntime] | `@Beta` | 2.0.0 | `getPlayer()`, `getArgs()`, `getLang()`, `getProjectId()`, `withArgs(args)`; `text(ctx, ltext)`, `run(ctx, chain)`, `warn(message)` |
-| [`ModelField`][ModelField], [`ModelFieldType`][ModelFieldType] | `@Beta` | 2.0.0 | `ModelField(name, type[, required])` + `withDefault/withLabel/withHelp`; `ModelFieldType.string()/number()/integer()/bool()/ltext()/…/enumOf(values)/documentRef(kind)` — what the editor's form shows for the action's arguments |
+| [`ModelField`][ModelField], [`ModelFieldType`][ModelFieldType] | `@Beta` | 2.0.0 | `ModelField(name, type[, required])` + `withDefault/withLabel/withHelp/withSection/withRange/withPattern/withLocked`; `ModelFieldType.string()/number()/integer()/bool()/ltext()/…/enumOf(values)/documentRef(kind)` — what the editor's form shows for the action's arguments |
 
 ## Scheduling
 
@@ -176,7 +176,9 @@ Guide: [Data models & config screens](/wiki/developers/data-models/).
 
 | Type | Stability | Since | Members |
 |---|---|---|---|
-| [`ModelRegistry`][ModelRegistry] | `@Beta` | 1.5.0 | `declare(document)`, `has(id)`, `declared()` |
+| [`ModelRegistry`][ModelRegistry] | `@Beta` | 1.5.0 | `declare(ModelDeclaration)` and `declare(id, keyField, fields)` (2.0.0), `has(id)`, `declared()`; `declare(document: Map)` is `@Sunset` (removed in 3.0.0) |
+| [`ModelDeclaration`][ModelRegistry] | `@Beta` | 2.0.0 | `ModelDeclaration(id, keyField, fields)` + `withName`, `withVersion(version[, migrations])`, `withMasterDetail`; `toWire()` (the `model/v1` document) |
+| `ModelMigration`, `MigrationStep` | `@Beta` | 2.0.0 | `ModelMigration(from, to, steps)`; `MigrationStep.renameField/setDefault/renameEnumValue/renameVariant` (optional `path`) |
 | [`DeclaredModel`][ModelRegistry] | `@Beta` | 1.5.0 | `id`, `document`, `moduleId?` |
 | [`EditorScreenRegistry`][EditorScreenRegistry] | `@Beta` | 1.6.0 | `declare(id, label, table, projectId)`, `declared()` |
 | [`EditorScreenDeclaration`][EditorScreenRegistry] | `@Beta` | 1.6.0 | `id`, `label`, `table`, `projectId`, `moduleId?`, `toWire()` |
