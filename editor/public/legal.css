@@ -1,9 +1,0 @@
-:root { color-scheme: light dark; --surface: Canvas; --text: CanvasText; --link: LinkText; }
-body { margin: 0; background: var(--surface); color: var(--text); font: 1rem/1.7 system-ui, sans-serif; }
-main { max-width: 48rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
-nav { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 3rem; }
-a { color: var(--link); text-underline-offset: .2em; }
-h1 { font-size: clamp(2rem, 7vw, 3rem); line-height: 1.15; }
-h2 { margin-top: 2rem; font-size: 1.25rem; }
-li { margin-block: .4rem; }
-footer { margin-top: 3rem; border-top: 1px solid currentColor; padding-top: 1rem; }
