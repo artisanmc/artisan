@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.engine
 
 import net.artisanmc.plugin.model.RuntimeDataSource
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeProject
 
 /**
  * Resolver for the reserved `pack:` namespace — Project sources shipped in the

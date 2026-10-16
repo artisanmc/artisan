@@ -11,7 +11,7 @@ import net.artisanmc.plugin.database.SuiteProjectData
 import net.artisanmc.plugin.hub.DraftCommit
 import net.artisanmc.plugin.hub.DraftReceipt
 import net.artisanmc.plugin.hub.DraftStatus
-import net.artisanmc.plugin.protocol.LoadedState
+import net.artisanmc.plugin.project.LoadedState
 import java.nio.file.Files
 import java.time.Instant
 import java.util.UUID

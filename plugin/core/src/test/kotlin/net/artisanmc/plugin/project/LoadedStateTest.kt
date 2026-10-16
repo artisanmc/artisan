@@ -1,4 +1,4 @@
-package net.artisanmc.plugin.protocol
+package net.artisanmc.plugin.project
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode

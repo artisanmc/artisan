@@ -2,8 +2,8 @@ package net.artisanmc.plugin.engine
 
 import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.plugin.ArtisanPlugin
-import net.artisanmc.plugin.model.RuntimeMenu
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeMenu
+import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.provider.MenuProvider
 import org.bukkit.entity.Player
 import org.junit.jupiter.api.AfterEach

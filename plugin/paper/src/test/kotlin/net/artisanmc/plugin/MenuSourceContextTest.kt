@@ -4,10 +4,10 @@ import be.seeseemelk.mockbukkit.MockBukkit
 import net.artisanmc.modules.api.datasource.DataSourceDeclaration
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
-import net.artisanmc.plugin.model.RuntimeMenu
+import net.artisanmc.plugin.engine.RuntimeMenu
 import net.artisanmc.plugin.model.ContextInputYaml
 import net.artisanmc.plugin.model.MenuYaml
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.MenuRenderer
 import org.bukkit.entity.Player

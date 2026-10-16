@@ -10,9 +10,9 @@ import net.artisanmc.plugin.database.ServerRegistry
 import net.artisanmc.plugin.database.SuiteProjectData
 import net.artisanmc.plugin.hub.Call
 import net.artisanmc.plugin.hub.ProjectDrafts
-import net.artisanmc.plugin.protocol.LoadedState
-import net.artisanmc.plugin.protocol.ProjectListing
-import net.artisanmc.plugin.protocol.ProjectRootInfo
+import net.artisanmc.plugin.project.LoadedState
+import net.artisanmc.plugin.project.ProjectListing
+import net.artisanmc.plugin.project.ProjectRootInfo
 import java.nio.file.Files
 import java.time.Instant
 import java.util.UUID

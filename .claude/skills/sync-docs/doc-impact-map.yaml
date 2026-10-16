@@ -108,7 +108,7 @@ mappings:
       - "docs/architecture/editor-internals.md"
     reason: "Kinds the active server registers; drives the not-synchronised warning in the tree and NewDocumentDialog"
 
-  - touches: "plugin/*/src/main/kotlin/**/model/RuntimeProject.kt"
+  - touches: "plugin/*/src/main/kotlin/**/engine/RuntimeProject.kt"
     updates:
       - "docs/architecture/project-files.md"
     reason: "RuntimeProject.documents is the one store of a project's Documents; menus/commands/dialogs are its typed façade"

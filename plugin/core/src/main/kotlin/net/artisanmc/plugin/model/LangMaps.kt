@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.model
 
+
 /**
  * THE lang map of one language, with the deterministic PER-KEY fallback chain:
  * requested lang → project default → empty. The editor only writes a key into a
@@ -8,7 +9,7 @@ package net.artisanmc.plugin.model
  * in-game for every untranslated key.
  *
  * The one implementation behind every `langMapWithFallback` of the runtime
- * model ([RuntimeProject], [RuntimeMenu], [RuntimeDialog], [RuntimeDataSource]).
+ * model ([net.artisanmc.plugin.engine.RuntimeProject], [net.artisanmc.plugin.engine.RuntimeMenu], [RuntimeDialog], [RuntimeDataSource]).
  */
 fun withLangFallback(
     langMaps: Map<String, Map<String, String>>,

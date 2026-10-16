@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.project
 
-import net.artisanmc.plugin.protocol.LoadedState
-import net.artisanmc.plugin.protocol.PublicationAuthor
+import net.artisanmc.plugin.project.LoadedState
+import net.artisanmc.plugin.project.PublicationAuthor
 import net.artisanmc.plugin.project.ContentHash
 import net.artisanmc.plugin.project.ProjectFilesReader
 import java.io.File

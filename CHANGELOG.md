@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- Internal: the plugin core's packages no longer import each other in a cycle, and `PackageCyclesTest` keeps it so: `RuntimeProject`/`RuntimeMenu` (compiled, they hold engine types) move from `model` to `engine`, the legacy DSL → engine bridge (`compileActionDsl`, `DslToEngine.kt`) from `actiondsl` to `engine`, and `LoadedState` (with its listing types) and `PublicationAuthor` from `protocol` to `project`. No behaviour change.
 - Internal: a server's `artisan_servers` row is typed `ServerRow` in the plugin's database code (it was a bare `Int`, next to the server id passed as a `String`), and CONTEXT.md lists which wire field holds the server id, the server row, a Project's generated id, its folder and the editor's `<server id>.<folder>`. No wire or schema change.
 - Internal: the plugin no longer says "Bundle" for a loaded Project (a retired term, CONTEXT.md): `ProjectBundle` → `RuntimeProject`, `Bundle{Menu,Dialog,DataSource,Document,RawDocument}` → `Runtime*`, `BundleCompiler` → `MenuCompiler`, `BundleHasher` → `ContentHash`; the `sync` package is folded into `project`. No behaviour or wire change (`custom_items_bundle` stays).
 - **Fixed**: four hints of the editor's Properties panel (multi-selection, selection without an editor, the state card's item picker and drag handle) were English-only; they now follow the editor language.

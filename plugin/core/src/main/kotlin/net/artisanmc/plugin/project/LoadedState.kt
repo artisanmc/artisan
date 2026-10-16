@@ -1,9 +1,4 @@
-package net.artisanmc.plugin.protocol
-
-import net.artisanmc.plugin.project.ProjectRoots
-import net.artisanmc.plugin.project.ProjectSnapshot
-import net.artisanmc.plugin.project.ResourceInventory
-import net.artisanmc.plugin.project.ContentHash
+package net.artisanmc.plugin.project
 
 /*
  * The shapes a server's load is described in, shared by the leaf that writes them and the hub

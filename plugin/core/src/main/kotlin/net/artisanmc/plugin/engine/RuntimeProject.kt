@@ -1,31 +1,13 @@
-package net.artisanmc.plugin.model
+package net.artisanmc.plugin.engine
 
-import net.artisanmc.plugin.engine.CompiledAppearance
-import net.artisanmc.plugin.engine.MenuTitleParser
-
-/** A Document as the runtime carries it: whatever its kind, it has the id its file gave it. */
-interface RuntimeDocument {
-    val id: String
-}
-
-/**
- * A Document of a kind the core has no reader for — one a module registered
- * through `api.documentKinds`. The file's YAML mapping as parsed, untouched: the
- * owning module reads it back through `ProjectContentApi.documents(projectId,
- * kind)` and decides what it means (ADR `extensible-document-kinds`, W6).
- *
- * @property data the file's mapping, `schema` included, without the `id`.
- */
-data class RuntimeRawDocument(
-    override val id: String,
-    val kind: String,
-    val schema: String,
-    val projectId: String,
-    val data: Map<String, Any?>,
-) : RuntimeDocument {
-    /** What a module receives: the mapping plus `id`, the file name. */
-    fun toWire(): Map<String, Any?> = data + ("id" to id)
-}
+import net.artisanmc.plugin.model.CommandYaml
+import net.artisanmc.plugin.model.DocumentKinds
+import net.artisanmc.plugin.model.MenuTitleLayer
+import net.artisanmc.plugin.model.MenuYaml
+import net.artisanmc.plugin.model.RuntimeDataSource
+import net.artisanmc.plugin.model.RuntimeDialog
+import net.artisanmc.plugin.model.RuntimeDocument
+import net.artisanmc.plugin.model.withLangFallback
 
 /** Assembled result for one project — its Documents by kind plus their lang maps. */
 data class RuntimeProject(
@@ -106,18 +88,4 @@ data class RuntimeMenu(
         val key = raw.removePrefix("{i18n:").removeSuffix("}")
         return langMaps[lang]?.get(key) ?: raw
     }
-}
-
-data class RuntimeDialog(
-    val yaml: DialogYaml,
-    val langMaps: Map<String, Map<String, String>>,
-    /** Fallback language used when the player's locale isn't shipped by the project. See [RuntimeMenu.defaultLang]. */
-    val defaultLang: String = "en",
-    /** Folder of the defining project: the namespace of its references (see [RuntimeMenu.projectId]). */
-    val projectId: String = "",
-) : RuntimeDocument {
-    override val id: String get() = yaml.id
-
-    /** Same deterministic fallback chain as [RuntimeMenu.langMapWithFallback]. */
-    fun langMapWithFallback(lang: String): Map<String, String> = withLangFallback(langMaps, defaultLang, lang)
 }
