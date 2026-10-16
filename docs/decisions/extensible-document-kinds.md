@@ -292,9 +292,23 @@ core intégrés restent le repli quand leurs modules ne sont pas enregistrés. T
 (thread « Édition canvas ou vue focus par type ») : (1) le panneau Propriétés montre le
 `component` de tout kind via le registre ; (2) `board.render` est un aperçu seulement ; (3)
 l'édition en place des menus sur la planche est une exception core documentée, non généralisée.
-Reste W6 (plugin : `DocumentKindRegistry`, `document_kinds` à la Presence), différé jusqu'au
-pilote, comme dit plus haut ; un kind de module n'est pas synchronisé par le serveur tant que
-`DocumentKinds.kt` ne le liste pas.
+W6 a suivi aussitôt, sans pilote (voir ci-dessous) : l'argument « attendre un pilote » ne
+tenait pas, menu, command et dialog étant déjà trois kinds qui devaient passer par la même porte.
+
+**Fait (2026-10-16, W6 — côté plugin, API 2.1.0)** : le registre de kinds est dans `plugin/api`.
+`api.getDocumentKinds()` (`DocumentKindRegistry`, `@Beta`) reçoit des `DocumentKindDeclaration(kind,
+dir, schemaVersions, idPrefix)` dans `onEnable`, retirées avec le module ; même sémantique
+d'ownership que `ActionRegistry`. Les kinds core sont enregistrés par cette même porte
+(`DocumentKinds.coreRegistry()`), et `DocumentKinds.kt` devient une façade Kotlin liée à ce registre :
+`ProjectReader`, `ResourceInventory` et les tables du provider n'ont pas changé. Un kind enregistré
+sans lecteur core est lu en `BundleRawDocument` (mapping YAML, `schema:` vérifié contre les labels
+déclarés, nom du fichier pour id) et rendu au module par `ProjectContentApi.documents(projectId,
+kind)` ; ce que le Document fait reste au module — Artisan ne dispatch rien (décision 2 tenue).
+La Presence rapporte `document_kinds` (`hello` et `modules_changed`, `GET …/document-kinds`) ;
+l'éditeur le charge dans `serverDocumentKindsStore` et signale un kind que le serveur actif ne
+liste pas (en-tête du groupe dans l'arbre, avertissement dans `NewDocumentDialog`) — un serveur qui
+ne rapporte pas le champ (plugin antérieur) ne déclenche rien. Le protocole reste en `1.1` (champ
+additif).
 
 ## Hors périmètre / différé
 

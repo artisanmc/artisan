@@ -53,7 +53,7 @@ public final class ModuleRegistry {
 
     /**
      * Unregisters the module {@code id}: calls its {@code onDisable}, then removes the data
-     * sources, commands, models, screens and actions it registered from its {@code onEnable}.
+     * sources, commands, models, screens, actions and document kinds it registered from its {@code onEnable}.
      * Returns false if no such module is registered. Artisan does it on its own when the
      * plugin that loaded the module disables.
      */
@@ -75,6 +75,7 @@ public final class ModuleRegistry {
                 boundApi.getModels().unregisterOwnedBy(id);
                 boundApi.getScreens().unregisterOwnedBy(id);
                 boundApi.getActionRegistry().unregisterOwnedBy(id);
+                boundApi.getDocumentKinds().unregisterOwnedBy(id);
             }
             signalChange();
         }
@@ -112,6 +113,7 @@ public final class ModuleRegistry {
         api.getModels().currentOwner = moduleId;
         api.getScreens().currentOwner = moduleId;
         api.getActionRegistry().currentOwner = moduleId;
+        api.getDocumentKinds().currentOwner = moduleId;
     }
 
     private void signalChange() {

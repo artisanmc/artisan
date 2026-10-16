@@ -1,6 +1,9 @@
 package net.artisanmc.plugin
 
+import net.artisanmc.modules.api.DocumentKindDeclaration
+import net.artisanmc.modules.api.DuplicateDocumentKindException
 import net.artisanmc.plugin.model.BundleMenu
+import net.artisanmc.plugin.model.BundleRawDocument
 import net.artisanmc.plugin.model.DocumentKind
 import net.artisanmc.plugin.model.DocumentKinds
 import net.artisanmc.plugin.project.ProjectRoots
@@ -43,8 +46,8 @@ class DocumentKindsTest {
 
     @Test
     fun `a kind may not reuse an id or a folder`() {
-        assertThrows<IllegalArgumentException> { DocumentKinds.register(DocumentKind("menu", "other", listOf("x/v1"))) }
-        assertThrows<IllegalArgumentException> { DocumentKinds.register(DocumentKind("other", "menus", listOf("x/v1"))) }
+        assertThrows<DuplicateDocumentKindException> { DocumentKinds.register(DocumentKind("menu", "other", listOf("x/v1"))) }
+        assertThrows<DuplicateDocumentKindException> { DocumentKinds.register(DocumentKind("other", "menus", listOf("x/v1"))) }
         DocumentKinds.register(DocumentKind("quest", "quests", listOf("quest/v1")))
         assertEquals("quest", DocumentKinds.byDir("quests")?.kind)
     }
@@ -66,17 +69,46 @@ class DocumentKindsTest {
     }
 
     @Test
-    fun `a folder of an unknown kind is left alone`(@TempDir tmp: Path) {
+    fun `a folder of an unknown kind is left alone until its kind is registered`(@TempDir tmp: Path) {
         val p = project(tmp)
         write(p, "manifest.yaml", "schema: manifest/v1\n")
         write(p, "menus/accueil.yaml", "schema: menu/v1\nsize: 27\n")
-        write(p, "quests/first.yaml", "schema: quest/v1\nname: First\n")
+        write(p, "quests/first.yaml", "schema: quest/v1\nid: ignored\nname: First\nsteps:\n  - kill: 3\n")
+        write(p, "quests/second.yaml", "schema: quest/v0\nname: Second\n")
         val bundle = read(p)
         assertFalse("quest" in bundle.documents)
         assertEquals(listOf("accueil"), bundle.menus.map { it.id })
-        // Registered but without a reader on this side: still not read, still not an error.
+
+        // Registered (by a module, through the API): read as raw documents, the
+        // file name as id, the mapping untouched (W6).
+        DocumentKinds.register(DocumentKind("quest", "quests", listOf("quest/v1", "quest/v0")))
+        val quests = read(p).documentsOf<BundleRawDocument>("quest")
+        assertEquals(listOf("first", "second"), quests.map { it.id })
+        assertEquals("quest/v1", quests[0].schema)
+        assertEquals("proj", quests[0].projectId)
+        assertEquals(mapOf("schema" to "quest/v1", "name" to "First", "steps" to listOf(mapOf("kill" to 3))), quests[0].data)
+        assertEquals("first", quests[0].toWire()["id"])
+        assertEquals("First", quests[0].toWire()["name"])
+    }
+
+    @Test
+    fun `a raw document with a schema its kind does not declare is rejected loudly`(@TempDir tmp: Path) {
+        val p = project(tmp)
+        write(p, "manifest.yaml", "schema: manifest/v1\n")
+        write(p, "quests/first.yaml", "schema: quest/v9\nname: First\n")
         DocumentKinds.register(DocumentKind("quest", "quests", listOf("quest/v1")))
-        assertFalse("quest" in read(p).documents)
+        assertThrows<IllegalArgumentException> { read(p) }
+    }
+
+    @Test
+    fun `the core registry is what the API hands to modules`() {
+        val registry = DocumentKinds.coreRegistry()
+        assertEquals(listOf("menu", "command", "dialog"), registry.declarations().map { it.kind })
+        DocumentKinds.bind(registry)
+        registry.register(DocumentKindDeclaration("quest", "quests", "quest/v1"))
+        assertEquals("quest", DocumentKinds.byDir("quests")?.kind)
+        assertEquals(DocumentKind("quest", "quests", listOf("quest/v1")), DocumentKinds.byKind("quest"))
+        assertEquals(listOf("menu", "command", "dialog", "quest"), DocumentKinds.all().map { it.kind })
     }
 
     @Test

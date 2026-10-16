@@ -406,6 +406,37 @@ rend le formulaire et les propose dans le sélecteur de step dès que le serveur
 (`declared_actions` à la Presence, `GET …/actions`). Les actions core sont déclarées de la même façon
 (`CoreActions` dans `core`, handlers dans `paper`), verrouillées sur `docs/schema/menu/v1/schema.json`.
 
+### 4.5 Kinds de Document (ADR `extensible-document-kinds`, W6 — API 2.1.0)
+
+Un module qui possède un **kind** de Document (une quête, une boutique…) le déclare dans `onEnable`,
+par la même porte que ses actions ; le kind est retiré avec le module :
+
+```java
+api.getDocumentKinds().register(new DocumentKindDeclaration(
+    "quest",                 // kind : clé de `documents[kind]`, ^[a-z][a-z0-9_]*$
+    "quests",                // dossier dans un project, ce qui dit le kind d'un fichier sur disque
+    List.of("quest/v1"),     // labels `schema:` lus ; le premier est canonique
+    "quest_"));              // préfixe des ids neufs côté éditeur (optionnel)
+```
+
+Menu, command et dialog sont déclarés de la même façon par le core (`DocumentKinds.coreRegistry()`) :
+un seul registre, un seul chemin. Deux kinds ne partagent ni id ni dossier
+(`DuplicateDocumentKindException`).
+
+Ce qu'Artisan fait d'un kind déclaré : lire ses fichiers au chargement du project comme **documents
+bruts** (le mapping YAML tel quel, le nom du fichier pour `id`, `schema:` vérifié contre les labels
+déclarés — un label inconnu est une erreur de rechargement, comme pour un kind core), les lister dans
+l'inventaire de ressources, les rapporter à la Presence (`document_kinds`, `GET …/document-kinds`) et les
+rendre au module par `api.getProject().documents(projectId, "quest")` (`List<Map<String, Object>>`,
+instantané du dernier chargement — à relire dans `onReload()`). Ce qu'un Document de ce kind **fait**
+reste au module : Artisan ne dispatch rien pour lui, le module lit ses maps et agit (ses actions
+`quests:start`, ses commandes, ses listeners).
+
+Côté éditeur, le module jumeau contribue le même kind (`FrontendModule.documents`, §3.1 et
+`editor-internals.md`). Les deux déclarations sont indépendantes : l'éditeur signale un kind que le
+serveur actif ne liste pas (le fichier serait écrit dans un dossier que rien ne lit là-bas) dans
+l'arbre du project et au moment de créer un Document de ce kind.
+
 ## 5. Module bootstrap : content bundles
 
 Chaque module non-trivial **ship un bundle de contenu par défaut** qui sert de bootstrap quand l'admin installe le module pour la première fois. Ce bundle n'est PAS juste un menu — c'est un set complet de **toutes les ressources** dont le module a besoin pour fonctionner out-of-the-box.

@@ -1,15 +1,30 @@
 package net.artisanmc.plugin.project
 
 import net.artisanmc.modules.api.ProjectContentApi
+import net.artisanmc.plugin.model.BundleRawDocument
+import net.artisanmc.plugin.model.ProjectBundle
 import java.io.File
 
 class ProjectContentReader(
     private val roots: ProjectRoots,
     /** Snapshot reload: wired to the provider, absent in tests. */
     private val onReloadRequested: () -> Unit = {},
+    /** The loaded bundles, read at call time: wired to the provider, `[]` before it exists and in tests. */
+    private val bundles: () -> List<ProjectBundle> = { emptyList() },
 ) : ProjectContentApi {
 
     override fun reload() = onReloadRequested()
+
+    /**
+     * The Documents of a module kind as the last load read them (W6): raw
+     * mappings plus `id`. A core kind has a typed reader, not a raw one, so it
+     * answers `[]` here as the contract says.
+     */
+    override fun documents(projectId: String, kind: String): List<Map<String, Any?>> =
+        bundles().firstOrNull { it.projectId == projectId }
+            ?.documents?.get(kind).orEmpty()
+            .filterIsInstance<BundleRawDocument>()
+            .map { it.toWire() }
 
     override fun projectIds(): List<String> = roots.all().keys.toList()
 
