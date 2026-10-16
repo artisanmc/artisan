@@ -46,8 +46,6 @@
   "feature-imports-feature: serverIndex -> canvas",
   "feature-imports-feature: serverIndex -> projects",
   "feature-imports-feature: serverIndex -> search",
-  "layer-imports-feature: components -> features/canvas",
-  "layer-imports-feature: components -> features/flow",
   "layer-imports-feature: components -> features/onboarding",
   "layer-imports-feature: components -> features/project",
   "layer-imports-feature: components -> features/projects",
