@@ -1,14 +1,8 @@
+import { isTypingTarget } from "@/lib/keyboard";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { WORKSPACE_VIEW_TABS } from "./workspaceTabs";
-
-const isTypingTarget = (target: EventTarget | null) => {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
-};
 
 /**
  * Minecraft-hotbar-style tab switching: the physical top-row digits (and
