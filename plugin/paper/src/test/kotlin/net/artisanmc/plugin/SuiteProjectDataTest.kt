@@ -8,6 +8,9 @@ import net.artisanmc.plugin.database.ServerRegistry
 import net.artisanmc.plugin.database.ServerStateStore
 import net.artisanmc.plugin.database.SnapshotEntry
 import net.artisanmc.plugin.database.SuiteProjectData
+import net.artisanmc.plugin.hub.DraftCommit
+import net.artisanmc.plugin.hub.DraftReceipt
+import net.artisanmc.plugin.hub.DraftStatus
 import java.nio.file.Files
 import java.time.Instant
 import java.util.UUID
@@ -53,10 +56,10 @@ class SuiteProjectDataTest {
         assertTrue(data.drafts.knownProject(hub, "shop"))
         assertFalse(data.drafts.knownProject(hub, "missing"))
         assertNull(data.drafts.drafts(hub, "missing"))
-        assertTrue(data.drafts.commit(hub, "shop", "d1", "{\"id\":\"d1\"}", "active", "op-1", "f", "{}"))
+        assertTrue(data.drafts.commit(hub, "shop", DraftCommit("d1", "{\"id\":\"d1\"}", DraftStatus.ACTIVE, DraftReceipt("op-1", "f", "{}"))))
         assertEquals(listOf("{\"id\":\"d1\"}"), data.drafts.drafts(hub, "shop"))
         assertEquals("{\"id\":\"d1\"}", data.drafts.draft(hub, "shop", "d1"))
-        assertEquals("f" to "{}", data.drafts.receipt("op-1"))
+        assertEquals(DraftReceipt("op-1", "f", "{}"), data.drafts.receipt("op-1"))
         assertNull(data.loaded.list("nowhere"))
     }
 
