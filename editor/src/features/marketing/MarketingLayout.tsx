@@ -96,12 +96,6 @@ export function MarketingLayout({
             <a href="/wiki/">{t("marketing.nav.wiki")}</a>
             <a href={INSTALL_URL}>{t("marketing.footer.install")}</a>
           </div>
-          <div>
-            <h2>{t("marketing.footer.legal")}</h2>
-            <a href="/terms.html">{t("marketing.footer.terms")}</a>
-            <a href="/privacy.html">{t("marketing.footer.privacy")}</a>
-            <a href="/about.html">{t("marketing.footer.about")}</a>
-          </div>
         </div>
         <div className="marketing-footer-bottom">
           <span>© {new Date().getFullYear()} Artisan</span>
