@@ -4,7 +4,7 @@ import { DURATION_KEYS } from "@/lib/expr/duration";
 import { flattenLangTree } from "@/lib/langTree";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { transform } from "./transform";
+import { projectToFiles } from "./projectToFiles";
 
 const BASE = "plugins/Artisan/projects/p_test";
 
@@ -38,7 +38,7 @@ const langOf = (files: Record<string, string>, lang: string) =>
  */
 describe("presentation keys in lang files", () => {
   it("are written out in extract mode with their defaults", () => {
-    const files = transform(makeProject());
+    const files = projectToFiles(makeProject());
 
     const lang = langOf(files, "en");
     expect(lang[DURATION_KEYS.hours]).toBe("{n}h");
@@ -49,20 +49,20 @@ describe("presentation keys in lang files", () => {
 
   /** The point of writing them out: an admin opening lang/ discovers they exist. */
   it("survive inline mode, where the default lang file would otherwise not exist", () => {
-    const files = transform(makeProject({ i18nMode: "inline" }));
+    const files = projectToFiles(makeProject({ i18nMode: "inline" }));
 
     expect(files[`${BASE}/lang/en.yaml`]).toBeDefined();
     expect(langOf(files, "en")[DURATION_KEYS.hours]).toBe("{n}h");
   });
 
   it("carry nothing else in inline mode — site-addressed text stays in its document", () => {
-    const files = transform(makeProject({ i18nMode: "inline" }));
+    const files = projectToFiles(makeProject({ i18nMode: "inline" }));
 
     expect(Object.keys(langOf(files, "en")).sort()).toEqual(Object.values(DURATION_KEYS).sort());
   });
 
   it("keep an admin's override instead of the default", () => {
-    const files = transform(
+    const files = projectToFiles(
       makeProject({
         i18nKeys: { [DURATION_KEYS.hours]: { en: "{n} hours" } } as Project["i18nKeys"],
       }),
