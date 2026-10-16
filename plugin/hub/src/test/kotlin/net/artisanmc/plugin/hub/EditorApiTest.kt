@@ -31,10 +31,10 @@ class EditorApiTest {
         override val label = "Survie"
         override val minecraftVersion = "1.21.7"
         override val pluginVersion = "2.0.0"
-        override fun modules() = listOf(mapOf<String, Any?>("id" to "menus", "version" to "2.0.0"))
-        override fun dataSources() = emptyList<Map<String, Any?>>()
-        override fun models() = listOf(mapOf<String, Any?>("id" to "plain"), mapOf<String, Any?>("id" to "shop:item"))
-        override fun screens() = emptyList<Map<String, Any?>>()
+        override fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
+            modules = listOf(mapOf("id" to "menus", "version" to "2.0.0")),
+            models = listOf(mapOf("id" to "plain"), mapOf("id" to "shop:item")),
+        )
         override fun serverConfig() = mapOf<String, Any?>("language" to "en")
         override fun customItems() = listOf(mapOf("id" to "nexo:coin", "label" to "coin", "category" to "nexo"))
         override fun applyResourcePack(hash: String, path: String) { applied += hash to path }
