@@ -239,7 +239,10 @@ function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionC
               {labelForType(condition.type)}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
+          <DropdownMenuContent
+            align="start"
+            className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+          >
             {TYPES.map((t) => (
               <DropdownMenuItem
                 key={t.value}
@@ -519,9 +522,7 @@ function ConditionInline({
         <Input
           placeholder="(all iterables)"
           value={condition.elementId ?? ""}
-          onChange={(e) =>
-            onChange({ ...condition, elementId: e.target.value || undefined })
-          }
+          onChange={(e) => onChange({ ...condition, elementId: e.target.value || undefined })}
           className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
         />
       );
@@ -614,7 +615,10 @@ function InnerChip({
             {labelForType(condition.type)}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
+        <DropdownMenuContent
+          align="start"
+          className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+        >
           {TYPES.map((t) => (
             <DropdownMenuItem
               key={t.value}
@@ -656,7 +660,10 @@ function AppendChip({
           {joiner ? `+ ${joiner}` : "+ add"}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
+      <DropdownMenuContent
+        align="start"
+        className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+      >
         {TYPES.map((t) => (
           <DropdownMenuItem
             key={t.value}

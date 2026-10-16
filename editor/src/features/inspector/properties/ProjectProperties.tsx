@@ -1,14 +1,14 @@
+import { Switch } from "@/components/ui/switch";
 import type { Project } from "@/domain/types";
-import { projectUrlId } from "@/lib/projectUrlId";
 import { DeleteProjectDialog } from "@/features/account/DeleteProjectDialog";
 import { onProjectRenamed } from "@/features/project/onProjectRenamed";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
-import { useProjectRuntime } from "@/state/projectRuntimeStore";
+import { projectUrlId } from "@/lib/projectUrlId";
 import { useAccountStore } from "@/state/accountStore";
+import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Switch } from "@/components/ui/switch";
 import { PropertyField } from "./PropertyField";
 
 interface ProjectPropertiesProps {
@@ -38,18 +38,31 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         <div>
-          <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{t("projectProperties.id")}</div>
+          <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
+            {t("projectProperties.id")}
+          </div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-[var(--text-mut)]">{projectUrlId(project)}</span>
+            <span className="font-mono text-xs text-[var(--text-mut)]">
+              {projectUrlId(project)}
+            </span>
             <span className={`rounded px-1.5 py-0.5 text-[10px] ${sourceColor(project.source)}`}>
               {t(`projectProperties.${sourceLabelKey(project.source)}`)}
             </span>
             <span className="ml-auto">
               <RenameProjectButton
-                project={{ id: project.id, externalId: project.diskId, capabilities: runtime?.capabilities }}
+                project={{
+                  id: project.id,
+                  externalId: project.diskId,
+                  capabilities: runtime?.capabilities,
+                }}
                 onRenamed={(diskId) => {
                   if (serverKeyId)
-                    onProjectRenamed({ projectId: project.id, serverKeyId, previousDiskId: projectUrlId(project), diskId });
+                    onProjectRenamed({
+                      projectId: project.id,
+                      serverKeyId,
+                      previousDiskId: projectUrlId(project),
+                      diskId,
+                    });
                 }}
               />
             </span>
@@ -65,14 +78,18 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
           value={project.description ?? ""}
           placeholder={t("projectProperties.descriptionPlaceholder")}
           multiline
-          onChange={(v) => setProjectField({ projectId: project.id, field: "description", value: v })}
+          onChange={(v) =>
+            setProjectField({ projectId: project.id, field: "description", value: v })
+          }
         />
         <div>
           <PropertyField
             label={t("projectProperties.loreMaxWidth")}
             type="number"
             value={String(project.loreMaxWidth ?? 0)}
-            onChange={(v) => setProjectField({ projectId: project.id, field: "loreMaxWidth", value: v })}
+            onChange={(v) =>
+              setProjectField({ projectId: project.id, field: "loreMaxWidth", value: v })
+            }
           />
           <p className="mt-1 text-[10px] text-[var(--text-faint)]">
             {t("projectProperties.loreMaxWidthHint")}
@@ -84,7 +101,9 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
             <Switch
               checked={project.escapeGoesBack === true}
               aria-label={t("projectProperties.escapeGoesBack")}
-              onCheckedChange={(value) => setProjectField({ projectId: project.id, field: "escapeGoesBack", value })}
+              onCheckedChange={(value) =>
+                setProjectField({ projectId: project.id, field: "escapeGoesBack", value })
+              }
             />
           </div>
           <p className="mt-1 text-[10px] text-[var(--text-faint)]">
@@ -97,7 +116,9 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
         {t("projectProperties.countAssets", {
           assets: project.assets.length,
           assetsPlural: t(
-            project.assets.length === 1 ? "projectProperties.assetOne" : "projectProperties.assetOther",
+            project.assets.length === 1
+              ? "projectProperties.assetOne"
+              : "projectProperties.assetOther",
           ),
         })}
       </div>

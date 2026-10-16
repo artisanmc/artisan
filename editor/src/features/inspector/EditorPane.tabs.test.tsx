@@ -5,12 +5,14 @@ import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/features/flow/FlowCanvas", () => ({ FlowCanvas: () => <div data-testid="flow" /> }));
+vi.mock("@/features/inspector/SelectionInspector", () => ({
+  SelectionInspector: () => <div data-testid="flow" />,
+}));
 vi.mock("@/features/assets/AssetsTab", () => ({ AssetsTab: () => <div data-testid="assets" /> }));
 vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
-vi.mock("./useTextureInit", () => ({ useTextureInit: () => {} }));
-vi.mock("./Library", () => ({ Library: () => <div data-testid="library" /> }));
-vi.mock("./CapturedItemsSection", () => ({ CapturedItemsSection: () => <div /> }));
+vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
+vi.mock("@/features/canvas/Library", () => ({ Library: () => <div data-testid="library" /> }));
+vi.mock("@/features/canvas/CapturedItemsSection", () => ({ CapturedItemsSection: () => <div /> }));
 vi.mock("@/features/project/DocumentYamlView", async (orig) => ({
   ...(await orig<object>()),
   DocumentYamlView: ({ relPath }: { relPath: string }) => <div data-testid="yaml">{relPath}</div>,

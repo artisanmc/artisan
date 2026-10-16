@@ -3,7 +3,7 @@ import { menuChainSlots, visitMenuLTexts } from "@/domain/i18nSites";
 import { newLayerId } from "@/domain/ids";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { I18nKey, Menu, MenuId, Project, ProjectId } from "@/domain/types";
-import { MenuProperties } from "@/features/canvas/properties/MenuProperties";
+import { MenuProperties } from "@/features/inspector/properties/MenuProperties";
 import { getText } from "@/lib/i18n";
 import type { DocumentParseOpts } from "@/schema/documentCodecs";
 import { menuV1FromDomain } from "@/schema/menuV1FromDomain";

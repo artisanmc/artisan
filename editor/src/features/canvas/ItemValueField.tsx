@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { readAdvanced, writeAdvanced } from "@/domain/itemAdvanced";
 import type { Appearance, LText, ProjectId } from "@/domain/types";
-import { ItemBindingEditor } from "@/features/flow/ItemBindingEditor";
+import { ItemBindingEditor } from "@/features/canvas/item/ItemBindingEditor";
 import { isScreenScratchId } from "@/features/screens/screenScratch";
 import { getText } from "@/lib/i18n";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";

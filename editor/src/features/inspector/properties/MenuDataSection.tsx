@@ -2,6 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolveDisplayRef } from "@/domain/capturedItems";
 import type { ContextInput, Element, Menu, Project, ProjectId } from "@/domain/types";
+import { previewItem } from "@/features/canvas/itemValuePreview";
+import { buildPreviewScope, renderPreview } from "@/features/canvas/menuPreviewScope";
+import {
+  PLACEMENT_ROW_DRAG_PREFIX,
+  type PlacementRowDragData,
+} from "@/features/canvas/placementDrop";
+import { useTextureUrl } from "@/features/canvas/textureStore";
+import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { getText } from "@/lib/i18n";
 import { lookupPath } from "@/lib/placeholders";
 import { useAccountStore } from "@/state/accountStore";
@@ -11,11 +19,6 @@ import { useUiStore } from "@/state/uiStore";
 import { useDraggable } from "@dnd-kit/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useHeadPreviewUrl } from "../useHeadPreviewUrl";
-import { buildPreviewScope, renderPreview } from "../menuPreviewScope";
-import { previewItem } from "../itemValuePreview";
-import { PLACEMENT_ROW_DRAG_PREFIX, type PlacementRowDragData } from "../placementDrop";
-import { useTextureUrl } from "../textureStore";
 
 type SourceRefInput = Extract<ContextInput, { kind: "sourceRef" }>;
 
@@ -445,7 +448,7 @@ function PlaceableRowTile({
   const app = element.display;
   const alias = element.places?.alias ?? "item";
   const ctx = { [alias]: row };
-  const rawMaterial = app ? previewItem(app, ctx, project, activeLang).material ?? "" : "";
+  const rawMaterial = app ? (previewItem(app, ctx, project, activeLang).material ?? "") : "";
   const display = resolveDisplayRef(project, rawMaterial);
   const material = display.material;
   const titleRaw = app?.title ? getText(project, app.title, activeLang) : "";

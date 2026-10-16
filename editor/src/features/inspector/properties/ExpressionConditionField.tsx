@@ -107,7 +107,10 @@ export function ExpressionConditionField({ expr, onChange }: ExpressionCondition
               {parts.op}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]">
+          <DropdownMenuContent
+            align="start"
+            className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+          >
             {COMPARISON_OPS.map((op) => (
               <DropdownMenuItem
                 key={op}

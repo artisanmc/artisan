@@ -2,7 +2,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import type { ElementId, ProjectId } from "@/domain/types";
 import { Stage } from "@/features/canvas/Stage";
-import { FlowCanvas } from "@/features/flow/FlowCanvas";
+import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -59,7 +59,7 @@ export function DocumentView({
   );
 
   // Escape goes back to the board. The event is ignored if focus is in an input
-  // (FlowCanvas's inline editors already handle Escape to cancel an edit), if
+  // (SelectionInspector's inline editors already handle Escape to cancel an edit), if
   // another handler already consumed it, or if a modal/menu/list is open (it
   // must close first).
   useEffect(() => {
@@ -145,7 +145,7 @@ export function DocumentView({
         // with room at the top so the bubble never covers its first line.
         <div className="h-full overflow-auto">
           <div className="mx-auto w-full max-w-3xl pt-16">
-            <FlowCanvas projectId={pId} />
+            <SelectionInspector projectId={pId} />
           </div>
         </div>
       )}

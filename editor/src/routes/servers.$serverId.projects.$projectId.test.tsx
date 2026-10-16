@@ -84,7 +84,7 @@ vi.mock("@/features/assets/AssetsTab", () => ({
 vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div data-testid="stage" /> }));
 vi.mock("@/features/canvas/useTextureInit", () => ({ useTextureInit: () => {} }));
 vi.mock("@/features/assets/useAssetInit", () => ({ useAssetInit: () => {} }));
-vi.mock("@/features/canvas/EditorPane", () => ({
+vi.mock("@/features/inspector/EditorPane", () => ({
   EditorPane: () => <div data-testid="editor-pane" />,
 }));
 vi.mock("@/features/help/PatternsGallery", () => ({ PatternsGallery: () => null }));

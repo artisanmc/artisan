@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import type { ProjectId } from "@/domain/types";
-import { FlowCanvas } from "@/features/flow/FlowCanvas";
+import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
 import { dismissInspector } from "@/features/project/projectSettings";
 import { selectionContext } from "@/features/project/selectionContext";
@@ -67,7 +67,7 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
         {yamlMode && project && relPath ? (
           <DocumentYamlView key={relPath} project={project} relPath={relPath} />
         ) : (
-          <FlowCanvas projectId={projectId} />
+          <SelectionInspector projectId={projectId} />
         )}
       </div>
     </section>
