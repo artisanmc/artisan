@@ -832,6 +832,7 @@ export default {
   },
   projectPanel: {
     noEditor: "No editor for this {{kind}} yet",
+    kindNotSynced: "{{kind}}: not read by the active server (module not installed there)",
     menus: "Menus",
     commands: "Commands",
     dialogs: "Dialogs",
@@ -1027,6 +1028,8 @@ export default {
     pasteHere: "Paste here",
     newCommandHere: "New command here",
     newDocumentDialogTitle: "New {{kind}}",
+    kindNotSynced:
+      "The active server does not read {{kind}} documents: this file will be saved, but nothing there will load it until the module is installed.",
     newDialogDialogTitle: "New dialog",
     newMenuDialogTitle: "New menu",
     newCommandDialogTitle: "New command",

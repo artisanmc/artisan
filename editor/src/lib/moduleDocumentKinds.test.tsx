@@ -10,10 +10,12 @@ import { documentKindDef, listDocumentKinds, resetDocumentKinds } from "@/domain
 import { documentsOf } from "@/domain/documents";
 import { rekeyProject, visitProjectStepChains } from "@/domain/i18nSites";
 import type { Account, I18nKey, LText, Project, ProjectId, Step } from "@/domain/types";
+import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { deriveEdges } from "@/features/canvas/deriveEdges";
 import { nodeBox } from "@/features/canvas/menuLayout";
 import { deriveServerGraph } from "@/features/canvas/serverGraph";
 import { FlowCanvas } from "@/features/flow/FlowCanvas";
+import { DocumentGroups } from "@/features/project/ProjectDocumentTree";
 import { selectionContext } from "@/features/project/selectionContext";
 import { buildProjectDocuments, documentLabel } from "@/features/project/useProjectDocuments";
 import { buildSearchIndex } from "@/features/search/searchIndex";
@@ -23,6 +25,7 @@ import { useAccountStore } from "@/state/accountStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useServerActionsStore } from "@/state/serverActionsStore";
+import { useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import {
   type DocumentKindContribution,
   type FrontendModule,
@@ -150,6 +153,46 @@ describe("a module's Document kind on the host", () => {
     resetDocumentKinds();
     resetDocumentCodecs();
     useServerActionsStore.setState({ actions: [] } as never);
+    useServerDocumentKindsStore.setState({ kinds: [], status: "idle", loadedKey: null });
+  });
+
+  it("is flagged as not synchronised when the active server does not register it (W6)", () => {
+    const core = {
+      kind: "menu",
+      dir: "menus",
+      schemaVersions: ["menu/v1"],
+      idPrefix: "m_",
+      moduleId: null,
+    };
+    const quest = {
+      kind: "quest",
+      dir: "quests",
+      schemaVersions: ["quest/v1"],
+      idPrefix: "quest_",
+      moduleId: "quests",
+    };
+
+    // The server answered without the kind: the tree header and the creation dialog say so.
+    useServerDocumentKindsStore.setState({ kinds: [core], status: "ready", loadedKey: "u:s" });
+    const tree = render(<DocumentGroups project={project()} onOpen={() => {}} />);
+    expect(screen.getByRole("img", { name: /Quests/ })).toBeTruthy();
+    tree.unmount();
+    const dialog = render(
+      <NewDocumentDialog projectId={PID} kind="quest" open onOpenChange={() => {}} />,
+    );
+    expect(screen.getByRole("status").textContent).toMatch(/Quests/);
+    dialog.unmount();
+
+    // The server registers it: nothing is flagged.
+    useServerDocumentKindsStore.setState({
+      kinds: [core, quest],
+      status: "ready",
+      loadedKey: "u:s",
+    });
+    render(<DocumentGroups project={project()} onOpen={() => {}} />);
+    expect(screen.queryByRole("img", { name: /Quests/ })).toBeNull();
+    render(<NewDocumentDialog projectId={PID} kind="quest" open onOpenChange={() => {}} />);
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("enters the kind table, the codecs and the visitors; registering twice is a no-op", () => {

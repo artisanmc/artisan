@@ -535,6 +535,25 @@ interface BundleDocument {
     val id: String
 }
 
+/**
+ * A Document of a kind the core has no reader for — one a module registered
+ * through `api.documentKinds`. The file's YAML mapping as parsed, untouched: the
+ * owning module reads it back through `ProjectContentApi.documents(projectId,
+ * kind)` and decides what it means (ADR `extensible-document-kinds`, W6).
+ *
+ * @property data the file's mapping, `schema` included, without the `id`.
+ */
+data class BundleRawDocument(
+    override val id: String,
+    val kind: String,
+    val schema: String,
+    val projectId: String,
+    val data: Map<String, Any?>,
+) : BundleDocument {
+    /** What a module receives: the mapping plus `id`, the file name. */
+    fun toWire(): Map<String, Any?> = data + ("id" to id)
+}
+
 /** Assembled result for one project — its Documents by kind plus their lang maps. */
 data class ProjectBundle(
     val projectId: String,

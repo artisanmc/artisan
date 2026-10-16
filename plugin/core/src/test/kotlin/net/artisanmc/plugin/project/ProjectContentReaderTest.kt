@@ -34,6 +34,24 @@ class ProjectContentReaderTest {
         assertEquals(emptyList(), reader.list("nope", "shop"))
     }
 
+    @Test fun `documents serves the raw documents of a module kind from the loaded bundles`() {
+        val bundles = listOf(
+            net.artisanmc.plugin.model.ProjectBundle(
+                projectId = "proj1", defaultLang = "en", languages = listOf("en"),
+                documents = mapOf(
+                    "quest" to listOf(
+                        net.artisanmc.plugin.model.BundleRawDocument("first", "quest", "quest/v1", "proj1", mapOf("schema" to "quest/v1", "name" to "First")),
+                    ),
+                ),
+            ),
+        )
+        val withBundles = ProjectContentReader(ProjectRoots(projectsDir), bundles = { bundles })
+        assertEquals(listOf(mapOf("schema" to "quest/v1", "name" to "First", "id" to "first")), withBundles.documents("proj1", "quest"))
+        assertEquals(emptyList(), withBundles.documents("proj1", "menu"))
+        assertEquals(emptyList(), withBundles.documents("proj2", "quest"))
+        assertEquals(emptyList(), reader.documents("proj1", "quest"))
+    }
+
     @Test fun `read returns file content or null`() {
         assertEquals("items: []", reader.read("proj1", "shop/items.yaml"))
         assertNull(reader.read("proj1", "shop/missing.yaml"))

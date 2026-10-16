@@ -8,6 +8,7 @@ import { useAuthStore } from "@/state/authStore";
 import { useModulesStore } from "@/state/modulesStore";
 import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
+import { useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
@@ -54,6 +55,7 @@ export function RootLayout() {
     useServerDataSourcesStore.getState().load({ serverId: activeServerId });
     useServerScreensStore.getState().load({ serverId: activeServerId });
     useServerActionsStore.getState().load({ serverId: activeServerId });
+    useServerDocumentKindsStore.getState().load({ serverId: activeServerId });
     // Declared actions arriving after a project was read: adopt the texts of the module
     // actions it holds, so they are i18n sites like a core action's.
     const unsubscribeActions = useServerActionsStore.subscribe((s, prev) => {
