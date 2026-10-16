@@ -32,11 +32,14 @@ An ordered sequence of **Steps** — each Step a leaf **action** (`give_item`,
 `send_message`, `open_menu`…) or an `if` / `else if` / `else` branch over typed
 **conditions** — that runs when something triggers it: an **Element**'s click, a
 **Command** invocation, or a data-source `actions` field. `Step[]` in the domain.
-Its canonical text serialization is the **Action DSL**.
+On disk and on the wire it is a YAML list keyed by name (`- send_message: "Hi"`,
+`- if: [...]`), the **keyed action wire** of ADR `structured-action-wire`; the
+older **Action DSL** string is only read, never written.
 
 A chain may **invoke** another chain stored on a **Data source** row/config
 (`actions` field) via the `run_actions <expr>` action — the called chain runs
-inline with the resolved-from row/config as its self-scope. Cf. ADR `action-dsl`.
+inline with the resolved-from row/config as its self-scope. Cf. ADRs `action-dsl`
+and `structured-action-wire`.
 
 Non-examples:
 - A single **action** (`open_menu`) is not an Action chain — it is one leaf Step
@@ -46,17 +49,26 @@ Non-examples:
 
 ## Action DSL
 
-The compact, indentation-based text language that is the canonical serialization
-of an **Action chain** — one statement per action, `if …:` / `else if …:` /
-`else:` blocks, `and`/`or`/`not` over typed condition atoms, `"literal"` or
-`@key` for text. It is the on-disk and wire form (hand-writable in a data-source
-`actions` field's YAML), not merely an editor view. Cf. ADR `action-dsl`.
+**Legacy, read-only (since 2026-10-15).** The compact, indentation-based text
+language that *was* the serialization of an **Action chain** — one statement per
+action, `if …:` / `else if …:` / `else:` blocks, `and`/`or`/`not` over typed
+condition atoms, `"literal"` or `@key` for text. ADR `structured-action-wire`
+replaced it with the **keyed action wire** (a YAML list, one single-key map per
+action or condition): both the editor and the plugin still *read* a DSL string so
+files written before keep loading, but nothing writes one any more. Cf. ADRs
+`action-dsl` (superseded on this point) and `structured-action-wire`.
+
+If you meet the DSL in code (`actiondsl/`, `lib/actionDsl/`, `DslToEngine`) it is
+the legacy reader, not the format to extend: a new action or condition goes into
+the keyed wire (`KeyedStepParser`, `lib/actions/structuredSteps.ts`).
 
 Non-examples:
-- The verbose structured tree (`{kind:"if", cases:[…]}`) is the *old* wire form
-  the Action DSL replaces, not the Action DSL.
-- An **Expression** (`balance >= 100`) is a value sub-language the Action DSL
-  *hosts* in its condition atoms — not a separate statement language. It has a
+- The keyed action wire (`- open_menu: { menu_id: shop }`) is the current form,
+  not the Action DSL.
+- The verbose structured tree (`{kind:"if", cases:[…]}`) is the form the DSL
+  replaced first, not the Action DSL either.
+- An **Expression** (`balance >= 100`) is a value sub-language an Action chain's
+  conditions *host* in its condition atoms — not a separate statement language. It has a
   second, independent host: the **Template**.
 
 ## Appearance
@@ -402,12 +414,12 @@ so every method can be documented, mirrored server-side and locked by a
 conformance vector. Cf. ADR `expression-parity`.
 
 Expressions have exactly **two hosts**: the condition atoms of an **Action chain**
-(via the **Action DSL**), and the expression segments of a **Template**. They are
+(keyed wire or legacy **Action DSL**), and the expression segments of a **Template**. They are
 not a standalone artifact — an Expression is always embedded in something.
 
 Non-examples:
-- The **Action DSL** is a statement language (one action per line, `if`/`else`
-  blocks). An Expression is one value, and appears *inside* it.
+- An **Action chain** is a list of statements (actions, `if`/`else` branches).
+  An Expression is one value, and appears *inside* one of its conditions.
 - The surrounding text of a lore line is a **Template**, not an Expression.
 
 ## Hub
@@ -503,8 +515,9 @@ A reference to a localizable string. On disk (ADR `field-local-translations`,
 2026-09-30) a **structural** slot — menu title, appearance title/lore, dialog
 title/body/label — holds either a bare string (the default language's literal,
 or a `{i18n:key}` ref) or a field-local `{ <lang>: text }` map, so a Document
-carries its own languages. An **action** text (inside the Action DSL string) and
-a **data-source** value still use a stable **key** into the project's `i18nKeys`
+carries its own languages. An **action** text in the keyed action wire takes the
+same two forms (ADR `structured-action-wire`); only a legacy Action DSL string
+(`@key`) and a **data-source** value still use a stable **key** into the project's `i18nKeys`
 map. The editor's in-memory domain carries the LText (the key), never the
 resolved string — resolution happens at render/export against the active
 language with a fallback chain. A fresh domain LText is minted with a random
