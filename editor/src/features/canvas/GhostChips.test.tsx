@@ -16,8 +16,21 @@ vi.mock("react-konva", () => ({
     </div>
   ),
   Rect: () => <div />,
-  Text: (p: any) => <span data-testid="konva-text">{p.text}</span>,
 }));
+
+// The vanilla font draws into a canvas from atlas images: stub it with its
+// plain text, the MiniMessage source kept on the node for the assertions.
+vi.mock("./title/VanillaMcText", async () => {
+  const { plainTextFromMiniMessage } = await import("@/lib/miniMessage");
+  return {
+    VanillaMcText: (p: any) => (
+      <span data-testid="konva-text" data-source={p.source}>
+        {plainTextFromMiniMessage(p.source)}
+      </span>
+    ),
+    vanillaTextWidth: (t: string) => t.length * 6,
+  };
+});
 
 // The edges are controlled directly, reconfigurable per test through mockEdges.
 let mockEdges: { id: string; source: string; target: string; triggers: unknown[] }[] = [
@@ -112,5 +125,13 @@ describe("GhostChips", () => {
       .map((t) => t.textContent)
       .join("");
     expect(text).toBe("→ Shop");
+  });
+
+  it("draws the label with the vanilla MC font, keeping its MiniMessage styling", () => {
+    render(<GhostChips project={project()} layout={{ m1: { x: 0, y: 0 } }} />);
+    const [node] = screen.getAllByTestId("konva-text");
+    expect(node?.getAttribute("data-source")).toContain(
+      "<b><gradient:#A5F869:#0CAB27>Shop</gradient></b>",
+    );
   });
 });
