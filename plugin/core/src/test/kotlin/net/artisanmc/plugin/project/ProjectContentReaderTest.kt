@@ -36,7 +36,7 @@ class ProjectContentReaderTest {
 
     @Test fun `documents serves the raw documents of a module kind from the loaded runtimes`() {
         val runtimes = listOf(
-            net.artisanmc.plugin.model.RuntimeProject(
+            net.artisanmc.plugin.engine.RuntimeProject(
                 projectId = "proj1", defaultLang = "en", languages = listOf("en"),
                 documents = mapOf(
                     "quest" to listOf(

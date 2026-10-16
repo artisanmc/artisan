@@ -45,7 +45,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
 
     fun recordVersions(
         snapshot: net.artisanmc.plugin.project.ProjectSnapshot,
-        authors: Map<String, net.artisanmc.plugin.protocol.PublicationAuthor>,
+        authors: Map<String, net.artisanmc.plugin.project.PublicationAuthor>,
         done: () -> Unit,
     ) = versionRecorder.record(snapshot, authors, done)
 

@@ -7,7 +7,7 @@ import net.artisanmc.plugin.hub.DraftReceipt
 import net.artisanmc.plugin.hub.DraftStorage
 import net.artisanmc.plugin.hub.LoadedProjects
 import net.artisanmc.plugin.hub.ProjectHistory
-import net.artisanmc.plugin.protocol.LoadedState
+import net.artisanmc.plugin.project.LoadedState
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger

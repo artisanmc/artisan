@@ -4,7 +4,7 @@ import net.artisanmc.plugin.engine.ProjectDataResolver
 import net.artisanmc.plugin.model.RuntimeDataSource
 import net.artisanmc.plugin.model.DataFieldYaml
 import net.artisanmc.plugin.model.DataSourceYaml
-import net.artisanmc.plugin.model.RuntimeProject
+import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.yaml.ProjectReader
 import java.io.File
 import kotlin.test.Test

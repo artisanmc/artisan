@@ -2,7 +2,7 @@ package net.artisanmc.plugin
 
 import net.artisanmc.plugin.engine.Step
 import net.artisanmc.plugin.engine.assignI18nAddresses
-import net.artisanmc.plugin.actiondsl.compileActionDsl
+import net.artisanmc.plugin.engine.compileActionDsl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

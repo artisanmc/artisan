@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.protocol
 
+import net.artisanmc.plugin.project.PublicationAuthor
 import net.artisanmc.plugin.project.ProjectRoots
 import net.artisanmc.plugin.project.ProjectSnapshot
 import java.util.concurrent.Executor
@@ -25,5 +26,3 @@ interface ProjectWorkspace {
     fun authoredBy(projectId: String, author: PublicationAuthor) {}
 }
 
-/** Who published, and the Version the published draft was restored from, if any. */
-data class PublicationAuthor(val id: String, val name: String, val restoredFrom: String? = null)

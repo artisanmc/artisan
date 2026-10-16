@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.render
 
-import net.artisanmc.plugin.actiondsl.compileActionDsl
+import net.artisanmc.plugin.engine.compileActionDsl
 import net.artisanmc.plugin.engine.I18nAddress
 import net.artisanmc.plugin.engine.assignI18nAddresses
 import net.artisanmc.plugin.engine.*
