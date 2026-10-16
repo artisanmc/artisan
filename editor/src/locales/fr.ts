@@ -847,6 +847,7 @@ const fr: typeof en = {
   },
   projectPanel: {
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",
+    kindNotSynced: "{{kind}} : non lu par le serveur actif (module absent là-bas)",
     menus: "Menus",
     commands: "Commandes",
     dialogs: "Dialogs",
@@ -1046,6 +1047,8 @@ const fr: typeof en = {
     pasteHere: "Coller ici",
     newCommandHere: "Nouvelle commande ici",
     newDocumentDialogTitle: "Nouveau · {{kind}}",
+    kindNotSynced:
+      "Le serveur actif ne lit pas les documents {{kind}} : ce fichier sera enregistré, mais rien là-bas ne le chargera tant que le module n'y est pas installé.",
     newDialogDialogTitle: "Nouveau dialogue",
     newMenuDialogTitle: "Nouveau menu",
     newCommandDialogTitle: "Nouvelle commande",

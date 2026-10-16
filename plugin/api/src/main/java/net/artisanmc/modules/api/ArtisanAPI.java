@@ -41,6 +41,7 @@ public final class ArtisanAPI {
     private final ModelRegistry models;
     private final EditorScreenRegistry screens;
     private final ActionRegistry actionRegistry;
+    private final DocumentKindRegistry documentKinds;
     private final DatabaseApi database;
     private final MenuApi menus;
     private final SchedulerApi scheduler;
@@ -61,6 +62,7 @@ public final class ArtisanAPI {
         this.models = b.models;
         this.screens = b.screens;
         this.actionRegistry = b.actionRegistry;
+        this.documentKinds = b.documentKinds;
         this.database = b.database;
         this.menus = b.menus;
         this.scheduler = b.scheduler;
@@ -163,6 +165,16 @@ public final class ArtisanAPI {
         return actionRegistry;
     }
 
+    /**
+     * The Document kinds a project may hold (ADR {@code extensible-document-kinds}, decisions 1, 10
+     * and 11): Artisan's own and the modules'. The core reads a project's folders from it and
+     * reports it at Presence as {@code document_kinds}.
+     */
+    @Beta
+    public DocumentKindRegistry getDocumentKinds() {
+        return documentKinds;
+    }
+
     /** One connection pool per plugin, credentials in {@code environment.yml} (ADR {@code suite-foundation-database}). */
     @Beta
     public DatabaseApi getDatabase() {
@@ -216,6 +228,7 @@ public final class ArtisanAPI {
         private ModelRegistry models = new ModelRegistry();
         private EditorScreenRegistry screens = new EditorScreenRegistry();
         private ActionRegistry actionRegistry = new ActionRegistry();
+        private DocumentKindRegistry documentKinds = new DocumentKindRegistry();
         private DatabaseApi database = DatabaseApi.NONE;
         private MenuApi menus = MenuApi.NOOP;
         private SchedulerApi scheduler = SchedulerApi.DIRECT;
@@ -268,6 +281,11 @@ public final class ArtisanAPI {
 
         public Builder actionRegistry(ActionRegistry actionRegistry) {
             this.actionRegistry = Objects.requireNonNull(actionRegistry);
+            return this;
+        }
+
+        public Builder documentKinds(DocumentKindRegistry documentKinds) {
+            this.documentKinds = Objects.requireNonNull(documentKinds);
             return this;
         }
 

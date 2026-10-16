@@ -82,7 +82,19 @@ mappings:
     updates:
       - "docs/architecture/project-files.md"
       - "docs/decisions/extensible-document-kinds.md"
-    reason: "Document kind registry (plugin) — mirror of domain/documentKinds.ts: folders, schema labels read by ProjectReader and ResourceInventory"
+    reason: "Document kind registry (plugin) — Kotlin façade of the API's DocumentKindRegistry: folders, schema labels read by ProjectReader and ResourceInventory"
+
+  - touches: "plugin/api/src/main/java/**/DocumentKind*.java"
+    updates:
+      - "docs/architecture/api-surface.md"
+      - "docs/architecture/modules.md"
+      - "docs/architecture/ws-protocol.md"
+    reason: "Document kind contract of the module API (W6): declaration fields are the document_kinds wire"
+
+  - touches: "editor/src/state/serverDocumentKindsStore.ts"
+    updates:
+      - "docs/architecture/editor-internals.md"
+    reason: "Kinds the active server registers; drives the not-synchronised warning in the tree and NewDocumentDialog"
 
   - touches: "plugin/*/src/main/kotlin/**/model/ProjectBundle.kt"
     updates:

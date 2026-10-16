@@ -1,6 +1,8 @@
 package net.artisanmc.modules.api;
 
 import java.util.List;
+import java.util.Map;
+import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Stable;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,4 +37,16 @@ public interface ProjectContentApi {
      */
     @Stable
     default void reload() {}
+
+    /**
+     * The loaded Documents of a kind a module declared ({@link DocumentKindRegistry}): one map per
+     * file of {@code <projectId>/<dir>/}, its YAML as read plus {@code id} (the file name), in file
+     * order. Artisan's own kinds are not served here (they have their runtime shapes); a kind nobody
+     * declared, or a project without that folder, gives an empty list. A snapshot taken at load:
+     * re-read in {@link ArtisanModule#onReload}.
+     */
+    @Beta
+    default List<Map<String, Object>> documents(String projectId, String kind) {
+        return List.of();
+    }
 }
