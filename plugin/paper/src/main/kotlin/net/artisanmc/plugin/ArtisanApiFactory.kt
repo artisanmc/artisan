@@ -1,6 +1,10 @@
 package net.artisanmc.plugin
 
 import net.artisanmc.modules.api.*
+import net.artisanmc.modules.api.action.ActionRegistry
+import net.artisanmc.modules.api.command.CommandRegistry
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
+import net.artisanmc.modules.api.event.ModuleEventBus
 import net.artisanmc.modules.api.schemas.SchemaRegistry
 import net.artisanmc.plugin.model.DocumentKinds
 import net.artisanmc.plugin.provider.SyncedMenuProvider
