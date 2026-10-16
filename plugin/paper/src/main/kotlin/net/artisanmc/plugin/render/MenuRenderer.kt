@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.render
 
-import net.artisanmc.modules.api.DataSourceRegistry
+import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.model.AppearanceYaml
 import net.artisanmc.plugin.model.BundleMenu
