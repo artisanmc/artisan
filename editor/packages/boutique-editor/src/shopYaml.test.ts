@@ -6,13 +6,25 @@ const BUY_DSL = 'run_command "give {player} diamond_sword 1" as console';
 
 const STATE: BoutiqueState = {
   wholeShopDiscount: 5,
-  categories: [{
-    id: "weapons", name: "Armes", icon: "DIAMOND_SWORD", discount: 10,
-    items: [{
-      id: "diamond_sword", name: "Épée", icon: "DIAMOND_SWORD", price: 100,
-      discount: 5, lore: ["Tranchante"], actions: BUY_DSL,
-    }],
-  }],
+  categories: [
+    {
+      id: "weapons",
+      name: "Armes",
+      icon: "DIAMOND_SWORD",
+      discount: 10,
+      items: [
+        {
+          id: "diamond_sword",
+          name: "Épée",
+          icon: "DIAMOND_SWORD",
+          price: 100,
+          discount: 5,
+          lore: ["Tranchante"],
+          actions: BUY_DSL,
+        },
+      ],
+    },
+  ],
 };
 
 describe("shopYaml", () => {

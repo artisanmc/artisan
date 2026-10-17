@@ -6,10 +6,13 @@ package net.artisanmc.plugin.protocol
  * talk to the server. The minor only adds fields, which the other side ignores.
  */
 object ProtocolVersion {
-    const val CURRENT = "1.1"
+    const val CURRENT = "1.2"
 
     /** Minor that adds `project_create`, `project_delete` and `project_rename`. */
     const val PROJECT_FOLDERS = 1
+
+    /** Minor that adds `editor_bundle_fetch` and the `editor_bundle` of an `installed_modules` entry. */
+    const val EDITOR_BUNDLES = 2
 
     fun major(version: String): Int? = version.substringBefore('.').toIntOrNull()
 

@@ -23,6 +23,8 @@ export interface DocumentKindContribution {
   rank?: number;
   /** The kind's plural name in the registry and the "New …" menu: an i18n key of the host, or a literal. */
   label: string;
+  /** The same name per interface language (`{ en, fr }`): a module carries its own; wins over `label`. */
+  labels?: Record<string, string>;
   /** Icon of the kind in the registry; the host has a default. */
   icon?: ComponentType<{ className?: string }>;
   /**
@@ -131,6 +133,12 @@ export interface FrontendModule {
   id: string;
   displayName: string;
   schemaVersion: string;
+  /**
+   * The SDK version the module was built against (`SDK_VERSION` at its build). Checked
+   * when the module comes as a bundle at runtime; a module compiled into the editor
+   * shares its SDK and may leave it out.
+   */
+  sdk?: string;
   sidebar: ModuleSidebarEntry;
   routes: ModuleRouteDecl[];
   wsMessageTypes?: string[];
