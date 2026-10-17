@@ -24,7 +24,7 @@ class EditorBundleFetchTest {
         val provider = SyncedMenuProvider(
             roots = ProjectRoots(Files.createTempDirectory("bundle-fetch").toFile()),
             logger = null,
-            editorBundles = registry,
+            editorBundles = registry::find,
         )
         provider.load()
         val replies = LinkedBlockingQueue<Map<*, *>>()
