@@ -40,7 +40,7 @@ l'éditeur affichait une vue qui ne correspondait pas au plugin. Iban a tranché
    seul pas d'annulation), `newTextKey`, `textValue`, `fieldText`, `projectLangs`, `notify`, et depuis 1.1 deux
    widgets de l'éditeur, `ActionChainEditor` (chaîne d'actions au format du fichier) et
    `MaterialInput` (palette d'items), rendus par l'hôte (`EditorHost.components`,
-   `lib/editorHostComponents.tsx`).
+   `distribution/hostComponents.tsx`).
    L'éditeur installe l'implémentation au démarrage (`lib/editorHost.ts`). Un module porte
    ses libellés (`createModuleI18n`, `labels` d'un kind par langue) et ses styles
    (`injectModuleStyles`, classes préfixées, couleurs par `var(--token)`) : un bundle n'a
