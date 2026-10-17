@@ -5,6 +5,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { type EditorHost, installEditorHost } from "@artisan/editor-sdk";
 import { toast } from "sonner";
+import { hostComponents } from "./editorHostComponents";
 
 /** The project's languages: its default, then every other one a text holds. */
 export function projectLanguages(project: Project): string[] {
@@ -34,6 +35,7 @@ export const editorHost: EditorHost = {
   fieldText: (project, key) => fieldTextOf(project as Project)(key as I18nKey),
   langs: (project) => projectLanguages(project as Project),
   notify: (message, tone) => (tone === "error" ? toast.error(message) : toast(message)),
+  components: hostComponents,
 };
 
 export function installHost(): void {

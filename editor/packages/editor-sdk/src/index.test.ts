@@ -12,6 +12,8 @@ describe("@artisan/editor-sdk public surface", () => {
 
   it("exposes shared base primitives", () => {
     expect(sdk.Button).toBeDefined();
+    expect(typeof sdk.ActionChainEditor).toBe("function");
+    expect(typeof sdk.MaterialInput).toBe("function");
     expect(typeof sdk.cn).toBe("function");
   });
 
