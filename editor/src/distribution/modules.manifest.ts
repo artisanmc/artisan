@@ -13,7 +13,5 @@ export interface ModuleManifestEntry {
 }
 
 export const MODULE_MANIFEST: ModuleManifestEntry[] = [
-  // ArtisanQuests reports itself as `msquests` at presence.
-  { id: "msquests", load: () => import("@artisan/quests-editor").then((m) => m.default) },
   { id: "boutique", load: () => import("@artisan/boutique-editor").then((m) => m.default) },
 ];
