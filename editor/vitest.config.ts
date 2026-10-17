@@ -19,7 +19,6 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@artisan/editor-sdk": path.resolve(__dirname, "./packages/editor-sdk/src/index.ts"),
-      "@artisan/quests-editor": path.resolve(__dirname, "./packages/quests-editor/src/index.ts"),
       "@artisan/boutique-editor": path.resolve(
         __dirname,
         "./packages/boutique-editor/src/index.ts",
