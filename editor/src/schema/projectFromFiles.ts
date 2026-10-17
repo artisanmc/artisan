@@ -951,3 +951,45 @@ export function projectFromFiles(
 
   return project;
 }
+
+/**
+ * Reads the Documents of kinds registered after the Project was read (ADR
+ * `runtime-editor-modules`): a module's view arrives with the server's presence, which
+ * may come after the Project. Until then its folder was kept verbatim in
+ * `moduleData[<dir>].__files` (re-exported as is, so nothing was lost); this moves each
+ * `<dir>/<id>.yaml` into `project.documents[kind]` through the kind's codec. A file that
+ * does not parse stays where it was. Returns how many Documents were adopted. Mutates
+ * `project` (an immer draft in the store).
+ */
+export function adoptLateDocuments(project: Project): number {
+  let adopted = 0;
+  const moduleData = project.moduleData as Record<string, unknown> | undefined;
+  if (!moduleData) return 0;
+  for (const def of listDocumentKinds()) {
+    const raw = moduleData[def.dir] as { __files?: Record<string, string> } | undefined;
+    const files = raw?.__files;
+    if (!files) continue;
+    const codec = documentCodec(def.kind);
+    project.documents[def.kind] ??= [];
+    const docs = project.documents[def.kind]!;
+    for (const [rel, content] of Object.entries(files).sort(([a], [b]) => a.localeCompare(b))) {
+      if (rel.includes("/") || !rel.endsWith(".yaml")) continue;
+      const id = rel.slice(0, -".yaml".length);
+      if (docs.some((d) => d.id === id)) continue;
+      const y = tryParse<Json>(content);
+      if (!y || typeof y !== "object") continue;
+      const r = codec.parse(
+        { ...y, id },
+        { projectId: project.id, lang: project.defaultLang, translations: project.i18nKeys },
+      );
+      for (const [key, langs] of Object.entries(r.i18nKeys)) {
+        project.i18nKeys[key as I18nKey] ??= langs;
+      }
+      docs.push(r.doc);
+      delete files[rel];
+      adopted++;
+    }
+    if (Object.keys(files).length === 0) delete moduleData[def.dir];
+  }
+  return adopted;
+}

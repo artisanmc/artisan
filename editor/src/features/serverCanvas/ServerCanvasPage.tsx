@@ -18,6 +18,7 @@ import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
+import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useCssVar } from "@/lib/themeColors";
 import { useUiStore } from "@/state/uiStore";
@@ -35,8 +36,13 @@ const ROUTE = "/servers/$serverId/canvas" as const;
 /** A kind's chip label: the host's for the core kinds, the contribution's for a module's. */
 function kindLabel(kind: string, t: TFunction): string {
   const own = `serverCanvas.kinds.${kind}`;
-  const label = documentKindContribution(kind)?.label ?? kind;
-  return t(own, { defaultValue: t(label, { defaultValue: label }) });
+  const label = contributionLabel(
+    documentKindContribution(kind),
+    kind,
+    t,
+    useUiStore.getState().editorLang,
+  );
+  return t(own, { defaultValue: label });
 }
 
 export const validateServerCanvasSearch = (search: Record<string, unknown>): BoardFilter =>
