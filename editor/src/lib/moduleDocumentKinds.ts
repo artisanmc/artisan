@@ -80,6 +80,22 @@ export function createDocumentOfKind(
   return c.create({ id, projectId }) as Document;
 }
 
+/**
+ * A module kind's plural name in the interface language: its own `labels`, else its
+ * `label` read as a host i18n key or a literal, else the kind id.
+ */
+export function contributionLabel(
+  c: DocumentKindContribution | undefined,
+  kind: string,
+  t: (key: string, opts: { defaultValue: string }) => string,
+  uiLang: string,
+): string {
+  const own = c?.labels?.[uiLang] ?? c?.labels?.en;
+  if (own) return own;
+  const label = c?.label ?? kind;
+  return t(label, { defaultValue: label });
+}
+
 /** The human label of a Document: the kind's `title`, else its id. */
 export function documentTitle(
   c: DocumentKindContribution | undefined,
