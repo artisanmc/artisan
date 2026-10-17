@@ -2,6 +2,7 @@ import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { getText, newI18nKey } from "@/lib/i18n";
 import { fieldTextOf } from "@/schema/fieldText";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { type EditorHost, type HostComponents, installEditorHost } from "@artisan/editor-sdk";
 import { toast } from "sonner";
@@ -33,6 +34,11 @@ export const editorHost: Omit<EditorHost, "components"> = {
   text: (project, key, lang) => getText(project as Project, { key: key as I18nKey }, lang),
   fieldText: (project, key) => fieldTextOf(project as Project)(key as I18nKey),
   langs: (project) => projectLanguages(project as Project),
+  // A part is selected like a menu's element: its id, scoped by its Document.
+  selectDocumentItem: ({ documentId, item }) =>
+    item
+      ? useSelectionStore.getState().set([item], null, documentId)
+      : useSelectionStore.getState().set([documentId]),
   notify: (message, tone) => (tone === "error" ? toast.error(message) : toast(message)),
 };
 
