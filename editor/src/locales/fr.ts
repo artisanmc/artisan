@@ -504,7 +504,7 @@ const fr: typeof en = {
       lore: "Lore",
       enchants: "Enchantements",
       custom_model_data: "Custom model data",
-      damage: "Pas plus usé",
+      damage: "Usure",
       exact: "Identique (tags cachés, réparations…)",
     },
     matchHelp: {
