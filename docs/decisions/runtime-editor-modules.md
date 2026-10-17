@@ -43,9 +43,10 @@ l'éditeur affichait une vue qui ne correspondait pas au plugin. Iban a tranché
    (`injectModuleStyles`, classes préfixées, couleurs par `var(--token)`) : un bundle n'a
    pas été scanné par le Tailwind de l'éditeur, il ne compte que sur les classes du design
    system (`.btn`, `.input`, `.select`, `.field-label`…).
-5. **Le bundle prime, la copie intégrée reste en repli.** `modulesStore.integrate` charge le
-   bundle annoncé (il correspond exactement au plugin installé), sinon l'entrée de
-   `modules.manifest.ts`. L'échec d'un module ne coûte que sa vue. `origins` et `refused`
+5. **Le bundle prime.** `modulesStore.integrate` charge le bundle annoncé (il correspond
+   exactement au plugin installé), sinon l'entrée de `modules.manifest.ts` s'il en existe une
+   (un module compilé dans l'éditeur, comme la boutique) ; un module livré par son jar n'en a
+   pas. L'échec d'un module ne coûte que sa vue. `origins` et `refused`
    disent d'où vient chaque vue et pourquoi un bundle a été écarté.
 6. **Un kind enregistré après la lecture d'un Project ne perd rien.** La vue arrive avec la
    Presence, parfois après la lecture du Project : son dossier est alors gardé tel quel
@@ -57,10 +58,12 @@ l'éditeur affichait une vue qui ne correspondait pas au plugin. Iban a tranché
 
 ## Conséquences
 
-- `@artisan/quests-editor` (id de Presence `msquests`, kind `quest_group`) est le premier
-  module construit ainsi : `npm run build:bundle -w @artisan/quests-editor` → `dist/ui.js`,
-  à embarquer dans le jar d'ArtisanQuests (L5, partie MSQuests). Il reste compilé dans
-  l'éditeur comme repli tant qu'un plugin ne sert pas son bundle.
+- Artisan ne détient pas la vue d'un module livré par son jar : la vue des quêtes (kind
+  `quest_group`, id de Presence `msquests`) vit dans le dépôt MSQuests (`editor/`), qui
+  construit `ui.js` dans les ressources de son jar. Sans bundle servi, l'éditeur n'a pas de
+  vue pour ce module. `modules.manifest.ts` ne garde que les modules compilés dans l'éditeur.
+- Un module hors du dépôt dépend du SDK par son archive (`npm pack` de
+  `editor/packages/editor-sdk`) tant que `@artisan/editor-sdk` n'est pas publié sur npm.
 - Changer `SHARED_MODULES` ou le contrat de `EditorHost` est un changement du SDK : mineure
   pour un ajout, majeure sinon.
 - Hors périmètre : nœud de groupe contenant ses quêtes sur la planche, compteur d'instances
