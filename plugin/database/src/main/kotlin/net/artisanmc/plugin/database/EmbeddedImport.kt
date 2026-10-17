@@ -29,7 +29,7 @@ object EmbeddedImport {
         }
         // Imported before this mark existed: recorded as such, never imported again.
         if (recorded) { ArtisanMeta.put(to, mark, Instant.now().toString()); return false }
-        if (!hasTable(from, "artisan_versions")) return false
+        if (!SchemaMigrator.hasTable(from, "artisan_versions")) return false
         val oldRow = rowId(from, serverId) ?: return false
 
         to.autoCommit = false
@@ -95,7 +95,4 @@ object EmbeddedImport {
         c.prepareStatement("SELECT id FROM artisan_servers WHERE uuid = ?").use { s ->
             s.setString(1, serverId.toString()); s.executeQuery().use { if (it.next()) it.getInt(1) else null }
         }
-
-    private fun hasTable(c: Connection, name: String): Boolean =
-        listOf(name, name.uppercase()).any { candidate -> c.metaData.getTables(null, null, candidate, null).use { it.next() } }
 }
