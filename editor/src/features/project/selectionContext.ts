@@ -19,8 +19,11 @@ export type SelectionContext =
   | { kind: "element"; menuId: string; elementId: string }
   | { kind: "command"; id: string }
   | { kind: "dialog"; id: string }
-  /** A Document of a kind contributed by a module: its editor comes from the kind registry. */
-  | { kind: "document"; documentKind: string; id: string }
+  /**
+   * A Document of a kind contributed by a module: its editor comes from the kind registry.
+   * `item`: the part selected on its board node (`board.items`), scoped like an element.
+   */
+  | { kind: "document"; documentKind: string; id: string; item?: string }
   | { kind: "unknown" };
 
 const CORE = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
@@ -42,6 +45,14 @@ export function selectionContext(
     const found = findDocument(project, id);
     if (found && !CORE.has(found.kind)) {
       return { kind: "document", documentKind: found.kind, id };
+    }
+  }
+
+  // A part of a module's Document (`board.items`): scoped by its Document, like an element.
+  if (selectionMenuId !== null) {
+    const owner = findDocument(project, selectionMenuId);
+    if (owner && !CORE.has(owner.kind)) {
+      return { kind: "document", documentKind: owner.kind, id: selectionMenuId, item: id };
     }
   }
 

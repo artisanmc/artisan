@@ -73,7 +73,12 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
       if (View) {
         return (
           <div className="h-full min-h-0 overflow-y-auto">
-            <View projectId={projectId} documentId={id} document={doc} />
+            <View
+              projectId={projectId}
+              documentId={id}
+              document={doc}
+              item={ctx.kind === "document" ? ctx.item : undefined}
+            />
           </div>
         );
       }
