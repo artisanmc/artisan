@@ -53,8 +53,10 @@ internal class ItemSpecs(
     }
 
     fun defaultComparisons(spec: Map<String, *>): Set<ItemComparison> {
-        val item = build(spec) ?: return EnumSet.of(ItemComparison.MATERIAL)
-        val set = EnumSet.of(if (customId(item) != null) ItemComparison.CUSTOM_ITEM else ItemComparison.MATERIAL)
+        val item = build(spec) ?: return EnumSet.of(ItemComparison.MATERIAL, ItemComparison.CUSTOM_ITEM)
+        // A vanilla item also asks CUSTOM_ITEM: a custom item built on its material is not it.
+        val set = if (customId(item) != null) EnumSet.of(ItemComparison.CUSTOM_ITEM)
+        else EnumSet.of(ItemComparison.MATERIAL, ItemComparison.CUSTOM_ITEM)
         val meta = item.itemMeta ?: return set
         if (meta.hasDisplayName()) set += ItemComparison.NAME
         if (!meta.lore().isNullOrEmpty()) set += ItemComparison.LORE
