@@ -62,6 +62,8 @@ internal class RuntimeAssembly(
     /** Null until the first [start]: module actions arriving before it are dropped. */
     val executorOrNull: ActionExecutor? get() = if (::executor.isInitialized) executor else null
     val sessionsOrNull: MenuSessionStore? get() = if (::sessions.isInitialized) sessions else null
+    /** Null until the first [start]: module conditions tested before it fail closed. */
+    val evaluatorOrNull: ConditionEvaluator? get() = if (::evaluator.isInitialized) evaluator else null
 
     /** The stores that outlive a reload, the asset index (from its disk cache) and the command registrar. */
     fun prepare(langManager: LangManager) {
