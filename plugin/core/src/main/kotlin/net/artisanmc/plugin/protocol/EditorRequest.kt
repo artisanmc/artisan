@@ -33,6 +33,8 @@ sealed interface EditorRequest {
     data class PapiPlaceholdersFetch(override val requestId: String) : WithReply
     data class HeadTextureFetch(override val requestId: String, val id: String) : WithReply
     data class PlayerInventoryFetch(override val requestId: String, val player: String) : WithReply
+    /** The script of a module's editor view (protocol 1.2, [ProtocolVersion.EDITOR_BUNDLES]). */
+    data class EditorBundleFetch(override val requestId: String, val moduleId: String) : WithReply
     data class DataSourceFetch(
         override val requestId: String,
         val ref: String,
@@ -113,6 +115,7 @@ sealed interface EditorRequest {
                 "papi_placeholders_fetch" -> PapiPlaceholdersFetch(requestId)
                 "head_texture_fetch" -> HeadTextureFetch(requestId, node.text("id") ?: "")
                 "player_inventory_fetch" -> PlayerInventoryFetch(requestId, node.text("player") ?: return null)
+                "editor_bundle_fetch" -> EditorBundleFetch(requestId, node.text("module_id") ?: return null)
                 "data_source_fetch" -> DataSourceFetch(
                     requestId = requestId,
                     ref = node.text("ref") ?: return null,

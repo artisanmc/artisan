@@ -44,12 +44,13 @@ class Call(
     fun error(status: Int, code: String, message: String? = null) =
         json(if (message == null) mapOf("error" to code) else mapOf("error" to code, "message" to message), status)
 
-    fun send(status: Int, contentType: String, bytes: ByteArray, cacheControl: String = "no-store") {
+    fun send(status: Int, contentType: String, bytes: ByteArray, cacheControl: String = "no-store", headers: Map<String, String> = emptyMap()) {
         response.status = status
         // A request body left unread makes Jetty drop the connection; say so, or the client reuses it and fails.
         if (status >= 400 && request.length != 0L) response.headers.put(HttpHeader.CONNECTION, "close")
         response.headers.put(HttpHeader.CONTENT_TYPE, contentType)
         response.headers.put(HttpHeader.CACHE_CONTROL, cacheControl)
+        headers.forEach { (name, value) -> response.headers.put(name, value) }
         response.write(true, java.nio.ByteBuffer.wrap(bytes), callback)
     }
 
