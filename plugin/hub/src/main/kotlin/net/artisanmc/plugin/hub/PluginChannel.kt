@@ -73,6 +73,10 @@ class PluginChannel(
 
     private fun welcome(session: Session, id: String, name: String, hello: ObjectNode): RemoteServer {
         val server = servers.remote(id, name)
+        // Jetty's 64 KiB default holds a hello, not what an accepted server sends back: Project
+        // reads, a 4 MiB editor bundle as JSON text (EditorBundleDeclaration.MAX_SIZE).
+        session.maxTextMessageSize = MAX_MESSAGE
+        session.maxFrameSize = MAX_MESSAGE
         val ack = mapOf(
             "type" to "hello_ack",
             "session_id" to UUID.randomUUID().toString(),
@@ -143,5 +147,6 @@ class PluginChannel(
         /** A UUID (`plugins/Artisan/server-id`); the tests use shorter ids. */
         val SERVER_ID = Regex("[A-Za-z0-9-]{1,36}")
         const val POLICY_VIOLATION = 1008
+        const val MAX_MESSAGE = 32L * 1024 * 1024
     }
 }

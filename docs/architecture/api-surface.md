@@ -89,6 +89,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `messages` removed; built through `ArtisanAPI.builder(...)` | | 2.0.0 |
 | `actionRegistry` (`getActionRegistry()`, `@Beta`) | `ActionRegistry` | 2.0.0 |
 | `documentKinds` (`getDocumentKinds()`, `@Beta`) | `DocumentKindRegistry` | 2.1.0 |
+| `editorBundles` (`getEditorBundles()`, `@Beta`) | `EditorBundleRegistry` | 2.2.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -101,7 +102,7 @@ Manages the set of active modules for a running Artisan instance.
 | `register(module: ArtisanModule)` | `@Stable` | `Unit` | Register a module. Throws `DuplicateModuleException` if the id is already registered. Triggers `modules_changed` WS message if the plugin is connected. |
 | `active()` | `@Stable` | `List<ArtisanModule>` | Returns all currently registered modules. |
 | `has(id: String)` | `@Stable` | `Boolean` | Returns true if a module with that id is registered. |
-| `unregister(id: String)` | `@Stable` | `Boolean` | Calls the module's `onDisable()`, removes it and the data sources, commands, models, screens and actions registered from its `onEnable`, triggers `modules_changed`. False for an unknown id. Since 1.8.0 |
+| `unregister(id: String)` | `@Stable` | `Boolean` | Calls the module's `onDisable()`, removes it and the data sources, commands, models, screens, actions, document kinds and editor bundle registered from its `onEnable`, triggers `modules_changed`. False for an unknown id. Since 1.8.0 |
 | `bind(api: ArtisanAPI, onChange: Runnable)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
 | `unregisterLoadedBy(loader: ClassLoader)` | `@Internal` | `List<Exception>` | Called by Artisan on `PluginDisableEvent`: unregisters the modules loaded by that plugin's class loader, then the data sources and commands whose callback it loaded. Returns the `onDisable()` failures. |
 
@@ -227,6 +228,22 @@ A file of a declared kind is read by Artisan as a **raw document** (its YAML map
 api.getDocumentKinds().register(new DocumentKindDeclaration("quest", "quests", List.of("quest/v1"), "quest_"));
 // after api.getProject().reload(), or in onReload():
 for (Map<String, Object> quest : api.getProject().documents(projectId, "quest")) { … }
+```
+
+### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (`@Beta`, 2.2.0)
+
+A module may ship its **editor view** in its own jar (runtime module bundles, level 3; `modules.md` §4.6): one ES module script built against `@artisan/editor-sdk`, registered from `onEnable` and removed with the module. The bundle is reported at Presence on the module's `installed_modules` entry (`editor_bundle: {sdk, hash, size}`, protocol 1.2), served by the hub at `GET /api/v1/servers/:server/modules/:module/ui.js` and loaded by the editor against its SDK.
+
+| Member | Type | Since |
+|---|---|---|
+| `EditorBundleRegistry.register(decl)` (owner = the module whose `onEnable` runs; outside one `IllegalStateException`, a second bundle for that module `DuplicateEditorBundleException`), `unregister(moduleId)`, `find(moduleId)` (nullable), `registered()` (module id → declaration, registration order) | | 2.2.0 |
+| `EditorBundleDeclaration(script, sdk)` (UTF-8, non-empty, ≤ `MAX_SIZE` = 4 MiB; `sdk` `MAJOR.MINOR[.PATCH]`; else `IllegalArgumentException`), `fromResource(loader, path, sdk)` (missing resource: `IllegalArgumentException`) ; `getScript()` (copy), `getSdk()`, `getHash()` (lowercase hex SHA-256), `getSize()`, `toWire()` (`{sdk, hash, size}`) | `EditorBundleDeclaration` | 2.2.0 |
+| `DuplicateEditorBundleException` (extends `IllegalStateException`) | | 2.2.0 |
+| `ArtisanAPI.Builder.editorBundles(registry)` (`@Internal`) | `Builder` | 2.2.0 |
+
+```java
+api.getEditorBundles().register(
+    EditorBundleDeclaration.fromResource(getClass().getClassLoader(), "artisan-editor/ui.js", "1.0"));
 ```
 
 ### `net.artisanmc.modules.api.model.ModelRegistry` (`@Beta`)
@@ -508,7 +525,7 @@ The artifact contains only the `net.artisanmc.modules.api.*` packages filtered t
 
 ## Protocol surfaces
 
-- **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.1"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
+- **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.2"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
 - **REST API** : versioned under `/api/v1/*`, served by the hub to the editor shipped in the same jar. See `versioning.md` §5.
 - **YAML schemas** : `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `ProjectReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
 - **Database** : Artisan owns no tables; each suite plugin migrates its own through `DatabaseApi`. See `versioning.md` §6.

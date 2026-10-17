@@ -86,10 +86,13 @@ class PluginChannelTest {
 
         fun next(): JsonNode = received.poll(5, TimeUnit.SECONDS) ?: error("nothing received")
 
-        fun hello(key: String = "s3cret", name: String = "survie2", protocol: String = "1", database: String = "db-1", id: String = "u-$name") = send(mapOf(
+        fun hello(
+            key: String = "s3cret", name: String = "survie2", protocol: String = "1", database: String = "db-1", id: String = "u-$name",
+            modules: List<Map<String, Any?>> = listOf(mapOf("id" to "quests", "version" to "1.0.0")),
+        ) = send(mapOf(
             "type" to "hello", "server_key" to key, "proxy_name" to name, "server_uuid" to id, "protocol_version" to protocol, "database_id" to database,
             "minecraft_version" to "1.21.4", "plugin_version" to "2.0.0",
-            "installed_modules" to listOf(mapOf("id" to "quests", "version" to "1.0.0")),
+            "installed_modules" to modules,
             "server_config" to mapOf("language" to "fr"),
         ))
     }
@@ -333,5 +336,78 @@ class PluginChannelTest {
         val (code, body) = get("/api/v1/servers/u-survie2/projects").get(5, TimeUnit.SECONDS)
         assertEquals(503, code)
         assertEquals("server_offline", body!!["error"].asText())
+    }
+
+    @Test
+    fun `a module's editor bundle is fetched from its server once, then served from the hub`() {
+        // A bundle at the 4 MiB limit, with characters JSON escapes: it must cross /ws/plugin whole.
+        val script = buildString {
+            append("export default { id: \"quests\", text: \"é\\n\" };\n")
+            while (length < 4 * 1024 * 1024 - 64) append("// \"quoted\"\tline\n")
+        }
+        val hash = BundleCache.sha256(script.toByteArray())
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.2", modules = listOf(
+            mapOf("id" to "quests", "version" to "1.0.0", "editor_bundle" to mapOf("sdk" to "1.0", "hash" to hash, "size" to script.toByteArray().size)),
+            mapOf("id" to "menus", "version" to "1.0.0"),
+        ))
+        leaf.next()
+
+        assertEquals(404, get("/api/v1/servers/u-survie2/modules/menus/ui.js").get(5, TimeUnit.SECONDS).first)
+        assertEquals(404, get("/api/v1/servers/u-survie2/modules/ghost/ui.js").get(5, TimeUnit.SECONDS).first)
+        assertNull(leaf.received.poll(200, TimeUnit.MILLISECONDS), "no bundle announced: nothing relayed")
+
+        val first = raw("/api/v1/servers/u-survie2/modules/quests/ui.js?v=$hash")
+        val request = leaf.next()
+        assertEquals("editor_bundle_fetch", request["type"].asText())
+        assertEquals("quests", request["module_id"].asText())
+        leaf.send(mapOf(
+            "type" to "editor_bundle_fetch_result", "request_id" to request["request_id"].asText(), "ok" to true,
+            "module_id" to "quests", "sdk" to "1.0", "hash" to hash, "content" to script,
+        ))
+        val response = first.get(10, TimeUnit.SECONDS)
+        assertEquals(200, response.statusCode())
+        assertEquals("text/javascript; charset=utf-8", response.headers().firstValue("Content-Type").get().lowercase())
+        assertEquals("private, max-age=31536000, immutable", response.headers().firstValue("Cache-Control").get())
+        assertEquals("nosniff", response.headers().firstValue("X-Content-Type-Options").get())
+        assertEquals(script, String(response.body(), Charsets.UTF_8))
+
+        // Same hash: the hub's copy, nothing asked of the server. Without ?v the browser revalidates.
+        val again = raw("/api/v1/servers/u-survie2/modules/quests/ui.js").get(5, TimeUnit.SECONDS)
+        assertEquals(200, again.statusCode())
+        assertEquals("no-cache", again.headers().firstValue("Cache-Control").get())
+        assertEquals(script, String(again.body(), Charsets.UTF_8))
+        assertNull(leaf.received.poll(200, TimeUnit.MILLISECONDS), "served from the hub's cache")
+    }
+
+    @Test
+    fun `a bundle that does not match its announcement is refused, a missing one is not found`() {
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.2", modules = listOf(
+            mapOf("id" to "quests", "version" to "1.0.0", "editor_bundle" to mapOf("sdk" to "1.0", "hash" to "0".repeat(64), "size" to 3)),
+        ))
+        leaf.next()
+
+        val stale = get("/api/v1/servers/u-survie2/modules/quests/ui.js")
+        val request = leaf.next()
+        leaf.send(mapOf(
+            "type" to "editor_bundle_fetch_result", "request_id" to request["request_id"].asText(), "ok" to true,
+            "module_id" to "quests", "sdk" to "1.0", "hash" to BundleCache.sha256("abc".toByteArray()), "content" to "abc",
+        ))
+        val (status, body) = stale.get(5, TimeUnit.SECONDS)
+        assertEquals(502, status)
+        assertEquals("fetch_error", body!!["error"].asText())
+
+        val gone = get("/api/v1/servers/u-survie2/modules/quests/ui.js")
+        val second = leaf.next()
+        leaf.send(mapOf("type" to "editor_bundle_fetch_result", "request_id" to second["request_id"].asText(), "ok" to false, "error" to "not_found"))
+        val (missing, error) = gone.get(5, TimeUnit.SECONDS)
+        assertEquals(404, missing)
+        assertEquals("not_found", error!!["error"].asText())
+    }
+
+    private fun raw(path: String): CompletableFuture<HttpResponse<ByteArray>> {
+        val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}$path")).header("Cookie", cookie).build()
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
     }
 }

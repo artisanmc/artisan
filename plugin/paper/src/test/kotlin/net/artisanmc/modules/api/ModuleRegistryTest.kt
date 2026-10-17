@@ -84,8 +84,10 @@ class ModuleRegistryTest {
             it.dataSources.register(DataSourceDeclaration("quests:list", { _, _ -> emptyList() }))
             it.commands.register(CommandDeclaration("quests:start") { _, _ -> })
             it.models.declare(mapOf("id" to "quests:quest"))
+            it.editorBundles.register(net.artisanmc.modules.api.editor.EditorBundleDeclaration("export default {}".toByteArray(), "1.0"))
         }
         reg.register(m)
+        assertNotNull(api.editorBundles.find("quests"))
         api.dataSources.register(DataSourceDeclaration("other:list", { _, _ -> emptyList() }))
 
         assertTrue(reg.unregister("quests"))
@@ -95,6 +97,7 @@ class ModuleRegistryTest {
         assertEquals(setOf("other:list"), api.dataSources.refs())
         assertFalse(api.commands.has("quests:start"))
         assertFalse(api.models.has("quests:quest"))
+        assertNull(api.editorBundles.find("quests"))
         assertEquals(2, changes)
         reg.register(module("quests"))
         assertTrue(reg.has("quests"))
