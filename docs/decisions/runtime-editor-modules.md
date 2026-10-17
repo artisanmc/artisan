@@ -19,7 +19,7 @@ l'éditeur affichait une vue qui ne correspondait pas au plugin. Iban a tranché
    (`{sdk, hash, size}`) ; le hub le sert sur `GET /api/v1/servers/:server/modules/:module/ui.js`,
    relayé au serveur (`editor_bundle_fetch`, protocole 1.2), vérifié contre le SHA-256
    annoncé et gardé en mémoire par hash. Détail plugin : `modules.md` §4.6.
-2. **SDK versionné.** `@artisan/editor-sdk` porte `SDK_VERSION` (1.1.0). Même discipline que
+2. **SDK versionné.** `@artisan/editor-sdk` porte `SDK_VERSION` (1.2.0). Même discipline que
    l'API Java : majeure = un export change de sens ou disparaît, mineure = un ajout. Un bundle
    est chargé si sa majeure est celle de l'éditeur et sa mineure ≤ celle de l'éditeur ; sinon
    il est refusé avant téléchargement (`older-editor` : mettre à jour Artisan ;

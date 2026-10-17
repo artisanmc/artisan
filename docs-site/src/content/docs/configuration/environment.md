@@ -59,6 +59,20 @@ Artisan itself creates no tables. See [Database](/wiki/configuration/database/).
 | `database.password` | `""` | Password. Ignored for H2. Prefer an environment variable. |
 | `database.pool-size` | `4` | Maximum connections of **each** plugin's own pool (clamped to 1–50). A value left in `config.yml` by an older version is still read until this key is set. |
 
+## `dev`
+
+Development settings, absent from the default file.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `dev.editor-bundles.<module>` | none | Path to a module's editor view (`ui.js`) on this machine, absolute or relative to the server root. The server serves that file instead of the one in the module's jar, and re-reads it when it changes: run `vite build --watch` in the module's `editor/` folder and reload the editor to see each build. The module must ship a bundle in its jar (its SDK version is kept). A missing or invalid file falls back to the jar, with a warning in the console. The editor shows a notice while a view comes from a file. Applies after a restart. |
+
+```yaml
+dev:
+  editor-bundles:
+    msquests: "/home/me/MSQuests/bukkit/src/main/resources/artisan-editor/ui.js"
+```
+
 ## Environment variables
 
 Any text value may reference an environment variable as `"${NAME}"`, alone or inside

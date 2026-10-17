@@ -108,7 +108,7 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > `documents: DocumentKindContribution[]` : `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
 > `icon?`, `component` (vue du panneau Propriétés), `title?`, `listByTitle?`, `create`, `parse`,
 > `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
-> aperçu non interactif). L'hôte l'installe à l'enregistrement (`registerEditorModule`,
+> aperçu non interactif, `items` : lignes sélectionnables, SDK 1.2). L'hôte l'installe à l'enregistrement (`registerEditorModule`,
 > `lib/moduleDocumentKinds.ts`) dans sa table des kinds, ses codecs et ses visiteurs ; le panneau,
 > les listings, la recherche, la planche, les traductions et les arêtes le lisent par le registre
 > SDK (`documentKindContribution(kind)`). Les kinds core sont déclarés ainsi
@@ -477,6 +477,11 @@ api.getEditorBundles().register(
 - **Servi** par le hub : `GET /api/v1/servers/:server/modules/:module/ui.js?v=<hash>`
   (`rest-endpoints.md`) ; le hub va le chercher au serveur (`editor_bundle_fetch`), vérifie le hash,
   le garde en mémoire par hash, et le sert `immutable` quand `v` égale le hash.
+- **Développement** : `dev.editor-bundles.<module>: <chemin de ui.js>` dans `environment.yml` (jamais
+  écrit par l'éditeur : personne ne peut lui faire servir un fichier du serveur) sert ce fichier à la
+  place du bundle du jar, avec la version SDK de ce dernier. `LocalEditorBundles` le relit à chaque
+  changement (vérifié chaque seconde) et une feuille envoie `modules_changed` ; l'entrée porte
+  `editor_bundle.local: true`. Fichier absent ou invalide : bundle du jar, avec un avertissement.
 - **Chargé** par l'éditeur contre le SDK qu'il embarque : `editor-internals.md` §« Runtime module
   bundles ».
 

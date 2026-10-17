@@ -96,4 +96,13 @@ class PluginConfigTest {
         val cfg = PluginConfig.from(yaml)
         assertNull(cfg.resourcePack.delegateToDir)
     }
+
+    @Test
+    fun `dev editor-bundles maps each module to its file, blank entries dropped`() {
+        val env = YamlConfiguration().apply {
+            loadFromString("dev:\n  editor-bundles:\n    quests: \" /srv/ui.js \"\n    shop: \"\"\n")
+        }
+        assertEquals(mapOf("quests" to "/srv/ui.js"), PluginConfig.from(YamlConfiguration(), env).devEditorBundles)
+        assertEquals(emptyMap(), PluginConfig.from(YamlConfiguration(), YamlConfiguration()).devEditorBundles)
+    }
 }

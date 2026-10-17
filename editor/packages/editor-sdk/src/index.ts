@@ -17,6 +17,7 @@ export type {
   DocumentParseResult,
   LTextSiteContribution,
   ChainSlotContribution,
+  BoardItem,
 } from "./contract/types";
 export {
   registerModule,
@@ -41,9 +42,13 @@ export {
   type ActionChainWire,
   type ActionChainEditorProps,
   type MaterialInputProps,
+  type ItemInputProps,
+  type ItemSpecWire,
+  type ItemComparisonWire,
   type HostComponents,
   ActionChainEditor,
   MaterialInput,
+  ItemInput,
   installEditorHost,
   useProject,
   useContentLang,
@@ -53,6 +58,7 @@ export {
   textValue,
   fieldText,
   projectLangs,
+  selectDocumentItem,
   notify,
 } from "./host/host";
 export { createModuleI18n } from "./host/i18n";

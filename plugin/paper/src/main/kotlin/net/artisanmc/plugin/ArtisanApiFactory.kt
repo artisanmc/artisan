@@ -19,6 +19,17 @@ internal object ArtisanApiFactory {
     fun build(plugin: ArtisanPlugin): ArtisanAPI {
         val registry = ModuleRegistry()
         val customForCapture = net.artisanmc.plugin.customitems.CustomItemPlugins.withApi()
+        // Read at call time: the captured items are rebuilt by each reload.
+        val itemSpecs = net.artisanmc.plugin.items.ItemSpecs(
+            buildCustom = { material, count ->
+                net.artisanmc.plugin.integrations.SoftDepRegistry(
+                    vault = null, papi = null, worldGuard = null,
+                    customItems = customForCapture, capturedItems = plugin.capturedItemsOrNull,
+                ).buildCustomStack(material, count)
+            },
+            customItems = { customForCapture },
+            logger = plugin.logger,
+        )
         plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(File(plugin.dataFolder, "projects"), plugin.logger)
         plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger)
         val api = ArtisanAPI.builder(
@@ -46,6 +57,14 @@ internal object ArtisanApiFactory {
                     net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
                 override fun describe(stack: org.bukkit.inventory.ItemStack): Map<String, Any> =
                     net.artisanmc.plugin.items.ItemDescriptor.derive(stack, customForCapture)
+                override fun build(spec: Map<String, *>): org.bukkit.inventory.ItemStack? = itemSpecs.build(spec)
+                override fun matches(
+                    spec: Map<String, *>,
+                    stack: org.bukkit.inventory.ItemStack?,
+                    comparisons: Set<net.artisanmc.modules.api.item.ItemComparison>,
+                ): Boolean = itemSpecs.matches(spec, stack, comparisons)
+                override fun defaultComparisons(spec: Map<String, *>): Set<net.artisanmc.modules.api.item.ItemComparison> =
+                    itemSpecs.defaultComparisons(spec)
             })
             .actions(object : net.artisanmc.modules.api.action.ModuleActionsApi {
                 override fun execute(
