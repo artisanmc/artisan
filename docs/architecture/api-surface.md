@@ -182,6 +182,14 @@ qui est corrigé, c'est qu'aucun add-on Artisan n'a plus de raison d'en chercher
 
 Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonical wrapped YAML (what a project stores under `items/<id>.yml`) — and `describe(stack)` — the generic display descriptor (material enriched to a recognized custom ref, head_texture, enchanted, count, name). Since 1.4.0.
 
+Since 2.4.0, an **item spec** — a map with the fields of a menu button's appearance (`material`: vanilla, `item:<captured id>` or `<namespace>:<id>`; `title`, `lore`, `enchants`, `custom_model_data`, `count`…), as a module stores it in its Document — is built and compared: `build(spec)` makes its stack the way a menu does (no player, MiniMessage text; null when the material resolves to nothing), `matches(spec, stack, comparisons)` checks a player's stack against it on each `ItemComparison` asked (amount never compared; an empty set reads as `defaultComparisons`), and `defaultComparisons(spec)` reads the criteria off the built item: custom item when it is one, else material, plus name, lore, enchants and custom model data when the item carries them, and always `damage` (an item that cannot wear has none). Repair cost and hidden tags count only under `exact` (Bukkit `isSimilar`), so a captured Lure III rod matches any Lure III rod no more worn than it. `enchants` is a containment (the spec's enchantments at their level or higher), `name`/`lore` ignore colours. Implemented by `ItemSpecs` (paper). Wire ids: `ItemComparison.id()` / `fromId`.
+
+| Member | Type | Since |
+|---|---|---|
+| `ItemStackApi.build(spec)` | `ItemStack` (nullable) | 2.4.0 |
+| `ItemStackApi.matches(spec, stack, comparisons)`, `defaultComparisons(spec)` | `boolean`, `Set<ItemComparison>` | 2.4.0 |
+| `ItemComparison` (`material`, `custom_item`, `name`, `lore`, `enchants`, `custom_model_data`, `damage`, `exact`) | enum | 2.4.0 |
+
 ### `net.artisanmc.modules.api.ModuleMessagesApi` (removed in 2.0.0)
 
 Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 2.0.0. Without a receiver since the editor moved into the plugin (phase F, 2026-10), `@Sunset` since 1.8.0, removed in 2.0.0 with no replacement. A module that wants to change its own project files writes them itself and calls `api.project.reload()` (ADR `server-disk-only-storage`).

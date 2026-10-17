@@ -1,11 +1,12 @@
 import type { ProjectId } from "@/domain/types";
 import { MaterialField } from "@/features/canvas/MaterialField";
+import { ItemSpecField } from "@/features/canvas/item/ItemSpecField";
 import { ActionFieldEditor } from "@/features/data/ActionFieldEditor";
 import type { HostComponents } from "@artisan/editor-sdk";
 
 /**
  * The editor widgets a module view embeds through the SDK (`ActionChainEditor`,
- * `MaterialInput`): the same components as the core views, on a controlled value.
+ * `MaterialInput`, `ItemInput`): the same components as the core views, on a controlled value.
  */
 export const hostComponents: HostComponents = {
   ActionChainEditor: ({ projectId, value, onChange }) => (
@@ -16,4 +17,11 @@ export const hostComponents: HostComponents = {
     />
   ),
   MaterialInput: (props) => <MaterialField {...props} />,
+  ItemInput: ({ match, onMatchChange, ...props }) => (
+    <ItemSpecField
+      {...props}
+      match={match}
+      onMatchChange={onMatchChange && ((next) => onMatchChange(next as typeof match))}
+    />
+  ),
 };
