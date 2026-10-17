@@ -1052,6 +1052,10 @@ const fr: typeof en = {
       },
     },
   },
+  localBundles: {
+    notice:
+      "Vue éditeur de {{modules}} lue depuis un fichier du serveur (dev.editor-bundles) : rechargez la page pour voir un nouveau build.",
+  },
   settings: {
     appearance: {
       title: "Apparence",

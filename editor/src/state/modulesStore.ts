@@ -13,8 +13,11 @@ function sourceKey(source: ModulesSource): string {
   return `u:${source.serverId}`;
 }
 
-/** Where a mounted module's view came from. */
-export type ModuleOrigin = "bundle" | "editor";
+/**
+ * Where a mounted module's view came from: its server's bundle, the same read from a file on
+ * the server's disk (`local`, `dev.editor-bundles`), or the copy built into the editor.
+ */
+export type ModuleOrigin = "bundle" | "local" | "editor";
 
 interface ModulesState {
   /** Ids of external modules currently mounted (active + registered). */
@@ -43,7 +46,7 @@ async function loadView(
   if (active.editor_bundle) {
     try {
       const mod = await loadRuntimeBundle(serverId, active.id, active.editor_bundle);
-      return { mod, origin: "bundle" };
+      return { mod, origin: active.editor_bundle.local ? "local" : "bundle" };
     } catch (e) {
       refusal = e instanceof BundleError ? e.refusal : { reason: "invalid", detail: String(e) };
     }
