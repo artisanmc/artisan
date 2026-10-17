@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultItemMatch, readItemMatch } from "./itemMatch";
+import { defaultItemMatch, itemMatchFacts, readItemMatch } from "./itemMatch";
 import type { Project } from "./types";
 
 const project = {
@@ -41,5 +41,30 @@ describe("readItemMatch", () => {
     expect(readItemMatch(["Enchants", "material", "repair"])).toEqual(["material", "enchants"]);
     expect(readItemMatch(undefined)).toBeUndefined();
     expect(readItemMatch([])).toEqual([]);
+  });
+});
+
+describe("itemMatchFacts", () => {
+  it("reads what each criterion compares, text without its tags", () => {
+    expect(
+      itemMatchFacts(project, {
+        material: "DIAMOND_SWORD",
+        title: "<red>Excalibur",
+        lore: ["<gray>Old"],
+        enchants: { sharpness: 5 },
+      }),
+    ).toEqual({
+      base: "DIAMOND_SWORD",
+      custom: false,
+      name: "Excalibur",
+      lore: ["Old"],
+      enchants: [{ id: "sharpness", level: 5 }],
+      customModelData: undefined,
+    });
+    expect(itemMatchFacts(project, { material: "item:ruby" })).toMatchObject({
+      base: "nexo:ruby",
+      custom: true,
+      name: "Ruby",
+    });
   });
 });
