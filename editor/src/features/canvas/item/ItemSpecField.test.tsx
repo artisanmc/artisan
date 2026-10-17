@@ -40,7 +40,7 @@ it("keeps the item's text literal, lore as lines", () => {
   expect(onChange).toHaveBeenLastCalledWith({ material: "FISHING_ROD", lore: ["one", "two"] });
 });
 
-it("ticks the item's criteria by default, and unticking one writes the list", () => {
+it("ticks the item's criteria by default, each with its value, and unticking one writes the list", () => {
   const onMatch = vi.fn();
   render(
     <ItemSpecField
@@ -50,14 +50,75 @@ it("ticks the item's criteria by default, and unticking one writes the list", ()
       onMatchChange={onMatch}
     />,
   );
-  const enchants = screen.getByRole("checkbox", { name: /enchant/i });
+  const enchants = screen.getByRole("checkbox", { name: /enchant.*lure iii/i });
   expect(enchants).toBeChecked();
-  expect(screen.getByRole("checkbox", { name: /identi/i })).not.toBeChecked();
+  expect(screen.queryByRole("checkbox", { name: /same material|même matériau/i })).toBeNull();
+  expect(screen.getByText("FISHING_ROD")).toBeInTheDocument();
+  expect(
+    screen.getByRole("checkbox", { name: /(refuse|refuser les) items? custom|refuse custom/i }),
+  ).not.toBeChecked();
+  expect(screen.queryByRole("checkbox", { name: /no custom name|sans nom/i })).toBeNull();
   fireEvent.click(enchants);
   expect(onMatch).toHaveBeenLastCalledWith(["material", "damage"]);
 });
 
-it("shows the module's chosen criteria and offers to go back to the default", () => {
+it("folds the criteria the item has nothing for", () => {
+  const onMatch = vi.fn();
+  render(
+    <ItemSpecField
+      projectId="p"
+      value={{ material: "DIAMOND" }}
+      onChange={() => {}}
+      onMatchChange={onMatch}
+    />,
+  );
+  expect(screen.queryByRole("checkbox", { name: /enchant/i })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /more criteria|plus de critères/i }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /no custom name|sans nom/i }));
+  expect(onMatch).toHaveBeenLastCalledWith(["material", "name", "damage"]);
+});
+
+it("opens the folded criteria a saved match ticks", () => {
+  render(
+    <ItemSpecField
+      projectId="p"
+      value={{ material: "DIAMOND" }}
+      match={["material", "lore"]}
+      onChange={() => {}}
+      onMatchChange={() => {}}
+    />,
+  );
+  expect(screen.getByRole("checkbox", { name: /no lore|sans lore/i })).toBeChecked();
+});
+
+it("switches to an exact copy and back to the criteria", () => {
+  const onMatch = vi.fn();
+  const { rerender } = render(
+    <ItemSpecField
+      projectId="p"
+      value={{ material: "FISHING_ROD" }}
+      match={["material", "name"]}
+      onChange={() => {}}
+      onMatchChange={onMatch}
+    />,
+  );
+  fireEvent.mouseDown(screen.getByRole("tab", { name: /exact/i }));
+  expect(onMatch).toHaveBeenLastCalledWith(["exact"]);
+  rerender(
+    <ItemSpecField
+      projectId="p"
+      value={{ material: "FISHING_ROD" }}
+      match={["exact", "material"]}
+      onChange={() => {}}
+      onMatchChange={onMatch}
+    />,
+  );
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  fireEvent.mouseDown(screen.getByRole("tab", { name: /criteria|selon/i }));
+  expect(onMatch).toHaveBeenLastCalledWith(["material"]);
+});
+
+it("offers to go back to the default once the module chose", () => {
   const onMatch = vi.fn();
   render(
     <ItemSpecField
@@ -68,8 +129,7 @@ it("shows the module's chosen criteria and offers to go back to the default", ()
       onMatchChange={onMatch}
     />,
   );
-  expect(screen.getByRole("checkbox", { name: /identi/i })).toBeChecked();
-  expect(screen.getByRole("checkbox", { name: /mat/i })).not.toBeChecked();
+  expect(screen.getByRole("tab", { name: /exact/i })).toHaveAttribute("aria-selected", "true");
   fireEvent.click(screen.getByRole("button", { name: /default|défaut/i }));
   expect(onMatch).toHaveBeenLastCalledWith(undefined);
 });
