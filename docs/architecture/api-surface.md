@@ -89,6 +89,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `messages` removed; built through `ArtisanAPI.builder(...)` | | 2.0.0 |
 | `actionRegistry` (`getActionRegistry()`, `@Beta`) | `ActionRegistry` | 2.0.0 |
 | `documentKinds` (`getDocumentKinds()`, `@Beta`) | `DocumentKindRegistry` | 2.1.0 |
+| `conditions` (`getConditions()`, `@Beta`) | `ConditionsApi` | 2.2.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -187,6 +188,22 @@ Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 
 ### `net.artisanmc.modules.api.action.ModuleActionsApi` (`@Beta`)
 
 `api.actions.execute(player, actions, args, projectId?)` (Java overloads without `args` and `projectId` since 2.0.0) — runs an Action DSL string (`parseActionDsl` → `dslToEngineSteps`) through the core `ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); a malformed string is skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. `projectId` (since 1.6.0, optional) puts that Project's `lang/` in scope so an action may carry `@key` (ADR `yaml-assisted-editing` ④); without it, action text stays literal. Since 1.4.0.
+
+`api.actions.run(player, chain[, args[, projectId]])` (since 2.2.0) runs a chain in its wire form, as a module stores it in its own Document (rewards and hooks of a quest): a keyed step or a list of them, compiled by `ActionChainCompiler` like a menu's `actions` (a string is still read as the legacy DSL). Same thread, `{name}` bindings and i18n scope as `execute`; a null or empty chain does nothing, an unreadable one is skipped with a WARN.
+
+| Member | Type | Since |
+|---|---|---|
+| `ModuleActionsApi.run(player, chain, args, projectId)`, `run(player, chain, args)`, `run(player, chain)` | `void` | 2.2.0 |
+
+### `net.artisanmc.modules.api.condition.ConditionsApi` (`@Beta`, 2.2.0)
+
+`api.getConditions().test(player, conditions[, args])` evaluates a list of conditions outside a chain, with the evaluator of `if:` (`ConditionEvaluator`): a module's requirements (can this quest start?) read the vocabulary of a menu. An entry is one keyed condition (`{has_permission: vip.use}`, `not:`, `and:`, `or:`) or the type-tagged form (`{type: has_permission, perm: …}`); the list is an AND and an empty list holds. The read is strict and fails closed: an unknown name, a missing or non-numeric argument, a blank required string, an unreadable regex or time range, or one bad operand of `and:`/`or:` makes `test` false with one WARN per distinct problem, where a menu's tolerant read drops or defaults it. `validate(conditions)` returns those problems by index (empty when valid), for a load-time report. `args` are bound for `expression`; `pagination_at_*` hold (no menu). `test` reads the player, so it throws `IllegalStateException` off the thread that owns the player (main thread on Paper, the player's region on Folia), and is false until the engine has started. `NOOP`: only an empty list holds.
+
+| Member | Type | Since |
+|---|---|---|
+| `ConditionsApi.test(player, conditions, args)`, `test(player, conditions)` | `boolean` | 2.2.0 |
+| `ConditionsApi.validate(conditions)` | `List<String>` | 2.2.0 |
+| `ConditionsApi.NOOP`, `ArtisanAPI.Builder.conditions(conditions)` (`@Internal`) | | 2.2.0 |
 
 ### `net.artisanmc.modules.api.action.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
 
