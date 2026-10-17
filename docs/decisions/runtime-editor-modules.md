@@ -19,7 +19,7 @@ l'éditeur affichait une vue qui ne correspondait pas au plugin. Iban a tranché
    (`{sdk, hash, size}`) ; le hub le sert sur `GET /api/v1/servers/:server/modules/:module/ui.js`,
    relayé au serveur (`editor_bundle_fetch`, protocole 1.2), vérifié contre le SHA-256
    annoncé et gardé en mémoire par hash. Détail plugin : `modules.md` §4.6.
-2. **SDK versionné.** `@artisan/editor-sdk` porte `SDK_VERSION` (1.0.0). Même discipline que
+2. **SDK versionné.** `@artisan/editor-sdk` porte `SDK_VERSION` (1.1.0). Même discipline que
    l'API Java : majeure = un export change de sens ou disparaît, mineure = un ajout. Un bundle
    est chargé si sa majeure est celle de l'éditeur et sa mineure ≤ celle de l'éditeur ; sinon
    il est refusé avant téléchargement (`older-editor` : mettre à jour Artisan ;
@@ -37,7 +37,10 @@ l'éditeur affichait une vue qui ne correspondait pas au plugin. Iban a tranché
    d'un module n'a pas plus de pouvoir que son jar, déjà installé par l'admin).
 4. **Le SDK expose l'hôte, jamais ses internes.** Une vue lit et écrit par le SDK :
    `useProject`, `useContentLang`, `useUiLang`, `updateDocument` (Document + textes en un
-   seul pas d'annulation), `newTextKey`, `textValue`, `fieldText`, `projectLangs`, `notify`.
+   seul pas d'annulation), `newTextKey`, `textValue`, `fieldText`, `projectLangs`, `notify`, et depuis 1.1 deux
+   widgets de l'éditeur, `ActionChainEditor` (chaîne d'actions au format du fichier) et
+   `MaterialInput` (palette d'items), rendus par l'hôte (`EditorHost.components`,
+   `distribution/hostComponents.tsx`).
    L'éditeur installe l'implémentation au démarrage (`lib/editorHost.ts`). Un module porte
    ses libellés (`createModuleI18n`, `labels` d'un kind par langue) et ses styles
    (`injectModuleStyles`, classes préfixées, couleurs par `var(--token)`) : un bundle n'a
