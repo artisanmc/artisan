@@ -3,7 +3,7 @@ package net.artisanmc.plugin.protocol
 /**
  * What a server announces at Presence (`hello`, then `modules_changed`): its modules and what
  * they declare. Built by the server, read by the hub; each list keeps its own wire entries
- * (`{id, version}`, data sources, `model/v1` documents, Config screens, `{name, args, primary?,
+ * (`{id, version, editor_bundle?}`, data sources, `model/v1` documents, Config screens, `{name, args, primary?,
  * module_id?}` actions, `{kind, dir, schema_versions, id_prefix?, module_id?}` Document kinds).
  */
 data class ServerAnnouncement(
@@ -23,6 +23,10 @@ data class ServerAnnouncement(
         DECLARED_ACTIONS to actions,
         DOCUMENT_KINDS to documentKinds,
     )
+
+    /** The `editor_bundle` ([module]) announced for [moduleId], or null: no such module, or no bundle. */
+    fun editorBundle(moduleId: String): Map<*, *>? =
+        modules.firstOrNull { it["id"] == moduleId }?.get(EDITOR_BUNDLE) as? Map<*, *>
 
     /**
      * This announcement updated by [message] (`hello` or `modules_changed`): a field it carries
@@ -51,11 +55,17 @@ data class ServerAnnouncement(
         const val EDITOR_SCREENS = "editor_screens"
         const val DECLARED_ACTIONS = "declared_actions"
         const val DOCUMENT_KINDS = "document_kinds"
+        const val EDITOR_BUNDLE = "editor_bundle"
 
         val EMPTY = ServerAnnouncement()
 
-        /** An `installed_modules` entry: a module reports the core plugin's version, it has none of its own. */
-        fun module(id: String, version: String): Map<String, Any?> = mapOf("id" to id, "version" to version)
+        /**
+         * An `installed_modules` entry: a module reports the core plugin's version, it has none of its own.
+         * [editorBundle] is its `EditorBundleDeclaration.toWire()` (`{sdk, hash, size}`), when it ships one.
+         */
+        fun module(id: String, version: String, editorBundle: Map<String, Any?>? = null): Map<String, Any?> =
+            if (editorBundle == null) mapOf("id" to id, "version" to version)
+            else mapOf("id" to id, "version" to version, EDITOR_BUNDLE to editorBundle)
 
         fun from(message: Map<*, *>): ServerAnnouncement = EMPTY.updatedBy(message)
     }

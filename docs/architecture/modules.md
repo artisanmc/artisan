@@ -439,6 +439,28 @@ Côté éditeur, le module jumeau contribue le même kind (`FrontendModule.docum
 serveur actif ne liste pas (le fichier serait écrit dans un dossier que rien ne lit là-bas) dans
 l'arbre du project et au moment de créer un Document de ce kind.
 
+### 4.6 Module editor bundle (level 3) — API 2.2.0, protocole 1.2
+
+Un add-on (ArtisanQuests…) peut livrer la **vue éditeur** de son module dans son propre jar, au lieu
+d'attendre une release de l'éditeur : un script ES module construit contre `@artisan/editor-sdk`.
+Il l'enregistre dans `onEnable`, un seul par module, retiré avec le module :
+
+```java
+api.getEditorBundles().register(
+    EditorBundleDeclaration.fromResource(getClass().getClassLoader(), "artisan-editor/ui.js", "1.0"));
+```
+
+- `EditorBundleDeclaration(script, sdk)` : script UTF-8 non vide, ≤ 4 MiB ; `sdk` = version du SDK
+  visée, `MAJOR.MINOR[.PATCH]` ; `getHash()` = SHA-256 hex. Hors `onEnable` : `IllegalStateException` ;
+  un second bundle pour le même module : `DuplicateEditorBundleException`.
+- **Presence** : l'entrée `installed_modules` du module porte `editor_bundle: {sdk, hash, size}`
+  (`ws-protocol.md`) ; un bundle enregistré ou retiré après le `hello` part au `modules_changed` suivant.
+- **Servi** par le hub : `GET /api/v1/servers/:server/modules/:module/ui.js?v=<hash>`
+  (`rest-endpoints.md`) ; le hub va le chercher au serveur (`editor_bundle_fetch`), vérifie le hash,
+  le garde en mémoire par hash, et le sert `immutable` quand `v` égale le hash.
+- **Chargé** par l'éditeur contre le SDK qu'il embarque : `editor-internals.md` §« Runtime module
+  bundles ».
+
 ## 5. Module bootstrap : content bundles
 
 Chaque module non-trivial **ship un bundle de contenu par défaut** qui sert de bootstrap quand l'admin installe le module pour la première fois. Ce bundle n'est PAS juste un menu — c'est un set complet de **toutes les ressources** dont le module a besoin pour fonctionner out-of-the-box.
