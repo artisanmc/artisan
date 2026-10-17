@@ -73,25 +73,38 @@ class SchemaMigrator(
     private fun read(c: Connection): Int =
         c.createStatement().use { s -> s.executeQuery("SELECT version FROM $table").use { it.next(); it.getInt(1) } }
 
-    /** Catalog reads for [Migration.applied]; names are tried as given and upper-cased (H2 folds unquoted identifiers). */
+    /**
+     * Catalog reads for [Migration.applied], scoped to the connection's own database: a null
+     * catalog means every database on MySQL/MariaDB, so a table of the same name elsewhere on the
+     * server would pass for ours. Names are tried as given and upper-cased (H2 folds unquoted
+     * identifiers).
+     */
     companion object {
         private fun forms(name: String) = listOf(name, name.uppercase()).distinct()
 
+        /** [read] once per name form, with the connection's catalog and schema (either may be null). */
+        private fun any(c: Connection, table: String, read: (catalog: String?, schema: String?, table: String) -> Boolean): Boolean {
+            val catalog = c.catalog
+            val schema = c.schema
+            return forms(table).any { t -> read(catalog, schema, t) }
+        }
+
         fun hasTable(c: Connection, table: String): Boolean =
-            forms(table).any { t -> c.metaData.getTables(null, null, t, null).use { it.next() } }
+            any(c, table) { cat, sch, t -> c.metaData.getTables(cat, sch, t, null).use { it.next() } }
 
-        fun hasColumn(c: Connection, table: String, column: String): Boolean =
-            forms(table).any { t -> forms(column).any { col -> c.metaData.getColumns(null, null, t, col).use { it.next() } } }
+        fun hasColumn(c: Connection, table: String, column: String): Boolean = any(c, table) { cat, sch, t ->
+            forms(column).any { col -> c.metaData.getColumns(cat, sch, t, col).use { it.next() } }
+        }
 
-        fun hasIndex(c: Connection, table: String, index: String): Boolean = forms(table).any { t ->
-            c.metaData.getIndexInfo(null, null, t, false, true).use { rs ->
+        fun hasIndex(c: Connection, table: String, index: String): Boolean = any(c, table) { cat, sch, t ->
+            c.metaData.getIndexInfo(cat, sch, t, false, true).use { rs ->
                 generateSequence { if (rs.next()) rs.getString("INDEX_NAME") else null }.any { it.equals(index, ignoreCase = true) }
             }
         }
 
         /** A foreign key from [table].[column], whatever its name. */
-        fun hasForeignKey(c: Connection, table: String, column: String): Boolean = forms(table).any { t ->
-            c.metaData.getImportedKeys(null, null, t).use { rs ->
+        fun hasForeignKey(c: Connection, table: String, column: String): Boolean = any(c, table) { cat, sch, t ->
+            c.metaData.getImportedKeys(cat, sch, t).use { rs ->
                 generateSequence { if (rs.next()) rs.getString("FKCOLUMN_NAME") else null }.any { it.equals(column, ignoreCase = true) }
             }
         }
