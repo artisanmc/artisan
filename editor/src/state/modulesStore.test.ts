@@ -146,6 +146,17 @@ describe("useModulesStore.integrate", () => {
     expect(useModulesStore.getState().origins).toEqual({ quests: "bundle" });
   });
 
+  it("marks a bundle read from a file on the server's disk as local", async () => {
+    vi.mocked(loadRuntimeBundle).mockResolvedValue({ id: "quests", routes: [] } as never);
+    vi.mocked(fetchActiveModulesUser).mockResolvedValue([
+      { id: "quests", version: "1.0.0", editor_bundle: { sdk: "1.2", hash: "def", local: true } },
+    ]);
+
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
+
+    expect(useModulesStore.getState().origins).toEqual({ quests: "local" });
+  });
+
   it("falls back to the built-in copy and reports a refused bundle", async () => {
     vi.mocked(loadRuntimeBundle).mockRejectedValue(
       new BundleError({ reason: "older-editor", sdk: "2.0" }),

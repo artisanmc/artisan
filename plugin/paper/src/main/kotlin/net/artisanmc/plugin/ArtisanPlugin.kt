@@ -80,6 +80,9 @@ open class ArtisanPlugin : JavaPlugin() {
     /** What `/artisan reload` rebuilds: provider, engine, resource pack, commands. */
     internal val runtime = RuntimeAssembly(this, suite, editorHost)
 
+    /** Development: modules' editor views read from files (`dev.editor-bundles` in environment.yml). */
+    internal val localEditorBundles by lazy { LocalEditorBundles(api.editorBundles, logger) }
+
     /** Null if `web.enabled` is false or the port could not be opened. */
     val editor: net.artisanmc.plugin.hub.HubServer? get() = editorHost.editor
     /** The editor's public address from `web.url`; empty when not set. */
@@ -87,6 +90,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     internal val menuProviderOrNull: MenuProvider? get() = if (::menuProvider.isInitialized) menuProvider else null
     internal val langManagerOrNull: LangManager? get() = if (::langManager.isInitialized) langManager else null
+    internal val capturedItemsOrNull: net.artisanmc.plugin.items.CapturedItemStore? get() = if (::capturedItems.isInitialized) capturedItems else null
 
     companion object {
         fun defaultModules(): List<ArtisanModule> = listOf(
@@ -134,6 +138,7 @@ open class ArtisanPlugin : JavaPlugin() {
         server.pluginManager.registerEvents(database, this)
         val cfg = loadPluginConfig()
         projectRoots.coreRoot.mkdirs()
+        localEditorBundles.configure(cfg.devEditorBundles)
 
         langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
 
@@ -150,6 +155,8 @@ open class ArtisanPlugin : JavaPlugin() {
             store = suite.editorSessionStore(),
         )
         editorHost.start(cfg.web)
+        // A leaf tells the hub; the editor of a hub reads the announcement on its next load.
+        localEditorBundles.watch(scheduler) { (menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged() }
         editorHost.startPermissionReports(cfg.web)
 
         artisanCommand = ArtisanCommand(this, langManager)
@@ -177,6 +184,7 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
+        localEditorBundles.stop()
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).
         api.modules.active().forEach { runCatching { it.onDisable() } }
@@ -203,7 +211,7 @@ open class ArtisanPlugin : JavaPlugin() {
     /** What this server announces at Presence: to the editor it serves, and in its `hello` to a hub. */
     internal fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
         modules = api.modules.active().map {
-            net.artisanmc.plugin.protocol.ServerAnnouncement.module(it.id, description.version, api.editorBundles.find(it.id)?.toWire())
+            net.artisanmc.plugin.protocol.ServerAnnouncement.module(it.id, description.version, localEditorBundles.wire(it.id))
         },
         dataSources = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources),
         models = api.models.declared().map { it.document },

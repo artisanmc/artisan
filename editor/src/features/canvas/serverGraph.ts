@@ -97,7 +97,13 @@ export function deriveServerGraph(projects: Project[]): ServerGraph {
     for (const { kind, doc } of allDocuments(project)) {
       if (CORE.has(kind)) continue;
       const key = documentKey(project.id, doc.id);
-      nodes.push({ key, projectId: project.id, docId: doc.id, kind, ...documentBoxSize(kind) });
+      nodes.push({
+        key,
+        projectId: project.id,
+        docId: doc.id,
+        kind,
+        ...documentBoxSize(kind, doc, project),
+      });
       addTarget(project, doc.id, key);
     }
   }

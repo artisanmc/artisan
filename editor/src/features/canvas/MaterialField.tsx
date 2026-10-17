@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import type { ProjectId } from "@/domain/types";
 import { useTranslation } from "react-i18next";
 import { MaterialPicker } from "./MaterialPicker";
 import { useTextureUrl } from "./textureStore";
@@ -13,11 +14,14 @@ export function MaterialField({
   onChange,
   placeholder,
   "aria-label": ariaLabel,
+  projectId,
 }: {
   value: string;
   onChange: (material: string) => void;
   placeholder?: string;
   "aria-label"?: string;
+  /** Adds the palette's tab of this Project's captured items (`item:<id>`). */
+  projectId?: ProjectId;
 }) {
   const { t } = useTranslation();
   const url = useTextureUrl(value);
@@ -46,6 +50,7 @@ export function MaterialField({
           </button>
         }
         onPick={onChange}
+        projectId={projectId}
       />
       <Input
         value={value}

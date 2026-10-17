@@ -491,6 +491,33 @@ const fr: typeof en = {
       },
     },
   },
+  itemSpec: {
+    material: "Item",
+    matchTitle: "Comparer l’item du joueur sur",
+    matchDefaultHint: "Par défaut : ce que porte cet item. Décochez ce qui ne doit pas compter.",
+    matchHint: "Seuls les critères cochés comptent ; la quantité jamais.",
+    matchReset: "Revenir aux critères par défaut",
+    match: {
+      material: "Matériau",
+      custom_item: "Item custom (Nexo…)",
+      name: "Nom",
+      lore: "Lore",
+      enchants: "Enchantements",
+      custom_model_data: "Custom model data",
+      damage: "Usure",
+      exact: "Identique (tags cachés, réparations…)",
+    },
+    matchHelp: {
+      material: "Même matériau.",
+      custom_item: "Même item custom, ou tous deux vanilla.",
+      name: "Même nom, couleurs ignorées.",
+      lore: "Mêmes lignes de lore, couleurs ignorées.",
+      enchants: "Chacun de ces enchantements, à ce niveau ou plus. Les autres sont acceptés.",
+      custom_model_data: "Même custom model data.",
+      damage: "Un item endommagé ne compte pas pour un item intact.",
+      exact: "Tout sauf la quantité, tags cachés et coût de réparation compris.",
+    },
+  },
   itemBinding: {
     insertLore: "Insérer le lore source",
     replaceLore: "Remplacer le lore de l’item de base",
@@ -1051,6 +1078,10 @@ const fr: typeof en = {
         desc: "Référence inline vers une autre traduction — pratique pour les termes partagés.",
       },
     },
+  },
+  localBundles: {
+    notice:
+      "Vue éditeur de {{modules}} lue depuis un fichier du serveur (dev.editor-bundles) : rechargez la page pour voir un nouveau build.",
   },
   settings: {
     appearance: {

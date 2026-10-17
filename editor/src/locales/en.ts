@@ -480,6 +480,33 @@ export default {
       },
     },
   },
+  itemSpec: {
+    material: "Item",
+    matchTitle: "Compare the player's item on",
+    matchDefaultHint: "Default: what this item carries. Untick what should not count.",
+    matchHint: "Only the ticked criteria count; the amount never does.",
+    matchReset: "Back to the default criteria",
+    match: {
+      material: "Material",
+      custom_item: "Custom item (Nexo…)",
+      name: "Name",
+      lore: "Lore",
+      enchants: "Enchantments",
+      custom_model_data: "Custom model data",
+      damage: "Wear",
+      exact: "Identical (hidden tags, repairs…)",
+    },
+    matchHelp: {
+      material: "Same material.",
+      custom_item: "Same custom item, or both vanilla.",
+      name: "Same name, colours ignored.",
+      lore: "Same lore lines, colours ignored.",
+      enchants: "Each of these enchantments, at this level or higher. Others are allowed.",
+      custom_model_data: "Same custom model data.",
+      damage: "A damaged item does not count for an intact one.",
+      exact: "Everything but the amount, hidden tags and repair cost included.",
+    },
+  },
   itemBinding: {
     insertLore: "Insert source lore",
     replaceLore: "Replace the base item lore",
@@ -1034,6 +1061,10 @@ export default {
         desc: "Inline reference to another translation — handy for shared terms.",
       },
     },
+  },
+  localBundles: {
+    notice:
+      "Editor view of {{modules}} read from a file on the server (dev.editor-bundles): reload the page to see a new build.",
   },
   settings: {
     appearance: {

@@ -3,7 +3,7 @@ package net.artisanmc.plugin.provider
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.modules.api.datasource.PlayerRequiredException
-import net.artisanmc.modules.api.editor.EditorBundleRegistry
+import net.artisanmc.modules.api.editor.EditorBundleDeclaration
 import net.artisanmc.plugin.config.ServerConfigAccess
 import net.artisanmc.plugin.customitems.NexoGlyphReader
 import net.artisanmc.plugin.engine.ConditionEvaluator
@@ -38,7 +38,7 @@ class ServerQueries(
     private val dataSources: DataSourceRegistry?,
     private val nexoGlyphs: NexoGlyphReader?,
     private val serverConfig: ServerConfigAccess?,
-    private val editorBundles: EditorBundleRegistry? = null,
+    private val editorBundles: (String) -> EditorBundleDeclaration? = { null },
 ) {
     private val mapper = ObjectMapper()
 
@@ -161,7 +161,7 @@ class ServerQueries(
      */
     fun editorBundle(request: EditorBundleFetch) {
         val reply = replies.to(request, "editor_bundle_fetch_result")
-        val bundle = editorBundles?.find(request.moduleId) ?: return reply.error("not_found")
+        val bundle = editorBundles(request.moduleId) ?: return reply.error("not_found")
         replies.offThread("editor_bundle_fetch") {
             val script = bundle.script
             // OkHttp drops the whole connection past 16 MiB queued: only control characters

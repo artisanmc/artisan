@@ -4,7 +4,8 @@ export interface ActiveModule {
   id: string;
   version: string | null;
   /** The editor view the module's jar carries (ADR `runtime-editor-modules`), when it has one. */
-  editor_bundle?: { sdk: string; hash: string; size?: number };
+  /** `local`: read from a file on the server's disk (`dev.editor-bundles`), not from the jar. */
+  editor_bundle?: { sdk: string; hash: string; size?: number; local?: boolean };
 }
 
 /**
