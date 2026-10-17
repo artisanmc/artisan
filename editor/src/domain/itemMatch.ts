@@ -77,11 +77,13 @@ export function identityComparison(facts: ItemMatchFacts): ItemComparison {
 }
 
 /**
- * The criteria a spec's item carries a value for: identity, then name, lore, enchants and custom
+ * The criteria a spec's item carries a value for: identity (a vanilla item's also refusing a
+ * custom item of its material), then name, lore, enchants and custom
  * model data when present, and always its wear (an item that cannot wear holds on it).
  */
 export function carriedComparisons(facts: ItemMatchFacts): Set<ItemComparison> {
-  const out = new Set<ItemComparison>([identityComparison(facts)]);
+  // A vanilla item also asks custom_item: a custom item built on its material is not it.
+  const out = new Set<ItemComparison>(facts.custom ? ["custom_item"] : ["material", "custom_item"]);
   if (facts.name) out.add("name");
   if (facts.lore) out.add("lore");
   if (facts.enchants) out.add("enchants");
@@ -92,7 +94,7 @@ export function carriedComparisons(facts: ItemMatchFacts): Set<ItemComparison> {
 
 /**
  * The criteria the plugin applies to a spec saved without `match` (`defaultComparisons`): the
- * custom item when it is one, else the material, plus name, lore, enchants and custom model data
+ * custom item when it is one, else the material and `custom_item`, plus name, lore, enchants and custom model data
  * when the item carries them (a captured item's own included), and always its wear.
  */
 export function defaultItemMatch(

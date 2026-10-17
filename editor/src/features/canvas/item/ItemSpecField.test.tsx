@@ -56,10 +56,10 @@ it("ticks the item's criteria by default, each with its value, and unticking one
   expect(screen.getByText("FISHING_ROD")).toBeInTheDocument();
   expect(
     screen.getByRole("checkbox", { name: /(refuse|refuser les) items? custom|refuse custom/i }),
-  ).not.toBeChecked();
+  ).toBeChecked();
   expect(screen.queryByRole("checkbox", { name: /no custom name|sans nom/i })).toBeNull();
   fireEvent.click(enchants);
-  expect(onMatch).toHaveBeenLastCalledWith(["material", "damage"]);
+  expect(onMatch).toHaveBeenLastCalledWith(["material", "custom_item", "damage"]);
 });
 
 it("folds the criteria the item has nothing for", () => {
@@ -75,7 +75,7 @@ it("folds the criteria the item has nothing for", () => {
   expect(screen.queryByRole("checkbox", { name: /enchant/i })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /more criteria|plus de critères/i }));
   fireEvent.click(screen.getByRole("checkbox", { name: /no custom name|sans nom/i }));
-  expect(onMatch).toHaveBeenLastCalledWith(["material", "name", "damage"]);
+  expect(onMatch).toHaveBeenLastCalledWith(["material", "custom_item", "name", "damage"]);
 });
 
 it("opens the folded criteria a saved match ticks", () => {
