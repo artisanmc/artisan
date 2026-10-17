@@ -15,9 +15,7 @@ export function LocalBundlesNotice() {
   );
   if (!local) return null;
   return (
-    <output
-      className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] block px-3 py-1 text-[12px] text-[var(--warning)]"
-    >
+    <output className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] block px-3 py-1 text-[12px] text-[var(--warning)]">
       {t("localBundles.notice", { modules: local })}
     </output>
   );
