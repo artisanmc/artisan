@@ -52,8 +52,8 @@ class SyncedMenuProvider(
     private val lookupAsset: (String) -> AssetEntry? = { null },
     private val offsetEncoderProvider: () -> net.artisanmc.plugin.render.OffsetEncoder = { net.artisanmc.plugin.render.OffsetEncoder.EMPTY },
     private val dataSources: net.artisanmc.modules.api.datasource.DataSourceRegistry? = null,
-    /** The modules' editor views, served to the hub on `editor_bundle_fetch`. */
-    private val editorBundles: net.artisanmc.modules.api.editor.EditorBundleRegistry? = null,
+    /** A module's editor view by module id, served to the hub on `editor_bundle_fetch`. */
+    private val editorBundles: (String) -> net.artisanmc.modules.api.editor.EditorBundleDeclaration? = { null },
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
     /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */

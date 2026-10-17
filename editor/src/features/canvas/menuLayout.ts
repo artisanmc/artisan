@@ -63,8 +63,31 @@ export const DIALOG_BOX = { width: 140, height: 60 };
 export const DOCUMENT_BOX = { width: 140, height: 48 };
 
 /** The box of a Document of a module's kind: its contribution's `board.size`, else the default. */
-export const documentBoxSize = (kind: string): { width: number; height: number } =>
-  documentKindContribution(kind)?.board?.size ?? DOCUMENT_BOX;
+/** A Document node listing its parts (`board.items`): header, then one row per part. */
+export const DOCUMENT_ITEMS = { header: 46, row: 24, pad: 6 };
+
+/**
+ * A module Document's box: its kind's `board.size`, else DOCUMENT_BOX; with `board.items`,
+ * as tall as its rows (`doc` and `project` given; the row count does not depend on `lang`).
+ */
+export function documentBoxSize(
+  kind: string,
+  doc?: unknown,
+  project?: Project,
+): { width: number; height: number } {
+  const board = documentKindContribution(kind)?.board;
+  const base = board?.size ?? DOCUMENT_BOX;
+  if (!board?.items || doc === undefined || !project) return base;
+  const rows = board.items(doc, { project, lang: project.defaultLang }).length;
+  if (rows === 0) return base;
+  return {
+    width: base.width,
+    height: Math.max(
+      base.height,
+      DOCUMENT_ITEMS.header + rows * DOCUMENT_ITEMS.row + DOCUMENT_ITEMS.pad,
+    ),
+  };
+}
 
 export const menuBoxSize = (type: InventoryType, rows: number) => {
   const fixedH = INVENTORY_TYPES[type].boxHeight;
@@ -93,7 +116,7 @@ export function nodeBox(
   if (commandsOf(project).some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
   if (dialogsOf(project).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
   const other = findDocument(project, id);
-  if (other) return { ...pos, ...documentBoxSize(other.kind) };
+  if (other) return { ...pos, ...documentBoxSize(other.kind, other.doc, project) };
   return null;
 }
 
