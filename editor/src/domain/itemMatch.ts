@@ -1,6 +1,6 @@
 import { CAPTURED_ITEM_REF_PREFIX } from "./capturedItems";
 import { capturedStackDetails } from "./capturedStack";
-import { readAdvanced } from "./itemAdvanced";
+import { type ItemEnchant, readAdvanced } from "./itemAdvanced";
 import type { Project } from "./types";
 
 /**
@@ -26,15 +26,24 @@ export function itemSpecMaterial(spec: Record<string, unknown>): string {
   return typeof raw === "string" ? raw.trim() : "";
 }
 
-/**
- * The criteria the plugin applies to a spec saved without `match` (`defaultComparisons`): the
- * custom item when it is one, else the material, plus name, lore, enchants and custom model data
- * when the item carries them (a captured item's own included), and always its wear.
- */
-export function defaultItemMatch(
+/** What a spec's item carries, as far as the criteria go: what each one would compare. */
+export interface ItemMatchFacts {
+  /** The material compared, a custom ref (`nexo:ruby`) or a vanilla material. */
+  base: string;
+  /** Whether `base` is a custom item: identity is then `custom_item`, else `material`. */
+  custom: boolean;
+  /** Display name, MiniMessage tags stripped. */
+  name?: string;
+  lore?: string[];
+  enchants?: ItemEnchant[];
+  customModelData?: string;
+}
+
+/** The facts of a spec, a captured item's own details included. */
+export function itemMatchFacts(
   project: Project | undefined,
   spec: Record<string, unknown>,
-): ItemComparison[] {
+): ItemMatchFacts {
   const material = itemSpecMaterial(spec);
   const captured = material.startsWith(CAPTURED_ITEM_REF_PREFIX)
     ? project?.capturedItems?.find(
@@ -44,17 +53,58 @@ export function defaultItemMatch(
   const stack = captured ? capturedStackDetails(captured.stackYaml) : undefined;
   const base = captured?.display.material ?? stack?.material ?? material;
   const advanced = readAdvanced(spec);
-  const custom = base.includes(":") && !base.toLowerCase().startsWith("minecraft:");
-  const out = new Set<ItemComparison>([custom ? "custom_item" : "material"]);
-  if (spec.title != null || captured?.display.name || stack?.name) out.add("name");
-  const lore = spec.lore;
-  if ((Array.isArray(lore) ? lore.length > 0 : lore != null) || (stack?.lore?.length ?? 0) > 0)
-    out.add("lore");
-  if ((advanced.enchants?.length ?? 0) > 0 || (stack?.enchants?.length ?? 0) > 0)
-    out.add("enchants");
-  if (advanced.customModelData || stack?.customModelData) out.add("custom_model_data");
+  const title = typeof spec.title === "string" ? plain(spec.title) : undefined;
+  const own = Array.isArray(spec.lore)
+    ? spec.lore.map((l) => plain(String(l)))
+    : typeof spec.lore === "string"
+      ? [plain(spec.lore)]
+      : [];
+  const lore = own.length > 0 ? own : stack?.lore;
+  const enchants = advanced.enchants?.length ? advanced.enchants : stack?.enchants;
+  return {
+    base,
+    custom: base.includes(":") && !base.toLowerCase().startsWith("minecraft:"),
+    name: title || captured?.display.name || stack?.name || undefined,
+    lore: lore?.length ? lore : undefined,
+    enchants: enchants?.length ? enchants : undefined,
+    customModelData: advanced.customModelData || stack?.customModelData || undefined,
+  };
+}
+
+/** The criterion that tells a spec's item apart: its custom item, else its material. */
+export function identityComparison(facts: ItemMatchFacts): ItemComparison {
+  return facts.custom ? "custom_item" : "material";
+}
+
+/**
+ * The criteria a spec's item carries a value for: identity, then name, lore, enchants and custom
+ * model data when present, and always its wear (an item that cannot wear holds on it).
+ */
+export function carriedComparisons(facts: ItemMatchFacts): Set<ItemComparison> {
+  const out = new Set<ItemComparison>([identityComparison(facts)]);
+  if (facts.name) out.add("name");
+  if (facts.lore) out.add("lore");
+  if (facts.enchants) out.add("enchants");
+  if (facts.customModelData) out.add("custom_model_data");
   out.add("damage");
-  return ITEM_COMPARISONS.filter((c) => out.has(c));
+  return out;
+}
+
+/**
+ * The criteria the plugin applies to a spec saved without `match` (`defaultComparisons`): the
+ * custom item when it is one, else the material, plus name, lore, enchants and custom model data
+ * when the item carries them (a captured item's own included), and always its wear.
+ */
+export function defaultItemMatch(
+  project: Project | undefined,
+  spec: Record<string, unknown>,
+): ItemComparison[] {
+  const carried = carriedComparisons(itemMatchFacts(project, spec));
+  return ITEM_COMPARISONS.filter((c) => carried.has(c));
+}
+
+function plain(text: string): string {
+  return text.replace(/<[^<>]*>/g, "").trim();
 }
 
 /** The wire `match` read back: known ids in wire order, or undefined when absent or not a list. */
