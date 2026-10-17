@@ -202,7 +202,9 @@ open class ArtisanPlugin : JavaPlugin() {
 
     /** What this server announces at Presence: to the editor it serves, and in its `hello` to a hub. */
     internal fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
-        modules = api.modules.active().map { net.artisanmc.plugin.protocol.ServerAnnouncement.module(it.id, description.version) },
+        modules = api.modules.active().map {
+            net.artisanmc.plugin.protocol.ServerAnnouncement.module(it.id, description.version, api.editorBundles.find(it.id)?.toWire())
+        },
         dataSources = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources),
         models = api.models.declared().map { it.document },
         screens = api.screens.declared().map { it.toWire() },

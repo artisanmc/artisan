@@ -1,6 +1,8 @@
 import type { ProjectId } from "@/domain/types";
+import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
+import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useTranslation } from "react-i18next";
 import { NewPrefixedIdDialog } from "./NewPrefixedIdDialog";
@@ -28,9 +30,8 @@ export function NewDocumentDialog({
 }: NewDocumentDialogProps) {
   const { t } = useTranslation();
   const contribution = documentKindContribution(kind);
-  const kindLabel = contribution
-    ? t(contribution.label, { defaultValue: contribution.label })
-    : kind;
+  const uiLang = useUiStore((s) => s.editorLang);
+  const kindLabel = contributionLabel(contribution, kind, t, uiLang);
   // The editor's module knows the kind; does the server's? A kind the active server
   // does not register is written to a folder nothing there reads (W6).
   const synced = useServerDocumentKindsStore((s) => isKindSyncedOn(s, kind));

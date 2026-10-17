@@ -52,6 +52,8 @@ class SyncedMenuProvider(
     private val lookupAsset: (String) -> AssetEntry? = { null },
     private val offsetEncoderProvider: () -> net.artisanmc.plugin.render.OffsetEncoder = { net.artisanmc.plugin.render.OffsetEncoder.EMPTY },
     private val dataSources: net.artisanmc.modules.api.datasource.DataSourceRegistry? = null,
+    /** The modules' editor views, served to the hub on `editor_bundle_fetch`. */
+    private val editorBundles: net.artisanmc.modules.api.editor.EditorBundleRegistry? = null,
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
     /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */
@@ -147,7 +149,7 @@ class SyncedMenuProvider(
     private val replies = Replies(httpClient.dispatcher.executorService, ::send, logger)
     private val projectReads = ProjectReads(workspace, replies)
     private val projectWrites = ProjectWrites(workspace, replies, ::send, logger)
-    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig)
+    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles)
     @Volatile private var testSendOverride: ((String) -> Unit)? = null
 
     internal fun setSendForTesting(fn: (String) -> Unit) {
@@ -475,6 +477,7 @@ class SyncedMenuProvider(
             is EditorRequest.PapiPlaceholdersFetch -> queries.papiPlaceholders(request)
             is EditorRequest.HeadTextureFetch -> queries.headTexture(request)
             is EditorRequest.PlayerInventoryFetch -> queries.playerInventory(request)
+            is EditorRequest.EditorBundleFetch -> queries.editorBundle(request)
             is EditorRequest.DataSourceFetch -> queries.dataSource(request)
             is EditorRequest.ServerConfigWrite -> queries.serverConfigWrite(request)
             is EditorRequest.NexoGlyphsList -> queries.nexoGlyphs(request)

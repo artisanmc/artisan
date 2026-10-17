@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import * as sdk from "@artisan/editor-sdk";
+import { describe, expect, it } from "vitest";
 
 describe("@artisan/editor-sdk public surface", () => {
   it("exposes the module-system contract", () => {

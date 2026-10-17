@@ -38,9 +38,6 @@ export default defineConfig(({ mode }) => ({
       "@artisan/editor-sdk": fileURLToPath(
         new URL("./packages/editor-sdk/src/index.ts", import.meta.url),
       ),
-      "@artisan/quests-editor": fileURLToPath(
-        new URL("./packages/quests-editor/src/index.ts", import.meta.url),
-      ),
       "@artisan/boutique-editor": fileURLToPath(
         new URL("./packages/boutique-editor/src/index.ts", import.meta.url),
       ),

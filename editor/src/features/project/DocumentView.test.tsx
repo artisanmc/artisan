@@ -53,6 +53,7 @@ beforeEach(() => {
             ],
             command: [{ id: "c1", projectId: PID, name: "heal", arguments: [], steps: [] } as any],
             dialog: [],
+            quest_group: [{ id: "daily", projectId: PID } as any],
           },
           assets: [],
           dataSources: [],
@@ -87,6 +88,11 @@ describe("DocumentView", () => {
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({ params: { serverId: "s1", projectId: "shared" } }),
     );
+  });
+  it("opens a module's Document in its kind's view instead of 'not found'", () => {
+    render(<DocumentView projectId={PID} documentId={"daily" as any} />);
+    expect(screen.getByTestId("flow-canvas")).toBeInTheDocument();
+    expect(screen.queryByTestId("focus-stage")).toBeNull();
   });
   it("renders the focused stage + EditorPane for a menu", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);

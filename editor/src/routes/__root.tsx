@@ -66,6 +66,16 @@ export function RootLayout() {
       }
     });
 
+    // A module view arriving after a project was read: its Documents were kept as raw
+    // files until its kind existed; read them now.
+    const unsubscribeModules = useModulesStore.subscribe((s, prev) => {
+      if (s.status !== "ready" || prev.status === "ready") return;
+      const { openProjects, adoptLateDocuments } = useProjectsStore.getState();
+      for (const p of openProjects.projects) {
+        if (p.serverKeyId === activeServerId) adoptLateDocuments({ projectId: p.id });
+      }
+    });
+
     let cancelled = false;
     const ws = new EditorWs({
       // The server reloaded: what is shown may have become wrong. The decision to
@@ -88,6 +98,7 @@ export function RootLayout() {
     return () => {
       cancelled = true;
       unsubscribeActions();
+      unsubscribeModules();
       ws?.disconnect();
     };
   }, [user, activeServerId]);

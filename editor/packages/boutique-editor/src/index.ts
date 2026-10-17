@@ -15,7 +15,10 @@ const boutiqueModule: FrontendModule = {
   exportFiles: exportBoutiqueFiles,
   localPreviewRows: boutiqueLocalRows,
   migrateProject: migrateIcons,
-  dataSourceModels: { "boutique:items": "boutique:item", "boutique:categories": "boutique:category" },
+  dataSourceModels: {
+    "boutique:items": "boutique:item",
+    "boutique:categories": "boutique:category",
+  },
 };
 
 export default boutiqueModule;

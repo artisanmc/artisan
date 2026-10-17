@@ -31,13 +31,13 @@ en 1008 (« not open yet: retry ») ; la feuille revient par son backoff.
 
 | Champ | Lu par le hub pour |
 |---|---|
-| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.1"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). |
+| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.2"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). Mineure inférieure à 2 (`EDITOR_BUNDLES`) : pas d'`editor_bundle` annoncé, donc jamais d'`editor_bundle_fetch`. |
 | `server_key` | Le **secret du réseau** (nom de champ hérité). Comparé en temps constant ; faux ou vide : fermeture 1008. |
 | `server_uuid` | Server id du serveur (`plugins/Artisan/server-id`) : son identité partout — `/api/v1/servers/:server`, `server_key_id`, préfixe de ses Projects (`<server id>.<dossier>`), clé de `Servers`. Absent, ou égal à celui du hub (dossier copié) : fermeture 1008. |
 | `database_id` | Identifiant de la base de suite (`artisan_meta`, généré une fois). Le hub refuse un `hello` dont l'identifiant diffère du sien, et tout `hello` s'il est lui-même en H2 : un réseau partage une base MySQL/MariaDB. |
 | `proxy_name` | Nom du serveur dans le réseau (clé racine `name`, sinon le nom du dossier du serveur). `[A-Za-z0-9_-]{1,64}`. Un attribut : le libellé dans la liste des serveurs ; un serveur renommé garde son id. |
 | `plugin_version`, `minecraft_version` | Affichés dans la liste des serveurs ; la version Minecraft choisit le catalogue d'items. |
-| `installed_modules` | `[{id, version}]` : présence des modules (`GET …/modules`). Ce champ et les cinq suivants forment l'annonce du serveur, un seul type `ServerAnnouncement` (`core/protocol`) : construit par le serveur, relu par `RemoteServer`, servi par `EditorServer.announcement()`. |
+| `installed_modules` | `[{id, version, editor_bundle?}]` : présence des modules (`GET …/modules`). `editor_bundle` = `{sdk, hash, size}` (`EditorBundleDeclaration.toWire()`, mineure 2) quand le module a enregistré la vue éditeur de son jar (`api.getEditorBundles()`) : version de `@artisan/editor-sdk` visée, SHA-256 hex du script, taille en octets ; le hub la sert sous `GET …/modules/:module/ui.js`. Ce champ et les cinq suivants forment l'annonce du serveur, un seul type `ServerAnnouncement` (`core/protocol`) : construit par le serveur, relu par `RemoteServer`, servi par `EditorServer.announcement()`. |
 | `data_sources` | `[{ref, module_id?, schema?, schema_hint?, stability?, key_field?}]` (`DataSourceReport`). `schema[]` = `{name, type, description}`, `type` étant le kind du `ModelFieldType` du champ (`string`, `number`, `integer`, `boolean`, `list`, `object`, `item` pour un champ déclaré par `FieldKind`, comme en 1.x ; `ltext`, `enum`, `map`… possibles depuis l'API 2.0.0). L'éditeur traite un kind qu'il ne connaît pas comme du texte. |
 | `declared_models` | Documents `model/v1` déclarés par les modules : `ModelDeclaration.toWire()`, ou la map de `declare(Map)` (`@Sunset`) verbatim. |
 | `editor_screens` | Écrans de config déclarés : `{id, module_id, label, table, project_id}`. |
@@ -62,6 +62,10 @@ l'ancienne connexion est fermée (dernier arrivé gagne, cf. `invariants.md`).
 
 ## Messages
 
+Taille : Jetty limite un message entrant à 64 KiB par défaut. `/ws/plugin` relève la limite à
+32 MiB (message et trame) une fois le `hello` accepté (`PluginChannel.welcome`) : réponses de
+lecture de Project, bundle éditeur. Avant, un `hello` plus gros ferme la connexion.
+
 Toute requête porte un `request_id` ; la réponse le reprend, avec le type `<requête>_result`
 (sauf mention) et `{ok, error?, message?}`. Un type inconnu ou un champ obligatoire manquant :
 le message est ignoré (`EditorRequest.parse` rend `null`).
@@ -85,6 +89,7 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | `online_players_fetch` | `online_players_result` | `players` triés. Hors ligne ou timeout : la route rend une liste vide. |
 | `papi_placeholders_fetch` | `papi_placeholders_result` | `{placeholders:[{placeholder, expansion}], truncated}` ; 2 000 entrées max. |
 | `head_texture_fetch` | `head_texture_result` | `{id}` (id HeadDatabase, 1–10 chiffres) → `texture` base64. Erreurs `hdb_unavailable`, `head_not_found`, `invalid_input`, `fetch_error`. |
+| `editor_bundle_fetch` | `editor_bundle_fetch_result` | `{module_id}` → `{module_id, sdk, hash, content}` : le script de la vue éditeur du module, en texte UTF-8 (≤ 4 MiB, `EditorBundleDeclaration.MAX_SIZE`). `not_found` si le module n'a pas de bundle ; `too_large` si le JSON dépasserait 12 MiB (caractères de contrôle échappés), sous la file de 16 MiB d'OkHttp. Le hub vérifie que le SHA-256 du contenu égale le `hash` annoncé. Mineure 2. |
 | `player_inventory_fetch` | `player_inventory_result` | `{player}` → `slots:[{slot, stack_yaml, display}]` (0-35, armure 36-39, main gauche 40). `player_not_found`. |
 | `data_source_fetch` | `data_source_fetch_result` | `{ref, params, filter, sort, limit, args}` → `{rows, truncated}` (50 lignes, ≤ 256 Ko). `unknown_source`, `player_required`, `fetch_error`. |
 | `nexo_glyphs_list` / `nexo_glyph_read` | `nexo_glyphs_list_result` / `nexo_glyph_read_result` | Glyphes Nexo lus dans `plugins/Nexo/glyphs/` (sans API Nexo) ; `{glyphs:[{id, texture, available}]}` puis `{content_base64}`. |
@@ -148,7 +153,7 @@ sans gestionnaire ne compile pas.
 |---|---|---|
 | `ProjectReads` | `core` | `project_list`, `project_read`, `project_history`, `asset_read`, `config_read` |
 | `ProjectWrites` | `core` | `project_write`, `config_write`, `project_draft_publish`, `project_create`, `project_delete`, `project_rename` (disque : `ProjectFolders`) |
-| `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
+| `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `editor_bundle_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
 | `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `session_replaced`, `custom_items_request` |
 
 Les gestionnaires `core` ne voient les Projects qu'à travers `ProjectWorkspace` (instantané,
