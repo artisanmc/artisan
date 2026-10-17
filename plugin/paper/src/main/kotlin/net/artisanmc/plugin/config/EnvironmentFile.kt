@@ -65,5 +65,12 @@ object EnvironmentFile {
         |  user: "root"
         |  password: ""
         |  pool-size: 4
+        |
+        |# Development: a module's editor view read from a file on this machine instead of
+        |# its jar, re-read when it changes (run `vite build --watch` in the module's editor/).
+        |# Reload the editor to see it. Changes apply after a restart.
+        |# dev:
+        |#   editor-bundles:
+        |#     msquests: "/home/me/MSQuests/bukkit/src/main/resources/artisan-editor/ui.js"
         |""".trimMargin()
 }

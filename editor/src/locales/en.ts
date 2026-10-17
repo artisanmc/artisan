@@ -1035,6 +1035,10 @@ export default {
       },
     },
   },
+  localBundles: {
+    notice:
+      "Editor view of {{modules}} read from a file on the server (dev.editor-bundles): reload the page to see a new build.",
+  },
   settings: {
     appearance: {
       title: "Appearance",

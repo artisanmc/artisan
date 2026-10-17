@@ -477,6 +477,11 @@ api.getEditorBundles().register(
 - **Servi** par le hub : `GET /api/v1/servers/:server/modules/:module/ui.js?v=<hash>`
   (`rest-endpoints.md`) ; le hub va le chercher au serveur (`editor_bundle_fetch`), vérifie le hash,
   le garde en mémoire par hash, et le sert `immutable` quand `v` égale le hash.
+- **Développement** : `dev.editor-bundles.<module>: <chemin de ui.js>` dans `environment.yml` (jamais
+  écrit par l'éditeur : personne ne peut lui faire servir un fichier du serveur) sert ce fichier à la
+  place du bundle du jar, avec la version SDK de ce dernier. `LocalEditorBundles` le relit à chaque
+  changement (vérifié chaque seconde) et une feuille envoie `modules_changed` ; l'entrée porte
+  `editor_bundle.local: true`. Fichier absent ou invalide : bundle du jar, avec un avertissement.
 - **Chargé** par l'éditeur contre le SDK qu'il embarque : `editor-internals.md` §« Runtime module
   bundles ».
 
