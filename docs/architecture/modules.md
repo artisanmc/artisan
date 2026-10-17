@@ -439,6 +439,25 @@ Côté éditeur, le module jumeau contribue le même kind (`FrontendModule.docum
 serveur actif ne liste pas (le fichier serait écrit dans un dossier que rien ne lit là-bas) dans
 l'arbre du project et au moment de créer un Document de ce kind.
 
+Une chaîne stockée dans un Document du module (récompenses d'une quête) s'exécute sous sa forme
+keyed par `api.getActions().run(player, chain, args, projectId)` (API 2.2.0) ; `execute` reste pour
+la chaîne DSL legacy.
+
+### 4.6 Conditions hors chaîne (API 2.2.0)
+
+Un module qui a ses propres prérequis (une quête démarrable sous condition) les écrit dans le
+vocabulaire des conditions d'Artisan et les évalue sans chaîne :
+
+```java
+List<?> requirements = (List<?>) quest.get("requirements");   // [{has_level: 10}, {has_permission: quests.vip}]
+List<String> problems = api.getConditions().validate(requirements);   // au chargement : à journaliser
+boolean ok = api.getConditions().test(player, requirements, Map.of("completed", done));
+```
+
+Même évaluateur que `if:`, lecture **stricte** : une condition inconnue ou mal formée rend `test`
+faux (avertissement unique) au lieu d'être ignorée comme dans un menu. À appeler sur le thread qui
+possède le joueur (`IllegalStateException` sinon). Détail : `api-surface.md`.
+
 ## 5. Module bootstrap : content bundles
 
 Chaque module non-trivial **ship un bundle de contenu par défaut** qui sert de bootstrap quand l'admin installe le module pour la première fois. Ce bundle n'est PAS juste un menu — c'est un set complet de **toutes les ressources** dont le module a besoin pour fonctionner out-of-the-box.
