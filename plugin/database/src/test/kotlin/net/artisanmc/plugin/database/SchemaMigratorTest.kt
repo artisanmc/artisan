@@ -67,6 +67,27 @@ class SchemaMigratorTest {
     }
 
     @Test
+    fun `catalog checks ignore tables of another schema`() {
+        // MariaDB with several databases: a null catalog listed the other databases' tables too,
+        // and a step was taken for applied because a same-named table elsewhere had the column.
+        ds.connection.use { c ->
+            c.createStatement().use {
+                it.execute("CREATE SCHEMA other")
+                it.execute("CREATE TABLE other.a (id INT PRIMARY KEY, running BOOLEAN, CONSTRAINT other_fk FOREIGN KEY (id) REFERENCES other.a (id))")
+                it.execute("CREATE INDEX other_a_running ON other.a (running)")
+                it.execute("CREATE TABLE a (id INT)")
+            }
+            assertEquals(false, SchemaMigrator.hasTable(c, "missing_here"))
+            assertEquals(true, SchemaMigrator.hasTable(c, "a"))
+            assertEquals(false, SchemaMigrator.hasColumn(c, "a", "running"))
+            assertEquals(false, SchemaMigrator.hasIndex(c, "a", "other_a_running"))
+            assertEquals(false, SchemaMigrator.hasForeignKey(c, "a", "id"))
+            c.createStatement().use { it.execute("CREATE TABLE other.only_there (id INT)") }
+            assertEquals(false, SchemaMigrator.hasTable(c, "only_there"))
+        }
+    }
+
+    @Test
     fun `a failing migration stops there and is not recorded`() {
         val migrator = SchemaMigrator(ds, DatabaseDialect.H2, "test_schema_version", Logger.getAnonymousLogger())
         assertFailsWith<IllegalStateException> {
