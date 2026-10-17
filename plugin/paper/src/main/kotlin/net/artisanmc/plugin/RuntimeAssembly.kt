@@ -34,6 +34,7 @@ internal class RuntimeAssembly(
     private val menuEvents get() = plugin.menuEvents
     private val menuWindows get() = plugin.menuWindows
     private val serverConfigAccess get() = plugin.serverConfigAccess
+    private val localEditorBundles get() = plugin.localEditorBundles
     private val editorChannel get() = editorHost.editorChannel
     private val serverId get() = suite.serverId
     private var menuProvider: net.artisanmc.plugin.engine.MenuProvider
@@ -142,7 +143,7 @@ internal class RuntimeAssembly(
         lookupAsset      = assetCatalog::lookup,
         offsetEncoderProvider = assetCatalog::offsetEncoder,
         dataSources = api.dataSources,
-        editorBundles = api.editorBundles,
+        editorBundles = localEditorBundles::find,
         announcement = plugin::announcement,
         declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,
