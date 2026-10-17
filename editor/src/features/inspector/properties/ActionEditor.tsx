@@ -1,3 +1,4 @@
+import { MiniMessageField } from "@/components/MiniMessageField";
 import { RevealField } from "@/components/RevealField";
 import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import {
@@ -269,9 +270,21 @@ function ArgInput(p: ArgInputProps) {
       if (type.of.kind === "ltext" || type.of.kind === "string")
         return <ListArgInput {...p} of={type.of} />;
       return <JsonValueInput value={value} onChange={onChange} ariaLabel={field.name} />;
-    case "string":
     case "minimessage":
     case "minimessage_multiline":
+      if (typeof value === "string" || value == null) {
+        return (
+          <MiniMessageField
+            multiline={type.kind === "minimessage_multiline"}
+            value={typeof value === "string" ? value : ""}
+            onChange={(next) => onChange(next === "" ? undefined : next)}
+            className="h-7 w-full font-mono text-[12px]"
+            aria-label={field.name}
+          />
+        );
+      }
+      return <JsonValueInput value={value} onChange={onChange} ariaLabel={field.name} />;
+    case "string":
       if (typeof value === "string" || value == null) {
         return (
           <Input
@@ -538,27 +551,17 @@ function LiteralTextInput({ field, value, onChange }: ArgInputProps) {
   const { t } = useTranslation();
   const text = isLTextNode(value) ? value.key : typeof value === "string" ? value : "";
   return (
-    <div>
-      <textarea
-        value={text}
-        rows={2}
-        placeholder={t("actionEditor.textPlaceholder")}
-        onChange={(e) =>
-          onChange(
-            e.target.value === "" && !field.required
-              ? undefined
-              : { key: e.target.value as I18nKey },
-          )
-        }
-        className="textarea min-h-0 px-2 py-1 font-mono text-xs"
-        aria-label={field.name}
-      />
-      {looksLikeMiniMessage(text) ? (
-        <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-          <MiniMessageInline source={text} className="font-mono text-xs" />
-        </div>
-      ) : null}
-    </div>
+    <MiniMessageField
+      multiline
+      rows={2}
+      value={text}
+      placeholder={t("actionEditor.textPlaceholder")}
+      onChange={(next) =>
+        onChange(next === "" && !field.required ? undefined : { key: next as I18nKey })
+      }
+      className="min-h-0 px-2 py-1 font-mono text-xs"
+      aria-label={field.name}
+    />
   );
 }
 
