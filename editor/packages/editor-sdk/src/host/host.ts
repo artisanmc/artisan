@@ -93,12 +93,24 @@ export interface ItemInputProps {
   onMatchChange?: (match: ItemComparisonWire[] | undefined) => void;
 }
 
-/** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`). */
+export interface MiniMessageInputProps {
+  /** The raw text, MiniMessage tags included. */
+  value: string;
+  onChange: (value: string) => void;
+  multiline?: boolean;
+  rows?: number;
+  placeholder?: string;
+  "aria-label"?: string;
+}
+
+/** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`, `MiniMessageInput`). */
 export interface HostComponents {
   ActionChainEditor: ComponentType<ActionChainEditorProps>;
   MaterialInput: ComponentType<MaterialInputProps>;
   /** SDK 1.3. */
   ItemInput: ComponentType<ItemInputProps>;
+  /** SDK 1.4. */
+  MiniMessageInput: ComponentType<MiniMessageInputProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -159,5 +171,14 @@ export function MaterialInput(props: MaterialInputProps): ReactElement {
  */
 export function ItemInput(props: ItemInputProps): ReactElement {
   const Impl = current().components.ItemInput;
+  return createElement(Impl, props);
+}
+
+/**
+ * A text field that supports MiniMessage, the way every such field of the editor behaves:
+ * rendered until clicked, then the raw text with its live rendering below (SDK 1.4).
+ */
+export function MiniMessageInput(props: MiniMessageInputProps): ReactElement {
+  const Impl = current().components.MiniMessageInput;
   return createElement(Impl, props);
 }
