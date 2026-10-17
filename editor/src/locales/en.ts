@@ -493,7 +493,7 @@ export default {
       lore: "Lore",
       enchants: "Enchantments",
       custom_model_data: "Custom model data",
-      damage: "No more worn",
+      damage: "Wear",
       exact: "Identical (hidden tags, repairs…)",
     },
     matchHelp: {
