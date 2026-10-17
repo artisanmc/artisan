@@ -23,7 +23,19 @@ vi.mock("@/lib/api/modules", () => ({
 vi.mock("@/distribution/modules.manifest", () => ({
   MODULE_MANIFEST: [{ id: "quests", load: loadQuests }],
 }));
+vi.mock("@/lib/moduleDocumentKinds", () => ({
+  registerEditorModule: (m: { id: string }) => registered.set(m.id, m),
+}));
+vi.mock("@/distribution/runtimeBundle", () => {
+  class BundleError extends Error {
+    constructor(readonly refusal: unknown) {
+      super("refused");
+    }
+  }
+  return { BundleError, loadRuntimeBundle: vi.fn() };
+});
 
+import { BundleError, loadRuntimeBundle } from "@/distribution/runtimeBundle";
 import { fetchActiveModulesUser } from "@/lib/api/modules";
 import { useModulesStore } from "./modulesStore";
 
@@ -31,7 +43,14 @@ beforeEach(() => {
   registered.clear();
   loadQuests.mockClear();
   vi.mocked(fetchActiveModulesUser).mockClear();
-  useModulesStore.setState({ mountedIds: [], status: "idle", loadedKey: null });
+  vi.mocked(loadRuntimeBundle).mockReset();
+  useModulesStore.setState({
+    mountedIds: [],
+    origins: {},
+    refused: {},
+    status: "idle",
+    loadedKey: null,
+  });
 });
 
 describe("useModulesStore.integrate", () => {
@@ -110,5 +129,52 @@ describe("useModulesStore.integrate", () => {
 
     expect(useModulesStore.getState().loadedKey).toBe("u:srv2");
     expect(useModulesStore.getState().mountedIds).toEqual([]);
+  });
+
+  it("prefers the bundle the server serves over the copy built into the editor", async () => {
+    const fromJar = { id: "quests", displayName: "Quests (jar)", routes: [] };
+    vi.mocked(loadRuntimeBundle).mockResolvedValue(fromJar as never);
+    vi.mocked(fetchActiveModulesUser).mockResolvedValue([
+      { id: "quests", version: "1.0.0", editor_bundle: { sdk: "1.0", hash: "abc" } },
+    ]);
+
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
+
+    expect(loadRuntimeBundle).toHaveBeenCalledWith("srv1", "quests", { sdk: "1.0", hash: "abc" });
+    expect(loadQuests).not.toHaveBeenCalled();
+    expect(registered.get("quests")).toBe(fromJar);
+    expect(useModulesStore.getState().origins).toEqual({ quests: "bundle" });
+  });
+
+  it("falls back to the built-in copy and reports a refused bundle", async () => {
+    vi.mocked(loadRuntimeBundle).mockRejectedValue(
+      new BundleError({ reason: "older-editor", sdk: "2.0" }),
+    );
+    vi.mocked(fetchActiveModulesUser).mockResolvedValue([
+      { id: "quests", version: "1.0.0", editor_bundle: { sdk: "2.0", hash: "abc" } },
+    ]);
+
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
+
+    expect(loadQuests).toHaveBeenCalledTimes(1);
+    expect(useModulesStore.getState().mountedIds).toEqual(["quests"]);
+    expect(useModulesStore.getState().origins).toEqual({ quests: "editor" });
+    expect(useModulesStore.getState().refused).toEqual({
+      quests: { reason: "older-editor", sdk: "2.0" },
+    });
+  });
+
+  it("keeps the other modules when one view fails to load", async () => {
+    vi.mocked(loadRuntimeBundle).mockRejectedValue(new Error("boom"));
+    vi.mocked(fetchActiveModulesUser).mockResolvedValue([
+      { id: "broken", version: "1.0.0", editor_bundle: { sdk: "1.0", hash: "x" } },
+      { id: "quests", version: "1.0.0" },
+    ]);
+
+    await useModulesStore.getState().integrate({ serverId: "srv1" });
+
+    expect(useModulesStore.getState().status).toBe("ready");
+    expect(useModulesStore.getState().mountedIds).toEqual(["quests"]);
+    expect(Object.keys(useModulesStore.getState().refused)).toEqual(["broken"]);
   });
 });

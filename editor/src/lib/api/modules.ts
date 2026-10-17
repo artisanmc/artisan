@@ -3,6 +3,8 @@ import { apiFetch } from "./client";
 export interface ActiveModule {
   id: string;
   version: string | null;
+  /** The editor view the module's jar carries (ADR `runtime-editor-modules`), when it has one. */
+  editor_bundle?: { sdk: string; hash: string; size?: number };
 }
 
 /**

@@ -142,6 +142,7 @@ internal class RuntimeAssembly(
         lookupAsset      = assetCatalog::lookup,
         offsetEncoderProvider = assetCatalog::offsetEncoder,
         dataSources = api.dataSources,
+        editorBundles = api.editorBundles,
         announcement = plugin::announcement,
         declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,

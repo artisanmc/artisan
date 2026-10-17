@@ -3,6 +3,7 @@ package net.artisanmc.plugin.provider
 import com.fasterxml.jackson.databind.ObjectMapper
 import net.artisanmc.modules.api.datasource.DataSourceRegistry
 import net.artisanmc.modules.api.datasource.PlayerRequiredException
+import net.artisanmc.modules.api.editor.EditorBundleRegistry
 import net.artisanmc.plugin.config.ServerConfigAccess
 import net.artisanmc.plugin.customitems.NexoGlyphReader
 import net.artisanmc.plugin.engine.ConditionEvaluator
@@ -10,6 +11,7 @@ import net.artisanmc.plugin.engine.ContextBinder
 import net.artisanmc.plugin.engine.PapiPlaceholderCatalog
 import net.artisanmc.plugin.items.ItemDescriptor
 import net.artisanmc.plugin.protocol.EditorRequest.DataSourceFetch
+import net.artisanmc.plugin.protocol.EditorRequest.EditorBundleFetch
 import net.artisanmc.plugin.protocol.EditorRequest.HeadTextureFetch
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphRead
 import net.artisanmc.plugin.protocol.EditorRequest.NexoGlyphsList
@@ -36,6 +38,7 @@ class ServerQueries(
     private val dataSources: DataSourceRegistry?,
     private val nexoGlyphs: NexoGlyphReader?,
     private val serverConfig: ServerConfigAccess?,
+    private val editorBundles: EditorBundleRegistry? = null,
 ) {
     private val mapper = ObjectMapper()
 
@@ -152,6 +155,27 @@ class ServerQueries(
         }
     }
 
+    /**
+     * A module's editor view, for the hub to serve (`GET …/modules/:module/ui.js`): the script as
+     * UTF-8 text (the declaration guarantees it is), with the hash the hub checks it against.
+     */
+    fun editorBundle(request: EditorBundleFetch) {
+        val reply = replies.to(request, "editor_bundle_fetch_result")
+        val bundle = editorBundles?.find(request.moduleId) ?: return reply.error("not_found")
+        replies.offThread("editor_bundle_fetch") {
+            val script = bundle.script
+            // OkHttp drops the whole connection past 16 MiB queued: only control characters
+            // (6 bytes once escaped) could take a 4 MiB script there.
+            if (escapedSize(script) > MAX_BUNDLE_MESSAGE) return@offThread reply.error("too_large")
+            reply.ok(
+                "module_id" to request.moduleId,
+                "sdk" to bundle.sdk,
+                "hash" to bundle.hash,
+                "content" to String(script, Charsets.UTF_8),
+            )
+        }
+    }
+
     /** Nexo glyph import into the assets: disk read, off the world thread. */
     fun nexoGlyphs(request: NexoGlyphsList) {
         val reply = replies.to(request, "nexo_glyphs_list_result")
@@ -188,6 +212,15 @@ class ServerQueries(
         }
     }
 
+    /** The size of [script] as a JSON string: `"`, `\`, `\n`, `\r`, `\t` take 2 bytes, other control characters 6. */
+    private fun escapedSize(script: ByteArray): Long = script.sumOf { b ->
+        when (b.toInt()) {
+            '"'.code, '\\'.code, '\n'.code, '\r'.code, '\t'.code -> 2L
+            in 0..0x1f -> 6L
+            else -> 1L
+        }
+    }
+
     /** Preview capped at [MAX_PREVIEW_ROWS] rows and ~[MAX_PREVIEW_BYTES] serialized bytes. */
     internal fun truncateForPreview(rows: List<Map<String, Any?>>): Pair<List<Map<String, Any?>>, Boolean> {
         var out = rows.take(MAX_PREVIEW_ROWS)
@@ -202,6 +235,7 @@ class ServerQueries(
     companion object {
         internal const val MAX_PREVIEW_ROWS = 50
         internal const val MAX_PREVIEW_BYTES = 256 * 1024
+        private const val MAX_BUNDLE_MESSAGE = 12L * 1024 * 1024
         private val HDB_ID = Regex("[0-9]{1,10}")
     }
 }
