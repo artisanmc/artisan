@@ -38,6 +38,12 @@ export {
 export {
   type EditorHost,
   type TextWrite,
+  type ActionChainWire,
+  type ActionChainEditorProps,
+  type MaterialInputProps,
+  type HostComponents,
+  ActionChainEditor,
+  MaterialInput,
   installEditorHost,
   useProject,
   useContentLang,

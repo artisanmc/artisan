@@ -28,8 +28,7 @@ import type {
   ModelFieldType,
   ProjectId,
 } from "@/domain/types";
-import { MaterialPicker } from "@/features/canvas/MaterialPicker";
-import { useTextureUrl } from "@/features/canvas/textureStore";
+import { MaterialField } from "@/features/canvas/MaterialField";
 import { useOtherServerProjects } from "@/features/serverIndex/useOtherServerProjects";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
@@ -405,42 +404,12 @@ function ExpressionInput({
 }
 
 function MaterialInput({ field, value, onChange }: ArgInputProps) {
-  const { t } = useTranslation();
-  const material = typeof value === "string" ? value : "";
-  const url = useTextureUrl(material);
   return (
-    <div className="flex items-center gap-1.5">
-      <MaterialPicker
-        trigger={
-          <button
-            type="button"
-            title={t("actionEditor.materialPick")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-[var(--border-soft)] bg-[var(--surface)] hover:border-[var(--brand)]"
-          >
-            {url ? (
-              <img
-                src={url}
-                alt={material}
-                draggable={false}
-                className="h-3/4 w-3/4 object-contain"
-                style={{ imageRendering: "pixelated" }}
-              />
-            ) : (
-              <span className="text-[8px] text-[var(--text-faint)]">
-                {material.slice(0, 3) || "—"}
-              </span>
-            )}
-          </button>
-        }
-        onPick={(picked) => onChange(picked)}
-      />
-      <Input
-        value={material}
-        placeholder={t("actionEditor.materialPlaceholder")}
-        onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value)}
-        aria-label={field.name}
-      />
-    </div>
+    <MaterialField
+      value={typeof value === "string" ? value : ""}
+      onChange={(material) => onChange(material === "" ? undefined : material)}
+      aria-label={field.name}
+    />
   );
 }
 
