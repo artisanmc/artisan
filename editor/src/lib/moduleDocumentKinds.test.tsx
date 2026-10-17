@@ -36,6 +36,7 @@ import {
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clearRegistry } from "../../packages/editor-sdk/src/contract/registry";
+import { editorHost } from "./editorHost";
 import { installDocumentKind, registerEditorModule } from "./moduleDocumentKinds";
 
 const PID = "p1" as ProjectId;
@@ -257,6 +258,52 @@ describe("a module's Document kind on the host", () => {
       width: 200,
       height: 80,
     });
+  });
+
+  it("lists its parts on the board, each selectable apart from the Document (SDK 1.2)", () => {
+    const groupKind: DocumentKindContribution = {
+      ...questKind,
+      kind: "chapter",
+      dir: "chapters",
+      schemaVersion: "chapter/v1",
+      idPrefix: "chapter_",
+      component: ({ item }) => <div data-testid="chapter-view">{item ?? "group"}</div>,
+      board: {
+        size: { width: 220, height: 48 },
+        items: (doc) =>
+          (doc as { parts: string[] }).parts.map((id) => ({ id, label: id.toUpperCase() })),
+      },
+    };
+    registerEditorModule({ ...questsModule, id: "chapters", documents: [groupKind] });
+    const p = project();
+    (p.documents as Record<string, unknown[]>).chapter = [
+      { id: "chapter_1", projectId: PID, title: { key: "" }, onComplete: [], parts: ["q1", "q2"] },
+    ];
+    useProjectsStore.setState({ openProjects: { projects: [p], projectOrder: [PID] } });
+
+    // Header plus one row per part: the node grows, its width stays.
+    expect(nodeBox(p, "chapter_1", { chapter_1: { x: 0, y: 0 } })).toMatchObject({
+      width: 220,
+      height: 46 + 2 * 24 + 6,
+    });
+
+    // A part is selected scoped by its Document; the view receives it as `item`.
+    editorHost.selectDocumentItem({ documentId: "chapter_1", item: "q2" });
+    const s = useSelectionStore.getState();
+    expect(selectionContext(p, s.ids, s.menuId)).toEqual({
+      kind: "document",
+      documentKind: "chapter",
+      id: "chapter_1",
+      item: "q2",
+    });
+    const view = render(<SelectionInspector projectId={PID} />);
+    expect(screen.getByTestId("chapter-view").textContent).toBe("q2");
+    view.unmount();
+
+    // Without an item, the Document itself is selected again.
+    editorHost.selectDocumentItem({ documentId: "chapter_1", item: null });
+    render(<SelectionInspector projectId={PID} />);
+    expect(screen.getByTestId("chapter-view").textContent).toBe("group");
   });
 
   it("has its texts rekeyed and its chains addressed like a core kind", () => {
