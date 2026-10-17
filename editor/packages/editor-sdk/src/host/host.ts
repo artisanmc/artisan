@@ -1,3 +1,5 @@
+import { type ComponentType, type ReactElement, createElement } from "react";
+
 /**
  * What a module's view needs from the editor that hosts it: the open Project, its texts,
  * the writes to its Documents. The host installs one implementation at boot
@@ -32,6 +34,35 @@ export interface EditorHost {
   langs(project: unknown): string[];
   /** Briefly tells the user something (a refused value, a done operation). */
   notify(message: string, tone?: "info" | "error"): void;
+  /** The editor's own widgets a module view embeds (SDK 1.1). */
+  components: HostComponents;
+}
+
+/**
+ * An Action chain as a Document file carries it: a list of keyed steps (`{action: args}`,
+ * `{if, do, else}`, or an action name alone). Text inside is literal (no i18n key).
+ */
+export type ActionChainWire = unknown[];
+
+export interface ActionChainEditorProps {
+  projectId: string;
+  value: ActionChainWire;
+  onChange: (steps: ActionChainWire) => void;
+}
+
+export interface MaterialInputProps {
+  /** The material name (`DIAMOND`), or "" for none. */
+  value: string;
+  /** The picked or typed material; "" when cleared. */
+  onChange: (material: string) => void;
+  placeholder?: string;
+  "aria-label"?: string;
+}
+
+/** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`). */
+export interface HostComponents {
+  ActionChainEditor: ComponentType<ActionChainEditorProps>;
+  MaterialInput: ComponentType<MaterialInputProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -66,3 +97,19 @@ export const fieldText = (project: unknown, key: string): string | Record<string
   current().fieldText(project, key);
 export const projectLangs = (project: unknown): string[] => current().langs(project);
 export const notify: EditorHost["notify"] = (message, tone) => current().notify(message, tone);
+
+/**
+ * The editor's Action chain editor (the one of commands and dialogs) on a controlled value:
+ * every action the server declares, Artisan's and the modules', with their forms, plus `if`
+ * branches. An action without a declaration is edited as JSON, so nothing is lost.
+ */
+export function ActionChainEditor(props: ActionChainEditorProps): ReactElement {
+  const Impl = current().components.ActionChainEditor;
+  return createElement(Impl, props);
+}
+
+/** A material field: the item's texture opening the editor's item palette, and the name. */
+export function MaterialInput(props: MaterialInputProps): ReactElement {
+  const Impl = current().components.MaterialInput;
+  return createElement(Impl, props);
+}
