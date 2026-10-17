@@ -1,3 +1,4 @@
+import { LocalBundlesNotice } from "@/components/LocalBundlesNotice";
 import { NavigationSidebar } from "@/components/NavigationSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
@@ -110,6 +111,7 @@ export function RootLayout() {
         </NavigationSidebar>
       )}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <LocalBundlesNotice />
         <Outlet />
       </main>
     </div>
