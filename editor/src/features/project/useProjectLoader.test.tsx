@@ -1,12 +1,17 @@
+import { registerDocumentKind, resetDocumentKinds } from "@/domain/documentKinds";
+import { documentsOf } from "@/domain/documents";
+import type { Document } from "@/domain/types";
 import * as dataSourcesApi from "@/lib/api/dataSources";
 import * as declaredActionsApi from "@/lib/api/declaredActions";
 import * as draftsApi from "@/lib/api/projectDrafts";
 import * as projectFilesApi from "@/lib/api/projectFiles";
 import * as userProjectsApi from "@/lib/api/userProjects";
+import { registerDocumentCodec, resetDocumentCodecs } from "@/schema/documentCodecs";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
+import { useProjectsStore } from "@/state/projectsStore";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectLoader } from "./useProjectLoader";
@@ -21,6 +26,54 @@ describe("useProjectLoader", () => {
     useAuthStore.setState({ currentUser: null } as never);
     useProjectCacheStore.setState({ entries: {} } as never);
     useProjectDraftStore.setState({ drafts: {}, pendingRenames: {}, ownerId: null, backups: {} });
+  });
+
+  it("reads a module kind's files when the kind is registered while the project is built", async () => {
+    useAuthStore.setState({ currentUser: { id: "u1" } } as never);
+    vi.spyOn(userProjectsApi, "loadUserProject").mockResolvedValue({
+      project: { id: "p1", name: "Quests", externalId: "quests" },
+      networkId: "net_1",
+      serverKeyId: "sk_1",
+    } as never);
+    vi.spyOn(dataSourcesApi, "fetchServerDeclaredModels").mockResolvedValue([]);
+    vi.spyOn(projectFilesApi, "readProjectFiles").mockResolvedValue({
+      ok: true,
+      files: {
+        "manifest.yaml": "schema: manifest/v1\n",
+        "quest_groups/daily.yaml": "schema: quest_group/v1\nname: Daily\n",
+      },
+      failed: [],
+      hash: "h1",
+    });
+    // The module's view arrives after the files are read, before the project is installed:
+    // the modules' transition to ready came and went while this Project was not in the store.
+    vi.mocked(declaredActionsApi.fetchServerDeclaredActions).mockImplementation(async () => {
+      registerDocumentKind({
+        kind: "quest_group",
+        dir: "quest_groups",
+        schemaVersion: "quest_group/v1",
+        rank: 9,
+      });
+      registerDocumentCodec({
+        kind: "quest_group",
+        parse: (src) => ({ doc: { id: src.id } as Document, i18nKeys: {}, unsupported: [] }),
+        serialize: (doc) => ({ schema: "quest_group/v1", id: doc.id }),
+      });
+      return [];
+    });
+    try {
+      renderHook(() => useProjectLoader("p1"));
+      await waitFor(() =>
+        expect(useProjectsStore.getState().openProjects.projects.some((p) => p.id === "p1")).toBe(
+          true,
+        ),
+      );
+      const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === "p1");
+      expect(documentsOf(project, "quest_group").map((d) => d.id)).toEqual(["daily"]);
+    } finally {
+      resetDocumentKinds();
+      resetDocumentCodecs();
+    }
   });
 
   it("waits for Minecraft before opening a persisted draft", async () => {
