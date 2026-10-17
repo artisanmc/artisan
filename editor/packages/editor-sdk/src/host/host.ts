@@ -64,10 +64,41 @@ export interface MaterialInputProps {
   "aria-label"?: string;
 }
 
-/** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`). */
+/**
+ * An item as a module's Document stores it: the fields of a menu button's appearance
+ * (`material`: a vanilla material, `item:<captured id>` or `<namespace>:<id>`; `title`,
+ * `lore` (lines), `enchants`, `custom_model_data`, `count`…), text literal (MiniMessage).
+ * The plugin builds and compares it with `api.getItems().build` / `matches`.
+ */
+export type ItemSpecWire = Record<string, unknown>;
+
+/** The criteria of `api.getItems().matches`, in wire form (SDK 1.3). */
+export type ItemComparisonWire =
+  | "material"
+  | "custom_item"
+  | "name"
+  | "lore"
+  | "enchants"
+  | "custom_model_data"
+  | "damage"
+  | "exact";
+
+export interface ItemInputProps {
+  projectId: string;
+  value: ItemSpecWire;
+  onChange: (spec: ItemSpecWire) => void;
+  /** The criteria a player's stack is compared on; undefined: the plugin's default for the item. */
+  match?: ItemComparisonWire[];
+  /** Shows the criteria as boxes to (un)tick; undefined goes back to the default. */
+  onMatchChange?: (match: ItemComparisonWire[] | undefined) => void;
+}
+
+/** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`). */
 export interface HostComponents {
   ActionChainEditor: ComponentType<ActionChainEditorProps>;
   MaterialInput: ComponentType<MaterialInputProps>;
+  /** SDK 1.3. */
+  ItemInput: ComponentType<ItemInputProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -118,5 +149,15 @@ export function ActionChainEditor(props: ActionChainEditorProps): ReactElement {
 /** A material field: the item's texture opening the editor's item palette, and the name. */
 export function MaterialInput(props: MaterialInputProps): ReactElement {
   const Impl = current().components.MaterialInput;
+  return createElement(Impl, props);
+}
+
+/**
+ * A whole item: the item card of menus opening its form (vanilla, custom or captured item,
+ * name, lore, enchantments, custom model data…), and, with `onMatchChange`, the criteria a
+ * player's stack is compared on, ticked by default from the item (SDK 1.3).
+ */
+export function ItemInput(props: ItemInputProps): ReactElement {
+  const Impl = current().components.ItemInput;
   return createElement(Impl, props);
 }

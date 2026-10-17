@@ -15,6 +15,7 @@ describe("@artisan/editor-sdk public surface", () => {
     expect(sdk.Button).toBeDefined();
     expect(typeof sdk.ActionChainEditor).toBe("function");
     expect(typeof sdk.MaterialInput).toBe("function");
+    expect(typeof sdk.ItemInput).toBe("function");
     expect(typeof sdk.cn).toBe("function");
   });
 
