@@ -1,10 +1,11 @@
 {
   "name": "@artisan/editor-sdk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./bundle": "./bundle.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

@@ -29,4 +29,26 @@ export {
 export type { ModuleEvent } from "./contract/eventBus";
 export { onModuleEvent, emitModuleEvent } from "./contract/eventBus";
 export { Button, buttonVariants, type ButtonProps } from "./ui/button";
+export {
+  SDK_VERSION,
+  parseSdkVersion,
+  sdkCompatibility,
+  type SdkCompatibility,
+} from "./version";
+export {
+  type EditorHost,
+  type TextWrite,
+  installEditorHost,
+  useProject,
+  useContentLang,
+  useUiLang,
+  updateDocument,
+  newTextKey,
+  textValue,
+  fieldText,
+  projectLangs,
+  notify,
+} from "./host/host";
+export { createModuleI18n } from "./host/i18n";
+export { injectModuleStyles } from "./host/styles";
 export { cn } from "./lib/cx";

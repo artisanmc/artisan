@@ -11,6 +11,7 @@ import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
+import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -48,8 +49,12 @@ function typeIcon(type: DocumentType): KindIcon {
 function typeLabel(type: DocumentType, t: TFunction): string {
   const key = TYPE_LABEL_KEY[type];
   if (key) return t(key);
-  const label = documentKindContribution(type)?.label ?? type;
-  return t(label, { defaultValue: label });
+  return contributionLabel(
+    documentKindContribution(type),
+    type,
+    t,
+    useUiStore.getState().editorLang,
+  );
 }
 
 /**
