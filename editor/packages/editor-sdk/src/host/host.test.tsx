@@ -1,7 +1,13 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ActionChainEditor, type EditorHost, MaterialInput, installEditorHost } from "./host";
+import {
+  ActionChainEditor,
+  type EditorHost,
+  ItemInput,
+  MaterialInput,
+  installEditorHost,
+} from "./host";
 
 describe("host components", () => {
   it("render the editor's own widgets with the module's props", () => {
@@ -9,6 +15,12 @@ describe("host components", () => {
       components: {
         ActionChainEditor: ({ value }) => createElement("i", null, `chain:${value.length}`),
         MaterialInput: ({ value }) => createElement("b", null, `material:${value}`),
+        ItemInput: ({ value, match }) =>
+          createElement(
+            "u",
+            null,
+            `item:${String(value.material)}:${match?.join(",") ?? "default"}`,
+          ),
       },
     } as unknown as EditorHost);
     const html = renderToStaticMarkup(
@@ -20,8 +32,17 @@ describe("host components", () => {
           onChange: () => {},
         }),
         createElement(MaterialInput, { key: "m", value: "STONE", onChange: () => {} }),
+        createElement(ItemInput, {
+          key: "i",
+          projectId: "p",
+          value: { material: "FISHING_ROD" },
+          match: ["material", "enchants"],
+          onChange: () => {},
+        }),
       ]),
     );
-    expect(html).toBe("<div><i>chain:1</i><b>material:STONE</b></div>");
+    expect(html).toBe(
+      "<div><i>chain:1</i><b>material:STONE</b><u>item:FISHING_ROD:material,enchants</u></div>",
+    );
   });
 });

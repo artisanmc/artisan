@@ -90,6 +90,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     internal val menuProviderOrNull: MenuProvider? get() = if (::menuProvider.isInitialized) menuProvider else null
     internal val langManagerOrNull: LangManager? get() = if (::langManager.isInitialized) langManager else null
+    internal val capturedItemsOrNull: net.artisanmc.plugin.items.CapturedItemStore? get() = if (::capturedItems.isInitialized) capturedItems else null
 
     companion object {
         fun defaultModules(): List<ArtisanModule> = listOf(
