@@ -6,6 +6,7 @@ import {
   type EditorHost,
   ItemInput,
   MaterialInput,
+  MiniMessageInput,
   installEditorHost,
 } from "./host";
 
@@ -15,6 +16,7 @@ describe("host components", () => {
       components: {
         ActionChainEditor: ({ value }) => createElement("i", null, `chain:${value.length}`),
         MaterialInput: ({ value }) => createElement("b", null, `material:${value}`),
+        MiniMessageInput: ({ value }) => createElement("s", null, `mm:${value}`),
         ItemInput: ({ value, match }) =>
           createElement(
             "u",
@@ -39,10 +41,11 @@ describe("host components", () => {
           match: ["material", "enchants"],
           onChange: () => {},
         }),
+        createElement(MiniMessageInput, { key: "t", value: "<red>Hi", onChange: () => {} }),
       ]),
     );
     expect(html).toBe(
-      "<div><i>chain:1</i><b>material:STONE</b><u>item:FISHING_ROD:material,enchants</u></div>",
+      "<div><i>chain:1</i><b>material:STONE</b><u>item:FISHING_ROD:material,enchants</u><s>mm:&lt;red&gt;Hi</s></div>",
     );
   });
 });

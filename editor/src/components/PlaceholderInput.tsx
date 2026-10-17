@@ -27,6 +27,7 @@ export interface PlaceholderInputProps {
   onBlur?: () => void;
   /** Merged after the design-system `.input` / `.textarea` base class. */
   className?: string;
+  "aria-label"?: string;
 }
 
 /**
@@ -47,6 +48,7 @@ export function PlaceholderInput({
   onFocus,
   onBlur,
   className,
+  "aria-label": ariaLabel,
 }: PlaceholderInputProps) {
   const { t } = useTranslation();
   const reactId = useId();
@@ -204,6 +206,7 @@ export function PlaceholderInput({
     },
     autoFocus,
     placeholder,
+    "aria-label": ariaLabel,
     role: "combobox" as const,
     "aria-expanded": popupVisible,
     "aria-controls": listboxId,
