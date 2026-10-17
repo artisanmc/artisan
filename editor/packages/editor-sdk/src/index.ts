@@ -17,6 +17,7 @@ export type {
   DocumentParseResult,
   LTextSiteContribution,
   ChainSlotContribution,
+  BoardItem,
 } from "./contract/types";
 export {
   registerModule,
@@ -53,6 +54,7 @@ export {
   textValue,
   fieldText,
   projectLangs,
+  selectDocumentItem,
   notify,
 } from "./host/host";
 export { createModuleI18n } from "./host/i18n";
