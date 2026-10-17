@@ -9,7 +9,7 @@ import type { FailedDocument } from "@/lib/api/projectFiles";
 import { loadUserProject } from "@/lib/api/userProjects";
 import { projectClient } from "@/lib/projectClient";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
-import { projectFromFiles } from "@/schema/projectFromFiles";
+import { adoptLateDocuments, projectFromFiles } from "@/schema/projectFromFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { projectCacheKey, useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
@@ -113,6 +113,10 @@ async function buildProject(
 
 /** Install a project only from the currently authorized, uncancelled load. */
 function mirrorIntoStore(loaded: Project): void {
+  // A module's kind may have been registered after its files were read (the build awaits
+  // the server's declared actions; the module's view arrives meanwhile): `__root` only
+  // adopts on the modules' transition to ready, which this Project missed.
+  adoptLateDocuments(loaded);
   // PRESERVING the existing order — overwriting it moved the visited project to
   // the top of the sidebar.
   const current = useProjectsStore.getState().openProjects;
