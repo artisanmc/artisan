@@ -14,7 +14,7 @@ l'éditeur affichait une vue qui ne correspondait pas au plugin. Iban a tranché
 ## Décisions
 
 1. **Le jar déclare son bundle.** `api.getEditorBundles().register(EditorBundleDeclaration
-   .fromResource(loader, "artisan-editor/ui.js", sdk))` (`@Beta`, API 2.2.0) depuis
+   .fromResource(loader, "artisan-editor/ui.js", sdk))` (`@Beta`, API 2.3.0) depuis
    `onEnable`. La Presence l'annonce dans `installed_modules[].editor_bundle`
    (`{sdk, hash, size}`) ; le hub le sert sur `GET /api/v1/servers/:server/modules/:module/ui.js`,
    relayé au serveur (`editor_bundle_fetch`, protocole 1.2), vérifié contre le SHA-256

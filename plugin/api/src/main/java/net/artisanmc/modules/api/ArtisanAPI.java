@@ -8,6 +8,7 @@ import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Internal;
 import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.command.CommandRegistry;
+import net.artisanmc.modules.api.condition.ConditionsApi;
 import net.artisanmc.modules.api.database.DatabaseApi;
 import net.artisanmc.modules.api.datasource.DataSourceRegistry;
 import net.artisanmc.modules.api.document.DocumentKindRegistry;
@@ -63,6 +64,7 @@ public final class ArtisanAPI {
     private final MenuApi menus;
     private final SchedulerApi scheduler;
     private final PlaceholderRegistry placeholders;
+    private final ConditionsApi conditions;
 
     private ArtisanAPI(Builder b) {
         this.plugin = b.plugin;
@@ -85,6 +87,7 @@ public final class ArtisanAPI {
         this.menus = b.menus;
         this.scheduler = b.scheduler;
         this.placeholders = b.placeholders;
+        this.conditions = b.conditions;
     }
 
     /**
@@ -227,6 +230,12 @@ public final class ArtisanAPI {
         return placeholders;
     }
 
+    /** Conditions evaluated outside a chain, with the evaluator of {@code if:} (a module's requirements). */
+    @Beta
+    public ConditionsApi getConditions() {
+        return conditions;
+    }
+
     /** Version of this API (the {@code Since} numbering of the published {@code artisan-core-api}). */
     @Stable
     public String getApiVersion() {
@@ -262,6 +271,7 @@ public final class ArtisanAPI {
         private MenuApi menus = MenuApi.NOOP;
         private SchedulerApi scheduler = SchedulerApi.DIRECT;
         private PlaceholderRegistry placeholders = PlaceholderRegistry.NOOP;
+        private ConditionsApi conditions = ConditionsApi.NOOP;
 
         private Builder(
             JavaPlugin plugin,
@@ -340,6 +350,11 @@ public final class ArtisanAPI {
 
         public Builder placeholders(PlaceholderRegistry placeholders) {
             this.placeholders = Objects.requireNonNull(placeholders);
+            return this;
+        }
+
+        public Builder conditions(ConditionsApi conditions) {
+            this.conditions = Objects.requireNonNull(conditions);
             return this;
         }
 
