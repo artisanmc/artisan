@@ -17,13 +17,38 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>{@code projectId} puts the project in scope for i18n: an action can then carry {@code @key},
  * resolved from that project's {@code lang/}. Without it, texts stay literal.
+ *
+ * <p>{@link #run} takes a chain as a module stores it in its own Document (the keyed structured
+ * wire, ADR {@code structured-action-wire}), where {@link #execute} takes the legacy DSL string.
  */
 @Beta
 public interface ModuleActionsApi {
     /** Inert default (tests / partial wiring). */
-    ModuleActionsApi NOOP = (player, actions, args, projectId) -> {};
+    ModuleActionsApi NOOP = new ModuleActionsApi() {
+        @Override
+        public void execute(Player player, String actions, Map<String, Object> args, @Nullable String projectId) {}
+
+        @Override
+        public void run(Player player, @Nullable Object chain, Map<String, Object> args, @Nullable String projectId) {}
+    };
 
     void execute(Player player, String actions, Map<String, Object> args, @Nullable String projectId);
+
+    /**
+     * Runs an action chain in its wire form: a keyed step or a list of them ({@code [{send_message:
+     * "Hi"}, {quests:start: intro}]}), read like a menu's {@code actions}; a string is still read as
+     * the legacy DSL. Same thread, bindings and i18n scope as {@link #execute}; a null or empty chain
+     * does nothing, an unreadable one is skipped with a WARN.
+     */
+    void run(Player player, @Nullable Object chain, Map<String, Object> args, @Nullable String projectId);
+
+    default void run(Player player, @Nullable Object chain, Map<String, Object> args) {
+        run(player, chain, args, null);
+    }
+
+    default void run(Player player, @Nullable Object chain) {
+        run(player, chain, Map.of(), null);
+    }
 
     default void execute(Player player, String actions, Map<String, Object> args) {
         execute(player, actions, args, null);
