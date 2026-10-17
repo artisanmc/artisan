@@ -20,6 +20,8 @@ export interface RevealFieldProps {
   onDeactivate?: () => void;
   /** Merged after the design-system base class on the editor + facade. */
   className?: string;
+  /** Names the field on the facade and on the editor. */
+  "aria-label"?: string;
 }
 
 /**
@@ -40,6 +42,7 @@ export function RevealField({
   onActivate,
   onDeactivate,
   className,
+  "aria-label": ariaLabel,
 }: RevealFieldProps) {
   const [editing, setEditing] = useState(false);
 
@@ -58,6 +61,7 @@ export function RevealField({
         )}
         onFocus={activate}
         onClick={activate}
+        aria-label={ariaLabel}
       >
         {value.trim() ? (
           <span
@@ -88,6 +92,7 @@ export function RevealField({
         rows={rows}
         placeholder={placeholder}
         autoFocus
+        aria-label={ariaLabel}
         onBlur={() => {
           setEditing(false);
           onDeactivate?.();

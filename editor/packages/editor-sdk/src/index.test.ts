@@ -16,6 +16,7 @@ describe("@artisan/editor-sdk public surface", () => {
     expect(typeof sdk.ActionChainEditor).toBe("function");
     expect(typeof sdk.MaterialInput).toBe("function");
     expect(typeof sdk.ItemInput).toBe("function");
+    expect(typeof sdk.MiniMessageInput).toBe("function");
     expect(typeof sdk.cn).toBe("function");
   });
 
