@@ -32,6 +32,11 @@ export interface EditorHost {
   fieldText(project: unknown, key: string): string | Record<string, string>;
   /** The Project's languages, its default first. */
   langs(project: unknown): string[];
+  /**
+   * Selects a Document, or one of its parts (`board.items` id) when `item` is set: the board
+   * lights it up and the Properties panel shows the kind's view with that `item` (SDK 1.2).
+   */
+  selectDocumentItem(input: { documentId: string; item?: string | null }): void;
   /** Briefly tells the user something (a refused value, a done operation). */
   notify(message: string, tone?: "info" | "error"): void;
   /** The editor's own widgets a module view embeds (SDK 1.1). */
@@ -96,6 +101,8 @@ export const textValue = (project: unknown, key: string, lang: string): string =
 export const fieldText = (project: unknown, key: string): string | Record<string, string> =>
   current().fieldText(project, key);
 export const projectLangs = (project: unknown): string[] => current().langs(project);
+export const selectDocumentItem: EditorHost["selectDocumentItem"] = (input) =>
+  current().selectDocumentItem(input);
 export const notify: EditorHost["notify"] = (message, tone) => current().notify(message, tone);
 
 /**

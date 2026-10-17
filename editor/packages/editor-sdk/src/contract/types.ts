@@ -55,7 +55,7 @@ export interface DocumentKindContribution {
    */
   chainSlots?: (doc: unknown) => Iterable<ChainSlotContribution>;
   /**
-   * Board overrides, both optional. `size` is the node's box; `render` a NON-interactive
+   * Board overrides, all optional. `size` is the node's box; `render` a NON-interactive
    * preview drawn inside the node (react-konva), under the host's label. Editing happens
    * in the Properties panel.
    */
@@ -64,13 +64,33 @@ export interface DocumentKindContribution {
     /** The node's second line (`"dialog · 2btn"` for a dialog); the kind name when absent. */
     summary?: (doc: unknown, ctx: DocumentLabelContext) => string;
     render?: ComponentType<DocumentPreviewProps>;
+    /**
+     * The Document's parts the board lists under its header, one row each, like a menu's
+     * elements (SDK 1.2): a click selects the part, and the kind's `component` receives it
+     * as `item`. The node grows with the rows; `size.width` still sets its width.
+     */
+    items?: (doc: unknown, ctx: DocumentLabelContext) => BoardItem[];
   };
+}
+
+/** One row of a Document's board node (`board.items`). */
+export interface BoardItem {
+  /** Stable within the Document: what `DocumentEditorProps.item` carries once selected. */
+  id: string;
+  label: string;
+  /** A short second text, right-aligned and dimmed (`"3 objectives"`). */
+  detail?: string;
 }
 
 export interface DocumentEditorProps {
   projectId: string;
   documentId: string;
   document: unknown;
+  /**
+   * The part of the Document selected on the board or by `selectDocumentItem` (a
+   * `board.items` id), undefined when the Document itself is (SDK 1.2).
+   */
+  item?: string;
 }
 
 export interface DocumentPreviewProps {
