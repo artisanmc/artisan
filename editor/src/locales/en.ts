@@ -1135,7 +1135,7 @@ export default {
     loadingProjects: "Reading…",
     projectsUnavailable: "Server unreachable",
     installedModules: "Installed modules",
-    noModules: "No module installed.",
+    providedBy: "Provided by {{module}}",
     configuration: "Configuration",
     newProject: "+ New project",
     serverLabel: "Server",
