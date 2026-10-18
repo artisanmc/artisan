@@ -1,7 +1,8 @@
 # Le runtime d'Artisan est une librairie — un module de la suite démarre sans le plugin
 
-**Statut :** accepté (2026-10-18). Première étape : le module Gradle `runtime`, publié comme
-`net.artisanmc:artisan-runtime`. Le jar livré ne change pas de comportement.
+**Statut :** accepté (2026-10-18) pour ① et ② ; ③, ④ et ⑤ **retirés** le même jour (voir
+l'amendement en fin de document). Le module Gradle `runtime` reste, consommé par `paper` ; il
+n'est pas publié et aucun plugin de la suite n'en porte de copie.
 
 ## Contexte
 
@@ -83,3 +84,31 @@ MySQL/MariaDB, les tables préfixées comme aujourd'hui.
 - `RuntimePackageCyclesTest` garde le DAG des packages du runtime, comme `core` et `paper`.
 - Un consommateur en mode dégradé reste à écrire plugin par plugin (ArtisanQuests en pilote) ;
   ce que ça exige du runtime (un `MenuProvider` qui ne trouve rien et le dit) viendra avec lui.
+
+## Amendement 2026-10-18 — pas de copie du runtime : le plugin Artisan reste requis
+
+Le pilote ArtisanQuests (PR msquests#23, fermée sans merge) a montré ce que ③ et ④ coûtent :
+l'API doit être embarquée **relocalisée** à côté du runtime (sans le plugin Artisan ses classes
+n'existent pas, et `ModuleDatabase` comme le moteur les référencent, ce que ③ n'avait pas vu),
+donc deux copies des mêmes classes dans la JVM et un pont de conversion entre elles ; un
+aiguillage « Artisan présent ou absent » et un adaptateur par service dans chaque plugin ; une
+passe de relocalisation supplémentaire pour les descripteurs JVM que `@kotlin.Metadata` garde en
+texte ; 13 Mo de runtime par plugin. Le mettre dans la librairie (une façade qui rend
+l'`ArtisanAPI` du plugin ou une locale) exigeait de découpler les 28 fichiers du runtime qui
+importent le package API. Un jar bibliothèque passif partagé règle tout cela mais revient à un
+jar dont tous dépendent, ce que le propriétaire refuse.
+
+Ce que ④ visait, c'est qu'un problème d'Artisan n'immobilise pas quêtes, guildes et terrains. Or
+la copie n'y change rien : un bug du moteur est le même dans la copie, et ce qui casse un
+plugin actif (hub, port, base, paquets, synchronisation) est déjà hors du chemin des
+dépendants. `ArtisanPlugin.onEnable` construit et enregistre l'API avant toute étape qui peut
+échouer ; l'échec de PacketEvents, de la base de la suite et de l'éditeur est attrapé ; et
+depuis cet amendement la commande, le listener des menus et tout le côté jeu sont en place
+avant le démarrage de l'éditeur, lui-même sous une garde qui journalise en SEVERE et laisse le
+plugin activé (`ArtisanPluginEnableResilienceTest`). Il reste deux cas où tout tombe : le jar
+Artisan absent ou refusé au chargement, et un bug du moteur, qu'une copie n'aurait pas évités.
+
+Décisions retirées : ③ (publication de `artisan-runtime`, `ModuleDatabase`), ④ (dépendance
+optionnelle et mode dégradé), ⑤ (pool ouvert par le module ; l'amendement de
+`suite-foundation-database` est retiré avec lui, `api.database` reste la voie). Les plugins de
+la suite déclarent Artisan `required: true` et prennent tout de son `ArtisanAPI`.

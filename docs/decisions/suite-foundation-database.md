@@ -61,7 +61,10 @@ plugin.
    présence, téléportation) suivra dans la même facade, avec `server_name` et
    `redis` dans `environment.yml`.
 
-### Amendement 2026-10-18 — un plugin ouvre son pool lui-même (ADR `runtime-library`)
+### Amendement 2026-10-18 — un plugin ouvre son pool lui-même (ADR `runtime-library`) — **retiré**
+
+*Retiré le jour même, avec ③ ④ ⑤ de `runtime-library` (voir son amendement) : les plugins de la
+suite gardent Artisan requis et `api.database`. Le texte reste pour l'historique.*
 
 Les points 3, 5 et 6 supposaient le plugin Artisan présent : les pools vivaient dans sa JVM,
 derrière `api.database`. Un plugin de la suite doit démarrer sans lui, donc :

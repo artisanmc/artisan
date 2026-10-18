@@ -155,20 +155,40 @@ open class ArtisanPlugin : JavaPlugin() {
         // Modules register before the first `hello`, which announces them.
         runtime.start(cfg) { defaultModules().forEach { api.modules.register(it) } }
         runtime.registerCustomItemsReloadListeners()
-        editorSessions = net.artisanmc.plugin.hub.Sessions(
-            sessionTtl = java.time.Duration.ofDays(cfg.web.sessionDays.toLong()),
-            store = suite.editorSessionStore(),
-        )
-        editorHost.start(cfg.web)
-        // A leaf tells the hub; the editor of a hub reads the announcement on its next load.
-        localEditorBundles.watch(scheduler) { (menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged() }
-        editorHost.startPermissionReports(cfg.web)
 
+        // The game side is complete here: the API is served, the engine runs, menus open
+        // and `/artisan` answers. What follows is the editor, which the suite's plugins
+        // (quests, guilds, lands...) do not need: a failure there is logged and the
+        // plugin stays enabled with everything above, instead of taking them down with it.
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
         getCommand("artisan")?.tabCompleter = artisanCommand
         server.pluginManager.registerEvents(MenuListener(this, runtime.sessions, runtime.executor, menuWindows, history = runtime.navigationHistory, events = menuEvents), this)
+
+        // The sign-in store cannot fail and `/artisan editor` reads it: outside the guard.
+        editorSessions = net.artisanmc.plugin.hub.Sessions(
+            sessionTtl = java.time.Duration.ofDays(cfg.web.sessionDays.toLong()),
+            store = suite.editorSessionStore(),
+        )
+        try {
+            startEditor(cfg)
+        } catch (t: Throwable) {
+            if (t is VirtualMachineError) throw t
+            logger.log(
+                java.util.logging.Level.SEVERE,
+                "[Artisan] The editor could not start: menus, commands and the modules keep running without it. Fix the cause and restart.",
+                t,
+            )
+        }
         logger.info("Artisan ${description.version} enabled")
+    }
+
+    /** The editor side: the hub (or the link to it), the dev bundles, the permission reports. */
+    internal open fun startEditor(cfg: PluginConfig) {
+        editorHost.start(cfg.web)
+        // A leaf tells the hub; the editor of a hub reads the announcement on its next load.
+        localEditorBundles.watch(scheduler) { (menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged() }
+        editorHost.startPermissionReports(cfg.web)
     }
 
     /**
@@ -199,7 +219,7 @@ open class ArtisanPlugin : JavaPlugin() {
         suite.unregister()
         if (::database.isInitialized) database.closeAll()
         runtime.commandRegistrar.unregisterAll()
-        menuProvider.shutdown()
+        menuProviderOrNull?.shutdown()
         if (packetEventsLoaded) runCatching { PacketEvents.getAPI().terminate() }
         logger.info("Artisan disabled")
     }
