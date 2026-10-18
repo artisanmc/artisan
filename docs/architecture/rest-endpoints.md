@@ -87,4 +87,4 @@ Comptes (inscription, connexion e-mail/Google/Discord, suppression), réseaux mu
 membres, invitations, demandes d'accès, transferts, clés serveur et codes de liaison,
 démo, facturation et crédits, administration, assistant IA et sources d'import, copie de
 Project vers un autre serveur, miroir d'instantané, diffusion et mise à jour
-signée du jar. État cloud récupérable au commit `f085f576` (branche `v2`).
+signée du jar. État cloud récupérable au commit `ccade092` (branche `v2`).

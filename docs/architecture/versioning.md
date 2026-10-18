@@ -346,7 +346,7 @@ Sans objet tant que l'éditeur voyage dans le même jar que le hub qui sert l'AP
 ## 6. Database schema
 
 Plus de PostgreSQL ni de migrations Drizzle depuis la phase F (2026-10) : l'historique des 66
-migrations est au commit `f085f576` (branche `v2`).
+migrations est au commit `ccade092` (branche `v2`).
 
 Artisan prête une base à la suite (`environment.yml` → `database.type: h2 | mysql | mariadb`,
 `DatabaseApi`, ADR `suite-foundation-database`) mais **n'y crée aucune table**. Chaque plugin de

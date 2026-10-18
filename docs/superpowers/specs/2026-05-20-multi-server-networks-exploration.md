@@ -148,7 +148,7 @@ admin tape : /artisan pushLocal <pack_id> | --all
 
 ### Conséquence : retrait de l'UI conflits récente
 
-Le merge `sync-deletion` (commits `4ac2e989`, `2fa3228b`, `729b6843`, `ebea32f0`) a introduit une UI de résolution de conflits éditeur ↔ disque. **Cette UI est invalidée** par ce modèle. À retirer :
+Le merge `sync-deletion` (commits `2e466927`, `d89dbe7b`, `05efa710`, `f50cb83e`) a introduit une UI de résolution de conflits éditeur ↔ disque. **Cette UI est invalidée** par ce modèle. À retirer :
 
 - `ConflictResolutionModal`, `ConflictBanner`, `conflictsStore`
 - Endpoints `/api/.../conflicts/*`

@@ -1,7 +1,7 @@
 # Plan — Theming System Refactor
 
 **Date:** 2026-06-04
-**Spec:** `docs/superpowers/specs/2026-06-04-theming-system-design.md` (commit `dde6772c`)
+**Spec:** `docs/superpowers/specs/2026-06-04-theming-system-design.md` (commit `574fe4a8`)
 **Goal:** Replace the single-mode warm-terracotta palette with a dual dark/light system. Decouple ~100 component call-sites from raw tokens so future palette changes cost one file edit. Ship a real light mode with user preference persisted to account.
 
 **Architecture:**

@@ -498,7 +498,7 @@ typed on a leaf asks the hub for the **Login link**.
 *Was* the act of binding a Server to its cloud credential (`/artisan link <code>`,
 link codes, server keys). Removed with the backend in phase F: a server needs no
 credential to serve its own editor, and a **Leaf** joins its **Hub** with
-`web.hub` and the **Network secret**. State recoverable at commit `f085f576`.
+`web.hub` and the **Network secret**. State recoverable at commit `ccade092`.
 _Avoid_: link code, server key, claim, setup.
 
 ## Login link

@@ -144,7 +144,7 @@ L'éditeur l'ouvre directement (`new EditorWs(handlers)`), sans ticket : le cook
 l'ancien `project_rename` à `operation_id` et journal (+ `hello.project_rename_results`), `asset_write`, `plugin_update`,
 `member_add`, `import_sources_list|read`, `bundle_available`, ainsi que les champs de `hello`
 `capabilities`, `content_version`, `snapshot_hashes`, `local_project_ids`,
-`editor_access_mode`. État cloud récupérable au commit `f085f576` (branche `v2`).
+`editor_access_mode`. État cloud récupérable au commit `ccade092` (branche `v2`).
 
 ## Côté plugin : un gestionnaire par message
 
