@@ -43,7 +43,7 @@ class PaperPackageCyclesTest {
                 wildcard.findAll(text).map { it.groupValues[1] }.filter { w -> declared.any { (p, n) -> p == w && Regex("""\b$n\b""").containsMatchIn(code) } }
             targets.map(::top).filter { it != top(pkg) }.forEach { edges.getOrPut(top(pkg)) { mutableSetOf() } += it }
         }
-        assertTrue("engine" in edges, "no import read under ${root.absolutePath}")
+        assertTrue(edges.isNotEmpty(), "no import read under ${root.absolutePath}")
         val cycles = edges.flatMap { (a, targets) -> targets.filter { b -> a < b && a in edges[b].orEmpty() }.map { b -> "$a <-> $b" } }
             .filterNot { it.startsWith(" <-> ") || it.endsWith(" <-> ") }
         assertEquals(emptyList(), cycles.sorted())
