@@ -253,7 +253,7 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
 ```json
 {
   "type": "hello",
-  "protocol_version": "1.2",
+  "protocol_version": "1.3",
   "server_key": "<secret du réseau>",
   "proxy_name": "survie2",
   "plugin_version": "1.0.42",
@@ -272,6 +272,8 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
   d'attendre un timeout (`1.1` : `project_create`, `project_delete`, `project_rename`). `1.2`
   (`EDITOR_BUNDLES`) ajoute `editor_bundle` aux `installed_modules` et `editor_bundle_fetch` ; une
   feuille plus ancienne n'annonce aucun bundle, la route `ui.js` rend 404 sans rien lui envoyer.
+  `1.3` (`TEMPLATES`) ajoute `templates` aux `installed_modules`, `template_fetch`, `template_copy` et
+  `project_origins_fetch` ; une feuille plus ancienne reçoit 501 sur ces trois routes.
 - **Une release = un numéro** pour tous les jars ; mettre à jour hub et feuilles ensemble.
 
 Le serveur qui héberge le hub lui parle en process (`LocalServerLink`) : jamais d'écart de version.

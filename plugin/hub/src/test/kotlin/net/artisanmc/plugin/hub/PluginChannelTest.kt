@@ -406,6 +406,70 @@ class PluginChannelTest {
         assertEquals("not_found", error!!["error"].asText())
     }
 
+    @Test
+    fun `a module template is read, copied into a project and traced`() {
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.3")
+        leaf.next()
+
+        val fetch = get("/api/v1/servers/u-survie2/modules/quests/templates/daily")
+        val fetchRequest = leaf.next()
+        assertEquals("template_fetch", fetchRequest["type"].asText())
+        assertEquals("quests", fetchRequest["module_id"].asText())
+        assertEquals("daily", fetchRequest["template_id"].asText())
+        leaf.send(mapOf(
+            "type" to "template_fetch_result", "request_id" to fetchRequest["request_id"].asText(), "ok" to true,
+            "module_id" to "quests", "template" to mapOf("id" to "daily", "version" to 1), "files" to emptyList<Any>(),
+        ))
+        val (fetched, template) = fetch.get(5, TimeUnit.SECONDS)
+        assertEquals(200, fetched)
+        assertEquals("daily", template!!["template"]["id"].asText())
+        assertNull(template["request_id"])
+
+        val copy = send("POST", "/api/v1/projects/u-survie2.shop/templates", mapOf("module" to "quests", "template" to "daily", "paths" to listOf("a.yaml")))
+        val copyRequest = leaf.next()
+        assertEquals("template_copy", copyRequest["type"].asText())
+        assertEquals("shop", copyRequest["project_id"].asText())
+        assertEquals(listOf("a.yaml"), copyRequest["paths"].map { it.asText() })
+        assertEquals(false, copyRequest["replace"].asBoolean())
+        leaf.send(mapOf(
+            "type" to "template_copy_result", "request_id" to copyRequest["request_id"].asText(), "ok" to false,
+            "error" to "conflict", "conflicts" to listOf("a.yaml"),
+        ))
+        val (refused, conflict) = copy.get(5, TimeUnit.SECONDS)
+        assertEquals(409, refused)
+        assertEquals(listOf("a.yaml"), conflict!!["conflicts"].map { it.asText() })
+
+        val origins = get("/api/v1/projects/u-survie2.shop/origins")
+        val originsRequest = leaf.next()
+        assertEquals("project_origins_fetch", originsRequest["type"].asText())
+        leaf.send(mapOf(
+            "type" to "project_origins_fetch_result", "request_id" to originsRequest["request_id"].asText(), "ok" to true,
+            "origins" to mapOf("a.yaml" to mapOf("module" to "quests", "template" to "daily", "version" to 1, "hash" to "h")),
+        ))
+        assertEquals("daily", origins.get(5, TimeUnit.SECONDS).second!!["origins"]["a.yaml"]["template"].asText())
+
+        val (invalid, _) = send("POST", "/api/v1/projects/u-survie2.shop/templates", mapOf("module" to "quests")).get(5, TimeUnit.SECONDS)
+        assertEquals(422, invalid)
+        assertTrue(leaf.received.isEmpty())
+    }
+
+    @Test
+    fun `a server without templates is told to update`() {
+        val leaf = Leaf()
+        leaf.hello(protocol = "1.2")
+        leaf.next()
+        for ((code, body) in listOf(
+            get("/api/v1/servers/u-survie2/modules/quests/templates/daily"),
+            get("/api/v1/projects/u-survie2.shop/origins"),
+            send("POST", "/api/v1/projects/u-survie2.shop/templates", mapOf("module" to "quests", "template" to "daily")),
+        ).map { it.get(5, TimeUnit.SECONDS) }) {
+            assertEquals(501, code)
+            assertEquals("plugin_update_required", body!!["error"].asText())
+        }
+        assertTrue(leaf.received.isEmpty())
+    }
+
     private fun raw(path: String): CompletableFuture<HttpResponse<ByteArray>> {
         val request = HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}$path")).header("Cookie", cookie).build()
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
