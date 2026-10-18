@@ -108,7 +108,8 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > `documents: DocumentKindContribution[]` : `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
 > `icon?`, `component` (vue du panneau Propriétés), `title?`, `listByTitle?`, `create`, `parse`,
 > `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
-> aperçu non interactif, `items` : lignes sélectionnables, SDK 1.2). L'hôte l'installe à l'enregistrement (`registerEditorModule`,
+> aperçu non interactif, `items` : lignes sélectionnables, SDK 1.2, avec `marker` et `hover` en 1.5 ;
+> `accent`, SDK 1.5). L'hôte l'installe à l'enregistrement (`registerEditorModule`,
 > `lib/moduleDocumentKinds.ts`) dans sa table des kinds, ses codecs et ses visiteurs ; le panneau,
 > les listings, la recherche, la planche, les traductions et les arêtes le lisent par le registre
 > SDK (`documentKindContribution(kind)`). Les kinds core sont déclarés ainsi
