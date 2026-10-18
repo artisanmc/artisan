@@ -2,8 +2,10 @@
 # The web editor, network and database settings live in environment.yml,
 # which the editor never reads nor writes.
 
-# Language for plugin system messages (en, fr). Defaults to en.
-# Place custom lang files in plugins/Artisan/lang/<code>.yml to override.
+# Language for plugin system messages (en, fr). Defaults to en. Also the default
+# of the suite's plugins that do not set their own.
+# A plugins/Artisan/lang/<code>.yml overrides the keys it holds; a new <code>
+# adds a language.
 language: "en"
 
 # When true, plugin messages are sent in each player's client language when
