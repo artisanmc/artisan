@@ -70,6 +70,11 @@ export interface DocumentKindContribution {
      * as `item`. The node grows with the rows; `size.width` still sets its width.
      */
     items?: (doc: unknown, ctx: DocumentLabelContext) => BoardItem[];
+    /**
+     * The node's colour (`"#f59e0b"`): its border, header band and title (SDK 1.5). The
+     * host's default blue when absent.
+     */
+    accent?: string;
   };
 }
 
@@ -80,6 +85,22 @@ export interface BoardItem {
   label: string;
   /** A short second text, right-aligned and dimmed (`"3 objectives"`). */
   detail?: string;
+  /**
+   * A short mark before the label, in a disc (SDK 1.5): the part's rank when the parts run
+   * in order (`"1"`, `"2"`…). When every row has one, the discs are linked by a line.
+   */
+  marker?: string;
+  /** What a tooltip shows while the pointer is over the row (SDK 1.5). */
+  hover?: BoardItemHover;
+}
+
+/** A `BoardItem`'s tooltip; every text is MiniMessage. */
+export interface BoardItemHover {
+  title?: string;
+  /** A paragraph under the title; `\n` breaks lines. */
+  text?: string;
+  /** A list under the text, one entry per line (a quest's objectives). */
+  lines?: string[];
 }
 
 export interface DocumentEditorProps {

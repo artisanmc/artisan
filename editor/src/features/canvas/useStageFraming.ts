@@ -5,7 +5,10 @@ import type Konva from "konva";
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { viewportForCenterRequest } from "./centerRequest";
 import { fitViewport } from "./focusViewport";
-import { menuBoxSize } from "./menuLayout";
+import { menuBoxSize, nodeBox } from "./menuLayout";
+
+/** How much a module Document's node may grow to fill its own view (a menu never grows). */
+const FOCUS_NODE_MAX_SCALE = 2;
 import { usePanZoom } from "./usePanZoom";
 
 /** The measured size of the stage's wrapper. */
@@ -83,22 +86,25 @@ export function useStageFraming({
 
   // Initial framing of the focused Document: centred, shrunk only if it does
   // not fit — never enlarged.
-  const focusBox = useMemo(() => {
-    if (!focus) return null;
+  const focusBox = useMemo<{ width: number; height: number; maxScale?: number } | null>(() => {
+    if (!focus || !project) return null;
     // `focus` is a Document id (the umbrella); `menu.id` is a MenuId. Nominal
     // brands do not overlap, so the comparison is textual.
     const menu = menusOf(project).find((m) => (m.id as string) === focus);
-    return menu ? menuBoxSize(menu.inventoryType ?? "chest", menu.rows) : null;
+    if (menu) return menuBoxSize(menu.inventoryType ?? "chest", menu.rows);
+    const box = nodeBox(project, focus, { [focus]: { x: 0, y: 0 } });
+    // A module's node is vector text, not pixel art: it may grow to fill its view.
+    return box ? { width: box.width, height: box.height, maxScale: FOCUS_NODE_MAX_SCALE } : null;
   }, [project, focus]);
   useEffect(() => {
     if (touchedRef.current || size.w === 0 || !focusBox) return;
-    setViewport(fitViewport(size, focusBox));
+    setViewport(fitViewport(size, focusBox, focusBox.maxScale));
   }, [size, focusBox, setViewport]);
 
   /** Focus escape hatch (double-click on the background): reframe the Document. */
   const refitFocus = () => {
     if (!focusBox) return;
-    const fitted = fitViewport(size, focusBox);
+    const fitted = fitViewport(size, focusBox, focusBox.maxScale);
     touchedRef.current = false;
     setViewport(fitted);
     useUiStore.getState().setDocumentViewport(fitted);
