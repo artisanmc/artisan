@@ -18,6 +18,7 @@ import type {
   Condition,
   Element,
   ElementId,
+  I18nKey,
   Layer,
   Menu,
   MenuId,
@@ -46,7 +47,9 @@ import {
   gcAppearanceLTexts,
   gcElementLTexts,
   gcStepLTexts,
+  lendTexts,
   nextElementIdForMaterial,
+  returnTexts,
 } from "./helpers";
 import { type Mutation, findElement } from "./mutate";
 import type { AppearanceTarget, ProjectsSliceContext } from "./types";
@@ -359,7 +362,13 @@ export interface ElementsSlice {
    * first layer. Any positions claimed by the new element are stripped from
    * sibling elements (positions are unique within a menu).
    */
-  addElement: (input: { projectId: ProjectId; menuId: MenuId; element: Element }) => void;
+  /** `texts`: the clipboard's translations, for an element copied from another Project. */
+  addElement: (input: {
+    projectId: ProjectId;
+    menuId: MenuId;
+    element: Element;
+    texts?: Record<I18nKey, Record<string, string>>;
+  }) => void;
   addImageButton: (input: {
     projectId: ProjectId;
     menuId: MenuId;
@@ -385,6 +394,8 @@ export interface ElementsSlice {
     menus: Menu[];
     commands: Command[];
     offset: { x: number; y: number };
+    /** The clipboard's translations, for entities copied from another Project. */
+    texts?: Record<I18nKey, Record<string, string>>;
   }) => void;
 }
 
@@ -860,8 +871,9 @@ export const createElementsSlice = ({
       });
       return created;
     },
-    addElement: ({ projectId: pId, menuId: mId, element }) =>
+    addElement: ({ projectId: pId, menuId: mId, element, texts }) =>
       mutateMenu(pId, mId, (menu, project) => {
+        const lent = lendTexts(project, texts);
         const newPositions = parsePositions(element.positions);
         for (const layer of menu.layers) {
           for (const otherEl of layer.elements) {
@@ -920,6 +932,7 @@ export const createElementsSlice = ({
           })(),
         };
         firstLayer.elements.push(elementToAdd);
+        returnTexts(project, lent);
       }),
     moveSelectionByDelta: ({ projectId: pId, menuId: mId, elementIds, dCol, dRow }) =>
       mutateMenu(pId, mId, (menu) => {
@@ -1021,10 +1034,11 @@ export const createElementsSlice = ({
         }
         return false;
       }),
-    pasteEntities: ({ projectId: pId, menus, commands, offset }) =>
+    pasteEntities: ({ projectId: pId, menus, commands, offset, texts }) =>
       mutateProject(
         pId,
         (project) => {
+          const lent = lendTexts(project, texts);
           // Clone every LText held by the pasted entities under fresh
           // keys, copying the value map from the source. Otherwise the
           // copies would share keys with the originals — editing one
@@ -1067,6 +1081,7 @@ export const createElementsSlice = ({
             offset.x += 24;
             offset.y += 24;
           }
+          returnTexts(project, lent);
         },
         // A paste has never stamped `updatedAt`; kept as is.
         { touch: false },

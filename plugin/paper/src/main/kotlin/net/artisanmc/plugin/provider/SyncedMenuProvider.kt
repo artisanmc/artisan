@@ -54,6 +54,8 @@ class SyncedMenuProvider(
     private val dataSources: net.artisanmc.modules.api.datasource.DataSourceRegistry? = null,
     /** A module's editor view by module id, served to the hub on `editor_bundle_fetch`. */
     private val editorBundles: (String) -> net.artisanmc.modules.api.editor.EditorBundleDeclaration? = { null },
+    /** The modules' templates, served on `template_fetch` and copied on `template_copy` or once at seed. */
+    private val templates: () -> net.artisanmc.modules.api.template.TemplateRegistry? = { null },
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
     /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */
@@ -149,6 +151,7 @@ class SyncedMenuProvider(
     private val replies = Replies(httpClient.dispatcher.executorService, ::send, logger)
     private val projectReads = ProjectReads(workspace, replies)
     private val projectWrites = ProjectWrites(workspace, replies, ::send, logger)
+    private val templateRequests = net.artisanmc.plugin.protocol.TemplateRequests(workspace, replies, templates)
     private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles)
     @Volatile private var testSendOverride: ((String) -> Unit)? = null
 
@@ -221,6 +224,9 @@ class SyncedMenuProvider(
         // The first load, and `/artisan reload`, read on the calling thread: menus and
         // commands exist when the server opens, and the admin's reply says they do.
         reloadFromDisk()
+        // Modules enabled before this load: their templates are seeded now, the others on
+        // their registration (notifyModulesChanged).
+        seedTemplates()
         val mcVersion = try {
             org.bukkit.Bukkit.getServer().minecraftVersion
         } catch (e: Exception) {
@@ -402,6 +408,27 @@ class SyncedMenuProvider(
     /** Re-report presence to the hub after the active module set changed. */
     fun notifyModulesChanged() {
         wsClient?.send(mapOf("type" to "modules_changed") + announcement().toMap())
+        seedTemplates()
+    }
+
+    /**
+     * Copies, once per server, the templates that name a seed project and were never seeded
+     * (`TemplateSeeds`), then reloads when something was written. Off the game threads, with
+     * the other disk writes.
+     */
+    fun seedTemplates() {
+        val registry = templates() ?: return
+        workspace.io.execute {
+            val seeds = net.artisanmc.plugin.project.TemplateSeeds(roots, logger)
+            var wrote = false
+            registry.registered().forEach { (moduleId, list) ->
+                list.forEach { template ->
+                    runCatching { if (seeds.seed(moduleId, template)) wrote = true }
+                        .onFailure { logger?.warning("[Artisan] Template '$moduleId/${template.id}' not seeded: ${it.message}") }
+                }
+            }
+            if (wrote) workspace.reload()
+        }
     }
 
     fun setCustomItemsManager(manager: CustomItemsManager) {
@@ -478,6 +505,9 @@ class SyncedMenuProvider(
             is EditorRequest.HeadTextureFetch -> queries.headTexture(request)
             is EditorRequest.PlayerInventoryFetch -> queries.playerInventory(request)
             is EditorRequest.EditorBundleFetch -> queries.editorBundle(request)
+            is EditorRequest.TemplateFetch -> templateRequests.fetch(request)
+            is EditorRequest.TemplateCopy -> templateRequests.copy(request)
+            is EditorRequest.ProjectOriginsFetch -> templateRequests.origins(request)
             is EditorRequest.DataSourceFetch -> queries.dataSource(request)
             is EditorRequest.ServerConfigWrite -> queries.serverConfigWrite(request)
             is EditorRequest.NexoGlyphsList -> queries.nexoGlyphs(request)
