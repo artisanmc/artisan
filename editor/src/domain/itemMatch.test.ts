@@ -16,14 +16,18 @@ const project = {
 
 describe("defaultItemMatch", () => {
   it("reads the criteria off the spec's fields", () => {
-    expect(defaultItemMatch(project, { material: "DIAMOND" })).toEqual(["material", "damage"]);
+    expect(defaultItemMatch(project, { material: "DIAMOND" })).toEqual([
+      "material",
+      "custom_item",
+      "damage",
+    ]);
     expect(
       defaultItemMatch(project, {
         material: "DIAMOND_SWORD",
         title: "<red>Excalibur",
         enchants: { sharpness: 5 },
       }),
-    ).toEqual(["material", "name", "enchants", "damage"]);
+    ).toEqual(["material", "custom_item", "name", "enchants", "damage"]);
     expect(defaultItemMatch(project, { material: "nexo:ruby" })).toEqual(["custom_item", "damage"]);
   });
 
