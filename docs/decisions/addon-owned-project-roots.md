@@ -95,3 +95,17 @@ Phase 2 limitation: historical source names remain reserved against stale writes
 including `create: true`; renaming back to a previously used name returns
 `destination_reserved`. Case-only rename is supported with the new exact spelling.
 Safe name reuse requires a later lifecycle generation carried by every writer.
+
+### Amendement 2026-10-18 — plus de « projet du module » dans l'éditeur
+
+Le §2 est remplacé. Un module chargé s'utilise dans **n'importe quel** project : ses kinds se
+créent et se lisent partout (ArtisanQuests lit `quest_groups/` de tous les projects), comme ses
+sources de données. Ranger le project d'un add-on sous « Modules installés » montrait donc deux
+sortes de projects, et laissait croire que le contenu du module ne vivait que là.
+
+L'éditeur liste désormais **tous** les projects dans « Projects » ; celui d'un add-on y porte un
+badge au nom du module. « Modules installés » ne garde que ce que le module est seul à gérer : ses
+Config screens et sa route `/m/<id>`. L'entrée « Éditeur » disparaît (ADR `module-config-screens`
+§2), et un module sans rien à configurer n'apparaît plus. La racine enregistrée (§1) ne change
+pas. Suite prévue : les exemples d'un module livrés comme modèles dans son jar, copiés une seule
+fois, avec leur provenance (`architecture/design-modeles-de-module.md` du projet).
