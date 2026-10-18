@@ -56,16 +56,26 @@ data class ServerAnnouncement(
         const val DECLARED_ACTIONS = "declared_actions"
         const val DOCUMENT_KINDS = "document_kinds"
         const val EDITOR_BUNDLE = "editor_bundle"
+        const val TEMPLATES = "templates"
 
         val EMPTY = ServerAnnouncement()
 
         /**
          * An `installed_modules` entry: a module reports the core plugin's version, it has none of its own.
-         * [editorBundle] is its `EditorBundleDeclaration.toWire()` (`{sdk, hash, size}`), when it ships one.
+         * [editorBundle] is its `EditorBundleDeclaration.toWire()` (`{sdk, hash, size}`), when it ships one;
+         * [templates] its `TemplateDeclaration.toWire()` entries, when it ships some.
          */
-        fun module(id: String, version: String, editorBundle: Map<String, Any?>? = null): Map<String, Any?> =
-            if (editorBundle == null) mapOf("id" to id, "version" to version)
-            else mapOf("id" to id, "version" to version, EDITOR_BUNDLE to editorBundle)
+        fun module(
+            id: String,
+            version: String,
+            editorBundle: Map<String, Any?>? = null,
+            templates: List<Map<String, Any?>> = emptyList(),
+        ): Map<String, Any?> = buildMap {
+            put("id", id)
+            put("version", version)
+            if (editorBundle != null) put(EDITOR_BUNDLE, editorBundle)
+            if (templates.isNotEmpty()) put(TEMPLATES, templates)
+        }
 
         fun from(message: Map<*, *>): ServerAnnouncement = EMPTY.updatedBy(message)
     }

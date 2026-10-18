@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
@@ -179,11 +180,11 @@ function ServerOverview({
     useServerScreensStore.getState().load({ serverId: serverKeyId });
   }, [serverKeyId]);
 
-  // Same split as the sidebar — ordinary projects on one side, installed
-  // modules on the other with their tabs (ADR `addon-owned-project-roots`).
+  // Same split as the sidebar — every project in one list, a module's own
+  // badged; under the modules, only their Config screens.
   const updateRequired = status === "unavailable" && unavailableReason === "plugin_update_required";
 
-  const { flatProjects, moduleGroups } = buildProjectGroups({
+  const { projects: projectRows, moduleGroups } = buildProjectGroups({
     projects,
     screens: serverScreens,
     mountedModuleIds,
@@ -232,11 +233,11 @@ function ServerOverview({
                     : "serverDetail.projectsUnavailable",
               )}
             </p>
-          ) : flatProjects.length === 0 ? (
+          ) : projectRows.length === 0 ? (
             <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.noProjects")}</p>
           ) : (
             <ul className="flex flex-col gap-2">
-              {flatProjects.map((w) => (
+              {projectRows.map((w) => (
                 <li key={w.id} className="flex items-center gap-2">
                   <Link
                     to="/servers/$serverId/projects/$projectId"
@@ -246,6 +247,11 @@ function ServerOverview({
                     {/* No Document counter: the hub does not hold the files, so it
                         cannot know it without querying the server's disk. */}
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>
+                    {w.ownerLabel && (
+                      <Badge title={t("sidebar.providedBy", { module: w.ownerLabel })}>
+                        {w.ownerLabel}
+                      </Badge>
+                    )}
                   </Link>
                   {/* The ID is changed in the project Properties; only resuming a pending change remains here. */}
                   {w.pendingRename && (
@@ -268,68 +274,45 @@ function ServerOverview({
           )}
         </section>
 
-        {status === "ready" && (
+        {status === "ready" && moduleGroups.length > 0 && (
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <h2 className="eyebrow">{t("sidebar.installedModules")}</h2>
               <span className="h-px flex-1 bg-[var(--border-soft)]" />
             </div>
-            {moduleGroups.length === 0 ? (
-              <p className="text-[13px] text-[var(--text-mut)]">{t("sidebar.noModules")}</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {moduleGroups.map((g) => (
-                  <li key={g.id} className="card flex flex-col gap-3 p-4">
-                    {/* TODO: render the module's icon once modules ship real icons */}
-                    <span className="text-[14px] font-semibold text-[var(--text)]">{g.label}</span>
-                    <ul className="flex flex-wrap gap-1.5">
-                      {g.entries.map((e) => {
-                        if (e.kind === "project") {
-                          return (
-                            <li key={`p:${e.project.id}`}>
-                              <Link
-                                to="/servers/$serverId/projects/$projectId"
-                                params={{
-                                  serverId,
-                                  projectId: projectUrlId(e.project),
-                                }}
-                                className="chip"
-                              >
-                                {e.label ?? t("screens.editorEntry")}
-                              </Link>
-                            </li>
-                          );
-                        }
-                        if (e.kind === "screen") {
-                          return (
-                            <li key={`s:${e.screen.id}`}>
-                              <Link
-                                to="/servers/$serverId/screens/$screenId"
-                                params={{ serverId, screenId: e.screen.id }}
-                                className="chip"
-                              >
-                                {e.screen.label}
-                              </Link>
-                            </li>
-                          );
-                        }
-                        return (
-                          <li key={`c:${e.moduleId}`}>
-                            <Link
-                              to="/m/$moduleId"
-                              params={{ moduleId: e.moduleId }}
-                              className="chip"
-                            >
-                              {t("sidebar.configuration")}
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ul className="flex flex-col gap-2">
+              {moduleGroups.map((g) => (
+                <li key={g.id} className="card flex flex-col gap-3 p-4">
+                  {/* TODO: render the module's icon once modules ship real icons */}
+                  <span className="text-[14px] font-semibold text-[var(--text)]">{g.label}</span>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {g.entries.map((e) =>
+                      e.kind === "screen" ? (
+                        <li key={`s:${e.screen.id}`}>
+                          <Link
+                            to="/servers/$serverId/screens/$screenId"
+                            params={{ serverId, screenId: e.screen.id }}
+                            className="chip"
+                          >
+                            {e.screen.label}
+                          </Link>
+                        </li>
+                      ) : (
+                        <li key={`c:${e.moduleId}`}>
+                          <Link
+                            to="/m/$moduleId"
+                            params={{ moduleId: e.moduleId }}
+                            className="chip"
+                          >
+                            {t("sidebar.configuration")}
+                          </Link>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
         {serverKeyId && !updateRequired && (
