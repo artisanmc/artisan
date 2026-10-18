@@ -56,6 +56,8 @@ class SyncedMenuProvider(
     private val editorBundles: (String) -> net.artisanmc.modules.api.editor.EditorBundleDeclaration? = { null },
     /** The modules' templates, served on `template_fetch` and copied on `template_copy` or once at seed. */
     private val templates: () -> net.artisanmc.modules.api.template.TemplateRegistry? = { null },
+    /** The server's language, given to the projects a template seeds. */
+    private val seedLang: () -> String = { "en" },
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
     /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */
@@ -419,7 +421,7 @@ class SyncedMenuProvider(
     fun seedTemplates() {
         val registry = templates() ?: return
         workspace.io.execute {
-            val seeds = net.artisanmc.plugin.project.TemplateSeeds(roots, logger)
+            val seeds = net.artisanmc.plugin.project.TemplateSeeds(roots, logger, seedLang)
             var wrote = false
             registry.registered().forEach { (moduleId, list) ->
                 list.forEach { template ->
