@@ -91,6 +91,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `documentKinds` (`getDocumentKinds()`, `@Beta`) | `DocumentKindRegistry` | 2.1.0 |
 | `conditions` (`getConditions()`, `@Beta`) | `ConditionsApi` | 2.2.0 |
 | `editorBundles` (`getEditorBundles()`, `@Beta`) | `EditorBundleRegistry` | 2.3.0 |
+| `translations` (`getTranslations()`, `@Beta`) | `TranslationsApi` | 2.5.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -213,6 +214,23 @@ Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 
 | `ConditionsApi.test(player, conditions, args)`, `test(player, conditions)` | `boolean` | 2.2.0 |
 | `ConditionsApi.validate(conditions)` | `List<String>` | 2.2.0 |
 | `ConditionsApi.NOOP`, `ArtisanAPI.Builder.conditions(conditions)` (`@Internal`) | | 2.2.0 |
+
+### `net.artisanmc.modules.api.translation.TranslationsApi` (`@Beta`, 2.5.0)
+
+The system messages (commands, statuses, errors) of the suite's plugins: one rule for a player's language, one loader and one renderer, each plugin keeping its lang files under its own namespace. Artisan's own messages are the bundle `artisan`. The texts of a Project (`ltext`, `{i18n:key}`) are not here: actions read them with `ActionRuntime.text`.
+
+- `langOf(sender)`: the client language when `per_player_language` is on and the sender is a player, else `language` (`config.yml`); both re-read on `/artisan reload`.
+- `register(declaration)` loads a `MessageBundle`. `MessageBundleDeclaration.files(owner, namespace, bundledLangs...)`: Artisan reads the jar's `lang/<code>.yml` for each bundled language and every `plugins/<Plugin>/lang/*.yml`, merged key by key (the server's keys win), never written. `MessageBundleDeclaration.of(owner, namespace, source)`: the plugin reads its files itself (`MessageSource.load()`: `lang -> key -> text`). `withDefaultLang(lang)` keeps a plugin's own `language` setting in place of Artisan's. Namespace `[a-z][a-z0-9_]*` (`IllegalArgumentException`), unique (`IllegalStateException`); a bundle goes when its owner disables.
+- `MessageBundle.langOf(viewer)` picks among the bundle's languages: the asked one, else the bundle's default, else `en`; `fr` matches `fr_FR` and the reverse. `raw(lang, key)` falls back to the default, then `en`, then the key; `find(lang, key)` has no fallback. `format(template, placeholders)` replaces `<name>`, `{name}` and `%name%` for the names of the map in one pass, the value's tags escaped (a player-typed value cannot inject a click); other names stay (PlaceholderAPI's). `get(...)` is `raw`, `format`, MiniMessage. `reload()` keeps the previous translations when the source fails.
+
+| Member | Type | Since |
+|---|---|---|
+| `TranslationsApi.getDefaultLang()`, `langOf(sender)` | `String` | 2.5.0 |
+| `TranslationsApi.register(declaration)`, `unregister(namespace)`, `bundle(namespace)`, `namespaces()` | | 2.5.0 |
+| `MessageBundleDeclaration.files(owner, namespace, bundledLangs...)`, `of(owner, namespace, source)`, `withDefaultLang(lang)` | `MessageBundleDeclaration` | 2.5.0 |
+| `MessageSource.load()` (`@FunctionalInterface`) | `Map<String, Map<String, String>>` | 2.5.0 |
+| `MessageBundle.getNamespace()`, `getLanguages()`, `getDefaultLang()`, `langOf(viewer)`, `find`, `raw`, `format`, `get`, `reload()` | | 2.5.0 |
+| `TranslationsApi.NOOP`, `ArtisanAPI.Builder.translations(translations)` (`@Internal`) | | 2.5.0 |
 
 ### `net.artisanmc.modules.api.action.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
 
