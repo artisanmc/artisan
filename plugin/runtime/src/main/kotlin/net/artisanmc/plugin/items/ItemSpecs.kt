@@ -22,7 +22,7 @@ import java.util.logging.Logger
  * custom-items plugin, else a vanilla material), and compared to a player's stack criterion by
  * criterion ([ItemComparison]).
  */
-internal class ItemSpecs(
+class ItemSpecs(
     /** `item:<id>` and `<namespace>:<id>` materials, null for anything else ([SoftDepRegistry.buildCustomStack]). */
     private val buildCustom: (material: String, count: Int) -> ItemStack?,
     /** The custom-items plugins a stack is recognized by. */
