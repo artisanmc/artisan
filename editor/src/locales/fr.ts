@@ -1153,7 +1153,7 @@ const fr: typeof en = {
     loadingProjects: "Lecture en cours…",
     projectsUnavailable: "Serveur injoignable",
     installedModules: "Modules installés",
-    noModules: "Aucun module installé.",
+    providedBy: "Fourni par {{module}}",
     configuration: "Configuration",
     newProject: "+ Nouveau projet",
     serverLabel: "Serveur",
