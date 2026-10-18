@@ -1,8 +1,10 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { registerModule } from "@artisan/editor-sdk";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
 
 const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
@@ -93,6 +95,18 @@ describe("DocumentView", () => {
     render(<DocumentView projectId={PID} documentId={"daily" as any} />);
     expect(screen.getByTestId("flow-canvas")).toBeInTheDocument();
     expect(screen.queryByTestId("focus-stage")).toBeNull();
+  });
+  it("opens a module's Document on its node when its kind lists parts on the board", () => {
+    registerModule({
+      id: "quests-test",
+      documents: [{ kind: "quest_group", board: { items: () => [] } } as any],
+    } as any);
+    try {
+      render(<DocumentView projectId={PID} documentId={"daily" as any} />);
+      expect(screen.getByTestId("focus-stage")).toBeInTheDocument();
+    } finally {
+      clearRegistry();
+    }
   });
   it("renders the focused stage + EditorPane for a menu", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
