@@ -10,7 +10,9 @@ import { useUiStore } from "@/state/uiStore";
 import { useEffect } from "react";
 import {
   CLIPBOARD_VERSION,
+  type ClipboardPayload,
   type ElementCopy,
+  collectTexts,
   readClipboard,
   rewriteIds,
   writeClipboard,
@@ -133,6 +135,7 @@ const placeElements = (
   elements: ElementCopy[],
   options: { skipSourcePositions: boolean; anchor?: number },
   onError?: (m: string) => void,
+  texts?: ClipboardPayload["texts"],
 ) => {
   const openProjects = useProjectsStore.getState().openProjects;
   const project = openProjects.projects.find((p) => p.id === projectId);
@@ -167,7 +170,7 @@ const placeElements = (
     for (const p of fit) extra.add(p);
     const placed: Element = { ...ec.element, positions: formatPositions(fit) };
     try {
-      useProjectsStore.getState().addElement({ projectId, menuId, element: placed });
+      useProjectsStore.getState().addElement({ projectId, menuId, element: placed, texts });
     } catch (e) {
       onError?.(e instanceof Error ? e.message : "paste failed");
     }
@@ -186,6 +189,7 @@ const copySelection = async (
     useSelectionStore.getState().menuId,
   );
   if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
+  const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
   try {
     await writeClipboard({
       kind: "artisan.clipboard",
@@ -193,6 +197,7 @@ const copySelection = async (
       menus,
       commands,
       elements,
+      ...(project ? { texts: collectTexts(project, { menus, commands, elements }) } : {}),
     });
   } catch (e) {
     onError?.(e instanceof Error ? e.message : "copy failed");
@@ -221,6 +226,7 @@ const pasteFromClipboard = async (
         menus: rewritten.menus,
         commands: rewritten.commands,
         offset: { x: 80, y: 80 },
+        texts: payload.texts,
       });
     }
     if (rewritten.elements.length > 0) {
@@ -234,6 +240,7 @@ const pasteFromClipboard = async (
           rewritten.elements,
           { skipSourcePositions: false, anchor: anchor?.position },
           onError,
+          payload.texts,
         );
       }
     }
