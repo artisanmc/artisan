@@ -53,8 +53,9 @@ de binding).
    Chaque écran = un label + une Table/Config ; le core génère le formulaire
    (master-detail si racine liste, form simple si racine objet — le form
    generator de `composable-data-models` §7, repositionné en « éditeur
-   générique de config à schéma »). Sidebar : l'entrée module porte « Éditeur »
-   (canvas) + ses écrans. **Fallback** : models déclarés + projet dédié sans
+   générique de config à schéma »). Sidebar : l'entrée module porte ses écrans
+   (l'entrée « Éditeur » du canvas a disparu le 2026-10-18 : le project d'un module est listé avec
+   les autres, voir l'amendement de l'ADR `addon-owned-project-roots`). **Fallback** : models déclarés + projet dédié sans
    `editor_screens` ⇒ un écran « Données » auto-généré (une entrée par Table).
    `FrontendModule.routes` custom reste possible pour un cas exotique, mais
    n'est pas le chemin normal. *Rejeté :* onglet unique imposé « Données »

@@ -114,7 +114,7 @@ ceux-ci — dans **`docs/architecture/invariants.md`**.
    autosave) : le hub lit et édite depuis la base, serveur éteint compris ; seules les écritures et
    les données live vont au serveur (ADR `server-identity-and-versions`).
 2. **`.artisan*` en premier segment = métadonnée** — hors hash, invisible au scan disque. L'éditeur
-   possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`,
+   possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`, `.artisan/origins.yaml`,
    `.artisan-trash/` et `.artisan-sync.yaml` lui restent invisibles **et** interdits en écriture.
 3. **Threads : Paper, Folia, Leaf** — jamais `Bukkit.getScheduler()` : tout passe par le port
    `Scheduler`. Jetty répond sur ses propres threads ; tout accès au jeu depuis le hub repasse par
