@@ -79,9 +79,14 @@ class TemplateCopiesTest {
     @Test
     fun `a seed project is created once, and never again even when deleted`() {
         val roots = ProjectRoots(coreRoot)
-        val seeds = TemplateSeeds(roots)
+        val seeds = TemplateSeeds(roots, defaultLang = { "fr_FR" })
         assertTrue(seeds.seed("quests", template(seed = "quests")))
         assertTrue(File(coreRoot, "quests/menus/daily.yaml").isFile)
+        assertEquals(
+            "schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr]\n",
+            File(coreRoot, "quests/manifest.yaml").readText(),
+            "a template ships no manifest: the seed writes one in the server's language",
+        )
         assertEquals(setOf("quests/daily"), seeds.seeded())
 
         File(coreRoot, "quests").deleteRecursively()

@@ -504,7 +504,7 @@ api.getEditorBundles().register(
 ### 4.8 Modèles de module — API 2.6.0, protocole 1.3
 
 Un module livre du **contenu d'exemple** copiable dans n'importe quel Project (ADR `module-templates`) :
-un modèle = des fichiers de Project (Documents, menus, `lang/`…) lus dans son jar, une version qu'il
+un modèle = des fichiers de Project (Documents, menus, `lang/`… jamais `manifest.yaml`, propre à chaque Project) lus dans son jar, une version qu'il
 monte à chaque changement, un Project d'amorçage facultatif.
 
 ```java
@@ -522,7 +522,8 @@ api.getTemplates().register(TemplateDeclaration
   un fichier déjà présent au contenu différent n'est jamais écrasé sans `replace` (409 `conflict` + `conflicts`).
   Chaque fichier copié est tracé dans `.artisan/origins.yaml` ; `GET …/projects/:project/origins` les lit.
 - **Amorçage** : un modèle avec `seed(projectId)` est copié une seule fois dans un nouveau Project de ce
-  nom (`.artisan-seeds.yaml` à la racine core), jamais recréé si le propriétaire le supprime.
+  nom (`.artisan-seeds.yaml` à la racine core), avec un manifest dans la langue du serveur, jamais
+  recréé si le propriétaire le supprime.
 
 ## 5. Module bootstrap : content bundles
 
