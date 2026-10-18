@@ -91,7 +91,8 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `documentKinds` (`getDocumentKinds()`, `@Beta`) | `DocumentKindRegistry` | 2.1.0 |
 | `conditions` (`getConditions()`, `@Beta`) | `ConditionsApi` | 2.2.0 |
 | `editorBundles` (`getEditorBundles()`, `@Beta`) | `EditorBundleRegistry` | 2.3.0 |
-| `templates` (`getTemplates()`, `@Beta`) | `TemplateRegistry` | 2.5.0 |
+| `translations` (`getTranslations()`, `@Beta`) | `TranslationsApi` | 2.5.0 |
+| `templates` (`getTemplates()`, `@Beta`) | `TemplateRegistry` | 2.6.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -215,6 +216,23 @@ Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 
 | `ConditionsApi.validate(conditions)` | `List<String>` | 2.2.0 |
 | `ConditionsApi.NOOP`, `ArtisanAPI.Builder.conditions(conditions)` (`@Internal`) | | 2.2.0 |
 
+### `net.artisanmc.modules.api.translation.TranslationsApi` (`@Beta`, 2.5.0)
+
+The system messages (commands, statuses, errors) of the suite's plugins: one rule for a player's language, one loader and one renderer, each plugin keeping its lang files under its own namespace. Artisan's own messages are the bundle `artisan`. The texts of a Project (`ltext`, `{i18n:key}`) are not here: actions read them with `ActionRuntime.text`.
+
+- `langOf(sender)`: the client language when `per_player_language` is on and the sender is a player, else `language` (`config.yml`); both re-read on `/artisan reload`.
+- `register(declaration)` loads a `MessageBundle`. `MessageBundleDeclaration.files(owner, namespace, bundledLangs...)`: Artisan reads the jar's `lang/<code>.yml` for each bundled language and every `plugins/<Plugin>/lang/*.yml`, merged key by key (the server's keys win), never written. `MessageBundleDeclaration.of(owner, namespace, source)`: the plugin reads its files itself (`MessageSource.load()`: `lang -> key -> text`). `withDefaultLang(lang)` keeps a plugin's own `language` setting in place of Artisan's. Namespace `[a-z][a-z0-9_]*` (`IllegalArgumentException`), unique (`IllegalStateException`); a bundle goes when its owner disables.
+- `MessageBundle.langOf(viewer)` picks among the bundle's languages: the asked one, else the bundle's default, else `en`; `fr` matches `fr_FR` and the reverse. `raw(lang, key)` falls back to the default, then `en`, then the key; `find(lang, key)` has no fallback. `format(template, placeholders)` replaces `<name>`, `{name}` and `%name%` for the names of the map in one pass, the value's tags escaped (a player-typed value cannot inject a click); other names stay (PlaceholderAPI's). `get(...)` is `raw`, `format`, MiniMessage. `reload()` keeps the previous translations when the source fails.
+
+| Member | Type | Since |
+|---|---|---|
+| `TranslationsApi.getDefaultLang()`, `langOf(sender)` | `String` | 2.5.0 |
+| `TranslationsApi.register(declaration)`, `unregister(namespace)`, `bundle(namespace)`, `namespaces()` | | 2.5.0 |
+| `MessageBundleDeclaration.files(owner, namespace, bundledLangs...)`, `of(owner, namespace, source)`, `withDefaultLang(lang)` | `MessageBundleDeclaration` | 2.5.0 |
+| `MessageSource.load()` (`@FunctionalInterface`) | `Map<String, Map<String, String>>` | 2.5.0 |
+| `MessageBundle.getNamespace()`, `getLanguages()`, `getDefaultLang()`, `langOf(viewer)`, `find`, `raw`, `format`, `get`, `reload()` | | 2.5.0 |
+| `TranslationsApi.NOOP`, `ArtisanAPI.Builder.translations(translations)` (`@Internal`) | | 2.5.0 |
+
 ### `net.artisanmc.modules.api.action.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
 
 Every action of a chain, Artisan's own included, runs through this registry (ADR `extensible-document-kinds`, R1). A module registers its actions from `onEnable`; they are removed with the module. Names: `^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`, a module's namespaced (`quests:start`).
@@ -272,16 +290,16 @@ api.getEditorBundles().register(
     EditorBundleDeclaration.fromResource(getClass().getClassLoader(), "artisan-editor/ui.js", "1.0"));
 ```
 
-### `net.artisanmc.modules.api.template.TemplateRegistry` and the template contract (`@Beta`, 2.5.0)
+### `net.artisanmc.modules.api.template.TemplateRegistry` and the template contract (`@Beta`, 2.6.0)
 
 A module may ship **templates**: example content (Documents, menus, `lang/` files…) it offers to copy into any Project, registered from `onEnable` and removed with the module (ADR `module-templates`). A template is announced at Presence on the module's `installed_modules` entry (`templates: [{id, title, version, seed_project?, files:[{path, hash, size}]}]`, protocol 1.3), without its content; the editor reads the files on demand (the default version, read-only), copies them into a Project, and compares a copy to the version shipped. A copy is never automatic and never overwrites the owner's edits unless they ask. A template with a seed project is copied once into a new Project of that name, the first start that knows it, and never again (`<core projects root>/.artisan-seeds.yaml`), even when the owner deletes it.
 
 | Member | Type | Since |
 |---|---|---|
-| `TemplateRegistry.register(decl)` (owner = the module whose `onEnable` runs; outside one, or a second template with that id for that module, `IllegalStateException`), `find(moduleId, templateId)` (nullable), `of(moduleId)` (registration order), `registered()` (module id → declarations) | | 2.5.0 |
-| `TemplateDeclaration.builder(id, version)` (`id` `^[a-z][a-z0-9_]*$`, `version` ≥ 1, raised each time the files change), `fromResources(loader, root, id, version, paths)` (missing resource: `IllegalArgumentException`); `Builder.title(title)`, `seed(projectId)` (`^[a-z0-9][a-z0-9_-]*$`), `file(path, bytes)` (relative `/` path of plain segments, no `..`, no leading dot, never `.artisan*`; ≤ `MAX_SIZE` = 4 MiB in all), `build()` | `TemplateDeclaration.Builder` | 2.5.0 |
-| `TemplateDeclaration.getId()`, `getTitle()` (the id when none), `getVersion()`, `getSeedProject()` (nullable), `getPaths()`, `getFile(path)` (copy, nullable), `getHash(path)` (lowercase hex SHA-256, nullable), `toWire()`, `sha256(bytes)` | | 2.5.0 |
-| `ArtisanAPI.Builder.templates(registry)` (`@Internal`) | `Builder` | 2.5.0 |
+| `TemplateRegistry.register(decl)` (owner = the module whose `onEnable` runs; outside one, or a second template with that id for that module, `IllegalStateException`), `find(moduleId, templateId)` (nullable), `of(moduleId)` (registration order), `registered()` (module id → declarations) | | 2.6.0 |
+| `TemplateDeclaration.builder(id, version)` (`id` `^[a-z][a-z0-9_]*$`, `version` ≥ 1, raised each time the files change), `fromResources(loader, root, id, version, paths)` (missing resource: `IllegalArgumentException`); `Builder.title(title)`, `seed(projectId)` (`^[a-z0-9][a-z0-9_-]*$`), `file(path, bytes)` (relative `/` path of plain segments, no `..`, no leading dot, never `.artisan*`; ≤ `MAX_SIZE` = 4 MiB in all), `build()` | `TemplateDeclaration.Builder` | 2.6.0 |
+| `TemplateDeclaration.getId()`, `getTitle()` (the id when none), `getVersion()`, `getSeedProject()` (nullable), `getPaths()`, `getFile(path)` (copy, nullable), `getHash(path)` (lowercase hex SHA-256, nullable), `toWire()`, `sha256(bytes)` | | 2.6.0 |
+| `ArtisanAPI.Builder.templates(registry)` (`@Internal`) | `Builder` | 2.6.0 |
 
 ```java
 api.getTemplates().register(TemplateDeclaration

@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { dispatchOpenElement } from "./canvasEvents";
 import { COMMAND_BOX } from "./menuLayout";
+import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
 
 interface CommandGroupProps {
@@ -57,6 +58,9 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
       onTap={onClick}
       onDblClick={() => dispatchOpenElement(command.id)}
       onDblTap={() => dispatchOpenElement(command.id)}
+      // The title may be cut by its ellipsis: the full one shows on hover.
+      onMouseEnter={(e) => showFullTitle(e, `/${command.name}`)}
+      onMouseLeave={(e) => showFullTitle(e, null)}
       name={`command:${command.id}`}
       id={command.id}
     >
@@ -72,6 +76,9 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
       <Text
         x={10}
         y={10}
+        width={COMMAND_BOX.width - 20}
+        wrap="none"
+        ellipsis
         text={`/${command.name}`}
         fontFamily="ui-monospace, monospace"
         fontSize={12}
@@ -82,6 +89,9 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
       <Text
         x={10}
         y={26}
+        width={COMMAND_BOX.width - 20}
+        wrap="none"
+        ellipsis
         text="command"
         fontFamily="ui-monospace, monospace"
         fontSize={9}
