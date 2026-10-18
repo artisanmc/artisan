@@ -23,6 +23,7 @@ import net.artisanmc.modules.api.project.ProjectRootRegistry;
 import net.artisanmc.modules.api.scheduler.SchedulerApi;
 import net.artisanmc.modules.api.schemas.SchemaRegistry;
 import net.artisanmc.modules.api.screen.EditorScreenRegistry;
+import net.artisanmc.modules.api.template.TemplateRegistry;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -60,6 +61,7 @@ public final class ArtisanAPI {
     private final ActionRegistry actionRegistry;
     private final DocumentKindRegistry documentKinds;
     private final EditorBundleRegistry editorBundles;
+    private final TemplateRegistry templates;
     private final DatabaseApi database;
     private final MenuApi menus;
     private final SchedulerApi scheduler;
@@ -83,6 +85,7 @@ public final class ArtisanAPI {
         this.actionRegistry = b.actionRegistry;
         this.documentKinds = b.documentKinds;
         this.editorBundles = b.editorBundles;
+        this.templates = b.templates;
         this.database = b.database;
         this.menus = b.menus;
         this.scheduler = b.scheduler;
@@ -206,6 +209,16 @@ public final class ArtisanAPI {
         return editorBundles;
     }
 
+    /**
+     * The modules' example content, shipped in their jars: files the editor copies into any
+     * project, and that Artisan may copy once into a project of their own on first start. Reported
+     * at Presence on the module's {@code installed_modules} entry ({@code templates}).
+     */
+    @Beta
+    public TemplateRegistry getTemplates() {
+        return templates;
+    }
+
     /** One connection pool per plugin, credentials in {@code environment.yml} (ADR {@code suite-foundation-database}). */
     @Beta
     public DatabaseApi getDatabase() {
@@ -267,6 +280,7 @@ public final class ArtisanAPI {
         private ActionRegistry actionRegistry = new ActionRegistry();
         private DocumentKindRegistry documentKinds = new DocumentKindRegistry();
         private EditorBundleRegistry editorBundles = new EditorBundleRegistry();
+        private TemplateRegistry templates = new TemplateRegistry();
         private DatabaseApi database = DatabaseApi.NONE;
         private MenuApi menus = MenuApi.NOOP;
         private SchedulerApi scheduler = SchedulerApi.DIRECT;
@@ -330,6 +344,11 @@ public final class ArtisanAPI {
 
         public Builder editorBundles(EditorBundleRegistry editorBundles) {
             this.editorBundles = Objects.requireNonNull(editorBundles);
+            return this;
+        }
+
+        public Builder templates(TemplateRegistry templates) {
+            this.templates = Objects.requireNonNull(templates);
             return this;
         }
 
