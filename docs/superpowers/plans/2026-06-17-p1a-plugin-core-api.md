@@ -16,7 +16,7 @@
 
 **Commands:** plugin from `plugin/` (`rtk ./gradlew test`, `rtk ./gradlew publishToMavenLocal`); backend from `backend/` (**`rtk bun run test`** — NEVER `bun test` direct, it wipes the dev DB). git from repo root. Prefix with `rtk`.
 
-**Branch:** `feat/plugin-core-api` off `9b915d13` (canvas-nav's pre-WIP HEAD — has the plugin hash work, none of the editor WIP). *(Set up by the orchestrator before Task 1.)*
+**Branch:** `feat/plugin-core-api` off `8ad67bf6` (canvas-nav's pre-WIP HEAD — has the plugin hash work, none of the editor WIP). *(Set up by the orchestrator before Task 1.)*
 
 ---
 

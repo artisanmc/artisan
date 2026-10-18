@@ -8,7 +8,7 @@
 
 **Tech Stack:** Bun + Hono + Drizzle (backend), React 19 + Vite + TanStack Router + Zustand (editor), vitest. Plugin protocol unchanged.
 
-**Spec:** `docs/superpowers/specs/2026-06-03-servers-ux-simplification-design.md` (commit `d70eb201`).
+**Spec:** `docs/superpowers/specs/2026-06-03-servers-ux-simplification-design.md` (commit `b783afcd`).
 
 ---
 
