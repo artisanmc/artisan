@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Circle, Group, Line, Rect, Text } from "react-konva";
 import { dispatchOpenElement } from "./canvasEvents";
 import { DOCUMENT_ITEMS, documentBoxSize } from "./menuLayout";
+import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
 
 interface DocumentGroupProps {
@@ -91,6 +92,9 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
       onTap={onClick}
       onDblClick={solo ? undefined : () => dispatchOpenElement(doc.id)}
       onDblTap={solo ? undefined : () => dispatchOpenElement(doc.id)}
+      // The title may be cut by its ellipsis: the full one shows on hover.
+      onMouseEnter={(e) => showFullTitle(e, title)}
+      onMouseLeave={(e) => showFullTitle(e, null)}
       name={`${kind}:${doc.id}`}
       id={doc.id}
     >
