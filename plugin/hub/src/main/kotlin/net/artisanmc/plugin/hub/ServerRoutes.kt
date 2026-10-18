@@ -7,6 +7,7 @@ import net.artisanmc.plugin.hub.Relay.Companion.body
 import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
 import net.artisanmc.plugin.hub.Relay.Companion.readError
+import net.artisanmc.plugin.protocol.ProtocolVersion
 
 /** `/api/v1/servers/:server/…`: what the server declares, its configuration, its live data. */
 class ServerRoutes(private val servers: Servers, private val relay: Relay) {
@@ -100,6 +101,16 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
                 serveBundle(call, hash, content)
             }
         }
+        // A module's template (ADR `module-templates`): its files, to show the default version read-only.
+        on(router, "GET", "modules/:module/templates/:template", VIEW) { call, server ->
+            if (!speaksTemplates(call, server)) return@on
+            val message = mapOf(
+                "type" to "template_fetch",
+                "module_id" to call.params["module"].orEmpty(),
+                "template_id" to call.params["template"].orEmpty(),
+            )
+            relay.send(call, server, message) { reply -> if (ok(reply)) call.json(body(reply)) else readError(call, reply) }
+        }
         on(router, "POST", "data-sources/preview", VIEW) { call, server ->
             val request = call.body()
             val ref = request?.get("ref")?.takeIf { it.isTextual }?.asText() ?: return@on call.error(422, "invalid_input")
@@ -139,6 +150,13 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     companion object {
         const val SERVER = "/api/v1/servers/:server"
         private val HDB_ID = Regex("[0-9]{1,10}")
+
+        /** A leaf on an older release would ignore a template message: say so instead of waiting for the timeout. */
+        fun speaksTemplates(call: Call, server: EditorServer): Boolean {
+            if (ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.TEMPLATES) return true
+            call.error(501, "plugin_update_required")
+            return false
+        }
     }
 }
 

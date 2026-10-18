@@ -421,9 +421,10 @@ De haut en bas :
    - `mt-1 block w-full px-2 py-1 text-left text-xs text-zinc-400 hover:text-zinc-200`
    - Ouvre `NewProjectDialog`
 
-4. **Section "Modules installés"** (`mt-3`)
+4. **Section "Modules installés"** (`mt-4`), absente quand aucun module n'a rien à configurer
    - Heading uppercase
-   - Empty state : "Aucun module installé." (`rounded border border-dashed px-2 py-2 text-[11px]`)
+   - Un groupe par module : ses Config screens puis « Configuration » (`/m/<id>`) ; le project
+     d'un module reste dans la liste des projects, avec un `<Badge>` au nom du module
 
 5. **Lien `⚙ Paramètres`** (sticky bas)
    - `flex items-center gap-2 px-2 py-2 text-sm text-zinc-300 hover:bg-zinc-800` → `/settings`
