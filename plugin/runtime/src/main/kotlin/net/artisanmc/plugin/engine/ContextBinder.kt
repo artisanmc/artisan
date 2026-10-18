@@ -50,7 +50,7 @@ object ContextBinder {
     }
 
     /** filter (string equality) → sort (numeric when possible) → limit. */
-    internal fun shape(
+    fun shape(
         rows: List<Map<String, Any?>>,
         source: Map<String, Any>,
         args: Map<String, Any>,
@@ -86,7 +86,7 @@ object ContextBinder {
     private fun interpolate(raw: String, args: Map<String, Any>): String =
         net.artisanmc.plugin.expr.renderTemplate(raw, argsScope(args))
 
-    internal fun interpolateValues(map: Map<String, Any?>, args: Map<String, Any>): Map<String, Any?> =
+    fun interpolateValues(map: Map<String, Any?>, args: Map<String, Any>): Map<String, Any?> =
         map.mapValues { (_, v) -> if (v is String) interpolate(v, args) else v }
 
     /** Named sub-map of the raw ConnectorBinding ({} if missing or mistyped). */

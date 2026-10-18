@@ -42,9 +42,9 @@ class MenuSlots(val topSize: Int, val playerInventory: PlayerInventoryMode = Pla
     private val kinds = AtomicReferenceArray<SlotKind>(Array(size) { SlotKind.DISPLAY })
 
     /** Open window receiving the writes, set by [net.artisanmc.plugin.render.packets.MenuWindows]. */
-    @Volatile internal var client: Client? = null
+    @Volatile var client: Client? = null
 
-    internal interface Client {
+    interface Client {
         fun slotChanged(rawSlot: Int)
         fun allChanged()
     }
