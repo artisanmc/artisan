@@ -71,7 +71,7 @@ class ItemSpecsTest {
         captured = rod(lure = 3, tagged = true)
         val spec = mapOf("material" to "item:rod")
 
-        assertEquals(setOf(MATERIAL, ENCHANTS, DAMAGE), specs.defaultComparisons(spec))
+        assertEquals(setOf(MATERIAL, CUSTOM_ITEM, ENCHANTS, DAMAGE), specs.defaultComparisons(spec))
         assertTrue(specs.matches(spec, rod(lure = 3), emptySet()), "hidden tags are not compared")
         assertTrue(specs.matches(spec, rod(lure = 3).apply { addUnsafeEnchantment(Enchantment.UNBREAKING, 1) }, emptySet()))
         assertFalse(specs.matches(spec, rod(lure = 2), emptySet()))
@@ -86,7 +86,7 @@ class ItemSpecsTest {
         val spec = mapOf("material" to "DIAMOND_SWORD", "title" to "<red>Excalibur", "lore" to listOf("Old"))
         val named = ItemStack(Material.DIAMOND_SWORD).apply { editMeta { it.displayName(Component.text("Excalibur")); it.lore(listOf(Component.text("Old"))) } }
 
-        assertEquals(setOf(MATERIAL, NAME, LORE, DAMAGE), specs.defaultComparisons(spec))
+        assertEquals(setOf(MATERIAL, CUSTOM_ITEM, NAME, LORE, DAMAGE), specs.defaultComparisons(spec))
         assertTrue(specs.matches(spec, named, emptySet()), "colours are ignored")
         assertFalse(specs.matches(spec, ItemStack(Material.DIAMOND_SWORD), emptySet()))
         assertTrue(specs.matches(spec, ItemStack(Material.DIAMOND_SWORD), setOf(MATERIAL)))
@@ -101,6 +101,15 @@ class ItemSpecsTest {
         assertTrue(specs.matches(spec, Gems.buildStack("ruby", 5)!!, emptySet()), "the amount is never compared")
         assertFalse(specs.matches(spec, ItemStack(Material.EMERALD), emptySet()))
         assertTrue(specs.matches(spec, ItemStack(Material.EMERALD), setOf(MATERIAL)))
+    }
+
+    @Test fun `a vanilla item refuses a custom item of its material by default`() {
+        val spec = mapOf("material" to "EMERALD")
+
+        assertEquals(setOf(MATERIAL, CUSTOM_ITEM, DAMAGE), specs.defaultComparisons(spec))
+        assertTrue(specs.matches(spec, ItemStack(Material.EMERALD), emptySet()))
+        assertFalse(specs.matches(spec, Gems.buildStack("ruby", 1)!!, emptySet()))
+        assertTrue(specs.matches(spec, Gems.buildStack("ruby", 1)!!, setOf(MATERIAL)))
     }
 
     @Test fun `comparisons read their wire ids`() {
