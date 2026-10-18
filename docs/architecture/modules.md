@@ -459,6 +459,21 @@ Même évaluateur que `if:`, lecture **stricte** : une condition inconnue ou mal
 faux (avertissement unique) au lieu d'être ignorée comme dans un menu. À appeler sur le thread qui
 possède le joueur (`IllegalStateException` sinon). Détail : `api-surface.md`.
 
+### 4.6 bis Messages système traduits (API 2.5.0)
+
+Un plugin de la suite ne refait pas son système de lang : il enregistre ses fichiers sous son
+namespace et Artisan choisit la langue du joueur, gère les replis et rend le MiniMessage :
+
+```java
+MessageBundle messages = api.getTranslations().register(
+    MessageBundleDeclaration.files(this, "quests", "en", "fr"));   // jar lang/<code>.yml + plugins/<Plugin>/lang/
+player.sendMessage(messages.get(player, "quest.tracked", Map.of("quest_name", name)));
+```
+
+Les valeurs des placeholders (`<name>`, `{name}`, `%name%`) sont insérées comme du texte. Un plugin
+qui garde ses propres fichiers passe un `MessageSource` (`MessageBundleDeclaration.of`). Détail :
+`api-surface.md`.
+
 ### 4.7 Module editor bundle (level 3) — API 2.3.0, protocole 1.2
 
 Un add-on (ArtisanQuests…) peut livrer la **vue éditeur** de son module dans son propre jar, au lieu
