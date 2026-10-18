@@ -235,7 +235,7 @@ mappings:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "What the hub keeps (sessions, packs, caches) and the web settings admins configure"
 
-  - touches: "plugin/paper/src/main/kotlin/**/config/{EnvironmentFile,NetworkSecret}.kt"
+  - touches: "plugin/*/src/main/kotlin/**/config/{EnvironmentFile,NetworkSecret}.kt"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
       - "docs/architecture/entities.md"
