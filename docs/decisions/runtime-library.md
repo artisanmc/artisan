@@ -65,13 +65,13 @@ propre commande ; ses menus répondent « interface indisponible ». Le choix se
 `onEnable`. Le gameplay et la persistance ne dépendent plus d'Artisan ; les menus, les actions
 inter-modules et le rechargement poussé par l'éditeur, oui.
 
-**⑤ La base de données suit la même règle** (amendement à venir de `suite-foundation-database`,
-avec le code) : un module ouvre son pool par la librairie. Au démarrage, si
-`plugins/Artisan/environment.yml` existe, sa section `database` est lue ; sinon le module écrit
-une section par défaut dans sa propre config et l'utilise ; une section déjà renseignée chez le
-module gagne toujours, et le log dit laquelle des deux est lue. Rien n'est créé sous
-`plugins/Artisan/`. En H2, un fichier par module ; une seule base en MySQL/MariaDB, les tables
-préfixées comme aujourd'hui.
+**⑤ La base de données suit la même règle** (amendement de `suite-foundation-database`,
+`ModuleDatabase` dans le runtime) : un module ouvre son pool par la librairie. Au démarrage, si
+`plugins/Artisan/environment.yml` existe, sa section `database` est lue, jamais écrite ; sinon le
+module écrit une section par défaut (H2) dans sa propre config et l'utilise ; `database.own: true`
+chez le module garde sa section quoi qu'il y ait chez Artisan, et le log dit laquelle des deux est
+lue. Rien n'est créé sous `plugins/Artisan/`. En H2, un fichier par module ; une seule base en
+MySQL/MariaDB, les tables préfixées comme aujourd'hui.
 
 ## Conséquences
 
