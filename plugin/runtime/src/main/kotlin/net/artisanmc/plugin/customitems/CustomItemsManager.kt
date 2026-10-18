@@ -51,7 +51,7 @@ class CustomItemsManager(private val sources: List<CustomItemSource>) {
         )
     }
 
-    internal fun stripColorCodes(s: String): String = s.replace(Regex("§[0-9a-fk-orA-FK-OR]"), "")
+    fun stripColorCodes(s: String): String = s.replace(Regex("§[0-9a-fk-orA-FK-OR]"), "")
 
     private fun collect(): List<CustomItemEntry> =
         sources.filter { it.isAvailable() }.flatMap { it.collectItems() }

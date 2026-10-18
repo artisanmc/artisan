@@ -93,8 +93,10 @@ docs/            architecture/ · decisions/ · specs/ · schema/ · superpowers
 `leaf` reliés à son `/ws/plugin` par un secret partagé. ADR `editor-web-server`.
 
 **Plugin en modules Gradle** — `plugin/api` (surface add-ons, **en Java** : API 2.0.0), `plugin/core` (domaine, sans Bukkit),
-`plugin/database`, `plugin/hub` (serveur web, sans Bukkit), `plugin/paper` (Bukkit + jar). Un import
-`org.bukkit` hors de `paper` ou `api` ne compile pas. Détail : `plugin/README.md`, ADR `plugin-gradle-modules`.
+`plugin/database`, `plugin/hub` (serveur web, sans Bukkit), `plugin/runtime` (moteur d'actions, conditions, items,
+traductions : publié comme `artisan-runtime` pour les plugins de la suite), `plugin/paper` (menus, présence, jar). Un import
+`org.bukkit` hors de `paper`, `runtime` ou `api` ne compile pas. Détail : `plugin/README.md`, ADR `plugin-gradle-modules`,
+`runtime-library`.
 
 **Modular monolith** — chaque module vit en 2 layers symétriques :
 `plugin/…/modules/{id}/` (impl `ArtisanModule`) et `editor/src/modules/{id}/` (`FrontendModule`).

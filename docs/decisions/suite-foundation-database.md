@@ -61,6 +61,26 @@ plugin.
    présence, téléportation) suivra dans la même facade, avec `server_name` et
    `redis` dans `environment.yml`.
 
+### Amendement 2026-10-18 — un plugin ouvre son pool lui-même (ADR `runtime-library`)
+
+Les points 3, 5 et 6 supposaient le plugin Artisan présent : les pools vivaient dans sa JVM,
+derrière `api.database`. Un plugin de la suite doit démarrer sans lui, donc :
+
+- **Chaque plugin ouvre son pool par sa copie du runtime** (`ModuleDatabase`, module
+  `runtime`), avec HikariCP et le driver dans son propre `plugin.yml` (`libraries:`, comme
+  Artisan). `api.database` reste disponible, `@Beta`, mais n'est plus la voie de la suite.
+- **Les identifiants restent en un seul endroit.** Au démarrage du plugin : si
+  `plugins/Artisan/environment.yml` existe, sa section `database` est lue (jamais écrite) ;
+  sinon le plugin écrit une section `database` par défaut (H2) dans sa propre `config.yml` et
+  l'utilise. `database.own: true` dans la config du plugin garde sa section quoi qu'il y ait
+  chez Artisan. Le log dit laquelle des deux est lue. Rien n'est créé sous `plugins/Artisan/`.
+  L'ordre tient : le plugin déclare Artisan en `softdepend`, Artisan a écrit son fichier avant.
+- **En H2, un fichier par plugin**, sous son dossier : deux copies de H2 dans deux
+  classloaders n'ouvrent pas le même fichier. Le fichier unique restait la règle pour les clés
+  étrangères vers `artisan_servers` ; la révision `server-identity-and-versions` exige déjà
+  MySQL ou MariaDB pour un réseau, et c'est là qu'elles comptent. Une seule base en MySQL et
+  MariaDB, chaque plugin préfixant ses tables, comme avant.
+
 *Rejeté :* un fichier H2 par plugin (isole les plugins, mais interdit toute
 clé étrangère vers une table d'Artisan et diverge de MySQL) ; un pool partagé
 (une fuite dans un plugin bloque toute la suite) ;
