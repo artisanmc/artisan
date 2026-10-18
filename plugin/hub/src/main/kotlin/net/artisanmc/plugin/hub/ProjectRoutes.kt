@@ -9,6 +9,7 @@ import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
 import net.artisanmc.plugin.hub.Relay.Companion.readError
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
+import net.artisanmc.plugin.hub.ServerRoutes.Companion.speaksTemplates
 import net.artisanmc.plugin.project.ProjectListing
 import net.artisanmc.plugin.project.ProjectRootInfo
 import net.artisanmc.plugin.protocol.ProtocolVersion
@@ -86,6 +87,46 @@ class ProjectRoutes(
 
         drafts(router)
         lifecycle(router)
+        templates(router)
+    }
+
+    /** Module templates in a Project (ADR `module-templates`): copy one in, read where copies came from. */
+    private fun templates(router: Router) {
+        for (base in listOf("/api/v1/projects/:project", "$SERVER/projects/:project")) {
+            onProject(router, "GET", "$base/origins", VIEW) { call, project ->
+                if (!speaksTemplates(call, project.server)) return@onProject
+                relay.send(call, project.server, mapOf("type" to "project_origins_fetch", "project_id" to project.folder)) { reply ->
+                    if (ok(reply)) call.json(mapOf("origins" to (reply["origins"] ?: emptyMap<String, Any>()))) else readError(call, reply)
+                }
+            }
+            onProject(router, "POST", "$base/templates", PUBLISH) { call, project ->
+                val request = call.body()
+                val module = request?.get("module")?.takeIf { it.isTextual && it.asText().isNotEmpty() }?.asText()
+                val template = request?.get("template")?.takeIf { it.isTextual && it.asText().isNotEmpty() }?.asText()
+                val paths = request?.get("paths")?.takeIf { !it.isNull }
+                if (module == null || template == null || paths != null && (!paths.isArray || paths.any { !it.isTextual })) {
+                    return@onProject call.error(422, "invalid_input")
+                }
+                if (!speaksTemplates(call, project.server)) return@onProject
+                val message = mapOf(
+                    "type" to "template_copy",
+                    "project_id" to project.folder,
+                    "module_id" to module,
+                    "template_id" to template,
+                    "paths" to paths?.map { it.asText() },
+                    "replace" to (request.get("replace")?.asBoolean() ?: false),
+                )
+                relay.send(call, project.server, message) { reply ->
+                    when {
+                        ok(reply) -> call.json(mapOf("written" to reply["written"], "unchanged" to reply["unchanged"]))
+                        // The files the copy would overwrite: the editor asks before replacing them.
+                        errorCode(reply) == "conflict" ->
+                            call.json(mapOf("error" to "conflict", "conflicts" to (reply["conflicts"] ?: emptyList<String>())), 409)
+                        else -> readError(call, reply)
+                    }
+                }
+            }
+        }
     }
 
     /** Create, delete (to the server's trash) and rename a Project folder. */

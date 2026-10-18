@@ -58,6 +58,26 @@ Creation completes only after the server writes the project. If it does not resp
 or already has a project with that name, the dialog shows an error and keeps your
 input. After a timeout, check the project list before trying again.
 
+## Adding a module's examples
+
+Modules can ship example content (quest groups, menus…) that any project can use.
+The first time the server starts with such a module, it may create an example project
+once; delete it if you don't want it, it won't come back.
+
+To copy a module's examples into another project, use **+ → From a module…** next to
+the project name. Each template lists its files and their state: *Not added*,
+*Unchanged*, *Modified*, *Removed*, or *New version* when the module ships an update.
+Nothing changes on its own: **Add to project** copies the missing files, **Update** takes
+the new version of the files you never touched, and **Reset to module version** replaces
+one file (your version stays in the project's Versions). A file that already exists with
+other content is never overwritten without asking. Publish or discard your changes first:
+the copy is written on the server, then the project reloads.
+
+**Open default version** shows a template as shipped, read only, even after you changed
+your copy. Tick menus, items or commands, **Copy**, then paste them on your board with
+Ctrl+V, texts included. In the document list, a dot marks the documents copied from a
+module; hover it to see whether you modified them or a new version is available.
+
 ## Importing a project from a ZIP
 
 Choose **Import a project (.zip)** on a server page. Artisan reads the archive, takes

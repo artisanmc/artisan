@@ -22,6 +22,8 @@ export type ModuleOrigin = "bundle" | "local" | "editor";
 interface ModulesState {
   /** Ids of external modules currently mounted (active + registered). */
   mountedIds: string[];
+  /** The server's active modules as announced at Presence, templates included. */
+  active: ActiveModule[];
   /** How each mounted module got there: its server's bundle, or the copy built into the editor. */
   origins: Record<string, ModuleOrigin>;
   /** Bundles the editor refused, by module id: the view shown is the built-in copy, or none. */
@@ -57,6 +59,7 @@ async function loadView(
 
 export const useModulesStore = create<ModulesState>((set, get) => ({
   mountedIds: [],
+  active: [],
   origins: {},
   refused: {},
   status: "idle",
@@ -101,7 +104,7 @@ export const useModulesStore = create<ModulesState>((set, get) => ({
       // A newer integrate() may have started (and set a different loadedKey)
       // while this fetch was in flight — don't let a stale resolver overwrite it.
       if (get().loadedKey !== key) return;
-      set({ mountedIds: mounted, origins, refused, status: "ready", loadedKey: key });
+      set({ mountedIds: mounted, active, origins, refused, status: "ready", loadedKey: key });
     } catch {
       if (get().loadedKey !== key) return;
       // Clear loadedKey so a later call with the same source can retry.
