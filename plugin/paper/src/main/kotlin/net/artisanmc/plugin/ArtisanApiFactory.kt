@@ -103,6 +103,7 @@ internal object ArtisanApiFactory {
             ))
             .scheduler(net.artisanmc.plugin.scheduling.PaperSchedulerApi)
             .placeholders(plugin.placeholders)
+            .translations(plugin.translations)
             .conditions(net.artisanmc.plugin.engine.ModuleConditions(
                 evaluator = { plugin.runtime.evaluatorOrNull },
                 ownsPlayer = { plugin.scheduler.ownsPlayer(it.uniqueId) },

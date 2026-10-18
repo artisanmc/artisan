@@ -56,6 +56,8 @@ open class ArtisanPlugin : JavaPlugin() {
     lateinit var assetCatalog: net.artisanmc.plugin.resourcepack.AssetCatalog
         internal set
     lateinit var langManager: LangManager
+    /** `api.translations`: survives `/artisan reload`, which [Translations.configure]s it again. */
+    val translations by lazy { net.artisanmc.plugin.lang.Translations(logger = logger) }
     lateinit var capturedItems: net.artisanmc.plugin.items.CapturedItemStore
     /** projectId -> working-copy root, unioning the core projects dir with Add-on-owned roots. */
     lateinit var projectRoots: net.artisanmc.plugin.project.ProjectRoots
@@ -140,7 +142,10 @@ open class ArtisanPlugin : JavaPlugin() {
         projectRoots.coreRoot.mkdirs()
         localEditorBundles.configure(cfg.devEditorBundles)
 
-        langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
+        translations.configure(cfg.language, cfg.perPlayerLanguage)
+        langManager = LangManager(translations.register(LangManager.NAMESPACE, null, null) {
+            net.artisanmc.plugin.lang.FileMessageSource.load(this, LangManager.BUNDLED_LANGS)
+        })
 
         runtime.prepare(langManager)
 
@@ -179,6 +184,7 @@ open class ArtisanPlugin : JavaPlugin() {
                 api.modules.unregisterLoadedBy(event.plugin.javaClass.classLoader).forEach {
                     logger.log(java.util.logging.Level.WARNING, "[Artisan] ${it.message}", it.cause)
                 }
+                translations.unregisterOwnedBy(event.plugin)
             }
         }, this)
     }
