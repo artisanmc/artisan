@@ -6,7 +6,7 @@
 | `core` | Domaine : projets, modèle, langage d'actions, expressions, parseurs. | Bukkit, JDBC, HTTP. |
 | `database` | Pools de connexions par plugin (H2, MySQL, MariaDB). | Bukkit. |
 | `hub` | Serveur web de l'éditeur (Jetty) : fichiers de l'éditeur, API, sessions ouvertes par `/artisan editor`. | Bukkit. |
-| `runtime` | Ce qui exécute le contenu d'un Project sur Paper sans l'éditeur : moteur d'actions et actions core, conditions, items (vanilla, custom, capturés), textes, traductions, schedulers, pool de la base. Publié comme `net.artisanmc:artisan-runtime` pour qu'un plugin de la suite tourne sans le plugin Artisan (ADR `runtime-library`). | Le rendu des menus, la présence, le hub. |
+| `runtime` | Ce qui exécute le contenu d'un Project sur Paper sans l'éditeur : moteur d'actions et actions core, conditions, items (vanilla, custom, capturés), textes, traductions, schedulers, pool de la base. Consommé par `paper`, pas publié (ADR `runtime-library`). | Le rendu des menus, la présence, le hub. |
 | `paper` | Intégration Paper : listeners, commandes, rendu des menus et dialogs, WebSocket, pack de ressources. Racine de composition dans `ArtisanPlugin.onEnable`, qui assemble `ArtisanApiFactory` (API des add-ons), `SuiteDatabase` (base de la suite, Versions), `EditorHost` (éditeur ou lien au hub) et `RuntimeAssembly` (ce que `/artisan reload` reconstruit). Produit le jar. | — |
 
 ```bash
