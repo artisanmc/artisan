@@ -40,3 +40,10 @@ compilateur est plus strict et ne demande aucune maintenance.
 - Les tests suivent leur code : `core` et `database` se testent sans MockBukkit.
 - Le jar sort de `plugin/paper/build/libs/`.
 - `deploy/api-version.mjs` surveille `plugin/api/src/main/`.
+
+### Amendement 2026-10-18 — le moteur sort de `paper`
+
+La règle ③ est levée par l'ADR `runtime-library` : le moteur d'exécution des actions, les
+conditions, les items, les traductions et le pool de la base vivent dans le module `runtime`
+(`paper-api` en `compileOnly`), que `paper` consomme et que la suite shade relocalisé. Le rendu
+des menus, la présence et le hub restent dans `paper`.
