@@ -88,7 +88,9 @@ internal class RuntimeAssembly(
     }
 
     fun reinit(cfg: PluginConfig) {
-        plugin.langManager = LangManager.fromPlugin(plugin, cfg.language, cfg.perPlayerLanguage)
+        // In place: the commands hold this LangManager, and add-ons their bundles.
+        plugin.translations.configure(cfg.language, cfg.perPlayerLanguage)
+        plugin.langManager.reload()
         menuProvider.unload()
         start(cfg)
         // ServerLoadEvent is past: the custom items hash goes from here, once the new
