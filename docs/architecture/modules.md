@@ -486,7 +486,33 @@ api.getEditorBundles().register(
 - **Chargé** par l'éditeur contre le SDK qu'il embarque : `editor-internals.md` §« Runtime module
   bundles ».
 
+### 4.8 Modèles de module — API 2.5.0, protocole 1.3
+
+Un module livre du **contenu d'exemple** copiable dans n'importe quel Project (ADR `module-templates`) :
+un modèle = des fichiers de Project (Documents, menus, `lang/`…) lus dans son jar, une version qu'il
+monte à chaque changement, un Project d'amorçage facultatif.
+
+```java
+api.getTemplates().register(TemplateDeclaration
+    .fromResources(getClass().getClassLoader(), "artisan-templates/daily", "daily", 1,
+        List.of("quest_groups/daily.yaml", "menus/quests_daily.yaml"))
+    .title("Daily quests")
+    .seed("quests")
+    .build());
+```
+
+- **Presence** : `installed_modules[].templates` = `[{id, title, version, seed_project?, files:[{path, hash, size}]}]`, sans contenu.
+- **Lire** (version par défaut, lecture seule) : `GET SERVER/modules/:module/templates/:template` (`template_fetch`).
+- **Copier** : `POST …/projects/:project/templates` `{module, template, paths?, replace}` (`template_copy`) ;
+  un fichier déjà présent au contenu différent n'est jamais écrasé sans `replace` (409 `conflict` + `conflicts`).
+  Chaque fichier copié est tracé dans `.artisan/origins.yaml` ; `GET …/projects/:project/origins` les lit.
+- **Amorçage** : un modèle avec `seed(projectId)` est copié une seule fois dans un nouveau Project de ce
+  nom (`.artisan-seeds.yaml` à la racine core), jamais recréé si le propriétaire le supprime.
+
 ## 5. Module bootstrap : content bundles
+
+> Vision d'origine. Réalisée par les modèles de module (§4.8) : pas de dialogue à l'installation,
+> un amorçage unique et un catalogue dans l'éditeur ; le reste de cette section n'est pas implémenté tel quel.
 
 Chaque module non-trivial **ship un bundle de contenu par défaut** qui sert de bootstrap quand l'admin installe le module pour la première fois. Ce bundle n'est PAS juste un menu — c'est un set complet de **toutes les ressources** dont le module a besoin pour fonctionner out-of-the-box.
 

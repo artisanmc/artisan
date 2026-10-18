@@ -35,6 +35,19 @@ sealed interface EditorRequest {
     data class PlayerInventoryFetch(override val requestId: String, val player: String) : WithReply
     /** The script of a module's editor view (protocol 1.2, [ProtocolVersion.EDITOR_BUNDLES]). */
     data class EditorBundleFetch(override val requestId: String, val moduleId: String) : WithReply
+    /** A module template's files (protocol 1.3, [ProtocolVersion.TEMPLATES]). */
+    data class TemplateFetch(override val requestId: String, val moduleId: String, val templateId: String) : WithReply
+    /** Copies a module template into a Project; [paths] null: all its files (protocol 1.3). */
+    data class TemplateCopy(
+        override val requestId: String,
+        val projectId: String,
+        val moduleId: String,
+        val templateId: String,
+        val paths: List<String>?,
+        val replace: Boolean,
+    ) : WithReply
+    /** Where a Project's files copied from templates came from (protocol 1.3). */
+    data class ProjectOriginsFetch(override val requestId: String, val projectId: String) : WithReply
     data class DataSourceFetch(
         override val requestId: String,
         val ref: String,
@@ -116,6 +129,18 @@ sealed interface EditorRequest {
                 "head_texture_fetch" -> HeadTextureFetch(requestId, node.text("id") ?: "")
                 "player_inventory_fetch" -> PlayerInventoryFetch(requestId, node.text("player") ?: return null)
                 "editor_bundle_fetch" -> EditorBundleFetch(requestId, node.text("module_id") ?: return null)
+                "template_fetch" -> TemplateFetch(
+                    requestId, node.text("module_id") ?: return null, node.text("template_id") ?: return null,
+                )
+                "template_copy" -> TemplateCopy(
+                    requestId = requestId,
+                    projectId = node.text("project_id") ?: return null,
+                    moduleId = node.text("module_id") ?: return null,
+                    templateId = node.text("template_id") ?: return null,
+                    paths = node["paths"]?.takeIf { it.isArray }?.map { it.asText() },
+                    replace = node["replace"]?.asBoolean() ?: false,
+                )
+                "project_origins_fetch" -> ProjectOriginsFetch(requestId, node.text("project_id") ?: return null)
                 "data_source_fetch" -> DataSourceFetch(
                     requestId = requestId,
                     ref = node.text("ref") ?: return null,

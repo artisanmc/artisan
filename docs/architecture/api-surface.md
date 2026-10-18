@@ -91,6 +91,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `documentKinds` (`getDocumentKinds()`, `@Beta`) | `DocumentKindRegistry` | 2.1.0 |
 | `conditions` (`getConditions()`, `@Beta`) | `ConditionsApi` | 2.2.0 |
 | `editorBundles` (`getEditorBundles()`, `@Beta`) | `EditorBundleRegistry` | 2.3.0 |
+| `templates` (`getTemplates()`, `@Beta`) | `TemplateRegistry` | 2.5.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -103,7 +104,7 @@ Manages the set of active modules for a running Artisan instance.
 | `register(module: ArtisanModule)` | `@Stable` | `Unit` | Register a module. Throws `DuplicateModuleException` if the id is already registered. Triggers `modules_changed` WS message if the plugin is connected. |
 | `active()` | `@Stable` | `List<ArtisanModule>` | Returns all currently registered modules. |
 | `has(id: String)` | `@Stable` | `Boolean` | Returns true if a module with that id is registered. |
-| `unregister(id: String)` | `@Stable` | `Boolean` | Calls the module's `onDisable()`, removes it and the data sources, commands, models, screens, actions, document kinds and editor bundle registered from its `onEnable`, triggers `modules_changed`. False for an unknown id. Since 1.8.0 |
+| `unregister(id: String)` | `@Stable` | `Boolean` | Calls the module's `onDisable()`, removes it and the data sources, commands, models, screens, actions, document kinds, editor bundle and templates registered from its `onEnable`, triggers `modules_changed`. False for an unknown id. Since 1.8.0 |
 | `bind(api: ArtisanAPI, onChange: Runnable)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
 | `unregisterLoadedBy(loader: ClassLoader)` | `@Internal` | `List<Exception>` | Called by Artisan on `PluginDisableEvent`: unregisters the modules loaded by that plugin's class loader, then the data sources and commands whose callback it loaded. Returns the `onDisable()` failures. |
 
@@ -269,6 +270,26 @@ A module may ship its **editor view** in its own jar (runtime module bundles, le
 ```java
 api.getEditorBundles().register(
     EditorBundleDeclaration.fromResource(getClass().getClassLoader(), "artisan-editor/ui.js", "1.0"));
+```
+
+### `net.artisanmc.modules.api.template.TemplateRegistry` and the template contract (`@Beta`, 2.5.0)
+
+A module may ship **templates**: example content (Documents, menus, `lang/` files…) it offers to copy into any Project, registered from `onEnable` and removed with the module (ADR `module-templates`). A template is announced at Presence on the module's `installed_modules` entry (`templates: [{id, title, version, seed_project?, files:[{path, hash, size}]}]`, protocol 1.3), without its content; the editor reads the files on demand (the default version, read-only), copies them into a Project, and compares a copy to the version shipped. A copy is never automatic and never overwrites the owner's edits unless they ask. A template with a seed project is copied once into a new Project of that name, the first start that knows it, and never again (`<core projects root>/.artisan-seeds.yaml`), even when the owner deletes it.
+
+| Member | Type | Since |
+|---|---|---|
+| `TemplateRegistry.register(decl)` (owner = the module whose `onEnable` runs; outside one, or a second template with that id for that module, `IllegalStateException`), `find(moduleId, templateId)` (nullable), `of(moduleId)` (registration order), `registered()` (module id → declarations) | | 2.5.0 |
+| `TemplateDeclaration.builder(id, version)` (`id` `^[a-z][a-z0-9_]*$`, `version` ≥ 1, raised each time the files change), `fromResources(loader, root, id, version, paths)` (missing resource: `IllegalArgumentException`); `Builder.title(title)`, `seed(projectId)` (`^[a-z0-9][a-z0-9_-]*$`), `file(path, bytes)` (relative `/` path of plain segments, no `..`, no leading dot, never `.artisan*`; ≤ `MAX_SIZE` = 4 MiB in all), `build()` | `TemplateDeclaration.Builder` | 2.5.0 |
+| `TemplateDeclaration.getId()`, `getTitle()` (the id when none), `getVersion()`, `getSeedProject()` (nullable), `getPaths()`, `getFile(path)` (copy, nullable), `getHash(path)` (lowercase hex SHA-256, nullable), `toWire()`, `sha256(bytes)` | | 2.5.0 |
+| `ArtisanAPI.Builder.templates(registry)` (`@Internal`) | `Builder` | 2.5.0 |
+
+```java
+api.getTemplates().register(TemplateDeclaration
+    .fromResources(getClass().getClassLoader(), "artisan-templates/daily", "daily", 1,
+        List.of("quest_groups/daily.yaml", "menus/quests_daily.yaml"))
+    .title("Daily quests")
+    .seed("quests")
+    .build());
 ```
 
 ### `net.artisanmc.modules.api.model.ModelRegistry` (`@Beta`)
@@ -550,7 +571,7 @@ The artifact contains only the `net.artisanmc.modules.api.*` packages filtered t
 
 ## Protocol surfaces
 
-- **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.2"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
+- **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.3"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
 - **REST API** : versioned under `/api/v1/*`, served by the hub to the editor shipped in the same jar. See `versioning.md` §5.
 - **YAML schemas** : `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `ProjectReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
 - **Database** : Artisan owns no tables; each suite plugin migrates its own through `DatabaseApi`. See `versioning.md` §6.
