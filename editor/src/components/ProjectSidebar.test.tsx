@@ -169,10 +169,11 @@ describe("ProjectSidebar", () => {
     });
   });
 
-  it("renders the Modules empty state", async () => {
+  it("shows no Modules section when no module has anything to configure", async () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);
-    expect(await screen.findByText(/Aucun module installé/i)).toBeInTheDocument();
+    await screen.findByText(/Nouveau projet/i);
+    expect(screen.queryByText(/Modules installés/i)).toBeNull();
   });
 
   it("renders the + Nouveau workspace link", async () => {

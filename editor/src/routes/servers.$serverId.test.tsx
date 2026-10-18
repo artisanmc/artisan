@@ -153,9 +153,9 @@ describe("ServerDetailPage", () => {
     expect(link).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
   });
 
-  /** Same grouping as the sidebar: a project owned by an Add-on leaves the flat
-   *  list and appears under the module name. */
-  it("shows an owned project under its module, not in the projects list", async () => {
+  /** Same split as the sidebar: a project shipped by an Add-on stays in the
+   *  projects list, badged with the module; the module keeps its screens. */
+  it("lists an owned project with the others, badged with its module", async () => {
     screensState.screens = [
       {
         id: "catalogue",
@@ -166,12 +166,12 @@ describe("ServerDetailPage", () => {
       },
     ];
     render(<ServerDetailPage />);
-    await waitFor(() => expect(screen.getByText("Boutique")).toBeInTheDocument());
-    expect(screen.queryByText("boutique_shop")).not.toBeInTheDocument();
+    const owned = await screen.findByRole("link", { name: /boutique_shop/ });
+    expect(owned).toHaveTextContent("Boutique");
     expect(screen.getByText("Hub")).toBeInTheDocument();
   });
 
-  it("shows the module's tabs: editor then declared screens", async () => {
+  it("shows only the module's screens under it, no editor entry", async () => {
     screensState.screens = [
       {
         id: "catalogue",
@@ -182,10 +182,9 @@ describe("ServerDetailPage", () => {
       },
     ];
     render(<ServerDetailPage />);
-    await screen.findByText("Boutique");
-    expect(screen.getByText("screens.editorEntry")).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: "Catalogue" });
+    const link = await screen.findByRole("link", { name: "Catalogue" });
     expect(link).toHaveAttribute("href", "/servers/$serverId/screens/$screenId");
+    expect(screen.queryByText("screens.editorEntry")).not.toBeInTheDocument();
   });
 
   /**

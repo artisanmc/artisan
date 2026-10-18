@@ -1,4 +1,5 @@
 import { actionDocumentRefs } from "@/domain/actionArgs";
+import { visitCommandLTexts, visitElementLTexts, visitMenuLTexts } from "@/domain/i18nSites";
 import { newCommandId, newElementId, newLayerId, newMenuId } from "@/domain/ids";
 import type {
   Action,
@@ -7,9 +8,11 @@ import type {
   ClickType,
   Command,
   Element,
+  I18nKey,
   Layer,
   Menu,
   MenuId,
+  Project,
   Step,
 } from "@/domain/types";
 
@@ -28,6 +31,31 @@ export interface ClipboardPayload {
   menus: Menu[];
   commands: Command[];
   elements: ElementCopy[];
+  /**
+   * The translations of the copied texts, by key (key → lang → value): a paste into another
+   * Project (or from a module template's default version) finds them there, the target
+   * holding none of the source's keys.
+   */
+  texts?: Record<I18nKey, Record<string, string>>;
+}
+
+/** The translations of every text the copied menus, commands and elements hold, read in `project`. */
+export function collectTexts(
+  project: Project,
+  copied: { menus: Menu[]; commands: Command[]; elements: ElementCopy[] },
+): Record<I18nKey, Record<string, string>> {
+  const texts: Record<I18nKey, Record<string, string>> = {};
+  const take = (sites: Iterable<{ lText: { key: I18nKey } }>) => {
+    for (const site of sites) {
+      const values = project.i18nKeys[site.lText.key];
+      if (values) texts[site.lText.key] = { ...values };
+    }
+  };
+  for (const menu of copied.menus) take(visitMenuLTexts(menu));
+  for (const command of copied.commands) take(visitCommandLTexts(command));
+  for (const { sourceMenuId, element } of copied.elements)
+    take(visitElementLTexts(sourceMenuId, element));
+  return texts;
 }
 
 /** In-memory fallback when the system clipboard isn't available (permission denied, file:// origin, etc). */

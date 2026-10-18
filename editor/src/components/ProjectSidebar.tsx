@@ -48,6 +48,7 @@ import { ChevronDown, ChevronRight, Folder, FolderOpen, GripVertical } from "luc
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
+import { Badge } from "./ui/badge";
 import { useServersStatus } from "./useServersStatus";
 
 export function ProjectSidebar() {
@@ -178,10 +179,10 @@ export function ProjectSidebar() {
   }
   const remaining = [...idToProject.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
-  // Add-on-owned projects surface under "Installed modules", not the flat list
-  // (ADR addon-owned-project-roots) — same grouping as a server page, computed
-  // once in `buildProjectGroups`.
-  const { flatProjects, moduleGroups } = buildProjectGroups({
+  // Every project in one list, a module's own badged with its name; under
+  // "Installed modules", only what a module alone manages (its screens) — same
+  // split as a server page, computed once in `buildProjectGroups`.
+  const { projects: projectRows, moduleGroups } = buildProjectGroups({
     projects: finalList,
     screens: serverScreens,
     mountedModuleIds,
@@ -197,7 +198,7 @@ export function ProjectSidebar() {
   // Does the open project have a row in the list? Otherwise (demo, unlisted
   // project), it is shown at the top with its Documents.
   const openProjectId = urlParams.projectId;
-  const visibleRows = [...flatProjects, ...moduleGroups.flatMap((g) => g.projects)];
+  const visibleRows = projectRows;
   const openIsListed =
     !!openProjectId &&
     visibleRows.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId);
@@ -205,7 +206,7 @@ export function ProjectSidebar() {
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const ids = flatProjects.map((p) => p.id);
+    const ids = projectRows.map((p) => p.id);
     const oldIndex = ids.indexOf(active.id as string);
     const newIndex = ids.indexOf(over.id as string);
     if (oldIndex === -1 || newIndex === -1) return;
@@ -251,16 +252,17 @@ export function ProjectSidebar() {
           )}
           <DndContext sensors={sensors} onDragEnd={onDragEnd} modifiers={[restrictToVerticalAxis]}>
             <SortableContext
-              items={flatProjects.map((p) => p.id)}
+              items={projectRows.map((p) => p.id)}
               strategy={verticalListSortingStrategy}
             >
               <ul className="flex flex-col">
-                {flatProjects.map((w) => (
+                {projectRows.map((w) => (
                   <SortableProjectItem
                     key={w.id}
                     id={w.id}
                     urlId={projectUrlId(w)}
                     name={w.name}
+                    ownerLabel={w.ownerLabel}
                     count={countFor(w)}
                     serverId={urlServerId(allServerEntries, w.serverKeyId) || srvParam}
                   />
@@ -284,71 +286,40 @@ export function ProjectSidebar() {
           )}
         </div>
 
-        <div className="mt-4 flex flex-col">
-          <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-            {t("sidebar.installedModules")}
-          </div>
-          {moduleGroups.length === 0 ? (
-            <div className="rounded-[14px] border border-dashed border-[var(--border)] px-3 py-3 text-center text-[11px] text-[var(--text-faint)]">
-              {t("sidebar.noModules")}
+        {moduleGroups.length > 0 && (
+          <div className="mt-4 flex flex-col">
+            <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
+              {t("sidebar.installedModules")}
             </div>
-          ) : (
             <ul className="flex flex-col gap-1.5">
-              {moduleGroups.map((g) =>
-                g.collapsed ? (
-                  // One project, no screen (boutique) → a SINGLE entry named
-                  // after the module that opens the editor directly.
-                  <OwnedProjectItem
-                    key={g.id}
-                    id={g.projects[0]!.id}
-                    urlId={projectUrlId(g.projects[0]!)}
-                    name={g.label}
-                    count={countFor(g.projects[0]!)}
-                    serverId={urlServerId(allServerEntries, g.projects[0]!.serverKeyId) || srvParam}
-                  />
-                ) : (
-                  <li key={g.id} className="flex flex-col">
-                    {/* TODO: render the module's icon once modules ship real icons */}
-                    <div className="px-2.5 pt-0.5 pb-1 text-[12px] font-semibold text-[var(--text)]">
-                      {g.label}
-                    </div>
-                    <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
-                      {g.projects.map((w) => (
-                        <OwnedProjectItem
-                          key={w.id}
-                          id={w.id}
-                          urlId={projectUrlId(w)}
-                          // Under a module group the canvas entry is "Editor"
-                          // (ADR module-config-screens §2) — the group header
-                          // already carries the module's name. Only a module
-                          // owning several projects needs their real names.
-                          name={g.projects.length === 1 ? t("screens.editorEntry") : w.name}
-                          count={countFor(w)}
-                          serverId={urlServerId(allServerEntries, w.serverKeyId) || srvParam}
-                        />
-                      ))}
-                      {g.screens.map((s) => (
-                        <ScreenItem key={s.id} screen={s} serverId={srvParam} />
-                      ))}
-                      {g.hasScreen && (
-                        <li>
-                          <Link
-                            to="/m/$moduleId"
-                            params={{ moduleId: g.id }}
-                            onClick={() => useSidebarStore.getState().close()}
-                            className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                          >
-                            <span className="truncate flex-1">{t("sidebar.configuration")}</span>
-                          </Link>
-                        </li>
-                      )}
-                    </ul>
-                  </li>
-                ),
-              )}
+              {moduleGroups.map((g) => (
+                <li key={g.id} className="flex flex-col">
+                  {/* TODO: render the module's icon once modules ship real icons */}
+                  <div className="px-2.5 pt-0.5 pb-1 text-[12px] font-semibold text-[var(--text)]">
+                    {g.label}
+                  </div>
+                  <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
+                    {g.screens.map((s) => (
+                      <ScreenItem key={s.id} screen={s} serverId={srvParam} />
+                    ))}
+                    {g.hasScreen && (
+                      <li>
+                        <Link
+                          to="/m/$moduleId"
+                          params={{ moduleId: g.id }}
+                          onClick={() => useSidebarStore.getState().close()}
+                          className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                        >
+                          <span className="truncate flex-1">{t("sidebar.configuration")}</span>
+                        </Link>
+                      </li>
+                    )}
+                  </ul>
+                </li>
+              ))}
             </ul>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <UserMenu
@@ -563,61 +534,11 @@ function ExpandToggle({
   );
 }
 
-/** Add-on-owned project link under "Installed modules" — like a project item but
- *  not reorderable (its placement is the module's, not the user's). */
-function OwnedProjectItem({
-  id,
-  urlId,
-  name,
-  count,
-  serverId,
-}: {
-  id: string;
-  /** Exact folder/module ID in this location. */
-  urlId?: string;
-  name: string;
-  count: number | null;
-  serverId: string | null;
-}) {
-  const { t } = useTranslation();
-  const params = useParams({ strict: false }) as { projectId?: string };
-  const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
-  return (
-    <li className="flex flex-col">
-      <div className="flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
-        <ProjectLink
-          projectId={urlId ?? id}
-          serverId={serverId}
-          className={
-            isActiveProject
-              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
-              : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
-          }
-        >
-          <span className="min-w-0 truncate" title={name}>
-            {name}
-          </span>
-          {count != null && (
-            <span
-              title={t("serverDetail.documentCount", { count })}
-              aria-label={t("serverDetail.documentCount", { count })}
-              className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
-            >
-              {count}
-            </span>
-          )}
-        </ProjectLink>
-        {isActiveProject && <ActiveProjectActions id={id} urlId={urlId} />}
-      </div>
-      {isActiveProject && <ActiveProjectDocuments id={id} urlId={urlId} serverId={serverId} />}
-    </li>
-  );
-}
-
 function SortableProjectItem({
   id,
   urlId,
   name,
+  ownerLabel,
   count,
   serverId,
 }: {
@@ -625,6 +546,8 @@ function SortableProjectItem({
   /** Exact folder/module ID in this location. */
   urlId?: string;
   name: string;
+  /** The module that ships this project, shown as a badge; null for the user's own. */
+  ownerLabel?: string | null;
   count: number | null;
   serverId: string | null;
 }) {
@@ -679,6 +602,14 @@ function SortableProjectItem({
             <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
           )}
           <span className="min-w-0 truncate">{name}</span>
+          {ownerLabel && (
+            <Badge
+              title={t("sidebar.providedBy", { module: ownerLabel })}
+              className="shrink-0 font-semibold"
+            >
+              {ownerLabel}
+            </Badge>
+          )}
           {count != null && (
             <span
               title={t("serverDetail.documentCount", { count })}

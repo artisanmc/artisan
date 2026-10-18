@@ -611,6 +611,35 @@ Le canvas reste monté pendant ouverture, fermeture, resize et changement d'orie
 Le bouton Boutons est un outil flottant arrondi en haut à droite du canvas, rendu par `ProjectLibraryWorkspace` dans le panneau principal du split uniquement si le panneau est fermé. Bouton et panneau sont visibles uniquement sur la planche et les vues individuelles de menus, jamais dans les vues commande ou dialogue ni les onglets secondaires. L'état d'ouverture est conservé au retour au canvas. La croix ferme le panneau et fait réapparaître l’outil ; aucun bouton Boutons dans la topbar.
 L’en-tête regroupe onglets et fermeture sans ligne de titre supplémentaire ; les filtres du catalogue restent sur une ligne défilante horizontalement, pour préserver la hauteur de grille.
 
+### Copier entre projects : les textes suivent (depuis 2026-10-18)
+
+Le presse-papiers (`features/canvas/clipboard.ts`) porte `texts` (clé → langue → valeur), lus par
+`collectTexts` dans le project source (`visitMenuLTexts`, `visitCommandLTexts`, `visitElementLTexts`).
+Au collage, `pasteEntities` et `addElement` les **prêtent** au project cible pour les clés qu'il n'a pas
+(`lendTexts`), clonent sous des clés neuves comme avant, puis les reprennent (`returnTexts`) : une copie
+d'un autre project, ou de la version par défaut d'un modèle, garde ses textes sans laisser de clé orpheline.
+
+### Modèles de module (depuis 2026-10-18, ADR `module-templates`)
+
+`ModuleTemplatesDialog` (`features/templates/`, entrée « Depuis un module… » du `+` de `ProjectActions`,
+présente si le serveur annonce un modèle) : les modèles des `installed_modules[].templates`
+(`modulesStore.active`), chaque fichier avec son état (`templateStates.ts` : non ajouté, fichier du
+project, identique, modifié, retiré, nouvelle version), calculé depuis `.artisan/origins.yaml`
+(`GET …/origins`) et le SHA-256 des fichiers **publiés** (`projectBaselineStore`), via
+`useProjectTemplates` / `projectTemplatesStore`. Actions :
+- **Ajouter au projet** / **Mettre à jour** (copies intactes d'une version plus ancienne) /
+  **Réinitialiser au modèle** (un fichier) : `POST …/templates`, écrit par le serveur. Un conflit (409)
+  liste les fichiers et propose de les remplacer. Désactivé tant que le brouillon a des changements non
+  publiés : après la copie le project est relu depuis le disque (`requestReload`).
+- **Voir / Comparer** un fichier : la version du module en lecture seule (`YamlCodeEditor readOnly`) ou
+  son diff avec le fichier publié (`FileDiff`), « Copier le texte ».
+- **Ouvrir la version par défaut** : le modèle lu en Project jamais stocké (`templateProject`, via
+  `projectFromFiles`) ; on coche menus, items et commandes, `templateClipboard` les met au presse-papiers
+  avec leurs textes, à coller sur la planche (Ctrl+V). Pas de planche en lecture seule pour l'instant.
+
+Dans l'arbre, un Document copié d'un modèle porte une pastille (`DocumentRow`) : verte (identique),
+brique (modifié), ambre (le module livre une nouvelle version) ; son libellé nomme le module.
+
 ### Registre du project — barre de gauche (le panneau de droite est retiré)
 
 **Depuis 2026-10-02**, les Documents du project vivent **uniquement dans la barre de gauche** : `ProjectElementsSidebar`, `ProjectPanel`, le bouton Éléments de la topbar, `uiStore.projectPanelOpen` et le drawer mobile droit sont supprimés. À droite ne reste que l'inspecteur de la sélection (`ProjectWorkspacePanels`).
@@ -806,7 +835,7 @@ puis la liste est relue depuis ce disque.
 
 Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
-- **`ProjectSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/servers`) en haut + `ServerSelector` (label via `displayServerLabel`) + section Projects filtrée par server actif (drag-reorder via `account.projectOrder`) + section **Modules installés** (un groupe par module : son canvas « Éditeur », ses Config screens, sa route `/m/<id>`). Le découpage projects plats / groupes de modules vit dans `features/projects/projectGroups.ts` (`buildProjectGroups`, pur) — **la page d'un serveur (`/servers/$serverId`, `$serverId` = UUID du serveur) affiche la même chose en lisant la même fonction**, et lit ses Projects sur le disque du serveur (`listServerProjects`) comme la sidebar + ⚙ Settings sticky bottom. Depuis les routes slugs (phase 4a), les params URL `networkId`/`serverId` peuvent porter un slug : la sidebar les résout en ids réels (match `id` OU `slug` contre `networksStore` / les `serverKeys` fetchés) avant tout filtrage de projects ; `ServerSelector` matche pareillement `serverId|serverSlug`. Les flows de création hors sidebar (hub `/networks`, network detail, setup wizard) appellent `networksStore.bumpRefresh()` après chaque create/delete — la sidebar écoute `refreshToken` et refetch networks + server entries (sinon elle resterait stale jusqu'au reload). Accounts-only (Task 8) : plus de session-mode, toujours cookie user + `listNetworks`.
+- **`ProjectSidebar`** (sticky, `routes/__root.tsx`) — brand cliquable (→ `/servers`) en haut + `ServerSelector` (label via `displayServerLabel`) + section Projects filtrée par server actif (drag-reorder via `account.projectOrder`) + section **Modules installés** (un groupe par module, seulement ce que le module est seul à gérer : ses Config screens, sa route `/m/<id>` ; un module sans rien à configurer n'a pas de groupe). Les projects d'un module (racine add-on) restent dans la liste des Projects, avec un badge au nom du module (`ownerLabel`) : un module chargé s'utilise dans n'importe quel project, son contenu fourni n'est pas rangé à part. Le découpage liste de projects / groupes de modules vit dans `features/projects/projectGroups.ts` (`buildProjectGroups`, pur) — **la page d'un serveur (`/servers/$serverId`, `$serverId` = UUID du serveur) affiche la même chose en lisant la même fonction**, et lit ses Projects sur le disque du serveur (`listServerProjects`) comme la sidebar + ⚙ Settings sticky bottom. Depuis les routes slugs (phase 4a), les params URL `networkId`/`serverId` peuvent porter un slug : la sidebar les résout en ids réels (match `id` OU `slug` contre `networksStore` / les `serverKeys` fetchés) avant tout filtrage de projects ; `ServerSelector` matche pareillement `serverId|serverSlug`. Les flows de création hors sidebar (hub `/networks`, network detail, setup wizard) appellent `networksStore.bumpRefresh()` après chaque create/delete — la sidebar écoute `refreshToken` et refetch networks + server entries (sinon elle resterait stale jusqu'au reload). Accounts-only (Task 8) : plus de session-mode, toujours cookie user + `listNetworks`.
 - **`/servers/$serverId/projects/$projectId`** — route canonique server-scoped (`$serverId` = UUID du serveur, plus de niveau network) (`/project/$projectId` redirige). Onglets via `?tab=` : `overview` (canvas Konva, default), `translations` (`TranslationPanelContent`), `data-sources` (`DataSourcesPanelContent`), `resources` (`AssetsTab` — images et polices), `assistant` (`AssistantBody`). **Depuis 2026-07-20**, les vues secondaires **remplacent le canvas** dans la zone centrale (elles ne flottent plus en modal) : chaque est un `WorkspaceView` (`components/ui/workspace-view.tsx`) — panneau opaque `absolute inset-0` **keep-alive** (monté à la 1ʳᵉ activation, reste monté `hidden` ensuite → filtres/chat/sélection survivent au switch) qui recouvre le `centerContent`. Le canvas reste **monté dessous** (jamais `display:none`, sinon le `ResizeObserver` du `Stage` re-mesurerait) ; il est juste caché visuellement. La `ProjectSidebar` interne (arbre `ProjectPanel`, colonne droite partagée avec les propriétés, toggle `projectPanelOpen`) est **persistante** across toutes les vues ; seul le centre swap entre canvas, détail Document (`<Outlet/>` quand `useChildMatches` non vide — mutuellement exclusif avec le `Stage`) et vues secondaires. Échap / × reviennent au canvas (`exitToCanvas`, `?tab=undefined`).
 - **Source picker (`SourcePickerOptions`, `MenuProperties.tsx`)** — liste désormais les data sources live du serveur connecté (`useServerDataSourcesStore`, endpoint `GET /api/v1/servers/:serverId/data-sources`, cookie auth, section "On this server"), en plus des project data ; les refs restent librement saisissables (invariant hermétique). Le flow « import de connecteurs » YAML a été retiré le 2026-07-17 (mort — remplacé par les sources reportées serveur).
 - **`SourceShapingEditor` (`properties/SourceShapingEditor.tsx`)** — éditeur visuel monté sous chaque `SourceRefInputRow` : filtre égalité (`filter: Record<field, value>`, valeur littérale ou `{arg}`), tri mono-clé (`sort.by`/`direction`), `limit`. Aucun changement runtime — édite les mêmes champs opaques `ContextInput.sourceRef` (round-trip YAML inchangé). Autocomplétion via `<datalist>` : champs depuis `serverSource.schema` (fallback saisie libre si `[]`), valeurs `{arg}` depuis les `contextInputs` de type `primitive` du menu.

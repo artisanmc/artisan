@@ -113,7 +113,7 @@ ceux-ci — dans **`docs/architecture/invariants.md`**.
    publication du brouillon, avec compare-and-swap. Serveur éteint = éditeur (ou feuille) hors
    ligne : rien n'est copié ailleurs.
 2. **`.artisan*` en premier segment = métadonnée** — hors hash, invisible au scan disque. L'éditeur
-   possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`,
+   possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`, `.artisan/origins.yaml`,
    `.artisan-trash/` et `.artisan-sync.yaml` lui restent invisibles **et** interdits en écriture.
 3. **Threads : Paper, Folia, Leaf** — jamais `Bukkit.getScheduler()` : tout passe par le port
    `Scheduler`. Jetty répond sur ses propres threads ; tout accès au jeu depuis le hub repasse par

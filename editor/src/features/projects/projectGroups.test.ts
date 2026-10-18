@@ -44,32 +44,33 @@ describe("buildProjectGroups", () => {
     expect(diskProjectsToSummaries("sk_1", ["shop"], [metadata])).toEqual([metadata]);
     expect(diskProjectsToSummaries("sk_1", ["legacy"])[0]?.capabilities).toBeUndefined();
   });
-  it("keeps ordinary projects flat", () => {
-    const { flatProjects, moduleGroups } = buildProjectGroups({
+  it("keeps ordinary projects in the list, without a module group", () => {
+    const { projects, moduleGroups } = buildProjectGroups({
       projects: [project("hub"), project("lobby")],
       screens: [],
       mountedModuleIds: [],
       localProjects: [],
     });
-    expect(flatProjects.map((p) => p.id)).toEqual(["hub", "lobby"]);
+    expect(projects.map((p) => [p.id, p.ownerLabel])).toEqual([
+      ["hub", null],
+      ["lobby", null],
+    ]);
     expect(moduleGroups).toEqual([]);
   });
 
-  it("moves an add-on-owned project under its module, named after the module", () => {
-    const { flatProjects, moduleGroups } = buildProjectGroups({
-      projects: [project("hub"), project("boutique_shop")],
+  it("keeps an add-on-owned project in the list, in order, badged with its module", () => {
+    const { projects, moduleGroups } = buildProjectGroups({
+      projects: [project("hub"), project("boutique_shop"), project("lobby")],
       screens: [screen("catalogue", "boutique", "boutique_shop")],
       mountedModuleIds: [],
       localProjects: [],
     });
-    expect(flatProjects.map((p) => p.id)).toEqual(["hub"]);
-    expect(moduleGroups).toHaveLength(1);
-    expect(moduleGroups[0]!.id).toBe("boutique");
-    expect(moduleGroups[0]!.label).toBe("Boutique");
-    expect(moduleGroups[0]!.projects.map((p) => p.id)).toEqual(["boutique_shop"]);
+    expect(projects.map((p) => p.id)).toEqual(["hub", "boutique_shop", "lobby"]);
+    expect(projects[1]).toMatchObject({ ownerModule: "boutique", ownerLabel: "Boutique" });
+    expect(moduleGroups.map((g) => g.id)).toEqual(["boutique"]);
   });
 
-  it("lists the module's entries: editor, declared screens, then its configuration route", () => {
+  it("lists only what the module manages: declared screens, then its configuration route", () => {
     const { moduleGroups } = buildProjectGroups({
       projects: [project("quests_data")],
       screens: [screen("quests_list", "quests", "quests_data")],
@@ -78,36 +79,18 @@ describe("buildProjectGroups", () => {
     });
     const g = moduleGroups[0]!;
     expect(g.hasScreen).toBe(true);
-    expect(g.collapsed).toBe(false);
-    expect(g.entries.map((e) => e.kind)).toEqual(["project", "screen", "config"]);
-    expect(g.entries[0]).toMatchObject({ kind: "project", label: null });
+    expect(g.entries.map((e) => e.kind)).toEqual(["screen", "config"]);
   });
 
-  it("collapses a screenless single-project module to one entry", () => {
-    const { moduleGroups } = buildProjectGroups({
-      projects: [project("boutique_shop", { ownerModule: "boutique" })],
-      screens: [],
-      mountedModuleIds: ["boutique"],
-      localProjects: [],
-    });
-    const g = moduleGroups[0]!;
-    expect(g.collapsed).toBe(true);
-    expect(g.entries).toHaveLength(1);
-  });
-
-  it("keeps real names when a module owns several projects", () => {
-    const { moduleGroups } = buildProjectGroups({
-      projects: [
-        project("a", { ownerModule: "boutique" }),
-        project("b", { ownerModule: "boutique" }),
-      ],
+  it("gives no group to a module with nothing to configure", () => {
+    const { projects, moduleGroups } = buildProjectGroups({
+      projects: [project("guild_menus", { ownerModule: "msguilds" })],
       screens: [],
       mountedModuleIds: [],
       localProjects: [],
     });
-    const g = moduleGroups[0]!;
-    expect(g.collapsed).toBe(false);
-    expect(g.entries.map((e) => (e.kind === "project" ? e.label : e.kind))).toEqual(["a", "b"]);
+    expect(projects[0]).toMatchObject({ ownerModule: "msguilds", ownerLabel: "msguilds" });
+    expect(moduleGroups).toEqual([]);
   });
 
   it("surfaces a mounted module even when it owns no project", () => {
