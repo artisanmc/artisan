@@ -11,6 +11,7 @@ import { projectDestination } from "@/lib/projectNavigation";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
+import { documentKindContribution } from "@artisan/editor-sdk";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useContext, useEffect, useState } from "react";
@@ -38,6 +39,10 @@ export function DocumentView({
   // Any kind, a module's included (its view is the kind's `component`, via SelectionInspector).
   const found = project ? findDocument(project, eid) : undefined;
   const relPath = project ? documentRelPath(project, eid) : null;
+  // A module kind whose node lists its parts opens on its node, like a menu: clicking a
+  // part edits it in the panel beside.
+  const onStage =
+    menu != null || (found != null && documentKindContribution(found.kind)?.board?.items != null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the default selection is applied once per opened document; re-running on `menu.layers` edits would reset the user's selection on every change
   useEffect(() => {
@@ -132,7 +137,7 @@ export function DocumentView({
 
   return (
     <div className="absolute inset-0">
-      {menu ? (
+      {onStage ? (
         <CanvasWithInspector
           projectId={pId}
           canvas={<Stage projectId={pId} focus={documentId} />}

@@ -30,6 +30,7 @@ import { CanvasToolbar } from "./CanvasToolbar";
 import { CommandGroup } from "./CommandGroup";
 import { DialogGroup } from "./DialogGroup";
 import { DocumentGroup } from "./DocumentGroup";
+import { DocumentItemTooltip } from "./DocumentItemTooltip";
 import { EdgeTooltip } from "./EdgeTooltip";
 import { Edges } from "./Edges";
 import { GhostChips } from "./GhostChips";
@@ -360,6 +361,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 kind={kind}
                 doc={doc}
                 position={layout[doc.id]!}
+                solo={focusMode}
               />
             ))}
           <GhostChips
@@ -379,6 +381,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
         </Layer>
       </KonvaStage>
       <ItemTooltip projectId={projectId} />
+      <DocumentItemTooltip />
       <EdgeTooltip project={project} groups={board?.groups} />
       <StageContextMenu
         projectId={projectId}

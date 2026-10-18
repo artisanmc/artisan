@@ -18,6 +18,7 @@ export type {
   LTextSiteContribution,
   ChainSlotContribution,
   BoardItem,
+  BoardItemHover,
 } from "./contract/types";
 export {
   registerModule,
