@@ -24,6 +24,7 @@ import net.artisanmc.modules.api.scheduler.SchedulerApi;
 import net.artisanmc.modules.api.schemas.SchemaRegistry;
 import net.artisanmc.modules.api.screen.EditorScreenRegistry;
 import net.artisanmc.modules.api.template.TemplateRegistry;
+import net.artisanmc.modules.api.translation.TranslationsApi;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -67,6 +68,7 @@ public final class ArtisanAPI {
     private final SchedulerApi scheduler;
     private final PlaceholderRegistry placeholders;
     private final ConditionsApi conditions;
+    private final TranslationsApi translations;
 
     private ArtisanAPI(Builder b) {
         this.plugin = b.plugin;
@@ -91,6 +93,7 @@ public final class ArtisanAPI {
         this.scheduler = b.scheduler;
         this.placeholders = b.placeholders;
         this.conditions = b.conditions;
+        this.translations = b.translations;
     }
 
     /**
@@ -249,6 +252,12 @@ public final class ArtisanAPI {
         return conditions;
     }
 
+    /** System messages of the suite's plugins: the player's language, lang files per namespace. */
+    @Beta
+    public TranslationsApi getTranslations() {
+        return translations;
+    }
+
     /** Version of this API (the {@code Since} numbering of the published {@code artisan-core-api}). */
     @Stable
     public String getApiVersion() {
@@ -286,6 +295,7 @@ public final class ArtisanAPI {
         private SchedulerApi scheduler = SchedulerApi.DIRECT;
         private PlaceholderRegistry placeholders = PlaceholderRegistry.NOOP;
         private ConditionsApi conditions = ConditionsApi.NOOP;
+        private TranslationsApi translations = TranslationsApi.NOOP;
 
         private Builder(
             JavaPlugin plugin,
@@ -374,6 +384,11 @@ public final class ArtisanAPI {
 
         public Builder conditions(ConditionsApi conditions) {
             this.conditions = Objects.requireNonNull(conditions);
+            return this;
+        }
+
+        public Builder translations(TranslationsApi translations) {
+            this.translations = Objects.requireNonNull(translations);
             return this;
         }
 

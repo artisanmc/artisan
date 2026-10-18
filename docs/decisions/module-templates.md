@@ -1,6 +1,6 @@
 # Module templates: example content copied into any Project
 
-**Status:** accepted (2026-10-18). Plugin side: API 2.5.0, protocol 1.3. Editor: `ModuleTemplatesDialog`
+**Status:** accepted (2026-10-18). Plugin side: API 2.6.0, protocol 1.3. Editor: `ModuleTemplatesDialog`
 (catalog, per-file states, reset, read-only default version to copy from).
 
 ## Context

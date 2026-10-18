@@ -51,7 +51,7 @@ class ArtisanCommand(
                 plugin.menuProvider.openMenu(sender, menuId, lang.playerLang(sender))
             }
             "reload" -> {
-                // Re-read disk config + re-init LangManager so options like
+                // Re-read disk config + reconfigure the translations so options like
                 // `per_player_language` and `language` pick up changes without
                 // needing a full server restart. Then reload the menu provider
                 // so disk-side YAML edits are picked up too.

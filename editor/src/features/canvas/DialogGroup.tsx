@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { dispatchOpenElement } from "./canvasEvents";
 import { DIALOG_BOX } from "./menuLayout";
+import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
 
 interface DialogGroupProps {
@@ -57,6 +58,9 @@ export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
       onTap={onClick}
       onDblClick={() => dispatchOpenElement(dialog.id)}
       onDblTap={() => dispatchOpenElement(dialog.id)}
+      // The title may be cut by its ellipsis: the full one shows on hover.
+      onMouseEnter={(e) => showFullTitle(e, dialog.id)}
+      onMouseLeave={(e) => showFullTitle(e, null)}
       name={`dialog:${dialog.id}`}
       id={dialog.id}
     >
@@ -72,6 +76,9 @@ export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
       <Text
         x={10}
         y={10}
+        width={DIALOG_BOX.width - 20}
+        wrap="none"
+        ellipsis
         text={dialog.id}
         fontFamily="ui-monospace, monospace"
         fontSize={12}
@@ -82,6 +89,9 @@ export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
       <Text
         x={10}
         y={30}
+        width={DIALOG_BOX.width - 20}
+        wrap="none"
+        ellipsis
         text={`dialog · ${dialog.buttons.length}btn`}
         fontFamily="ui-monospace, monospace"
         fontSize={9}
