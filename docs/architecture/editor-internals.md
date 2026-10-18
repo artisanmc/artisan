@@ -610,6 +610,35 @@ Le canvas reste monté pendant ouverture, fermeture, resize et changement d'orie
 Le bouton Boutons est un outil flottant arrondi en haut à droite du canvas, rendu par `ProjectLibraryWorkspace` dans le panneau principal du split uniquement si le panneau est fermé. Bouton et panneau sont visibles uniquement sur la planche et les vues individuelles de menus, jamais dans les vues commande ou dialogue ni les onglets secondaires. L'état d'ouverture est conservé au retour au canvas. La croix ferme le panneau et fait réapparaître l’outil ; aucun bouton Boutons dans la topbar.
 L’en-tête regroupe onglets et fermeture sans ligne de titre supplémentaire ; les filtres du catalogue restent sur une ligne défilante horizontalement, pour préserver la hauteur de grille.
 
+### Copier entre projects : les textes suivent (depuis 2026-10-18)
+
+Le presse-papiers (`features/canvas/clipboard.ts`) porte `texts` (clé → langue → valeur), lus par
+`collectTexts` dans le project source (`visitMenuLTexts`, `visitCommandLTexts`, `visitElementLTexts`).
+Au collage, `pasteEntities` et `addElement` les **prêtent** au project cible pour les clés qu'il n'a pas
+(`lendTexts`), clonent sous des clés neuves comme avant, puis les reprennent (`returnTexts`) : une copie
+d'un autre project, ou de la version par défaut d'un modèle, garde ses textes sans laisser de clé orpheline.
+
+### Modèles de module (depuis 2026-10-18, ADR `module-templates`)
+
+`ModuleTemplatesDialog` (`features/templates/`, entrée « Depuis un module… » du `+` de `ProjectActions`,
+présente si le serveur annonce un modèle) : les modèles des `installed_modules[].templates`
+(`modulesStore.active`), chaque fichier avec son état (`templateStates.ts` : non ajouté, fichier du
+project, identique, modifié, retiré, nouvelle version), calculé depuis `.artisan/origins.yaml`
+(`GET …/origins`) et le SHA-256 des fichiers **publiés** (`projectBaselineStore`), via
+`useProjectTemplates` / `projectTemplatesStore`. Actions :
+- **Ajouter au projet** / **Mettre à jour** (copies intactes d'une version plus ancienne) /
+  **Réinitialiser au modèle** (un fichier) : `POST …/templates`, écrit par le serveur. Un conflit (409)
+  liste les fichiers et propose de les remplacer. Désactivé tant que le brouillon a des changements non
+  publiés : après la copie le project est relu depuis le disque (`requestReload`).
+- **Voir / Comparer** un fichier : la version du module en lecture seule (`YamlCodeEditor readOnly`) ou
+  son diff avec le fichier publié (`FileDiff`), « Copier le texte ».
+- **Ouvrir la version par défaut** : le modèle lu en Project jamais stocké (`templateProject`, via
+  `projectFromFiles`) ; on coche menus, items et commandes, `templateClipboard` les met au presse-papiers
+  avec leurs textes, à coller sur la planche (Ctrl+V). Pas de planche en lecture seule pour l'instant.
+
+Dans l'arbre, un Document copié d'un modèle porte une pastille (`DocumentRow`) : verte (identique),
+brique (modifié), ambre (le module livre une nouvelle version) ; son libellé nomme le module.
+
 ### Registre du project — barre de gauche (le panneau de droite est retiré)
 
 **Depuis 2026-10-02**, les Documents du project vivent **uniquement dans la barre de gauche** : `ProjectElementsSidebar`, `ProjectPanel`, le bouton Éléments de la topbar, `uiStore.projectPanelOpen` et le drawer mobile droit sont supprimés. À droite ne reste que l'inspecteur de la sélection (`ProjectWorkspacePanels`).

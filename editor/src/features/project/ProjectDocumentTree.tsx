@@ -11,6 +11,11 @@ import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
+import { ModuleTemplatesDialog } from "@/features/templates/ModuleTemplatesDialog";
+import {
+  type ProjectTemplates,
+  useProjectTemplates,
+} from "@/features/templates/useProjectTemplates";
 import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
@@ -21,6 +26,7 @@ import { FileText, LayoutGrid, MessageSquare, Plus, Settings, TerminalSquare } f
 import { useState } from "react";
 import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
+import { documentRelPath } from "./DocumentYamlView";
 import { openProjectSettings } from "./projectSettings";
 import {
   type DocumentType,
@@ -68,6 +74,8 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   // A module's kind: one "+" entry and one dialog per contribution.
   const [newKind, setNewKind] = useState<string | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const templates = useProjectTemplates(projectId);
   const moduleKinds = listDocumentKindContributions().filter((c) => !isCoreDocumentType(c.kind));
   const iconButton =
     "flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]";
@@ -107,6 +115,11 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
               {t("projectProperties.newDocument", { kind: typeLabel(c.kind, t) })}
             </DropdownMenuItem>
           ))}
+          {templates.status !== "none" && (
+            <DropdownMenuItem onSelect={() => setTemplatesOpen(true)}>
+              {t("moduleTemplates.fromModule")}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       <NewMenuDialog projectId={projectId} open={newMenuOpen} onOpenChange={setNewMenuOpen} />
@@ -116,6 +129,9 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
         onOpenChange={setNewCommandOpen}
       />
       <NewDialogDialog projectId={projectId} open={newDialogOpen} onOpenChange={setNewDialogOpen} />
+      {templatesOpen && (
+        <ModuleTemplatesDialog projectId={projectId} open onOpenChange={setTemplatesOpen} />
+      )}
       {newKind !== null && (
         <NewDocumentDialog
           projectId={projectId}
@@ -193,6 +209,7 @@ export function DocumentGroups({
   const { t } = useTranslation();
   const activeLang = useUiStore((s) => s.activeLang);
   const serverKinds = useServerDocumentKindsStore();
+  const templates = useProjectTemplates(project.id);
   return (
     <>
       {buildProjectDocuments(project, activeLang).map((g) => {
@@ -230,6 +247,7 @@ export function DocumentGroups({
                     projectId={editable ? project.id : null}
                     item={it}
                     onOpen={() => onOpen(it.id)}
+                    origin={templateOrigin(templates, documentRelPath(project, it.id))}
                   />
                 </li>
               ))}
@@ -241,16 +259,48 @@ export function DocumentGroups({
   );
 }
 
+/** A Document copied from a module template: the dot after its name, and what it says. */
+interface TemplateOrigin {
+  tone: "update" | "modified" | "identical";
+  label: string;
+}
+
+function templateOrigin(
+  templates: ProjectTemplates,
+  path: string | null,
+): (Omit<TemplateOrigin, "label"> & { module: string }) | null {
+  const entry = path ? templates.byPath[path] : undefined;
+  if (!entry || entry.file.status === "removed") return null;
+  const tone = entry.file.updateAvailable
+    ? "update"
+    : entry.file.status === "modified"
+      ? "modified"
+      : "identical";
+  return { tone, module: entry.template.moduleId };
+}
+
+const ORIGIN_DOT: Record<TemplateOrigin["tone"], string> = {
+  update: "bg-[var(--warning)]",
+  modified: "bg-[var(--brand)]",
+  identical: "bg-[var(--success)]",
+};
+
 function DocumentRow({
   projectId,
   item,
   onOpen,
+  origin,
 }: {
   /** `null` = read-only: no actions menu. */
   projectId: ProjectId | null;
   item: ProjectDocumentItem;
   onOpen: () => void;
+  origin?: (Omit<TemplateOrigin, "label"> & { module: string }) | null;
 }) {
+  const { t } = useTranslation();
+  const originLabel = origin
+    ? t(`moduleTemplates.badge.${origin.tone}`, { module: origin.module })
+    : undefined;
   return (
     <div className="group flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
       <button
@@ -259,6 +309,14 @@ function DocumentRow({
         className="flex min-w-0 flex-1 items-center rounded-[10px] py-1 pr-2 pl-6 text-left text-[12.5px] leading-5 text-[var(--text-mut)] hover:text-[var(--text)]"
       >
         <span className="flex-1 truncate">{item.label}</span>
+        {origin && (
+          <span
+            role="img"
+            aria-label={originLabel}
+            title={originLabel}
+            className={`ml-1 size-1.5 shrink-0 rounded-full ${ORIGIN_DOT[origin.tone]}`}
+          />
+        )}
       </button>
       {projectId !== null && <RowActions projectId={projectId} item={item} onOpen={onOpen} />}
     </div>
