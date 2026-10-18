@@ -56,12 +56,13 @@ public interface ItemStackApi {
 
     /**
      * The criteria a spec implies, read from the item it builds (a captured item included): the
-     * custom item when it is one, else the material, plus each of name, lore, enchants and custom
+     * custom item when it is one, else the material and {@link ItemComparison#CUSTOM_ITEM} (a custom
+     * item built on that material is not it), plus each of name, lore, enchants and custom
      * model data the item carries, and always its wear (an item that cannot wear has none). What these leave out
      * (repair cost, hidden tags) is never compared unless {@link ItemComparison#EXACT} is asked.
      * Since 2.4.0.
      */
     default Set<ItemComparison> defaultComparisons(Map<String, ?> spec) {
-        return Set.of(ItemComparison.MATERIAL);
+        return Set.of(ItemComparison.MATERIAL, ItemComparison.CUSTOM_ITEM);
     }
 }
