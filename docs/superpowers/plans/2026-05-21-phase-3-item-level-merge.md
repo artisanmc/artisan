@@ -10,7 +10,7 @@
 
 **Spec source :** `docs/superpowers/specs/2026-05-21-phase-3-item-level-merge-design.md`
 
-**Pré-requis :** Phase 2 mergée (tip = `25188ee8` ou descendant).
+**Pré-requis :** Phase 2 mergée (tip = `fb5932d0` ou descendant).
 
 **Decisions locked (du brainstorm) :**
 - Granularité conflit = **par item top-level** (pas champ-par-champ).
