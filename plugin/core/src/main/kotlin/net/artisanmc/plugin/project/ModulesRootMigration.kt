@@ -77,7 +77,7 @@ object ModulesRootMigration {
         return modules
     }
 
-    private fun move(from: File, to: File) {
+    internal fun move(from: File, to: File) {
         try {
             Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE)
         } catch (_: AtomicMoveNotSupportedException) {
