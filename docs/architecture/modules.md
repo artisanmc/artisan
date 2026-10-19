@@ -4,7 +4,7 @@ Spec d'architecture pour le pattern "modules" qui permet à Artisan d'évoluer d
 
 Statut : **architecture cible** — V1 implémente le menu editor comme premier module en suivant ce pattern. V1.5+ ajoute d'autres modules (shop, quests, kits, etc.). V3+ ouvre un SDK pour modules tiers.
 
-> **Révision phase F (2026-10)** : plus de backend. Le plugin sert l'éditeur (module Gradle `hub`, ADR `editor-web-server`) ; un module vit en **2 endroits** (plugin + éditeur), livrés dans le même jar. Les passages sur le backend (§3.2, §3.3.5, §10 « Backend », §13.5, §13.8, §14) décrivent l'état cloud, gardé pour l'historique ; état récupérable au commit `f085f576`.
+> **Révision phase F (2026-10)** : plus de backend. Le plugin sert l'éditeur (module Gradle `hub`, ADR `editor-web-server`) ; un module vit en **2 endroits** (plugin + éditeur), livrés dans le même jar. Les passages sur le backend (§3.2, §3.3.5, §10 « Backend », §13.5, §13.8, §14) décrivent l'état cloud, gardé pour l'historique ; état récupérable au commit `ccade092`.
 
 ---
 
@@ -988,7 +988,7 @@ plugin/
 
 ## 14. Module assistant (feature IA — backend-only, supprimé en phase F)
 
-> **Supprimé** avec le backend (2026-10). Le panneau de l'éditeur reste dans le dépôt, hors du build auto-hébergé (`SELF_HOSTED`) ; le moteur décrit ci-dessous est récupérable au commit `f085f576`.
+> **Supprimé** avec le backend (2026-10). Le panneau de l'éditeur reste dans le dépôt, hors du build auto-hébergé (`SELF_HOSTED`) ; le moteur décrit ci-dessous est récupérable au commit `ccade092`.
 
 > **Statut** : en cours de construction (sous-plans 2a–2d livrés ; crédits 3 + panel éditeur 4 à venir). Vit pour l'instant sous `backend/src/modules/assistant/` (pas encore les 3 layers symétriques d'un Add-on standard ; le panel éditeur arrive en sous-plan 4).
 

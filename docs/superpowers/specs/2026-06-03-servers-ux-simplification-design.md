@@ -467,5 +467,5 @@ Estimation grossière : P1 = 1 jour (migration + endpoints + tests), P2-P3 = 1 j
 - Hors scope V1 ; ajout simple plus tard si demande utilisateur émerge
 
 **Server fingerprinting / multi-instance**
-- Délibérément non-supporté en V1 (cf. spec server_key security model, commit 6fd79d92)
+- Délibérément non-supporté en V1 (cf. spec server_key security model, commit e0d4b94a)
 - Si V2 réintroduit multi-instance, la UI peut le surfacer comme "advanced" sans casser le modèle 1:1 par défaut

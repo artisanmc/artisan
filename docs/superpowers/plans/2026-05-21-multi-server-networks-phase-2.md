@@ -21,7 +21,7 @@
 - Auto-commit à chaque save (resté explicit per spec §9).
 - Plugin `/artisan switchBranch` command (set côté backend via éditeur seulement).
 
-**Pré-requis :** Plan 1A, 1B, 1C sur `main` (tip = `e08bade4`).
+**Pré-requis :** Plan 1A, 1B, 1C sur `main` (tip = `15182b1b`).
 
 **Decisions locked (from brainstorm) :**
 - Branches : **noms arbitraires** (style git), `main` est juste le défaut.

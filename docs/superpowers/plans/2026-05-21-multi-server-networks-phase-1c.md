@@ -21,7 +21,7 @@
 - Clone-bindings-from-existing-server_key dans le wizard (just "new server_key" pour 1C).
 - Asset dedup cross-pack au niveau Network.
 
-**Pré-requis :** Plan 1A (auth, sessions, Discord OAuth) et Plan 1B (Network + Pack + PackBinding + assets pack-scopés) sont mergés sur `main` (tip = `9126cdbf`).
+**Pré-requis :** Plan 1A (auth, sessions, Discord OAuth) et Plan 1B (Network + Pack + PackBinding + assets pack-scopés) sont mergés sur `main` (tip = `a93c29e0`).
 
 ---
 

@@ -3,7 +3,7 @@
 Depuis la phase F (2026-10), Artisan n'a plus de base centrale : ni PostgreSQL, ni comptes, ni
 réseaux en base. Tout ce qui dure vit sur le disque de chaque serveur Minecraft ; le hub ne
 garde en mémoire que l'état des serveurs connectés (les sessions éditeur sont dans la base de la suite). ADR `editor-web-server`.
-L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au commit `f085f576`
+L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au commit `ccade092`
 (branche `v2`).
 
 ## Entités
