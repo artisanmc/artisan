@@ -6,6 +6,9 @@ import net.artisanmc.plugin.engine.Condition
 import net.artisanmc.plugin.engine.Step
 import net.artisanmc.plugin.model.CooldownYaml
 import net.artisanmc.plugin.model.CommandYaml
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import kotlin.test.*
 
 class CommandCompilerTest {
@@ -76,6 +79,21 @@ class CommandCompilerTest {
         assertNotNull(result)
         assertEquals("daily_cd", result.handler.cooldown?.id)
         assertEquals(86400L, result.handler.cooldown?.durationSeconds)
+    }
+
+    @Test fun `cooldown reads duration_seconds as the schema writes it`() {
+        val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+        val yaml = mapper.readValue(
+            "name: daily\ncooldown:\n  id: daily_cd\n  duration_seconds: 30\n",
+            CommandYaml::class.java,
+        )
+        assertEquals(30L, CommandCompiler.compile(yaml)?.handler?.cooldown?.durationSeconds)
+    }
+
+    @Test fun `cooldown still reads the old duration spelling`() {
+        val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+        val yaml = mapper.readValue("cooldown:\n  id: cd\n  duration: 45\n", CommandYaml::class.java)
+        assertEquals(45L, yaml.cooldown?.duration)
     }
 
     @Test fun `compile command with typed args`() {
