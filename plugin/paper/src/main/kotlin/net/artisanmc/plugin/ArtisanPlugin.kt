@@ -211,8 +211,9 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     /**
-     * What a disabling plugin subscribed outside its modules and did not cancel: called again
-     * after a `/plugman reload`, its old listeners would run the code of a closed jar.
+     * What a disabling plugin subscribed outside its modules: left behind, after a `/plugman reload`
+     * its old listeners would run the code of a closed jar. The event fires before the plugin's
+     * onDisable, so this also removes what that onDisable would cancel itself: logged at FINE.
      */
     private fun releaseListeners(plugin: org.bukkit.plugin.Plugin) {
         val loader = plugin.javaClass.classLoader
@@ -221,7 +222,7 @@ open class ArtisanPlugin : JavaPlugin() {
             menuEvents.releaseLoadedBy(loader).takeIf { it > 0 }?.let { add("$it api.menus listener(s)") }
             api.events.unsubscribeLoadedBy(loader).takeIf { it > 0 }?.let { add("$it api.events handler(s)") }
         }
-        if (left.isNotEmpty()) logger.info("[Artisan] ${plugin.name} disabled: removed what it left registered (${left.joinToString()})")
+        if (left.isNotEmpty()) logger.fine("[Artisan] ${plugin.name} disabled: removed ${left.joinToString()}")
     }
 
     override fun onDisable() {
