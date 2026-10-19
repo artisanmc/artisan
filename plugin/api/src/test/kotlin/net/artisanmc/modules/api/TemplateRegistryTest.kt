@@ -52,17 +52,17 @@ class TemplateRegistryTest {
         val decl = TemplateDeclaration.builder("daily", 2)
             .title("Daily quests")
             .seed("quests")
-            .file("manifest.yaml", "abc".toByteArray())
+            .file("menus/daily.yaml", "abc".toByteArray())
             .build()
         // SHA-256("abc"), the FIPS 180-2 test vector.
         val abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        assertEquals(abc, decl.getHash("manifest.yaml"))
-        assertContentEquals("abc".toByteArray(), decl.getFile("manifest.yaml"))
+        assertEquals(abc, decl.getHash("menus/daily.yaml"))
+        assertContentEquals("abc".toByteArray(), decl.getFile("menus/daily.yaml"))
         assertNull(decl.getFile("other.yaml"))
         assertEquals(
             mapOf(
                 "id" to "daily", "title" to "Daily quests", "version" to 2, "seed_project" to "quests",
-                "files" to listOf(mapOf("path" to "manifest.yaml", "hash" to abc, "size" to 3)),
+                "files" to listOf(mapOf("path" to "menus/daily.yaml", "hash" to abc, "size" to 3)),
             ),
             decl.toWire(),
         )
@@ -73,7 +73,7 @@ class TemplateRegistryTest {
         assertFailsWith<IllegalArgumentException> { TemplateDeclaration.builder("Daily", 1) }
         assertFailsWith<IllegalArgumentException> { TemplateDeclaration.builder("daily", 0) }
         val builder = TemplateDeclaration.builder("daily", 1)
-        for (path in listOf("../x.yaml", "/x.yaml", ".artisan/origins.yaml", "a//b.yaml", "menus/")) {
+        for (path in listOf("../x.yaml", "/x.yaml", ".artisan/origins.yaml", "a//b.yaml", "menus/", "manifest.yaml")) {
             assertFailsWith<IllegalArgumentException>(path) { builder.file(path, ByteArray(0)) }
         }
         builder.file("a.yaml", ByteArray(0))

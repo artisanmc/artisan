@@ -73,7 +73,12 @@ object TemplateCopies {
  * template with a seed project is copied once, the first time a start knows it, and never
  * again, even when its project was deleted since. Deleting an example is the owner's choice.
  */
-class TemplateSeeds(private val roots: ProjectRoots, private val logger: java.util.logging.Logger? = null) {
+class TemplateSeeds(
+    private val roots: ProjectRoots,
+    private val logger: java.util.logging.Logger? = null,
+    /** The server's language (`fr`), the seeded project's only one. */
+    private val defaultLang: () -> String = { "en" },
+) {
     private val file get() = File(roots.coreRoot, FILE)
     private val yaml = com.fasterxml.jackson.databind.ObjectMapper(com.fasterxml.jackson.dataformat.yaml.YAMLFactory())
 
@@ -86,9 +91,10 @@ class TemplateSeeds(private val roots: ProjectRoots, private val logger: java.ut
 
     /**
      * Seeds [template] of [moduleId] if it names a seed project and was never seeded: creates
-     * that project in the core root and copies the files there. A project of that name that
-     * already exists is left alone (the owner's, or an earlier copy). Either way the template
-     * counts as seeded. Returns true when files were written.
+     * that project in the core root, with a manifest in the server's language (a template ships
+     * none), and copies the files there. A project of that name that already exists is left
+     * alone (the owner's, or an earlier copy). Either way the template counts as seeded.
+     * Returns true when files were written.
      */
     fun seed(moduleId: String, template: TemplateDeclaration): Boolean {
         val projectId = template.seedProject ?: return false
@@ -99,12 +105,24 @@ class TemplateSeeds(private val roots: ProjectRoots, private val logger: java.ut
             logger?.info("[Artisan] Template '$key' not seeded: a project '$projectId' already exists.")
             false
         } else {
-            TemplateCopies.copy(File(roots.coreRoot, projectId), moduleId, template)
+            val dir = File(roots.coreRoot, projectId)
+            writeManifest(dir)
+            TemplateCopies.copy(dir, moduleId, template)
             logger?.info("[Artisan] Template '$key' seeded into the new project '$projectId'.")
             true
         }
         record(key)
         return wrote
+    }
+
+    /** Before the files: a folder without `manifest.yaml` is not a project. */
+    private fun writeManifest(dir: File) {
+        val lang = defaultLang().substringBefore('_').substringBefore('-').lowercase()
+            .takeIf { it.matches(Regex("[a-z]{2,3}")) } ?: "en"
+        dir.mkdirs()
+        val tmp = File(dir, "manifest.yaml.tmp")
+        tmp.writeText("schema: manifest/v1\ndefault_lang: $lang\nlanguages: [$lang]\n")
+        java.nio.file.Files.move(tmp.toPath(), File(dir, "manifest.yaml").toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
     }
 
     private fun record(key: String) {
