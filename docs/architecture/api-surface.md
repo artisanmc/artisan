@@ -503,6 +503,8 @@ Runtime consumer (since 1.2.0): `run_command … as player` actions whose comman
 | `subscribe(type: Class<out ModuleEvent>, handler: ModuleEventHandler)` | `Unit` | 1.0.0 (signature 1.5.0) |
 | `publish(event: ModuleEvent)` | `Unit` | 1.0.0 |
 
+There is no unsubscribe: when a plugin disables, Artisan removes the handlers its classes registered (`@Internal unsubscribeLoadedBy`), as it does for its `api.menus` listeners and `api.placeholders` namespaces.
+
 Event types: `DataReloadEvent`, `ConfigReloadEvent`. Add-ons may define their own events by implementing `ModuleEvent`, an open interface since 1.8.0 (sealed before: add-on events did not compile).
 
 - `ConfigReloadEvent("menus")` is published by Artisan after every content reload, after the modules' `onReload()`.
