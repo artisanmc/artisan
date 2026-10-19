@@ -93,15 +93,18 @@ class TemplateSeeds(
      * Seeds [template] of [moduleId] if it names a seed project and was never seeded: creates
      * that project in the core root, with a manifest in the server's language (a template ships
      * none), and copies the files there. A project of that name that already exists is left
-     * alone (the owner's, or an earlier copy). Either way the template counts as seeded.
-     * Returns true when files were written.
+     * alone (the owner's, or an earlier copy), unless it is the module's own folder
+     * (`moduleFolder`): the files go there, next to what it holds, none overwritten. Either way
+     * the template counts as seeded. Returns true when files were written.
      */
     fun seed(moduleId: String, template: TemplateDeclaration): Boolean {
         val projectId = template.seedProject ?: return false
         val key = "$moduleId/${template.id}"
         if (key in seeded()) return false
-        val existing = roots.all().keys.any { it.equals(projectId, ignoreCase = true) }
-        val wrote = if (existing) {
+        val existing = roots.all().keys.firstOrNull { it.equals(projectId, ignoreCase = true) }
+        val wrote = if (existing != null && roots.ownerOf(existing) == moduleId) {
+            seedOwnFolder(roots.dirFor(existing), moduleId, template, key)
+        } else if (existing != null) {
             logger?.info("[Artisan] Template '$key' not seeded: a project '$projectId' already exists.")
             false
         } else {
@@ -113,6 +116,18 @@ class TemplateSeeds(
         }
         record(key)
         return wrote
+    }
+
+    /** Into the module's own folder, created empty by `moduleFolder`: a file already there wins. */
+    private fun seedOwnFolder(dir: File, moduleId: String, template: TemplateDeclaration, key: String): Boolean {
+        if (!File(dir, "manifest.yaml").isFile) writeManifest(dir)
+        val result = TemplateCopies.copy(dir, moduleId, template)
+        if (result.conflicts.isNotEmpty()) {
+            logger?.warning("[Artisan] Template '$key' not seeded into ${dir.path}: ${result.conflicts.joinToString()} already hold other content.")
+        } else {
+            logger?.info("[Artisan] Template '$key' seeded into the module's folder ${dir.path}.")
+        }
+        return result.written.isNotEmpty()
     }
 
     /** Before the files: a folder without `manifest.yaml` is not a project. */
