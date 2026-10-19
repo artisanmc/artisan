@@ -7,7 +7,7 @@ import net.artisanmc.modules.api.annotations.Stable;
 
 /**
  * Lets an add-on host its Project in its <b>own plugin dir</b> instead of the core
- * {@code plugins/Artisan/projects/} ({@code api.projectRoots}, ADR {@code addon-owned-project-roots}).
+ * {@code plugins/Artisan/modules/} ({@code api.projectRoots}, ADR {@code addon-owned-project-roots}).
  * Call {@link #register} once from {@code onEnable(api)}.
  */
 @Stable

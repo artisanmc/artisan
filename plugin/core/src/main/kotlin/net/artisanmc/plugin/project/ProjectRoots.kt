@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Resolves a `projectId` to the directory that holds its working copy, unioning
- * the core projects root (`plugins/Artisan/projects/`, scanned by directory name)
+ * the core projects root (`plugins/Artisan/modules/`, scanned by directory name)
  * with **Add-on-owned roots** an Add-on registers at `onEnable` (ADR
  * `addon-owned-project-roots`). An Add-on registers a *dedicated* directory it
  * owns, never its plugin data folder root: every file under a project dir is
