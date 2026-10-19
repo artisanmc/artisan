@@ -169,17 +169,45 @@ describe("ProjectSidebar", () => {
     });
   });
 
+  it("lists a plugin's folder under its module, before the admin's own", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["boutique_shop", "pack_a"],
+      projects: [
+        {
+          id: "boutique_shop",
+          name: "boutique_shop",
+          externalId: "boutique_shop",
+          hash: "",
+          serverKeyId: "sk_1",
+          ownerModule: "boutique",
+        },
+      ],
+    } as never);
+    render(<ProjectSidebar />);
+    const moduleLink = await screen.findByRole("link", { name: "boutique" });
+    expect(moduleLink).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
+    expect(screen.queryByRole("link", { name: /boutique_shop/ })).toBeNull();
+    const installed = screen.getByText("Modules installés");
+    const mine = screen.getByText("Mes modules");
+    expect(installed.compareDocumentPosition(mine) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      mine.compareDocumentPosition(screen.getByRole("link", { name: /pack_a/ })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("shows no Modules section when no module has anything to configure", async () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);
-    await screen.findByText(/Nouveau projet/i);
+    await screen.findByText(/Nouveau module/i);
     expect(screen.queryByText(/Modules installés/i)).toBeNull();
   });
 
   it("renders the + Nouveau workspace link", async () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);
-    expect(await screen.findByText(/Nouveau projet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Nouveau module/i)).toBeInTheDocument();
   });
 
   it("renders the user menu pill (Settings link lives inside its dropdown)", async () => {
@@ -226,7 +254,7 @@ describe("ProjectSidebar", () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     expect(await screen.findByText("Lecture en cours…")).toBeInTheDocument();
-    expect(screen.queryByText("+ Nouveau projet")).toBeNull();
+    expect(screen.queryByText("+ Nouveau module")).toBeNull();
   });
 
   it("says the server is unreachable, and no longer invites creating a project there", async () => {
@@ -235,7 +263,7 @@ describe("ProjectSidebar", () => {
     render(<ProjectSidebar />);
     await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
     expect(await screen.findByText("Serveur injoignable")).toBeInTheDocument();
-    expect(screen.queryByText("+ Nouveau projet")).toBeNull();
+    expect(screen.queryByText("+ Nouveau module")).toBeNull();
   });
 
   it("brings the create button back once the read has succeeded", async () => {
@@ -243,7 +271,7 @@ describe("ProjectSidebar", () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
-    expect(await screen.findByText("+ Nouveau projet")).toBeInTheDocument();
+    expect(await screen.findByText("+ Nouveau module")).toBeInTheDocument();
   });
 
   it("persists the URL server into the store", async () => {
