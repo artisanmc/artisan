@@ -556,7 +556,9 @@ api.getTemplates().register(TemplateDeclaration
   Chaque fichier copié est tracé dans `.artisan/origins.yaml` ; `GET …/projects/:project/origins` les lit.
 - **Amorçage** : un modèle avec `seed(projectId)` est copié une seule fois dans un nouveau Project de ce
   nom (`.artisan-seeds.yaml` à la racine core), avec un manifest dans la langue du serveur, jamais
-  recréé si le propriétaire le supprime.
+  recréé si le propriétaire le supprime. Si ce nom est le dossier du module lui-même
+  (`moduleFolder`, créé vide), les fichiers y sont copiés, avec le manifest s'il manque, sans
+  écraser ce qui s'y trouve.
 
 ## 5. Module bootstrap : content bundles
 
