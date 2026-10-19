@@ -33,7 +33,9 @@ internal object ArtisanApiFactory {
         plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(
             net.artisanmc.plugin.project.ModulesRootMigration.run(plugin.dataFolder, plugin.logger), plugin.logger,
         )
-        plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger)
+        plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger) { ticks, task ->
+            plugin.scheduler.globalLater(ticks, task)
+        }
         val api = ArtisanAPI.builder(
             plugin,
             DataSourceRegistry(),
