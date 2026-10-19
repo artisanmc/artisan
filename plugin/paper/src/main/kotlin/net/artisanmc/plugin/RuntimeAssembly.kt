@@ -76,7 +76,7 @@ internal class RuntimeAssembly(
             cacheFile = java.io.File(dataFolder, "cache/asset-index.json"),
         )
         assetCatalog.loadFromDisk()
-        commandRegistrar = CommandRegistrar(plugin, langManager)
+        commandRegistrar = CommandRegistrar(plugin, langManager, scheduler)
     }
 
     /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
