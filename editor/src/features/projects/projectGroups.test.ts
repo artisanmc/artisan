@@ -16,7 +16,7 @@ vi.mock("@artisan/editor-sdk", () => ({
 
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import type { ProjectSummary } from "@/lib/api/servers";
-import { buildProjectGroups, diskProjectsToSummaries } from "./projectGroups";
+import { buildModuleList, buildProjectGroups, diskProjectsToSummaries } from "./projectGroups";
 
 const project = (id: string, extra: Partial<ProjectSummary> = {}): ProjectSummary => ({
   id,
@@ -116,5 +116,56 @@ describe("buildProjectGroups", () => {
       localProjects: [],
     });
     expect(moduleGroups.map((g) => g.id)).toEqual(["quests"]);
+  });
+});
+
+describe("buildModuleList", () => {
+  const input = (
+    projects: ProjectSummary[],
+    screens: ServerEditorScreen[] = [],
+    mounted: string[] = [],
+  ) => ({
+    projects,
+    screens,
+    mountedModuleIds: mounted,
+    localProjects: [],
+  });
+
+  it("puts a plugin's folder under its module, the admin's folders apart, in order", () => {
+    const { pluginModules, contentModules } = buildModuleList(
+      input(
+        [project("lobby"), project("boutique_shop"), project("hub")],
+        [screen("catalogue", "boutique", "boutique_shop")],
+      ),
+    );
+    expect(contentModules.map((p) => p.id)).toEqual(["lobby", "hub"]);
+    expect(pluginModules).toHaveLength(1);
+    expect(pluginModules[0]).toMatchObject({ id: "boutique", label: "Boutique" });
+    expect(pluginModules[0]!.projects.map((p) => p.id)).toEqual(["boutique_shop"]);
+    expect(pluginModules[0]!.entries.map((e) => e.kind)).toEqual(["screen"]);
+  });
+
+  it("keeps a plugin module that has a folder and nothing to configure", () => {
+    const { pluginModules, contentModules } = buildModuleList(
+      input([project("guild_menus", { ownerModule: "msguilds" })]),
+    );
+    expect(contentModules).toEqual([]);
+    expect(pluginModules.map((m) => [m.id, m.projects.map((p) => p.id), m.entries])).toEqual([
+      ["msguilds", ["guild_menus"], []],
+    ]);
+  });
+
+  it("keeps a plugin module without a folder, and never lists its configuration root", () => {
+    const { pluginModules } = buildModuleList(
+      input(
+        [project("dailyrewards", { ownerModule: "boutique", role: "config" })],
+        [screen("boutique:rewards", "boutique", "dailyrewards")],
+        ["quests"],
+      ),
+    );
+    expect(pluginModules.map((m) => [m.label, m.projects.length])).toEqual([
+      ["Boutique", 0],
+      ["Quêtes", 0],
+    ]);
   });
 });
