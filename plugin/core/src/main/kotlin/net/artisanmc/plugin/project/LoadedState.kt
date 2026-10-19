@@ -7,13 +7,20 @@ package net.artisanmc.plugin.project
  * an older row reads as empty, a field this release does not know is ignored.
  */
 
-/** A `project_roots` entry: a Project's folder, its identity (`folder`/`addon`), `project_key`, owning module. */
-data class ProjectRootInfo(val projectId: String, val identity: String? = null, val projectKey: String? = null, val moduleId: String? = null) {
+/**
+ * A `project_roots` entry: a Project's folder, its identity (`folder`/`addon`), `project_key`, owning module,
+ * and its role: `config` for a module's configuration root, listed under the module and not among Projects.
+ */
+data class ProjectRootInfo(
+    val projectId: String, val identity: String? = null, val projectKey: String? = null, val moduleId: String? = null,
+    val role: String? = null,
+) {
     fun toMap(): Map<String, String> = buildMap {
         put("project_id", projectId)
         identity?.let { put("identity", it) }
         projectKey?.let { put("project_key", it) }
         moduleId?.let { put("module_id", it) }
+        role?.let { put("role", it) }
     }
 
     companion object {
@@ -23,6 +30,7 @@ data class ProjectRootInfo(val projectId: String, val identity: String? = null, 
             return ProjectRootInfo(
                 projectId = map["project_id"] as? String ?: return null,
                 identity = map["identity"] as? String, projectKey = map["project_key"] as? String, moduleId = map["module_id"] as? String,
+                role = map["role"] as? String,
             )
         }
     }

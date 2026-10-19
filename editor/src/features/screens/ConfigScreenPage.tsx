@@ -20,6 +20,7 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { getModule } from "@artisan/editor-sdk";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ModuleScreenView } from "./ModuleScreenView";
 import { YamlFileEditor, yamlErrorsOf } from "./YamlFileEditor";
 import { resolveScreen } from "./screenList";
 import {
@@ -249,6 +250,11 @@ export function ConfigScreenPage({
   const source = scratch?.dataSources.find(
     (d) => (d.id as string) === screen.table.split("/").pop(),
   );
+  // The module's own view when it ships one for this screen; otherwise the generated form.
+  const moduleView =
+    screen.component && screen.moduleId
+      ? getModule(screen.moduleId)?.screens?.[screen.component]
+      : undefined;
 
   return (
     <main
@@ -349,7 +355,14 @@ export function ConfigScreenPage({
         mode === "form" &&
         scratch &&
         (source ? (
-          source.shape === "table" ? (
+          moduleView ? (
+            <ModuleScreenView
+              view={moduleView}
+              projectId={scratch.id}
+              source={source}
+              readOnly={stale}
+            />
+          ) : source.shape === "table" ? (
             <SourceRowsTable projectId={scratch.id} project={scratch} source={source} />
           ) : (
             <ConfigValueForm projectId={scratch.id} project={scratch} source={source} />

@@ -104,6 +104,13 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 
 > **SDK barrel (depuis 2026-06-15)** — le contrat `FrontendModule` + le registre + l'event bus sont exposés via un point d'entrée unique `@artisan/editor-sdk` (alias interne `editor/src/sdk/index.ts`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `@/modules/api/...` en profondeur. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands consomment déjà le barrel (dogfooding).
 
+> **Vue de Config screen (depuis 2026-10-19, SDK 1.6)** — `screens: Record<string, ComponentType<ConfigScreenProps>>`.
+> Un écran déclaré côté plugin avec `component` (`api.getScreens().declare(…, component)`) rend la
+> vue de cette clé à la place du formulaire généré ; l'hôte garde la lecture, l'enregistrement,
+> l'onglet YAML et l'historique. Pour une config singleton (récompenses quotidiennes), la racine est
+> enregistrée par `registerConfig` : versionnée, hors de la liste des Projects (ADR
+> `module-config-screens`, amendement 2026-10-19).
+
 > **Kinds de Document (depuis 2026-10-15, lot 5)** — un module contribue ses kinds de Document par
 > `documents: DocumentKindContribution[]` : `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
 > `icon?`, `component` (vue du panneau Propriétés), `title?`, `listByTitle?`, `create`, `parse`,

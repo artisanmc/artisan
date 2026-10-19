@@ -44,6 +44,21 @@ describe("buildProjectGroups", () => {
     expect(diskProjectsToSummaries("sk_1", ["shop"], [metadata])).toEqual([metadata]);
     expect(diskProjectsToSummaries("sk_1", ["legacy"])[0]?.capabilities).toBeUndefined();
   });
+  it("leaves a module's configuration root out of the list, its screens under the module", () => {
+    const { projects, moduleGroups } = buildProjectGroups({
+      projects: [
+        project("hub"),
+        project("dailyrewards", { ownerModule: "boutique", role: "config" }),
+      ],
+      screens: [screen("boutique:rewards", "boutique", "dailyrewards")],
+      mountedModuleIds: [],
+      localProjects: [],
+    });
+    expect(projects.map((p) => p.id)).toEqual(["hub"]);
+    expect(moduleGroups.map((g) => [g.id, g.screens.map((s) => s.id)])).toEqual([
+      ["boutique", ["boutique:rewards"]],
+    ]);
+  });
   it("keeps ordinary projects in the list, without a module group", () => {
     const { projects, moduleGroups } = buildProjectGroups({
       projects: [project("hub"), project("lobby")],

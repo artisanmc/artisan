@@ -9,6 +9,7 @@ export type {
   FrontendModule,
   ModuleSidebarEntry,
   ModuleRouteDecl,
+  ConfigScreenProps,
   DocumentKindContribution,
   DocumentEditorProps,
   DocumentPreviewProps,
