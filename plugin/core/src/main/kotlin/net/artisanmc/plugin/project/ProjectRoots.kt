@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap
  * On a `projectId` collision across roots, the registered Add-on root wins.
  */
 private const val KEY_FILE = ".artisan/project-id"
+private val FOLDER = Regex("^[a-z0-9][a-z0-9_-]*$")
 
 class ProjectRoots(
     val coreRoot: File,
@@ -75,6 +76,40 @@ class ProjectRoots(
     override fun register(projectId: String, dir: File, moduleId: String) {
         owners[projectId] = moduleId
         register(projectId, dir)
+    }
+
+    /**
+     * `<coreRoot>/<folder>`, registered like an Add-on root: same `addon:<folder>` key (its
+     * Versions and drafts follow), not renamed or deleted from the editor. [legacyDir] moves there
+     * once; while both hold files, or when the move fails, [legacyDir] stays the root.
+     */
+    @Synchronized
+    override fun moduleFolder(folder: String, moduleId: String, legacyDir: File?): File {
+        require(FOLDER.matches(folder)) { "invalid module folder '$folder'" }
+        val target = File(coreRoot, folder)
+        val legacy = legacyDir?.takeIf { it.isDirectory && it.canonicalFile != target.canonicalFile && !it.list().isNullOrEmpty() }
+        if (legacy != null) {
+            if (target.exists()) {
+                logger?.severe(
+                    "[Artisan] Module '$moduleId': both ${legacy.path} and ${target.path} exist, ${legacy.path} stays " +
+                    "the module's folder. Merge them into ${target.path} and delete ${legacy.path}.",
+                )
+                register(folder, legacy, moduleId)
+                return legacy
+            }
+            try {
+                target.parentFile.mkdirs()
+                ModulesRootMigration.move(legacy, target)
+            } catch (e: java.io.IOException) {
+                logger?.severe("[Artisan] Module '$moduleId': could not move ${legacy.path} to ${target.path} (${e.message}), it keeps its old folder.")
+                register(folder, legacy, moduleId)
+                return legacy
+            }
+            logger?.info("[Artisan] Module '$moduleId' moved from ${legacy.path} to ${target.path}.")
+        }
+        target.mkdirs()
+        register(folder, target, moduleId)
+        return target
     }
 
     override fun registerConfig(projectId: String, dir: File, moduleId: String) {

@@ -109,3 +109,13 @@ Config screens et sa route `/m/<id>`. L'entrée « Éditeur » disparaît (ADR `
 §2), et un module sans rien à configurer n'apparaît plus. La racine enregistrée (§1) ne change
 pas. Suite prévue : les exemples d'un module livrés comme modèles dans son jar, copiés une seule
 fois, avec leur provenance (`architecture/design-modeles-de-module.md` du projet).
+
+### Amendement 2026-10-19 — la racine d'add-on rejoint `modules/`
+
+Les projects fusionnent avec les modules : un dossier de `plugins/Artisan/modules/` par module.
+`moduleFolder(folder, moduleId, legacyDir)` (API 2.8.0) remplace pour un add-on le dossier qu'il
+possédait dans son plugin par `modules/<folder>/`, enregistré comme une racine d'add-on : même
+clé `addon:<folder>`, toujours non renommable. La racine du §1 y est déplacée une fois. Tant que
+les deux dossiers contiennent des fichiers (une copie restée dans `projects/`, migrée avec le reste),
+la racine d'origine reste lue : on ne choisit jamais à la place de l'admin quel contenu est le bon.
+`register` reste disponible pour les add-ons qui n'ont pas migré.
