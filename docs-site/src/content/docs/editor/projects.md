@@ -34,7 +34,7 @@ resizes to fit; other groups and documents stay where they are. Both actions sup
 
 ## Where projects live
 
-Every project lives on a Minecraft server's disk, in `plugins/Artisan/projects/<folder>/`
+Every project lives on a Minecraft server's disk, in `plugins/Artisan/modules/<folder>/`
 (or in the folder an add-on registers). The editor is served by the plugin itself:
 type `/artisan editor` in game and open the single-use link it prints. What you can do
 depends on your permissions (`artisan.editor.view`, `.edit`, `.publish`, `.config`);

@@ -30,7 +30,9 @@ internal object ArtisanApiFactory {
             customItems = { customForCapture },
             logger = plugin.logger,
         )
-        plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(File(plugin.dataFolder, "projects"), plugin.logger)
+        plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(
+            net.artisanmc.plugin.project.ModulesRootMigration.run(plugin.dataFolder, plugin.logger), plugin.logger,
+        )
         plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger)
         val api = ArtisanAPI.builder(
             plugin,

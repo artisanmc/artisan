@@ -530,7 +530,7 @@ Migrations MUST be pure, idempotent, and write-once. See `versioning.md` §2.5.
 
 ### `net.artisanmc.modules.api.project.ProjectContentApi`
 
-Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*` namespace is never exposed. Re-read in `onReload()` after a sync.
+Read-only project content on disk (`plugins/Artisan/modules/`). The `.artisan*` namespace is never exposed. Re-read in `onReload()` after a sync.
 
 | Member | Type | Since |
 |---|---|---|
@@ -543,7 +543,7 @@ Read-only project content on disk (`plugins/Artisan/projects/`). The `.artisan*`
 
 ### `net.artisanmc.modules.api.project.ProjectRootRegistry`
 
-Lets an Add-on host its Project in its **own plugin dir** instead of the core `plugins/Artisan/projects/` (ADR `addon-owned-project-roots`). Call once from `onEnable(api)`.
+Lets an Add-on host its Project in its **own plugin dir** instead of the core `plugins/Artisan/modules/` (ADR `addon-owned-project-roots`). Call once from `onEnable(api)`.
 
 The explicit `projectId` is a permanent immutable add-on identity, independent of
 the directory name. Registered roots cannot be renamed in the editor;

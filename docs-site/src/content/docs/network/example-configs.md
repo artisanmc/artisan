@@ -140,9 +140,9 @@ web:
 
 | In the editor | Lives on |
 |---|---|
-| `shop` | lobby, `plugins/Artisan/projects/shop/` |
-| `survival.shop` | survival, `plugins/Artisan/projects/shop/` |
-| `skyblock.island-menu` | skyblock, `plugins/Artisan/projects/island-menu/` |
+| `shop` | lobby, `plugins/Artisan/modules/shop/` |
+| `survival.shop` | survival, `plugins/Artisan/modules/shop/` |
+| `skyblock.island-menu` | skyblock, `plugins/Artisan/modules/island-menu/` |
 
 ## Local test network with Docker
 
