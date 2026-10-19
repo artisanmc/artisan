@@ -1,8 +1,7 @@
-import { Badge } from "@/components/ui/badge";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
-import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
+import { buildModuleList, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
@@ -180,11 +179,11 @@ function ServerOverview({
     useServerScreensStore.getState().load({ serverId: serverKeyId });
   }, [serverKeyId]);
 
-  // Same split as the sidebar — every project in one list, a module's own
-  // badged; under the modules, only their Config screens.
+  // Same split as the sidebar: the plugins' modules with their folders and screens,
+  // then the admin's own folders.
   const updateRequired = status === "unavailable" && unavailableReason === "plugin_update_required";
 
-  const { projects: projectRows, moduleGroups } = buildProjectGroups({
+  const { pluginModules, contentModules: projectRows } = buildModuleList({
     projects,
     screens: serverScreens,
     mountedModuleIds,
@@ -203,9 +202,62 @@ function ServerOverview({
           </h1>
         </header>
 
+        {status === "ready" && pluginModules.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="eyebrow">{t("sidebar.installedModules")}</h2>
+              <span className="h-px flex-1 bg-[var(--border-soft)]" />
+            </div>
+            <ul className="flex flex-col gap-2">
+              {pluginModules.map((m) => (
+                <li key={m.id} className="card flex flex-col gap-3 p-4">
+                  {/* TODO: render the module's icon once modules ship real icons */}
+                  <span className="text-[14px] font-semibold text-[var(--text)]">{m.label}</span>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {m.projects.map((p) => (
+                      <li key={`p:${p.id}`}>
+                        <Link
+                          to="/servers/$serverId/projects/$projectId"
+                          params={{ serverId, projectId: projectUrlId(p) }}
+                          className="chip"
+                        >
+                          {m.projects.length === 1 ? t("serverDetail.openModule") : p.name}
+                        </Link>
+                      </li>
+                    ))}
+                    {m.entries.map((e) =>
+                      e.kind === "screen" ? (
+                        <li key={`s:${e.screen.id}`}>
+                          <Link
+                            to="/servers/$serverId/screens/$screenId"
+                            params={{ serverId, screenId: e.screen.id }}
+                            className="chip"
+                          >
+                            {e.screen.label}
+                          </Link>
+                        </li>
+                      ) : (
+                        <li key={`c:${e.moduleId}`}>
+                          <Link
+                            to="/m/$moduleId"
+                            params={{ moduleId: e.moduleId }}
+                            className="chip"
+                          >
+                            {t("sidebar.configuration")}
+                          </Link>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
-            <h2 className="eyebrow">{t("serverDetail.projects")}</h2>
+            <h2 className="eyebrow">{t("serverDetail.myModules")}</h2>
             <span className="h-px flex-1 bg-[var(--border-soft)]" />
             <button
               type="button"
@@ -247,11 +299,6 @@ function ServerOverview({
                     {/* No Document counter: the hub does not hold the files, so it
                         cannot know it without querying the server's disk. */}
                     <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>
-                    {w.ownerLabel && (
-                      <Badge title={t("sidebar.providedBy", { module: w.ownerLabel })}>
-                        {w.ownerLabel}
-                      </Badge>
-                    )}
                   </Link>
                   {/* The ID is changed in the project Properties; only resuming a pending change remains here. */}
                   {w.pendingRename && (
@@ -274,47 +321,6 @@ function ServerOverview({
           )}
         </section>
 
-        {status === "ready" && moduleGroups.length > 0 && (
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <h2 className="eyebrow">{t("sidebar.installedModules")}</h2>
-              <span className="h-px flex-1 bg-[var(--border-soft)]" />
-            </div>
-            <ul className="flex flex-col gap-2">
-              {moduleGroups.map((g) => (
-                <li key={g.id} className="card flex flex-col gap-3 p-4">
-                  {/* TODO: render the module's icon once modules ship real icons */}
-                  <span className="text-[14px] font-semibold text-[var(--text)]">{g.label}</span>
-                  <ul className="flex flex-wrap gap-1.5">
-                    {g.entries.map((e) =>
-                      e.kind === "screen" ? (
-                        <li key={`s:${e.screen.id}`}>
-                          <Link
-                            to="/servers/$serverId/screens/$screenId"
-                            params={{ serverId, screenId: e.screen.id }}
-                            className="chip"
-                          >
-                            {e.screen.label}
-                          </Link>
-                        </li>
-                      ) : (
-                        <li key={`c:${e.moduleId}`}>
-                          <Link
-                            to="/m/$moduleId"
-                            params={{ moduleId: e.moduleId }}
-                            className="chip"
-                          >
-                            {t("sidebar.configuration")}
-                          </Link>
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
         {serverKeyId && !updateRequired && (
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-3">

@@ -130,3 +130,51 @@ export function buildProjectGroups({
 
   return { projects: rows.filter((p) => p.role !== "config"), moduleGroups };
 }
+
+/**
+ * A plugin's module: the folder(s) it registered (`projects`, usually one, never its
+ * configuration root) and what it alone manages (`entries`: Config screens, then its
+ * configuration route).
+ */
+export interface PluginModule {
+  id: string;
+  label: string;
+  projects: ProjectRow[];
+  entries: ModuleGroupEntry[];
+}
+
+/**
+ * The server's modules, one folder = one module (design `projets-en-modules`):
+ *
+ * - `pluginModules`: every module a plugin provides, with its folders and screens,
+ *   sorted by name. A module with neither a folder nor anything to configure is left out.
+ * - `contentModules`: the admin's folders, owned by no plugin, in the caller's order.
+ *
+ * Built on [buildProjectGroups]: the same owners, labels and screens, grouped by module.
+ */
+export function buildModuleList(input: ProjectGroupsInput): {
+  pluginModules: PluginModule[];
+  contentModules: ProjectRow[];
+} {
+  const { projects, moduleGroups } = buildProjectGroups(input);
+  const byId = new Map<string, PluginModule>(
+    moduleGroups.map((g) => [g.id, { id: g.id, label: g.label, projects: [], entries: g.entries }]),
+  );
+  const contentModules: ProjectRow[] = [];
+  for (const row of projects) {
+    if (!row.ownerModule) {
+      contentModules.push(row);
+      continue;
+    }
+    const module = byId.get(row.ownerModule) ?? {
+      id: row.ownerModule,
+      label: row.ownerLabel ?? row.ownerModule,
+      projects: [],
+      entries: [],
+    };
+    module.projects.push(row);
+    byId.set(module.id, module);
+  }
+  const pluginModules = [...byId.values()].sort((a, b) => a.label.localeCompare(b.label));
+  return { pluginModules, contentModules };
+}
