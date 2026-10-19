@@ -314,7 +314,6 @@ class SyncedMenuProvider(
             dataSources, projectDataResolver, menuWindows,
         )
         sessions?.set(player, session)
-        logger?.info("[ART-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
     }
 
     override fun findDialog(dialogId: String): RuntimeDialog? = findDialog(dialogId, null)

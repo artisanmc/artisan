@@ -200,6 +200,8 @@ data class ClickHandlerYaml(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class CooldownYaml(
     val id:       String  = "",
+    /** Seconds. The schemas write `duration_seconds`; `duration` is the old spelling. */
+    @JsonProperty("duration_seconds") @JsonAlias("duration")
     val duration: Long    = 0,
     val scope:    String  = "player",
     val message:  String? = null,
