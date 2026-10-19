@@ -40,9 +40,14 @@ demande (`artisan.editor` les donne toutes). L'accès se donne avec un plugin de
 
 ## Base de la suite
 
-`environment.yml` → `database.type: h2 | mysql | mariadb`. Artisan **n'y crée aucune table** :
-il prête un pool de connexions par plugin de la suite (`DatabaseApi`, `@Beta`), chaque plugin
-apporte ses tables et ses migrations (ADR `suite-foundation-database`). En réseau, MySQL ou
+`environment.yml` → `database.type: h2 | mysql | mariadb`. Artisan y crée ses propres tables
+(`artisan_servers`, Versions, brouillons…) et prête un pool de connexions par plugin de la suite
+(`DatabaseApi`, `@Beta`), chaque plugin apporte ses tables et ses migrations (ADR
+`suite-foundation-database`). Toutes les tables commencent par `database.table-prefix`
+(`artisan_` par défaut) : `{prefix}servers` pour Artisan, `tablePrefix(module)` =
+`{prefix}{module}_` pour un plugin. Le préfixe utilisé est noté dans
+`plugins/Artisan/database/table-prefix` ; changé sous une base qui contient les tables de
+l'ancien, `dataSource()` est refusé pour tous les plugins (`TablePrefix.checkUnchanged`). En réseau, MySQL ou
 MariaDB permet aux serveurs de partager ces données ; une feuille sur H2 le signale au
 démarrage, sans refuser de démarrer (brouillons et sessions n'en ont pas besoin).
 
