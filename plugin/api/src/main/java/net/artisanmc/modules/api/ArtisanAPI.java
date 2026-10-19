@@ -23,6 +23,7 @@ import net.artisanmc.modules.api.project.ProjectRootRegistry;
 import net.artisanmc.modules.api.scheduler.SchedulerApi;
 import net.artisanmc.modules.api.schemas.SchemaRegistry;
 import net.artisanmc.modules.api.screen.EditorScreenRegistry;
+import net.artisanmc.modules.api.playercommand.PlayerCommandRegistry;
 import net.artisanmc.modules.api.template.TemplateRegistry;
 import net.artisanmc.modules.api.translation.TranslationsApi;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -63,6 +64,7 @@ public final class ArtisanAPI {
     private final DocumentKindRegistry documentKinds;
     private final EditorBundleRegistry editorBundles;
     private final TemplateRegistry templates;
+    private final PlayerCommandRegistry playerCommands;
     private final DatabaseApi database;
     private final MenuApi menus;
     private final SchedulerApi scheduler;
@@ -88,6 +90,7 @@ public final class ArtisanAPI {
         this.documentKinds = b.documentKinds;
         this.editorBundles = b.editorBundles;
         this.templates = b.templates;
+        this.playerCommands = b.playerCommands;
         this.database = b.database;
         this.menus = b.menus;
         this.scheduler = b.scheduler;
@@ -222,6 +225,16 @@ public final class ArtisanAPI {
         return templates;
     }
 
+    /**
+     * The commands players type whose behaviour belongs to a module and whose name, aliases,
+     * permission, cooldown and conditions the admin can override. Not {@link #getCommands()},
+     * which menus call through {@code run_command}.
+     */
+    @Beta
+    public PlayerCommandRegistry getPlayerCommands() {
+        return playerCommands;
+    }
+
     /** One connection pool per plugin, credentials in {@code environment.yml} (ADR {@code suite-foundation-database}). */
     @Beta
     public DatabaseApi getDatabase() {
@@ -290,6 +303,7 @@ public final class ArtisanAPI {
         private DocumentKindRegistry documentKinds = new DocumentKindRegistry();
         private EditorBundleRegistry editorBundles = new EditorBundleRegistry();
         private TemplateRegistry templates = new TemplateRegistry();
+        private PlayerCommandRegistry playerCommands = new PlayerCommandRegistry();
         private DatabaseApi database = DatabaseApi.NONE;
         private MenuApi menus = MenuApi.NOOP;
         private SchedulerApi scheduler = SchedulerApi.DIRECT;
@@ -354,6 +368,11 @@ public final class ArtisanAPI {
 
         public Builder editorBundles(EditorBundleRegistry editorBundles) {
             this.editorBundles = Objects.requireNonNull(editorBundles);
+            return this;
+        }
+
+        public Builder playerCommands(PlayerCommandRegistry playerCommands) {
+            this.playerCommands = Objects.requireNonNull(playerCommands);
             return this;
         }
 

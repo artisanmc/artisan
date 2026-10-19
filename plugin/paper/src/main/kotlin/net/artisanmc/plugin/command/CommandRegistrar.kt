@@ -1,9 +1,11 @@
 package net.artisanmc.plugin.command
 
+import net.artisanmc.modules.api.playercommand.PlayerCommandDeclaration
 import net.artisanmc.plugin.engine.ActionExecutor
 import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.engine.RuntimeProject
+import net.artisanmc.plugin.model.CommandOverrideYaml
 import net.artisanmc.plugin.scheduling.Scheduler
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
@@ -24,18 +26,23 @@ data class CommandConflict(
 )
 
 /**
- * Registers the `command/v1` documents of every project in the command map.
+ * Registers in the command map the `command/v1` documents of every project, then the
+ * commands modules declare ([playerCommands]) dressed by the admin's [overrides].
  *
- * A label belongs to one command on the server. Between two projects, the first in
- * project order keeps it and the conflict is logged as an error naming both; the
- * other command loses that label only (an alias) or is not registered (its name).
- * Against a command of another plugin, the project command stays reachable as
- * `/artisan:<name>`. Every conflict of the last reload is in [conflicts].
+ * A label belongs to one command on the server. Project commands claim first, in
+ * project order (they are already in production; a module's new name never takes one
+ * away), then module commands in registration order. A project command losing its
+ * name to another project is not registered; a module command losing its name stays
+ * reachable as `/<module>:<name>`; a lost alias is dropped. Each conflict is logged
+ * naming both sides. Against another plugin's command, the project command stays
+ * reachable as `/artisan:<name>`. Every conflict of the last reload is in [conflicts].
  */
 class CommandRegistrar(
     private val plugin: JavaPlugin,
     private val lang: LangManager,
     private val scheduler: Scheduler,
+    private val playerCommands: () -> List<PlayerCommandDeclaration> = { emptyList() },
+    private val overrides: () -> Map<String, CommandOverrideYaml> = { emptyMap() },
 ) {
     private val logger: Logger get() = plugin.logger
     private val namespace get() = plugin.name.lowercase()
@@ -47,7 +54,21 @@ class CommandRegistrar(
     var conflicts: List<CommandConflict> = emptyList()
         private set
 
+    /** The module commands registered by the last reload, as dressed then. */
+    @Volatile
+    var moduleCommands: List<ResolvedPlayerCommand> = emptyList()
+        private set
+
+    private var last: Triple<List<RuntimeProject>, ActionExecutor, ConditionEvaluator>? = null
+
+    /** Re-registers from the last projects: a module declared or removed a command, an override changed. Global thread. */
+    fun refresh() {
+        val (runtimes, executor, evaluator) = last ?: return
+        reload(runtimes, executor, evaluator)
+    }
+
     fun reload(runtimes: List<RuntimeProject>, executor: ActionExecutor, evaluator: ConditionEvaluator) {
+        last = Triple(runtimes, executor, evaluator)
         val previousLabels = registeredLabels
         unregisterAll()
         val commandMap = Bukkit.getCommandMap()
@@ -91,9 +112,65 @@ class CommandRegistrar(
             }
         }
 
+        registerModuleCommands(executor, claimed, found)
+
         conflicts = found
         registeredLabels = ownLabels()
         if (registeredLabels != previousLabels) refreshPlayers()
+    }
+
+    private fun registerModuleCommands(
+        executor: ActionExecutor,
+        claimed: MutableMap<String, String>,
+        found: MutableList<CommandConflict>,
+    ) {
+        val commandMap = Bukkit.getCommandMap()
+        val dressing = overrides()
+        val resolved = mutableListOf<ResolvedPlayerCommand>()
+        for (declaration in playerCommands()) {
+            val command = ResolvedPlayerCommand.resolve(declaration, dressing, logger)
+            resolved += command
+            if (!command.enabled) continue
+            val prefix = declaration.namespace()
+            val source = "module command ${declaration.id}"
+            val name = command.name
+            val prefixed = commandMap.knownCommands["$prefix:$name"]
+            if (prefixed is ModuleCommand) {
+                found += CommandConflict(name, "module command ${prefixed.resolved.id}", source, isAlias = false)
+                logger.severe("Command '/$prefix:$name' ($source) is not registered: module command ${prefixed.resolved.id} has the same name. Rename one of them.")
+                continue
+            }
+            val nameOwner = claimed[name] ?: foreignOwner(commandMap.getCommand(name))
+            if (nameOwner != null) {
+                found += CommandConflict(name, nameOwner, source, isAlias = false)
+                logger.warning("Command '/$name' ($source) is already taken by $nameOwner: reachable as '/$prefix:$name' only.")
+            }
+            val aliases = command.aliases.distinct().filter { it != name }.filter { alias ->
+                val owner = claimed[alias] ?: foreignOwner(commandMap.getCommand(alias))
+                if (owner != null) {
+                    found += CommandConflict(alias, owner, source, isAlias = true)
+                    logger.warning("Alias '/$alias' of '/$name' ($source) is already taken by $owner: alias ignored.")
+                }
+                owner == null
+            }
+            val moduleCommand = ModuleCommand(command.withAliases(aliases), executor, lang, logger)
+            if (nameOwner == null) {
+                commandMap.register(prefix, moduleCommand)
+                claimed[name] = source
+                aliases.forEach { claimed[it] = source }
+            } else {
+                // The short name stays its owner's: the prefixed form, which no one else holds, and the free aliases.
+                commandMap.knownCommands["$prefix:$name"] = moduleCommand
+                aliases.forEach { alias ->
+                    commandMap.knownCommands[alias] = moduleCommand
+                    commandMap.knownCommands["$prefix:$alias"] = moduleCommand
+                    claimed[alias] = source
+                }
+                moduleCommand.register(commandMap)
+            }
+            registered += moduleCommand
+        }
+        moduleCommands = resolved
     }
 
     fun unregisterAll() {
@@ -121,7 +198,7 @@ class CommandRegistrar(
 
     /** Who holds [existing], when it is not one of this registrar's commands. */
     private fun foreignOwner(existing: Command?): String? = when {
-        existing == null || existing is PackCommand -> null
+        existing == null || existing is PackCommand || existing is ModuleCommand -> null
         existing is PluginIdentifiableCommand -> "plugin ${existing.plugin.name}"
         else -> "'/${existing.name}' (${existing.javaClass.simpleName})"
     }
