@@ -7,8 +7,8 @@ sidebar:
 
 Artisan's menus and projects live in files, not in a database. The database is one
 Artisan **lends** to the plugins of its suite (add-ons such as the shop) so they do
-not each need their own configuration. Artisan itself creates no tables, and each
-plugin that asks gets its own connection pool.
+not each need their own configuration. Artisan keeps a few tables of its own there
+(servers, project history, drafts), and each plugin that asks gets its own connection pool.
 
 ## Which one
 
@@ -53,6 +53,25 @@ GRANT ALL PRIVILEGES ON artisan.* TO 'artisan'@'10.0.0.%';
 ```
 
 The user needs to create tables: the add-ons manage their own schema.
+
+## Table names
+
+Every table starts with `database.table-prefix` (default `artisan_`): Artisan's own
+(`artisan_servers`, `artisan_versions`…) and each plugin's (`artisan_quests_…`,
+`artisan_auctions_…`). Leave it as is unless two separate installations must share one
+database: give each its own prefix, such as `survival_` and `creative_`. Every server of
+one network needs the same prefix; a leaf with another one reads another server list and
+is refused by its hub (`not on the hub's database`).
+
+Changing the prefix later does not rename anything. While the tables of the previous
+prefix are in the database, Artisan and its plugins refuse to open it:
+
+```
+database.table-prefix changed from 'artisan_' to 'survival_', and the database holds the tables of 'artisan_': the suite would start empty. …
+```
+
+Set the previous value back, or rename the tables yourself, or delete
+`plugins/Artisan/database/table-prefix` to start empty under the new prefix.
 
 Pool size per plugin is `database.pool-size` in `environment.yml` (default 4). With N
 servers and P plugins using the database, plan for up to N × P × pool-size
