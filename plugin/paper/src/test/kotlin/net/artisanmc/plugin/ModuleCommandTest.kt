@@ -206,4 +206,80 @@ class ModuleCommandTest {
             root.deleteRecursively()
         }
     }
+
+    private fun balance() = PlayerCommandDeclaration.builder("guilds:root").name("g")
+        .child(PlayerCommandDeclaration.builder("guilds:balance").executor { calls += it }
+            .child(PlayerCommandDeclaration.builder("guilds:balance.add").name("add")
+                .argument(CommandArgument.integer("amount"))
+                .permission("guilds.deposit")
+                .executor { calls += it }.build())
+            .build())
+        .build()
+
+    private fun say(text: String) = listOf(mapOf("type" to "send_message", "text" to text))
+
+    @Test fun `steps replace the module's code, on a sub-command too, with its arguments`() {
+        val player = MockBukkit.getMock()!!.addPlayer()
+        player.addAttachment(plugin.value, "guilds.deposit", true)
+        registry.register(balance())
+        overrides = mapOf(
+            "guilds:balance" to CommandOverrideYaml(command = "guilds:balance", steps = say("menu")),
+            "guilds:balance.add" to CommandOverrideYaml(command = "guilds:balance.add", steps = say("confirm {amount}")),
+        )
+        registrar().reload(emptyList(), executor(), evaluator)
+        command("g").execute(player, "g", arrayOf("balance"))
+        assertEquals("menu", player.nextMessage())
+        command("g").execute(player, "g", arrayOf("balance", "add", "5"))
+        assertEquals("confirm 5", player.nextMessage())
+        assertTrue(calls.isEmpty(), "the module's code is not called")
+    }
+
+    @Test fun `steps never run from the console`() {
+        val console = MockBukkit.getMock()!!.consoleSender
+        registry.register(PlayerCommandDeclaration.builder("attribution:stats").consoleAllowed(true).executor { calls += it }.build())
+        overrides = mapOf("attribution:stats" to CommandOverrideYaml(command = "attribution:stats", steps = say("hi")))
+        registrar().reload(emptyList(), executor(), evaluator)
+        command("stats").execute(console, "stats", emptyArray())
+        assertTrue(calls.isEmpty())
+    }
+
+    @Test fun `module_command runs the module's code past the override, typed and permission-checked`() {
+        val player = MockBukkit.getMock()!!.addPlayer()
+        registry.register(balance())
+        overrides = mapOf(
+            "guilds:balance.add" to CommandOverrideYaml(
+                command = "guilds:balance.add",
+                steps = listOf(mapOf("module_command" to mapOf("command" to "guilds:balance.add", "args" to mapOf("amount" to "{amount}")))),
+            ),
+        )
+        val actions = CoreActionHandlers.registry()
+        val registrar = registrar()
+        actions.register(net.artisanmc.plugin.command.ModuleCommandAction({ registrar.moduleCommands }, lang, plugin.value.logger).declaration())
+        val exec = ActionExecutor(plugin.value, stubProvider, MenuSessionStore(), deps, cooldowns, evaluator, registry = actions)
+        registrar.reload(emptyList(), exec, evaluator)
+
+        command("g").execute(player, "g", arrayOf("balance", "add", "7"))
+        assertTrue(calls.isEmpty(), "without guilds.deposit the command is refused before its chain")
+
+        player.addAttachment(plugin.value, "guilds.deposit", true)
+        command("g").execute(player, "g", arrayOf("balance", "add", "7"))
+        val ctx = calls.single()
+        assertEquals("guilds:balance.add", ctx.commandId)
+        assertEquals(7, ctx.arguments["amount"], "the override's chain called its own command once, no loop")
+    }
+
+    @Test fun `an override remembers the folder it was read from`() {
+        val root = Files.createTempDirectory("overrides").toFile()
+        try {
+            root.resolve("guilds/overrides/command").apply { mkdirs() }
+                .resolve("balance.yaml").writeText("command: guilds:balance\nsteps:\n  - open_menu: solde\n")
+            val store = CommandOverrideStore({ mapOf("guilds" to root.resolve("guilds")) }, plugin.value.logger)
+            store.reload()
+            val override = store.overrides.getValue("guilds:balance")
+            assertEquals("guilds", override.project)
+            assertNotNull(override.steps)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 }

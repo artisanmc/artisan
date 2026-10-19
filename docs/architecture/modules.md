@@ -393,6 +393,24 @@ jeu. Le module déclare le comportement avec un id stable, l'admin habille le re
 permission, cooldown, conditions, textes par langue, désactivation). Pas de suppression : la
 commande existe tant que le module est chargé.
 
+L'id, les arguments et les sous-commandes restent ceux du module : son code les lit. `steps`
+(chaîne d'actions, comme `command/v1`) remplace le code du module, sur la racine comme sur une
+sous-commande ; les arguments analysés y sont les valeurs `{nom}`, et un id de menu nu se résout
+dans le dossier de l'override. L'action `module_command` (`command`, `args`) lance le code d'origine
+d'une commande de module depuis une chaîne, sans son override (ni conditions, ni cooldown, ni
+`steps` : pas de boucle), permission vérifiée et arguments typés comme à la saisie ; elle marche
+aussi pour une commande désactivée. Elle est déclarée comme une action de module (propriétaire
+`artisan`) : l'éditeur construit son formulaire depuis la déclaration.
+
+```yaml
+schema: command_override/v1
+command: guilds:balance.add
+steps:
+  - open_menu: confirmer_depot        # le menu reçoit {amount} par son entrée de contexte
+# dans le bouton « Confirmer » du menu :
+#   - module_command: { command: guilds:balance.add, args: { amount: "{amount}" } }
+```
+
 ```java
 api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track")
     .name("track")

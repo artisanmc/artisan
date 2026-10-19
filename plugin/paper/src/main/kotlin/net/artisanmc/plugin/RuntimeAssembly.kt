@@ -87,6 +87,15 @@ internal class RuntimeAssembly(
         )
         // A module enabled or disabled after the start: its commands come and go without a reload.
         api.playerCommands.onChange { scheduler.onGlobal { commandRegistrar.refresh() } }
+        // Listed with the modules' actions (owner `artisan`): the editor builds its form from the declaration.
+        val moduleCommand = net.artisanmc.plugin.command.ModuleCommandAction({ commandRegistrar.moduleCommands }, langManager, logger)
+        api.actionRegistry.unregister(net.artisanmc.plugin.command.ModuleCommandAction.NAME)
+        api.actionRegistry.bindOwner("artisan")
+        try {
+            api.actionRegistry.register(moduleCommand.declaration())
+        } finally {
+            api.actionRegistry.bindOwner(null)
+        }
     }
 
     /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */

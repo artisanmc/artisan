@@ -333,7 +333,7 @@ api.getPlayerCommands().register(PlayerCommandDeclaration.builder("attribution:o
     .build());
 ```
 
-An override is a file of a project's `overrides/command/` folder (`schema: command_override/v1`, `command: attribution:open`); every absent field keeps the module's value, and deleting the file resets the command. Only the root is renamed; a child keeps its name. `/help` shows the description in the server's language.
+An override is a file of a project's `overrides/command/` folder (`schema: command_override/v1`, `command: attribution:open`); every absent field keeps the module's value, and deleting the file resets the command. Only the root is renamed; a child keeps its name. `/help` shows the description in the server's language. `steps` (an action chain) replaces the module's code on any node, root or child: the parsed arguments are its `{name}` values, a bare menu id resolves in the override's folder, and it never runs from the console. The action `module_command` (`command`, `args`, owner `artisan` in `api.actionRegistry`) runs a module command's own code past its override (no requirement, cooldown or `steps`), with its permission checked and its arguments parsed by type; `{name}` alone passes a bound value as is. Neither changes the API: they are part of the override format and the action vocabulary.
 
 ### `net.artisanmc.modules.api.model.ModelRegistry` (`@Beta`)
 
