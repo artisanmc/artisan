@@ -111,6 +111,12 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > enregistrée par `registerConfig` : versionnée, hors de la liste des Projects (ADR
 > `module-config-screens`, amendement 2026-10-19).
 
+> **Dossier du module (depuis 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
+> donne au module `plugins/Artisan/modules/<folder>/`, enregistré comme une racine d'add-on (clé
+> `addon:<folder>`, non renommable). L'ancienne racine (`legacyDir`) y est déplacée une fois ; le
+> module lit ensuite ses fichiers dans le dossier renvoyé. À appeler dans `onEnable`, avant
+> d'écrire un fichier par défaut.
+
 > **Kinds de Document (depuis 2026-10-15, lot 5)** — un module contribue ses kinds de Document par
 > `documents: DocumentKindContribution[]` : `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
 > `icon?`, `component` (vue du panneau Propriétés), `title?`, `listByTitle?`, `create`, `parse`,
