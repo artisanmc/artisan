@@ -30,6 +30,9 @@ class ProjectRoots(
     /** Registered roots that hold a module's configuration, not content (ADR `module-config-screens`). */
     private val configRoots = ConcurrentHashMap.newKeySet<String>()
 
+    /** The module that registered [projectId]'s root, null for a folder of the core root. */
+    fun ownerOf(projectId: String): String? = owners[projectId]
+
     fun isRegistered(projectId: String): Boolean = registered.keys.any { it.equals(projectId, ignoreCase = File.separatorChar == '\\') }
     fun registeredRoots(): Map<String, File> = registered.toMap()
 

@@ -30,7 +30,9 @@ changed it, and compare to what is shipped, copying parts of it back. An Add-on-
 4. **Seed once.** A template with a seed project is copied into a new Project of that name, in the
    core root, with a manifest in the server's language, the first start that knows it; recorded in `<core projects root>/.artisan-seeds.yaml`
    and never repeated, even when the owner deletes that Project. A Project of that name already
-   there is left alone.
+   there is left alone, unless it is the module's own folder (`moduleFolder`, API 2.8.0, created
+   empty before the seed runs): the files are copied there, with a manifest if it has none, and a
+   file already there is never overwritten.
 5. **Keys stay unique on the server.** Content read from all Projects (quest groups) refuses a key
    defined twice, with a visible error, instead of silently picking one.
 
