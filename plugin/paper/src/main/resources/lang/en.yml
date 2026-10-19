@@ -8,6 +8,8 @@ arg:
 action:
   inventory_full: "<yellow>Your inventory is full: the rest was dropped at your feet.</yellow>"
 cmd:
+  usage: "<red>Usage: /{command} ({subcommands})</red>"
+  failed: "<red>This command failed. The error is in the server log.</red>"
   in_game_only: "<red>This command can only be used in-game.</red>"
   no_permission: "<red>You don't have permission to use this command.</red>"
   menu_not_found: "<red>Menu <yellow>{id}</yellow> not found.</red>"

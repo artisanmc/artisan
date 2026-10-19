@@ -8,6 +8,8 @@ arg:
 action:
   inventory_full: "<yellow>Votre inventaire est plein : le surplus est tombé à vos pieds.</yellow>"
 cmd:
+  usage: "<red>Usage : /{command} ({subcommands})</red>"
+  failed: "<red>Cette commande a échoué. L'erreur est dans le journal du serveur.</red>"
   in_game_only: "<red>Cette commande ne peut être utilisée qu'en jeu.</red>"
   no_permission: "<red>Vous n'avez pas la permission d'utiliser cette commande.</red>"
   menu_not_found: "<red>Menu <yellow>{id}</yellow> introuvable.</red>"

@@ -36,7 +36,10 @@ class ActionExecutor(
 ) {
     internal val scheduler by lazy { schedulerFor(plugin) }
 
-    fun handle(handler: ClickHandler, ctx: ExecutionContext) {
+    fun handle(handler: ClickHandler, ctx: ExecutionContext) = handle(handler, ctx) { executeSteps(handler.steps, it) }
+
+    /** [handler]'s cooldown, requirements and fallback around [run] instead of its steps: a module command's code. */
+    fun handle(handler: ClickHandler, ctx: ExecutionContext, run: (ExecutionContext) -> Unit) {
         val cooldown = handler.cooldown
         if (cooldown != null && cooldowns.isOnCooldown(cooldown.id, ctx.player.uniqueId, cooldown.scope)) {
             cooldown.message?.let { ctx.player.sendMessage(LenientText.parse(it)) }
@@ -46,7 +49,7 @@ class ActionExecutor(
             executeSteps(handler.fallback, ctx)
             return
         }
-        executeSteps(handler.steps, ctx)
+        run(ctx)
         if (cooldown != null) {
             cooldowns.set(cooldown.id, ctx.player.uniqueId, cooldown.scope, cooldown.durationSeconds)
         }
