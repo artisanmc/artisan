@@ -159,7 +159,7 @@ someone types `/artisan reload`.
 
 ## Own your project directory
 
-By default projects live in `plugins/Artisan/projects/<id>/`. An add-on can host
+By default projects live in `plugins/Artisan/modules/<id>/`. An add-on can host
 its project in **its own** plugin folder instead: admins find your content where
 they expect it, and removing your plugin removes it.
 

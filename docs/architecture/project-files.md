@@ -4,7 +4,7 @@ Les fichiers sont la **source de vérité** (ADR `files-first-source-of-truth`) 
 lossless, l'éditeur n'a pas de représentation privilégiée.
 
 ```
-plugins/Artisan/projects/
+plugins/Artisan/modules/
   <project_id>/
     manifest.yaml
     menus/<menu_id>.yaml           ← un dossier par kind de Document (cf. ci-dessous)
@@ -22,6 +22,14 @@ plugins/Artisan/projects/
     .artisan/transactions/         ← journal de publication, reçus dans `.receipts/`
     .artisan/history/              ← archives d'avant 2026-09-26, lues seulement
 ```
+
+Avant 2026-10, la racine était `plugins/Artisan/projects/`. Au premier démarrage, le plugin la
+déplace vers `modules/` (`ModulesRootMigration`) : chaque dossier garde son nom (namespace, refs
+qualifiées) et son `.artisan/project-id` (Versions, brouillons), l'ancien dossier reste en
+`projects.artisan-migrated/` et `modules/.artisan-migrations.yaml` empêche de rejouer la migration.
+Un échec remet tout en place et garde `projects/`. Conception : `design-projets-en-modules.md`
+(fichiers du projet), dont c'est le lot 1 ; le reste (fichier `module.yaml`, éditeur par module,
+racines d'add-on) suit.
 
 Un Project s'identifie par le nom de son dossier sur son serveur ; pour le hub et l'éditeur, il
 s'appelle `<server id>.<dossier>`, quel que soit le serveur (cf. `entities.md`). `.artisan-sync.yaml` (ancienne

@@ -16,7 +16,7 @@ network mode, **one** Paper server serves the editor for all of them.
 | How many | Exactly one per network | Every other server |
 | Web server | Serves the editor, its API, `/ws/editor`, `/ws/plugin` and resource packs on `web.port` | None: opens no port |
 | Connection | Accepts leaves on `/ws/plugin` | Opens a WebSocket to the hub at `web.hub`, authenticated by the shared secret |
-| Projects | Its own, in `plugins/Artisan/projects/` | Its own, in its `plugins/Artisan/projects/` |
+| Projects | Its own, in `plugins/Artisan/modules/` | Its own, in its `plugins/Artisan/modules/` |
 | `/artisan editor` | Issues the link | Asks the hub for a link |
 
 The hub is an ordinary Paper server of your network — a lobby, for example. Nothing

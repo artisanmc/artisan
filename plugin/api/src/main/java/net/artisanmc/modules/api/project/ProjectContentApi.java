@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Read-only view of the project content on disk for modules ({@code api.project}). Backed by
- * {@code plugins/Artisan/projects/} and the registered add-on roots. Paths use '/' separators.
+ * {@code plugins/Artisan/modules/} and the registered add-on roots. Paths use '/' separators.
  * The {@code .artisan*} namespace (editor metadata, trash) is never exposed. Content refreshes
  * on reload: modules should re-read in {@link ArtisanModule#onReload}.
  */
