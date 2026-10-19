@@ -130,7 +130,7 @@ internal class RuntimeAssembly(
         registerResourcePackManager(packs)
         provider.load()
 
-        executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry)
+        executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry, plugin.langManager)
         commandRegistrar.reload(provider.runtimeProjects(), executor, evaluator)
     }
 

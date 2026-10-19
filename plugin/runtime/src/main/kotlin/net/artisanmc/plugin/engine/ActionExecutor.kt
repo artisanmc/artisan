@@ -10,6 +10,7 @@ import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
 import net.artisanmc.plugin.integrations.SoftDepRegistry
 import net.artisanmc.plugin.session.NavigationHistoryStore
+import net.artisanmc.plugin.lang.LangManager
 
 /**
  * Runs action chains. Every action, Artisan's own included, goes through the
@@ -30,6 +31,8 @@ class ActionExecutor(
     internal val history: NavigationHistoryStore? = null,
     /** The vocabulary; defaults to Artisan's own actions alone (tests, tools). */
     private val registry: ActionRegistry = CoreActionHandlers.registry(),
+    /** Artisan's messages, for what an action tells the player itself; null in tests and tools. */
+    internal val lang: LangManager? = null,
 ) {
     internal val scheduler by lazy { schedulerFor(plugin) }
 
