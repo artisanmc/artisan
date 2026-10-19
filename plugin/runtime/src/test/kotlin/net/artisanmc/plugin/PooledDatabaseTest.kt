@@ -41,6 +41,43 @@ class PooledDatabaseTest {
     }
 
     @Test
+    fun `a disabled plugin's pool stays open for its onDisable, then closes`() {
+        val delayed = mutableListOf<Pair<Long, () -> Unit>>()
+        val deferring = PooledDatabase({ readDatabaseSettings(environment, config, dir) }, logger) { ticks, task -> delayed += ticks to task }
+        try {
+            val quests = MockBukkit.createMockPlugin("Quests")
+            val pool = deferring.dataSource(quests)
+            deferring.onPluginDisable(PluginDisableEvent(quests))
+            pool.connection.use { assertTrue(it.isValid(1), "still open while the plugin disables") }
+
+            assertEquals(PooledDatabase.CLOSE_DELAY_TICKS, delayed.single().first)
+            delayed.single().second()
+            assertFailsWith<java.sql.SQLException> { pool.connection.close() }
+        } finally {
+            deferring.closeAll()
+        }
+    }
+
+    @Test
+    fun `a plugin enabled again before the delay keeps its pool`() {
+        val delayed = mutableListOf<() -> Unit>()
+        val deferring = PooledDatabase({ readDatabaseSettings(environment, config, dir) }, logger) { _, task -> delayed += task }
+        try {
+            // Keyed by plugin name: the reloaded plugin is another instance of the same name.
+            val quests = MockBukkit.createMockPlugin("Quests")
+            val first = deferring.dataSource(quests)
+            deferring.onPluginDisable(PluginDisableEvent(quests))
+            val reloaded = deferring.dataSource(quests)
+            assertSame(first, reloaded)
+
+            delayed.single()()
+            reloaded.connection.use { assertTrue(it.isValid(1), "taken back: not closed by the delayed task") }
+        } finally {
+            deferring.closeAll()
+        }
+    }
+
+    @Test
     fun `pool size comes from environment yml`() {
         assertEquals(4, readDatabaseSettings(environment, config, dir).poolSize)
         environment = yaml("database: { pool-size: 7 }")

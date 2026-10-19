@@ -33,9 +33,14 @@ fun readDatabaseSettings(
     )
 }
 
+/**
+ * One pool per plugin of the suite. [later] runs a task after a delay in ticks: the pool of a
+ * disabling plugin closes through it, see [onPluginDisable].
+ */
 class PooledDatabase(
     settings: () -> DatabaseSettings,
     logger: Logger,
+    private val later: (Long, () -> Unit) -> Unit = { _, task -> task() },
 ) : DatabaseApi, Listener {
     private val pools = ConnectionPools(settings, logger)
 
@@ -43,8 +48,22 @@ class PooledDatabase(
 
     override fun dataSource(owner: Plugin): DataSource = pools.dataSource(owner.name)
 
+    /**
+     * The event fires before the plugin's onDisable, which may still save to its pool: the pool
+     * closes [CLOSE_DELAY_TICKS] later. A plugin reloader enables the plugin again within that
+     * delay, and its [dataSource] gets the same pool back.
+     */
     @EventHandler
-    fun onPluginDisable(event: PluginDisableEvent) = pools.close(event.plugin.name)
+    fun onPluginDisable(event: PluginDisableEvent) {
+        val owner = event.plugin.name
+        if (!pools.release(owner)) return
+        runCatching { later(CLOSE_DELAY_TICKS) { pools.closeReleased(owner) } }.onFailure { pools.closeReleased(owner) }
+    }
 
     fun closeAll() = pools.closeAll()
+
+    companion object {
+        /** Leaves the writes a plugin queues in its onDisable 5 seconds to finish. */
+        const val CLOSE_DELAY_TICKS = 100L
+    }
 }
