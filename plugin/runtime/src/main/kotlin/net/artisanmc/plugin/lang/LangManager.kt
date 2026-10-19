@@ -20,6 +20,9 @@ class LangManager(private val bundle: MessageBundle) {
         val BUNDLED_LANGS = listOf("en", "fr")
     }
 
+    /** The server's language (`language` in config.yml). */
+    val defaultLang: String get() = bundle.defaultLang
+
     fun getRaw(key: String, lang: String = bundle.defaultLang, vararg args: Pair<String, Any>): String =
         bundle.format(bundle.raw(lang, key), args.toMap())
 
