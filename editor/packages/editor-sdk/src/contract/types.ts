@@ -165,6 +165,31 @@ export interface ModuleSidebarEntry {
   to: string;
 }
 
+/**
+ * What a module's own Config screen view receives (`FrontendModule.screens`, ADR
+ * `module-config-screens`). The host reads the screen's file from the server, holds the
+ * working copy, writes it on Save and keeps its Versions; the view only renders and edits.
+ */
+export interface ConfigScreenProps {
+  /** The project the screen edits (a module's configuration root), for host fields that read it. */
+  projectId: string;
+  /** `config`: one object (`value`); `table`: rows (`value` is the row array). */
+  shape: "config" | "table";
+  /** The screen's data as the editor holds it, typed by the declared model when there is one. */
+  value: unknown;
+  /**
+   * Replaces the value at `path`: keys from the root for a config, the row index then the
+   * keys for a table. Never empty. Unsaved until the admin saves.
+   */
+  set: (path: (string | number)[], value: unknown) => void;
+  /** Table only: appends a row with the model's defaults. */
+  addRow: () => void;
+  /** Table only: removes the row at `index`. */
+  removeRow: (index: number) => void;
+  /** A dated copy is shown while the server answers: nothing may be edited. */
+  readOnly: boolean;
+}
+
 export interface ModuleRouteDecl {
   path: string;
   component: ComponentType;
@@ -207,4 +232,9 @@ export interface FrontendModule {
   migrateProject?: (project: unknown) => void;
   /** The Document kinds this module contributes (ADR `extensible-document-kinds`, lot 5). */
   documents?: DocumentKindContribution[];
+  /**
+   * Views of the module's Config screens, by the `component` key the plugin declares with
+   * the screen. A screen whose key is missing here gets the generated form.
+   */
+  screens?: Record<string, ComponentType<ConfigScreenProps>>;
 }

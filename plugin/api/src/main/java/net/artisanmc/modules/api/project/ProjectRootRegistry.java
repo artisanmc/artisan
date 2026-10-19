@@ -2,6 +2,7 @@ package net.artisanmc.modules.api.project;
 
 import java.io.File;
 import net.artisanmc.modules.api.ArtisanModule;
+import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Stable;
 
 /**
@@ -37,5 +38,16 @@ public interface ProjectRootRegistry {
     @Stable
     default void register(String projectId, File dir, String moduleId) {
         register(projectId, dir);
+    }
+
+    /**
+     * Same as {@link #register(String, File, String)}, for a root that holds the module's
+     * <b>configuration</b> (a singleton edited by its config screens, such as a rewards table),
+     * not content: the editor lists it under the module, not among the server's Projects. It is
+     * read, published and versioned like any Project. Since 2.7.0.
+     */
+    @Beta
+    default void registerConfig(String projectId, File dir, String moduleId) {
+        register(projectId, dir, moduleId);
     }
 }

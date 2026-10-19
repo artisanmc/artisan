@@ -3,6 +3,7 @@ package net.artisanmc.modules.api.screen;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 import net.artisanmc.modules.api.OwnedRegistry;
 import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Internal;
@@ -16,6 +17,8 @@ import org.jetbrains.annotations.Nullable;
  */
 @Beta
 public final class EditorScreenRegistry implements OwnedRegistry {
+    private static final Pattern COMPONENT = Pattern.compile("^[a-z][a-zA-Z0-9_-]*$");
+
     private final ConcurrentHashMap<String, EditorScreenDeclaration> screens = new ConcurrentHashMap<>();
 
     /** Owner captured for declarations happening right now (cf. {@link DataSourceRegistry}). */
@@ -40,6 +43,17 @@ public final class EditorScreenRegistry implements OwnedRegistry {
      */
     @Beta
     public void declare(String id, String label, String table, String projectId) {
+        declare(id, label, table, projectId, null);
+    }
+
+    /**
+     * Same as {@link #declare(String, String, String, String)}, rendered by the module's own view:
+     * {@code component} is a key of its {@code FrontendModule.screens} ({@code ^[a-z][a-zA-Z0-9_-]*$},
+     * {@link IllegalArgumentException} otherwise). The editor falls back to the generated form when
+     * the module's bundle has no such view. Since 2.7.0.
+     */
+    @Beta
+    public void declare(String id, String label, String table, String projectId, @Nullable String component) {
         if (!id.contains(":")) {
             throw new IllegalArgumentException("editor screen id must be namespaced (namespace:screen): '" + id + "'");
         }
@@ -48,7 +62,10 @@ public final class EditorScreenRegistry implements OwnedRegistry {
         if (!isSafeTable(table)) {
             throw new IllegalArgumentException("editor screen '" + id + "' has an unsafe table path: '" + table + "'");
         }
-        EditorScreenDeclaration decl = new EditorScreenDeclaration(id, label, table, projectId, currentOwner);
+        if (component != null && !COMPONENT.matcher(component).matches()) {
+            throw new IllegalArgumentException("editor screen '" + id + "' has an invalid component key: '" + component + "'");
+        }
+        EditorScreenDeclaration decl = new EditorScreenDeclaration(id, label, table, projectId, currentOwner, component);
         if (screens.putIfAbsent(id, decl) != null) throw new DuplicateEditorScreenException(id);
     }
 

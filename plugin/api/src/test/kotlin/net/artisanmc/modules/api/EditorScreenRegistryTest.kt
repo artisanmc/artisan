@@ -24,6 +24,25 @@ class EditorScreenRegistryTest {
     }
 
     @Test
+    fun `a screen names the module view that renders it`() {
+        val reg = registry()
+        reg.declare("dailyrewards:rewards", "Récompenses", "data/rewards", "dailyrewards", "rewards")
+        reg.declare("boutique:catalog", "Catalogue", "data/categories", "boutique")
+        val (catalog, rewards) = reg.declared()
+        assertEquals("rewards", rewards.component)
+        assertEquals("rewards", rewards.toWire()["component"])
+        assertNull(catalog.component)
+        assertEquals(false, catalog.toWire().containsKey("component"))
+    }
+
+    @Test
+    fun `an invalid component key is rejected`() {
+        assertFailsWith<IllegalArgumentException> {
+            registry().declare("dailyrewards:rewards", "Récompenses", "data/rewards", "dailyrewards", "../x")
+        }
+    }
+
+    @Test
     fun `duplicate id throws`() {
         val reg = registry()
         reg.declare("boutique:catalog", "Catalogue", "data/categories", "boutique")
