@@ -559,7 +559,10 @@ module's declared screens to find the owner.
 | `register(projectId: String, dir: File)` | `Unit` | 1.5.0 |
 | `register(projectId: String, dir: File, moduleId: String)` | `Unit` | 1.6.0 |
 | `registerConfig(projectId: String, dir: File, moduleId: String)` (`@Beta`): a root holding the module's configuration (a singleton edited by its screens), reported with `role: config` in `project_roots`; read, published and versioned like any Project, listed under the module and not among Projects | `Unit` | 2.7.0 |
+| `moduleFolder(folder: String, moduleId: String, legacyDir: File?)` (`@Beta`): `plugins/Artisan/modules/<folder>/`, created if missing and registered like `register(folder, …, moduleId)` (key `addon:<folder>`, not renamable). `legacyDir` moves there once when the folder does not exist; while both hold files, or when the move fails, `legacyDir` stays registered and is returned (SEVERE). `folder` matches `^[a-z0-9][a-z0-9_-]*$`, else `IllegalArgumentException`. The default method (a registry other than Artisan's) registers `legacyDir` and returns it, and throws `UnsupportedOperationException` without one | `File` | 2.8.0 |
 | Reload deferred to the next tick | | 1.8.0 |
+
+Projects merge into modules (one folder of `plugins/Artisan/modules/` per module): a new add-on calls `moduleFolder` and reads its files from the returned directory; an add-on that registered a root passes it as `legacyDir`, with the project id it used as `folder`, so its Versions, drafts and qualified references (`<folder>:<id>`) follow.
 
 Registering reloads the projects on the next server tick, once the caller's `onEnable` has returned: bootstrap content written after `register` is read, and modules' `onReload()` runs then. Before 1.8.0 the reload ran inside `register`, calling the add-on's own `onReload()` while its `onEnable` was still running, and files written afterwards stayed invisible until `project.reload()`.
 
