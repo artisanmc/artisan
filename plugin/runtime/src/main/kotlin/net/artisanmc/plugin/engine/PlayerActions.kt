@@ -54,7 +54,12 @@ internal object PlayerActions {
             if (lore.isNotEmpty()) meta.lore(lore.map { LenientText.parse(rt.executor.resolveText(it, ctx)) })
             item.itemMeta = meta
         }
-        ctx.player.inventory.addItem(item)
+        val overflow = ctx.player.inventory.addItem(item).values
+        if (overflow.isNotEmpty()) {
+            // A full inventory must not eat a reward: the rest falls at the player's feet.
+            overflow.forEach { ctx.player.world.dropItemNaturally(ctx.player.location, it) }
+            rt.executor.lang?.let { ctx.player.sendMessage(it.get("action.inventory_full", ctx.player)) }
+        }
         return ctx
     }
 

@@ -5,6 +5,8 @@ arg:
   world_not_loaded: "<red>Le monde <yellow>{value}</yellow> n'est pas chargé.</red>"
   unknown_material: "<red>Matériau inconnu : <yellow>{value}</yellow></red>"
   invalid_enum: "<red>Valeur invalide pour <yellow>{arg}</yellow> : <yellow>{value}</yellow>. Valeurs attendues : <yellow>{values}</yellow></red>"
+action:
+  inventory_full: "<yellow>Votre inventaire est plein : le surplus est tombé à vos pieds.</yellow>"
 cmd:
   in_game_only: "<red>Cette commande ne peut être utilisée qu'en jeu.</red>"
   no_permission: "<red>Vous n'avez pas la permission d'utiliser cette commande.</red>"
