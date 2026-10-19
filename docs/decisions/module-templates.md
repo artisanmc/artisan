@@ -16,7 +16,7 @@ changed it, and compare to what is shipped, copying parts of it back. An Add-on-
 
 1. **A template is plugin-owned, read-only content** declared by the module from `onEnable`
    (`api.getTemplates()`, `TemplateDeclaration`: an id, a version raised when the files change,
-   project-relative files, an optional seed project). It never lives on disk as a Project: the
+   project-relative files, never `manifest.yaml`, an optional seed project). It never lives on disk as a Project: the
    jar holds it, Presence announces it without content (`installed_modules[].templates`, paths
    and SHA-256), the hub reads the files on demand (`template_fetch`).
 2. **A copy is the owner's.** `template_copy` writes the files into a Project (all or some
@@ -28,7 +28,7 @@ changed it, and compare to what is shipped, copying parts of it back. An Add-on-
    below the announced one → update available. An update is **never applied automatically**: the
    editor shows it and copies on a click.
 4. **Seed once.** A template with a seed project is copied into a new Project of that name, in the
-   core root, the first start that knows it; recorded in `<core projects root>/.artisan-seeds.yaml`
+   core root, with a manifest in the server's language, the first start that knows it; recorded in `<core projects root>/.artisan-seeds.yaml`
    and never repeated, even when the owner deletes that Project. A Project of that name already
    there is left alone.
 5. **Keys stay unique on the server.** Content read from all Projects (quest groups) refuses a key

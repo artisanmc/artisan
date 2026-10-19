@@ -34,6 +34,7 @@ public final class TemplateDeclaration {
     /** 4 MiB, like an editor bundle. */
     public static final int MAX_SIZE = 4 * 1024 * 1024;
 
+    private static final String MANIFEST = "manifest.yaml";
     private static final Pattern ID = Pattern.compile("^[a-z][a-z0-9_]*$");
     private static final Pattern PROJECT = Pattern.compile("^[a-z0-9][a-z0-9_-]*$");
     private static final Pattern SEGMENT = Pattern.compile("^[A-Za-z0-9_][A-Za-z0-9_.-]*$");
@@ -220,12 +221,17 @@ public final class TemplateDeclaration {
         /**
          * Adds the project file {@code path} ({@code menus/daily.yaml}). A path is relative, with
          * {@code /}, made of plain segments: no {@code ..}, no leading dot, and never the
-         * {@code .artisan*} metadata.
+         * {@code .artisan*} metadata. Never {@code manifest.yaml} either: a project's manifest is
+         * its own, so a copy into an existing project would always conflict on it. A seeded
+         * project gets one in the server's language.
          */
         public Builder file(String path, byte[] content) {
             Objects.requireNonNull(path, "path");
             Objects.requireNonNull(content, "content");
             if (!validPath(path)) throw new IllegalArgumentException("invalid template path '" + path + "'");
+            if (path.equals(MANIFEST)) {
+                throw new IllegalArgumentException("a template never ships " + MANIFEST + ": the project's own one stays");
+            }
             if (files.containsKey(path)) throw new IllegalArgumentException("template path '" + path + "' given twice");
             files.put(path, content.clone());
             return this;

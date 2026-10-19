@@ -147,6 +147,7 @@ internal class RuntimeAssembly(
         dataSources = api.dataSources,
         editorBundles = localEditorBundles::find,
         templates = { api.templates },
+        seedLang = { api.translations.defaultLang },
         announcement = plugin::announcement,
         declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,
