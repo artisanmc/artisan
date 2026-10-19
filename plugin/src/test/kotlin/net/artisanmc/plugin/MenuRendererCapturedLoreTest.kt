@@ -82,7 +82,7 @@ class MenuRendererCapturedLoreTest {
         captured: ItemStack? = capturedStack("Epee du VIP", listOf("Tranchante", "Rare")),
     ): ItemStack? {
         val deps = SoftDepRegistry(
-            vault = null, papi = null, worldGuard = null,
+            economy = net.artisanmc.modules.api.EconomyRegistry(), papi = null, worldGuard = null,
             nexoItems = null, oraxenItems = null, itemsAdderItems = null,
             hdbHeads = null, capturedItems = captured?.let { FakeStore("ci_sword", it) },
         )

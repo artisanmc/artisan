@@ -63,6 +63,19 @@ class MenuSlotsContractTest {
         }
     }
 
+    @Test fun `replaceWith swaps the whole content in one packet`() {
+        val slots = hidden()
+        openWindow(slots)
+        sink.calls.clear()
+        val next = hidden().apply { this[0] = ItemStack(Material.GOLD_INGOT); this[30] = ItemStack(Material.EMERALD) }
+        slots.replaceWith(next)
+        assertEquals(Material.GOLD_INGOT, slots[0]?.type)
+        assertEquals(Material.EMERALD, slots[30]?.type)
+        assertEquals(listOf("all:5"), sink.calls)
+        assertFalse(slots.sameShape(MenuSlots(top, PlayerInventoryMode.VISIBLE)))
+        assertFailsWith<IllegalArgumentException> { slots.replaceWith(MenuSlots(9, PlayerInventoryMode.HIDDEN)) }
+    }
+
     @Test fun `air is stored as empty`() {
         val slots = hidden()
         slots[3] = ItemStack(Material.AIR)

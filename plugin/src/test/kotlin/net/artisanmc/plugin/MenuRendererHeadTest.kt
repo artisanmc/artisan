@@ -80,7 +80,7 @@ class MenuRendererHeadTest {
                 text.replace("%player_name%", player.name)
         }
         val deps = SoftDepRegistry(
-            vault = null, papi = fakePapi, worldGuard = null,
+            economy = net.artisanmc.modules.api.EconomyRegistry(), papi = fakePapi, worldGuard = null,
             nexoItems = null, oraxenItems = null, itemsAdderItems = null, hdbHeads = null,
         )
         val slots = MenuRenderer.open(p, menu, "en", ExecutionContext(p), ConditionEvaluator(deps, CooldownStore())).slots

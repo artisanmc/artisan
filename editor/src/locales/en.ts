@@ -321,6 +321,10 @@ export default {
     titleLabelFallback: "title ({{lang}} — fallback)",
     permission: "permission",
     permissionPlaceholder: "(none)",
+    refreshInterval: "Refresh every (seconds)",
+    refreshIntervalPlaceholder: "never",
+    refreshIntervalHint:
+      "Repaints the open menu: data, placeholders and conditions are read again. The title stays as opened.",
     rows: "rows",
     rowsChangeRejected: "rows change rejected",
     inventoryType: "Inventory type",

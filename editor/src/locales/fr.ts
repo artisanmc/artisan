@@ -330,6 +330,10 @@ const fr: typeof en = {
     titleLabelFallback: "titre ({{lang}} — fallback)",
     permission: "permission",
     permissionPlaceholder: "(aucune)",
+    refreshInterval: "Rafraîchir toutes les (secondes)",
+    refreshIntervalPlaceholder: "jamais",
+    refreshIntervalHint:
+      "Redessine le menu ouvert : données, placeholders et conditions sont relus. Le titre reste celui de l'ouverture.",
     rows: "rangées",
     rowsChangeRejected: "changement de rangées refusé",
     inventoryType: "Type d'inventaire",

@@ -146,6 +146,9 @@ Le core prête aussi l'**infrastructure** aux Add-ons : `api.database.dataSource
 un pool de connexions propre à l'Add-on, identifiants réglés une fois par l'admin dans
 `plugins/Artisan/environment.yml` (ADR `suite-foundation-database`). Un Add-on n'embarque ni
 driver ni config SQL ; il garde sa couche d'accès et ses migrations.
+Il partage aussi les **devises** (`api.economy` : un Add-on lit, débite et crédite n'importe
+quelle devise enregistrée, ou enregistre la sienne) et le **repaint des menus ouverts**
+(`api.menus.refresh(player)` / `refreshAll(menuId)`, après un changement de ses données).
 
 #### 3.3.1 Plugin core
 

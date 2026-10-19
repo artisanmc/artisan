@@ -114,6 +114,8 @@ data class MenuYaml(
     @JsonProperty("player_inventory") val playerInventory: String = "visible",
     /** `false` : coffre transparent (le pack rend generic_54.png invisible), cf. VanillaGuiTitle. */
     @JsonProperty("vanilla_texture") val vanillaTexture: Boolean = true,
+    /** Secondes entre deux repaints du menu ouvert (0 = jamais), cf. MenuRefresher. */
+    @JsonProperty("refresh_interval") val refreshInterval: Int = 0,
     val permission: String? = null,
     // Canonical wire name: `inputs`; `context_inputs` is the legacy spelling.
     @JsonProperty("inputs")

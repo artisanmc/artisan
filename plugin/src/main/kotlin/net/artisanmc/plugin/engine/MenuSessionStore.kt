@@ -12,6 +12,8 @@ data class MenuSession(
     /** Contenu de la fenêtre (l'ancre Bukkit reste vide). */
     val slots: net.artisanmc.plugin.render.MenuSlots = net.artisanmc.plugin.render.MenuSlots(0),
     val escapeGoesBack: Boolean = false,
+    /** menu/v1 `refresh_interval` du menu, en secondes (0 = jamais). */
+    val refreshInterval: Int = 0,
 )
 
 class MenuSessionStore {
@@ -19,4 +21,6 @@ class MenuSessionStore {
     fun set(player: Player, session: MenuSession) { sessions[player.uniqueId] = session }
     fun get(player: Player): MenuSession? = sessions[player.uniqueId]
     fun remove(player: Player) { sessions.remove(player.uniqueId) }
+    /** Joueurs ayant un menu ouvert, avec sa session (copie). */
+    fun all(): Map<UUID, MenuSession> = HashMap(sessions)
 }

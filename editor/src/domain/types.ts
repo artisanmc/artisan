@@ -217,6 +217,8 @@ export interface Menu {
    * plugin draws it back on every other chest.
    */
   vanillaTexture?: false;
+  /** menu/v1 `refresh_interval`: seconds between repaints of the open menu. Stored only when > 0. */
+  refreshInterval?: number;
   permission?: string;
   /**
    * Internal admin notes, never rendered to players (menu/v1 `notes`).

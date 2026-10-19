@@ -125,6 +125,25 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
         }
       />
       <div>
+        <PropertyField
+          label={t("menuProperties.refreshInterval")}
+          type="number"
+          value={menu.refreshInterval ? String(menu.refreshInterval) : ""}
+          placeholder={t("menuProperties.refreshIntervalPlaceholder")}
+          onChange={(v) =>
+            setMenuField({
+              projectId,
+              menuId: menu.id,
+              field: "refreshInterval",
+              value: v === "" ? 0 : Number(v),
+            })
+          }
+        />
+        <p className="mt-1 text-[10px] text-[var(--text-mut)]">
+          {t("menuProperties.refreshIntervalHint")}
+        </p>
+      </div>
+      <div>
         <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
           {t("menuProperties.inventoryType")}
         </div>
