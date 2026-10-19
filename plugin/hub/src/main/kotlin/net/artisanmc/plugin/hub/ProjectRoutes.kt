@@ -361,6 +361,7 @@ class ProjectRoutes(
             "id" to id, "name" to folder, "externalId" to folder, "slug" to id,
             "serverKeyId" to server.id, "hash" to "",
             "identityKind" to root.identity, "ownerModule" to root.moduleId, "projectKey" to root.projectKey,
+            "role" to root.role,
             "capabilities" to mapOf("canRename" to movable(server, root)),
         )
     }

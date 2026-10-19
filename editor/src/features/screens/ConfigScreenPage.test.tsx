@@ -260,3 +260,58 @@ describe("ConfigScreenPage — the YAML tab shows the file, not a pending rewrit
     expect(shown).not.toContain("shape: config");
   });
 });
+
+/**
+ * A module may ship its own view of a screen (a rewards calendar rather than a form).
+ * The host keeps everything else: the read, the working copy, Save and the YAML tab.
+ */
+describe("ConfigScreenPage — module view", () => {
+  it("renders the module's view and saves what it edits through the host", async () => {
+    const { registerModule } = await import("@artisan/editor-sdk");
+    registerModule({
+      id: "rewards_mod",
+      displayName: "Rewards",
+      schemaVersion: "1",
+      sidebar: { icon: () => null, label: "Rewards", to: "/" },
+      routes: [],
+      screens: {
+        calendar: ({ value, set, readOnly }) => (
+          <button
+            type="button"
+            disabled={readOnly}
+            onClick={() => set(["whole_shop_discount"], 25)}
+          >
+            {`discount ${(value as { whole_shop_discount: number }).whole_shop_discount}`}
+          </button>
+        ),
+      },
+    });
+    useServerScreensStore.setState({
+      screens: [
+        {
+          id: "rewards_mod:settings",
+          moduleId: "rewards_mod",
+          label: "Réglages",
+          table: "data/shop_settings",
+          projectId: "rewards_cfg",
+          component: "calendar",
+        },
+      ],
+    } as never);
+
+    render(<ConfigScreenPage serverId="s" screenId="rewards_mod:settings" />);
+
+    const view = await screen.findByRole("button", { name: "discount 10" });
+    expect(screen.queryByTestId("config-value-form")).toBeNull();
+    fireEvent.click(view);
+    await screen.findByRole("button", { name: "discount 25" });
+    fireEvent.click(screen.getByRole("button", { name: /Enregistr|Save/ }));
+    await waitFor(() => expect(configWrite).toHaveBeenCalled());
+    const [, req] = configWrite.mock.calls[0] as [
+      string,
+      { projectId: string; files: { content: string }[] },
+    ];
+    expect(req.projectId).toBe("rewards_cfg");
+    expect(req.files[0]?.content).toContain("whole_shop_discount: 25");
+  });
+});

@@ -72,7 +72,9 @@ export interface ProjectGroupsInput {
  *   module's name (`ownerLabel`) instead of hidden under it.
  * - `moduleGroups`: what only the module manages — its Config screens (ADR
  *   `module-config-screens`) and its configuration route. A module with neither
- *   has no group.
+ *   has no group. A module's configuration root (`role: "config"`) is reached
+ *   through these screens only: it holds settings, not content, so it is left out
+ *   of `projects`.
  *
  * Pure, shared function: the sidebar and a server's page show the same thing
  * because they read the same list, not because the rule was copied twice.
@@ -126,5 +128,5 @@ export function buildProjectGroups({
     })
     .filter((g) => g.entries.length > 0);
 
-  return { projects: rows, moduleGroups };
+  return { projects: rows.filter((p) => p.role !== "config"), moduleGroups };
 }

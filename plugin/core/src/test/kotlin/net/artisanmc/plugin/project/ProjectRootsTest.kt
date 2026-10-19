@@ -63,6 +63,15 @@ class ProjectRootsTest {
         assertEquals(mapOf("project_id" to "user_proj", "identity" to "folder"), roots.descriptor("user_proj") - "project_key")
     }
 
+    @Test fun `a configuration root reports its role`() {
+        roots.registerConfig("dailyrewards", addonDir, "dailyrewards")
+        assertEquals(
+            mapOf("project_id" to "dailyrewards", "identity" to "addon", "module_id" to "dailyrewards", "role" to "config"),
+            roots.descriptor("dailyrewards") - "project_key",
+        )
+        assertEquals(addonDir, roots.dirFor("dailyrewards"))
+    }
+
     @Test fun `an add-on root registered without a module reports none`() {
         roots.register("boutique_addon", addonDir)
         assertEquals(mapOf("project_id" to "boutique_addon", "identity" to "addon"), roots.descriptor("boutique_addon") - "project_key")
