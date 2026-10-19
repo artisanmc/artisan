@@ -104,4 +104,37 @@ class TemplateCopiesTest {
         assertEquals(setOf("quests/daily"), seeds.seeded())
         assertFalse(seeds.seed("quests", template()), "a template without a seed project is never seeded")
     }
+
+    @Test
+    fun `a seed fills the module's own folder, created empty by moduleFolder`() {
+        val roots = ProjectRoots(coreRoot)
+        val dir = roots.moduleFolder("attribution", "attribution", null)
+        val seeds = TemplateSeeds(roots, defaultLang = { "fr" })
+        assertTrue(seeds.seed("attribution", template(seed = "attribution")))
+        assertTrue(File(dir, "menus/daily.yaml").isFile)
+        assertEquals("schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr]\n", File(dir, "manifest.yaml").readText())
+        assertEquals(setOf("attribution/daily"), seeds.seeded())
+    }
+
+    @Test
+    fun `a seed into the module's folder keeps what is already there`() {
+        val roots = ProjectRoots(coreRoot)
+        val dir = roots.moduleFolder("attribution", "attribution", null)
+        File(dir, "manifest.yaml").writeText("mine")
+        File(dir, "menus/daily.yaml").apply { parentFile.mkdirs(); writeText("edited") }
+        val seeds = TemplateSeeds(roots)
+        assertFalse(seeds.seed("attribution", template(seed = "attribution")))
+        assertEquals("mine", File(dir, "manifest.yaml").readText())
+        assertEquals("edited", File(dir, "menus/daily.yaml").readText())
+        assertFalse(File(dir, "quest_groups/daily.yaml").exists(), "a conflict writes nothing")
+        assertEquals(setOf("attribution/daily"), seeds.seeded())
+    }
+
+    @Test
+    fun `another module's folder of that name is left alone`() {
+        val roots = ProjectRoots(coreRoot)
+        val dir = roots.moduleFolder("attribution", "other", null)
+        assertFalse(TemplateSeeds(roots).seed("attribution", template(seed = "attribution")))
+        assertTrue(dir.list()!!.isEmpty())
+    }
 }
