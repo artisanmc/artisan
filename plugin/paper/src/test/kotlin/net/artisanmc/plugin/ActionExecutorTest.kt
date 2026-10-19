@@ -239,7 +239,8 @@ class ActionExecutorTest {
 
     @Test fun `give_item drops what does not fit and warns the player`() {
         val p = player()
-        repeat(p.inventory.storageContents.size) { p.inventory.setItem(it, org.bukkit.inventory.ItemStack(org.bukkit.Material.STONE, 64)) }
+        // Every slot: the mock inventory also stores into armor and off-hand slots.
+        repeat(p.inventory.size) { p.inventory.setItem(it, org.bukkit.inventory.ItemStack(org.bukkit.Material.STONE, 64)) }
         val exec = ActionExecutor(pluginInstance, stubProvider, sessions, deps, cooldowns, evaluator, lang = pluginInstance.langManager)
         exec.execute(listOf(Step.ActionStep("give_item", mapOf("material" to "DIAMOND", "count" to 3))), ctx(p))
         val dropped = p.world.entities.filterIsInstance<org.bukkit.entity.Item>().map { it.itemStack }

@@ -93,6 +93,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `editorBundles` (`getEditorBundles()`, `@Beta`) | `EditorBundleRegistry` | 2.3.0 |
 | `translations` (`getTranslations()`, `@Beta`) | `TranslationsApi` | 2.5.0 |
 | `templates` (`getTemplates()`, `@Beta`) | `TemplateRegistry` | 2.6.0 |
+| `playerCommands` (`getPlayerCommands()`, `@Beta`) | `PlayerCommandRegistry` | 2.7.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -309,6 +310,30 @@ api.getTemplates().register(TemplateDeclaration
     .seed("quests")
     .build());
 ```
+
+### `net.artisanmc.modules.api.playercommand.PlayerCommandRegistry` and the player command contract (`@Beta`, 2.7.0)
+
+A module declares the commands players type: Artisan registers them in the command map, dressed by the admin's `command_override/v1` documents (name and aliases of the root, permission, description, cooldown, requirements and fallback, `enabled`), and refreshes the players' completion when they change. The id `<module>:<name>` never changes; the command is always reachable as `/<module>:<name>`, and a short name already taken (by a project's `command/v1`, another module, another plugin) leaves only that form, with a warning. Distinct from `CommandRegistry`, which menus call through `run_command`. Design: `design-framework-commandes.md` (project files).
+
+| Member | Type | Since |
+|---|---|---|
+| `PlayerCommandRegistry.register(decl)` (the root and its children; a taken id, `DuplicatePlayerCommandException`), `unregister(id)`, `declarations()` (roots, registration order), `find(id)` (root or child, nullable); owner = the module whose `onEnable` runs, else removed when the plugin that loaded its executor disables | | 2.7.0 |
+| `PlayerCommandDeclaration.builder(id)` (`^[a-z0-9_]+:[a-z0-9_.-]+$`); `Builder.name`, `aliases`, `permission` (null: everyone), `description(Map<lang, text>)`, `argument`, `arguments`, `executor`, `consoleAllowed`, `child` (same namespace, distinct names), `build()` (neither executor nor child, a `TEXT` argument not last, a required argument after an optional one: `IllegalArgumentException`); getters, `namespace()` | | 2.7.0 |
+| `CommandArgument.string`, `text` (rest of the line), `integer`, `player`, `world`, `choice(name, values)`, `optional()`; `CommandArgument.Type` | | 2.7.0 |
+| `PlayerCommandExecutor.execute(context)`, run on the sender's thread once permission, the override's requirements and cooldown pass; an exception is logged and the sender told (`cmd.failed`) | | 2.7.0 |
+| `PlayerCommandContext`: `getCommandId()`, `getSender()`, `getPlayer()` (null for the console), `getLanguage()`, `getArguments()`, `get(name, type)` | | 2.7.0 |
+| `PlayerCommandRegistry.onChange(callback)`, `ArtisanAPI.Builder.playerCommands(registry)` (`@Internal`) | | 2.7.0 |
+
+```java
+api.getPlayerCommands().register(PlayerCommandDeclaration.builder("attribution:open")
+    .name("attribution")
+    .permission("artisanattribution.command")
+    .description(Map.of("en", "How did you find the server?", "fr", "Comment as-tu connu le serveur ?"))
+    .executor(ctx -> service.openOwn(ctx.getPlayer()))
+    .build());
+```
+
+An override is a file of a project's `overrides/command/` folder (`schema: command_override/v1`, `command: attribution:open`); every absent field keeps the module's value, and deleting the file resets the command. Only the root is renamed; a child keeps its name. `/help` shows the description in the server's language.
 
 ### `net.artisanmc.modules.api.model.ModelRegistry` (`@Beta`)
 

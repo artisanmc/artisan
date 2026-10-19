@@ -379,6 +379,26 @@ api.commands.register(CommandDeclaration(
 ))
 ```
 
+### 4.2 bis Commandes joueur (API 2.7.0)
+
+Distinctes des commands ci-dessus, que seul un menu appelle : une **commande joueur** est tapée en
+jeu. Le module déclare le comportement avec un id stable, l'admin habille le reste par un fichier
+`command_override/v1` du dossier `overrides/command/` d'un project (nom et alias de la racine,
+permission, cooldown, conditions, textes par langue, désactivation). Pas de suppression : la
+commande existe tant que le module est chargé.
+
+```java
+api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track")
+    .name("track")
+    .argument(CommandArgument.string("quest"))
+    .executor(ctx -> tracker.track(ctx.getPlayer(), ctx.get("quest", String.class)))
+    .build());
+```
+
+`CommandRegistrar` les enregistre après les `command/v1` des projects (un nom déjà pris laisse
+`/<module>:<nom>`) et renvoie l'arbre de commandes aux joueurs connectés quand il change. Contrat
+détaillé : `api-surface.md`.
+
 ### 4.3 Avantages du pattern
 
 - **Découplage** : le module menus n'a aucune dépendance sur shop, quests, etc.

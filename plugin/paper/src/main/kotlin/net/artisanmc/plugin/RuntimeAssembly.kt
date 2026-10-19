@@ -52,6 +52,7 @@ internal class RuntimeAssembly(
         private set
     lateinit var commandRegistrar: CommandRegistrar
         private set
+    private lateinit var commandOverrides: net.artisanmc.plugin.command.CommandOverrideStore
     private lateinit var cooldowns: CooldownStore
     private lateinit var evaluator: ConditionEvaluator
     /** The event-registered resource-pack manager — swapped (not stacked) on `/artisan reload`. */
@@ -76,12 +77,22 @@ internal class RuntimeAssembly(
             cacheFile = java.io.File(dataFolder, "cache/asset-index.json"),
         )
         assetCatalog.loadFromDisk()
-        commandRegistrar = CommandRegistrar(plugin, langManager, scheduler)
+        commandOverrides = net.artisanmc.plugin.command.CommandOverrideStore(
+            { (menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all() }, logger,
+        )
+        commandRegistrar = CommandRegistrar(
+            plugin, langManager, scheduler,
+            playerCommands = { api.playerCommands.declarations() },
+            overrides = { commandOverrides.overrides },
+        )
+        // A module enabled or disabled after the start: its commands come and go without a reload.
+        api.playerCommands.onChange { scheduler.onGlobal { commandRegistrar.refresh() } }
     }
 
     /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
     private fun applyReload() {
         capturedItems.reload((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
+        commandOverrides.reload()
         commandRegistrar.reload(menuProvider.runtimeProjects(), executor, evaluator)
         api.modules.active().forEach { runCatching { it.onReload() } }
         api.events.publish(ConfigReloadEvent("menus"))
@@ -131,6 +142,7 @@ internal class RuntimeAssembly(
         provider.load()
 
         executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry, plugin.langManager)
+        commandOverrides.reload()
         commandRegistrar.reload(provider.runtimeProjects(), executor, evaluator)
     }
 
