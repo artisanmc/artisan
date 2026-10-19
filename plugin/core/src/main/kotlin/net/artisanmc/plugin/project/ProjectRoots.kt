@@ -26,6 +26,8 @@ class ProjectRoots(
     private val registered = ConcurrentHashMap<String, File>()
     /** projectId -> owning module id, when the Add-on named it at registration. */
     private val owners = ConcurrentHashMap<String, String>()
+    /** Registered roots that hold a module's configuration, not content (ADR `module-config-screens`). */
+    private val configRoots = ConcurrentHashMap.newKeySet<String>()
 
     fun isRegistered(projectId: String): Boolean = registered.keys.any { it.equals(projectId, ignoreCase = File.separatorChar == '\\') }
     fun registeredRoots(): Map<String, File> = registered.toMap()
@@ -38,7 +40,8 @@ class ProjectRoots(
             "project_id" to projectId, "identity" to if (isRegistered(projectId)) "addon" else "folder", "project_key" to key(projectId),
         )
         val owner = owners[projectId] ?: return identity
-        return identity + ("module_id" to owner)
+        val role = if (projectId in configRoots) mapOf("role" to "config") else emptyMap()
+        return identity + ("module_id" to owner) + role
     }
 
     /**
@@ -72,6 +75,11 @@ class ProjectRoots(
     override fun register(projectId: String, dir: File, moduleId: String) {
         owners[projectId] = moduleId
         register(projectId, dir)
+    }
+
+    override fun registerConfig(projectId: String, dir: File, moduleId: String) {
+        configRoots.add(projectId)
+        register(projectId, dir, moduleId)
     }
 
     /**
