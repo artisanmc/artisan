@@ -32,7 +32,12 @@ import { useTranslation } from "react-i18next";
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import { documentCount } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
-import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
+import {
+  type ModuleGroupEntry,
+  type PluginModule,
+  buildModuleList,
+  diskProjectsToSummaries,
+} from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
@@ -48,7 +53,6 @@ import { ChevronDown, ChevronRight, Folder, FolderOpen, GripVertical } from "luc
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
-import { Badge } from "./ui/badge";
 import { useServersStatus } from "./useServersStatus";
 
 export function ProjectSidebar() {
@@ -179,10 +183,9 @@ export function ProjectSidebar() {
   }
   const remaining = [...idToProject.values()].sort((a, b) => a.id.localeCompare(b.id));
   const finalList = [...ordered, ...remaining];
-  // Every project in one list, a module's own badged with its name; under
-  // "Installed modules", only what a module alone manages (its screens) — same
-  // split as a server page, computed once in `buildProjectGroups`.
-  const { projects: projectRows, moduleGroups } = buildProjectGroups({
+  // One folder = one module: the plugins' modules with their folders and screens,
+  // then the admin's own — same split as a server page, computed once in `buildModuleList`.
+  const { pluginModules, contentModules: projectRows } = buildModuleList({
     projects: finalList,
     screens: serverScreens,
     mountedModuleIds,
@@ -198,7 +201,7 @@ export function ProjectSidebar() {
   // Does the open project have a row in the list? Otherwise (demo, unlisted
   // project), it is shown at the top with its Documents.
   const openProjectId = urlParams.projectId;
-  const visibleRows = projectRows;
+  const visibleRows = [...pluginModules.flatMap((m) => m.projects), ...projectRows];
   const openIsListed =
     !!openProjectId &&
     visibleRows.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId);
@@ -237,9 +240,27 @@ export function ProjectSidebar() {
         {openProjectId && !openIsListed && (
           <UnlistedOpenProject urlId={openProjectId} serverId={srvParam} />
         )}
-        <div className="flex flex-col">
+        {pluginModules.length > 0 && (
+          <div className="flex flex-col">
+            <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
+              {t("sidebar.installedModules")}
+            </div>
+            <ul className="flex flex-col">
+              {pluginModules.map((m) => (
+                <PluginModuleItem
+                  key={m.id}
+                  module={m}
+                  countFor={countFor}
+                  serverId={srvParam}
+                  serverIdOf={(p) => urlServerId(allServerEntries, p.serverKeyId) || srvParam}
+                />
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className={pluginModules.length > 0 ? "mt-4 flex flex-col" : "flex flex-col"}>
           <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-            {t("sidebar.myProjects")}
+            {t("sidebar.myModules")}
           </div>
           {projectsStatus !== "ready" && (
             <div className="px-2.5 pb-1 text-[11.5px] text-[var(--text-faint)]">
@@ -262,7 +283,6 @@ export function ProjectSidebar() {
                     id={w.id}
                     urlId={projectUrlId(w)}
                     name={w.name}
-                    ownerLabel={w.ownerLabel}
                     count={countFor(w)}
                     serverId={urlServerId(allServerEntries, w.serverKeyId) || srvParam}
                   />
@@ -279,47 +299,12 @@ export function ProjectSidebar() {
                   type="button"
                   className="mt-1 block w-full cursor-pointer rounded-[10px] px-2.5 py-2 text-left text-[12px] text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                 >
-                  {t("sidebar.newProject")}
+                  {t("sidebar.newModule")}
                 </button>
               }
             />
           )}
         </div>
-
-        {moduleGroups.length > 0 && (
-          <div className="mt-4 flex flex-col">
-            <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-              {t("sidebar.installedModules")}
-            </div>
-            <ul className="flex flex-col gap-1.5">
-              {moduleGroups.map((g) => (
-                <li key={g.id} className="flex flex-col">
-                  {/* TODO: render the module's icon once modules ship real icons */}
-                  <div className="px-2.5 pt-0.5 pb-1 text-[12px] font-semibold text-[var(--text)]">
-                    {g.label}
-                  </div>
-                  <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
-                    {g.screens.map((s) => (
-                      <ScreenItem key={s.id} screen={s} serverId={srvParam} />
-                    ))}
-                    {g.hasScreen && (
-                      <li>
-                        <Link
-                          to="/m/$moduleId"
-                          params={{ moduleId: g.id }}
-                          onClick={() => useSidebarStore.getState().close()}
-                          className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                        >
-                          <span className="truncate flex-1">{t("sidebar.configuration")}</span>
-                        </Link>
-                      </li>
-                    )}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
 
       <UserMenu
@@ -367,7 +352,7 @@ function ProjectLink({
   );
 }
 
-/** Module Config screen link under "Installed modules" (ADR module-config-screens). */
+/** A plugin module's Config screen link (ADR module-config-screens). */
 function ScreenItem({
   screen,
   serverId,
@@ -534,38 +519,41 @@ function ExpandToggle({
   );
 }
 
-function SortableProjectItem({
-  id,
-  urlId,
-  name,
-  ownerLabel,
-  count,
-  serverId,
-}: {
+interface ProjectItemProps {
   id: string;
   /** Exact folder/module ID in this location. */
   urlId?: string;
   name: string;
-  /** The module that ships this project, shown as a badge; null for the user's own. */
-  ownerLabel?: string | null;
   count: number | null;
   serverId: string | null;
-}) {
-  const { t } = useTranslation();
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+}
+
+function SortableProjectItem(props: ProjectItemProps) {
+  const sortable = useSortable({ id: props.id });
+  return <ProjectItem {...props} sortable={sortable} />;
+}
+
+/**
+ * A folder's row: a link that opens it, its Documents under it once open (or on
+ * demand, from the published state). [sortable] adds the drag handle of the
+ * admin's own list; [children] goes under the row (a plugin module's screens).
+ */
+function ProjectItem({
+  id,
+  urlId,
+  name,
+  count,
+  serverId,
+  sortable,
+  children,
+}: ProjectItemProps & { sortable?: ReturnType<typeof useSortable>; children?: ReactNode }) {
+  const style = sortable
+    ? {
+        transform: CSS.Transform.toString(sortable.transform),
+        transition: sortable.transition,
+        opacity: sortable.isDragging ? 0.5 : 1,
+      }
+    : undefined;
   const params = useParams({ strict: false }) as { projectId?: string };
   const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
   const indexed = useIndexedProject(urlId, id);
@@ -574,7 +562,7 @@ function SortableProjectItem({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <li ref={setNodeRef} style={style} className="flex flex-col">
+    <li ref={sortable?.setNodeRef} style={style} className="flex flex-col">
       <div className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
         {isActiveProject ? (
           <ExpandToggle
@@ -602,40 +590,128 @@ function SortableProjectItem({
             <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
           )}
           <span className="min-w-0 truncate">{name}</span>
-          {ownerLabel && (
-            <Badge
-              title={t("sidebar.providedBy", { module: ownerLabel })}
-              className="shrink-0 font-semibold"
-            >
-              {ownerLabel}
-            </Badge>
-          )}
-          {count != null && (
-            <span
-              title={t("serverDetail.documentCount", { count })}
-              aria-label={t("serverDetail.documentCount", { count })}
-              className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
-            >
-              {count}
-            </span>
-          )}
+          {count != null && <DocumentCount count={count} />}
         </ProjectLink>
         {isActiveProject && <ActiveProjectActions id={id} urlId={urlId} />}
-        <button
-          type="button"
-          aria-label="Reorder project"
-          ref={setActivatorNodeRef}
-          {...attributes}
-          {...listeners}
-          className="flex h-auto w-6 shrink-0 cursor-grab items-center justify-center rounded text-[var(--text-faint)] transition-opacity hover:text-[var(--text-mut)] active:cursor-grabbing lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100"
-        >
-          <GripVertical className="size-3.5" />
-        </button>
+        {sortable && (
+          <button
+            type="button"
+            aria-label="Reorder project"
+            ref={sortable.setActivatorNodeRef}
+            {...sortable.attributes}
+            {...sortable.listeners}
+            className="flex h-auto w-6 shrink-0 cursor-grab items-center justify-center rounded text-[var(--text-faint)] transition-opacity hover:text-[var(--text-mut)] active:cursor-grabbing lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100"
+          >
+            <GripVertical className="size-3.5" />
+          </button>
+        )}
       </div>
+      {children}
       {isActiveProject && !collapsed && (
         <ActiveProjectDocuments id={id} urlId={urlId} serverId={serverId} />
       )}
       {canExpand && expanded && <OtherProjectDocuments project={indexed} serverId={serverId} />}
     </li>
+  );
+}
+
+function DocumentCount({ count }: { count: number }) {
+  const { t } = useTranslation();
+  return (
+    <span
+      title={t("serverDetail.documentCount", { count })}
+      aria-label={t("serverDetail.documentCount", { count })}
+      className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
+    >
+      {count}
+    </span>
+  );
+}
+
+/**
+ * A plugin's module. With one folder, the row is that folder under the module's
+ * name; otherwise the module's name heads its folders. Its screens follow.
+ */
+function PluginModuleItem({
+  module,
+  countFor,
+  serverId,
+  serverIdOf,
+}: {
+  module: PluginModule;
+  countFor: (p: ProjectSummary) => number | null;
+  serverId: string | null;
+  serverIdOf: (p: ProjectSummary) => string | null;
+}) {
+  const entries = module.entries.length > 0 && (
+    <ModuleEntries entries={module.entries} serverId={serverId} />
+  );
+  const [only] = module.projects;
+  if (only && module.projects.length === 1) {
+    return (
+      <ProjectItem
+        id={only.id}
+        urlId={projectUrlId(only)}
+        name={module.label}
+        count={countFor(only)}
+        serverId={serverIdOf(only)}
+      >
+        {entries}
+      </ProjectItem>
+    );
+  }
+  return (
+    <li className="flex flex-col">
+      {/* TODO: render the module's icon once modules ship real icons */}
+      <div className="px-2.5 pt-1.5 pb-1 text-[13px] font-semibold text-[var(--text)]">
+        {module.label}
+      </div>
+      {module.projects.length > 0 && (
+        <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
+          {module.projects.map((p) => (
+            <ProjectItem
+              key={p.id}
+              id={p.id}
+              urlId={projectUrlId(p)}
+              name={p.name}
+              count={countFor(p)}
+              serverId={serverIdOf(p)}
+            />
+          ))}
+        </ul>
+      )}
+      {entries}
+    </li>
+  );
+}
+
+/** What a plugin module alone manages: its Config screens, then its configuration route. */
+function ModuleEntries({
+  entries,
+  serverId,
+}: {
+  entries: ModuleGroupEntry[];
+  serverId: string | null;
+}) {
+  const { t } = useTranslation();
+  return (
+    <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
+      {entries.map((e) =>
+        e.kind === "screen" ? (
+          <ScreenItem key={`s:${e.screen.id}`} screen={e.screen} serverId={serverId} />
+        ) : (
+          <li key={`c:${e.moduleId}`}>
+            <Link
+              to="/m/$moduleId"
+              params={{ moduleId: e.moduleId }}
+              onClick={() => useSidebarStore.getState().close()}
+              className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            >
+              <span className="truncate flex-1">{t("sidebar.configuration")}</span>
+            </Link>
+          </li>
+        ),
+      )}
+    </ul>
   );
 }

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigateSpy = vi.hoisted(() => vi.fn());
@@ -153,9 +153,9 @@ describe("ServerDetailPage", () => {
     expect(link).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
   });
 
-  /** Same split as the sidebar: a project shipped by an Add-on stays in the
-   *  projects list, badged with the module; the module keeps its screens. */
-  it("lists an owned project with the others, badged with its module", async () => {
+  /** Same split as the sidebar: a folder shipped by an Add-on opens from its
+   *  module's card, beside its screens; the admin's folders stay in their list. */
+  it("opens an owned folder from its module's card, apart from the admin's folders", async () => {
     screensState.screens = [
       {
         id: "catalogue",
@@ -166,8 +166,13 @@ describe("ServerDetailPage", () => {
       },
     ];
     render(<ServerDetailPage />);
-    const owned = await screen.findByRole("link", { name: /boutique_shop/ });
-    expect(owned).toHaveTextContent("Boutique");
+    const card = (await screen.findByText("Boutique")).closest("li")!;
+    expect(within(card).getByRole("link", { name: "serverDetail.openModule" })).toHaveAttribute(
+      "href",
+      "/servers/$serverId/projects/$projectId",
+    );
+    expect(within(card).getByRole("link", { name: "Catalogue" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /boutique_shop/ })).toBeNull();
     expect(screen.getByText("Hub")).toBeInTheDocument();
   });
 
