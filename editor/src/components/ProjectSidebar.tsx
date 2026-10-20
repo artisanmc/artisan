@@ -7,6 +7,7 @@ import {
   ProjectDocumentTree,
 } from "@/features/project/ProjectDocumentTree";
 import { goToDocument } from "@/features/project/goToDocument";
+import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { projectDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
@@ -25,7 +26,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
@@ -81,9 +82,14 @@ export function ProjectSidebar() {
   }, [allServerEntries]);
   const [refetchToken, setRefetchToken] = useState(0);
   useEffect(() => {
-    const renamed = () => setRefetchToken((token) => token + 1);
-    window.addEventListener("ifz:project_renamed", renamed);
-    return () => window.removeEventListener("ifz:project_renamed", renamed);
+    const reread = () => setRefetchToken((token) => token + 1);
+    window.addEventListener("ifz:project_renamed", reread);
+    // A reload can add or drop folders: an add-on registers its own after the server started.
+    window.addEventListener(PROJECTS_RELOADED_EVENT, reread);
+    return () => {
+      window.removeEventListener("ifz:project_renamed", reread);
+      window.removeEventListener(PROJECTS_RELOADED_EVENT, reread);
+    };
   }, []);
 
   // Active server: URL param first, then persisted selection. Routes without params (settings, credits…) fall back to the
@@ -132,11 +138,14 @@ export function ProjectSidebar() {
    * and there is no point inviting to create another one.
    */
   // `refetchToken` is not read in the effect: it is precisely the "re-read the
-  // disk" signal (Project created, renamed elsewhere).
+  // disk" signal (Project created, renamed elsewhere, server reloaded).
+  const listedServer = useRef<string | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: dependencies = refresh signals
   useEffect(() => {
     let cancelled = false;
-    setProjectsStatus("loading");
+    // A re-read of the same server keeps its list on screen until the answer arrives.
+    if (listedServer.current !== activeServerId) setProjectsStatus("loading");
+    listedServer.current = activeServerId;
     if (!activeServerId) {
       // Every Project belongs to a server (ADR `server-only-projects`).
       setServerProjects([]);
