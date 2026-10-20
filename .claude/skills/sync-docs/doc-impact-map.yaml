@@ -73,6 +73,18 @@ mappings:
       - "docs/decisions/extensible-document-kinds.md"
     reason: "Document kind registry (editor): a kind's folder, id prefix and schema label decide the project layout"
 
+  - touches: "plugin/*/src/main/kotlin/**/model/DocumentLayout.kt"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "testdata/document-layout-conformance.json"
+    reason: "Where a module's Documents live (themed folders) — mirror of documentLayout.ts, locked by shared vector"
+
+  - touches: "editor/src/domain/documentLayout.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "testdata/document-layout-conformance.json"
+    reason: "Where a module's Documents live (themed folders) — mirror of DocumentLayout.kt, locked by shared vector"
+
   - touches: "editor/src/schema/documentCodecs.ts"
     updates:
       - "docs/architecture/project-files.md"

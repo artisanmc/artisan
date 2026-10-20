@@ -1,7 +1,12 @@
 import { walkDocumentRefs } from "@/domain/actionArgs";
 import { documentChainSlots, documentLTextSites } from "@/domain/documentKindVisitors";
-import { documentKindDef } from "@/domain/documentKinds";
-import { allDocuments, documentsOf, hasDocument, mutableDocuments } from "@/domain/documents";
+import {
+  allDocuments,
+  documentsOf,
+  hasDocument,
+  mutableDocuments,
+  renamedDocumentFiles,
+} from "@/domain/documents";
 import { mintLTexts, rekeyDocument } from "@/domain/i18nSites";
 import type { I18nKey, ProjectId } from "@/domain/types";
 import { setLText } from "@/lib/i18n";
@@ -119,9 +124,12 @@ export const createDocumentsSlice = ({
       }
     });
     // A rename is a move on disk; see `setDialogId` for why it is recorded after the apply.
-    const dir = documentKindDef(kind).dir;
-    useProjectDraftStore
-      .getState()
-      .recordRename(pId, `${dir}/${oldId}.yaml`, `${dir}/${newId}.yaml`);
+    const moved = renamedDocumentFiles(
+      get().openProjects.projects.find((p) => p.id === pId),
+      kind,
+      oldId,
+      newId,
+    );
+    useProjectDraftStore.getState().recordRename(pId, moved.from, moved.to);
   },
 });

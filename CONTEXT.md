@@ -335,7 +335,8 @@ Non-examples:
 One of the editable units a **Project** contains — a **Menu**, a **Command**, a
 **Dialog**, a **Conversation**… — each one file on disk (`menus/<id>.yaml`,
 `commands/<id>.yaml`, `dialogs/<id>.yaml`), edited as a standalone document with a
-stable id. **Document** is the canonical umbrella, and code now matches: a Project's
+stable id. A Document may sit in a **Folder** (`boutique/menus/<id>.yaml`); its id is
+still the file name. **Document** is the canonical umbrella, and code now matches: a Project's
 `documentCount`, the `DocumentView` component, and the `.../document.$documentId`
 route. (The CustomEvent `artisan:open_element` / `OPEN_ELEMENT_EVENT` retains the
 legacy "element" name internally — Document is the term going forward.)
@@ -349,6 +350,19 @@ Non-examples:
   artifact, so it lives on the server's disk with everything else (ADR
   `assets-on-server-disk`). Nothing keeps a copy elsewhere; the resource pack is
   rebuilt from them in the editor.
+
+## Folder
+
+A themed group of **Documents** inside a module (a **Project** folder), of any kinds:
+`boutique/` holds `boutique/menus/`, `boutique/commands/`, `boutique/dialogs/`, laid out
+like the module root, and up to three levels of sub-folders. A Folder is pure
+arrangement: it is not part of a Document's id, so moving a Document changes no
+reference, translation key or board key, and an id stays unique per kind across the
+whole module. Resources (`lang/`, `items/`, `data/`…) stay at the module root.
+
+Non-examples:
+- A kind folder (`menus/`) is not a Folder: it holds files only, never sub-folders.
+- A **Board group** is drawn on the canvas only; a Folder is on disk.
 
 ## Document reference
 
