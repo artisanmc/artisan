@@ -1,0 +1,10 @@
+# Adds Geyser + Floodgate to the local server so a Bedrock client can join.
+#   docker compose -f docker-compose.yml -f prototypes/bedrock-overlay/compose.bedrock.yml up
+services:
+  minecraft:
+    ports:
+      - "19132:19132/udp"
+    environment:
+      PLUGINS: |
+        https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
+        https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot
