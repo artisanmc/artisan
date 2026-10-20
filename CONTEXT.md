@@ -101,10 +101,10 @@ Non-examples:
 ## Board group
 
 A visual container on the canvas: each **Project** is the default outer group on the server-wide canvas. Its frame is hidden in the project's own view.
-Within a Project, selected **Menus** can form one named, movable, colored
-group; a Menu belongs to at most one manual group, with no nested manual groups.
-Groups always remain expanded; their background uses the chosen color at 15% opacity.
-Grouping changes only editor metadata, never Document files or runtime navigation.
+Within a Project, each top-level **Folder** holding Documents is drawn as a frame
+around them (sub-folders included); its color and position are editor metadata.
+Filing Documents "in a frame" files them in that Folder. There are no other manual
+groups. Frames always remain expanded; their background uses the chosen color at 15% opacity.
 
 ## Bundle — **retired term** (2026-08-12)
 
@@ -362,7 +362,7 @@ whole module. Resources (`lang/`, `items/`, `data/`…) stay at the module root.
 
 Non-examples:
 - A kind folder (`menus/`) is not a Folder: it holds files only, never sub-folders.
-- A **Board group** is drawn on the canvas only; a Folder is on disk.
+- A **Board group** is how the canvas draws a top-level Folder; the Folder is on disk.
 
 ## Document reference
 

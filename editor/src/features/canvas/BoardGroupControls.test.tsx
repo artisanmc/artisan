@@ -1,3 +1,4 @@
+import { folderGroups } from "@/domain/canvasGroups";
 import { projectId } from "@/domain/ids";
 import { mockOpenProjects } from "@/mock/fixtures";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -9,7 +10,7 @@ import { expect, it } from "vitest";
 import { BoardGroupControls, type GroupDialogState } from "./BoardGroupControls";
 import { projectBoard } from "./autoLayout";
 
-it("creates a named group from the selected menus through the canvas controls", async () => {
+it("files the selected menus in a new folder through the canvas controls", async () => {
   const pid = projectId("p_personal");
   useProjectsStore.setState({ openProjects: mockOpenProjects() });
   for (const id of ["craft_a", "craft_b"])
@@ -22,20 +23,22 @@ it("creates a named group from the selected menus through the canvas controls", 
   }
   const user = userEvent.setup();
   render(<Harness />);
-  await user.click(screen.getByRole("button", { name: /Grouper la sélection|Group selection/i }));
-  await user.type(screen.getByRole("textbox", { name: /Nom du groupe|Group name/i }), "Crafts");
-  fireEvent.change(screen.getByLabelText(/Couleur du groupe|Group color/i), {
+  await user.click(
+    screen.getByRole("button", { name: /Ranger dans un dossier|File in a folder/i }),
+  );
+  await user.type(screen.getByRole("combobox", { name: /^(Dossier|Folder)$/i }), "Crafts!");
+  fireEvent.change(screen.getByLabelText(/Couleur du cadre|Frame color/i), {
     target: { value: "#a855f7" },
   });
-  await user.click(screen.getByRole("button", { name: /Créer le groupe|Create group/i }));
+  await user.click(screen.getByRole("button", { name: /^(Ranger|File)$/i }));
   expect(
-    useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!.canvasGroups,
+    folderGroups(useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!),
   ).toEqual([
-    expect.objectContaining({ name: "Crafts", nodeIds: ["craft_a", "craft_b"], color: "#a855f7" }),
+    expect.objectContaining({ name: "crafts", nodeIds: ["craft_a", "craft_b"], color: "#a855f7" }),
   ]);
 });
 
-it("groups a command and a menu from the selection", async () => {
+it("files a command and a menu from the selection", async () => {
   const pid = projectId("p_personal");
   useProjectsStore.setState({ openProjects: mockOpenProjects() });
   const store = useProjectsStore.getState();
@@ -49,32 +52,31 @@ it("groups a command and a menu from the selection", async () => {
   }
   const user = userEvent.setup();
   render(<Harness />);
-  await user.click(screen.getByRole("button", { name: /Grouper la sélection|Group selection/i }));
-  await user.type(screen.getByRole("textbox", { name: /Nom du groupe|Group name/i }), "Mixed");
-  await user.click(screen.getByRole("button", { name: /Créer le groupe|Create group/i }));
+  await user.click(
+    screen.getByRole("button", { name: /Ranger dans un dossier|File in a folder/i }),
+  );
+  await user.type(screen.getByRole("combobox", { name: /^(Dossier|Folder)$/i }), "Mixed");
+  await user.click(screen.getByRole("button", { name: /^(Ranger|File)$/i }));
   expect(
-    useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!.canvasGroups,
-  ).toEqual([expect.objectContaining({ name: "Mixed", nodeIds: ["craft_a", cmdId] })]);
+    folderGroups(useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!),
+  ).toEqual([expect.objectContaining({ name: "mixed", nodeIds: ["craft_a", cmdId] })]);
 });
 
-it("rearranges a group's contents from its menu", async () => {
+it("rearranges a folder frame's contents from its menu", async () => {
   const pid = projectId("p_personal");
   useProjectsStore.setState({ openProjects: mockOpenProjects() });
   const store = useProjectsStore.getState();
   for (const id of ["craft_a", "craft_b"]) store.createMenu({ projectId: pid, id });
-  const groupId = store.createCanvasGroup({
-    projectId: pid,
-    name: "Crafts",
-    nodeIds: ["craft_a", "craft_b"],
-  });
+  const groupId = store.createFolder({ projectId: pid, parent: "", name: "crafts" });
+  store.moveToFolder({ projectId: pid, nodeIds: ["craft_a", "craft_b"], folder: groupId });
   store.setCanvasPosition({ projectId: pid, nodeId: "craft_b", x: 5000, y: 3000 });
   const project = () =>
     useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!;
   const before = projectBoard(project());
   render(<BoardGroupControls project={project()} dialog={null} onDialogChange={() => {}} />);
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: /^(Groupes|Groups)$/i }));
-  await user.click(screen.getByRole("menuitem", { name: "Crafts" }));
+  await user.click(screen.getByRole("button", { name: /^(Dossiers|Folders)$/i }));
+  await user.click(screen.getByRole("menuitem", { name: "crafts" }));
   const action = await screen.findByRole("menuitem", {
     name: /Réarranger le contenu|Rearrange contents/i,
   });
@@ -88,25 +90,22 @@ it("rearranges a group's contents from its menu", async () => {
   });
 });
 
-it("edits a saved group's color and supports undo", async () => {
+it("edits a folder's color and supports undo", async () => {
   const pid = projectId("p_personal");
   useProjectsStore.setState({ openProjects: mockOpenProjects() });
   const store = useProjectsStore.getState();
   for (const id of ["craft_a", "craft_b"]) store.createMenu({ projectId: pid, id });
-  const groupId = store.createCanvasGroup({
-    projectId: pid,
-    name: "Crafts",
-    nodeIds: ["craft_a", "craft_b"],
-    color: "#a855f7",
-  });
+  const groupId = store.createFolder({ projectId: pid, parent: "", name: "crafts" });
+  store.moveToFolder({ projectId: pid, nodeIds: ["craft_a", "craft_b"], folder: groupId });
+  store.setFolderColor({ projectId: pid, path: groupId, color: "#a855f7" });
   const project = () =>
     useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!;
   render(<BoardGroupControls project={project()} dialog={{ groupId }} onDialogChange={() => {}} />);
-  const input = screen.getByLabelText(/Couleur du groupe|Group color/i);
+  const input = screen.getByLabelText(/Couleur du cadre|Frame color/i);
   expect(input).toHaveValue("#a855f7");
   fireEvent.change(input, { target: { value: "#22c55e" } });
   await userEvent.setup().click(screen.getByRole("button", { name: /Enregistrer|Save/i }));
-  expect(project().canvasGroups![0]!.color).toBe("#22c55e");
+  expect(project().folders?.crafts?.color).toBe("#22c55e");
   useProjectsStore.temporal.getState().undo();
-  expect(project().canvasGroups![0]!.color).toBe("#a855f7");
+  expect(project().folders?.crafts?.color).toBe("#a855f7");
 });

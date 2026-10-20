@@ -1,3 +1,4 @@
+import { folderGroups } from "@/domain/canvasGroups";
 import { menusOf } from "@/domain/documents";
 import { menuId, projectId } from "@/domain/ids";
 import { projectBoard } from "@/features/canvas/autoLayout";
@@ -10,13 +11,19 @@ import { useProjectsStore } from "./projectsStore";
 const pid = projectId("p_personal");
 const project = () => useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!;
 
+/** Files `nodeIds` in a new top-level folder: its board frame. */
+function fileIn(name: string, nodeIds: string[]) {
+  const store = useProjectsStore.getState();
+  const path = store.createFolder({ projectId: pid, parent: "", name });
+  store.moveToFolder({ projectId: pid, nodeIds, folder: path });
+  return path;
+}
+
+const frameIds = () => Object.fromEntries(folderGroups(project()).map((g) => [g.id, g.nodeIds]));
+
 function customizedGroup() {
   const store = useProjectsStore.getState();
-  const id = store.createCanvasGroup({
-    projectId: pid,
-    name: "Crafts",
-    nodeIds: ["craft_a", "craft_b"],
-  });
+  const id = fileIn("crafts", ["craft_a", "craft_b"]);
   store.setCanvasPosition({ projectId: pid, nodeId: "craft_a", x: 4000, y: 2400 });
   store.setCanvasPosition({ projectId: pid, nodeId: "craft_b", x: 4100, y: 3100 });
   return id;
@@ -42,13 +49,9 @@ beforeEach(() => {
   useProjectsStore.temporal.getState().clear();
 });
 
-it("moves a group as one undoable operation", () => {
+it("moves a folder frame as one undoable operation", () => {
   const store = useProjectsStore.getState();
-  const id = store.createCanvasGroup({
-    projectId: pid,
-    name: "Crafts",
-    nodeIds: ["craft_a", "craft_b"],
-  });
+  const id = fileIn("crafts", ["craft_a", "craft_b"]);
   const before = projectBoard(project());
   store.moveCanvasGroup({ projectId: pid, groupId: id, dx: 400, dy: 180 });
   const after = projectBoard(project());
@@ -62,65 +65,47 @@ it("moves a group as one undoable operation", () => {
   expect(projectBoard(project()).layout).toEqual(before.layout);
 });
 
-it("groups selected menus, survives rename, and can undo grouping without changing menus", () => {
-  const before = structuredClone(menusOf(project()));
-  const id = useProjectsStore.getState().createCanvasGroup({
-    projectId: pid,
-    name: "Crafts",
-    nodeIds: ["craft_a", "craft_b"],
-  });
-  expect(project().canvasGroups).toEqual([{ id, name: "Crafts", nodeIds: ["craft_a", "craft_b"] }]);
-  expect(menusOf(project())).toEqual(before);
+it("files selected menus in a folder, survives rename, and undoes without touching menus", () => {
+  const before = structuredClone(menusOf(project())).map(({ folder: _, ...m }) => m);
+  fileIn("crafts", ["craft_a", "craft_b"]);
+  expect(frameIds()).toEqual({ crafts: ["craft_a", "craft_b"] });
+  expect(menusOf(project()).map(({ folder: _, ...m }) => m)).toEqual(before);
   useProjectsStore.temporal.getState().undo();
-  expect(project().canvasGroups ?? []).toEqual([]);
+  expect(frameIds()).toEqual({});
   useProjectsStore.temporal.getState().redo();
   useProjectsStore
     .getState()
     .setMenuId({ projectId: pid, oldId: menuId("craft_a"), newId: menuId("craft_new") });
-  expect(project().canvasGroups![0]!.nodeIds).toEqual(["craft_new", "craft_b"]);
+  expect(frameIds().crafts).toEqual(["craft_new", "craft_b"]);
 });
 
-it("keeps membership exclusive, supports color and dissolve, and prunes deleted menus", () => {
+it("keeps one folder per Document, colors, renames and deletes a folder", () => {
   const store = useProjectsStore.getState();
-  const first = store.createCanvasGroup({
-    projectId: pid,
-    name: "First",
-    nodeIds: ["craft_a", "craft_b"],
-  });
-  const second = store.createCanvasGroup({
-    projectId: pid,
-    name: "Second",
+  fileIn("first", ["craft_a", "craft_b"]);
+  fileIn("second", ["craft_b", "craft_c"]);
+  expect(frameIds()).toEqual({ first: ["craft_a"], second: ["craft_b", "craft_c"] });
+  store.setFolderColor({ projectId: pid, path: "second", color: "#a855f7" });
+  expect(store.renameFolder({ projectId: pid, path: "second", name: "crafts" })).toBe("crafts");
+  expect(folderGroups(project()).find((g) => g.id === "crafts")).toMatchObject({
+    color: "#a855f7",
     nodeIds: ["craft_b", "craft_c"],
   });
-  expect(project().canvasGroups!.find((g) => g.id === first)!.nodeIds).toEqual(["craft_a"]);
-  store.updateCanvasGroup({ projectId: pid, groupId: second, name: "Crafts", color: "#a855f7" });
-  expect(project().canvasGroups!.find((g) => g.id === second)).toMatchObject({
-    name: "Crafts",
-    color: "#a855f7",
-  });
   store.deleteFromProject({ projectId: pid, nodeIds: ["craft_a"] });
-  expect(project().canvasGroups!.map((g) => g.id)).toEqual([second]);
-  store.dissolveCanvasGroup({ projectId: pid, groupId: second });
-  expect(project().canvasGroups).toEqual([]);
+  expect(Object.keys(frameIds())).toEqual(["crafts"]);
+  store.deleteFolder({ projectId: pid, path: "crafts" });
+  expect(frameIds()).toEqual({});
+  expect(project().folders).toEqual({ first: {} });
   expect(menusOf(project()).map((m) => m.id)).toEqual(
     expect.arrayContaining(["craft_b", "craft_c"]),
   );
 });
 
-it("groups commands and dialogs alongside menus, and rekeys a renamed command", () => {
+it("files commands and dialogs alongside menus, and keeps a renamed command in its folder", () => {
   const store = useProjectsStore.getState();
   const cmdId = store.createCommand({ projectId: pid, id: "cmd_a" });
   const dlgId = store.createDialog({ projectId: pid, id: "dlg_a" });
-  const groupId = store.createCanvasGroup({
-    projectId: pid,
-    name: "Mixed",
-    nodeIds: ["craft_a", cmdId, dlgId],
-  });
-  expect(project().canvasGroups!.find((g) => g.id === groupId)!.nodeIds).toEqual([
-    "craft_a",
-    cmdId,
-    dlgId,
-  ]);
+  const groupId = fileIn("mixed", ["craft_a", cmdId, dlgId]);
+  expect(frameIds()[groupId]).toEqual(["craft_a", cmdId, dlgId]);
   const board = projectBoard(project());
   const frame = board.groups.find((g) => g.id === groupId)!;
   for (const key of [cmdId, dlgId]) {
@@ -129,8 +114,8 @@ it("groups commands and dialogs alongside menus, and rekeys a renamed command", 
     expect(pos.x).toBeLessThan(frame.x + frame.width);
   }
   store.setCommandId({ projectId: pid, oldId: cmdId, newId: "cmd_renamed" as never });
-  expect(project().canvasGroups!.find((g) => g.id === groupId)!.nodeIds).toContain("cmd_renamed");
-  expect(project().canvasGroups!.find((g) => g.id === groupId)!.nodeIds).not.toContain(cmdId);
+  expect(frameIds()[groupId]).toContain("cmd_renamed");
+  expect(frameIds()[groupId]).not.toContain(cmdId);
 });
 
 it("rearranges the board as blocks without changing group interiors, including after reload", () => {
@@ -171,11 +156,7 @@ it("rearranges only the chosen group's contents, keeping its origin and all othe
   const id = customizedGroup();
   const store = useProjectsStore.getState();
   store.createMenu({ projectId: pid, id: "craft_d" });
-  const other = store.createCanvasGroup({
-    projectId: pid,
-    name: "Other",
-    nodeIds: ["craft_c", "craft_d"],
-  });
+  const other = fileIn("other", ["craft_c", "craft_d"]);
   const before = projectBoard(project());
   store.setEdgeAnchor({
     projectId: pid,

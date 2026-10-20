@@ -14,7 +14,7 @@ import { createDocumentOfKind } from "@/lib/moduleDocumentKinds";
 import { adoptLateDocuments } from "@/schema/projectFromFiles";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
-import { rewriteCanvasEdgeIds, rewriteCanvasGroupMembers } from "./helpers";
+import { rewriteCanvasEdgeIds } from "./helpers";
 import type { ProjectsSliceContext } from "./types";
 
 /**
@@ -113,7 +113,6 @@ export const createDocumentsSlice = ({
         delete layout[oldId];
       }
       rewriteCanvasEdgeIds(p, oldId, newId);
-      rewriteCanvasGroupMembers(p, oldId, newId);
       // Every `document_ref` of that kind pointing at the old id follows (R3).
       for (const other of allDocuments(p)) {
         for (const slot of documentChainSlots(other.kind, other.doc)) {

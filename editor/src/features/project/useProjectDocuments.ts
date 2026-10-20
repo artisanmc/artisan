@@ -15,6 +15,8 @@ export interface ProjectDocumentItem {
   id: string;
   label: string;
   type: DocumentType;
+  /** Themed folder holding it, `""` at the module root. */
+  folder: string;
 }
 export interface ProjectDocumentGroup {
   type: DocumentType;
@@ -77,6 +79,7 @@ export function buildProjectDocuments(
       id: doc.id,
       label: listedByTitle(kind) ? documentLabel(project, doc.id, activeLang) : doc.id,
       type: kind,
+      folder: doc.folder ?? "",
     });
   }
   return [...groups.values()];

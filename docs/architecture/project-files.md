@@ -87,6 +87,11 @@ La règle est une fonction pure des chemins, écrite deux fois et verrouillée p
   (fichier posé directement dans un dossier thématique, dossier de kind non enregistré)
   reste dans `moduleData.<premier dossier>.__files`, et `adoptLateDocuments` le lit quand
   le kind arrive.
+- Dans l'éditeur, l'arbre de la barre latérale crée, renomme, supprime les dossiers et y
+  déplace les Documents ; sur la planche, chaque dossier de premier niveau est un cadre.
+  `.artisan/editor.yaml` garde sous `folders:` la couleur et la position de ces cadres, et
+  les dossiers encore vides (rien d'autre sur le disque ne s'en souviendrait) :
+  `folders: { boutique: { color: "#a855f7", position: { x: 120, y: 240 } }, vide: {} }`.
 
 Les fichiers `data/` portent les Data models **inlinés** ; les valeurs `ltext` sont des clés i18n
 résolues au bind, les valeurs item des refs material.
