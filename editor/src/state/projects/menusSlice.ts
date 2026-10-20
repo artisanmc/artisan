@@ -1,5 +1,5 @@
 import { actionDocumentRefs } from "@/domain/actionArgs";
-import { commandsOf, menusOf, mutableMenus } from "@/domain/documents";
+import { commandsOf, menusOf, mutableMenus, renamedDocumentFiles } from "@/domain/documents";
 import { addressedAppearances } from "@/domain/element";
 import { rekeyMenu } from "@/domain/i18nSites";
 import { newElementId, newLayerId } from "@/domain/ids";
@@ -406,6 +406,12 @@ export const createMenusSlice = ({
       rekeyMenu(project, menu);
     });
     // Same intent as setDialogId, recorded once the rename is applied.
-    useProjectDraftStore.getState().recordRename(pId, `menus/${oldId}.yaml`, `menus/${newId}.yaml`);
+    const moved = renamedDocumentFiles(
+      get().openProjects.projects.find((p) => p.id === pId),
+      "menu",
+      oldId as string,
+      newId as string,
+    );
+    useProjectDraftStore.getState().recordRename(pId, moved.from, moved.to);
   },
 });

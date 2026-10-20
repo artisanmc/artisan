@@ -1,4 +1,4 @@
-import { dialogsOf, mutableDialogs } from "@/domain/documents";
+import { dialogsOf, mutableDialogs, renamedDocumentFiles } from "@/domain/documents";
 import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
 import type {
   Condition,
@@ -266,9 +266,13 @@ export const createDialogsSlice = ({
       // trash archives a deletion that is not one and the file's history is
       // orphaned from its new name. Recorded once the rename is applied: a
       // refused one must leave no intent behind in the draft.
-      useProjectDraftStore
-        .getState()
-        .recordRename(pId, `dialogs/${oldId}.yaml`, `dialogs/${newId}.yaml`);
+      const moved = renamedDocumentFiles(
+        get().openProjects.projects.find((p) => p.id === pId),
+        "dialog",
+        oldId as string,
+        newId as string,
+      );
+      useProjectDraftStore.getState().recordRename(pId, moved.from, moved.to);
     },
     addDialogBody: ({ projectId: pId, dialogId: dId, body }) =>
       mutateDialog(pId, dId, (dialog, project) => {

@@ -182,6 +182,12 @@ export interface Project {
    */
   moduleData?: Record<string, unknown>;
   /**
+   * Document-shaped files the layout refused (duplicate id, subfolder of a kind
+   * folder…; `domain/documentLayout.ts`), keyed by path relative to the module.
+   * Never read, written back verbatim so a save loses nothing.
+   */
+  unreadFiles?: Record<string, string>;
+  /**
    * Owning Add-on module id (from `manifest.module`) when this is an Add-on's
    * dedicated project — drives the sidebar "Installed modules" grouping and is
    * round-tripped through the manifest (ADR `addon-owned-project-roots`).
@@ -205,6 +211,11 @@ export type PlayerInventoryMode = "visible" | "hidden";
 export interface Menu {
   id: MenuId;
   projectId: ProjectId;
+  /**
+   * Themed folder holding the file, `/`-separated (`boutique/armes`); absent at
+   * the module root. Not part of the id: moving changes no reference.
+   */
+  folder?: string;
   title: MenuTitleLayer[];
   rows: 1 | 2 | 3 | 4 | 5 | 6;
   /**
@@ -449,6 +460,11 @@ export type Condition =
 export interface Command {
   id: CommandId;
   projectId: ProjectId;
+  /**
+   * Themed folder holding the file, `/`-separated (`boutique/armes`); absent at
+   * the module root. Not part of the id: moving changes no reference.
+   */
+  folder?: string;
   name: string;
   aliases?: string[];
   permission?: string;
@@ -705,6 +721,11 @@ export interface ConnectorSpec {
 export interface Dialog {
   id: DialogId;
   projectId: ProjectId;
+  /**
+   * Themed folder holding the file, `/`-separated (`boutique/armes`); absent at
+   * the module root. Not part of the id: moving changes no reference.
+   */
+  folder?: string;
   title: LText;
   canCloseWithEscape: boolean;
   body: DialogBody[];
