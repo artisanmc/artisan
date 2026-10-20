@@ -10,6 +10,8 @@ import java.io.File
  */
 /** How often a server announces its address and looks for new peers (ADR `peer-servers`). */
 private const val PEER_ROUND_TICKS = 20L * 30
+/** How long the tunnel waits for the suite database before using this server's own address. */
+private const val DATABASE_WAIT_SECONDS = 60
 
 internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: SuiteDatabase) {
     private val logger get() = plugin.logger
@@ -142,8 +144,26 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
 
     /** ADR `editor-tunnel`: the hub's own web port, reached by browsers through the tunnel server. */
     private fun startTunnel(web: net.artisanmc.plugin.hub.WebConfig) {
-        val secret = net.artisanmc.plugin.hub.TunnelClient.secret(File(dataFolder, "tunnel-secret"))
-        tunnel = net.artisanmc.plugin.hub.TunnelClient(web.tunnel, secret, web.tunnelAccess, { editor?.port }, logger) { url ->
+        if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) return openTunnel(web, null)
+        // ADR `peer-servers`: the servers of one database share an address, from its network secret.
+        // The database opens off the main thread; without it in time, this server keeps its own address.
+        fun await(tries: Int) {
+            if (!plugin.isEnabled || editor == null) return
+            val shared = suite.peerSecret()
+            when {
+                shared != null -> openTunnel(web, shared)
+                tries <= 0 -> openTunnel(web, null)
+                else -> scheduler.asyncLater(20L) { await(tries - 1) }
+            }
+        }
+        scheduler.async { await(DATABASE_WAIT_SECONDS) }
+    }
+
+    private fun openTunnel(web: net.artisanmc.plugin.hub.WebConfig, shared: String?) {
+        val secret = shared?.let(net.artisanmc.plugin.hub.TunnelClient::networkSecret)
+            ?: net.artisanmc.plugin.hub.TunnelClient.secret(File(dataFolder, "tunnel-secret"))
+        val member = if (shared != null) serverId.toString() else ""
+        tunnel = net.artisanmc.plugin.hub.TunnelClient(web.tunnel, secret, web.tunnelAccess, { editor?.port }, logger, member) { url ->
             tunnelUrl = url
         }.also { it.start() }
     }
@@ -169,6 +189,8 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
                         url = peer.internalUrl.ifEmpty { public }, secret = secret, serverName = name,
                         databaseId = { suite.databaseId() }, serverUuid = serverId.toString(),
                         alternates = listOf(public), peer = true,
+                        // Its public address may be this network's, shared: the header picks that server.
+                        headers = mapOf(net.artisanmc.plugin.hub.TunnelClient.MEMBER_HEADER to peer.uuid),
                     )
                 }
                 (menuProvider as? SyncedMenuProvider)?.syncPeers(peerLinks)

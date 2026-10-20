@@ -192,6 +192,32 @@ class TunnelServerTest {
     }
 
     @Test
+    fun `servers of one network share an address, one answers, a header picks one`() {
+        connect()
+        val other = HubServer(WebConfig(port = 0, bind = "127.0.0.1"), Router().apply {
+            on("GET", "/api/v1/whoami", null) { it.json(mapOf("server" to "ressources")) }
+        }, Sessions(), EditorAssets(javaClass.classLoader), EditorChannel(null), logger)
+        assertTrue(other.start())
+        val url = LinkedBlockingQueue<String>()
+        val second = TunnelClient("http://127.0.0.1:${tunnelServer.port}", secret, "letmein", { other.port }, logger, "u-ressources") { it?.let(url::offer) }
+        try {
+            second.start()
+            assertEquals("http://$host", url.poll(5, TimeUnit.SECONDS), "the same address")
+            // The last connected answers; the first one stays reachable by name.
+            call("/api/v1/whoami").use { assertEquals(200, it.code) }
+            val first = Request.Builder().url("http://127.0.0.1:${tunnelServer.port}/api/v1/whoami").header("Host", host)
+                .header(Tunnel.MEMBER_HEADER, "u-nobody").build()
+            browser.newCall(first).execute().use { assertEquals(502, it.code) }
+            second.stop()
+            Thread.sleep(300)
+            call("/api/v1/whoami").use { assertEquals(404, it.code, "the first server took over") }
+        } finally {
+            second.stop()
+            other.stop()
+        }
+    }
+
+    @Test
     fun `a plugin can connect on a subdomain when the apex is another site`() {
         connect()
         val hello = LinkedBlockingQueue<String>()

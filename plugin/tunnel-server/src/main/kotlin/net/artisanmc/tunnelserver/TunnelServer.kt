@@ -26,9 +26,13 @@ import java.util.logging.Logger
  * The tunnel server (ADR `editor-tunnel`). A plugin opens `/tunnel` on [TunnelServerConfig.domain] with its
  * secret; the tunnel server derives `<id>` from it and passes every request to `<id>.<domain>`, HTTP
  * and WebSocket alike, through that tunnel. It stores nothing and reads nothing of what passes.
+ *
+ * Several plugins may hold one `<id>`: the servers of a network share its secret (ADR `peer-servers`).
+ * The last one connected answers; when it goes, the one before takes over.
  */
 class TunnelServer(private val config: TunnelServerConfig, private val logger: Logger = Logger.getLogger("artisan-tunnel-server")) {
-    private val tunnels = ConcurrentHashMap<String, TunnelSession>()
+    /** The tunnels of each `<id>`, oldest first: the last one answers. */
+    private val tunnels = ConcurrentHashMap<String, List<TunnelSession>>()
     private var server: Server? = null
 
     val port: Int? get() = (server?.connectors?.firstOrNull() as? ServerConnector)?.localPort
@@ -52,9 +56,9 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
                 when {
                     // Any host but a connected tunnel's: the domain itself, or a name such as
                     // `connect.<domain>` when the domain's apex is another site.
-                    path == Tunnel.CONNECT_PATH && tunnelFor(host) == null -> acceptTunnel(request, response, callback)
+                    path == Tunnel.CONNECT_PATH && tunnelFor(host, null) == null -> acceptTunnel(request, response, callback)
                     else -> {
-                        val tunnel = tunnelFor(host)
+                        val tunnel = tunnelFor(host, request.headers.get(Tunnel.MEMBER_HEADER))
                         if (tunnel == null) {
                             Response.writeError(request, response, callback, 502)
                             null
@@ -73,7 +77,7 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
     fun join() = server?.join()
 
     fun stop() {
-        tunnels.values.forEach { it.close(1001, "tunnel server stopping") }
+        tunnels.values.flatten().forEach { it.close(1001, "tunnel server stopping") }
         server?.stop()
         server = null
     }
@@ -92,21 +96,29 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
         val id = Tunnel.id(secret)
         val address = config.clientIp(request)
         val crowded = config.tunnelsPerAddress > 0 &&
-            tunnels.values.count { it.address == address && it.id != id } >= config.tunnelsPerAddress
+            tunnels.filterKeys { it != id }.values.count { list -> list.any { it.address == address } } >= config.tunnelsPerAddress
+        val full = tunnels[id].orEmpty().size >= MAX_PER_ID
         // Refused tunnels still upgrade, to receive the reason in the close frame (4003): the plugin logs it.
-        return TunnelSession(id, address, config, logger, refusal ?: "too many tunnels from this address".takeIf { crowded }, onOpen = { opened ->
-            tunnels.put(id, opened)?.close(4000, "replaced by a new connection")
-            logger.info("Tunnel $id connected (${tunnels.size} open)")
+        val refused = refusal
+            ?: "too many tunnels from this address".takeIf { crowded }
+            ?: "too many servers on this address ($MAX_PER_ID)".takeIf { full }
+        val member = request.headers.get(Tunnel.MEMBER_HEADER).orEmpty().take(64)
+        return TunnelSession(id, address, config, logger, refused, member, onOpen = { opened ->
+            val held = tunnels.compute(id) { _, list -> list.orEmpty() + opened }!!.size
+            logger.info("Tunnel $id connected ($held on this address, ${tunnels.size} addresses)")
         }, onClose = { closed ->
-            if (tunnels.remove(id, closed)) logger.info("Tunnel $id disconnected (${tunnels.size} open)")
+            tunnels.computeIfPresent(id) { _, list -> (list - closed).ifEmpty { null } }
+            logger.info("Tunnel $id disconnected (${tunnels.size} addresses)")
         })
     }
 
-    private fun tunnelFor(host: String): TunnelSession? {
+    /** The tunnel answering [host]: the one of [member] when a request names one, else the last connected. */
+    private fun tunnelFor(host: String, member: String?): TunnelSession? {
         if (!host.endsWith(".${config.domain}")) return null
         val id = host.removeSuffix(".${config.domain}")
         if ('.' in id) return null
-        return tunnels[id]
+        val held = tunnels[id] ?: return null
+        return if (member.isNullOrEmpty()) held.lastOrNull() else held.lastOrNull { it.member == member }
     }
 
     private fun host(request: Request) = Request.getServerName(request).lowercase().trimEnd('.')
@@ -122,7 +134,7 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
                 }
                 return true
             }
-            val tunnel = tunnelFor(host)
+            val tunnel = tunnelFor(host, request.headers.get(Tunnel.MEMBER_HEADER))
             when {
                 tunnel == null && path == "/health" -> text(response, callback, 200, "ok")
                 tunnel == null -> text(response, callback, 502, "This Artisan server is not connected to the tunnel server.")
@@ -200,6 +212,8 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
     }
 
     companion object {
+        /** Servers of one network behind one address: one answers, the others wait their turn. */
+        const val MAX_PER_ID = 32
         /** A browser message, or a plugin frame carrying one: the editor's largest is a 4 MiB bundle as text. */
         const val MAX_MESSAGE = 32L * 1024 * 1024
         const val RESPONSE_TIMEOUT_SECONDS = 60L

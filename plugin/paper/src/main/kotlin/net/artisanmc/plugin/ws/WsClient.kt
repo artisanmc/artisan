@@ -26,6 +26,8 @@ data class HubLink(
     val serverUuid: String = "",
     val alternates: List<String> = emptyList(),
     val peer: Boolean = false,
+    /** Sent when the socket opens: which server of a shared tunnel address is meant. */
+    val headers: Map<String, String> = emptyMap(),
 ) {
     val urls: List<String> get() = (listOf(url) + alternates).filter { it.isNotBlank() }.distinct()
 }
@@ -83,7 +85,7 @@ class WsClient(
             return
         }
         waitingForDatabase = false
-        val req = Request.Builder().url(url).build()
+        val req = Request.Builder().url(url).apply { hub.headers.forEach { (name, value) -> header(name, value) } }.build()
         socket = httpClient.newWebSocket(req, Listener())
     }
 

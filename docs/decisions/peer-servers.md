@@ -28,11 +28,23 @@ les serveurs d'un réseau partagent déjà une base MySQL/MariaDB (`server-ident
    (`request_id`) et y répond ; ses annonces (`modules_changed`, `projects_reloaded`…) vont à
    tous ses hubs. Un pair ne lui impose pas le pack qu'il a en mémoire à la connexion : seul un
    `resource_pack_updated` le change, téléchargé chez le pair qui l'envoie.
-5. **Le hub configuré reste.** `web.hub` garde son sens (feuille d'un hub choisi) ; une feuille
+5. **Une adresse pour le réseau.** Sur une base partagée, le secret du tunnel est dérivé du
+   `network_secret` (`TunnelClient.networkSecret`) : tous les serveurs ouvrent leur tunnel sur la
+   même adresse, et chacun s'y nomme (`X-Artisan-Tunnel-Member`, son server id). Le serveur de
+   tunnel envoie les navigateurs au dernier connecté, les autres prennent le relais s'il part ;
+   une requête qui nomme un serveur va à lui seul, c'est ainsi que les pairs se joignent par
+   l'adresse commune. Les liens de `/artisan editor` sont rangés en base comme les sessions
+   (`Sessions`, clé `link:`), et chaque serveur relit en base une session gardée en mémoire au
+   plus toutes les 30 s : un lien créé sur un serveur s'ouvre sur un autre, et une session
+   fermée ou des permissions retirées ailleurs s'appliquent partout.
+6. **Le hub configuré reste.** `web.hub` garde son sens (feuille d'un hub choisi) ; une feuille
    n'a pas de lien propre et ne s'annonce pas comme pair. H2 n'a pas de pairs.
 
 ## Conséquences
 
+- Une seule adresse par réseau, qui survit à l'arrêt de n'importe quel serveur. Tout le trafic
+  d'édition passe par un serveur à la fois ; une bascule reconnecte l'éditeur ouvert.
+- Une base indisponible plus de 30 s déconnecte les sessions déjà relues en base.
 - Aucun port à ouvrir : tunnel sortant, connexion sortante vers le tunnel du pair, base sortante.
 - N serveurs font N×(N-1) liens. Négligeable jusqu'à une vingtaine ; non mesuré au-delà.
 - Pas de présence entre liens : un admin sur A ne voit pas en direct celui qui édite sur B. Le
