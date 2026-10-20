@@ -1,3 +1,4 @@
+import { onProjectsReloaded } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import * as serversApi from "@/lib/api/servers";
@@ -68,6 +69,18 @@ describe("ProjectSidebar", () => {
     // label is the folder name, which is the identity.
     expect(items[0]).toHaveTextContent("pack_a");
     expect(items[1]).toHaveTextContent("pack_b");
+  });
+
+  it("re-reads the list when the server announces a reload", async () => {
+    render(<ProjectSidebar />);
+    await screen.findByRole("link", { name: /pack_b/ });
+    // An add-on registered its folder after the server started: only the reload says so.
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["pack_a", "pack_b", "shop"],
+    });
+    onProjectsReloaded("sk_1", []);
+    expect(await screen.findByRole("link", { name: /shop/ })).toBeInTheDocument();
   });
 
   it("workspace links use the server-scoped URL pattern", async () => {
