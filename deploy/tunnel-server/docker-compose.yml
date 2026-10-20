@@ -17,9 +17,3 @@ services:
       TUNNEL_CLIENT_IP_HEADER: CF-Connecting-IP
     expose:
       - "8080"
-    # For a Traefik proxy (Coolify's default): every name under TUNNEL_DOMAIN goes to this
-    # container. Ignored without Traefik. In Coolify, leave the service's domain empty.
-    labels:
-      - traefik.enable=true
-      - "traefik.http.routers.artisan-tunnel.rule=HostRegexp(`^(.+\\.)?${TUNNEL_DOMAIN}$$`)"
-      - traefik.http.services.artisan-tunnel.loadbalancer.server.port=8080
