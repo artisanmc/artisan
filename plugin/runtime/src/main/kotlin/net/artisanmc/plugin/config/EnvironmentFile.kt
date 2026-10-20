@@ -43,10 +43,13 @@ object EnvironmentFile {
         |#            empty means this server is the hub
         |#   secret : shared by the hub and the other servers; empty uses the Velocity forwarding
         |#            secret, else the hub generates one in plugins/Artisan/network-secret
-        |# Without a port to open, the hub can reach browsers through a tunnel server instead:
-        |#   tunnel        : the tunnel server's address, e.g. "tunnel.example.net"; links then use the
-        |#                  https address it gives (plugins/Artisan/tunnel-secret keeps it stable)
+        |# Without url, the hub reaches browsers through a tunnel server, with no port to open:
+        |#   tunnel        : the tunnel server; links use the https address it gives
+        |#                   (plugins/Artisan/tunnel-secret keeps it stable). It sees the editor's
+        |#                   traffic; "" for none: browsers then reach port directly
         |#   tunnel-access : the code a private tunnel server asks for; empty for none
+        |# A server of the network with no port to its hub sets hub to the hub's tunnel address
+        |# (https://<id>.artisanmc.app).
         |web:
         |  enabled: true
         |  port: 8765
@@ -55,7 +58,7 @@ object EnvironmentFile {
         |  session-days: 7
         |  hub: ""
         |  secret: ""
-        |  tunnel: ""
+        |  tunnel: "connect.artisanmc.app"
         |  tunnel-access: ""
         |
         |# Database shared by the plugins of the suite. Changes apply after a restart.

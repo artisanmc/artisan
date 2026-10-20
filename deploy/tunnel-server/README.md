@@ -36,10 +36,12 @@ comme le pack du hub.
 ```yaml
 # plugins/Artisan/environment.yml
 web:
-  bind: "127.0.0.1"
-  tunnel: "connect.artisanmc.app"
-  tunnel-access: "<code>"
+  tunnel: "connect.artisanmc.app"   # la valeur par défaut, sans web.url
+  tunnel-access: "<code>"           # seulement si TUNNEL_ACCESS_CODE est posé
 ```
+
+Une feuille sans port vers son hub vise l'adresse du tunnel du hub :
+`web.hub: "https://<id>.artisanmc.app"`.
 
 Au redémarrage, la console écrit `Editor reachable through the tunnel server at https://<id>.artisanmc.app`,
 et `/artisan editor` donne un lien vers cette adresse. Un code refusé s'écrit aussi dans la console.
@@ -54,7 +56,7 @@ et `/artisan editor` donne un lien vers cette adresse. Un code refusé s'écrit 
 | `TUNNEL_ACCESS_CODE` | vide | Code exigé des plugins ; vide : ouvert à tous. |
 | `TUNNEL_MAX_BODY_MB` | `100` | Taille maximale d'une requête du navigateur. |
 | `TUNNEL_MAX_STREAMS` | `64` | Requêtes et WebSockets simultanés par tunnel. |
-| `TUNNEL_BLOCKED_PATHS` | `/resource-pack/` | Préfixes jamais passés (le pack va aux joueurs en direct). |
+| `TUNNEL_BLOCKED_PATHS` | vide | Préfixes de chemin jamais passés, séparés par des virgules. |
 | `TUNNEL_REQUESTS_PER_MINUTE` | `600` | Requêtes du navigateur par tunnel et par minute (429 au-delà) ; 0 : sans limite. |
 | `TUNNEL_BANDWIDTH_KBPS` | `2048` | Débit par tunnel, deux sens confondus, en Kio/s : ralenti, jamais coupé ; 0 : sans limite. |
 | `TUNNEL_DAILY_MB` | `2048` | Volume par tunnel et par jour UTC (429 au-delà) ; 0 : sans limite. |

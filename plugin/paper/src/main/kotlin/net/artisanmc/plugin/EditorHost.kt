@@ -59,7 +59,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
     private fun editorBase(host: String? = null): String =
         editorUrl.ifEmpty { directBase(host) }
 
-    /** Where players download the pack: never through the tunnel server, which refuses `/resource-pack/`. */
+    /** The pack's public address: `web.url`, else the direct one (players get the pack from a pack plugin). */
     private fun packBase(): String = configuredUrl.ifEmpty { directBase(null) }
 
     private fun directBase(host: String?) = "http://${host ?: server.ip.ifBlank { "localhost" }}:${editor?.port ?: 8765}"
@@ -108,7 +108,6 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
         if (!web.enabled) return
         if (web.leaf) {
             logger.info("[Artisan] Editor served by the hub at ${web.hubUrl}")
-            if (web.tunnel.isNotBlank()) logger.warning("[Artisan] web.tunnel is ignored on this server: only the hub opens a tunnel")
             return
         }
         try {
@@ -130,7 +129,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             )
             if (server.start()) {
                 editor = server
-                if (web.tunnel.isNotBlank()) startTunnel(web)
+                if (web.tunnel.isNotBlank() && web.url.isBlank()) startTunnel(web)
             }
         } catch (e: LinkageError) {
             logger.warning("[Artisan] Editor disabled: web server libraries are missing (${e.message})")

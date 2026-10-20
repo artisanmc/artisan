@@ -14,8 +14,8 @@ data class TunnelServerConfig(
     val accessCode: String = "",
     val maxBodyBytes: Long = 100L * 1024 * 1024,
     val maxStreamsPerTunnel: Int = 64,
-    /** Paths never passed through: the resource pack goes to players, not over the tunnel server. */
-    val blockedPrefixes: List<String> = listOf("/resource-pack/"),
+    /** Path prefixes never passed through; none by default (players get the pack from a pack plugin). */
+    val blockedPrefixes: List<String> = emptyList(),
     /** Browser requests per tunnel and per minute; 0: no limit. */
     val requestsPerMinute: Int = 600,
     /** Bandwidth per tunnel, both ways together; 0: no limit. */
@@ -51,7 +51,7 @@ data class TunnelServerConfig(
                 maxBodyBytes = (env["TUNNEL_MAX_BODY_MB"]?.toLongOrNull() ?: 100L) * 1024 * 1024,
                 maxStreamsPerTunnel = env["TUNNEL_MAX_STREAMS"]?.toIntOrNull() ?: 64,
                 blockedPrefixes = env["TUNNEL_BLOCKED_PATHS"]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
-                    ?: listOf("/resource-pack/"),
+                    ?: emptyList(),
                 requestsPerMinute = env["TUNNEL_REQUESTS_PER_MINUTE"]?.toIntOrNull() ?: 600,
                 bytesPerSecond = (env["TUNNEL_BANDWIDTH_KBPS"]?.toLongOrNull() ?: 2048L) * 1024,
                 bytesPerDay = (env["TUNNEL_DAILY_MB"]?.toLongOrNull() ?: 2048L) * 1024 * 1024,

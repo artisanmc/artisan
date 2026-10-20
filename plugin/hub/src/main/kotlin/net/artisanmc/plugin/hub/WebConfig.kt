@@ -17,10 +17,18 @@ data class WebConfig(
     val secret: String = "",
     /** Days an editor session stays open without a request. */
     val sessionDays: Int = 7,
-    /** The tunnel server this hub opens a tunnel to (ADR `editor-tunnel`); empty: none. */
+    /**
+     * The tunnel server this hub opens a tunnel to (ADR `editor-tunnel`); empty: none. Unused
+     * when [url] is set: the editor is then reached directly.
+     */
     val tunnel: String = "",
     /** The code a private tunnel server asks for; empty: none. */
     val tunnelAccess: String = "",
 ) {
     val leaf: Boolean get() = hubUrl.isNotBlank()
+
+    companion object {
+        /** `web.tunnel` when environment.yml does not set it: no port to open by default. */
+        const val DEFAULT_TUNNEL = "connect.artisanmc.app"
+    }
 }

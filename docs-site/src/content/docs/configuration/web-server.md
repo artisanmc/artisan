@@ -116,36 +116,37 @@ Then `cloudflared tunnel route dns <tunnel> editor.example.com` and set
 `web.url: "https://editor.example.com"`. Cloudflare limits request bodies to 100 MB on
 the Free and Pro plans, which matches Artisan's resource pack limit.
 
-## Through a tunnel server (preview)
+## Through a tunnel server (preview, the default)
 
-For hosts that give no port to open. The hub connects **out** to an Artisan tunnel
-server, which gives the editor an `https://` address and passes each request to the
-plugin unchanged:
+For hosts that give no port to open. Unless `web.url` is set, the hub connects **out**
+to the Artisan tunnel server (`connect.artisanmc.app`), which gives the editor an
+`https://<id>.artisanmc.app` address and passes each request to the plugin unchanged.
+Nothing to configure:
 
 ```yaml
-# plugins/Artisan/environment.yml
+# plugins/Artisan/environment.yml (the default)
 web:
-  bind: "127.0.0.1"          # nothing listens publicly
-  tunnel: "tunnel.example.net"
+  tunnel: "connect.artisanmc.app"
   tunnel-access: ""          # the code, if the tunnel server is private
 ```
 
 After a restart, the console shows `Editor reachable through the tunnel server at
-https://<id>.tunnel.example.net`, and `/artisan editor` links use that address.
+https://<id>.artisanmc.app`, and `/artisan editor` links use that address.
 `<id>` comes from `plugins/Artisan/tunnel-secret`: it stays the same across restarts.
 
 What to know:
 
 - The tunnel server sees the traffic in clear text (it holds the TLS certificate),
-  including the session cookie. Use one you trust.
+  including the session cookie. `tunnel: ""` turns it off: browsers then reach
+  `web.port` directly, or `web.url`.
 - The editor itself still comes from your plugin: the tunnel server only passes bytes.
-- **Players never download the resource pack through the tunnel.** The tunnel server
-  refuses `/resource-pack/`, and the hub gives players its direct address. Without an
-  open port, use [pack delegation](/wiki/configuration/resource-packs/) to Nexo,
-  Oraxen or ItemsAdder.
-- `web.url`, when set, wins over the tunnel for links.
-- Only the hub of a network opens a tunnel; leaves still reach the hub on `/ws/plugin`,
-  so keep `web.bind` reachable from them in a network.
+- Players never download the resource pack from the editor's web server: a
+  [pack plugin](/wiki/configuration/resource-packs/) (Nexo, Oraxen, ItemsAdder) sends it.
+- `web.url`, when set, replaces the tunnel: no tunnel is opened.
+- Only the hub of a network opens a tunnel. A leaf with no port to its hub sets
+  `web.hub` to the hub's tunnel address, `https://<id>.artisanmc.app`: it reaches
+  `/ws/plugin` and downloads its pack through the tunnel too. On the same machine or
+  private network, the internal address (`web.hub: "hub"`) is faster.
 
 ## Networks and `/ws/plugin`
 
