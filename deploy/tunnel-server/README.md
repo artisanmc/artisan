@@ -55,8 +55,14 @@ et `/artisan editor` donne un lien vers cette adresse. Un code refusé s'écrit 
 | `TUNNEL_MAX_BODY_MB` | `100` | Taille maximale d'une requête du navigateur. |
 | `TUNNEL_MAX_STREAMS` | `64` | Requêtes et WebSockets simultanés par tunnel. |
 | `TUNNEL_BLOCKED_PATHS` | `/resource-pack/` | Préfixes jamais passés (le pack va aux joueurs en direct). |
+| `TUNNEL_REQUESTS_PER_MINUTE` | `600` | Requêtes du navigateur par tunnel et par minute (429 au-delà) ; 0 : sans limite. |
+| `TUNNEL_BANDWIDTH_KBPS` | `2048` | Débit par tunnel, deux sens confondus, en Kio/s : ralenti, jamais coupé ; 0 : sans limite. |
+| `TUNNEL_DAILY_MB` | `2048` | Volume par tunnel et par jour UTC (429 au-delà) ; 0 : sans limite. |
+| `TUNNEL_PER_ADDRESS` | `3` | Tunnels ouverts en même temps depuis une même adresse ; 0 : sans limite. |
+| `TUNNEL_CLIENT_IP_HEADER` | vide | En-tête de l'adresse du client posé par le proxy TLS : `CF-Connecting-IP` derrière Cloudflare. Jamais sans un tel proxy (falsifiable). |
 
 ## Avant une ouverture publique
 
-Limites de débit et de volume par tunnel, cookie `Secure` derrière le tunnel, page d'abus et
-de contact sur le domaine. Voir les conséquences de l'ADR.
+Faits : limites par tunnel (variables ci-dessus) et cookie `__Host-` derrière le tunnel. Restent :
+un domaine dédié (voir plus haut), une page d'abus et de contact sur le domaine, et
+`TUNNEL_ACCESS_CODE` vide.

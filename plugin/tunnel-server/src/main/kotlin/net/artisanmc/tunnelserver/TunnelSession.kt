@@ -25,6 +25,8 @@ import org.eclipse.jetty.websocket.api.Callback as WsCallback
  */
 class TunnelSession(
     val id: String,
+    /** The plugin's address, for [TunnelServerConfig.tunnelsPerAddress]. */
+    val address: String,
     private val config: TunnelServerConfig,
     private val logger: Logger,
     private val refusal: String?,
@@ -35,6 +37,7 @@ class TunnelSession(
         val frames = LinkedBlockingQueue<Frame>()
     }
 
+    val limits = config.limits()
     @Volatile private var session: Session? = null
     private val nextStream = AtomicInteger(1)
     private val streams = ConcurrentHashMap<Int, Stream>()
@@ -64,8 +67,8 @@ class TunnelSession(
                 if (frame.type == Frame.Type.RESET) sockets.remove(frame.stream)?.close(1011, "server reset")
             }
             Frame.Type.WS_OPENED -> pendingSockets[frame.stream]?.offer(frame)
-            Frame.Type.WS_TEXT -> sockets[frame.stream]?.sendText(frame.text())
-            Frame.Type.WS_BINARY -> sockets[frame.stream]?.sendBinary(frame.payload)
+            Frame.Type.WS_TEXT -> sockets[frame.stream]?.let { limits.consume(frame.payload.size); it.sendText(frame.text()) }
+            Frame.Type.WS_BINARY -> sockets[frame.stream]?.let { limits.consume(frame.payload.size); it.sendBinary(frame.payload) }
             Frame.Type.WS_CLOSE -> sockets.remove(frame.stream)?.let { socket ->
                 val close = frame.json<WsClose>()
                 socket.close(close.code, close.reason)
@@ -120,15 +123,15 @@ class TunnelSession(
      * first, and the browser gets the same answer (101, or the server's refusal).
      */
     fun openSocket(request: Request, response: Response, callback: Callback): Any? {
-        if (streams.size + sockets.size >= config.maxStreamsPerTunnel) {
-            Response.writeError(request, response, callback, 503)
+        if (streams.size + sockets.size >= config.maxStreamsPerTunnel || !limits.allowRequest()) {
+            Response.writeError(request, response, callback, 429)
             return null
         }
         val stream = nextStream.getAndIncrement()
         val answers = LinkedBlockingQueue<Frame>()
         pendingSockets[stream] = answers
         try {
-            send(Frame.json(Frame.Type.WS_OPEN, stream, RequestHead("GET", TunnelServer.pathAndQuery(request), TunnelServer.forwardedHeaders(request))))
+            send(Frame.json(Frame.Type.WS_OPEN, stream, RequestHead("GET", TunnelServer.pathAndQuery(request), TunnelServer.forwardedHeaders(request, config))))
             val answer = answers.poll(OPEN_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             val head = answer?.takeIf { it.type == Frame.Type.WS_OPENED }?.json<ResponseHead>()
             if (head == null || head.status != 101) {
@@ -173,12 +176,14 @@ class BrowserSocket(private val stream: Int, private val tunnel: TunnelSession) 
     }
 
     override fun onWebSocketText(message: String) {
+        tunnel.limits.consume(message.length)
         runCatching { tunnel.send(Frame(Frame.Type.WS_TEXT, stream, message.toByteArray())) }
     }
 
     override fun onWebSocketBinary(payload: ByteBuffer, callback: WsCallback) {
         val bytes = ByteArray(payload.remaining()).also { payload.get(it) }
         callback.succeed()
+        tunnel.limits.consume(bytes.size)
         runCatching { tunnel.send(Frame(Frame.Type.WS_BINARY, stream, bytes)) }
     }
 

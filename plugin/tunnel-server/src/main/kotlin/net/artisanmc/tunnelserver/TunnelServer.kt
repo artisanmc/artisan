@@ -90,8 +90,11 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
             else -> null
         }
         val id = Tunnel.id(secret)
+        val address = config.clientIp(request)
+        val crowded = config.tunnelsPerAddress > 0 &&
+            tunnels.values.count { it.address == address && it.id != id } >= config.tunnelsPerAddress
         // Refused tunnels still upgrade, to receive the reason in the close frame (4003): the plugin logs it.
-        return TunnelSession(id, config, logger, refusal, onOpen = { opened ->
+        return TunnelSession(id, address, config, logger, refusal ?: "too many tunnels from this address".takeIf { crowded }, onOpen = { opened ->
             tunnels.put(id, opened)?.close(4000, "replaced by a new connection")
             logger.info("Tunnel $id connected (${tunnels.size} open)")
         }, onClose = { closed ->
@@ -124,6 +127,7 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
                 tunnel == null && path == "/health" -> text(response, callback, 200, "ok")
                 tunnel == null -> text(response, callback, 502, "This Artisan server is not connected to the tunnel server.")
                 config.blockedPrefixes.any { path.startsWith(it) } -> text(response, callback, 403, "Not served through the tunnel server.")
+                !tunnel.limits.allowRequest() -> text(response, callback, 429, "This server's editor is over its tunnel limits. Try again later.")
                 else -> proxy(tunnel, request, response, callback)
             }
             return true
@@ -134,7 +138,7 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
     private fun proxy(tunnel: TunnelSession, request: Request, response: Response, callback: Callback) {
         val stream = tunnel.openStream() ?: return text(response, callback, 503, "Too many requests in flight for this server.")
         try {
-            tunnel.send(Frame.json(Frame.Type.REQUEST, stream.id, RequestHead(request.method, pathAndQuery(request), forwardedHeaders(request))))
+            tunnel.send(Frame.json(Frame.Type.REQUEST, stream.id, RequestHead(request.method, pathAndQuery(request), forwardedHeaders(request, config))))
             val input = Content.Source.asInputStream(request)
             val buffer = ByteArray(Frame.CHUNK)
             var total = 0L
@@ -146,7 +150,10 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
                     tunnel.send(Frame(Frame.Type.RESET, stream.id))
                     return text(response, callback, 413, "Request too large for the tunnel server.")
                 }
-                if (read > 0) tunnel.send(Frame(Frame.Type.REQUEST_BODY, stream.id, buffer.copyOf(read)))
+                if (read > 0) {
+                    tunnel.limits.consume(read)
+                    tunnel.send(Frame(Frame.Type.REQUEST_BODY, stream.id, buffer.copyOf(read)))
+                }
             }
             tunnel.send(Frame(Frame.Type.REQUEST_END, stream.id))
 
@@ -164,7 +171,10 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
             while (true) {
                 val frame = stream.frames.poll(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 when (frame?.type) {
-                    Frame.Type.RESPONSE_BODY -> output.write(frame.payload)
+                    Frame.Type.RESPONSE_BODY -> {
+                        tunnel.limits.consume(frame.payload.size)
+                        output.write(frame.payload)
+                    }
                     Frame.Type.RESPONSE_END -> break
                     else -> {
                         if (frame == null) tunnel.send(Frame(Frame.Type.RESET, stream.id))
@@ -199,13 +209,17 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
             return (uri.path ?: "/") + (uri.query?.let { "?$it" } ?: "")
         }
 
-        /** The browser's headers as sent, `Host` and `Origin` included, plus where the request came from. */
-        fun forwardedHeaders(request: Request): List<List<String>> {
+        /**
+         * The browser's headers as sent, `Host` and `Origin` included, plus where the request came
+         * from and the scheme the browser used: the hub marks its session cookie `Secure` from it.
+         */
+        fun forwardedHeaders(request: Request, config: TunnelServerConfig): List<List<String>> {
             val headers = request.headers
                 .filter { it.name.lowercase() !in Tunnel.HOP_BY_HOP && !it.name.startsWith("X-Forwarded-", ignoreCase = true) }
                 .map { listOf(it.name, it.value) }
                 .toMutableList()
-            headers += listOf("X-Forwarded-For", Request.getRemoteAddr(request))
+            headers += listOf("X-Forwarded-For", config.clientIp(request))
+            headers += listOf("X-Forwarded-Proto", config.publicScheme)
             return headers
         }
     }

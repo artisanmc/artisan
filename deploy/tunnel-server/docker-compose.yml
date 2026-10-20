@@ -13,5 +13,7 @@ services:
       TUNNEL_PUBLIC_SCHEME: https
       TUNNEL_MAX_BODY_MB: "100"
       TUNNEL_MAX_STREAMS: "64"
+      # Behind Cloudflare: the visitor's address, for the per-address tunnel limit.
+      TUNNEL_CLIENT_IP_HEADER: CF-Connecting-IP
     expose:
       - "8080"
