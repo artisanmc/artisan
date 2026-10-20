@@ -71,6 +71,8 @@ data class PluginConfig(
                     hubUrl = hubWebSocketUrl(EnvironmentFile.string(environment, "web.hub", "")),
                     secret = EnvironmentFile.string(environment, "web.secret", ""),
                     sessionDays = environment.getInt("web.session-days", 7).coerceAtLeast(1),
+                    tunnel = EnvironmentFile.string(environment, "web.tunnel", "").trim(),
+                    tunnelAccess = EnvironmentFile.string(environment, "web.tunnel-access", ""),
                 ),
                 devEditorBundles = environment.getConfigurationSection("dev.editor-bundles")?.let { section ->
                     section.getKeys(false)

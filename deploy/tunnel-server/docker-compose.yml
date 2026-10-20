@@ -1,0 +1,17 @@
+# Artisan editor tunnel server, deployed as a Docker Compose resource in Coolify.
+# Setup: deploy/tunnel-server/README.md.
+services:
+  tunnel-server:
+    build:
+      context: ../..
+      dockerfile: deploy/tunnel-server/Dockerfile
+    restart: unless-stopped
+    environment:
+      TUNNEL_DOMAIN: ${TUNNEL_DOMAIN:?set the tunnel domain, e.g. tunnel.example.net}
+      # Empty: any Artisan server may open a tunnel. Set it for a private trial.
+      TUNNEL_ACCESS_CODE: ${TUNNEL_ACCESS_CODE:-}
+      TUNNEL_PUBLIC_SCHEME: https
+      TUNNEL_MAX_BODY_MB: "100"
+      TUNNEL_MAX_STREAMS: "64"
+    expose:
+      - "8080"

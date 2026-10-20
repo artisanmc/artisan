@@ -17,6 +17,10 @@ data class WebConfig(
     val secret: String = "",
     /** Days an editor session stays open without a request. */
     val sessionDays: Int = 7,
+    /** The tunnel server this hub opens a tunnel to (ADR `editor-tunnel`); empty: none. */
+    val tunnel: String = "",
+    /** The code a private tunnel server asks for; empty: none. */
+    val tunnelAccess: String = "",
 ) {
     val leaf: Boolean get() = hubUrl.isNotBlank()
 }
