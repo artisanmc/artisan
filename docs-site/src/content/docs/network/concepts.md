@@ -10,11 +10,11 @@ Behind a proxy (Velocity, BungeeCord), you want to edit every server from one ed
 ## Servers on one database (no setup)
 
 Give your servers the same MySQL or MariaDB database ([Database](/wiki/configuration/database/))
-and leave `web.hub` empty: they find each other there. Each server keeps its own editor link
-(`/artisan editor` on it), and each link lists and publishes on **every** server of the
-database. They connect to each other with a secret kept in the database, over their internal
+and leave `web.hub` empty: they find each other there. With the tunnel, they share **one
+editor address** (`https://<id>.artisanmc.app`) whichever server you type `/artisan editor`
+on, and it lists and publishes on **every** server of the database. They connect to each other with a secret kept in the database, over their internal
 address when they reach it, else through their tunnel or `web.url`: no port to open, no hub
-to pick, and one server stopping only takes its own link down. Two admins on two links do
+to pick, and the address keeps working while any one of them runs. Two admins on two links do
 not see each other live; a publish that would overwrite the other's is refused instead.
 
 ## A fixed hub and leaves

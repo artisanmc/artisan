@@ -48,6 +48,8 @@ interface SessionStore {
  * Sign-in links given by `/artisan editor`, then the sessions those links open.
  * A link works once, lives [linkTtl], and a player gets at most one per [linkInterval].
  * A session closes after [sessionTtl] without a request; with a [store], it survives a restart.
+ * A link is stored too: the servers of one database share an address (ADR `peer-servers`), and the
+ * one that answers it may not be the one that issued the link.
  */
 class Sessions(
     private val clock: Clock = Clock.systemUTC(),
@@ -62,6 +64,8 @@ class Sessions(
     private val links = ConcurrentHashMap<String, Link>()
     private val lastLink = ConcurrentHashMap<UUID, Instant>()
     private val sessions = ConcurrentHashMap<String, EditorSession>()
+    /** When each session in memory was last read from the store. */
+    private val checked = ConcurrentHashMap<String, Instant>()
     /** The last permissions each server reported per player: an unchanged report touches nothing. */
     private val reported = ConcurrentHashMap<Pair<String, UUID>, Set<String>>()
 
@@ -80,13 +84,17 @@ class Sessions(
         lastLink[playerId] = now
         val token = token()
         links[token] = Link(playerId, playerName, permissions, now.plus(linkTtl), origin)
+        store?.put(key(LINK + token), EditorSession(LINK, playerId, playerName, permissions, now.plus(linkTtl), origin))
         reported.remove(origin to playerId)
         return LinkResult.Issued(token)
     }
 
     /** Trades a link for a session. Null: unknown, already used or expired link. */
     fun redeem(token: String): EditorSession? {
-        val link = links.remove(token) ?: return null
+        val link = links.remove(token)
+            ?: store?.get(key(LINK + token))?.let { Link(it.playerId, it.playerName, it.permissions, it.expiresAt, it.origin) }
+            ?: return null
+        store?.delete(key(LINK + token))
         val now = clock.instant()
         if (!link.expiresAt.isAfter(now)) return null
         val session = EditorSession(token(), link.playerId, link.playerName, link.permissions, now.plus(sessionTtl), link.origin)
@@ -97,8 +105,15 @@ class Sessions(
 
     /** The open session [id] names; each request pushes its end back, written at most once per [TOUCH_EVERY]. */
     fun find(id: String?): EditorSession? {
-        if (id.isNullOrEmpty()) return null
-        val session = sessions[id] ?: store?.get(key(id))?.copy(id = id) ?: return null
+        if (id.isNullOrEmpty() || id.startsWith(LINK)) return null
+        val session = cached(id)
+            ?: store?.get(key(id))?.copy(id = id)?.also { checked[id] = clock.instant() }
+            // Opened while the database was not: in memory alone, never seen stored.
+            ?: sessions[id]?.takeIf { checked[id] == null }
+            ?: run {
+                close(id)
+                return null
+            }
         val now = clock.instant()
         if (!session.expiresAt.isAfter(now)) {
             close(id)
@@ -110,7 +125,19 @@ class Sessions(
         return session.copy(expiresAt = extended).also { sessions[id] = it }
     }
 
+    /**
+     * The session in memory, read again from the [store] every [RECHECK]: another server of the
+     * database may have changed its permissions or closed it (ADR `peer-servers`).
+     */
+    private fun cached(id: String): EditorSession? {
+        val session = sessions[id] ?: return null
+        if (store == null) return session
+        val last = checked[id]
+        return if (last != null && last.plus(RECHECK).isAfter(clock.instant())) session else null
+    }
+
     fun close(id: String) {
+        checked.remove(id)
         sessions.remove(id)
         store?.delete(key(id))
     }
@@ -144,6 +171,7 @@ class Sessions(
     private fun purge(now: Instant) {
         links.values.removeIf { !it.expiresAt.isAfter(now) }
         sessions.values.removeIf { !it.expiresAt.isAfter(now) }
+        checked.keys.retainAll(sessions.keys)
         lastLink.values.removeIf { !it.plus(linkInterval).isAfter(now) }
         store?.purge(now)
     }
@@ -156,7 +184,10 @@ class Sessions(
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
 
-    private companion object {
-        val TOUCH_EVERY: Duration = Duration.ofHours(1)
+    companion object {
+        private val TOUCH_EVERY: Duration = Duration.ofHours(1)
+        /** Prefix of a stored link's key: never a session id, which is plain base64url. */
+        const val LINK = "link:"
+        val RECHECK: Duration = Duration.ofSeconds(30)
     }
 }

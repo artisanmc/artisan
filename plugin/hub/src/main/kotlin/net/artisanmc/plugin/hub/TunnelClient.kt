@@ -38,6 +38,8 @@ class TunnelClient(
     private val accessCode: String,
     private val localPort: () -> Int?,
     private val logger: Logger,
+    /** This server's id, when it shares its address with the other servers of its network (ADR `peer-servers`). */
+    private val member: String = "",
     private val onUrl: (String?) -> Unit,
 ) {
     private val connectUrl = connectUrl(server)
@@ -79,6 +81,7 @@ class TunnelClient(
             .header("Authorization", "Bearer $secret")
             .header(Tunnel.VERSION_HEADER, Tunnel.VERSION)
             .apply { if (accessCode.isNotBlank()) header(Tunnel.ACCESS_HEADER, accessCode) }
+            .apply { if (member.isNotBlank()) header(Tunnel.MEMBER_HEADER, member) }
             .build()
         tunnel = serverClient.newWebSocket(request, ServerListener())
     }
@@ -286,6 +289,17 @@ class TunnelClient(
             file.parentFile?.mkdirs()
             file.writeText(secret)
             return secret
+        }
+
+        /**
+         * The tunnel secret of the servers of one database (ADR `peer-servers`), derived from its
+         * network secret: they all get the same address, and only they can claim it.
+         */
+        const val MEMBER_HEADER = Tunnel.MEMBER_HEADER
+
+        fun networkSecret(shared: String): String {
+            val digest = java.security.MessageDigest.getInstance("SHA-256").digest("artisan-tunnel:$shared".toByteArray())
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
         }
 
         /** 1005, 1006 and 1015 describe a close, they cannot be sent. */

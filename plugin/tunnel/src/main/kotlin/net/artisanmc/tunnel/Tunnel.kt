@@ -9,6 +9,12 @@ object Tunnel {
     const val VERSION_HEADER = "X-Artisan-Tunnel-Version"
     /** Optional code a private tunnel server asks for (`TUNNEL_ACCESS_CODE`). */
     const val ACCESS_HEADER = "X-Artisan-Tunnel-Access"
+    /**
+     * Servers of one network share an address (ADR `peer-servers`). A plugin names itself in this
+     * header when it opens its tunnel; a request carrying it goes to that server only, else to the
+     * one that answers the address.
+     */
+    const val MEMBER_HEADER = "X-Artisan-Tunnel-Member"
     /** Where a plugin opens its tunnel, on the tunnel server's own host. */
     const val CONNECT_PATH = "/tunnel"
 

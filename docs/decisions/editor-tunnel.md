@@ -31,7 +31,8 @@ du stockage, des comptes. Analyse : `cloud-ou-auto-hebergement.md` (fichiers du 
 4. **L'identité vient d'un secret.** Le plugin génère `plugins/Artisan/tunnel-secret` une fois ;
    `<id>` en est dérivé (SHA-256, base32, 16 caractères). L'adresse est stable d'un redémarrage
    à l'autre, personne ne peut la prendre sans le secret, et le serveur de tunnel n'a besoin
-   d'aucune base. Une nouvelle connexion du même secret remplace l'ancienne.
+   d'aucune base. Plusieurs connexions du même secret coexistent : la dernière répond, la
+   précédente reprend si elle part (serveurs d'un réseau, ADR `peer-servers`).
 5. **Les joueurs ne passent jamais par le tunnel.** Ils reçoivent le pack d'un plugin de pack
    (Nexo, Oraxen, ItemsAdder), jamais du serveur web de l'éditeur : la bande passante croît avec
    les sessions d'édition et les mises à jour du pack, jamais avec les connexions de joueurs.

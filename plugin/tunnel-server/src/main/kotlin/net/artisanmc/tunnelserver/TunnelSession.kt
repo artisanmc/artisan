@@ -30,6 +30,8 @@ class TunnelSession(
     private val config: TunnelServerConfig,
     private val logger: Logger,
     private val refusal: String?,
+    /** The server it names itself ([Tunnel.MEMBER_HEADER]); empty for none. */
+    val member: String = "",
     private val onOpen: (TunnelSession) -> Unit,
     private val onClose: (TunnelSession) -> Unit,
 ) : Session.Listener.AutoDemanding {
