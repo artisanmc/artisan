@@ -39,7 +39,9 @@ class Translations(
     override fun langOf(sender: CommandSender): String {
         if (!perPlayerLanguage || sender !is Player) return defaultLang
         return try {
-            sender.locale().language.lowercase().ifBlank { defaultLang }
+            // `fr_fr`: getLocale exists on Spigot too, locale() is Paper's.
+            @Suppress("DEPRECATION")
+            sender.locale.substringBefore('_').lowercase().ifBlank { defaultLang }
         } catch (_: Exception) {
             defaultLang
         }
