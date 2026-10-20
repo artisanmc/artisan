@@ -8,6 +8,9 @@ import java.io.File
  * and `/ws/plugin` ([start]); on a leaf, the link to its hub ([hubLink]); on both, the editor
  * permissions of the online players ([startPermissionReports]).
  */
+/** How often a server announces its address and looks for new peers (ADR `peer-servers`). */
+private const val PEER_ROUND_TICKS = 20L * 30
+
 internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: SuiteDatabase) {
     private val logger get() = plugin.logger
     private val dataFolder get() = plugin.dataFolder
@@ -123,13 +126,14 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
                 if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null
                 else suite.databaseId()
-            }) { suite.artisanData != null }
+            }, { suite.artisanData != null }, suite::peerSecret)
             val server = net.artisanmc.plugin.hub.HubServer(
                 web, router, editorSessions, net.artisanmc.plugin.hub.EditorAssets(plugin.javaClass.classLoader), editorChannel, logger, plugins,
             )
             if (server.start()) {
                 editor = server
                 if (web.tunnel.isNotBlank() && web.url.isBlank()) startTunnel(web)
+                if (database.dialect != net.artisanmc.modules.api.database.DatabaseDialect.H2) startPeerDiscovery(web)
             }
         } catch (e: LinkageError) {
             logger.warning("[Artisan] Editor disabled: web server libraries are missing (${e.message})")
@@ -142,6 +146,45 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
         tunnel = net.artisanmc.plugin.hub.TunnelClient(web.tunnel, secret, web.tunnelAccess, { editor?.port }, logger) { url ->
             tunnelUrl = url
         }.also { it.start() }
+    }
+
+    /** The other servers that serve their own editor, as links this server joins (ADR `peer-servers`). */
+    @Volatile var peerLinks: List<net.artisanmc.plugin.ws.HubLink> = emptyList()
+        private set
+
+    /**
+     * ADR `peer-servers`: servers on one MySQL/MariaDB database find each other there, with no
+     * `web.hub`. Each round announces where this server's `/ws/plugin` answers, then joins every
+     * other one as a leaf: its internal address first, else its public one (tunnel or `web.url`).
+     */
+    private fun startPeerDiscovery(web: net.artisanmc.plugin.hub.WebConfig) {
+        fun round() {
+            if (!plugin.isEnabled || editor == null) return
+            val name = plugin.networkName(web)
+            val secret = suite.peerSecret()
+            if (name != null && secret != null && suite.advertise(editorUrl, internalPluginUrl())) {
+                peerLinks = suite.peers().map { peer ->
+                    val public = net.artisanmc.plugin.config.hubWebSocketUrl(peer.editorUrl)
+                    net.artisanmc.plugin.ws.HubLink(
+                        url = peer.internalUrl.ifEmpty { public }, secret = secret, serverName = name,
+                        databaseId = { suite.databaseId() }, serverUuid = serverId.toString(),
+                        alternates = listOf(public), peer = true,
+                    )
+                }
+                (menuProvider as? SyncedMenuProvider)?.syncPeers(peerLinks)
+            }
+            scheduler.asyncLater(PEER_ROUND_TICKS) { round() }
+        }
+        scheduler.asyncLater(20L * 5) { round() }
+    }
+
+    /** This hub's `/ws/plugin` on its own network: `web.bind` when it names one address, else this machine's. */
+    private fun internalPluginUrl(): String {
+        val port = editor?.port ?: return ""
+        val host = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" || it == "::" }
+            ?: runCatching { java.net.InetAddress.getLocalHost().hostAddress }.getOrNull() ?: return ""
+        val bracketed = if (':' in host) "[$host]" else host
+        return "ws://$bracketed:$port/ws/plugin"
     }
 
     /** Only a leaf opens a WebSocket: to `web.hub`, with the network secret. */

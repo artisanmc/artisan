@@ -72,6 +72,8 @@ class SyncedMenuProvider(
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
     /** On a leaf, the hub to connect to; null on the hub or a standalone server. */
     private val hub: HubLink? = null,
+    /** The other servers that serve their own editor (ADR `peer-servers`): this one joins each as a leaf. */
+    private val peers: () -> List<HubLink> = { emptyList() },
     /** `api.menus` listeners and the Bukkit menu events. */
     private val menuEvents: net.artisanmc.plugin.listener.MenuEventDispatcher? = null,
     /** Each loaded Snapshot, with the editor players whose publication it loads, by project id. */
@@ -135,6 +137,18 @@ class SyncedMenuProvider(
     private val jsonMapper = ObjectMapper()
     private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
+    /** One link per peer server, keyed by its addresses: a peer that moves gets a new link. */
+    private val peerClients = java.util.concurrent.ConcurrentHashMap<String, WsClient>()
+    @Volatile private var loaded = false
+    /** The link each request came from, so the reply goes back to it; bounded, a request may have several replies. */
+    private val origins = java.util.Collections.synchronizedMap(object : LinkedHashMap<String, WsClient>(64, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, WsClient>) = size > MAX_ORIGINS
+    })
+
+    private fun clients(): List<WsClient> = listOfNotNull(wsClient) + peerClients.values
+
+    /** An unrequested announcement (`modules_changed`…): every hub this server is linked to. */
+    private fun broadcast(payload: Map<String, Any?>) = clients().forEach { it.send(payload) }
 
     private val workspace = object : ProjectWorkspace {
         override val roots get() = this@SyncedMenuProvider.roots
@@ -168,7 +182,14 @@ class SyncedMenuProvider(
         if (link.deliver(payload)) return
         if (payload["request_id"] == null) editorEvents(payload)
         val raw = jsonMapper.writeValueAsString(payload)
-        testSendOverride?.invoke(raw) ?: wsClient?.send(payload)
+        testSendOverride?.invoke(raw) ?: run {
+            val origin = (payload["request_id"] as? String)?.let { origins[it] }
+            when {
+                origin != null -> origin.send(payload)
+                payload["request_id"] == null -> broadcast(payload)
+                else -> wsClient?.send(payload)
+            }
+        }
     }
 
     val minecraftVersion: String get() = copyMinecraftVersion
@@ -240,21 +261,43 @@ class SyncedMenuProvider(
             logger?.info("[ART] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
             // The hello goes out without the custom items hash: it follows as `custom_items_changed`,
             // computed off the main thread (registerCustomItemsReloadListeners).
-            val client = WsClient(
-                hub               = hub,
-                mcVersion         = mcVersion,
-                announcement      = announcement,
-                serverConfig      = { serverConfig?.report() },
-                onMessage         = ::handleMessage,
-                logger            = logger,
-                pluginVersion     = pluginVersion,
-            )
+            val client = newClient(hub)
             wsClient = client
             client.connect()
         }
+        loaded = true
+        syncPeers(peers())
+    }
+
+    private fun newClient(link: HubLink): WsClient {
+        lateinit var client: WsClient
+        client = WsClient(
+            hub               = link,
+            mcVersion         = copyMinecraftVersion,
+            announcement      = announcement,
+            serverConfig      = { serverConfig?.report() },
+            onMessage         = { receive(it, client, link) },
+            logger            = logger,
+            pluginVersion     = pluginVersion,
+        )
+        return client
+    }
+
+    /**
+     * Joins each of [links] as a leaf and leaves the peers no longer listed (ADR `peer-servers`).
+     * Called on each discovery round; nothing before [load] or after [unload].
+     */
+    fun syncPeers(links: List<HubLink>) {
+        if (!loaded) return
+        val wanted = links.associateBy { it.urls.joinToString(" ") }
+        peerClients.keys.filter { it !in wanted }.forEach { peerClients.remove(it)?.disconnect() }
+        wanted.forEach { (key, link) -> peerClients.computeIfAbsent(key) { newClient(link).also(WsClient::connect) } }
     }
 
     override fun unload() {
+        loaded = false
+        peerClients.values.forEach(WsClient::disconnect)
+        peerClients.clear()
         wsClient?.disconnect()
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()
@@ -402,13 +445,13 @@ class SyncedMenuProvider(
     fun notifyCustomItemsReload() {
         val newHash = customItemsManager.computeHash()
         if (newHash.isNotEmpty()) {
-            wsClient?.send(mapOf("type" to "custom_items_changed", "hash" to newHash))
+            broadcast(mapOf("type" to "custom_items_changed", "hash" to newHash))
         }
     }
 
     /** Re-report presence to the hub after the active module set changed. */
     fun notifyModulesChanged() {
-        wsClient?.send(mapOf("type" to "modules_changed") + announcement().toMap())
+        broadcast(mapOf("type" to "modules_changed") + announcement().toMap())
         seedTemplates()
     }
 
@@ -492,6 +535,22 @@ class SyncedMenuProvider(
         dispatch(runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return)
     }
 
+    /**
+     * A message from a hub this server is linked to. A peer keeps this server's pack as it is
+     * when it accepts it: the pack it remembers may be older than one published elsewhere since.
+     */
+    private fun receive(raw: String, client: WsClient, link: HubLink) {
+        val node = runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return
+        node.path("request_id").takeIf { it.isTextual }?.let { origins[it.asText()] = client }
+        if (link.peer) when (val request = EditorRequest.parse(node)) {
+            is EditorRequest.HelloAck -> return logger?.info("[Artisan] Joined the network server at ${client.url}") ?: Unit
+            is EditorRequest.ResourcePackUpdated ->
+                return applyResourcePack(request.url, request.hash, "resource_pack_updated payload", net.artisanmc.plugin.config.deriveHttpBaseUrl(client.url))
+            else -> Unit
+        }
+        dispatch(node)
+    }
+
     private fun dispatch(node: JsonNode) {
         when (val request = EditorRequest.parse(node) ?: return) {
             is EditorRequest.HelloAck -> onHelloAck(request)
@@ -543,9 +602,9 @@ class SyncedMenuProvider(
         rpm()?.applyPack(playerUrl, downloadUrl, hash)
     }
 
-    private fun applyResourcePack(url: String, hash: String, what: String) {
+    private fun applyResourcePack(url: String, hash: String, what: String, base: String? = hubBaseUrl) {
         try {
-            rpm()?.applyPack(url, resolvePluginDownloadUrl(url), hash)
+            rpm()?.applyPack(url, resolvePluginDownloadUrl(url, base), hash)
         } catch (t: Throwable) {
             logger?.warning("Invalid $what: ${t.message}")
         }
@@ -556,7 +615,7 @@ class SyncedMenuProvider(
         if (result != null) {
             val (hash, data) = result
             logger?.info("[ART] Sending custom items bundle — hash=${hash.take(8)}…")
-            wsClient?.send(mapOf("type" to "custom_items_bundle", "hash" to hash, "data" to data))
+            broadcast(mapOf("type" to "custom_items_bundle", "hash" to hash, "data" to data))
         } else {
             logger?.warning("[ART] custom_items_request received but no custom items available — bundle not sent")
         }
@@ -568,8 +627,8 @@ class SyncedMenuProvider(
      * [net.artisanmc.plugin.resourcepack.AssetCatalog] keeps its path but goes to the
      * hub address this leaf joined. Falls back to [playerUrl].
      */
-    internal fun resolvePluginDownloadUrl(playerUrl: String): String {
-        val base = hubBaseUrl ?: return playerUrl
+    internal fun resolvePluginDownloadUrl(playerUrl: String, hubBase: String? = hubBaseUrl): String {
+        val base = hubBase?.ifEmpty { null } ?: return playerUrl
         return try {
             val parsed = java.net.URI(playerUrl)
             val pathAndQuery = buildString {
@@ -584,4 +643,8 @@ class SyncedMenuProvider(
     }
 
     internal fun handleMessageForTesting(raw: String) = handleMessage(raw)
+
+    private companion object {
+        const val MAX_ORIGINS = 4096
+    }
 }

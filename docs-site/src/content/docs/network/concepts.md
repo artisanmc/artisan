@@ -5,10 +5,22 @@ sidebar:
   order: 1
 ---
 
-Behind a proxy (Velocity, BungeeCord), you do not want one editor per server. In
-network mode, **one** Paper server serves the editor for all of them.
+Behind a proxy (Velocity, BungeeCord), you want to edit every server from one editor.
 
-## Hub and leaves
+## Servers on one database (no setup)
+
+Give your servers the same MySQL or MariaDB database ([Database](/wiki/configuration/database/))
+and leave `web.hub` empty: they find each other there. Each server keeps its own editor link
+(`/artisan editor` on it), and each link lists and publishes on **every** server of the
+database. They connect to each other with a secret kept in the database, over their internal
+address when they reach it, else through their tunnel or `web.url`: no port to open, no hub
+to pick, and one server stopping only takes its own link down. Two admins on two links do
+not see each other live; a publish that would overwrite the other's is refused instead.
+
+## A fixed hub and leaves
+
+To serve a single editor for the whole network instead, pick a hub and set `web.hub` on
+the others: **one** Paper server then serves the editor for all of them.
 
 | | Hub | Leaf |
 |---|---|---|

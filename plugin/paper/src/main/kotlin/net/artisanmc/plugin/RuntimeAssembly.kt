@@ -173,6 +173,7 @@ internal class RuntimeAssembly(
         serverConfig = serverConfigAccess,
         editorEvents = { editorChannel.relay(it, serverId.toString()) },
         hub = editorHost.hubLink(cfg.web),
+        peers = { editorHost.peerLinks },
         menuEvents = menuEvents,
         onSnapshot = suite::recordVersions,
         reloadExecutor = reloadExecutor,
