@@ -149,6 +149,25 @@ class TunnelServerTest {
         call("/api/v1/ping/x", host = "nobody.tunnel.test").use { assertEquals(502, it.code) }
         call("/resource-pack/abc.zip").use { assertEquals(403, it.code) }
         call("/health", host = "tunnel.test").use { assertEquals(200, it.code) }
+        call("/health", host = "connect.tunnel.test").use { assertEquals(200, it.code) }
+    }
+
+    @Test
+    fun `a plugin can connect on a subdomain when the apex is another site`() {
+        connect()
+        val hello = LinkedBlockingQueue<String>()
+        browser.newWebSocket(
+            Request.Builder().url("http://127.0.0.1:${tunnelServer.port}${Tunnel.CONNECT_PATH}").header("Host", "connect.tunnel.test")
+                .header("Authorization", "Bearer " + "b".repeat(43)).header(Tunnel.VERSION_HEADER, Tunnel.VERSION)
+                .header(Tunnel.ACCESS_HEADER, "letmein").build(),
+            object : WebSocketListener() {
+                override fun onMessage(webSocket: WebSocket, bytes: okio.ByteString) {
+                    hello.offer(net.artisanmc.tunnel.Frame.decode(bytes.asByteBuffer()).json<net.artisanmc.tunnel.Hello>().url)
+                    webSocket.close(1000, null)
+                }
+            },
+        )
+        assertEquals("http://${Tunnel.id("b".repeat(43))}.tunnel.test", hello.poll(5, TimeUnit.SECONDS))
     }
 
     @Test
