@@ -43,6 +43,7 @@ en 1008 (« not open yet: retry ») ; la feuille revient par son backoff.
 | `editor_screens` | Écrans de config déclarés : `{id, module_id, label, table, project_id}`. |
 | `declared_actions` | Actions enregistrées dans `ActionRegistry`, celles d'Artisan comprises : `{name, args: [ModelField], primary?, module_id?}` (`module_id` absent = action core). L'éditeur en tire le sélecteur et le formulaire des actions de module (`GET …/actions`, ADR `extensible-document-kinds` R1). |
 | `document_kinds` | Kinds de Document enregistrés dans `DocumentKindRegistry`, ceux d'Artisan compris : `{kind, dir, schema_versions, id_prefix?, module_id?}` (`module_id` absent = kind core). L'éditeur compare avec les kinds que ses modules contribuent et signale un kind que le serveur actif ne liste pas (`GET …/document-kinds`, ADR `extensible-document-kinds` W6). Absent d'un `hello` antérieur à 2.1.0 : rien n'est signalé. |
+| `player_commands` | Commandes joueur déclarées par les modules (`PlayerCommandReport`) : `{id, module_id?, name, aliases, permission?, description: {lang: texte}, arguments: [{name, type, required, values}], console_allowed, children: [même forme]}`, sans exécuteur. La section Système de l'éditeur les liste (`GET …/player-commands`) et y écrit les `command_override/v1` de l'admin. Absent d'un `hello` antérieur : liste vide. Renvoyé par `modules_changed` à chaque commande ajoutée ou retirée. |
 | `server_config` | `config.yml` éditable en clés pointées (jamais `environment.yml`). |
 
 `RemoteServer` lit aussi `custom_items_hash` s'il est présent (ancien `hello`) ; `WsClient` ne
@@ -104,7 +105,7 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | Message | Contenu |
 |---|---|
 | `projects_reloaded` | `{projects:[{id, hash}]}` après chaque rechargement (`/artisan reload`, écriture, publication). Le hub le relaie aux onglets de l'éditeur sur `/ws/editor`, ids préfixés `<server id>.`. Fire-and-forget. |
-| `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens, declared_actions, document_kinds}` : un module s'est enregistré après le `hello` ; le hub remplace ces champs (`ServerAnnouncement.updatedBy` : un champ absent garde sa valeur). |
+| `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens, declared_actions, document_kinds, player_commands}` : un module s'est enregistré après le `hello` ; le hub remplace ces champs (`ServerAnnouncement.updatedBy` : un champ absent garde sa valeur). |
 | `custom_items_changed` | `{hash}` : Nexo/Oraxen/ItemsAdder rechargé ; le hub redemande le bundle. |
 | `editor_link` | `{request_id, player_id, player_name, permissions, host?}` : `/artisan editor` tapé sur une feuille. Le hub ne consulte aucune permission, il reprend celles lues par la feuille (`artisan.editor.view` requis) et répond `editor_link_result` `{ok, url}` ou `{error: "too_soon", retry_after}` / `invalid_input`. Timeout feuille 15 s. |
 | `editor_permissions` | `{players: {uuid: [permissions]}}` : chaque minute, les permissions éditeur des joueurs en ligne. Le hub les applique aux sessions que ce serveur a émises et ferme celles d'un joueur sans `artisan.editor.view`. Pas de réponse. |
