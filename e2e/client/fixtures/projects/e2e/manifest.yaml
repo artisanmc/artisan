@@ -1,0 +1,5 @@
+schema: manifest/v1
+default_lang: en
+languages: [en]
+files:
+  menus: [e2e_hidden]
