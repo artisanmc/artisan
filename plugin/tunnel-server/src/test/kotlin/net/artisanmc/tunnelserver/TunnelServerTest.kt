@@ -3,7 +3,11 @@ package net.artisanmc.tunnelserver
 import net.artisanmc.plugin.hub.EditorAssets
 import net.artisanmc.plugin.hub.EditorChannel
 import net.artisanmc.plugin.hub.EditorPermissions
+import net.artisanmc.plugin.hub.EditorServer
 import net.artisanmc.plugin.hub.HubServer
+import net.artisanmc.plugin.hub.PluginChannel
+import net.artisanmc.plugin.hub.RemoteServer
+import net.artisanmc.plugin.hub.Servers
 import net.artisanmc.plugin.hub.Router
 import net.artisanmc.plugin.hub.Sessions
 import net.artisanmc.plugin.hub.TunnelClient
@@ -16,6 +20,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -36,7 +41,21 @@ class TunnelServerTest {
         on("PUT", "/api/v1/size", EditorPermissions.EDIT) { it.json(mapOf("size" to (it.bytes(8 * 1024 * 1024)?.size ?: -1))) }
         on("GET", "/api/v1/big", EditorPermissions.VIEW) { it.send(200, "application/octet-stream", ByteArray(3 * 1024 * 1024 + 7) { i -> i.toByte() }) }
     }
-    private val hub = HubServer(WebConfig(port = 0, bind = "127.0.0.1"), router, sessions, EditorAssets(javaClass.classLoader), channel, logger)
+    private val local = object : EditorServer {
+        override val id = "u-hub"
+        override val online = true
+        override val link = net.artisanmc.plugin.protocol.ServerLink { CompletableFuture.completedFuture(mapOf("ok" to true)) }
+        override val label = "Hub"
+        override val minecraftVersion = "1.21.7"
+        override val pluginVersion = "2.0.0"
+        override fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY
+        override fun serverConfig() = null
+        override fun customItems() = emptyList<Map<String, String>>()
+        override fun applyResourcePack(hash: String, path: String) {}
+    }
+    private val servers = Servers(local, newRemote = { id, name -> RemoteServer(id, name, publicUrl = { "" }) })
+    private val plugins = PluginChannel(servers, "s3cret", sessions, channel, { "" }, null, { "db-1" })
+    private val hub = HubServer(WebConfig(port = 0, bind = "127.0.0.1"), router, sessions, EditorAssets(javaClass.classLoader), channel, logger, plugins)
     private var tunnelServer = TunnelServer(TunnelServerConfig(domain = "tunnel.test", port = 0, bind = "127.0.0.1", publicScheme = "http", accessCode = "letmein"), logger)
     private val secret = "a".repeat(43)
     private val id = Tunnel.id(secret)
@@ -144,12 +163,32 @@ class TunnelServerTest {
     }
 
     @Test
-    fun `unknown tunnels and the resource pack are not served`() {
+    fun `unknown tunnels are not served, the resource pack goes through`() {
         connect()
         call("/api/v1/ping/x", host = "nobody.tunnel.test").use { assertEquals(502, it.code) }
-        call("/resource-pack/abc.zip").use { assertEquals(403, it.code) }
+        // Leaves download the pack from their hub; players never do (a pack plugin sends it).
+        call("/resource-pack/abc.zip").use { assertEquals(503, it.code) } // the hub's own answer: no pack store here
         call("/health", host = "tunnel.test").use { assertEquals(200, it.code) }
         call("/health", host = "connect.tunnel.test").use { assertEquals(200, it.code) }
+    }
+
+    @Test
+    fun `a leaf with no port to its hub joins it through the hub's tunnel`() {
+        connect()
+        val received = LinkedBlockingQueue<String>()
+        val leaf = browser.newWebSocket(
+            Request.Builder().url("http://127.0.0.1:${tunnelServer.port}/ws/plugin").header("Host", host).build(),
+            object : WebSocketListener() {
+                override fun onMessage(webSocket: WebSocket, text: String) { received.offer(text) }
+            },
+        )
+        leaf.send(
+            """{"type":"hello","server_key":"s3cret","proxy_name":"survie","server_uuid":"u-survie","protocol_version":"1",""" +
+                """"database_id":"db-1","minecraft_version":"1.21.4","plugin_version":"2.0.0","installed_modules":[]}""",
+        )
+        assertTrue(received.poll(5, TimeUnit.SECONDS)!!.contains("\"server_id\":\"u-survie\""))
+        assertTrue(servers.all().any { it.id == "u-survie" && it.online })
+        leaf.close(1000, null)
     }
 
     @Test

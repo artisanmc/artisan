@@ -13,6 +13,7 @@ dependencies {
     implementation("org.eclipse.jetty.websocket:jetty-websocket-jetty-server:$jetty")
     implementation("org.slf4j:slf4j-simple:2.0.16")
     testImplementation(project(":artisan-hub"))
+    testImplementation(project(":artisan-core"))
     testImplementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 

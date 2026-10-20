@@ -12,9 +12,10 @@ du stockage, des comptes. Analyse : `cloud-ou-auto-hebergement.md` (fichiers du 
 
 ## Décisions
 
-1. **Un tunnel opt-in, rien de plus.** `web.tunnel: "tunnel.example.net"` sur le hub : le plugin
-   ouvre un WebSocket **sortant** vers `/tunnel` sur ce serveur, qui lui donne une adresse
-   `https://<id>.tunnel.example.net`. Chaque requête HTTP et chaque WebSocket du navigateur
+1. **Le tunnel par défaut, rien de plus.** Sans `web.url`, le hub ouvre un WebSocket **sortant**
+   vers `/tunnel` sur `web.tunnel` (défaut `connect.artisanmc.app`, `""` pour s'en passer), qui
+   lui donne une adresse `https://<id>.artisanmc.app`. Aucun port à ouvrir pour une installation
+   sans configuration. Chaque requête HTTP et chaque WebSocket du navigateur
    passent par ce WebSocket et sont rejoués tels quels sur le port web local du hub
    (`TunnelClient`, module `hub`). Une feuille ignore `web.tunnel`.
 2. **Le serveur de tunnel ne comprend rien.** Il ne sert pas l'éditeur, ne stocke rien et ne
@@ -31,12 +32,17 @@ du stockage, des comptes. Analyse : `cloud-ou-auto-hebergement.md` (fichiers du 
    `<id>` en est dérivé (SHA-256, base32, 16 caractères). L'adresse est stable d'un redémarrage
    à l'autre, personne ne peut la prendre sans le secret, et le serveur de tunnel n'a besoin
    d'aucune base. Une nouvelle connexion du même secret remplace l'ancienne.
-5. **Le pack ne passe jamais par le tunnel.** Le serveur refuse `/resource-pack/` (403) et le
-   hub donne aux joueurs l'adresse directe (`web.url`, sinon IP et port) : sa bande passante
-   croît avec les sessions d'édition, jamais avec les connexions de joueurs.
-6. **Serveur privé possible.** `TUNNEL_ACCESS_CODE` côté serveur, `web.tunnel-access` côté plugin :
+5. **Les joueurs ne passent jamais par le tunnel.** Ils reçoivent le pack d'un plugin de pack
+   (Nexo, Oraxen, ItemsAdder), jamais du serveur web de l'éditeur : la bande passante croît avec
+   les sessions d'édition et les mises à jour du pack, jamais avec les connexions de joueurs.
+   Rien n'est bloqué par défaut (`TUNNEL_BLOCKED_PATHS` reste disponible).
+6. **Une feuille sans port joint son hub par le tunnel.** `web.hub: "https://<id>.artisanmc.app"` :
+   `/ws/plugin` et le téléchargement du pack passent par le tunnel du hub, aucun des deux
+   serveurs n'écoute. Le réseau reste porté par le hub et la base de la suite ; le serveur de
+   tunnel ne connaît pas les réseaux.
+7. **Serveur privé possible.** `TUNNEL_ACCESS_CODE` côté serveur, `web.tunnel-access` côté plugin :
    un code refusé ferme le tunnel avec la raison (code 4003), que le plugin écrit dans sa console.
-7. **Serveur autonome** dans le dépôt (`plugin/tunnel-server`, Jetty, `deploy/tunnel-server/`), déployé
+8. **Serveur autonome** dans le dépôt (`plugin/tunnel-server`, Jetty, `deploy/tunnel-server/`), déployé
    comme un conteneur derrière un proxy TLS qui couvre `*.<domaine>`.
 
 *Rejeté :* éditeur hébergé appelant le plugin (contenu mixte HTTPS → HTTP bloqué, et retour de
