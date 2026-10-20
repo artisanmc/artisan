@@ -37,7 +37,7 @@ class TunnelServerTest {
         on("GET", "/api/v1/big", EditorPermissions.VIEW) { it.send(200, "application/octet-stream", ByteArray(3 * 1024 * 1024 + 7) { i -> i.toByte() }) }
     }
     private val hub = HubServer(WebConfig(port = 0, bind = "127.0.0.1"), router, sessions, EditorAssets(javaClass.classLoader), channel, logger)
-    private val tunnelServer = TunnelServer(TunnelServerConfig(domain = "tunnel.test", port = 0, bind = "127.0.0.1", publicScheme = "http", accessCode = "letmein"), logger)
+    private var tunnelServer = TunnelServer(TunnelServerConfig(domain = "tunnel.test", port = 0, bind = "127.0.0.1", publicScheme = "http", accessCode = "letmein"), logger)
     private val secret = "a".repeat(43)
     private val id = Tunnel.id(secret)
     private val host = "$id.tunnel.test"
@@ -168,6 +168,16 @@ class TunnelServerTest {
             },
         )
         assertEquals("http://${Tunnel.id("b".repeat(43))}.tunnel.test", hello.poll(5, TimeUnit.SECONDS))
+    }
+
+    @Test
+    fun `a tunnel past its requests per minute gets 429`() {
+        tunnelServer.stop()
+        tunnelServer = TunnelServer(TunnelServerConfig(domain = "tunnel.test", port = 0, bind = "127.0.0.1", publicScheme = "http", accessCode = "letmein", requestsPerMinute = 2), logger)
+        connect()
+        call("/api/v1/ping/x").use { assertEquals(401, it.code) }
+        call("/api/v1/ping/x").use { assertEquals(401, it.code) }
+        call("/api/v1/ping/x").use { assertEquals(429, it.code) }
     }
 
     @Test

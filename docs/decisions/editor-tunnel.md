@@ -49,9 +49,12 @@ donc leurs cookies).
 
 - Le serveur de tunnel voit le trafic en clair (TLS terminé chez lui) : cookies de session et
   contenu des projets. À dire aux utilisateurs ; le mode direct reste le défaut.
-- Un plugin modifié peut servir n'importe quelle page sous `*.<domaine>` : domaine dédié, distinct
-  du site, et limites par tunnel (flux simultanés aujourd'hui ; débit et volume à ajouter avant
-  une ouverture publique).
-- Le cookie de session n'a pas `Secure` à travers le tunnel (le hub voit du HTTP local). À traiter
-  avant une ouverture publique, en faisant confiance à `X-Forwarded-Proto` venant du tunnel.
+- Un plugin modifié peut servir n'importe quelle page sous `*.<domaine>`. Avec des identifiants
+  aléatoires l'hameçonnage est peu crédible ; un domaine dédié reste recommandé pour un tunnel
+  ouvert à tous, a fortiori avec des noms choisis.
+- Limites par tunnel, en mémoire (`TunnelLimits`) : requêtes par minute et volume par jour
+  (429 au-delà), débit ralenti, tunnels simultanés par adresse.
+- Derrière le tunnel le hub voit `X-Forwarded-Proto: https` et pose `__Host-artisan_session`
+  (`Secure`) : une page d'un autre sous-domaine ne peut ni le lire ni l'écraser. Le hub lit ce
+  cookie avant `artisan_session`.
 - `web.url` garde la priorité : un admin avec son propre proxy n'est pas concerné.

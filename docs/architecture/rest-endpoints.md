@@ -15,7 +15,7 @@ session suffit partout, et aucun quota ne s'applique.
 ## Conventions
 
 - **Session obligatoire** : toute route `/api/` porte une permission (`Router.on(…, permission)`).
-  Sans cookie `artisan_session` valide → 401 `unauthorized` ; sans la permission → 403
+  Sans cookie de session valide (`__Host-artisan_session` derrière HTTPS ou `X-Forwarded-Proto: https`, sinon `artisan_session` ; le premier gagne) → 401 `unauthorized` ; sans la permission → 403
   `forbidden`. Permissions : `artisan.editor.view` (lire), `.edit` (brouillons), `.publish`
   (publier, écrans de config, pack), `.config` (configuration du serveur).
 - **Même origine** : une requête autre que `GET` dont l'en-tête `Origin` ne désigne pas l'hôte
