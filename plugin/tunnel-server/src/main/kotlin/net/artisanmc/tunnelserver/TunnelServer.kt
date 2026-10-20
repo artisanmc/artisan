@@ -50,8 +50,9 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
                 val host = host(request)
                 val path = Request.getPathInContext(request)
                 when {
-                    // Any host but a tunnel's: behind some proxies the tunnel server does not see its own name.
-                    path == Tunnel.CONNECT_PATH && !host.endsWith(".${config.domain}") -> acceptTunnel(request, response, callback)
+                    // Any host but a connected tunnel's: the domain itself, or a name such as
+                    // `connect.<domain>` when the domain's apex is another site.
+                    path == Tunnel.CONNECT_PATH && tunnelFor(host) == null -> acceptTunnel(request, response, callback)
                     else -> {
                         val tunnel = tunnelFor(host)
                         if (tunnel == null) {
@@ -120,6 +121,7 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
             }
             val tunnel = tunnelFor(host)
             when {
+                tunnel == null && path == "/health" -> text(response, callback, 200, "ok")
                 tunnel == null -> text(response, callback, 502, "This Artisan server is not connected to the tunnel server.")
                 config.blockedPrefixes.any { path.startsWith(it) } -> text(response, callback, 403, "Not served through the tunnel server.")
                 else -> proxy(tunnel, request, response, callback)
