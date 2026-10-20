@@ -22,6 +22,7 @@ import type { Project } from "@/domain/types";
 import { FolderOperationError } from "@/state/projects/foldersSlice";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -33,10 +34,13 @@ export function BoardGroupControls({
   project,
   dialog,
   onDialogChange,
+  folder,
 }: {
   project: Project;
   dialog: GroupDialogState;
   onDialogChange: (state: GroupDialogState) => void;
+  /** The folder the board is narrowed to, if any. */
+  folder?: string;
 }) {
   const { t } = useTranslation();
   const selected = useSelectionStore((s) => s.ids);
@@ -54,6 +58,7 @@ export function BoardGroupControls({
   }, [editing, project.folders]);
   const store = useProjectsStore.getState();
   const close = () => onDialogChange(null);
+  const showOnly = (path: string | null) => useUiStore.getState().setBoardFolder(project.id, path);
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!name || !dialog) return;
@@ -79,6 +84,14 @@ export function BoardGroupControls({
   return (
     <>
       <div className="absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-2">
+        {folder && (
+          <span className="chip is-active">
+            {t("folders.filtered", { folder })}
+            <button type="button" className="ml-1 underline" onClick={() => showOnly(null)}>
+              {t("folders.showAll")}
+            </button>
+          </span>
+        )}
         {canFile && (
           <Button size="sm" onClick={() => onDialogChange({ nodeIds: nodes })}>
             {t("canvas.groups.createSelection")}
@@ -99,6 +112,11 @@ export function BoardGroupControls({
                     <DropdownMenuItem onSelect={() => onDialogChange({ groupId: group.id })}>
                       {t("canvas.groups.edit")}
                     </DropdownMenuItem>
+                    {folder !== group.id && (
+                      <DropdownMenuItem onSelect={() => showOnly(group.id)}>
+                        {t("folders.showOnly")}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onSelect={() =>
                         store.rearrangeCanvasGroup({ projectId: project.id, groupId: group.id })

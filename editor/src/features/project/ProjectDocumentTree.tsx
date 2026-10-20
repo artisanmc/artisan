@@ -361,6 +361,11 @@ function FolderNode({
                   {t("folders.newSubfolder")}
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem
+                onSelect={() => useUiStore.getState().setBoardFolder(project.id, path)}
+              >
+                {t("folders.showOnly")}
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setDialog("rename")}>
                 {t("folders.rename")}
               </DropdownMenuItem>

@@ -757,6 +757,9 @@ const fr: typeof en = {
     },
   },
   folders: {
+    showOnly: "N'afficher que ce dossier",
+    filtered: "Dossier : {{folder}}",
+    showAll: "Tout afficher",
     newFolder: "Nouveau dossier",
     newSubfolder: "Nouveau sous-dossier",
     rename: "Renommer",
