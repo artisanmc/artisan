@@ -6,6 +6,7 @@ import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.engine.RuntimeProject
 import net.artisanmc.plugin.model.CommandOverrideYaml
+import net.artisanmc.plugin.platform.ServerPlatform
 import net.artisanmc.plugin.scheduling.Scheduler
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
@@ -71,7 +72,7 @@ class CommandRegistrar(
         last = Triple(runtimes, executor, evaluator)
         val previousLabels = registeredLabels
         unregisterAll()
-        val commandMap = Bukkit.getCommandMap()
+        val commandMap = ServerPlatform.commandMap(Bukkit.getServer())
         /** label → `project <id>, command <doc>` for every label claimed this reload. */
         val claimed = mutableMapOf<String, String>()
         val found = mutableListOf<CommandConflict>()
@@ -124,7 +125,8 @@ class CommandRegistrar(
         claimed: MutableMap<String, String>,
         found: MutableList<CommandConflict>,
     ) {
-        val commandMap = Bukkit.getCommandMap()
+        val commandMap = ServerPlatform.commandMap(Bukkit.getServer())
+        val known = ServerPlatform.knownCommands(commandMap)
         val dressing = overrides()
         val resolved = mutableListOf<ResolvedPlayerCommand>()
         for (declaration in playerCommands()) {
@@ -134,7 +136,7 @@ class CommandRegistrar(
             val prefix = declaration.namespace()
             val source = "module command ${declaration.id}"
             val name = command.name
-            val prefixed = commandMap.knownCommands["$prefix:$name"]
+            val prefixed = known["$prefix:$name"]
             if (prefixed is ModuleCommand) {
                 found += CommandConflict(name, "module command ${prefixed.resolved.id}", source, isAlias = false)
                 logger.severe("Command '/$prefix:$name' ($source) is not registered: module command ${prefixed.resolved.id} has the same name. Rename one of them.")
@@ -160,10 +162,10 @@ class CommandRegistrar(
                 aliases.forEach { claimed[it] = source }
             } else {
                 // The short name stays its owner's: the prefixed form, which no one else holds, and the free aliases.
-                commandMap.knownCommands["$prefix:$name"] = moduleCommand
+                known["$prefix:$name"] = moduleCommand
                 aliases.forEach { alias ->
-                    commandMap.knownCommands[alias] = moduleCommand
-                    commandMap.knownCommands["$prefix:$alias"] = moduleCommand
+                    known[alias] = moduleCommand
+                    known["$prefix:$alias"] = moduleCommand
                     claimed[alias] = source
                 }
                 moduleCommand.register(commandMap)
@@ -175,10 +177,10 @@ class CommandRegistrar(
 
     fun unregisterAll() {
         if (registered.isEmpty()) return
-        val commandMap = Bukkit.getCommandMap()
+        val commandMap = ServerPlatform.commandMap(Bukkit.getServer())
         val ours = registered.toSet()
         // By identity: a label another plugin holds is never removed.
-        commandMap.knownCommands.values.removeIf { it in ours }
+        ServerPlatform.knownCommands(commandMap).values.removeIf { it in ours }
         registered.forEach { it.unregister(commandMap) }
         registered.clear()
         registeredLabels = emptySet()
@@ -186,7 +188,7 @@ class CommandRegistrar(
 
     private fun ownLabels(): Set<String> {
         val ours = registered.toSet()
-        return Bukkit.getCommandMap().knownCommands.filterValues { it in ours }.keys.toSet()
+        return ServerPlatform.knownCommands(ServerPlatform.commandMap(Bukkit.getServer())).filterValues { it in ours }.keys.toSet()
     }
 
     /** Players keep the command tree sent at login: resend it so completion matches the new commands. */

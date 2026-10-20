@@ -377,7 +377,7 @@ object MenuRenderer {
     ): ItemStack {
         if (depth > 32) {
             Bukkit.getLogger().warning("Artisan: circular item inheritance (maximum depth 32)")
-            return ItemStack(Material.BARRIER).apply { editMeta { it.displayName(parse("Circular item inheritance")) } }
+            return ItemStack(Material.BARRIER).apply { itemMeta = itemMeta?.apply { displayName(parse("Circular item inheritance")) } }
         }
         val papi = deps.papi
         val source = app.extends ?: app.item ?: app.material
