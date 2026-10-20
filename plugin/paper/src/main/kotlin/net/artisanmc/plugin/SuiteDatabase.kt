@@ -6,6 +6,8 @@ import java.util.UUID
 /** Presence refresh and editor permission reports: every minute. */
 internal const val HEARTBEAT_TICKS = 20L * 60
 private const val PURGE_TICKS = 20L * 60 * 60 * 24
+/** A peer that missed this many presence beats is left alone until it is seen again. */
+private val PEER_WINDOW = java.time.Duration.ofMinutes(3)
 
 /**
  * The suite database as this server uses it (ADR `server-identity-and-versions`): its server
@@ -138,6 +140,25 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         return runCatching { registry.others(serverId).associate { it.uuid to net.artisanmc.plugin.hub.Servers.Seen(it.name, it.lastSeen) } }.getOrNull()
             ?.also { knownCache = System.currentTimeMillis() to it }
     }
+
+    /** Announces where this server's `/ws/plugin` answers (ADR `peer-servers`); false while the registry is not open. */
+    fun advertise(editorUrl: String, internalUrl: String): Boolean {
+        val registry = serverRegistry ?: return false
+        return runCatching { registry.advertise(serverId, editorUrl, internalUrl) }
+            .onFailure { logger.warning("[Artisan] Address not announced to the other servers: ${it.message}") }.isSuccess
+    }
+
+    /** The other servers that serve their own editor, seen in the last [PEER_WINDOW]; empty without a registry. */
+    fun peers(): List<net.artisanmc.plugin.database.PeerServer> {
+        val registry = serverRegistry ?: return emptyList()
+        return runCatching { registry.peers(serverId, java.time.Instant.now().minus(PEER_WINDOW)) }.getOrElse { emptyList() }
+    }
+
+    /** The network secret peer servers share, kept once read; null while the database is not open. */
+    fun peerSecret(): String? = peerSecret ?: artisanData?.let { data ->
+        runCatching { net.artisanmc.plugin.database.ArtisanMeta.networkSecret(data, database.tables) }.getOrNull()?.also { peerSecret = it }
+    }
+    @Volatile private var peerSecret: String? = null
 
     /** The suite database's id (`artisan_meta`), what a hub and its leaves compare; null while it is not open. */
     fun databaseId(): String? =

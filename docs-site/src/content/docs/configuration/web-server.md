@@ -150,7 +150,15 @@ What to know:
 
 ## Networks and `/ws/plugin`
 
-In a [network](/wiki/network/concepts/), leaves connect to the hub's `/ws/plugin`.
+**Servers that share a MySQL or MariaDB database find each other**, with nothing to set:
+each one serves its own editor link and joins the others' `/ws/plugin` with a secret kept
+in the database, trying their internal address first, then their tunnel or `web.url`. From
+any server's link you see and publish on every server; one server stopping only takes its
+own link down. Nothing listens publicly. Two admins on two different links do not see each
+other live: a publish that would overwrite the other's is refused instead.
+
+A fixed hub remains possible. In a [network](/wiki/network/concepts/) with `web.hub` set,
+leaves connect to the hub's `/ws/plugin` and serve no editor of their own.
 Two ways to arrange this with a proxy:
 
 | Setup | Hub `web.bind` | Leaves' `web.hub` |

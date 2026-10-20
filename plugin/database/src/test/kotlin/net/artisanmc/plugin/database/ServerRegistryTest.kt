@@ -92,4 +92,31 @@ class ServerRegistryTest {
         file.delete()
         assertNotEquals(first, ServerIdFile.read(file))
     }
+
+    @Test
+    fun `peers are the running servers that announce an address, seen recently`() {
+        val lobby = UUID.randomUUID()
+        val survie = UUID.randomUUID()
+        val stopped = UUID.randomUUID()
+        val leaf = UUID.randomUUID()
+        listOf(lobby to "lobby", survie to "survie", stopped to "old", leaf to "leaf").forEach { (id, name) -> registry.register(id, name, t0) }
+        registry.advertise(lobby, "https://lobby.artisanmc.app", "ws://10.0.0.2:8765/ws/plugin")
+        registry.advertise(survie, "https://survie.artisanmc.app", "")
+        registry.advertise(stopped, "https://old.artisanmc.app", "")
+        registry.stop(stopped)
+
+        assertEquals(
+            listOf(PeerServer(survie.toString(), "survie", t0, "https://survie.artisanmc.app", "")),
+            registry.peers(lobby, t0.minusSeconds(60)),
+        )
+        assertEquals(emptyList(), registry.peers(lobby, t0.plusSeconds(60)))
+    }
+
+    @Test
+    fun `every server of a database reads the same network secret`() {
+        val ds = pools.dataSource("Artisan")
+        val first = ArtisanMeta.networkSecret(ds)
+        assertEquals(first, ArtisanMeta.networkSecret(ds))
+        assertEquals(43, first.length)
+    }
 }
