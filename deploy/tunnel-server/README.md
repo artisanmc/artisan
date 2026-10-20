@@ -6,26 +6,26 @@ cette adresse est passée telle quelle au plugin. Le serveur ne stocke rien.
 
 ## Domaine et certificat
 
-Chaque serveur Minecraft a son sous-domaine, il faut donc un certificat **générique**. Le certificat
-universel gratuit de Cloudflare couvre `*.artisanmc.net` (un niveau), pas `*.tunnel.artisanmc.net`.
+Les tunnels vivent sur un domaine **dédié**, `artisanmc.app`, jamais sur `artisanmc.net` : une page
+servie par un tunnel est choisie par le serveur Minecraft, pas par Artisan. Sur un domaine à part, un
+abus (hameçonnage) ne touche pas la réputation du site et du wiki, et une page de tunnel ne peut pas
+poser de cookies sur `.artisanmc.net`. C'est le schéma de `github.io`, `vercel.app` ou
+`cloudflareaccess.com`.
 
-**Essai privé : `artisanmc.net` directement.** `TUNNEL_DOMAIN=artisanmc.net`, les tunnels répondent
-sur `https://<id>.artisanmc.net` (16 caractères aléatoires) et les plugins se connectent sur
-`connect.artisanmc.net`. Les enregistrements DNS explicites (`artisanmc.net`, `repo`, `coolify`)
-gardent la priorité sur le générique : rien ne change pour eux.
-
-**Ouverture publique : un domaine dédié.** Une page servie par un tunnel partage alors le domaine du
-site : un abus (hameçonnage) toucherait la réputation d'`artisanmc.net`, et une page de tunnel peut
-poser des cookies sur `.artisanmc.net`. Garder `TUNNEL_ACCESS_CODE` tant que le domaine est partagé.
+Chaque serveur Minecraft a son sous-domaine, il faut donc un certificat **générique** : le certificat
+universel gratuit de Cloudflare couvre `*.artisanmc.app` (un niveau). Les tunnels répondent sur
+`https://<id>.artisanmc.app` et les plugins se connectent sur `connect.artisanmc.app`. `.app` impose
+HTTPS (HSTS préchargé), ce que Cloudflare fournit.
 
 ## Déploiement sur le VPS (Coolify + Cloudflare Tunnel)
 
-1. Coolify : ressource Docker Compose depuis ce dépôt, fichier `deploy/tunnel-server/docker-compose.yml`,
-   variables `TUNNEL_DOMAIN=artisanmc.net` et `TUNNEL_ACCESS_CODE=<code>`.
-2. Tunnel Cloudflare existant : un hostname public `*.artisanmc.net` vers le service du conteneur
-   (port 8080). DNS : un CNAME `*` vers `<id-du-tunnel>.cfargotunnel.com`, proxifié, s'il n'est pas
-   créé seul.
-3. Vérifier : `curl https://connect.artisanmc.net/health` répond `ok`.
+1. Cloudflare : ajouter la zone `artisanmc.app` (nameservers chez le registraire), SSL/TLS en « Full ».
+2. Coolify : ressource Docker Compose depuis ce dépôt, fichier `deploy/tunnel-server/docker-compose.yml`,
+   variable `TUNNEL_DOMAIN=artisanmc.app` (et `TUNNEL_ACCESS_CODE=<code>` pour un essai fermé).
+3. Tunnel Cloudflare existant : un hostname public `*.artisanmc.app` vers le service du conteneur
+   (port 8080), et un second `artisanmc.app` si la racine doit répondre. DNS : un CNAME `*` vers
+   `<id-du-tunnel>.cfargotunnel.com`, proxifié, s'il n'est pas créé seul.
+4. Vérifier : `curl https://connect.artisanmc.app/health` répond `ok`.
 
 Cloudflare transmet les WebSockets et garde l'en-tête `Host` ; il coupe un WebSocket inactif après
 100 s, le plugin envoie un ping toutes les 25 s. Corps limités à 100 Mo sur les offres Free et Pro,
@@ -37,11 +37,11 @@ comme le pack du hub.
 # plugins/Artisan/environment.yml
 web:
   bind: "127.0.0.1"
-  tunnel: "connect.artisanmc.net"
+  tunnel: "connect.artisanmc.app"
   tunnel-access: "<code>"
 ```
 
-Au redémarrage, la console écrit `Editor reachable through the tunnel server at https://<id>.artisanmc.net`,
+Au redémarrage, la console écrit `Editor reachable through the tunnel server at https://<id>.artisanmc.app`,
 et `/artisan editor` donne un lien vers cette adresse. Un code refusé s'écrit aussi dans la console.
 
 ## Variables
@@ -64,5 +64,5 @@ et `/artisan editor` donne un lien vers cette adresse. Un code refusé s'écrit 
 ## Avant une ouverture publique
 
 Faits : limites par tunnel (variables ci-dessus) et cookie `__Host-` derrière le tunnel. Restent :
-un domaine dédié (voir plus haut), une page d'abus et de contact sur le domaine, et
+une page d'abus et de contact sur le domaine, et
 `TUNNEL_ACCESS_CODE` vide.

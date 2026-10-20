@@ -50,8 +50,9 @@ donc leurs cookies).
 - Le serveur de tunnel voit le trafic en clair (TLS terminé chez lui) : cookies de session et
   contenu des projets. À dire aux utilisateurs ; le mode direct reste le défaut.
 - Un plugin modifié peut servir n'importe quelle page sous `*.<domaine>`. Avec des identifiants
-  aléatoires l'hameçonnage est peu crédible ; un domaine dédié reste recommandé pour un tunnel
-  ouvert à tous, a fortiori avec des noms choisis.
+  aléatoires l'hameçonnage est peu crédible. Les tunnels vivent donc sur un domaine dédié,
+  `artisanmc.app`, séparé du site `artisanmc.net` : un abus ne touche pas sa réputation et une page
+  de tunnel ne peut pas poser de cookies sur le site.
 - Limites par tunnel, en mémoire (`TunnelLimits`) : requêtes par minute et volume par jour
   (429 au-delà), débit ralenti, tunnels simultanés par adresse.
 - Derrière le tunnel le hub voit `X-Forwarded-Proto: https` et pose `__Host-artisan_session`
