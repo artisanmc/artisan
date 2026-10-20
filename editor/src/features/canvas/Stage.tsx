@@ -40,8 +40,10 @@ import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
 import { StageContextMenu } from "./StageContextMenu";
 import { dispatchOpenElement } from "./canvasEvents";
+import { activeBoardFolder } from "./folderFilter";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { useCanvasKeyboard } from "./useCanvasKeyboard";
+import { useFolderFraming } from "./useFolderFraming";
 import { useHeldPanKeys } from "./useHeldPanKeys";
 import { useMarqueeSelection } from "./useMarqueeSelection";
 import { useMiddleClickPan } from "./useMiddleClickPan";
@@ -82,7 +84,15 @@ function StageCanvas({ projectId, focus }: StageProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const size = useElementSize(wrapperRef);
-  const { board, layout, setGroupDrag } = useStageBoard(project, focus);
+  const folder = activeBoardFolder(
+    project,
+    useUiStore((s) => s.boardFolders[projectId]),
+  );
+  const { board, layout, setGroupDrag } = useStageBoard(
+    project,
+    focus,
+    focusMode ? undefined : folder,
+  );
   const {
     viewport,
     setViewport,
@@ -93,6 +103,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
     syncViewportFromStage,
     refitFocus,
   } = useStageFraming({ projectId, focus, project, layout, size, stageRef });
+  useFolderFraming({ folder, project, layout, size, setViewport });
   const canvasMode = useUiStore((s) => s.canvasMode);
   const { spaceHeld, altHeld } = useHeldPanKeys();
   const panMode = canvasMode === "hand" || spaceHeld || altHeld;
@@ -232,6 +243,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
           groupDialog={groupDialog}
           onGroupDialogChange={setGroupDialog}
           onCreateAt={creation.createAt}
+          folder={folder}
         />
       )}
       <CanvasToolbar

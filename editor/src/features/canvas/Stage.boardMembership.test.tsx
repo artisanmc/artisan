@@ -1,6 +1,7 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
-import { render, screen } from "@testing-library/react";
+import { useUiStore } from "@/state/uiStore";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Stage } from "./Stage";
 
@@ -94,5 +95,28 @@ describe("Stage — derived board", () => {
     expect(
       screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1"),
     ).toBe(true);
+  });
+  it("narrows the board to one folder, and shows everything again when cleared", () => {
+    const filed = project();
+    (filed.documents.menu![1] as any).folder = "crafts/armes";
+    useProjectsStore.setState({
+      openProjects: { projects: [filed], projectOrder: [PID] },
+    } as any);
+    useUiStore.getState().setBoardFolder(PID, "crafts/armes");
+    render(<Stage projectId={PID} />);
+    const names = () =>
+      screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
+    expect(names()).toContain("menu:m2");
+    expect(names()).not.toContain("menu:m1");
+    expect(screen.getByText(/crafts\/armes/)).toBeInTheDocument();
+    act(() => useUiStore.getState().setBoardFolder(PID, null));
+    expect(names()).toContain("menu:m1");
+  });
+  it("ignores a folder filter that no longer exists", () => {
+    useUiStore.getState().setBoardFolder(PID, "gone");
+    render(<Stage projectId={PID} />);
+    const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
+    expect(names).toContain("menu:m1");
+    useUiStore.getState().setBoardFolder(PID, null);
   });
 });

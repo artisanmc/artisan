@@ -742,6 +742,9 @@ export default {
     },
   },
   folders: {
+    showOnly: "Show only this folder",
+    filtered: "Folder: {{folder}}",
+    showAll: "Show everything",
     newFolder: "New folder",
     newSubfolder: "New sub-folder",
     rename: "Rename",
