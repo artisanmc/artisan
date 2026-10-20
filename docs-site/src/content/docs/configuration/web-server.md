@@ -116,6 +116,37 @@ Then `cloudflared tunnel route dns <tunnel> editor.example.com` and set
 `web.url: "https://editor.example.com"`. Cloudflare limits request bodies to 100 MB on
 the Free and Pro plans, which matches Artisan's resource pack limit.
 
+## Through a tunnel server (preview)
+
+For hosts that give no port to open. The hub connects **out** to an Artisan tunnel
+server, which gives the editor an `https://` address and passes each request to the
+plugin unchanged:
+
+```yaml
+# plugins/Artisan/environment.yml
+web:
+  bind: "127.0.0.1"          # nothing listens publicly
+  tunnel: "tunnel.example.net"
+  tunnel-access: ""          # the code, if the tunnel server is private
+```
+
+After a restart, the console shows `Editor reachable through the tunnel server at
+https://<id>.tunnel.example.net`, and `/artisan editor` links use that address.
+`<id>` comes from `plugins/Artisan/tunnel-secret`: it stays the same across restarts.
+
+What to know:
+
+- The tunnel server sees the traffic in clear text (it holds the TLS certificate),
+  including the session cookie. Use one you trust.
+- The editor itself still comes from your plugin: the tunnel server only passes bytes.
+- **Players never download the resource pack through the tunnel.** The tunnel server
+  refuses `/resource-pack/`, and the hub gives players its direct address. Without an
+  open port, use [pack delegation](/wiki/configuration/resource-packs/) to Nexo,
+  Oraxen or ItemsAdder.
+- `web.url`, when set, wins over the tunnel for links.
+- Only the hub of a network opens a tunnel; leaves still reach the hub on `/ws/plugin`,
+  so keep `web.bind` reachable from them in a network.
+
 ## Networks and `/ws/plugin`
 
 In a [network](/wiki/network/concepts/), leaves connect to the hub's `/ws/plugin`.

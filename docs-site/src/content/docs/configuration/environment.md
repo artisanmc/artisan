@@ -41,6 +41,8 @@ connect to the hub. The name is a label: the server is identified by the id in
 | `web.url` | `""` | Public address of the editor, without trailing slash, e.g. `"https://editor.example.com"`. Used in `/artisan editor` links. Empty: `http://<address the player joined with>:<port>`. |
 | `web.hub` | `""` | Empty: this server is the hub and serves the editor (a lone server is its own hub). Set: this server is a leaf and connects to the hub at this address, as the leaf sees it: `"10.0.0.5:8765"` (the hub's `web.port`; a bare host takes `8765`), `"hub:8765"` (Docker service), or `"https://editor.example.com"` (TLS reverse proxy, no port added). The plugin adds the `/ws/plugin` path; an explicit `ws://…` or `wss://…` URL is kept as is. See [Network mode](/wiki/network/concepts/). |
 | `web.secret` | `""` | Secret shared by the hub and its leaves. Empty: the Velocity forwarding secret, else a secret the hub generates. See [the shared secret](/wiki/network/setup/#4-the-shared-secret). |
+| `web.tunnel` | `""` | Preview. Address of an Artisan tunnel server, e.g. `"tunnel.example.net"`. Set on the hub: it connects out to that server, which gives the editor an `https://<id>.tunnel.example.net` address, and `/artisan editor` links use it unless `web.url` is set. No port to open. Ignored on a leaf. See [Through a tunnel server](/wiki/configuration/web-server/#through-a-tunnel-server-preview). |
+| `web.tunnel-access` | `""` | The access code a private tunnel server asks for. |
 
 On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no port.
 
@@ -90,7 +92,7 @@ database:
 A variable that is not set becomes an empty string. For `database.*` keys the
 console warns: `[database] environment variable NAME is not set (environment.yml)`.
 
-Substitution applies to `name`, `web.bind`, `web.url`, `web.hub`, `web.secret`
+Substitution applies to `name`, `web.bind`, `web.url`, `web.hub`, `web.secret`, `web.tunnel`, `web.tunnel-access`
 and every `database.*` key. It does not apply to `web.enabled` and `web.port`:
 write those literally.
 
