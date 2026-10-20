@@ -40,8 +40,10 @@ import {
   diskProjectsToSummaries,
 } from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
+import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
+import { overrideState } from "@/lib/commandOverride";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlServerId } from "@/lib/urlIds";
 import { useModulesStore } from "@/state/modulesStore";
@@ -49,8 +51,16 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
+import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronRight, Folder, FolderOpen, GripVertical } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  GripVertical,
+  Terminal,
+} from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
@@ -63,6 +73,8 @@ export function ProjectSidebar() {
   const reorderProjects = useProjectsStore((s) => s.reorderProjects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   const serverScreens = useServerScreensStore((s) => s.screens);
+  const commandsServer = useSystemCommandsStore((s) => s.serverId);
+  const systemCommands = useSystemCommandsStore((s) => s.commands);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
   // Three states, like a server page: reading, read, could not read. An empty
@@ -199,6 +211,8 @@ export function ProjectSidebar() {
     screens: serverScreens,
     mountedModuleIds,
     localProjects,
+    // Another server's commands, while the active one's are read, would file them under the wrong modules.
+    commands: commandsServer === activeServerId ? systemCommands : [],
   });
 
   // Document count per Project: only the ones actually opened (live count, it
@@ -652,8 +666,8 @@ function PluginModuleItem({
   serverId: string | null;
   serverIdOf: (p: ProjectSummary) => string | null;
 }) {
-  const entries = module.entries.length > 0 && (
-    <ModuleEntries entries={module.entries} serverId={serverId} />
+  const entries = (module.entries.length > 0 || module.commands.length > 0) && (
+    <ModuleEntries entries={module.entries} commands={module.commands} serverId={serverId} />
   );
   const [only] = module.projects;
   if (only && module.projects.length === 1) {
@@ -694,12 +708,14 @@ function PluginModuleItem({
   );
 }
 
-/** What a plugin module alone manages: its Config screens, then its configuration route. */
+/** What a plugin module alone manages: its Config screens, its configuration route, then its system commands. */
 function ModuleEntries({
   entries,
+  commands,
   serverId,
 }: {
   entries: ModuleGroupEntry[];
+  commands: PlayerCommand[];
   serverId: string | null;
 }) {
   const { t } = useTranslation();
@@ -721,6 +737,72 @@ function ModuleEntries({
           </li>
         ),
       )}
+      {commands.length > 0 && serverId && (
+        <li className="flex flex-col">
+          <div className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]">
+            <Terminal className="size-3" aria-hidden />
+            {t("sidebar.systemCommands")}
+          </div>
+          <ul className="flex flex-col">
+            {commands.map((command) => (
+              <CommandItem key={command.id} command={command} serverId={serverId} />
+            ))}
+          </ul>
+        </li>
+      )}
     </ul>
+  );
+}
+
+/** A system command: its label as players type it, marked once the admin changed or disabled it. */
+function CommandItem({ command, serverId }: { command: PlayerCommand; serverId: string }) {
+  const { t } = useTranslation();
+  const override = useSystemCommandsStore((s) => s.overrides[command.id]);
+  const params = useParams({ strict: false }) as { commandId?: string };
+  const state = overrideState(override);
+  const isActive = params.commandId === command.id;
+  const name = override?.fields.name || command.name;
+  return (
+    <li>
+      <Link
+        to="/servers/$serverId/commands/$commandId"
+        params={{ serverId, commandId: command.id }}
+        onClick={() => useSidebarStore.getState().close()}
+        className={
+          isActive
+            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors"
+            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        }
+      >
+        <span
+          className={
+            state === "disabled" ? "truncate flex-1 line-through opacity-60" : "truncate flex-1"
+          }
+          title={`/${name}`}
+        >
+          /{name}
+        </span>
+        {state !== "default" && (
+          <span
+            role="img"
+            aria-label={t(
+              state === "disabled"
+                ? "systemCommands.stateDisabled"
+                : "systemCommands.stateModified",
+            )}
+            title={t(
+              state === "disabled"
+                ? "systemCommands.stateDisabled"
+                : "systemCommands.stateModified",
+            )}
+            className={
+              state === "disabled"
+                ? "size-1.5 shrink-0 rounded-full bg-[var(--warning)]"
+                : "size-1.5 shrink-0 rounded-full bg-[var(--brand)]"
+            }
+          />
+        )}
+      </Link>
+    </li>
   );
 }
