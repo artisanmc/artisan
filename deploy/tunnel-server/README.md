@@ -21,7 +21,7 @@ HTTPS (HSTS préchargé), ce que Cloudflare fournit.
 
 1. Cloudflare : ajouter la zone `artisanmc.app` (nameservers chez le registraire), SSL/TLS en « Full ».
 2. Coolify : ressource Docker Compose depuis ce dépôt, fichier `deploy/tunnel-server/docker-compose.yml`,
-   variable `TUNNEL_DOMAIN=artisanmc.app` (et `TUNNEL_ACCESS_CODE=<code>` pour un essai fermé).
+   variable `TUNNEL_DOMAIN=artisanmc.app`. `TUNNEL_ACCESS_CODE` reste vide : le tunnel est ouvert à tous.
 3. Tunnel Cloudflare existant : un hostname public `*.artisanmc.app` vers le service du conteneur
    (port 8080), et un second `artisanmc.app` si la racine doit répondre. DNS : un CNAME `*` vers
    `<id-du-tunnel>.cfargotunnel.com`, proxifié, s'il n'est pas créé seul.
@@ -37,7 +37,6 @@ comme le pack du hub.
 # plugins/Artisan/environment.yml
 web:
   tunnel: "connect.artisanmc.app"   # la valeur par défaut, sans web.url
-  tunnel-access: "<code>"           # seulement si TUNNEL_ACCESS_CODE est posé
 ```
 
 Une feuille sans port vers son hub vise l'adresse du tunnel du hub :
@@ -65,6 +64,5 @@ et `/artisan editor` donne un lien vers cette adresse. Un code refusé s'écrit 
 
 ## Avant une ouverture publique
 
-Faits : limites par tunnel (variables ci-dessus) et cookie `__Host-` derrière le tunnel. Restent :
-une page d'abus et de contact sur le domaine, et
-`TUNNEL_ACCESS_CODE` vide.
+Faits : limites par tunnel (variables ci-dessus) et cookie `__Host-` derrière le tunnel. Reste :
+une page d'abus et de contact sur le domaine.
