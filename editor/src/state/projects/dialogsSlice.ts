@@ -24,7 +24,6 @@ import {
   allocStepLTexts,
   gcStepLTexts,
   rewriteCanvasEdgeIds,
-  rewriteCanvasGroupMembers,
   updateDialogLTextKey,
 } from "./helpers";
 import type { Mutation } from "./mutate";
@@ -259,7 +258,6 @@ export const createDialogsSlice = ({
           delete layout[oldId as string];
         }
         rewriteCanvasEdgeIds(p, oldId as string, newId as string);
-        rewriteCanvasGroupMembers(p, oldId as string, newId as string);
       });
       // Renaming is a MOVE, and only the editor knows it: the tree alone would
       // only show a disappearance and an appearance. Without this intent, the

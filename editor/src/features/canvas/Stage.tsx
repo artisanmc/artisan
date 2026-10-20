@@ -244,7 +244,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
           !project ||
           (Object.keys(project.canvasLayout).length === 0 &&
             Object.keys(project.canvasEdges ?? {}).length === 0 &&
-            !project.canvasGroups?.some((g) => g.position))
+            !Object.values(project.folders ?? {}).some((f) => f.position))
         }
       />
       <KonvaStage

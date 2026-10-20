@@ -61,16 +61,12 @@ describe("Stage — derived board", () => {
     expect(names).toContain("menu:m1");
     expect(names).toContain("menu:m2");
   });
-  it("shows only manual frames in project view even when the project is folded", () => {
+  it("shows only folder frames in project view even when the project is folded", () => {
+    const filed = project();
+    (filed.documents.menu![1] as any).folder = "crafts";
     useProjectsStore.setState({
       openProjects: {
-        projects: [
-          {
-            ...project(),
-            canvasProjectCollapsed: true,
-            canvasGroups: [{ id: "crafts", name: "Crafts", menuIds: ["m2"] }],
-          },
-        ],
+        projects: [{ ...filed, canvasProjectCollapsed: true }],
         projectOrder: [PID],
       },
     } as any);
@@ -81,17 +77,12 @@ describe("Stage — derived board", () => {
     expect(names).toContain("menu:m1");
     expect(names).toContain("menu:m2");
   });
-  it("keeps legacy folded group menus visible on the board and in document view", () => {
+  it("keeps a folder's menus visible on the board and in document view", () => {
+    const filed = project();
+    for (const m of filed.documents.menu!) (m as any).folder = "crafts";
     useProjectsStore.setState({
       openProjects: {
-        projects: [
-          {
-            ...project(),
-            canvasGroups: [
-              { id: "crafts", name: "Crafts", menuIds: ["m1", "m2"], collapsed: true },
-            ],
-          },
-        ],
+        projects: [filed],
         projectOrder: [PID],
       },
     } as any);

@@ -3,10 +3,10 @@
 // representation; the editor parses it on open and serializes it back on every
 // save). Each Document kind is written by its codec (`documentCodecs.ts`), data
 // sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
-import { normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { listDocumentKinds } from "@/domain/documentKinds";
 import { documentPath } from "@/domain/documentLayout";
 import { documentIds, documentsOf } from "@/domain/documents";
+import { persistedFolderMeta } from "@/domain/folders";
 import type { Project } from "@/domain/types";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
@@ -134,8 +134,8 @@ export function projectToFiles(project: Project): Record<string, string> {
     }),
   );
   const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
-  const groups = normalizeCanvasGroups(project.canvasGroups, liveIds);
-  if (groups.length) editorState.groups = groups;
+  const folders = persistedFolderMeta(project);
+  if (Object.keys(folders).length) editorState.folders = folders;
   // The i18n mode is a presentation choice about the file shape, not project
   // content — it rides in the hash-excluded editor state so flipping it back
   // and forth doesn't churn the project hash on its own. Only written when it

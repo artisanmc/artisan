@@ -5,13 +5,7 @@ import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPa
 import type { Command, CommandArg, CommandId, Condition, ProjectId, Step } from "@/domain/types";
 import { commandKeyPrefix } from "@/lib/i18nKeys";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import {
-  allocStepLTexts,
-  gcStepLTexts,
-  rewriteCanvasEdgeIds,
-  rewriteCanvasGroupMembers,
-  validateArgOrder,
-} from "./helpers";
+import { allocStepLTexts, gcStepLTexts, rewriteCanvasEdgeIds, validateArgOrder } from "./helpers";
 import type { ProjectsSliceContext } from "./types";
 
 /** Commands: fields, aliases, arguments and their steps. */
@@ -201,7 +195,6 @@ export const createCommandsSlice = ({
         delete layout[oldId];
       }
       rewriteCanvasEdgeIds(project, oldId as string, newId as string);
-      rewriteCanvasGroupMembers(project, oldId as string, newId as string);
       rekeyCommand(project, cmd);
     });
     // Same intent as setDialogId, recorded once the rename is applied.

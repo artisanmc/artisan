@@ -216,46 +216,37 @@ function fixture(): Project {
 }
 
 describe("projectFromFiles (files → domain, inverse of projectToFiles)", () => {
-  it("ignores malformed group metadata and stale or duplicate memberships", () => {
+  it("reads folder metadata tolerantly and ignores the legacy groups key", () => {
     const files = projectToFiles(fixture());
     files[`plugins/Artisan/projects/${PID}/.artisan/editor.yaml`] = JSON.stringify({
-      groups: [
-        null,
-        { id: "bad", name: 42, menuIds: ["m1"] },
-        {
-          id: "valid",
-          name: "Crafts",
-          menuIds: ["m1", "m1", "missing"],
-          position: { x: "wrong", y: 4 },
-        },
-        { id: "duplicate", name: "Other", menuIds: ["m1"] },
-      ],
+      groups: [{ id: "valid", name: "Crafts", menuIds: ["m1"] }],
+      folders: {
+        boutique: { color: "#a855f7", position: { x: "wrong", y: 4 } },
+        Bad: { color: "#000000" },
+        menus: {},
+      },
     });
-    expect(projectFromFiles(PID, files).canvasGroups).toEqual([
-      { id: "valid", name: "Crafts", nodeIds: ["m1"] },
-    ]);
+    const p = projectFromFiles(PID, files);
+    expect(p.folders).toEqual({ boutique: { color: "#a855f7" } });
+    expect(p).not.toHaveProperty("canvasGroups");
   });
-  it("round-trips visual groups of any Document kind without changing any file", () => {
+  it("round-trips themed folders of any Document kind with their frame color and position", () => {
     const original = fixture();
-    const grouped = {
-      ...original,
-      canvasGroups: [
-        {
-          id: "crafts",
-          name: "Crafts",
-          nodeIds: ["m1", "c1", "d1"],
-          color: "#a855f7",
-          position: { x: 120, y: 240 },
-        },
-      ],
-    };
-    const files = projectToFiles(grouped);
+    const filed = structuredClone(original);
+    for (const doc of Object.values(filed.documents).flat()) doc.folder = "crafts";
+    filed.folders = { crafts: { color: "#a855f7", position: { x: 120, y: 240 } }, vide: {} };
+    const files = projectToFiles(filed);
     const restored = projectFromFiles(PID, files, { name: "Round Trip" });
-    expect(restored.canvasGroups).toEqual(grouped.canvasGroups);
-    const before = projectToFiles(original);
-    for (const [path, content] of Object.entries(before)) {
-      if (!path.endsWith(".artisan/editor.yaml")) expect(files[path]).toEqual(content);
-    }
+    expect(restored.folders).toEqual(filed.folders);
+    expect(
+      Object.values(restored.documents)
+        .flat()
+        .map((d) => d.folder),
+    ).toEqual(
+      Object.values(filed.documents)
+        .flat()
+        .map(() => "crafts"),
+    );
     expect(projectToFiles(restored)).toEqual(files);
   });
 

@@ -24,7 +24,6 @@ import { useProjectDraftStore } from "@/state/projectDraftStore";
 import {
   defaultIterateRange,
   rewriteCanvasEdgeIds,
-  rewriteCanvasGroupMembers,
   shiftPlayerPositions,
   titleLayerKeys,
 } from "./helpers";
@@ -402,7 +401,6 @@ export const createMenusSlice = ({
         delete layout[oldId];
       }
       rewriteCanvasEdgeIds(project, oldId as string, newId as string);
-      rewriteCanvasGroupMembers(project, oldId as string, newId as string);
       rekeyMenu(project, menu);
     });
     // Same intent as setDialogId, recorded once the rename is applied.

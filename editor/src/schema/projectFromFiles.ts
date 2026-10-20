@@ -1,14 +1,9 @@
 import { normalizeBaseLore } from "@/domain/baseLore";
-import { normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { parseCapturedStack } from "@/domain/capturedStack";
 import { listDocumentKinds } from "@/domain/documentKinds";
 import { classifyDocumentLayout } from "@/domain/documentLayout";
-import {
-  documentIds as documentIdsOf,
-  emptyDocuments,
-  menusOf,
-  mutableDocuments,
-} from "@/domain/documents";
+import { emptyDocuments, menusOf, mutableDocuments } from "@/domain/documents";
+import { normalizeFolderMeta } from "@/domain/folders";
 import {
   adoptAddressedTranslations,
   visitDataSourceLTexts,
@@ -62,7 +57,8 @@ interface ManifestYaml {
 
 /** `.artisan/editor.yaml` — hash-excluded editor metadata. */
 interface EditorStateYaml {
-  groups?: unknown;
+  /** Themed folders' colors, positions and empty folders, keyed by path. */
+  folders?: unknown;
   layout?: Record<string, unknown>;
   edges?: Record<string, unknown>;
   /** Captured item label + display descriptor, keyed by item id. */
@@ -904,7 +900,7 @@ export function projectFromFiles(
     mod.__files[rel.slice(slash + 1)] = content;
   }
 
-  const canvasGroups = normalizeCanvasGroups(editorState.groups, documentIdsOf({ documents }));
+  const folders = normalizeFolderMeta(editorState.folders);
 
   const project: Project = {
     id: projectId,
@@ -931,7 +927,7 @@ export function projectFromFiles(
     ...(manifest.escape_goes_back === true ? { escapeGoesBack: true } : {}),
     ...(editorState.i18n_mode === "inline" ? { i18nMode: "inline" as const } : {}),
     canvasLayout: parseEditorLayout(editorState.layout),
-    ...(canvasGroups.length ? { canvasGroups } : {}),
+    ...(Object.keys(folders).length ? { folders } : {}),
     ...(Object.keys(parseEditorEdges(editorState.edges)).length > 0
       ? { canvasEdges: parseEditorEdges(editorState.edges) }
       : {}),

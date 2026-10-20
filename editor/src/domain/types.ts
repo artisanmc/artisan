@@ -101,7 +101,19 @@ export interface EdgeAnchor {
   t: number;
 }
 
+/**
+ * A frame on a module's board: one top-level themed folder and every Document
+ * filed under it, at any depth. Derived from `Document.folder` and
+ * `Project.folders` (`domain/canvasGroups.ts`), never stored.
+ */
+/** What the editor remembers about a themed folder (`Project.folders`). */
+export interface FolderMeta {
+  color?: string;
+  position?: { x: number; y: number };
+}
+
 export interface CanvasGroup {
+  /** The top-level folder's name, also what the frame shows. */
   id: string;
   name: string;
   /** Any Document id in the project — menus, commands and dialogs alike. */
@@ -166,8 +178,13 @@ export interface Project {
   i18nMode?: "extract" | "inline";
   /** Board position of each document, keyed by its id (ids are unique across kinds). */
   canvasLayout: Record<string, { x: number; y: number }>;
-  /** Visual-only groups, one level inside the project; stored in .artisan/editor.yaml. */
-  canvasGroups?: CanvasGroup[];
+  /**
+   * Editor metadata of themed folders, keyed by folder path (`boutique`,
+   * `boutique/armes`): a top-level folder's frame color and position, and the
+   * folders that hold no Document yet. Which Documents a folder holds is
+   * `Document.folder`. Stored in `.artisan/editor.yaml`.
+   */
+  folders?: Record<string, FolderMeta>;
   /**
    * Manual edge-endpoint overrides, keyed by edge id ("source->target").
    * Editor-only metadata — exported as manifest `editor_edges`.
