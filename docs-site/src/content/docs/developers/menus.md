@@ -63,7 +63,7 @@ val subscription = api.menus.onClick { event ->
 |---|---|---|---|
 | `onOpen` | `MenuOpenEvent` | `player`, `menu`, `args` | Yes: nothing opens |
 | `onClick` | `MenuClickEvent` | `player`, `menu`, `slot` (raw slot), `click` (Bukkit `ClickType`), `hasActions` | Yes: the button's actions are skipped |
-| `onClose` | `MenuCloseEvent` | `player`, `menu`, `reason` (Paper `InventoryCloseEvent.Reason`) | No |
+| `onClose` | `MenuCloseEvent` | `player`, `menu`, `closeReason` (`MenuCloseReason`, `UNKNOWN` on Spigot) | No |
 
 Listeners run on the player's thread. A click is delivered on the tick after
 it happened, before the button's actions, so you may open another menu or

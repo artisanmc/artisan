@@ -91,7 +91,7 @@ artifact (`net.artisanmc.modules.api`), so compile against it.
 |---|---|---|
 | `MenuOpenEvent` | Before a menu opens: `getPlayer()`, `menu` (`MenuRef`), `args` | Yes: nothing opens |
 | `MenuClickEvent` | On the tick after a click, before the button's actions: `menu`, `slot`, `click`, `hasActions` | Yes: the actions are skipped |
-| `MenuCloseEvent` | When the window closes: `menu`, `reason` | No |
+| `MenuCloseEvent` | When the window closes: `menu`, `closeReason` | No |
 
 ```java
 @EventHandler
