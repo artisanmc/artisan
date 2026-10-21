@@ -10,13 +10,25 @@ dependencies {
     implementation(project(":artisan-runtime"))
 
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
+    // Adventure, bundled under its own names: Spigot has none. On Paper the server's copy wins
+    // (a plugin's class loader asks its parent first), so these classes only load on Spigot.
+    // What Paper alone can do with a Component goes through platform/Chat.
+    listOf(
+        "adventure-api", "adventure-text-minimessage", "adventure-text-serializer-gson",
+        "adventure-text-serializer-legacy", "adventure-text-serializer-plain",
+    ).forEach {
+        implementation("net.kyori:$it:4.23.0") {
+            exclude("com.google.code.gson", "gson")
+            exclude("org.jetbrains", "annotations")
+        }
+    }
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.nexomc:nexo:0.9.0")
     compileOnly("io.th0rgal:oraxen:1.189.0")
     // Menu contents sent as packets (PacketEventsMenuPackets). Bundled and relocated:
     // every major Minecraft version requires updating it.
-    // Netty and adventure-api/key are provided by Paper. adventure-nbt is not
+    // Netty is provided by the server, Adventure is bundled above. adventure-nbt is not
     // (NoClassDefFoundError BinaryTag), nor is examination since Paper 26.x
     // (ClassNotFoundException Examinable): bundled and relocated.
     implementation("com.github.retrooper:packetevents-spigot:2.14.0") {
