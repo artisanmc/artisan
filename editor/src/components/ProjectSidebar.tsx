@@ -43,7 +43,7 @@ import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
-import { overrideState } from "@/lib/commandOverride";
+import { allCommands, overrideState } from "@/lib/commandOverride";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlServerId } from "@/lib/urlIds";
 import { useModulesStore } from "@/state/modulesStore";
@@ -59,6 +59,7 @@ import {
   Folder,
   FolderOpen,
   GripVertical,
+  SlidersHorizontal,
   Terminal,
 } from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
@@ -569,7 +570,13 @@ function ProjectItem({
   serverId,
   sortable,
   children,
-}: ProjectItemProps & { sortable?: ReturnType<typeof useSortable>; children?: ReactNode }) {
+  defaultExpanded = false,
+}: ProjectItemProps & {
+  sortable?: ReturnType<typeof useSortable>;
+  children?: ReactNode;
+  /** Opens the row on mount: the page shown is one of its children. */
+  defaultExpanded?: boolean;
+}) {
   const style = sortable
     ? {
         transform: CSS.Transform.toString(sortable.transform),
@@ -580,9 +587,12 @@ function ProjectItem({
   const params = useParams({ strict: false }) as { projectId?: string };
   const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
   const indexed = useIndexedProject(urlId, id);
-  const [expanded, setExpanded] = useState(false);
-  const canExpand = !isActiveProject && !!indexed;
+  // A module's screens and commands fold with it: shown once the row is open, or when one of them is.
+  const hasChildren = children != null && children !== false;
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const canExpand = !isActiveProject && (!!indexed || hasChildren);
   const [collapsed, setCollapsed] = useState(false);
+  const open = isActiveProject ? !collapsed : expanded;
 
   return (
     <li ref={sortable?.setNodeRef} style={style} className="flex flex-col">
@@ -629,11 +639,13 @@ function ProjectItem({
           </button>
         )}
       </div>
-      {children}
       {isActiveProject && !collapsed && (
         <ActiveProjectDocuments id={id} urlId={urlId} serverId={serverId} />
       )}
-      {canExpand && expanded && <OtherProjectDocuments project={indexed} serverId={serverId} />}
+      {canExpand && expanded && indexed && (
+        <OtherProjectDocuments project={indexed} serverId={serverId} />
+      )}
+      {open && children}
     </li>
   );
 }
@@ -666,6 +678,12 @@ function PluginModuleItem({
   serverId: string | null;
   serverIdOf: (p: ProjectSummary) => string | null;
 }) {
+  const params = useParams({ strict: false }) as { screenId?: string; commandId?: string };
+  // The page shown is one of the module's: it opens folded out, so the active row is visible.
+  const showsChild =
+    module.entries.some((e) => e.kind === "screen" && e.screen.id === params.screenId) ||
+    allCommands(module.commands).some((c) => c.id === params.commandId);
+  const [expanded, setExpanded] = useState(showsChild);
   const entries = (module.entries.length > 0 || module.commands.length > 0) && (
     <ModuleEntries entries={module.entries} commands={module.commands} serverId={serverId} />
   );
@@ -678,6 +696,7 @@ function PluginModuleItem({
         name={module.label}
         count={countFor(only)}
         serverId={serverIdOf(only)}
+        defaultExpanded={showsChild}
       >
         {entries}
       </ProjectItem>
@@ -685,11 +704,23 @@ function PluginModuleItem({
   }
   return (
     <li className="flex flex-col">
-      {/* TODO: render the module's icon once modules ship real icons */}
-      <div className="px-2.5 pt-1.5 pb-1 text-[13px] font-semibold text-[var(--text)]">
-        {module.label}
+      <div className="flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
+        <ExpandToggle
+          name={module.label}
+          expanded={expanded}
+          onToggle={() => setExpanded((v) => !v)}
+        />
+        {/* TODO: render the module's icon once modules ship real icons */}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-left text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
+        >
+          <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+          <span className="min-w-0 truncate">{module.label}</span>
+        </button>
       </div>
-      {module.projects.length > 0 && (
+      {expanded && module.projects.length > 0 && (
         <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
           {module.projects.map((p) => (
             <ProjectItem
@@ -703,12 +734,12 @@ function PluginModuleItem({
           ))}
         </ul>
       )}
-      {entries}
+      {expanded && entries}
     </li>
   );
 }
 
-/** What a plugin module alone manages: its Config screens, its configuration route, then its system commands. */
+/** What a plugin module alone manages: its system commands, then its screens and configuration route under "Others". */
 function ModuleEntries({
   entries,
   commands,
@@ -721,36 +752,55 @@ function ModuleEntries({
   const { t } = useTranslation();
   return (
     <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
-      {entries.map((e) =>
-        e.kind === "screen" ? (
-          <ScreenItem key={`s:${e.screen.id}`} screen={e.screen} serverId={serverId} />
-        ) : (
-          <li key={`c:${e.moduleId}`}>
-            <Link
-              to="/m/$moduleId"
-              params={{ moduleId: e.moduleId }}
-              onClick={() => useSidebarStore.getState().close()}
-              className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-            >
-              <span className="truncate flex-1">{t("sidebar.configuration")}</span>
-            </Link>
-          </li>
-        ),
-      )}
       {commands.length > 0 && serverId && (
-        <li className="flex flex-col">
-          <div className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]">
-            <Terminal className="size-3" aria-hidden />
-            {t("sidebar.systemCommands")}
-          </div>
-          <ul className="flex flex-col">
-            {commands.map((command) => (
-              <CommandItem key={command.id} command={command} serverId={serverId} />
-            ))}
-          </ul>
-        </li>
+        <EntryGroup icon={Terminal} label={t("sidebar.systemCommands")}>
+          {commands.map((command) => (
+            <CommandItem key={command.id} command={command} serverId={serverId} />
+          ))}
+        </EntryGroup>
+      )}
+      {entries.length > 0 && (
+        <EntryGroup icon={SlidersHorizontal} label={t("sidebar.otherEntries")}>
+          {entries.map((e) =>
+            e.kind === "screen" ? (
+              <ScreenItem key={`s:${e.screen.id}`} screen={e.screen} serverId={serverId} />
+            ) : (
+              <li key={`c:${e.moduleId}`}>
+                <Link
+                  to="/m/$moduleId"
+                  params={{ moduleId: e.moduleId }}
+                  onClick={() => useSidebarStore.getState().close()}
+                  className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                >
+                  <span className="truncate flex-1">{t("sidebar.configuration")}</span>
+                </Link>
+              </li>
+            ),
+          )}
+        </EntryGroup>
       )}
     </ul>
+  );
+}
+
+/** A labelled group of a module's entries, headed like a Document type in the tree. */
+function EntryGroup({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: typeof Terminal;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <li className="flex flex-col">
+      <div className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]">
+        <Icon className="size-3" aria-hidden />
+        {label}
+      </div>
+      <ul className="flex flex-col">{children}</ul>
+    </li>
   );
 }
 
