@@ -3,6 +3,7 @@ import { useServerSnapshotsStore } from "@/state/serverSnapshotsStore";
 import { useServersStore } from "@/state/serversStore";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect } from "react";
+import { directSourceRefs } from "./menuPreviewScope";
 
 /**
  * Loads the live-server snapshots of a menu's source inputs (cached via
@@ -31,6 +32,15 @@ export function useMenuPreviewSnapshots(menu: Menu) {
         });
       }
     }
-  }, [menu.contextInputs, serverId, loadSnapshot, previewPlayer]);
+    // An element may iterate a source ref directly, without declaring an input.
+    for (const ref of directSourceRefs(menu)) {
+      if (ref.startsWith("pack:")) continue;
+      loadSnapshot({
+        serverId,
+        ref,
+        ...(previewPlayer ? { params: { player: previewPlayer } } : {}),
+      });
+    }
+  }, [menu, serverId, loadSnapshot, previewPlayer]);
   return snapshots;
 }
