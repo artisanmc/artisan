@@ -144,8 +144,8 @@ interface TitleRenderProps {
  * inside an existing `<Stage><Layer>`; the caller owns Stage sizing.
  *
  * Always interactive: clicks on layers select them via
- * `uiStore.selectedLayerKey`, drags update positions via `useTitleLayerDrag`,
- * and image layers expose `ResizeHandles` when selected. Clicks on the
+ * `uiStore.selectedLayerKey`, drags update positions via `useTitleLayerDrag`.
+ * Image layers are not resizable (assets are pixel-perfect). Clicks on the
  * title-bar grey backdrop (non-layer area) clear the selection.
  *
  * Layer body rendering matches the plugin runtime:
@@ -374,8 +374,8 @@ function LayerNode({
     [layer.kind, asset, fontRefAscent, scale, onPositionChange, anchorOffset],
   );
 
-  // Intrinsic bounding-box for image-kind layers — drives both the selection
-  // outline and the ResizeHandles geometry. Falls back to a sane default when
+  // Intrinsic bounding-box for image-kind layers — drives the selection
+  // outline. Falls back to a sane default when
   // the asset hasn't loaded yet (or is missing).
   const imageW = (asset?.width ?? (layer.kind === "background" ? TITLE_BAR_W : 8)) * scale;
   const imageH = (asset?.height ?? (layer.kind === "background" ? MC_TITLE_H : 8)) * scale;

@@ -164,24 +164,7 @@ La sélection d'un élément est résolue dans son menu propriétaire avant tout
 `vitest.config.ts` exclut tous les dossiers `**/e2e/**` pour ne pas charger les tests Playwright dans Vitest. Les scénarios navigateur restent exécutés par `playwright.config.ts` (`tests/e2e`) et `playwright.migration.config.ts` (`e2e/migration.spec.ts`). La CI éditeur doit réussir avant que le workflow de déploiement production démarre.
 
 > Détails d'implémentation éditeur + pipeline de rendu du titre. Consulté quand on touche
-> au title composer, au canvas / à l'édition d'élément, ou au `<SchemaForm>`.
-
-## `<SchemaForm>` — générateur de formulaires depuis JSON Schema
-
-`editor/src/components/SchemaForm/` génère des formulaires React depuis un JSON Schema. Couvre `string` (texte / textarea via `format: "long"` / select via `enum`), `number`/`integer`, `boolean`, `object` (nesting), `array` (avec + / −).
-
-**Pour ajouter un widget custom** (color picker, asset picker, MiniMessage editor, etc.) :
-
-```ts
-import { SchemaForm } from "@/components/SchemaForm/SchemaForm";
-import { ColorPicker } from "@/components/widgets/ColorPicker";
-
-<SchemaForm schema={schema} value={value} onChange={setValue} widgets={{ color: ColorPicker }} />
-```
-
-Le widget est routé via le champ `format` du schema (e.g. `{ type: "string", format: "color" }`).
-
-**Hors scope V1 :** `oneOf` / `anyOf` / `if/then/else` / `$ref` resolution. À ajouter quand un module en a besoin.
+> au title composer, au canvas / à l'édition d'élément.
 
 ## Format menu YAML — champ `title`
 
@@ -252,10 +235,10 @@ Background = "gros glyph" : sa hauteur vient de l'ascent de l'asset (`y = 13 - a
 - **Sélection** : `uiStore.selectedLayerKey: { menuId, index } | null` ; `uiStore.lastSelectedMenuId` sticky (le panel survit aux clics dans le vide).
 - **Types UI** : 2 visibles — Image (collapse `background` + `glyph` avec flag `stretchToChest`) et Text. Au save, Image se split runtime en `background`/`glyph`. Glyphs externes : branche propre, pas de bouton dédié en v3.
 - **Texte** = MiniMessage tags inline (`<gold>`, `<bold>`…), preview live. Pas de `color` per-layer (coloring 100% par tags).
-- **Manipulation directe** : drag pour repositionner ; corner-drag (`ResizeHandles`) pour redimensionner (aspect-locked ; shift = no-op en v3).
+- **Manipulation directe** : drag pour repositionner. Pas de redimensionnement des calques image (assets pixel-perfect ; `ResizeHandles` retiré le 2026-10-21).
 - **Sémantique resize — IMPORTANT** : redimensionner un glyph mute l'**asset** (tous les menus qui le référencent changent). Pour une taille per-menu : bouton **"Duplicate glyph"** (`LayerEditForm`) → copie l'asset (nouveau codepoint + PNG) et repointe le layer.
 - **Cursor-based attach** : drag depuis `+ Image`/`+ Text` → drop près d'un menu → attache au plus proche (seuil 200 px). Click sans drag → last-selected menu.
-- **Fichiers v3** sous `editor/src/features/canvas/title/composer/` : `LayersPanel.tsx`, `LayerListItem.tsx`, `LayerEditForm.tsx`, `AddLayerControls.tsx`, `ResizeHandles.tsx`, `TitleRender.tsx`, `useTitleLayerDrag.ts`, `dragPlacement.ts`, `attachLayerAtCursor.ts`, `screenToCanvasCoords.ts` ; `stageGeometry.ts` (dans `features/canvas/`).
+- **Fichiers v3** sous `editor/src/features/canvas/title/composer/` : `LayersPanel.tsx`, `LayerListItem.tsx`, `LayerEditForm.tsx`, `AddLayerControls.tsx`, `TitleRender.tsx`, `useTitleLayerDrag.ts`, `dragPlacement.ts`, `attachLayerAtCursor.ts`, `screenToCanvasCoords.ts` ; `stageGeometry.ts` (dans `features/canvas/`).
 
 **Texte unifié dans le composer** : `+ Texte` crée un `textarea` (une ou plusieurs lignes), avec largeur réglable par champ ou poignée droite et alignement gauche/centre/droite. Les anciens `text` et `textarea` restent lisibles ; le formulaire commun convertit un ancien `text` lors de son édition, en conservant sa clé i18n et ses propriétés. La simple sélection ne modifie pas le document.
 
@@ -468,7 +451,7 @@ préserve ses copies aux deux points d'ingestion (`local_push`, `POST
 
 ## Planche curée + panneau + vue individuelle (depuis 2026-06-13)
 
-Cf. `docs/superpowers/specs/2026-06-13-workspace-board-curation-design.md` (supersède le focus mode de `2026-06-02`). Le canvas n'est plus un canvas libre qui force tout en grille : c'est une **planche curée**, doublée d'un panneau source-de-vérité et d'une vue individuelle deep-linkable. **Invariant n°1** : un seul rendu/éditeur par type de Document, partagé entre planche et vue individuelle — c'est ce qui supprime la divergence qui avait causé le revert du focus mode. **Étendu 2026-09-05 aux *hôtes*** : un seul rendu par type de Document, et autant d'hôtes que de sémantiques distinctes, pas un de plus. La planche et le focus partageaient bien `MenuGroup`, mais avaient deux hôtes de stage pour une sémantique identique — d'où la re-divergence (cf. « Mode focus »).
+Cf. `docs/archive/specs/2026-06-13-workspace-board-curation-design.md` (supersède le focus mode de `2026-06-02`). Le canvas n'est plus un canvas libre qui force tout en grille : c'est une **planche curée**, doublée d'un panneau source-de-vérité et d'une vue individuelle deep-linkable. **Invariant n°1** : un seul rendu/éditeur par type de Document, partagé entre planche et vue individuelle — c'est ce qui supprime la divergence qui avait causé le revert du focus mode. **Étendu 2026-09-05 aux *hôtes*** : un seul rendu par type de Document, et autant d'hôtes que de sémantiques distinctes, pas un de plus. La planche et le focus partageaient bien `MenuGroup`, mais avaient deux hôtes de stage pour une sémantique identique — d'où la re-divergence (cf. « Mode focus »).
 
 ### `canvasLayout` = positions fixées (planche dérivée, depuis 2026-09-25)
 
@@ -739,7 +722,7 @@ Les Documents du project sont dans le **drawer de navigation** (barre de gauche)
 
 ## Modes d'interaction + guides d'alignement (depuis 2026-06-14)
 
-Cf. `docs/superpowers/specs/2026-06-14-canvas-modes-and-alignment-design.md`.
+Cf. `docs/archive/specs/2026-06-14-canvas-modes-and-alignment-design.md`.
 
 ### `canvasMode` (select / hand) — toolbar + raccourcis
 
@@ -767,7 +750,7 @@ Cf. `docs/superpowers/specs/2026-06-14-canvas-modes-and-alignment-design.md`.
 
 ## Recherche (palette Cmd+K) + panneau toggleable (depuis 2026-06-14)
 
-Cf. `docs/superpowers/specs/2026-06-14-search-palette-and-sidebar-toggle-design.md`.
+Cf. `docs/archive/specs/2026-06-14-search-palette-and-sidebar-toggle-design.md`.
 
 ### Module de recherche (`editor/src/features/search/`)
 
@@ -843,7 +826,7 @@ serveur refuse la création ; elles affichent une erreur traduite et le placehol
 Le succès de `createProject` confirme l'écriture du manifeste sur le disque serveur,
 puis la liste est relue depuis ce disque.
 
-Cf. `docs/superpowers/specs/2026-05-27-workspace-shell-and-settings-design.md`.
+Cf. `docs/archive/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
 `/settings` a deux sections : **Apparence** et, pour `artisan.editor.config`, **Adresse de
 l'éditeur** (`features/settings/EditorAddressSection.tsx`, `/api/v1/editor-address`) : nom de
@@ -889,7 +872,7 @@ Au runtime, les listes/objets chargés automatiquement par `MenuRenderer` (input
 - **Textes structurels field-local** (ADR `field-local-translations`, depuis 2026-09-30) - les titres de menu, `title`/`lore` d'apparence et `title`/`body`/labels de dialog portent leurs langues **dans le document** : un slot texte est une string (littéral ou `{i18n:key}`) ou une map `{ <lang>: texte }`. `schema/fieldText.ts` (`fieldTextOf`) écrit la map depuis `project.i18nKeys[site.key]` - une string seule quand seul le `defaultLang` a une valeur ; l'import (`menuV1ToDomain` / `dialogV1ToDomain` / `projectFromFiles`, helper `isLangMap`) range la map sous une clé mintée. `lang/` ne porte plus que les textes d'action (refs `@key` dans l'Action DSL), les clés sans site et les data sources. Côté plugin, `model/LocalizedText.kt` lit la map avec repli langue demandée → `defaultLang`. Les adresses positionnelles ne sont plus un contrat de rendu pour les documents (vecteur `testdata/i18n-address-conformance.json` retiré).
 
 - **Textes des commandes de module dans Traductions** — `useModuleCommandTexts` (`features/translations/`) liste, pour les commandes que montre le dossier (`moduleCommandEntriesOf`, même dossier que la planche, sous-commandes comprises), la description et, si l'override a un cooldown, son message (`lib/moduleCommandTexts.ts`). Valeur = override sinon module ; langue lue comme le plugin (`textIn` : la langue, sinon `*`). Les lignes s'ajoutent aux lignes du panneau (clé `<id>#<champ>`, jamais une clé `lang/`, icône pièce de puzzle), comptent dans les manquants et suivent les langues du dossier ; le mode YAML ne les montre pas. Une édition va dans `systemCommandsStore.textDrafts` (map entière par texte, survit au changement d'onglet) ; une barre en bas du panneau les écrit par `config/write` dans le fichier d'override (`withTexts` → `serializeOverride`, le reste du fichier gardé), à part de la sauvegarde du dossier, puis relit le store.
-- **Complétude i18n** — une valeur source explicitement vide est un contenu valide et volontaire. Le panneau ne compte comme manquante qu'une langue secondaire vide lorsque la source contient du texte ; `validate.ts` exige toujours que l'entrée source existe, mais accepte `""`. L'export conserve la chaîne vide pour que le runtime n'affiche pas la clé brute.
+- **Complétude i18n** — une valeur source explicitement vide est un contenu valide et volontaire. Le panneau ne compte comme manquante qu'une langue secondaire vide lorsque la source contient du texte . L'export conserve la chaîne vide pour que le runtime n'affiche pas la clé brute.
 - **Fichiers `lang/`** (`lib/langTree.ts`, depuis 2026-07-30) — `serializeLang` produit toujours une map de clés pointées triée byte-order, puis `nestLangTree` la convertit en **arborescence YAML** (chaque `.` = un niveau, chaque niveau retrié byte-order → fichier déterministe, donc hashable). L'inverse `flattenLangTree` sert aux trois readers (import `projectFromFiles`, mutation module backend, vue YAML du panneau Traductions à l'« Appliquer ») et tolère arbre / plat legacy / mélange. La vue YAML du panneau Traductions (`features/translations/translationsYaml.ts`) émet **la même arborescence**, commentaires portés par les feuilles via `commentBefore` (contexte seulement s'il n'est pas la clé mot pour mot — sets d'items prettifiés, `(unused)` ; puis `# <defaultLang>: <source>` hors langue par défaut). La structure de l'arbre remplace le tri par contexte comme regroupement. Miroir Kotlin `LangFlattener` (lecture seule — le plugin n'écrit jamais de `lang/`), égalité verrouillée par `testdata/lang-tree-conformance.json`. Une clé bloquée par une feuille (`a.b` + `a.b.c`) reste pointée à la racine ; valeurs non-string coercées, `null` → `""`, listes ignorées.
 - **Runtime plugin** — `ProjectReader` scanne `data/*.yaml` (tolérant par fichier, formes nue + legacy) → `RuntimeDataSource` ; il lit aussi `models/` au load (docs verbatim `{name, type}` aplatis vers le vocabulaire inline) et les déclarations JAR via le supplier `declaredModels`. Le namespace réservé `pack:` est résolu au **fetch seam** du renderer (`ProjectDataResolver`), avec la règle d'un id nu de Document reference : Project du menu d'abord, puis id unique sur le serveur (ambigu → le premier chargé) ; les ltext se localisent au bind : **clé explicite > adresse key-site (`sources.<id>.<rowKey>.<champ>`) > littéral** ; une config binde son objet entier sans shaping (`ContextBinder` accepte `Any?`).
 

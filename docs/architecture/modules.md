@@ -102,7 +102,7 @@ export const modules: FrontendModule[] = [menusModule, commandsModule, shopModul
 
 Le core charge ce registry au boot, monte les routes, register les WS handlers, ajoute les entrées sidebar.
 
-> **SDK barrel (depuis 2026-06-15)** — le contrat `FrontendModule` + le registre + l'event bus sont exposés via un point d'entrée unique `@artisan/editor-sdk` (alias interne `editor/src/sdk/index.ts`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `@/modules/api/...` en profondeur. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands consomment déjà le barrel (dogfooding).
+> **SDK barrel (depuis 2026-06-15)** — le contrat `FrontendModule` + le registre + l'event bus sont exposés via un point d'entrée unique `@artisan/editor-sdk` (alias interne `editor/src/sdk/index.ts`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `@/modules/api/...` en profondeur. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/archive/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands consomment déjà le barrel (dogfooding).
 
 > **Vue de Config screen (depuis 2026-10-19, SDK 1.6)** — `screens: Record<string, ComponentType<ConfigScreenProps>>`.
 > Un écran déclaré côté plugin avec `component` (`api.getScreens().declare(…, component)`) rend la
@@ -171,7 +171,7 @@ export interface BackendModule {
 }
 ```
 
-> **SDK barrel (depuis 2026-06-15)** — le contrat `BackendModule` + l'intégrateur `mountModules` sont exposés via un point d'entrée unique `@artisan/backend-sdk` (path tsconfig interne `backend/src/sdk/index.ts`, résolu nativement par Bun y compris sous `bun test`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `../modules/api/...`. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands/assistant consomment déjà le barrel (dogfooding).
+> **SDK barrel (depuis 2026-06-15)** — le contrat `BackendModule` + l'intégrateur `mountModules` sont exposés via un point d'entrée unique `@artisan/backend-sdk` (path tsconfig interne `backend/src/sdk/index.ts`, résolu nativement par Bun y compris sous `bun test`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `../modules/api/...`. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/archive/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands/assistant consomment déjà le barrel (dogfooding).
 
 ### 3.3 Plugin Paper : architecture multi-plugins
 
@@ -1140,7 +1140,7 @@ Repo séparé (`Boutique`, branche `feat/artisan-addon`, plugin Paper 1.21.4 / J
 - **Éditeur** : `@artisan/boutique-editor`, module presence-gated monté sur `/m/boutique`. Sur un project migré (Table `categories` liée à `boutique:category`), l'écran renvoie vers le **form généré** de la source (onglet Sources, master-detail) — plus de form bespoke. Le form ad-hoc *(legacy)* ne sert que les projects pré-migration (`Project.moduleData.boutique`, dérive `exportFiles()` → `boutique/shop.yaml`).
 - **`/boutiqueadmin additem` (module, sur disque)** : `CapturedItemWriter` (repo Boutique) écrit dans la racine que le module possède — `items/<ci>.yml` verbatim + descripteur dans `.artisan/editor.yaml`, puis upsert de la row de `data/categories/` en **fichiers nus** (name = littéral, `lang/` intact). Sans Table déclarée, il refuse plutôt que d'inventer un format : un catalogue legacy est de toute façon converti au boot par `ShopDataMigrator`. Le backend n'intervient plus (ADR `server-disk-only-storage`).
 
-Checklist de validation cross-stack manuelle (Docker) : `docs/superpowers/specs/2026-07-08-boutique-addon-validation.md`.
+Checklist de validation cross-stack manuelle (Docker) : `docs/archive/specs/2026-07-08-boutique-addon-validation.md`.
 
 ---
 

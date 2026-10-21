@@ -15,7 +15,6 @@ import { parse } from "yaml";
 import { clearRegistry } from "../../packages/editor-sdk/src/contract/registry";
 import { projectToCommandV1 } from "./commandV1FromDomain";
 import { projectToDialogV1 } from "./dialogV1FromDomain";
-import { parseTitleNode } from "./menuTitleV1ToDomain";
 import { projectToFiles } from "./projectToFiles";
 
 const makeProject = (overrides: Partial<Project> = {}): Project =>
@@ -1204,222 +1203,6 @@ describe("projectToFiles — textarea title layer", () => {
   });
 });
 
-describe("parseTitleNode — textarea", () => {
-  it("round-trips a textarea with all fields", () => {
-    const result = parseTitleNode([
-      {
-        kind: "textarea",
-        value: "{i18n:k_ta}",
-        x: 12,
-        y: 8,
-        width: 120,
-        line_height: 11,
-        alignment: "center",
-        font_asset_id: "font_a",
-      },
-    ]);
-    expect(result).toEqual([
-      {
-        kind: "textarea",
-        value: { key: "k_ta" },
-        x: 12,
-        y: 8,
-        width: 120,
-        lineHeight: 11,
-        alignment: "center",
-        fontAssetId: "font_a",
-      },
-    ]);
-  });
-
-  it("applies defaults when line_height and alignment are absent", () => {
-    const result = parseTitleNode([
-      {
-        kind: "textarea",
-        value: "{i18n:k_ta}",
-        x: 0,
-        y: 0,
-      },
-    ]);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ width: 168, lineHeight: 10, alignment: "left" });
-  });
-
-  it("falls back to left for unknown alignment value", () => {
-    const result = parseTitleNode([
-      {
-        kind: "textarea",
-        value: "{i18n:k_ta}",
-        x: 0,
-        y: 0,
-        width: 168,
-        line_height: 10,
-        alignment: "junk",
-      },
-    ]);
-    expect(result).toHaveLength(1);
-    expect((result[0] as { alignment: string }).alignment).toBe("left");
-  });
-
-  it("rejects textarea without value.key and filters it out", () => {
-    const result = parseTitleNode([
-      {
-        kind: "textarea",
-        x: 0,
-        y: 0,
-        width: 168,
-        line_height: 10,
-        alignment: "left",
-      },
-    ]);
-    expect(result).toEqual([]);
-  });
-
-  it("clamps line_height to [1, 32] — below minimum becomes 1", () => {
-    const result = parseTitleNode([
-      {
-        kind: "textarea",
-        value: "{i18n:k_ta}",
-        x: 0,
-        y: 0,
-        width: 168,
-        line_height: 0,
-        alignment: "left",
-      },
-    ]);
-    expect(result).toHaveLength(1);
-    expect((result[0] as { lineHeight: number }).lineHeight).toBe(1);
-  });
-
-  it("clamps line_height to [1, 32] — above maximum becomes 32", () => {
-    const result = parseTitleNode([
-      {
-        kind: "textarea",
-        value: "{i18n:k_ta}",
-        x: 0,
-        y: 0,
-        width: 168,
-        line_height: 999,
-        alignment: "left",
-      },
-    ]);
-    expect(result).toHaveLength(1);
-    expect((result[0] as { lineHeight: number }).lineHeight).toBe(32);
-  });
-
-  it("parseTitleNode round-trips a textarea with width", () => {
-    const node = [
-      {
-        kind: "textarea",
-        value: { key: "k1" },
-        x: 0,
-        y: 0,
-        width: 120,
-        line_height: 10,
-        alignment: "left",
-      },
-    ];
-    const layers = parseTitleNode(node);
-    expect(layers[0]).toMatchObject({ kind: "textarea", width: 120 });
-  });
-
-  it("parseTitleNode defaults textarea width to 168 when absent", () => {
-    const node = [
-      {
-        kind: "textarea",
-        value: { key: "k1" },
-        x: 0,
-        y: 0,
-        line_height: 10,
-        alignment: "left",
-      },
-    ];
-    const layers = parseTitleNode(node);
-    expect(layers[0]).toMatchObject({ kind: "textarea", width: 168 });
-  });
-
-  it("parseTitleNode clamps textarea width to [8, 256]", () => {
-    const tooSmall = parseTitleNode([
-      { kind: "textarea", value: { key: "k" }, x: 0, y: 0, width: 0 },
-    ]);
-    expect(tooSmall[0]).toMatchObject({ width: 8 });
-    const tooLarge = parseTitleNode([
-      { kind: "textarea", value: { key: "k" }, x: 0, y: 0, width: 9999 },
-    ]);
-    expect(tooLarge[0]).toMatchObject({ width: 256 });
-  });
-});
-
-describe("parseTitleNode — legacy reader", () => {
-  it("normalises null to []", () => {
-    expect(parseTitleNode(null)).toEqual([]);
-  });
-
-  it("normalises undefined to []", () => {
-    expect(parseTitleNode(undefined)).toEqual([]);
-  });
-
-  it("treats a bare string as one plain (vanilla) layer", () => {
-    const result = parseTitleNode("Hello");
-    expect(result).toEqual([{ kind: "plain", value: { key: "Hello" } }]);
-  });
-
-  it("parses a single-layer map by wrapping it in an array", () => {
-    const result = parseTitleNode({
-      kind: "glyph",
-      asset_id: "asset_g1",
-      x: 10,
-      y: 2,
-    });
-    expect(result).toEqual([{ kind: "glyph", assetId: "asset_g1", x: 10, y: 2 }]);
-  });
-
-  it("parses an array of layered maps preserving order", () => {
-    const result = parseTitleNode([
-      { kind: "background", asset_id: "asset_bg" },
-      { kind: "glyph", asset_id: "asset_g1", x: 10, y: 2 },
-      {
-        kind: "text",
-        value: "{i18n:k_title}",
-        x: 8,
-        y: 5,
-        color: "#FFAA00",
-        font_asset_id: "asset_font",
-      },
-      { kind: "external_glyph", provider: "nexo", glyph_name: "g_x", x: 1, y: 1 },
-    ]);
-    expect(result).toEqual([
-      { kind: "background", assetId: "asset_bg" },
-      { kind: "glyph", assetId: "asset_g1", x: 10, y: 2 },
-      {
-        kind: "text",
-        value: { key: "k_title" },
-        x: 8,
-        y: 5,
-        color: "#FFAA00",
-        fontAssetId: "asset_font",
-      },
-      { kind: "external_glyph", provider: "nexo", glyphName: "g_x", x: 1, y: 1 },
-    ]);
-  });
-
-  it("drops layers with unknown kind", () => {
-    const result = parseTitleNode([
-      { kind: "background", asset_id: "asset_bg" },
-      { kind: "mystery", foo: "bar" },
-    ]);
-    expect(result).toEqual([{ kind: "background", assetId: "asset_bg" }]);
-  });
-
-  it("drops layers missing required fields", () => {
-    const result = parseTitleNode([
-      { kind: "background" }, // no asset_id
-      { kind: "text" }, // no value.key
-    ]);
-    expect(result).toEqual([]);
-  });
-});
-
 describe("projectToFiles — size field on text/textarea layers", () => {
   it("emits size on text layer when not default (8)", () => {
     const project = makeProject({
@@ -1525,11 +1308,10 @@ describe("projectToFiles — size field on text/textarea layers", () => {
     });
     const files = projectToFiles(project);
     const menuYaml = files["plugins/Artisan/projects/p_test/menus/m.yaml"]!;
-    const parsed = parse(menuYaml).title;
-    const reimported = parseTitleNode(parsed);
-    expect(reimported).toHaveLength(2);
-    expect((reimported[0] as { size?: number }).size).toBe(16);
-    expect((reimported[1] as { size?: number }).size).toBe(12);
+    const parsed = parse(menuYaml).title as { size?: number }[];
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0]?.size).toBe(16);
+    expect(parsed[1]?.size).toBe(12);
   });
 });
 
@@ -1680,30 +1462,5 @@ describe("projectToCommandV1 / projectToDialogV1", () => {
     expect(dlg).toMatchObject({ schema: "dialog/v1", id: "confirm" });
     // Button actions are structured steps.
     expect((dlg as any).buttons[0].actions).toEqual(["close_dialog"]);
-  });
-});
-
-/**
- * Asset refs by NAME (ADR `assets-on-server-disk`, decision 2).
- *
- * `asset: icone_diamant` will replace `asset_id: ast_9f3c1a`: on a disk a
- * human must be able to read, an opaque id is a riddle. Tolerant reading
- * ships BEFORE anything writes the new form — production must be able to
- * read the new shape before reaching it.
- */
-describe("asset refs — name and opaque id", () => {
-  it("reads `asset: <name>` as `asset_id: <id>`", () => {
-    expect(parseTitleNode([{ kind: "background", asset: "fond_boutique" }])).toEqual([
-      { kind: "background", assetId: "fond_boutique" },
-    ]);
-    expect(parseTitleNode([{ kind: "glyph", asset: "icone_diamant", x: 4, y: 6 }])).toEqual([
-      { kind: "glyph", assetId: "icone_diamant", x: 4, y: 6 },
-    ]);
-  });
-
-  it("still reads the old opaque form", () => {
-    expect(parseTitleNode([{ kind: "background", asset_id: "ast_9f3c1a" }])).toEqual([
-      { kind: "background", assetId: "ast_9f3c1a" },
-    ]);
   });
 });
