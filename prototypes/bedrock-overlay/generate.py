@@ -149,6 +149,9 @@ def chest_screen_mods_json():
     Redefining vanilla elements, or `replace` modifications inside the top half, had
     no visible effect (tests of 2026-10-21)."""
     on = {"$atext": "$container_title", "visible": overlay("$atext")}
+    # M1 menus also hide the bottom half (player inventory, hotbar, grey panel), the
+    # equivalent of Java's transparent texture; M2 menus keep it, for comparison.
+    vanilla = {"$atext": "$container_title", "visible": f"(not {contains('$atext', M1)})"}
     return {
         "namespace": "chest",
         # Our slot: vanilla container_item without the grey cell, icon stretched to the
@@ -158,7 +161,20 @@ def chest_screen_mods_json():
             "$background_images": "common.empty_panel",
             "$item_renderer_size": [CELL, CELL],
         },
-        "large_chest_panel/root_panel": {"modifications": [{
+        "large_chest_panel/root_panel": {"modifications": [
+          # Untested: `replace` had no effect in large_chest_panel_top_half; this path
+          # is the one where insert_back applies.
+          {"array_name": "controls", "operation": "replace", "control_name": "common_panel",
+           "value": {"common_panel@common.common_panel": vanilla}},
+          {"array_name": "controls", "operation": "replace", "control_name": "chest_panel",
+           "value": {"chest_panel": {"type": "panel", "layer": 5, **vanilla, "controls": [
+               {"large_chest_panel_top_half@chest.large_chest_panel_top_half": {}},
+               {"inventory_panel_bottom_half_with_label@common.inventory_panel_bottom_half_with_label": {}},
+               {"hotbar_grid@common.hotbar_grid_template": {}},
+               {"inventory_take_progress_icon_button@common.inventory_take_progress_icon_button": {}},
+               {"flying_item_renderer@common.flying_item_renderer": {"layer": 15}},
+           ]}}},
+          {
             "array_name": "controls", "operation": "insert_back",
             "value": [
                 # chest_panel is layer 5 and its slot contents reach about +15: go above.
@@ -170,7 +186,8 @@ def chest_screen_mods_json():
                     "offset": [GRID_X, GRID_Y], "grid_item_template": "chest.artisan_grid_item",
                     "layer": 31, **on}},
             ],
-        }]},
+          },
+        ]},
     }
 
 

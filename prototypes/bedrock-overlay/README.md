@@ -29,7 +29,9 @@ Le projet de test `bedrock_proto` a deux menus de 6 lignes, identiques sauf le m
 
 - `gifts` : marqueur invisible U+F8FF, un caractère privé que le pack dessine vide sur Bedrock
   (`font/glyph_F8.png`). Une séquence `§1§2§3§r` ne survivait pas à Geyser (test du 2026-10-21) ;
-- `gifts_token` : marqueur visible `#proto#`, en secours si le premier ne survit pas à MiniMessage ou Geyser.
+  `gifts` masque aussi toute la partie basse (inventaire du joueur, barre rapide, panneau gris),
+  l'équivalent Bedrock de la texture transparente Java (`replace` sur `large_chest_panel/root_panel`) ;
+- `gifts_token` : marqueur visible `#proto#`, partie basse gardée pour comparer, en secours si le premier ne survit pas à MiniMessage ou Geyser.
 
 Disposition : cadeaux (icône custom) en slots 10-16, X dessiné par le fond en slot 8 (item de clic
 transparent), tête de Notch en slot 49. CLAIM (slots 30-32) teste les tuiles : l'image est découpée
