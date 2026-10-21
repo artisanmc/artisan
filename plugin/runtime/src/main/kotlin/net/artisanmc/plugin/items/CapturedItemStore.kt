@@ -32,7 +32,10 @@ open class CapturedItemStore(
     private var stacks: Map<String, ItemStack> = emptyMap()
 
     /** [dirs] defaults to the registry scan; a caller on the global thread passes the loaded Snapshot's dirs so it never waits on a disk reload. */
-    fun reload(dirs: Map<String, File> = roots.all()) {
+    fun reload(dirs: Map<String, File> = roots.all()) = apply(read(dirs))
+
+    /** The items of [dirs], read and deserialized on any thread; [apply] swaps them in. */
+    fun read(dirs: Map<String, File>): Map<String, ItemStack> {
         val fresh = HashMap<String, ItemStack>()
         dirs.forEach { (projectId, projectDir) ->
             val itemsDir = File(projectDir, "items")
@@ -44,6 +47,10 @@ open class CapturedItemStore(
                     else logger?.warning("[Artisan] captured item '$id' ($projectId) failed to deserialize — skipped")
                 }
         }
+        return fresh
+    }
+
+    fun apply(fresh: Map<String, ItemStack>) {
         stacks = fresh
     }
 

@@ -160,8 +160,8 @@ class SyncedMenuProvider(
         override val io = Executor { task ->
             httpClient.dispatcher.executorService.execute { synchronized(roots) { task.run() } }
         }
-        override fun reload() {
-            reloadFromDisk()
+        override fun reload(projectIds: Set<String>?) {
+            reloadFromDisk(projectIds)
             onReload?.invoke(null)
         }
         override fun authoredBy(projectId: String, author: net.artisanmc.plugin.project.PublicationAuthor) {
