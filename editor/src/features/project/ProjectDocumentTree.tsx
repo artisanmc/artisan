@@ -253,9 +253,11 @@ export function DocumentGroups({
   const originOf = (id: string) => templateOrigin(templates, documentRelPath(project, id), t);
   // The commands the folder's module declares go with its own commands.
   const { nodes: moduleCommands } = useModuleCommands(project);
-  const hasCommands = groups.some((g) => g.type === "command" && g.items.some((it) => !it.folder));
+  // The command kind is seeded with the core kinds, so its group exists even without own
+  // commands; a second group of the same kind would be rendered twice (and, with two
+  // children keyed `command`, React duplicates them further on every re-render).
   const kinds =
-    moduleCommands.length > 0 && !hasCommands
+    moduleCommands.length > 0 && !groups.some((g) => g.type === "command")
       ? [...groups, { type: "command" as DocumentType, items: [] as ProjectDocumentItem[] }]
       : groups;
   return (

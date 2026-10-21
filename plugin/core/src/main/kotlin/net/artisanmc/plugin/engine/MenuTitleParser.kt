@@ -18,10 +18,6 @@ import net.artisanmc.plugin.model.MenuTitleLayer
  */
 object MenuTitleParser {
 
-    /** Default position used for legacy bare-string titles (matches the editor default). */
-    private const val DEFAULT_TEXT_X = 8
-    private const val DEFAULT_TEXT_Y = 5
-
     @Suppress("UNCHECKED_CAST")
     /**
      * `menuId` enables inline mode: text-bearing layers get their canonical
