@@ -33,6 +33,7 @@ import net.artisanmc.plugin.render.packets.MenuWindows
 import net.artisanmc.plugin.render.title.TitleCompiler
 import net.artisanmc.plugin.platform.ItemTexts
 import net.artisanmc.plugin.text.ArtisanText
+import net.artisanmc.plugin.platform.ServerPlatform
 
 class ArtisanMenuHolder : InventoryHolder {
     override fun getInventory(): Inventory = error("not used")
@@ -128,7 +129,8 @@ object MenuRenderer {
         // Empty anchor: the content goes out as packets. Registered before opening,
         // whose packets must already be rewritten; released if another plugin
         // cancelled the open (otherwise its next window would be captured).
-        windows?.open(player, inv, content, menu.yaml.vanillaTexture)
+        // Spigot titled the inventory with a `§` string: the composed title goes in the open packet.
+        windows?.open(player, inv, content, menu.yaml.vanillaTexture, title.takeUnless { ServerPlatform.paper })
         player.openInventory(inv)
         if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
         return MenuSession(menu.id, renderCtx, fill.activeClicks, fill.slotArgs, content, menu.escapeGoesBack)
@@ -240,8 +242,8 @@ object MenuRenderer {
 
     /**
      * Spigot (and MockBukkit) lack createInventory's Component overload: a `§` title
-     * there, which loses the fonts of composed titles (Paper keeps the Component,
-     * required for pixel-perfect font titles).
+     * there, replaced by the composed one in the open packet ([MenuWindows]), which
+     * keeps the fonts of pixel-perfect titles.
      * Branches on inventory_type: hopper/dropper create a container of the right
      * TYPE (a dropper has 9 slots like a 1-row chest but a distinct type), so size
      * alone is not enough. Chest keeps the size-based createInventory.

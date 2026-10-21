@@ -371,11 +371,6 @@ class SyncedMenuProvider(
                 ?: net.kyori.adventure.text.Component.text("Dialog '$dialogId' not found."))
             return
         }
-        // Dialogs are Paper's API; Spigot has none yet (sent as packets later).
-        if (!ServerPlatform.paper) {
-            logger?.warning("[Artisan] dialog '$dialogId' not opened for ${player.name}: dialogs need Paper")
-            return
-        }
         val executor = executorProvider?.invoke() ?: run {
             logger?.warning("openDialog called but executorProvider is null")
             return
@@ -391,7 +386,14 @@ class SyncedMenuProvider(
                 projectId = opened.projectId,
             ),
         )
-        DialogRenderer.open(player, dialog, lang, decorateNavigation(player, opened), executor)
+        val decorated = decorateNavigation(player, opened)
+        // Paper's dialog API on Paper, the BungeeCord one Spigot ships elsewhere.
+        if (ServerPlatform.paper) {
+            DialogRenderer.open(player, dialog, lang, decorated, executor)
+        } else {
+            runCatching { net.artisanmc.plugin.render.dialog.SpigotDialogRenderer.open(player, dialog, lang, decorated, executor) }
+                .onFailure { logger?.warning("[Artisan] dialog '$dialogId' not opened for ${player.name}: ${it.message}") }
+        }
     }
 
     /**
