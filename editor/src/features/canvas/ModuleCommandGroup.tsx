@@ -1,4 +1,5 @@
 import type { ProjectId } from "@/domain/types";
+import type { ModuleCommandNode } from "@/lib/moduleCommands";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import type Konva from "konva";
@@ -7,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import { Circle, Group, Rect, Text } from "react-konva";
 import { dispatchOpenSystemCommand } from "./canvasEvents";
 import { COMMAND_BOX } from "./menuLayout";
-import type { ModuleCommandNode } from "./moduleCommands";
 import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
 

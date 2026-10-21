@@ -33,7 +33,6 @@ import { useTranslation } from "react-i18next";
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import { documentCount } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
-import { moduleCommandsOf } from "@/features/canvas/moduleCommands";
 import {
   type ModuleGroupEntry,
   type PluginModule,
@@ -45,6 +44,7 @@ import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
 import { allCommands, overrideState } from "@/lib/commandOverride";
+import { moduleCommandsOf } from "@/lib/moduleCommands";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlServerId } from "@/lib/urlIds";
 import { useModulesStore } from "@/state/modulesStore";

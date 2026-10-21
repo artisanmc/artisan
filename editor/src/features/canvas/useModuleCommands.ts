@@ -1,7 +1,7 @@
 import type { Project } from "@/domain/types";
+import { type ModuleCommandNode, moduleCommandsOf, withModuleCommands } from "@/lib/moduleCommands";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useMemo } from "react";
-import { type ModuleCommandNode, moduleCommandsOf, withModuleCommands } from "./moduleCommands";
 
 /**
  * The module commands drawn on [project]'s board and the project as the board reads it

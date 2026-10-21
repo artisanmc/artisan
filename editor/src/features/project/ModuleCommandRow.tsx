@@ -1,5 +1,5 @@
 import { Tooltip } from "@/components/ui/tooltip";
-import type { ModuleCommandNode } from "@/features/canvas/moduleCommands";
+import type { ModuleCommandNode } from "@/lib/moduleCommands";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { Link, useParams } from "@tanstack/react-router";
 import { Puzzle } from "lucide-react";
