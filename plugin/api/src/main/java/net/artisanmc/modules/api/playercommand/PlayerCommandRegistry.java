@@ -65,6 +65,13 @@ public final class PlayerCommandRegistry implements OwnedRegistry {
         return commands.values().stream().map(Entry::declaration).toList();
     }
 
+    /** The module that registered the root command {@code id}, or null: registered outside a module, or unknown. */
+    @Internal
+    public synchronized @Nullable String ownerOf(String id) {
+        Entry entry = commands.get(id);
+        return entry == null ? null : entry.moduleId();
+    }
+
     /** The command or child {@code id}, or null. */
     @Beta
     public synchronized @Nullable PlayerCommandDeclaration find(String id) {

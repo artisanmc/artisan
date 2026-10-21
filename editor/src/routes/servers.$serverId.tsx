@@ -1,5 +1,9 @@
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
+import {
+  PROJECTS_RELOADED_EVENT,
+  type ProjectsReloaded,
+} from "@/features/project/onProjectsReloaded";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
 import { buildModuleList, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection";
@@ -148,27 +152,40 @@ function ServerOverview({
    * server is not a server without projects — announcing it empty would assert
    * an emptiness not observed.
    */
-  const reloadProjects = useCallback(() => {
-    if (!serverKeyId) return undefined;
-    let cancelled = false;
-    setStatus("loading");
-    listServerProjects(serverKeyId).then((res) => {
-      if (cancelled) return;
-      if (!res.ok) {
-        setProjects([]);
-        setStatus("unavailable");
-        setUnavailableReason(res.error);
-        return;
-      }
-      setProjects(diskProjectsToSummaries(serverKeyId, res.projectIds, res.projects));
-      setStatus("ready");
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [serverKeyId]);
+  const reloadProjects = useCallback(
+    (quiet = false) => {
+      if (!serverKeyId) return undefined;
+      let cancelled = false;
+      if (!quiet) setStatus("loading");
+      listServerProjects(serverKeyId).then((res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setProjects([]);
+          setStatus("unavailable");
+          setUnavailableReason(res.error);
+          return;
+        }
+        setProjects(diskProjectsToSummaries(serverKeyId, res.projectIds, res.projects));
+        setStatus("ready");
+      });
+      return () => {
+        cancelled = true;
+      };
+    },
+    [serverKeyId],
+  );
 
   useEffect(() => reloadProjects(), [reloadProjects]);
+
+  // A reload can add or drop folders (an add-on registers its own after the server started).
+  useEffect(() => {
+    const reloaded = (e: Event) => {
+      if ((e as CustomEvent<ProjectsReloaded>).detail.serverKeyId === serverKeyId)
+        reloadProjects(true);
+    };
+    window.addEventListener(PROJECTS_RELOADED_EVENT, reloaded);
+    return () => window.removeEventListener(PROJECTS_RELOADED_EVENT, reloaded);
+  }, [serverKeyId, reloadProjects]);
 
   // Config screens decide the grouping: the page loads them for ITS server
   // instead of waiting for the sidebar to do it — otherwise an owned project

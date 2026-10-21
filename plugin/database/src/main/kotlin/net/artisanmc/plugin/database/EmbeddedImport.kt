@@ -17,39 +17,45 @@ import javax.sql.DataSource
  */
 object EmbeddedImport {
     /** True when something was imported. */
-    fun run(source: DataSource, target: DataSource, dialect: DatabaseDialect, serverId: UUID, logger: Logger): Boolean =
-        source.connection.use { from -> target.connection.use { to -> run(from, to, dialect, serverId, logger) } }
+    fun run(
+        source: DataSource,
+        target: DataSource,
+        dialect: DatabaseDialect,
+        serverId: UUID,
+        logger: Logger,
+        t: ArtisanTables = ArtisanTables.DEFAULT,
+    ): Boolean = source.connection.use { from -> target.connection.use { to -> run(from, to, dialect, serverId, logger, t) } }
 
-    private fun run(from: Connection, to: Connection, dialect: DatabaseDialect, serverId: UUID, logger: Logger): Boolean {
+    private fun run(from: Connection, to: Connection, dialect: DatabaseDialect, serverId: UUID, logger: Logger, t: ArtisanTables): Boolean {
         val mark = "imported:$serverId"
-        if (ArtisanMeta.get(to, mark) != null) return false
-        val newRow = rowId(to, serverId) ?: return false
-        val recorded = to.prepareStatement("SELECT 1 FROM artisan_versions WHERE server_id = ?").use { s ->
+        if (ArtisanMeta.get(to, t, mark) != null) return false
+        val newRow = rowId(to, serverId, t) ?: return false
+        val recorded = to.prepareStatement("SELECT 1 FROM ${t.versions} WHERE server_id = ?").use { s ->
             s.setInt(1, newRow); s.executeQuery().use { it.next() }
         }
         // Imported before this mark existed: recorded as such, never imported again.
-        if (recorded) { ArtisanMeta.put(to, mark, Instant.now().toString()); return false }
-        if (!SchemaMigrator.hasTable(from, "artisan_versions")) return false
-        val oldRow = rowId(from, serverId) ?: return false
+        if (recorded) { ArtisanMeta.put(to, t, mark, Instant.now().toString()); return false }
+        if (!SchemaMigrator.hasTable(from, t.versions)) return false
+        val oldRow = rowId(from, serverId, t) ?: return false
 
         to.autoCommit = false
         try {
             var contents = 0
-            from.prepareStatement("SELECT hash, content FROM artisan_contents").use { s ->
+            from.prepareStatement("SELECT hash, content FROM ${t.contents}").use { s ->
                 s.executeQuery().use { rs ->
-                    while (rs.next()) contents += Contents.put(to, dialect, rs.getString(1), rs.getBytes(2))
+                    while (rs.next()) contents += Contents.put(to, dialect, t, rs.getString(1), rs.getBytes(2))
                 }
             }
             val ids = HashMap<Int, Int>()
             val restored = ArrayList<Pair<Int, Int>>()
             from.prepareStatement(
-                "SELECT id, project_key, folder, hash, manifest, author_id, author_name, created_at, restored_from FROM artisan_versions WHERE server_id = ? ORDER BY id",
+                "SELECT id, project_key, folder, hash, manifest, author_id, author_name, created_at, restored_from FROM ${t.versions} WHERE server_id = ? ORDER BY id",
             ).use { s ->
                 s.setInt(1, oldRow)
                 s.executeQuery().use { rs ->
                     while (rs.next()) {
                         val newId = to.prepareStatement(
-                            "INSERT INTO artisan_versions (server_id, project_key, folder, hash, manifest, author_id, author_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            "INSERT INTO ${t.versions} (server_id, project_key, folder, hash, manifest, author_id, author_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                             arrayOf("id"),
                         ).use {
                             it.setInt(1, newRow)
@@ -64,14 +70,14 @@ object EmbeddedImport {
                 }
             }
             for ((version, old) in restored) ids[old]?.let { source ->
-                to.prepareStatement("UPDATE artisan_versions SET restored_from = ? WHERE id = ?").use { it.setInt(1, source); it.setInt(2, version); it.executeUpdate() }
+                to.prepareStatement("UPDATE ${t.versions} SET restored_from = ? WHERE id = ?").use { it.setInt(1, source); it.setInt(2, version); it.executeUpdate() }
             }
             var drafts = 0
-            from.prepareStatement("SELECT project_key, id, draft, status, updated_at FROM artisan_drafts WHERE server_id = ?").use { s ->
+            from.prepareStatement("SELECT project_key, id, draft, status, updated_at FROM ${t.drafts} WHERE server_id = ?").use { s ->
                 s.setInt(1, oldRow)
                 s.executeQuery().use { rs ->
                     while (rs.next()) to.prepareStatement(
-                        "INSERT INTO artisan_drafts (server_id, project_key, id, draft, status, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO ${t.drafts} (server_id, project_key, id, draft, status, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
                     ).use {
                         it.setInt(1, newRow); it.setString(2, rs.getString(1)); it.setString(3, rs.getString(2)); it.setString(4, rs.getString(3))
                         it.setString(5, rs.getString(4)); it.setTimestamp(6, rs.getTimestamp(5))
@@ -79,7 +85,7 @@ object EmbeddedImport {
                     }
                 }
             }
-            ArtisanMeta.put(to, mark, Instant.now().toString())
+            ArtisanMeta.put(to, t, mark, Instant.now().toString())
             to.commit()
             logger.info("[Artisan] Imported from the embedded database: ${ids.size} versions, $drafts drafts, $contents contents")
             return ids.isNotEmpty() || drafts > 0
@@ -91,8 +97,8 @@ object EmbeddedImport {
         }
     }
 
-    private fun rowId(c: Connection, serverId: UUID): Int? =
-        c.prepareStatement("SELECT id FROM artisan_servers WHERE uuid = ?").use { s ->
+    private fun rowId(c: Connection, serverId: UUID, t: ArtisanTables): Int? =
+        c.prepareStatement("SELECT id FROM ${t.servers} WHERE uuid = ?").use { s ->
             s.setString(1, serverId.toString()); s.executeQuery().use { if (it.next()) it.getInt(1) else null }
         }
 }

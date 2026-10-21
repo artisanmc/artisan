@@ -63,7 +63,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
      */
     private fun openSuiteDatabase(web: net.artisanmc.plugin.hub.WebConfig, editorChannel: net.artisanmc.plugin.hub.EditorChannel) {
         val data = try {
-            database.dataSource(plugin).also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, database.dialect, logger) }
+            database.dataSource(plugin).also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, database.dialect, logger, database.tables) }
         } catch (e: Exception) {
             logger.warning("[Artisan] Suite database unavailable, offline servers and history are disabled: ${e.message}")
             if (web.leaf) logger.severe("[Artisan] Not connecting to the hub: the suite database cannot be opened.")
@@ -71,7 +71,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         }
         artisanData = data
         val name = plugin.networkName(web) ?: return
-        val registry = net.artisanmc.plugin.database.ServerRegistry(data, database.dialect, logger)
+        val registry = net.artisanmc.plugin.database.ServerRegistry(data, database.dialect, logger, database.tables)
         val refused = when (val result = runCatching { registry.register(serverId, name, java.time.Instant.now()) }.getOrElse {
             logger.warning("[Artisan] Server registry unavailable, offline servers will not be listed: ${it.message}")
             return
@@ -85,12 +85,12 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
             else -> null
         }
         if (refused != null) {
-            logger.severe("[Artisan] Not registered in artisan_servers: $refused")
+            logger.severe("[Artisan] Not registered in ${database.tables.servers}: $refused")
             return
         }
         serverRow = registry.rowId(serverId)
         importEmbeddedDatabase(data)
-        val suite = net.artisanmc.plugin.database.SuiteProjectData(data, database.dialect, ::row, logger)
+        val suite = net.artisanmc.plugin.database.SuiteProjectData(data, database.dialect, ::row, logger, tables = database.tables)
         suiteData = suite
         serverRegistry = registry
         editorChannel.onReload(suite::invalidate)
@@ -122,8 +122,8 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         )
         try {
             // The file may come from an older release: its tables are brought to this schema before they are read.
-            val source = embedded.dataSource("Artisan-import").also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, net.artisanmc.modules.api.database.DatabaseDialect.H2, logger) }
-            net.artisanmc.plugin.database.EmbeddedImport.run(source, target, database.dialect, serverId, logger)
+            val source = embedded.dataSource("Artisan-import").also { net.artisanmc.plugin.database.ArtisanSchema.migrate(it, net.artisanmc.modules.api.database.DatabaseDialect.H2, logger, database.tables) }
+            net.artisanmc.plugin.database.EmbeddedImport.run(source, target, database.dialect, serverId, logger, database.tables)
         } catch (e: Exception) {
             logger.warning("[Artisan] History of the embedded database not imported: ${e.message}")
         } finally {
@@ -141,7 +141,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
 
     /** The suite database's id (`artisan_meta`), what a hub and its leaves compare; null while it is not open. */
     fun databaseId(): String? =
-        artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it) }.getOrNull() }
+        artisanData?.let { runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(it, database.tables) }.getOrNull() }
 
     /** The [net.artisanmc.plugin.database.ServerRow] of a server id: this server's, read once, else looked up. */
     private fun row(serverId: String): net.artisanmc.plugin.database.ServerRow? {
@@ -156,7 +156,7 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
      */
     fun editorSessionStore() = object : net.artisanmc.plugin.hub.SessionStore {
         private fun <T> safe(block: (net.artisanmc.plugin.database.EditorSessionRows) -> T): T? {
-            val rows = net.artisanmc.plugin.database.EditorSessionRows(artisanData ?: return null)
+            val rows = net.artisanmc.plugin.database.EditorSessionRows(artisanData ?: return null, database.tables)
             return runCatching { block(rows) }.onFailure { logger.warning("[Artisan] Editor sessions not stored: ${it.message}") }.getOrNull()
         }
 

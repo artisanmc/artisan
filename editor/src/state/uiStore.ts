@@ -204,6 +204,13 @@ interface UiState {
    */
   centerRequest: CenterRequest | null;
   requestCenter: (projectId: string, docId: string) => void;
+  /**
+   * "Show only this folder" on a project's board, keyed by projectId
+   * (`features/canvas/folderFilter.ts`). Ephemeral, never persisted: a reload
+   * shows the whole board again.
+   */
+  boardFolders: Record<string, string>;
+  setBoardFolder: (projectId: string, folder: string | null) => void;
   clearCenterRequest: (nonce: number) => void;
 }
 
@@ -373,6 +380,12 @@ export const useUiStore = create<UiState>()(
       setMinimapVisible: (minimapVisible) => set({ minimapVisible }),
       documentViewport: null,
       setDocumentViewport: (viewport) => set({ documentViewport: viewport }),
+      boardFolders: {},
+      setBoardFolder: (projectId, folder) =>
+        set((s) => {
+          const { [projectId]: _, ...rest } = s.boardFolders;
+          return { boardFolders: folder ? { ...rest, [projectId]: folder } : rest };
+        }),
       centerRequest: null,
       requestCenter: (projectId, docId) =>
         set((s) => ({

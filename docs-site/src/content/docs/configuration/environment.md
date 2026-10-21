@@ -58,6 +58,7 @@ Artisan itself creates no tables. See [Database](/wiki/configuration/database/).
 | `database.user` | `"root"` | User. Ignored for H2. |
 | `database.password` | `""` | Password. Ignored for H2. Prefer an environment variable. |
 | `database.pool-size` | `4` | Maximum connections of **each** plugin's own pool (clamped to 1–50). A value left in `config.yml` by an older version is still read until this key is set. |
+| `database.table-prefix` | `"artisan_"` | In front of every table of the suite: Artisan's (`artisan_servers`) and each plugin's (`artisan_quests_…`). Change it only to share one database between two separate installations, and set the same value on every server of a network. Lower-case letters, digits and `_`, starting with a letter and ending with `_`, 16 characters at most. Changing it later does not rename the tables: Artisan refuses to open the database while the tables of the previous prefix are there, until you set it back, rename them, or delete `plugins/Artisan/database/table-prefix`. |
 
 ## `dev`
 

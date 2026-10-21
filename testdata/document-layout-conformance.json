@@ -1,0 +1,111 @@
+{
+  "note": "Where a module's Documents live on disk — the cross-language contract behind themed folders (docs/architecture/project-files.md § Dossiers thématiques). Input: every file path relative to the module folder, and the registered kind folders. A Document is `<folders…>/<kind dir>/<id>.yaml`: zero to three themed folders, then a kind folder holding files only. The id is the file name, unique per kind across the module; the themed path never enters it. Paths are sorted. Owned by: plugin DocumentLayoutConformanceTest + editor domain/documentLayout.test.ts.",
+  "cases": [
+    {
+      "name": "root kind folders, as before folders existed",
+      "kindDirs": ["menus", "commands", "dialogs"],
+      "paths": ["manifest.yaml", "menus/main.yaml", "commands/spawn.yaml", "dialogs/rules.yaml"],
+      "documents": [
+        { "path": "commands/spawn.yaml", "dir": "commands", "id": "spawn", "folder": "" },
+        { "path": "dialogs/rules.yaml", "dir": "dialogs", "id": "rules", "folder": "" },
+        { "path": "menus/main.yaml", "dir": "menus", "id": "main", "folder": "" }
+      ],
+      "errors": []
+    },
+    {
+      "name": "themed folders mix kinds, nested up to three levels",
+      "kindDirs": ["menus", "commands", "dialogs"],
+      "paths": [
+        "boutique/menus/shop.yaml",
+        "boutique/commands/shop.yaml",
+        "boutique/dialogs/welcome.yaml",
+        "boutique/armes/menus/swords.yaml",
+        "a/b/c/menus/deep.yaml"
+      ],
+      "documents": [
+        { "path": "a/b/c/menus/deep.yaml", "dir": "menus", "id": "deep", "folder": "a/b/c" },
+        { "path": "boutique/armes/menus/swords.yaml", "dir": "menus", "id": "swords", "folder": "boutique/armes" },
+        { "path": "boutique/commands/shop.yaml", "dir": "commands", "id": "shop", "folder": "boutique" },
+        { "path": "boutique/dialogs/welcome.yaml", "dir": "dialogs", "id": "welcome", "folder": "boutique" },
+        { "path": "boutique/menus/shop.yaml", "dir": "menus", "id": "shop", "folder": "boutique" }
+      ],
+      "errors": []
+    },
+    {
+      "name": "a module kind folder is read like a core one",
+      "kindDirs": ["menus", "quest_groups"],
+      "paths": ["quetes/quest_groups/daily.yaml", "quetes/menus/daily_quests.yaml"],
+      "documents": [
+        { "path": "quetes/menus/daily_quests.yaml", "dir": "menus", "id": "daily_quests", "folder": "quetes" },
+        { "path": "quetes/quest_groups/daily.yaml", "dir": "quest_groups", "id": "daily", "folder": "quetes" }
+      ],
+      "errors": []
+    },
+    {
+      "name": "an unregistered kind folder is nobody's Document",
+      "kindDirs": ["menus"],
+      "paths": ["quetes/quest_groups/daily.yaml", "quest_groups/weekly.yaml"],
+      "documents": [],
+      "errors": []
+    },
+    {
+      "name": "resources, metadata, root files and loose files are not Documents",
+      "kindDirs": ["menus"],
+      "paths": [
+        "manifest.yaml",
+        "lang/fr.yaml",
+        "items/sword.yml",
+        "data/menus/row1.yaml",
+        "models/menus/x.yaml",
+        ".artisan/editor.yaml",
+        "boutique/.hidden/menus/x.yaml",
+        "menus/.draft.yaml",
+        "menus/readme.txt",
+        "boutique/notes.yaml",
+        "boutique/shop.yaml"
+      ],
+      "documents": [],
+      "errors": []
+    },
+    {
+      "name": "the same id twice for one kind refuses both, other kinds keep it",
+      "kindDirs": ["menus", "commands"],
+      "paths": ["menus/shop.yaml", "boutique/menus/shop.yaml", "boutique/commands/shop.yaml"],
+      "documents": [
+        { "path": "boutique/commands/shop.yaml", "dir": "commands", "id": "shop", "folder": "boutique" }
+      ],
+      "errors": [
+        { "path": "boutique/menus/shop.yaml", "reason": "duplicate_id" },
+        { "path": "menus/shop.yaml", "reason": "duplicate_id" }
+      ]
+    },
+    {
+      "name": "a kind folder holds files only",
+      "kindDirs": ["menus", "commands"],
+      "paths": ["menus/boutique/shop.yaml", "boutique/menus/vente/sell.yaml", "menus/commands/x.yaml"],
+      "documents": [],
+      "errors": [
+        { "path": "boutique/menus/vente/sell.yaml", "reason": "kind_dir_subfolder" },
+        { "path": "menus/boutique/shop.yaml", "reason": "kind_dir_subfolder" },
+        { "path": "menus/commands/x.yaml", "reason": "kind_dir_subfolder" }
+      ]
+    },
+    {
+      "name": "a themed folder may not take a resource name, nor a bad one, nor nest past three",
+      "kindDirs": ["menus"],
+      "paths": [
+        "boutique/lang/menus/x.yaml",
+        "Boutique/menus/y.yaml",
+        "a b/menus/z.yaml",
+        "a/b/c/d/menus/w.yaml"
+      ],
+      "documents": [],
+      "errors": [
+        { "path": "Boutique/menus/y.yaml", "reason": "invalid_folder" },
+        { "path": "a b/menus/z.yaml", "reason": "invalid_folder" },
+        { "path": "a/b/c/d/menus/w.yaml", "reason": "too_deep" },
+        { "path": "boutique/lang/menus/x.yaml", "reason": "reserved_folder" }
+      ]
+    }
+  ]
+}

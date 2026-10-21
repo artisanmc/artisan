@@ -2,6 +2,7 @@ import type { Project } from "@/domain/types";
 import { useMemo, useState } from "react";
 import type { GroupDrag } from "./BoardGroupFrames";
 import { projectBoard } from "./autoLayout";
+import { boardForFolder } from "./folderFilter";
 
 /**
  * The whole board / focus difference lives here. The board shows every
@@ -11,14 +12,23 @@ import { projectBoard } from "./autoLayout";
  * marquee, hit-test, drop — consumes `layout` and follows unknowingly.
  *
  * A group header being dragged (`groupDrag`) shifts its members live.
+ * `folder` narrows the board to one themed folder (`boardForFolder`).
  */
-export function useStageBoard(project: Project | undefined, focus: string | undefined) {
+export function useStageBoard(
+  project: Project | undefined,
+  focus: string | undefined,
+  folder?: string,
+) {
   const [groupDrag, setGroupDrag] = useState<GroupDrag | null>(null);
   const baseBoard = useMemo(() => {
     if (focus || !project) return null;
     const arrangement = projectBoard(project);
-    return { ...arrangement, groups: arrangement.groups.filter((group) => group.kind === "group") };
-  }, [project, focus]);
+    const board = {
+      ...arrangement,
+      groups: arrangement.groups.filter((group) => group.kind === "group"),
+    };
+    return folder ? boardForFolder(project, board, folder) : board;
+  }, [project, focus, folder]);
   const board = useMemo(() => {
     if (!baseBoard || !groupDrag) return baseBoard;
     const group = baseBoard.groups.find((g) => g.key === groupDrag.key);
