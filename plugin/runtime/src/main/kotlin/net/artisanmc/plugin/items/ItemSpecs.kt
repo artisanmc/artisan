@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.Damageable
 import java.util.EnumSet
 import java.util.logging.Logger
+import net.artisanmc.plugin.platform.ItemTexts
 
 /**
  * A module's item spec (`api.items.build` / `matches`): the fields of a menu button's appearance,
@@ -38,8 +39,8 @@ class ItemSpecs(
             ?: return null
         if (app.count != null) item.amount = count
         item.itemMeta?.let { meta ->
-            app.title?.allValues()?.firstOrNull()?.let { meta.displayName(text(it)) }
-            if (app.lore.isNotEmpty()) meta.lore(app.lore.map { text(it.allValues().firstOrNull().orEmpty()) })
+            app.title?.allValues()?.firstOrNull()?.let { ItemTexts.setName(meta, text(it)) }
+            if (app.lore.isNotEmpty()) ItemTexts.setLore(meta, app.lore.map { text(it.allValues().firstOrNull().orEmpty()) })
             ItemDetails.applyToMeta(app, meta)
             item.itemMeta = meta
         }
@@ -60,7 +61,7 @@ class ItemSpecs(
         else EnumSet.of(ItemComparison.MATERIAL, ItemComparison.CUSTOM_ITEM)
         val meta = item.itemMeta ?: return set
         if (meta.hasDisplayName()) set += ItemComparison.NAME
-        if (!meta.lore().isNullOrEmpty()) set += ItemComparison.LORE
+        if (!ItemTexts.lore(meta).isNullOrEmpty()) set += ItemComparison.LORE
         if (item.enchantments.isNotEmpty()) set += ItemComparison.ENCHANTS
         if (modelData(item) != null) set += ItemComparison.CUSTOM_MODEL_DATA
         // Always: an item that cannot wear has no damage, so it holds; the editor ticks it alike.
@@ -71,8 +72,8 @@ class ItemSpecs(
     private fun agrees(criterion: ItemComparison, expected: ItemStack, stack: ItemStack): Boolean = when (criterion) {
         ItemComparison.MATERIAL -> expected.type == stack.type
         ItemComparison.CUSTOM_ITEM -> customId(expected) == customId(stack)
-        ItemComparison.NAME -> plain(expected.itemMeta?.takeIf { it.hasDisplayName() }?.displayName()) ==
-            plain(stack.itemMeta?.takeIf { it.hasDisplayName() }?.displayName())
+        ItemComparison.NAME -> plain(expected.itemMeta?.takeIf { it.hasDisplayName() }?.let(ItemTexts::name)) ==
+            plain(stack.itemMeta?.takeIf { it.hasDisplayName() }?.let(ItemTexts::name))
         ItemComparison.LORE -> lore(expected) == lore(stack)
         ItemComparison.ENCHANTS -> {
             val have = stack.enchantments
@@ -87,7 +88,7 @@ class ItemSpecs(
         runCatching { plugin.idFrom(stack) }.getOrNull()?.let { "${plugin.namespace}:$it" }
     }
 
-    private fun lore(stack: ItemStack): List<String> = stack.itemMeta?.lore()?.map { plain(it).orEmpty() }.orEmpty()
+    private fun lore(stack: ItemStack): List<String> = stack.itemMeta?.let(ItemTexts::lore)?.map { plain(it).orEmpty() }.orEmpty()
 
     private fun damage(stack: ItemStack): Int = (stack.itemMeta as? Damageable)?.takeIf { it.hasDamage() }?.damage ?: 0
 
