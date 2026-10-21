@@ -122,9 +122,17 @@ le port `Scheduler` (`core`, package `scheduling`) :
 | `async` | Ce qui ne touche pas au monde (I/O, notifications à l'éditeur). |
 
 `on*` exécute tout de suite si le thread courant convient, sinon planifie. `schedulerFor(plugin)`
-choisit `RegionizedScheduler` (Paper, Folia, Leaf) ou `BukkitTaskScheduler` (MockBukkit).
+choisit `RegionizedScheduler` (Paper, Folia, Leaf) ou `BukkitTaskScheduler` (Spigot, MockBukkit).
 `SchedulerBoundaryTest` refuse tout `Bukkit.getScheduler()`, `server.scheduler` ou
-`isPrimaryThread` hors de `PaperSchedulers.kt`. Téléporter : `teleportAsync`, jamais `teleport`.
+`isPrimaryThread` hors de `PaperSchedulers.kt`. Téléporter : `ServerPlatform.teleport`
+(`teleportAsync` sur Paper), jamais `teleport` directement.
+
+**Paper et Spigot.** Une méthode propre à Paper (`getCommandMap`, `teleportAsync`,
+`getVirtualHost`, `getOfflinePlayerIfCached`, `getMinecraftVersion`, `com.destroystokyo` …) ne
+s'appelle que derrière `ServerPlatform.paper` (`runtime`, package `platform`) ; sur Spigot la JVM ne
+la lie jamais. Une classe Paper-only (profils de têtes) vit dans un objet à part, chargé sur Paper
+seulement (`PaperSkins`) : le vérifieur de la JVM peut charger les types d'une méthode qu'on
+n'exécute pas. Le texte Adventure et l'API publique suivent (plan de support Spigot, étapes 3 et 5).
 
 Le hub ajoute ses propres threads : Jetty (`artisan-web`, 32 max) répond aux requêtes HTTP et
 WebSocket, et ne touche jamais le jeu directement. Le serveur du hub passe par `LocalServerLink`

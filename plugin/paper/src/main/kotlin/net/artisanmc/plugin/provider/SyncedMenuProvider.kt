@@ -230,7 +230,7 @@ class SyncedMenuProvider(
         // their registration (notifyModulesChanged).
         seedTemplates()
         val mcVersion = try {
-            org.bukkit.Bukkit.getServer().minecraftVersion
+            net.artisanmc.plugin.platform.ServerPlatform.minecraftVersion(org.bukkit.Bukkit.getServer())
         } catch (e: Exception) {
             "1.21.4"
         }
