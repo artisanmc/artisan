@@ -32,10 +32,6 @@ export function registerDocumentKindVisitors(kind: string, v: DocumentKindVisito
   visitors.set(kind, v);
 }
 
-export function documentKindVisitors(kind: string): DocumentKindVisitors | undefined {
-  return visitors.get(kind);
-}
-
 /** The text sites of one Document, none when its kind declares no visitor. */
 export function* documentLTextSites(kind: string, doc: Document): Generator<LTextSite> {
   const v = visitors.get(kind)?.ltextSites;
