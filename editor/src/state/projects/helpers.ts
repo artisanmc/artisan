@@ -278,13 +278,6 @@ export function validateArgOrder(args: CommandArg[]): void {
   }
 }
 
-/** Rekey canvasGroups membership when a Document id changes. */
-export function rewriteCanvasGroupMembers(project: Project, oldId: string, newId: string) {
-  for (const group of project.canvasGroups ?? []) {
-    group.nodeIds = group.nodeIds.map((id) => (id === oldId ? newId : id));
-  }
-}
-
 /** Rekey canvasEdges entries when a node id changes ("a->b" keys embed node ids). */
 export function rewriteCanvasEdgeIds(project: Project, oldId: string, newId: string) {
   if (!project.canvasEdges) return;

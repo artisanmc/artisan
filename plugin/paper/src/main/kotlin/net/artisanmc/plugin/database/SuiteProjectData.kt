@@ -28,12 +28,13 @@ class SuiteProjectData(
     dialect: DatabaseDialect,
     private val rowOf: (serverId: String) -> ServerRow?,
     private val logger: Logger,
+    tables: ArtisanTables = ArtisanTables.DEFAULT,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    val versions = VersionStore(data, dialect)
-    private val states = ServerStateStore(data)
-    private val draftRows = DraftRows(data)
-    private val contents = ContentRows(data, dialect)
+    val versions = VersionStore(data, dialect, tables)
+    private val states = ServerStateStore(data, tables)
+    private val draftRows = DraftRows(data, tables)
+    private val contents = ContentRows(data, dialect, tables)
     private val mapper = ObjectMapper()
 
     private class Cached(val at: Long, val row: ServerRow?, val state: LoadedState?)

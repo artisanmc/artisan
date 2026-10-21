@@ -1,4 +1,5 @@
-import { listDocumentKinds } from "./documentKinds";
+import { documentKindDef, listDocumentKinds } from "./documentKinds";
+import { documentPath } from "./documentLayout";
 import type { Command, Dialog, Document, Menu, Project } from "./types";
 
 /**
@@ -93,4 +94,20 @@ export function emptyDocuments(): Record<string, Document[]> {
   const out: Record<string, Document[]> = {};
   for (const def of listDocumentKinds()) out[def.kind] = [];
   return out;
+}
+
+/**
+ * The move a rename makes on disk, relative to the module folder: the file keeps
+ * its kind folder and its themed folder, only its name changes. Read after the
+ * rename, under `newId`.
+ */
+export function renamedDocumentFiles(
+  project: Documents | null | undefined,
+  kind: string,
+  oldId: string,
+  newId: string,
+): { from: string; to: string } {
+  const dir = documentKindDef(kind).dir;
+  const folder = documentsOf(project, kind).find((d) => d.id === newId)?.folder;
+  return { from: documentPath(dir, oldId, folder), to: documentPath(dir, newId, folder) };
 }

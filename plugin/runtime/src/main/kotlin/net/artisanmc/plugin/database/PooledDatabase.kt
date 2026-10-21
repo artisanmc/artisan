@@ -30,6 +30,7 @@ fun readDatabaseSettings(
         poolSize = env("pool-size", config.getInt("database.pool-size", DatabaseSettings.DEFAULT_POOL_SIZE).toString())
             .toIntOrNull() ?: DatabaseSettings.DEFAULT_POOL_SIZE,
         dataFolder = dataFolder,
+        tablePrefix = env("table-prefix", TablePrefix.DEFAULT),
     )
 }
 
@@ -38,15 +39,35 @@ fun readDatabaseSettings(
  * disabling plugin closes through it, see [onPluginDisable].
  */
 class PooledDatabase(
-    settings: () -> DatabaseSettings,
+    private val settings: () -> DatabaseSettings,
     logger: Logger,
     private val later: (Long, () -> Unit) -> Unit = { _, task -> task() },
 ) : DatabaseApi, Listener {
     private val pools = ConnectionPools(settings, logger)
 
+    /** Read once: tables keep the names they were opened with until the next start. */
+    private val prefix: String by lazy { TablePrefix.validate(settings().tablePrefix) }
+
+    /** [TablePrefix.checkUnchanged], once, on the first pool opened; its failure is every later call's. */
+    @Volatile private var prefixChecked: Result<Unit>? = null
+
+    /** Artisan's own table names. */
+    val tables: ArtisanTables get() = ArtisanTables(getTablePrefix())
+
     override fun getDialect(): DatabaseDialect = pools.dialect
 
-    override fun dataSource(owner: Plugin): DataSource = pools.dataSource(owner.name)
+    override fun dataSource(owner: Plugin): DataSource {
+        val pool = pools.dataSource(owner.name)
+        val checked = prefixChecked ?: synchronized(this) {
+            prefixChecked ?: runCatching { TablePrefix.checkUnchanged(prefix, settings().prefixFile, pool) }.also { prefixChecked = it }
+        }
+        checked.getOrElse { pools.close(owner.name); throw it }
+        return pool
+    }
+
+    override fun getTablePrefix(): String = prefix
+
+    override fun tablePrefix(module: String): String = TablePrefix.module(prefix, module)
 
     /**
      * The event fires before the plugin's onDisable, which may still save to its pool: the pool

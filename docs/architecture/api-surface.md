@@ -365,13 +365,15 @@ api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
 
 ### `net.artisanmc.modules.api.database.DatabaseApi` (`@Beta`)
 
-`api.database.dataSource(plugin)` — the database lent to the plugins of the suite (ADR `suite-foundation-database`): one HikariCP pool **per plugin**, opened on the first call (it checks a connection, so call it from `onEnable`), returned as is afterwards, closed 5 seconds after that plugin is disabled (its `onDisable` can still save; a reloaded plugin gets the same pool back). Credentials are set once by the admin in `plugins/Artisan/environment.yml`; only `javax.sql.DataSource` crosses the boundary, the plugin brings its own access layer and migrations. `dialect` (`DatabaseDialect`: `H2`, `MYSQL`, `MARIADB`, Java enum) lets a plugin branch on the few statements that differ. All plugins share one database (the configured MySQL/MariaDB one, or a single H2 file), so prefix your tables. Misconfiguration or an unreachable server throws `IllegalStateException` naming the plugin and the file to fix. Default `DatabaseApi.NONE` throws on every call. Since 1.7.0; a single shared H2 file since 1.7.1 (1.7.0 kept one file per plugin).
+`api.database.dataSource(plugin)` — the database lent to the plugins of the suite (ADR `suite-foundation-database`): one HikariCP pool **per plugin**, opened on the first call (it checks a connection, so call it from `onEnable`), returned as is afterwards, closed 5 seconds after that plugin is disabled (its `onDisable` can still save; a reloaded plugin gets the same pool back). Credentials are set once by the admin in `plugins/Artisan/environment.yml`; only `javax.sql.DataSource` crosses the boundary, the plugin brings its own access layer and migrations. `dialect` (`DatabaseDialect`: `H2`, `MYSQL`, `MARIADB`, Java enum) lets a plugin branch on the few statements that differ. All plugins share one database (the configured MySQL/MariaDB one, or a single H2 file): a plugin names every table, index and constraint it creates `tablePrefix(module) + name`, where `tablePrefix("quests")` is `database.table-prefix` (`artisan_` by default, `getTablePrefix()`) + `quests_`. `module` is one lower-case word, not a first segment of Artisan's own tables (`servers`, `meta`, `versions`, `drafts`, `editor`…), else `IllegalArgumentException`; an invalid `table-prefix` throws it too. Misconfiguration or an unreachable server throws `IllegalStateException` naming the plugin and the file to fix. Default `DatabaseApi.NONE` throws on every call. Since 1.7.0; a single shared H2 file since 1.7.1 (1.7.0 kept one file per plugin).
 
 | Member | Type | Since |
 |---|---|---|
 | `ArtisanAPI.database` | `DatabaseApi` | 1.7.0 |
 | `dialect` | `DatabaseDialect` | 1.7.0 |
 | `dataSource(owner: Plugin)` | `javax.sql.DataSource` | 1.7.0 |
+| `getTablePrefix()` | `String` | 2.9.0 |
+| `tablePrefix(module: String)` | `String` | 2.9.0 |
 
 ### `net.artisanmc.modules.api.menu.MenuApi` (`@Beta`)
 
@@ -623,4 +625,4 @@ The artifact contains only the `net.artisanmc.modules.api.*` packages filtered t
 - **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.3"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
 - **REST API** : versioned under `/api/v1/*`, served by the hub to the editor shipped in the same jar. See `versioning.md` §5.
 - **YAML schemas** : `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `ProjectReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
-- **Database** : Artisan owns no tables; each suite plugin migrates its own through `DatabaseApi`. See `versioning.md` §6.
+- **Database** : each suite plugin migrates its own tables through `DatabaseApi`, named with `tablePrefix(module)`. See `versioning.md` §6.

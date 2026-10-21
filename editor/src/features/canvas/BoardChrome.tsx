@@ -69,6 +69,7 @@ export function BoardChrome({
   groupDialog,
   onGroupDialogChange,
   onCreateAt,
+  folder,
 }: {
   project: Project;
   board: ProjectBoard | null;
@@ -79,13 +80,15 @@ export function BoardChrome({
   groupDialog: GroupDialogState;
   onGroupDialogChange: (dialog: GroupDialogState) => void;
   onCreateAt: (kind: CreatableKind, at: Point) => void;
+  /** The folder the board is narrowed to, if any. */
+  folder?: string;
 }) {
   const { t } = useTranslation();
   const minimapVisible = useUiStore((s) => s.minimapVisible);
   const origin = { x: 40, y: 40 };
   return (
     <>
-      {Object.keys(layout).length === 0 && !board?.groups?.length && (
+      {!folder && Object.keys(layout).length === 0 && !board?.groups?.length && (
         // pointer-events-none lets right-click / drag fall through to the Konva
         // stage below (so the create context-menu still works); only the action
         // buttons opt back into pointer events.
@@ -124,6 +127,7 @@ export function BoardChrome({
         project={project}
         dialog={groupDialog}
         onDialogChange={onGroupDialogChange}
+        folder={folder}
       />
       {minimapVisible && size.w > 0 && size.h > 0 && (
         <CanvasMinimap
