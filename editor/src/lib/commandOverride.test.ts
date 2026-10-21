@@ -65,17 +65,18 @@ describe("command overrides", () => {
       "cooldown: { id: shared, duration_seconds: 5 }",
     ].join("\n");
     const out = serializeOverride(
-      "attribution:open",
+      { ...command("attribution:open"), permission: "artisan.open" },
       {
         enabled: true,
         name: " Parrain ",
         aliases: ["p", " "],
+        permission: "artisan.open",
         description: { fr: "Parrainage", en: "" },
         cooldown: { duration: 10, scope: "player" },
       },
       previous,
     );
-    expect(parse(out ?? "")).toEqual({
+    expect(parse(out)).toEqual({
       schema: "command_override/v1",
       command: "attribution:open",
       requirements: [{ type: "permission", permission: "x" }],
@@ -84,16 +85,60 @@ describe("command overrides", () => {
       aliases: ["p"],
       description: { fr: "Parrainage" },
     });
+    expect(out).toContain("# permission: artisan.open");
   });
 
-  it("deletes the file once nothing is left to override", () => {
+  it("keeps the file once nothing is left to override, the module's values as comments", () => {
+    const declared: PlayerCommand = {
+      ...command("attribution:open"),
+      aliases: ["parrain"],
+      permission: "artisan.open",
+      description: { fr: "Ouvre", en: "Opens" },
+    };
     const previous = "schema: command_override/v1\ncommand: attribution:open\nenabled: false\n";
-    expect(serializeOverride("attribution:open", { enabled: true }, previous)).toBeNull();
+    const fields = {
+      enabled: true,
+      name: "open",
+      aliases: ["parrain"],
+      description: { en: "Opens", fr: "Ouvre" },
+    };
+    const out = serializeOverride(declared, fields, previous);
+    expect(out).toBe(
+      [
+        "schema: command_override/v1",
+        "command: attribution:open",
+        "# The module's values. Uncomment a line to change it; delete this file to go back to them.",
+        "# name: open",
+        "# aliases:",
+        "#   - parrain",
+        "# permission: artisan.open",
+        "# description:",
+        "#   en: Opens",
+        "#   fr: Ouvre",
+        "",
+      ].join("\n"),
+    );
+    const stored = parseOverride("attribution", "overrides/command/a.yaml", out);
+    expect(stored?.fields).toEqual({ enabled: true });
+    expect(overrideState(stored ?? undefined)).toBe("default");
+    expect(serializeOverride(declared, fields, previous, false)).not.toContain("# name:");
   });
 
-  it("keeps an empty permission: the command needs none", () => {
-    const out = serializeOverride("attribution:open", { enabled: true, permission: "" }, null);
-    expect(parse(out ?? "")).toMatchObject({ permission: "" });
+  it("keeps an empty permission when the module asks for one: the command needs none", () => {
+    const declared = { ...command("attribution:open"), permission: "artisan.open" };
+    const out = serializeOverride(declared, { enabled: true, permission: "" }, null);
+    expect(parse(out)).toMatchObject({ permission: "" });
+    expect(
+      parse(serializeOverride(command("a:b"), { enabled: true, permission: "" }, null)),
+    ).toEqual({ schema: "command_override/v1", command: "a:b" });
+  });
+
+  it("counts as modified only a file that sets something", () => {
+    const read = (yaml: string) =>
+      parseOverride("x", "overrides/command/x.yaml", yaml) ?? undefined;
+    expect(overrideState(read("command: a:b\n# name: c\n"))).toBe("default");
+    expect(overrideState(read("command: a:b\nname: c\n"))).toBe("modified");
+    expect(overrideState(read("command: a:b\nsteps: [{ message: hi }]\n"))).toBe("modified");
   });
 
   it("writes beside an existing override, else in its module's folder, else its namespace's", () => {

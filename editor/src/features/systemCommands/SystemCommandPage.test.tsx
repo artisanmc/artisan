@@ -44,9 +44,23 @@ describe("SystemCommandPage", () => {
     });
   });
 
-  it("shows the module's values and writes only what the admin changed", async () => {
+  const commented = [
+    "# The module's values. Uncomment a line to change it; delete this file to go back to them.",
+    "# name: attribution",
+    "# aliases:",
+    "#   - parrain",
+    "# permission: artisan.attribution",
+    "# description:",
+    "#   fr: Ouvre le parrainage",
+    "",
+  ].join("\n");
+
+  it("fills every field with the module's value and writes only what the admin changed", async () => {
     render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
-    expect(screen.getByPlaceholderText("artisan.attribution")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("artisan.attribution")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("attribution")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("parrain")).toBeInTheDocument();
+    expect(screen.getByText("Ouvre le parrainage")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("switch"));
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() => expect(configWrite).toHaveBeenCalled());
@@ -56,14 +70,35 @@ describe("SystemCommandPage", () => {
       files: [
         {
           path: "overrides/command/attribution.open.yaml",
-          content: "schema: command_override/v1\ncommand: attribution:open\nenabled: false\n",
+          content: `schema: command_override/v1\ncommand: attribution:open\nenabled: false\n${commented}`,
         },
       ],
-      deletes: [],
     });
   });
 
-  it("deletes the file when the form is back to the module's values", async () => {
+  it("puts the root's name in its card, renamed as typed", () => {
+    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    fireEvent.change(screen.getByDisplayValue("attribution"), { target: { value: "parrainage" } });
+    expect(screen.getByText("/parrainage")).toBeInTheDocument();
+  });
+
+  it("turns a field's reset on only while it differs from the module, and puts the value back", () => {
+    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    const reset = () =>
+      screen.getByRole("button", { name: "Permission : revenir à la valeur du module" });
+    expect(reset()).toBeDisabled();
+    fireEvent.change(screen.getByDisplayValue("artisan.attribution"), {
+      target: { value: "artisan.other" },
+    });
+    expect(reset()).toBeEnabled();
+    fireEvent.click(reset());
+    expect(screen.getByDisplayValue("artisan.attribution")).toBeInTheDocument();
+    expect(reset()).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
+  });
+
+  it("writes the module's values as comments when the form is back to them", async () => {
     useSystemCommandsStore.setState({
       overrides: {
         "attribution:open": {
@@ -82,8 +117,12 @@ describe("SystemCommandPage", () => {
     await waitFor(() =>
       expect(configWrite).toHaveBeenCalledWith("sk_1", {
         projectId: "lobby",
-        files: [],
-        deletes: ["overrides/command/open.yaml"],
+        files: [
+          {
+            path: "overrides/command/open.yaml",
+            content: `schema: command_override/v1\ncommand: attribution:open\n${commented}`,
+          },
+        ],
       }),
     );
   });

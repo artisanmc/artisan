@@ -181,6 +181,15 @@ export default {
     removeLanguage: "Remove language",
   },
   translations: {
+    commandText: {
+      description: "/{{command}} · description",
+      cooldown_message: "/{{command}} · cooldown message",
+    },
+    commandTextHint:
+      "Text of a command built into the module. It is saved in the command's override file, apart from the folder.",
+    commandTextsPending_one: "{{count}} command text changed, not written to the server yet.",
+    commandTextsPending_other: "{{count}} command texts changed, not written to the server yet.",
+    commandTextsSave: "Save command texts",
     statTranslated: "{{translated}} / {{total}} translated in {{lang}}",
     statMissing: "{{count}} missing",
     statComplete: "complete",
@@ -1222,7 +1231,7 @@ export default {
   systemCommands: {
     eyebrow: "System command · {{module}}",
     intro:
-      "Empty fields keep the module's value. Saving writes an override file in the module's folder; going back to the module's values deletes it.",
+      "Every field starts from the module's value. The button beside a field turns on once you change it and puts that value back. Saving writes the command's override file in the module's folder.",
     loading: "Reading the server's commands…",
     notFound: "This server does not declare this command.",
     logicKept:
@@ -1230,11 +1239,12 @@ export default {
     enabled: "Enabled",
     name: "Name",
     aliases: "Aliases",
-    aliasesHint: "Comma-separated. Empty: the module's.",
-    moduleValueHint: "Empty: the module's value.",
+    aliasesHint: "Comma-separated. Empty: no alias.",
     none: "None",
     permission: "Permission",
-    noPermission: "No permission required",
+    permissionHint: "Empty: no permission required.",
+    resetField: "{{field}}: back to the module's value",
+    noMessage: "No message",
     description: "Description",
     allLanguages: "all",
     cooldown: "Cooldown between uses (seconds)",

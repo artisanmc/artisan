@@ -37,6 +37,7 @@ import { FormField } from "@/components/ui/form-field";
 import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
 import { Input } from "@/components/ui/input";
+import { ResetButton } from "@/components/ui/reset-button";
 import {
   Sheet,
   SheetBody,
@@ -410,6 +411,19 @@ export function DesignSystemPage() {
             <FormField label="Label" hint="Hint" className="max-w-xs">
               <Input placeholder="Placeholder" />
             </FormField>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<ResetButton modified onReset label>"}
+            </span>
+            <div className="flex max-w-xs items-center gap-1">
+              <Input defaultValue="Changed" />
+              <ResetButton modified onReset={() => {}} label="Reset" />
+            </div>
+            <div className="flex max-w-xs items-center gap-1">
+              <Input defaultValue="Original" />
+              <ResetButton modified={false} onReset={() => {}} label="Reset" />
+            </div>
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Badge variant>"}</span>
