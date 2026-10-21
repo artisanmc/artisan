@@ -13,18 +13,18 @@ import type { Edge } from "@/features/canvas/deriveEdges";
 import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
 import { fitViewport } from "@/features/canvas/focusViewport";
 import { type BoardGroup, groupEdges, serverBoard } from "@/features/canvas/groupedBoard";
-import {
-  type ModuleCommandNode,
-  isModuleCommandId,
-  moduleCommandsOf,
-  withModuleCommands,
-} from "@/features/canvas/moduleCommands";
 import { type BoardNode, deriveServerGraph } from "@/features/canvas/serverGraph";
 import { usePanZoom } from "@/features/canvas/usePanZoom";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
+import {
+  type ModuleCommandNode,
+  isModuleCommandId,
+  moduleCommandsOf,
+  withModuleCommands,
+} from "@/lib/moduleCommands";
 import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useCssVar } from "@/lib/themeColors";

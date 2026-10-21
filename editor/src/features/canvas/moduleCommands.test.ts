@@ -1,8 +1,8 @@
 import type { Project } from "@/domain/types";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { type StoredOverride, parseOverride } from "@/lib/commandOverride";
+import { isModuleCommandId, moduleCommandsOf, withModuleCommands } from "@/lib/moduleCommands";
 import { describe, expect, it } from "vitest";
-import { isModuleCommandId, moduleCommandsOf, withModuleCommands } from "./moduleCommands";
 import { deriveServerGraph, documentKey } from "./serverGraph";
 
 const command = (id: string, over: Partial<PlayerCommand> = {}): PlayerCommand => ({
