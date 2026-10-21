@@ -200,7 +200,12 @@ class ArtisanCommand(
         val cfg = plugin.currentConfig()
         if (!(cfg.web.enabled && cfg.web.leaf)) {
             if (plugin.editor == null) return Chat.send(sender, lang.get("artisan.editor_disabled", senderLang))
-            return done(plugin.editorSessions.closeAll(targetId))
+            // The stored sessions are deleted and counted in the database: off the main thread.
+            plugin.scheduler.async {
+                val closed = plugin.editorSessions.closeAll(targetId)
+                if (plugin.isEnabled) plugin.scheduler.global { done(closed) }
+            }
+            return
         }
         val provider = plugin.menuProvider as? SyncedMenuProvider ?: return done(null)
         provider.requestEditorLogout(targetId).whenComplete { reply, _ ->

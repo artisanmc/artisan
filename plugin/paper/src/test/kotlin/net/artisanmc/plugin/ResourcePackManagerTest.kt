@@ -181,6 +181,26 @@ class ResourcePackManagerTest {
     }
 
     @Test
+    fun `a pack already applied is not handed to the delegator again, a new one is`() {
+        val delegator = RecordingDelegator()
+        val mgr = InlineManager(plugin, config(reloadCommand = "n reload"), null, delegator)
+        val info = ResourcePackInfo.from("http://player", "http://internal", SAMPLE_HASH)
+        mgr.onUpdate(info)
+        // The hub announces the same pack again: a reconnection, `/artisan reload`.
+        mgr.onUpdate(ResourcePackInfo.from("http://player2", "http://internal", SAMPLE_HASH))
+        assertEquals(1, delegator.calls.size)
+        assertEquals(1, mgr.reloads)
+        assertEquals("http://player2", mgr.currentPackInfo?.url, "the addresses are still taken")
+        val other = "b".repeat(40)
+        mgr.onUpdate(ResourcePackInfo.from("http://player", "http://internal", other))
+        assertEquals(listOf(SAMPLE_HASH, other), delegator.calls.map { it.hash })
+        // Cleared, then announced again: applied again.
+        mgr.onUpdate(null)
+        mgr.onUpdate(ResourcePackInfo.from("http://player", "http://internal", other))
+        assertEquals(3, delegator.calls.size)
+    }
+
+    @Test
     fun `onUpdate with null does not call the delegator`() {
         val delegator = RecordingDelegator()
         val mgr = InlineManager(plugin, config(), plugin.logger, delegator)

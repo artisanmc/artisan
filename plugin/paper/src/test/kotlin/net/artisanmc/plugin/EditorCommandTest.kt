@@ -68,6 +68,9 @@ class EditorCommandTest {
             assertEquals(EditorPermissions.ALL.toSet(), session.permissions)
 
             cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("editor", "logout"))
+            // The stored sessions are closed off the main thread, the answer comes back on it.
+            server.scheduler.waitAsyncTasksFinished()
+            server.scheduler.performOneTick()
             val closed = drainMessages(sender)
             assertTrue(closed.any { it.contains("1 editor session") }, "Console sessions are closed: $closed")
             assertNull(plugin.editorSessions.find(session.id))
