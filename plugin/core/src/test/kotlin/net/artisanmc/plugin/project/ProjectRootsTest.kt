@@ -100,6 +100,25 @@ class ProjectRootsTest {
         assertEquals(projectDir, all["boutique_shop"])
     }
 
+    @Test fun `all is a listing kept until invalidated`() {
+        assertEquals(setOf("user_proj"), roots.all().keys)
+        File(coreRoot, "by_hand").mkdirs()
+        assertEquals(setOf("user_proj"), roots.all().keys, "a folder made by hand waits for the next reload")
+        roots.invalidate()
+        assertEquals(setOf("by_hand", "user_proj"), roots.all().keys)
+        roots.register("boutique_shop", addonDir)
+        assertEquals(setOf("boutique_shop", "by_hand", "user_proj"), roots.all().keys, "a registration lists itself")
+    }
+
+    @Test fun `a scan reads each key once and serves it from the listing`() {
+        val key = roots.key("user_proj")
+        roots.all()
+        File(coreRoot, "user_proj/.artisan/project-id").writeText("changed-on-disk\n")
+        assertEquals(key, roots.key("user_proj"), "served from the listing, not the disk")
+        roots.invalidate()
+        assertEquals("changed-on-disk", roots.key("user_proj"))
+    }
+
     @Test fun `all excludes hidden dirs in the core root`() {
         assertFalse(roots.all().keys.any { it.startsWith(".") })
     }
