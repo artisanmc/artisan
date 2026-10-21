@@ -170,8 +170,13 @@ class ProjectReader(
         return layout.documents.sortedBy { it.id }
     }
 
-    fun readAll(): List<RuntimeProject> =
-        roots.all().mapNotNull { (projectId, dir) ->
+    fun readAll(): List<RuntimeProject> = read(roots.all())
+
+    /** Only the projects [ids], read like [readAll]: a folder just registered. */
+    fun read(ids: Set<String>): List<RuntimeProject> = read(roots.all().filterKeys { it in ids })
+
+    private fun read(dirs: Map<String, File>): List<RuntimeProject> =
+        dirs.mapNotNull { (projectId, dir) ->
             // Tolerant per project: a broken manifest/lang never nukes the
             // whole reload (which would fail plugin enable + cascade to
             // add-ons that `depend: Artisan`).
