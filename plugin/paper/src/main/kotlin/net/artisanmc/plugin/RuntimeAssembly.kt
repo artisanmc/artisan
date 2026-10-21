@@ -102,6 +102,18 @@ internal class RuntimeAssembly(
         }
     }
 
+    /**
+     * Each module command without an override gets its file, the module's values commented out,
+     * in its module's first folder by name (`CommandOverrideStore.seed`). Run by the provider
+     * with its other disk writes, which then reloads.
+     */
+    private fun seedOverrides(): Boolean =
+        commandOverrides.seed(api.playerCommands) { moduleId ->
+            projectRoots.all().entries
+                .filter { projectRoots.ownerOf(it.key) == moduleId }
+                .minByOrNull { it.key }?.value
+        }
+
     /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
     private fun applyReload() {
         capturedItems.reload((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
@@ -173,6 +185,7 @@ internal class RuntimeAssembly(
         editorBundles = localEditorBundles::find,
         templates = { api.templates },
         seedLang = { api.translations.defaultLang },
+        seedOverrides = ::seedOverrides,
         announcement = plugin::announcement,
         declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,

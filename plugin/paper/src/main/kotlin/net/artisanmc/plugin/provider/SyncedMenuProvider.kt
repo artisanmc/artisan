@@ -60,6 +60,8 @@ class SyncedMenuProvider(
     private val templates: () -> net.artisanmc.modules.api.template.TemplateRegistry? = { null },
     /** The server's language, given to the projects a template seeds. */
     private val seedLang: () -> String = { "en" },
+    /** Writes the module commands' default override files; true when it wrote one (`CommandOverrideStore.seed`). */
+    private val seedOverrides: () -> Boolean = { false },
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
     /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */
@@ -466,20 +468,24 @@ class SyncedMenuProvider(
 
     /**
      * Copies, once per server, the templates that name a seed project and were never seeded
-     * (`TemplateSeeds`), then reloads when something was written. Off the game threads, with
+     * (`TemplateSeeds`), writes the module commands' missing override files, then reloads
+     * when something was written. Off the game threads, with
      * the other disk writes.
      */
     fun seedTemplates() {
-        val registry = templates() ?: return
+        val registry = templates()
         workspace.io.execute {
             val seeds = net.artisanmc.plugin.project.TemplateSeeds(roots, logger, seedLang)
             var wrote = false
-            registry.registered().forEach { (moduleId, list) ->
+            registry?.registered()?.forEach { (moduleId, list) ->
                 list.forEach { template ->
                     runCatching { if (seeds.seed(moduleId, template)) wrote = true }
                         .onFailure { logger?.warning("[Artisan] Template '$moduleId/${template.id}' not seeded: ${it.message}") }
                 }
             }
+            // After the templates: a module's folder they create receives its commands' files.
+            runCatching { if (seedOverrides()) wrote = true }
+                .onFailure { logger?.warning("[Artisan] Command override files not written: ${it.message}") }
             if (wrote) workspace.reload()
         }
     }
