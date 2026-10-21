@@ -26,6 +26,12 @@ import org.jetbrains.annotations.Nullable;
  * the project's {@code .artisan/origins.yaml}), so the editor can tell an untouched copy from a
  * modified one when the module ships a new version, and restore the shipped version on request.
  *
+ * <p>A <b>system</b> template ({@link Builder#system()}, 2.12.0) holds the module's system
+ * elements instead: the menus and dialogs its code opens by id. Artisan keeps them in the
+ * module's folder whatever the owner does: a missing file is written again, an untouched copy
+ * follows each new version, and an edited one stays the owner's version until reset in the
+ * editor. Never deleted, never renamed.
+ *
  * <p>Immutable. Paths are relative to the project, with {@code /}; at most {@link #MAX_SIZE}
  * bytes in all, since the files travel in one message from a server to the hub.
  */
@@ -43,6 +49,7 @@ public final class TemplateDeclaration {
     private final String title;
     private final int version;
     private final @Nullable String seedProject;
+    private final boolean system;
     private final Map<String, byte[]> files;
     private final Map<String, String> hashes;
 
@@ -51,6 +58,10 @@ public final class TemplateDeclaration {
         this.title = b.title != null ? b.title : b.id;
         this.version = b.version;
         this.seedProject = b.seedProject;
+        this.system = b.system;
+        if (system && seedProject != null) {
+            throw new IllegalArgumentException("template '" + id + "': a system template lives in its module's folder, it seeds no project");
+        }
         if (b.files.isEmpty()) throw new IllegalArgumentException("template '" + id + "' has no file");
         long total = 0;
         Map<String, byte[]> files = new LinkedHashMap<>();
@@ -121,6 +132,15 @@ public final class TemplateDeclaration {
         return seedProject;
     }
 
+    /**
+     * True for the module's system elements: kept in the module's folder (its first by name)
+     * at every start, an untouched copy updated to each new version, never deleted.
+     */
+    @Beta
+    public boolean isSystem() {
+        return system;
+    }
+
     /** The project-relative paths, in declaration order. */
     public List<String> getPaths() {
         return List.copyOf(files.keySet());
@@ -139,7 +159,7 @@ public final class TemplateDeclaration {
 
     /**
      * The {@code templates} entry of the module's {@code installed_modules} entry:
-     * {@code {id, title, version, seed_project?, files: [{path, hash, size}]}}.
+     * {@code {id, title, version, seed_project?, system?, files: [{path, hash, size}]}}.
      */
     public Map<String, Object> toWire() {
         Map<String, Object> out = new LinkedHashMap<>();
@@ -147,6 +167,7 @@ public final class TemplateDeclaration {
         out.put("title", title);
         out.put("version", version);
         if (seedProject != null) out.put("seed_project", seedProject);
+        if (system) out.put("system", true);
         List<Map<String, Object>> list = new ArrayList<>();
         for (Map.Entry<String, byte[]> e : files.entrySet()) {
             Map<String, Object> file = new LinkedHashMap<>();
@@ -172,7 +193,7 @@ public final class TemplateDeclaration {
     public boolean equals(Object o) {
         if (!(o instanceof TemplateDeclaration other)) return false;
         return id.equals(other.id) && version == other.version && title.equals(other.title)
-            && Objects.equals(seedProject, other.seedProject) && hashes.equals(other.hashes);
+            && Objects.equals(seedProject, other.seedProject) && system == other.system && hashes.equals(other.hashes);
     }
 
     @Override
@@ -192,6 +213,7 @@ public final class TemplateDeclaration {
         private final int version;
         private @Nullable String title;
         private @Nullable String seedProject;
+        private boolean system;
         private final Map<String, byte[]> files = new LinkedHashMap<>();
 
         private Builder(String id, int version) {
@@ -215,6 +237,16 @@ public final class TemplateDeclaration {
                 throw new IllegalArgumentException("invalid seed project '" + projectId + "': expected ^[a-z0-9][a-z0-9_-]*$");
             }
             this.seedProject = projectId;
+            return this;
+        }
+
+        /**
+         * Makes these files the module's system elements (see {@link #isSystem()}): its menus
+         * and dialogs, which its code opens by id. Not with {@link #seed(String)}.
+         */
+        @Beta
+        public Builder system() {
+            this.system = true;
             return this;
         }
 

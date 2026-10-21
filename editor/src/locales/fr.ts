@@ -792,6 +792,17 @@ const fr: typeof en = {
     },
   },
   projectPanel: {
+    systemDocumentHint:
+      "Élément interne du module {{module}} : son code l'ouvre. Tu peux le modifier ; il ne se supprime pas, Réinitialiser le remet à la version du module.",
+    systemBadge: {
+      identical: "Version du module {{module}}",
+      modified: "Modifié par toi",
+      update: "Modifié par toi ; {{module}} livre une nouvelle version",
+    },
+    systemReset: "Réinitialiser",
+    systemResetHint: "Remet la version du module. Enregistre d'abord tes modifications en cours.",
+    systemResetConfirm:
+      "Remettre la version du module ? Tes modifications de ce fichier seront perdues.",
     moduleCommandHint:
       "Commande interne du module {{module}} : son code est dans le plugin. Ouvre-la pour changer son nom, sa permission, ses textes ou ce qu'elle fait.",
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",
@@ -934,6 +945,9 @@ const fr: typeof en = {
     errFetchError: "Le module a échoué : {{message}}",
   },
   canvas: {
+    systemElement: "système · {{module}}",
+    systemDocumentKept:
+      "Un menu ou dialogue système ne se supprime pas : réinitialise-le depuis la liste du dossier.",
     moduleCommand: "commande · {{module}}",
     armedHint: "armé — clique une case pour le placer",
     groups: {
