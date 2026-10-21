@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.engine
 
 import net.artisanmc.plugin.command.ModuleCommandLine
+import net.artisanmc.plugin.platform.ServerPlatform
 import net.artisanmc.plugin.text.LenientText
 import net.kyori.adventure.title.Title
 import java.time.Duration
@@ -121,7 +122,7 @@ internal object PlayerActions {
 
     fun teleport(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
         val world = Args.str(args, "world")?.let { Bukkit.getWorld(it) } ?: return ctx
-        ctx.player.teleportAsync(org.bukkit.Location(
+        ServerPlatform.teleport(ctx.player, org.bukkit.Location(
             world,
             Args.double(args, "x", 0.0), Args.double(args, "y", 0.0), Args.double(args, "z", 0.0),
             Args.float(args, "yaw", 0f), Args.float(args, "pitch", 0f),

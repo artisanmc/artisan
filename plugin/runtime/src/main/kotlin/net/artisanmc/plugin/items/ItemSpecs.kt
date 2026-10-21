@@ -37,10 +37,11 @@ class ItemSpecs(
             ?: Material.matchMaterial(material)?.takeIf { it.isItem && !it.isAir }?.let { ItemStack(it, count) }
             ?: return null
         if (app.count != null) item.amount = count
-        item.editMeta { meta ->
+        item.itemMeta?.let { meta ->
             app.title?.allValues()?.firstOrNull()?.let { meta.displayName(text(it)) }
             if (app.lore.isNotEmpty()) meta.lore(app.lore.map { text(it.allValues().firstOrNull().orEmpty()) })
             ItemDetails.applyToMeta(app, meta)
+            item.itemMeta = meta
         }
         return ItemDetails.applyNbt(app, item)
     }
