@@ -57,6 +57,12 @@ class Sessions(
     private val linkInterval: Duration = Duration.ofMinutes(1),
     private val sessionTtl: Duration = Duration.ofDays(7),
     private val store: SessionStore? = null,
+    /**
+     * Where the [store] is written: the links and sessions live in memory first, the rows follow.
+     * `/artisan editor` runs on the main thread and must not wait for a connection (10 s timeout).
+     * Reads stay on the caller: a session another server opened is looked up when asked.
+     */
+    private val writer: java.util.concurrent.Executor = java.util.concurrent.Executor { it.run() },
 ) {
     private class Link(val playerId: UUID, val playerName: String, val permissions: Set<String>, val expiresAt: Instant, val origin: String)
 
@@ -66,6 +72,8 @@ class Sessions(
     private val sessions = ConcurrentHashMap<String, EditorSession>()
     /** When each session in memory was last read from the store. */
     private val checked = ConcurrentHashMap<String, Instant>()
+    /** Ids looked up and found nowhere, with when: a stale cookie is not read from the store on every request. */
+    private val missing = ConcurrentHashMap<String, Instant>()
     /** The last permissions each server reported per player: an unchanged report touches nothing. */
     private val reported = ConcurrentHashMap<Pair<String, UUID>, Set<String>>()
 
@@ -84,7 +92,7 @@ class Sessions(
         lastLink[playerId] = now
         val token = token()
         links[token] = Link(playerId, playerName, permissions, now.plus(linkTtl), origin)
-        store?.put(key(LINK + token), EditorSession(LINK, playerId, playerName, permissions, now.plus(linkTtl), origin))
+        store?.let { s -> writer.execute { s.put(key(LINK + token), EditorSession(LINK, playerId, playerName, permissions, now.plus(linkTtl), origin)) } }
         reported.remove(origin to playerId)
         return LinkResult.Issued(token)
     }
@@ -97,7 +105,7 @@ class Sessions(
         val token = token()
         val link = Link(session.playerId, session.playerName, session.permissions, clock.instant().plus(linkTtl), session.origin)
         links[token] = link
-        store?.put(key(LINK + token), EditorSession(LINK, link.playerId, link.playerName, link.permissions, link.expiresAt, link.origin))
+        store?.let { s -> writer.execute { s.put(key(LINK + token), EditorSession(LINK, link.playerId, link.playerName, link.permissions, link.expiresAt, link.origin)) } }
         return token
     }
 
@@ -106,12 +114,13 @@ class Sessions(
         val link = links.remove(token)
             ?: store?.get(key(LINK + token))?.let { Link(it.playerId, it.playerName, it.permissions, it.expiresAt, it.origin) }
             ?: return null
-        store?.delete(key(LINK + token))
+        store?.let { s -> writer.execute { s.delete(key(LINK + token)) } }
         val now = clock.instant()
         if (!link.expiresAt.isAfter(now)) return null
         val session = EditorSession(token(), link.playerId, link.playerName, link.permissions, now.plus(sessionTtl), link.origin)
+        missing.remove(session.id)
         sessions[session.id] = session
-        store?.put(key(session.id), session)
+        store?.let { s -> writer.execute { s.put(key(session.id), session) } }
         return session
     }
 
@@ -119,10 +128,12 @@ class Sessions(
     fun find(id: String?): EditorSession? {
         if (id.isNullOrEmpty() || id.startsWith(LINK)) return null
         val session = cached(id)
+            ?: unknown(id)?.let { return null }
             ?: store?.get(key(id))?.copy(id = id)?.also { checked[id] = clock.instant() }
             // Opened while the database was not: in memory alone, never seen stored.
             ?: sessions[id]?.takeIf { checked[id] == null }
             ?: run {
+                remember(id)
                 close(id)
                 return null
             }
@@ -133,7 +144,7 @@ class Sessions(
         }
         val extended = now.plus(sessionTtl)
         if (session.expiresAt.plus(TOUCH_EVERY).isAfter(extended)) return session.also { sessions[id] = it }
-        store?.touch(key(id), extended)
+        store?.let { s -> writer.execute { s.touch(key(id), extended) } }
         return session.copy(expiresAt = extended).also { sessions[id] = it }
     }
 
@@ -148,10 +159,24 @@ class Sessions(
         return if (last != null && last.plus(RECHECK).isAfter(clock.instant())) session else null
     }
 
+    /** True while [id] was found nowhere less than [MISSING_FOR] ago: the store is not asked again. */
+    private fun unknown(id: String): Boolean? {
+        val since = missing[id] ?: return null
+        if (since.plus(MISSING_FOR).isAfter(clock.instant())) return true
+        missing.remove(id)
+        return null
+    }
+
+    /** A page load with a stale cookie is dozens of requests: the first asks the store, the others do not. */
+    private fun remember(id: String) {
+        if (missing.size >= MISSING_MAX) missing.clear()
+        missing[id] = clock.instant()
+    }
+
     fun close(id: String) {
         checked.remove(id)
         sessions.remove(id)
-        store?.delete(key(id))
+        store?.let { s -> writer.execute { s.delete(key(id)) } }
     }
 
     /** Signs [playerId] out everywhere; the number of sessions closed. */
@@ -159,7 +184,13 @@ class Sessions(
         val inMemory = sessions.values.count { it.playerId == playerId }
         sessions.values.removeIf { it.playerId == playerId }
         // A session opened before the database was is only in memory; one from before a restart, only stored.
-        return maxOf(inMemory, store?.deletePlayer(playerId, null) ?: 0)
+        // Deleted on the writer, after the rows queued before it: a session just opened is not written back after.
+        val stored = store?.let { s ->
+            val deleted = java.util.concurrent.CompletableFuture<Int>()
+            writer.execute { deleted.complete(runCatching { s.deletePlayer(playerId, null) }.getOrDefault(0)) }
+            runCatching { deleted.get(15, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(0)
+        } ?: 0
+        return maxOf(inMemory, stored)
     }
 
     /**
@@ -172,10 +203,10 @@ class Sessions(
             val mine = { s: EditorSession -> s.playerId == playerId && s.origin == origin }
             if (EditorPermissions.VIEW in permissions) {
                 sessions.replaceAll { _, s -> if (mine(s)) s.copy(permissions = permissions) else s }
-                store?.setPermissions(playerId, origin, permissions)
+                store?.let { s -> writer.execute { s.setPermissions(playerId, origin, permissions) } }
             } else {
                 sessions.values.removeIf(mine)
-                store?.deletePlayer(playerId, origin)
+                store?.let { s -> writer.execute { s.deletePlayer(playerId, origin) } }
             }
         }
     }
@@ -185,7 +216,7 @@ class Sessions(
         sessions.values.removeIf { !it.expiresAt.isAfter(now) }
         checked.keys.retainAll(sessions.keys)
         lastLink.values.removeIf { !it.plus(linkInterval).isAfter(now) }
-        store?.purge(now)
+        store?.let { s -> writer.execute { s.purge(now) } }
     }
 
     private fun key(id: String): String =
@@ -201,5 +232,11 @@ class Sessions(
         /** Prefix of a stored link's key: never a session id, which is plain base64url. */
         const val LINK = "link:"
         val RECHECK: Duration = Duration.ofSeconds(30)
+        /**
+         * How long an id found nowhere stays unknown without a store read. Short: a session opened on
+         * another server of the database reaches the store on its writer thread, a moment after its link.
+         */
+        val MISSING_FOR: Duration = Duration.ofSeconds(5)
+        const val MISSING_MAX = 4096
     }
 }

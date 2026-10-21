@@ -17,7 +17,10 @@ class ProjectDraftsTest {
         /** The next commit finds its receipt written by a concurrent, identical request. */
         var raceOnce = false
         override fun knownProject(server: String, folder: String) = folder != "missing"
-        override fun drafts(server: String, folder: String) = if (folder == "missing") null else rows.filterKeys { it.startsWith("$server/$folder/") }.values.toList()
+        val owners = mutableMapOf<String, String>()
+        override fun drafts(server: String, folder: String, owner: String) =
+            if (folder == "missing") null
+            else rows.filterKeys { it.startsWith("$server/$folder/") && owners[it] == owner && statuses[it] == DraftStatus.ACTIVE }.values.toList()
         override fun draft(server: String, folder: String, id: String) = rows["$server/$folder/$id"]
         override fun receipt(operationId: String) = receipts[operationId]
         val statuses = mutableMapOf<String, DraftStatus>()
@@ -28,6 +31,7 @@ class ProjectDraftsTest {
             if (commit.receipt.operationId in receipts) throw java.sql.SQLException("Duplicate entry for key artisan_draft_receipts.PRIMARY")
             rows[key] = commit.body
             statuses[key] = commit.status
+            owners[key] = commit.owner
             receipts[commit.receipt.operationId] = commit.receipt
             return true
         }
@@ -61,6 +65,8 @@ class ProjectDraftsTest {
         assertEquals(1, (draftOf(create())["revision"] as Number).toInt())
         val updated = request("action" to "update", "draft_id" to "d1", "expected_revision" to 1, "operation_id" to "op-u", "name" to "B", "snapshot" to snapshot(mapOf("a.yml" to "a: 2")))
         assertEquals(2, (draftOf(updated)["revision"] as Number).toInt())
+        assertNull(draftOf(updated)["snapshot"], "an update answers without the snapshot the editor sent")
+        assertEquals(mapOf("a.yml" to "a: 2"), draftOf(request("action" to "read", "draft_id" to "d1"))["snapshot"].let { (it as Map<*, *>)["tree"] })
         val stale = request("action" to "update", "draft_id" to "d1", "expected_revision" to 1, "operation_id" to "op-u2", "name" to "B", "snapshot" to snapshot(mapOf("a.yml" to "a: 3")))
         assertEquals("draft_conflict", stale["error"])
         assertEquals(1, (request("action" to "list")["drafts"] as List<*>).size)

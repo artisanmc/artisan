@@ -106,7 +106,9 @@ compare-and-swap, est reproduit côté éditeur par `lib/contentHash.ts`, avec u
 Sur une feuille, `SyncedMenuProvider.handleMessage` tourne sur le thread de callback d'OkHttp ;
 côté hub, `PluginChannel` sur celui de Jetty. Ils ne font que typer le message
 (`EditorRequest.parse`) et le router. Toute réponse part par `Replies` ; toute lecture ou écriture
-disque d'un Project par `ProjectWorkspace.io`, une à la fois.
+disque d'un Project par `ProjectWorkspace.io`, une à la fois. La réponse d'une feuille à une
+requête du hub complète un futur sur ce même thread lecteur : ce qui la suit et écrit en base
+(le commit d'une publication de brouillon) repasse par le pool de Jetty (`Call.offload`).
 
 ## Threads — Folia, Leaf, Paper
 
@@ -173,7 +175,58 @@ Rien de bloquant dans `onEnable` ni sur le thread global après lui (issue #42) 
   relecture), faisaient tomber le watchdog sur un disque lent. Le premier chargement et
   `/artisan reload` restent synchrones : les menus et commandes existent quand le serveur
   s'ouvre, et la réponse de l'admin dit vrai.
+- Une écriture de l'éditeur (`project_write`, `config_write`, `template_copy`, publication
+  d'un brouillon, création, renommage ou suppression de dossier) ne relit que le ou les
+  Projects qu'elle a touchés (`ProjectWorkspace.reload(projectIds)`), puis appelle le
+  `onReload()` de **tous** les modules : le contrat d'un module est de relire les Documents
+  qu'il veut, dans n'importe quel dossier, et il ne dit pas lesquels. Les items capturés et
+  les overrides de commandes sont lus sur le thread qui a relu les Projects ; le thread
+  global ne fait que basculer les maps et reconstruire la command map (`applyReload`).
+- Une publication interrompue (`ProjectPublisher.recover`) n'est rejouée que par
+  `ProjectRoots.all()`, à la première vue du dossier : plus aucune lecture ni écriture
+  de l'éditeur ne la rejoue à chaque requête.
+- **Le registre des Projects ne verrouille jamais longtemps.** `ProjectRoots.all()` sert un
+  listing pris une fois (un `listFiles` de la racine, un petit fichier `.artisan/project-id`
+  par dossier, le rejeu des publications interrompues) et gardé jusqu'à `invalidate()` : une
+  relecture l'invalide avant de lire, un `register` aussi. Un dossier créé à la main apparaît
+  donc à la relecture suivante, comme son contenu. Les clés sont lues au même scan et
+  servies de là (`descriptors()` ne touche plus le disque). La relecture et les écritures
+  disque de l'éditeur tiennent un verrou propre au provider (`SyncedMenuProvider.diskLock`),
+  jamais le moniteur de `ProjectRoots` : le `onEnable` d'un module (`moduleFolder`,
+  `register`) et `api.project` ne l'attendent pas. `api.project.list/read` répondent depuis
+  le snapshot chargé, sans verrou ni parcours du disque ; un Project que le snapshot n'a pas
+  encore (dossier enregistré à l'instant, lu au tick suivant) et un fichier qu'il n'a pas
+  (écrit par le module avant son `reload()`) sont lus sur le disque. Avant, `all()`,
+  `api.project.list/read` et `register` prenaient le moniteur que la relecture et chaque
+  écriture tenaient pendant des secondes, depuis le thread principal.
+- **Les signaux d'un tick se regroupent.** Chaque déclaration de commande et chaque
+  enregistrement de module reconstruisait la command map et relançait un seed complet (tous
+  les templates de tous les modules, tous les overrides). Les changements d'un tick font une
+  reconstruction (`commandsRefreshQueued`) et un rapport de présence suivi d'un seed
+  (`notifyModulesChanged`, `modulesChangedQueued`) : au démarrage, les modules et leurs
+  commandes s'annoncent tous avant le premier tick. `/artisan reload` fait une relecture :
+  `reinit()` recrée le provider et le charge, la commande n'enchaîne plus `unload()/load()`.
+  Reste connu : une sauvegarde de la config serveur depuis l'éditeur fait ce `reinit()`
+  complet, synchrone sur le thread global (A13 de l'audit).
+- **Une relecture = un parcours par Project.** `ProjectFilesReader.scan` produit les textes et
+  les binaires d'un seul `walkTopDown` ; le hash d'un binaire est gardé par (chemin, taille,
+  mtime) entre les relectures (`BinaryHashCache`, élagué à chaque relecture complète) : un png
+  qui n'a pas changé n'est pas relu. Le hash de snapshot est calculé une fois par Project et
+  par snapshot (`ProjectSnapshot.hash`), repris pour les Projects qu'une relecture partielle n'a
+  pas relus (`inheritHashes`). `VersionRecorder` n'enregistre que les Projects dont le hash
+  diffère du dernier enregistré, ou qu'une publication vient d'écrire ; l'état chargé est
+  réécrit à chaque fois. L'inventaire de ressources (`resource_inventory`) se calcule depuis le
+  snapshot (`ResourceInventory.of`), plus de parcours du disque par `project_list` ni par
+  relecture. `ProjectReader` garde son propre parcours peu profond pour les Documents : deux
+  parcours par relecture, contre quatre, et chaque fichier lu une fois.
 - Aucun JDBC ni I/O disque dans le chemin join, tick ou clic.
+- **Aucun JDBC sur le thread principal depuis une commande.** `/artisan editor` crée le lien
+  en mémoire et sa ligne suit sur le thread des Versions (`Sessions.writer`, lectures sur
+  l'appelant) ; `/artisan editor logout` supprime et compte ses lignes en `async` et répond
+  en `global`. L'id de la base (`ArtisanMeta.databaseId`) est lu une fois à l'ouverture, sur
+  `Artisan-versions`, puis servi du cache à chaque connexion au hub. Un `hello_ack` qui annonce
+  le pack déjà appliqué dans ce processus ne le retélécharge pas (`ResourcePackManager.appliedHash`) ;
+  le téléchargement et la mise à jour du catalogue passent par `scheduler.async`.
 
 ## Reload atomique
 

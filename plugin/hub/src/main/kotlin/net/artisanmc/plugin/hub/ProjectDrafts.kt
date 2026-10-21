@@ -25,8 +25,11 @@ import java.util.Base64
  */
 interface DraftStorage {
     fun knownProject(server: String, folder: String): Boolean
-    /** Every draft of the Project, whole: the list only, the other actions read one draft. */
-    fun drafts(server: String, folder: String): List<String>?
+    /**
+     * The active drafts of [owner], whole, for the list; the other actions read one draft. A row
+     * written before the owner was a column comes too: the caller reads the owner in each body.
+     */
+    fun drafts(server: String, folder: String, owner: String): List<String>?
     fun draft(server: String, folder: String, id: String): String?
     /** The receipt of an operation already applied. */
     fun receipt(operationId: String): DraftReceipt?
@@ -82,8 +85,8 @@ class ProjectDrafts(private val storage: DraftStorage) {
     }
 
     private fun list(server: String, folder: String, owner: String): Map<String, Any?> {
-        val all = storage.drafts(server, folder)?.map { Draft(mapper.readTree(it) as ObjectNode) } ?: return fail("unknown_project")
-        return ok("drafts" to all.filter { it.ownerId == owner && it.status == DraftStatus.ACTIVE }.map { it.json })
+        val mine = storage.drafts(server, folder, owner)?.map { Draft(mapper.readTree(it) as ObjectNode) } ?: return fail("unknown_project")
+        return ok("drafts" to mine.filter { it.ownerId == owner && it.status == DraftStatus.ACTIVE }.map { it.json })
     }
 
     private fun onDraft(target: Target, request: OnDraft, node: ObjectNode, publisher: Publisher, respond: (Map<String, Any?>) -> Unit) {
@@ -131,7 +134,7 @@ class ProjectDrafts(private val storage: DraftStorage) {
             val kept = result.mapValues { (key, value) -> if (key == "draft") mapOf("revision" to draft.revision) else value }
             val receipt = DraftReceipt(operationId, fingerprint, mapper.writeValueAsString(kept))
             val written = try {
-                storage.commit(target.server, target.folder, DraftCommit(target.id, mapper.writeValueAsString(draft.json), status, receipt))
+                storage.commit(target.server, target.folder, DraftCommit(target.id, draft.ownerId, mapper.writeValueAsString(draft.json), status, receipt))
             } catch (e: Exception) {
                 // The same operation, sent twice at once: the other request's receipt is the answer.
                 val saved = storage.receipt(operationId) ?: throw e
@@ -192,7 +195,8 @@ class ProjectDrafts(private val storage: DraftStorage) {
         invalid(request.name, request.snapshot)?.let { return applying.respond(it) }
         next.json.put("name", request.name)
         next.json.set<JsonNode>("snapshot", request.snapshot)
-        applying.commit(next, ok("draft" to next.json))
+        // The editor sent the snapshot and keeps it: an autosave gets the draft back without it (up to 8 MB a save).
+        applying.commit(next, ok("draft" to next.json.deepCopy().apply { remove("snapshot") }))
     }
 
     private fun publish(applying: Applying, current: Draft, next: Draft, request: Publish, publisher: Publisher) {

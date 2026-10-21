@@ -90,7 +90,8 @@ export async function updateDraft(
   snapshot: ProjectDraft,
   operationId: string,
 ): Promise<PersistedDraft> {
-  return (
+  // The hub keeps the snapshot as sent and answers without it: it is the one we have.
+  const draft: PersistedDraft = (
     await call(projectId, `/${encodeURIComponent(id)}`, "PUT", {
       revision,
       name,
@@ -98,6 +99,7 @@ export async function updateDraft(
       operationId,
     })
   ).draft;
+  return draft.snapshot ? draft : { ...draft, snapshot };
 }
 export async function discardDraft(
   projectId: string,

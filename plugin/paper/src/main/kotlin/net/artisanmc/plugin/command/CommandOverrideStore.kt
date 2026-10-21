@@ -28,8 +28,13 @@ class CommandOverrideStore(private val projectDirs: () -> Map<String, File>, pri
     var overrides: Map<String, CommandOverrideYaml> = emptyMap()
         private set
 
-    fun reload() {
-        overrides = read(log = true)
+    fun reload() = apply(read())
+
+    /** The overrides on disk, read and parsed on any thread; [apply] swaps them in. */
+    fun read(): Map<String, CommandOverrideYaml> = read(log = true)
+
+    fun apply(read: Map<String, CommandOverrideYaml>) {
+        overrides = read
     }
 
     private fun read(log: Boolean): Map<String, CommandOverrideYaml> {

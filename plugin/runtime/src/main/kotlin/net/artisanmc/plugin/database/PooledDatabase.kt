@@ -39,14 +39,19 @@ fun readDatabaseSettings(
  * disabling plugin closes through it, see [onPluginDisable].
  */
 class PooledDatabase(
-    private val settings: () -> DatabaseSettings,
+    settings: () -> DatabaseSettings,
     logger: Logger,
     private val later: (Long, () -> Unit) -> Unit = { _, task -> task() },
 ) : DatabaseApi, Listener {
-    private val pools = ConnectionPools(settings, logger)
+    /**
+     * Read once, on first use: `environment.yml` is parsed for the start, not at each `getDialect()`
+     * or pool. A change to it applies at the next start, like the table prefix below.
+     */
+    private val settings: DatabaseSettings by lazy(settings)
+    private val pools = ConnectionPools({ this.settings }, logger)
 
     /** Read once: tables keep the names they were opened with until the next start. */
-    private val prefix: String by lazy { TablePrefix.validate(settings().tablePrefix) }
+    private val prefix: String by lazy { TablePrefix.validate(this.settings.tablePrefix) }
 
     /** [TablePrefix.checkUnchanged], once, on the first pool opened; its failure is every later call's. */
     @Volatile private var prefixChecked: Result<Unit>? = null
@@ -59,7 +64,7 @@ class PooledDatabase(
     override fun dataSource(owner: Plugin): DataSource {
         val pool = pools.dataSource(owner.name)
         val checked = prefixChecked ?: synchronized(this) {
-            prefixChecked ?: runCatching { TablePrefix.checkUnchanged(prefix, settings().prefixFile, pool) }.also { prefixChecked = it }
+            prefixChecked ?: runCatching { TablePrefix.checkUnchanged(prefix, settings.prefixFile, pool) }.also { prefixChecked = it }
         }
         checked.getOrElse { pools.close(owner.name); throw it }
         return pool

@@ -30,6 +30,9 @@ open class ResourcePackManager(
     var currentPackInfo: ResourcePackInfo? = null
         private set
 
+    /** The hash the delegator applied in this process: the same pack announced again (a reconnection, `/artisan reload`) is not downloaded again. */
+    @Volatile private var appliedHash: String? = null
+
     /** Restores [currentPackInfo] from [cacheFile]. No-op without a cache file
      *  or cached entry; any parse error leaves the state null. Call at boot. */
     fun loadFromDisk() {
@@ -93,7 +96,14 @@ open class ResourcePackManager(
     fun onUpdate(info: ResourcePackInfo?) {
         currentPackInfo = info
         persistToDisk(info)
-        if (info == null) return
+        if (info == null) {
+            appliedHash = null
+            return
+        }
+        if (info.hash == appliedHash) {
+            logger?.info("[resource-pack] pack ${info.hash} already applied, nothing to download")
+            return
+        }
         assetCatalog?.let { cat -> updateCatalogAsync(cat, info) }
         if (delegator != null) {
             applyDelegateAsync(info)
@@ -116,6 +126,7 @@ open class ResourcePackManager(
             } catch (t: Throwable) {
                 throw IllegalStateException("download or extract of ${info.downloadUrl} failed: ${t.message}", t)
             }
+            appliedHash = info.hash
             val reloadCmd = config.delegateReloadCommand
             if (reloadCmd != null) {
                 // Bukkit's command dispatch isn't thread-safe: schedule the host's
@@ -141,36 +152,28 @@ open class ResourcePackManager(
     }
 
     /**
-     * Test seam — production runs the delegate apply on a daemon thread so
+     * Test seam — production runs the delegate apply on the scheduler's async pool so
      * the WS callback isn't blocked by a multi-MB download + extract.
      * Tests override this to run inline for race-free assertions.
      */
     protected open fun runDelegate(action: () -> Unit) {
-        Thread {
+        scheduler.async {
             try {
                 action()
             } catch (t: Throwable) {
                 logger?.warning("[delegate] apply failed: ${t.message}")
             }
-        }.apply {
-            isDaemon = true
-            name = "artisan-rp-delegate"
-            start()
         }
     }
 
     private fun updateCatalogAsync(catalog: AssetCatalog, info: ResourcePackInfo) {
-        Thread {
+        scheduler.async {
             try {
                 // Use the plugin-side download URL (Docker-internal), NOT the player-facing URL.
                 catalog.update(info.downloadUrl, info.hash)
             } catch (t: Throwable) {
                 logger?.warning("[asset-catalog] update failed: ${t.message}")
             }
-        }.apply {
-            isDaemon = true
-            name = "artisan-asset-catalog-update"
-            start()
         }
     }
 

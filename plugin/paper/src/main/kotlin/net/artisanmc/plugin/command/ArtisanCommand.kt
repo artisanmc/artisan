@@ -55,11 +55,9 @@ class ArtisanCommand(
             "reload" -> {
                 // Re-read disk config + reconfigure the translations so options like
                 // `per_player_language` and `language` pick up changes without
-                // needing a full server restart. Then reload the menu provider
-                // so disk-side YAML edits are picked up too.
+                // needing a full server restart. reinit() rebuilds the provider and
+                // loads it: the disk-side YAML edits are read there, once.
                 plugin.reinit(plugin.loadPluginConfig())
-                plugin.menuProvider.unload()
-                plugin.menuProvider.load()
                 Chat.send(sender, lang.get("artisan.reloaded", sender))
             }
             "sync" -> {
@@ -202,7 +200,12 @@ class ArtisanCommand(
         val cfg = plugin.currentConfig()
         if (!(cfg.web.enabled && cfg.web.leaf)) {
             if (plugin.editor == null) return Chat.send(sender, lang.get("artisan.editor_disabled", senderLang))
-            return done(plugin.editorSessions.closeAll(targetId))
+            // The stored sessions are deleted and counted in the database: off the main thread.
+            plugin.scheduler.async {
+                val closed = plugin.editorSessions.closeAll(targetId)
+                if (plugin.isEnabled) plugin.scheduler.global { done(closed) }
+            }
+            return
         }
         val provider = plugin.menuProvider as? SyncedMenuProvider ?: return done(null)
         provider.requestEditorLogout(targetId).whenComplete { reply, _ ->

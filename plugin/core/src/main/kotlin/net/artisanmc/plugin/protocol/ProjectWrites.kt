@@ -61,7 +61,7 @@ class ProjectWrites(
                 }
                 mutations.commit(projectDir, request.message, changes(projectDir, request, decoded))
                 noteAuthor(projectId, request.message)
-                workspace.reload()
+                workspace.reload(setOf(projectId))
                 reply.ok()
             } catch (e: Throwable) {
                 reply.failure("write_error", "project_write '$projectId'", e)
@@ -159,7 +159,7 @@ class ProjectWrites(
                 val changes = writes.associate { (path, content) -> path to content.toByteArray(Charsets.UTF_8) }.toMutableMap<String, ByteArray?>()
                 deletes.forEach { changes[it] = null }
                 mutations.commit(projectDir, request.message, changes)
-                workspace.reload()
+                workspace.reload(setOf(projectId))
                 reply.ok()
             } catch (e: Throwable) {
                 reply.failure("write_error", "config_write '$projectId'", e)
@@ -167,21 +167,28 @@ class ProjectWrites(
         }
     }
 
-    fun create(request: ProjectCreate) = folder(request, "project_create") { it.create(request.projectId) }
+    fun create(request: ProjectCreate) =
+        folder(request, "project_create", touched = setOf(request.projectId)) { it.create(request.projectId) }
 
-    fun delete(request: ProjectDelete) = folder(request, "project_delete", request.projectId) { it.delete(request.projectId) }
+    fun delete(request: ProjectDelete) =
+        folder(request, "project_delete", request.projectId, setOf(request.projectId)) { it.delete(request.projectId) }
 
     fun rename(request: ProjectRename) =
-        folder(request, "project_rename", request.projectId) { it.rename(request.projectId, request.targetId) }
+        folder(request, "project_rename", request.projectId, setOf(request.projectId, request.targetId)) {
+            it.rename(request.projectId, request.targetId)
+        }
 
-    /** A Project folder created, trashed or renamed, then reloaded before the reply. */
-    private fun folder(request: EditorRequest.WithReply, type: String, source: String? = null, operation: (ProjectFolders) -> String?) {
+    /** A Project folder created, trashed or renamed, then [touched] reloaded before the reply. */
+    private fun folder(
+        request: EditorRequest.WithReply, type: String, source: String? = null, touched: Set<String>,
+        operation: (ProjectFolders) -> String?,
+    ) {
         val reply = replies.to(request, "${type}_result")
         if (source != null && !EditorPaths.isSafeProjectId(source)) return reply.error("invalid_path")
         replies.offThread(type, workspace.io) {
             try {
                 operation(ProjectFolders(roots))?.let { return@offThread reply.error(it) }
-                workspace.reload()
+                workspace.reload(touched)
                 reply.ok()
             } catch (e: Throwable) {
                 reply.failure("write_error", type, e)
@@ -210,7 +217,7 @@ class ProjectWrites(
         if (result.path("ok").asBoolean()) {
             noteAuthor(projectId, request.message, request.message.path("draft").path("snapshot").path("restoredFrom").asText("").ifEmpty { null })
             try {
-                workspace.reload()
+                workspace.reload(setOf(projectId))
             } catch (error: Exception) {
                 logger?.log(Level.WARNING, "[Artisan] Draft published but runtime reload failed", error)
             }

@@ -86,9 +86,13 @@ internal class RuntimeAssembly(
             overrides = { commandOverrides.overrides },
         )
         // A module enabled or disabled after the start: its commands come and go without a reload,
-        // and the editor's System section lists the new set (a leaf tells its hub).
+        // and the editor's System section lists the new set (a leaf tells its hub). The
+        // declarations of one tick (a module's commands at its enable) rebuild the command map once.
         api.playerCommands.onChange {
-            scheduler.onGlobal { commandRegistrar.refresh() }
+            if (commandsRefreshQueued.compareAndSet(false, true)) scheduler.global {
+                commandsRefreshQueued.set(false)
+                commandRegistrar.refresh()
+            }
             (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged()
         }
         // Listed with the modules' actions (owner `artisan`): the editor builds its form from the declaration.
@@ -114,15 +118,23 @@ internal class RuntimeAssembly(
                 .minByOrNull { it.key }?.value
         }
 
+    private val commandsRefreshQueued = java.util.concurrent.atomic.AtomicBoolean(false)
     private val applyQueued = java.util.concurrent.atomic.AtomicBoolean(false)
     private val applyAll = java.util.concurrent.atomic.AtomicBoolean(false)
     private val applyModules: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    /** Read on the reload thread, swapped in on the global thread; the latest read wins. */
+    @Volatile private var pendingItems: Map<String, org.bukkit.inventory.ItemStack>? = null
+    @Volatile private var pendingOverrides: Map<String, net.artisanmc.plugin.model.CommandOverrideYaml>? = null
 
     /**
-     * Reloads that end before the global thread runs the first one apply once: the modules'
-     * `onReload()` runs on that thread and reads their folders. [modules] null for every module.
+     * Called on the thread that read the snapshot: the captured items and the overrides are
+     * read there too, so the global thread only swaps maps and rebuilds the command map.
+     * Reloads that end before it runs the first one apply once. [modules]: the modules whose
+     * `onReload()` runs, null for every one.
      */
     private fun scheduleApplyReload(modules: Set<String>?) {
+        pendingItems = capturedItems.read((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
+        pendingOverrides = commandOverrides.read()
         if (modules == null) applyAll.set(true) else applyModules.addAll(modules)
         if (!applyQueued.compareAndSet(false, true)) return
         scheduler.onGlobal {
@@ -133,14 +145,13 @@ internal class RuntimeAssembly(
         }
     }
 
-    /**
-     * Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there).
-     * [modules]: the modules whose `onReload()` runs, null for every one.
-     */
+    /** Global thread (the command map is only safe there). No disk here: see [scheduleApplyReload]. */
     private fun applyReload(modules: Set<String>?) {
-        capturedItems.reload((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
-        commandOverrides.reload()
+        pendingItems?.let { capturedItems.apply(it); pendingItems = null }
+        pendingOverrides?.let { commandOverrides.apply(it); pendingOverrides = null }
         commandRegistrar.reload(menuProvider.runtimeProjects(), executor, evaluator)
+        // Files Artisan wrote itself (override skeletons, system menus) notify no module: nothing to re-fetch.
+        if (modules != null && modules.isEmpty()) return
         api.modules.active().filter { modules == null || it.id in modules }.forEach { runCatching { it.onReload() } }
         api.events.publish(ConfigReloadEvent("menus"))
     }
@@ -209,6 +220,7 @@ internal class RuntimeAssembly(
         seedLang = { api.translations.defaultLang },
         seedOverrides = ::seedOverrides,
         announcement = plugin::announcement,
+        announcementChanged = plugin::announcementChanged,
         declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,
         menuWindows = menuWindows,

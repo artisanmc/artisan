@@ -6,7 +6,11 @@ import java.io.File
 
 data class ResourceEntry(val projectId: String, val path: String, val origin: String)
 
-/** Live disk inventory for commercial editor rights. Parsing YAML is deliberately unnecessary. */
+/**
+ * Inventory of the Document-shaped files for commercial editor rights, from the loaded
+ * snapshot: no walk of the disk per `project_list` or per reload. Parsing YAML is
+ * deliberately unnecessary.
+ */
 object ResourceInventory {
     /**
      * The kind of a Document-shaped file: a `.yaml`/`.yml` under a kind folder, at
@@ -21,22 +25,10 @@ object ResourceInventory {
         return parts.dropLast(1).firstNotNullOfOrNull { DocumentKinds.byDir(it)?.kind }
     }
 
-    fun scan(roots: ProjectRoots): List<ResourceEntry> {
-        val core = roots.coreRoot
-        if (!core.isDirectory || !core.canRead()) error("inventory_unavailable")
-        val personal = core.listFiles() ?: error("inventory_unavailable")
-        val sources = personal.filter { it.isDirectory && !it.name.startsWith('.') && !roots.isRegistered(it.name) }
-            .map { Triple(it.name, it, "personal") } +
-            roots.registeredRoots().map { (id, dir) -> Triple(id, dir, "module") }
-        return sources.flatMap { (id, dir, origin) ->
-            if (!dir.isDirectory || !dir.canRead()) error("inventory_unavailable: $id")
-            dir.walkTopDown().maxDepth(DocumentLayout.MAX_DEPTH + 3)
-                .onEnter { it == dir || !(it.name.startsWith('.') || (it.parentFile == dir && it.name in DocumentLayout.RESOURCE_DIRS)) }
-                .onFail { _, error -> throw IllegalStateException("inventory_unavailable: $id", error) }
-                .filter(File::isFile).mapNotNull { file ->
-                    val path = file.relativeTo(dir).invariantSeparatorsPath
-                    if (kind(path) == null) null else ResourceEntry(id, path, origin)
-                }.toList()
+    /** The Document-shaped text files of [snapshot]; a registered root's are `module`, a core folder's `personal`. */
+    fun of(snapshot: ProjectSnapshot, roots: ProjectRoots): List<ResourceEntry> =
+        snapshot.files.flatMap { (id, files) ->
+            val origin = if (roots.isRegistered(id)) "module" else "personal"
+            files.keys.filter { kind(it) != null }.map { ResourceEntry(id, it, origin) }
         }.sortedWith(compareBy(ResourceEntry::projectId, ResourceEntry::path))
-    }
 }

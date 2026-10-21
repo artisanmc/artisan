@@ -48,7 +48,7 @@ class TemplateRequests(
                 if (result.conflicts.isNotEmpty()) {
                     return@offThread reply.send(mapOf("ok" to false, "error" to "conflict", "conflicts" to result.conflicts))
                 }
-                workspace.reload()
+                workspace.reload(setOf(request.projectId))
                 reply.ok("written" to result.written, "unchanged" to result.unchanged)
             } catch (e: Throwable) {
                 reply.failure("write_error", "template_copy '${request.projectId}'", e)

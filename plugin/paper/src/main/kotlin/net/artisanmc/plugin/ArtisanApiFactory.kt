@@ -56,6 +56,7 @@ internal object ArtisanApiFactory {
                 plugin.projectRoots,
                 onReloadRequested = { plugin.refreshProjectsFromDisk() },
                 runtimes = { plugin.menuProviderOrNull?.runtimeProjects() ?: emptyList() },
+                snapshot = { (plugin.menuProviderOrNull as? net.artisanmc.plugin.provider.SyncedMenuProvider)?.snapshot() ?: net.artisanmc.plugin.project.ProjectSnapshot.EMPTY },
             ),
         )
             .projectRoots(plugin.projectRoots)

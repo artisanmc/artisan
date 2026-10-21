@@ -64,6 +64,8 @@ class SyncedMenuProvider(
     private val seedOverrides: () -> Boolean = { false },
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
+    /** Told before each `modules_changed`: what [announcement] is built from moved, a kept copy is stale. */
+    private val announcementChanged: () -> Unit = {},
     /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */
     private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
     /** Fetchers touch the Bukkit API: they run on the thread that owns the state they read. */
@@ -158,10 +160,10 @@ class SyncedMenuProvider(
         override val roots get() = this@SyncedMenuProvider.roots
         override val snapshot get() = projects
         override val io = Executor { task ->
-            httpClient.dispatcher.executorService.execute { synchronized(roots) { task.run() } }
+            httpClient.dispatcher.executorService.execute { synchronized(diskLock) { task.run() } }
         }
-        override fun reload() {
-            reloadFromDisk()
+        override fun reload(projectIds: Set<String>?) {
+            reloadFromDisk(projectIds)
             onReload?.invoke(null)
         }
         override fun authoredBy(projectId: String, author: net.artisanmc.plugin.project.PublicationAuthor) {
@@ -370,6 +372,8 @@ class SyncedMenuProvider(
         resolveRef(menuTable, "Menu", ref, fromProject)
     override fun listMenuIds(): List<String> = menuTable.ids.distinct().sorted()
     override fun runtimeProjects(): List<RuntimeProject> = runtimes
+    /** The loaded files, what `api.project.list/read` answer from. */
+    fun snapshot(): ProjectSnapshot = projects
     /** The loaded Snapshot's project dirs, without the registry lock a reload in progress holds. */
     fun projectDirs(): Map<String, File> = projects.projectIds.associateWith(roots::dirFor)
 
@@ -498,10 +502,25 @@ class SyncedMenuProvider(
         }
     }
 
-    /** Re-report presence to the hub after the active module set changed. */
+    private val modulesChangedQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * Re-reports presence to the hub and seeds the templates after the active module set
+     * or its commands changed. The changes of one tick make one report and one seed: at
+     * start, every module and each of its commands announces itself before the first
+     * tick, and each announcement used to seed every template of every module.
+     */
     fun notifyModulesChanged() {
-        broadcast(mapOf("type" to "modules_changed") + announcement().toMap())
-        seedTemplates()
+        // Now, so a GET of the hub between this signal and the next tick builds afresh; again at the tick,
+        // for what registered in between.
+        announcementChanged()
+        if (!modulesChangedQueued.compareAndSet(false, true)) return
+        scheduler.global {
+            modulesChangedQueued.set(false)
+            announcementChanged()
+            broadcast(mapOf("type" to "modules_changed") + announcement().toMap())
+            seedTemplates()
+        }
     }
 
     /**
@@ -557,9 +576,20 @@ class SyncedMenuProvider(
     // A hand edit on disk applies only on `/artisan reload`, like any other Minecraft
     // plugin: the disk is deliberately not watched.
 
+    /**
+     * Held by a reload and by each disk write of the editor ([workspace]`.io`): the
+     * provider's own lock, not the registry's, so a module's `onEnable` (which registers
+     * its folder) and `api.project` never wait behind it.
+     */
+    private val diskLock = Any()
+    /** The binaries' hashes across reloads: a png unchanged in size and mtime is not read again. */
+    private val binaryHashes = ProjectFilesReader.BinaryHashCache()
+
     /** Every project, or only [only]: the other projects keep what the last reload read. */
-    private fun reloadFromDisk(only: Set<String>? = null) = synchronized(roots) {
+    private fun reloadFromDisk(only: Set<String>? = null) = synchronized(diskLock) {
         val started = System.nanoTime()
+        // A folder created by hand, or by the editor, shows in the listing from here on.
+        roots.invalidate()
         // Declared model docs feed the reader so BARE data files resolve their
         // schema from the JAR declaration (ADR bare-data-files ①).
         val failures = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
@@ -575,23 +605,24 @@ class SyncedMenuProvider(
         // must stay readable and fixable.
         val all = roots.all()
         val dirs = if (only == null) all else all.filterKeys { it in only }
-        val files = dirs.mapValues { (_, dir) ->
-            runCatching { ProjectFilesReader.readAll(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
-        }
-        val binaries = dirs.mapValues { (_, dir) ->
-            runCatching { ProjectFilesReader.binaries(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
-        }
+        // One walk per project: its texts and its binaries, the latter hashed only when changed.
+        val scanned = dirs.mapValues { (_, dir) -> runCatching { ProjectFilesReader.scan(dir, binaryHashes) }.getOrNull() }
+        val files = scanned.mapValues { (_, s) -> s?.texts.orEmpty().filterKeys { !EditorPaths.isInvisible(it) } }
+        val binaries = scanned.mapValues { (_, s) -> s?.binaries.orEmpty().filterKeys { !EditorPaths.isInvisible(it) } }
         val loaded: List<RuntimeProject>
         if (only == null) {
+            binaryHashes.prune(scanned.flatMap { (id, s) -> s?.binaries.orEmpty().keys.map { File(dirs.getValue(id), it).absolutePath } }.toSet())
             projects = ProjectSnapshot(files = files, binaries = binaries, skipped = failures)
             loaded = read
         } else {
-            fun <V> kept(map: Map<String, V>) = map.filterKeys { it in all && it !in only }
+            val previous = projects
+            val kept = all.keys.filter { it !in only }
+            fun <V> kept(map: Map<String, V>) = map.filterKeys { it in kept }
             projects = ProjectSnapshot(
-                files = kept(projects.files) + files,
-                binaries = kept(projects.binaries) + binaries,
-                skipped = kept(projects.skipped) + failures,
-            )
+                files = kept(previous.files) + files,
+                binaries = kept(previous.binaries) + binaries,
+                skipped = kept(previous.skipped) + failures,
+            ).also { it.inheritHashes(previous, kept) }
             loaded = (runtimes.filter { it.projectId in all && it.projectId !in only } + read).sortedBy { it.projectId }
         }
         runtimes = loaded

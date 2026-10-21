@@ -41,6 +41,9 @@ class Call(
 
     fun json(body: Any?, status: Int = 200) = send(status, "application/json", mapper.writeValueAsBytes(body))
 
+    /** Runs [task] on the server's thread pool: a reply that arrived on a socket's reader thread is finished off it. */
+    fun offload(task: () -> Unit) = request.components.executor.execute(task)
+
     fun error(status: Int, code: String, message: String? = null) =
         json(if (message == null) mapOf("error" to code) else mapOf("error" to code, "message" to message), status)
 

@@ -22,7 +22,6 @@ class DraftPublication(private val root: File) {
     private fun fail(error: String) = response("ok" to false, "error" to error)
 
     fun publish(message: JsonNode): JsonNode {
-        publisher.recover()
         val operationId = message.path("operation_id").asText().takeIf { it.length in 1..256 } ?: return fail("invalid_operation")
         val fingerprint = ContentHash.hashBytes(mapper.writeValueAsBytes((message.deepCopy() as ObjectNode).also { it.remove(listOf("request_id", "type")) }))
         publisher.previous(operationId, fingerprint)?.let { return it }
