@@ -4,7 +4,7 @@
 in each language, locked by `testdata/template-conformance.json`; `ArgResolver`
 deleted; `until()` shipped, `date()` deferred (see Out of scope); step 6 (retiring
 the modules' pre-formatted fields) pending. Supersedes the "closed grammar, no string methods"
-stance of `docs/superpowers/specs/2026-05-03-expression-dsl-design.md`, which the
+stance of `docs/archive/specs/2026-05-03-expression-dsl-design.md`, which the
 editor implementation had already outgrown. CONTEXT.md gains **Expression** and
 **Template** in the same change.
 

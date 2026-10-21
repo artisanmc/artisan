@@ -333,7 +333,7 @@ export function ValueEditor({
       return <ActionFieldEditor projectId={projectId} value={value} onChange={set} />;
     case "minimessage":
     case "minimessage_multiline": {
-      // Same kit as the SchemaForm minimessage widgets: rendered facade at
+      // MiniMessage widget kit: rendered facade at
       // rest, raw markup in a PlaceholderInput on focus. Plain string value.
       const multiline = type.kind === "minimessage_multiline";
       const text = typeof value === "string" ? value : "";

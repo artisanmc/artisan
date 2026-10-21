@@ -17,7 +17,7 @@ Add-on's config is authored via a bespoke form or a generic schema-driven editor
 opened a far larger question (a composable-schema + form-generation system that
 reuses core kinds like the Action DSL). That larger question is deliberately **split
 off** into its own design track
-(`docs/superpowers/specs/2026-07-22-composable-config-schemas-and-forms.md`, to be
+(`docs/archive/specs/2026-07-22-composable-config-schemas-and-forms.md`, to be
 grilled later). This ADR captures only the small, separable, decided slice.
 
 ## Decision

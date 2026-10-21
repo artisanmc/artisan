@@ -203,7 +203,7 @@ Deux constats ont débloqué la décision :
 > vers le disque serveur. Une source modifiée exige une nouvelle analyse ; une
 > cible locale modifiée n'est jamais écrasée par l'application d'une proposition.
 >
-> Cette extension des [sources d'import serveur](../superpowers/specs/2026-09-04-assistant-server-import-sources-design.md)
+> Cette extension des [sources d'import serveur](../archive/specs/2026-09-04-assistant-server-import-sources-design.md)
 > autorise des résultats de conversion durables sans modifier l'autorité du disque
 > ni transformer les sources importées en sauvegarde backend.
 

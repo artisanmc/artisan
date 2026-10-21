@@ -5,7 +5,7 @@
 **Statut :** accepté le 2026-09-12. Phases 1 à 7 vérifiées et déployées localement,
 dont la conservation de la démo dans le navigateur et la chaîne protocole
 Minecraft. Smoke final validé et fixtures d'acceptation nettoyées. Le
-[plan d'exécution](../superpowers/plans/2026-09-12-project-storage-modes.md)
+plan d'exécution (`docs/superpowers/plans/2026-09-12-project-storage-modes.md`, retiré le 2026-10-21, dans l'historique git)
 porte les migrations, tests et critères de livraison.
 
 Le stockage hébergé utilise désormais un volume durable, avec un répertoire de

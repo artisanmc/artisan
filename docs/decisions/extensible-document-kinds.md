@@ -152,7 +152,7 @@ Trois ADR cadrent :
 ## Conséquences
 
 - **Chantier de généralisation** documenté dans
-  `docs/superpowers/specs/2026-10-14-extensible-document-kinds-design.md` : faire
+  `docs/archive/specs/2026-10-14-extensible-document-kinds-design.md` : faire
   passer les kinds core par le registre **sans changement de comportement**,
   verrouillé par `action-dsl-conformance.json` (ou son successeur), `doc-ref-
   conformance.json` et les suites existantes, **avant** d'ouvrir l'enregistrement.

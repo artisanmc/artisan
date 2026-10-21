@@ -41,12 +41,12 @@ Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 | `docs/architecture/ws-protocol.md` | Messages hub ↔ serveur (`/ws/plugin`) + `/ws/editor`. |
 | `docs/architecture/rest-endpoints.md` | Index des routes du hub (quel `*Routes.kt` ouvrir) + conventions. |
 | `docs/architecture/entities.md` | Ce qui persiste où (disque, base de la suite, mémoire du hub), auth, historique. |
-| `docs/architecture/editor-internals.md` | Title composer, édition de Document, canvas, `<SchemaForm>`, UI shell, design system. |
+| `docs/architecture/editor-internals.md` | Title composer, édition de Document, canvas, UI shell, design system. |
 | `docs/architecture/project-files.md` | Structure d'un project sur disque, codec `lang/`, champ `title`. |
 | `docs/architecture/plugin-commands.md` | Détail des sous-commandes `/artisan`. |
 | `docs/architecture/testing.md` | Couverture des suites + vecteurs de conformance. |
 | `docs/architecture/schemas-codegen.md` | Schémas JSON ↔ types éditeur/plugin. |
-| `docs/decisions/` | ADRs (`editor-web-server` : le hub). `docs/specs/`, `docs/superpowers/` : specs et plans. |
+| `docs/decisions/` | ADRs (`editor-web-server` : le hub). `docs/specs/` : specs produit ; `docs/archive/specs/` : conceptions passées (voir son README). |
 
 ## Commandes
 
@@ -85,7 +85,7 @@ plugin/          Kotlin 2.0 + Paper : api · core · database · hub (Jetty 12) 
 docker/          Serveurs Minecraft locaux (itzg/minecraft-server), réseau dans docker/network/
 tools/minecraft-assets/  Générateurs Bun des assets MC vanilla (items, icônes 3D, largeurs de glyphes)
 docs-site/       Astro Starlight — docs user publiques (EN), servies sur artisanmc.net/wiki
-docs/            architecture/ · decisions/ · specs/ · schema/ · superpowers/
+docs/            architecture/ · archive/ · decisions/ · specs/ · schema/
 ```
 
 **Pas de backend** — le plugin sert l'éditeur, l'API `/api/v1/…` et les WebSockets sur `web.port`
