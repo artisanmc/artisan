@@ -239,7 +239,7 @@ The system messages (commands, statuses, errors) of the suite's plugins: one rul
 
 ### `net.artisanmc.modules.api.text.TextApi` (`@Beta`, 2.10.0)
 
-Text for players without Adventure types, so a plugin runs on Paper and Spigot alike (Adventure leaves the API in 3.0). Input is MiniMessage, `§` codes accepted; malformed text degrades to plain text, never throws. Any thread.
+Text for players without Adventure types, so a plugin runs on Paper and Spigot alike. Input is MiniMessage, `§` codes accepted; malformed text degrades to plain text, never throws. Any thread.
 
 - `send(to, miniMessage)`: parsed and sent.
 - `legacy(miniMessage)`: a `§` string, `§x§r§r§g§g§b§b` for a hex color, for Bukkit's String methods (item names and lore, inventory, boss bar and title texts). Fonts, hover and click are lost.
@@ -605,10 +605,7 @@ None at this time.
 | `DataSourceDeclaration.schemaHint` | 1.3.0 | 2.0.0 (done) | `schema` |
 | `ModuleMessagesApi`, `ArtisanAPI.messages` | 1.8.0 | 2.0.0 (done) | none — nothing receives the messages |
 
-| `MessageBundle.get(...)` (returns Adventure's `Component`) | 2.10.0 | 3.0.0 | `send`, `legacy`, or `raw` + `format` |
-| `MenuCloseEvent.getReason()`, constructor with `InventoryCloseEvent.Reason` (Paper only) | 2.10.0 | 3.0.0 | `getCloseReason()`, constructor with `MenuCloseReason` |
-
-`getReason()` exists only on Paper (Spigot lacks Paper's type). `get` works on Spigot too, since Artisan bundles Adventure, but a plugin cannot send its `Component` there itself: Spigot has no `sendMessage(Component)`.
+Deprecated (`@Deprecated`), kept with no removal planned (decision of 2026-10-21: Artisan bundles Adventure, so nothing forces an API 3.0 for Spigot): `MessageBundle.get(...)` (use `send`, `legacy`, or `raw` + `format`), `MenuCloseEvent.getReason()` and its constructor with `InventoryCloseEvent.Reason` (use `getCloseReason()` and the constructor with `MenuCloseReason`). `getReason()` exists only on Paper (Spigot lacks Paper's type). `get` works on Spigot too, since Artisan bundles Adventure, but a plugin cannot send its `Component` there itself: Spigot has no `sendMessage(Component)`.
 
 ## Internal — DO NOT USE
 
