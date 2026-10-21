@@ -85,22 +85,9 @@ object DialogRenderer {
         val inputIds = dialog.yaml.inputs.map { it.id }
         val inputsByIdYaml = dialog.yaml.inputs.associateBy { it.id }
 
-        val buttons = dialog.yaml.buttons.mapIndexed { i, btnYaml ->
-            val requirements = btnYaml.requirements.map { ConditionParser.parse(it) }
-            // Button `actions`: keyed (map/list), DSL string, or `{steps}`.
-            val steps        = runCatching {
-                ActionChainCompiler.compile(
-                    btnYaml.actions,
-                    I18nAddress.dialogButton(dialog.yaml.id, btnYaml.id),
-                )
-            }
-                .getOrElse { e ->
-                    org.bukkit.Bukkit.getLogger()
-                        .warning("[Artisan] dialog button '${btnYaml.id}' steps skipped — ${e.message}")
-                    emptyList()
-                }
-            val fallback     = ActionChainCompiler.compile(btnYaml.fallback)
-            val handler      = ClickHandler(requirements, fallback, steps = steps)
+        val handlers = DialogButtons.handlers(dialog)
+        val buttons = dialog.yaml.buttons.mapIndexed { i, _ ->
+            val handler      = handlers[i]
             val btnLabel     = LenientText.parse(texts.buttonLabels[i])
 
             val callback = DialogActionCallback { view: DialogResponseView, _: Audience ->
@@ -150,14 +137,7 @@ object DialogRenderer {
         when (inputYaml?.type) {
             "text"          -> view.getText(id) ?: inputYaml.default
             "bool"          -> view.getBoolean(id)?.toString() ?: inputYaml.default
-            "number_range"  -> {
-                val f = view.getFloat(id)
-                if (f != null) {
-                    if (f == f.toLong().toFloat()) f.toLong().toString() else f.toString()
-                } else {
-                    inputYaml.default.ifEmpty { inputYaml.min.toString() }
-                }
-            }
+            "number_range"  -> DialogButtons.number(view.getFloat(id), inputYaml)
             "single_option" -> view.getText(id) ?: inputYaml.default
             else            -> ""
         }

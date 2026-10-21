@@ -140,8 +140,10 @@ Spigot c'est la nôtre. Un `Component` existe donc partout, mais seules les mét
 le prennent : l'envoyer (chat, titre, broadcast) ou le poser sur un objet (nom, lore) passe par
 `Chat` et `ItemTexts` (`runtime`, package `platform`), jamais par `sendMessage(Component)`,
 `displayName(Component)` ou `lore(List<Component>)` directement. Sur Spigot, le chat passe en JSON
-par l'API de chat BungeeCord, les titres et textes d'objets en `§` (polices perdues). Les titres
-d'inventaire composés et les dialogues restent Paper-only (étape 6 du plan de support Spigot).
+par l'API de chat BungeeCord, les titres et textes d'objets en `§` (polices perdues). Le titre
+composé d'un menu part dans le paquet d'ouverture sur Spigot (`MenuWindows`, polices gardées) ; un
+dialogue passe par l'API de dialogues BungeeCord que Spigot embarque (`SpigotDialogRenderer`, appelée
+par réflexion car absente de paper-api ; pas de corps « item » là-bas).
 
 Le hub ajoute ses propres threads : Jetty (`artisan-web`, 32 max) répond aux requêtes HTTP et
 WebSocket, et ne touche jamais le jeu directement. Le serveur du hub passe par `LocalServerLink`

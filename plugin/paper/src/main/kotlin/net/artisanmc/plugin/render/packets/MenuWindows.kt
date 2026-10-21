@@ -6,6 +6,7 @@ import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import net.kyori.adventure.text.Component
 
 /**
  * The open menu window per player: Bukkit anchor (empty), protocol window id and
@@ -24,6 +25,11 @@ class MenuWindows(private val sink: ClientSlotSink) {
         val slots: MenuSlots,
         /** The menu's `vanilla_texture`: false keeps the chest transparent (see VanillaGuiTitle). */
         val vanillaTexture: Boolean = true,
+        /**
+         * The composed title, sent in the open packet instead of the server's. Set on Spigot,
+         * which opens windows with a `§` title only (fonts and glyphs lost); null on Paper.
+         */
+        val title: Component? = null,
     ) : MenuSlots.Client {
         /** Protocol window id, captured from the open packet. -1 before. */
         @Volatile var windowId: Int = -1
@@ -66,8 +72,8 @@ class MenuWindows(private val sink: ClientSlotSink) {
     private val windows = ConcurrentHashMap<UUID, Window>()
 
     /** Call BEFORE `openInventory`: the open packets are rewritten. */
-    fun open(player: Player, anchor: Inventory, slots: MenuSlots, vanillaTexture: Boolean = true): Window {
-        val window = Window(player, anchor, slots, vanillaTexture)
+    fun open(player: Player, anchor: Inventory, slots: MenuSlots, vanillaTexture: Boolean = true, title: Component? = null): Window {
+        val window = Window(player, anchor, slots, vanillaTexture, title)
         slots.client = window
         windows.put(player.uniqueId, window)?.let { detach(it) }
         return window
