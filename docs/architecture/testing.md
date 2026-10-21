@@ -73,7 +73,9 @@ positions (haut et bas) et un menu `visible` :
   items restent au-dessus de la glyph.
 - [ ] Même serveur : un vrai coffre, un tonneau, un ender chest et un double coffre gardent leur
   texture vanilla (réinjectée), titre à sa place ; idem juste après `/artisan reload`.
-- [ ] Joueur qui refuse le pack : coffres vanilla normaux, aucun caractère manquant dans les titres.
+- [x] Joueur qui refuse le pack : coffres vanilla normaux, aucun caractère manquant dans les titres.
+  *Automatisé (vrai coffre, avant et après `/artisan reload`) : le serveur croit les coffres
+  transparents (`fixtures/cache/`), le client refuse le pack.*
 - [ ] Menus entonnoir et dropper en `vanilla_texture: false` : fenêtres transparentes ; un vrai
   entonnoir, un distributeur et un dropper gardent leur texture (réinjectée), un vrai coffre n'est
   pas touché tant qu'aucun menu coffre n'est transparent.
