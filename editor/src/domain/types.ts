@@ -101,7 +101,19 @@ export interface EdgeAnchor {
   t: number;
 }
 
+/**
+ * A frame on a module's board: one top-level themed folder and every Document
+ * filed under it, at any depth. Derived from `Document.folder` and
+ * `Project.folders` (`domain/canvasGroups.ts`), never stored.
+ */
+/** What the editor remembers about a themed folder (`Project.folders`). */
+export interface FolderMeta {
+  color?: string;
+  position?: { x: number; y: number };
+}
+
 export interface CanvasGroup {
+  /** The top-level folder's name, also what the frame shows. */
   id: string;
   name: string;
   /** Any Document id in the project — menus, commands and dialogs alike. */
@@ -166,8 +178,13 @@ export interface Project {
   i18nMode?: "extract" | "inline";
   /** Board position of each document, keyed by its id (ids are unique across kinds). */
   canvasLayout: Record<string, { x: number; y: number }>;
-  /** Visual-only groups, one level inside the project; stored in .artisan/editor.yaml. */
-  canvasGroups?: CanvasGroup[];
+  /**
+   * Editor metadata of themed folders, keyed by folder path (`boutique`,
+   * `boutique/armes`): a top-level folder's frame color and position, and the
+   * folders that hold no Document yet. Which Documents a folder holds is
+   * `Document.folder`. Stored in `.artisan/editor.yaml`.
+   */
+  folders?: Record<string, FolderMeta>;
   /**
    * Manual edge-endpoint overrides, keyed by edge id ("source->target").
    * Editor-only metadata — exported as manifest `editor_edges`.
@@ -181,6 +198,12 @@ export interface Project {
    * unrecognized project dirs; modules normalize that on first read.
    */
   moduleData?: Record<string, unknown>;
+  /**
+   * Document-shaped files the layout refused (duplicate id, subfolder of a kind
+   * folder…; `domain/documentLayout.ts`), keyed by path relative to the module.
+   * Never read, written back verbatim so a save loses nothing.
+   */
+  unreadFiles?: Record<string, string>;
   /**
    * Owning Add-on module id (from `manifest.module`) when this is an Add-on's
    * dedicated project — drives the sidebar "Installed modules" grouping and is
@@ -205,6 +228,11 @@ export type PlayerInventoryMode = "visible" | "hidden";
 export interface Menu {
   id: MenuId;
   projectId: ProjectId;
+  /**
+   * Themed folder holding the file, `/`-separated (`boutique/armes`); absent at
+   * the module root. Not part of the id: moving changes no reference.
+   */
+  folder?: string;
   title: MenuTitleLayer[];
   rows: 1 | 2 | 3 | 4 | 5 | 6;
   /**
@@ -449,6 +477,11 @@ export type Condition =
 export interface Command {
   id: CommandId;
   projectId: ProjectId;
+  /**
+   * Themed folder holding the file, `/`-separated (`boutique/armes`); absent at
+   * the module root. Not part of the id: moving changes no reference.
+   */
+  folder?: string;
   name: string;
   aliases?: string[];
   permission?: string;
@@ -705,6 +738,11 @@ export interface ConnectorSpec {
 export interface Dialog {
   id: DialogId;
   projectId: ProjectId;
+  /**
+   * Themed folder holding the file, `/`-separated (`boutique/armes`); absent at
+   * the module root. Not part of the id: moving changes no reference.
+   */
+  folder?: string;
   title: LText;
   canCloseWithEscape: boolean;
   body: DialogBody[];

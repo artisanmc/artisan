@@ -1,17 +1,11 @@
-import { commandsOf, mutableCommands } from "@/domain/documents";
+import { commandsOf, mutableCommands, renamedDocumentFiles } from "@/domain/documents";
 import { rekeyCommand } from "@/domain/i18nSites";
 import { commandId, newCommandId } from "@/domain/ids";
 import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
 import type { Command, CommandArg, CommandId, Condition, ProjectId, Step } from "@/domain/types";
 import { commandKeyPrefix } from "@/lib/i18nKeys";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import {
-  allocStepLTexts,
-  gcStepLTexts,
-  rewriteCanvasEdgeIds,
-  rewriteCanvasGroupMembers,
-  validateArgOrder,
-} from "./helpers";
+import { allocStepLTexts, gcStepLTexts, rewriteCanvasEdgeIds, validateArgOrder } from "./helpers";
 import type { ProjectsSliceContext } from "./types";
 
 /** Commands: fields, aliases, arguments and their steps. */
@@ -201,13 +195,16 @@ export const createCommandsSlice = ({
         delete layout[oldId];
       }
       rewriteCanvasEdgeIds(project, oldId as string, newId as string);
-      rewriteCanvasGroupMembers(project, oldId as string, newId as string);
       rekeyCommand(project, cmd);
     });
     // Same intent as setDialogId, recorded once the rename is applied.
-    useProjectDraftStore
-      .getState()
-      .recordRename(pId, `commands/${oldId}.yaml`, `commands/${newId}.yaml`);
+    const moved = renamedDocumentFiles(
+      get().openProjects.projects.find((p) => p.id === pId),
+      "command",
+      oldId as string,
+      newId as string,
+    );
+    useProjectDraftStore.getState().recordRename(pId, moved.from, moved.to);
   },
   setCommandStep: ({ projectId: pId, commandId: cId, path, step, lang }) =>
     mutateCommand(pId, cId, (cmd, project) => {

@@ -1,6 +1,7 @@
 package net.artisanmc.modules.api.menu;
 
 import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Sunset;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -15,20 +16,35 @@ public final class MenuCloseEvent extends PlayerEvent {
     private static final HandlerList HANDLERS = new HandlerList();
 
     private final MenuRef menu;
-    private final InventoryCloseEvent.Reason reason;
+    private final MenuCloseReason reason;
 
-    public MenuCloseEvent(Player player, MenuRef menu, InventoryCloseEvent.Reason reason) {
+    /** @since 2.10.0 */
+    public MenuCloseEvent(Player player, MenuRef menu, MenuCloseReason reason) {
         super(player);
         this.menu = menu;
         this.reason = reason;
+    }
+
+    @Sunset(reason = "Paper's InventoryCloseEvent.Reason does not exist on Spigot",
+        removeInVersion = "3.0.0", replacement = "MenuCloseEvent(Player, MenuRef, MenuCloseReason)")
+    public MenuCloseEvent(Player player, MenuRef menu, InventoryCloseEvent.Reason reason) {
+        this(player, menu, MenuCloseReason.named(reason == null ? null : reason.name()));
     }
 
     public MenuRef getMenu() {
         return menu;
     }
 
-    public InventoryCloseEvent.Reason getReason() {
+    /** @since 2.10.0 */
+    public MenuCloseReason getCloseReason() {
         return reason;
+    }
+
+    /** Paper only: throws {@link NoClassDefFoundError} on Spigot. */
+    @Sunset(reason = "Paper's InventoryCloseEvent.Reason does not exist on Spigot",
+        removeInVersion = "3.0.0", replacement = "getCloseReason()")
+    public InventoryCloseEvent.Reason getReason() {
+        return InventoryCloseEvent.Reason.valueOf(reason.name());
     }
 
     @Override

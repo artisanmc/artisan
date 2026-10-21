@@ -23,6 +23,7 @@ function project(id = "p"): Project {
       menu: ["main", "craft_a", "craft_b", "quest"].map((name) => ({
         id: `${id}_${name}`,
         projectId: id,
+        ...(name.startsWith("craft") ? { folder: "crafts" } : {}),
         title: [],
         rows: 3,
         layers: [
@@ -51,7 +52,6 @@ function project(id = "p"): Project {
         ],
       })),
     },
-    canvasGroups: [{ id: "crafts", name: "Crafts", nodeIds: [`${id}_craft_a`, `${id}_craft_b`] }],
   } as unknown as Project;
 }
 
@@ -76,13 +76,10 @@ it("places a group as one block inside its project, after the main menu", () => 
   ).toBe(true);
 });
 
-it("ignores legacy folding and preserves menu links and group colors", () => {
+it("ignores legacy folding and preserves menu links and folder colors", () => {
   const p = project();
   const expanded = projectBoard(p);
-  const folded = projectBoard({
-    ...p,
-    canvasGroups: p.canvasGroups!.map((g) => ({ ...g, collapsed: true, color: "#a855f7" })),
-  });
+  const folded = projectBoard({ ...p, folders: { crafts: { color: "#a855f7" } } });
   expect(folded.layout).toEqual(expanded.layout);
   expect(folded.groups.find((g) => g.id === "crafts")).toMatchObject({ color: "#a855f7" });
   const edges = groupEdges(deriveEdges(p), folded.representatives);

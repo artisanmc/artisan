@@ -2,6 +2,8 @@ package net.artisanmc.plugin.listener
 
 import net.artisanmc.modules.api.menu.MenuClickEvent
 import net.artisanmc.modules.api.menu.MenuCloseEvent
+import net.artisanmc.modules.api.menu.MenuCloseReason
+import net.artisanmc.plugin.platform.ServerPlatform
 import net.artisanmc.plugin.engine.*
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -72,8 +74,10 @@ class MenuListener(
             val player = event.player as? Player ?: return
             val session = sessions.get(player)
             sessions.remove(player)
-            if (session != null) events?.close(MenuCloseEvent(player, session.ref, event.reason))
-            val goBack = session?.escapeGoesBack == true && event.reason == InventoryCloseEvent.Reason.PLAYER
+            val reason = if (ServerPlatform.paper) PaperCloseReasons.of(event) else MenuCloseReason.UNKNOWN
+            if (session != null) events?.close(MenuCloseEvent(player, session.ref, reason))
+            // Spigot does not say who closed: Escape goes back on Paper only.
+            val goBack = session?.escapeGoesBack == true && reason == MenuCloseReason.PLAYER
             endNavigationIfClosed(player, goBack, session?.ctx)
             // The client showed the menu's content in its own inventory (a window's
             // bottom slots point to it): resync the real content once the window is
@@ -118,4 +122,9 @@ private fun org.bukkit.event.inventory.ClickType.toIfzClickType(): ClickType? = 
     org.bukkit.event.inventory.ClickType.SHIFT_RIGHT  -> ClickType.SHIFT_RIGHT
     org.bukkit.event.inventory.ClickType.MIDDLE       -> ClickType.MIDDLE
     else                                               -> null
+}
+
+/** Paper's close reason: loaded on Paper only, Spigot has no `InventoryCloseEvent.Reason`. */
+private object PaperCloseReasons {
+    fun of(event: InventoryCloseEvent): MenuCloseReason = MenuCloseReason.named(event.reason.name)
 }

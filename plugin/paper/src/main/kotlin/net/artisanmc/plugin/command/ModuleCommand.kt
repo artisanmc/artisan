@@ -9,6 +9,7 @@ import net.artisanmc.plugin.engine.ClickHandler
 import net.artisanmc.plugin.engine.ConditionParser
 import net.artisanmc.plugin.engine.Cooldown
 import net.artisanmc.plugin.engine.ExecutionContext
+import net.artisanmc.plugin.engine.Step
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.model.CommandOverrideYaml
 import net.artisanmc.plugin.model.LocalizedText
@@ -29,17 +30,25 @@ class ResolvedPlayerCommand(
     val permission: String?,
     val description: LocalizedText?,
     val enabled: Boolean,
-    /** Override's requirements, fallback and cooldown; null when it sets none. */
+    /** Override's requirements, fallback, cooldown and [steps]; null when it sets none. */
     val handler: ClickHandler?,
     val cooldownMessage: LocalizedText?,
     val argDefs: List<ArgDef>,
     val children: List<ResolvedPlayerCommand>,
+    /** The override's chain run instead of the module's code; null: the module's code runs. */
+    val steps: List<Step>? = null,
+    /** The override's folder, where a bare id in [steps] resolves. */
+    val projectId: String? = null,
 ) {
     val id: String get() = declaration.id
 
     fun withAliases(aliases: List<String>) = ResolvedPlayerCommand(
-        declaration, name, aliases, permission, description, enabled, handler, cooldownMessage, argDefs, children,
+        declaration, name, aliases, permission, description, enabled, handler, cooldownMessage, argDefs, children, steps, projectId,
     )
+
+    /** This command or one of its sub-commands, by id. */
+    fun find(id: String): ResolvedPlayerCommand? =
+        if (this.id == id) this else children.firstNotNullOfOrNull { it.find(id) }
 
     companion object {
         fun resolve(
@@ -52,6 +61,12 @@ class ResolvedPlayerCommand(
             if (!isRoot && override?.name != null) {
                 logger?.warning("Override of '${declaration.id}': a sub-command keeps its name, 'name' ignored.")
             }
+            val steps = override?.steps?.let { chain ->
+                runCatching { ActionChainCompiler.compile(chain) }.getOrElse { e ->
+                    logger?.warning("Override of '${declaration.id}': invalid steps (${e.message}), the module's code runs.")
+                    null
+                }
+            }
             val handler = override?.let { o ->
                 runCatching {
                     val cooldown = o.cooldown?.takeIf { it.duration > 0 }?.let {
@@ -61,11 +76,11 @@ class ResolvedPlayerCommand(
                         requirements = o.requirements.map { ConditionParser.parse(it) },
                         fallback = ActionChainCompiler.compile(o.fallback),
                         cooldown = cooldown,
-                        steps = emptyList(),
-                    ).takeIf { cooldown != null || it.requirements.isNotEmpty() }
+                        steps = steps.orEmpty(),
+                    ).takeIf { cooldown != null || it.requirements.isNotEmpty() || steps != null }
                 }.getOrElse { e ->
                     logger?.warning("Override of '${declaration.id}': invalid requirements, fallback or cooldown (${e.message}), ignored.")
-                    null
+                    steps?.let { ClickHandler(requirements = emptyList(), fallback = emptyList(), cooldown = null, steps = it) }
                 }
             }
             return ResolvedPlayerCommand(
@@ -83,6 +98,8 @@ class ResolvedPlayerCommand(
                 cooldownMessage = override?.cooldown?.message,
                 argDefs = declaration.arguments.map(::argDef),
                 children = declaration.children.map { resolve(it, overrides, logger, isRoot = false) },
+                steps = steps,
+                projectId = override?.project,
             )
         }
 
@@ -126,27 +143,31 @@ class ModuleCommand(
             return true
         }
         val run = node.declaration.executor
-        if (run == null) {
+        if (run == null && node.steps == null) {
             val subs = node.children.filter { c -> c.enabled && c.permission?.let(sender::hasPermission) != false }.map { it.name }
             val path = (listOf(commandLabel) + args.take(depth)).joinToString(" ")
             sender.sendMessage(lang.get("cmd.usage", sender, "command" to path, "subcommands" to subs.joinToString("|")))
             return true
         }
-        if (sender !is Player && !node.declaration.isConsoleAllowed) {
+        // A chain acts on a player: an override's steps never run from the console.
+        if (sender !is Player && (node.steps != null || !node.declaration.isConsoleAllowed)) {
             sender.sendMessage(lang.get("cmd.in_game_only", sender))
             return true
         }
         val parsed = ArgParser.parse(node.argDefs, args.copyOfRange(depth, args.size), sender, lang) ?: return true
         val playerLang = lang.playerLang(sender)
-        val context = Context(node.id, sender, playerLang, parsed)
+        val context = ModuleCommandContext(node.id, sender, playerLang, parsed)
         val handler = node.handler
         if (sender !is Player || handler == null) {
-            runSafely(node, sender) { run.execute(context) }
+            runSafely(node, sender) { run?.execute(context) }
             return true
         }
         val cooldown = handler.cooldown?.copy(message = node.cooldownMessage?.forLang(playerLang, playerLang))
-        executor.handle(handler.copy(cooldown = cooldown), ExecutionContext(player = sender, args = parsed, lang = playerLang)) {
-            runSafely(node, sender) { run.execute(context) }
+        val ctx = ExecutionContext(player = sender, args = parsed, lang = playerLang, projectId = node.projectId)
+        if (node.steps != null) {
+            executor.handle(handler.copy(cooldown = cooldown), ctx)
+        } else {
+            executor.handle(handler.copy(cooldown = cooldown), ctx) { runSafely(node, sender) { run?.execute(context) } }
         }
         return true
     }
@@ -177,16 +198,17 @@ class ModuleCommand(
         }
     }
 
-    private class Context(
-        private val commandId: String,
-        private val sender: CommandSender,
-        private val language: String,
-        private val arguments: Map<String, Any>,
-    ) : PlayerCommandContext {
-        override fun getCommandId() = commandId
-        override fun getSender() = sender
-        override fun getPlayer() = sender as? Player
-        override fun getLanguage() = language
-        override fun getArguments() = arguments
-    }
+}
+
+internal class ModuleCommandContext(
+    private val commandId: String,
+    private val sender: CommandSender,
+    private val language: String,
+    private val arguments: Map<String, Any>,
+) : PlayerCommandContext {
+    override fun getCommandId() = commandId
+    override fun getSender() = sender
+    override fun getPlayer() = sender as? Player
+    override fun getLanguage() = language
+    override fun getArguments() = arguments
 }

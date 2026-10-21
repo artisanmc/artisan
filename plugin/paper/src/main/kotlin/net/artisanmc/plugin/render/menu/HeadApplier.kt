@@ -1,7 +1,7 @@
 package net.artisanmc.plugin.render.menu
 
-import com.destroystokyo.paper.profile.ProfileProperty
 import net.artisanmc.plugin.integrations.SoftDepRegistry
+import net.artisanmc.plugin.items.SkinTextures
 import org.bukkit.Bukkit
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.SkullMeta
@@ -27,9 +27,10 @@ object HeadApplier {
             }
             is HeadRef.Base64 -> item.also { stack ->
                 val meta = stack.itemMeta as? SkullMeta ?: return@also
-                val profile = Bukkit.createProfile(HeadRef.uuidFor(ref.value))
-                profile.setProperty(ProfileProperty("textures", ref.value))
-                meta.playerProfile = profile
+                if (!SkinTextures.apply(meta, HeadRef.uuidFor(ref.value), ref.value)) {
+                    warnOnce("basehead:${ref.value}", "head \"basehead:${ref.value}\" holds no skin URL — rendering a plain player head")
+                    return@also
+                }
                 stack.itemMeta = meta
             }
             is HeadRef.PlayerName -> item.also { stack ->
