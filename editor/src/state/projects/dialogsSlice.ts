@@ -1,4 +1,4 @@
-import { dialogsOf, mutableDialogs } from "@/domain/documents";
+import { dialogsOf, mutableDialogs, renamedDocumentFiles } from "@/domain/documents";
 import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
 import type {
   Condition,
@@ -24,7 +24,6 @@ import {
   allocStepLTexts,
   gcStepLTexts,
   rewriteCanvasEdgeIds,
-  rewriteCanvasGroupMembers,
   updateDialogLTextKey,
 } from "./helpers";
 import type { Mutation } from "./mutate";
@@ -259,16 +258,19 @@ export const createDialogsSlice = ({
           delete layout[oldId as string];
         }
         rewriteCanvasEdgeIds(p, oldId as string, newId as string);
-        rewriteCanvasGroupMembers(p, oldId as string, newId as string);
       });
       // Renaming is a MOVE, and only the editor knows it: the tree alone would
       // only show a disappearance and an appearance. Without this intent, the
       // trash archives a deletion that is not one and the file's history is
       // orphaned from its new name. Recorded once the rename is applied: a
       // refused one must leave no intent behind in the draft.
-      useProjectDraftStore
-        .getState()
-        .recordRename(pId, `dialogs/${oldId}.yaml`, `dialogs/${newId}.yaml`);
+      const moved = renamedDocumentFiles(
+        get().openProjects.projects.find((p) => p.id === pId),
+        "dialog",
+        oldId as string,
+        newId as string,
+      );
+      useProjectDraftStore.getState().recordRename(pId, moved.from, moved.to);
     },
     addDialogBody: ({ projectId: pId, dialogId: dId, body }) =>
       mutateDialog(pId, dId, (dialog, project) => {

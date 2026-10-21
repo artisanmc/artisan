@@ -41,7 +41,11 @@ data class Recorded(val recorded: Boolean, val skipped: List<String> = emptyList
  * differs from the previous one, its files in `artisan_contents`, each content stored once.
  * A Project is found by the folder its latest Version was loaded from.
  */
-class VersionStore(private val dataSource: DataSource, private val dialect: DatabaseDialect = DatabaseDialect.H2) {
+class VersionStore(
+    private val dataSource: DataSource,
+    private val dialect: DatabaseDialect = DatabaseDialect.H2,
+    private val t: ArtisanTables = ArtisanTables.DEFAULT,
+) {
     private class Entry(val binary: Boolean, val hash: String, val size: Long, val path: String)
     private class Row(
         val id: Int, val hash: String, val manifest: List<Entry>, val createdAt: Instant, val author: VersionAuthor?,
@@ -65,12 +69,12 @@ class VersionStore(private val dataSource: DataSource, private val dialect: Data
         val hash = sha256(manifest.toByteArray(Charsets.UTF_8))
         transaction(c) {
             val latest = c.prepareStatement(
-                "SELECT hash FROM artisan_versions WHERE server_id = ? AND project_key = ? ORDER BY id DESC LIMIT 1",
+                "SELECT hash FROM ${t.versions} WHERE server_id = ? AND project_key = ? ORDER BY id DESC LIMIT 1",
             ).use { s -> s.setInt(1, server.value); s.setString(2, projectKey); s.executeQuery().use { if (it.next()) it.getString(1) else null } }
             if (latest == hash) return@transaction Recorded(false)
             val known = knownHashes(c, entries.values.map { it.hash }.toSet())
             val skipped = ArrayList<String>()
-            Contents.insertIgnore(c, dialect).use { insert ->
+            Contents.insertIgnore(c, dialect, t).use { insert ->
                 entries.entries.filter { it.value.hash !in known }.distinctBy { it.value.hash }.forEach { (path, entry) ->
                     val bytes = entry.text?.toByteArray(Charsets.UTF_8) ?: readBinary(path)
                     if (entry.binary && sha256(bytes) != entry.hash) { skipped += path; return@forEach }
@@ -80,7 +84,7 @@ class VersionStore(private val dataSource: DataSource, private val dialect: Data
                 }
             }
             c.prepareStatement(
-                "INSERT INTO artisan_versions (server_id, project_key, folder, hash, manifest, author_id, author_name, created_at, restored_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO ${t.versions} (server_id, project_key, folder, hash, manifest, author_id, author_name, created_at, restored_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             ).use {
                 it.setInt(1, server.value); it.setString(2, projectKey); it.setString(3, folder); it.setString(4, hash)
                 it.setString(5, manifest); it.setString(6, author?.id); it.setString(7, author?.name)
@@ -134,12 +138,12 @@ class VersionStore(private val dataSource: DataSource, private val dialect: Data
     }
 
     fun contentCount(): Int = dataSource.connection.use { c ->
-        c.createStatement().use { s -> s.executeQuery("SELECT COUNT(*) FROM artisan_contents").use { it.next(); it.getInt(1) } }
+        c.createStatement().use { s -> s.executeQuery("SELECT COUNT(*) FROM ${t.contents}").use { it.next(); it.getInt(1) } }
     }
 
     private fun binary(c: Connection, row: Row, path: String): ByteArray? {
         val entry = row.manifest.firstOrNull { it.path == path && it.binary } ?: return null
-        return c.prepareStatement("SELECT content FROM artisan_contents WHERE hash = ?").use { s ->
+        return c.prepareStatement("SELECT content FROM ${t.contents} WHERE hash = ?").use { s ->
             s.setString(1, entry.hash); s.executeQuery().use { if (it.next()) it.getBytes(1) else null }
         }
     }
@@ -148,7 +152,7 @@ class VersionStore(private val dataSource: DataSource, private val dialect: Data
         val texts = row.manifest.filter { !it.binary }
         val contents = contents(c, texts.map { it.hash }.toSet())
         val previous = c.prepareStatement(
-            "SELECT id FROM artisan_versions WHERE server_id = ? AND project_key = ? AND id < ? ORDER BY id DESC LIMIT 1",
+            "SELECT id FROM ${t.versions} WHERE server_id = ? AND project_key = ? AND id < ? ORDER BY id DESC LIMIT 1",
         ).use { s ->
             s.setInt(1, row.server.value); s.setString(2, row.projectKey); s.setInt(3, row.id)
             s.executeQuery().use { if (it.next()) it.getInt(1) else null }
@@ -174,11 +178,11 @@ class VersionStore(private val dataSource: DataSource, private val dialect: Data
      */
     private fun latestRow(c: Connection, server: ServerRow, folder: String): Row? {
         val byFolder = c.prepareStatement(
-            "SELECT $columns FROM artisan_versions WHERE server_id = ? AND folder = ? ORDER BY id DESC LIMIT 1",
+            "SELECT $columns FROM ${t.versions} WHERE server_id = ? AND folder = ? ORDER BY id DESC LIMIT 1",
         ).use { s -> s.setInt(1, server.value); s.setString(2, folder); s.executeQuery().use { if (it.next()) read(it) else null } }
             ?: return null
         val byKey = c.prepareStatement(
-            "SELECT $columns FROM artisan_versions WHERE server_id = ? AND project_key = ? ORDER BY id DESC LIMIT 1",
+            "SELECT $columns FROM ${t.versions} WHERE server_id = ? AND project_key = ? ORDER BY id DESC LIMIT 1",
         ).use { s -> s.setInt(1, server.value); s.setString(2, byFolder.projectKey); s.executeQuery().use { if (it.next()) read(it) else null } }
         return byKey?.takeIf { it.id == byFolder.id }
     }
@@ -186,7 +190,7 @@ class VersionStore(private val dataSource: DataSource, private val dialect: Data
     /** Version [id] of the Project loaded from [folder]; null when it is another Project's. */
     private fun row(c: Connection, server: ServerRow, folder: String, id: Int): Row? {
         val key = latestRow(c, server, folder)?.projectKey ?: return null
-        return c.prepareStatement("SELECT $columns FROM artisan_versions WHERE id = ? AND server_id = ? AND project_key = ?").use { s ->
+        return c.prepareStatement("SELECT $columns FROM ${t.versions} WHERE id = ? AND server_id = ? AND project_key = ?").use { s ->
             s.setInt(1, id); s.setInt(2, server.value); s.setString(3, key)
             s.executeQuery().use { if (it.next()) read(it) else null }
         }
@@ -195,7 +199,7 @@ class VersionStore(private val dataSource: DataSource, private val dialect: Data
     // History routes only: every Version of the Project. Page by id once histories run into thousands.
     private fun rows(c: Connection, server: ServerRow, folder: String): List<Row>? {
         val key = latestRow(c, server, folder)?.projectKey ?: return null
-        return c.prepareStatement("SELECT $columns FROM artisan_versions WHERE server_id = ? AND project_key = ? ORDER BY id").use { s ->
+        return c.prepareStatement("SELECT $columns FROM ${t.versions} WHERE server_id = ? AND project_key = ? ORDER BY id").use { s ->
             s.setInt(1, server.value); s.setString(2, key)
             s.executeQuery().use { rs -> generateSequence { if (rs.next()) read(rs) else null }.toList() }
         }
@@ -208,7 +212,7 @@ class VersionStore(private val dataSource: DataSource, private val dialect: Data
 
     private fun knownHashes(c: Connection, hashes: Set<String>): Set<String> =
         if (hashes.isEmpty()) emptySet() else c.prepareStatement(
-            "SELECT hash FROM artisan_contents WHERE hash IN (${hashes.joinToString(",") { "?" }})",
+            "SELECT hash FROM ${t.contents} WHERE hash IN (${hashes.joinToString(",") { "?" }})",
         ).use { s ->
             hashes.forEachIndexed { i, h -> s.setString(i + 1, h) }
             s.executeQuery().use { rs -> generateSequence { if (rs.next()) rs.getString(1) else null }.toSet() }
@@ -216,7 +220,7 @@ class VersionStore(private val dataSource: DataSource, private val dialect: Data
 
     private fun contents(c: Connection, hashes: Set<String>): Map<String, String> =
         if (hashes.isEmpty()) emptyMap() else c.prepareStatement(
-            "SELECT hash, content FROM artisan_contents WHERE hash IN (${hashes.joinToString(",") { "?" }})",
+            "SELECT hash, content FROM ${t.contents} WHERE hash IN (${hashes.joinToString(",") { "?" }})",
         ).use { s ->
             hashes.forEachIndexed { i, h -> s.setString(i + 1, h) }
             s.executeQuery().use { rs ->

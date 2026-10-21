@@ -6,6 +6,7 @@ import { createDataSlice } from "./projects/dataSlice";
 import { createDialogsSlice } from "./projects/dialogsSlice";
 import { createDocumentsSlice } from "./projects/documentsSlice";
 import { createElementsSlice } from "./projects/elementsSlice";
+import { createFoldersSlice } from "./projects/foldersSlice";
 import { createI18nSlice } from "./projects/i18nSlice";
 import { createMenusSlice } from "./projects/menusSlice";
 import { createProjectMutators } from "./projects/mutate";
@@ -53,6 +54,7 @@ export const useProjectsStore = create<ProjectsState>()(
         ...createMenusSlice(context),
         ...createElementsSlice(context),
         ...createCanvasSlice(context),
+        ...createFoldersSlice(context),
         ...createI18nSlice(context),
         ...createDataSlice(context),
       };

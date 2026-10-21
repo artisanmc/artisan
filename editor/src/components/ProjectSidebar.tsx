@@ -7,6 +7,7 @@ import {
   ProjectDocumentTree,
 } from "@/features/project/ProjectDocumentTree";
 import { goToDocument } from "@/features/project/goToDocument";
+import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { projectDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
@@ -25,7 +26,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
@@ -39,8 +40,10 @@ import {
   diskProjectsToSummaries,
 } from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
+import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
+import { overrideState } from "@/lib/commandOverride";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlServerId } from "@/lib/urlIds";
 import { useModulesStore } from "@/state/modulesStore";
@@ -48,8 +51,16 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
+import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronRight, Folder, FolderOpen, GripVertical } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  GripVertical,
+  Terminal,
+} from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
 import { UserMenu } from "./UserMenu";
@@ -62,6 +73,8 @@ export function ProjectSidebar() {
   const reorderProjects = useProjectsStore((s) => s.reorderProjects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   const serverScreens = useServerScreensStore((s) => s.screens);
+  const commandsServer = useSystemCommandsStore((s) => s.serverId);
+  const systemCommands = useSystemCommandsStore((s) => s.commands);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
   // Three states, like a server page: reading, read, could not read. An empty
@@ -81,9 +94,14 @@ export function ProjectSidebar() {
   }, [allServerEntries]);
   const [refetchToken, setRefetchToken] = useState(0);
   useEffect(() => {
-    const renamed = () => setRefetchToken((token) => token + 1);
-    window.addEventListener("ifz:project_renamed", renamed);
-    return () => window.removeEventListener("ifz:project_renamed", renamed);
+    const reread = () => setRefetchToken((token) => token + 1);
+    window.addEventListener("ifz:project_renamed", reread);
+    // A reload can add or drop folders: an add-on registers its own after the server started.
+    window.addEventListener(PROJECTS_RELOADED_EVENT, reread);
+    return () => {
+      window.removeEventListener("ifz:project_renamed", reread);
+      window.removeEventListener(PROJECTS_RELOADED_EVENT, reread);
+    };
   }, []);
 
   // Active server: URL param first, then persisted selection. Routes without params (settings, credits…) fall back to the
@@ -132,11 +150,14 @@ export function ProjectSidebar() {
    * and there is no point inviting to create another one.
    */
   // `refetchToken` is not read in the effect: it is precisely the "re-read the
-  // disk" signal (Project created, renamed elsewhere).
+  // disk" signal (Project created, renamed elsewhere, server reloaded).
+  const listedServer = useRef<string | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: dependencies = refresh signals
   useEffect(() => {
     let cancelled = false;
-    setProjectsStatus("loading");
+    // A re-read of the same server keeps its list on screen until the answer arrives.
+    if (listedServer.current !== activeServerId) setProjectsStatus("loading");
+    listedServer.current = activeServerId;
     if (!activeServerId) {
       // Every Project belongs to a server (ADR `server-only-projects`).
       setServerProjects([]);
@@ -190,6 +211,8 @@ export function ProjectSidebar() {
     screens: serverScreens,
     mountedModuleIds,
     localProjects,
+    // Another server's commands, while the active one's are read, would file them under the wrong modules.
+    commands: commandsServer === activeServerId ? systemCommands : [],
   });
 
   // Document count per Project: only the ones actually opened (live count, it
@@ -643,8 +666,8 @@ function PluginModuleItem({
   serverId: string | null;
   serverIdOf: (p: ProjectSummary) => string | null;
 }) {
-  const entries = module.entries.length > 0 && (
-    <ModuleEntries entries={module.entries} serverId={serverId} />
+  const entries = (module.entries.length > 0 || module.commands.length > 0) && (
+    <ModuleEntries entries={module.entries} commands={module.commands} serverId={serverId} />
   );
   const [only] = module.projects;
   if (only && module.projects.length === 1) {
@@ -685,12 +708,14 @@ function PluginModuleItem({
   );
 }
 
-/** What a plugin module alone manages: its Config screens, then its configuration route. */
+/** What a plugin module alone manages: its Config screens, its configuration route, then its system commands. */
 function ModuleEntries({
   entries,
+  commands,
   serverId,
 }: {
   entries: ModuleGroupEntry[];
+  commands: PlayerCommand[];
   serverId: string | null;
 }) {
   const { t } = useTranslation();
@@ -712,6 +737,72 @@ function ModuleEntries({
           </li>
         ),
       )}
+      {commands.length > 0 && serverId && (
+        <li className="flex flex-col">
+          <div className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]">
+            <Terminal className="size-3" aria-hidden />
+            {t("sidebar.systemCommands")}
+          </div>
+          <ul className="flex flex-col">
+            {commands.map((command) => (
+              <CommandItem key={command.id} command={command} serverId={serverId} />
+            ))}
+          </ul>
+        </li>
+      )}
     </ul>
+  );
+}
+
+/** A system command: its label as players type it, marked once the admin changed or disabled it. */
+function CommandItem({ command, serverId }: { command: PlayerCommand; serverId: string }) {
+  const { t } = useTranslation();
+  const override = useSystemCommandsStore((s) => s.overrides[command.id]);
+  const params = useParams({ strict: false }) as { commandId?: string };
+  const state = overrideState(override);
+  const isActive = params.commandId === command.id;
+  const name = override?.fields.name || command.name;
+  return (
+    <li>
+      <Link
+        to="/servers/$serverId/commands/$commandId"
+        params={{ serverId, commandId: command.id }}
+        onClick={() => useSidebarStore.getState().close()}
+        className={
+          isActive
+            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors"
+            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        }
+      >
+        <span
+          className={
+            state === "disabled" ? "truncate flex-1 line-through opacity-60" : "truncate flex-1"
+          }
+          title={`/${name}`}
+        >
+          /{name}
+        </span>
+        {state !== "default" && (
+          <span
+            role="img"
+            aria-label={t(
+              state === "disabled"
+                ? "systemCommands.stateDisabled"
+                : "systemCommands.stateModified",
+            )}
+            title={t(
+              state === "disabled"
+                ? "systemCommands.stateDisabled"
+                : "systemCommands.stateModified",
+            )}
+            className={
+              state === "disabled"
+                ? "size-1.5 shrink-0 rounded-full bg-[var(--warning)]"
+                : "size-1.5 shrink-0 rounded-full bg-[var(--brand)]"
+            }
+          />
+        )}
+      </Link>
+    </li>
   );
 }
