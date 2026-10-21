@@ -468,8 +468,9 @@ class SyncedMenuProvider(
 
     /**
      * Copies, once per server, the templates that name a seed project and were never seeded
-     * (`TemplateSeeds`), writes the module commands' missing override files, then reloads
-     * when something was written. Off the game threads, with
+     * (`TemplateSeeds`), keeps the modules' system elements in their folders (`SystemFiles`),
+     * writes the module commands' missing override files, then reloads when something was
+     * written. Off the game threads, with
      * the other disk writes.
      */
     fun seedTemplates() {
@@ -483,11 +484,32 @@ class SyncedMenuProvider(
                         .onFailure { logger?.warning("[Artisan] Template '$moduleId/${template.id}' not seeded: ${it.message}") }
                 }
             }
+            registry?.registered()?.forEach { (moduleId, list) ->
+                list.filter { it.isSystem }.forEach { template ->
+                    runCatching { if (syncSystemFiles(moduleId, template)) wrote = true }
+                        .onFailure { logger?.warning("[Artisan] System elements '$moduleId/${template.id}' not written: ${it.message}") }
+                }
+            }
             // After the templates: a module's folder they create receives its commands' files.
             runCatching { if (seedOverrides()) wrote = true }
                 .onFailure { logger?.warning("[Artisan] Command override files not written: ${it.message}") }
             if (wrote) workspace.reload()
         }
+    }
+
+    /**
+     * Keeps [template]'s system elements in [moduleId]'s first folder by name (`SystemFiles`);
+     * a module without a folder has nowhere to keep them. True when files were written.
+     */
+    private fun syncSystemFiles(moduleId: String, template: net.artisanmc.modules.api.template.TemplateDeclaration): Boolean {
+        val folder = roots.all().entries.filter { roots.ownerOf(it.key) == moduleId }.minByOrNull { it.key }
+        if (folder == null) {
+            logger?.warning("[Artisan] Module '$moduleId' declares system elements but has no folder: call moduleFolder() in its onEnable.")
+            return false
+        }
+        val written = net.artisanmc.plugin.project.SystemFiles.sync(folder.value, moduleId, template)
+        if (written.isNotEmpty()) logger?.info("[Artisan] System elements of '$moduleId' written in '${folder.key}': ${written.joinToString()}.")
+        return written.isNotEmpty()
     }
 
     fun setCustomItemsManager(manager: CustomItemsManager) {
