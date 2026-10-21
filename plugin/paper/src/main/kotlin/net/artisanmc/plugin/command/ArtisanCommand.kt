@@ -55,11 +55,9 @@ class ArtisanCommand(
             "reload" -> {
                 // Re-read disk config + reconfigure the translations so options like
                 // `per_player_language` and `language` pick up changes without
-                // needing a full server restart. Then reload the menu provider
-                // so disk-side YAML edits are picked up too.
+                // needing a full server restart. reinit() rebuilds the provider and
+                // loads it: the disk-side YAML edits are read there, once.
                 plugin.reinit(plugin.loadPluginConfig())
-                plugin.menuProvider.unload()
-                plugin.menuProvider.load()
                 Chat.send(sender, lang.get("artisan.reloaded", sender))
             }
             "sync" -> {

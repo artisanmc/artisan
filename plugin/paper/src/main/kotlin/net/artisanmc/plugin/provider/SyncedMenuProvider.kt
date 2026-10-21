@@ -500,10 +500,21 @@ class SyncedMenuProvider(
         }
     }
 
-    /** Re-report presence to the hub after the active module set changed. */
+    private val modulesChangedQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * Re-reports presence to the hub and seeds the templates after the active module set
+     * or its commands changed. The changes of one tick make one report and one seed: at
+     * start, every module and each of its commands announces itself before the first
+     * tick, and each announcement used to seed every template of every module.
+     */
     fun notifyModulesChanged() {
-        broadcast(mapOf("type" to "modules_changed") + announcement().toMap())
-        seedTemplates()
+        if (!modulesChangedQueued.compareAndSet(false, true)) return
+        scheduler.global {
+            modulesChangedQueued.set(false)
+            broadcast(mapOf("type" to "modules_changed") + announcement().toMap())
+            seedTemplates()
+        }
     }
 
     /**

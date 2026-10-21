@@ -197,6 +197,15 @@ Rien de bloquant dans `onEnable` ni sur le thread global après lui (issue #42) 
   (écrit par le module avant son `reload()`) sont lus sur le disque. Avant, `all()`,
   `api.project.list/read` et `register` prenaient le moniteur que la relecture et chaque
   écriture tenaient pendant des secondes, depuis le thread principal.
+- **Les signaux d'un tick se regroupent.** Chaque déclaration de commande et chaque
+  enregistrement de module reconstruisait la command map et relançait un seed complet (tous
+  les templates de tous les modules, tous les overrides). Les changements d'un tick font une
+  reconstruction (`commandsRefreshQueued`) et un rapport de présence suivi d'un seed
+  (`notifyModulesChanged`, `modulesChangedQueued`) : au démarrage, les modules et leurs
+  commandes s'annoncent tous avant le premier tick. `/artisan reload` fait une relecture :
+  `reinit()` recrée le provider et le charge, la commande n'enchaîne plus `unload()/load()`.
+  Reste connu : une sauvegarde de la config serveur depuis l'éditeur fait ce `reinit()`
+  complet, synchrone sur le thread global (A13 de l'audit).
 - Aucun JDBC ni I/O disque dans le chemin join, tick ou clic.
 
 ## Reload atomique

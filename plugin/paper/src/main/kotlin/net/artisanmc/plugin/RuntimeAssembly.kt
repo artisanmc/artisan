@@ -86,9 +86,13 @@ internal class RuntimeAssembly(
             overrides = { commandOverrides.overrides },
         )
         // A module enabled or disabled after the start: its commands come and go without a reload,
-        // and the editor's System section lists the new set (a leaf tells its hub).
+        // and the editor's System section lists the new set (a leaf tells its hub). The
+        // declarations of one tick (a module's commands at its enable) rebuild the command map once.
         api.playerCommands.onChange {
-            scheduler.onGlobal { commandRegistrar.refresh() }
+            if (commandsRefreshQueued.compareAndSet(false, true)) scheduler.global {
+                commandsRefreshQueued.set(false)
+                commandRegistrar.refresh()
+            }
             (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged()
         }
         // Listed with the modules' actions (owner `artisan`): the editor builds its form from the declaration.
@@ -114,6 +118,7 @@ internal class RuntimeAssembly(
                 .minByOrNull { it.key }?.value
         }
 
+    private val commandsRefreshQueued = java.util.concurrent.atomic.AtomicBoolean(false)
     private val applyQueued = java.util.concurrent.atomic.AtomicBoolean(false)
     private val applyAll = java.util.concurrent.atomic.AtomicBoolean(false)
     private val applyModules: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
