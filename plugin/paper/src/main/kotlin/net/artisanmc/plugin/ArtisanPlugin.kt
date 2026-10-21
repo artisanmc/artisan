@@ -164,6 +164,10 @@ open class ArtisanPlugin : JavaPlugin() {
         getCommand("artisan")?.setExecutor(artisanCommand)
         getCommand("artisan")?.tabCompleter = artisanCommand
         server.pluginManager.registerEvents(MenuListener(this, runtime.sessions, runtime.executor, menuWindows, history = runtime.navigationHistory, events = menuEvents), this)
+        if (!net.artisanmc.plugin.platform.ServerPlatform.paper) {
+            runCatching { net.artisanmc.plugin.render.dialog.SpigotDialogRenderer.register(this) }
+                .onFailure { logger.warning("[Artisan] dialogs unavailable on this server: ${it.message}") }
+        }
 
         // The sign-in store cannot fail and `/artisan editor` reads it: outside the guard.
         editorSessions = net.artisanmc.plugin.hub.Sessions(
@@ -236,6 +240,7 @@ open class ArtisanPlugin : JavaPlugin() {
         if (::database.isInitialized) database.closeAll()
         runtime.commandRegistrar.unregisterAll()
         menuProviderOrNull?.shutdown()
+        if (!net.artisanmc.plugin.platform.ServerPlatform.paper) runCatching { net.artisanmc.plugin.render.dialog.SpigotDialogRenderer.unregister() }
         if (packetEventsLoaded) runCatching { PacketEvents.getAPI().terminate() }
         logger.info("Artisan disabled")
     }
