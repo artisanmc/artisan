@@ -25,11 +25,19 @@ env:
   # Version du serveur de test (docker-compose.yml) et du mod (e2e/client/mod/gradle.properties).
   MC_VERSION: "26.2"
   HMC_VERSION: 3.0.0-RC8
+  # Plugin PacketEvents autonome, installé à côté de la copie relocalisée d'Artisan.
+  PACKETEVENTS_URL: https://cdn.modrinth.com/data/HYKaKraK/versions/m78nFxYg/packetevents-spigot-2.14.0.jar
 
 jobs:
   menus:
+    name: menus (${{ matrix.packetevents }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # bundled : seule la copie relocalisée d'Artisan ; standalone : plus le plugin PacketEvents.
+        packetevents: [bundled, standalone]
     steps:
       - uses: actions/checkout@v5
 
@@ -77,6 +85,9 @@ jobs:
             url=$(curl -fsS "https://fill.papermc.io/v3/projects/paper/versions/$MC_VERSION/builds/latest" | jq -r '.downloads["server:default"].url')
             curl -fsSL -o "$dir/paper-$MC_VERSION.jar" "$url"
           fi
+          if [ ! -f "$dir/packetevents.jar" ]; then
+            curl -fsSL -o "$dir/packetevents.jar" "$PACKETEVENTS_URL"
+          fi
           if [ ! -f "$dir/headlessmc-$HMC_VERSION.jar" ]; then
             curl -fsSL -o "$dir/headlessmc-$HMC_VERSION.jar" \
               "https://repo1.maven.org/maven2/io/github/headlesshq/headlessmc-application/$HMC_VERSION/headlessmc-application-$HMC_VERSION-runner.jar"
@@ -84,6 +95,7 @@ jobs:
 
       - name: Run menu scenarios
         run: |
+          EXTRA_PLUGINS=$([ "${{ matrix.packetevents }}" = standalone ] && echo ~/.cache/artisan-e2e/packetevents.jar || true) \
           PAPER_JAR=~/.cache/artisan-e2e/paper-$MC_VERSION.jar \
           HMC_JAR=~/.cache/artisan-e2e/headlessmc-$HMC_VERSION.jar \
           PLUGIN_JAR=$(ls plugin/build/libs/artisan-plugin-*-all.jar) \
@@ -95,7 +107,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-client-logs
+          name: e2e-client-logs-${{ matrix.packetevents }}
           path: |
             e2e/client/build/server/server.log
             e2e/client/build/client.log

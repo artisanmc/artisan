@@ -14,7 +14,7 @@ public final class E2eClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		String server = System.getProperty("artisan.e2e.server", "localhost:25565");
 		String result = System.getProperty("artisan.e2e.result", "artisan-e2e-result.txt");
-		scenario = new HiddenInventoryScenario(server, java.nio.file.Path.of(result));
+		scenario = new MenuScenarios(server, java.nio.file.Path.of(result));
 	}
 
 	public static void tick(Minecraft mc) {
