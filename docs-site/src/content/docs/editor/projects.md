@@ -194,3 +194,9 @@ something: the menu the module declares (`/boutique` opens the shop's main menu)
 `steps` you gave it on its page in the System section. A green dot means you changed the
 command, and a struck-out name means you disabled it. Double-click a command to open its page.
 You can move it on the board, but you cannot delete it: disable it from its page instead.
+
+On its page, every field starts from the module's value. The button beside a field turns on
+once you change it, and puts the module's value back. Descriptions and the cooldown message
+accept MiniMessage and show their rendering. On the server's disk, each of these commands has a
+file in its module's folder, `overrides/command/<module>.<command>.yaml`, written with the
+module's values as comments: uncomment a line to change it, then run `/artisan reload`.

@@ -1242,7 +1242,7 @@ const fr: typeof en = {
   systemCommands: {
     eyebrow: "Commande système · {{module}}",
     intro:
-      "Les champs vides gardent la valeur du module. Enregistrer écrit un fichier d'override dans le dossier du module ; revenir aux valeurs du module le supprime.",
+      "Chaque champ part de la valeur du module. Le bouton à côté d'un champ s'active quand tu le modifies et lui rend cette valeur. Enregistrer écrit le fichier d'override de la commande dans le dossier du module.",
     loading: "Lecture des commandes du serveur…",
     notFound: "Ce serveur ne déclare pas cette commande.",
     logicKept:
@@ -1250,11 +1250,12 @@ const fr: typeof en = {
     enabled: "Activée",
     name: "Nom",
     aliases: "Alias",
-    aliasesHint: "Séparés par des virgules. Vide : ceux du module.",
-    moduleValueHint: "Vide : la valeur du module.",
+    aliasesHint: "Séparés par des virgules. Vide : aucun alias.",
     none: "Aucun",
     permission: "Permission",
-    noPermission: "Aucune permission requise",
+    permissionHint: "Vide : aucune permission requise.",
+    resetField: "{{field}} : revenir à la valeur du module",
+    noMessage: "Aucun message",
     description: "Description",
     allLanguages: "toutes",
     cooldown: "Délai entre deux utilisations (secondes)",

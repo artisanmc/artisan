@@ -1,8 +1,9 @@
+import { MiniMessageField } from "@/components/MiniMessageField";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { ResetButton } from "@/components/ui/reset-button";
 import { Switch } from "@/components/ui/switch";
 import { configWrite } from "@/lib/api/configScreens";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
@@ -13,22 +14,24 @@ import {
   type Texts,
   allCommands,
   commandNamespace,
+  moduleChanges,
   overrideFolder,
   overridePath,
   serializeOverride,
 } from "@/lib/commandOverride";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { Terminal } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const DEFAULT_LANGS = ["fr", "en"];
 
 /**
- * A module command in the System section (design `framework-commandes` §3.9): the module's
- * values as placeholders, the admin's override as the form's content. Saving writes one
- * `command_override/v1` file per changed command (subcommands included); a form back to the
- * module's values deletes the file.
+ * A module command in the System section (design `framework-commandes` §3.9): every field
+ * holds the module's value until the admin changes it, and a reset beside it, live only once
+ * it differs, puts the module's value back. Saving writes one `command_override/v1` file per
+ * changed command (subcommands included); a command back to the module's values keeps its
+ * file with those values as comments, as the server writes it.
  */
 export function SystemCommandPage({
   serverId,
@@ -62,7 +65,8 @@ export function SystemCommandPage({
   }
 
   const changed = tree.filter(
-    (c) => fileFor(c, drafts, overrides) !== fileFor(c, stored, overrides),
+    (c) =>
+      fileFor(c, c === command, drafts, overrides) !== fileFor(c, c === command, stored, overrides),
   );
   const logic = tree.some((c) => overrides[c.id]?.hasLogic);
 
@@ -72,10 +76,7 @@ export function SystemCommandPage({
     setSaved(false);
     try {
       const { folders } = useSystemCommandsStore.getState();
-      const byFolder = new Map<
-        string,
-        { files: { path: string; content: string }[]; deletes: string[] }
-      >();
+      const byFolder = new Map<string, { path: string; content: string }[]>();
       for (const c of changed) {
         const existing = overrides[c.id];
         let folder = overrideFolder(c, existing, folders);
@@ -86,19 +87,15 @@ export function SystemCommandPage({
             ? namespace
             : ((await createProject(serverId, namespace)).externalId ?? namespace);
         }
-        const batch = byFolder.get(folder) ?? { files: [], deletes: [] };
-        const content = fileFor(c, drafts, overrides);
-        const path = existing?.path ?? overridePath(c.id);
-        if (content === null) {
-          if (existing) batch.deletes.push(path);
-        } else {
-          batch.files.push({ path, content });
-        }
-        byFolder.set(folder, batch);
+        const files = byFolder.get(folder) ?? [];
+        files.push({
+          path: existing?.path ?? overridePath(c.id),
+          content: fileFor(c, c === command, drafts, overrides),
+        });
+        byFolder.set(folder, files);
       }
-      for (const [folder, batch] of byFolder) {
-        if (batch.files.length === 0 && batch.deletes.length === 0) continue;
-        const res = await configWrite(serverId, { projectId: folder, ...batch });
+      for (const [folder, files] of byFolder) {
+        const res = await configWrite(serverId, { projectId: folder, files });
         if (!res.ok) {
           setError(
             t(`systemCommands.errors.${res.error}`, {
@@ -131,9 +128,6 @@ export function SystemCommandPage({
             module: command.moduleId ?? commandNamespace(command.id),
           })}
         </span>
-        <h1 className="text-[22px] font-semibold text-[var(--text)]">
-          /{drafts[command.id]?.name?.trim() || command.name}
-        </h1>
         <p className="text-[12.5px] text-[var(--text-mut)]">{t("systemCommands.intro")}</p>
       </header>
       {logic && (
@@ -146,7 +140,11 @@ export function SystemCommandPage({
           key={c.id}
           command={c}
           root={c.id === command.id}
-          label={c.id === command.id ? null : labelOf(command, c)}
+          label={
+            c.id === command.id
+              ? `/${drafts[command.id]?.name?.trim() || command.name}`
+              : labelOf(command, c)
+          }
           fields={drafts[c.id] ?? { enabled: true }}
           onChange={(fields) => update(c.id, fields)}
         />
@@ -191,13 +189,15 @@ function storedFields(
 
 function fileFor(
   command: PlayerCommand,
+  root: boolean,
   fields: Record<string, OverrideFields>,
   overrides: Record<string, StoredOverride>,
-): string | null {
+): string {
   return serializeOverride(
-    command.id,
+    command,
     fields[command.id] ?? { enabled: true },
     overrides[command.id]?.content ?? null,
+    root,
   );
 }
 
@@ -229,19 +229,34 @@ function CommandForm({
 }: {
   command: PlayerCommand;
   root: boolean;
-  label: string | null;
+  /** `/name` as players type it: the root's in large, a sub-command's in full. */
+  label: string;
   fields: OverrideFields;
   onChange: (fields: OverrideFields) => void;
 }) {
   const { t } = useTranslation();
   const set = (patch: Partial<OverrideFields>) => onChange({ ...fields, ...patch });
-  const noPermission = fields.permission === "";
+  const changes = (patch: Partial<OverrideFields>) =>
+    moduleChanges(command, { enabled: true, ...patch });
+  const name = fields.name ?? command.name;
+  const aliases = fields.aliases?.join(",") ?? command.aliases.join(", ");
+  const modulePermission = command.permission ?? "";
+  const permission = fields.permission ?? modulePermission;
+  const description = fields.description ?? command.description;
   const cooldown = fields.cooldown;
   return (
     <section className="card flex flex-col gap-4 p-4">
       <div className="flex items-center gap-3">
         <div className="flex min-w-0 flex-1 flex-col">
-          {label && <span className="mono truncate text-[13px] text-[var(--text)]">{label}</span>}
+          <span
+            className={
+              root
+                ? "truncate text-[19px] font-semibold text-[var(--text)]"
+                : "mono truncate text-[13px] text-[var(--text)]"
+            }
+          >
+            {label}
+          </span>
           <span className="mono truncate text-[11px] text-[var(--text-faint)]">{command.id}</span>
         </div>
         <span className="text-[12.5px] text-[var(--text-mut)]">{t("systemCommands.enabled")}</span>
@@ -253,62 +268,71 @@ function CommandForm({
       </div>
       {root && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label={t("systemCommands.name")} hint={t("systemCommands.moduleValueHint")}>
+          <ResettableField
+            label={t("systemCommands.name")}
+            modified={name.trim().toLowerCase() !== command.name}
+            onReset={() => set({ name: undefined })}
+          >
             <Input
-              value={fields.name ?? ""}
-              placeholder={command.name}
-              onChange={(e) => set({ name: e.target.value || undefined })}
-            />
-          </FormField>
-          <FormField label={t("systemCommands.aliases")} hint={t("systemCommands.aliasesHint")}>
-            <Input
-              value={fields.aliases?.join(",") ?? ""}
-              placeholder={command.aliases.join(", ") || t("systemCommands.none")}
+              value={name}
               onChange={(e) =>
-                set({
-                  aliases: e.target.value.trim() === "" ? undefined : e.target.value.split(","),
-                })
+                set({ name: e.target.value === command.name ? undefined : e.target.value })
               }
             />
-          </FormField>
+          </ResettableField>
+          <ResettableField
+            label={t("systemCommands.aliases")}
+            hint={t("systemCommands.aliasesHint")}
+            modified={changes({ aliases: aliases.split(",") }).aliases !== undefined}
+            onReset={() => set({ aliases: undefined })}
+          >
+            <Input
+              value={aliases}
+              placeholder={t("systemCommands.none")}
+              onChange={(e) => {
+                const next = e.target.value.split(",");
+                set({ aliases: changes({ aliases: next }).aliases ? next : undefined });
+              }}
+            />
+          </ResettableField>
         </div>
       )}
-      <div className="flex flex-col gap-2">
-        <FormField
-          label={t("systemCommands.permission")}
-          hint={t("systemCommands.moduleValueHint")}
-        >
-          <Input
-            value={noPermission ? "" : (fields.permission ?? "")}
-            disabled={noPermission}
-            placeholder={command.permission ?? t("systemCommands.none")}
-            onChange={(e) => set({ permission: e.target.value || undefined })}
-          />
-        </FormField>
-        {/* biome-ignore lint/a11y/noLabelWithoutControl: the checkbox is inside the label, which associates it implicitly */}
-        <label className="flex items-center gap-2 text-[12.5px] text-[var(--text-mut)]">
-          <Checkbox
-            aria-label={t("systemCommands.noPermission")}
-            checked={noPermission}
-            onCheckedChange={(checked) => set({ permission: checked ? "" : undefined })}
-          />
-          {t("systemCommands.noPermission")}
-        </label>
-      </div>
+      <ResettableField
+        label={t("systemCommands.permission")}
+        hint={t("systemCommands.permissionHint")}
+        modified={permission.trim() !== modulePermission}
+        onReset={() => set({ permission: undefined })}
+      >
+        <Input
+          value={permission}
+          placeholder={t("systemCommands.none")}
+          onChange={(e) =>
+            set({
+              permission: e.target.value.trim() === modulePermission ? undefined : e.target.value,
+            })
+          }
+        />
+      </ResettableField>
       <TextsField
         label={t("systemCommands.description")}
-        value={fields.description}
-        defaults={command.description}
-        onChange={(description) => set({ description })}
+        value={description}
+        original={command.description}
+        onChange={(next) =>
+          set({ description: changes({ description: next }).description ? next : undefined })
+        }
       />
       <div className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label={t("systemCommands.cooldown")} hint={t("systemCommands.cooldownHint")}>
+          <ResettableField
+            label={t("systemCommands.cooldown")}
+            hint={t("systemCommands.cooldownHint")}
+            modified={cooldown !== undefined}
+            onReset={() => set({ cooldown: undefined })}
+          >
             <Input
               type="number"
               min={0}
-              value={cooldown?.duration ?? ""}
-              placeholder="0"
+              value={cooldown?.duration ?? 0}
               onChange={(e) => {
                 const duration = Number(e.target.value);
                 set({
@@ -316,7 +340,7 @@ function CommandForm({
                 });
               }}
             />
-          </FormField>
+          </ResettableField>
           {cooldown && (
             <FormField label={t("systemCommands.cooldownScope")}>
               <select
@@ -340,13 +364,13 @@ function CommandForm({
         {cooldown && (
           <TextsField
             label={t("systemCommands.cooldownMessage")}
-            value={cooldown.message}
-            defaults={{}}
-            onChange={(message) =>
-              set({
-                cooldown: { ...cooldown, ...(message ? { message } : { message: undefined }) },
-              })
-            }
+            value={cooldown.message ?? {}}
+            original={{}}
+            placeholder={t("systemCommands.noMessage")}
+            onChange={(next) => {
+              const message = Object.values(next).some((text) => text.trim()) ? next : undefined;
+              set({ cooldown: { ...cooldown, message } });
+            }}
           />
         )}
       </div>
@@ -354,41 +378,82 @@ function CommandForm({
   );
 }
 
-/** One input per language; `*` (a plain string in the file) applies to every language. */
+/** A field that starts from the module's value, its reset beside it. */
+function ResettableField({
+  label,
+  hint,
+  modified,
+  onReset,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  modified: boolean;
+  onReset: () => void;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  return (
+    <FormField label={label} hint={hint}>
+      <div className="flex items-start gap-1">
+        <div className="min-w-0 flex-1">{children}</div>
+        <ResetButton
+          modified={modified}
+          onReset={onReset}
+          label={t("systemCommands.resetField", { field: label })}
+        />
+      </div>
+    </FormField>
+  );
+}
+
+/**
+ * One MiniMessage field per language, each with its reset to [original]; `*` (a plain
+ * string in the file) applies to every language. [onChange] receives the whole map: an
+ * override's texts replace the module's.
+ */
 function TextsField({
   label,
   value,
-  defaults,
+  original,
+  placeholder,
   onChange,
 }: {
   label: string;
-  value: Texts | undefined;
-  defaults: Texts;
-  onChange: (value: Texts | undefined) => void;
+  value: Texts;
+  original: Texts;
+  placeholder?: string;
+  onChange: (value: Texts) => void;
 }) {
   const { t } = useTranslation();
-  const langs = languagesOf(value, defaults);
-  const write = (lang: string, text: string) => {
-    const next = Object.fromEntries(
-      Object.entries({ ...(value ?? {}), [lang]: text }).filter(([, entry]) => entry !== ""),
-    );
-    onChange(Object.keys(next).length > 0 ? next : undefined);
-  };
+  const langs = languagesOf(value, original);
+  const write = (lang: string, text: string) => onChange({ ...value, [lang]: text });
   return (
     <div className="flex flex-col gap-1.5">
       <span className="field-label !mb-0">{label}</span>
-      {langs.map((lang) => (
-        <div key={lang} className="flex items-center gap-2">
-          <span className="mono w-14 shrink-0 text-[11px] text-[var(--text-faint)]">
-            {lang === "*" ? t("systemCommands.allLanguages") : lang}
-          </span>
-          <Input
-            value={value?.[lang] ?? ""}
-            placeholder={defaults[lang] ?? defaults["*"] ?? ""}
-            onChange={(e) => write(lang, e.target.value)}
-          />
-        </div>
-      ))}
+      {langs.map((lang) => {
+        const name = lang === "*" ? t("systemCommands.allLanguages") : lang;
+        return (
+          <div key={lang} className="flex items-start gap-2">
+            <span className="mono w-14 shrink-0 pt-2 text-[11px] text-[var(--text-faint)]">
+              {name}
+            </span>
+            <div className="min-w-0 flex-1">
+              <MiniMessageField
+                value={value[lang] ?? ""}
+                placeholder={placeholder}
+                aria-label={`${label} (${name})`}
+                onChange={(text) => write(lang, text)}
+              />
+            </div>
+            <ResetButton
+              modified={(value[lang] ?? "") !== (original[lang] ?? "")}
+              onReset={() => write(lang, original[lang] ?? "")}
+              label={t("systemCommands.resetField", { field: `${label} (${name})` })}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
