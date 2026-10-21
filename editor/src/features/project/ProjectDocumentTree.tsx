@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Tooltip } from "@/components/ui/tooltip";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
 import { documentCount } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
@@ -23,6 +24,7 @@ import {
   type ProjectTemplates,
   useProjectTemplates,
 } from "@/features/templates/useProjectTemplates";
+import { copyTemplate } from "@/lib/api/templates";
 import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
@@ -38,12 +40,14 @@ import {
   LayoutGrid,
   MessageSquare,
   Plus,
+  Puzzle,
   Settings,
   TerminalSquare,
 } from "lucide-react";
 import { useState } from "react";
 import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { documentRelPath } from "./DocumentYamlView";
 import { FolderNameDialog } from "./FolderNameDialog";
 import { ModuleCommandRow } from "./ModuleCommandRow";
@@ -246,7 +250,7 @@ export function DocumentGroups({
   const serverKinds = useServerDocumentKindsStore();
   const templates = useProjectTemplates(project.id);
   const groups = buildProjectDocuments(project, activeLang);
-  const originOf = (id: string) => templateOrigin(templates, documentRelPath(project, id));
+  const originOf = (id: string) => templateOrigin(templates, documentRelPath(project, id), t);
   // The commands the folder's module declares go with its own commands.
   const { nodes: moduleCommands } = useModuleCommands(project);
   const hasCommands = groups.some((g) => g.type === "command" && g.items.some((it) => !it.folder));
@@ -452,18 +456,50 @@ interface TemplateOrigin {
   label: string;
 }
 
+type DocumentOrigin = Omit<TemplateOrigin, "label"> & {
+  module: string;
+  /** One of the module's system elements: never deleted or moved, reset instead. */
+  system: boolean;
+  /** Puts the module's version back; absent while it cannot be written (unsaved changes). */
+  reset?: () => void;
+};
+
 function templateOrigin(
   templates: ProjectTemplates,
   path: string | null,
-): (Omit<TemplateOrigin, "label"> & { module: string }) | null {
+  t: TFunction,
+): DocumentOrigin | null {
   const entry = path ? templates.byPath[path] : undefined;
-  if (!entry || entry.file.status === "removed") return null;
+  if (!path || !entry || entry.file.status === "removed") return null;
   const tone = entry.file.updateAvailable
     ? "update"
     : entry.file.status === "modified"
       ? "modified"
       : "identical";
-  return { tone, module: entry.template.moduleId };
+  const system = entry.template.template.system === true;
+  const { target } = templates;
+  const reset =
+    system && tone !== "identical" && target && !templates.dirty
+      ? () => {
+          if (!window.confirm(t("projectPanel.systemResetConfirm"))) return;
+          void copyTemplate(target, {
+            module: entry.template.moduleId,
+            template: entry.template.template.id,
+            paths: [path],
+            replace: true,
+          }).then((result) => {
+            if (result.ok) templates.refresh();
+            else
+              toast.error(
+                t(
+                  `moduleTemplates.errors.${result.error}`,
+                  t("moduleTemplates.errors.fetch_error"),
+                ),
+              );
+          });
+        }
+      : undefined;
+  return { tone, module: entry.template.moduleId, system, ...(reset ? { reset } : {}) };
 }
 
 const ORIGIN_DOT: Record<TemplateOrigin["tone"], string> = {
@@ -486,7 +522,7 @@ function DocumentRow({
   project: Project;
   item: ProjectDocumentItem;
   onOpen: () => void;
-  origin?: (Omit<TemplateOrigin, "label"> & { module: string }) | null;
+  origin?: DocumentOrigin | null;
   /** Folder depth: 0 under a kind header at the module root. */
   depth?: number;
   /** The kind's icon, shown where no kind header says it (inside a folder). */
@@ -494,7 +530,17 @@ function DocumentRow({
 }) {
   const { t } = useTranslation();
   const originLabel = origin
-    ? t(`moduleTemplates.badge.${origin.tone}`, { module: origin.module })
+    ? t(
+        origin.system
+          ? `projectPanel.systemBadge.${origin.tone}`
+          : `moduleTemplates.badge.${origin.tone}`,
+        {
+          module: origin.module,
+        },
+      )
+    : undefined;
+  const systemHint = origin?.system
+    ? t("projectPanel.systemDocumentHint", { module: origin.module })
     : undefined;
   return (
     <div className="group flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
@@ -506,7 +552,7 @@ function DocumentRow({
       >
         {Icon && <Icon className="size-3 shrink-0 text-[var(--text-faint)]" aria-hidden />}
         <span className="flex-1 truncate">{item.label}</span>
-        {origin && (
+        {origin && !(origin.system && origin.tone === "identical") && (
           <span
             role="img"
             aria-label={originLabel}
@@ -514,9 +560,23 @@ function DocumentRow({
             className={`ml-1 size-1.5 shrink-0 rounded-full ${ORIGIN_DOT[origin.tone]}`}
           />
         )}
+        {systemHint && (
+          <Tooltip content={systemHint} side="right">
+            <span role="img" aria-label={systemHint} className="flex shrink-0">
+              <Puzzle className="size-3 text-[var(--text-faint)]" aria-hidden />
+            </span>
+          </Tooltip>
+        )}
       </button>
       {projectId !== null && (
-        <RowActions projectId={projectId} project={project} item={item} onOpen={onOpen} />
+        <RowActions
+          projectId={projectId}
+          project={project}
+          item={item}
+          onOpen={onOpen}
+          system={origin?.system === true}
+          onReset={origin?.reset}
+        />
       )}
     </div>
   );
@@ -527,14 +587,19 @@ function RowActions({
   project,
   item,
   onOpen,
+  system,
+  onReset,
 }: {
   projectId: ProjectId;
   project: Project;
   item: ProjectDocumentItem;
   onOpen: () => void;
+  /** A module's system element: kept where the module put it, never deleted. */
+  system: boolean;
+  onReset?: () => void;
 }) {
   const { t } = useTranslation();
-  const targets = ["", ...listFolders(project)].filter((f) => f !== item.folder);
+  const targets = system ? [] : ["", ...listFolders(project)].filter((f) => f !== item.folder);
   const move = (folder: string) =>
     useProjectsStore.getState().moveToFolder({ projectId, nodeIds: [item.id], folder });
   return (
@@ -559,13 +624,23 @@ function RowActions({
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         )}
-        <DropdownMenuItem
-          onClick={() =>
-            useProjectsStore.getState().deleteFromProject({ projectId, nodeIds: [item.id] })
-          }
-        >
-          {t("projectPanel.delete")}
-        </DropdownMenuItem>
+        {system ? (
+          <DropdownMenuItem
+            disabled={!onReset}
+            title={t("projectPanel.systemResetHint")}
+            onClick={onReset}
+          >
+            {t("projectPanel.systemReset")}
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            onClick={() =>
+              useProjectsStore.getState().deleteFromProject({ projectId, nodeIds: [item.id] })
+            }
+          >
+            {t("projectPanel.delete")}
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

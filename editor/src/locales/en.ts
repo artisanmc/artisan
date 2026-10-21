@@ -775,6 +775,16 @@ export default {
     },
   },
   projectPanel: {
+    systemDocumentHint:
+      "Built into the module {{module}}: its code opens it. You can edit it; it cannot be deleted, and Reset puts the module's version back.",
+    systemBadge: {
+      identical: "The module {{module}}'s version",
+      modified: "Changed by you",
+      update: "Changed by you; {{module}} ships a new version",
+    },
+    systemReset: "Reset",
+    systemResetHint: "Puts the module's version back. Save your pending changes first.",
+    systemResetConfirm: "Put the module's version back? Your changes to this file will be lost.",
     moduleCommandHint:
       "Built-in command of the {{module}} module: its code lives in the plugin. Open it to change its name, permission, texts or what it does.",
     noEditor: "No editor for this {{kind}} yet",
@@ -914,6 +924,9 @@ export default {
     errFetchError: "The module failed: {{message}}",
   },
   canvas: {
+    systemElement: "system · {{module}}",
+    systemDocumentKept:
+      "A system menu or dialog cannot be deleted: reset it from the folder's list instead.",
     moduleCommand: "command · {{module}}",
     armedHint: "armed — tap a slot to place it",
     groups: {

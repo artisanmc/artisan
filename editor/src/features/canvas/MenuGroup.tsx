@@ -16,6 +16,7 @@ import { PlacementTray } from "./PlacementTray";
 import { PreviewContextBanner } from "./PreviewContextBanner";
 import { SlotDragGhosts } from "./SlotDragGhosts";
 import { SlotItem } from "./SlotItem";
+import { SystemTag } from "./SystemTag";
 import { dispatchOpenElement } from "./canvasEvents";
 import { positionCount } from "./inventoryTypes";
 import { type SlotEntry, fanoutElements } from "./menuFanout";
@@ -48,6 +49,8 @@ interface MenuGroupProps {
    *  active. Used by the individual-element view so it reuses this component
    *  without diverging. */
   solo?: boolean;
+  /** The module whose system menu this is: tagged above the box. */
+  systemModule?: string;
 }
 
 /**
@@ -63,7 +66,14 @@ interface MenuGroupProps {
  * texture itself draws the visual slot wells; we just overlay material text
  * + interaction targets.
  */
-export function MenuGroup({ projectId, menu, position, layout, solo = false }: MenuGroupProps) {
+export function MenuGroup({
+  projectId,
+  menu,
+  position,
+  layout,
+  solo = false,
+  systemModule,
+}: MenuGroupProps) {
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(menu.id));
   const selectedIds = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
@@ -166,6 +176,7 @@ export function MenuGroup({ projectId, menu, position, layout, solo = false }: M
       id={menu.id}
     >
       <MenuBackground menu={menu} />
+      {systemModule && !solo && <SystemTag module={systemModule} width={box.width} />}
       {/* Selection halo */}
       {isSelected ? (
         <Rect
