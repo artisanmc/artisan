@@ -85,8 +85,12 @@ internal class RuntimeAssembly(
             playerCommands = { api.playerCommands.declarations() },
             overrides = { commandOverrides.overrides },
         )
-        // A module enabled or disabled after the start: its commands come and go without a reload.
-        api.playerCommands.onChange { scheduler.onGlobal { commandRegistrar.refresh() } }
+        // A module enabled or disabled after the start: its commands come and go without a reload,
+        // and the editor's System section lists the new set (a leaf tells its hub).
+        api.playerCommands.onChange {
+            scheduler.onGlobal { commandRegistrar.refresh() }
+            (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged()
+        }
     }
 
     /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
