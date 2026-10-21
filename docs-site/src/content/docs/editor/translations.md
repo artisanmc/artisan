@@ -15,6 +15,10 @@ Pick a language in the left column; the badge tells you how many texts are still
 
 An empty source value is valid: it means that a title, lore, or other text should stay blank. It is not counted as a missing translation, and an empty target is only missing when the source contains text. The empty value is still written to disk so the game renders nothing instead of showing the translation key.
 
+### Texts of a module's commands
+
+The panel also lists the description of each command the module declares, and its cooldown message once you gave it a cooldown. A puzzle icon marks them. They follow the module's languages, so a language you add here applies to them too. They are saved in each command's override file on the server, apart from the rest of the module: when you change one, a bar at the bottom of the panel offers **Save command texts**.
+
 ## How the files are written
 
 Your project lives as YAML files on your server, and you can edit them by hand. The **On disk** toggle in the Translations panel decides what a text looks like there:

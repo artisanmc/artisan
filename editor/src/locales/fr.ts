@@ -185,6 +185,17 @@ const fr: typeof en = {
     removeLanguage: "Supprimer la langue",
   },
   translations: {
+    commandText: {
+      description: "/{{command}} · description",
+      cooldown_message: "/{{command}} · message pendant le délai",
+    },
+    commandTextHint:
+      "Texte d'une commande interne du module. Il s'enregistre dans le fichier d'override de la commande, à part du dossier.",
+    commandTextsPending_one:
+      "{{count}} texte de commande modifié, pas encore écrit sur le serveur.",
+    commandTextsPending_other:
+      "{{count}} textes de commande modifiés, pas encore écrits sur le serveur.",
+    commandTextsSave: "Enregistrer les textes des commandes",
     statTranslated: "{{translated}} / {{total}} traduites en {{lang}}",
     statMissing: "{{count}} manquantes",
     statComplete: "complet",
