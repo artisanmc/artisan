@@ -1,0 +1,18 @@
+{
+	"schemaVersion": 1,
+	"id": "artisan-e2e",
+	"version": "${version}",
+	"name": "Artisan E2E client",
+	"description": "Drives a real Minecraft client through Artisan menu scenarios in CI.",
+	"license": "GPL-3.0-only",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["net.artisanmc.e2e.E2eClient"]
+	},
+	"mixins": ["artisan-e2e.mixins.json"],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "${minecraft_version}",
+		"java": ">=25"
+	}
+}

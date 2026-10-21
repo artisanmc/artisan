@@ -1,0 +1,20 @@
+schema: menu/v1
+id: e2e_nav_c
+title: "E2E nav C"
+size: 27
+player_inventory: hidden
+elements:
+  - id: back
+    positions: 8
+    material: BARRIER
+    title: "Back"
+    click:
+      left: open_previous_menu
+  - id: history
+    positions: 26
+    material: COAL
+    title: "No previous menu"
+    states:
+      - if: [{ type: expression, expr: has_previous_menu }]
+        material: EMERALD
+        title: "Has previous menu"

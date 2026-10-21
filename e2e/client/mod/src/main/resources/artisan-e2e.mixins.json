@@ -1,0 +1,9 @@
+{
+	"required": true,
+	"package": "net.artisanmc.e2e.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": ["MinecraftTickMixin", "SystemChatMixin"],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

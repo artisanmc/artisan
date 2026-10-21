@@ -1,0 +1,116 @@
+name: E2E client
+
+# Vrai client Minecraft (Fabric, lancé par HeadlessMC) contre un vrai serveur Paper,
+# cf. e2e/client/ et docs/architecture/testing.md. Lent (~minutes) : ne tourne
+# que sur les fichiers qui touchent l'envoi des menus en paquets, ou à la main.
+on:
+  pull_request:
+    paths:
+      - plugin/src/main/kotlin/net/artisanmc/plugin/render/PacketEventsMenuPackets.kt
+      - plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuWindows.kt
+      - plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuSlots.kt
+      - plugin/src/main/kotlin/net/artisanmc/plugin/render/VanillaGuiTitle.kt
+      - plugin/build.gradle.kts
+      - e2e/client/**
+      - .github/workflows/e2e-client.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-client-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Version du serveur de test (docker-compose.yml) et du mod (e2e/client/mod/gradle.properties).
+  MC_VERSION: "26.2"
+  HMC_VERSION: 3.0.0-RC8
+  # Plugin PacketEvents autonome, installé à côté de la copie relocalisée d'Artisan.
+  PACKETEVENTS_URL: https://cdn.modrinth.com/data/HYKaKraK/versions/m78nFxYg/packetevents-spigot-2.14.0.jar
+
+jobs:
+  menus:
+    name: menus (${{ matrix.packetevents }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # bundled : seule la copie relocalisée d'Artisan ; standalone : plus le plugin PacketEvents.
+        packetevents: [bundled, standalone]
+    steps:
+      - uses: actions/checkout@v5
+
+      # Plugin en Java 21 (comme le job plugin de ci.yml), serveur, mod et client en Java 25.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+          cache: gradle
+          cache-dependency-path: |
+            plugin/*.gradle.kts
+            e2e/client/mod/*.gradle
+            e2e/client/mod/gradle.properties
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Build plugin
+        working-directory: plugin
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
+        run: bash ./gradlew shadowJar --no-daemon
+
+      - name: Build client mod
+        working-directory: e2e/client/mod
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_25_X64 }}
+        run: bash ./gradlew build --no-daemon
+
+      # Le JAR Paper, HeadlessMC et le client (assets ~480 Mo, bibliothèques, Fabric)
+      # ne changent qu'avec MC_VERSION / HMC_VERSION.
+      - name: Cache Minecraft downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/artisan-e2e
+            ~/.minecraft
+          key: e2e-client-${{ env.MC_VERSION }}-hmc-${{ env.HMC_VERSION }}
+
+      - name: Download Paper and HeadlessMC
+        run: |
+          set -euo pipefail
+          dir=~/.cache/artisan-e2e; mkdir -p "$dir"
+          if [ ! -f "$dir/paper-$MC_VERSION.jar" ]; then
+            url=$(curl -fsS "https://fill.papermc.io/v3/projects/paper/versions/$MC_VERSION/builds/latest" | jq -r '.downloads["server:default"].url')
+            curl -fsSL -o "$dir/paper-$MC_VERSION.jar" "$url"
+          fi
+          if [ ! -f "$dir/packetevents.jar" ]; then
+            curl -fsSL -o "$dir/packetevents.jar" "$PACKETEVENTS_URL"
+          fi
+          if [ ! -f "$dir/headlessmc-$HMC_VERSION.jar" ]; then
+            curl -fsSL -o "$dir/headlessmc-$HMC_VERSION.jar" \
+              "https://repo1.maven.org/maven2/io/github/headlesshq/headlessmc-application/$HMC_VERSION/headlessmc-application-$HMC_VERSION-runner.jar"
+          fi
+
+      - name: Run menu scenarios
+        run: |
+          EXTRA_PLUGINS=$([ "${{ matrix.packetevents }}" = standalone ] && echo ~/.cache/artisan-e2e/packetevents.jar || true) \
+          PAPER_JAR=~/.cache/artisan-e2e/paper-$MC_VERSION.jar \
+          HMC_JAR=~/.cache/artisan-e2e/headlessmc-$HMC_VERSION.jar \
+          PLUGIN_JAR=$(ls plugin/build/libs/artisan-plugin-*-all.jar) \
+          MOD_JAR=$(ls e2e/client/mod/build/libs/artisan-e2e-client-*.jar) \
+          JAVA=$JAVA_HOME_25_X64/bin/java \
+          e2e/client/run.sh
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-client-logs-${{ matrix.packetevents }}
+          path: |
+            e2e/client/build/server/server.log
+            e2e/client/build/client.log
+            e2e/client/build/result.txt
+          if-no-files-found: ignore

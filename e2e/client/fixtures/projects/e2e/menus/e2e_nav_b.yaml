@@ -1,0 +1,18 @@
+schema: menu/v1
+id: e2e_nav_b
+title: "E2E nav B"
+size: 27
+player_inventory: hidden
+elements:
+  - id: to_c
+    positions: 0
+    material: ARROW
+    title: "To C"
+    click:
+      left: open_menu e2e_nav_c
+  - id: back
+    positions: 8
+    material: BARRIER
+    title: "Back"
+    click:
+      left: open_previous_menu
