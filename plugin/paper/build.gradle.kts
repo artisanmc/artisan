@@ -10,6 +10,8 @@ dependencies {
     implementation(project(":artisan-runtime"))
 
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
+    // Spigot's dialog API (SpigotDialogRenderer): Spigot ships it, paper-api does not.
+    compileOnly("net.md-5:bungeecord-dialog:1.21-R0.3") { isTransitive = false }
     // Adventure, bundled under its own names: Spigot has none. On Paper the server's copy wins
     // (a plugin's class loader asks its parent first), so these classes only load on Spigot.
     // What Paper alone can do with a Component goes through platform/Chat.
