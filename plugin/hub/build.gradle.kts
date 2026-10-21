@@ -6,6 +6,9 @@ val jetty = "12.1.12"
 
 dependencies {
     implementation(project(":artisan-core"))
+    implementation(project(":artisan-tunnel"))
+    // Tunnel to an editor tunnel server (ADR `editor-tunnel`); bundled and relocated by `paper`, like its WsClient.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
     compileOnly("org.eclipse.jetty:jetty-server:$jetty")
     compileOnly("org.eclipse.jetty.websocket:jetty-websocket-jetty-server:$jetty")

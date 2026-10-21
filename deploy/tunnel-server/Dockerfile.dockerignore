@@ -1,0 +1,7 @@
+# BuildKit reads this file instead of the root .dockerignore, which drops plugin/.
+# The image only needs the Gradle build in plugin/.
+*
+!plugin
+plugin/.gradle
+plugin/**/build
+plugin/**/.gradle

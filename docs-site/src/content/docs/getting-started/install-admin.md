@@ -35,6 +35,7 @@ On first start Artisan creates its folder:
 | `plugins/Artisan/database/` | The embedded H2 database (`suite.mv.db`), created when a plugin first asks for the database. |
 | `plugins/Artisan/cache/` | Downloaded Minecraft assets, resource packs, asset index. |
 | `plugins/Artisan/network-secret` | Only on a network hub with no other secret source. See [the shared secret](/wiki/network/setup/#4-the-shared-secret). |
+| `plugins/Artisan/tunnel-secret` | On the hub, unless `web.url` is set or `web.tunnel` is empty: it decides the editor's address on the tunnel server. Keep it to keep the address; delete it to get a new one. |
 
 The console should show:
 
@@ -49,11 +50,12 @@ Artisan <version> enabled
 | `[Artisan] Editor disabled: web server libraries are missing (…)` | Paper could not download Jetty. Give the server outbound access to Maven Central for one start. |
 | `PacketEvents failed to load — menus will open empty` | Your Minecraft version is newer than the bundled PacketEvents. Update Artisan. |
 
-## 3. Open the port, or put a proxy in front
+## 3. Nothing to open (or your own address)
 
-Admins reach the editor on port 8765 of the server. Either open that port in your
-firewall for the people who edit menus, or keep it closed and serve the editor over
-HTTPS through a reverse proxy or a tunnel: see [Web server & HTTPS](/wiki/configuration/web-server/).
+By default the editor goes through the Artisan tunnel server: `/artisan editor` gives an
+`https://<id>.artisanmc.app` link and no port needs to be open. To serve it yourself
+(the tunnel server sees the editor's traffic), set `web.url` and open port 8765 or put a
+reverse proxy in front: see [Web server & HTTPS](/wiki/configuration/web-server/).
 
 ## 4. Next steps
 

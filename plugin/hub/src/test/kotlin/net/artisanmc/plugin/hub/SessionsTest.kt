@@ -130,6 +130,28 @@ class SessionsTest {
         assertEquals(1, sessions.closeAll(player))
     }
 
+    @Test
+    fun `a link issued on one server of the database opens a session on another`() {
+        val store = MemoryStore()
+        val link = assertIs<Sessions.LinkResult.Issued>(Sessions(clock, store = store).issueLink(player, "Iban", setOf(EditorPermissions.VIEW), "survie"))
+        val other = Sessions(clock, store = store)
+        val session = assertNotNull(other.redeem(link.token))
+        assertEquals("survie", session.origin)
+        assertNull(Sessions(clock, store = store).redeem(link.token), "a link works once, on any server")
+        assertNull(other.find(Sessions.LINK + link.token), "a stored link is never a session")
+    }
+
+    @Test
+    fun `a session closed on another server of the database ends here too`() {
+        val store = MemoryStore()
+        val here = Sessions(clock, store = store)
+        val session = signIn(here, origin = "survie")
+        assertNotNull(here.find(session.id))
+        Sessions(clock, store = store).refresh("survie", mapOf(player to emptySet()))
+        now = now.plus(Sessions.RECHECK).plusSeconds(1)
+        assertNull(here.find(session.id))
+    }
+
     private fun signIn(sessions: Sessions, origin: String = ""): EditorSession {
         val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(player, "Iban", setOf(EditorPermissions.VIEW), origin))
         return assertNotNull(sessions.redeem(link.token))

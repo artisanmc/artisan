@@ -1495,6 +1495,39 @@ export default {
     emptyMatch: 'No variable matches "{{query}}"',
     emptyContext: "No variable available in this context",
   },
+  editorAddress: {
+    title: "Editor address",
+    help: "Give the editor's tunnel address a name. The current address keeps working.",
+    loading: "Reading the address…",
+    unavailable:
+      "Nothing to name: the editor is not served through a tunnel that keeps names (web.url is set, or the tunnel server offers none).",
+    current: "Current address",
+    disconnected: "Tunnel disconnected for now.",
+    name: "New name",
+    nameHint:
+      "3 to 32 characters: lowercase letters, digits and hyphens. One name per network, freed after 90 days without a connection.",
+    checking: "Checking…",
+    free: "Available.",
+    take: "Use this address",
+    release: "Give back “{{name}}”",
+    releaseConfirm:
+      "Give back the name “{{name}}”? Anyone will be able to take it, and the editor will only answer on its original address.",
+    takenHelp: "The editor now answers on {{url}}. The old address still works.",
+    releasedHelp: "Name given back: the editor answers on {{url}}.",
+    open: "Open the new address",
+    banner:
+      "Your editor is at {{url}}. You can give it a simpler name, such as survie.artisanmc.app.",
+    bannerAction: "Choose a name",
+    bannerLater: "Later",
+    errors: {
+      invalid: "Invalid name: 3 to 32 lowercase letters, digits and hyphens.",
+      reserved: "This name is reserved.",
+      taken: "This name is already taken.",
+      too_many: "Too many changes today, try again tomorrow.",
+      unavailable: "The tunnel server keeps no names.",
+      offline: "The tunnel server did not answer, try again in a moment.",
+    },
+  },
   serverConfig: {
     title: "Configuration",
     loading: "Reading the configuration…",

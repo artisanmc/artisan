@@ -38,11 +38,19 @@ object EnvironmentFile {
         |#   url    : public address put in /artisan editor links, e.g. "https://editor.example.com";
         |#            empty uses the address the player joined with
         |#   session-days : days an editor sign-in stays open without use, restarts included
-        |# In a network, one server is the hub and serves the editor for all of them:
+        |# Servers on the same MySQL/MariaDB database find each other: from any of them, the
+        |# editor reaches all of them, nothing to set. To serve one editor from a single hub instead:
         |#   hub    : on every other server, the hub's address and web port, e.g. "10.0.0.5:8765";
-        |#            empty means this server is the hub
+        |#            empty means this server serves its own editor
         |#   secret : shared by the hub and the other servers; empty uses the Velocity forwarding
         |#            secret, else the hub generates one in plugins/Artisan/network-secret
+        |# Without url, the hub reaches browsers through a tunnel server, with no port to open:
+        |#   tunnel        : the tunnel server; links use the https address it gives
+        |#                   (plugins/Artisan/tunnel-secret keeps it stable). It sees the editor's
+        |#                   traffic; "" for none: browsers then reach port directly
+        |#   tunnel-access : the code a private tunnel server asks for; empty for none
+        |# A server of the network with no port to its hub sets hub to the hub's tunnel address
+        |# (https://<id>.artisanmc.app).
         |web:
         |  enabled: true
         |  port: 8765
@@ -51,6 +59,8 @@ object EnvironmentFile {
         |  session-days: 7
         |  hub: ""
         |  secret: ""
+        |  tunnel: "connect.artisanmc.app"
+        |  tunnel-access: ""
         |
         |# Database shared by the plugins of the suite. Changes apply after a restart.
         |#   type      : h2      a single file, plugins/Artisan/database/suite.mv.db, nothing to set up

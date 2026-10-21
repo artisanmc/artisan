@@ -9,6 +9,9 @@ import javax.sql.DataSource
 
 data class KnownServer(val name: String, val lastSeen: Instant, val uuid: String = "")
 
+/** A running server that serves its own editor, and where its `/ws/plugin` answers (ADR `peer-servers`). */
+data class PeerServer(val uuid: String, val name: String, val lastSeen: Instant, val editorUrl: String, val internalUrl: String)
+
 sealed interface Registration {
     data object Registered : Registration
     data object Updated : Registration
@@ -80,6 +83,28 @@ class ServerRegistry(
     fun touch(id: UUID, now: Instant) = dataSource.connection.use { c ->
         c.prepareStatement("UPDATE ${t.servers} SET last_seen = ? WHERE uuid = ?").use {
             it.setTimestamp(1, Timestamp.from(now)); it.setString(2, id.toString()); it.executeUpdate()
+        }
+    }
+
+    /** Where this server's `/ws/plugin` answers: its public editor address, its internal one; empty for none. */
+    fun advertise(id: UUID, editorUrl: String, internalUrl: String) = dataSource.connection.use { c ->
+        c.prepareStatement("UPDATE ${t.servers} SET editor_url = ?, internal_url = ? WHERE uuid = ?").use {
+            it.setString(1, editorUrl.take(255)); it.setString(2, internalUrl.take(255)); it.setString(3, id.toString()); it.executeUpdate()
+        }
+    }
+
+    /** The other running servers seen since [since] that announce an address, by name. */
+    fun peers(self: UUID, since: Instant): List<PeerServer> = dataSource.connection.use { c ->
+        c.prepareStatement(
+            "SELECT uuid, name, last_seen, editor_url, internal_url FROM ${t.servers} " +
+                "WHERE uuid <> ? AND running = TRUE AND last_seen >= ? AND (editor_url <> '' OR internal_url <> '') ORDER BY name",
+        ).use { s ->
+            s.setString(1, self.toString()); s.setTimestamp(2, Timestamp.from(since))
+            s.executeQuery().use { rs ->
+                generateSequence {
+                    if (rs.next()) PeerServer(rs.getString(1), rs.getString(2), rs.getTimestamp(3).toInstant(), rs.getString(4), rs.getString(5)) else null
+                }.toList()
+            }
         }
     }
 

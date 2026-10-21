@@ -26,6 +26,8 @@ class PluginChannel(
     private val databaseId: () -> String?,
     /** False while the hub's suite database is still opening (issue #42): a leaf is told to retry. */
     private val databaseOpen: () -> Boolean = { true },
+    /** The suite database's network secret, which peer servers present (ADR `peer-servers`); null while it is not open. */
+    private val peerSecret: () -> String? = { null },
 ) {
     fun endpoint(): Session.Listener = object : Session.Listener.AutoDemanding {
         private var session: Session? = null
@@ -140,7 +142,7 @@ class PluginChannel(
     }
 
     private fun authorized(key: String) =
-        secret.isNotEmpty() && MessageDigest.isEqual(key.toByteArray(), secret.toByteArray())
+        listOfNotNull(secret, peerSecret()).any { it.isNotEmpty() && MessageDigest.isEqual(key.toByteArray(), it.toByteArray()) }
 
     private companion object {
         val NAME = Regex("[A-Za-z0-9_-]{1,64}")
