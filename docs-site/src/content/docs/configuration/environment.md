@@ -39,8 +39,10 @@ connect to the hub. The name is a label: the server is identified by the id in
 | `web.port` | `8765` | TCP port of the editor, its API, its WebSockets (`/ws/editor`, `/ws/plugin`) and the resource pack downloads (`/resource-pack/`). |
 | `web.bind` | `""` | Interface to listen on. Empty: every interface. `"127.0.0.1"` when a reverse proxy on the same machine is the only client. A private address (`"10.0.0.5"`) to stay on an internal network. |
 | `web.url` | `""` | Public address of the editor, without trailing slash, e.g. `"https://editor.example.com"`. Used in `/artisan editor` links. Empty: `http://<address the player joined with>:<port>`. |
-| `web.hub` | `""` | Empty: this server is the hub and serves the editor (a lone server is its own hub). Set: this server is a leaf and connects to the hub at this address, as the leaf sees it: `"10.0.0.5:8765"` (the hub's `web.port`; a bare host takes `8765`), `"hub:8765"` (Docker service), or `"https://editor.example.com"` (TLS reverse proxy, no port added). The plugin adds the `/ws/plugin` path; an explicit `ws://…` or `wss://…` URL is kept as is. See [Network mode](/wiki/network/concepts/). |
+| `web.hub` | `""` | Empty: this server serves its own editor; servers on the same MySQL/MariaDB database find each other and join each other's links (see [Networks](/wiki/configuration/web-server/#networks-and-wsplugin)). Set: this server is a leaf and connects to the hub at this address, as the leaf sees it: `"10.0.0.5:8765"` (the hub's `web.port`; a bare host takes `8765`), `"hub:8765"` (Docker service), or `"https://editor.example.com"` (TLS reverse proxy, no port added). The plugin adds the `/ws/plugin` path; an explicit `ws://…` or `wss://…` URL is kept as is. See [Network mode](/wiki/network/concepts/). |
 | `web.secret` | `""` | Secret shared by the hub and its leaves. Empty: the Velocity forwarding secret, else a secret the hub generates. See [the shared secret](/wiki/network/setup/#4-the-shared-secret). |
+| `web.tunnel` | `"connect.artisanmc.app"` | Preview. The Artisan tunnel server the hub connects out to when `web.url` is empty: it gives the editor an `https://<id>.artisanmc.app` address, used by `/artisan editor` links. No port to open. `""`: no tunnel. Ignored on a leaf. See [Through a tunnel server](/wiki/configuration/web-server/#through-a-tunnel-server-preview-the-default). |
+| `web.tunnel-access` | `""` | The access code a private tunnel server asks for. |
 
 On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no port.
 
@@ -58,6 +60,21 @@ Artisan itself creates no tables. See [Database](/wiki/configuration/database/).
 | `database.user` | `"root"` | User. Ignored for H2. |
 | `database.password` | `""` | Password. Ignored for H2. Prefer an environment variable. |
 | `database.pool-size` | `4` | Maximum connections of **each** plugin's own pool (clamped to 1–50). A value left in `config.yml` by an older version is still read until this key is set. |
+| `database.table-prefix` | `"artisan_"` | In front of every table of the suite: Artisan's (`artisan_servers`) and each plugin's (`artisan_quests_…`). Change it only to share one database between two separate installations, and set the same value on every server of a network. Lower-case letters, digits and `_`, starting with a letter and ending with `_`, 16 characters at most. Changing it later does not rename the tables: Artisan refuses to open the database while the tables of the previous prefix are there, until you set it back, rename them, or delete `plugins/Artisan/database/table-prefix`. |
+
+## `dev`
+
+Development settings, absent from the default file.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `dev.editor-bundles.<module>` | none | Path to a module's editor view (`ui.js`) on this machine, absolute or relative to the server root. The server serves that file instead of the one in the module's jar, and re-reads it when it changes: run `vite build --watch` in the module's `editor/` folder and reload the editor to see each build. The module must ship a bundle in its jar (its SDK version is kept). A missing or invalid file falls back to the jar, with a warning in the console. The editor shows a notice while a view comes from a file. Applies after a restart. |
+
+```yaml
+dev:
+  editor-bundles:
+    msquests: "/home/me/MSQuests/bukkit/src/main/resources/artisan-editor/ui.js"
+```
 
 ## Environment variables
 
@@ -75,7 +92,7 @@ database:
 A variable that is not set becomes an empty string. For `database.*` keys the
 console warns: `[database] environment variable NAME is not set (environment.yml)`.
 
-Substitution applies to `name`, `web.bind`, `web.url`, `web.hub`, `web.secret`
+Substitution applies to `name`, `web.bind`, `web.url`, `web.hub`, `web.secret`, `web.tunnel`, `web.tunnel-access`
 and every `database.*` key. It does not apply to `web.enabled` and `web.port`:
 write those literally.
 

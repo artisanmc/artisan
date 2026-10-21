@@ -1,5 +1,6 @@
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { documentKindDef, isDocumentKind } from "@/domain/documentKinds";
+import { documentPath } from "@/domain/documentLayout";
 import { findDocument } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { rebuildServerPackInBackground } from "@/features/project/resourcePackSync";
@@ -19,7 +20,7 @@ export function documentRelPath(project: Project, id: string): string | null {
   if (!found) return null;
   // A kind nobody registered (its module is absent) keeps its folder name as the kind.
   const dir = isDocumentKind(found.kind) ? documentKindDef(found.kind).dir : found.kind;
-  return `${dir}/${id}.yaml`;
+  return documentPath(dir, id, found.doc.folder);
 }
 
 /**

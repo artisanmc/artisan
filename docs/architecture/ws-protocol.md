@@ -31,18 +31,19 @@ en 1008 (« not open yet: retry ») ; la feuille revient par son backoff.
 
 | Champ | Lu par le hub pour |
 |---|---|
-| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.2"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). Mineure inférieure à 2 : pas de `bedrock_pack_updated` (le pack Bedrock attend le prochain `hello_ack`). |
+| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.4"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). Mineure inférieure à 2 (`EDITOR_BUNDLES`) : pas d'`editor_bundle` annoncé, donc jamais d'`editor_bundle_fetch`. Mineure inférieure à 3 (`TEMPLATES`) : pas de `templates` annoncés ; `template_fetch`, `template_copy` et `project_origins_fetch` répondent 501 `plugin_update_required` côté hub. |
 | `server_key` | Le **secret du réseau** (nom de champ hérité). Comparé en temps constant ; faux ou vide : fermeture 1008. |
 | `server_uuid` | Server id du serveur (`plugins/Artisan/server-id`) : son identité partout — `/api/v1/servers/:server`, `server_key_id`, préfixe de ses Projects (`<server id>.<dossier>`), clé de `Servers`. Absent, ou égal à celui du hub (dossier copié) : fermeture 1008. |
 | `database_id` | Identifiant de la base de suite (`artisan_meta`, généré une fois). Le hub refuse un `hello` dont l'identifiant diffère du sien, et tout `hello` s'il est lui-même en H2 : un réseau partage une base MySQL/MariaDB. |
 | `proxy_name` | Nom du serveur dans le réseau (clé racine `name`, sinon le nom du dossier du serveur). `[A-Za-z0-9_-]{1,64}`. Un attribut : le libellé dans la liste des serveurs ; un serveur renommé garde son id. |
 | `plugin_version`, `minecraft_version` | Affichés dans la liste des serveurs ; la version Minecraft choisit le catalogue d'items. |
-| `installed_modules` | `[{id, version}]` : présence des modules (`GET …/modules`). Ce champ et les cinq suivants forment l'annonce du serveur, un seul type `ServerAnnouncement` (`core/protocol`) : construit par le serveur, relu par `RemoteServer`, servi par `EditorServer.announcement()`. |
+| `installed_modules` | `[{id, version, editor_bundle?, templates?}]` : présence des modules (`GET …/modules`). `templates` = `[{id, title, version, seed_project?, system?, files:[{path, hash, size}]}]` (`TemplateDeclaration.toWire()`, mineure 3) : les modèles que le module offre de copier dans un Project, sans leur contenu (ADR `module-templates`). `system: true` (API 2.12.0) : ses éléments système, gardés dans le dossier du module (`SystemFiles`), jamais proposés à la copie. `editor_bundle` = `{sdk, hash, size}` (`EditorBundleDeclaration.toWire()`, mineure 2) quand le module a enregistré la vue éditeur de son jar (`api.getEditorBundles()`) : version de `@artisan/editor-sdk` visée, SHA-256 hex du script, taille en octets ; le hub la sert sous `GET …/modules/:module/ui.js`. Ce champ et les cinq suivants forment l'annonce du serveur, un seul type `ServerAnnouncement` (`core/protocol`) : construit par le serveur, relu par `RemoteServer`, servi par `EditorServer.announcement()`. |
 | `data_sources` | `[{ref, module_id?, schema?, schema_hint?, stability?, key_field?}]` (`DataSourceReport`). `schema[]` = `{name, type, description}`, `type` étant le kind du `ModelFieldType` du champ (`string`, `number`, `integer`, `boolean`, `list`, `object`, `item` pour un champ déclaré par `FieldKind`, comme en 1.x ; `ltext`, `enum`, `map`… possibles depuis l'API 2.0.0). L'éditeur traite un kind qu'il ne connaît pas comme du texte. |
 | `declared_models` | Documents `model/v1` déclarés par les modules : `ModelDeclaration.toWire()`, ou la map de `declare(Map)` (`@Sunset`) verbatim. |
 | `editor_screens` | Écrans de config déclarés : `{id, module_id, label, table, project_id}`. |
 | `declared_actions` | Actions enregistrées dans `ActionRegistry`, celles d'Artisan comprises : `{name, args: [ModelField], primary?, module_id?}` (`module_id` absent = action core). L'éditeur en tire le sélecteur et le formulaire des actions de module (`GET …/actions`, ADR `extensible-document-kinds` R1). |
 | `document_kinds` | Kinds de Document enregistrés dans `DocumentKindRegistry`, ceux d'Artisan compris : `{kind, dir, schema_versions, id_prefix?, module_id?}` (`module_id` absent = kind core). L'éditeur compare avec les kinds que ses modules contribuent et signale un kind que le serveur actif ne liste pas (`GET …/document-kinds`, ADR `extensible-document-kinds` W6). Absent d'un `hello` antérieur à 2.1.0 : rien n'est signalé. |
+| `player_commands` | Commandes joueur déclarées par les modules (`PlayerCommandReport`) : `{id, module_id?, name, aliases, permission?, description: {lang: texte}, arguments: [{name, type, required, values}], console_allowed, opens_menu?, children: [même forme]}`, sans exécuteur ; `opens_menu` : le menu que la commande ouvre à la place d'un exécuteur, lien dessiné par la planche. La section Système de l'éditeur les liste (`GET …/player-commands`) et y écrit les `command_override/v1` de l'admin. Absent d'un `hello` antérieur : liste vide. Renvoyé par `modules_changed` à chaque commande ajoutée ou retirée. |
 | `server_config` | `config.yml` éditable en clés pointées (jamais `environment.yml`). |
 
 `RemoteServer` lit aussi `custom_items_hash` s'il est présent (ancien `hello`) ; `WsClient` ne
@@ -53,7 +54,7 @@ resource_pack, bedrock_pack}`. `server_id` reprend le `server_uuid` du `hello`, 
 serveur du hub. `resource_pack` vaut le dernier pack que le hub a servi à ce serveur
 (`{url, hash}`), ou `{}` : un objet sans adresse laisse au serveur le pack qu'il a déjà
 (`PackUpdate.Incomplete`), `null` le lui retirerait. `bedrock_pack` suit la même règle pour le
-pack Bedrock (`1.2`) ; absent d'un hub antérieur, il ne change rien. Le hub applique le `hello` (version de
+pack Bedrock (`1.4`) ; absent d'un hub antérieur, il ne change rien. Le hub applique le `hello` (version de
 protocole, modules, configuration) avant d'envoyer `hello_ack` : une requête de l'éditeur qui suit
 l'ack voit le serveur tel qu'il s'est annoncé, jamais avec un `hello` vide. Avant `hello_ack`,
 `WsClient.request` répond `null` sans rien envoyer.
@@ -62,6 +63,10 @@ l'ack voit le serveur tel qu'il s'est annoncé, jamais avec un `hello` vide. Ava
 l'ancienne connexion est fermée (dernier arrivé gagne, cf. `invariants.md`).
 
 ## Messages
+
+Taille : Jetty limite un message entrant à 64 KiB par défaut. `/ws/plugin` relève la limite à
+32 MiB (message et trame) une fois le `hello` accepté (`PluginChannel.welcome`) : réponses de
+lecture de Project, bundle éditeur. Avant, un `hello` plus gros ferme la connexion.
 
 Toute requête porte un `request_id` ; la réponse le reprend, avec le type `<requête>_result`
 (sauf mention) et `{ok, error?, message?}`. Un type inconnu ou un champ obligatoire manquant :
@@ -86,19 +91,23 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | `online_players_fetch` | `online_players_result` | `players` triés. Hors ligne ou timeout : la route rend une liste vide. |
 | `papi_placeholders_fetch` | `papi_placeholders_result` | `{placeholders:[{placeholder, expansion}], truncated}` ; 2 000 entrées max. |
 | `head_texture_fetch` | `head_texture_result` | `{id}` (id HeadDatabase, 1–10 chiffres) → `texture` base64. Erreurs `hdb_unavailable`, `head_not_found`, `invalid_input`, `fetch_error`. |
+| `editor_bundle_fetch` | `editor_bundle_fetch_result` | `{module_id}` → `{module_id, sdk, hash, content}` : le script de la vue éditeur du module, en texte UTF-8 (≤ 4 MiB, `EditorBundleDeclaration.MAX_SIZE`). `not_found` si le module n'a pas de bundle ; `too_large` si le JSON dépasserait 12 MiB (caractères de contrôle échappés), sous la file de 16 MiB d'OkHttp. Le hub vérifie que le SHA-256 du contenu égale le `hash` annoncé. Mineure 2. |
+| `template_fetch` | `template_fetch_result` | `{module_id, template_id}` → `{module_id, template, files:[{path, content_base64}]}` : les fichiers d'un modèle tels que livrés (version par défaut, en lecture seule dans l'éditeur). `not_found`. Mineure 3. |
+| `template_copy` | `template_copy_result` | `{project_id, module_id, template_id, paths?, replace}` : copie le modèle (ou `paths`) dans le Project, fichiers et `.artisan/origins.yaml` en un commit journalisé (`TemplateCopies`), puis rechargement → `{written, unchanged}`. Un fichier présent au contenu différent n'est jamais écrasé sans `replace` : `{error: "conflict", conflicts:[path]}`, rien d'écrit. `unknown_path`, `unknown_project`, `invalid_path`. Un modèle système ne se copie que dans le dossier de son module (une réinitialisation) : ailleurs `system_template`. Mineure 3. |
+| `project_origins_fetch` | `project_origins_fetch_result` | `{project_id}` → `origins: {path: {module, template, version, hash}}`, lu dans `.artisan/origins.yaml` : d'où viennent les fichiers copiés d'un modèle. Pas en base : serveur éteint, 503 `server_offline`. Mineure 3. |
 | `player_inventory_fetch` | `player_inventory_result` | `{player}` → `slots:[{slot, stack_yaml, display}]` (0-35, armure 36-39, main gauche 40). `player_not_found`. |
 | `data_source_fetch` | `data_source_fetch_result` | `{ref, params, filter, sort, limit, args}` → `{rows, truncated}` (50 lignes, ≤ 256 Ko). `unknown_source`, `player_required`, `fetch_error`. |
 | `nexo_glyphs_list` / `nexo_glyph_read` | `nexo_glyphs_list_result` / `nexo_glyph_read_result` | Glyphes Nexo lus dans `plugins/Nexo/glyphs/` (sans API Nexo) ; `{glyphs:[{id, texture, available}]}` puis `{content_base64}`. |
 | `custom_items_request` | `custom_items_bundle` | Sans `request_id`. Le serveur répond `{hash, data}`, `data = base64(gzip(zip))`, catalogue dans `items.json`. |
 | `resource_pack_updated` | — | `{url, hash}` : le pack que le hub vient de recevoir pour ce serveur, servi sous `/resource-pack/<sha1>.zip`. Le serveur le délègue à son plugin de pack (Nexo, Oraxen, ItemsAdder ; `ResourcePackManager`, `resource-pack.delegate-to-dir`) qui l'envoie aux joueurs ; Artisan n'envoie jamais de pack lui-même. Une feuille le télécharge par l'adresse du hub qu'elle connaît (`web.hub`). |
-| `bedrock_pack_updated` | — | `{url, hash}` (`1.2`) : le pack Bedrock que l'éditeur a construit pour ce serveur (`editor/src/lib/pack/bedrock/`), servi sous `/bedrock-pack/<sha1>.mcpack`. Le serveur le télécharge dans `cache/bedrock-pack/` (`BedrockPackManager`) ; avec Geyser sur ce serveur, chaque joueur Bedrock le reçoit à sa connexion (`GeyserIntegration`). |
+| `bedrock_pack_updated` | — | `{url, hash}` (`1.4`) : le pack Bedrock que l'éditeur a construit pour ce serveur (`editor/src/lib/pack/bedrock/`), servi sous `/bedrock-pack/<sha1>.mcpack`. Le serveur le télécharge dans `cache/bedrock-pack/` (`BedrockPackManager`) ; avec Geyser sur ce serveur, chaque joueur Bedrock le reçoit à sa connexion (`GeyserIntegration`). |
 
 ### Serveur → hub (annonces et requêtes)
 
 | Message | Contenu |
 |---|---|
 | `projects_reloaded` | `{projects:[{id, hash}]}` après chaque rechargement (`/artisan reload`, écriture, publication). Le hub le relaie aux onglets de l'éditeur sur `/ws/editor`, ids préfixés `<server id>.`. Fire-and-forget. |
-| `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens, declared_actions, document_kinds}` : un module s'est enregistré après le `hello` ; le hub remplace ces champs (`ServerAnnouncement.updatedBy` : un champ absent garde sa valeur). |
+| `modules_changed` | `{installed_modules, data_sources, declared_models, editor_screens, declared_actions, document_kinds, player_commands}` : un module s'est enregistré après le `hello` ; le hub remplace ces champs (`ServerAnnouncement.updatedBy` : un champ absent garde sa valeur). |
 | `custom_items_changed` | `{hash}` : Nexo/Oraxen/ItemsAdder rechargé ; le hub redemande le bundle. |
 | `editor_link` | `{request_id, player_id, player_name, permissions, host?}` : `/artisan editor` tapé sur une feuille. Le hub ne consulte aucune permission, il reprend celles lues par la feuille (`artisan.editor.view` requis) et répond `editor_link_result` `{ok, url}` ou `{error: "too_soon", retry_after}` / `invalid_input`. Timeout feuille 15 s. |
 | `editor_permissions` | `{players: {uuid: [permissions]}}` : chaque minute, les permissions éditeur des joueurs en ligne. Le hub les applique aux sessions que ce serveur a émises et ferme celles d'un joueur sans `artisan.editor.view`. Pas de réponse. |
@@ -138,7 +147,7 @@ L'éditeur l'ouvre directement (`new EditorWs(handlers)`), sans ticket : le cook
 l'ancien `project_rename` à `operation_id` et journal (+ `hello.project_rename_results`), `asset_write`, `plugin_update`,
 `member_add`, `import_sources_list|read`, `bundle_available`, ainsi que les champs de `hello`
 `capabilities`, `content_version`, `snapshot_hashes`, `local_project_ids`,
-`editor_access_mode`. État cloud récupérable au commit `f085f576` (branche `v2`).
+`editor_access_mode`. État cloud récupérable au commit `ccade092` (branche `v2`).
 
 ## Côté plugin : un gestionnaire par message
 
@@ -150,9 +159,11 @@ sans gestionnaire ne compile pas.
 |---|---|---|
 | `ProjectReads` | `core` | `project_list`, `project_read`, `project_history`, `asset_read`, `config_read` |
 | `ProjectWrites` | `core` | `project_write`, `config_write`, `project_draft_publish`, `project_create`, `project_delete`, `project_rename` (disque : `ProjectFolders`) |
-| `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
+| `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `editor_bundle_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
+| `TemplateRequests` | `core` | `template_fetch`, `template_copy`, `project_origins_fetch` (disque : `TemplateCopies`, `ProjectOrigins`) |
 | `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `bedrock_pack_updated`, `session_replaced`, `custom_items_request` |
 
 Les gestionnaires `core` ne voient les Projects qu'à travers `ProjectWorkspace` (instantané,
-exécuteur disque, rechargement). Toute réponse part par `Replies` ; aucune I/O bloquante sur le
-thread du callback WebSocket (cf. `invariants.md`).
+exécuteur disque, `reload(projectIds)` qui ne relit que les Projects nommés : chaque écriture
+relit le sien, un renommage l'ancien et le nouvel id). Toute réponse part par `Replies` ; aucune
+I/O bloquante sur le thread du callback WebSocket (cf. `invariants.md`).

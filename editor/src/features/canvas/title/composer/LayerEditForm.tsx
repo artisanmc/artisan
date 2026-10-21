@@ -185,11 +185,8 @@ function ImageLayerForm({ projectId, menuId, index, layer }: ImageLayerFormProps
           </div>
           <div className="text-[10px] text-zinc-500">
             {/* `width` is intentionally local-only — MC fonts derive glyph
-                width from PNG transparency, so no width field is persisted.
-                ResizeHandles mutates `asset.width` optimistically in
-                `assetStore` (via `useTitleLayerDrag.onResize`) for live
-                preview; only `height` is saved. The number below therefore
-                reflects the latest optimistic value. */}
+                width from PNG transparency, so no width field is persisted;
+                only `height` is saved. */}
             {asset
               ? `${asset.type} · ${asset.width} × ${asset.height} px`
               : t("layerEditForm.imageNotLoaded")}

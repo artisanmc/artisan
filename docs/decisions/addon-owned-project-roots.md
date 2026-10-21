@@ -17,7 +17,7 @@ Add-on's config is authored via a bespoke form or a generic schema-driven editor
 opened a far larger question (a composable-schema + form-generation system that
 reuses core kinds like the Action DSL). That larger question is deliberately **split
 off** into its own design track
-(`docs/superpowers/specs/2026-07-22-composable-config-schemas-and-forms.md`, to be
+(`docs/archive/specs/2026-07-22-composable-config-schemas-and-forms.md`, to be
 grilled later). This ADR captures only the small, separable, decided slice.
 
 ## Decision
@@ -95,3 +95,27 @@ Phase 2 limitation: historical source names remain reserved against stale writes
 including `create: true`; renaming back to a previously used name returns
 `destination_reserved`. Case-only rename is supported with the new exact spelling.
 Safe name reuse requires a later lifecycle generation carried by every writer.
+
+### Amendement 2026-10-18 — plus de « projet du module » dans l'éditeur
+
+Le §2 est remplacé. Un module chargé s'utilise dans **n'importe quel** project : ses kinds se
+créent et se lisent partout (ArtisanQuests lit `quest_groups/` de tous les projects), comme ses
+sources de données. Ranger le project d'un add-on sous « Modules installés » montrait donc deux
+sortes de projects, et laissait croire que le contenu du module ne vivait que là.
+
+L'éditeur liste désormais **tous** les projects dans « Projects » ; celui d'un add-on y porte un
+badge au nom du module. « Modules installés » ne garde que ce que le module est seul à gérer : ses
+Config screens et sa route `/m/<id>`. L'entrée « Éditeur » disparaît (ADR `module-config-screens`
+§2), et un module sans rien à configurer n'apparaît plus. La racine enregistrée (§1) ne change
+pas. Suite prévue : les exemples d'un module livrés comme modèles dans son jar, copiés une seule
+fois, avec leur provenance (`architecture/design-modeles-de-module.md` du projet).
+
+### Amendement 2026-10-19 — la racine d'add-on rejoint `modules/`
+
+Les projects fusionnent avec les modules : un dossier de `plugins/Artisan/modules/` par module.
+`moduleFolder(folder, moduleId, legacyDir)` (API 2.8.0) remplace pour un add-on le dossier qu'il
+possédait dans son plugin par `modules/<folder>/`, enregistré comme une racine d'add-on : même
+clé `addon:<folder>`, toujours non renommable. La racine du §1 y est déplacée une fois. Tant que
+les deux dossiers contiennent des fichiers (une copie restée dans `projects/`, migrée avec le reste),
+la racine d'origine reste lue : on ne choisit jamais à la place de l'admin quel contenu est le bon.
+`register` reste disponible pour les add-ons qui n'ont pas migré.

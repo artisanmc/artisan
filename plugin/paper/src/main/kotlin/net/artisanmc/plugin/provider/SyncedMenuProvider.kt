@@ -38,6 +38,8 @@ import java.io.File
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
+import net.artisanmc.plugin.platform.Chat
+import net.artisanmc.plugin.platform.ServerPlatform
 
 class SyncedMenuProvider(
     private val roots: net.artisanmc.plugin.project.ProjectRoots,
@@ -45,15 +47,25 @@ class SyncedMenuProvider(
     private val evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
     private val sessions: MenuSessionStore? = null,
     private val history: net.artisanmc.plugin.session.NavigationHistoryStore? = null,
-    private val onReload: (() -> Unit)? = null,
+    private val onReload: ((modules: Set<String>?) -> Unit)? = null,
     private val executorProvider: (() -> ActionExecutor)? = null,
     private val langManager: LangManager? = null,
     private val resourcePackManager: ResourcePackManager? = null,
     private val lookupAsset: (String) -> AssetEntry? = { null },
     private val offsetEncoderProvider: () -> net.artisanmc.plugin.render.OffsetEncoder = { net.artisanmc.plugin.render.OffsetEncoder.EMPTY },
     private val dataSources: net.artisanmc.modules.api.datasource.DataSourceRegistry? = null,
+    /** A module's editor view by module id, served to the hub on `editor_bundle_fetch`. */
+    private val editorBundles: (String) -> net.artisanmc.modules.api.editor.EditorBundleDeclaration? = { null },
+    /** The modules' templates, served on `template_fetch` and copied on `template_copy` or once at seed. */
+    private val templates: () -> net.artisanmc.modules.api.template.TemplateRegistry? = { null },
+    /** The server's language, given to the projects a template seeds. */
+    private val seedLang: () -> String = { "en" },
+    /** Writes the module commands' default override files; true when it wrote one (`CommandOverrideStore.seed`). */
+    private val seedOverrides: () -> Boolean = { false },
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
+    /** Told before each `modules_changed`: what [announcement] is built from moved, a kept copy is stale. */
+    private val announcementChanged: () -> Unit = {},
     /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */
     private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
     /** Fetchers touch the Bukkit API: they run on the thread that owns the state they read. */
@@ -66,6 +78,8 @@ class SyncedMenuProvider(
     private val editorEvents: (Map<String, Any?>) -> Unit = {},
     /** On a leaf, the hub to connect to; null on the hub or a standalone server. */
     private val hub: HubLink? = null,
+    /** The other servers that serve their own editor (ADR `peer-servers`): this one joins each as a leaf. */
+    private val peers: () -> List<HubLink> = { emptyList() },
     /** `api.menus` listeners and the Bukkit menu events. */
     private val menuEvents: net.artisanmc.plugin.listener.MenuEventDispatcher? = null,
     /** Who plays from Bedrock (Geyser): their menus get the title the Bedrock pack reads. */
@@ -131,16 +145,28 @@ class SyncedMenuProvider(
     private val jsonMapper = ObjectMapper()
     private val httpClient = OkHttpClient()
     @Volatile private var wsClient: WsClient? = null
+    /** One link per peer server, keyed by its addresses: a peer that moves gets a new link. */
+    private val peerClients = java.util.concurrent.ConcurrentHashMap<String, WsClient>()
+    @Volatile private var loaded = false
+    /** The link each request came from, so the reply goes back to it; bounded, a request may have several replies. */
+    private val origins = java.util.Collections.synchronizedMap(object : LinkedHashMap<String, WsClient>(64, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, WsClient>) = size > MAX_ORIGINS
+    })
+
+    private fun clients(): List<WsClient> = listOfNotNull(wsClient) + peerClients.values
+
+    /** An unrequested announcement (`modules_changed`…): every hub this server is linked to. */
+    private fun broadcast(payload: Map<String, Any?>) = clients().forEach { it.send(payload) }
 
     private val workspace = object : ProjectWorkspace {
         override val roots get() = this@SyncedMenuProvider.roots
         override val snapshot get() = projects
         override val io = Executor { task ->
-            httpClient.dispatcher.executorService.execute { synchronized(roots) { task.run() } }
+            httpClient.dispatcher.executorService.execute { synchronized(diskLock) { task.run() } }
         }
-        override fun reload() {
-            reloadFromDisk()
-            onReload?.invoke()
+        override fun reload(projectIds: Set<String>?) {
+            reloadFromDisk(projectIds)
+            onReload?.invoke(null)
         }
         override fun authoredBy(projectId: String, author: net.artisanmc.plugin.project.PublicationAuthor) {
             pendingAuthors[projectId] = author
@@ -149,7 +175,8 @@ class SyncedMenuProvider(
     private val replies = Replies(httpClient.dispatcher.executorService, ::send, logger)
     private val projectReads = ProjectReads(workspace, replies)
     private val projectWrites = ProjectWrites(workspace, replies, ::send, logger)
-    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig)
+    private val templateRequests = net.artisanmc.plugin.protocol.TemplateRequests(workspace, replies, templates)
+    private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles)
     @Volatile private var testSendOverride: ((String) -> Unit)? = null
 
     internal fun setSendForTesting(fn: (String) -> Unit) {
@@ -163,7 +190,14 @@ class SyncedMenuProvider(
         if (link.deliver(payload)) return
         if (payload["request_id"] == null) editorEvents(payload)
         val raw = jsonMapper.writeValueAsString(payload)
-        testSendOverride?.invoke(raw) ?: wsClient?.send(payload)
+        testSendOverride?.invoke(raw) ?: run {
+            val origin = (payload["request_id"] as? String)?.let { origins[it] }
+            when {
+                origin != null -> origin.send(payload)
+                payload["request_id"] == null -> broadcast(payload)
+                else -> wsClient?.send(payload)
+            }
+        }
     }
 
     val minecraftVersion: String get() = copyMinecraftVersion
@@ -196,6 +230,14 @@ class SyncedMenuProvider(
      */
     fun registerProjectRoot(projectId: String, dir: File) = roots.register(projectId, dir)
 
+    private val reloadQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val readEverything = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val readFolders: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    private val notifyAll = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val notifyOwners: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    private val registerQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val registeredFolders: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
     /**
      * Reloads the snapshot from disk, then notifies the modules.
      *
@@ -211,9 +253,29 @@ class SyncedMenuProvider(
      * takes seconds on a slow bind mount. Only [onReload] (command map, modules' `onReload()`)
      * goes back to the global thread, through the scheduler, once the snapshot is swapped.
      */
-    fun refreshFromDisk() = reloadExecutor.execute {
-        reloadFromDisk()
-        onReload?.invoke()
+    fun refreshFromDisk() = refresh(folders = null, notifyModules = true)
+
+    /**
+     * Asks that pile up before the read starts make one reload; an ask made during a read
+     * queues one more. It reads [folders] only (the folders just registered), or every
+     * project when an ask names none. [onReload] gets the modules to notify: every one when
+     * an ask has [notifyModules] (an editor publication, `api.project.reload()`), else only
+     * those whose folder was registered meanwhile (`notifyOwners`), which read it from the
+     * snapshot. Files Artisan wrote notify none.
+     */
+    private fun refresh(folders: Set<String>?, notifyModules: Boolean) {
+        if (folders == null) readEverything.set(true) else readFolders.addAll(folders)
+        if (notifyModules) notifyAll.set(true)
+        if (!reloadQueued.compareAndSet(false, true)) return
+        reloadExecutor.execute {
+            reloadQueued.set(false)
+            val everything = readEverything.getAndSet(false)
+            val some = readFolders.toSet().also { readFolders.removeAll(it) }
+            val everyModule = notifyAll.getAndSet(false)
+            val owners = notifyOwners.toSet().also { notifyOwners.removeAll(it) }
+            reloadFromDisk(if (everything) null else some)
+            onReload?.invoke(if (everyModule) null else owners)
+        }
     }
 
     override fun load() {
@@ -222,13 +284,26 @@ class SyncedMenuProvider(
         // `unknown_project` until the next reload. Deferred to the next tick so the
         // Add-on's onEnable has returned: its bootstrap writes are read, and its
         // onReload() never runs before its onEnable is done. The tick only orders the
-        // reload; the disk work itself leaves the global thread (refreshFromDisk).
-        roots.onRegister = { _, _ -> scheduler.global(::refreshFromDisk) }
+        // reload; the disk work itself leaves the global thread (refreshFromDisk). The
+        // modules enabled at startup register before the first tick: one reload for all,
+        // which notifies the folders' modules only, not every module each time.
+        roots.onRegister = { projectId, _ ->
+            registeredFolders += projectId
+            roots.ownerOf(projectId)?.let(notifyOwners::add)
+            if (registerQueued.compareAndSet(false, true)) scheduler.global {
+                registerQueued.set(false)
+                val folders = registeredFolders.toSet().also { registeredFolders.removeAll(it) }
+                refresh(folders, notifyModules = false)
+            }
+        }
         // The first load, and `/artisan reload`, read on the calling thread: menus and
         // commands exist when the server opens, and the admin's reply says they do.
         reloadFromDisk()
+        // Modules enabled before this load: their templates are seeded now, the others on
+        // their registration (notifyModulesChanged).
+        seedTemplates()
         val mcVersion = try {
-            org.bukkit.Bukkit.getServer().minecraftVersion
+            net.artisanmc.plugin.platform.ServerPlatform.minecraftVersion(org.bukkit.Bukkit.getServer())
         } catch (e: Exception) {
             "1.21.4"
         }
@@ -238,21 +313,43 @@ class SyncedMenuProvider(
             logger?.info("[ART] Custom item sources available: ${availableSources.ifEmpty { listOf("(none)") }}")
             // The hello goes out without the custom items hash: it follows as `custom_items_changed`,
             // computed off the main thread (registerCustomItemsReloadListeners).
-            val client = WsClient(
-                hub               = hub,
-                mcVersion         = mcVersion,
-                announcement      = announcement,
-                serverConfig      = { serverConfig?.report() },
-                onMessage         = ::handleMessage,
-                logger            = logger,
-                pluginVersion     = pluginVersion,
-            )
+            val client = newClient(hub)
             wsClient = client
             client.connect()
         }
+        loaded = true
+        syncPeers(peers())
+    }
+
+    private fun newClient(link: HubLink): WsClient {
+        lateinit var client: WsClient
+        client = WsClient(
+            hub               = link,
+            mcVersion         = copyMinecraftVersion,
+            announcement      = announcement,
+            serverConfig      = { serverConfig?.report() },
+            onMessage         = { receive(it, client, link) },
+            logger            = logger,
+            pluginVersion     = pluginVersion,
+        )
+        return client
+    }
+
+    /**
+     * Joins each of [links] as a leaf and leaves the peers no longer listed (ADR `peer-servers`).
+     * Called on each discovery round; nothing before [load] or after [unload].
+     */
+    fun syncPeers(links: List<HubLink>) {
+        if (!loaded) return
+        val wanted = links.associateBy { it.urls.joinToString(" ") }
+        peerClients.keys.filter { it !in wanted }.forEach { peerClients.remove(it)?.disconnect() }
+        wanted.forEach { (key, link) -> peerClients.computeIfAbsent(key) { newClient(link).also(WsClient::connect) } }
     }
 
     override fun unload() {
+        loaded = false
+        peerClients.values.forEach(WsClient::disconnect)
+        peerClients.clear()
         wsClient?.disconnect()
         httpClient.dispatcher.cancelAll()
         httpClient.connectionPool.evictAll()
@@ -283,12 +380,14 @@ class SyncedMenuProvider(
         resolveRef(menuTable, "Menu", ref, fromProject)
     override fun listMenuIds(): List<String> = menuTable.ids.distinct().sorted()
     override fun runtimeProjects(): List<RuntimeProject> = runtimes
+    /** The loaded files, what `api.project.list/read` answer from. */
+    fun snapshot(): ProjectSnapshot = projects
     /** The loaded Snapshot's project dirs, without the registry lock a reload in progress holds. */
     fun projectDirs(): Map<String, File> = projects.projectIds.associateWith(roots::dirFor)
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
         val menu = findMenu(menuId, ctx.projectId) ?: run {
-            player.sendMessage(langManager?.get("cmd.menu_not_found", player, "id" to menuId)
+            Chat.send(player, langManager?.get("cmd.menu_not_found", player, "id" to menuId)
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
@@ -312,7 +411,6 @@ class SyncedMenuProvider(
             dataSources, projectDataResolver, menuWindows, isBedrock,
         )
         sessions?.set(player, session)
-        logger?.info("[ART-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")
     }
 
     override fun findDialog(dialogId: String): RuntimeDialog? = findDialog(dialogId, null)
@@ -321,7 +419,7 @@ class SyncedMenuProvider(
 
     override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
         val dialog = findDialog(dialogId, ctx.projectId) ?: run {
-            player.sendMessage(langManager?.get("cmd.dialog_not_found", player, "id" to dialogId)
+            Chat.send(player, langManager?.get("cmd.dialog_not_found", player, "id" to dialogId)
                 ?: net.kyori.adventure.text.Component.text("Dialog '$dialogId' not found."))
             return
         }
@@ -340,7 +438,14 @@ class SyncedMenuProvider(
                 projectId = opened.projectId,
             ),
         )
-        DialogRenderer.open(player, dialog, lang, decorateNavigation(player, opened), executor)
+        val decorated = decorateNavigation(player, opened)
+        // Paper's dialog API on Paper, the BungeeCord one Spigot ships elsewhere.
+        if (ServerPlatform.paper) {
+            DialogRenderer.open(player, dialog, lang, decorated, executor)
+        } else {
+            runCatching { net.artisanmc.plugin.render.dialog.SpigotDialogRenderer.open(player, dialog, lang, decorated, executor) }
+                .onFailure { logger?.warning("[Artisan] dialog '$dialogId' not opened for ${player.name}: ${it.message}") }
+        }
     }
 
     /**
@@ -401,13 +506,75 @@ class SyncedMenuProvider(
     fun notifyCustomItemsReload() {
         val newHash = customItemsManager.computeHash()
         if (newHash.isNotEmpty()) {
-            wsClient?.send(mapOf("type" to "custom_items_changed", "hash" to newHash))
+            broadcast(mapOf("type" to "custom_items_changed", "hash" to newHash))
         }
     }
 
-    /** Re-report presence to the hub after the active module set changed. */
+    private val modulesChangedQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * Re-reports presence to the hub and seeds the templates after the active module set
+     * or its commands changed. The changes of one tick make one report and one seed: at
+     * start, every module and each of its commands announces itself before the first
+     * tick, and each announcement used to seed every template of every module.
+     */
     fun notifyModulesChanged() {
-        wsClient?.send(mapOf("type" to "modules_changed") + announcement().toMap())
+        // Now, so a GET of the hub between this signal and the next tick builds afresh; again at the tick,
+        // for what registered in between.
+        announcementChanged()
+        if (!modulesChangedQueued.compareAndSet(false, true)) return
+        scheduler.global {
+            modulesChangedQueued.set(false)
+            announcementChanged()
+            broadcast(mapOf("type" to "modules_changed") + announcement().toMap())
+            seedTemplates()
+        }
+    }
+
+    /**
+     * Copies, once per server, the templates that name a seed project and were never seeded
+     * (`TemplateSeeds`), keeps the modules' system elements in their folders (`SystemFiles`),
+     * writes the module commands' missing override files, then reloads when something was
+     * written. Off the game threads, with
+     * the other disk writes.
+     */
+    fun seedTemplates() {
+        val registry = templates()
+        workspace.io.execute {
+            val seeds = net.artisanmc.plugin.project.TemplateSeeds(roots, logger, seedLang)
+            var wrote = false
+            registry?.registered()?.forEach { (moduleId, list) ->
+                list.forEach { template ->
+                    runCatching { if (seeds.seed(moduleId, template)) wrote = true }
+                        .onFailure { logger?.warning("[Artisan] Template '$moduleId/${template.id}' not seeded: ${it.message}") }
+                }
+            }
+            registry?.registered()?.forEach { (moduleId, list) ->
+                list.filter { it.isSystem }.forEach { template ->
+                    runCatching { if (syncSystemFiles(moduleId, template)) wrote = true }
+                        .onFailure { logger?.warning("[Artisan] System elements '$moduleId/${template.id}' not written: ${it.message}") }
+                }
+            }
+            // After the templates: a module's folder they create receives its commands' files.
+            runCatching { if (seedOverrides()) wrote = true }
+                .onFailure { logger?.warning("[Artisan] Command override files not written: ${it.message}") }
+            if (wrote) refresh(folders = null, notifyModules = false)
+        }
+    }
+
+    /**
+     * Keeps [template]'s system elements in [moduleId]'s first folder by name (`SystemFiles`);
+     * a module without a folder has nowhere to keep them. True when files were written.
+     */
+    private fun syncSystemFiles(moduleId: String, template: net.artisanmc.modules.api.template.TemplateDeclaration): Boolean {
+        val folder = roots.all().entries.filter { roots.ownerOf(it.key) == moduleId }.minByOrNull { it.key }
+        if (folder == null) {
+            logger?.warning("[Artisan] Module '$moduleId' declares system elements but has no folder: call moduleFolder() in its onEnable.")
+            return false
+        }
+        val written = net.artisanmc.plugin.project.SystemFiles.sync(folder.value, moduleId, template)
+        if (written.isNotEmpty()) logger?.info("[Artisan] System elements of '$moduleId' written in '${folder.key}': ${written.joinToString()}.")
+        return written.isNotEmpty()
     }
 
     fun setCustomItemsManager(manager: CustomItemsManager) {
@@ -417,30 +584,55 @@ class SyncedMenuProvider(
     // A hand edit on disk applies only on `/artisan reload`, like any other Minecraft
     // plugin: the disk is deliberately not watched.
 
-    private fun reloadFromDisk() = synchronized(roots) {
+    /**
+     * Held by a reload and by each disk write of the editor ([workspace]`.io`): the
+     * provider's own lock, not the registry's, so a module's `onEnable` (which registers
+     * its folder) and `api.project` never wait behind it.
+     */
+    private val diskLock = Any()
+    /** The binaries' hashes across reloads: a png unchanged in size and mtime is not read again. */
+    private val binaryHashes = ProjectFilesReader.BinaryHashCache()
+
+    /** Every project, or only [only]: the other projects keep what the last reload read. */
+    private fun reloadFromDisk(only: Set<String>? = null) = synchronized(diskLock) {
         val started = System.nanoTime()
+        // A folder created by hand, or by the editor, shows in the listing from here on.
+        roots.invalidate()
         // Declared model docs feed the reader so BARE data files resolve their
         // schema from the JAR declaration (ADR bare-data-files ①).
         val failures = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
-        val loaded = ProjectReader(roots, logger, {
+        val reader = ProjectReader(roots, logger, {
             declaredModels().mapNotNull { doc ->
                 (doc["id"] as? String)?.let { it to doc }
             }.toMap()
         }, { projectId, rel, reason ->
             failures.getOrPut(projectId) { java.util.concurrent.ConcurrentHashMap() }[rel] = reason
-        }).readAll()
+        })
+        val read = if (only == null) reader.readAll() else reader.read(only)
         // The snapshot covers every file, not only those that compiled: what failed
         // must stay readable and fixable.
-        val dirs = roots.all()
-        projects = ProjectSnapshot(
-            files = dirs.mapValues { (_, dir) ->
-                runCatching { ProjectFilesReader.readAll(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
-            },
-            binaries = dirs.mapValues { (_, dir) ->
-                runCatching { ProjectFilesReader.binaries(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
-            },
-            skipped = failures,
-        )
+        val all = roots.all()
+        val dirs = if (only == null) all else all.filterKeys { it in only }
+        // One walk per project: its texts and its binaries, the latter hashed only when changed.
+        val scanned = dirs.mapValues { (_, dir) -> runCatching { ProjectFilesReader.scan(dir, binaryHashes) }.getOrNull() }
+        val files = scanned.mapValues { (_, s) -> s?.texts.orEmpty().filterKeys { !EditorPaths.isInvisible(it) } }
+        val binaries = scanned.mapValues { (_, s) -> s?.binaries.orEmpty().filterKeys { !EditorPaths.isInvisible(it) } }
+        val loaded: List<RuntimeProject>
+        if (only == null) {
+            binaryHashes.prune(scanned.flatMap { (id, s) -> s?.binaries.orEmpty().keys.map { File(dirs.getValue(id), it).absolutePath } }.toSet())
+            projects = ProjectSnapshot(files = files, binaries = binaries, skipped = failures)
+            loaded = read
+        } else {
+            val previous = projects
+            val kept = all.keys.filter { it !in only }
+            fun <V> kept(map: Map<String, V>) = map.filterKeys { it in kept }
+            projects = ProjectSnapshot(
+                files = kept(previous.files) + files,
+                binaries = kept(previous.binaries) + binaries,
+                skipped = kept(previous.skipped) + failures,
+            ).also { it.inheritHashes(previous, kept) }
+            loaded = (runtimes.filter { it.projectId in all && it.projectId !in only } + read).sortedBy { it.projectId }
+        }
         runtimes = loaded
         indexDocuments(loaded)
         val authors = HashMap(pendingAuthors).also { pendingAuthors.clear() }
@@ -470,6 +662,22 @@ class SyncedMenuProvider(
         dispatch(runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return)
     }
 
+    /**
+     * A message from a hub this server is linked to. A peer keeps this server's pack as it is
+     * when it accepts it: the pack it remembers may be older than one published elsewhere since.
+     */
+    private fun receive(raw: String, client: WsClient, link: HubLink) {
+        val node = runCatching { jsonMapper.readTree(raw) }.getOrNull() ?: return
+        node.path("request_id").takeIf { it.isTextual }?.let { origins[it.asText()] = client }
+        if (link.peer) when (val request = EditorRequest.parse(node)) {
+            is EditorRequest.HelloAck -> return logger?.info("[Artisan] Joined the network server at ${client.url}") ?: Unit
+            is EditorRequest.ResourcePackUpdated ->
+                return applyResourcePack(request.url, request.hash, "resource_pack_updated payload", net.artisanmc.plugin.config.deriveHttpBaseUrl(client.url))
+            else -> Unit
+        }
+        dispatch(node)
+    }
+
     private fun dispatch(node: JsonNode) {
         when (val request = EditorRequest.parse(node) ?: return) {
             is EditorRequest.HelloAck -> onHelloAck(request)
@@ -484,6 +692,10 @@ class SyncedMenuProvider(
             is EditorRequest.PapiPlaceholdersFetch -> queries.papiPlaceholders(request)
             is EditorRequest.HeadTextureFetch -> queries.headTexture(request)
             is EditorRequest.PlayerInventoryFetch -> queries.playerInventory(request)
+            is EditorRequest.EditorBundleFetch -> queries.editorBundle(request)
+            is EditorRequest.TemplateFetch -> templateRequests.fetch(request)
+            is EditorRequest.TemplateCopy -> templateRequests.copy(request)
+            is EditorRequest.ProjectOriginsFetch -> templateRequests.origins(request)
             is EditorRequest.DataSourceFetch -> queries.dataSource(request)
             is EditorRequest.ServerConfigWrite -> queries.serverConfigWrite(request)
             is EditorRequest.NexoGlyphsList -> queries.nexoGlyphs(request)
@@ -536,9 +748,9 @@ class SyncedMenuProvider(
         }
     }
 
-    private fun applyResourcePack(url: String, hash: String, what: String) {
+    private fun applyResourcePack(url: String, hash: String, what: String, base: String? = hubBaseUrl) {
         try {
-            rpm()?.applyPack(url, resolvePluginDownloadUrl(url), hash)
+            rpm()?.applyPack(url, resolvePluginDownloadUrl(url, base), hash)
         } catch (t: Throwable) {
             logger?.warning("Invalid $what: ${t.message}")
         }
@@ -549,7 +761,7 @@ class SyncedMenuProvider(
         if (result != null) {
             val (hash, data) = result
             logger?.info("[ART] Sending custom items bundle — hash=${hash.take(8)}…")
-            wsClient?.send(mapOf("type" to "custom_items_bundle", "hash" to hash, "data" to data))
+            broadcast(mapOf("type" to "custom_items_bundle", "hash" to hash, "data" to data))
         } else {
             logger?.warning("[ART] custom_items_request received but no custom items available — bundle not sent")
         }
@@ -561,8 +773,8 @@ class SyncedMenuProvider(
      * [net.artisanmc.plugin.resourcepack.AssetCatalog] keeps its path but goes to the
      * hub address this leaf joined. Falls back to [playerUrl].
      */
-    internal fun resolvePluginDownloadUrl(playerUrl: String): String {
-        val base = hubBaseUrl ?: return playerUrl
+    internal fun resolvePluginDownloadUrl(playerUrl: String, hubBase: String? = hubBaseUrl): String {
+        val base = hubBase?.ifEmpty { null } ?: return playerUrl
         return try {
             val parsed = java.net.URI(playerUrl)
             val pathAndQuery = buildString {
@@ -577,4 +789,8 @@ class SyncedMenuProvider(
     }
 
     internal fun handleMessageForTesting(raw: String) = handleMessage(raw)
+
+    private companion object {
+        const val MAX_ORIGINS = 4096
+    }
 }

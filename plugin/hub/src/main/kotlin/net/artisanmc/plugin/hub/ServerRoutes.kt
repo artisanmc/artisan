@@ -7,9 +7,12 @@ import net.artisanmc.plugin.hub.Relay.Companion.body
 import net.artisanmc.plugin.hub.Relay.Companion.errorCode
 import net.artisanmc.plugin.hub.Relay.Companion.ok
 import net.artisanmc.plugin.hub.Relay.Companion.readError
+import net.artisanmc.plugin.protocol.ProtocolVersion
 
 /** `/api/v1/servers/:server/…`: what the server declares, its configuration, its live data. */
 class ServerRoutes(private val servers: Servers, private val relay: Relay) {
+    private val bundles = BundleCache()
+
     fun register(router: Router) {
         on(router, "GET", "modules", VIEW) { call, server -> call.json(mapOf("modules" to server.announcement().modules)) }
         on(router, "GET", "data-sources", VIEW) { call, server -> call.json(mapOf("data_sources" to server.announcement().dataSources)) }
@@ -20,6 +23,8 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         on(router, "GET", "screens", VIEW) { call, server -> call.json(mapOf("screens" to server.announcement().screens)) }
         on(router, "GET", "actions", VIEW) { call, server -> call.json(mapOf("actions" to server.announcement().actions)) }
         on(router, "GET", "document-kinds", VIEW) { call, server -> call.json(mapOf("document_kinds" to server.announcement().documentKinds)) }
+        // The commands modules declare, with their default dressing: the editor's System section.
+        on(router, "GET", "player-commands", VIEW) { call, server -> call.json(mapOf("player_commands" to server.announcement().playerCommands)) }
 
         on(router, "GET", "server-config", VIEW) { call, server -> call.json(mapOf("config" to server.serverConfig(), "online" to server.online)) }
         on(router, "PATCH", "server-config", CONFIG) { call, server ->
@@ -79,6 +84,35 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
                 if (ok(reply)) call.json(mapOf("slots" to reply["slots"])) else readError(call, reply)
             }
         }
+        // A module's editor view (runtime module bundles, level 3): announced at Presence, fetched once per hash.
+        on(router, "GET", "modules/:module/ui.js", VIEW) { call, server ->
+            val module = call.params["module"].orEmpty()
+            val announced = server.announcement().editorBundle(module)?.get("hash") as? String
+                ?: return@on call.error(404, "not_found")
+            bundles.get(announced)?.let { return@on serveBundle(call, announced, it) }
+            relay.send(call, server, mapOf("type" to "editor_bundle_fetch", "module_id" to module)) { reply ->
+                if (!ok(reply)) return@send readError(call, reply)
+                val content = (reply["content"] as? String)?.toByteArray(Charsets.UTF_8)
+                    ?: return@send call.error(502, "fetch_error", "editor bundle reply without content")
+                val hash = BundleCache.sha256(content)
+                // The announcement may be stale (the module reloaded since): serve only what it named.
+                if (hash != reply["hash"] || hash != announced) {
+                    return@send call.error(502, "fetch_error", "editor bundle of '$module' does not match its announced hash")
+                }
+                bundles.put(hash, content)
+                serveBundle(call, hash, content)
+            }
+        }
+        // A module's template (ADR `module-templates`): its files, to show the default version read-only.
+        on(router, "GET", "modules/:module/templates/:template", VIEW) { call, server ->
+            if (!speaksTemplates(call, server)) return@on
+            val message = mapOf(
+                "type" to "template_fetch",
+                "module_id" to call.params["module"].orEmpty(),
+                "template_id" to call.params["template"].orEmpty(),
+            )
+            relay.send(call, server, message) { reply -> if (ok(reply)) call.json(body(reply)) else readError(call, reply) }
+        }
         on(router, "POST", "data-sources/preview", VIEW) { call, server ->
             val request = call.body()
             val ref = request?.get("ref")?.takeIf { it.isTextual }?.asText() ?: return@on call.error(422, "invalid_input")
@@ -97,6 +131,12 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         }
     }
 
+    /** `?v=<hash>` names this very script: the browser keeps it for good. Any other URL revalidates. */
+    private fun serveBundle(call: Call, hash: String, content: ByteArray) {
+        val cache = if (call.query("v") == hash) "private, max-age=31536000, immutable" else "no-cache"
+        call.send(200, "text/javascript; charset=utf-8", content, cache, mapOf("X-Content-Type-Options" to "nosniff"))
+    }
+
     /** Config screens name their Project like the editor (`<server id>.shop`) or like the module (`shop`). */
     private fun folder(server: EditorServer, project: String) = project.removePrefix("${server.id}.")
 
@@ -112,5 +152,42 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
     companion object {
         const val SERVER = "/api/v1/servers/:server"
         private val HDB_ID = Regex("[0-9]{1,10}")
+
+        /** A leaf on an older release would ignore a template message: say so instead of waiting for the timeout. */
+        fun speaksTemplates(call: Call, server: EditorServer): Boolean {
+            if (ProtocolVersion.minor(server.protocolVersion) >= ProtocolVersion.TEMPLATES) return true
+            call.error(501, "plugin_update_required")
+            return false
+        }
+    }
+}
+
+/**
+ * The editor bundles the hub served lately, by SHA-256: a bundle is fetched from its server once
+ * per hash, not once per editor load. Least recently used first out, bounded in entries and bytes.
+ */
+internal class BundleCache(private val maxEntries: Int = 8, private val maxBytes: Long = 16L * 1024 * 1024) {
+    private val entries = LinkedHashMap<String, ByteArray>(16, 0.75f, true)
+    private var bytes = 0L
+
+    @Synchronized
+    fun get(hash: String): ByteArray? = entries[hash]
+
+    @Synchronized
+    fun put(hash: String, content: ByteArray) {
+        if (content.size > maxBytes) return
+        entries.remove(hash)?.let { bytes -= it.size }
+        entries[hash] = content
+        bytes += content.size
+        val oldest = entries.entries.iterator()
+        while ((entries.size > maxEntries || bytes > maxBytes) && oldest.hasNext()) {
+            bytes -= oldest.next().value.size
+            oldest.remove()
+        }
+    }
+
+    companion object {
+        fun sha256(content: ByteArray): String =
+            java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(content))
     }
 }

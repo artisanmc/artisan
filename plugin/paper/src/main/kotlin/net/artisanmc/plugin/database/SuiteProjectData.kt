@@ -28,12 +28,13 @@ class SuiteProjectData(
     dialect: DatabaseDialect,
     private val rowOf: (serverId: String) -> ServerRow?,
     private val logger: Logger,
+    tables: ArtisanTables = ArtisanTables.DEFAULT,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    val versions = VersionStore(data, dialect)
-    private val states = ServerStateStore(data)
-    private val draftRows = DraftRows(data)
-    private val contents = ContentRows(data, dialect)
+    val versions = VersionStore(data, dialect, tables)
+    private val states = ServerStateStore(data, tables)
+    private val draftRows = DraftRows(data, tables)
+    private val contents = ContentRows(data, dialect, tables)
     private val mapper = ObjectMapper()
 
     private class Cached(val at: Long, val row: ServerRow?, val state: LoadedState?)
@@ -74,9 +75,9 @@ class SuiteProjectData(
     val drafts: DraftStorage = object : DraftStorage {
         override fun knownProject(server: String, folder: String) = projectKey(server, folder) != null
 
-        override fun drafts(server: String, folder: String): List<String>? {
+        override fun drafts(server: String, folder: String, owner: String): List<String>? {
             val (row, key) = projectKey(server, folder) ?: return null
-            return draftRows.all(row, key)
+            return draftRows.active(row, key, owner)
         }
 
         override fun draft(server: String, folder: String, id: String): String? {
@@ -91,7 +92,7 @@ class SuiteProjectData(
             val (row, key) = projectKey(server, folder) ?: return false
             val receipt = commit.receipt
             draftRows.commit(
-                row, key, id = commit.draftId, draft = commit.body, status = commit.status.wire,
+                row, key, id = commit.draftId, draft = commit.body, status = commit.status.wire, owner = commit.owner,
                 operationId = receipt.operationId, fingerprint = receipt.fingerprint, result = receipt.result,
             )
             return true
@@ -104,6 +105,9 @@ class SuiteProjectData(
     /** Projects as their server loaded them, read from the suite database by the editor's routes. */
     val loaded: LoadedProjects = object : LoadedProjects {
         override fun list(server: String): Map<String, Any?>? = state(server)?.list?.toMap()
+
+        /** From the cached state: an unchanged poll costs no Version read. */
+        override fun hash(server: String, folder: String): String? = state(server)?.projects?.get(folder)?.hash
 
         override fun read(server: String, folder: String): Map<String, Any?>? {
             val cached = cached(server)

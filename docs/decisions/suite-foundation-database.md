@@ -61,6 +61,43 @@ plugin.
    présence, téléportation) suivra dans la même facade, avec `server_name` et
    `redis` dans `environment.yml`.
 
+### Amendement 2026-10-18 — un plugin ouvre son pool lui-même (ADR `runtime-library`) — **retiré**
+
+*Retiré le jour même, avec ③ ④ ⑤ de `runtime-library` (voir son amendement) : les plugins de la
+suite gardent Artisan requis et `api.database`. Le texte reste pour l'historique.*
+
+Les points 3, 5 et 6 supposaient le plugin Artisan présent : les pools vivaient dans sa JVM,
+derrière `api.database`. Un plugin de la suite doit démarrer sans lui, donc :
+
+- **Chaque plugin ouvre son pool par sa copie du runtime** (`ModuleDatabase`, module
+  `runtime`), avec HikariCP et le driver dans son propre `plugin.yml` (`libraries:`, comme
+  Artisan). `api.database` reste disponible, `@Beta`, mais n'est plus la voie de la suite.
+- **Les identifiants restent en un seul endroit.** Au démarrage du plugin : si
+  `plugins/Artisan/environment.yml` existe, sa section `database` est lue (jamais écrite) ;
+  sinon le plugin écrit une section `database` par défaut (H2) dans sa propre `config.yml` et
+  l'utilise. `database.own: true` dans la config du plugin garde sa section quoi qu'il y ait
+  chez Artisan. Le log dit laquelle des deux est lue. Rien n'est créé sous `plugins/Artisan/`.
+  L'ordre tient : le plugin déclare Artisan en `softdepend`, Artisan a écrit son fichier avant.
+- **En H2, un fichier par plugin**, sous son dossier : deux copies de H2 dans deux
+  classloaders n'ouvrent pas le même fichier. Le fichier unique restait la règle pour les clés
+  étrangères vers `artisan_servers` ; la révision `server-identity-and-versions` exige déjà
+  MySQL ou MariaDB pour un réseau, et c'est là qu'elles comptent. Une seule base en MySQL et
+  MariaDB, chaque plugin préfixant ses tables, comme avant.
+
+### Amendement 2026-10-19 — préfixe de tables configurable
+
+`database.table-prefix` (`environment.yml`, `artisan_` par défaut) précède toutes les tables de la
+suite : celles d'Artisan (`{prefix}servers`, noms inchangés par défaut) et celles des plugins, nommées
+`DatabaseApi.tablePrefix(module) + nom` = `{prefix}{module}_{nom}` (API 2.9.0). Le préfixe ne sert
+qu'à loger deux installations distinctes dans une même base ; les collisions entre plugins sont
+évitées par le segment `module` (un mot, refusé s'il est un premier segment des tables d'Artisan).
+Le préfixe utilisé est noté dans `plugins/Artisan/database/table-prefix` : changé sous une base qui
+contient encore les tables de l'ancien, `dataSource()` est refusé à tous les plugins plutôt que de
+repartir sur des tables vides. Un réseau partage un préfixe : une feuille sur un autre préfixe lit un
+autre `{prefix}meta`, donc un autre id de base, et le hub la refuse déjà. Le préfixe est global et
+non par module (un seul endroit à vérifier ; un renommage par module n'apporte rien de plus que le
+préfixe global et ajoute des collisions possibles).
+
 *Rejeté :* un fichier H2 par plugin (isole les plugins, mais interdit toute
 clé étrangère vers une table d'Artisan et diverge de MySQL) ; un pool partagé
 (une fuite dans un plugin bloque toute la suite) ;

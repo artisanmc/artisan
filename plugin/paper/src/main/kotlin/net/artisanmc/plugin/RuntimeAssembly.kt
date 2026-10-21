@@ -34,6 +34,7 @@ internal class RuntimeAssembly(
     private val menuEvents get() = plugin.menuEvents
     private val menuWindows get() = plugin.menuWindows
     private val serverConfigAccess get() = plugin.serverConfigAccess
+    private val localEditorBundles get() = plugin.localEditorBundles
     private val editorChannel get() = editorHost.editorChannel
     private val serverId get() = suite.serverId
     private var menuProvider: net.artisanmc.plugin.engine.MenuProvider
@@ -51,6 +52,7 @@ internal class RuntimeAssembly(
         private set
     lateinit var commandRegistrar: CommandRegistrar
         private set
+    private lateinit var commandOverrides: net.artisanmc.plugin.command.CommandOverrideStore
     private lateinit var cooldowns: CooldownStore
     private lateinit var evaluator: ConditionEvaluator
     /** The event-registered resource-pack manager — swapped (not stacked) on `/artisan reload`. */
@@ -62,6 +64,8 @@ internal class RuntimeAssembly(
     /** Null until the first [start]: module actions arriving before it are dropped. */
     val executorOrNull: ActionExecutor? get() = if (::executor.isInitialized) executor else null
     val sessionsOrNull: MenuSessionStore? get() = if (::sessions.isInitialized) sessions else null
+    /** Null until the first [start]: module conditions tested before it fail closed. */
+    val evaluatorOrNull: ConditionEvaluator? get() = if (::evaluator.isInitialized) evaluator else null
 
     /** The stores that outlive a reload, the asset index (from its disk cache) and the command registrar. */
     fun prepare(langManager: LangManager) {
@@ -73,19 +77,89 @@ internal class RuntimeAssembly(
             cacheFile = java.io.File(dataFolder, "cache/asset-index.json"),
         )
         assetCatalog.loadFromDisk()
-        commandRegistrar = CommandRegistrar(plugin, langManager)
+        commandOverrides = net.artisanmc.plugin.command.CommandOverrideStore(
+            { (menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all() }, logger,
+        )
+        commandRegistrar = CommandRegistrar(
+            plugin, langManager, scheduler,
+            playerCommands = { api.playerCommands.declarations() },
+            overrides = { commandOverrides.overrides },
+        )
+        // A module enabled or disabled after the start: its commands come and go without a reload,
+        // and the editor's System section lists the new set (a leaf tells its hub). The
+        // declarations of one tick (a module's commands at its enable) rebuild the command map once.
+        api.playerCommands.onChange {
+            if (commandsRefreshQueued.compareAndSet(false, true)) scheduler.global {
+                commandsRefreshQueued.set(false)
+                commandRegistrar.refresh()
+            }
+            (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged()
+        }
+        // Listed with the modules' actions (owner `artisan`): the editor builds its form from the declaration.
+        val moduleCommand = net.artisanmc.plugin.command.ModuleCommandAction({ commandRegistrar.moduleCommands }, langManager, logger)
+        api.actionRegistry.unregister(net.artisanmc.plugin.command.ModuleCommandAction.NAME)
+        api.actionRegistry.bindOwner("artisan")
+        try {
+            api.actionRegistry.register(moduleCommand.declaration())
+        } finally {
+            api.actionRegistry.bindOwner(null)
+        }
     }
 
-    /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
-    private fun applyReload() {
-        capturedItems.reload((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
+    /**
+     * Each module command without an override gets its file, the module's values commented out,
+     * in its module's first folder by name (`CommandOverrideStore.seed`). Run by the provider
+     * with its other disk writes, which then reloads.
+     */
+    private fun seedOverrides(): Boolean =
+        commandOverrides.seed(api.playerCommands) { moduleId ->
+            projectRoots.all().entries
+                .filter { projectRoots.ownerOf(it.key) == moduleId }
+                .minByOrNull { it.key }?.value
+        }
+
+    private val commandsRefreshQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val applyQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val applyAll = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val applyModules: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    /** Read on the reload thread, swapped in on the global thread; the latest read wins. */
+    @Volatile private var pendingItems: Map<String, org.bukkit.inventory.ItemStack>? = null
+    @Volatile private var pendingOverrides: Map<String, net.artisanmc.plugin.model.CommandOverrideYaml>? = null
+
+    /**
+     * Called on the thread that read the snapshot: the captured items and the overrides are
+     * read there too, so the global thread only swaps maps and rebuilds the command map.
+     * Reloads that end before it runs the first one apply once. [modules]: the modules whose
+     * `onReload()` runs, null for every one.
+     */
+    private fun scheduleApplyReload(modules: Set<String>?) {
+        pendingItems = capturedItems.read((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
+        pendingOverrides = commandOverrides.read()
+        if (modules == null) applyAll.set(true) else applyModules.addAll(modules)
+        if (!applyQueued.compareAndSet(false, true)) return
+        scheduler.onGlobal {
+            applyQueued.set(false)
+            val all = applyAll.getAndSet(false)
+            val some = applyModules.toSet().also { applyModules.removeAll(it) }
+            applyReload(if (all) null else some)
+        }
+    }
+
+    /** Global thread (the command map is only safe there). No disk here: see [scheduleApplyReload]. */
+    private fun applyReload(modules: Set<String>?) {
+        pendingItems?.let { capturedItems.apply(it); pendingItems = null }
+        pendingOverrides?.let { commandOverrides.apply(it); pendingOverrides = null }
         commandRegistrar.reload(menuProvider.runtimeProjects(), executor, evaluator)
-        api.modules.active().forEach { runCatching { it.onReload() } }
+        // Files Artisan wrote itself (override skeletons, system menus) notify no module: nothing to re-fetch.
+        if (modules != null && modules.isEmpty()) return
+        api.modules.active().filter { modules == null || it.id in modules }.forEach { runCatching { it.onReload() } }
         api.events.publish(ConfigReloadEvent("menus"))
     }
 
     fun reinit(cfg: PluginConfig) {
-        plugin.langManager = LangManager.fromPlugin(plugin, cfg.language, cfg.perPlayerLanguage)
+        // In place: the commands hold this LangManager, and add-ons their bundles.
+        plugin.translations.configure(cfg.language, cfg.perPlayerLanguage)
+        plugin.langManager.reload()
         menuProvider.unload()
         start(cfg)
         // ServerLoadEvent is past: the custom items hash goes from here, once the new
@@ -129,7 +203,8 @@ internal class RuntimeAssembly(
         plugin.geyser.follow(bedrockPacks)
         provider.load()
 
-        executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry)
+        executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry, plugin.langManager)
+        commandOverrides.reload()
         commandRegistrar.reload(provider.runtimeProjects(), executor, evaluator)
     }
 
@@ -139,21 +214,27 @@ internal class RuntimeAssembly(
         evaluator        = evaluator,
         sessions         = sessions,
         history          = navigationHistory,
-        onReload         = { scheduler.onGlobal(::applyReload) },
+        onReload         = ::scheduleApplyReload,
         executorProvider = { executor },
         lookupAsset      = assetCatalog::lookup,
         offsetEncoderProvider = assetCatalog::offsetEncoder,
         dataSources = api.dataSources,
+        editorBundles = localEditorBundles::find,
+        templates = { api.templates },
+        seedLang = { api.translations.defaultLang },
+        seedOverrides = ::seedOverrides,
         announcement = plugin::announcement,
+        announcementChanged = plugin::announcementChanged,
         declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,
         menuWindows = menuWindows,
         pluginVersion = description.version,
-        nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
+        nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(dataFolder.parentFile, "Nexo")),
         serverConfig = serverConfigAccess,
         editorEvents = { editorChannel.relay(it, serverId.toString()) },
         hub = editorHost.hubLink(cfg.web),
         isBedrock = plugin.geyser::isBedrock,
+        peers = { editorHost.peerLinks },
         menuEvents = menuEvents,
         onSnapshot = suite::recordVersions,
         reloadExecutor = reloadExecutor,

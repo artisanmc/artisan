@@ -19,8 +19,23 @@ internal object ArtisanApiFactory {
     fun build(plugin: ArtisanPlugin): ArtisanAPI {
         val registry = ModuleRegistry()
         val customForCapture = net.artisanmc.plugin.customitems.CustomItemPlugins.withApi()
-        plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(File(plugin.dataFolder, "projects"), plugin.logger)
-        plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger)
+        // Read at call time: the captured items are rebuilt by each reload.
+        val itemSpecs = net.artisanmc.plugin.items.ItemSpecs(
+            buildCustom = { material, count ->
+                net.artisanmc.plugin.integrations.SoftDepRegistry(
+                    vault = null, papi = null, worldGuard = null,
+                    customItems = customForCapture, capturedItems = plugin.capturedItemsOrNull,
+                ).buildCustomStack(material, count)
+            },
+            customItems = { customForCapture },
+            logger = plugin.logger,
+        )
+        plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(
+            net.artisanmc.plugin.project.ModulesRootMigration.run(plugin.dataFolder, plugin.logger), plugin.logger,
+        )
+        plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger) { ticks, task ->
+            plugin.scheduler.globalLater(ticks, task)
+        }
         val api = ArtisanAPI.builder(
             plugin,
             DataSourceRegistry(),
@@ -35,6 +50,7 @@ internal object ArtisanApiFactory {
                 plugin.projectRoots,
                 onReloadRequested = { plugin.refreshProjectsFromDisk() },
                 runtimes = { plugin.menuProviderOrNull?.runtimeProjects() ?: emptyList() },
+                snapshot = { (plugin.menuProviderOrNull as? net.artisanmc.plugin.provider.SyncedMenuProvider)?.snapshot() ?: net.artisanmc.plugin.project.ProjectSnapshot.EMPTY },
             ),
         )
             .projectRoots(plugin.projectRoots)
@@ -46,6 +62,14 @@ internal object ArtisanApiFactory {
                     net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
                 override fun describe(stack: org.bukkit.inventory.ItemStack): Map<String, Any> =
                     net.artisanmc.plugin.items.ItemDescriptor.derive(stack, customForCapture)
+                override fun build(spec: Map<String, *>): org.bukkit.inventory.ItemStack? = itemSpecs.build(spec)
+                override fun matches(
+                    spec: Map<String, *>,
+                    stack: org.bukkit.inventory.ItemStack?,
+                    comparisons: Set<net.artisanmc.modules.api.item.ItemComparison>,
+                ): Boolean = itemSpecs.matches(spec, stack, comparisons)
+                override fun defaultComparisons(spec: Map<String, *>): Set<net.artisanmc.modules.api.item.ItemComparison> =
+                    itemSpecs.defaultComparisons(spec)
             })
             .actions(object : net.artisanmc.modules.api.action.ModuleActionsApi {
                 override fun execute(
@@ -55,37 +79,23 @@ internal object ArtisanApiFactory {
                     projectId: String?,
                 ) {
                     if (actions.isBlank()) return
-                    val run = Runnable {
-                        val parsed = try {
-                            net.artisanmc.plugin.engine.dslToEngineSteps(
-                                net.artisanmc.plugin.actiondsl.parseActionDsl(actions),
-                            )
-                        } catch (e: Exception) {
-                            plugin.logger.warning("[Artisan] module actions skipped — malformed DSL: ${e.message}")
-                            return@Runnable
-                        }
-                        val executor = plugin.runtime.executorOrNull ?: run {
-                            plugin.logger.warning("[Artisan] module actions dropped — engine not initialized")
-                            return@Runnable
-                        }
-                        // The project's i18n scope: without it an action
-                        // carrying `@key` would show a raw "{i18n:key}".
-                        val lang = plugin.langManagerOrNull?.playerLang(player) ?: "en"
-                        val runtimes = plugin.menuProviderOrNull?.runtimeProjects() ?: emptyList()
-                        val langMap =
-                            net.artisanmc.plugin.provider.projectLangMap(runtimes, projectId, lang)
-                        executor.executeSteps(
-                            parsed,
-                            net.artisanmc.plugin.engine.ExecutionContext(
-                                player = player,
-                                args = args,
-                                lang = lang,
-                                langMap = langMap,
-                                projectId = projectId,
-                            ),
+                    runModuleSteps(plugin, player, args, projectId, "malformed DSL") {
+                        net.artisanmc.plugin.engine.dslToEngineSteps(
+                            net.artisanmc.plugin.actiondsl.parseActionDsl(actions),
                         )
                     }
-                    plugin.scheduler.onPlayer(player.uniqueId, run::run)
+                }
+
+                override fun run(
+                    player: org.bukkit.entity.Player,
+                    chain: Any?,
+                    args: Map<String, Any>,
+                    projectId: String?,
+                ) {
+                    if (chain == null || (chain is String && chain.isBlank())) return
+                    runModuleSteps(plugin, player, args, projectId, "unreadable chain") {
+                        net.artisanmc.plugin.engine.ActionChainCompiler.compile(chain)
+                    }
                 }
             })
             .database(plugin.database)
@@ -98,6 +108,13 @@ internal object ArtisanApiFactory {
             ))
             .scheduler(net.artisanmc.plugin.scheduling.PaperSchedulerApi)
             .placeholders(plugin.placeholders)
+            .translations(plugin.translations)
+            .text(net.artisanmc.plugin.text.ArtisanText)
+            .conditions(net.artisanmc.plugin.engine.ModuleConditions(
+                evaluator = { plugin.runtime.evaluatorOrNull },
+                ownsPlayer = { plugin.scheduler.ownsPlayer(it.uniqueId) },
+                warn = { plugin.logger.warning("[Artisan] $it") },
+            ))
             // Artisan's own actions are registered like a module's: every chain, core
             // included, dispatches through this registry (ADR extensible-document-kinds, R1).
             .actionRegistry(ActionRegistry().also(net.artisanmc.plugin.engine.CoreActionHandlers::registerAll))
@@ -107,5 +124,46 @@ internal object ArtisanApiFactory {
             (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged()
         }
         return api
+    }
+
+    /** A module's chain, compiled and run on the player's thread with its project's i18n scope. */
+    private fun runModuleSteps(
+        plugin: ArtisanPlugin,
+        player: org.bukkit.entity.Player,
+        args: Map<String, Any>,
+        projectId: String?,
+        malformed: String,
+        compile: () -> List<net.artisanmc.plugin.engine.Step>,
+    ) {
+        val run = Runnable {
+            val parsed = try {
+                compile()
+            } catch (e: Exception) {
+                plugin.logger.warning("[Artisan] module actions skipped — $malformed: ${e.message}")
+                return@Runnable
+            }
+            if (parsed.isEmpty()) return@Runnable
+            val executor = plugin.runtime.executorOrNull ?: run {
+                plugin.logger.warning("[Artisan] module actions dropped — engine not initialized")
+                return@Runnable
+            }
+            // The project's i18n scope: without it an action
+            // carrying `@key` would show a raw "{i18n:key}".
+            val lang = plugin.langManagerOrNull?.playerLang(player) ?: "en"
+            val runtimes = plugin.menuProviderOrNull?.runtimeProjects() ?: emptyList()
+            val langMap =
+                net.artisanmc.plugin.provider.projectLangMap(runtimes, projectId, lang)
+            executor.executeSteps(
+                parsed,
+                net.artisanmc.plugin.engine.ExecutionContext(
+                    player = player,
+                    args = args,
+                    lang = lang,
+                    langMap = langMap,
+                    projectId = projectId,
+                ),
+            )
+        }
+        plugin.scheduler.onPlayer(player.uniqueId, run::run)
     }
 }

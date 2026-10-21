@@ -1,3 +1,4 @@
+import { MiniMessageField } from "@/components/MiniMessageField";
 import { RevealField } from "@/components/RevealField";
 import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
 import {
@@ -28,8 +29,7 @@ import type {
   ModelFieldType,
   ProjectId,
 } from "@/domain/types";
-import { MaterialPicker } from "@/features/canvas/MaterialPicker";
-import { useTextureUrl } from "@/features/canvas/textureStore";
+import { MaterialField } from "@/features/canvas/MaterialField";
 import { useOtherServerProjects } from "@/features/serverIndex/useOtherServerProjects";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
@@ -270,9 +270,21 @@ function ArgInput(p: ArgInputProps) {
       if (type.of.kind === "ltext" || type.of.kind === "string")
         return <ListArgInput {...p} of={type.of} />;
       return <JsonValueInput value={value} onChange={onChange} ariaLabel={field.name} />;
-    case "string":
     case "minimessage":
     case "minimessage_multiline":
+      if (typeof value === "string" || value == null) {
+        return (
+          <MiniMessageField
+            multiline={type.kind === "minimessage_multiline"}
+            value={typeof value === "string" ? value : ""}
+            onChange={(next) => onChange(next === "" ? undefined : next)}
+            className="h-7 w-full font-mono text-[12px]"
+            aria-label={field.name}
+          />
+        );
+      }
+      return <JsonValueInput value={value} onChange={onChange} ariaLabel={field.name} />;
+    case "string":
       if (typeof value === "string" || value == null) {
         return (
           <Input
@@ -405,42 +417,12 @@ function ExpressionInput({
 }
 
 function MaterialInput({ field, value, onChange }: ArgInputProps) {
-  const { t } = useTranslation();
-  const material = typeof value === "string" ? value : "";
-  const url = useTextureUrl(material);
   return (
-    <div className="flex items-center gap-1.5">
-      <MaterialPicker
-        trigger={
-          <button
-            type="button"
-            title={t("actionEditor.materialPick")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-[var(--border-soft)] bg-[var(--surface)] hover:border-[var(--brand)]"
-          >
-            {url ? (
-              <img
-                src={url}
-                alt={material}
-                draggable={false}
-                className="h-3/4 w-3/4 object-contain"
-                style={{ imageRendering: "pixelated" }}
-              />
-            ) : (
-              <span className="text-[8px] text-[var(--text-faint)]">
-                {material.slice(0, 3) || "—"}
-              </span>
-            )}
-          </button>
-        }
-        onPick={(picked) => onChange(picked)}
-      />
-      <Input
-        value={material}
-        placeholder={t("actionEditor.materialPlaceholder")}
-        onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value)}
-        aria-label={field.name}
-      />
-    </div>
+    <MaterialField
+      value={typeof value === "string" ? value : ""}
+      onChange={(material) => onChange(material === "" ? undefined : material)}
+      aria-label={field.name}
+    />
   );
 }
 
@@ -569,27 +551,17 @@ function LiteralTextInput({ field, value, onChange }: ArgInputProps) {
   const { t } = useTranslation();
   const text = isLTextNode(value) ? value.key : typeof value === "string" ? value : "";
   return (
-    <div>
-      <textarea
-        value={text}
-        rows={2}
-        placeholder={t("actionEditor.textPlaceholder")}
-        onChange={(e) =>
-          onChange(
-            e.target.value === "" && !field.required
-              ? undefined
-              : { key: e.target.value as I18nKey },
-          )
-        }
-        className="textarea min-h-0 px-2 py-1 font-mono text-xs"
-        aria-label={field.name}
-      />
-      {looksLikeMiniMessage(text) ? (
-        <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-          <MiniMessageInline source={text} className="font-mono text-xs" />
-        </div>
-      ) : null}
-    </div>
+    <MiniMessageField
+      multiline
+      rows={2}
+      value={text}
+      placeholder={t("actionEditor.textPlaceholder")}
+      onChange={(next) =>
+        onChange(next === "" && !field.required ? undefined : { key: next as I18nKey })
+      }
+      className="min-h-0 px-2 py-1 font-mono text-xs"
+      aria-label={field.name}
+    />
   );
 }
 

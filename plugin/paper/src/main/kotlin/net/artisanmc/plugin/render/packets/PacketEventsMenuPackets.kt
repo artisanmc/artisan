@@ -73,17 +73,27 @@ class PacketEventsMenuPackets(
     }
 
     /**
-     * Captures an Artisan window's id, then gives any chest window back its vanilla
-     * texture through the title when the pack made it transparent.
+     * Captures an Artisan window's id and puts its composed title in the packet when the
+     * server could not (Spigot), then gives any chest window back its vanilla texture
+     * through the title when the pack made it transparent.
      */
     private fun onOpenWindow(event: PacketSendEvent, playerId: java.util.UUID) {
-        val menuPending = windows.get(playerId)?.let { it.windowId < 0 } == true
-        if (!menuPending && chestTexture == null) return
+        val pending = windows.get(playerId)?.takeIf { it.windowId < 0 }
+        if (pending == null && chestTexture == null) return
         val packet = WrapperPlayServerOpenWindow(event)
-        if (menuPending) windows.onOpenWindow(playerId, packet.containerId)
-        val glyph = chestTexture?.glyphToDecorate(playerId, packet.containerId, packet.type) ?: return
-        packet.title = VanillaGuiTitle.decorate(packet.title, glyph)
-        event.markForReEncode(true)
+        var changed = false
+        if (pending != null) {
+            windows.onOpenWindow(playerId, packet.containerId)
+            pending.title?.let {
+                packet.title = it
+                changed = true
+            }
+        }
+        chestTexture?.glyphToDecorate(playerId, packet.containerId, packet.type)?.let { glyph ->
+            packet.title = VanillaGuiTitle.decorate(packet.title, glyph)
+            changed = true
+        }
+        if (changed) event.markForReEncode(true)
     }
 }
 

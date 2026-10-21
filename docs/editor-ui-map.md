@@ -234,7 +234,7 @@ Conteneur observe sa taille via `ResizeObserver`. À l'intérieur : un `<Stage>`
 - Clic droit / long press → context menu
 - Molette → pan/zoom
 - Touch → pan
-- Drag d'un layer de titre → repositionne (avec `ResizeHandles` aux coins pour redimensionner)
+- Drag d'un layer de titre → repositionne
 
 **Overlays DOM au-dessus du canvas** :
 - `TextEditor` (édition inline d'un layer texte sélectionné)
@@ -372,7 +372,6 @@ Layout vertical :
 
 ### Manipulation directe sur le canvas
 - Drag d'un layer → repositionne (x/y)
-- Corner drag (`ResizeHandles`) → redimensionne (aspect locked par défaut)
 - `WidthResizeHandle` (sur textarea) → resize horizontal seul
 
 ---
@@ -421,9 +420,10 @@ De haut en bas :
    - `mt-1 block w-full px-2 py-1 text-left text-xs text-zinc-400 hover:text-zinc-200`
    - Ouvre `NewProjectDialog`
 
-4. **Section "Modules installés"** (`mt-3`)
+4. **Section "Modules installés"** (`mt-4`), absente quand aucun module n'a rien à configurer
    - Heading uppercase
-   - Empty state : "Aucun module installé." (`rounded border border-dashed px-2 py-2 text-[11px]`)
+   - Un groupe par module : ses Config screens puis « Configuration » (`/m/<id>`) ; le project
+     d'un module reste dans la liste des projects, avec un `<Badge>` au nom du module
 
 5. **Lien `⚙ Paramètres`** (sticky bas)
    - `flex items-center gap-2 px-2 py-2 text-sm text-zinc-300 hover:bg-zinc-800` → `/settings`
@@ -487,7 +487,7 @@ Tous dans `editor/src/components/ui/`.
 
 **Canvas (`features/canvas/`)** : `Stage`, `MenuGroup`, `CommandGroup`, `DialogGroup`, `Edges`, `Selection`, `ContextMenu`, `EdgeTooltip`, `ItemTooltip`, `TextEditor`, `ArmedBanner`, `EmptyState`, `ConditionListEditor`.
 
-**Title composer (`features/canvas/title/composer/`)** : `LayersPanel`, `LayerListItem`, `LayerEditForm`, `AddLayerControls`, `ResizeHandles`, `WidthResizeHandle`, `TextSizeSelector`, `TitleRender`, `PlainTitleForm`.
+**Title composer (`features/canvas/title/composer/`)** : `LayersPanel`, `LayerListItem`, `LayerEditForm`, `AddLayerControls`, `WidthResizeHandle`, `TextSizeSelector`, `TitleRender`, `PlainTitleForm`.
 
 **EditorPane** : `SelectionInspector`, `ProjectProperties`, `MenuProperties`, `ElementEditor`, `CommandEditor`, `DialogEditor`, `Library`, `ItemTile`, `MaterialPicker`, `LibraryDragOverlay`, `LibraryDragGhost`.
 
@@ -507,4 +507,4 @@ Tous dans `editor/src/components/ui/`.
 
 **Top bar** : `TopBarIconButton`, `UndoRedoButtons`, `LangSwitcher`.
 
-**Misc** : `DeleteProjectDialog`, `SchemaForm` (générateur de formulaires depuis JSON Schema, utilisé par les futurs modules).
+**Misc** : `DeleteProjectDialog`.

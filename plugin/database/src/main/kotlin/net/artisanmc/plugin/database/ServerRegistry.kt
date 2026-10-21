@@ -9,6 +9,9 @@ import javax.sql.DataSource
 
 data class KnownServer(val name: String, val lastSeen: Instant, val uuid: String = "")
 
+/** A running server that serves its own editor, and where its `/ws/plugin` answers (ADR `peer-servers`). */
+data class PeerServer(val uuid: String, val name: String, val lastSeen: Instant, val editorUrl: String, val internalUrl: String)
+
 sealed interface Registration {
     data object Registered : Registration
     data object Updated : Registration
@@ -26,6 +29,7 @@ class ServerRegistry(
     private val dataSource: DataSource,
     @Suppress("unused") private val dialect: DatabaseDialect,
     private val logger: Logger,
+    private val t: ArtisanTables = ArtisanTables.DEFAULT,
 ) {
     private class Row(val uuid: String, val name: String, val lastSeen: Instant, val running: Boolean)
 
@@ -39,7 +43,7 @@ class ServerRegistry(
         when {
             holder != null && holder.uuid != id.toString() -> Registration.NameTaken
             mine == null -> {
-                c.prepareStatement("INSERT INTO artisan_servers (uuid, name, last_seen, running) VALUES (?, ?, ?, TRUE)").use {
+                c.prepareStatement("INSERT INTO ${t.servers} (uuid, name, last_seen, running) VALUES (?, ?, ?, TRUE)").use {
                     it.setString(1, id.toString()); it.setString(2, name); it.setTimestamp(3, Timestamp.from(now)); it.executeUpdate()
                 }
                 logger.info("[Artisan] Server $name registered ($id)")
@@ -47,7 +51,7 @@ class ServerRegistry(
             }
             mine.name != name && mine.running && mine.lastSeen.isAfter(now.minus(COPY_WINDOW)) -> Registration.CopiedId(mine.name)
             else -> {
-                c.prepareStatement("UPDATE artisan_servers SET name = ?, last_seen = ?, running = TRUE WHERE uuid = ?").use {
+                c.prepareStatement("UPDATE ${t.servers} SET name = ?, last_seen = ?, running = TRUE WHERE uuid = ?").use {
                     it.setString(1, name); it.setTimestamp(2, Timestamp.from(now)); it.setString(3, id.toString()); it.executeUpdate()
                 }
                 if (mine.name == name) Registration.Updated
@@ -61,30 +65,52 @@ class ServerRegistry(
     fun rowId(name: String): ServerRow? = dataSource.connection.use { c -> rowId(c, "LOWER(name) = LOWER(?)", name) }
 
     private fun rowId(c: java.sql.Connection, where: String, value: String): ServerRow? =
-        c.prepareStatement("SELECT id FROM artisan_servers WHERE $where").use { s ->
+        c.prepareStatement("SELECT id FROM ${t.servers} WHERE $where").use { s ->
             s.setString(1, value); s.executeQuery().use { if (it.next()) ServerRow(it.getInt(1)) else null }
         }
 
     /** A clean stop: the server id may come back under another name at once. */
     fun stop(id: UUID) = dataSource.connection.use { c ->
-        c.prepareStatement("UPDATE artisan_servers SET running = FALSE WHERE uuid = ?").use { it.setString(1, id.toString()); it.executeUpdate() }
+        c.prepareStatement("UPDATE ${t.servers} SET running = FALSE WHERE uuid = ?").use { it.setString(1, id.toString()); it.executeUpdate() }
     }
 
     private fun row(c: java.sql.Connection, where: String, value: String): Row? =
-        c.prepareStatement("SELECT uuid, name, last_seen, running FROM artisan_servers WHERE $where").use { s ->
+        c.prepareStatement("SELECT uuid, name, last_seen, running FROM ${t.servers} WHERE $where").use { s ->
             s.setString(1, value)
             s.executeQuery().use { rs -> if (rs.next()) Row(rs.getString(1), rs.getString(2), rs.getTimestamp(3).toInstant(), rs.getBoolean(4)) else null }
         }
 
     fun touch(id: UUID, now: Instant) = dataSource.connection.use { c ->
-        c.prepareStatement("UPDATE artisan_servers SET last_seen = ? WHERE uuid = ?").use {
+        c.prepareStatement("UPDATE ${t.servers} SET last_seen = ? WHERE uuid = ?").use {
             it.setTimestamp(1, Timestamp.from(now)); it.setString(2, id.toString()); it.executeUpdate()
+        }
+    }
+
+    /** Where this server's `/ws/plugin` answers: its public editor address, its internal one; empty for none. */
+    fun advertise(id: UUID, editorUrl: String, internalUrl: String) = dataSource.connection.use { c ->
+        c.prepareStatement("UPDATE ${t.servers} SET editor_url = ?, internal_url = ? WHERE uuid = ?").use {
+            it.setString(1, editorUrl.take(255)); it.setString(2, internalUrl.take(255)); it.setString(3, id.toString()); it.executeUpdate()
+        }
+    }
+
+    /** The other running servers seen since [since] that announce an address, by name. */
+    fun peers(self: UUID, since: Instant): List<PeerServer> = dataSource.connection.use { c ->
+        c.prepareStatement(
+            "SELECT uuid, name, last_seen, editor_url, internal_url FROM ${t.servers} " +
+                "WHERE uuid <> ? AND running = TRUE AND last_seen >= ? AND (editor_url <> '' OR internal_url <> '') ORDER BY name",
+        ).use { s ->
+            s.setString(1, self.toString()); s.setTimestamp(2, Timestamp.from(since))
+            s.executeQuery().use { rs ->
+                generateSequence {
+                    if (rs.next()) PeerServer(rs.getString(1), rs.getString(2), rs.getTimestamp(3).toInstant(), rs.getString(4), rs.getString(5)) else null
+                }.toList()
+            }
         }
     }
 
     /** Every server but [self], by name. */
     fun others(self: UUID): List<KnownServer> = dataSource.connection.use { c ->
-        c.prepareStatement("SELECT name, last_seen, uuid FROM artisan_servers WHERE uuid <> ? ORDER BY name").use { s ->
+        c.prepareStatement("SELECT name, last_seen, uuid FROM ${t.servers} WHERE uuid <> ? ORDER BY name").use { s ->
             s.setString(1, self.toString())
             s.executeQuery().use { rs ->
                 generateSequence { if (rs.next()) KnownServer(rs.getString(1), rs.getTimestamp(2).toInstant(), rs.getString(3)) else null }.toList()

@@ -8,9 +8,11 @@ import net.artisanmc.modules.api.annotations.Beta;
 import net.artisanmc.modules.api.annotations.Internal;
 import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.command.CommandRegistry;
+import net.artisanmc.modules.api.condition.ConditionsApi;
 import net.artisanmc.modules.api.database.DatabaseApi;
 import net.artisanmc.modules.api.datasource.DataSourceRegistry;
 import net.artisanmc.modules.api.document.DocumentKindRegistry;
+import net.artisanmc.modules.api.editor.EditorBundleRegistry;
 import net.artisanmc.modules.api.event.ModuleEventBus;
 import net.artisanmc.modules.api.item.ItemStackApi;
 import net.artisanmc.modules.api.menu.MenuApi;
@@ -21,6 +23,10 @@ import net.artisanmc.modules.api.project.ProjectRootRegistry;
 import net.artisanmc.modules.api.scheduler.SchedulerApi;
 import net.artisanmc.modules.api.schemas.SchemaRegistry;
 import net.artisanmc.modules.api.screen.EditorScreenRegistry;
+import net.artisanmc.modules.api.playercommand.PlayerCommandRegistry;
+import net.artisanmc.modules.api.template.TemplateRegistry;
+import net.artisanmc.modules.api.text.TextApi;
+import net.artisanmc.modules.api.translation.TranslationsApi;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -57,10 +63,16 @@ public final class ArtisanAPI {
     private final EditorScreenRegistry screens;
     private final ActionRegistry actionRegistry;
     private final DocumentKindRegistry documentKinds;
+    private final EditorBundleRegistry editorBundles;
+    private final TemplateRegistry templates;
+    private final PlayerCommandRegistry playerCommands;
     private final DatabaseApi database;
     private final MenuApi menus;
     private final SchedulerApi scheduler;
     private final PlaceholderRegistry placeholders;
+    private final ConditionsApi conditions;
+    private final TranslationsApi translations;
+    private final TextApi text;
 
     private ArtisanAPI(Builder b) {
         this.plugin = b.plugin;
@@ -78,10 +90,16 @@ public final class ArtisanAPI {
         this.screens = b.screens;
         this.actionRegistry = b.actionRegistry;
         this.documentKinds = b.documentKinds;
+        this.editorBundles = b.editorBundles;
+        this.templates = b.templates;
+        this.playerCommands = b.playerCommands;
         this.database = b.database;
         this.menus = b.menus;
         this.scheduler = b.scheduler;
         this.placeholders = b.placeholders;
+        this.conditions = b.conditions;
+        this.translations = b.translations;
+        this.text = b.text;
     }
 
     /**
@@ -190,6 +208,36 @@ public final class ArtisanAPI {
         return documentKinds;
     }
 
+    /**
+     * The modules' editor views, shipped in their jars (runtime module bundles, level 3): one
+     * script per module, reported at Presence on its {@code installed_modules} entry and served
+     * to the editor by the hub.
+     */
+    @Beta
+    public EditorBundleRegistry getEditorBundles() {
+        return editorBundles;
+    }
+
+    /**
+     * The modules' example content, shipped in their jars: files the editor copies into any
+     * project, and that Artisan may copy once into a project of their own on first start. Reported
+     * at Presence on the module's {@code installed_modules} entry ({@code templates}).
+     */
+    @Beta
+    public TemplateRegistry getTemplates() {
+        return templates;
+    }
+
+    /**
+     * The commands players type whose behaviour belongs to a module and whose name, aliases,
+     * permission, cooldown and conditions the admin can override. Not {@link #getCommands()},
+     * which menus call through {@code run_command}.
+     */
+    @Beta
+    public PlayerCommandRegistry getPlayerCommands() {
+        return playerCommands;
+    }
+
     /** One connection pool per plugin, credentials in {@code environment.yml} (ADR {@code suite-foundation-database}). */
     @Beta
     public DatabaseApi getDatabase() {
@@ -212,6 +260,24 @@ public final class ArtisanAPI {
     @Beta
     public PlaceholderRegistry getPlaceholders() {
         return placeholders;
+    }
+
+    /** Conditions evaluated outside a chain, with the evaluator of {@code if:} (a module's requirements). */
+    @Beta
+    public ConditionsApi getConditions() {
+        return conditions;
+    }
+
+    /** System messages of the suite's plugins: the player's language, lang files per namespace. */
+    @Beta
+    public TranslationsApi getTranslations() {
+        return translations;
+    }
+
+    /** Text for players without Adventure types: sent, or as a {@code §} string for Bukkit. Since 2.10.0. */
+    @Beta
+    public TextApi getText() {
+        return text;
     }
 
     /** Version of this API (the {@code Since} numbering of the published {@code artisan-core-api}). */
@@ -244,10 +310,16 @@ public final class ArtisanAPI {
         private EditorScreenRegistry screens = new EditorScreenRegistry();
         private ActionRegistry actionRegistry = new ActionRegistry();
         private DocumentKindRegistry documentKinds = new DocumentKindRegistry();
+        private EditorBundleRegistry editorBundles = new EditorBundleRegistry();
+        private TemplateRegistry templates = new TemplateRegistry();
+        private PlayerCommandRegistry playerCommands = new PlayerCommandRegistry();
         private DatabaseApi database = DatabaseApi.NONE;
         private MenuApi menus = MenuApi.NOOP;
         private SchedulerApi scheduler = SchedulerApi.DIRECT;
         private PlaceholderRegistry placeholders = PlaceholderRegistry.NOOP;
+        private ConditionsApi conditions = ConditionsApi.NOOP;
+        private TranslationsApi translations = TranslationsApi.NOOP;
+        private TextApi text = TextApi.NOOP;
 
         private Builder(
             JavaPlugin plugin,
@@ -304,6 +376,21 @@ public final class ArtisanAPI {
             return this;
         }
 
+        public Builder editorBundles(EditorBundleRegistry editorBundles) {
+            this.editorBundles = Objects.requireNonNull(editorBundles);
+            return this;
+        }
+
+        public Builder playerCommands(PlayerCommandRegistry playerCommands) {
+            this.playerCommands = Objects.requireNonNull(playerCommands);
+            return this;
+        }
+
+        public Builder templates(TemplateRegistry templates) {
+            this.templates = Objects.requireNonNull(templates);
+            return this;
+        }
+
         public Builder database(DatabaseApi database) {
             this.database = Objects.requireNonNull(database);
             return this;
@@ -321,6 +408,21 @@ public final class ArtisanAPI {
 
         public Builder placeholders(PlaceholderRegistry placeholders) {
             this.placeholders = Objects.requireNonNull(placeholders);
+            return this;
+        }
+
+        public Builder conditions(ConditionsApi conditions) {
+            this.conditions = Objects.requireNonNull(conditions);
+            return this;
+        }
+
+        public Builder translations(TranslationsApi translations) {
+            this.translations = Objects.requireNonNull(translations);
+            return this;
+        }
+
+        public Builder text(TextApi text) {
+            this.text = Objects.requireNonNull(text);
             return this;
         }
 

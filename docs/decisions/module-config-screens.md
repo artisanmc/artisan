@@ -53,8 +53,9 @@ de binding).
    Chaque écran = un label + une Table/Config ; le core génère le formulaire
    (master-detail si racine liste, form simple si racine objet — le form
    generator de `composable-data-models` §7, repositionné en « éditeur
-   générique de config à schéma »). Sidebar : l'entrée module porte « Éditeur »
-   (canvas) + ses écrans. **Fallback** : models déclarés + projet dédié sans
+   générique de config à schéma »). Sidebar : l'entrée module porte ses écrans
+   (l'entrée « Éditeur » du canvas a disparu le 2026-10-18 : le project d'un module est listé avec
+   les autres, voir l'amendement de l'ADR `addon-owned-project-roots`). **Fallback** : models déclarés + projet dédié sans
    `editor_screens` ⇒ un écran « Données » auto-généré (une entrée par Table).
    `FrontendModule.routes` custom reste possible pour un cas exotique, mais
    n'est pas le chemin normal. *Rejeté :* onglet unique imposé « Données »
@@ -110,6 +111,30 @@ de binding).
    runtime rendent le watcher-owning impossible). ②③ = produit en soi, à
    griller quand un vrai plugin cible existe. Un écran standalone (module sans
    projet/canvas) sera une route à part à ce moment-là.
+
+### Amendement 2026-10-19 — config singleton : racine de config et vue du module
+
+Question d'origine : la configuration d'ArtisanDailyRewards (les récompenses) n'existe qu'une fois,
+doit être versionnée et mérite une interface sur mesure. Un kind limité à une instance a été écarté :
+un kind décrit une collection qu'on crée, nomme et référence dans n'importe quel project. « Une
+instance » obligerait à choisir le project qui la porte, à traiter le doublon et la suppression, et
+ajouterait une cardinalité au registre, au listing, au create et aux modèles. La config singleton
+reste donc un fichier de la racine du module édité par ses écrans, déjà versionné (`config_write`
+commite et recharge, `VersionRecorder` enregistre une Version pour chaque racine).
+
+Deux ajouts (API 2.7.0, `@artisan/editor-sdk` 1.6.0) :
+
+- **Vue du module.** `screens.declare(id, label, table, projectId, component)` nomme une vue de
+  `FrontendModule.screens`. L'écran la rend à la place du formulaire généré et lui passe
+  `ConfigScreenProps` (`value`, `shape`, `set(path, value)`, `addRow`, `removeRow`, `readOnly`).
+  L'hôte garde la lecture, la copie de travail, l'enregistrement, l'onglet YAML et l'historique du
+  fichier : la vue ne fait que le rendu. Une clé absente du bundle retombe sur le formulaire généré.
+- **Racine de config.** `projectRoots.registerConfig(projectId, dir, moduleId)` marque la racine
+  `role: config` dans `project_roots`. L'éditeur la retire de la liste « Projects » (§2 amendé le
+  2026-10-18) : on y accède par les écrans du module, qui portent son historique par fichier.
+
+Critère qui ferait revenir au kind : plusieurs instances deviennent nécessaires (plusieurs
+calendriers de récompenses). Un module qui l'anticipe met une liste dans son fichier unique.
 
 ## Dette assumée / questions ouvertes
 

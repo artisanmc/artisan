@@ -63,6 +63,15 @@ class ProjectRootsTest {
         assertEquals(mapOf("project_id" to "user_proj", "identity" to "folder"), roots.descriptor("user_proj") - "project_key")
     }
 
+    @Test fun `a configuration root reports its role`() {
+        roots.registerConfig("dailyrewards", addonDir, "dailyrewards")
+        assertEquals(
+            mapOf("project_id" to "dailyrewards", "identity" to "addon", "module_id" to "dailyrewards", "role" to "config"),
+            roots.descriptor("dailyrewards") - "project_key",
+        )
+        assertEquals(addonDir, roots.dirFor("dailyrewards"))
+    }
+
     @Test fun `an add-on root registered without a module reports none`() {
         roots.register("boutique_addon", addonDir)
         assertEquals(mapOf("project_id" to "boutique_addon", "identity" to "addon"), roots.descriptor("boutique_addon") - "project_key")
@@ -91,6 +100,25 @@ class ProjectRootsTest {
         assertEquals(projectDir, all["boutique_shop"])
     }
 
+    @Test fun `all is a listing kept until invalidated`() {
+        assertEquals(setOf("user_proj"), roots.all().keys)
+        File(coreRoot, "by_hand").mkdirs()
+        assertEquals(setOf("user_proj"), roots.all().keys, "a folder made by hand waits for the next reload")
+        roots.invalidate()
+        assertEquals(setOf("by_hand", "user_proj"), roots.all().keys)
+        roots.register("boutique_shop", addonDir)
+        assertEquals(setOf("boutique_shop", "by_hand", "user_proj"), roots.all().keys, "a registration lists itself")
+    }
+
+    @Test fun `a scan reads each key once and serves it from the listing`() {
+        val key = roots.key("user_proj")
+        roots.all()
+        File(coreRoot, "user_proj/.artisan/project-id").writeText("changed-on-disk\n")
+        assertEquals(key, roots.key("user_proj"), "served from the listing, not the disk")
+        roots.invalidate()
+        assertEquals("changed-on-disk", roots.key("user_proj"))
+    }
+
     @Test fun `all excludes hidden dirs in the core root`() {
         assertFalse(roots.all().keys.any { it.startsWith(".") })
     }
@@ -101,5 +129,53 @@ class ProjectRootsTest {
         roots.register("boutique_shop", projectDir)
         assertEquals(projectDir, roots.all()["boutique_shop"])
         assertEquals(projectDir, roots.dirFor("boutique_shop"))
+    }
+
+    @Test fun `a module folder is created under the core root and owned by its module`() {
+        val dir = roots.moduleFolder("quests", "artisanquests", null)
+        assertEquals(File(coreRoot, "quests").canonicalFile, dir.canonicalFile)
+        assertTrue(dir.isDirectory)
+        assertEquals(
+            mapOf("project_id" to "quests", "identity" to "addon", "project_key" to "addon:quests", "module_id" to "artisanquests"),
+            roots.descriptor("quests"),
+        )
+        assertEquals(dir, roots.all()["quests"])
+    }
+
+    @Test fun `a module folder adopts the former add-on root once, with its key`() {
+        val legacy = File(addonDir, "project")
+        roots.register("boutique", legacy, "boutique")
+        val key = roots.key("boutique")
+        val dir = ProjectRoots(coreRoot).let { fresh ->
+            roots = fresh
+            fresh.moduleFolder("boutique", "boutique", legacy)
+        }
+        assertFalse(legacy.exists())
+        assertTrue(File(dir, "boutique/shop.yaml").parentFile.isDirectory)
+        assertEquals(key, roots.key("boutique"))
+        // Next start: the add-on passes the same former root, now gone.
+        assertEquals(dir, ProjectRoots(coreRoot).moduleFolder("boutique", "boutique", legacy))
+    }
+
+    @Test fun `a module folder keeps the former root while both hold files`() {
+        val legacy = File(addonDir, "project")
+        File(coreRoot, "boutique/stale.yaml").apply { parentFile.mkdirs(); writeText("x") }
+        assertEquals(legacy, roots.moduleFolder("boutique", "boutique", legacy))
+        assertEquals(legacy, roots.dirFor("boutique"))
+        assertTrue(File(legacy, "boutique").isDirectory)
+    }
+
+    @Test fun `an empty former root is left alone`() {
+        val legacy = Files.createTempDirectory("artisan-empty").toFile()
+        File(coreRoot, "boutique").mkdirs()
+        val dir = roots.moduleFolder("boutique", "boutique", legacy)
+        assertEquals(File(coreRoot, "boutique"), dir)
+        legacy.deleteRecursively()
+    }
+
+    @Test fun `a module folder name is a plain lowercase segment`() {
+        assertFailsWith<IllegalArgumentException> { roots.moduleFolder("../escape", "x", null) }
+        assertFailsWith<IllegalArgumentException> { roots.moduleFolder("Quests", "x", null) }
+        assertFailsWith<IllegalArgumentException> { roots.moduleFolder(".artisan", "x", null) }
     }
 }

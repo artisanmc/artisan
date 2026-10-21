@@ -1,8 +1,11 @@
+import { onProjectsReloaded } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import * as serversApi from "@/lib/api/servers";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
+import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
@@ -55,6 +58,13 @@ describe("ProjectSidebar", () => {
       projectIds: ["pack_a", "pack_b"],
     });
     mockParams.current = { serverId: "sk_1" };
+    useServerScreensStore.setState({ screens: [] } as never);
+    useSystemCommandsStore.setState({
+      serverId: null,
+      status: "idle",
+      commands: [],
+      overrides: {},
+    });
     useServersStore.setState({ activeServerId: null } as any);
     useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } } as any);
     vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
@@ -68,6 +78,62 @@ describe("ProjectSidebar", () => {
     // label is the folder name, which is the identity.
     expect(items[0]).toHaveTextContent("pack_a");
     expect(items[1]).toHaveTextContent("pack_b");
+  });
+
+  it("re-reads the list when the server announces a reload", async () => {
+    render(<ProjectSidebar />);
+    await screen.findByRole("link", { name: /pack_b/ });
+    // An add-on registered its folder after the server started: only the reload says so.
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["pack_a", "pack_b", "shop"],
+    });
+    onProjectsReloaded("sk_1", []);
+    expect(await screen.findByRole("link", { name: /shop/ })).toBeInTheDocument();
+  });
+
+  it("lists a module's system commands, marking the ones the admin disabled", async () => {
+    const declared = (id: string, name: string) => ({
+      id,
+      moduleId: "attribution",
+      name,
+      aliases: [],
+      permission: null,
+      description: {},
+      arguments: [],
+      consoleAllowed: false,
+      opensMenu: null,
+      children: [],
+    });
+    useSystemCommandsStore.setState({
+      serverId: "sk_1",
+      status: "ready",
+      commands: [declared("attribution:open", "attribution"), declared("attribution:top", "top")],
+      folders: [],
+      overrides: {
+        "attribution:top": {
+          command: "attribution:top",
+          folder: "attribution",
+          path: "overrides/command/attribution.top.yaml",
+          content: "",
+          fields: { enabled: false },
+          hasLogic: false,
+        },
+      },
+    });
+    render(<ProjectSidebar />);
+    // Folded with its module: nothing shows until the module is opened.
+    const toggle = await screen.findByRole("button", {
+      name: "Afficher les documents de attribution",
+    });
+    expect(screen.queryByRole("link", { name: "/attribution" })).toBeNull();
+    fireEvent.click(toggle);
+    expect(await screen.findByRole("link", { name: "/attribution" })).toHaveAttribute(
+      "href",
+      "/servers/$serverId/commands/$commandId",
+    );
+    const disabled = screen.getByRole("link", { name: /\/top/ });
+    expect(within(disabled).getByRole("img")).toHaveAccessibleName("Désactivée");
   });
 
   it("workspace links use the server-scoped URL pattern", async () => {
@@ -105,6 +171,38 @@ describe("ProjectSidebar", () => {
       const tree = await screen.findByRole("group", { name: /pack_a/ });
       expect(tree).toHaveTextContent("accueil");
       expect(tree).toHaveTextContent("/heal");
+    });
+
+    it("lists the commands its module declares with its own, marked as built in", async () => {
+      mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
+      useSystemCommandsStore.setState({
+        serverId: "sk_1",
+        status: "ready",
+        commands: [
+          {
+            id: "shop:open",
+            moduleId: "shop",
+            name: "shop",
+            aliases: [],
+            permission: null,
+            description: {},
+            arguments: [],
+            consoleAllowed: false,
+            opensMenu: "pack_a:accueil",
+            children: [],
+          },
+        ],
+        folders: [{ folder: "pack_a", ownerModule: "shop" }],
+        overrides: {},
+      });
+      render(<ProjectSidebar />);
+      const tree = await screen.findByRole("group", { name: /pack_a/ });
+      const commands = within(tree).getByRole("list", { name: "Commandes" });
+      expect(commands).toHaveTextContent("/heal");
+      const builtIn = within(commands).getByRole("link", { name: /\/shop/ });
+      expect(within(builtIn).getByRole("img")).toHaveAccessibleName(
+        /Commande interne du module shop/,
+      );
     });
 
     it("puts settings and creation on the open project's row, no more 'Settings' row", async () => {
@@ -169,16 +267,84 @@ describe("ProjectSidebar", () => {
     });
   });
 
-  it("renders the Modules empty state", async () => {
+  it("lists a plugin's folder under its module, before the admin's own", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["boutique_shop", "pack_a"],
+      projects: [
+        {
+          id: "boutique_shop",
+          name: "boutique_shop",
+          externalId: "boutique_shop",
+          hash: "",
+          serverKeyId: "sk_1",
+          ownerModule: "boutique",
+        },
+      ],
+    } as never);
+    render(<ProjectSidebar />);
+    const moduleLink = await screen.findByRole("link", { name: "boutique" });
+    expect(moduleLink).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
+    expect(screen.queryByRole("link", { name: /boutique_shop/ })).toBeNull();
+    const installed = screen.getByText("Modules installés");
+    const mine = screen.getByText("Mes modules");
+    expect(installed.compareDocumentPosition(mine) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      mine.compareDocumentPosition(screen.getByRole("link", { name: /pack_a/ })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("folds a module's screens under Autres until the module is opened", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["boutique_shop"],
+      projects: [
+        {
+          id: "boutique_shop",
+          name: "boutique_shop",
+          externalId: "boutique_shop",
+          hash: "",
+          serverKeyId: "sk_1",
+          ownerModule: "boutique",
+        },
+      ],
+    } as never);
+    useServerScreensStore.setState({
+      screens: [
+        {
+          id: "catalogue",
+          moduleId: "boutique",
+          label: "Catalogue",
+          table: "catalogue",
+          projectId: "boutique_shop",
+        },
+      ],
+    } as never);
+    render(<ProjectSidebar />);
+    // The module's row is its folder once the disk listing arrives.
+    await screen.findByRole("link", { name: "boutique" });
+    const toggle = screen.getByRole("button", { name: "Afficher les documents de boutique" });
+    expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
+    fireEvent.click(toggle);
+    const catalogue = await screen.findByRole("link", { name: "Catalogue" });
+    expect(
+      screen.getByText("Autres").compareDocumentPosition(catalogue) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows no Modules section when no module has anything to configure", async () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);
-    expect(await screen.findByText(/Aucun module installé/i)).toBeInTheDocument();
+    await screen.findByText(/Nouveau module/i);
+    expect(screen.queryByText(/Modules installés/i)).toBeNull();
   });
 
   it("renders the + Nouveau workspace link", async () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);
-    expect(await screen.findByText(/Nouveau projet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Nouveau module/i)).toBeInTheDocument();
   });
 
   it("renders the user menu pill (Settings link lives inside its dropdown)", async () => {
@@ -225,7 +391,7 @@ describe("ProjectSidebar", () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     expect(await screen.findByText("Lecture en cours…")).toBeInTheDocument();
-    expect(screen.queryByText("+ Nouveau projet")).toBeNull();
+    expect(screen.queryByText("+ Nouveau module")).toBeNull();
   });
 
   it("says the server is unreachable, and no longer invites creating a project there", async () => {
@@ -234,7 +400,7 @@ describe("ProjectSidebar", () => {
     render(<ProjectSidebar />);
     await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
     expect(await screen.findByText("Serveur injoignable")).toBeInTheDocument();
-    expect(screen.queryByText("+ Nouveau projet")).toBeNull();
+    expect(screen.queryByText("+ Nouveau module")).toBeNull();
   });
 
   it("brings the create button back once the read has succeeded", async () => {
@@ -242,7 +408,7 @@ describe("ProjectSidebar", () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
     render(<ProjectSidebar />);
     await waitFor(() => expect(listServerProjects).toHaveBeenCalled());
-    expect(await screen.findByText("+ Nouveau projet")).toBeInTheDocument();
+    expect(await screen.findByText("+ Nouveau module")).toBeInTheDocument();
   });
 
   it("persists the URL server into the store", async () => {

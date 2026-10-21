@@ -245,4 +245,45 @@ class SyncedMenuProviderTest {
         handle.invoke(provider, raw)
         assertNull(mgr.currentPackInfo)
     }
+
+    @Test
+    fun `reload asks made before the read starts make one reload`() {
+        val root = Files.createTempDirectory("artisan_coalesce_").toFile()
+        writeTwoProjectsWithSameMenuId(root)
+        val roots = net.artisanmc.plugin.project.ProjectRoots(root)
+        val queued = ArrayDeque<Runnable>()
+        val reloads = mutableListOf<Set<String>?>()
+        val provider = SyncedMenuProvider(
+            roots, logger = null,
+            onReload = { modules -> reloads += modules },
+            reloadExecutor = { queued.addLast(it) },
+        )
+        provider.load()
+        queued.clear()
+        reloads.clear()
+
+        val shop = Files.createTempDirectory("artisan_shop_").toFile()
+        val quests = Files.createTempDirectory("artisan_quests_").toFile()
+        for (dir in listOf(shop, quests)) {
+            File(dir, "manifest.yaml").writeText("schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\n")
+            File(dir, "menus").mkdirs()
+            File(dir, "menus/shop.yaml").writeText("schema: menu/v1\nsize: 9\nelements: []\n")
+        }
+        // Changed on disk but not registered: a folder registration reads that folder only.
+        File(root, "core/menus/main.yaml").writeText("schema: menu/v1\nsize: 9\nelements: []\n")
+        roots.register("boutique_addon", shop, "boutique")
+        roots.register("quests", quests, "quests")
+        assertEquals(1, queued.size, "the folders registered together make one reload")
+        queued.removeFirst().run()
+        assertEquals(listOf<Set<String>?>(setOf("boutique", "quests")), reloads, "only the folders' modules are notified")
+        assertEquals(listOf("boutique_addon", "core", "quests", "shop"), provider.runtimeProjects().map { it.projectId })
+        assertEquals(27, provider.findMenu("core:main")?.yaml?.size, "the other projects keep what the last reload read")
+        assertNotNull(provider.findMenu("boutique_addon:shop"))
+
+        provider.refreshFromDisk()
+        provider.refreshFromDisk()
+        assertEquals(1, queued.size)
+        queued.removeFirst().run()
+        assertEquals(null, reloads.last(), "an explicit reload notifies every module")
+    }
 }

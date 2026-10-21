@@ -73,6 +73,24 @@ mappings:
       - "docs/decisions/extensible-document-kinds.md"
     reason: "Document kind registry (editor): a kind's folder, id prefix and schema label decide the project layout"
 
+  - touches: "plugin/*/src/main/kotlin/**/model/DocumentLayout.kt"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "testdata/document-layout-conformance.json"
+    reason: "Where a module's Documents live (themed folders) — mirror of documentLayout.ts, locked by shared vector"
+
+  - touches: "editor/src/domain/documentLayout.ts"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "testdata/document-layout-conformance.json"
+    reason: "Where a module's Documents live (themed folders) — mirror of DocumentLayout.kt, locked by shared vector"
+
+  - touches: "editor/src/{domain/folders.ts,state/projects/foldersSlice.ts}"
+    updates:
+      - "docs/architecture/editor-internals.md"
+      - "docs/architecture/project-files.md"
+    reason: "Folder tree and board folder frames; folders: in .artisan/editor.yaml"
+
   - touches: "editor/src/schema/documentCodecs.ts"
     updates:
       - "docs/architecture/project-files.md"
@@ -235,7 +253,7 @@ mappings:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
     reason: "What the hub keeps (sessions, packs, caches) and the web settings admins configure"
 
-  - touches: "plugin/paper/src/main/kotlin/**/config/{EnvironmentFile,NetworkSecret}.kt"
+  - touches: "plugin/*/src/main/kotlin/**/config/{EnvironmentFile,NetworkSecret}.kt"
     updates:
       - "docs-site/src/content/docs/getting-started/install-admin.md"
       - "docs/architecture/entities.md"
@@ -262,11 +280,6 @@ mappings:
       - "docs/architecture/editor-internals.md"
       - "docs-site/src/content/docs/editor/"
     reason: "Canvas internals + user-visible editor UX"
-
-  - touches: "editor/src/components/SchemaForm/"
-    updates:
-      - "docs/architecture/editor-internals.md"
-    reason: "SchemaForm is the module form multiplier"
 
   - touches: "editor/src/components/ui/"
     updates:

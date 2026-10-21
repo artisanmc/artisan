@@ -2,15 +2,21 @@ import { commandsOf, menusOf } from "@/domain/documents";
 import type { Command, Element, ElementId, Menu, MenuId, ProjectId } from "@/domain/types";
 import { isTypingTarget } from "@/lib/keyboard";
 import { formatPositions, parsePositions } from "@/lib/positions";
+import { systemDocuments } from "@/lib/systemDocuments";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
+import { useModulesStore } from "@/state/modulesStore";
 import { usePaginationStore } from "@/state/paginationStore";
+import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CLIPBOARD_VERSION,
+  type ClipboardPayload,
   type ElementCopy,
+  collectTexts,
   readClipboard,
   rewriteIds,
   writeClipboard,
@@ -133,6 +139,7 @@ const placeElements = (
   elements: ElementCopy[],
   options: { skipSourcePositions: boolean; anchor?: number },
   onError?: (m: string) => void,
+  texts?: ClipboardPayload["texts"],
 ) => {
   const openProjects = useProjectsStore.getState().openProjects;
   const project = openProjects.projects.find((p) => p.id === projectId);
@@ -167,7 +174,7 @@ const placeElements = (
     for (const p of fit) extra.add(p);
     const placed: Element = { ...ec.element, positions: formatPositions(fit) };
     try {
-      useProjectsStore.getState().addElement({ projectId, menuId, element: placed });
+      useProjectsStore.getState().addElement({ projectId, menuId, element: placed, texts });
     } catch (e) {
       onError?.(e instanceof Error ? e.message : "paste failed");
     }
@@ -186,6 +193,7 @@ const copySelection = async (
     useSelectionStore.getState().menuId,
   );
   if (menus.length === 0 && commands.length === 0 && elements.length === 0) return;
+  const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
   try {
     await writeClipboard({
       kind: "artisan.clipboard",
@@ -193,6 +201,7 @@ const copySelection = async (
       menus,
       commands,
       elements,
+      ...(project ? { texts: collectTexts(project, { menus, commands, elements }) } : {}),
     });
   } catch (e) {
     onError?.(e instanceof Error ? e.message : "copy failed");
@@ -221,6 +230,7 @@ const pasteFromClipboard = async (
         menus: rewritten.menus,
         commands: rewritten.commands,
         offset: { x: 80, y: 80 },
+        texts: payload.texts,
       });
     }
     if (rewritten.elements.length > 0) {
@@ -234,6 +244,7 @@ const pasteFromClipboard = async (
           rewritten.elements,
           { skipSourcePositions: false, anchor: anchor?.position },
           onError,
+          payload.texts,
         );
       }
     }
@@ -277,9 +288,22 @@ const duplicateSelection = (projectId: ProjectId, ids: string[], onError?: (m: s
   }
 };
 
-/** Delete menus/commands/dialogs and the selected items of menus alike. */
-const deleteSelection = (projectId: ProjectId, ids: string[]) => {
+/**
+ * Delete menus/commands/dialogs and the selected items of menus alike. A module's system
+ * menu or dialog is never deleted: [onKept] is told, Reset is what puts it back.
+ */
+const deleteSelection = (projectId: ProjectId, selected: string[], onKept?: () => void) => {
   const store = useProjectsStore.getState();
+  const project = store.openProjects.projects.find((p) => p.id === projectId);
+  const system = project
+    ? systemDocuments(
+        project,
+        useModulesStore.getState().active,
+        useProjectTemplatesStore.getState().entries[projectId]?.origins ?? {},
+      )
+    : new Map<string, string>();
+  if (selected.some((id) => system.has(id))) onKept?.();
+  const ids = selected.filter((id) => !system.has(id));
   const { elements } = findSelectedEntities(projectId, ids, useSelectionStore.getState().menuId);
   for (const { sourceMenuId, element } of elements) {
     store.deleteElement({ projectId, menuId: sourceMenuId, elementId: element.id as ElementId });
@@ -300,6 +324,7 @@ export function useCanvasKeyboard({
   onError,
   getPasteAnchor,
 }: UseCanvasKeyboardArgs): void {
+  const { t } = useTranslation();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
@@ -454,7 +479,7 @@ export function useCanvasKeyboard({
               return;
             }
           }
-          deleteSelection(projectId, ids);
+          deleteSelection(projectId, ids, () => onError?.(t("canvas.systemDocumentKept")));
           useSelectionStore.getState().clear();
         } catch (err) {
           onError?.(err instanceof Error ? err.message : "delete failed");
@@ -473,7 +498,7 @@ export function useCanvasKeyboard({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [projectId, onError, getPasteAnchor]);
+  }, [projectId, onError, getPasteAnchor, t]);
 }
 
 export const canvasClipboardActions = {

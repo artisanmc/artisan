@@ -6,6 +6,7 @@ import net.artisanmc.plugin.lang.LangManager
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import net.artisanmc.plugin.platform.Chat
 
 class PackCommand(
     private val compiled: CompiledCommand,
@@ -25,12 +26,12 @@ class PackCommand(
 
     override fun execute(sender: CommandSender, commandLabel: String, args: Array<String>): Boolean {
         if (sender !is Player) {
-            sender.sendMessage(lang.get("cmd.in_game_only", sender))
+            Chat.send(sender, lang.get("cmd.in_game_only", sender))
             return true
         }
         val permission = compiled.permission
         if (permission != null && !sender.hasPermission(permission)) {
-            sender.sendMessage(lang.get("cmd.no_permission", sender))
+            Chat.send(sender, lang.get("cmd.no_permission", sender))
             return true
         }
         val parsedArgs = ArgParser.parse(compiled.argDefs, args, sender, lang) ?: return true

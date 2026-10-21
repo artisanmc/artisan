@@ -5,10 +5,22 @@ sidebar:
   order: 1
 ---
 
-Behind a proxy (Velocity, BungeeCord), you do not want one editor per server. In
-network mode, **one** Paper server serves the editor for all of them.
+Behind a proxy (Velocity, BungeeCord), you want to edit every server from one editor.
 
-## Hub and leaves
+## Servers on one database (no setup)
+
+Give your servers the same MySQL or MariaDB database ([Database](/wiki/configuration/database/))
+and leave `web.hub` empty: they find each other there. With the tunnel, they share **one
+editor address** (`https://<id>.artisanmc.app`) whichever server you type `/artisan editor`
+on, and it lists and publishes on **every** server of the database. They connect to each other with a secret kept in the database, over their internal
+address when they reach it, else through their tunnel or `web.url`: no port to open, no hub
+to pick, and the address keeps working while any one of them runs. Two admins on two links do
+not see each other live; a publish that would overwrite the other's is refused instead.
+
+## A fixed hub and leaves
+
+To serve a single editor for the whole network instead, pick a hub and set `web.hub` on
+the others: **one** Paper server then serves the editor for all of them.
 
 | | Hub | Leaf |
 |---|---|---|
@@ -16,7 +28,7 @@ network mode, **one** Paper server serves the editor for all of them.
 | How many | Exactly one per network | Every other server |
 | Web server | Serves the editor, its API, `/ws/editor`, `/ws/plugin` and resource packs on `web.port` | None: opens no port |
 | Connection | Accepts leaves on `/ws/plugin` | Opens a WebSocket to the hub at `web.hub`, authenticated by the shared secret |
-| Projects | Its own, in `plugins/Artisan/projects/` | Its own, in its `plugins/Artisan/projects/` |
+| Projects | Its own, in `plugins/Artisan/modules/` | Its own, in its `plugins/Artisan/modules/` |
 | `/artisan editor` | Issues the link | Asks the hub for a link |
 
 The hub is an ordinary Paper server of your network — a lobby, for example. Nothing

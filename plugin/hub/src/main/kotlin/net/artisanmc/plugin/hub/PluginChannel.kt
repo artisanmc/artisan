@@ -26,6 +26,8 @@ class PluginChannel(
     private val databaseId: () -> String?,
     /** False while the hub's suite database is still opening (issue #42): a leaf is told to retry. */
     private val databaseOpen: () -> Boolean = { true },
+    /** The suite database's network secret, which peer servers present (ADR `peer-servers`); null while it is not open. */
+    private val peerSecret: () -> String? = { null },
 ) {
     fun endpoint(): Session.Listener = object : Session.Listener.AutoDemanding {
         private var session: Session? = null
@@ -56,7 +58,7 @@ class PluginChannel(
                 !databaseOpen() -> refuse(session, "the hub's suite database is not open yet: retry")
                 databaseId() == null -> refuse(session, "the hub uses an embedded H2 database: a network needs a shared MySQL or MariaDB database")
                 message.path("database_id").asText("") != databaseId() ->
-                    refuse(session, "not on the hub's database: every server of a network must use the same MySQL or MariaDB database")
+                    refuse(session, "not on the hub's database: every server of a network must use the same MySQL or MariaDB database and database.table-prefix")
                 else -> server = welcome(session, id, name, message as ObjectNode)
             }
         }
@@ -73,6 +75,10 @@ class PluginChannel(
 
     private fun welcome(session: Session, id: String, name: String, hello: ObjectNode): RemoteServer {
         val server = servers.remote(id, name)
+        // Jetty's 64 KiB default holds a hello, not what an accepted server sends back: Project
+        // reads, a 4 MiB editor bundle as JSON text (EditorBundleDeclaration.MAX_SIZE).
+        session.maxTextMessageSize = MAX_MESSAGE
+        session.maxFrameSize = MAX_MESSAGE
         val ack = mapOf(
             "type" to "hello_ack",
             "session_id" to UUID.randomUUID().toString(),
@@ -137,12 +143,13 @@ class PluginChannel(
     }
 
     private fun authorized(key: String) =
-        secret.isNotEmpty() && MessageDigest.isEqual(key.toByteArray(), secret.toByteArray())
+        listOfNotNull(secret, peerSecret()).any { it.isNotEmpty() && MessageDigest.isEqual(key.toByteArray(), it.toByteArray()) }
 
     private companion object {
         val NAME = Regex("[A-Za-z0-9_-]{1,64}")
         /** A UUID (`plugins/Artisan/server-id`); the tests use shorter ids. */
         val SERVER_ID = Regex("[A-Za-z0-9-]{1,36}")
         const val POLICY_VIOLATION = 1008
+        const val MAX_MESSAGE = 32L * 1024 * 1024
     }
 }

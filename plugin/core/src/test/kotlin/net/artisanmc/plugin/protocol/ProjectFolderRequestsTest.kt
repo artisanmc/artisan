@@ -16,11 +16,12 @@ class ProjectFolderRequestsTest {
     private val coreRoot = Files.createTempDirectory("artisan-folder-requests").toFile()
     private val sent = mutableListOf<Map<String, Any?>>()
     private var reloads = 0
+    private val reloaded = mutableListOf<Set<String>?>()
     private val workspace = object : ProjectWorkspace {
         override val roots = ProjectRoots(coreRoot)
         override val snapshot = ProjectSnapshot.EMPTY
         override val io = Executor { it.run() }
-        override fun reload() { reloads++ }
+        override fun reload(projectIds: Set<String>?) { reloads++; reloaded += projectIds }
         override fun authoredBy(projectId: String, author: PublicationAuthor) { authored += Triple(projectId, author.id, author.name) }
     }
     private val authored = mutableListOf<Triple<String, String, String>>()
@@ -52,6 +53,8 @@ class ProjectFolderRequestsTest {
         assertEquals(true, dispatch("""{"type":"project_delete","request_id":"r4","project_id":"store"}""")["ok"])
         assertEquals(listOf(".artisan-trash"), coreRoot.list()!!.toList())
         assertEquals(3, reloads)
+        val expected: List<Set<String>?> = listOf(setOf("shop"), setOf("shop", "store"), setOf("store"))
+        assertEquals(expected, reloaded, "each operation reloads its folders only")
     }
 
     @Test fun `a publication names its author before the reload`() {

@@ -7,6 +7,7 @@ import { CommandGroup } from "@/features/canvas/CommandGroup";
 import { DialogGroup } from "@/features/canvas/DialogGroup";
 import { DocumentGroup } from "@/features/canvas/DocumentGroup";
 import { MenuGroup } from "@/features/canvas/MenuGroup";
+import { ModuleCommandGroup } from "@/features/canvas/ModuleCommandGroup";
 import { GUTTER_LABEL_HEIGHT } from "@/features/canvas/arrangeBoard";
 import type { Edge } from "@/features/canvas/deriveEdges";
 import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
@@ -18,8 +19,16 @@ import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
+import {
+  type ModuleCommandNode,
+  isModuleCommandId,
+  moduleCommandsOf,
+  withModuleCommands,
+} from "@/lib/moduleCommands";
+import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useCssVar } from "@/lib/themeColors";
+import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
@@ -35,8 +44,13 @@ const ROUTE = "/servers/$serverId/canvas" as const;
 /** A kind's chip label: the host's for the core kinds, the contribution's for a module's. */
 function kindLabel(kind: string, t: TFunction): string {
   const own = `serverCanvas.kinds.${kind}`;
-  const label = documentKindContribution(kind)?.label ?? kind;
-  return t(own, { defaultValue: t(label, { defaultValue: label }) });
+  const label = contributionLabel(
+    documentKindContribution(kind),
+    kind,
+    t,
+    useUiStore.getState().editorLang,
+  );
+  return t(own, { defaultValue: label });
 }
 
 export const validateServerCanvasSearch = (search: Record<string, unknown>): BoardFilter =>
@@ -111,9 +125,30 @@ export function ServerCanvasPage() {
   const failedCount = refs.filter((ref) => results[ref]?.failed && !results[ref]?.project).length;
   const settled = listing === "ready" && done === refs.length;
 
+  // The commands the modules declare join their folder's board, once the active
+  // server's System section is this server's.
+  const commandsServer = useSystemCommandsStore((s) => s.serverId);
+  const playerCommands = useSystemCommandsStore((s) => s.commands);
+  const overrides = useSystemCommandsStore((s) => s.overrides);
+  const commandFolders = useSystemCommandsStore((s) => s.folders);
+  const moduleCommands = useMemo(() => {
+    const byProject = new Map<string, ModuleCommandNode[]>();
+    if (commandsServer !== serverId) return byProject;
+    for (const ref of refs) {
+      const project = results[ref]?.project;
+      if (!project) continue;
+      const input = { commands: playerCommands, overrides, folders: commandFolders };
+      byProject.set(project.id, moduleCommandsOf(project, input));
+    }
+    return byProject;
+  }, [commandsServer, serverId, refs, results, playerCommands, overrides, commandFolders]);
   const projects = useMemo(
-    () => refs.map((ref) => results[ref]?.project).filter((p): p is Project => p != null),
-    [refs, results],
+    () =>
+      refs
+        .map((ref) => results[ref]?.project)
+        .filter((p): p is Project => p != null)
+        .map((p) => withModuleCommands(p, moduleCommands.get(p.id) ?? [])),
+    [refs, results, moduleCommands],
   );
 
   const graph = useMemo(() => deriveServerGraph(projects), [projects]);
@@ -146,7 +181,7 @@ export function ServerCanvasPage() {
         />
       ))}
       <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-        <Link to="/servers/$serverId" params={{ serverId }} className="btn-ghost btn-sm">
+        <Link to="/servers/$serverId" params={{ serverId }} className="btn btn-ghost btn-sm">
           ← {t("serverCanvas.back")}
         </Link>
         <h1 className="text-[15px] font-semibold text-[var(--text)]">{t("serverCanvas.title")}</h1>
@@ -219,6 +254,7 @@ export function ServerCanvasPage() {
             <Board
               storageKey={`server-board:${serverId}`}
               projects={projects}
+              moduleCommands={moduleCommands}
               nodes={visible.nodes}
               edges={visible.edges.map((e) => ({
                 ...e.edge,
@@ -232,6 +268,13 @@ export function ServerCanvasPage() {
               gutter={arrangement.gutter}
               gutterLabel={t("serverCanvas.gutter")}
               onOpen={(node) => {
+                if (isModuleCommandId(node.docId)) {
+                  void navigate({
+                    to: "/servers/$serverId/commands/$commandId",
+                    params: { serverId, commandId: node.docId },
+                  });
+                  return;
+                }
                 const project = projects.find((p) => p.id === node.projectId);
                 if (!project) return;
                 // Opens the project's board, centered on the Document (goToDocument).
@@ -251,6 +294,7 @@ export function ServerCanvasPage() {
 function Board({
   storageKey,
   projects,
+  moduleCommands,
   nodes,
   edges,
   positions,
@@ -262,6 +306,8 @@ function Board({
 }: {
   storageKey: string;
   projects: Project[];
+  /** By project id: the module commands drawn in each folder. */
+  moduleCommands: Map<string, ModuleCommandNode[]>;
   nodes: BoardNode[];
   edges: Edge[];
   positions: Record<string, { x: number; y: number }>;
@@ -419,6 +465,20 @@ function Board({
                   layout={layouts.get(n.projectId) ?? {}}
                 />
               ) : null;
+            }
+            const moduleCommand =
+              n.kind === "command" && isModuleCommandId(n.docId)
+                ? moduleCommands.get(n.projectId)?.find((c) => c.id === n.docId)
+                : undefined;
+            if (moduleCommand) {
+              return (
+                <ModuleCommandGroup
+                  key={n.key}
+                  projectId={project.id}
+                  node={moduleCommand}
+                  position={position}
+                />
+              );
             }
             if (n.kind === "command") {
               const command = commandsOf(project).find((c) => c.id === n.docId);

@@ -116,9 +116,56 @@ Then `cloudflared tunnel route dns <tunnel> editor.example.com` and set
 `web.url: "https://editor.example.com"`. Cloudflare limits request bodies to 100 MB on
 the Free and Pro plans, which matches Artisan's resource pack limit.
 
+## Through a tunnel server (preview, the default)
+
+For hosts that give no port to open. Unless `web.url` is set, the hub connects **out**
+to the Artisan tunnel server (`connect.artisanmc.app`), which gives the editor an
+`https://<id>.artisanmc.app` address and passes each request to the plugin unchanged.
+Nothing to configure:
+
+```yaml
+# plugins/Artisan/environment.yml (the default)
+web:
+  tunnel: "connect.artisanmc.app"
+  tunnel-access: ""          # the code, if the tunnel server is private
+```
+
+After a restart, the console shows `Editor reachable through the tunnel server at
+https://<id>.artisanmc.app`, and `/artisan editor` links use that address.
+`<id>` comes from `plugins/Artisan/tunnel-secret`: it stays the same across restarts.
+
+**A name for the address.** In the editor, **Settings → Editor address** (with
+`artisan.editor.config`) gives it a name: `https://survie.artisanmc.app` then answers like
+the `<id>` address, which keeps working. One name per server, or per network on a shared
+database; first come, first served. A name is freed after 90 days without the server
+connecting. Names of the tunnel server, of brands people sign in to and of phishing words
+(`login`, `verify`…) are refused. Taking a name gives you a link that signs you in on the new
+address; `/artisan editor` links use it from then on.
+
+What to know:
+
+- The tunnel server sees the traffic in clear text (it holds the TLS certificate),
+  including the session cookie. `tunnel: ""` turns it off: browsers then reach
+  `web.port` directly, or `web.url`.
+- The editor itself still comes from your plugin: the tunnel server only passes bytes.
+- Players never download the resource pack from the editor's web server: a
+  [pack plugin](/wiki/configuration/resource-packs/) (Nexo, Oraxen, ItemsAdder) sends it.
+- `web.url`, when set, replaces the tunnel: no tunnel is opened.
+- Only the hub of a network opens a tunnel. A leaf with no port to its hub sets
+  `web.hub` to the hub's tunnel address, `https://<id>.artisanmc.app`: it reaches
+  `/ws/plugin` and downloads its pack through the tunnel too. On the same machine or
+  private network, the internal address (`web.hub: "hub"`) is faster.
+
 ## Networks and `/ws/plugin`
 
-In a [network](/wiki/network/concepts/), leaves connect to the hub's `/ws/plugin`.
+**Servers that share a MySQL or MariaDB database find each other**, with nothing to set:
+they share one tunnel address, and each joins the others' `/ws/plugin` with a secret kept
+in the database, trying their internal address first, then the tunnel or `web.url`. From
+that address you see and publish on every server; it keeps working while any of them runs. Nothing listens publicly. Two admins on two different links do not see each
+other live: a publish that would overwrite the other's is refused instead.
+
+A fixed hub remains possible. In a [network](/wiki/network/concepts/) with `web.hub` set,
+leaves connect to the hub's `/ws/plugin` and serve no editor of their own.
 Two ways to arrange this with a proxy:
 
 | Setup | Hub `web.bind` | Leaves' `web.hub` |

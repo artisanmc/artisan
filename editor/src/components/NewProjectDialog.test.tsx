@@ -19,7 +19,7 @@ describe("NewProjectDialog", () => {
     const onCreated = vi.fn();
     render(<NewProjectDialog serverKeyId="server" onCreated={onCreated} />);
     await user.click(screen.getByRole("button", { name: /nouveau projet/i }));
-    await user.type(screen.getByPlaceholderText("mon_projet"), "mon_projet{Enter}{Enter}");
+    await user.type(screen.getByPlaceholderText("mon_module"), "mon_projet{Enter}{Enter}");
     expect(fetch).toHaveBeenCalledTimes(1);
     // The server is the URL, the body only names the folder (issue #44).
     expect(fetch.mock.calls[0]![0]).toMatch(/\/api\/v1\/servers\/server\/projects$/);

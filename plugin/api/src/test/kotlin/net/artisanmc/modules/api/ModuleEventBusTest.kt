@@ -43,4 +43,17 @@ class ModuleEventBusTest {
 
         assertEquals(listOf("base"), received)
     }
+
+    @Test
+    fun `the handlers a disabling plugin loaded are removed`() {
+        val bus = ModuleEventBus()
+        val received = mutableListOf<String>()
+        bus.subscribe(DataReloadEvent::class.java) { received.add("kept") }
+
+        assertEquals(0, bus.unsubscribeLoadedBy(java.net.URLClassLoader(arrayOf())))
+        assertEquals(1, bus.unsubscribeLoadedBy(javaClass.classLoader))
+        bus.publish(DataReloadEvent("shop:items"))
+
+        assertTrue(received.isEmpty())
+    }
 }

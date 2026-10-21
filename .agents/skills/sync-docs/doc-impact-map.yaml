@@ -155,11 +155,6 @@ mappings:
       - "docs-site/src/content/docs/editor/"
     reason: "Canvas internals + user-visible editor UX"
 
-  - touches: "editor/src/components/SchemaForm/"
-    updates:
-      - "docs/architecture/editor-internals.md"
-    reason: "SchemaForm is the module form multiplier"
-
   - touches: "editor/src/components/ui/"
     updates:
       - "editor/src/features/design-system/DesignSystemPage.tsx"

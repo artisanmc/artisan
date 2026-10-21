@@ -3,19 +3,19 @@
 Depuis la phase F (2026-10), Artisan n'a plus de base centrale : ni PostgreSQL, ni comptes, ni
 réseaux en base. Tout ce qui dure vit sur le disque de chaque serveur Minecraft ; le hub ne
 garde en mémoire que l'état des serveurs connectés (les sessions éditeur sont dans la base de la suite). ADR `editor-web-server`.
-L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au commit `f085f576`
+L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au commit `ccade092`
 (branche `v2`).
 
 ## Entités
 
 | Entité | Identité | Où |
 |---|---|---|
-| **Server** | Server id (UUID de `plugins/Artisan/server-id`), le serveur du hub compris : routes `/api/v1/servers/:server`, `serverKeyId`, `server_key_id`, préfixe des ids de Project, clés de `Servers` (issue #43). Le nom (`name`, sinon le nom du dossier du serveur ; `proxy_name` du `hello`) est un attribut, le libellé affiché | `artisan_servers` (base de la suite) : `uuid` du fichier `plugins/Artisan/server-id`, `name`, `last_seen` rafraîchi chaque minute, `running` (faux après un arrêt propre) (`ServerRegistry`). Un `name` changé renomme la ligne ; un server id qui tourne déjà sous un autre nom (dossier copié) ou un nom tenu par un autre server id est refusé au démarrage. Le hub liste les serveurs connus de la table, éteints compris ; sans base, une feuille déconnectée reste listée jusqu'au redémarrage du hub (`Servers`, `RemoteServer`). Tables d'Artisan migrées par `SchemaMigrator` (`artisan_schema_version`). |
+| **Server** | Server id (UUID de `plugins/Artisan/server-id`), le serveur du hub compris : routes `/api/v1/servers/:server`, `serverKeyId`, `server_key_id`, préfixe des ids de Project, clés de `Servers` (issue #43). Le nom (`name`, sinon le nom du dossier du serveur ; `proxy_name` du `hello`) est un attribut, le libellé affiché | `artisan_servers` (base de la suite) : `uuid` du fichier `plugins/Artisan/server-id`, `name`, `last_seen` rafraîchi chaque minute, `running` (faux après un arrêt propre), `editor_url` et `internal_url` (où répond son `/ws/plugin`, ADR `peer-servers`) (`ServerRegistry`). Un `name` changé renomme la ligne ; un server id qui tourne déjà sous un autre nom (dossier copié) ou un nom tenu par un autre server id est refusé au démarrage. Le hub liste les serveurs connus de la table, éteints compris ; sans base, une feuille déconnectée reste listée jusqu'au redémarrage du hub (`Servers`, `RemoteServer`). Tables d'Artisan migrées par `SchemaMigrator` (`artisan_schema_version`). |
 | **Network** | Unique, sans nom ; `network_name` du `hello_ack` = nom du serveur du hub | Implicite : le hub et les feuilles qui partagent son secret. |
-| **Project** | `<server id>.<dossier>` sur tout serveur, celui du hub compris (`f3a1….shop`, `Servers.project`) ; `externalId` = le dossier | Disque : `plugins/Artisan/projects/<dossier>/`, ou la racine qu'un add-on enregistre (`ProjectRootRegistry`, `identity: addon`). Cf. `project-files.md`. |
-| **Brouillon privé** | `draft_id` dans un Project, propriétaire = UUID du joueur | Base de la suite : `artisan_drafts` (enveloppe JSON, clé = hash du `draft_id`, colonnes `status` et `updated_at` pour la purge), reçus dans `artisan_draft_receipts` (résultat **sans** le corps du brouillon : au rejeu, le brouillon est relu ; `created_at`), blobs dans `artisan_contents` (`ProjectDrafts`, hub ; accès par `SuiteProjectData`, paper). Brouillons fermés (publiés, abandonnés) et reçus purgés après 30 jours (`DraftRows.KEEP`), une fois par jour. Les anciens `.artisan/drafts/` ne sont plus lus. |
+| **Project** | `<server id>.<dossier>` sur tout serveur, celui du hub compris (`f3a1….shop`, `Servers.project`) ; `externalId` = le dossier | Disque : `plugins/Artisan/modules/<dossier>/`, ou la racine qu'un add-on enregistre (`ProjectRootRegistry`, `identity: addon`). Cf. `project-files.md`. |
+| **Brouillon privé** | `draft_id` dans un Project, propriétaire = UUID du joueur | Base de la suite : `artisan_drafts` (enveloppe JSON, clé = hash du `draft_id`, colonnes `status` et `updated_at` pour la purge, `owner` pour la liste : un joueur ne lit que ses brouillons actifs, les lignes d'avant la colonne portent `''` jusqu'à leur prochain commit et sont encore lues), reçus dans `artisan_draft_receipts` (résultat **sans** le corps du brouillon : au rejeu, le brouillon est relu ; `created_at`), blobs dans `artisan_contents` (`ProjectDrafts`, hub ; accès par `SuiteProjectData`, paper). Brouillons fermés (publiés, abandonnés) et reçus purgés après 30 jours (`DraftRows.KEEP`), une fois par jour. Les anciens `.artisan/drafts/` ne sont plus lus. |
 | **Journal de publication** | `operation_id` | Disque : `<project>/.artisan/transactions/` (en cours) et `.receipts/` (reçus rejoués à l'identique). |
-| **Session éditeur** | Jeton aléatoire (cookie `artisan_session`) ; porte UUID, nom et permissions du joueur | `artisan_editor_sessions` (clé = SHA-256 de l'id, jamais l'id) + cache mémoire du hub (`Sessions`). Expire après `web.session-days` (7) jours sans requête, survit au redémarrage. Sans base : mémoire seule. |
+| **Session éditeur** | Jeton aléatoire (cookie `__Host-artisan_session` en HTTPS, `artisan_session` sinon) ; porte UUID, nom et permissions du joueur | `artisan_editor_sessions` (clé = SHA-256 de l'id, jamais l'id) + cache mémoire du hub (`Sessions`). Expire après `web.session-days` (7) jours sans requête, survit au redémarrage. Sans base : mémoire seule. |
 | **Lien de connexion** | Jeton à usage unique | Mémoire du hub, 60 s, un par joueur et par minute. |
 | **Préférences d'éditeur** | UUID du joueur | Disque du hub : `plugins/Artisan/editor-prefs/<uuid>.json` (`PlayerPrefs`) : langue, thème, avancement du tour guidé. Écriture atomique, clés connues seules. |
 | **Pack de ressources** | SHA-1 du zip | Disque du hub : `plugins/Artisan/cache/resource-pack/<sha1>.zip` (`PackStore`, trois derniers, un pack par serveur construit par l'éditeur). Dernier pack appliqué : `cache/resource-pack.json` sur chaque serveur. |
@@ -31,8 +31,9 @@ demande (`artisan.editor` les donne toutes). L'accès se donne avec un plugin de
 | Fichier | Contenu | Écrit par |
 |---|---|---|
 | `config.yml` | Réglages éditables (langue, pack de ressources, taille des pools…) | L'admin, ou l'éditeur (`server_config_write`, validé clé par clé). |
-| `environment.yml` | `name` (nom du serveur), `web.*` (port, bind, url, hub, secret) et identifiants de base | L'admin seul ; jamais lu ni écrit par l'éditeur. |
-| `network-secret` | Secret du réseau généré par le hub quand ni `web.secret` ni Velocity n'en donnent | Le hub, une fois. |
+| `environment.yml` | `name` (nom du serveur), `web.*` (port, bind, url, hub, secret, tunnel), identifiants de base et `dev.editor-bundles` (vue éditeur d'un module lue depuis un fichier) | L'admin seul ; jamais lu ni écrit par l'éditeur. |
+| `network-secret` | Secret du réseau généré par le hub quand ni `web.secret` ni Velocity n'en donnent ; les pairs d'une même base utilisent `network_secret` d'`artisan_meta` (ADR `peer-servers`) | Le hub, une fois. |
+| `tunnel-secret` | Secret du tunnel de l'éditeur ; l'adresse `<id>` sur le serveur de tunnel en est dérivée (ADR `editor-tunnel`). Le nom de l'adresse (`survie.artisanmc.app`) n'est gardé que par le serveur de tunnel (`TUNNEL_NAMES_FILE`), qui le renvoie à chaque connexion | Le hub, une fois, s'il ouvre un tunnel (par défaut, sans `web.url`). |
 | `projects/` | Les Projects | Le plugin (seul écrivain), sur geste de l'éditeur, ou l'admin à la main puis `/artisan reload`. |
 | `editor-prefs/<uuid>.json` | Préférences d'éditeur d'un joueur (`PATCH /api/v1/auth/me`) | Le hub. |
 | `cache/minecraft/<version>/` | Textures vanilla extraites du jar client Mojang (SHA-1 vérifié) | Le hub, à la première texture demandée. |
@@ -42,9 +43,14 @@ demande (`artisan.editor` les donne toutes). L'accès se donne avec un plugin de
 
 ## Base de la suite
 
-`environment.yml` → `database.type: h2 | mysql | mariadb`. Artisan **n'y crée aucune table** :
-il prête un pool de connexions par plugin de la suite (`DatabaseApi`, `@Beta`), chaque plugin
-apporte ses tables et ses migrations (ADR `suite-foundation-database`). En réseau, MySQL ou
+`environment.yml` → `database.type: h2 | mysql | mariadb`. Artisan y crée ses propres tables
+(`artisan_servers`, Versions, brouillons…) et prête un pool de connexions par plugin de la suite
+(`DatabaseApi`, `@Beta`), chaque plugin apporte ses tables et ses migrations (ADR
+`suite-foundation-database`). Toutes les tables commencent par `database.table-prefix`
+(`artisan_` par défaut) : `{prefix}servers` pour Artisan, `tablePrefix(module)` =
+`{prefix}{module}_` pour un plugin. Le préfixe utilisé est noté dans
+`plugins/Artisan/database/table-prefix` ; changé sous une base qui contient les tables de
+l'ancien, `dataSource()` est refusé pour tous les plugins (`TablePrefix.checkUnchanged`). En réseau, MySQL ou
 MariaDB permet aux serveurs de partager ces données ; une feuille sur H2 le signale au
 démarrage, sans refuser de démarrer (brouillons et sessions n'en ont pas besoin).
 

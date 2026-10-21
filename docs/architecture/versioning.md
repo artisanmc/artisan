@@ -253,7 +253,7 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
 ```json
 {
   "type": "hello",
-  "protocol_version": "1.1",
+  "protocol_version": "1.3",
   "server_key": "<secret du réseau>",
   "proxy_name": "survie2",
   "plugin_version": "1.0.42",
@@ -269,8 +269,13 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
   toute route qui le vise répond 503 `plugin_update_required`.
 - **Mineure** : ajoute des champs ou des messages, que l'autre côté ignore. Une route qui envoie un
   message ajouté vérifie la mineure du serveur visé et répond 501 `plugin_update_required` au lieu
-  d'attendre un timeout (`1.1` : `project_create`, `project_delete`, `project_rename` ; `1.2` :
-  `bedrock_pack_updated`, que le hub garde pour le prochain `hello_ack` d'une feuille plus ancienne).
+  d'attendre un timeout (`1.1` : `project_create`, `project_delete`, `project_rename`). `1.2`
+  (`EDITOR_BUNDLES`) ajoute `editor_bundle` aux `installed_modules` et `editor_bundle_fetch` ; une
+  feuille plus ancienne n'annonce aucun bundle, la route `ui.js` rend 404 sans rien lui envoyer.
+  `1.3` (`TEMPLATES`) ajoute `templates` aux `installed_modules`, `template_fetch`, `template_copy` et
+  `project_origins_fetch` ; une feuille plus ancienne reçoit 501 sur ces trois routes.
+  `1.4` (`BEDROCK_PACK`) ajoute `bedrock_pack` au `hello_ack` et `bedrock_pack_updated`, que le hub
+  garde pour le prochain `hello_ack` d'une feuille plus ancienne.
 - **Une release = un numéro** pour tous les jars ; mettre à jour hub et feuilles ensemble.
 
 Le serveur qui héberge le hub lui parle en process (`LocalServerLink`) : jamais d'écart de version.
@@ -343,7 +348,7 @@ Sans objet tant que l'éditeur voyage dans le même jar que le hub qui sert l'AP
 ## 6. Database schema
 
 Plus de PostgreSQL ni de migrations Drizzle depuis la phase F (2026-10) : l'historique des 66
-migrations est au commit `f085f576` (branche `v2`).
+migrations est au commit `ccade092` (branche `v2`).
 
 Artisan prête une base à la suite (`environment.yml` → `database.type: h2 | mysql | mariadb`,
 `DatabaseApi`, ADR `suite-foundation-database`) mais **n'y crée aucune table**. Chaque plugin de

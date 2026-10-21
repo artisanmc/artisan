@@ -40,6 +40,28 @@ import type { AppearanceTarget } from "./types";
  * draft and return live references so callers can splice in place.
  */
 /**
+ * Lends `project` the translations a paste brought from elsewhere (`texts`, the clipboard's)
+ * for the keys it does not hold, so the clones below copy their values; returns the keys
+ * lent, which the paste removes once its copies hold fresh keys of their own.
+ */
+export function lendTexts(
+  project: Project,
+  texts?: Record<I18nKey, Record<string, string>>,
+): I18nKey[] {
+  const lent: I18nKey[] = [];
+  for (const [key, values] of Object.entries(texts ?? {})) {
+    if (project.i18nKeys[key as I18nKey]) continue;
+    project.i18nKeys[key as I18nKey] = { ...values };
+    lent.push(key as I18nKey);
+  }
+  return lent;
+}
+
+export function returnTexts(project: Project, lent: I18nKey[]): void {
+  for (const key of lent) delete project.i18nKeys[key];
+}
+
+/**
  * Re-key every LText an appearance holds, copying the source values — so a copy
  * never shares translation keys with its original (editing one would silently
  * change the other).
@@ -253,13 +275,6 @@ export function validateArgOrder(args: CommandArg[]): void {
     } else if (seenOptional) {
       throw new Error(`required arg "${arg.name}" cannot follow an optional arg`);
     }
-  }
-}
-
-/** Rekey canvasGroups membership when a Document id changes. */
-export function rewriteCanvasGroupMembers(project: Project, oldId: string, newId: string) {
-  for (const group of project.canvasGroups ?? []) {
-    group.nodeIds = group.nodeIds.map((id) => (id === oldId ? newId : id));
   }
 }
 

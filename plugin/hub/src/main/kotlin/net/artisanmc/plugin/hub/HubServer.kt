@@ -45,7 +45,7 @@ class HubServer(
         val sockets = WebSocketUpgradeHandler.from(jetty) { container ->
             container.idleTimeout = Duration.ofMinutes(5)
             container.addMapping("/ws/editor") { request, response, callback ->
-                val session = sessions.find(Request.getCookies(request).firstOrNull { it.name == COOKIE }?.value)
+                val session = sessions.find(sessionId(request))
                 if (session == null || !session.can(EditorPermissions.VIEW) || !sameOrigin(request)) {
                     Response.writeError(request, response, callback, 403)
                     null
@@ -83,18 +83,19 @@ class HubServer(
     private inner class Routes : Handler.Abstract() {
         override fun handle(request: Request, response: Response, callback: Callback): Boolean {
             val path = Request.getPathInContext(request)
-            val session = sessions.find(Request.getCookies(request).firstOrNull { it.name == COOKIE }?.value)
             if (request.method == "GET" && path.startsWith(LOGIN)) {
                 login(Call(request, response, callback, emptyMap(), null), path.removePrefix(LOGIN))
                 return true
             }
             val match = router.match(request.method, path)
             if (match == null) {
-                val call = Call(request, response, callback, emptyMap(), session)
+                // The editor's files and an unknown route need no session: a page load is one lookup, for its first API call.
+                val call = Call(request, response, callback, emptyMap(), null)
                 if (path.startsWith("/api/")) call.error(if (router.knows(path)) 405 else 404, "not_found")
                 else assets.serve(call)
                 return true
             }
+            val session = sessions.find(sessionId(request))
             val call = Call(request, response, callback, match.params, session)
             when {
                 match.permission != null && session == null -> call.error(401, "unauthorized")
@@ -113,17 +114,31 @@ class HubServer(
 
     private fun login(call: Call, token: String) {
         val session = sessions.redeem(token) ?: return call.redirect("/login?expired=1")
+        val secure = secure(call.request)
         call.setCookie(
-            HttpCookie.build(COOKIE, session.id)
+            HttpCookie.build(if (secure) SECURE_COOKIE else COOKIE, session.id)
                 .path("/")
                 .httpOnly(true)
-                .secure(call.request.isSecure)
+                .secure(secure)
                 .sameSite(HttpCookie.SameSite.STRICT)
                 // The hub ends the session, the cookie only carries it: kept as long as browsers allow.
                 .maxAge(Duration.ofDays(400).seconds)
                 .build(),
         )
         call.redirect("/")
+    }
+
+    /**
+     * HTTPS seen by the browser: Jetty's own TLS, or a proxy saying so (the editor tunnel, nginx).
+     * A forged `X-Forwarded-Proto` only makes the forger's own cookie stricter.
+     */
+    private fun secure(request: Request) =
+        request.isSecure || request.headers.get("X-Forwarded-Proto").equals("https", ignoreCase = true)
+
+    /** The `__Host-` cookie first: a sibling subdomain can set `artisan_session`, never that one. */
+    private fun sessionId(request: Request): String? {
+        val cookies = Request.getCookies(request)
+        return (cookies.firstOrNull { it.name == SECURE_COOKIE } ?: cookies.firstOrNull { it.name == COOKIE })?.value
     }
 
     /** The `Origin` header, when present, must name the answering host. */
@@ -137,6 +152,11 @@ class HubServer(
 
     companion object {
         const val COOKIE = "artisan_session"
+        /**
+         * Over HTTPS: the `__Host-` prefix makes browsers refuse it from any other host, so a page
+         * on another subdomain of a shared domain (the editor tunnel) cannot overwrite it.
+         */
+        const val SECURE_COOKIE = "__Host-artisan_session"
         const val LOGIN = "/login/"
     }
 }

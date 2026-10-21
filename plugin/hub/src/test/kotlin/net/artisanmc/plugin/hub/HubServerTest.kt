@@ -91,6 +91,21 @@ class HubServerTest {
     }
 
     @Test
+    fun `behind HTTPS the session cookie is __Host- and wins over a tossed one`() {
+        assertTrue(hub.start())
+        val token = (sessions.issueLink(UUID.randomUUID(), "Iban", EditorPermissions.ALL.toSet()) as Sessions.LinkResult.Issued).token
+        val response = client.send(
+            HttpRequest.newBuilder(URI(base() + "/login/$token")).header("X-Forwarded-Proto", "https").GET().build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        val setCookie = response.headers().firstValue("Set-Cookie").get()
+        assertTrue(setCookie.startsWith("${HubServer.SECURE_COOKIE}=") && "Secure" in setCookie, setCookie)
+        // A page on a sibling subdomain can only set the unprefixed name: the hub reads the __Host- one first.
+        val cookies = "${HubServer.COOKIE}=forged; " + setCookie.substringBefore(';')
+        assertEquals(200, get("/api/v1/ping/x", cookies).statusCode())
+    }
+
+    @Test
     fun `a busy port leaves the plugin without editor`() {
         ServerSocket(0).use { taken ->
             val busy = HubServer(

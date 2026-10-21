@@ -7,6 +7,8 @@ export interface ServerEditorScreen {
   label: string;
   table: string;
   projectId: string;
+  /** Key of the module's own view (`FrontendModule.screens`); absent = generated form. */
+  component?: string;
 }
 
 /** Declared Config screens of a server. [] on any failure. */
@@ -19,6 +21,7 @@ export async function fetchServerEditorScreens(serverId: string): Promise<Server
         label?: string;
         table?: string;
         project_id?: string;
+        component?: string | null;
       }[];
     }>(`/api/v1/servers/${serverId}/screens`);
     return (data.screens ?? [])
@@ -29,6 +32,7 @@ export async function fetchServerEditorScreens(serverId: string): Promise<Server
         label: s.label as string,
         table: s.table as string,
         projectId: s.project_id as string,
+        ...(s.component ? { component: s.component } : {}),
       }));
   } catch {
     return [];

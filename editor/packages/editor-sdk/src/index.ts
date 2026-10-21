@@ -9,6 +9,7 @@ export type {
   FrontendModule,
   ModuleSidebarEntry,
   ModuleRouteDecl,
+  ConfigScreenProps,
   DocumentKindContribution,
   DocumentEditorProps,
   DocumentPreviewProps,
@@ -17,6 +18,8 @@ export type {
   DocumentParseResult,
   LTextSiteContribution,
   ChainSlotContribution,
+  BoardItem,
+  BoardItemHover,
 } from "./contract/types";
 export {
   registerModule,
@@ -29,4 +32,39 @@ export {
 export type { ModuleEvent } from "./contract/eventBus";
 export { onModuleEvent, emitModuleEvent } from "./contract/eventBus";
 export { Button, buttonVariants, type ButtonProps } from "./ui/button";
+export {
+  SDK_VERSION,
+  parseSdkVersion,
+  sdkCompatibility,
+  type SdkCompatibility,
+} from "./version";
+export {
+  type EditorHost,
+  type TextWrite,
+  type ActionChainWire,
+  type ActionChainEditorProps,
+  type MaterialInputProps,
+  type ItemInputProps,
+  type ItemSpecWire,
+  type ItemComparisonWire,
+  type MiniMessageInputProps,
+  type HostComponents,
+  ActionChainEditor,
+  MaterialInput,
+  ItemInput,
+  MiniMessageInput,
+  installEditorHost,
+  useProject,
+  useContentLang,
+  useUiLang,
+  updateDocument,
+  newTextKey,
+  textValue,
+  fieldText,
+  projectLangs,
+  selectDocumentItem,
+  notify,
+} from "./host/host";
+export { createModuleI18n } from "./host/i18n";
+export { injectModuleStyles } from "./host/styles";
 export { cn } from "./lib/cx";

@@ -6,6 +6,8 @@ import java.util.logging.Logger
 object EditorApi {
     fun router(servers: Servers, sessions: Sessions, logger: Logger?, vanilla: VanillaAssets? = null, packs: PackStore? = null, prefs: PlayerPrefs? = null, history: ProjectHistory? = null, loaded: LoadedProjects? = null,
         drafts: DraftStorage? = null, bedrockPacks: PackStore? = null,
+        /** The tunnel this hub is reached through, once open (ADR `editor-tunnel`). */
+        tunnel: () -> TunnelNames? = { null },
     ): Router {
         val router = Router()
         val relay = Relay(logger)
@@ -14,6 +16,7 @@ object EditorApi {
         ProjectRoutes(servers, relay, history, loaded, drafts, logger).register(router)
         ItemRoutes(servers, relay, vanilla).register(router)
         packs?.let { PackRoutes(servers, it, bedrockPacks).register(router) }
+        AddressRoutes(tunnel, sessions).register(router)
         return router
     }
 }

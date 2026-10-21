@@ -2,7 +2,7 @@
 
 **Status:** accepted (2026-07-25) — design locked (grill-with-docs session),
 nothing implemented yet. Spec:
-`docs/superpowers/specs/2026-07-22-composable-config-schemas-and-forms.md`.
+`docs/archive/specs/2026-07-22-composable-config-schemas-and-forms.md`.
 
 ## Context
 

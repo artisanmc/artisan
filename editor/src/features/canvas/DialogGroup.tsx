@@ -5,17 +5,21 @@ import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
+import { SystemTag } from "./SystemTag";
 import { dispatchOpenElement } from "./canvasEvents";
 import { DIALOG_BOX } from "./menuLayout";
+import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
 
 interface DialogGroupProps {
   projectId: ProjectId;
   dialog: Dialog;
   position: { x: number; y: number };
+  /** The module whose system dialog this is: tagged above the box. */
+  systemModule?: string;
 }
 
-export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
+export function DialogGroup({ projectId, dialog, position, systemModule }: DialogGroupProps) {
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(dialog.id));
   const nodeAlign = useNodeAlignment(projectId, dialog.id);
@@ -57,9 +61,13 @@ export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
       onTap={onClick}
       onDblClick={() => dispatchOpenElement(dialog.id)}
       onDblTap={() => dispatchOpenElement(dialog.id)}
+      // The title may be cut by its ellipsis: the full one shows on hover.
+      onMouseEnter={(e) => showFullTitle(e, dialog.id)}
+      onMouseLeave={(e) => showFullTitle(e, null)}
       name={`dialog:${dialog.id}`}
       id={dialog.id}
     >
+      {systemModule && <SystemTag module={systemModule} width={DIALOG_BOX.width} />}
       <Rect
         width={DIALOG_BOX.width}
         height={DIALOG_BOX.height}
@@ -72,6 +80,9 @@ export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
       <Text
         x={10}
         y={10}
+        width={DIALOG_BOX.width - 20}
+        wrap="none"
+        ellipsis
         text={dialog.id}
         fontFamily="ui-monospace, monospace"
         fontSize={12}
@@ -82,6 +93,9 @@ export function DialogGroup({ projectId, dialog, position }: DialogGroupProps) {
       <Text
         x={10}
         y={30}
+        width={DIALOG_BOX.width - 20}
+        wrap="none"
+        ellipsis
         text={`dialog · ${dialog.buttons.length}btn`}
         fontFamily="ui-monospace, monospace"
         fontSize={9}

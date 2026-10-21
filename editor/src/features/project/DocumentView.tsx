@@ -1,5 +1,5 @@
 import { EmptyState } from "@/components/ui/empty-state";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { findDocument, menusOf } from "@/domain/documents";
 import type { ElementId, ProjectId } from "@/domain/types";
 import { Stage } from "@/features/canvas/Stage";
 import { SelectionInspector } from "@/features/inspector/SelectionInspector";
@@ -11,6 +11,7 @@ import { projectDestination } from "@/lib/projectNavigation";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
+import { documentKindContribution } from "@artisan/editor-sdk";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useContext, useEffect, useState } from "react";
@@ -35,9 +36,13 @@ export function DocumentView({
   const eid = documentId as string;
   const [yamlMode, setYamlMode] = useState(false);
   const menu = menusOf(project).find((m) => m.id === eid);
-  const command = commandsOf(project).find((c) => c.id === eid);
-  const dialog = dialogsOf(project).find((d) => d.id === eid);
+  // Any kind, a module's included (its view is the kind's `component`, via SelectionInspector).
+  const found = project ? findDocument(project, eid) : undefined;
   const relPath = project ? documentRelPath(project, eid) : null;
+  // A module kind whose node lists its parts opens on its node, like a menu: clicking a
+  // part edits it in the panel beside.
+  const onStage =
+    menu != null || (found != null && documentKindContribution(found.kind)?.board?.items != null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the default selection is applied once per opened document; re-running on `menu.layers` edits would reset the user's selection on every change
   useEffect(() => {
@@ -110,7 +115,7 @@ export function DocumentView({
     </div>
   );
 
-  if (!project || (!menu && !command && !dialog)) {
+  if (!project || !found) {
     return (
       <div className="absolute inset-0">
         {header}
@@ -132,7 +137,7 @@ export function DocumentView({
 
   return (
     <div className="absolute inset-0">
-      {menu ? (
+      {onStage ? (
         <CanvasWithInspector
           projectId={pId}
           canvas={<Stage projectId={pId} focus={documentId} />}
@@ -141,7 +146,7 @@ export function DocumentView({
           minSecondary={280}
         />
       ) : (
-        // Commands / dialogs have no stage: the pseudocode column stays centred,
+        // Other kinds have no stage: their view (a command's pseudocode) stays centred,
         // with room at the top so the bubble never covers its first line.
         <div className="h-full overflow-auto">
           <div className="mx-auto w-full max-w-3xl pt-16">

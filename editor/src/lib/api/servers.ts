@@ -34,6 +34,9 @@ export interface ProjectSummary {
    *  its module — `ownerModuleOf` then falls back to the declared screens.
    *  Groups the project under "Installed modules" instead of the flat list. */
   ownerModule?: string | null;
+  /** `config`: a module's configuration root (`registerConfig`), listed under the
+   *  module and not among Projects. Absent for content. */
+  role?: "config" | null;
 }
 
 /** The hub's servers, its own first: ids, labels, presence and versions. Rejects with an `ApiError`. */

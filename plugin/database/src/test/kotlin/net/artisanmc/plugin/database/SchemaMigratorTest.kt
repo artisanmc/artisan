@@ -61,8 +61,30 @@ class SchemaMigratorTest {
         ArtisanSchema.migrate(ds, DatabaseDialect.H2, Logger.getAnonymousLogger())
         ds.connection.use { c ->
             assertEquals(true, SchemaMigrator.hasColumn(c, "artisan_drafts", "status"))
+            assertEquals(true, SchemaMigrator.hasColumn(c, "artisan_drafts", "owner"))
             assertEquals(true, SchemaMigrator.hasIndex(c, "artisan_versions", "artisan_versions_folder"))
             assertEquals(true, SchemaMigrator.hasForeignKey(c, "artisan_versions", "server_id"))
+        }
+    }
+
+    @Test
+    fun `catalog checks ignore tables of another schema`() {
+        // MariaDB with several databases: a null catalog listed the other databases' tables too,
+        // and a step was taken for applied because a same-named table elsewhere had the column.
+        ds.connection.use { c ->
+            c.createStatement().use {
+                it.execute("CREATE SCHEMA other")
+                it.execute("CREATE TABLE other.a (id INT PRIMARY KEY, running BOOLEAN, CONSTRAINT other_fk FOREIGN KEY (id) REFERENCES other.a (id))")
+                it.execute("CREATE INDEX other_a_running ON other.a (running)")
+                it.execute("CREATE TABLE a (id INT)")
+            }
+            assertEquals(false, SchemaMigrator.hasTable(c, "missing_here"))
+            assertEquals(true, SchemaMigrator.hasTable(c, "a"))
+            assertEquals(false, SchemaMigrator.hasColumn(c, "a", "running"))
+            assertEquals(false, SchemaMigrator.hasIndex(c, "a", "other_a_running"))
+            assertEquals(false, SchemaMigrator.hasForeignKey(c, "a", "id"))
+            c.createStatement().use { it.execute("CREATE TABLE other.only_there (id INT)") }
+            assertEquals(false, SchemaMigrator.hasTable(c, "only_there"))
         }
     }
 

@@ -198,31 +198,6 @@ vi.mock("../VanillaMcText", () => ({
   vanillaTextWidth: (text: string) => text.length * 6,
 }));
 
-// Stub ResizeHandles so we can detect when it's mounted (4 anchors per the
-// real component). We render 4 placeholder rects each tagged with
-// data-corner so test assertions match the real visual.
-vi.mock("./ResizeHandles", () => ({
-  ResizeHandles: (props: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }) => (
-    <div
-      data-testid="resize-handles"
-      data-x={props.x}
-      data-y={props.y}
-      data-width={props.width}
-      data-height={props.height}
-    >
-      <div data-testid="resize-anchor" data-corner="nw" />
-      <div data-testid="resize-anchor" data-corner="ne" />
-      <div data-testid="resize-anchor" data-corner="sw" />
-      <div data-testid="resize-anchor" data-corner="se" />
-    </div>
-  ),
-}));
-
 // Stub WidthResizeHandle so tests can assert its presence via data-testid.
 vi.mock("./WidthResizeHandle", () => ({
   WidthResizeHandle: (props: {

@@ -9,7 +9,7 @@ A short path from an empty server to a menu players can open. Each step links to
 the editor page with the details.
 
 1. **Create a project** on your server. It becomes a folder,
-   `plugins/Artisan/projects/<folder>/`. See [Projects](/wiki/editor/projects/).
+   `plugins/Artisan/modules/<folder>/`. See [Projects](/wiki/editor/projects/).
 2. **Add a menu** to the project and note its id, for example `shop`.
 3. **Place items.** Open **Buttons**, drag a game item onto a slot, then select it to
    edit its name, lore and appearance. For artwork use

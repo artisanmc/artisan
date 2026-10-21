@@ -17,10 +17,13 @@ interface ProjectWorkspace {
     val io: Executor
 
     /**
-     * Re-reads the disk, then notifies the runtime (commands, modules). Whoever writes
-     * knows it wrote: without this, the editor would not see its own write.
+     * Re-reads [projectIds] from the disk (every project when null), then notifies the
+     * runtime (commands, modules). Whoever writes knows it wrote, and what: without this,
+     * the editor would not see its own write; with every project, a one-file write would
+     * cost a read of them all. A deleted project is dropped, a renamed one read under its
+     * new id.
      */
-    fun reload()
+    fun reload(projectIds: Set<String>? = null)
 
     /** The editor player whose publication of [projectId] the next reload loads: that Version's author. */
     fun authoredBy(projectId: String, author: PublicationAuthor) {}

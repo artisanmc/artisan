@@ -23,12 +23,22 @@ data class ProjectSnapshot(
 ) {
     val projectIds: List<String> get() = files.keys.sorted()
 
+    /** Each Project's hash, computed once: the snapshot never changes, only gets replaced. */
+    private val hashes = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     /** The `project_read` fingerprint, also announced by `projects_reloaded`. */
-    fun hash(projectId: String): String = ContentHash.snapshotHash(
-        files[projectId] ?: emptyMap(),
-        (binaries[projectId] ?: emptyMap()).mapValues { it.value.hash },
-        skipped[projectId] ?: emptyMap(),
-    )
+    fun hash(projectId: String): String = hashes.getOrPut(projectId) {
+        ContentHash.snapshotHash(
+            files[projectId] ?: emptyMap(),
+            (binaries[projectId] ?: emptyMap()).mapValues { it.value.hash },
+            skipped[projectId] ?: emptyMap(),
+        )
+    }
+
+    /** Takes over the hashes [previous] computed for [kept], the Projects a partial reload left as they were. */
+    fun inheritHashes(previous: ProjectSnapshot, kept: Collection<String>) {
+        for (id in kept) previous.hashes[id]?.let { hashes[id] = it }
+    }
 
     fun hashes(): List<Map<String, String>> = projectIds.map { mapOf("id" to it, "hash" to hash(it)) }
 

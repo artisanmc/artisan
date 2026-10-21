@@ -41,15 +41,19 @@ class Call(
 
     fun json(body: Any?, status: Int = 200) = send(status, "application/json", mapper.writeValueAsBytes(body))
 
+    /** Runs [task] on the server's thread pool: a reply that arrived on a socket's reader thread is finished off it. */
+    fun offload(task: () -> Unit) = request.components.executor.execute(task)
+
     fun error(status: Int, code: String, message: String? = null) =
         json(if (message == null) mapOf("error" to code) else mapOf("error" to code, "message" to message), status)
 
-    fun send(status: Int, contentType: String, bytes: ByteArray, cacheControl: String = "no-store") {
+    fun send(status: Int, contentType: String, bytes: ByteArray, cacheControl: String = "no-store", headers: Map<String, String> = emptyMap()) {
         response.status = status
         // A request body left unread makes Jetty drop the connection; say so, or the client reuses it and fails.
         if (status >= 400 && request.length != 0L) response.headers.put(HttpHeader.CONNECTION, "close")
         response.headers.put(HttpHeader.CONTENT_TYPE, contentType)
         response.headers.put(HttpHeader.CACHE_CONTROL, cacheControl)
+        headers.forEach { (name, value) -> response.headers.put(name, value) }
         response.write(true, java.nio.ByteBuffer.wrap(bytes), callback)
     }
 

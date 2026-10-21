@@ -3,12 +3,14 @@
 // representation; the editor parses it on open and serializes it back on every
 // save). Each Document kind is written by its codec (`documentCodecs.ts`), data
 // sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
-import { normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { listDocumentKinds } from "@/domain/documentKinds";
+import { documentPath } from "@/domain/documentLayout";
 import { documentIds, documentsOf } from "@/domain/documents";
+import { persistedFolderMeta } from "@/domain/folders";
 import type { Project } from "@/domain/types";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
+import { isModuleCommandId } from "@/lib/moduleCommands";
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { stringify } from "yaml";
 import { dataSourceI18n, emitDataSources, modelV1FromDomain } from "./dataV1FromDomain";
@@ -17,12 +19,12 @@ import { collectReferencedKeys, serializeLang } from "./langV1FromDomain";
 
 /**
  * Removes the `id` field before writing a Document to disk: the file already
- * carries its identity in its name (mirror of the plugin's `withFileId`). The
- * serializers keep it because the AI assistant needs it on the wire, where
- * there is no file name to carry it.
+ * carries its identity in its name (mirror of the plugin's `withFileId`), and
+ * its themed `folder` in its path. The serializers keep the id because the AI
+ * assistant needs it on the wire, where there is no file name to carry it.
  */
 function withoutId(doc: Record<string, unknown>): Record<string, unknown> {
-  const { id: _id, ...rest } = doc;
+  const { id: _id, folder: _folder, ...rest } = doc;
   return rest;
 }
 
@@ -47,12 +49,13 @@ export function projectToFiles(project: Project): Record<string, string> {
   // project under its own folder name (cf. `Project.diskId`).
   const base = `plugins/Artisan/projects/${project.diskId ?? project.id}`;
 
-  // One file per document, in its kind's folder, through its kind's codec
-  // (ADR `extensible-document-kinds`): the writer knows no kind by name.
+  // One file per document, in its kind's folder under its themed folder, through
+  // its kind's codec (ADR `extensible-document-kinds`): the writer knows no kind
+  // by name.
   for (const def of listDocumentKinds()) {
     const codec = documentCodec(def.kind);
     for (const doc of documentsOf(project, def.kind)) {
-      files[`${base}/${def.dir}/${doc.id}.yaml`] = stringify(
+      files[`${base}/${documentPath(def.dir, doc.id, doc.folder)}`] = stringify(
         withoutId(codec.serialize(doc, project)),
         yamlOpts,
       );
@@ -90,8 +93,10 @@ export function projectToFiles(project: Project): Record<string, string> {
   }
 
   const liveIds = new Set<string>(documentIds(project));
+  // A module command's node (`<module>:<name>`, never a Document id) keeps its
+  // position too: the board draws it from the server's declarations.
   const editorLayout = Object.fromEntries(
-    Object.entries(project.canvasLayout).filter(([id]) => liveIds.has(id)),
+    Object.entries(project.canvasLayout).filter(([id]) => liveIds.has(id) || isModuleCommandId(id)),
   );
 
   const manifest: Record<string, unknown> = {
@@ -132,8 +137,8 @@ export function projectToFiles(project: Project): Record<string, string> {
     }),
   );
   const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
-  const groups = normalizeCanvasGroups(project.canvasGroups, liveIds);
-  if (groups.length) editorState.groups = groups;
+  const folders = persistedFolderMeta(project);
+  if (Object.keys(folders).length) editorState.folders = folders;
   // The i18n mode is a presentation choice about the file shape, not project
   // content — it rides in the hash-excluded editor state so flipping it back
   // and forth doesn't churn the project hash on its own. Only written when it
@@ -171,6 +176,11 @@ export function projectToFiles(project: Project): Record<string, string> {
     for (const [rel, content] of Object.entries(rawFiles)) {
       files[`${base}/${ns}/${rel}`] = content;
     }
+  }
+
+  // Document files the layout refused on read: back verbatim, never dropped.
+  for (const [rel, content] of Object.entries(project.unreadFiles ?? {})) {
+    files[`${base}/${rel}`] ??= content;
   }
 
   files[`${base}/manifest.yaml`] = stringify(manifest, yamlOpts);

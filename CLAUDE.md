@@ -41,12 +41,12 @@ Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 | `docs/architecture/ws-protocol.md` | Messages hub ↔ serveur (`/ws/plugin`) + `/ws/editor`. |
 | `docs/architecture/rest-endpoints.md` | Index des routes du hub (quel `*Routes.kt` ouvrir) + conventions. |
 | `docs/architecture/entities.md` | Ce qui persiste où (disque, base de la suite, mémoire du hub), auth, historique. |
-| `docs/architecture/editor-internals.md` | Title composer, édition de Document, canvas, `<SchemaForm>`, UI shell, design system. |
+| `docs/architecture/editor-internals.md` | Title composer, édition de Document, canvas, UI shell, design system. |
 | `docs/architecture/project-files.md` | Structure d'un project sur disque, codec `lang/`, champ `title`. |
 | `docs/architecture/plugin-commands.md` | Détail des sous-commandes `/artisan`. |
 | `docs/architecture/testing.md` | Couverture des suites + vecteurs de conformance. |
 | `docs/architecture/schemas-codegen.md` | Schémas JSON ↔ types éditeur/plugin. |
-| `docs/decisions/` | ADRs (`editor-web-server` : le hub). `docs/specs/`, `docs/superpowers/` : specs et plans. |
+| `docs/decisions/` | ADRs (`editor-web-server` : le hub). `docs/specs/` : specs produit ; `docs/archive/specs/` : conceptions passées (voir son README). |
 
 ## Commandes
 
@@ -85,7 +85,7 @@ plugin/          Kotlin 2.0 + Paper : api · core · database · hub (Jetty 12) 
 docker/          Serveurs Minecraft locaux (itzg/minecraft-server), réseau dans docker/network/
 tools/minecraft-assets/  Générateurs Bun des assets MC vanilla (items, icônes 3D, largeurs de glyphes)
 docs-site/       Astro Starlight — docs user publiques (EN), servies sur artisanmc.net/wiki
-docs/            architecture/ · decisions/ · specs/ · schema/ · superpowers/
+docs/            architecture/ · archive/ · decisions/ · specs/ · schema/
 ```
 
 **Pas de backend** — le plugin sert l'éditeur, l'API `/api/v1/…` et les WebSockets sur `web.port`
@@ -93,8 +93,10 @@ docs/            architecture/ · decisions/ · specs/ · schema/ · superpowers
 `leaf` reliés à son `/ws/plugin` par un secret partagé. ADR `editor-web-server`.
 
 **Plugin en modules Gradle** — `plugin/api` (surface add-ons, **en Java** : API 2.0.0), `plugin/core` (domaine, sans Bukkit),
-`plugin/database`, `plugin/hub` (serveur web, sans Bukkit), `plugin/paper` (Bukkit + jar). Un import
-`org.bukkit` hors de `paper` ou `api` ne compile pas. Détail : `plugin/README.md`, ADR `plugin-gradle-modules`.
+`plugin/database`, `plugin/hub` (serveur web, sans Bukkit), `plugin/runtime` (moteur d'actions, conditions, items,
+traductions), `plugin/paper` (menus, présence, jar). Un import
+`org.bukkit` hors de `paper`, `runtime` ou `api` ne compile pas. Détail : `plugin/README.md`, ADR `plugin-gradle-modules`,
+`runtime-library`.
 
 **Modular monolith** — chaque module vit en 2 layers symétriques :
 `plugin/…/modules/{id}/` (impl `ArtisanModule`) et `editor/src/modules/{id}/` (`FrontendModule`).
@@ -114,7 +116,7 @@ ceux-ci — dans **`docs/architecture/invariants.md`**.
    autosave) : le hub lit et édite depuis la base, serveur éteint compris ; seules les écritures et
    les données live vont au serveur (ADR `server-identity-and-versions`).
 2. **`.artisan*` en premier segment = métadonnée** — hors hash, invisible au scan disque. L'éditeur
-   possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`,
+   possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`, `.artisan/origins.yaml`,
    `.artisan-trash/` et `.artisan-sync.yaml` lui restent invisibles **et** interdits en écriture.
 3. **Threads : Paper, Folia, Leaf** — jamais `Bukkit.getScheduler()` : tout passe par le port
    `Scheduler`. Jetty répond sur ses propres threads ; tout accès au jeu depuis le hub repasse par

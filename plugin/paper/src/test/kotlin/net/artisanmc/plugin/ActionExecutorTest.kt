@@ -237,6 +237,28 @@ class ActionExecutorTest {
         requirements = emptyList(), fallback = emptyList(), steps = steps.toList(),
     )
 
+    @Test fun `give_item drops what does not fit and warns the player`() {
+        val p = player()
+        // Every slot: the mock inventory also stores into armor and off-hand slots.
+        repeat(p.inventory.size) { p.inventory.setItem(it, org.bukkit.inventory.ItemStack(org.bukkit.Material.STONE, 64)) }
+        val exec = ActionExecutor(pluginInstance, stubProvider, sessions, deps, cooldowns, evaluator, lang = pluginInstance.langManager)
+        exec.execute(listOf(Step.ActionStep("give_item", mapOf("material" to "DIAMOND", "count" to 3))), ctx(p))
+        val dropped = p.world.entities.filterIsInstance<org.bukkit.entity.Item>().map { it.itemStack }
+        assertEquals(listOf(org.bukkit.Material.DIAMOND to 3), dropped.map { it.type to it.amount })
+        val message = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(assertNotNull(p.nextComponentMessage()))
+        assertTrue(message.contains("dropped at your feet"), message)
+    }
+
+    @Test fun `give_item with room left says nothing`() {
+        val p = player()
+        val exec = ActionExecutor(pluginInstance, stubProvider, sessions, deps, cooldowns, evaluator, lang = pluginInstance.langManager)
+        exec.execute(listOf(give("DIAMOND")), ctx(p))
+        assertTrue(p.inventory.contains(org.bukkit.Material.DIAMOND))
+        assertTrue(p.world.entities.none { it is org.bukkit.entity.Item })
+        assertNull(p.nextComponentMessage())
+    }
+
     @Test fun `handle executes the matching if-case steps`() {
         val p = player()
         p.addAttachment(pluginInstance, "step.vip", true)

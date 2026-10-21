@@ -23,6 +23,8 @@ export interface DocumentKindContribution {
   rank?: number;
   /** The kind's plural name in the registry and the "New …" menu: an i18n key of the host, or a literal. */
   label: string;
+  /** The same name per interface language (`{ en, fr }`): a module carries its own; wins over `label`. */
+  labels?: Record<string, string>;
   /** Icon of the kind in the registry; the host has a default. */
   icon?: ComponentType<{ className?: string }>;
   /**
@@ -53,7 +55,7 @@ export interface DocumentKindContribution {
    */
   chainSlots?: (doc: unknown) => Iterable<ChainSlotContribution>;
   /**
-   * Board overrides, both optional. `size` is the node's box; `render` a NON-interactive
+   * Board overrides, all optional. `size` is the node's box; `render` a NON-interactive
    * preview drawn inside the node (react-konva), under the host's label. Editing happens
    * in the Properties panel.
    */
@@ -62,13 +64,54 @@ export interface DocumentKindContribution {
     /** The node's second line (`"dialog · 2btn"` for a dialog); the kind name when absent. */
     summary?: (doc: unknown, ctx: DocumentLabelContext) => string;
     render?: ComponentType<DocumentPreviewProps>;
+    /**
+     * The Document's parts the board lists under its header, one row each, like a menu's
+     * elements (SDK 1.2): a click selects the part, and the kind's `component` receives it
+     * as `item`. The node grows with the rows; `size.width` still sets its width.
+     */
+    items?: (doc: unknown, ctx: DocumentLabelContext) => BoardItem[];
+    /**
+     * The node's colour (`"#f59e0b"`): its border, header band and title (SDK 1.5). The
+     * host's default blue when absent.
+     */
+    accent?: string;
   };
+}
+
+/** One row of a Document's board node (`board.items`). */
+export interface BoardItem {
+  /** Stable within the Document: what `DocumentEditorProps.item` carries once selected. */
+  id: string;
+  label: string;
+  /** A short second text, right-aligned and dimmed (`"3 objectives"`). */
+  detail?: string;
+  /**
+   * A short mark before the label, in a disc (SDK 1.5): the part's rank when the parts run
+   * in order (`"1"`, `"2"`…). When every row has one, the discs are linked by a line.
+   */
+  marker?: string;
+  /** What a tooltip shows while the pointer is over the row (SDK 1.5). */
+  hover?: BoardItemHover;
+}
+
+/** A `BoardItem`'s tooltip; every text is MiniMessage. */
+export interface BoardItemHover {
+  title?: string;
+  /** A paragraph under the title; `\n` breaks lines. */
+  text?: string;
+  /** A list under the text, one entry per line (a quest's objectives). */
+  lines?: string[];
 }
 
 export interface DocumentEditorProps {
   projectId: string;
   documentId: string;
   document: unknown;
+  /**
+   * The part of the Document selected on the board or by `selectDocumentItem` (a
+   * `board.items` id), undefined when the Document itself is (SDK 1.2).
+   */
+  item?: string;
 }
 
 export interface DocumentPreviewProps {
@@ -122,6 +165,31 @@ export interface ModuleSidebarEntry {
   to: string;
 }
 
+/**
+ * What a module's own Config screen view receives (`FrontendModule.screens`, ADR
+ * `module-config-screens`). The host reads the screen's file from the server, holds the
+ * working copy, writes it on Save and keeps its Versions; the view only renders and edits.
+ */
+export interface ConfigScreenProps {
+  /** The project the screen edits (a module's configuration root), for host fields that read it. */
+  projectId: string;
+  /** `config`: one object (`value`); `table`: rows (`value` is the row array). */
+  shape: "config" | "table";
+  /** The screen's data as the editor holds it, typed by the declared model when there is one. */
+  value: unknown;
+  /**
+   * Replaces the value at `path`: keys from the root for a config, the row index then the
+   * keys for a table. Never empty. Unsaved until the admin saves.
+   */
+  set: (path: (string | number)[], value: unknown) => void;
+  /** Table only: appends a row with the model's defaults. */
+  addRow: () => void;
+  /** Table only: removes the row at `index`. */
+  removeRow: (index: number) => void;
+  /** A dated copy is shown while the server answers: nothing may be edited. */
+  readOnly: boolean;
+}
+
 export interface ModuleRouteDecl {
   path: string;
   component: ComponentType;
@@ -131,6 +199,12 @@ export interface FrontendModule {
   id: string;
   displayName: string;
   schemaVersion: string;
+  /**
+   * The SDK version the module was built against (`SDK_VERSION` at its build). Checked
+   * when the module comes as a bundle at runtime; a module compiled into the editor
+   * shares its SDK and may leave it out.
+   */
+  sdk?: string;
   sidebar: ModuleSidebarEntry;
   routes: ModuleRouteDecl[];
   wsMessageTypes?: string[];
@@ -158,4 +232,9 @@ export interface FrontendModule {
   migrateProject?: (project: unknown) => void;
   /** The Document kinds this module contributes (ADR `extensible-document-kinds`, lot 5). */
   documents?: DocumentKindContribution[];
+  /**
+   * Views of the module's Config screens, by the `component` key the plugin declares with
+   * the screen. A screen whose key is missing here gets the generated form.
+   */
+  screens?: Record<string, ComponentType<ConfigScreenProps>>;
 }

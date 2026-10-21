@@ -4,7 +4,7 @@ Spec d'architecture pour le pattern "modules" qui permet à Artisan d'évoluer d
 
 Statut : **architecture cible** — V1 implémente le menu editor comme premier module en suivant ce pattern. V1.5+ ajoute d'autres modules (shop, quests, kits, etc.). V3+ ouvre un SDK pour modules tiers.
 
-> **Révision phase F (2026-10)** : plus de backend. Le plugin sert l'éditeur (module Gradle `hub`, ADR `editor-web-server`) ; un module vit en **2 endroits** (plugin + éditeur), livrés dans le même jar. Les passages sur le backend (§3.2, §3.3.5, §10 « Backend », §13.5, §13.8, §14) décrivent l'état cloud, gardé pour l'historique ; état récupérable au commit `f085f576`.
+> **Révision phase F (2026-10)** : plus de backend. Le plugin sert l'éditeur (module Gradle `hub`, ADR `editor-web-server`) ; un module vit en **2 endroits** (plugin + éditeur), livrés dans le même jar. Les passages sur le backend (§3.2, §3.3.5, §10 « Backend », §13.5, §13.8, §14) décrivent l'état cloud, gardé pour l'historique ; état récupérable au commit `ccade092`.
 
 ---
 
@@ -102,13 +102,27 @@ export const modules: FrontendModule[] = [menusModule, commandsModule, shopModul
 
 Le core charge ce registry au boot, monte les routes, register les WS handlers, ajoute les entrées sidebar.
 
-> **SDK barrel (depuis 2026-06-15)** — le contrat `FrontendModule` + le registre + l'event bus sont exposés via un point d'entrée unique `@artisan/editor-sdk` (alias interne `editor/src/sdk/index.ts`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `@/modules/api/...` en profondeur. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands consomment déjà le barrel (dogfooding).
+> **SDK barrel (depuis 2026-06-15)** — le contrat `FrontendModule` + le registre + l'event bus sont exposés via un point d'entrée unique `@artisan/editor-sdk` (alias interne `editor/src/sdk/index.ts`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `@/modules/api/...` en profondeur. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/archive/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands consomment déjà le barrel (dogfooding).
+
+> **Vue de Config screen (depuis 2026-10-19, SDK 1.6)** — `screens: Record<string, ComponentType<ConfigScreenProps>>`.
+> Un écran déclaré côté plugin avec `component` (`api.getScreens().declare(…, component)`) rend la
+> vue de cette clé à la place du formulaire généré ; l'hôte garde la lecture, l'enregistrement,
+> l'onglet YAML et l'historique. Pour une config singleton (récompenses quotidiennes), la racine est
+> enregistrée par `registerConfig` : versionnée, hors de la liste des Projects (ADR
+> `module-config-screens`, amendement 2026-10-19).
+
+> **Dossier du module (depuis 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
+> donne au module `plugins/Artisan/modules/<folder>/`, enregistré comme une racine d'add-on (clé
+> `addon:<folder>`, non renommable). L'ancienne racine (`legacyDir`) y est déplacée une fois ; le
+> module lit ensuite ses fichiers dans le dossier renvoyé. À appeler dans `onEnable`, avant
+> d'écrire un fichier par défaut.
 
 > **Kinds de Document (depuis 2026-10-15, lot 5)** — un module contribue ses kinds de Document par
 > `documents: DocumentKindContribution[]` : `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
 > `icon?`, `component` (vue du panneau Propriétés), `title?`, `listByTitle?`, `create`, `parse`,
 > `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
-> aperçu non interactif). L'hôte l'installe à l'enregistrement (`registerEditorModule`,
+> aperçu non interactif, `items` : lignes sélectionnables, SDK 1.2, avec `marker` et `hover` en 1.5 ;
+> `accent`, SDK 1.5). L'hôte l'installe à l'enregistrement (`registerEditorModule`,
 > `lib/moduleDocumentKinds.ts`) dans sa table des kinds, ses codecs et ses visiteurs ; le panneau,
 > les listings, la recherche, la planche, les traductions et les arêtes le lisent par le registre
 > SDK (`documentKindContribution(kind)`). Les kinds core sont déclarés ainsi
@@ -157,7 +171,7 @@ export interface BackendModule {
 }
 ```
 
-> **SDK barrel (depuis 2026-06-15)** — le contrat `BackendModule` + l'intégrateur `mountModules` sont exposés via un point d'entrée unique `@artisan/backend-sdk` (path tsconfig interne `backend/src/sdk/index.ts`, résolu nativement par Bun y compris sous `bun test`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `../modules/api/...`. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/superpowers/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands/assistant consomment déjà le barrel (dogfooding).
+> **SDK barrel (depuis 2026-06-15)** — le contrat `BackendModule` + l'intégrateur `mountModules` sont exposés via un point d'entrée unique `@artisan/backend-sdk` (path tsconfig interne `backend/src/sdk/index.ts`, résolu nativement par Bun y compris sous `bun test`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `../modules/api/...`. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/archive/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands/assistant consomment déjà le barrel (dogfooding).
 
 ### 3.3 Plugin Paper : architecture multi-plugins
 
@@ -174,7 +188,8 @@ C'est le pattern Vault / PlaceholderAPI / WorldGuard — bien connu et accepté 
 Le core prête aussi l'**infrastructure** aux Add-ons : `api.database.dataSource(plugin)` donne
 un pool de connexions propre à l'Add-on, identifiants réglés une fois par l'admin dans
 `plugins/Artisan/environment.yml` (ADR `suite-foundation-database`). Un Add-on n'embarque ni
-driver ni config SQL ; il garde sa couche d'accès et ses migrations.
+driver ni config SQL ; il garde sa couche d'accès et ses migrations, et nomme chaque table,
+index et contrainte `api.database.tablePrefix("<module>") + nom` (`artisan_<module>_…` par défaut).
 
 #### 3.3.1 Plugin core
 
@@ -371,6 +386,55 @@ api.commands.register(CommandDeclaration(
 ))
 ```
 
+### 4.2 bis Commandes joueur (API 2.7.0)
+
+Distinctes des commands ci-dessus, que seul un menu appelle : une **commande joueur** est tapée en
+jeu. Le module déclare le comportement avec un id stable, l'admin habille le reste par un fichier
+`command_override/v1` du dossier `overrides/command/` d'un project (nom et alias de la racine,
+permission, cooldown, conditions, textes par langue, désactivation). Pas de suppression : la
+commande existe tant que le module est chargé.
+
+Chaque commande de module (sous-commandes comprises) a son fichier : au chargement et quand un
+module arrive, le plugin écrit celui qui manque dans le premier dossier du module, `schema` et
+`command` seuls, les valeurs du module en commentaires (`CommandOverrideStore.seed`, avec les
+templates, puis rechargement). Jamais de vraies clés, qui figeraient les valeurs du module à sa
+prochaine version ; jamais un fichier remplacé, ni un override doublé s'il vit dans un autre dossier.
+
+L'id, les arguments et les sous-commandes restent ceux du module : son code les lit. `steps`
+(chaîne d'actions, comme `command/v1`) remplace le code du module, sur la racine comme sur une
+sous-commande ; les arguments analysés y sont les valeurs `{nom}`, et un id de menu nu se résout
+dans le dossier de l'override. L'action `module_command` (`command`, `args`) lance le code d'origine
+d'une commande de module depuis une chaîne, sans son override (ni conditions, ni cooldown, ni
+`steps` : pas de boucle), permission vérifiée et arguments typés comme à la saisie ; elle marche
+aussi pour une commande désactivée. Elle est déclarée comme une action de module (propriétaire
+`artisan`) : l'éditeur construit son formulaire depuis la déclaration.
+
+Une commande qui ne fait qu'ouvrir un menu le déclare par `opensMenu("dossier:menu")` (API 2.11.0)
+au lieu d'un exécuteur : Artisan ouvre le menu, les arguments en contexte, et la planche de l'éditeur
+dessine le lien. Un `steps` d'override la remplace comme un exécuteur, et `module_command` rouvre le
+menu déclaré.
+
+```yaml
+schema: command_override/v1
+command: guilds:balance.add
+steps:
+  - open_menu: confirmer_depot        # le menu reçoit {amount} par son entrée de contexte
+# dans le bouton « Confirmer » du menu :
+#   - module_command: { command: guilds:balance.add, args: { amount: "{amount}" } }
+```
+
+```java
+api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track")
+    .name("track")
+    .argument(CommandArgument.string("quest"))
+    .executor(ctx -> tracker.track(ctx.getPlayer(), ctx.get("quest", String.class)))
+    .build());
+```
+
+`CommandRegistrar` les enregistre après les `command/v1` des projects (un nom déjà pris laisse
+`/<module>:<nom>`) et renvoie l'arbre de commandes aux joueurs connectés quand il change. Contrat
+détaillé : `api-surface.md`.
+
 ### 4.3 Avantages du pattern
 
 - **Découplage** : le module menus n'a aucune dépendance sur shop, quests, etc.
@@ -439,7 +503,114 @@ Côté éditeur, le module jumeau contribue le même kind (`FrontendModule.docum
 serveur actif ne liste pas (le fichier serait écrit dans un dossier que rien ne lit là-bas) dans
 l'arbre du project et au moment de créer un Document de ce kind.
 
+Une chaîne stockée dans un Document du module (récompenses d'une quête) s'exécute sous sa forme
+keyed par `api.getActions().run(player, chain, args, projectId)` (API 2.2.0) ; `execute` reste pour
+la chaîne DSL legacy.
+
+### 4.6 Conditions hors chaîne (API 2.2.0)
+
+Un module qui a ses propres prérequis (une quête démarrable sous condition) les écrit dans le
+vocabulaire des conditions d'Artisan et les évalue sans chaîne :
+
+```java
+List<?> requirements = (List<?>) quest.get("requirements");   // [{has_level: 10}, {has_permission: quests.vip}]
+List<String> problems = api.getConditions().validate(requirements);   // au chargement : à journaliser
+boolean ok = api.getConditions().test(player, requirements, Map.of("completed", done));
+```
+
+Même évaluateur que `if:`, lecture **stricte** : une condition inconnue ou mal formée rend `test`
+faux (avertissement unique) au lieu d'être ignorée comme dans un menu. À appeler sur le thread qui
+possède le joueur (`IllegalStateException` sinon). Détail : `api-surface.md`.
+
+### 4.6 bis Messages système traduits (API 2.5.0)
+
+Un plugin de la suite ne refait pas son système de lang : il enregistre ses fichiers sous son
+namespace et Artisan choisit la langue du joueur, gère les replis et rend le MiniMessage :
+
+```java
+MessageBundle messages = api.getTranslations().register(
+    MessageBundleDeclaration.files(this, "quests", "en", "fr"));   // jar lang/<code>.yml + plugins/<Plugin>/lang/
+player.sendMessage(messages.get(player, "quest.tracked", Map.of("quest_name", name)));
+```
+
+Les valeurs des placeholders (`<name>`, `{name}`, `%name%`) sont insérées comme du texte. Un plugin
+qui garde ses propres fichiers passe un `MessageSource` (`MessageBundleDeclaration.of`). Détail :
+`api-surface.md`.
+
+### 4.7 Module editor bundle (level 3) — API 2.3.0, protocole 1.2
+
+Un add-on (ArtisanQuests…) peut livrer la **vue éditeur** de son module dans son propre jar, au lieu
+d'attendre une release de l'éditeur : un script ES module construit contre `@artisan/editor-sdk`.
+Il l'enregistre dans `onEnable`, un seul par module, retiré avec le module :
+
+```java
+api.getEditorBundles().register(
+    EditorBundleDeclaration.fromResource(getClass().getClassLoader(), "artisan-editor/ui.js", "1.0"));
+```
+
+- `EditorBundleDeclaration(script, sdk)` : script UTF-8 non vide, ≤ 4 MiB ; `sdk` = version du SDK
+  visée, `MAJOR.MINOR[.PATCH]` ; `getHash()` = SHA-256 hex. Hors `onEnable` : `IllegalStateException` ;
+  un second bundle pour le même module : `DuplicateEditorBundleException`.
+- **Presence** : l'entrée `installed_modules` du module porte `editor_bundle: {sdk, hash, size}`
+  (`ws-protocol.md`) ; un bundle enregistré ou retiré après le `hello` part au `modules_changed` suivant.
+- **Servi** par le hub : `GET /api/v1/servers/:server/modules/:module/ui.js?v=<hash>`
+  (`rest-endpoints.md`) ; le hub va le chercher au serveur (`editor_bundle_fetch`), vérifie le hash,
+  le garde en mémoire par hash, et le sert `immutable` quand `v` égale le hash.
+- **Développement** : `dev.editor-bundles.<module>: <chemin de ui.js>` dans `environment.yml` (jamais
+  écrit par l'éditeur : personne ne peut lui faire servir un fichier du serveur) sert ce fichier à la
+  place du bundle du jar, avec la version SDK de ce dernier. `LocalEditorBundles` le relit à chaque
+  changement (vérifié chaque seconde) et une feuille envoie `modules_changed` ; l'entrée porte
+  `editor_bundle.local: true`. Fichier absent ou invalide : bundle du jar, avec un avertissement.
+- **Chargé** par l'éditeur contre le SDK qu'il embarque : `editor-internals.md` §« Runtime module
+  bundles ».
+
+### 4.8 Modèles de module — API 2.6.0, protocole 1.3
+
+Un module livre du **contenu d'exemple** copiable dans n'importe quel Project (ADR `module-templates`) :
+un modèle = des fichiers de Project (Documents, menus, `lang/`… jamais `manifest.yaml`, propre à chaque Project) lus dans son jar, une version qu'il
+monte à chaque changement, un Project d'amorçage facultatif.
+
+```java
+api.getTemplates().register(TemplateDeclaration
+    .fromResources(getClass().getClassLoader(), "artisan-templates/daily", "daily", 1,
+        List.of("quest_groups/daily.yaml", "menus/quests_daily.yaml"))
+    .title("Daily quests")
+    .seed("quests")
+    .build());
+```
+
+- **Presence** : `installed_modules[].templates` = `[{id, title, version, seed_project?, files:[{path, hash, size}]}]`, sans contenu.
+- **Lire** (version par défaut, lecture seule) : `GET SERVER/modules/:module/templates/:template` (`template_fetch`).
+- **Copier** : `POST …/projects/:project/templates` `{module, template, paths?, replace}` (`template_copy`) ;
+  un fichier déjà présent au contenu différent n'est jamais écrasé sans `replace` (409 `conflict` + `conflicts`).
+  Chaque fichier copié est tracé dans `.artisan/origins.yaml` ; `GET …/projects/:project/origins` les lit.
+- **Amorçage** : un modèle avec `seed(projectId)` est copié une seule fois dans un nouveau Project de ce
+  nom (`.artisan-seeds.yaml` à la racine core), avec un manifest dans la langue du serveur, jamais
+  recréé si le propriétaire le supprime. Si ce nom est le dossier du module lui-même
+  (`moduleFolder`, créé vide), les fichiers y sont copiés, avec le manifest s'il manque, sans
+  écraser ce qui s'y trouve.
+- **Éléments système** (API 2.12.0, design `framework-commandes` §3.8) : un modèle `.system()` porte
+  les menus et dialogues que le code du module ouvre par id. Pas d'amorçage : à chaque démarrage et à
+  l'arrivée du module, `SystemFiles` les garde dans le premier dossier du module par nom. Un fichier
+  absent est réécrit (sauf si un fichier du même nom vit sous le même dossier de type ailleurs dans le
+  module : déplacé), une copie intacte d'une version plus ancienne est remplacée, une copie modifiée
+  reste celle de l'admin, son origine sur la version copiée (l'éditeur signale la nouvelle version).
+  Un fichier présent avant que le module en fasse un élément système compte comme modifié. Copier un
+  modèle système ailleurs que dans le dossier du module est refusé (`system_template`) : dans ce
+  dossier, c'est une réinitialisation. L'éditeur ne le propose pas à la copie.
+
+```java
+api.getTemplates().register(TemplateDeclaration
+    .fromResources(getClass().getClassLoader(), "artisan-system", "menus", 3,
+        List.of("menus/shop_main.yaml", "menus/shop_category.yaml"))
+    .system()
+    .build());
+```
+
 ## 5. Module bootstrap : content bundles
+
+> Vision d'origine. Réalisée par les modèles de module (§4.8) : pas de dialogue à l'installation,
+> un amorçage unique et un catalogue dans l'éditeur ; le reste de cette section n'est pas implémenté tel quel.
 
 Chaque module non-trivial **ship un bundle de contenu par défaut** qui sert de bootstrap quand l'admin installe le module pour la première fois. Ce bundle n'est PAS juste un menu — c'est un set complet de **toutes les ressources** dont le module a besoin pour fonctionner out-of-the-box.
 
@@ -900,7 +1071,7 @@ plugin/
 
 ## 14. Module assistant (feature IA — backend-only, supprimé en phase F)
 
-> **Supprimé** avec le backend (2026-10). Le panneau de l'éditeur reste dans le dépôt, hors du build auto-hébergé (`SELF_HOSTED`) ; le moteur décrit ci-dessous est récupérable au commit `f085f576`.
+> **Supprimé** avec le backend (2026-10). Le panneau de l'éditeur reste dans le dépôt, hors du build auto-hébergé (`SELF_HOSTED`) ; le moteur décrit ci-dessous est récupérable au commit `ccade092`.
 
 > **Statut** : en cours de construction (sous-plans 2a–2d livrés ; crédits 3 + panel éditeur 4 à venir). Vit pour l'instant sous `backend/src/modules/assistant/` (pas encore les 3 layers symétriques d'un Add-on standard ; le panel éditeur arrive en sous-plan 4).
 
@@ -969,7 +1140,7 @@ Repo séparé (`Boutique`, branche `feat/artisan-addon`, plugin Paper 1.21.4 / J
 - **Éditeur** : `@artisan/boutique-editor`, module presence-gated monté sur `/m/boutique`. Sur un project migré (Table `categories` liée à `boutique:category`), l'écran renvoie vers le **form généré** de la source (onglet Sources, master-detail) — plus de form bespoke. Le form ad-hoc *(legacy)* ne sert que les projects pré-migration (`Project.moduleData.boutique`, dérive `exportFiles()` → `boutique/shop.yaml`).
 - **`/boutiqueadmin additem` (module, sur disque)** : `CapturedItemWriter` (repo Boutique) écrit dans la racine que le module possède — `items/<ci>.yml` verbatim + descripteur dans `.artisan/editor.yaml`, puis upsert de la row de `data/categories/` en **fichiers nus** (name = littéral, `lang/` intact). Sans Table déclarée, il refuse plutôt que d'inventer un format : un catalogue legacy est de toute façon converti au boot par `ShopDataMigrator`. Le backend n'intervient plus (ADR `server-disk-only-storage`).
 
-Checklist de validation cross-stack manuelle (Docker) : `docs/superpowers/specs/2026-07-08-boutique-addon-validation.md`.
+Checklist de validation cross-stack manuelle (Docker) : `docs/archive/specs/2026-07-08-boutique-addon-validation.md`.
 
 ---
 

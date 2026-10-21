@@ -1,3 +1,4 @@
+import { LocalBundlesNotice } from "@/components/LocalBundlesNotice";
 import { NavigationSidebar } from "@/components/NavigationSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
@@ -12,6 +13,7 @@ import { useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
+import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { Outlet, createRootRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
@@ -54,6 +56,7 @@ export function RootLayout() {
     useModulesStore.getState().integrate({ serverId: activeServerId });
     useServerDataSourcesStore.getState().load({ serverId: activeServerId });
     useServerScreensStore.getState().load({ serverId: activeServerId });
+    void useSystemCommandsStore.getState().load(activeServerId);
     useServerActionsStore.getState().load({ serverId: activeServerId });
     useServerDocumentKindsStore.getState().load({ serverId: activeServerId });
     // Declared actions arriving after a project was read: adopt the texts of the module
@@ -66,6 +69,16 @@ export function RootLayout() {
       }
     });
 
+    // A module view arriving after a project was read: its Documents were kept as raw
+    // files until its kind existed; read them now.
+    const unsubscribeModules = useModulesStore.subscribe((s, prev) => {
+      if (s.status !== "ready" || prev.status === "ready") return;
+      const { openProjects, adoptLateDocuments } = useProjectsStore.getState();
+      for (const p of openProjects.projects) {
+        if (p.serverKeyId === activeServerId) adoptLateDocuments({ projectId: p.id });
+      }
+    });
+
     let cancelled = false;
     const ws = new EditorWs({
       // The server reloaded: what is shown may have become wrong. The decision to
@@ -73,6 +86,10 @@ export function RootLayout() {
       // it spares work in progress.
       onProjectsReloaded: (serverKeyId, projects) => {
         onProjectsReloadedInEditor(serverKeyId, projects);
+        // A reload re-applies the overrides on disk and may change the declared commands.
+        if (!cancelled && serverKeyId === activeServerId) {
+          void useSystemCommandsStore.getState().load(activeServerId, true);
+        }
         if (
           !cancelled &&
           serverKeyId === activeServerId &&
@@ -88,6 +105,7 @@ export function RootLayout() {
     return () => {
       cancelled = true;
       unsubscribeActions();
+      unsubscribeModules();
       ws?.disconnect();
     };
   }, [user, activeServerId]);
@@ -99,6 +117,7 @@ export function RootLayout() {
         </NavigationSidebar>
       )}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <LocalBundlesNotice />
         <Outlet />
       </main>
     </div>

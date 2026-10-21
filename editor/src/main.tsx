@@ -5,6 +5,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
 import "./styles/globals.css";
+import { hostComponents } from "@/distribution/hostComponents";
+import { installHost } from "@/lib/editorHost";
 import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { installRandomUuidFallback } from "@/lib/randomUuid";
 import { detectInitialTheme } from "@/state/themeStore";
@@ -14,6 +16,8 @@ import { dialogsModule } from "./modules/dialogs";
 import { menusModule } from "./modules/menus";
 
 installRandomUuidFallback();
+// Before any module renders: the SDK's hooks reach the editor through it.
+installHost(hostComponents);
 
 // Apply data-theme to <html> before React mounts — prevents FOUC on reload.
 document.documentElement.dataset.theme = detectInitialTheme();

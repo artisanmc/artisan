@@ -1,10 +1,10 @@
-import { isGroupColor, liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
+import { folderGroups } from "@/domain/canvasGroups";
 import type { EdgeAnchor, ProjectId } from "@/domain/types";
 import type { ArrangeMode } from "@/features/canvas/arrangeBoard";
 import { projectBoard, rearrangeProjectLayout } from "@/features/canvas/autoLayout";
 import type { ProjectsSliceContext } from "./types";
 
-/** The canvas: node positions, groups and edge anchors. */
+/** The canvas: node positions, folder frames and edge anchors. */
 export interface CanvasSlice {
   setCanvasPosition: (input: {
     projectId: ProjectId;
@@ -14,20 +14,9 @@ export interface CanvasSlice {
   }) => void;
   /** Rearranges the board while keeping the groups' inner layout. */
   releaseBoardPositions: (input: { projectId: ProjectId; mode?: ArrangeMode }) => void;
+  /** Rearranges inside one folder frame (`groupId`: the top-level folder). */
   rearrangeCanvasGroup: (input: { projectId: ProjectId; groupId: string }) => void;
-  createCanvasGroup: (input: {
-    projectId: ProjectId;
-    name: string;
-    nodeIds: string[];
-    color?: string;
-  }) => string;
-  updateCanvasGroup: (input: {
-    projectId: ProjectId;
-    groupId: string;
-    name?: string;
-    color?: string;
-  }) => void;
-  dissolveCanvasGroup: (input: { projectId: ProjectId; groupId: string }) => void;
+  /** Drags a folder frame (`groupId`), or the whole board (`null`). */
   moveCanvasGroup: (input: {
     projectId: ProjectId;
     groupId: string | null;
@@ -51,7 +40,9 @@ const LAYOUT = { touch: false } as const;
 export const createCanvasSlice = ({ get, mutateProject }: ProjectsSliceContext): CanvasSlice => ({
   setCanvasPosition: ({ projectId: pId, nodeId, x, y }) => {
     const current = get().openProjects.projects.find((p) => p.id === pId);
-    const group = current?.canvasGroups?.find((g) => g.nodeIds.includes(nodeId));
+    const group = current
+      ? folderGroups(current).find((g) => g.nodeIds.includes(nodeId))
+      : undefined;
     const layout = group && current ? projectBoard(current).allLayout : {};
     mutateProject(
       pId,
@@ -65,46 +56,6 @@ export const createCanvasSlice = ({ get, mutateProject }: ProjectsSliceContext):
       LAYOUT,
     );
   },
-  createCanvasGroup: ({ projectId: pId, name, nodeIds, color }) => {
-    const id = crypto.randomUUID();
-    if (!get().openProjects.projects.some((p) => p.id === pId) || !name.trim())
-      throw new Error("Invalid group");
-    mutateProject(
-      pId,
-      (project) => {
-        const members = [...new Set(nodeIds)];
-        const live = new Set(liveDocumentIds(project));
-        if (members.length < 2 || members.some((key) => !live.has(key)))
-          throw new Error("Select at least two documents in this project");
-        project.canvasGroups = normalizeCanvasGroups(
-          [{ id, name: name.trim(), nodeIds: members, color }, ...(project.canvasGroups ?? [])],
-          live,
-        );
-        for (const key of members) delete (project.canvasLayout as Record<string, unknown>)[key];
-      },
-      LAYOUT,
-    );
-    return id;
-  },
-  updateCanvasGroup: ({ projectId: pId, groupId, name, color }) =>
-    mutateProject(
-      pId,
-      (project) => {
-        const group = project.canvasGroups?.find((g) => g.id === groupId);
-        if (!group) return;
-        if (name?.trim()) group.name = name.trim();
-        if (isGroupColor(color)) group.color = color;
-      },
-      LAYOUT,
-    ),
-  dissolveCanvasGroup: ({ projectId: pId, groupId }) =>
-    mutateProject(
-      pId,
-      (project) => {
-        project.canvasGroups = project.canvasGroups?.filter((g) => g.id !== groupId);
-      },
-      LAYOUT,
-    ),
   moveCanvasGroup: ({ projectId: pId, groupId, dx, dy }) => {
     if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return;
     const current = get().openProjects.projects.find((p) => p.id === pId);
@@ -122,10 +73,12 @@ export const createCanvasSlice = ({ get, mutateProject }: ProjectsSliceContext):
           const p = board.allLayout[id];
           if (p) layout[id] = { x: p.x + dx, y: p.y + dy };
         }
-        for (const group of project.canvasGroups ?? []) {
-          if (groupId !== null && group.id !== groupId) continue;
-          const g = board.groups.find((f) => f.kind === "group" && f.id === group.id);
-          if (g) group.position = { x: g.x + dx, y: g.y + dy };
+        for (const g of board.groups) {
+          if (g.kind !== "group" || (groupId !== null && g.id !== groupId)) continue;
+          project.folders = {
+            ...project.folders,
+            [g.id]: { ...project.folders?.[g.id], position: { x: g.x + dx, y: g.y + dy } },
+          };
         }
       },
       LAYOUT,

@@ -1,13 +1,20 @@
 import { walkDocumentRefs } from "@/domain/actionArgs";
 import { documentChainSlots, documentLTextSites } from "@/domain/documentKindVisitors";
-import { documentKindDef } from "@/domain/documentKinds";
-import { allDocuments, documentsOf, hasDocument, mutableDocuments } from "@/domain/documents";
+import {
+  allDocuments,
+  documentsOf,
+  hasDocument,
+  mutableDocuments,
+  renamedDocumentFiles,
+} from "@/domain/documents";
 import { mintLTexts, rekeyDocument } from "@/domain/i18nSites";
-import type { ProjectId } from "@/domain/types";
+import type { I18nKey, ProjectId } from "@/domain/types";
+import { setLText } from "@/lib/i18n";
 import { createDocumentOfKind } from "@/lib/moduleDocumentKinds";
+import { adoptLateDocuments } from "@/schema/projectFromFiles";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
-import { rewriteCanvasEdgeIds, rewriteCanvasGroupMembers } from "./helpers";
+import { rewriteCanvasEdgeIds } from "./helpers";
 import type { ProjectsSliceContext } from "./types";
 
 /**
@@ -24,8 +31,23 @@ export interface DocumentsSlice {
     id: string;
     position?: { x: number; y: number };
   }) => string;
-  /** Replaces a Document of a kind wholesale (a module's view edits a copy, then commits it). */
-  updateDocument: (input: { projectId: ProjectId; kind: string; id: string; doc: unknown }) => void;
+  /**
+   * Replaces a Document of a kind wholesale (a module's view edits a copy, then commits
+   * it), with the texts the edit sets: one step for undo.
+   */
+  updateDocument: (input: {
+    projectId: ProjectId;
+    kind: string;
+    id: string;
+    doc: unknown;
+    texts?: { key: string; lang: string; value: string }[];
+  }) => void;
+  /**
+   * Reads the Documents of a kind registered after the Project was read (a module's view
+   * that arrived with the presence): its folder was kept verbatim until now. Changes
+   * nothing on disk, so the Project is not marked edited.
+   */
+  adoptLateDocuments: (input: { projectId: ProjectId }) => void;
   /** Renames a Document: its texts, its board position, its edges, its groups and every reference to it follow. */
   setDocumentId: (input: {
     projectId: ProjectId;
@@ -55,13 +77,22 @@ export const createDocumentsSlice = ({
     });
     return id;
   },
-  updateDocument: ({ projectId: pId, kind, id, doc }) =>
+  updateDocument: ({ projectId: pId, kind, id, doc, texts }) =>
     mutateProject(pId, (p) => {
       const docs = mutableDocuments(p, kind);
       const index = docs.findIndex((d) => d.id === id);
       if (index < 0) return false;
       docs[index] = doc as (typeof docs)[number];
+      for (const t of texts ?? []) setLText(p, { key: t.key as I18nKey }, t.lang, t.value);
     }),
+  adoptLateDocuments: ({ projectId: pId }) =>
+    mutateProject(
+      pId,
+      (p) => {
+        adoptLateDocuments(p);
+      },
+      { touch: false },
+    ),
   setDocumentId: ({ projectId: pId, kind, oldId, newId }) => {
     if (oldId === newId) return;
     if (!newId) throw new Error("document id cannot be empty");
@@ -82,7 +113,6 @@ export const createDocumentsSlice = ({
         delete layout[oldId];
       }
       rewriteCanvasEdgeIds(p, oldId, newId);
-      rewriteCanvasGroupMembers(p, oldId, newId);
       // Every `document_ref` of that kind pointing at the old id follows (R3).
       for (const other of allDocuments(p)) {
         for (const slot of documentChainSlots(other.kind, other.doc)) {
@@ -93,9 +123,12 @@ export const createDocumentsSlice = ({
       }
     });
     // A rename is a move on disk; see `setDialogId` for why it is recorded after the apply.
-    const dir = documentKindDef(kind).dir;
-    useProjectDraftStore
-      .getState()
-      .recordRename(pId, `${dir}/${oldId}.yaml`, `${dir}/${newId}.yaml`);
+    const moved = renamedDocumentFiles(
+      get().openProjects.projects.find((p) => p.id === pId),
+      kind,
+      oldId,
+      newId,
+    );
+    useProjectDraftStore.getState().recordRename(pId, moved.from, moved.to);
   },
 });

@@ -4,12 +4,16 @@ Les fichiers sont la **source de vérité** (ADR `files-first-source-of-truth`) 
 lossless, l'éditeur n'a pas de représentation privilégiée.
 
 ```
-plugins/Artisan/projects/
+plugins/Artisan/modules/
   <project_id>/
     manifest.yaml
     menus/<menu_id>.yaml           ← un dossier par kind de Document (cf. ci-dessous)
     commands/<command_id>.yaml
     dialogs/<dialog_id>.yaml
+    <dossier>/                     ← dossier thématique (cf. ci-dessous), mêmes dossiers de kind
+      menus/<menu_id>.yaml
+      dialogs/<dialog_id>.yaml
+      <sous-dossier>/menus/…       ← jusqu'à 3 niveaux
     lang/<lang>.yaml               ← arborescence YAML (cf. ci-dessous)
     items/<captured_item_id>.yml   ← ItemStacks capturés (refs material `item:<id>`), YAML Bukkit verbatim
     data/<source_id>.yaml          ← Project sources (schema data/v1, refs `pack:<id>`)
@@ -22,6 +26,14 @@ plugins/Artisan/projects/
     .artisan/transactions/         ← journal de publication, reçus dans `.receipts/`
     .artisan/history/              ← archives d'avant 2026-09-26, lues seulement
 ```
+
+Avant 2026-10, la racine était `plugins/Artisan/projects/`. Au premier démarrage, le plugin la
+déplace vers `modules/` (`ModulesRootMigration`) : chaque dossier garde son nom (namespace, refs
+qualifiées) et son `.artisan/project-id` (Versions, brouillons), l'ancien dossier reste en
+`projects.artisan-migrated/` et `modules/.artisan-migrations.yaml` empêche de rejouer la migration.
+Un échec remet tout en place et garde `projects/`. Conception : `design-projets-en-modules.md`
+(fichiers du projet), dont c'est le lot 1 ; le reste (fichier `module.yaml`, éditeur par module,
+racines d'add-on) suit.
 
 Un Project s'identifie par le nom de son dossier sur son serveur ; pour le hub et l'éditeur, il
 s'appelle `<server id>.<dossier>`, quel que soit le serveur (cf. `entities.md`). `.artisan-sync.yaml` (ancienne
@@ -49,6 +61,38 @@ core est lu en **document brut** (`RuntimeRawDocument` : le mapping YAML, `schem
 labels déclarés, le nom du fichier pour id) et rendu au module par
 `ProjectContentApi.documents(projectId, kind)` (W6).
 
+## Dossiers thématiques
+
+Un module range ses Documents dans des dossiers libres qui mélangent les kinds :
+`boutique/menus/shop.yaml`, `boutique/commands/shop.yaml`, `boutique/armes/menus/swords.yaml`.
+La règle est une fonction pure des chemins, écrite deux fois et verrouillée par
+`testdata/document-layout-conformance.json` : `model/DocumentLayout.kt` (plugin, lu par
+`ProjectReader` et `ResourceInventory`) et `domain/documentLayout.ts` (éditeur, lu par
+`projectFromFiles`, `adoptLateDocuments` et `projectToFiles`).
+
+- Un Document est `<dossiers…>/<dir du kind>/<id>.yaml`, avec 0 à 3 dossiers thématiques
+  (slug `^[a-z0-9][a-z0-9_-]*$`).
+- **L'id reste le nom du fichier.** Le dossier n'entre ni dans l'id, ni dans les références,
+  ni dans les clés `lang/` ou de planche : déplacer un Document ne change que son chemin.
+  L'éditeur le porte dans `Document.folder` et un renommage enregistre le déplacement sous
+  le dossier du Document (`renamedDocumentFiles`).
+- **Un id est unique par kind dans le module.** Deux fichiers du même kind et du même id,
+  dans deux dossiers : les deux sont refusés (`duplicate_id`).
+- Un dossier de kind ne contient que des fichiers (`kind_dir_subfolder` sinon). Un dossier
+  thématique ne peut pas porter le nom d'une ressource (`lang`, `items`, `data`, `models`,
+  `templates`, `assets`, `overrides`, `config` : `reserved_folder`) ni dépasser 3 niveaux
+  (`too_deep`). Les ressources restent à la racine du module.
+- Un fichier refusé est signalé (`onSkip`, côté plugin) et jamais perdu : l'éditeur le garde
+  dans `Project.unreadFiles` et le réécrit tel quel. Ce qui n'a pas la forme d'un Document
+  (fichier posé directement dans un dossier thématique, dossier de kind non enregistré)
+  reste dans `moduleData.<premier dossier>.__files`, et `adoptLateDocuments` le lit quand
+  le kind arrive.
+- Dans l'éditeur, l'arbre de la barre latérale crée, renomme, supprime les dossiers et y
+  déplace les Documents ; sur la planche, chaque dossier de premier niveau est un cadre.
+  `.artisan/editor.yaml` garde sous `folders:` la couleur et la position de ces cadres, et
+  les dossiers encore vides (rien d'autre sur le disque ne s'en souviendrait) :
+  `folders: { boutique: { color: "#a855f7", position: { x: 120, y: 240 } }, vide: {} }`.
+
 Les fichiers `data/` portent les Data models **inlinés** ; les valeurs `ltext` sont des clés i18n
 résolues au bind, les valeurs item des refs material.
 
@@ -75,6 +119,7 @@ de navigation (comme `open_previous_menu`) au lieu de la vider ; pile vide = fer
 Seule la raison de fermeture `PLAYER` déclenche le retour — `close_menu` (`PLUGIN`) ferme tout.
 Câblé dans `listener/MenuListener.kt` (tick suivant, comme le vidage d'historique). Les dialogs ne
 sont pas concernés.
+Spigot ne donne pas la raison de fermeture (`MenuCloseReason.UNKNOWN`) : le retour n'y joue pas.
 
 ## `lang/` — arborescence, pas fichier plat
 

@@ -2,6 +2,12 @@ import { isDirty } from "@/features/project/draft";
 import { useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 
+export const PROJECTS_RELOADED_EVENT = "ifz:projects_reloaded";
+
+export interface ProjectsReloaded {
+  serverKeyId: string;
+}
+
 /**
  * What the editor does with a reload announced by the plugin.
  *
@@ -25,6 +31,11 @@ export function onProjectsReloaded(
   serverKeyId: string,
   projects: { id: string; hash: string }[],
 ): void {
+  // The list of Projects may have changed too (an add-on registered its folder after the
+  // server started): the surfaces that list them re-read it, whatever the drafts hold.
+  window.dispatchEvent(
+    new CustomEvent<ProjectsReloaded>(PROJECTS_RELOADED_EVENT, { detail: { serverKeyId } }),
+  );
   const cache = useProjectCacheStore.getState();
   const dirtySomewhere = Object.values(useProjectDraftStore.getState().drafts).some((d) =>
     isDirty(d.initialTree, d.tree),

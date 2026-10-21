@@ -203,11 +203,15 @@ export function menuV1ToDomain(
     if (typeof l === "string") return { kind: "plain", value: text(l) };
     // A bare `{lang: text}` map is the field-local form of a plain layer.
     if (isLangMap(l)) return { kind: "plain", value: text(l) };
+    // Asset ref: `asset: <name>` first, then the legacy `asset_id` (ADR
+    // `assets-on-server-disk`, decision 2); same order as the plugin's MenuTitleParser.
+    const asset = (l.asset ?? l.asset_id) as AssetId;
+    const font = (l.font ?? l.font_asset_id) as AssetId | undefined;
     switch (l.kind) {
       case "background":
-        return { kind: "background", assetId: l.asset_id as AssetId };
+        return { kind: "background", assetId: asset };
       case "glyph":
-        return { kind: "glyph", assetId: l.asset_id as AssetId, x: l.x, y: l.y };
+        return { kind: "glyph", assetId: asset, x: l.x, y: l.y };
       case "text": {
         const out: MenuTitleLayer = {
           kind: "text",
@@ -216,7 +220,7 @@ export function menuV1ToDomain(
           y: l.y,
         };
         if (l.color !== undefined) out.color = l.color;
-        if (l.font_asset_id !== undefined) out.fontAssetId = l.font_asset_id as AssetId;
+        if (font !== undefined) out.fontAssetId = font;
         if (l.size !== undefined && TEXT_SIZES.includes(l.size)) out.size = l.size as TextSize;
         return out;
       }
@@ -235,7 +239,7 @@ export function menuV1ToDomain(
           lineHeight: l.line_height,
           alignment: l.alignment,
         };
-        if (l.font_asset_id !== undefined) out.fontAssetId = l.font_asset_id as AssetId;
+        if (font !== undefined) out.fontAssetId = font;
         if (l.size !== undefined && TEXT_SIZES.includes(l.size)) out.size = l.size as TextSize;
         return out;
       }

@@ -42,12 +42,15 @@ class EditorApiTest {
     }
     private val applied = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
     private var stored = false
+    private var reads = 0
     private val loaded = object : LoadedProjects {
+        override fun hash(server: String, folder: String) = if (stored && folder == "kept") "s1" else null
         override fun list(server: String) = if (!stored) null else mapOf<String, Any?>(
             "project_ids" to listOf("kept"), "project_roots" to listOf(mapOf("project_id" to "kept", "identity" to "folder", "project_key" to "k-9")),
             "resource_inventory" to emptyList<Any>(),
         )
         override fun read(server: String, folder: String) = if (!stored || folder != "kept") null else mapOf<String, Any?>(
+            "reads" to ++reads,
             "hash" to "s1", "files" to listOf(mapOf("path" to "a.yml", "content" to "a: 1")), "failed" to emptyList<Any>(), "binaries" to emptyList<Any>(),
         )
         override fun binary(server: String, folder: String, path: String) = if (stored && path == "logo.png") byteArrayOf(4, 2) else null
@@ -192,6 +195,9 @@ class EditorApiTest {
         assertEquals("kept", call("GET", "/api/v1/servers/u-local/projects").second!!["projects"][0]["externalId"].asText())
         assertEquals("s1", call("GET", "/api/v1/projects/u-local.kept/files").second!!["hash"].asText())
         assertEquals(true, call("GET", "/api/v1/projects/u-local.kept/files?if_hash=s1").second!!["unchanged"].asBoolean())
+        assertEquals(1, reads, "an unchanged poll is answered from the hash, without reading the Version")
+        assertEquals("s1", call("GET", "/api/v1/projects/u-local.kept/files?if_hash=s0").second!!["hash"].asText())
+        assertEquals(2, reads)
         assertEquals(200, call("GET", "/api/v1/projects/u-local.kept/binary?path=logo.png").first)
         assertEquals(200, call("GET", "/api/v1/user/projects/u-local.kept").first)
         assertTrue(sent.isEmpty(), "nothing relayed: $sent")

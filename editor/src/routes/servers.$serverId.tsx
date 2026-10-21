@@ -1,8 +1,13 @@
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
+import {
+  PROJECTS_RELOADED_EVENT,
+  type ProjectsReloaded,
+} from "@/features/project/onProjectsReloaded";
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
-import { buildProjectGroups, diskProjectsToSummaries } from "@/features/projects/projectGroups";
+import { buildModuleList, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection";
+import { EditorAddressBanner } from "@/features/settings/EditorAddressBanner";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
 import { projectUrlId } from "@/lib/projectUrlId";
@@ -148,27 +153,40 @@ function ServerOverview({
    * server is not a server without projects — announcing it empty would assert
    * an emptiness not observed.
    */
-  const reloadProjects = useCallback(() => {
-    if (!serverKeyId) return undefined;
-    let cancelled = false;
-    setStatus("loading");
-    listServerProjects(serverKeyId).then((res) => {
-      if (cancelled) return;
-      if (!res.ok) {
-        setProjects([]);
-        setStatus("unavailable");
-        setUnavailableReason(res.error);
-        return;
-      }
-      setProjects(diskProjectsToSummaries(serverKeyId, res.projectIds, res.projects));
-      setStatus("ready");
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [serverKeyId]);
+  const reloadProjects = useCallback(
+    (quiet = false) => {
+      if (!serverKeyId) return undefined;
+      let cancelled = false;
+      if (!quiet) setStatus("loading");
+      listServerProjects(serverKeyId).then((res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setProjects([]);
+          setStatus("unavailable");
+          setUnavailableReason(res.error);
+          return;
+        }
+        setProjects(diskProjectsToSummaries(serverKeyId, res.projectIds, res.projects));
+        setStatus("ready");
+      });
+      return () => {
+        cancelled = true;
+      };
+    },
+    [serverKeyId],
+  );
 
   useEffect(() => reloadProjects(), [reloadProjects]);
+
+  // A reload can add or drop folders (an add-on registers its own after the server started).
+  useEffect(() => {
+    const reloaded = (e: Event) => {
+      if ((e as CustomEvent<ProjectsReloaded>).detail.serverKeyId === serverKeyId)
+        reloadProjects(true);
+    };
+    window.addEventListener(PROJECTS_RELOADED_EVENT, reloaded);
+    return () => window.removeEventListener(PROJECTS_RELOADED_EVENT, reloaded);
+  }, [serverKeyId, reloadProjects]);
 
   // Config screens decide the grouping: the page loads them for ITS server
   // instead of waiting for the sidebar to do it — otherwise an owned project
@@ -179,11 +197,11 @@ function ServerOverview({
     useServerScreensStore.getState().load({ serverId: serverKeyId });
   }, [serverKeyId]);
 
-  // Same split as the sidebar — ordinary projects on one side, installed
-  // modules on the other with their tabs (ADR `addon-owned-project-roots`).
+  // Same split as the sidebar: the plugins' modules with their folders and screens,
+  // then the admin's own folders.
   const updateRequired = status === "unavailable" && unavailableReason === "plugin_update_required";
 
-  const { flatProjects, moduleGroups } = buildProjectGroups({
+  const { pluginModules, contentModules: projectRows } = buildModuleList({
     projects,
     screens: serverScreens,
     mountedModuleIds,
@@ -202,19 +220,78 @@ function ServerOverview({
           </h1>
         </header>
 
+        <EditorAddressBanner />
+
+        {status === "ready" && pluginModules.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="eyebrow">{t("sidebar.installedModules")}</h2>
+              <span className="h-px flex-1 bg-[var(--border-soft)]" />
+            </div>
+            <ul className="flex flex-col gap-2">
+              {pluginModules.map((m) => (
+                <li key={m.id} className="card flex flex-col gap-3 p-4">
+                  {/* TODO: render the module's icon once modules ship real icons */}
+                  <span className="text-[14px] font-semibold text-[var(--text)]">{m.label}</span>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {m.projects.map((p) => (
+                      <li key={`p:${p.id}`}>
+                        <Link
+                          to="/servers/$serverId/projects/$projectId"
+                          params={{ serverId, projectId: projectUrlId(p) }}
+                          className="chip"
+                        >
+                          {m.projects.length === 1 ? t("serverDetail.openModule") : p.name}
+                        </Link>
+                      </li>
+                    ))}
+                    {m.entries.map((e) =>
+                      e.kind === "screen" ? (
+                        <li key={`s:${e.screen.id}`}>
+                          <Link
+                            to="/servers/$serverId/screens/$screenId"
+                            params={{ serverId, screenId: e.screen.id }}
+                            className="chip"
+                          >
+                            {e.screen.label}
+                          </Link>
+                        </li>
+                      ) : (
+                        <li key={`c:${e.moduleId}`}>
+                          <Link
+                            to="/m/$moduleId"
+                            params={{ moduleId: e.moduleId }}
+                            className="chip"
+                          >
+                            {t("sidebar.configuration")}
+                          </Link>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
-            <h2 className="eyebrow">{t("serverDetail.projects")}</h2>
+            <h2 className="eyebrow">{t("serverDetail.myModules")}</h2>
             <span className="h-px flex-1 bg-[var(--border-soft)]" />
             <button
               type="button"
-              className="btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm"
               disabled={!serverKeyId || updateRequired}
               onClick={() => setImportOpen(true)}
             >
               {t("topbar.import")}
             </button>
-            <Link to="/servers/$serverId/canvas" params={{ serverId }} className="btn-ghost btn-sm">
+            <Link
+              to="/servers/$serverId/canvas"
+              params={{ serverId }}
+              className="btn btn-ghost btn-sm"
+            >
               {t("serverDetail.openBoard")}
             </Link>
           </div>
@@ -232,11 +309,11 @@ function ServerOverview({
                     : "serverDetail.projectsUnavailable",
               )}
             </p>
-          ) : flatProjects.length === 0 ? (
+          ) : projectRows.length === 0 ? (
             <p className="text-[13px] text-[var(--text-mut)]">{t("serverDetail.noProjects")}</p>
           ) : (
             <ul className="flex flex-col gap-2">
-              {flatProjects.map((w) => (
+              {projectRows.map((w) => (
                 <li key={w.id} className="flex items-center gap-2">
                   <Link
                     to="/servers/$serverId/projects/$projectId"
@@ -268,70 +345,6 @@ function ServerOverview({
           )}
         </section>
 
-        {status === "ready" && (
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <h2 className="eyebrow">{t("sidebar.installedModules")}</h2>
-              <span className="h-px flex-1 bg-[var(--border-soft)]" />
-            </div>
-            {moduleGroups.length === 0 ? (
-              <p className="text-[13px] text-[var(--text-mut)]">{t("sidebar.noModules")}</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {moduleGroups.map((g) => (
-                  <li key={g.id} className="card flex flex-col gap-3 p-4">
-                    {/* TODO: render the module's icon once modules ship real icons */}
-                    <span className="text-[14px] font-semibold text-[var(--text)]">{g.label}</span>
-                    <ul className="flex flex-wrap gap-1.5">
-                      {g.entries.map((e) => {
-                        if (e.kind === "project") {
-                          return (
-                            <li key={`p:${e.project.id}`}>
-                              <Link
-                                to="/servers/$serverId/projects/$projectId"
-                                params={{
-                                  serverId,
-                                  projectId: projectUrlId(e.project),
-                                }}
-                                className="chip"
-                              >
-                                {e.label ?? t("screens.editorEntry")}
-                              </Link>
-                            </li>
-                          );
-                        }
-                        if (e.kind === "screen") {
-                          return (
-                            <li key={`s:${e.screen.id}`}>
-                              <Link
-                                to="/servers/$serverId/screens/$screenId"
-                                params={{ serverId, screenId: e.screen.id }}
-                                className="chip"
-                              >
-                                {e.screen.label}
-                              </Link>
-                            </li>
-                          );
-                        }
-                        return (
-                          <li key={`c:${e.moduleId}`}>
-                            <Link
-                              to="/m/$moduleId"
-                              params={{ moduleId: e.moduleId }}
-                              className="chip"
-                            >
-                              {t("sidebar.configuration")}
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
         {serverKeyId && !updateRequired && (
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-3">

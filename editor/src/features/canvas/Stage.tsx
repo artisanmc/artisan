@@ -30,26 +30,32 @@ import { CanvasToolbar } from "./CanvasToolbar";
 import { CommandGroup } from "./CommandGroup";
 import { DialogGroup } from "./DialogGroup";
 import { DocumentGroup } from "./DocumentGroup";
+import { DocumentItemTooltip } from "./DocumentItemTooltip";
 import { EdgeTooltip } from "./EdgeTooltip";
 import { Edges } from "./Edges";
 import { GhostChips } from "./GhostChips";
 import { ItemTooltip } from "./ItemTooltip";
 import { MarqueeRect } from "./MarqueeRect";
 import { MenuGroup } from "./MenuGroup";
+import { ModuleCommandGroup } from "./ModuleCommandGroup";
 import { Selection } from "./Selection";
 import { StageContextMenu } from "./StageContextMenu";
 import { dispatchOpenElement } from "./canvasEvents";
+import { activeBoardFolder } from "./folderFilter";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { useCanvasKeyboard } from "./useCanvasKeyboard";
+import { useFolderFraming } from "./useFolderFraming";
 import { useHeldPanKeys } from "./useHeldPanKeys";
 import { useMarqueeSelection } from "./useMarqueeSelection";
 import { useMiddleClickPan } from "./useMiddleClickPan";
+import { useModuleCommands } from "./useModuleCommands";
 import { usePrimaryButtonOnly } from "./usePrimaryButtonOnly";
 import { useStageBoard } from "./useStageBoard";
 import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageDropTargets } from "./useStageDropTargets";
 import { useElementSize, useStageFraming } from "./useStageFraming";
 import { useStageTouch } from "./useStageTouch";
+import { useSystemDocuments } from "./useSystemDocuments";
 
 const CORE_KINDS = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
 
@@ -78,10 +84,22 @@ function StageCanvas({ projectId, focus }: StageProps) {
   const focusMode = focus != null;
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  // The board also draws the commands the folder's module declares: `boardProject` is
+  // what it reads, `project` what is edited and saved.
+  const { nodes: moduleCommands, boardProject } = useModuleCommands(project);
+  const systemDocs = useSystemDocuments(project);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const size = useElementSize(wrapperRef);
-  const { board, layout, setGroupDrag } = useStageBoard(project, focus);
+  const folder = activeBoardFolder(
+    project,
+    useUiStore((s) => s.boardFolders[projectId]),
+  );
+  const { board, layout, setGroupDrag } = useStageBoard(
+    boardProject,
+    focus,
+    focusMode ? undefined : folder,
+  );
   const {
     viewport,
     setViewport,
@@ -91,7 +109,8 @@ function StageCanvas({ projectId, focus }: StageProps) {
     markTouched,
     syncViewportFromStage,
     refitFocus,
-  } = useStageFraming({ projectId, focus, project, layout, size, stageRef });
+  } = useStageFraming({ projectId, focus, project: boardProject, layout, size, stageRef });
+  useFolderFraming({ folder, project, layout, size, setViewport });
   const canvasMode = useUiStore((s) => s.canvasMode);
   const { spaceHeld, altHeld } = useHeldPanKeys();
   const panMode = canvasMode === "hand" || spaceHeld || altHeld;
@@ -231,6 +250,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
           groupDialog={groupDialog}
           onGroupDialogChange={setGroupDialog}
           onCreateAt={creation.createAt}
+          folder={folder}
         />
       )}
       <CanvasToolbar
@@ -243,7 +263,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
           !project ||
           (Object.keys(project.canvasLayout).length === 0 &&
             Object.keys(project.canvasEdges ?? {}).length === 0 &&
-            !project.canvasGroups?.some((g) => g.position))
+            !Object.values(project.folders ?? {}).some((f) => f.position))
         }
       />
       <KonvaStage
@@ -302,7 +322,11 @@ function StageCanvas({ projectId, focus }: StageProps) {
           />
         )}
         <Layer name="edges">
-          <Edges project={project} layout={layout} representatives={board?.representatives} />
+          <Edges
+            project={boardProject ?? project}
+            layout={layout}
+            representatives={board?.representatives}
+          />
           {board?.gutter && (
             <Text
               x={board.gutter.x}
@@ -325,6 +349,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 position={layout[menu.id]!}
                 layout={layout}
                 solo={focusMode}
+                systemModule={systemDocs.get(menu.id)}
               />
             ))}
         </Layer>
@@ -341,6 +366,16 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 position={layout[command.id]!}
               />
             ))}
+          {moduleCommands
+            .filter((node) => layout[node.id])
+            .map((node) => (
+              <ModuleCommandGroup
+                key={node.id}
+                projectId={projectId}
+                node={node}
+                position={layout[node.id]!}
+              />
+            ))}
           {dialogsOf(project)
             .filter((dialog) => layout[dialog.id])
             .map((dialog) => (
@@ -349,6 +384,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 projectId={projectId}
                 dialog={dialog}
                 position={layout[dialog.id]!}
+                systemModule={systemDocs.get(dialog.id)}
               />
             ))}
           {allDocuments(project)
@@ -360,10 +396,11 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 kind={kind}
                 doc={doc}
                 position={layout[doc.id]!}
+                solo={focusMode}
               />
             ))}
           <GhostChips
-            project={project}
+            project={boardProject ?? project}
             layout={layout}
             representatives={board?.representatives}
             // In focus, every link of the Document is off-board: the chip becomes the
@@ -379,7 +416,8 @@ function StageCanvas({ projectId, focus }: StageProps) {
         </Layer>
       </KonvaStage>
       <ItemTooltip projectId={projectId} />
-      <EdgeTooltip project={project} groups={board?.groups} />
+      <DocumentItemTooltip />
+      <EdgeTooltip project={boardProject ?? project} groups={board?.groups} />
       <StageContextMenu
         projectId={projectId}
         state={ctxMenu}

@@ -55,6 +55,16 @@ class EditorRequestTest {
     }
 
     @Test
+    fun `editor_bundle_fetch names the module`() {
+        assertEquals(
+            EditorRequest.EditorBundleFetch("r", "quests"),
+            parse("""{"type":"editor_bundle_fetch","request_id":"r","module_id":"quests"}"""),
+        )
+        assertNull(parse("""{"type":"editor_bundle_fetch","request_id":"r"}"""))
+        assertNull(parse("""{"type":"editor_bundle_fetch","module_id":"quests"}"""))
+    }
+
+    @Test
     fun `retired message types are ignored`() {
         for (type in listOf("ping", "draft_update", "project_deleted", "project_copy", "asset_write", "import_sources_list")) {
             assertNull(parse("""{"type":"$type","request_id":"r","project_id":"p","menu_id":"m","menu_yaml":"x"}"""), type)

@@ -1,40 +1,34 @@
 package net.artisanmc.plugin.project
 
 import net.artisanmc.plugin.model.DocumentKinds
+import net.artisanmc.plugin.model.DocumentLayout
 import java.io.File
 
 data class ResourceEntry(val projectId: String, val path: String, val origin: String)
 
-/** Live disk inventory for commercial editor rights. Parsing YAML is deliberately unnecessary. */
+/**
+ * Inventory of the Document-shaped files for commercial editor rights, from the loaded
+ * snapshot: no walk of the disk per `project_list` or per reload. Parsing YAML is
+ * deliberately unnecessary.
+ */
 object ResourceInventory {
+    /**
+     * The kind of a Document-shaped file: a `.yaml`/`.yml` under a kind folder, at
+     * the module root or in themed folders ([DocumentLayout]). Lenient on purpose —
+     * a file the reader refuses (invalid YAML, misplaced) still counts.
+     */
     fun kind(path: String): String? {
         val parts = path.replace('\\', '/').split('/')
-        if (parts.size !in 2..3 || parts.drop(1).any { it.isEmpty() || it.startsWith('.') }) return null
-        val type = DocumentKinds.byDir(parts[0])?.kind ?: return null
+        if (parts.size < 2 || parts.any { it.isEmpty() || it.startsWith('.') }) return null
+        if (parts.first() in DocumentLayout.RESOURCE_DIRS) return null
         if (!parts.last().endsWith(".yaml", true) && !parts.last().endsWith(".yml", true)) return null
-        return type
+        return parts.dropLast(1).firstNotNullOfOrNull { DocumentKinds.byDir(it)?.kind }
     }
 
-    fun scan(roots: ProjectRoots): List<ResourceEntry> {
-        val core = roots.coreRoot
-        if (!core.isDirectory || !core.canRead()) error("inventory_unavailable")
-        val personal = core.listFiles() ?: error("inventory_unavailable")
-        val sources = personal.filter { it.isDirectory && !it.name.startsWith('.') && !roots.isRegistered(it.name) }
-            .map { Triple(it.name, it, "personal") } +
-            roots.registeredRoots().map { (id, dir) -> Triple(id, dir, "module") }
-        return sources.flatMap { (id, dir, origin) ->
-            if (!dir.isDirectory || !dir.canRead()) error("inventory_unavailable: $id")
-            DocumentKinds.all().map { it.dir }.flatMap { rootName ->
-                val resourceRoot = File(dir, rootName)
-                if (!resourceRoot.exists()) return@flatMap emptyList()
-                if (!resourceRoot.isDirectory || !resourceRoot.canRead()) error("inventory_unavailable: $id/$rootName")
-                resourceRoot.walkTopDown().maxDepth(3)
-                    .onFail { _, error -> throw IllegalStateException("inventory_unavailable: $id/$rootName", error) }
-                    .filter(File::isFile).mapNotNull { file ->
-                    val path = file.relativeTo(dir).invariantSeparatorsPath
-                    if (kind(path) == null) null else ResourceEntry(id, path, origin)
-                    }.toList()
-            }
+    /** The Document-shaped text files of [snapshot]; a registered root's are `module`, a core folder's `personal`. */
+    fun of(snapshot: ProjectSnapshot, roots: ProjectRoots): List<ResourceEntry> =
+        snapshot.files.flatMap { (id, files) ->
+            val origin = if (roots.isRegistered(id)) "module" else "personal"
+            files.keys.filter { kind(it) != null }.map { ResourceEntry(id, it, origin) }
         }.sortedWith(compareBy(ResourceEntry::projectId, ResourceEntry::path))
-    }
 }

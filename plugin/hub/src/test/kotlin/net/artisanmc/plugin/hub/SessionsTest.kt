@@ -55,6 +55,19 @@ class SessionsTest {
     }
 
     @Test
+    fun `the store is written by the writer, after the link is issued`() {
+        val store = MemoryStore()
+        val queued = mutableListOf<Runnable>()
+        val sessions = Sessions(clock, store = store, writer = { queued += it })
+        val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(player, "Iban", setOf(EditorPermissions.VIEW)))
+        assertEquals(0, store.rows.size, "nothing waited for the store")
+        val session = assertNotNull(sessions.redeem(link.token), "the link opens here before its row exists")
+        queued.forEach(Runnable::run)
+        assertEquals(1, store.rows.size, "the session's row, the link's deleted")
+        assertNotNull(Sessions(clock, store = store).find(session.id))
+    }
+
+    @Test
     fun `a session survives a restart`() {
         val store = MemoryStore()
         val session = signIn(Sessions(clock, store = store))
@@ -130,6 +143,48 @@ class SessionsTest {
         assertEquals(1, sessions.closeAll(player))
     }
 
+    @Test
+    fun `a link issued on one server of the database opens a session on another`() {
+        val store = MemoryStore()
+        val link = assertIs<Sessions.LinkResult.Issued>(Sessions(clock, store = store).issueLink(player, "Iban", setOf(EditorPermissions.VIEW), "survie"))
+        val other = Sessions(clock, store = store)
+        val session = assertNotNull(other.redeem(link.token))
+        assertEquals("survie", session.origin)
+        assertNull(Sessions(clock, store = store).redeem(link.token), "a link works once, on any server")
+        assertNull(other.find(Sessions.LINK + link.token), "a stored link is never a session")
+    }
+
+    @Test
+    fun `a session closed on another server of the database ends here too`() {
+        val store = MemoryStore()
+        val here = Sessions(clock, store = store)
+        val session = signIn(here, origin = "survie")
+        assertNotNull(here.find(session.id))
+        Sessions(clock, store = store).refresh("survie", mapOf(player to emptySet()))
+        now = now.plus(Sessions.RECHECK).plusSeconds(1)
+        assertNull(here.find(session.id))
+    }
+
+    @Test
+    fun `a cookie found nowhere is read from the store once per window, then again`() {
+        val store = MemoryStore()
+        val here = Sessions(clock, store = store)
+        repeat(20) { assertNull(here.find("stale-cookie")) }
+        assertEquals(1, store.gets)
+        now = now.plus(Sessions.MISSING_FOR).plusSeconds(1)
+        assertNull(here.find("stale-cookie"))
+        assertEquals(2, store.gets)
+        // Opened on another server of the database, its row landing after this server's first look: found once the window is past.
+        val queued = mutableListOf<Runnable>()
+        val other = Sessions(clock, store = store, writer = java.util.concurrent.Executor { queued += it })
+        val session = signIn(other)
+        assertNull(here.find(session.id))
+        queued.forEach { it.run() }
+        assertNull(here.find(session.id), "unknown for the rest of the window")
+        now = now.plus(Sessions.MISSING_FOR).plusSeconds(1)
+        assertNotNull(here.find(session.id))
+    }
+
     private fun signIn(sessions: Sessions, origin: String = ""): EditorSession {
         val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(player, "Iban", setOf(EditorPermissions.VIEW), origin))
         return assertNotNull(sessions.redeem(link.token))
@@ -137,8 +192,9 @@ class SessionsTest {
 
     private class MemoryStore : SessionStore {
         val rows = HashMap<String, EditorSession>()
+        var gets = 0
         override fun put(key: String, session: EditorSession) { rows[key] = session }
-        override fun get(key: String) = rows[key]
+        override fun get(key: String) = rows[key].also { gets++ }
         override fun touch(key: String, expiresAt: Instant) { rows[key] = rows[key]!!.copy(expiresAt = expiresAt) }
         override fun delete(key: String) { rows.remove(key) }
         override fun purge(now: Instant) { rows.values.removeIf { !it.expiresAt.isAfter(now) } }

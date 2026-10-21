@@ -28,8 +28,8 @@ class Draft(val json: ObjectNode) {
 /** What an applied operation left: replaying [operationId] answers [result] if the request prints as [fingerprint]. */
 data class DraftReceipt(val operationId: String, val fingerprint: String, val result: String)
 
-/** One write of [DraftStorage.commit]: the draft's new [body] and the operation's [receipt], stored together. */
-data class DraftCommit(val draftId: String, val body: String, val status: DraftStatus, val receipt: DraftReceipt)
+/** One write of [DraftStorage.commit]: the draft's new [body] and the operation's [receipt], stored together; [owner] and [status] are the body's, kept as columns for the listing. */
+data class DraftCommit(val draftId: String, val owner: String, val body: String, val status: DraftStatus, val receipt: DraftReceipt)
 
 /**
  * A `project_draft_request`, parsed once from its wire JSON (the same shape the server gets when

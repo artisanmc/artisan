@@ -56,6 +56,8 @@ open class ArtisanPlugin : JavaPlugin() {
     lateinit var assetCatalog: net.artisanmc.plugin.resourcepack.AssetCatalog
         internal set
     lateinit var langManager: LangManager
+    /** `api.translations`: survives `/artisan reload`, which [Translations.configure]s it again. */
+    val translations by lazy { net.artisanmc.plugin.lang.Translations(logger = logger) }
     lateinit var capturedItems: net.artisanmc.plugin.items.CapturedItemStore
     /** projectId -> working-copy root, unioning the core projects dir with Add-on-owned roots. */
     lateinit var projectRoots: net.artisanmc.plugin.project.ProjectRoots
@@ -82,6 +84,9 @@ open class ArtisanPlugin : JavaPlugin() {
     /** What `/artisan reload` rebuilds: provider, engine, resource pack, commands. */
     internal val runtime = RuntimeAssembly(this, suite, editorHost)
 
+    /** Development: modules' editor views read from files (`dev.editor-bundles` in environment.yml). */
+    internal val localEditorBundles by lazy { LocalEditorBundles(api.editorBundles, logger) }
+
     /** Null if `web.enabled` is false or the port could not be opened. */
     val editor: net.artisanmc.plugin.hub.HubServer? get() = editorHost.editor
     /** The editor's public address from `web.url`; empty when not set. */
@@ -89,6 +94,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
     internal val menuProviderOrNull: MenuProvider? get() = if (::menuProvider.isInitialized) menuProvider else null
     internal val langManagerOrNull: LangManager? get() = if (::langManager.isInitialized) langManager else null
+    internal val capturedItemsOrNull: net.artisanmc.plugin.items.CapturedItemStore? get() = if (::capturedItems.isInitialized) capturedItems else null
 
     companion object {
         fun defaultModules(): List<ArtisanModule> = listOf(
@@ -137,8 +143,12 @@ open class ArtisanPlugin : JavaPlugin() {
         server.pluginManager.registerEvents(database, this)
         val cfg = loadPluginConfig()
         projectRoots.coreRoot.mkdirs()
+        localEditorBundles.configure(cfg.devEditorBundles)
 
-        langManager = LangManager.fromPlugin(this, cfg.language, cfg.perPlayerLanguage)
+        translations.configure(cfg.language, cfg.perPlayerLanguage)
+        langManager = LangManager(translations.register(LangManager.NAMESPACE, null, null) {
+            net.artisanmc.plugin.lang.FileMessageSource.load(this, LangManager.BUNDLED_LANGS)
+        })
 
         runtime.prepare(langManager)
 
@@ -148,18 +158,45 @@ open class ArtisanPlugin : JavaPlugin() {
         // Modules register before the first `hello`, which announces them.
         runtime.start(cfg) { defaultModules().forEach { api.modules.register(it) } }
         runtime.registerCustomItemsReloadListeners()
-        editorSessions = net.artisanmc.plugin.hub.Sessions(
-            sessionTtl = java.time.Duration.ofDays(cfg.web.sessionDays.toLong()),
-            store = suite.editorSessionStore(),
-        )
-        editorHost.start(cfg.web)
-        editorHost.startPermissionReports(cfg.web)
 
+        // The game side is complete here: the API is served, the engine runs, menus open
+        // and `/artisan` answers. What follows is the editor, which the suite's plugins
+        // (quests, guilds, lands...) do not need: a failure there is logged and the
+        // plugin stays enabled with everything above, instead of taking them down with it.
         artisanCommand = ArtisanCommand(this, langManager)
         getCommand("artisan")?.setExecutor(artisanCommand)
         getCommand("artisan")?.tabCompleter = artisanCommand
         server.pluginManager.registerEvents(MenuListener(this, runtime.sessions, runtime.executor, menuWindows, history = runtime.navigationHistory, events = menuEvents), this)
+        if (!net.artisanmc.plugin.platform.ServerPlatform.paper) {
+            runCatching { net.artisanmc.plugin.render.dialog.SpigotDialogRenderer.register(this) }
+                .onFailure { logger.warning("[Artisan] dialogs unavailable on this server: ${it.message}") }
+        }
+
+        // The sign-in store cannot fail and `/artisan editor` reads it: outside the guard.
+        editorSessions = net.artisanmc.plugin.hub.Sessions(
+            sessionTtl = java.time.Duration.ofDays(cfg.web.sessionDays.toLong()),
+            store = suite.editorSessionStore(),
+            writer = suite.sessionWriter(),
+        )
+        try {
+            startEditor(cfg)
+        } catch (t: Throwable) {
+            if (t is VirtualMachineError) throw t
+            logger.log(
+                java.util.logging.Level.SEVERE,
+                "[Artisan] The editor could not start: menus, commands and the modules keep running without it. Fix the cause and restart.",
+                t,
+            )
+        }
         logger.info("Artisan ${description.version} enabled")
+    }
+
+    /** The editor side: the hub (or the link to it), the dev bundles, the permission reports. */
+    internal open fun startEditor(cfg: PluginConfig) {
+        editorHost.start(cfg.web)
+        // A leaf tells the hub; the editor of a hub reads the announcement on its next load.
+        localEditorBundles.watch(scheduler) { (menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged() }
+        editorHost.startPermissionReports(cfg.web)
     }
 
     /**
@@ -175,11 +212,29 @@ open class ArtisanPlugin : JavaPlugin() {
                 api.modules.unregisterLoadedBy(event.plugin.javaClass.classLoader).forEach {
                     logger.log(java.util.logging.Level.WARNING, "[Artisan] ${it.message}", it.cause)
                 }
+                translations.unregisterOwnedBy(event.plugin)
+                releaseListeners(event.plugin)
             }
         }, this)
     }
 
+    /**
+     * What a disabling plugin subscribed outside its modules: left behind, after a `/plugman reload`
+     * its old listeners would run the code of a closed jar. The event fires before the plugin's
+     * onDisable, so this also removes what that onDisable would cancel itself: logged at FINE.
+     */
+    private fun releaseListeners(plugin: org.bukkit.plugin.Plugin) {
+        val loader = plugin.javaClass.classLoader
+        val left = buildList {
+            placeholders.unregisterLoadedBy(loader).forEach { add("placeholders %${it}_…%") }
+            menuEvents.releaseLoadedBy(loader).takeIf { it > 0 }?.let { add("$it api.menus listener(s)") }
+            api.events.unsubscribeLoadedBy(loader).takeIf { it > 0 }?.let { add("$it api.events handler(s)") }
+        }
+        if (left.isNotEmpty()) logger.fine("[Artisan] ${plugin.name} disabled: removed ${left.joinToString()}")
+    }
+
     override fun onDisable() {
+        localEditorBundles.stop()
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).
         api.modules.active().forEach { runCatching { it.onDisable() } }
@@ -188,7 +243,8 @@ open class ArtisanPlugin : JavaPlugin() {
         suite.unregister()
         if (::database.isInitialized) database.closeAll()
         runtime.commandRegistrar.unregisterAll()
-        menuProvider.shutdown()
+        menuProviderOrNull?.shutdown()
+        if (!net.artisanmc.plugin.platform.ServerPlatform.paper) runCatching { net.artisanmc.plugin.render.dialog.SpigotDialogRenderer.unregister() }
         if (packetEventsLoaded) runCatching { PacketEvents.getAPI().terminate() }
         logger.info("Artisan disabled")
     }
@@ -203,14 +259,32 @@ open class ArtisanPlugin : JavaPlugin() {
 
     internal fun stopEditor() = editorHost.stop()
 
-    /** What this server announces at Presence: to the editor it serves, and in its `hello` to a hub. */
-    internal fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
-        modules = api.modules.active().map { net.artisanmc.plugin.protocol.ServerAnnouncement.module(it.id, description.version) },
+    /** The last announcement built; null once a module, a command or an editor bundle changed. */
+    @Volatile private var announced: net.artisanmc.plugin.protocol.ServerAnnouncement? = null
+
+    /**
+     * What this server announces at Presence: to the editor it serves, and in its `hello` to a hub.
+     * Built once per change: the hub's routes read it at each GET (seven of them per editor load),
+     * and `notifyModulesChanged` is the one signal that the registries behind it moved.
+     */
+    internal fun announcement(): net.artisanmc.plugin.protocol.ServerAnnouncement =
+        announced ?: buildAnnouncement().also { announced = it }
+
+    /** The next [announcement] is built again: called with the modules' and commands' change signal. */
+    internal fun announcementChanged() { announced = null }
+
+    private fun buildAnnouncement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
+        modules = api.modules.active().map {
+            net.artisanmc.plugin.protocol.ServerAnnouncement.module(
+                it.id, description.version, localEditorBundles.wire(it.id), api.templates.of(it.id).map { t -> t.toWire() },
+            )
+        },
         dataSources = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources),
         models = api.models.declared().map { it.document },
         screens = api.screens.declared().map { it.toWire() },
         actions = api.actionRegistry.registered().map { it.toWire() },
         documentKinds = api.documentKinds.registered().map { it.toWire() },
+        playerCommands = net.artisanmc.plugin.ws.PlayerCommandReport.build(api.playerCommands),
     )
 
     val environmentFile: File get() = File(dataFolder, "environment.yml")
@@ -231,15 +305,24 @@ open class ArtisanPlugin : JavaPlugin() {
     fun loadPluginConfig(): PluginConfig {
         net.artisanmc.plugin.config.EnvironmentFile.prepare(environmentFile)
         reloadConfig()
-        return currentConfig()
+        return readPluginConfig().also { loadedConfig = it }
     }
+
+    /** What [loadPluginConfig] last read: the configuration the plugin runs with. */
+    @Volatile private var loadedConfig: PluginConfig? = null
 
     fun databaseSettings(): net.artisanmc.plugin.database.DatabaseSettings =
         net.artisanmc.plugin.database.readDatabaseSettings(
             org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(environmentFile), config, dataFolder,
         ) { logger.warning("[database] environment variable $it is not set (environment.yml)") }
 
-    fun currentConfig(): PluginConfig =
+    /**
+     * The configuration as loaded at start or by the last `/artisan reload` or settings write: a
+     * command reads it without parsing `environment.yml` again.
+     */
+    fun currentConfig(): PluginConfig = loadedConfig ?: readPluginConfig()
+
+    private fun readPluginConfig(): PluginConfig =
         PluginConfig.from(config, org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(environmentFile))
 
     fun reinit(cfg: PluginConfig) = runtime.reinit(cfg)

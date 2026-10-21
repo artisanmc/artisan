@@ -147,22 +147,36 @@ class ProjectReader(
     }
 
     /**
-     * A folder's Documents, **discovered by scan**.
-     *
-     * A legacy manifest `files:` block still present is **merged**, never
-     * subtracted: it cannot hide a real file. Alphabetical order, so stable from
-     * one load to the next.
+     * The module's Documents, **discovered by scan** of every themed folder
+     * ([DocumentLayout]): `<folders…>/<kind dir>/<id>.yaml`. A file the layout
+     * refuses (duplicate id, subfolder of a kind folder…) is reported through
+     * [onSkip] and not read. Alphabetical order, so stable from one load to the next.
      */
-    private fun documentIds(projectDir: File, dir: String, legacy: List<String>): List<String> {
-        val scanned = File(projectDir, dir).listFiles()
-            ?.filter { it.isFile && it.name.endsWith(".yaml") && !it.name.startsWith(".") }
-            ?.map { it.nameWithoutExtension }
-            ?: emptyList()
-        return (scanned + legacy).distinct().sorted()
+    private fun documentFiles(projectId: String, projectDir: File): List<DocumentLayout.Entry> {
+        val paths = projectDir.walkTopDown()
+            .maxDepth(SCAN_DEPTH)
+            .onEnter { dir ->
+                dir == projectDir || !(dir.name.startsWith(".") ||
+                    (dir.parentFile == projectDir && dir.name in DocumentLayout.RESOURCE_DIRS))
+            }
+            .filter { it.isFile }
+            .map { it.relativeTo(projectDir).invariantSeparatorsPath }
+            .toList()
+        val layout = DocumentLayout.classify(paths, DocumentKinds.all().map { it.dir }.toSet())
+        for (e in layout.errors) {
+            logger?.warning("[Artisan] skipping ${projectDir.name}/${e.path}: ${e.reason}")
+            onSkip(projectId, e.path, e.reason)
+        }
+        return layout.documents.sortedBy { it.id }
     }
 
-    fun readAll(): List<RuntimeProject> =
-        roots.all().mapNotNull { (projectId, dir) ->
+    fun readAll(): List<RuntimeProject> = read(roots.all())
+
+    /** Only the projects [ids], read like [readAll]: a folder just registered. */
+    fun read(ids: Set<String>): List<RuntimeProject> = read(roots.all().filterKeys { it in ids })
+
+    private fun read(dirs: Map<String, File>): List<RuntimeProject> =
+        dirs.mapNotNull { (projectId, dir) ->
             // Tolerant per project: a broken manifest/lang never nukes the
             // whole reload (which would fail plugin enable + cascade to
             // add-ons that `depend: Artisan`).
@@ -253,23 +267,25 @@ class ProjectReader(
             ?.associateBy { it.id } ?: emptyMap()
 
     /**
-     * One folder per registered kind, each file through its kind's reader.
+     * Every Document the layout finds, each file through its kind's reader.
      * Tolerant per file (like data sources): a single unparseable Document —
      * e.g. a stale-format file mid-migration — logs + skips (and is reported
      * through [onSkip]) instead of failing the whole reload and the plugin
      * enable.
      */
-    private fun readDocuments(projectDir: File, ctx: ReadContext): Map<String, List<RuntimeDocument>> =
-        DocumentKinds.all().associate { kind ->
+    private fun readDocuments(projectDir: File, ctx: ReadContext): Map<String, List<RuntimeDocument>> {
+        val byDir = documentFiles(ctx.projectId, projectDir).groupBy { it.dir }
+        return DocumentKinds.all().associate { kind ->
             val reader = coreReaders[kind.kind] ?: rawReader(kind)
-            kind.kind to documentIds(projectDir, kind.dir, ctx.manifest.files[kind.dir].orEmpty()).mapNotNull { docId ->
-                val f = File(projectDir, "${kind.dir}/$docId.yaml").takeIf { it.exists() } ?: return@mapNotNull null
+            kind.kind to byDir[kind.dir].orEmpty().mapNotNull { entry ->
+                val f = File(projectDir, entry.path)
                 tolerant(
-                    "${kind.kind} ${f.name}",
-                    onFail = { e -> onSkip(ctx.projectId, "${kind.dir}/${f.name}", e.message ?: e::class.simpleName.orEmpty()) },
-                ) { reader(f, docId, ctx) }
+                    "${kind.kind} ${entry.path}",
+                    onFail = { e -> onSkip(ctx.projectId, entry.path, e.message ?: e::class.simpleName.orEmpty()) },
+                ) { reader(f, entry.id, ctx) }
             }
         }
+    }
 
     /*
      * Project sources — scanned, not manifest-listed. Tolerant per file: a bad
@@ -495,5 +511,10 @@ class ProjectReader(
             )
         }
         return yaml.copy(elements = resolved, layers = emptyList())
+    }
+
+    private companion object {
+        /** Deep enough to report a misplaced file a few levels past [DocumentLayout.MAX_DEPTH]. */
+        const val SCAN_DEPTH = DocumentLayout.MAX_DEPTH + 5
     }
 }

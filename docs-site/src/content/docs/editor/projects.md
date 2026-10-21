@@ -34,7 +34,7 @@ resizes to fit; other groups and documents stay where they are. Both actions sup
 
 ## Where projects live
 
-Every project lives on a Minecraft server's disk, in `plugins/Artisan/projects/<folder>/`
+Every project lives on a Minecraft server's disk, in `plugins/Artisan/modules/<folder>/`
 (or in the folder an add-on registers). The editor is served by the plugin itself:
 type `/artisan editor` in game and open the single-use link it prints. What you can do
 depends on your permissions (`artisan.editor.view`, `.edit`, `.publish`, `.config`);
@@ -57,6 +57,26 @@ The name becomes the project's folder on the server and must not contain path se
 Creation completes only after the server writes the project. If it does not respond,
 or already has a project with that name, the dialog shows an error and keeps your
 input. After a timeout, check the project list before trying again.
+
+## Adding a module's examples
+
+Modules can ship example content (quest groups, menus…) that any project can use.
+The first time the server starts with such a module, it may create an example project
+once; delete it if you don't want it, it won't come back.
+
+To copy a module's examples into another project, use **+ → From a module…** next to
+the project name. Each template lists its files and their state: *Not added*,
+*Unchanged*, *Modified*, *Removed*, or *New version* when the module ships an update.
+Nothing changes on its own: **Add to project** copies the missing files, **Update** takes
+the new version of the files you never touched, and **Reset to module version** replaces
+one file (your version stays in the project's Versions). A file that already exists with
+other content is never overwritten without asking. Publish or discard your changes first:
+the copy is written on the server, then the project reloads.
+
+**Open default version** shows a template as shipped, read only, even after you changed
+your copy. Tick menus, items or commands, **Copy**, then paste them on your board with
+Ctrl+V, texts included. In the document list, a dot marks the documents copied from a
+module; hover it to see whether you modified them or a new version is available.
 
 ## Importing a project from a ZIP
 
@@ -165,3 +185,22 @@ before projects can be created, renamed or deleted on it.
 ZIP imports use the enclosing project folder as the project's identity, rather than an
 old manifest ID. See [Importing a project from a ZIP](#importing-a-project-from-a-zip)
 above.
+
+## Menus a module provides
+
+Some modules ship menus and dialogs their code opens by name, such as the shop's main menu. They sit in the module's folder like your own menus, marked with a puzzle icon in the list and with the module's name above them on the board. You can edit them freely. You cannot delete or move them: **Reset** in a menu's `···` options puts the module's version back. While you have not changed one, it follows each new version of the module by itself. Once you have, it stays yours, and a dot tells you when the module ships a new version.
+
+## Commands a module provides
+
+The board of a module's folder also shows the commands the module declares, with a dashed
+frame and the module's name under each one. An arrow leaves a command when it opens
+something: the menu the module declares (`/boutique` opens the shop's main menu), or the
+`steps` you gave it on its page in the System section. A green dot means you changed the
+command, and a struck-out name means you disabled it. Double-click a command to open its page.
+You can move it on the board, but you cannot delete it: disable it from its page instead.
+
+On its page, every field starts from the module's value. The button beside a field turns on
+once you change it, and puts the module's value back. Descriptions and the cooldown message
+accept MiniMessage and show their rendering. On the server's disk, each of these commands has a
+file in its module's folder, `overrides/command/<module>.<command>.yaml`, written with the
+module's values as comments: uncomment a line to change it, then run `/artisan reload`.

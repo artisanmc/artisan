@@ -50,6 +50,8 @@ data class PluginConfig(
     val perPlayerLanguage: Boolean,
     val resourcePack: ResourcePackConfig,
     val web: WebConfig = WebConfig(),
+    /** `dev.editor-bundles` (environment.yml): module id → the file its editor view is read from. */
+    val devEditorBundles: Map<String, String> = emptyMap(),
 ) {
     companion object {
         fun from(cfg: FileConfiguration, environment: FileConfiguration = cfg): PluginConfig {
@@ -69,7 +71,14 @@ data class PluginConfig(
                     hubUrl = hubWebSocketUrl(EnvironmentFile.string(environment, "web.hub", "")),
                     secret = EnvironmentFile.string(environment, "web.secret", ""),
                     sessionDays = environment.getInt("web.session-days", 7).coerceAtLeast(1),
+                    tunnel = EnvironmentFile.string(environment, "web.tunnel", WebConfig.DEFAULT_TUNNEL).trim(),
+                    tunnelAccess = EnvironmentFile.string(environment, "web.tunnel-access", ""),
                 ),
+                devEditorBundles = environment.getConfigurationSection("dev.editor-bundles")?.let { section ->
+                    section.getKeys(false)
+                        .associateWith { EnvironmentFile.string(section, it, "").trim() }
+                        .filterValues { it.isNotEmpty() }
+                }.orEmpty(),
             )
         }
     }

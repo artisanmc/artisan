@@ -8,6 +8,7 @@ import {
 } from "@/features/serverIndex/serverIndex";
 import { serverIndexScope, useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -48,8 +49,12 @@ function groupIcon(group: SearchGroup): GroupIcon {
 function groupLabel(group: SearchGroup, t: TFunction): string {
   const key = GROUP_LABEL[group];
   if (key) return t(key);
-  const label = documentKindContribution(group)?.label ?? group;
-  return t(label, { defaultValue: label });
+  return contributionLabel(
+    documentKindContribution(group),
+    group,
+    t,
+    useUiStore.getState().editorLang,
+  );
 }
 
 export function SearchPalette({ projectId }: { projectId: ProjectId }) {

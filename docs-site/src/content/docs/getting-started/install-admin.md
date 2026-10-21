@@ -31,10 +31,11 @@ On first start Artisan creates its folder:
 |---|---|
 | `plugins/Artisan/config.yml` | Server settings: language, resource pack. Editable from the editor. [Reference](/wiki/configuration/config-yml/) |
 | `plugins/Artisan/environment.yml` | Where and who this server is: web editor, network, database. Never read nor written by the editor. [Reference](/wiki/configuration/environment/) |
-| `plugins/Artisan/projects/` | Your projects (menus, dialogs, images), one folder each. |
+| `plugins/Artisan/modules/` | Your projects (menus, dialogs, images), one folder each. Servers from before October 2026 had them in `projects/`: Artisan moves them on first start and keeps the old folder as `projects.artisan-migrated/`. |
 | `plugins/Artisan/database/` | The embedded H2 database (`suite.mv.db`), created when a plugin first asks for the database. |
 | `plugins/Artisan/cache/` | Downloaded Minecraft assets, resource packs (Java and Bedrock), asset index. |
 | `plugins/Artisan/network-secret` | Only on a network hub with no other secret source. See [the shared secret](/wiki/network/setup/#4-the-shared-secret). |
+| `plugins/Artisan/tunnel-secret` | On the hub, unless `web.url` is set or `web.tunnel` is empty: it decides the editor's address on the tunnel server. Keep it to keep the address; delete it to get a new one. |
 
 The console should show:
 
@@ -56,11 +57,12 @@ the editor styled (chests of 3 or 6 rows). On first start next to Geyser, Artisa
 `plugins/Geyser-Spigot/custom_mappings/artisan.json` and asks for one more restart so that Geyser
 loads it. Geyser on a proxy is not supported yet.
 
-## 3. Open the port, or put a proxy in front
+## 3. Nothing to open (or your own address)
 
-Admins reach the editor on port 8765 of the server. Either open that port in your
-firewall for the people who edit menus, or keep it closed and serve the editor over
-HTTPS through a reverse proxy or a tunnel: see [Web server & HTTPS](/wiki/configuration/web-server/).
+By default the editor goes through the Artisan tunnel server: `/artisan editor` gives an
+`https://<id>.artisanmc.app` link and no port needs to be open. To serve it yourself
+(the tunnel server sees the editor's traffic), set `web.url` and open port 8765 or put a
+reverse proxy in front: see [Web server & HTTPS](/wiki/configuration/web-server/).
 
 ## 4. Next steps
 

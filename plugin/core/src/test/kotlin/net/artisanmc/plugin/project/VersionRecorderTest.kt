@@ -71,6 +71,33 @@ class VersionRecorderTest {
     private fun recorder(roots: ProjectRoots, storage: VersionStorage?, writer: Executor = direct) =
         VersionRecorder(roots, { storage }, writer, logger) { now }
 
+    @Test fun `a Project a reload left as it was records no Version again, the state is recorded each time`() {
+        val storage = FakeStorage()
+        val recorder = recorder(roots("a", "b"), storage)
+        recorder.record(snapshot("a", "b"), emptyMap()) {}
+        assertEquals(listOf("a", "b"), storage.versions.map { it.folder })
+        recorder.record(snapshot("a", "b"), emptyMap()) {}
+        assertEquals(2, storage.versions.size, "nothing changed: no Version asked of the storage")
+        assertEquals(2, storage.states.size, "the loaded state is recorded each time")
+        val changed = ProjectSnapshot(
+            files = mapOf("a" to mapOf("menus/main.yaml" to "title: changed"), "b" to mapOf("menus/main.yaml" to "title: b", ".artisan/editor.yaml" to "board: {}")),
+            binaries = emptyMap(), skipped = emptyMap(),
+        )
+        recorder.record(changed, emptyMap()) {}
+        assertEquals(listOf("a", "b", "a"), storage.versions.map { it.folder })
+        // A publication records its author even when the content is the one recorded.
+        recorder.record(changed, mapOf("b" to PublicationAuthor("u1", "Iban"))) {}
+        assertEquals(listOf("a", "b", "a", "b"), storage.versions.map { it.folder })
+    }
+
+    @Test fun `a Version that failed is asked again at the next reload`() {
+        val storage = FakeStorage(failing = setOf("a"))
+        val recorder = recorder(roots("a"), storage)
+        recorder.record(snapshot("a"), emptyMap()) {}
+        recorder.record(snapshot("a"), emptyMap()) {}
+        assertEquals(2, warnings.count { it.startsWith("[Artisan] Version of project a not recorded") })
+    }
+
     @Test fun `a Version leaves out the artisan metadata, which goes to the loaded state`() {
         val roots = roots("shop")
         val storage = FakeStorage()

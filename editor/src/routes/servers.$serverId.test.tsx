@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigateSpy = vi.hoisted(() => vi.fn());
@@ -153,9 +153,9 @@ describe("ServerDetailPage", () => {
     expect(link).toHaveAttribute("href", "/servers/$serverId/projects/$projectId");
   });
 
-  /** Same grouping as the sidebar: a project owned by an Add-on leaves the flat
-   *  list and appears under the module name. */
-  it("shows an owned project under its module, not in the projects list", async () => {
+  /** Same split as the sidebar: a folder shipped by an Add-on opens from its
+   *  module's card, beside its screens; the admin's folders stay in their list. */
+  it("opens an owned folder from its module's card, apart from the admin's folders", async () => {
     screensState.screens = [
       {
         id: "catalogue",
@@ -166,12 +166,17 @@ describe("ServerDetailPage", () => {
       },
     ];
     render(<ServerDetailPage />);
-    await waitFor(() => expect(screen.getByText("Boutique")).toBeInTheDocument());
-    expect(screen.queryByText("boutique_shop")).not.toBeInTheDocument();
+    const card = (await screen.findByText("Boutique")).closest("li")!;
+    expect(within(card).getByRole("link", { name: "serverDetail.openModule" })).toHaveAttribute(
+      "href",
+      "/servers/$serverId/projects/$projectId",
+    );
+    expect(within(card).getByRole("link", { name: "Catalogue" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /boutique_shop/ })).toBeNull();
     expect(screen.getByText("Hub")).toBeInTheDocument();
   });
 
-  it("shows the module's tabs: editor then declared screens", async () => {
+  it("shows only the module's screens under it, no editor entry", async () => {
     screensState.screens = [
       {
         id: "catalogue",
@@ -182,10 +187,9 @@ describe("ServerDetailPage", () => {
       },
     ];
     render(<ServerDetailPage />);
-    await screen.findByText("Boutique");
-    expect(screen.getByText("screens.editorEntry")).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: "Catalogue" });
+    const link = await screen.findByRole("link", { name: "Catalogue" });
     expect(link).toHaveAttribute("href", "/servers/$serverId/screens/$screenId");
+    expect(screen.queryByText("screens.editorEntry")).not.toBeInTheDocument();
   });
 
   /**
