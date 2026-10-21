@@ -119,6 +119,7 @@ de navigation (comme `open_previous_menu`) au lieu de la vider ; pile vide = fer
 Seule la raison de fermeture `PLAYER` déclenche le retour — `close_menu` (`PLUGIN`) ferme tout.
 Câblé dans `listener/MenuListener.kt` (tick suivant, comme le vidage d'historique). Les dialogs ne
 sont pas concernés.
+Spigot ne donne pas la raison de fermeture (`MenuCloseReason.UNKNOWN`) : le retour n'y joue pas.
 
 ## `lang/` — arborescence, pas fichier plat
 

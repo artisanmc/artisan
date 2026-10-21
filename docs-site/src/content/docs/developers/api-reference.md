@@ -133,11 +133,12 @@ Guide: [Menus](/wiki/developers/menus/).
 | [`MenuSubscription`][MenuApi] | `@Beta` | 1.8.0 | `cancel()` |
 | [`MenuOpenEvent`][MenuOpenEvent] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `args` |
 | [`MenuClickEvent`][MenuClickEvent] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`, `Cancellable`: `menu`, `slot`, `click: ClickType`, `hasActions()` |
-| [`MenuCloseEvent`][MenuCloseEvent] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`: `menu`, `reason: InventoryCloseEvent.Reason` |
+| [`MenuCloseEvent`][MenuCloseEvent] | `@Beta` | 1.8.0 | Bukkit `PlayerEvent`: `menu`, `closeReason: MenuCloseReason` (2.10.0; `UNKNOWN` on Spigot). `getReason()`, Paper's type, is `@Sunset` |
 | [`PlaceholderRegistry`][PlaceholderRegistry] | `@Beta` | 1.8.0 | `register(namespace, resolver[, exposeToPapi])`, `unregister(namespace)`, `namespaces()`, `resolve(player, text)`, `NOOP` |
 | [`PlaceholderResolver`][PlaceholderRegistry] | `@Beta` | 1.8.0 | `resolve(player: Player?, key): String?` |
 | [`ModuleActionsApi`][ModuleActionsApi] | `@Beta` | 1.4.0 | `execute(player, actions, args = {}, projectId = null)` — runs Action DSL on the player's thread; `projectId` since 1.6.0 |
 | [`ItemStackApi`][ItemStackApi] | `@Beta` | 1.4.0 | `serialize(stack): String`, `describe(stack): Map<String, Any>` |
+| `TextApi` (`api.getText()`) | `@Beta` | 2.10.0 | `send(to, miniMessage)`, `legacy(miniMessage)` (a `§` string for Bukkit's String methods), `plain`, `fromLegacy`, `NOOP`. Use it rather than Adventure types: the plugin then runs on Spigot too |
 | [`ActionRegistry`][ActionRegistry] | `@Beta` | 2.0.0 | `register(decl)`, `unregister(name)`, `find(name)`, `has(name)`, `names()`, `declarations()`, `registered()` — every chain action, Artisan's own included, dispatches here; a module's actions are removed with it |
 | [`ActionDeclaration`][ActionDeclaration] | `@Beta` | 2.0.0 | `(name, args: List<ModelField>, primary?, handler)`; `normalize(wire)`, `bind(wire)` (defaults added), `canonical(args)`, `toWire()`. Names `ns:name`; the scalar wire form (`- quests:start: intro`) binds `primary` |
 | [`ActionHandler`][ActionHandler] | `@Beta` | 2.0.0 | `execute(ctx: ActionContext, args: Map<String, Object>, runtime: ActionRuntime): ActionContext` — return `ctx`, or `ctx.withArgs(...)` to bind values for the rest of the chain |

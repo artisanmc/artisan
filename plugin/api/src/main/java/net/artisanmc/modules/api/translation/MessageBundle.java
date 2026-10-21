@@ -3,6 +3,7 @@ package net.artisanmc.modules.api.translation;
 import java.util.Map;
 import java.util.Set;
 import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Sunset;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.Nullable;
@@ -50,13 +51,44 @@ public interface MessageBundle {
     /** {@code template} with the placeholders above replaced, still MiniMessage. */
     String format(String template, Map<String, ?> placeholders);
 
-    /** {@link #raw}, {@link #format}ted and parsed. */
+    /**
+     * {@link #raw} in {@code viewer}'s language, {@link #format}ted, parsed and sent to it.
+     *
+     * @since 2.10.0
+     */
+    void send(CommandSender viewer, String key, Map<String, ?> placeholders);
+
+    /** @since 2.10.0 */
+    default void send(CommandSender viewer, String key) {
+        send(viewer, key, Map.of());
+    }
+
+    /**
+     * {@link #raw}, {@link #format}ted, as a {@code §}-coded string for the Bukkit methods that
+     * take one (item names and lore, inventory and boss bar titles). See {@code TextApi.legacy}.
+     *
+     * @since 2.10.0
+     */
+    String legacy(String lang, String key, Map<String, ?> placeholders);
+
+    /** @since 2.10.0 */
+    default String legacy(CommandSender viewer, String key, Map<String, ?> placeholders) {
+        return legacy(langOf(viewer), key, placeholders);
+    }
+
+    /** {@link #raw}, {@link #format}ted and parsed. Paper only. */
+    @Sunset(reason = "Returns Adventure's Component, which Spigot lacks and Artisan 3.0 relocates",
+        removeInVersion = "3.0.0", replacement = "send, legacy, or raw + format")
     Component get(String lang, String key, Map<String, ?> placeholders);
 
+    @Sunset(reason = "Returns Adventure's Component, which Spigot lacks and Artisan 3.0 relocates",
+        removeInVersion = "3.0.0", replacement = "send(viewer, key, placeholders)")
     default Component get(CommandSender viewer, String key, Map<String, ?> placeholders) {
         return get(langOf(viewer), key, placeholders);
     }
 
+    @Sunset(reason = "Returns Adventure's Component, which Spigot lacks and Artisan 3.0 relocates",
+        removeInVersion = "3.0.0", replacement = "send(viewer, key)")
     default Component get(CommandSender viewer, String key) {
         return get(langOf(viewer), key, Map.of());
     }
