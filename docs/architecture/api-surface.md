@@ -554,7 +554,7 @@ Migrations MUST be pure, idempotent, and write-once. See `versioning.md` §2.5.
 
 ### `net.artisanmc.modules.api.project.ProjectContentApi`
 
-Read-only project content on disk (`plugins/Artisan/modules/`). The `.artisan*` namespace is never exposed. Re-read in `onReload()` after a sync.
+Read-only project content (`plugins/Artisan/modules/` and the registered roots), as the last load read it: `list` and `read` answer from the loaded snapshot, without a lock or a disk walk; a Project not loaded yet (a folder registered a moment ago) and a file the snapshot lacks (one the module just wrote, before its `reload()`) are read from the disk. The `.artisan*` namespace is never exposed. Re-read in `onReload()` after a sync.
 
 | Member | Type | Since |
 |---|---|---|

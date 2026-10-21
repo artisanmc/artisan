@@ -183,6 +183,20 @@ Rien de bloquant dans `onEnable` ni sur le thread global après lui (issue #42) 
 - Une publication interrompue (`ProjectPublisher.recover`) n'est rejouée que par
   `ProjectRoots.all()`, à la première vue du dossier : plus aucune lecture ni écriture
   de l'éditeur ne la rejoue à chaque requête.
+- **Le registre des Projects ne verrouille jamais longtemps.** `ProjectRoots.all()` sert un
+  listing pris une fois (un `listFiles` de la racine, un petit fichier `.artisan/project-id`
+  par dossier, le rejeu des publications interrompues) et gardé jusqu'à `invalidate()` : une
+  relecture l'invalide avant de lire, un `register` aussi. Un dossier créé à la main apparaît
+  donc à la relecture suivante, comme son contenu. Les clés sont lues au même scan et
+  servies de là (`descriptors()` ne touche plus le disque). La relecture et les écritures
+  disque de l'éditeur tiennent un verrou propre au provider (`SyncedMenuProvider.diskLock`),
+  jamais le moniteur de `ProjectRoots` : le `onEnable` d'un module (`moduleFolder`,
+  `register`) et `api.project` ne l'attendent pas. `api.project.list/read` répondent depuis
+  le snapshot chargé, sans verrou ni parcours du disque ; un Project que le snapshot n'a pas
+  encore (dossier enregistré à l'instant, lu au tick suivant) et un fichier qu'il n'a pas
+  (écrit par le module avant son `reload()`) sont lus sur le disque. Avant, `all()`,
+  `api.project.list/read` et `register` prenaient le moniteur que la relecture et chaque
+  écriture tenaient pendant des secondes, depuis le thread principal.
 - Aucun JDBC ni I/O disque dans le chemin join, tick ou clic.
 
 ## Reload atomique
