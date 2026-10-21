@@ -17,6 +17,19 @@ class EditorRequestTest {
     }
 
     @Test
+    fun `hello_ack carries the Bedrock pack, absent from an older hub`() {
+        assertEquals(EditorRequest.PackUpdate.Incomplete, (parse("""{"type":"hello_ack"}""") as EditorRequest.HelloAck).bedrockPack)
+        assertEquals(EditorRequest.PackUpdate.Cleared, (parse("""{"type":"hello_ack","bedrock_pack":null}""") as EditorRequest.HelloAck).bedrockPack)
+        assertEquals(EditorRequest.PackUpdate.Incomplete, (parse("""{"type":"hello_ack","bedrock_pack":{}}""") as EditorRequest.HelloAck).bedrockPack)
+        assertEquals(
+            EditorRequest.PackUpdate.Apply("u", "h"),
+            (parse("""{"type":"hello_ack","bedrock_pack":{"url":"u","hash":"h"}}""") as EditorRequest.HelloAck).bedrockPack,
+        )
+        assertEquals(EditorRequest.BedrockPackUpdated("u", "h"), parse("""{"type":"bedrock_pack_updated","url":"u","hash":"h"}"""))
+        assertNull(parse("""{"type":"bedrock_pack_updated","url":"u"}"""))
+    }
+
+    @Test
     fun `hello_ack distinguishes a cleared pack from an incomplete one`() {
         assertEquals(EditorRequest.PackUpdate.Cleared, (parse("""{"type":"hello_ack"}""") as EditorRequest.HelloAck).resourcePack)
         assertEquals(

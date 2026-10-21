@@ -81,6 +81,7 @@ class PluginChannel(
             "network_name" to servers.local.label,
             // An object without an address leaves the server its current pack; null would remove it.
             "resource_pack" to (server.pack ?: emptyMap<String, String>()),
+            "bedrock_pack" to (server.bedrockPack ?: emptyMap<String, String>()),
         )
         // The hello is applied before the ack goes out: once the leaf reads hello_ack, every
         // editor request sees its protocol version, modules and configuration (no window where

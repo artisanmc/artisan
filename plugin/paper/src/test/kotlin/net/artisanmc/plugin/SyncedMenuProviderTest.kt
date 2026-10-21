@@ -176,6 +176,24 @@ class SyncedMenuProviderTest {
     }
 
     @Test
+    fun `provider forwards the Bedrock pack to its manager, from hello_ack and bedrock_pack_updated`() {
+        val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
+        val applied = mutableListOf<String>()
+        val mgr = object : net.artisanmc.plugin.resourcepack.BedrockPackManager(Files.createTempDirectory("artisan_bedrock_").toFile()) {
+            override fun runDownload(action: () -> Unit) {}
+        }
+        val provider = SyncedMenuProvider(net.artisanmc.plugin.project.ProjectRoots(packsRoot), logger = null)
+        provider.setBedrockPackManager(mgr)
+        provider.load()
+        val hash = "a".repeat(40)
+        provider.handleMessageForTesting("""{"type":"hello_ack","session_id":"s","resource_pack":{},"bedrock_pack":{"url":"http://x/$hash.mcpack","hash":"$hash"}}""")
+        provider.handleMessageForTesting("""{"type":"bedrock_pack_updated","url":"http://x/$hash.mcpack","hash":"$hash"}""")
+        // Nothing downloaded (no network here): the manager was only asked.
+        assertNull(mgr.current)
+        assertTrue(applied.isEmpty())
+    }
+
+    @Test
     fun `provider applies resource_pack from hello_ack`() {
         val packsRoot = Files.createTempDirectory("artisan_packs_").toFile()
         val mgr = ResourcePackManager(plugin, ResourcePackConfig(delegateToDir = null, delegateReloadCommand = null))

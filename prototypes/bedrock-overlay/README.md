@@ -71,6 +71,16 @@ classique forcée sur mobile) : c'est la première version, qui donnait un écra
 
 La version du pack suit son contenu, donc un client Bedrock retélécharge le pack dès qu'il change.
 
+## v2 : le même menu comme projet Artisan normal
+
+Depuis le générateur de pack Bedrock d'Artisan (`editor/src/lib/pack/bedrock/`), le prototype n'a plus
+besoin de son pack à la main : `generate.py --v2 --install` écrit `projects/bedrock_proto` avec
+`assets/glyphs/{frame,claim,x}.png` (+ descripteurs) et un menu `gifts` ordinaire
+(`vanilla_texture: false`, fond en couche `background`, texte `Bonjour {player.name}`, CLAIM et X en
+boutons image), **et retire le pack et le mapping du prototype** (`--uninstall` seul fait juste ça) :
+Artisan enregistre lui-même `artisan:hit_area` et son pack auprès de Geyser. Les packs Java et Bedrock
+sont ensuite construits par l'éditeur à la publication du projet.
+
 ## Si l'écran est vide ou le fond absent
 
 Activer le journal de contenu du client : Paramètres > Créateur > « Interface du journal de contenu »

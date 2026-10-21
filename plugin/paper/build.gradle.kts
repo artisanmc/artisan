@@ -13,6 +13,7 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.nexomc:nexo:0.9.0")
     compileOnly("io.th0rgal:oraxen:1.189.0")
+    compileOnly("org.geysermc.geyser:api:2.12.0-SNAPSHOT")
     // Menu contents sent as packets (PacketEventsMenuPackets). Bundled and relocated:
     // every major Minecraft version requires updating it.
     // Netty and adventure-api/key are provided by Paper. adventure-nbt is not

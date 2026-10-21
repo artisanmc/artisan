@@ -31,6 +31,7 @@ import net.artisanmc.plugin.integrations.SoftDepRegistry
 import net.artisanmc.plugin.render.LoreWrap
 import net.artisanmc.plugin.render.OffsetEncoder
 import net.artisanmc.plugin.render.packets.MenuWindows
+import net.artisanmc.plugin.render.title.BedrockTitle
 import net.artisanmc.plugin.render.title.TitleCompiler
 
 class ArtisanMenuHolder : InventoryHolder {
@@ -89,6 +90,8 @@ object MenuRenderer {
         dataSources: DataSourceRegistry? = null,
         projectData: ProjectDataResolver? = null,
         windows: MenuWindows? = null,
+        /** A Bedrock player (Geyser) gets the title its pack reads instead of the composed one. */
+        bedrock: (Player) -> Boolean = { false },
     ): MenuSession {
         // Deterministic fallback chain: requested lang → project defaultLang → empty.
         val langMap = menu.langMapWithFallback(lang)
@@ -111,7 +114,11 @@ object MenuRenderer {
         val papi = evaluator.deps.papi
         val interpolate: (String) -> String = { raw -> renderCtx.render(raw, papi) { k -> langMap[k] } }
         val images = imageButtons(menu, renderCtx, evaluator, lookupAsset)
-        val title = TitleCompiler.compileTitle(
+        val title = if (bedrock(player) && BedrockTitle.supports(menu.yaml)) {
+            Component.text(BedrockTitle.compile(menu, images.choices) { value ->
+                interpolate(TitleCompiler.resolveLText(value, langMap, lang, menu.defaultLang))
+            })
+        } else TitleCompiler.compileTitle(
             layers = menu.title + images.layers,
             lang = lang,
             langMap = langMap,

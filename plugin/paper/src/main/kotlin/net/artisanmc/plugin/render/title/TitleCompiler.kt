@@ -461,7 +461,7 @@ object TitleCompiler {
      * user text inside MiniMessage machinery (font wrapper, offsets), where a raw §
      * would make the final deserialize throw.
      */
-    private fun resolveLText(
+    internal fun resolveLText(
         value: LText,
         langMap: Map<String, String>,
         lang: String = "",

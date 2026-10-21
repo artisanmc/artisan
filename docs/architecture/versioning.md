@@ -269,7 +269,8 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
   toute route qui le vise répond 503 `plugin_update_required`.
 - **Mineure** : ajoute des champs ou des messages, que l'autre côté ignore. Une route qui envoie un
   message ajouté vérifie la mineure du serveur visé et répond 501 `plugin_update_required` au lieu
-  d'attendre un timeout (`1.1` : `project_create`, `project_delete`, `project_rename`).
+  d'attendre un timeout (`1.1` : `project_create`, `project_delete`, `project_rename` ; `1.2` :
+  `bedrock_pack_updated`, que le hub garde pour le prochain `hello_ack` d'une feuille plus ancienne).
 - **Une release = un numéro** pour tous les jars ; mettre à jour hub et feuilles ensemble.
 
 Le serveur qui héberge le hub lui parle en process (`LocalServerLink`) : jamais d'écart de version.

@@ -407,6 +407,110 @@ def project_files():
     }
 
 
+# --- v2: the same menu as a normal Artisan project, styled by the generator ----
+#
+# No hand-made pack: the editor builds the Java and Bedrock packs from these files
+# when the project is published (editor/src/lib/pack/bedrock/). The prototype pack
+# and its Geyser mapping must be gone first (`--uninstall`): both would register the
+# `artisan:hit_area` item a second time.
+
+CP_FRAME, CP_CLAIM, CP_X = 0xE100, 0xE101, 0xE102   # Java glyph codepoints, U+E000..U+F7FF
+
+
+def claim_png():
+    c = Canvas(3 * CELL, CELL)
+    c.frame(1, 2, 3 * CELL - 2, CELL - 4, CLAIM, CLAIM_EDGE)
+    c.text("CLAIM", 3 * CELL // 2, 7, BUTTON)
+    return c.png()
+
+
+def x_png():
+    c = Canvas(CELL, CELL)
+    c.frame(2, 2, CELL - 4, CELL - 4, BUTTON, BUTTON_EDGE)
+    c.text("X", CELL // 2, 7, INK)
+    return c.png()
+
+
+def frame_v2_png():
+    """The background without the X: that button is an image button of the menu."""
+    c = Canvas(BG_W, BG_H)
+    c.frame(0, 0, BG_W, BG_H, PANEL, BORDER)
+    c.frame(40, 4, 96, 13, BORDER, INK)
+    c.text("DAILY GIFTS", BG_W // 2, 8, BUTTON)
+    for slot in list(range(10, 17)) + [49]:
+        x, y = cell(slot)
+        c.frame(x, y, CELL, CELL, CELL_FILL, CELL_EDGE)
+    return c.png()
+
+
+def descriptor(width, height, codepoint, ascent=None):
+    out = f"width: {width}\nheight: {height}\ncodepoint: {codepoint}\n"
+    return out + (f"ascent: {ascent}\n" if ascent is not None else "")
+
+
+def project_v2_files():
+    menu = """schema: menu/v1
+id: gifts
+size: 54
+vanilla_texture: false
+title:
+  - kind: background
+    asset: frame
+  - kind: text
+    value: "Bonjour {player.name}"
+    x: 8
+    y: 129
+    color: "#ffffff"
+elements:
+  - id: gift
+    positions: "10-16"
+    material: CHEST
+    title: Gift
+    click:
+      left: 'send_message "gift: left"'
+      right: 'send_message "gift: right"'
+  - id: claim
+    positions: "30-32"
+    image: { asset: claim, fit: stretch }
+    title: Claim
+    click:
+      left: 'send_message "claim: left"'
+      right: 'send_message "claim: right"'
+  - id: close
+    positions: "8"
+    image: { asset: x, fit: stretch }
+    title: Close
+    click:
+      left: close_menu
+  - id: head
+    positions: "49"
+    material: PLAYER_HEAD
+    head: Notch
+    title: Head test
+"""
+    return {
+        "manifest.yaml": "schema: manifest/v1\nproject_id: bedrock_proto\ndefault_lang: en\nlanguages: [en]\n"
+                         "files:\n  menus: [gifts]\n  commands: []\n",
+        "menus/gifts.yaml": menu,
+        "assets/glyphs/frame.png": frame_v2_png(),
+        "assets/glyphs/frame.yaml": descriptor(BG_W, BG_H, CP_FRAME, ascent=13),
+        "assets/glyphs/claim.png": claim_png(),
+        "assets/glyphs/claim.yaml": descriptor(3 * CELL, CELL, CP_CLAIM),
+        "assets/glyphs/x.png": x_png(),
+        "assets/glyphs/x.yaml": descriptor(CELL, CELL, CP_X),
+    }
+
+
+def uninstall():
+    """Removes the prototype pack and mapping: Artisan registers its own now."""
+    geyser = SERVER / "plugins" / "Geyser-Spigot"
+    for path in (geyser / "packs" / "artisan_bedrock_proto.mcpack",
+                 geyser / "custom_mappings" / "artisan_proto.json"):
+        if path.exists():
+            path.unlink()
+            print(f"removed {path}")
+
+
 def write(root, files):
     for rel, data in files.items():
         path = root / rel
@@ -419,7 +523,26 @@ def main():
     parser.add_argument("--install", action="store_true", help="copy into docker/server/plugins")
     parser.add_argument("--variant", choices=["mod", "full"], default="mod",
                         help="mod: one modification on the vanilla screen; full: whole chest_screen.json replaced")
+    parser.add_argument("--v2", action="store_true",
+                        help="the project as a normal Artisan project (packs built by the editor); "
+                             "with --install, also removes the prototype pack and mapping")
+    parser.add_argument("--uninstall", action="store_true", help="remove the prototype pack and mapping")
     args = parser.parse_args()
+
+    if args.uninstall:
+        uninstall()
+        return
+    if args.v2:
+        shutil.rmtree(BUILD, ignore_errors=True)
+        write(BUILD / "project", project_v2_files())
+        print(f"built {BUILD / 'project'} (v2)")
+        if args.install:
+            uninstall()
+            project = SERVER / "plugins" / "Artisan" / "projects" / "bedrock_proto"
+            shutil.rmtree(project, ignore_errors=True)
+            write(project, project_v2_files())
+            print(f"installed into {project}")
+        return
 
     shutil.rmtree(BUILD, ignore_errors=True)
     pack = pack_files(args.variant)

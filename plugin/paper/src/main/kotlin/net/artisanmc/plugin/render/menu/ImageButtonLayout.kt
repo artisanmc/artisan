@@ -45,7 +45,18 @@ data class ImageButtonLayout(val slots: List<Int>, val x: Int, val y: Int, val w
             return if (j < 27) Cell(1, j % 9, j / 9, 7, top) else Cell(2, j - 27, 0, 7, top + 58)
         }
 
+        /** [rectangle], when no other element shares a slot with it. */
         fun of(menu: MenuYaml, element: ElementYaml): ImageButtonLayout? {
+            val layout = rectangle(menu, element) ?: return null
+            val hidden = PlayerInventoryMode.parse(menu.playerInventory) == PlayerInventoryMode.HIDDEN
+            val limit = menu.size + if (hidden) MenuSlots.PLAYER_SLOTS else 0
+            if (menu.allElements.any { other -> other.id != element.id &&
+                (parsePositions(other.positionsSpec, limit) + (other.places?.placements?.map { it.position } ?: emptyList())).any { it in layout.slots } }) return null
+            return layout
+        }
+
+        /** The rectangle of slots an element covers, as `imageButtonArea` computes it; null when its slots form none. */
+        fun rectangle(menu: MenuYaml, element: ElementYaml): ImageButtonLayout? {
             if (element.iterates != null || element.places != null) return null
             val hidden = PlayerInventoryMode.parse(menu.playerInventory) == PlayerInventoryMode.HIDDEN
             val limit = menu.size + if (hidden) MenuSlots.PLAYER_SLOTS else 0
@@ -56,8 +67,6 @@ data class ImageButtonLayout(val slots: List<Int>, val x: Int, val y: Int, val w
             val left = cells.minOf { it.col }; val right = cells.maxOf { it.col }
             val top = cells.minOf { it.row }; val bottom = cells.maxOf { it.row }
             if (slots.size != (right - left + 1) * (bottom - top + 1)) return null
-            if (menu.allElements.any { other -> other.id != element.id &&
-                (parsePositions(other.positionsSpec, limit) + (other.places?.placements?.map { it.position } ?: emptyList())).any { it in slots } }) return null
             val origin = cells.first()
             return ImageButtonLayout(slots, origin.x + left * 18, origin.y + top * 18, (right - left + 1) * 18, (bottom - top + 1) * 18)
         }

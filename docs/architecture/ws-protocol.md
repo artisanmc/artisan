@@ -31,7 +31,7 @@ en 1008 (« not open yet: retry ») ; la feuille revient par son backoff.
 
 | Champ | Lu par le hub pour |
 |---|---|
-| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.1"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). |
+| `protocol_version` | `ProtocolVersion.CURRENT` (`"1.2"`). Majeure différente de celle du hub : serveur listé `updateRequired`, plus rien ne lui est envoyé (503 `plugin_update_required`). Mineure inférieure à 1 : pas de `project_create`/`_delete`/`_rename` (501 `plugin_update_required`). Mineure inférieure à 2 : pas de `bedrock_pack_updated` (le pack Bedrock attend le prochain `hello_ack`). |
 | `server_key` | Le **secret du réseau** (nom de champ hérité). Comparé en temps constant ; faux ou vide : fermeture 1008. |
 | `server_uuid` | Server id du serveur (`plugins/Artisan/server-id`) : son identité partout — `/api/v1/servers/:server`, `server_key_id`, préfixe de ses Projects (`<server id>.<dossier>`), clé de `Servers`. Absent, ou égal à celui du hub (dossier copié) : fermeture 1008. |
 | `database_id` | Identifiant de la base de suite (`artisan_meta`, généré une fois). Le hub refuse un `hello` dont l'identifiant diffère du sien, et tout `hello` s'il est lui-même en H2 : un réseau partage une base MySQL/MariaDB. |
@@ -49,10 +49,11 @@ en 1008 (« not open yet: retry ») ; la feuille revient par son backoff.
 l'envoie plus, l'empreinte suit par `custom_items_changed`.
 
 **`hello_ack`** (hub → feuille) : `{session_id, server_id, editor_url, network_name,
-resource_pack}`. `server_id` reprend le `server_uuid` du `hello`, `network_name` le nom du
+resource_pack, bedrock_pack}`. `server_id` reprend le `server_uuid` du `hello`, `network_name` le nom du
 serveur du hub. `resource_pack` vaut le dernier pack que le hub a servi à ce serveur
 (`{url, hash}`), ou `{}` : un objet sans adresse laisse au serveur le pack qu'il a déjà
-(`PackUpdate.Incomplete`), `null` le lui retirerait. Le hub applique le `hello` (version de
+(`PackUpdate.Incomplete`), `null` le lui retirerait. `bedrock_pack` suit la même règle pour le
+pack Bedrock (`1.2`) ; absent d'un hub antérieur, il ne change rien. Le hub applique le `hello` (version de
 protocole, modules, configuration) avant d'envoyer `hello_ack` : une requête de l'éditeur qui suit
 l'ack voit le serveur tel qu'il s'est annoncé, jamais avec un `hello` vide. Avant `hello_ack`,
 `WsClient.request` répond `null` sans rien envoyer.
@@ -90,6 +91,7 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 | `nexo_glyphs_list` / `nexo_glyph_read` | `nexo_glyphs_list_result` / `nexo_glyph_read_result` | Glyphes Nexo lus dans `plugins/Nexo/glyphs/` (sans API Nexo) ; `{glyphs:[{id, texture, available}]}` puis `{content_base64}`. |
 | `custom_items_request` | `custom_items_bundle` | Sans `request_id`. Le serveur répond `{hash, data}`, `data = base64(gzip(zip))`, catalogue dans `items.json`. |
 | `resource_pack_updated` | — | `{url, hash}` : le pack que le hub vient de recevoir pour ce serveur, servi sous `/resource-pack/<sha1>.zip`. Le serveur le délègue à son plugin de pack (Nexo, Oraxen, ItemsAdder ; `ResourcePackManager`, `resource-pack.delegate-to-dir`) qui l'envoie aux joueurs ; Artisan n'envoie jamais de pack lui-même. Une feuille le télécharge par l'adresse du hub qu'elle connaît (`web.hub`). |
+| `bedrock_pack_updated` | — | `{url, hash}` (`1.2`) : le pack Bedrock que l'éditeur a construit pour ce serveur (`editor/src/lib/pack/bedrock/`), servi sous `/bedrock-pack/<sha1>.mcpack`. Le serveur le télécharge dans `cache/bedrock-pack/` (`BedrockPackManager`) ; avec Geyser sur ce serveur, chaque joueur Bedrock le reçoit à sa connexion (`GeyserIntegration`). |
 
 ### Serveur → hub (annonces et requêtes)
 
@@ -149,7 +151,7 @@ sans gestionnaire ne compile pas.
 | `ProjectReads` | `core` | `project_list`, `project_read`, `project_history`, `asset_read`, `config_read` |
 | `ProjectWrites` | `core` | `project_write`, `config_write`, `project_draft_publish`, `project_create`, `project_delete`, `project_rename` (disque : `ProjectFolders`) |
 | `ServerQueries` | `paper` | `online_players_fetch`, `papi_placeholders_fetch`, `head_texture_fetch`, `player_inventory_fetch`, `data_source_fetch`, `server_config_write`, `nexo_glyph*` |
-| `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `session_replaced`, `custom_items_request` |
+| `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `bedrock_pack_updated`, `session_replaced`, `custom_items_request` |
 
 Les gestionnaires `core` ne voient les Projects qu'à travers `ProjectWorkspace` (instantané,
 exécuteur disque, rechargement). Toute réponse part par `Replies` ; aucune I/O bloquante sur le

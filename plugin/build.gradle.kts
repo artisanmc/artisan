@@ -23,6 +23,7 @@ subprojects {
         maven("https://repo.nexomc.com/releases/")
         maven("https://repo.oraxen.com/releases/")
         maven("https://repo.codemc.io/repository/maven-releases/")
+        maven("https://repo.opencollab.dev/main/")
     }
 
     extensions.configure<JavaPluginExtension> {

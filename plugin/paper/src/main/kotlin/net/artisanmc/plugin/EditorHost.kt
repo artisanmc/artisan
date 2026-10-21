@@ -49,6 +49,11 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val local = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" } ?: "127.0.0.1"
             provider.applyLocalResourcePack("${editorBase()}$path", "http://$local:$port$path", hash)
         }
+        override fun applyBedrockPack(hash: String, path: String) {
+            val port = editor?.port ?: return
+            val local = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" } ?: "127.0.0.1"
+            provider.applyLocalBedrockPack("http://$local:$port$path", hash)
+        }
     }
 
     /** The editor address for players and other servers: `web.url`, else [host] or the server IP. */
@@ -101,13 +106,14 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
         try {
             val vanilla = net.artisanmc.plugin.hub.VanillaAssets(File(dataFolder, "cache/minecraft"), localServer.minecraftVersion, logger)
             val packs = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/resource-pack"))
+            val bedrockPacks = net.artisanmc.plugin.hub.PackStore(File(dataFolder, "cache/bedrock-pack-store"), net.artisanmc.plugin.hub.PackStore.BEDROCK_PATH, "mcpack")
             val servers = net.artisanmc.plugin.hub.Servers(localServer, suite::knownServers) { id, name ->
                 net.artisanmc.plugin.hub.RemoteServer(id, name, publicUrl = { editorBase() })
             }
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
             // The suite database may still be opening (issue #42): the routes read it once it is.
             val data = net.artisanmc.plugin.database.LateSuiteData { suite.suiteData }
-            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts)
+            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, bedrockPacks)
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
                 if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null
                 else suite.databaseId()
