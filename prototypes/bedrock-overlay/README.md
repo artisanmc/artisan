@@ -31,8 +31,11 @@ Le projet de test `bedrock_proto` a deux menus de 6 lignes, identiques sauf le m
   (`font/glyph_F8.png`). Une séquence `§1§2§3§r` ne survivait pas à Geyser (test du 2026-10-21) ;
 - `gifts_token` : marqueur visible `#proto#`, en secours si le premier ne survit pas à MiniMessage ou Geyser.
 
-Disposition : cadeaux (icône custom) en slots 10-16, bouton CLAIM dessiné sur les slots 30-32
-(item de clic transparent), X en slot 8, tête de Notch en slot 49. Chaque bouton envoie un message
+Disposition : cadeaux (icône custom) en slots 10-16, X dessiné par le fond en slot 8 (item de clic
+transparent), tête de Notch en slot 49. CLAIM (slots 30-32) teste les tuiles : l'image est découpée
+en trois textures 18×18, une par slot, chacune portée par un item custom (`artisan:proto/claim_0..2`).
+Avec un marqueur, la grille de slots est remplacée par une copie sans case grise dont l'icône occupe
+les 18×18 px de la case, pour que les tuiles se joignent sans couture. Chaque bouton envoie un message
 par type de clic (`left`, `right`, `shift_left`).
 
 ## Lancer
@@ -49,7 +52,8 @@ Rejoindre avec un client Bedrock sur l'IP de la machine, port 19132, accepter le
 puis `/artisan menu bedrock_proto:gifts` et `/artisan menu bedrock_proto:gifts_token`.
 
 Avec un marqueur, le pack masque aussi le titre vanilla et les cases grises de chaque slot : le fond
-dessine lui-même les cases utiles.
+dessine lui-même les cases utiles. Les deux passent par des `modifications` (`replace` du label et de la
+grille vanilla) : redéfinir directement `chest_label` et `chest_grid_item` n'avait aucun effet en jeu.
 
 Itérer : modifier `generate.py`, relancer `--install`, `docker compose restart minecraft`, se reconnecter
 (le client Bedrock ne recharge un pack qu'à la connexion).
@@ -76,7 +80,8 @@ du menu ; une capture de ces lignes suffit à corriger.
 3. Les items (cadeaux, tête) sont-ils dessinés **au-dessus** du fond ? (sinon : couche `layer` à revoir)
 4. Les cadres de slots Bedrock se voient-ils par-dessus le fond, notamment sur CLAIM ?
 5. L'alignement : les cadeaux tombent-ils dans les cases dessinées ? Décalage en pixels si non.
-6. CLAIM : un tap/clic n'importe où sur le bouton déclenche-t-il `claim: left` ?
+6. CLAIM : les trois tuiles forment-elles une image continue (coutures, flou) ? Un tap/clic sur
+   chacune déclenche-t-il `claim: left` ? Et le X du fond (`close`) ferme-t-il le menu ?
 7. Clic droit (PC) et appui long (mobile) : quel message arrive ? `right`, `left`, rien ?
 8. Shift-clic (PC) : quel message arrive ?
 9. La tête de Notch : skin correct, tête Steve, ou autre ?

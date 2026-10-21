@@ -31,6 +31,11 @@ BG_W, BG_H = 176, 143
 
 HIT_MODEL = "artisan:buttons/hit_area"   # the item Artisan already puts under image buttons
 GIFT_MODEL = "artisan:proto/gift"
+TILES = 3                                 # CLAIM: one tile item per slot, slots 30-32
+
+
+def tile_model(i):
+    return f"artisan:proto/claim_{i}"
 
 
 # --- JSON UI ---------------------------------------------------------------
@@ -137,25 +142,37 @@ def chest_screen_json():
 
 
 def chest_screen_mods_json():
-    """Smallest change: vanilla chest screen untouched, one image inserted by a
-    modification. A wrong path leaves the vanilla screen working (content log error)."""
+    """Vanilla chest screen kept, changed only through modifications (top-level
+    redefinitions of vanilla elements had no visible effect, test of 2026-10-21).
+    A wrong path leaves the vanilla screen working, with a content log error."""
+    def when(on, **props):
+        return {"$atext": "$container_title", "visible": overlay("$atext") if on else f"(not {overlay('$atext')})", **props}
     return {
         "namespace": "chest",
-        # Vanilla definition + hidden when the background draws the title.
-        "chest_label": {
-            "type": "label", "offset": [7, -1], "anchor_from": "top_left", "anchor_to": "top_left",
-            "text": "$container_title", "size": ["90%", "default"], "color": "$title_text_color", "layer": 2,
-            "$atext": "$container_title", "visible": f"(not {overlay('$atext')})"},
-        # Vanilla definition + no grey cell behind each slot when the background draws them.
-        "chest_grid_item@common.container_item": {
+        # Our slot: vanilla container_item without the grey cell, icon stretched to the
+        # full 18x18 cell so that tiles of a multi-slot image join without seams.
+        "artisan_grid_item@common.container_item": {
             "$item_collection_name": "container_items",
-            "variables": [{"requires": overlay("$container_title"), "$background_images": "common.empty_panel"}]},
+            "$background_images": "common.empty_panel",
+            "$item_renderer_size": [CELL, CELL],
+        },
+        "large_chest_panel_top_half": {"modifications": [
+            # The background carries the title: vanilla label only without a marker.
+            {"array_name": "controls", "operation": "replace", "control_name": "chest_label",
+             "value": {"chest_label@chest.chest_label": when(False)}},
+            # Vanilla grid without a marker, ours with one (same collection, same place).
+            {"array_name": "controls", "operation": "replace", "control_name": "large_chest_grid",
+             "value": {"large_chest_grid@chest.large_chest_grid": when(False, offset=[7, 10])}},
+            {"array_name": "controls", "operation": "insert_back",
+             "value": [{"artisan_chest_grid@chest.large_chest_grid": when(
+                 True, offset=[7, 10], grid_item_template="chest.artisan_grid_item")}]},
+        ]},
         "large_chest_panel/root_panel": {"modifications": [{
             "array_name": "controls", "operation": "insert_back",
             "value": [{"artisan_background": {
                 "type": "image", "texture": "textures/artisan/proto_background",
                 "size": [BG_W, BG_H], "offset": [0, 0], "anchor_from": "top_left", "anchor_to": "top_left",
-                "layer": 2, "$atext": "$container_title", "visible": overlay("$atext")}}],
+                "layer": 2, **when(True)}}],
         }]},
     }
 
@@ -206,6 +223,7 @@ FONT = {  # 3x5, one int per row
 }
 PANEL, BORDER, CELL_FILL, CELL_EDGE = (156, 200, 236, 255), (58, 110, 165, 255), (47, 79, 134, 255), (28, 52, 92, 255)
 BUTTON, BUTTON_EDGE, INK = (223, 239, 255, 255), (58, 110, 165, 255), (28, 52, 92, 255)
+CLAIM, CLAIM_EDGE = (64, 160, 72, 255), (24, 84, 32, 255)
 
 
 def cell(slot):
@@ -220,13 +238,23 @@ def background_png():
     for slot in list(range(10, 17)) + [49]:          # gift row + head test: framed cells
         x, y = cell(slot)
         c.frame(x, y, CELL, CELL, CELL_FILL, CELL_EDGE)
-    x, y = cell(30)                                  # CLAIM: one image button over slots 30-32
-    c.frame(x + 1, y + 2, 3 * CELL - 2, CELL - 4, BUTTON, BUTTON_EDGE)
-    c.text("CLAIM", x + 3 * CELL // 2, y + 7, INK)
-    x, y = cell(8)                                   # X: one-slot image button
+    x, y = cell(8)                                   # X: image button drawn by the background
     c.frame(x + 2, y + 2, CELL - 4, CELL - 4, BUTTON, BUTTON_EDGE)
     c.text("X", x + CELL // 2, y + 7, INK)
     return c.png()
+
+
+def claim_tiles():
+    """CLAIM, a 3-slot image button cut into one 18x18 texture per slot (slots 30-32)."""
+    c = Canvas(3 * CELL, CELL)
+    c.frame(1, 2, 3 * CELL - 2, CELL - 4, CLAIM, CLAIM_EDGE)
+    c.text("CLAIM", 3 * CELL // 2, 7, BUTTON)
+    tiles = []
+    for i in range(TILES):
+        t = Canvas(CELL, CELL)
+        t.px = [c.px[y * c.w + i * CELL + x] for y in range(CELL) for x in range(CELL)]
+        tiles.append(t.png())
+    return tiles
 
 
 def gift_png():
@@ -250,11 +278,14 @@ def pack_files(variant):
         "textures/item_texture.json": json.dumps({
             "resource_pack_name": "artisan_proto", "texture_name": "atlas.items",
             "texture_data": {"artisan_hit_area": {"textures": ["textures/items/artisan_hit_area"]},
-                             "artisan_proto_gift": {"textures": ["textures/items/artisan_proto_gift"]}},
+                             "artisan_proto_gift": {"textures": ["textures/items/artisan_proto_gift"]},
+                             **{f"artisan_claim_{i}": {"textures": [f"textures/items/artisan_claim_{i}"]}
+                                for i in range(TILES)}},
         }, indent=2),
         "textures/artisan/proto_background.png": background_png(),
         "textures/items/artisan_hit_area.png": Canvas(16, 16).png(),   # fully transparent
         "textures/items/artisan_proto_gift.png": gift_png(),
+        **{f"textures/items/artisan_claim_{i}.png": png for i, png in enumerate(claim_tiles())},
         "font/glyph_F8.png": Canvas(256, 256).png(),                 # U+F800-F8FF drawn blank
     }
     # Bedrock clients cache a pack by uuid + version: any content change must bump it.
@@ -275,12 +306,22 @@ def mappings_json():
          "display_name": "Artisan hit area", "bedrock_options": {"icon": "artisan_hit_area"}},
         {"type": "definition", "model": GIFT_MODEL, "bedrock_identifier": "artisan:proto_gift",
          "display_name": "Gift", "bedrock_options": {"icon": "artisan_proto_gift"}},
+        *({"type": "definition", "model": tile_model(i), "bedrock_identifier": f"artisan:claim_{i}",
+           "display_name": "Claim", "bedrock_options": {"icon": f"artisan_claim_{i}"}} for i in range(TILES)),
     ]}}, indent=2)
 
 
 def menu_yaml(menu_id, title):
     def clicks(name):
         return "\n".join(f"      {k}: 'send_message \"{name}: {k}\"'" for k in ("left", "right", "shift_left"))
+    claim = "".join(f"""  - id: claim_{i}
+    positions: "{30 + i}"
+    material: PAPER
+    title: Claim
+    nbt: '[minecraft:item_model="{tile_model(i)}"]'
+    click:
+{clicks("claim")}
+""" for i in range(TILES))
     return f"""schema: menu/v1
 id: {menu_id}
 title: {json.dumps(title, ensure_ascii=False)}
@@ -293,14 +334,7 @@ elements:
     nbt: '[minecraft:item_model="{GIFT_MODEL}"]'
     click:
 {clicks("gift")}
-  - id: claim
-    positions: "30-32"
-    material: PAPER
-    title: Claim
-    nbt: '[minecraft:item_model="{HIT_MODEL}"]'
-    click:
-{clicks("claim")}
-  - id: close
+{claim}  - id: close
     positions: "8"
     material: PAPER
     title: Close
