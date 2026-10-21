@@ -589,6 +589,23 @@ api.getTemplates().register(TemplateDeclaration
   recréé si le propriétaire le supprime. Si ce nom est le dossier du module lui-même
   (`moduleFolder`, créé vide), les fichiers y sont copiés, avec le manifest s'il manque, sans
   écraser ce qui s'y trouve.
+- **Éléments système** (API 2.12.0, design `framework-commandes` §3.8) : un modèle `.system()` porte
+  les menus et dialogues que le code du module ouvre par id. Pas d'amorçage : à chaque démarrage et à
+  l'arrivée du module, `SystemFiles` les garde dans le premier dossier du module par nom. Un fichier
+  absent est réécrit (sauf si un fichier du même nom vit sous le même dossier de type ailleurs dans le
+  module : déplacé), une copie intacte d'une version plus ancienne est remplacée, une copie modifiée
+  reste celle de l'admin, son origine sur la version copiée (l'éditeur signale la nouvelle version).
+  Un fichier présent avant que le module en fasse un élément système compte comme modifié. Copier un
+  modèle système ailleurs que dans le dossier du module est refusé (`system_template`) : dans ce
+  dossier, c'est une réinitialisation. L'éditeur ne le propose pas à la copie.
+
+```java
+api.getTemplates().register(TemplateDeclaration
+    .fromResources(getClass().getClassLoader(), "artisan-system", "menus", 3,
+        List.of("menus/shop_main.yaml", "menus/shop_category.yaml"))
+    .system()
+    .build());
+```
 
 ## 5. Module bootstrap : content bundles
 

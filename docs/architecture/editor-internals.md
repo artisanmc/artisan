@@ -643,6 +643,13 @@ project, identique, modifié, retiré, nouvelle version), calculé depuis `.arti
 Dans l'arbre, un Document copié d'un modèle porte une pastille (`DocumentRow`) : verte (identique),
 brique (modifié), ambre (le module livre une nouvelle version) ; son libellé nomme le module.
 
+
+**Éléments système** (modèle `system: true`, API 2.12.0) : absents de `ModuleTemplatesDialog`.
+`lib/systemDocuments.ts` (pur) reconnaît un Document système à l'origine enregistrée à son chemin.
+Dans l'arbre (`ProjectDocumentTree`, `templateOrigin`) : pièce de puzzle avec tooltip, point seulement si modifié
+ou nouvelle version, ni « Déplacer » ni « Supprimer » mais **Réinitialiser** (confirmé, `POST …/templates`
+`replace` sur ce chemin, désactivé tant que le brouillon a des changements). Planche : `SystemTag` au-dessus
+du menu ou du dialogue (`useSystemDocuments`) ; `deleteSelection` les garde et le dit (`canvas.systemDocumentKept`).
 ### Registre du project — barre de gauche (le panneau de droite est retiré)
 
 **Depuis 2026-10-02**, les Documents du project vivent **uniquement dans la barre de gauche** : `ProjectElementsSidebar`, `ProjectPanel`, le bouton Éléments de la topbar, `uiStore.projectPanelOpen` et le drawer mobile droit sont supprimés. À droite ne reste que l'inspecteur de la sélection (`ProjectWorkspacePanels`).
