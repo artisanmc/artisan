@@ -27,7 +27,8 @@ en texture manquante. Normal, seul Bedrock est testé ici.
 
 Le projet de test `bedrock_proto` a deux menus de 6 lignes, identiques sauf le marqueur du titre :
 
-- `gifts` : marqueur invisible `§1§2§3§r` (la forme décrite par NxMenu) ;
+- `gifts` : marqueur invisible U+F8FF, un caractère privé que le pack dessine vide sur Bedrock
+  (`font/glyph_F8.png`). Une séquence `§1§2§3§r` ne survivait pas à Geyser (test du 2026-10-21) ;
 - `gifts_token` : marqueur visible `#proto#`, en secours si le premier ne survit pas à MiniMessage ou Geyser.
 
 Disposition : cadeaux (icône custom) en slots 10-16, bouton CLAIM dessiné sur les slots 30-32
@@ -46,6 +47,9 @@ docker compose restart minecraft
 Vérifier dans `docker/server/plugins/Geyser-Spigot/config.yml` que `enable-custom-content` vaut `true`.
 Rejoindre avec un client Bedrock sur l'IP de la machine, port 19132, accepter le pack du serveur,
 puis `/artisan menu bedrock_proto:gifts` et `/artisan menu bedrock_proto:gifts_token`.
+
+Avec un marqueur, le pack masque aussi le titre vanilla et les cases grises de chaque slot : le fond
+dessine lui-même les cases utiles.
 
 Itérer : modifier `generate.py`, relancer `--install`, `docker compose restart minecraft`, se reconnecter
 (le client Bedrock ne recharge un pack qu'à la connexion).

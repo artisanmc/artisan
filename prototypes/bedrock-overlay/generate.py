@@ -19,9 +19,10 @@ HERE = Path(__file__).resolve().parent
 BUILD = HERE / "build"
 SERVER = HERE.parent.parent / "docker" / "server"
 
-# Title markers the overlay reacts to. M1 is the invisible form NxMenu documents
-# (a § sequence); M2 is a visible fallback in case Geyser or MiniMessage mangles M1.
-M1 = "§1§2§3§r"
+# Title markers the overlay reacts to. M1 is a private-use character the pack draws
+# blank on Bedrock (font/glyph_F8.png); a § sequence did not survive Geyser (test of
+# 2026-10-21). M2 is a visible fallback.
+M1 = "\uf8ff"
 M2 = "#proto#"
 
 # Bedrock classic large chest (namespace `chest`): top half at y=11, grid at +(7,10).
@@ -140,6 +141,15 @@ def chest_screen_mods_json():
     modification. A wrong path leaves the vanilla screen working (content log error)."""
     return {
         "namespace": "chest",
+        # Vanilla definition + hidden when the background draws the title.
+        "chest_label": {
+            "type": "label", "offset": [7, -1], "anchor_from": "top_left", "anchor_to": "top_left",
+            "text": "$container_title", "size": ["90%", "default"], "color": "$title_text_color", "layer": 2,
+            "$atext": "$container_title", "visible": f"(not {overlay('$atext')})"},
+        # Vanilla definition + no grey cell behind each slot when the background draws them.
+        "chest_grid_item@common.container_item": {
+            "$item_collection_name": "container_items",
+            "variables": [{"requires": overlay("$container_title"), "$background_images": "common.empty_panel"}]},
         "large_chest_panel/root_panel": {"modifications": [{
             "array_name": "controls", "operation": "insert_back",
             "value": [{"artisan_background": {
@@ -245,6 +255,7 @@ def pack_files(variant):
         "textures/artisan/proto_background.png": background_png(),
         "textures/items/artisan_hit_area.png": Canvas(16, 16).png(),   # fully transparent
         "textures/items/artisan_proto_gift.png": gift_png(),
+        "font/glyph_F8.png": Canvas(256, 256).png(),                 # U+F800-F8FF drawn blank
     }
     # Bedrock clients cache a pack by uuid + version: any content change must bump it.
     digest = zlib.crc32(b"".join(d if isinstance(d, bytes) else d.encode() for _, d in sorted(files.items())))
