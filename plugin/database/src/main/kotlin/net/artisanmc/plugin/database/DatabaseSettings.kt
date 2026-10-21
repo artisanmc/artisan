@@ -14,8 +14,12 @@ data class DatabaseSettings(
     val password: String,
     val poolSize: Int,
     val h2Dir: File,
+    /** Raw `database.table-prefix`: [TablePrefix.validate] says whether it can be used. */
+    val tablePrefix: String = TablePrefix.DEFAULT,
+    /** The prefix the suite tables were last opened with ([TablePrefix.checkUnchanged]). */
+    val prefixFile: File = File(h2Dir, "table-prefix"),
 ) {
-    override fun toString() = "DatabaseSettings($type, $host:$port/$name, user=$user, poolSize=$poolSize)"
+    override fun toString() = "DatabaseSettings($type, $host:$port/$name, user=$user, poolSize=$poolSize, tablePrefix=$tablePrefix)"
 
     companion object {
         const val DEFAULT_POOL_SIZE = 4
@@ -29,6 +33,7 @@ data class DatabaseSettings(
             password: String,
             poolSize: Int,
             dataFolder: File,
+            tablePrefix: String = TablePrefix.DEFAULT,
         ): DatabaseSettings {
             val normalized = type.trim().lowercase(Locale.ROOT)
             return DatabaseSettings(
@@ -46,6 +51,8 @@ data class DatabaseSettings(
                 password = password,
                 poolSize = poolSize.coerceIn(1, 50),
                 h2Dir = File(dataFolder, "database"),
+                tablePrefix = tablePrefix.trim(),
+                prefixFile = File(dataFolder, "database/table-prefix"),
             )
         }
     }

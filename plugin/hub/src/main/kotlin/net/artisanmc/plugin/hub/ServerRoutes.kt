@@ -23,6 +23,8 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
         on(router, "GET", "screens", VIEW) { call, server -> call.json(mapOf("screens" to server.announcement().screens)) }
         on(router, "GET", "actions", VIEW) { call, server -> call.json(mapOf("actions" to server.announcement().actions)) }
         on(router, "GET", "document-kinds", VIEW) { call, server -> call.json(mapOf("document_kinds" to server.announcement().documentKinds)) }
+        // The commands modules declare, with their default dressing: the editor's System section.
+        on(router, "GET", "player-commands", VIEW) { call, server -> call.json(mapOf("player_commands" to server.announcement().playerCommands)) }
 
         on(router, "GET", "server-config", VIEW) { call, server -> call.json(mapOf("config" to server.serverConfig(), "online" to server.online)) }
         on(router, "PATCH", "server-config", CONFIG) { call, server ->

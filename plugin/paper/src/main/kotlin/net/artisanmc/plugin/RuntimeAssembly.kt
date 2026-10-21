@@ -85,8 +85,12 @@ internal class RuntimeAssembly(
             playerCommands = { api.playerCommands.declarations() },
             overrides = { commandOverrides.overrides },
         )
-        // A module enabled or disabled after the start: its commands come and go without a reload.
-        api.playerCommands.onChange { scheduler.onGlobal { commandRegistrar.refresh() } }
+        // A module enabled or disabled after the start: its commands come and go without a reload,
+        // and the editor's System section lists the new set (a leaf tells its hub).
+        api.playerCommands.onChange {
+            scheduler.onGlobal { commandRegistrar.refresh() }
+            (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged()
+        }
         // Listed with the modules' actions (owner `artisan`): the editor builds its form from the declaration.
         val moduleCommand = net.artisanmc.plugin.command.ModuleCommandAction({ commandRegistrar.moduleCommands }, langManager, logger)
         api.actionRegistry.unregister(net.artisanmc.plugin.command.ModuleCommandAction.NAME)
