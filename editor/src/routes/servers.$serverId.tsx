@@ -287,7 +287,11 @@ function ServerOverview({
             >
               {t("topbar.import")}
             </button>
-            <Link to="/servers/$serverId/canvas" params={{ serverId }} className="btn btn-ghost btn-sm">
+            <Link
+              to="/servers/$serverId/canvas"
+              params={{ serverId }}
+              className="btn btn-ghost btn-sm"
+            >
               {t("serverDetail.openBoard")}
             </Link>
           </div>
