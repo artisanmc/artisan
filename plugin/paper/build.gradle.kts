@@ -116,8 +116,9 @@ val deploy by tasks.registering(Exec::class) {
 // Tokens, project ids and notes come from the environment; see deploy/README.md.
 // A version with a suffix (`1.2.0-beta.1`) goes out as a beta on Modrinth and on Hangar's
 // Snapshot channel.
+// Paper 1.21 and newer (docs-site requirements); 26.2 is the dev server (docker-compose.yml).
 val minecraftVersions = providers.gradleProperty("minecraftVersions")
-    .getOrElse("1.21,1.21.1,1.21.2,1.21.3,1.21.4,1.21.5,1.21.6,1.21.7,1.21.8,1.21.9,1.21.10,1.21.11")
+    .getOrElse("1.21,1.21.1,1.21.2,1.21.3,1.21.4,1.21.5,1.21.6,1.21.7,1.21.8,1.21.9,1.21.10,1.21.11,26.1,26.2")
     .split(",").map { it.trim() }
 val prerelease = project.version.toString().contains("-")
 val releaseNotes = providers.environmentVariable("RELEASE_NOTES").orElse("")
