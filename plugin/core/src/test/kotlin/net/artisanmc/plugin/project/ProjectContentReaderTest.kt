@@ -98,6 +98,29 @@ class ProjectContentReaderTest {
         assertTrue(reader.list("proj1", "").none { it.contains("draft.json") })
     }
 
+    @Test fun `list and read answer from the snapshot when it holds the project`() {
+        val loaded = ProjectSnapshot(
+            files = mapOf("proj1" to mapOf("menus/main.yaml" to "id: loaded", "shop/items.yaml" to "items: [loaded]", ".artisan/editor.yaml" to "board: {}")),
+            binaries = mapOf("proj1" to mapOf("shop/icon.png" to ProjectFilesReader.BinaryInfo("h", 3))),
+            skipped = emptyMap(),
+        )
+        val reader = ProjectContentReader(ProjectRoots(projectsDir), snapshot = { loaded })
+        assertEquals("id: loaded", reader.read("proj1", "menus/main.yaml"), "the loaded text, not the disk's")
+        assertEquals(listOf("icon.png", "items.yaml"), reader.list("proj1", "shop"))
+        assertEquals(listOf("menus/main.yaml", "shop/icon.png", "shop/items.yaml"), reader.list("proj1", ""))
+        assertNull(reader.read("proj1", ".artisan/editor.yaml"))
+        // A file the snapshot lacks (written since the load) is read from the disk.
+        File(projectsDir, "proj1/shop/new.yaml").writeText("new: true")
+        assertEquals("new: true", reader.read("proj1", "shop/new.yaml"))
+        assertEquals(listOf("icon.png", "items.yaml"), reader.list("proj1", "shop"), "a listing is the loaded one")
+        // A Project the snapshot does not hold yet is read from the disk.
+        File(projectsDir, "proj2/x/a.yaml").apply { parentFile.mkdirs() }.writeText("a: 1")
+        assertEquals(listOf("a.yaml"), reader.list("proj2", "x"))
+        assertEquals("a: 1", reader.read("proj2", "x/a.yaml"))
+        assertTrue(reader.hasContent("x"))
+        assertFalse(reader.hasContent("quests"))
+    }
+
     @Test fun `direct addon read recovers a pending publication before exposing files`() {
         val project = File(projectsDir, "proj1")
         assertFailsWith<java.io.IOException> {

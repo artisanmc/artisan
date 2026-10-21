@@ -158,7 +158,7 @@ class SyncedMenuProvider(
         override val roots get() = this@SyncedMenuProvider.roots
         override val snapshot get() = projects
         override val io = Executor { task ->
-            httpClient.dispatcher.executorService.execute { synchronized(roots) { task.run() } }
+            httpClient.dispatcher.executorService.execute { synchronized(diskLock) { task.run() } }
         }
         override fun reload(projectIds: Set<String>?) {
             reloadFromDisk(projectIds)
@@ -370,6 +370,8 @@ class SyncedMenuProvider(
         resolveRef(menuTable, "Menu", ref, fromProject)
     override fun listMenuIds(): List<String> = menuTable.ids.distinct().sorted()
     override fun runtimeProjects(): List<RuntimeProject> = runtimes
+    /** The loaded files, what `api.project.list/read` answer from. */
+    fun snapshot(): ProjectSnapshot = projects
     /** The loaded Snapshot's project dirs, without the registry lock a reload in progress holds. */
     fun projectDirs(): Map<String, File> = projects.projectIds.associateWith(roots::dirFor)
 
@@ -557,9 +559,18 @@ class SyncedMenuProvider(
     // A hand edit on disk applies only on `/artisan reload`, like any other Minecraft
     // plugin: the disk is deliberately not watched.
 
+    /**
+     * Held by a reload and by each disk write of the editor ([workspace]`.io`): the
+     * provider's own lock, not the registry's, so a module's `onEnable` (which registers
+     * its folder) and `api.project` never wait behind it.
+     */
+    private val diskLock = Any()
+
     /** Every project, or only [only]: the other projects keep what the last reload read. */
-    private fun reloadFromDisk(only: Set<String>? = null) = synchronized(roots) {
+    private fun reloadFromDisk(only: Set<String>? = null) = synchronized(diskLock) {
         val started = System.nanoTime()
+        // A folder created by hand, or by the editor, shows in the listing from here on.
+        roots.invalidate()
         // Declared model docs feed the reader so BARE data files resolve their
         // schema from the JAR declaration (ADR bare-data-files ①).
         val failures = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
