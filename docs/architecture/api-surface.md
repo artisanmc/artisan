@@ -95,6 +95,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `templates` (`getTemplates()`, `@Beta`) | `TemplateRegistry` | 2.6.0 |
 | `playerCommands` (`getPlayerCommands()`, `@Beta`) | `PlayerCommandRegistry` | 2.7.0 |
 | `text` (`getText()`, `@Beta`) | `TextApi` | 2.10.0 |
+| `network` (`getNetwork()`, `@Beta`) | `NetworkApi` | 2.13.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -250,6 +251,26 @@ Text for players without Adventure types, so a plugin runs on Paper and Spigot a
 | `TextApi.send(to, miniMessage)` | `void` | 2.10.0 |
 | `TextApi.legacy(miniMessage)`, `plain(miniMessage)`, `fromLegacy(legacy)` | `String` | 2.10.0 |
 | `TextApi.NOOP`, `ArtisanAPI.Builder.text(text)` (`@Internal`) | | 2.10.0 |
+
+### `net.artisanmc.modules.api.network.NetworkApi` (`@Beta`, 2.13.0)
+
+The servers that share the suite's MySQL/MariaDB database are one network (ADR `peer-servers`). A server's name is `name` in `environment.yml`, which must be its name in `velocity.toml`; without a valid name, or on H2, a server is a network of one and every call still works for it.
+
+- `subscribe(owner, channel, handler)`: the messages other servers publish on `channel` (`module:name`, lower case), delivered off the main thread in the order they were published, on Artisan's `Artisan-network` thread. Released when `owner` disables, or by `NetworkSubscription.cancel()`. A handler that throws is logged.
+- `publish(channel, payload[, includeSelf])`: never blocks. The message goes through `{prefix}network_messages`, read every 100 ms and kept a minute: a server that does not read it within that time never gets it. 60 000 characters at most. `includeSelf` delivers it to this server's subscribers too, on the same thread. Messages published before the suite database opens wait in memory (10 000 at most).
+- `getPresence()`: `isOnline(id)`, `getPlayer(id)`, `find(name)`, `getOnline()` across the network (`NetworkPlayer(id, name, server)`); `sendMessage(id, miniMessage)` reaches the player on whichever server. Each server writes its players in `{prefix}network_players`; the players of a server stopped or not seen for 3 minutes are not listed. Refreshed every second.
+- `getServers()`: the servers running (`NetworkServer(name, self)`), from `{prefix}servers`.
+- `teleport(player, location, delaySeconds)` / `connect(player, server, delaySeconds)`: after the delay, cancelled when the player moves a block (`MOVED`) or leaves (`OFFLINE`). Another server: the destination is announced on `artisan:teleport`, then the player is sent through the proxy's `BungeeCord` channel (Velocity accepts it by default) and placed on arrival, within 30 seconds. Completes once the player is placed here or sent away. `UNKNOWN_SERVER`, `UNKNOWN_WORLD`, `FAILED` otherwise.
+
+| Member | Type | Since |
+|---|---|---|
+| `NetworkApi.getServerName()`, `getServers()` | `String`, `List<NetworkServer>` | 2.13.0 |
+| `NetworkApi.subscribe(owner, channel, handler)`, `NetworkSubscription`, `NetworkMessageHandler`, `NetworkMessage` | `NetworkSubscription` | 2.13.0 |
+| `NetworkApi.publish(channel, payload)`, `publish(channel, payload, includeSelf)` | `void` | 2.13.0 |
+| `NetworkApi.getPresence()`, `NetworkPresence`, `NetworkPlayer` | `NetworkPresence` | 2.13.0 |
+| `NetworkApi.teleport(player, location, delaySeconds)`, `connect(player, server, delaySeconds)`, `NetworkLocation`, `TeleportResult` | `CompletableFuture<TeleportResult>` | 2.13.0 |
+| `NetworkApi.NOOP`, `NetworkPresence.NOOP`, `ArtisanAPI.Builder.network(network)` (`@Internal`) | | 2.13.0 |
+| `tablePrefix("network")` refused: `network` is a first segment of Artisan's tables | | 2.13.0 |
 
 ### `net.artisanmc.modules.api.action.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
 
