@@ -165,7 +165,13 @@ class Sessions(
         val inMemory = sessions.values.count { it.playerId == playerId }
         sessions.values.removeIf { it.playerId == playerId }
         // A session opened before the database was is only in memory; one from before a restart, only stored.
-        return maxOf(inMemory, store?.deletePlayer(playerId, null) ?: 0)
+        // Deleted on the writer, after the rows queued before it: a session just opened is not written back after.
+        val stored = store?.let { s ->
+            val deleted = java.util.concurrent.CompletableFuture<Int>()
+            writer.execute { deleted.complete(runCatching { s.deletePlayer(playerId, null) }.getOrDefault(0)) }
+            runCatching { deleted.get(15, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(0)
+        } ?: 0
+        return maxOf(inMemory, stored)
     }
 
     /**

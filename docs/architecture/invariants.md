@@ -218,6 +218,13 @@ Rien de bloquant dans `onEnable` ni sur le thread global après lui (issue #42) 
   relecture. `ProjectReader` garde son propre parcours peu profond pour les Documents : deux
   parcours par relecture, contre quatre, et chaque fichier lu une fois.
 - Aucun JDBC ni I/O disque dans le chemin join, tick ou clic.
+- **Aucun JDBC sur le thread principal depuis une commande.** `/artisan editor` crée le lien
+  en mémoire et sa ligne suit sur le thread des Versions (`Sessions.writer`, lectures sur
+  l'appelant) ; `/artisan editor logout` supprime et compte ses lignes en `async` et répond
+  en `global`. L'id de la base (`ArtisanMeta.databaseId`) est lu une fois à l'ouverture, sur
+  `Artisan-versions`, puis servi du cache à chaque connexion au hub. Un `hello_ack` qui annonce
+  le pack déjà appliqué dans ce processus ne le retélécharge pas (`ResourcePackManager.appliedHash`) ;
+  le téléchargement et la mise à jour du catalogue passent par `scheduler.async`.
 
 ## Reload atomique
 

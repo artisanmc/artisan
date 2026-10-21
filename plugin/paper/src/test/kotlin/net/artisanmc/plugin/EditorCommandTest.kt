@@ -68,10 +68,15 @@ class EditorCommandTest {
             assertEquals(EditorPermissions.ALL.toSet(), session.permissions)
 
             cmd.executor!!.onCommand(sender, cmd, "artisan", arrayOf("editor", "logout"))
-            // The stored sessions are closed off the main thread, the answer comes back on it.
-            server.scheduler.waitAsyncTasksFinished()
-            server.scheduler.performOneTick()
-            val closed = drainMessages(sender)
+            // The stored sessions are closed off the main thread, the answer comes back on it
+            // (other async tasks, such as the tunnel link, never finish: no waiting on them all).
+            val deadline = System.currentTimeMillis() + 10_000
+            var closed = drainMessages(sender)
+            while (closed.isEmpty() && System.currentTimeMillis() < deadline) {
+                Thread.sleep(20)
+                server.scheduler.performOneTick()
+                closed = drainMessages(sender)
+            }
             assertTrue(closed.any { it.contains("1 editor session") }, "Console sessions are closed: $closed")
             assertNull(plugin.editorSessions.find(session.id))
         } finally {
