@@ -12,6 +12,7 @@ on:
       - docs/schema/**
       - docs/architecture/api-surface.md
       - .github/workflows/plugin.yml
+      - deploy/tunnel-server/**
   pull_request:
     paths:
       - plugin/**
@@ -19,6 +20,7 @@ on:
       - docs/schema/**
       - docs/architecture/api-surface.md
       - .github/workflows/plugin.yml
+      - deploy/tunnel-server/**
 
 permissions:
   contents: read

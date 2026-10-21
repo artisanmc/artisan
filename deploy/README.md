@@ -27,6 +27,7 @@ Cloudflare gère les nameservers de `artisanmc.net`. Le Tunnel nommé publie :
 | `artisanmc.net` | ressource « editor » (la vitrine), port 80 |
 | `repo.artisanmc.net` | Reposilite, port 8080 |
 | `coolify.artisanmc.net` | interface Coolify, derrière Cloudflare Access |
+| `*.artisanmc.app` | serveur de tunnel de l'éditeur, `http://localhost:18080` ([`tunnel-server/`](tunnel-server/README.md)) |
 
 Aucun enregistrement A/AAAA vers l'origine ; le firewall du VPS n'expose aucun port web entrant.
 
@@ -51,12 +52,20 @@ plus la tête de `main`, puis `deploy/coolify-deploy.mjs` épingle `git_commit_s
 déclenche le déploiement, vérifie que Coolify rapporte exactement ce commit et attend que
 `https://artisanmc.net/` réponde. Chaque requête et le job ont un délai maximal.
 
+`.github/workflows/deploy-tunnel.yml` déploie le serveur de tunnel quand `plugin.yml` réussit sur
+`main` (`plugin.yml` démarre aussi sur `deploy/tunnel-server/**`). `deploy/deploy-tunnel-server.mjs`
+compare le commit déployé au nouveau sur `plugin/tunnel/`, `plugin/tunnel-server/`, le build Gradle et
+`deploy/tunnel-server/` : sans changement, rien n'est redéployé, car un redéploiement coupe tous les
+tunnels ouverts (les plugins se reconnectent). Sinon il épingle la ressource sur `main` à ce commit,
+déploie et attend `https://connect.artisanmc.app/health`.
+
 Environnement GitHub `production` :
 
 | Type | Nom | Valeur |
 |---|---|---|
 | Variable | `COOLIFY_BASE_URL` | `https://coolify.artisanmc.net` |
 | Variable | `COOLIFY_EDITOR_UUID` | UUID de la ressource Coolify de la vitrine |
+| Variable | `COOLIFY_TUNNEL_SERVER_UUID` | UUID de la ressource Coolify du serveur de tunnel |
 | Secret | `COOLIFY_API_TOKEN` | token API Coolify dédié au déploiement |
 | Secret | `CF_ACCESS_CLIENT_ID` | client ID du service token Cloudflare Access |
 | Secret | `CF_ACCESS_CLIENT_SECRET` | secret du service token Cloudflare Access |
