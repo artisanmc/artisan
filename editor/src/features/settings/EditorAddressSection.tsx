@@ -100,7 +100,7 @@ export function EditorAddressSection() {
               : t("editorAddress.releasedHelp", { url: taken.url })}
           </p>
           {taken.login && (
-            <a className="btn-primary btn-sm self-start" href={taken.login}>
+            <a className="btn btn-primary btn-sm self-start" href={taken.login}>
               {t("editorAddress.open")}
             </a>
           )}
@@ -144,7 +144,7 @@ export function EditorAddressSection() {
         {address.name && (
           <button
             type="button"
-            className="btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm"
             disabled={busy}
             onClick={() =>
               window.confirm(t("editorAddress.releaseConfirm", { name: address.name })) &&
@@ -156,7 +156,7 @@ export function EditorAddressSection() {
         )}
         <button
           type="button"
-          className="btn-primary btn-sm"
+          className="btn btn-primary btn-sm"
           disabled={busy || availability !== "free"}
           onClick={() => submit(name)}
         >

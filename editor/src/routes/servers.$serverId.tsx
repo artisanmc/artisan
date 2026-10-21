@@ -281,13 +281,13 @@ function ServerOverview({
             <span className="h-px flex-1 bg-[var(--border-soft)]" />
             <button
               type="button"
-              className="btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm"
               disabled={!serverKeyId || updateRequired}
               onClick={() => setImportOpen(true)}
             >
               {t("topbar.import")}
             </button>
-            <Link to="/servers/$serverId/canvas" params={{ serverId }} className="btn-ghost btn-sm">
+            <Link to="/servers/$serverId/canvas" params={{ serverId }} className="btn btn-ghost btn-sm">
               {t("serverDetail.openBoard")}
             </Link>
           </div>
