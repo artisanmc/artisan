@@ -19,42 +19,63 @@ object ProjectFilesReader {
     fun isBinary(relPath: String): Boolean =
         relPath.substringAfterLast('.', "").lowercase() in BINARY_EXTENSIONS
 
-    /** relPath → hash + size of the binaries, `.artisan*` excluded. */
-    fun binaries(projectDir: File): Map<String, BinaryInfo> {
-        val out = mutableMapOf<String, BinaryInfo>()
-        projectDir.walkTopDown()
-            .onEnter { it == projectDir || !java.nio.file.Files.isSymbolicLink(it.toPath()) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(it.relativeTo(projectDir).invariantSeparatorsPath) }
-            .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
-            .forEach { file ->
-                val rel = file.relativeTo(projectDir).path.replace('\\', '/')
-                if (isBinary(rel) && !ContentHash.isArtisanMeta(rel)) {
-                    out[rel] = BinaryInfo(ContentHash.hashBytes(file.readBytes()), file.length())
-                }
-            }
-        return out
-    }
-
-    /** Every path actually present, text AND binary. */
-    fun allPaths(projectDir: File): List<String> =
-        (readAll(projectDir).keys + binaries(projectDir).keys).sorted()
+    /** What one walk of a project dir yields: its texts ([readAll]) and its binaries ([binaries]). */
+    class Scanned(val texts: Map<String, String>, val binaries: Map<String, BinaryInfo>)
 
     /**
-     * The single project-dir walk. relPath-keyed map (forward slashes), holding
-     * every public **text** file plus editor metadata. History, private drafts,
-     * transaction journals and filesystem aliases are never exposed. Every other
-     * text reader derives from this one; no second traversal.
+     * The hash of each binary, kept with the size and mtime it was computed for: a
+     * reload re-hashes a png, ogg or zip only when the file changed. Keyed by absolute
+     * path; [prune] drops the files a full scan no longer saw.
      */
-    fun readAll(projectDir: File): Map<String, String> {
-        val out = mutableMapOf<String, String>()
+    class BinaryHashCache {
+        private class Entry(val size: Long, val modified: Long, val hash: String)
+        private val entries = java.util.concurrent.ConcurrentHashMap<String, Entry>()
+
+        fun hashOf(file: File): String {
+            val size = file.length()
+            val modified = file.lastModified()
+            val key = file.absolutePath
+            entries[key]?.takeIf { it.size == size && it.modified == modified }?.let { return it.hash }
+            return ContentHash.hashBytes(file.readBytes()).also { entries[key] = Entry(size, modified, it) }
+        }
+
+        fun prune(keep: Set<String>) = entries.keys.retainAll(keep)
+        val size: Int get() = entries.size
+    }
+
+    /**
+     * The single project-dir walk: every public **text** file plus editor metadata as
+     * [Scanned.texts], the hash and size of the binaries (`.artisan*` excluded) as
+     * [Scanned.binaries]. History, private drafts, transaction journals and filesystem
+     * aliases are never exposed. [readAll] and [binaries] derive from this one.
+     */
+    fun scan(projectDir: File, cache: BinaryHashCache? = null): Scanned {
+        val texts = mutableMapOf<String, String>()
+        val binaries = mutableMapOf<String, BinaryInfo>()
         projectDir.walkTopDown()
             .onEnter { it == projectDir || !java.nio.file.Files.isSymbolicLink(it.toPath()) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(it.relativeTo(projectDir).invariantSeparatorsPath) }
             .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
             .forEach { file ->
                 val rel = file.relativeTo(projectDir).path.replace('\\', '/')
-                if (!isBinary(rel) && !net.artisanmc.plugin.project.ProjectMetadataPaths.isHistory(rel) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(rel)) out[rel] = file.readText(Charsets.UTF_8)
+                if (isBinary(rel)) {
+                    if (!ContentHash.isArtisanMeta(rel)) {
+                        binaries[rel] = BinaryInfo(cache?.hashOf(file) ?: ContentHash.hashBytes(file.readBytes()), file.length())
+                    }
+                } else if (!net.artisanmc.plugin.project.ProjectMetadataPaths.isHistory(rel) && !net.artisanmc.plugin.project.ProjectPathPolicy.isPrivate(rel)) {
+                    texts[rel] = file.readText(Charsets.UTF_8)
+                }
             }
-        return out
+        return Scanned(texts, binaries)
     }
+
+    /** relPath → hash + size of the binaries, `.artisan*` excluded. */
+    fun binaries(projectDir: File): Map<String, BinaryInfo> = scan(projectDir).binaries
+
+    /** Every path actually present, text AND binary. */
+    fun allPaths(projectDir: File): List<String> = scan(projectDir).let { (it.texts.keys + it.binaries.keys).sorted() }
+
+    /** The texts of [scan]: relPath-keyed map (forward slashes). Every other text reader derives from it. */
+    fun readAll(projectDir: File): Map<String, String> = scan(projectDir).texts
 
     /**
      * relPath-keyed map excluding `.artisan*` metadata. Both the hash

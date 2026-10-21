@@ -576,6 +576,8 @@ class SyncedMenuProvider(
      * its folder) and `api.project` never wait behind it.
      */
     private val diskLock = Any()
+    /** The binaries' hashes across reloads: a png unchanged in size and mtime is not read again. */
+    private val binaryHashes = ProjectFilesReader.BinaryHashCache()
 
     /** Every project, or only [only]: the other projects keep what the last reload read. */
     private fun reloadFromDisk(only: Set<String>? = null) = synchronized(diskLock) {
@@ -597,23 +599,24 @@ class SyncedMenuProvider(
         // must stay readable and fixable.
         val all = roots.all()
         val dirs = if (only == null) all else all.filterKeys { it in only }
-        val files = dirs.mapValues { (_, dir) ->
-            runCatching { ProjectFilesReader.readAll(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
-        }
-        val binaries = dirs.mapValues { (_, dir) ->
-            runCatching { ProjectFilesReader.binaries(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
-        }
+        // One walk per project: its texts and its binaries, the latter hashed only when changed.
+        val scanned = dirs.mapValues { (_, dir) -> runCatching { ProjectFilesReader.scan(dir, binaryHashes) }.getOrNull() }
+        val files = scanned.mapValues { (_, s) -> s?.texts.orEmpty().filterKeys { !EditorPaths.isInvisible(it) } }
+        val binaries = scanned.mapValues { (_, s) -> s?.binaries.orEmpty().filterKeys { !EditorPaths.isInvisible(it) } }
         val loaded: List<RuntimeProject>
         if (only == null) {
+            binaryHashes.prune(scanned.flatMap { (id, s) -> s?.binaries.orEmpty().keys.map { File(dirs.getValue(id), it).absolutePath } }.toSet())
             projects = ProjectSnapshot(files = files, binaries = binaries, skipped = failures)
             loaded = read
         } else {
-            fun <V> kept(map: Map<String, V>) = map.filterKeys { it in all && it !in only }
+            val previous = projects
+            val kept = all.keys.filter { it !in only }
+            fun <V> kept(map: Map<String, V>) = map.filterKeys { it in kept }
             projects = ProjectSnapshot(
-                files = kept(projects.files) + files,
-                binaries = kept(projects.binaries) + binaries,
-                skipped = kept(projects.skipped) + failures,
-            )
+                files = kept(previous.files) + files,
+                binaries = kept(previous.binaries) + binaries,
+                skipped = kept(previous.skipped) + failures,
+            ).also { it.inheritHashes(previous, kept) }
             loaded = (runtimes.filter { it.projectId in all && it.projectId !in only } + read).sortedBy { it.projectId }
         }
         runtimes = loaded
