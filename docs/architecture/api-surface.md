@@ -588,7 +588,7 @@ module's declared screens to find the owner.
 
 Projects merge into modules (one folder of `plugins/Artisan/modules/` per module): a new add-on calls `moduleFolder` and reads its files from the returned directory; an add-on that registered a root passes it as `legacyDir`, with the project id it used as `folder`, so its Versions, drafts and qualified references (`<folder>:<id>`) follow.
 
-Registering reloads the projects on the next server tick, once the caller's `onEnable` has returned: bootstrap content written after `register` is read, and modules' `onReload()` runs then. Before 1.8.0 the reload ran inside `register`, calling the add-on's own `onReload()` while its `onEnable` was still running, and files written afterwards stayed invisible until `project.reload()`.
+Registering reloads the projects on the next server tick, once the caller's `onEnable` has returned: bootstrap content written after `register` is read, and the `onReload()` of the module owning the root runs then (it used to be every module's). That reload reads the registered roots only, and the roots registered before that tick make one. Before 1.8.0 the reload ran inside `register`, calling the add-on's own `onReload()` while its `onEnable` was still running, and files written afterwards stayed invisible until `project.reload()`.
 
 ### `net.artisanmc.modules.api.SemVer`
 
