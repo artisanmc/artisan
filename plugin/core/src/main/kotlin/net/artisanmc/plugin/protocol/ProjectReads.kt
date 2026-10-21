@@ -3,7 +3,6 @@ package net.artisanmc.plugin.protocol
 import net.artisanmc.plugin.project.LoadedState
 import net.artisanmc.plugin.project.ProjectListing
 import net.artisanmc.plugin.project.ProjectPathPolicy
-import net.artisanmc.plugin.project.ProjectPublisher
 import net.artisanmc.plugin.protocol.EditorRequest.AssetRead
 import net.artisanmc.plugin.protocol.EditorRequest.ConfigRead
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectHistory
@@ -73,7 +72,6 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
             try {
                 val projectDir = roots.dirFor(projectId)
                 if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
-                ProjectPublisher(projectDir).recover()
                 val dir = ProjectPathPolicy.resolve(projectDir, ".artisan/history/$path")
                 // A file never overwritten has no archive: empty list, not an error.
                 val versions = (dir.listFiles() ?: emptyArray())
@@ -98,7 +96,6 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
             try {
                 if (!workspace.snapshot.binaries.containsKey(projectId)) return@offThread reply.error("unknown_project")
                 val root = roots.dirFor(projectId)
-                ProjectPublisher(root).recover()
                 val file = ProjectPathPolicy.resolve(root, path)
                 if (!file.isFile) return@offThread reply.error("not_found")
                 val bytes = file.readBytes()
@@ -118,7 +115,6 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
             try {
                 val projectDir = roots.dirFor(projectId)
                 if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
-                ProjectPublisher(projectDir).recover()
                 val target = ProjectPathPolicy.resolve(projectDir, table)
                 val files = mutableListOf<Map<String, String>>()
                 if (target.isDirectory) {
