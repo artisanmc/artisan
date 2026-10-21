@@ -173,6 +173,7 @@ open class ArtisanPlugin : JavaPlugin() {
         editorSessions = net.artisanmc.plugin.hub.Sessions(
             sessionTtl = java.time.Duration.ofDays(cfg.web.sessionDays.toLong()),
             store = suite.editorSessionStore(),
+            writer = suite.sessionWriter(),
         )
         try {
             startEditor(cfg)

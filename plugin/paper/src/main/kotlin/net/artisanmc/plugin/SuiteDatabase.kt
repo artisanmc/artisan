@@ -51,6 +51,9 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         done: () -> Unit,
     ) = versionRecorder.record(snapshot, authors, done)
 
+    /** Where the editor sessions' rows are written, after the database opened: `/artisan editor` never waits for a connection. */
+    fun sessionWriter(): java.util.concurrent.Executor = versionWriter
+
     /** Queues [openSuiteDatabase] on [versionWriter]: nothing in `onEnable` waits for it. */
     fun open(web: net.artisanmc.plugin.hub.WebConfig, editorChannel: net.artisanmc.plugin.hub.EditorChannel) {
         versionWriter.execute { openSuiteDatabase(web, editorChannel) }
@@ -72,6 +75,8 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
             return
         }
         artisanData = data
+        // Read here, on this thread, and kept: the hub link asks for it at each connection, from the main thread.
+        runCatching { net.artisanmc.plugin.database.ArtisanMeta.databaseId(data, database.tables) }
         val name = plugin.networkName(web) ?: return
         val registry = net.artisanmc.plugin.database.ServerRegistry(data, database.dialect, logger, database.tables)
         val refused = when (val result = runCatching { registry.register(serverId, name, java.time.Instant.now()) }.getOrElse {

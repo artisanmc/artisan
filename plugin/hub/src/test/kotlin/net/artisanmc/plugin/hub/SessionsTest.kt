@@ -55,6 +55,19 @@ class SessionsTest {
     }
 
     @Test
+    fun `the store is written by the writer, after the link is issued`() {
+        val store = MemoryStore()
+        val queued = mutableListOf<Runnable>()
+        val sessions = Sessions(clock, store = store, writer = { queued += it })
+        val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(player, "Iban", setOf(EditorPermissions.VIEW)))
+        assertEquals(0, store.rows.size, "nothing waited for the store")
+        val session = assertNotNull(sessions.redeem(link.token), "the link opens here before its row exists")
+        queued.forEach(Runnable::run)
+        assertEquals(1, store.rows.size, "the session's row, the link's deleted")
+        assertNotNull(Sessions(clock, store = store).find(session.id))
+    }
+
+    @Test
     fun `a session survives a restart`() {
         val store = MemoryStore()
         val session = signIn(Sessions(clock, store = store))
