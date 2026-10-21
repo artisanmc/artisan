@@ -3,6 +3,7 @@ import { openProjectSettings } from "@/features/project/projectSettings";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type { ComponentProps } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { CreatableKind } from "./BoardChrome";
 import { ContextMenu } from "./ContextMenu";
@@ -29,6 +30,7 @@ export function StageContextMenu({
   onGroup?: (ids: string[]) => void;
   onCreateAt?: (kind: CreatableKind, world: Point) => void;
 }) {
+  const { t } = useTranslation();
   const entityIds = state.target.kind === "entity" ? state.target.selectedIds : [];
   const onError = (m: string) => toast.error(m);
   const createAt = (kind: CreatableKind) =>
@@ -62,7 +64,9 @@ export function StageContextMenu({
       onDelete={() => {
         if (entityIds.length === 0) return;
         try {
-          canvasClipboardActions.deleteSelection(projectId, entityIds);
+          canvasClipboardActions.deleteSelection(projectId, entityIds, () =>
+            toast.error(t("canvas.systemDocumentKept")),
+          );
           useSelectionStore.getState().clear();
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "delete failed");

@@ -167,9 +167,12 @@ function TemplateList({
   if (templates.status === "error")
     return <EmptyState title={t("moduleTemplates.errors.fetch_error")} />;
   if (templates.status === "loading") return <EmptyState title={t("moduleTemplates.loading")} />;
+  // A module's system elements are in its folder already: nothing to copy.
+  const offered = templates.states.filter((template) => !template.template.system);
+  if (offered.length === 0) return <EmptyState title={t("moduleTemplates.none")} />;
   return (
     <>
-      {templates.states.map((template) => {
+      {offered.map((template) => {
         // Untouched copies of an older version: taking the new one loses nothing.
         const updatable = template.files.filter(
           (f) => f.updateAvailable && (f.status === "identical" || f.status === "removed"),

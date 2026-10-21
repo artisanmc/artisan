@@ -55,6 +55,7 @@ import { useStageContextMenu } from "./useStageContextMenu";
 import { useStageDropTargets } from "./useStageDropTargets";
 import { useElementSize, useStageFraming } from "./useStageFraming";
 import { useStageTouch } from "./useStageTouch";
+import { useSystemDocuments } from "./useSystemDocuments";
 
 const CORE_KINDS = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
 
@@ -86,6 +87,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
   // The board also draws the commands the folder's module declares: `boardProject` is
   // what it reads, `project` what is edited and saved.
   const { nodes: moduleCommands, boardProject } = useModuleCommands(project);
+  const systemDocs = useSystemDocuments(project);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const size = useElementSize(wrapperRef);
@@ -347,6 +349,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 position={layout[menu.id]!}
                 layout={layout}
                 solo={focusMode}
+                systemModule={systemDocs.get(menu.id)}
               />
             ))}
         </Layer>
@@ -381,6 +384,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 projectId={projectId}
                 dialog={dialog}
                 position={layout[dialog.id]!}
+                systemModule={systemDocs.get(dialog.id)}
               />
             ))}
           {allDocuments(project)

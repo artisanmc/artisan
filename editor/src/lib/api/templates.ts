@@ -21,6 +21,8 @@ export interface TemplateInfo {
   version: number;
   /** The Project the server created with these files once, at its first start. */
   seed_project?: string;
+  /** The module's system elements (API 2.12.0): kept in its folder, never offered to copy. */
+  system?: boolean;
   files: TemplateFileInfo[];
 }
 
@@ -38,6 +40,7 @@ export type TemplateError =
   | "not_found"
   | "unknown_project"
   | "unknown_path"
+  | "system_template"
   | "server_offline"
   | "plugin_update_required"
   | "forbidden"
@@ -54,6 +57,7 @@ function errorOf(error: unknown): TemplateError {
     "not_found",
     "unknown_project",
     "unknown_path",
+    "system_template",
     "server_offline",
     "plugin_update_required",
     "write_error",

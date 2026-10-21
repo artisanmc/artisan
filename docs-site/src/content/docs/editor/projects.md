@@ -186,6 +186,10 @@ ZIP imports use the enclosing project folder as the project's identity, rather t
 old manifest ID. See [Importing a project from a ZIP](#importing-a-project-from-a-zip)
 above.
 
+## Menus a module provides
+
+Some modules ship menus and dialogs their code opens by name, such as the shop's main menu. They sit in the module's folder like your own menus, marked with a puzzle icon in the list and with the module's name above them on the board. You can edit them freely. You cannot delete or move them: **Reset** in a menu's `···` options puts the module's version back. While you have not changed one, it follows each new version of the module by itself. Once you have, it stays yours, and a dot tells you when the module ships a new version.
+
 ## Commands a module provides
 
 The board of a module's folder also shows the commands the module declares, with a dashed
