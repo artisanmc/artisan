@@ -18,7 +18,7 @@ import net.artisanmc.plugin.platform.Chat
  * the override that replaced a command can call what it replaced without looping). The
  * command's permission still applies. `args` maps the declared arguments to values, each
  * interpolated then parsed like a typed argument; `{name}` alone passes the value as is (a
- * player stays a player).
+ * player stays a player). A command that opens a menu opens it, the arguments as its context.
  */
 class ModuleCommandAction(
     private val commands: () -> List<ResolvedPlayerCommand>,
@@ -43,7 +43,8 @@ class ModuleCommandAction(
             return ctx
         }
         val run = node.declaration.executor
-        if (run == null) {
+        val menu = node.declaration.opensMenu
+        if (run == null && menu == null) {
             runtime.warn("$NAME: '$id' has sub-commands only, nothing to run")
             return ctx
         }
@@ -65,8 +66,9 @@ class ModuleCommandAction(
             Chat.send(player, lang.get("arg.missing", player, "arg" to it.name))
             return ctx
         }
+        if (menu != null) return runtime.run(ctx.withArgs(ctx.args + values), ResolvedPlayerCommand.openMenu(menu))
         try {
-            run.execute(ModuleCommandContext(node.id, player, ctx.lang, values))
+            run!!.execute(ModuleCommandContext(node.id, player, ctx.lang, values))
         } catch (e: Exception) {
             logger.log(Level.WARNING, "Command '${node.id}' failed for ${player.name} ($NAME)", e)
             Chat.send(player, lang.get("cmd.failed", player))

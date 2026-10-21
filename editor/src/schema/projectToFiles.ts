@@ -8,6 +8,7 @@ import { documentPath } from "@/domain/documentLayout";
 import { documentIds, documentsOf } from "@/domain/documents";
 import { persistedFolderMeta } from "@/domain/folders";
 import type { Project } from "@/domain/types";
+import { isModuleCommandId } from "@/features/canvas/moduleCommands";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
@@ -92,8 +93,10 @@ export function projectToFiles(project: Project): Record<string, string> {
   }
 
   const liveIds = new Set<string>(documentIds(project));
+  // A module command's node (`<module>:<name>`, never a Document id) keeps its
+  // position too: the board draws it from the server's declarations.
   const editorLayout = Object.fromEntries(
-    Object.entries(project.canvasLayout).filter(([id]) => liveIds.has(id)),
+    Object.entries(project.canvasLayout).filter(([id]) => liveIds.has(id) || isModuleCommandId(id)),
   );
 
   const manifest: Record<string, unknown> = {

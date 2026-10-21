@@ -17,6 +17,7 @@ import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
+import { useModuleCommands } from "@/features/canvas/useModuleCommands";
 import { ModuleTemplatesDialog } from "@/features/templates/ModuleTemplatesDialog";
 import {
   type ProjectTemplates,
@@ -45,6 +46,7 @@ import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { documentRelPath } from "./DocumentYamlView";
 import { FolderNameDialog } from "./FolderNameDialog";
+import { ModuleCommandRow } from "./ModuleCommandRow";
 import { openProjectSettings } from "./projectSettings";
 import {
   type DocumentType,
@@ -193,9 +195,13 @@ export function ProjectDocumentTree({
 }) {
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const { nodes: moduleCommands } = useModuleCommands(project);
   if (!project) return null;
 
-  const empty = documentCount(project) === 0 && listFolders(project).length === 0;
+  const empty =
+    documentCount(project) === 0 &&
+    listFolders(project).length === 0 &&
+    moduleCommands.length === 0;
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.
@@ -241,6 +247,13 @@ export function DocumentGroups({
   const templates = useProjectTemplates(project.id);
   const groups = buildProjectDocuments(project, activeLang);
   const originOf = (id: string) => templateOrigin(templates, documentRelPath(project, id));
+  // The commands the folder's module declares go with its own commands.
+  const { nodes: moduleCommands } = useModuleCommands(project);
+  const hasCommands = groups.some((g) => g.type === "command" && g.items.some((it) => !it.folder));
+  const kinds =
+    moduleCommands.length > 0 && !hasCommands
+      ? [...groups, { type: "command" as DocumentType, items: [] as ProjectDocumentItem[] }]
+      : groups;
   return (
     <>
       {childFolders(project, "").map((path) => (
@@ -255,9 +268,10 @@ export function DocumentGroups({
           originOf={originOf}
         />
       ))}
-      {groups.map((g) => {
+      {kinds.map((g) => {
         const rootItems = g.items.filter((it) => !it.folder);
-        if (rootItems.length === 0) return null;
+        const moduleRows = g.type === "command" ? moduleCommands : [];
+        if (rootItems.length === 0 && moduleRows.length === 0) return null;
         // One icon per category, in its header: repeated on every row it said
         // nothing more than the header and ate the width.
         const Icon = typeIcon(g.type);
@@ -294,6 +308,11 @@ export function DocumentGroups({
                     onOpen={() => onOpen(it.id)}
                     origin={originOf(it.id)}
                   />
+                </li>
+              ))}
+              {moduleRows.map((node) => (
+                <li key={node.id}>
+                  <ModuleCommandRow node={node} />
                 </li>
               ))}
             </ul>

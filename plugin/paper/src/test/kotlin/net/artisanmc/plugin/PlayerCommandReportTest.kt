@@ -48,5 +48,13 @@ class PlayerCommandReportTest {
             child["arguments"],
         )
         assertEquals(null, report[1]["module_id"])
+        assertEquals(null, root["opens_menu"])
+    }
+
+    @Test
+    fun `a command that opens a menu names it, the board draws the link`() {
+        val registry = PlayerCommandRegistry()
+        registry.register(PlayerCommandDeclaration.builder("boutique:open").name("boutique").opensMenu("boutique_addon:shop_main").build())
+        assertEquals("boutique_addon:shop_main", PlayerCommandReport.build(registry).single()["opens_menu"])
     }
 }

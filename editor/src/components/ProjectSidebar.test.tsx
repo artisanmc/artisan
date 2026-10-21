@@ -102,6 +102,7 @@ describe("ProjectSidebar", () => {
       description: {},
       arguments: [],
       consoleAllowed: false,
+      opensMenu: null,
       children: [],
     });
     useSystemCommandsStore.setState({
@@ -170,6 +171,38 @@ describe("ProjectSidebar", () => {
       const tree = await screen.findByRole("group", { name: /pack_a/ });
       expect(tree).toHaveTextContent("accueil");
       expect(tree).toHaveTextContent("/heal");
+    });
+
+    it("lists the commands its module declares with its own, marked as built in", async () => {
+      mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
+      useSystemCommandsStore.setState({
+        serverId: "sk_1",
+        status: "ready",
+        commands: [
+          {
+            id: "shop:open",
+            moduleId: "shop",
+            name: "shop",
+            aliases: [],
+            permission: null,
+            description: {},
+            arguments: [],
+            consoleAllowed: false,
+            opensMenu: "pack_a:accueil",
+            children: [],
+          },
+        ],
+        folders: [{ folder: "pack_a", ownerModule: "shop" }],
+        overrides: {},
+      });
+      render(<ProjectSidebar />);
+      const tree = await screen.findByRole("group", { name: /pack_a/ });
+      const commands = within(tree).getByRole("list", { name: "Commandes" });
+      expect(commands).toHaveTextContent("/heal");
+      const builtIn = within(commands).getByRole("link", { name: /\/shop/ });
+      expect(within(builtIn).getByRole("img")).toHaveAccessibleName(
+        /Commande interne du module shop/,
+      );
     });
 
     it("puts settings and creation on the open project's row, no more 'Settings' row", async () => {

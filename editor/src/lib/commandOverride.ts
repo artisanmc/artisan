@@ -42,6 +42,8 @@ export interface StoredOverride {
   fields: OverrideFields;
   /** Requirements, fallback or steps: kept as written, edited in the file only. */
   hasLogic: boolean;
+  /** The chain run instead of the module's code, as written; undefined when it sets none. */
+  steps?: unknown;
 }
 
 export type OverrideState = "default" | "modified" | "disabled";
@@ -103,7 +105,15 @@ export function parseOverride(
     (Array.isArray(raw.requirements) && raw.requirements.length > 0) ||
     raw.fallback != null ||
     raw.steps != null;
-  return { command, folder, path, content, fields, hasLogic };
+  return {
+    command,
+    folder,
+    path,
+    content,
+    fields,
+    hasLogic,
+    ...(raw.steps != null ? { steps: raw.steps } : {}),
+  };
 }
 
 /**

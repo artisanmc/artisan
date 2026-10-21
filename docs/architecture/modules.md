@@ -403,6 +403,11 @@ d'une commande de module depuis une chaîne, sans son override (ni conditions, n
 aussi pour une commande désactivée. Elle est déclarée comme une action de module (propriétaire
 `artisan`) : l'éditeur construit son formulaire depuis la déclaration.
 
+Une commande qui ne fait qu'ouvrir un menu le déclare par `opensMenu("dossier:menu")` (API 2.11.0)
+au lieu d'un exécuteur : Artisan ouvre le menu, les arguments en contexte, et la planche de l'éditeur
+dessine le lien. Un `steps` d'override la remplace comme un exécuteur, et `module_command` rouvre le
+menu déclaré.
+
 ```yaml
 schema: command_override/v1
 command: guilds:balance.add
