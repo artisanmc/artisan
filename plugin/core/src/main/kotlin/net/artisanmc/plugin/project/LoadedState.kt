@@ -65,7 +65,7 @@ data class ProjectListing(
     companion object {
         fun of(snapshot: ProjectSnapshot, roots: ProjectRoots): ProjectListing {
             val ids = snapshot.projectIds
-            val inventory = ResourceInventory.scan(roots).map { InventoryEntry(it.projectId, it.path, it.origin) }
+            val inventory = ResourceInventory.of(snapshot, roots).map { InventoryEntry(it.projectId, it.path, it.origin) }
             return ProjectListing(ids, ids.map { ProjectRootInfo.from(roots.descriptor(it))!! }, inventory)
         }
 

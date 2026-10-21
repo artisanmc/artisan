@@ -206,6 +206,17 @@ Rien de bloquant dans `onEnable` ni sur le thread global après lui (issue #42) 
   `reinit()` recrée le provider et le charge, la commande n'enchaîne plus `unload()/load()`.
   Reste connu : une sauvegarde de la config serveur depuis l'éditeur fait ce `reinit()`
   complet, synchrone sur le thread global (A13 de l'audit).
+- **Une relecture = un parcours par Project.** `ProjectFilesReader.scan` produit les textes et
+  les binaires d'un seul `walkTopDown` ; le hash d'un binaire est gardé par (chemin, taille,
+  mtime) entre les relectures (`BinaryHashCache`, élagué à chaque relecture complète) : un png
+  qui n'a pas changé n'est pas relu. Le hash de snapshot est calculé une fois par Project et
+  par snapshot (`ProjectSnapshot.hash`), repris pour les Projects qu'une relecture partielle n'a
+  pas relus (`inheritHashes`). `VersionRecorder` n'enregistre que les Projects dont le hash
+  diffère du dernier enregistré, ou qu'une publication vient d'écrire ; l'état chargé est
+  réécrit à chaque fois. L'inventaire de ressources (`resource_inventory`) se calcule depuis le
+  snapshot (`ResourceInventory.of`), plus de parcours du disque par `project_list` ni par
+  relecture. `ProjectReader` garde son propre parcours peu profond pour les Documents : deux
+  parcours par relecture, contre quatre, et chaque fichier lu une fois.
 - Aucun JDBC ni I/O disque dans le chemin join, tick ou clic.
 
 ## Reload atomique

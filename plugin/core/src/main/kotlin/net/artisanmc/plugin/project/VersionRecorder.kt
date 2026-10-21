@@ -53,13 +53,20 @@ class VersionRecorder(
     private val logger: Logger,
     private val clock: () -> Instant = Instant::now,
 ) {
+    /** Per Project, the hash of the Snapshot last recorded: a Project a reload left as it was records nothing. On [writer] only. */
+    private val recorded = HashMap<String, String>()
+
     /** Queues [snapshot]; [done] runs on [writer] once it is recorded, or skipped. [authors]: the Projects a publication wrote. */
     fun record(snapshot: ProjectSnapshot, authors: Map<String, PublicationAuthor>, done: () -> Unit) {
         val now = clock()
         writer.execute {
             val data = storage() ?: return@execute done()
             var failed = 0
-            for (id in snapshot.projectIds) runCatching {
+            recorded.keys.retainAll(snapshot.files.keys)
+            // A partial reload re-reads one Project: the others' Versions exist already, and
+            // the storage would only find them unchanged, one connection and one SELECT each.
+            val changed = snapshot.projectIds.filter { id -> authors[id] != null || recorded[id] != snapshot.hash(id) }
+            for (id in changed) runCatching {
                 val dir = roots.dirFor(id)
                 val content = { path: String -> !ContentHash.isArtisanMeta(path) }
                 val skipped = data.recordVersion(
@@ -70,7 +77,8 @@ class VersionRecorder(
                 ) { File(dir, it).readBytes() }
                 if (skipped.isNotEmpty())
                     logger.warning("[Artisan] Project $id: ${skipped.joinToString()} changed on disk since the reload, kept out of this Version")
-            }.onFailure { failed++; logger.warning("[Artisan] Version of project $id not recorded: ${it.message}") }
+                recorded[id] = snapshot.hash(id)
+            }.onFailure { failed++; recorded.remove(id); logger.warning("[Artisan] Version of project $id not recorded: ${it.message}") }
             if (failed == 0) runCatching { data.recordState(loadedState(snapshot), now) }
                 .onFailure { logger.warning("[Artisan] Loaded state not recorded: ${it.message}") }
             else logger.warning("[Artisan] Loaded state not recorded: $failed Version(s) failed, the editor keeps the previous one")

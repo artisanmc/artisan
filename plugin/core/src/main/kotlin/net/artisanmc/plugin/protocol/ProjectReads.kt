@@ -47,8 +47,8 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
                 val tree = snapshot.files[projectId] ?: return@offThread reply.error("unknown_project")
                 val hash = snapshot.hash(projectId)
                 if (request.ifHash != null && request.ifHash == hash) return@offThread reply.ok("unchanged" to true, "hash" to hash)
+                if (tree.values.sumOf(::utf8Size) > MAX_PROJECT_BYTES) return@offThread reply.error("too_large")
                 val files = tree.toSortedMap().map { (rel, content) -> mapOf("path" to rel, "content" to content) }
-                if (files.sumOf { it["content"]!!.toByteArray().size } > MAX_PROJECT_BYTES) return@offThread reply.error("too_large")
                 reply.ok(
                     "hash" to hash,
                     "files" to files,
@@ -150,6 +150,23 @@ class ProjectReads(private val workspace: ProjectWorkspace, private val replies:
          * `too_large` instead of truncating.
          */
         const val MAX_PROJECT_BYTES = 8 * 1024 * 1024
+
+        /** The UTF-8 size of [text], without encoding it: the cap is checked on every `project_read`. */
+        fun utf8Size(text: String): Long {
+            var size = 0L
+            var i = 0
+            while (i < text.length) {
+                val c = text[i]
+                size += when {
+                    c.code < 0x80 -> 1
+                    c.code < 0x800 -> 2
+                    Character.isHighSurrogate(c) && i + 1 < text.length && Character.isLowSurrogate(text[i + 1]) -> { i++; 4 }
+                    else -> 3
+                }
+                i++
+            }
+            return size
+        }
         const val MAX_CONFIG_BYTES = 1024 * 1024
     }
 }
