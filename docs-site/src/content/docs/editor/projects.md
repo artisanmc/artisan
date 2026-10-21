@@ -185,3 +185,12 @@ before projects can be created, renamed or deleted on it.
 ZIP imports use the enclosing project folder as the project's identity, rather than an
 old manifest ID. See [Importing a project from a ZIP](#importing-a-project-from-a-zip)
 above.
+
+## Commands a module provides
+
+The board of a module's folder also shows the commands the module declares, with a dashed
+frame and the module's name under each one. An arrow leaves a command when it opens
+something: the menu the module declares (`/boutique` opens the shop's main menu), or the
+`steps` you gave it on its page in the System section. A green dot means you changed the
+command, and a struck-out name means you disabled it. Double-click a command to open its page.
+You can move it on the board, but you cannot delete it: disable it from its page instead.

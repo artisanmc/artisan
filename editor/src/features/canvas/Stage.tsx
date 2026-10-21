@@ -37,6 +37,7 @@ import { GhostChips } from "./GhostChips";
 import { ItemTooltip } from "./ItemTooltip";
 import { MarqueeRect } from "./MarqueeRect";
 import { MenuGroup } from "./MenuGroup";
+import { ModuleCommandGroup } from "./ModuleCommandGroup";
 import { Selection } from "./Selection";
 import { StageContextMenu } from "./StageContextMenu";
 import { dispatchOpenElement } from "./canvasEvents";
@@ -47,6 +48,7 @@ import { useFolderFraming } from "./useFolderFraming";
 import { useHeldPanKeys } from "./useHeldPanKeys";
 import { useMarqueeSelection } from "./useMarqueeSelection";
 import { useMiddleClickPan } from "./useMiddleClickPan";
+import { useModuleCommands } from "./useModuleCommands";
 import { usePrimaryButtonOnly } from "./usePrimaryButtonOnly";
 import { useStageBoard } from "./useStageBoard";
 import { useStageContextMenu } from "./useStageContextMenu";
@@ -81,6 +83,9 @@ function StageCanvas({ projectId, focus }: StageProps) {
   const focusMode = focus != null;
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  // The board also draws the commands the folder's module declares: `boardProject` is
+  // what it reads, `project` what is edited and saved.
+  const { nodes: moduleCommands, boardProject } = useModuleCommands(project);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const size = useElementSize(wrapperRef);
@@ -89,7 +94,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
     useUiStore((s) => s.boardFolders[projectId]),
   );
   const { board, layout, setGroupDrag } = useStageBoard(
-    project,
+    boardProject,
     focus,
     focusMode ? undefined : folder,
   );
@@ -102,7 +107,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
     markTouched,
     syncViewportFromStage,
     refitFocus,
-  } = useStageFraming({ projectId, focus, project, layout, size, stageRef });
+  } = useStageFraming({ projectId, focus, project: boardProject, layout, size, stageRef });
   useFolderFraming({ folder, project, layout, size, setViewport });
   const canvasMode = useUiStore((s) => s.canvasMode);
   const { spaceHeld, altHeld } = useHeldPanKeys();
@@ -315,7 +320,11 @@ function StageCanvas({ projectId, focus }: StageProps) {
           />
         )}
         <Layer name="edges">
-          <Edges project={project} layout={layout} representatives={board?.representatives} />
+          <Edges
+            project={boardProject ?? project}
+            layout={layout}
+            representatives={board?.representatives}
+          />
           {board?.gutter && (
             <Text
               x={board.gutter.x}
@@ -354,6 +363,16 @@ function StageCanvas({ projectId, focus }: StageProps) {
                 position={layout[command.id]!}
               />
             ))}
+          {moduleCommands
+            .filter((node) => layout[node.id])
+            .map((node) => (
+              <ModuleCommandGroup
+                key={node.id}
+                projectId={projectId}
+                node={node}
+                position={layout[node.id]!}
+              />
+            ))}
           {dialogsOf(project)
             .filter((dialog) => layout[dialog.id])
             .map((dialog) => (
@@ -377,7 +396,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
               />
             ))}
           <GhostChips
-            project={project}
+            project={boardProject ?? project}
             layout={layout}
             representatives={board?.representatives}
             // In focus, every link of the Document is off-board: the chip becomes the
@@ -394,7 +413,7 @@ function StageCanvas({ projectId, focus }: StageProps) {
       </KonvaStage>
       <ItemTooltip projectId={projectId} />
       <DocumentItemTooltip />
-      <EdgeTooltip project={project} groups={board?.groups} />
+      <EdgeTooltip project={boardProject ?? project} groups={board?.groups} />
       <StageContextMenu
         projectId={projectId}
         state={ctxMenu}

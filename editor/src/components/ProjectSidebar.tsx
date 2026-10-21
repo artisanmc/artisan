@@ -33,6 +33,7 @@ import { useTranslation } from "react-i18next";
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import { documentCount } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
+import { moduleCommandsOf } from "@/features/canvas/moduleCommands";
 import {
   type ModuleGroupEntry,
   type PluginModule,
@@ -76,6 +77,8 @@ export function ProjectSidebar() {
   const serverScreens = useServerScreensStore((s) => s.screens);
   const commandsServer = useSystemCommandsStore((s) => s.serverId);
   const systemCommands = useSystemCommandsStore((s) => s.commands);
+  const commandOverrides = useSystemCommandsStore((s) => s.overrides);
+  const commandFolders = useSystemCommandsStore((s) => s.folders);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
   // Three states, like a server page: reading, read, could not read. An empty
@@ -219,7 +222,15 @@ export function ProjectSidebar() {
   // Document count per Project: only the ones actually opened (live count, it
   // follows edits). Recomputing it for every Project would cost a disk read
   // each just to fill a sidebar, so a Project never opened shows no badge.
-  const liveCount = new Map(localProjects.map((p) => [p.id, documentCount(p)]));
+  // The commands its module declares count with its own Documents, as its list shows them.
+  const commandInput = {
+    commands: commandsServer === activeServerId ? systemCommands : [],
+    overrides: commandOverrides,
+    folders: commandFolders,
+  };
+  const liveCount = new Map(
+    localProjects.map((p) => [p.id, documentCount(p) + moduleCommandsOf(p, commandInput).length]),
+  );
   const countFor = (p: ProjectSummary): number | null => liveCount.get(p.id as ProjectId) ?? null;
 
   // Does the open project have a row in the list? Otherwise (demo, unlisted
@@ -684,8 +695,11 @@ function PluginModuleItem({
     module.entries.some((e) => e.kind === "screen" && e.screen.id === params.screenId) ||
     allCommands(module.commands).some((c) => c.id === params.commandId);
   const [expanded, setExpanded] = useState(showsChild);
-  const entries = (module.entries.length > 0 || module.commands.length > 0) && (
-    <ModuleEntries entries={module.entries} commands={module.commands} serverId={serverId} />
+  // With a folder, its commands are listed among the folder's own; only a module
+  // without one keeps them here.
+  const commands = module.projects.length > 0 ? [] : module.commands;
+  const entries = (module.entries.length > 0 || commands.length > 0) && (
+    <ModuleEntries entries={module.entries} commands={commands} serverId={serverId} />
   );
   const [only] = module.projects;
   if (only && module.projects.length === 1) {

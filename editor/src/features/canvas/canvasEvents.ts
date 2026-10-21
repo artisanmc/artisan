@@ -5,3 +5,10 @@ export const OPEN_ELEMENT_EVENT = "artisan:open_element";
 export function dispatchOpenElement(id: string): void {
   window.dispatchEvent(new CustomEvent(OPEN_ELEMENT_EVENT, { detail: { id } }));
 }
+
+/** Internal window CustomEvent: "open this module command's System page". Dispatched by its board node. */
+export const OPEN_SYSTEM_COMMAND_EVENT = "artisan:open_system_command";
+
+export function dispatchOpenSystemCommand(commandId: string): void {
+  window.dispatchEvent(new CustomEvent(OPEN_SYSTEM_COMMAND_EVENT, { detail: { commandId } }));
+}

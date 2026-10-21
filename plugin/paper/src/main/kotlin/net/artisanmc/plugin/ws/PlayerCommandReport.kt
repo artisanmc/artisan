@@ -6,7 +6,8 @@ import net.artisanmc.modules.api.playercommand.PlayerCommandRegistry
 /**
  * Builds the `player_commands` wire payload sent in `hello` / `modules_changed`: the commands
  * modules declare, with their default dressing, which the editor's System section shows and an
- * admin's `command_override/v1` changes. No executor: the editor only edits the dressing.
+ * admin's `command_override/v1` changes. No executor: the editor only edits the dressing; a
+ * declared menu (`opens_menu`) is the link the editor's board draws.
  */
 object PlayerCommandReport {
     fun build(registry: PlayerCommandRegistry): List<Map<String, Any?>> =
@@ -28,6 +29,7 @@ object PlayerCommandReport {
             )
         },
         "console_allowed" to declaration.isConsoleAllowed,
+        "opens_menu" to declaration.opensMenu,
         "children" to declaration.children.map { wire(it, moduleId) },
     )
 }

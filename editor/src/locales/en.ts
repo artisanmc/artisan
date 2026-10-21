@@ -766,6 +766,8 @@ export default {
     },
   },
   projectPanel: {
+    moduleCommandHint:
+      "Built-in command of the {{module}} module: its code lives in the plugin. Open it to change its name, permission, texts or what it does.",
     noEditor: "No editor for this {{kind}} yet",
     multiSelection: "Multi-edit not supported in v1. Select one item.",
     selectionNoEditor: "Selection has no editor.",
@@ -903,6 +905,7 @@ export default {
     errFetchError: "The module failed: {{message}}",
   },
   canvas: {
+    moduleCommand: "command · {{module}}",
     armedHint: "armed — tap a slot to place it",
     groups: {
       title: "Folders",
