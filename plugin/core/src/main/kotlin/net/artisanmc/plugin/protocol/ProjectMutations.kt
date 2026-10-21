@@ -21,8 +21,9 @@ internal class ProjectMutations(private val roots: ProjectRoots) {
 
     /** True if [message] was already applied: the original reply is sent again. */
     fun replayed(projectDir: File, message: JsonNode, reply: Replies.Reply): Boolean {
+        // An interrupted commit of this folder was replayed when the folder was first listed
+        // (`ProjectRoots.all`); `previous` finishes the one operation it finds.
         val publisher = ProjectPublisher(projectDir)
-        publisher.recover()
         val operationId = message["operation_id"]?.asText() ?: return false
         val result = publisher.previous(operationId, fingerprint(message)) ?: return false
         @Suppress("UNCHECKED_CAST")

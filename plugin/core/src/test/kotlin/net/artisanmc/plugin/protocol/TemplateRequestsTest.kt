@@ -19,11 +19,12 @@ class TemplateRequestsTest {
     private val coreRoot = Files.createTempDirectory("artisan-template-requests").toFile()
     private val sent = mutableListOf<Map<String, Any?>>()
     private var reloads = 0
+    private val reloaded = mutableListOf<Set<String>?>()
     private val workspace = object : ProjectWorkspace {
         override val roots = ProjectRoots(coreRoot)
         override val snapshot = ProjectSnapshot.EMPTY
         override val io = Executor { it.run() }
-        override fun reload() { reloads++ }
+        override fun reload(projectIds: Set<String>?) { reloads++; reloaded += projectIds }
         override fun authoredBy(projectId: String, author: PublicationAuthor) {}
     }
     private val registry = TemplateRegistry().apply {

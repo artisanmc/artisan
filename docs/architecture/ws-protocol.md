@@ -162,5 +162,6 @@ sans gestionnaire ne compile pas.
 | `SyncedMenuProvider` | `paper` | `hello_ack`, `resource_pack_updated`, `session_replaced`, `custom_items_request` |
 
 Les gestionnaires `core` ne voient les Projects qu'à travers `ProjectWorkspace` (instantané,
-exécuteur disque, rechargement). Toute réponse part par `Replies` ; aucune I/O bloquante sur le
-thread du callback WebSocket (cf. `invariants.md`).
+exécuteur disque, `reload(projectIds)` qui ne relit que les Projects nommés : chaque écriture
+relit le sien, un renommage l'ancien et le nouvel id). Toute réponse part par `Replies` ; aucune
+I/O bloquante sur le thread du callback WebSocket (cf. `invariants.md`).
