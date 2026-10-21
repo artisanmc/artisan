@@ -1,11 +1,18 @@
 package net.artisanmc.e2e;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -22,6 +29,10 @@ import java.util.function.Predicate;
  *   <li>{@code e2e_visible} : le vrai inventaire s'affiche et ne bouge pas ;</li>
  *   <li>{@code e2e_nav_a/b/c} : A → B → C, deux retours ramènent à A,
  *   {@code has_previous_menu} suit l'historique.</li>
+ *   <li>pack refusé : le serveur croit les coffres transparents (cache du pack
+ *   dans {@code fixtures/cache/}), mais le joueur a refusé le pack ; le titre d'un
+ *   vrai coffre ne porte aucun caractère d'une police du pack, y compris après
+ *   {@code /artisan reload}.</li>
  * </ul>
  */
 final class MenuScenarios extends Scenario {
@@ -57,6 +68,7 @@ final class MenuScenarios extends Scenario {
 		hidden(mc);
 		visible(mc);
 		navigation(mc);
+		refusedPack(mc);
 	}
 
 	// --- player_inventory: hidden ------------------------------------------
@@ -190,6 +202,40 @@ final class MenuScenarios extends Scenario {
 			if (menu.getSlot(i).getItem().isEmpty() == filled.contains(i)) wrong.add(i);
 		}
 		check("nav: " + name + " has nothing left from the previous menu", wrong.isEmpty(), "wrong slots: " + wrong);
+	}
+
+	// --- pack refusé ------------------------------------------------------------
+
+	private void refusedPack(Minecraft mc) {
+		step("pack: place a chest", m -> m.getConnection().sendCommand("setblock ~2 ~ ~ chest"));
+		sleep(10);
+		openChest(mc, "pack: real chest");
+		step("pack: reload", m -> m.getConnection().sendCommand("artisan reload"));
+		sleep(40);
+		openChest(mc, "pack: real chest after /artisan reload");
+	}
+
+	private void openChest(Minecraft mc, String name) {
+		step(name, m -> {
+			BlockPos pos = m.player.blockPosition().offset(2, 0, 0);
+			m.gameMode.useItemOn(m.player, InteractionHand.MAIN_HAND,
+				new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
+		});
+		await(name + " open", () -> mc.gui.screen() instanceof AbstractContainerScreen<?>);
+		sleep(5);
+		step(name + ": title", m -> {
+			List<String> foreign = new ArrayList<>();
+			((AbstractContainerScreen<?>) m.gui.screen()).getTitle().visit((style, text) -> {
+				FontDescription font = style.getFont();
+				boolean vanilla = font instanceof FontDescription.Resource r && r.id().getNamespace().equals("minecraft");
+				if (!vanilla && !text.isEmpty()) foreign.add(font + " " + text.codePoints()
+					.mapToObj(c -> String.format("U+%04X", c)).toList());
+				return java.util.Optional.empty();
+			}, net.minecraft.network.chat.Style.EMPTY);
+			check(name + ": title uses only vanilla fonts (no missing characters)", foreign.isEmpty(),
+				"pack-only text: " + foreign);
+		});
+		close(mc);
 	}
 
 	// --- steps shared by the scenarios ---------------------------------------

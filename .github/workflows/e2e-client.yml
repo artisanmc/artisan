@@ -9,6 +9,7 @@ on:
       - plugin/src/main/kotlin/net/artisanmc/plugin/render/PacketEventsMenuPackets.kt
       - plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuWindows.kt
       - plugin/src/main/kotlin/net/artisanmc/plugin/render/MenuSlots.kt
+      - plugin/src/main/kotlin/net/artisanmc/plugin/render/VanillaGuiTitle.kt
       - plugin/build.gradle.kts
       - e2e/client/**
       - .github/workflows/e2e-client.yml

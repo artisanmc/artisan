@@ -80,8 +80,10 @@ public abstract class Scenario {
 			}
 			connecting = true;
 			define(mc);
-			ConnectScreen.startConnecting(new TitleScreen(), mc, ServerAddress.parseString(server),
-				new ServerData("artisan-e2e", server, ServerData.Type.OTHER), false, null);
+			ServerData data = new ServerData("artisan-e2e", server, ServerData.Type.OTHER);
+			// Le joueur refuse le pack du serveur (cf. MenuScenarios#refusedPack).
+			data.setResourcePackStatus(ServerData.ServerPackStatus.DISABLED);
+			ConnectScreen.startConnecting(new TitleScreen(), mc, ServerAddress.parseString(server), data, false, null);
 			return;
 		}
 		if (mc.player == null || mc.level == null) {

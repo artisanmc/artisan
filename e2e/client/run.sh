@@ -34,6 +34,10 @@ cp "$PAPER_JAR" "$SERVER/paper.jar"
 cp "$PLUGIN_JAR" "$SERVER/plugins/"
 for jar in ${EXTRA_PLUGINS:-}; do cp "$jar" "$SERVER/plugins/"; done
 cp -r "$HERE/fixtures/projects/." "$SERVER/plugins/Artisan/projects/"
+# Caches du dernier pack servi par le backend : un pack qui rend les coffres
+# transparents, poussé depuis une URL injoignable que le client refuse de toute façon.
+mkdir -p "$SERVER/plugins/Artisan/cache"
+cp "$HERE/fixtures/cache/"*.json "$SERVER/plugins/Artisan/cache/"
 echo "eula=true" > "$SERVER/eula.txt"
 cat > "$SERVER/server.properties" <<EOF
 online-mode=false
