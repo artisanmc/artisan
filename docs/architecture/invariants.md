@@ -164,7 +164,13 @@ Rien de bloquant dans `onEnable` ni sur le thread global après lui (issue #42) 
 - Un rechargement demandé après le démarrage (`api.project.reload()`, `projectRoots.register`)
   lit le disque et parse le YAML sur le thread `Artisan-reload`
   (`SyncedMenuProvider.refreshFromDisk`) ; seul `applyReload` (command map, `onReload()` des
-  modules) repasse par le thread global, après la bascule du snapshot. Le premier chargement et
+  modules) repasse par le thread global, après la bascule du snapshot. Les demandes groupées se
+  fondent en un rechargement, des deux côtés. Un dossier enregistré ne relit que ce dossier et
+  n'appelle que le `onReload()` de son module ; les fichiers qu'Artisan écrit au démarrage
+  n'appellent aucun module. `ProjectRoots.all()` ne rejoue les publications interrompues
+  qu'à la première vue d'un dossier. Au démarrage, dix relectures complètes, chacune suivie des
+  `onReload()` de tous les modules sur le thread global (qui attendaient le verrou de la
+  relecture), faisaient tomber le watchdog sur un disque lent. Le premier chargement et
   `/artisan reload` restent synchrones : les menus et commandes existent quand le serveur
   s'ouvre, et la réponse de l'admin dit vrai.
 - Aucun JDBC ni I/O disque dans le chemin join, tick ou clic.
