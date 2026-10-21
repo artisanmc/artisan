@@ -114,12 +114,34 @@ internal class RuntimeAssembly(
                 .minByOrNull { it.key }?.value
         }
 
-    /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
-    private fun applyReload() {
+    private val applyQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val applyAll = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val applyModules: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /**
+     * Reloads that end before the global thread runs the first one apply once: the modules'
+     * `onReload()` runs on that thread and reads their folders. [modules] null for every module.
+     */
+    private fun scheduleApplyReload(modules: Set<String>?) {
+        if (modules == null) applyAll.set(true) else applyModules.addAll(modules)
+        if (!applyQueued.compareAndSet(false, true)) return
+        scheduler.onGlobal {
+            applyQueued.set(false)
+            val all = applyAll.getAndSet(false)
+            val some = applyModules.toSet().also { applyModules.removeAll(it) }
+            applyReload(if (all) null else some)
+        }
+    }
+
+    /**
+     * Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there).
+     * [modules]: the modules whose `onReload()` runs, null for every one.
+     */
+    private fun applyReload(modules: Set<String>?) {
         capturedItems.reload((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
         commandOverrides.reload()
         commandRegistrar.reload(menuProvider.runtimeProjects(), executor, evaluator)
-        api.modules.active().forEach { runCatching { it.onReload() } }
+        api.modules.active().filter { modules == null || it.id in modules }.forEach { runCatching { it.onReload() } }
         api.events.publish(ConfigReloadEvent("menus"))
     }
 
@@ -177,7 +199,7 @@ internal class RuntimeAssembly(
         evaluator        = evaluator,
         sessions         = sessions,
         history          = navigationHistory,
-        onReload         = { scheduler.onGlobal(::applyReload) },
+        onReload         = ::scheduleApplyReload,
         executorProvider = { executor },
         lookupAsset      = assetCatalog::lookup,
         offsetEncoderProvider = assetCatalog::offsetEncoder,

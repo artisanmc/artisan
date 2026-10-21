@@ -29,6 +29,8 @@ class ProjectRoots(
     private val owners = ConcurrentHashMap<String, String>()
     /** Registered roots that hold a module's configuration, not content (ADR `module-config-screens`). */
     private val configRoots = ConcurrentHashMap.newKeySet<String>()
+    /** Project dirs whose interrupted publications were replayed: a commit replays its own, so only a crash leaves one. */
+    private val recovered = ConcurrentHashMap.newKeySet<String>()
 
     /** The module that registered [projectId]'s root, null for a folder of the core root. */
     fun ownerOf(projectId: String): String? = owners[projectId]
@@ -165,10 +167,12 @@ class ProjectRoots(
             ?.forEach { out[it.name] = it }
         out.putAll(registered)
         dedupeKeys(out)
+        // Once per dir: every module read goes through here, and two directory listings per
+        // project and per read add up to seconds on a slow disk.
         return out.filterValues { dir ->
-            runCatching { ProjectPublisher(dir).recover() }.onFailure {
+            dir.absolutePath in recovered || runCatching { ProjectPublisher(dir).recover() }.onFailure {
                 logger?.log(java.util.logging.Level.WARNING, "[Artisan] Publication recovery blocked; project remains isolated: ${dir.name}", it)
-            }.isSuccess
+            }.isSuccess.also { if (it) recovered += dir.absolutePath }
         }
     }
 }
