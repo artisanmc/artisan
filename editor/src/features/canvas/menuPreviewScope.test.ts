@@ -11,7 +11,12 @@ import { registerModule } from "@artisan/editor-sdk";
 import { afterEach, describe, expect, it } from "vitest";
 import boutiqueModule from "../../../packages/boutique-editor/src";
 import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
-import { buildPreviewScope, renderPreview, resolveSourceRef } from "./menuPreviewScope";
+import {
+  buildPreviewScope,
+  directSourceRefs,
+  renderPreview,
+  resolveSourceRef,
+} from "./menuPreviewScope";
 
 const stubProject = (overrides: Partial<Project> = {}): Project =>
   ({
@@ -428,5 +433,36 @@ describe("resolveSourceRef — a module-owned project answers for its own namesp
     expect(
       resolveSourceRef("boutique:items" as SourceRef, project, { "boutique:items": snap }),
     ).toEqual(snap);
+  });
+});
+
+describe('direct source refs (iterates.source: "ns:id")', () => {
+  const withElements = (inputs: ContextInput[], elements: unknown[]): Menu =>
+    ({ ...stubMenu(inputs), layers: [{ id: "l1", name: "default", elements }] }) as unknown as Menu;
+
+  it("lists the refs elements iterate or place directly, once, and not declared inputs", () => {
+    const menu = withElements(
+      [{ kind: "sourceRef", name: "quests", ref: "quests:list" as SourceRef }],
+      [
+        { id: "a", iterates: { source: "attribution:sources", alias: "source" } },
+        { id: "b", iterates: { source: "attribution:sources", alias: "s" } },
+        { id: "c", iterates: { source: "quests", alias: "quest" } },
+        {
+          id: "d",
+          places: { source: "boutique:items", alias: "item", keyField: "id", placements: [] },
+        },
+      ],
+    );
+    expect(directSourceRefs(menu)).toEqual(["attribution:sources", "boutique:items"]);
+  });
+
+  it("puts a direct ref's snapshot rows in the scope under the ref, as the runtime does", () => {
+    const rows = [{ id: "discord", name: "Discord" }];
+    const menu = withElements(
+      [],
+      [{ id: "a", iterates: { source: "attribution:sources", alias: "source" } }],
+    );
+    const scope = buildPreviewScope(menu, stubProject(), { "attribution:sources": rows });
+    expect(scope["attribution:sources"]).toEqual(rows);
   });
 });

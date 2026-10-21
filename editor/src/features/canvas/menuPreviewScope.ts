@@ -153,9 +153,30 @@ export function makeSamplePlayer(name: string = SAMPLE_PLAYER_NAME): Record<stri
 }
 
 /**
+ * Data source refs an element iterates or places directly (`iterates.source:
+ * "ns:id"`, the runtime's direct-ref sugar) instead of naming a declared input.
+ * Distinct, in element order.
+ */
+export function directSourceRefs(menu: Menu): string[] {
+  const declared = new Set((menu.contextInputs ?? []).map((i) => i.name));
+  const refs: string[] = [];
+  for (const layer of menu.layers) {
+    for (const el of layer.elements) {
+      for (const source of [el.iterates?.source, el.places?.source]) {
+        if (source?.includes(":") && !declared.has(source) && !refs.includes(source)) {
+          refs.push(source);
+        }
+      }
+    }
+  }
+  return refs;
+}
+
+/**
  * Build the preview scope for a menu by walking its contextInputs:
  *  - primitive → coerce default to its declared type
  *  - sourceRef → resolveSourceRef
+ *  - then each direct ref of an element ({@link directSourceRefs}) → resolveSourceRef
  *
  * The builtin `player` (the viewing player at runtime) is seeded unless the
  * menu declares a contextInput with that name — caller arg wins, like the
@@ -203,6 +224,10 @@ export function buildPreviewScope(
     scope[input.name] = Array.isArray(rows)
       ? applyShaping(rows, input, { ...scope, ...(previewArgs ?? {}) })
       : rows;
+  }
+  // Direct refs resolve under their own key, as the runtime exposes them.
+  for (const ref of directSourceRefs(menu)) {
+    if (!(ref in scope)) scope[ref] = resolveSourceRef(ref as SourceRef, project, snapshots);
   }
   if (!(menu.contextInputs ?? []).some((i) => i.name === "player")) {
     scope.player = makeSamplePlayer();
