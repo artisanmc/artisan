@@ -1,0 +1,10 @@
+schema: menu/v1
+id: e2e_visible
+title: "E2E visible"
+size: 27
+player_inventory: visible
+elements:
+  - id: stone
+    positions: "0-26"
+    material: STONE
+    title: "Stone"

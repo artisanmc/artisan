@@ -49,7 +49,9 @@ déroule un scénario au tick et écrit `ok`/`FAIL` par contrôle dans un fichie
 `run.sh` monte un Paper jetable (`online-mode=false`, plugin + `fixtures/projects/`, joueur
 `Offline` op via `ops.json`) puis lance le client via HeadlessMC (`-lwjgl --offline` : ni écran, ni
 compte). Pas de backend : le projet est lu sur le disque. Le workflow `e2e-client.yml` ne tourne que
-sur les fichiers ci-dessous (et à la main). Couvert aujourd'hui : les cases marquées *Automatisé*.
+sur les fichiers ci-dessous (et à la main), avec et sans le plugin PacketEvents autonome. Couvert
+aujourd'hui : les cases marquées *Automatisé* ; les cases visuelles (textures, glyphs, pack refusé)
+demandent un rendu réel et restent manuelles.
 Nouvelle version de Minecraft : monter `MC_VERSION` du workflow et `minecraft_version` du mod.
 
 **Déclencheurs** : mise à jour de Minecraft ou de PacketEvents, toute modification de
@@ -61,12 +63,12 @@ positions (haut et bas) et un menu `visible` :
 
 - [x] Pierre partout en haut et en bas (`hidden`). *Automatisé.*
 - [x] Clic, shift-clic, double-clic, touche numérique, touche F : rien ne bouge, rien n'est récupéré. *Automatisé.*
-- [ ] Ramasser un objet au sol menu ouvert : le bas reste celui du menu.
-- [ ] Passer d'un menu A à un menu B (bouton `open_menu`) : B s'affiche entier, sans reste de A.
-- [ ] Retour : `A → B → C` puis bouton `open_previous_menu` deux fois ramène à A (jamais de va-et-vient C↔B) ; sans historique, le placeholder `{has_previous_menu}` est faux et le retour ne fait rien.
+- [x] Ramasser un objet au sol menu ouvert : le bas reste celui du menu. *Automatisé.*
+- [x] Passer d'un menu A à un menu B (bouton `open_menu`) : B s'affiche entier, sans reste de A. *Automatisé.*
+- [x] Retour : `A → B → C` puis bouton `open_previous_menu` deux fois ramène à A (jamais de va-et-vient C↔B) ; sans historique, le placeholder `{has_previous_menu}` est faux et le retour ne fait rien. *Automatisé.*
 - [x] Fermeture : le vrai inventaire revient intact. *Automatisé (menu `hidden`).*
-- [ ] `/data get entity @s Inventory` menu ouvert = le vrai inventaire (rien côté serveur).
-- [ ] `visible` : le vrai inventaire s'affiche et n'est pas modifiable.
+- [x] `/data get entity @s Inventory` menu ouvert = le vrai inventaire (rien côté serveur). *Automatisé.*
+- [x] `visible` : le vrai inventaire s'affiche et n'est pas modifiable. *Automatisé.*
 - [ ] `vanilla_texture: false` : fenêtre transparente (haut et bas), la glyph du menu s'affiche, les
   items restent au-dessus de la glyph.
 - [ ] Même serveur : un vrai coffre, un tonneau, un ender chest et un double coffre gardent leur
@@ -76,4 +78,5 @@ positions (haut et bas) et un menu `visible` :
   entonnoir, un distributeur et un dropper gardent leur texture (réinjectée), un vrai coffre n'est
   pas touché tant qu'aucun menu coffre n'est transparent.
 - [ ] Avec le plugin PacketEvents installé à côté (copie relocalisée + plugin autonome) : démarrage
-  sans erreur et tout ce qui précède tient.
+  sans erreur et tout ce qui précède tient. *Automatisé pour les cases automatisées (variante
+  `standalone` du workflow) ; les cases visuelles restent à vérifier à la main.*

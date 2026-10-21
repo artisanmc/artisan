@@ -3,7 +3,7 @@
 # monte un serveur jetable (plugin + projet de test), lance le client Fabric via
 # HeadlessMC avec un compte offline, puis lit le fichier résultat écrit par le mod.
 #
-# Variables (toutes obligatoires sauf WORK et JAVA) :
+# Variables (toutes obligatoires sauf WORK, JAVA et EXTRA_PLUGINS) :
 #   PAPER_JAR   JAR du serveur Paper (même version Minecraft que le mod)
 #   PLUGIN_JAR  plugin/build/libs/artisan-plugin-*-all.jar
 #   MOD_JAR     e2e/client/mod/build/libs/artisan-e2e-client-*.jar
@@ -11,6 +11,8 @@
 #   MC_VERSION  version Minecraft à lancer (ex. 26.2)
 #   JAVA        java 25+ (défaut : java du PATH)
 #   WORK        dossier de travail (défaut : e2e/client/build)
+#   EXTRA_PLUGINS  JARs à installer à côté d'Artisan, séparés par des espaces
+#                  (ex. le plugin PacketEvents autonome)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -30,6 +32,7 @@ mkdir -p "$SERVER/plugins/Artisan/projects" "$CLIENT/mods"
 # --- Serveur ---------------------------------------------------------------
 cp "$PAPER_JAR" "$SERVER/paper.jar"
 cp "$PLUGIN_JAR" "$SERVER/plugins/"
+for jar in ${EXTRA_PLUGINS:-}; do cp "$jar" "$SERVER/plugins/"; done
 cp -r "$HERE/fixtures/projects/." "$SERVER/plugins/Artisan/projects/"
 echo "eula=true" > "$SERVER/eula.txt"
 cat > "$SERVER/server.properties" <<EOF
