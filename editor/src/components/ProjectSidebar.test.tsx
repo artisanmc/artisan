@@ -3,6 +3,7 @@ import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import * as serversApi from "@/lib/api/servers";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -57,6 +58,7 @@ describe("ProjectSidebar", () => {
       projectIds: ["pack_a", "pack_b"],
     });
     mockParams.current = { serverId: "sk_1" };
+    useServerScreensStore.setState({ screens: [] } as never);
     useSystemCommandsStore.setState({
       serverId: null,
       status: "idle",
@@ -119,6 +121,12 @@ describe("ProjectSidebar", () => {
       },
     });
     render(<ProjectSidebar />);
+    // Folded with its module: nothing shows until the module is opened.
+    const toggle = await screen.findByRole("button", {
+      name: "Afficher les documents de attribution",
+    });
+    expect(screen.queryByRole("link", { name: "/attribution" })).toBeNull();
+    fireEvent.click(toggle);
     expect(await screen.findByRole("link", { name: "/attribution" })).toHaveAttribute(
       "href",
       "/servers/$serverId/commands/$commandId",
@@ -250,6 +258,45 @@ describe("ProjectSidebar", () => {
     expect(installed.compareDocumentPosition(mine) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
       mine.compareDocumentPosition(screen.getByRole("link", { name: /pack_a/ })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("folds a module's screens under Autres until the module is opened", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["boutique_shop"],
+      projects: [
+        {
+          id: "boutique_shop",
+          name: "boutique_shop",
+          externalId: "boutique_shop",
+          hash: "",
+          serverKeyId: "sk_1",
+          ownerModule: "boutique",
+        },
+      ],
+    } as never);
+    useServerScreensStore.setState({
+      screens: [
+        {
+          id: "catalogue",
+          moduleId: "boutique",
+          label: "Catalogue",
+          table: "catalogue",
+          projectId: "boutique_shop",
+        },
+      ],
+    } as never);
+    render(<ProjectSidebar />);
+    // The module's row is its folder once the disk listing arrives.
+    await screen.findByRole("link", { name: "boutique" });
+    const toggle = screen.getByRole("button", { name: "Afficher les documents de boutique" });
+    expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
+    fireEvent.click(toggle);
+    const catalogue = await screen.findByRole("link", { name: "Catalogue" });
+    expect(
+      screen.getByText("Autres").compareDocumentPosition(catalogue) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
