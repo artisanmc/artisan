@@ -256,8 +256,21 @@ open class ArtisanPlugin : JavaPlugin() {
 
     internal fun stopEditor() = editorHost.stop()
 
-    /** What this server announces at Presence: to the editor it serves, and in its `hello` to a hub. */
-    internal fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
+    /** The last announcement built; null once a module, a command or an editor bundle changed. */
+    @Volatile private var announced: net.artisanmc.plugin.protocol.ServerAnnouncement? = null
+
+    /**
+     * What this server announces at Presence: to the editor it serves, and in its `hello` to a hub.
+     * Built once per change: the hub's routes read it at each GET (seven of them per editor load),
+     * and `notifyModulesChanged` is the one signal that the registries behind it moved.
+     */
+    internal fun announcement(): net.artisanmc.plugin.protocol.ServerAnnouncement =
+        announced ?: buildAnnouncement().also { announced = it }
+
+    /** The next [announcement] is built again: called with the modules' and commands' change signal. */
+    internal fun announcementChanged() { announced = null }
+
+    private fun buildAnnouncement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
         modules = api.modules.active().map {
             net.artisanmc.plugin.protocol.ServerAnnouncement.module(
                 it.id, description.version, localEditorBundles.wire(it.id), api.templates.of(it.id).map { t -> t.toWire() },
@@ -289,15 +302,24 @@ open class ArtisanPlugin : JavaPlugin() {
     fun loadPluginConfig(): PluginConfig {
         net.artisanmc.plugin.config.EnvironmentFile.prepare(environmentFile)
         reloadConfig()
-        return currentConfig()
+        return readPluginConfig().also { loadedConfig = it }
     }
+
+    /** What [loadPluginConfig] last read: the configuration the plugin runs with. */
+    @Volatile private var loadedConfig: PluginConfig? = null
 
     fun databaseSettings(): net.artisanmc.plugin.database.DatabaseSettings =
         net.artisanmc.plugin.database.readDatabaseSettings(
             org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(environmentFile), config, dataFolder,
         ) { logger.warning("[database] environment variable $it is not set (environment.yml)") }
 
-    fun currentConfig(): PluginConfig =
+    /**
+     * The configuration as loaded at start or by the last `/artisan reload` or settings write: a
+     * command reads it without parsing `environment.yml` again.
+     */
+    fun currentConfig(): PluginConfig = loadedConfig ?: readPluginConfig()
+
+    private fun readPluginConfig(): PluginConfig =
         PluginConfig.from(config, org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(environmentFile))
 
     fun reinit(cfg: PluginConfig) = runtime.reinit(cfg)

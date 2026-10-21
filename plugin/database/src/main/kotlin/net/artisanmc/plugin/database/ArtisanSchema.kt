@@ -82,6 +82,9 @@ object ArtisanSchema {
         // Where the other servers reach this one's `/ws/plugin` (ADR `peer-servers`): its public editor address, its internal one.
         Migration(17, "ALTER TABLE ${t.servers} ADD COLUMN editor_url VARCHAR(255) NOT NULL DEFAULT ''") { hasColumn(it, t.servers, "editor_url") },
         Migration(18, "ALTER TABLE ${t.servers} ADD COLUMN internal_url VARCHAR(255) NOT NULL DEFAULT ''") { hasColumn(it, t.servers, "internal_url") },
+        // The owner's UUID, so a listing reads one player's active drafts, not every draft of the Project (`DraftRows.active`).
+        // Rows from before carry '' until their next commit: a listing still reads those and filters them by their body.
+        Migration(19, "ALTER TABLE ${t.drafts} ADD COLUMN owner VARCHAR(64) NOT NULL DEFAULT ''") { hasColumn(it, t.drafts, "owner") },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

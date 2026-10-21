@@ -61,6 +61,7 @@ class SchemaMigratorTest {
         ArtisanSchema.migrate(ds, DatabaseDialect.H2, Logger.getAnonymousLogger())
         ds.connection.use { c ->
             assertEquals(true, SchemaMigrator.hasColumn(c, "artisan_drafts", "status"))
+            assertEquals(true, SchemaMigrator.hasColumn(c, "artisan_drafts", "owner"))
             assertEquals(true, SchemaMigrator.hasIndex(c, "artisan_versions", "artisan_versions_folder"))
             assertEquals(true, SchemaMigrator.hasForeignKey(c, "artisan_versions", "server_id"))
         }

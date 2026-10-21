@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { DraftApiError, publishDraft } from "./projectDrafts";
+import { DraftApiError, publishDraft, updateDraft } from "./projectDrafts";
 
 const fetchMock = vi.fn<typeof globalThis.fetch>();
 
@@ -94,4 +94,16 @@ it("carries the server's draft and conflicts on a refusal, as a DraftApiError", 
       error.diskFiles[0] === "m.yaml",
   );
   await Promise.all([assertion, vi.advanceTimersByTimeAsync(0)]);
+});
+
+it("gives an updated draft back with the snapshot it sent when the hub answers without it", async () => {
+  const snapshot = { baseline: {}, tree: { "a.yml": "a: 2" }, at: 1 } as never;
+  respondAfter(0, {
+    ok: true,
+    draft: { id: "draft", revision: 2, name: "B", ownerId: "alice", status: "active" },
+  });
+  const saved = updateDraft("project", "draft", 1, "B", snapshot, "op");
+  await vi.advanceTimersByTimeAsync(0);
+  expect((await saved).snapshot).toBe(snapshot);
+  expect((await saved).revision).toBe(2);
 });

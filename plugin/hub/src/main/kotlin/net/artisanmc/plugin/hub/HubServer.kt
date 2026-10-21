@@ -83,18 +83,19 @@ class HubServer(
     private inner class Routes : Handler.Abstract() {
         override fun handle(request: Request, response: Response, callback: Callback): Boolean {
             val path = Request.getPathInContext(request)
-            val session = sessions.find(sessionId(request))
             if (request.method == "GET" && path.startsWith(LOGIN)) {
                 login(Call(request, response, callback, emptyMap(), null), path.removePrefix(LOGIN))
                 return true
             }
             val match = router.match(request.method, path)
             if (match == null) {
-                val call = Call(request, response, callback, emptyMap(), session)
+                // The editor's files and an unknown route need no session: a page load is one lookup, for its first API call.
+                val call = Call(request, response, callback, emptyMap(), null)
                 if (path.startsWith("/api/")) call.error(if (router.knows(path)) 405 else 404, "not_found")
                 else assets.serve(call)
                 return true
             }
+            val session = sessions.find(sessionId(request))
             val call = Call(request, response, callback, match.params, session)
             when {
                 match.permission != null && session == null -> call.error(401, "unauthorized")

@@ -106,7 +106,9 @@ compare-and-swap, est reproduit côté éditeur par `lib/contentHash.ts`, avec u
 Sur une feuille, `SyncedMenuProvider.handleMessage` tourne sur le thread de callback d'OkHttp ;
 côté hub, `PluginChannel` sur celui de Jetty. Ils ne font que typer le message
 (`EditorRequest.parse`) et le router. Toute réponse part par `Replies` ; toute lecture ou écriture
-disque d'un Project par `ProjectWorkspace.io`, une à la fois.
+disque d'un Project par `ProjectWorkspace.io`, une à la fois. La réponse d'une feuille à une
+requête du hub complète un futur sur ce même thread lecteur : ce qui la suit et écrit en base
+(le commit d'une publication de brouillon) repasse par le pool de Jetty (`Call.offload`).
 
 ## Threads — Folia, Leaf, Paper
 

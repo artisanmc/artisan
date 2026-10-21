@@ -190,14 +190,20 @@ class ProjectRoutes(
     }
 
     private fun read(call: Call, project: ProjectRef) {
-        loaded?.read(project.server.id, project.folder)?.let { body ->
-            val ifHash = call.query("if_hash")
+        val ifHash = call.query("if_hash")
+        if (loaded != null) {
             // An offline server's copy is dated: the editor opens it, publishing waits for the server.
             val offline = if (project.server.online) emptyMap()
             else mapOf("offlineSince" to (servers.lastSeen(project.server.id)?.toString() ?: ""))
-            return call.json((if (ifHash != null && ifHash == body["hash"]) mapOf("unchanged" to true, "hash" to ifHash) else body) + offline)
+            // The poll of an unchanged Project answers from the hash the loaded state keeps: no Version read.
+            if (ifHash != null && ifHash == loaded.hash(project.server.id, project.folder)) {
+                return call.json(mapOf("unchanged" to true, "hash" to ifHash) + offline)
+            }
+            loaded.read(project.server.id, project.folder)?.let { body ->
+                return call.json((if (ifHash != null && ifHash == body["hash"]) mapOf("unchanged" to true, "hash" to ifHash) else body) + offline)
+            }
         }
-        val message = mapOf("type" to "project_read", "project_id" to project.folder, "if_hash" to call.query("if_hash"))
+        val message = mapOf("type" to "project_read", "project_id" to project.folder, "if_hash" to ifHash)
         relay.send(call, project.server, message) { reply -> if (ok(reply)) call.json(body(reply)) else readError(call, reply) }
     }
 
@@ -330,7 +336,20 @@ class ProjectRoutes(
         val message = draftMessage(call, project, action, *fields)
         val drafts = drafts ?: return relay.send(call, project.server, message, respond)
         val request = Call.mapper.valueToTree<com.fasterxml.jackson.databind.node.ObjectNode>(message)
-        drafts.handle(project.server.id, project.folder, request, { publication, reply -> relay.send(call, project.server, publication, reply) }) { reply ->
+        // The server's answer arrives on its socket's reader thread: the commit that follows (a database write) leaves it.
+        val publisher = ProjectDrafts.Publisher { publication, reply ->
+            relay.send(call, project.server, publication) { answer ->
+                call.offload {
+                    try {
+                        reply(answer)
+                    } catch (e: Exception) {
+                        logger?.log(java.util.logging.Level.WARNING, "[Artisan] Draft publication on ${project.id} failed", e)
+                        call.error(500, "internal_error")
+                    }
+                }
+            }
+        }
+        drafts.handle(project.server.id, project.folder, request, publisher) { reply ->
             // A refusal the editor cannot recover from on its own: one line for post-mortem.
             if (reply["ok"] == false && reply["error"] !in EXPECTED_DRAFT_ERRORS)
                 logger?.warning("[Artisan] Draft $action on ${project.id} refused: ${reply["error"]}${reply["message"]?.let { " ($it)" } ?: ""}")
