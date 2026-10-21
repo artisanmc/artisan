@@ -158,6 +158,27 @@ Fire-and-forget module messages over the plugin ↔ backend WS (`api.messages.se
 | `dialect` | `DatabaseDialect` | 1.7.0 |
 | `dataSource(owner: Plugin)` | `javax.sql.DataSource` | 1.7.0 |
 
+### `net.artisanmc.modules.api.EconomyRegistry` (`@Beta`)
+
+`api.economy` — the server's currencies, shared by the core actions `give_money`, `take_money`, `has_money` and the modules. A plugin registers a `CurrencyProvider` (`id`, `balance`, `withdraw`, `deposit`, amounts in `BigDecimal`, main thread); the core registers `vault` when Vault is installed. `get(id)` returns the provider, or the one of `defaultCurrency` (`vault` unless changed) when `id` is null or blank. An unknown currency is never replaced by another one: the action fails with a WARN and the condition is false (before 1.8.0 the `currency` of a step was ignored and Vault was always used). `register` throws `DuplicateCurrencyException` on an id already taken. Since 1.8.0.
+
+| Member | Type | Since |
+|---|---|---|
+| `ArtisanAPI.economy` | `EconomyRegistry` | 1.8.0 |
+| `register(provider)` / `unregister(id)` | `Unit` | 1.8.0 |
+| `get(id: String?)` | `CurrencyProvider?` | 1.8.0 |
+| `has(id)` / `ids()` / `defaultCurrency` | `Boolean` / `Set<String>` / `String` | 1.8.0 |
+
+### `net.artisanmc.modules.api.MenuApi` (`@Beta`)
+
+`api.menus` — repaints the menus players have open after a module changed what they show (an auction sold, a stock moved). `refresh(player)` repaints that player's menu, `refreshAll(menuId)` every open instance of a menu, `openMenuId(player)` names the open menu. The repaint happens in the window already open (the cursor does not move): data sources are fetched again, args and pages are kept, the title stays as opened. Main thread; `refresh`/`refreshAll` called elsewhere are dispatched to it. A menu can also repaint itself every N seconds with menu/v1 `refresh_interval`. Since 1.8.0.
+
+| Member | Type | Since |
+|---|---|---|
+| `ArtisanAPI.menus` | `MenuApi` | 1.8.0 |
+| `refresh(player)` / `refreshAll(menuId)` | `Unit` | 1.8.0 |
+| `openMenuId(player)` | `String?` | 1.8.0 |
+
 ### `net.artisanmc.modules.api.Stability`
 
 Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.

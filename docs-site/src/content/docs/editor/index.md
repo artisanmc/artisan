@@ -141,3 +141,11 @@ menu's own buttons: the 4 rows under the menu (3 inventory rows, then the hotbar
 become slots you can fill like any other. The player's real inventory is never
 touched — it reappears as soon as the menu closes. Changing the menu's rows or
 container type keeps each of these buttons on the same inventory slot.
+
+### Refresh while open
+
+**Refresh every (seconds)** in a menu's properties redraws the menu while a player
+has it open: data sources, placeholders and conditions are read again, so a
+countdown or a balance stays current. The window is not reopened, so the cursor
+does not move; the title keeps what it showed when the menu opened. Leave it
+empty to never refresh.

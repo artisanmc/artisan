@@ -22,6 +22,12 @@ interface MenuProvider {
     fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext)
     fun openMenu(player: Player, menuId: String, lang: String) =
         openMenu(player, menuId, lang, ExecutionContext(player))
+    /**
+     * Re-rend [menuId], déjà ouvert chez [player], dans sa fenêtre actuelle
+     * (sans la rouvrir). Défaut : réouverture, pour les implémentations simples.
+     */
+    fun repaintMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) =
+        openMenu(player, menuId, lang, ctx)
     fun allBundles(): List<ProjectBundle> = emptyList()
     fun findDialog(dialogId: String): BundleDialog? = null
     fun findDialog(ref: String, fromProject: String?): BundleDialog? = findDialog(ref)

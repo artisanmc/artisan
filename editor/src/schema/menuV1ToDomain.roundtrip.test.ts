@@ -594,3 +594,29 @@ describe("vanilla_texture", () => {
     expect(serializeMenuToV1(on, project).vanilla_texture).toBeUndefined();
   });
 });
+
+describe("refresh_interval", () => {
+  const project = {
+    id: "p",
+    i18nKeys: {},
+    defaultLang: "en",
+    menus: [],
+    commands: [],
+    dialogs: [],
+    // biome-ignore lint/suspicious/noExplicitAny: minimal fixture for serializer
+  } as any;
+  const read = (extra: Record<string, unknown>) =>
+    menuV1ToDomain(
+      { schema: "menu/v1", id: "m", title: [], size: 27, elements: [], ...extra },
+      { projectId: projectId("p"), lang: "en" },
+    ).menu;
+
+  it("round-trips an interval and omits 0", () => {
+    const every = read({ refresh_interval: 5 });
+    expect(every.refreshInterval).toBe(5);
+    expect(serializeMenuToV1(every, project).refresh_interval).toBe(5);
+    const never = read({ refresh_interval: 0 });
+    expect(never.refreshInterval).toBeUndefined();
+    expect(serializeMenuToV1(never, project).refresh_interval).toBeUndefined();
+  });
+});

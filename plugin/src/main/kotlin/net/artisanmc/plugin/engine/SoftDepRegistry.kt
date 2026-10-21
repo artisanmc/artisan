@@ -1,21 +1,38 @@
 package net.artisanmc.plugin.engine
 
+import net.artisanmc.modules.api.CurrencyProvider
+import net.artisanmc.modules.api.EconomyRegistry
 import net.milkbowl.vault.economy.Economy
+import org.bukkit.OfflinePlayer
+import java.math.BigDecimal
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
 
-class VaultProvider(private val economy: Economy) {
-    fun balance(player: Player): Double = economy.getBalance(player)
-    fun withdraw(player: Player, amount: Double): Boolean =
-        economy.withdrawPlayer(player, amount).transactionSuccess()
-    fun deposit(player: Player, amount: Double) { economy.depositPlayer(player, amount) }
+/**
+ * Vault as the `vault` currency. The economy service is looked up at each call:
+ * the economy plugin behind Vault may register it after Artisan is enabled.
+ */
+class VaultCurrency(private val plugin: JavaPlugin) : CurrencyProvider {
+    override val id: String = "vault"
+
+    private fun economy(): Economy? =
+        plugin.server.servicesManager.getRegistration(Economy::class.java)?.provider
+
+    override fun balance(player: OfflinePlayer): BigDecimal =
+        economy()?.getBalance(player)?.let(BigDecimal::valueOf) ?: BigDecimal.ZERO
+
+    override fun withdraw(player: OfflinePlayer, amount: BigDecimal): Boolean =
+        economy()?.withdrawPlayer(player, amount.toDouble())?.transactionSuccess() ?: false
+
+    override fun deposit(player: OfflinePlayer, amount: BigDecimal): Boolean =
+        economy()?.depositPlayer(player, amount.toDouble())?.transactionSuccess() ?: false
 
     companion object {
-        fun tryInit(plugin: JavaPlugin): VaultProvider? = runCatching {
-            val reg = plugin.server.servicesManager
-                .getRegistration(Economy::class.java) ?: return null
-            VaultProvider(reg.provider)
+        /** Null when the Vault plugin is not installed. */
+        fun tryInit(plugin: JavaPlugin): VaultCurrency? = runCatching {
+            Class.forName("net.milkbowl.vault.economy.Economy")
+            VaultCurrency(plugin)
         }.getOrNull()
     }
 }
@@ -142,7 +159,8 @@ class HeadDatabaseRenderer {
 // ─── Registry ────────────────────────────────────────────────────────────────
 
 class SoftDepRegistry(
-    val vault: VaultProvider?,
+    /** Currencies for `give_money` / `take_money` / `has_money` (shared with `api.economy`). */
+    val economy: EconomyRegistry,
     val papi: PapiProvider?,
     val worldGuard: WorldGuardProvider?,
     val nexoItems: NexoItemRenderer?,
@@ -152,8 +170,12 @@ class SoftDepRegistry(
     /** Captured project items (`item:<id>` refs) — exact deserialized stacks. */
     val capturedItems: net.artisanmc.plugin.items.CapturedItemStore? = null,
 ) {
-    constructor(plugin: JavaPlugin, capturedItems: net.artisanmc.plugin.items.CapturedItemStore? = null) : this(
-        vault           = VaultProvider.tryInit(plugin),
+    constructor(
+        plugin: JavaPlugin,
+        economy: EconomyRegistry,
+        capturedItems: net.artisanmc.plugin.items.CapturedItemStore? = null,
+    ) : this(
+        economy         = economy,
         papi            = PapiProvider.tryInit(),
         worldGuard      = WorldGuardProvider.tryInit(),
         nexoItems       = NexoItemRenderer.tryInit(),
@@ -182,7 +204,7 @@ class SoftDepRegistry(
 
     companion object {
         val EMPTY = SoftDepRegistry(
-            vault = null, papi = null, worldGuard = null,
+            economy = EconomyRegistry(), papi = null, worldGuard = null,
             nexoItems = null, oraxenItems = null, itemsAdderItems = null,
             hdbHeads = null,
         )

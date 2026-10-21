@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.engine
 
+import java.math.BigDecimal
 import java.util.concurrent.atomic.AtomicBoolean
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -14,7 +15,8 @@ class ConditionEvaluator(val deps: SoftDepRegistry, val cooldowns: CooldownStore
         is Condition.HasLevel          -> ctx.player.level >= condition.level
         is Condition.HasXp             -> ctx.player.totalExperience >= condition.amount
         is Condition.HasItem           -> countItems(ctx, condition.material) >= condition.count
-        is Condition.HasMoney          -> deps.vault?.balance(ctx.player)?.let { it >= condition.amount } ?: false
+        is Condition.HasMoney          -> deps.economy.get(condition.currency)?.balance(ctx.player)
+                                            ?.let { it >= BigDecimal.valueOf(condition.amount) } ?: false
         is Condition.PlaceholderEquals -> deps.papi?.resolve(ctx.player, condition.placeholder) == condition.value
         is Condition.PlaceholderMatch  -> deps.papi?.resolve(ctx.player, condition.placeholder)
                                             ?.matches(Regex(condition.regex)) ?: false

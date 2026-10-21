@@ -40,6 +40,8 @@ open class ArtisanPlugin : JavaPlugin() {
     private lateinit var artisanCommand: ArtisanCommand
     private lateinit var executor: ActionExecutor
     private lateinit var sessions: MenuSessionStore
+    /** Repaints of open menus (`api.menus`, `refresh_interval`). */
+    private lateinit var menuRefresher: net.artisanmc.plugin.engine.MenuRefresher
     private lateinit var navigationHistory: NavigationHistoryStore
     private lateinit var menuWindows: MenuWindows
     /** Survives `/artisan reload`: the pack manager is swapped, the players' loaded packs are not. */
@@ -94,6 +96,9 @@ open class ArtisanPlugin : JavaPlugin() {
                 },
                 projectRoots = plugin.projectRoots,
                 database = plugin.database,
+                economy = net.artisanmc.modules.api.EconomyRegistry().apply {
+                    net.artisanmc.plugin.engine.VaultCurrency.tryInit(plugin)?.let(::register)
+                },
                 items = object : net.artisanmc.modules.api.ItemStackApi {
                     override fun serialize(stack: org.bukkit.inventory.ItemStack): String =
                         net.artisanmc.plugin.items.ItemDescriptor.serialize(stack)
@@ -109,6 +114,18 @@ open class ArtisanPlugin : JavaPlugin() {
                         if (sender != null) sender(m)
                         else plugin.logger.warning("[Artisan] module message '$type' dropped — not connected")
                     }
+                },
+                menus = object : net.artisanmc.modules.api.MenuApi {
+                    private fun onMain(block: (net.artisanmc.plugin.engine.MenuRefresher) -> Unit) {
+                        if (!plugin::menuRefresher.isInitialized) return
+                        val refresher = plugin.menuRefresher
+                        if (org.bukkit.Bukkit.isPrimaryThread()) block(refresher)
+                        else org.bukkit.Bukkit.getScheduler().runTask(plugin, Runnable { block(refresher) })
+                    }
+                    override fun refresh(player: org.bukkit.entity.Player) = onMain { it.refresh(player) }
+                    override fun refreshAll(menuId: String) = onMain { it.refreshAll(menuId) }
+                    override fun openMenuId(player: org.bukkit.entity.Player): String? =
+                        if (plugin::menuRefresher.isInitialized) plugin.menuRefresher.openMenuId(player) else null
                 },
                 actions = object : net.artisanmc.modules.api.ModuleActionsApi {
                     override fun execute(
@@ -211,9 +228,12 @@ open class ArtisanPlugin : JavaPlugin() {
 
         capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
-        val softDeps = SoftDepRegistry(this, capturedItems)
+        val softDeps = SoftDepRegistry(this, api.economy, capturedItems)
         cooldowns = CooldownStore()
         sessions = MenuSessionStore()
+        menuRefresher = net.artisanmc.plugin.engine.MenuRefresher(sessions) {
+            if (::menuProvider.isInitialized) menuProvider else null
+        }
         navigationHistory = NavigationHistoryStore()
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
         // Disk-cached asset index: glyph/font titles keep rendering with the
@@ -322,6 +342,7 @@ open class ArtisanPlugin : JavaPlugin() {
         getCommand("artisan")?.setExecutor(artisanCommand)
         getCommand("artisan")?.tabCompleter = artisanCommand
         server.pluginManager.registerEvents(MenuListener(this, sessions, executor, menuWindows, history = navigationHistory), this)
+        server.scheduler.runTaskTimer(this, Runnable { menuRefresher.tick() }, 20L, 20L)
         logger.info("Artisan ${description.version} enabled")
     }
 
@@ -456,7 +477,7 @@ open class ArtisanPlugin : JavaPlugin() {
 
         capturedItems = net.artisanmc.plugin.items.CapturedItemStore(projectRoots, logger)
         capturedItems.reload()
-        val softDeps = SoftDepRegistry(this, capturedItems)
+        val softDeps = SoftDepRegistry(this, api.economy, capturedItems)
         val evaluator = ConditionEvaluator(softDeps, cooldowns)
 
         menuProvider = SyncedMenuProvider(

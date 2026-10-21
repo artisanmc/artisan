@@ -154,6 +154,13 @@
       "default": true,
       "description": "Texture vanilla du conteneur. false : fenêtre transparente (haut et bas), le menu apporte sa propre texture par des glyphs de titre. Le pack rend alors la texture de ce type de conteneur (generic_54 / hopper / dispenser.png) transparente pour tout le serveur, et le plugin la redessine sur les autres fenêtres de ce type."
     },
+    "refresh_interval": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3600,
+      "default": 0,
+      "description": "Secondes entre deux repaints du menu ouvert : sources de données relues, placeholders et conditions réévalués, dans la même fenêtre (le curseur ne bouge pas, le titre reste celui de l'ouverture). 0 ou absent = jamais."
+    },
     "player_inventory": {
       "type": "string",
       "enum": [

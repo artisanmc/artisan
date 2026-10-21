@@ -91,7 +91,7 @@ class CapturedItemStoreTest {
         val store = CapturedItemStore(projectsDir, null)
         store.reload()
         val deps = net.artisanmc.plugin.engine.SoftDepRegistry(
-            vault = null, papi = null, worldGuard = null,
+            economy = net.artisanmc.modules.api.EconomyRegistry(), papi = null, worldGuard = null,
             nexoItems = null, oraxenItems = null, itemsAdderItems = null,
             hdbHeads = null, capturedItems = store,
         )

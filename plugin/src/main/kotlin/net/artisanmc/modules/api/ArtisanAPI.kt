@@ -13,6 +13,8 @@ import org.bukkit.plugin.java.JavaPlugin
  * - the [modules] runtime registry for dynamic module registration
  * - the [projectRoots] registry for Add-on-owned project directories
  * - the [database] lent to the plugins of the suite (one pool per plugin)
+ * - the [economy] currencies shared by the core money actions and the modules
+ * - the [menus] repaint of the menus players have open
  *
  * Modules MUST go through this facade — direct access to the plugin internals
  * is allowed only inside the module's own package.
@@ -40,6 +42,10 @@ class ArtisanAPI(
     @net.artisanmc.modules.api.annotations.Beta val screens: EditorScreenRegistry = EditorScreenRegistry(),
     /** One connection pool per plugin, credentials in `environment.yml` (ADR suite-foundation-database). */
     @net.artisanmc.modules.api.annotations.Beta val database: DatabaseApi = DatabaseApi.NONE,
+    /** Currencies of the server; `vault` is registered by the core when Vault is installed. */
+    @net.artisanmc.modules.api.annotations.Beta val economy: EconomyRegistry = EconomyRegistry(),
+    /** Repaint of open menus after a module changed their data. */
+    @net.artisanmc.modules.api.annotations.Beta val menus: MenuApi = MenuApi.NOOP,
 ) {
     /**
      * Returns true if this core version satisfies the module's declared minimum
