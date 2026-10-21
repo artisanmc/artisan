@@ -1,4 +1,4 @@
-import { liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
+import { folderGroups } from "@/domain/canvasGroups";
 import type { Project } from "@/domain/types";
 import type { ArrangeMode } from "./arrangeBoard";
 import { type BoardGroup, arrangeProjectGroups } from "./groupedBoard";
@@ -36,7 +36,7 @@ export function projectBoard(project: Project): ProjectBoard {
     graph.nodes.map((n) => [n.key, n.kind, n.width, n.height]),
     graph.edges.map((e) => e.id),
     pinned,
-    project.canvasGroups,
+    folderGroups(project),
     project.name,
   ]);
   const cached = bySignature.get(signature);
@@ -69,20 +69,34 @@ export function autoLayout(project: Project): Record<string, Point> {
   return projectBoard(project).layout;
 }
 
+/** `Project.folders` with each folder frame pinned where `frames` put it. */
+function withFramePositions(project: Project, frames: BoardGroup[]): Project["folders"] {
+  const folders = { ...project.folders };
+  for (const frame of frames) {
+    if (frame.kind !== "group") continue;
+    folders[frame.id] = { ...folders[frame.id], position: { x: frame.x, y: frame.y } };
+  }
+  return folders;
+}
+
 /** Arrange one level while freezing the geometry of every other level. */
 export function rearrangeProjectLayout(
   project: Project,
   groupId?: string,
   mode: ArrangeMode = "columns",
-): Pick<Project, "canvasLayout" | "canvasGroups" | "canvasEdges"> | null {
-  const groups = normalizeCanvasGroups(project.canvasGroups, liveDocumentIds(project));
+): Pick<Project, "canvasLayout" | "folders" | "canvasEdges"> | null {
+  const groups = folderGroups(project);
   const target = groups.find((g) => g.id === groupId);
   if (groupId !== undefined && !target) return null;
-  // Without a manual group, `columns` releases the positions and lets the board
+  // Without a folder frame, `columns` releases the positions and lets the board
   // arrange itself (original behaviour). The other modes must instead compute
   // and persist their arrangement.
   if (!groups.length && mode === "columns")
-    return { canvasLayout: {} as Project["canvasLayout"], canvasGroups: groups, canvasEdges: {} };
+    return {
+      canvasLayout: {} as Project["canvasLayout"],
+      folders: project.folders,
+      canvasEdges: {},
+    };
 
   const before = projectBoard(project);
   const members = new Set(target?.nodeIds ?? []);
@@ -91,10 +105,7 @@ export function rearrangeProjectLayout(
     canvasLayout: Object.fromEntries(
       Object.entries(before.allLayout).filter(([id]) => !members.has(id)),
     ) as Project["canvasLayout"],
-    canvasGroups: groups.map((group) => {
-      const frame = before.groups.find((g) => g.kind === "group" && g.id === group.id)!;
-      return { ...group, position: { x: frame.x, y: frame.y } };
-    }),
+    folders: withFramePositions(project, before.groups),
   };
   const graph = deriveServerGraph([snapshot]);
   const arranged = arrangeProjectGroups(snapshot, graph, {
@@ -116,9 +127,6 @@ export function rearrangeProjectLayout(
   return {
     canvasLayout,
     canvasEdges,
-    canvasGroups: groups.map((group) => {
-      const frame = arranged.groups.find((g) => g.kind === "group" && g.id === group.id)!;
-      return { ...group, position: { x: frame.x, y: frame.y } };
-    }),
+    folders: withFramePositions(project, arranged.groups),
   };
 }

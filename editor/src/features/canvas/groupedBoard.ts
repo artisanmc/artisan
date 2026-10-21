@@ -1,4 +1,4 @@
-import { normalizeCanvasGroups } from "@/domain/canvasGroups";
+import { folderGroups } from "@/domain/canvasGroups";
 import type { Project } from "@/domain/types";
 import { type ArrangeEdge, type ArrangeMode, type ArrangeNode, arrangeBoard } from "./arrangeBoard";
 import type { Edge } from "./deriveEdges";
@@ -60,7 +60,7 @@ function navigationRoot(
   return candidates[0] ? [candidates[0].key] : [];
 }
 
-/** Layout each manual group first, then place its box alongside ungrouped documents. */
+/** Layout each folder frame first, then place its box alongside the module root's documents. */
 export function arrangeProjectGroups(
   project: Project,
   graph: Pick<ServerGraph, "nodes" | "edges">,
@@ -69,10 +69,10 @@ export function arrangeProjectGroups(
   const nodes = graph.nodes.filter((n) => n.projectId === project.id);
   const live = new Set(nodes.map((n) => n.key));
   const edges = graph.edges.filter((e) => live.has(e.source) && live.has(e.target));
-  const groups = normalizeCanvasGroups(
-    project.canvasGroups,
-    nodes.map((n) => n.docId),
-  );
+  const docIds = new Set(nodes.map((n) => n.docId));
+  const groups = folderGroups(project)
+    .map((g) => ({ ...g, nodeIds: g.nodeIds.filter((id) => docIds.has(id)) }))
+    .filter((g) => g.nodeIds.length > 0);
   const parent = new Map<string, string>();
   const inner = new Map<
     string,

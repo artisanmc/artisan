@@ -6,6 +6,7 @@ import type { DataSlice } from "./dataSlice";
 import type { DialogsSlice } from "./dialogsSlice";
 import type { DocumentsSlice } from "./documentsSlice";
 import type { ElementsSlice } from "./elementsSlice";
+import type { FoldersSlice } from "./foldersSlice";
 import type { I18nSlice } from "./i18nSlice";
 import type { MenusSlice } from "./menusSlice";
 import type { ProjectMutators } from "./mutate";
@@ -32,6 +33,7 @@ export type ProjectsState = { openProjects: OpenProjects } & ProjectsSlice &
   MenusSlice &
   ElementsSlice &
   CanvasSlice &
+  FoldersSlice &
   I18nSlice &
   DataSlice;
 

@@ -57,6 +57,10 @@ object EnvironmentFile {
         |#               mysql   MySQL 8+
         |#               mariadb MariaDB 10.6+
         |#   pool-size : maximum connections of each plugin's own pool (1 to 50)
+        |#   table-prefix : in front of every table of the suite (artisan_servers, artisan_quests_…).
+        |#               Only to share one database between two installations; the same on every
+        |#               server of a Network. Changing it later does not rename the tables: Artisan
+        |#               refuses to start until you set it back or rename them.
         |database:
         |  type: "h2"
         |  host: "localhost"
@@ -65,6 +69,7 @@ object EnvironmentFile {
         |  user: "root"
         |  password: ""
         |  pool-size: 4
+        |  table-prefix: "artisan_"
         |
         |# Development: a module's editor view read from a file on this machine instead of
         |# its jar, re-read when it changes (run `vite build --watch` in the module's editor/).

@@ -56,7 +56,7 @@ class PluginChannel(
                 !databaseOpen() -> refuse(session, "the hub's suite database is not open yet: retry")
                 databaseId() == null -> refuse(session, "the hub uses an embedded H2 database: a network needs a shared MySQL or MariaDB database")
                 message.path("database_id").asText("") != databaseId() ->
-                    refuse(session, "not on the hub's database: every server of a network must use the same MySQL or MariaDB database")
+                    refuse(session, "not on the hub's database: every server of a network must use the same MySQL or MariaDB database and database.table-prefix")
                 else -> server = welcome(session, id, name, message as ObjectNode)
             }
         }

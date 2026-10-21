@@ -1,8 +1,9 @@
 import { normalizeBaseLore } from "@/domain/baseLore";
-import { normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { parseCapturedStack } from "@/domain/capturedStack";
 import { listDocumentKinds } from "@/domain/documentKinds";
-import { documentIds as documentIdsOf, emptyDocuments, menusOf } from "@/domain/documents";
+import { classifyDocumentLayout } from "@/domain/documentLayout";
+import { emptyDocuments, menusOf, mutableDocuments } from "@/domain/documents";
+import { normalizeFolderMeta } from "@/domain/folders";
 import {
   adoptAddressedTranslations,
   visitDataSourceLTexts,
@@ -56,7 +57,8 @@ interface ManifestYaml {
 
 /** `.artisan/editor.yaml` — hash-excluded editor metadata. */
 interface EditorStateYaml {
-  groups?: unknown;
+  /** Themed folders' colors, positions and empty folders, keyed by path. */
+  folders?: unknown;
   layout?: Record<string, unknown>;
   edges?: Record<string, unknown>;
   /** Captured item label + display descriptor, keyed by item id. */
@@ -75,28 +77,16 @@ function getFile(files: Record<string, string>, projectId: string, rel: string):
   return files[`${baseOf(projectId)}${rel}`] ?? null;
 }
 
-/**
- * A folder's Documents, **discovered by scanning** the tree — mirror of the
- * plugin's `documentIds`.
- *
- * The manifest's `files:` block copied the content of `menus/`, `commands/`
- * and `dialogs/` by hand, adding neither order nor exclusion. A legacy block
- * still present is merged, never subtracted: it can no longer hide a file
- * that really exists.
- */
-function documentIds(
-  files: Record<string, string>,
-  projectId: string,
-  dir: string,
-  legacy: string[] | undefined,
-): string[] {
-  const prefix = `${baseOf(projectId)}${dir}/`;
-  const scanned = Object.keys(files)
-    .filter((k) => k.startsWith(prefix) && k.endsWith(".yaml"))
-    .map((k) => k.slice(prefix.length, -".yaml".length))
-    // One level only: a subfolder is not a Document.
-    .filter((id) => id.length > 0 && !id.includes("/") && !id.startsWith("."));
-  return [...new Set([...scanned, ...(legacy ?? [])])].sort();
+/** Every file path of the project, relative to its folder. */
+function projectPaths(files: Record<string, string>, projectId: string): string[] {
+  const prefix = baseOf(projectId);
+  return Object.keys(files)
+    .filter((k) => k.startsWith(prefix))
+    .map((k) => k.slice(prefix.length));
+}
+
+function kindDirs(): Set<string> {
+  return new Set(listDocumentKinds().map((def) => def.dir));
 }
 
 /**
@@ -513,22 +503,35 @@ export function projectFromFiles(
 
   const convertOpts = { projectId, lang: defaultLang, translations };
 
-  // One folder per registered kind, each file through its kind's codec. The
+  // Every Document the layout finds — at the module root or in themed folders
+  // (`domain/documentLayout.ts`) — each file through its kind's codec. The
   // container is the project's only store of documents (ADR decision 10).
+  const layout = classifyDocumentLayout(projectPaths(files, projectId), kindDirs());
   const documents = emptyDocuments();
   for (const def of listDocumentKinds()) {
+    const entries = layout.documents
+      .filter((e) => e.dir === def.dir)
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     const codec = documentCodec(def.kind);
-    documents[def.kind] = documentIds(files, projectId, def.dir, manifest.files?.[def.dir]).flatMap(
-      (docId) => {
-        const y = tryParse<Json>(getFile(files, projectId, `${def.dir}/${docId}.yaml`));
-        if (!y) return [];
-        const r = codec.parse({ ...y, id: docId }, convertOpts);
-        Object.assign(i18nKeys, r.i18nKeys);
-        unsupported.push(...r.unsupported);
-        return [r.doc];
-      },
-    );
+    documents[def.kind] = entries.flatMap((entry) => {
+      const y = tryParse<Json>(getFile(files, projectId, entry.path));
+      if (!y) return [];
+      const r = codec.parse({ ...y, id: entry.id }, convertOpts);
+      Object.assign(i18nKeys, r.i18nKeys);
+      unsupported.push(...r.unsupported);
+      return [entry.folder ? { ...r.doc, folder: entry.folder } : r.doc];
+    });
   }
+  // Refused Document files are kept verbatim: a save must not delete them.
+  const unreadFiles: Record<string, string> = {};
+  for (const e of layout.errors) {
+    unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
+    console.warn(`[projectFromFiles] ${projectId}: ${e.path} not read (${e.reason})`);
+  }
+  const claimedPaths = new Set([
+    ...layout.documents.map((e) => e.path),
+    ...layout.errors.map((e) => e.path),
+  ]);
   const menus = menusOf({ documents });
 
   // Shared i18n bridge for the file kinds without a per-document converter
@@ -883,6 +886,7 @@ export function projectFromFiles(
   const moduleData: Record<string, { __files: Record<string, string> }> = Object.create(null);
   for (const [path, content] of Object.entries(files)) {
     const rel = relativeToProject(path, projectId);
+    if (claimedPaths.has(rel)) continue;
     if (CORE_FILES.has(rel) || corePrefixes().some((p) => rel.startsWith(p))) continue;
     const slash = rel.indexOf("/");
     if (slash <= 0) continue; // top-level unknown files (and .artisan/*): ignored
@@ -896,7 +900,7 @@ export function projectFromFiles(
     mod.__files[rel.slice(slash + 1)] = content;
   }
 
-  const canvasGroups = normalizeCanvasGroups(editorState.groups, documentIdsOf({ documents }));
+  const folders = normalizeFolderMeta(editorState.folders);
 
   const project: Project = {
     id: projectId,
@@ -923,11 +927,12 @@ export function projectFromFiles(
     ...(manifest.escape_goes_back === true ? { escapeGoesBack: true } : {}),
     ...(editorState.i18n_mode === "inline" ? { i18nMode: "inline" as const } : {}),
     canvasLayout: parseEditorLayout(editorState.layout),
-    ...(canvasGroups.length ? { canvasGroups } : {}),
+    ...(Object.keys(folders).length ? { folders } : {}),
     ...(Object.keys(parseEditorEdges(editorState.edges)).length > 0
       ? { canvasEdges: parseEditorEdges(editorState.edges) }
       : {}),
     ...(Object.keys(moduleData).length > 0 ? { moduleData: { ...moduleData } } : {}),
+    ...(Object.keys(unreadFiles).length > 0 ? { unreadFiles } : {}),
     ...(typeof manifest.module === "string" && manifest.module
       ? { ownerModule: manifest.module }
       : {}),
@@ -955,41 +960,44 @@ export function projectFromFiles(
 /**
  * Reads the Documents of kinds registered after the Project was read (ADR
  * `runtime-editor-modules`): a module's view arrives with the server's presence, which
- * may come after the Project. Until then its folder was kept verbatim in
- * `moduleData[<dir>].__files` (re-exported as is, so nothing was lost); this moves each
- * `<dir>/<id>.yaml` into `project.documents[kind]` through the kind's codec. A file that
- * does not parse stays where it was. Returns how many Documents were adopted. Mutates
- * `project` (an immer draft in the store).
+ * may come after the Project. Until then its files were kept verbatim in
+ * `moduleData[<first folder>].__files` (re-exported as is, so nothing was lost); this
+ * moves each Document the layout now recognizes — `<kind dir>/<id>.yaml` at the root
+ * or under themed folders — into `project.documents[kind]` through the kind's codec.
+ * A file that does not parse, or whose id is taken, stays where it was. Returns how
+ * many Documents were adopted. Mutates `project` (an immer draft in the store).
  */
 export function adoptLateDocuments(project: Project): number {
-  let adopted = 0;
   const moduleData = project.moduleData as Record<string, unknown> | undefined;
   if (!moduleData) return 0;
+  const raw = new Map<string, { files: Record<string, string>; ns: string; rel: string }>();
+  for (const [ns, data] of Object.entries(moduleData)) {
+    const files = (data as { __files?: Record<string, string> } | undefined)?.__files;
+    if (!files || typeof files !== "object") continue;
+    for (const rel of Object.keys(files)) raw.set(`${ns}/${rel}`, { files, ns, rel });
+  }
+  let adopted = 0;
+  const layout = classifyDocumentLayout(raw.keys(), kindDirs());
   for (const def of listDocumentKinds()) {
-    const raw = moduleData[def.dir] as { __files?: Record<string, string> } | undefined;
-    const files = raw?.__files;
-    if (!files) continue;
     const codec = documentCodec(def.kind);
-    project.documents[def.kind] ??= [];
-    const docs = project.documents[def.kind]!;
-    for (const [rel, content] of Object.entries(files).sort(([a], [b]) => a.localeCompare(b))) {
-      if (rel.includes("/") || !rel.endsWith(".yaml")) continue;
-      const id = rel.slice(0, -".yaml".length);
-      if (docs.some((d) => d.id === id)) continue;
-      const y = tryParse<Json>(content);
+    for (const entry of layout.documents.filter((e) => e.dir === def.dir)) {
+      const docs = mutableDocuments(project, def.kind);
+      if (docs.some((d) => d.id === entry.id)) continue;
+      const source = raw.get(entry.path)!;
+      const y = tryParse<Json>(source.files[source.rel] ?? null);
       if (!y || typeof y !== "object") continue;
       const r = codec.parse(
-        { ...y, id },
+        { ...y, id: entry.id },
         { projectId: project.id, lang: project.defaultLang, translations: project.i18nKeys },
       );
       for (const [key, langs] of Object.entries(r.i18nKeys)) {
         project.i18nKeys[key as I18nKey] ??= langs;
       }
-      docs.push(r.doc);
-      delete files[rel];
+      docs.push(entry.folder ? { ...r.doc, folder: entry.folder } : r.doc);
+      delete source.files[source.rel];
+      if (Object.keys(source.files).length === 0) delete moduleData[source.ns];
       adopted++;
     }
-    if (Object.keys(files).length === 0) delete moduleData[def.dir];
   }
   return adopted;
 }
