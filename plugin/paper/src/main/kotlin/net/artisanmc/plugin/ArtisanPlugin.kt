@@ -262,6 +262,7 @@ open class ArtisanPlugin : JavaPlugin() {
         screens = api.screens.declared().map { it.toWire() },
         actions = api.actionRegistry.registered().map { it.toWire() },
         documentKinds = api.documentKinds.registered().map { it.toWire() },
+        playerCommands = net.artisanmc.plugin.ws.PlayerCommandReport.build(api.playerCommands),
     )
 
     val environmentFile: File get() = File(dataFolder, "environment.yml")

@@ -1,6 +1,7 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
-import { render, screen } from "@testing-library/react";
+import { useUiStore } from "@/state/uiStore";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Stage } from "./Stage";
 
@@ -61,16 +62,12 @@ describe("Stage — derived board", () => {
     expect(names).toContain("menu:m1");
     expect(names).toContain("menu:m2");
   });
-  it("shows only manual frames in project view even when the project is folded", () => {
+  it("shows only folder frames in project view even when the project is folded", () => {
+    const filed = project();
+    (filed.documents.menu![1] as any).folder = "crafts";
     useProjectsStore.setState({
       openProjects: {
-        projects: [
-          {
-            ...project(),
-            canvasProjectCollapsed: true,
-            canvasGroups: [{ id: "crafts", name: "Crafts", menuIds: ["m2"] }],
-          },
-        ],
+        projects: [{ ...filed, canvasProjectCollapsed: true }],
         projectOrder: [PID],
       },
     } as any);
@@ -81,17 +78,12 @@ describe("Stage — derived board", () => {
     expect(names).toContain("menu:m1");
     expect(names).toContain("menu:m2");
   });
-  it("keeps legacy folded group menus visible on the board and in document view", () => {
+  it("keeps a folder's menus visible on the board and in document view", () => {
+    const filed = project();
+    for (const m of filed.documents.menu!) (m as any).folder = "crafts";
     useProjectsStore.setState({
       openProjects: {
-        projects: [
-          {
-            ...project(),
-            canvasGroups: [
-              { id: "crafts", name: "Crafts", menuIds: ["m1", "m2"], collapsed: true },
-            ],
-          },
-        ],
+        projects: [filed],
         projectOrder: [PID],
       },
     } as any);
@@ -103,5 +95,28 @@ describe("Stage — derived board", () => {
     expect(
       screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1"),
     ).toBe(true);
+  });
+  it("narrows the board to one folder, and shows everything again when cleared", () => {
+    const filed = project();
+    (filed.documents.menu![1] as any).folder = "crafts/armes";
+    useProjectsStore.setState({
+      openProjects: { projects: [filed], projectOrder: [PID] },
+    } as any);
+    useUiStore.getState().setBoardFolder(PID, "crafts/armes");
+    render(<Stage projectId={PID} />);
+    const names = () =>
+      screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
+    expect(names()).toContain("menu:m2");
+    expect(names()).not.toContain("menu:m1");
+    expect(screen.getByText(/crafts\/armes/)).toBeInTheDocument();
+    act(() => useUiStore.getState().setBoardFolder(PID, null));
+    expect(names()).toContain("menu:m1");
+  });
+  it("ignores a folder filter that no longer exists", () => {
+    useUiStore.getState().setBoardFolder(PID, "gone");
+    render(<Stage projectId={PID} />);
+    const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
+    expect(names).toContain("menu:m1");
+    useUiStore.getState().setBoardFolder(PID, null);
   });
 });

@@ -15,6 +15,7 @@ vi.mock("@artisan/editor-sdk", () => ({
 }));
 
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
+import type { PlayerCommand } from "@/lib/api/playerCommands";
 import type { ProjectSummary } from "@/lib/api/servers";
 import { buildModuleList, buildProjectGroups, diskProjectsToSummaries } from "./projectGroups";
 
@@ -166,6 +167,30 @@ describe("buildModuleList", () => {
     expect(pluginModules.map((m) => [m.label, m.projects.length])).toEqual([
       ["Boutique", 0],
       ["Quêtes", 0],
+    ]);
+  });
+
+  it("files each system command under its module, or its namespace without one", () => {
+    const command = (id: string, moduleId: string | null): PlayerCommand => ({
+      id,
+      moduleId,
+      name: id.slice(id.indexOf(":") + 1),
+      aliases: [],
+      permission: null,
+      description: {},
+      arguments: [],
+      consoleAllowed: false,
+      children: [],
+    });
+    const { pluginModules } = buildModuleList({
+      ...input([project("attribution", { ownerModule: "attribution" })]),
+      commands: [command("attribution:open", "attribution"), command("auctions:ah", null)],
+    });
+    expect(
+      pluginModules.map((m) => [m.id, m.projects.length, m.commands.map((c) => c.id)]),
+    ).toEqual([
+      ["attribution", 1, ["attribution:open"]],
+      ["auctions", 0, ["auctions:ah"]],
     ]);
   });
 });
