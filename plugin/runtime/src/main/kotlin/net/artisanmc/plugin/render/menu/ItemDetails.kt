@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.render.menu
 
 import net.artisanmc.plugin.model.AppearanceYaml
+import net.artisanmc.plugin.platform.ServerPlatform
 import org.bukkit.Bukkit
 import org.bukkit.Color
 import org.bukkit.NamespacedKey
@@ -60,7 +61,8 @@ object ItemDetails {
         "additional" to ItemFlag.HIDE_ADDITIONAL_TOOLTIP,
         "dye" to ItemFlag.HIDE_DYE,
         "armor_trim" to ItemFlag.HIDE_ARMOR_TRIM,
-        "stored_enchants" to ItemFlag.HIDE_STORED_ENCHANTS,
+    ) + listOfNotNull(
+        ServerPlatform.itemFlag("HIDE_STORED_ENCHANTS", "HIDE_STORED_ENCHANTMENTS")?.let { "stored_enchants" to it },
     )
 
     /** `minecraft:Sharpness`, `SHARPNESS`, `DAMAGE_ALL` → `sharpness`. */

@@ -33,6 +33,25 @@ class TranslationsTest {
         assertEquals("Hi <click:run_command:'/op me'>x", plain.serialize(shown))
     }
 
+    @Test fun `legacy renders a message as a section-coded string, hex colors included`() {
+        val t = Translations()
+        val bundle = t.register("test", null, null) { mapOf("en" to mapOf("k" to "<green>Hi <#ff8800>{name}")) }
+        assertEquals("§aHi §x§f§f§8§8§0§0Bob", bundle.legacy("en", "k", mapOf("name" to "Bob")))
+    }
+
+    @Test fun `send delivers the message in the viewer's language`() {
+        val server = MockBukkit.mock()
+        try {
+            val player = server.addPlayer()
+            val t = Translations("fr", perPlayerLanguage = false)
+            val bundle = t.register("test", null, null) { mapOf("en" to mapOf("k" to "hi"), "fr" to mapOf("k" to "<red>salut {name}")) }
+            bundle.send(player, "k", mapOf("name" to "Bob"))
+            assertEquals("salut Bob", plain.serialize(player.nextComponentMessage()!!))
+        } finally {
+            MockBukkit.unmock()
+        }
+    }
+
     @Test fun `a value is never read again for placeholders`() {
         assertEquals("{b} 2", MessageFormat.format("{a} {b}", mapOf("a" to "{b}", "b" to 2)))
     }

@@ -70,6 +70,16 @@ public interface TranslationsApi {
                 }
 
                 @Override
+                public void send(CommandSender viewer, String key, Map<String, ?> placeholders) {
+                    viewer.sendMessage(key);
+                }
+
+                @Override
+                public String legacy(String lang, String key, Map<String, ?> placeholders) {
+                    return key;
+                }
+
+                @Override
                 public Component get(String lang, String key, Map<String, ?> placeholders) {
                     return Component.text(key);
                 }

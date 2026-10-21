@@ -3,6 +3,7 @@ package net.artisanmc.plugin.command
 import net.artisanmc.plugin.ArtisanPlugin
 import net.artisanmc.plugin.hub.EditorPermissions
 import net.artisanmc.plugin.hub.Sessions
+import net.artisanmc.plugin.platform.ServerPlatform
 import net.artisanmc.plugin.provider.SyncedMenuProvider
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.render.title.TitleCompiler
@@ -187,7 +188,7 @@ class ArtisanCommand(
         if (name != null && !sender.hasPermission("artisan.admin")) return sender.sendMessage(lang.get("cmd.no_permission", sender))
         val (targetId, playerName) = when {
             name.equals(CONSOLE_NAME, ignoreCase = true) -> CONSOLE_ID to CONSOLE_NAME
-            name != null -> (plugin.server.getPlayerExact(name) ?: plugin.server.getOfflinePlayerIfCached(name))
+            name != null -> (plugin.server.getPlayerExact(name) ?: ServerPlatform.cachedOfflinePlayer(plugin.server, name))
                 ?.let { it.uniqueId to (it.name ?: name) }
                 ?: return sender.sendMessage(lang.get("artisan.editor_unknown_player", senderLang, "player" to name))
             else -> identity(sender)
@@ -226,7 +227,7 @@ class ArtisanCommand(
         val (id, name) = identity(sender)
         when (val link = plugin.editorSessions.issueLink(id, name, permissions, plugin.serverUuid)) {
             is Sessions.LinkResult.Issued -> {
-                val host = (sender as? Player)?.virtualHost?.hostString ?: plugin.server.ip.ifBlank { "localhost" }
+                val host = (sender as? Player)?.let(ServerPlatform::virtualHost) ?: plugin.server.ip.ifBlank { "localhost" }
                 val base = plugin.editorUrl.ifEmpty { "http://$host:$port" }
                 sendLink(sender, senderLang, "$base/login/${link.token}")
             }
@@ -245,7 +246,7 @@ class ArtisanCommand(
         val provider = plugin.menuProvider as? SyncedMenuProvider
             ?: return sender.sendMessage(lang.get("artisan.editor_hub_offline", senderLang))
         val (id, name) = identity(sender)
-        provider.requestEditorLink(id, name, permissions, (sender as? Player)?.virtualHost?.hostString).whenComplete { reply, _ ->
+        provider.requestEditorLink(id, name, permissions, (sender as? Player)?.let(ServerPlatform::virtualHost)).whenComplete { reply, _ ->
             if (!plugin.isEnabled) return@whenComplete
             plugin.scheduler.global {
                 val message = when {

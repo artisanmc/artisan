@@ -94,6 +94,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `translations` (`getTranslations()`, `@Beta`) | `TranslationsApi` | 2.5.0 |
 | `templates` (`getTemplates()`, `@Beta`) | `TemplateRegistry` | 2.6.0 |
 | `playerCommands` (`getPlayerCommands()`, `@Beta`) | `PlayerCommandRegistry` | 2.7.0 |
+| `text` (`getText()`, `@Beta`) | `TextApi` | 2.10.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -223,7 +224,7 @@ The system messages (commands, statuses, errors) of the suite's plugins: one rul
 
 - `langOf(sender)`: the client language when `per_player_language` is on and the sender is a player, else `language` (`config.yml`); both re-read on `/artisan reload`.
 - `register(declaration)` loads a `MessageBundle`. `MessageBundleDeclaration.files(owner, namespace, bundledLangs...)`: Artisan reads the jar's `lang/<code>.yml` for each bundled language and every `plugins/<Plugin>/lang/*.yml`, merged key by key (the server's keys win), never written. `MessageBundleDeclaration.of(owner, namespace, source)`: the plugin reads its files itself (`MessageSource.load()`: `lang -> key -> text`). `withDefaultLang(lang)` keeps a plugin's own `language` setting in place of Artisan's. Namespace `[a-z][a-z0-9_]*` (`IllegalArgumentException`), unique (`IllegalStateException`); a bundle goes when its owner disables.
-- `MessageBundle.langOf(viewer)` picks among the bundle's languages: the asked one, else the bundle's default, else `en`; `fr` matches `fr_FR` and the reverse. `raw(lang, key)` falls back to the default, then `en`, then the key; `find(lang, key)` has no fallback. `format(template, placeholders)` replaces `<name>`, `{name}` and `%name%` for the names of the map in one pass, the value's tags escaped (a player-typed value cannot inject a click); other names stay (PlaceholderAPI's). `get(...)` is `raw`, `format`, MiniMessage. `reload()` keeps the previous translations when the source fails.
+- `MessageBundle.langOf(viewer)` picks among the bundle's languages: the asked one, else the bundle's default, else `en`; `fr` matches `fr_FR` and the reverse. `raw(lang, key)` falls back to the default, then `en`, then the key; `find(lang, key)` has no fallback. `format(template, placeholders)` replaces `<name>`, `{name}` and `%name%` for the names of the map in one pass, the value's tags escaped (a player-typed value cannot inject a click); other names stay (PlaceholderAPI's). `send(viewer, key[, placeholders])` sends `raw`, `format`, MiniMessage in the viewer's language; `legacy(lang | viewer, key, placeholders)` returns it as a `§` string (see `TextApi.legacy`). `get(...)` is `raw`, `format`, MiniMessage as an Adventure `Component`: Paper only, `@Sunset` since 2.10.0. `reload()` keeps the previous translations when the source fails.
 
 | Member | Type | Since |
 |---|---|---|
@@ -233,6 +234,22 @@ The system messages (commands, statuses, errors) of the suite's plugins: one rul
 | `MessageSource.load()` (`@FunctionalInterface`) | `Map<String, Map<String, String>>` | 2.5.0 |
 | `MessageBundle.getNamespace()`, `getLanguages()`, `getDefaultLang()`, `langOf(viewer)`, `find`, `raw`, `format`, `get`, `reload()` | | 2.5.0 |
 | `TranslationsApi.NOOP`, `ArtisanAPI.Builder.translations(translations)` (`@Internal`) | | 2.5.0 |
+| `MessageBundle.send(viewer, key)`, `send(viewer, key, placeholders)` | `void` | 2.10.0 |
+| `MessageBundle.legacy(lang, key, placeholders)`, `legacy(viewer, key, placeholders)` | `String` | 2.10.0 |
+
+### `net.artisanmc.modules.api.text.TextApi` (`@Beta`, 2.10.0)
+
+Text for players without Adventure types, so a plugin runs on Paper and Spigot alike (Adventure leaves the API in 3.0). Input is MiniMessage, `§` codes accepted; malformed text degrades to plain text, never throws. Any thread.
+
+- `send(to, miniMessage)`: parsed and sent.
+- `legacy(miniMessage)`: a `§` string, `§x§r§r§g§g§b§b` for a hex color, for Bukkit's String methods (item names and lore, inventory, boss bar and title texts). Fonts, hover and click are lost.
+- `plain(miniMessage)`: without formatting. `fromLegacy(legacy)`: a `§` string (an item's name read from Bukkit) as MiniMessage.
+
+| Member | Type | Since |
+|---|---|---|
+| `TextApi.send(to, miniMessage)` | `void` | 2.10.0 |
+| `TextApi.legacy(miniMessage)`, `plain(miniMessage)`, `fromLegacy(legacy)` | `String` | 2.10.0 |
+| `TextApi.NOOP`, `ArtisanAPI.Builder.text(text)` (`@Internal`) | | 2.10.0 |
 
 ### `net.artisanmc.modules.api.action.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
 
@@ -333,7 +350,7 @@ api.getPlayerCommands().register(PlayerCommandDeclaration.builder("attribution:o
     .build());
 ```
 
-An override is a file of a project's `overrides/command/` folder (`schema: command_override/v1`, `command: attribution:open`); every absent field keeps the module's value, and deleting the file resets the command. Only the root is renamed; a child keeps its name. `/help` shows the description in the server's language.
+An override is a file of a project's `overrides/command/` folder (`schema: command_override/v1`, `command: attribution:open`); every absent field keeps the module's value, and deleting the file resets the command. Only the root is renamed; a child keeps its name. `/help` shows the description in the server's language. `steps` (an action chain) replaces the module's code on any node, root or child: the parsed arguments are its `{name}` values, a bare menu id resolves in the override's folder, and it never runs from the console. The action `module_command` (`command`, `args`, owner `artisan` in `api.actionRegistry`) runs a module command's own code past its override (no requirement, cooldown or `steps`), with its permission checked and its arguments parsed by type; `{name}` alone passes a bound value as is. Neither changes the API: they are part of the override format and the action vocabulary.
 
 ### `net.artisanmc.modules.api.model.ModelRegistry` (`@Beta`)
 
@@ -365,7 +382,7 @@ api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
 
 ### `net.artisanmc.modules.api.database.DatabaseApi` (`@Beta`)
 
-`api.database.dataSource(plugin)` — the database lent to the plugins of the suite (ADR `suite-foundation-database`): one HikariCP pool **per plugin**, opened on the first call (it checks a connection, so call it from `onEnable`), returned as is afterwards, closed when that plugin is disabled. Credentials are set once by the admin in `plugins/Artisan/environment.yml`; only `javax.sql.DataSource` crosses the boundary, the plugin brings its own access layer and migrations. `dialect` (`DatabaseDialect`: `H2`, `MYSQL`, `MARIADB`, Java enum) lets a plugin branch on the few statements that differ. All plugins share one database (the configured MySQL/MariaDB one, or a single H2 file): a plugin names every table, index and constraint it creates `tablePrefix(module) + name`, where `tablePrefix("quests")` is `database.table-prefix` (`artisan_` by default, `getTablePrefix()`) + `quests_`. `module` is one lower-case word, not a first segment of Artisan's own tables (`servers`, `meta`, `versions`, `drafts`, `editor`…), else `IllegalArgumentException`; an invalid `table-prefix` throws it too. Misconfiguration or an unreachable server throws `IllegalStateException` naming the plugin and the file to fix. Default `DatabaseApi.NONE` throws on every call. Since 1.7.0; a single shared H2 file since 1.7.1 (1.7.0 kept one file per plugin).
+`api.database.dataSource(plugin)` — the database lent to the plugins of the suite (ADR `suite-foundation-database`): one HikariCP pool **per plugin**, opened on the first call (it checks a connection, so call it from `onEnable`), returned as is afterwards, closed 5 seconds after that plugin is disabled (its `onDisable` can still save; a reloaded plugin gets the same pool back). Credentials are set once by the admin in `plugins/Artisan/environment.yml`; only `javax.sql.DataSource` crosses the boundary, the plugin brings its own access layer and migrations. `dialect` (`DatabaseDialect`: `H2`, `MYSQL`, `MARIADB`, Java enum) lets a plugin branch on the few statements that differ. All plugins share one database (the configured MySQL/MariaDB one, or a single H2 file): a plugin names every table, index and constraint it creates `tablePrefix(module) + name`, where `tablePrefix("quests")` is `database.table-prefix` (`artisan_` by default, `getTablePrefix()`) + `quests_`. `module` is one lower-case word, not a first segment of Artisan's own tables (`servers`, `meta`, `versions`, `drafts`, `editor`…), else `IllegalArgumentException`; an invalid `table-prefix` throws it too. Misconfiguration or an unreachable server throws `IllegalStateException` naming the plugin and the file to fix. Default `DatabaseApi.NONE` throws on every call. Since 1.7.0; a single shared H2 file since 1.7.1 (1.7.0 kept one file per plugin).
 
 | Member | Type | Since |
 |---|---|---|
@@ -402,6 +419,7 @@ api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
 | `MenuClickEvent.menu`, `.slot`, `.click`, `.hasActions` | `MenuRef`, `Int`, `ClickType`, `Boolean` | 1.8.0 |
 | `MenuClickEvent.hasActions()` is the Java name of the flag (was `getHasActions()`) | | 2.0.0 |
 | `MenuCloseEvent.menu`, `.reason` | `MenuRef`, `InventoryCloseEvent.Reason` | 1.8.0 |
+| `MenuCloseEvent.closeReason`, constructor `(player, menu, MenuCloseReason)`; `MenuCloseReason` (Paper's names, `UNKNOWN` on Spigot, `named(name)`) | `MenuCloseReason` | 2.10.0 |
 
 ### `net.artisanmc.modules.api.scheduler.SchedulerApi` (`@Beta`)
 
@@ -505,6 +523,8 @@ Runtime consumer (since 1.2.0): `run_command … as player` actions whose comman
 | `subscribe(type: Class<out ModuleEvent>, handler: ModuleEventHandler)` | `Unit` | 1.0.0 (signature 1.5.0) |
 | `publish(event: ModuleEvent)` | `Unit` | 1.0.0 |
 
+There is no unsubscribe: when a plugin disables, Artisan removes the handlers its classes registered (`@Internal unsubscribeLoadedBy`), as it does for its `api.menus` listeners and `api.placeholders` namespaces.
+
 Event types: `DataReloadEvent`, `ConfigReloadEvent`. Add-ons may define their own events by implementing `ModuleEvent`, an open interface since 1.8.0 (sealed before: add-on events did not compile).
 
 - `ConfigReloadEvent("menus")` is published by Artisan after every content reload, after the modules' `onReload()`.
@@ -585,7 +605,10 @@ None at this time.
 | `DataSourceDeclaration.schemaHint` | 1.3.0 | 2.0.0 (done) | `schema` |
 | `ModuleMessagesApi`, `ArtisanAPI.messages` | 1.8.0 | 2.0.0 (done) | none — nothing receives the messages |
 
-Nothing is under `@Sunset` in 2.x yet.
+| `MessageBundle.get(...)` (returns Adventure's `Component`) | 2.10.0 | 3.0.0 | `send`, `legacy`, or `raw` + `format` |
+| `MenuCloseEvent.getReason()`, constructor with `InventoryCloseEvent.Reason` (Paper only) | 2.10.0 | 3.0.0 | `getCloseReason()`, constructor with `MenuCloseReason` |
+
+Both exist only on Paper: on Spigot, `get` fails for lack of Adventure and `getReason()` for lack of Paper's type.
 
 ## Internal — DO NOT USE
 

@@ -31,4 +31,16 @@ class MenuEventDispatcherTest {
         dispatcher.click(MenuClickEvent(player, menu, 4, ClickType.LEFT, true))
         assertEquals(listOf(3), seen)
     }
+
+    @Test fun `the listeners a disabling plugin loaded are removed, and a broken one does not stop the open`() {
+        val player = MockBukkit.getMock()!!.addPlayer()
+        dispatcher.onOpen { throw NoClassDefFoundError("a closed jar") }
+        assertTrue(dispatcher.open(MenuOpenEvent(player, menu, emptyMap())))
+
+        dispatcher.onOpen { it.isCancelled = true }
+        dispatcher.onClick { }
+        assertEquals(0, dispatcher.releaseLoadedBy(java.net.URLClassLoader(arrayOf())))
+        assertEquals(3, dispatcher.releaseLoadedBy(javaClass.classLoader))
+        assertTrue(dispatcher.open(MenuOpenEvent(player, menu, emptyMap())))
+    }
 }

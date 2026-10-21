@@ -28,11 +28,11 @@ class CommandOverrideStore(private val projectDirs: () -> Map<String, File>, pri
             val dir = File(root, DIR)
             dir.takeIf { it.isDirectory }?.walkTopDown()
                 ?.filter { it.isFile && (it.extension == "yaml" || it.extension == "yml") }
-                ?.map { "$project/$DIR/${it.relativeTo(dir).invariantSeparatorsPath}" to it }
-                ?.sortedBy { it.first }
+                ?.map { Triple(project, "$project/$DIR/${it.relativeTo(dir).invariantSeparatorsPath}", it) }
+                ?.sortedBy { it.second }
                 ?.toList().orEmpty()
         }
-        for ((path, file) in files) {
+        for ((project, path, file) in files) {
             val override = try {
                 mapper.readValue(file, CommandOverrideYaml::class.java)
             } catch (e: Exception) {
@@ -49,7 +49,7 @@ class CommandOverrideStore(private val projectDirs: () -> Map<String, File>, pri
                 logger.severe("Command '$id' is overridden by both '$first' and '$path': '$path' ignored. Delete one of them.")
                 continue
             }
-            read[id] = override
+            read[id] = override.copy(project = project)
         }
         overrides = read
     }

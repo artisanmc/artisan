@@ -42,6 +42,10 @@ class PaperPlaceholders(private val plugin: Plugin) : PlaceholderRegistry {
         expansions.remove(namespace)?.let { PapiBridge.unregister(it) }
     }
 
+    /** Removes the namespaces whose resolver [loader] loaded, those of a disabling plugin. */
+    fun unregisterLoadedBy(loader: ClassLoader): List<String> =
+        resolvers.filterValues { it.javaClass.classLoader == loader }.keys.toList().onEach(::unregister)
+
     override fun namespaces(): Set<String> = resolvers.keys.toSet()
 
     override fun resolve(player: Player, text: String): String = pipeline(papi).resolve(player, text)
@@ -62,6 +66,9 @@ class PaperPlaceholders(private val plugin: Plugin) : PlaceholderRegistry {
         try {
             resolve()
         } catch (e: Exception) {
+            plugin.logger.log(Level.WARNING, "[Artisan] placeholder namespace '$namespace' failed", e)
+            null
+        } catch (e: LinkageError) {
             plugin.logger.log(Level.WARNING, "[Artisan] placeholder namespace '$namespace' failed", e)
             null
         }

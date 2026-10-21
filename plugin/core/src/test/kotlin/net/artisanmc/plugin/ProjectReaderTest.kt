@@ -224,6 +224,32 @@ class ProjectReaderTest {
     }
 
     @Test
+    fun `reads Documents from themed folders and reports a duplicated id`() {
+        val root = java.nio.file.Files.createTempDirectory("artisan_folders_").toFile()
+        val projectDir = File(root, "survie").apply { mkdirs() }
+        File(projectDir, "manifest.yaml").writeText("schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\n")
+        fun write(rel: String, text: String) = File(projectDir, rel).apply { parentFile.mkdirs(); writeText(text) }
+        write("menus/main.yaml", "schema: menu/v1\ntitle: Main\nrows: 1\n")
+        write("boutique/menus/shop.yaml", "schema: menu/v1\ntitle: Shop\nrows: 1\n")
+        write("boutique/armes/menus/swords.yaml", "schema: menu/v1\ntitle: Swords\nrows: 1\n")
+        write("boutique/dialogs/welcome.yaml", "schema: dialog/v1\ntitle: Hi\n")
+        write("quetes/menus/main.yaml", "schema: menu/v1\ntitle: Clash\nrows: 1\n")
+        val skipped = mutableListOf<Pair<String, String>>()
+
+        val runtime = ProjectReader(
+            net.artisanmc.plugin.project.ProjectRoots(root),
+            onSkip = { _, path, reason -> skipped += path to reason },
+        ).readAll().single()
+
+        assertEquals(listOf("shop", "swords"), runtime.menus.map { it.id })
+        assertEquals(listOf("welcome"), runtime.dialogs.map { it.id })
+        assertEquals(
+            listOf("menus/main.yaml" to "duplicate_id", "quetes/menus/main.yaml" to "duplicate_id"),
+            skipped,
+        )
+    }
+
+    @Test
     fun `reads dialogs from manifest`() {
         val root = java.nio.file.Files.createTempDirectory("artisan_dial_").toFile()
         val projectDir = File(root, "p_dial").apply { mkdirs() }

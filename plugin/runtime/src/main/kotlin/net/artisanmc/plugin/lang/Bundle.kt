@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.lang
 
 import net.artisanmc.modules.api.translation.MessageBundle
+import net.artisanmc.plugin.text.ArtisanText
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.command.CommandSender
@@ -49,6 +50,12 @@ class Bundle(
 
     override fun get(lang: String, key: String, placeholders: Map<String, *>): Component =
         MINI_MESSAGE.deserialize(format(raw(lang, key), placeholders))
+
+    override fun send(viewer: CommandSender, key: String, placeholders: Map<String, *>) =
+        viewer.sendMessage(get(langOf(viewer), key, placeholders))
+
+    override fun legacy(lang: String, key: String, placeholders: Map<String, *>): String =
+        ArtisanText.legacy(get(lang, key, placeholders))
 
     override fun reload() {
         tables = try {

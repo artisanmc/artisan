@@ -91,6 +91,15 @@ internal class RuntimeAssembly(
             scheduler.onGlobal { commandRegistrar.refresh() }
             (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged()
         }
+        // Listed with the modules' actions (owner `artisan`): the editor builds its form from the declaration.
+        val moduleCommand = net.artisanmc.plugin.command.ModuleCommandAction({ commandRegistrar.moduleCommands }, langManager, logger)
+        api.actionRegistry.unregister(net.artisanmc.plugin.command.ModuleCommandAction.NAME)
+        api.actionRegistry.bindOwner("artisan")
+        try {
+            api.actionRegistry.register(moduleCommand.declaration())
+        } finally {
+            api.actionRegistry.bindOwner(null)
+        }
     }
 
     /** Called from the provider's I/O threads, so it is scheduled on the global thread (the command map is only safe there). */
@@ -169,7 +178,7 @@ internal class RuntimeAssembly(
         scheduler = scheduler,
         menuWindows = menuWindows,
         pluginVersion = description.version,
-        nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(server.pluginsFolder, "Nexo")),
+        nexoGlyphs = net.artisanmc.plugin.customitems.NexoGlyphReader(java.io.File(dataFolder.parentFile, "Nexo")),
         serverConfig = serverConfigAccess,
         editorEvents = { editorChannel.relay(it, serverId.toString()) },
         hub = editorHost.hubLink(cfg.web),

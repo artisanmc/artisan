@@ -44,12 +44,7 @@ object ItemDescriptor {
                 }
             }
             if (stack.type == Material.PLAYER_HEAD && meta is SkullMeta) {
-                runCatching {
-                    meta.playerProfile?.properties
-                        ?.firstOrNull { it.name == "textures" }
-                        ?.value
-                        ?.let { out["head_texture"] = it }
-                }
+                runCatching { SkinTextures.value(meta)?.let { out["head_texture"] = it } }
             }
         }
         return out

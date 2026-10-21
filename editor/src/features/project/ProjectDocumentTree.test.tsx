@@ -38,6 +38,25 @@ beforeEach(() => {
 });
 
 describe("ProjectDocumentTree", () => {
+  it("nests filed documents under their folders, which fold", async () => {
+    const filed = project();
+    (filed.documents.menu![0] as { folder?: string }).folder = "boutique/armes";
+    (filed.documents.command![0] as { folder?: string }).folder = "boutique";
+    useProjectsStore.setState({
+      openProjects: { projects: [filed], projectOrder: [PID] },
+    } as never);
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    const boutique = screen.getByRole("button", { name: "boutique" });
+    expect(boutique).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "armes" })).toBeInTheDocument();
+    expect(screen.getByText("m1")).toBeInTheDocument();
+    expect(screen.getByText("m2")).toBeInTheDocument();
+    await userEvent.setup().click(boutique);
+    expect(screen.queryByText("m1")).toBeNull();
+    expect(screen.queryByText("/heal")).toBeNull();
+    expect(screen.getByText("m2")).toBeInTheDocument();
+  });
+
   it("lists the documents by category", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     expect(screen.getByText("/heal")).toBeInTheDocument();
