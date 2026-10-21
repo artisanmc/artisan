@@ -608,7 +608,7 @@ None at this time.
 | `MessageBundle.get(...)` (returns Adventure's `Component`) | 2.10.0 | 3.0.0 | `send`, `legacy`, or `raw` + `format` |
 | `MenuCloseEvent.getReason()`, constructor with `InventoryCloseEvent.Reason` (Paper only) | 2.10.0 | 3.0.0 | `getCloseReason()`, constructor with `MenuCloseReason` |
 
-Both exist only on Paper: on Spigot, `get` fails for lack of Adventure and `getReason()` for lack of Paper's type.
+`getReason()` exists only on Paper (Spigot lacks Paper's type). `get` works on Spigot too, since Artisan bundles Adventure, but a plugin cannot send its `Component` there itself: Spigot has no `sendMessage(Component)`.
 
 ## Internal — DO NOT USE
 

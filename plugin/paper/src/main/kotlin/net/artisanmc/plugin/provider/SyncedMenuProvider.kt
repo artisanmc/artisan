@@ -38,6 +38,8 @@ import java.io.File
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
+import net.artisanmc.plugin.platform.Chat
+import net.artisanmc.plugin.platform.ServerPlatform
 
 class SyncedMenuProvider(
     private val roots: net.artisanmc.plugin.project.ProjectRoots,
@@ -290,7 +292,7 @@ class SyncedMenuProvider(
 
     override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
         val menu = findMenu(menuId, ctx.projectId) ?: run {
-            player.sendMessage(langManager?.get("cmd.menu_not_found", player, "id" to menuId)
+            Chat.send(player, langManager?.get("cmd.menu_not_found", player, "id" to menuId)
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
             return
         }
@@ -322,8 +324,13 @@ class SyncedMenuProvider(
 
     override fun openDialog(player: Player, dialogId: String, lang: String, ctx: ExecutionContext) {
         val dialog = findDialog(dialogId, ctx.projectId) ?: run {
-            player.sendMessage(langManager?.get("cmd.dialog_not_found", player, "id" to dialogId)
+            Chat.send(player, langManager?.get("cmd.dialog_not_found", player, "id" to dialogId)
                 ?: net.kyori.adventure.text.Component.text("Dialog '$dialogId' not found."))
+            return
+        }
+        // Dialogs are Paper's API; Spigot has none yet (sent as packets later).
+        if (!ServerPlatform.paper) {
+            logger?.warning("[Artisan] dialog '$dialogId' not opened for ${player.name}: dialogs need Paper")
             return
         }
         val executor = executorProvider?.invoke() ?: run {
