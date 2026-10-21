@@ -181,6 +181,15 @@ export default {
     removeLanguage: "Remove language",
   },
   translations: {
+    commandText: {
+      description: "/{{command}} · description",
+      cooldown_message: "/{{command}} · cooldown message",
+    },
+    commandTextHint:
+      "Text of a command built into the module. It is saved in the command's override file, apart from the folder.",
+    commandTextsPending_one: "{{count}} command text changed, not written to the server yet.",
+    commandTextsPending_other: "{{count}} command texts changed, not written to the server yet.",
+    commandTextsSave: "Save command texts",
     statTranslated: "{{translated}} / {{total}} translated in {{lang}}",
     statMissing: "{{count}} missing",
     statComplete: "complete",

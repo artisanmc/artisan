@@ -1,5 +1,7 @@
 import { RevealField } from "@/components/RevealField";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Tooltip } from "@/components/ui/tooltip";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import type { I18nKey, ProjectId } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
@@ -12,14 +14,24 @@ import {
   listLanguages,
 } from "@/lib/i18nUsages";
 import { flattenLangTree } from "@/lib/langTree";
+import { textIn } from "@/lib/moduleCommandTexts";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { AlertCircle, ArrowDown, Check, Copy as CopyIcon, Plus, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowDown,
+  Check,
+  Copy as CopyIcon,
+  Plus,
+  Puzzle,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { parse as parseYaml } from "yaml";
 import { countListLeaves, serializeRows } from "./translationsYaml";
+import { useModuleCommandTexts } from "./useModuleCommandTexts";
 
 interface TranslationPanelProps {
   projectId: ProjectId;
@@ -77,15 +89,47 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
   const setProjectI18nMode = useProjectsStore((s) => s.setProjectI18nMode);
   const { t } = useTranslation();
 
-  const rows = useMemo(
+  const docRows = useMemo(
     () => (project ? buildTranslationRows(project, activeLang) : []),
     [project, activeLang],
   );
+  // The texts of the module's commands shown in this folder, in the folder's languages:
+  // listed with its own, written to their override files by their own save.
+  const commandTexts = useModuleCommandTexts(project);
+  const commandRows = useMemo<TranslationRow[]>(
+    () =>
+      project
+        ? commandTexts.rows.map((row) => ({
+            key: row.key as I18nKey,
+            context: t(`translations.commandText.${row.field}`, { command: row.entry.label }),
+            source: textIn(row.values, project.defaultLang),
+            target: textIn(row.values, activeLang),
+          }))
+        : [],
+    [project, commandTexts.rows, activeLang, t],
+  );
+  const commandKeys = useMemo(() => new Set(commandRows.map((r) => r.key)), [commandRows]);
+  const rows = useMemo(() => [...docRows, ...commandRows], [docRows, commandRows]);
+  const langs = useMemo(() => (project ? listLanguages(project) : []), [project]);
   // Per-language missing counts power both the in-panel tabs and the
   // header copy. Recomputed whenever the project ref shifts (immer keeps
   // it stable across unrelated edits).
-  const missingByLang = useMemo(() => (project ? countMissingPerLang(project) : {}), [project]);
-  const langs = useMemo(() => (project ? listLanguages(project) : []), [project]);
+  const missingByLang = useMemo(() => {
+    if (!project) return {};
+    const counts: Record<string, number> = { ...countMissingPerLang(project) };
+    for (const lang of langs) {
+      const missingTexts = commandTexts.rows.filter((row) =>
+        isTranslationMissing(
+          project.defaultLang,
+          lang,
+          textIn(row.values, project.defaultLang),
+          textIn(row.values, lang),
+        ),
+      ).length;
+      if (missingTexts > 0) counts[lang] = (counts[lang] ?? 0) + missingTexts;
+    }
+    return counts;
+  }, [project, langs, commandTexts.rows]);
 
   const [mode, setMode] = useState<Mode>("visual");
   const [filter, setFilter] = useState<Filter>("missing");
@@ -272,8 +316,11 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
               defaultLang={project.defaultLang}
               allRows={rows}
               filter={filter}
+              commandKeys={commandKeys}
               onChange={(key, value) =>
-                setI18nValue({ projectId, lt: { key }, lang: activeLang, value })
+                commandKeys.has(key)
+                  ? commandTexts.edit(key, activeLang, value)
+                  : setI18nValue({ projectId, lt: { key }, lang: activeLang, value })
               }
             />
           ) : (
@@ -281,11 +328,44 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
               projectId={projectId}
               activeLang={activeLang}
               project={project}
-              rows={rows}
+              rows={docRows}
               modeKey={mode}
             />
           )}
         </div>
+        {commandTexts.pending.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-soft)] px-5 py-2.5">
+            <Puzzle className="size-3.5 text-[var(--text-faint)]" aria-hidden />
+            <span className="mr-auto text-[12px] text-[var(--text-mut)]">
+              {t("translations.commandTextsPending", { count: commandTexts.pending.length })}
+            </span>
+            {commandTexts.error && (
+              <span className="text-[12px] text-[var(--danger)]">
+                {t(`systemCommands.errors.${commandTexts.error}`, {
+                  defaultValue: t("systemCommands.errors.write_error"),
+                })}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={commandTexts.saving}
+              onClick={commandTexts.discard}
+            >
+              {t("systemCommands.discard")}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={commandTexts.saving}
+              onClick={() => void commandTexts.save()}
+            >
+              {commandTexts.saving
+                ? t("systemCommands.saving")
+                : t("translations.commandTextsSave")}
+            </Button>
+          </div>
+        )}
       </main>
     </>
   );
@@ -411,12 +491,15 @@ function VisualBody({
   defaultLang,
   allRows,
   filter,
+  commandKeys,
   onChange,
 }: {
   activeLang: string;
   defaultLang: string;
   allRows: ReadonlyArray<TranslationRow>;
   filter: Filter;
+  /** Rows that are a module command's texts: marked as the module's. */
+  commandKeys: ReadonlySet<I18nKey>;
   onChange: (key: I18nKey, value: string) => void;
 }) {
   const { t } = useTranslation();
@@ -464,6 +547,7 @@ function VisualBody({
             row={row}
             defaultLang={defaultLang}
             activeLang={activeLang}
+            moduleCommand={commandKeys.has(row.key)}
             onChange={(value) => onChange(row.key, value)}
           />
         ))}
@@ -476,11 +560,14 @@ function VisualRow({
   row,
   defaultLang,
   activeLang,
+  moduleCommand,
   onChange,
 }: {
   row: TranslationRow;
   defaultLang: string;
   activeLang: string;
+  /** A module command's text: saved to its override file, apart from the folder. */
+  moduleCommand: boolean;
   onChange: (value: string) => void;
 }) {
   const { t } = useTranslation();
@@ -499,6 +586,13 @@ function VisualRow({
     >
       {/* Header: context path + missing/translated indicator. */}
       <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+        {moduleCommand && (
+          <Tooltip content={t("translations.commandTextHint")}>
+            <span role="img" aria-label={t("translations.commandTextHint")} className="flex">
+              <Puzzle className="size-3 text-[var(--text-faint)]" aria-hidden />
+            </span>
+          </Tooltip>
+        )}
         <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--text-faint)]">
           {row.context}
         </span>

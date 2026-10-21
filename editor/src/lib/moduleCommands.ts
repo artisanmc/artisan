@@ -64,6 +64,39 @@ function chainOf(command: PlayerCommand, override: StoredOverride | undefined): 
   return command.opensMenu ? [{ open_menu: command.opensMenu }] : undefined;
 }
 
+/** A module command whose texts and System page belong to a folder. */
+export interface ModuleCommandEntry {
+  command: PlayerCommand;
+  override: StoredOverride | undefined;
+  /** A root command: only a root has a name and aliases of its own. */
+  root: boolean;
+  /** As players type it: `boutique`, `g balance add`. */
+  label: string;
+}
+
+/**
+ * Every command of the modules shown in [project]'s folder, sub-commands included: those
+ * whose override it holds, else, with no override, those of its module (a sub-command
+ * follows its root).
+ */
+export function moduleCommandEntriesOf(
+  project: Pick<Project, "id" | "diskId">,
+  input: ModuleCommandsInput,
+): ModuleCommandEntry[] {
+  const folder = folderOf(project);
+  const out: ModuleCommandEntry[] = [];
+  const visit = (command: PlayerCommand, path: string[], parentHome: string | null) => {
+    const override = input.overrides[command.id];
+    const root = path.length === 0;
+    const name = root ? override?.fields.name?.trim() || command.name : command.name;
+    const home = homeFolder(command, input.overrides, input.folders, root ? null : parentHome);
+    if (home === folder) out.push({ command, override, root, label: [...path, name].join(" ") });
+    for (const child of command.children) visit(child, [...path, name], home);
+  };
+  for (const command of input.commands) visit(command, [], null);
+  return out;
+}
+
 /**
  * The module commands of [project]'s board: every root its module declares, and
  * each sub-command that links somewhere (its own `steps` or menu); a sub-command
@@ -73,35 +106,20 @@ export function moduleCommandsOf(
   project: Pick<Project, "id" | "diskId">,
   input: ModuleCommandsInput,
 ): ModuleCommandNode[] {
-  const folder = folderOf(project);
-  const out: ModuleCommandNode[] = [];
-  const visit = (command: PlayerCommand, path: string[], parentHome: string | null) => {
-    const override = input.overrides[command.id];
-    const isRoot = path.length === 0;
-    const name = isRoot ? override?.fields.name?.trim() || command.name : command.name;
-    const label = [...path, name].join(" ");
+  return moduleCommandEntriesOf(project, input).flatMap(({ command, override, root, label }) => {
     const chain = chainOf(command, override);
-    const home = homeFolder(
-      command,
-      input.overrides,
-      input.folders,
-      // A child without its own override shows next to its root.
-      isRoot || override?.steps != null ? null : parentHome,
-    );
-    if ((isRoot || chain !== undefined) && home === folder) {
-      out.push({
+    if (!root && chain === undefined) return [];
+    return [
+      {
         id: command.id,
         label,
         moduleId: moduleOf(command),
         state: overrideState(override),
         runs: override?.steps != null ? "steps" : command.opensMenu ? "menu" : null,
         command: syntheticCommand(project.id, command.id, label, chain),
-      });
-    }
-    for (const child of command.children) visit(child, [...path, name], home);
-  };
-  for (const command of input.commands) visit(command, [], null);
-  return out;
+      },
+    ];
+  });
 }
 
 function syntheticCommand(
