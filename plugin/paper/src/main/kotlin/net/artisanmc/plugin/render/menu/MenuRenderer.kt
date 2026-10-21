@@ -16,7 +16,6 @@ import net.kyori.adventure.text.format.Style
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
@@ -32,6 +31,8 @@ import net.artisanmc.plugin.render.LoreWrap
 import net.artisanmc.plugin.render.OffsetEncoder
 import net.artisanmc.plugin.render.packets.MenuWindows
 import net.artisanmc.plugin.render.title.TitleCompiler
+import net.artisanmc.plugin.platform.ItemTexts
+import net.artisanmc.plugin.text.ArtisanText
 
 class ArtisanMenuHolder : InventoryHolder {
     override fun getInventory(): Inventory = error("not used")
@@ -238,9 +239,9 @@ object MenuRenderer {
     }
 
     /**
-     * MockBukkit does not implement createInventory's Component overload: legacy
-     * fallback only in that case (production keeps the Component, required for
-     * pixel-perfect font titles).
+     * Spigot (and MockBukkit) lack createInventory's Component overload: a `§` title
+     * there, which loses the fonts of composed titles (Paper keeps the Component,
+     * required for pixel-perfect font titles).
      * Branches on inventory_type: hopper/dropper create a container of the right
      * TYPE (a dropper has 9 slots like a 1-row chest but a distinct type), so size
      * alone is not enough. Chest keeps the size-based createInventory.
@@ -251,7 +252,7 @@ object MenuRenderer {
                 .getOrElse {
                     Bukkit.createInventory(
                         ArtisanMenuHolder(), invType,
-                        LegacyComponentSerializer.legacySection().serialize(title),
+                        ArtisanText.legacy(title),
                     )
                 }
         } else {
@@ -259,7 +260,7 @@ object MenuRenderer {
                 .getOrElse {
                     Bukkit.createInventory(
                         ArtisanMenuHolder(), menu.yaml.size,
-                        LegacyComponentSerializer.legacySection().serialize(title),
+                        ArtisanText.legacy(title),
                     )
                 }
         }
@@ -377,7 +378,7 @@ object MenuRenderer {
     ): ItemStack {
         if (depth > 32) {
             Bukkit.getLogger().warning("Artisan: circular item inheritance (maximum depth 32)")
-            return ItemStack(Material.BARRIER).apply { itemMeta = itemMeta?.apply { displayName(parse("Circular item inheritance")) } }
+            return ItemStack(Material.BARRIER).apply { itemMeta = itemMeta?.apply { ItemTexts.setName(this, parse("Circular item inheritance")) } }
         }
         val papi = deps.papi
         val source = app.extends ?: app.item ?: app.material
@@ -405,8 +406,8 @@ object MenuRenderer {
         val inheritedMeta = item.itemMeta
         val baseValues = mapOf<String, Any>(
             "material" to item.type.name, "count" to item.amount,
-            "title" to (inheritedMeta?.displayName()?.let { MiniMessage.miniMessage().serialize(it) } ?: ""),
-            "lore" to (inheritedMeta?.lore()?.joinToString("\n") { MiniMessage.miniMessage().serialize(it) } ?: ""),
+            "title" to (inheritedMeta?.let(ItemTexts::name)?.let { MiniMessage.miniMessage().serialize(it) } ?: ""),
+            "lore" to (inheritedMeta?.let(ItemTexts::lore)?.joinToString("\n") { MiniMessage.miniMessage().serialize(it) } ?: ""),
         )
         val localCtx = ctx.copy(args = ctx.args + ("base" to baseValues))
         if (app.count != null) item.amount = count
@@ -423,7 +424,7 @@ object MenuRenderer {
                 // bare literal keeps the legacy address lookup for non-default langs.
                 // (A map's value still honours a whole `{i18n:key}`, as it always has.)
                 val address = if (lt.isMap) null else addressOf(i18nBase, "title")
-                meta.displayName(parse(resolveText(value, localCtx, papi, address)))
+                ItemTexts.setName(meta, parse(resolveText(value, localCtx, papi, address)))
             }
         }
         if (app.lore.isNotEmpty() || app.loreMode == "replace") {
@@ -439,10 +440,10 @@ object MenuRenderer {
             // The base lore stays by default: it goes away only with `lore_mode: replace`
             // or when `{base.lore}` places it itself (otherwise it would show twice).
             val replacement = tokened.any { it.contains(BASE_LORE) } || app.loreMode == "replace"
-            val base = if (replacement) emptyList() else meta.lore() ?: emptyList()
+            val base = if (replacement) emptyList() else ItemTexts.lore(meta) ?: emptyList()
             val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> localCtx.langMap[key] }.split("\n") }
                 .flatMap { LoreWrap.wrap(LenientText.legacyToMini(it), localCtx.loreMaxWidth) }
-            meta.lore(if (lines == listOf("")) base else base + lines.map { parse(it).colorIfAbsent(NamedTextColor.WHITE) })
+            ItemTexts.setLore(meta, if (lines == listOf("")) base else base + lines.map { parse(it).colorIfAbsent(NamedTextColor.WHITE) })
         }
         ItemDetails.applyToMeta(app, meta)
         item.itemMeta = meta

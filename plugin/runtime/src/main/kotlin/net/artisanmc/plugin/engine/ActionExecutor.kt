@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin
 import net.artisanmc.plugin.integrations.SoftDepRegistry
 import net.artisanmc.plugin.session.NavigationHistoryStore
 import net.artisanmc.plugin.lang.LangManager
+import net.artisanmc.plugin.platform.Chat
 
 /**
  * Runs action chains. Every action, Artisan's own included, goes through the
@@ -42,7 +43,7 @@ class ActionExecutor(
     fun handle(handler: ClickHandler, ctx: ExecutionContext, run: (ExecutionContext) -> Unit) {
         val cooldown = handler.cooldown
         if (cooldown != null && cooldowns.isOnCooldown(cooldown.id, ctx.player.uniqueId, cooldown.scope)) {
-            cooldown.message?.let { ctx.player.sendMessage(LenientText.parse(it)) }
+            cooldown.message?.let { Chat.send(ctx.player, LenientText.parse(it)) }
             return
         }
         if (!evaluator.evaluateAll(handler.requirements, ctx)) {

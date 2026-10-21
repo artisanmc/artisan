@@ -10,6 +10,7 @@ import org.bukkit.World
 import org.bukkit.entity.Player
 import java.util.logging.Level
 import java.util.logging.Logger
+import net.artisanmc.plugin.platform.Chat
 
 /**
  * `module_command`: runs the module's own code of a command it declares, as the clicking
@@ -48,7 +49,7 @@ class ModuleCommandAction(
         }
         val permission = node.permission
         if (permission != null && !player.hasPermission(permission)) {
-            player.sendMessage(lang.get("cmd.no_permission", player))
+            Chat.send(player, lang.get("cmd.no_permission", player))
             return ctx
         }
         val raw = args["args"] as? Map<*, *> ?: emptyMap<String, Any>()
@@ -61,14 +62,14 @@ class ModuleCommandAction(
             }
         }
         node.argDefs.firstOrNull { it.required && it.name !in values }?.let {
-            player.sendMessage(lang.get("arg.missing", player, "arg" to it.name))
+            Chat.send(player, lang.get("arg.missing", player, "arg" to it.name))
             return ctx
         }
         try {
             run.execute(ModuleCommandContext(node.id, player, ctx.lang, values))
         } catch (e: Exception) {
             logger.log(Level.WARNING, "Command '${node.id}' failed for ${player.name} ($NAME)", e)
-            player.sendMessage(lang.get("cmd.failed", player))
+            Chat.send(player, lang.get("cmd.failed", player))
         }
         return ctx
     }

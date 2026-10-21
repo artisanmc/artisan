@@ -10,6 +10,8 @@ import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import net.artisanmc.plugin.platform.Chat
+import net.artisanmc.plugin.platform.ItemTexts
 
 /**
  * Game logic of the core actions on the player: commands, items, economy, xp,
@@ -51,15 +53,15 @@ internal object PlayerActions {
         val lore = Args.ltextList(args, "lore")
         if (name != null || lore.isNotEmpty()) {
             val meta = item.itemMeta
-            if (name != null) meta.displayName(LenientText.parse(rt.text(ctx, args, "name")))
-            if (lore.isNotEmpty()) meta.lore(lore.map { LenientText.parse(rt.executor.resolveText(it, ctx)) })
+            if (name != null) ItemTexts.setName(meta, LenientText.parse(rt.text(ctx, args, "name")))
+            if (lore.isNotEmpty()) ItemTexts.setLore(meta, lore.map { LenientText.parse(rt.executor.resolveText(it, ctx)) })
             item.itemMeta = meta
         }
         val overflow = ctx.player.inventory.addItem(item).values
         if (overflow.isNotEmpty()) {
             // A full inventory must not eat a reward: the rest falls at the player's feet.
             overflow.forEach { ctx.player.world.dropItemNaturally(ctx.player.location, it) }
-            rt.executor.lang?.let { ctx.player.sendMessage(it.get("action.inventory_full", ctx.player)) }
+            rt.executor.lang?.let { Chat.send(ctx.player, it.get("action.inventory_full", ctx.player)) }
         }
         return ctx
     }
@@ -100,12 +102,12 @@ internal object PlayerActions {
     }
 
     fun sendMessage(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
-        ctx.player.sendMessage(LenientText.parse(rt.text(ctx, args, "text")))
+        Chat.send(ctx.player, LenientText.parse(rt.text(ctx, args, "text")))
         return ctx
     }
 
     fun broadcast(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
-        Bukkit.getServer().broadcast(LenientText.parse(rt.text(ctx, args, "text")))
+        Chat.broadcast(LenientText.parse(rt.text(ctx, args, "text")))
         return ctx
     }
 
@@ -140,7 +142,7 @@ internal object PlayerActions {
             Duration.ofMillis(Args.int(args, "stay", 70) * 50L),
             Duration.ofMillis(Args.int(args, "fade_out", 20) * 50L),
         )
-        ctx.player.showTitle(Title.title(titleComponent, subtitleComponent, times))
+        Chat.title(ctx.player, Title.title(titleComponent, subtitleComponent, times))
         return ctx
     }
 }
