@@ -25,6 +25,8 @@ export interface PlayerCommand {
   description: Record<string, string>;
   arguments: PlayerCommandArgument[];
   consoleAllowed: boolean;
+  /** The menu it opens instead of running the module's code (`folder:menu`); null otherwise. */
+  opensMenu: string | null;
   children: PlayerCommand[];
 }
 
@@ -37,6 +39,7 @@ type Wire = {
   description?: Record<string, string>;
   arguments?: PlayerCommandArgument[];
   console_allowed?: boolean;
+  opens_menu?: string | null;
   children?: Wire[];
 };
 
@@ -51,6 +54,7 @@ function fromWire(wire: Wire): PlayerCommand | null {
     description: wire.description ?? {},
     arguments: wire.arguments ?? [],
     consoleAllowed: wire.console_allowed === true,
+    opensMenu: wire.opens_menu ?? null,
     children: (wire.children ?? []).flatMap((child) => fromWire(child) ?? []),
   };
 }
