@@ -3,7 +3,6 @@ package net.artisanmc.modules.api.translation;
 import java.util.Map;
 import java.util.Set;
 import net.artisanmc.modules.api.annotations.Beta;
-import net.artisanmc.modules.api.annotations.Sunset;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.Nullable;
@@ -76,19 +75,23 @@ public interface MessageBundle {
         return legacy(langOf(viewer), key, placeholders);
     }
 
-    /** {@link #raw}, {@link #format}ted and parsed. Paper only. */
-    @Sunset(reason = "Returns Adventure's Component, which Spigot lacks and Artisan 3.0 relocates",
-        removeInVersion = "3.0.0", replacement = "send, legacy, or raw + format")
+    /**
+     * {@link #raw}, {@link #format}ted and parsed. Works on Spigot too (Artisan bundles
+     * Adventure), but Spigot cannot send a Component itself.
+     *
+     * @deprecated use {@link #send}, {@link #legacy}, or {@link #raw} + {@link #format}; kept, not removed
+     */
+    @Deprecated
     Component get(String lang, String key, Map<String, ?> placeholders);
 
-    @Sunset(reason = "Returns Adventure's Component, which Spigot lacks and Artisan 3.0 relocates",
-        removeInVersion = "3.0.0", replacement = "send(viewer, key, placeholders)")
+    /** @deprecated use {@link #send(CommandSender, String, Map)}; kept, not removed */
+    @Deprecated
     default Component get(CommandSender viewer, String key, Map<String, ?> placeholders) {
         return get(langOf(viewer), key, placeholders);
     }
 
-    @Sunset(reason = "Returns Adventure's Component, which Spigot lacks and Artisan 3.0 relocates",
-        removeInVersion = "3.0.0", replacement = "send(viewer, key)")
+    /** @deprecated use {@link #send(CommandSender, String)}; kept, not removed */
+    @Deprecated
     default Component get(CommandSender viewer, String key) {
         return get(langOf(viewer), key, Map.of());
     }
