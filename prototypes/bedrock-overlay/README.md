@@ -52,8 +52,10 @@ Rejoindre avec un client Bedrock sur l'IP de la machine, port 19132, accepter le
 puis `/artisan menu bedrock_proto:gifts` et `/artisan menu bedrock_proto:gifts_token`.
 
 Avec un marqueur, le pack masque aussi le titre vanilla et les cases grises de chaque slot : le fond
-dessine lui-même les cases utiles. Les deux passent par des `modifications` (`replace` du label et de la
-grille vanilla) : redéfinir directement `chest_label` et `chest_grid_item` n'avait aucun effet en jeu.
+dessine lui-même les cases utiles. Ni la redéfinition de `chest_label`/`chest_grid_item` ni un `replace`
+dans `large_chest_panel_top_half` n'avaient d'effet en jeu : le fond est donc posé **au-dessus** de tout
+le panneau vanilla (il recouvre titre et cases grises), et une seconde grille de slots, branchée sur la
+même collection, est posée au-dessus du fond pour dessiner les items et recevoir les clics.
 
 Itérer : modifier `generate.py`, relancer `--install`, `docker compose restart minecraft`, se reconnecter
 (le client Bedrock ne recharge un pack qu'à la connexion).

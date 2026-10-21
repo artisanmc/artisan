@@ -142,11 +142,13 @@ def chest_screen_json():
 
 
 def chest_screen_mods_json():
-    """Vanilla chest screen kept, changed only through modifications (top-level
-    redefinitions of vanilla elements had no visible effect, test of 2026-10-21).
-    A wrong path leaves the vanilla screen working, with a content log error."""
-    def when(on, **props):
-        return {"$atext": "$container_title", "visible": overlay("$atext") if on else f"(not {overlay('$atext')})", **props}
+    """Vanilla chest screen kept; one modification inserts, into root_panel (the only
+    path proven to apply in game), the background and a second slot grid stacked
+    above the whole vanilla chest panel. The background hides the vanilla title and
+    grey slot cells; our grid, above it, draws the items and takes the clicks.
+    Redefining vanilla elements, or `replace` modifications inside the top half, had
+    no visible effect (tests of 2026-10-21)."""
+    on = {"$atext": "$container_title", "visible": overlay("$atext")}
     return {
         "namespace": "chest",
         # Our slot: vanilla container_item without the grey cell, icon stretched to the
@@ -156,23 +158,18 @@ def chest_screen_mods_json():
             "$background_images": "common.empty_panel",
             "$item_renderer_size": [CELL, CELL],
         },
-        "large_chest_panel_top_half": {"modifications": [
-            # The background carries the title: vanilla label only without a marker.
-            {"array_name": "controls", "operation": "replace", "control_name": "chest_label",
-             "value": {"chest_label@chest.chest_label": when(False)}},
-            # Vanilla grid without a marker, ours with one (same collection, same place).
-            {"array_name": "controls", "operation": "replace", "control_name": "large_chest_grid",
-             "value": {"large_chest_grid@chest.large_chest_grid": when(False, offset=[7, 10])}},
-            {"array_name": "controls", "operation": "insert_back",
-             "value": [{"artisan_chest_grid@chest.large_chest_grid": when(
-                 True, offset=[7, 10], grid_item_template="chest.artisan_grid_item")}]},
-        ]},
         "large_chest_panel/root_panel": {"modifications": [{
             "array_name": "controls", "operation": "insert_back",
-            "value": [{"artisan_background": {
-                "type": "image", "texture": "textures/artisan/proto_background",
-                "size": [BG_W, BG_H], "offset": [0, 0], "anchor_from": "top_left", "anchor_to": "top_left",
-                "layer": 2, **when(True)}}],
+            "value": [
+                # chest_panel is layer 5 and its slot contents reach about +15: go above.
+                {"artisan_background": {
+                    "type": "image", "texture": "textures/artisan/proto_background",
+                    "size": [BG_W, BG_H], "offset": [0, 0], "anchor_from": "top_left", "anchor_to": "top_left",
+                    "layer": 30, **on}},
+                {"artisan_chest_grid@chest.large_chest_grid": {
+                    "offset": [GRID_X, GRID_Y], "grid_item_template": "chest.artisan_grid_item",
+                    "layer": 31, **on}},
+            ],
         }]},
     }
 
