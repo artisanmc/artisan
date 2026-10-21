@@ -185,10 +185,44 @@ def chest_screen_mods_json():
                 {"artisan_chest_grid@chest.large_chest_grid": {
                     "offset": [GRID_X, GRID_Y], "grid_item_template": "chest.artisan_grid_item",
                     "layer": 31, **on}},
+                *text_probe(on),
             ],
           },
         ]},
     }
+
+
+FIELD = 16   # the title's first text field after the marker, padded to this length
+
+
+def text_probe(on):
+    """Can a label cut a field out of the title? Two candidate mechanisms, each
+    showing field 1 (16 chars after the marker) and field 2 (the rest):
+    A = view binding on a hidden label holding the title, B = $variable expression."""
+    def cut1(v):
+        return f"('%.{FIELD}s' * ({v} - ('%.1s' * {v})))"
+
+    def cut2(v):
+        return f"({v} - ('%.{FIELD + 1}s' * {v}))"
+
+    def label(name, y, text, bindings=None):
+        el = {"type": "label", "text": text, "offset": [10, y], "anchor_from": "top_left", "anchor_to": "top_left",
+              "size": ["default", "default"], "color": [0.1, 0.2, 0.36], "layer": 32, **on}
+        if bindings:
+            el["bindings"] = bindings
+        return {name: el}
+
+    def view(expr):
+        return [{"binding_type": "view", "source_control_name": "artisan_title_src",
+                 "source_property_name": expr, "target_property_name": "#text"}]
+    return [
+        {"artisan_title_src": {"type": "label", "text": "$container_title", "alpha": 0.0, "layer": 1,
+                               "offset": [0, 0], "anchor_from": "top_left", "anchor_to": "top_left"}},
+        label("artisan_probe_a1", 58, "#text", view(f"('A1 ' + {cut1('#text')})")),
+        label("artisan_probe_a2", 67, "#text", view(f"('A2 ' + {cut2('#text')})")),
+        label("artisan_probe_b1", 95, f"('B1 ' + {cut1('$container_title')})"),
+        label("artisan_probe_b2", 104, f"('B2 ' + {cut2('$container_title')})"),
+    ]
 
 
 # --- PNG ------------------------------------------------------------------
@@ -367,7 +401,8 @@ def project_files():
     return {
         "manifest.yaml": "schema: manifest/v1\nproject_id: bedrock_proto\ndefault_lang: en\nlanguages: [en]\n"
                          "files:\n  menus: [gifts, gifts_token]\n  commands: []\n",
-        "menus/gifts.yaml": menu_yaml("gifts", M1 + "Daily Gifts"),
+        # Field 1 padded to FIELD chars, field 2 with a placeholder (text probe).
+        "menus/gifts.yaml": menu_yaml("gifts", M1 + "Daily Gifts".ljust(FIELD, ".") + "Bonjour {player.name}"),
         "menus/gifts_token.yaml": menu_yaml("gifts_token", M2 + " Daily Gifts"),
     }
 
