@@ -50,6 +50,21 @@ puis `/artisan menu bedrock_proto:gifts` et `/artisan menu bedrock_proto:gifts_t
 Itérer : modifier `generate.py`, relancer `--install`, `docker compose restart minecraft`, se reconnecter
 (le client Bedrock ne recharge un pack qu'à la connexion).
 
+## Variantes du pack
+
+`generate.py --variant mod` (défaut) n'ajoute qu'une image à l'écran de coffre vanilla, par une
+`modification` JSON UI : si elle est fausse, le coffre vanilla reste utilisable et l'erreur part dans le
+journal de contenu. `--variant full` remplace tout `chest_screen.json` (titre masqué, mise en page
+classique forcée sur mobile) : c'est la première version, qui donnait un écran vide.
+
+La version du pack suit son contenu, donc un client Bedrock retélécharge le pack dès qu'il change.
+
+## Si l'écran est vide ou le fond absent
+
+Activer le journal de contenu du client : Paramètres > Créateur > « Interface du journal de contenu »
+(Content Log GUI) et « Fichier journal de contenu ». Les erreurs JSON UI s'affichent en jeu à l'ouverture
+du menu ; une capture de ces lignes suffit à corriger.
+
 ## Ce qu'il faut noter (une ligne par question)
 
 1. Le fond apparaît-il ? Avec `gifts`, avec `gifts_token`, ou aucun ?

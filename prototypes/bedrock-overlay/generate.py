@@ -135,6 +135,21 @@ def chest_screen_json():
     }
 
 
+def chest_screen_mods_json():
+    """Smallest change: vanilla chest screen untouched, one image inserted by a
+    modification. A wrong path leaves the vanilla screen working (content log error)."""
+    return {
+        "namespace": "chest",
+        "large_chest_panel/root_panel": {"modifications": [{
+            "array_name": "controls", "operation": "insert_back",
+            "value": [{"artisan_background": {
+                "type": "image", "texture": "textures/artisan/proto_background",
+                "size": [BG_W, BG_H], "offset": [0, 0], "anchor_from": "top_left", "anchor_to": "top_left",
+                "layer": 2, "$atext": "$container_title", "visible": overlay("$atext")}}],
+        }]},
+    }
+
+
 # --- PNG ------------------------------------------------------------------
 
 class Canvas:
@@ -218,15 +233,10 @@ def uid(name):
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"https://artisanmc.net/prototypes/bedrock-overlay/{name}"))
 
 
-def pack_files():
-    return {
-        "manifest.json": json.dumps({
-            "format_version": 2,
-            "header": {"name": "Artisan Bedrock overlay prototype", "description": "Chest overlay + custom items",
-                       "uuid": uid("header"), "version": [1, 0, 0], "min_engine_version": [1, 20, 0]},
-            "modules": [{"type": "resources", "uuid": uid("resources"), "version": [1, 0, 0]}],
-        }, indent=2),
-        "ui/chest_screen.json": json.dumps(chest_screen_json(), ensure_ascii=False, indent=2),
+def pack_files(variant):
+    files = {
+        "ui/chest_screen.json": json.dumps(chest_screen_mods_json() if variant == "mod" else chest_screen_json(),
+                                           ensure_ascii=False, indent=2),
         "textures/item_texture.json": json.dumps({
             "resource_pack_name": "artisan_proto", "texture_name": "atlas.items",
             "texture_data": {"artisan_hit_area": {"textures": ["textures/items/artisan_hit_area"]},
@@ -236,6 +246,16 @@ def pack_files():
         "textures/items/artisan_hit_area.png": Canvas(16, 16).png(),   # fully transparent
         "textures/items/artisan_proto_gift.png": gift_png(),
     }
+    # Bedrock clients cache a pack by uuid + version: any content change must bump it.
+    digest = zlib.crc32(b"".join(d if isinstance(d, bytes) else d.encode() for _, d in sorted(files.items())))
+    version = [1, 0, digest % 65536]
+    files["manifest.json"] = json.dumps({
+        "format_version": 2,
+        "header": {"name": "Artisan Bedrock overlay prototype", "description": "Chest overlay + custom items",
+                   "uuid": uid("header"), "version": version, "min_engine_version": [1, 20, 0]},
+        "modules": [{"type": "resources", "uuid": uid("resources"), "version": version}],
+    }, indent=2)
+    return files
 
 
 def mappings_json():
@@ -303,10 +323,12 @@ def write(root, files):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--install", action="store_true", help="copy into docker/server/plugins")
+    parser.add_argument("--variant", choices=["mod", "full"], default="mod",
+                        help="mod: one modification on the vanilla screen; full: whole chest_screen.json replaced")
     args = parser.parse_args()
 
     shutil.rmtree(BUILD, ignore_errors=True)
-    pack = pack_files()
+    pack = pack_files(args.variant)
     write(BUILD / "pack", pack)
     mcpack = BUILD / "artisan_bedrock_proto.mcpack"
     with zipfile.ZipFile(mcpack, "w", zipfile.ZIP_DEFLATED) as z:
@@ -314,7 +336,7 @@ def main():
             z.writestr(rel, data)
     write(BUILD / "custom_mappings", {"artisan_proto.json": mappings_json()})
     write(BUILD / "project", project_files())
-    print(f"built {BUILD}")
+    print(f"built {BUILD} (variant {args.variant})")
 
     if args.install:
         geyser = SERVER / "plugins" / "Geyser-Spigot"
