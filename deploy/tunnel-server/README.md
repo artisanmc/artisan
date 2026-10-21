@@ -20,11 +20,21 @@ HTTPS (HSTS préchargé), ce que Cloudflare fournit.
 ## Déploiement sur le VPS (Coolify + Cloudflare Tunnel)
 
 1. Cloudflare : ajouter la zone `artisanmc.app` (nameservers chez le registraire), SSL/TLS en « Full ».
-2. Coolify : ressource Docker Compose depuis ce dépôt, fichier `deploy/tunnel-server/docker-compose.yml`,
-   variable `TUNNEL_DOMAIN=artisanmc.app`. `TUNNEL_ACCESS_CODE` reste vide : le tunnel est ouvert à tous.
-3. Tunnel Cloudflare existant : un hostname public `*.artisanmc.app` vers le service du conteneur
-   (port 8080), et un second `artisanmc.app` si la racine doit répondre. DNS : un CNAME `*` vers
-   `<id-du-tunnel>.cfargotunnel.com`, proxifié, s'il n'est pas créé seul.
+2. Coolify : ressource Docker Compose depuis ce dépôt, **Base Directory** `/deploy/tunnel-server` et
+   **Docker Compose Location** `/docker-compose.yml`. Avec une base à `/`, Coolify résout le
+   `context: ../..` depuis la racine du dépôt et le build échoue. Aucun domaine sur le service, et
+   cocher « Connect To Predefined Network » pour que le conteneur rejoigne le réseau `coolify`.
+   Variable `TUNNEL_DOMAIN=artisanmc.app` : Coolify la pré-remplit avec le message d'erreur du
+   compose, il faut la remplacer. `TUNNEL_ACCESS_CODE` reste vide : le tunnel est ouvert à tous.
+3. Tunnel Cloudflare existant : une route (« Published application route », ex-« Public Hostname »)
+   `*.artisanmc.app` vers le conteneur, et une seconde `artisanmc.app` si la racine doit répondre.
+   - `cloudflared` installé sur la machine (cas courant) : `http://localhost:18080`. Le compose
+     publie le port sur `127.0.0.1` seulement, rien n'est ouvert vers l'extérieur.
+   - `cloudflared` en conteneur sur le réseau `coolify` : `http://tunnel-server:8080`, le nom du
+     service, stable d'un déploiement à l'autre (le nom du conteneur change à chaque fois).
+
+   DNS : un CNAME `*` vers `<id-du-tunnel>.cfargotunnel.com`, proxifié, s'il n'est pas créé seul.
+   Un 502 de Cloudflare sur `/health` veut dire que `cloudflared` ne joint pas l'URL de la route.
 4. Vérifier : `curl https://connect.artisanmc.app/health` répond `ok`.
 
 Cloudflare transmet les WebSockets et garde l'en-tête `Host` ; il coupe un WebSocket inactif après
