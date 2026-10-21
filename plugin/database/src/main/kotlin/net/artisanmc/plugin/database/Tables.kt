@@ -16,7 +16,7 @@ object TablePrefix {
     private val MODULE = Regex("[a-z][a-z0-9]{0,23}")
 
     /** First segments of Artisan's own tables: a module of that name would share them. */
-    val RESERVED = setOf("schema", "servers", "server", "meta", "contents", "versions", "drafts", "draft", "editor")
+    val RESERVED = setOf("schema", "servers", "server", "meta", "contents", "versions", "drafts", "draft", "editor", "network")
 
     fun validate(prefix: String): String {
         require(VALID.matches(prefix)) {
@@ -70,6 +70,9 @@ class ArtisanTables(prefix: String) {
     val versionsProjectIndex = "${prefix}versions_project"
     val versionsFolderIndex = "${prefix}versions_folder"
     val versionsServerKey = "${prefix}versions_server"
+    val networkMessages = "${prefix}network_messages"
+    val networkMessagesTimeIndex = "${prefix}network_messages_time"
+    val networkPlayers = "${prefix}network_players"
 
     companion object {
         val DEFAULT = ArtisanTables(TablePrefix.DEFAULT)

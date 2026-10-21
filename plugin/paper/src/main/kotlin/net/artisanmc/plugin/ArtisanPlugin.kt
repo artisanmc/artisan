@@ -75,6 +75,9 @@ open class ArtisanPlugin : JavaPlugin() {
     lateinit var database: net.artisanmc.plugin.database.PooledDatabase
         internal set
 
+    /** `api.network`: channels, presence and teleports across the servers of the suite database. */
+    internal lateinit var network: net.artisanmc.plugin.network.SuiteNetwork
+
     /** The suite database: server id and row, Versions, editor sessions. */
     internal val suite = SuiteDatabase(this)
     /** The editor web server (hub) or the link to the hub (leaf). */
@@ -152,6 +155,7 @@ open class ArtisanPlugin : JavaPlugin() {
         // The suite database opens on the Versions thread, ahead of the first Snapshot's
         // Version (issue #42): the server row exists before it, and nothing here waits.
         suite.open(cfg.web, editorHost.editorChannel)
+        network.start(networkName(cfg.web))
         // Modules register before the first `hello`, which announces them.
         runtime.start(cfg) { defaultModules().forEach { api.modules.register(it) } }
         runtime.registerCustomItemsReloadListeners()
@@ -225,6 +229,7 @@ open class ArtisanPlugin : JavaPlugin() {
             placeholders.unregisterLoadedBy(loader).forEach { add("placeholders %${it}_…%") }
             menuEvents.releaseLoadedBy(loader).takeIf { it > 0 }?.let { add("$it api.menus listener(s)") }
             api.events.unsubscribeLoadedBy(loader).takeIf { it > 0 }?.let { add("$it api.events handler(s)") }
+            network.releaseLoadedBy(loader).takeIf { it > 0 }?.let { add("$it api.network subscription(s)") }
         }
         if (left.isNotEmpty()) logger.fine("[Artisan] ${plugin.name} disabled: removed ${left.joinToString()}")
     }
@@ -234,6 +239,7 @@ open class ArtisanPlugin : JavaPlugin() {
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).
         api.modules.active().forEach { runCatching { it.onDisable() } }
+        if (::network.isInitialized) network.stop()
         suite.stopWriter()
         runtime.stopReloads()
         suite.unregister()

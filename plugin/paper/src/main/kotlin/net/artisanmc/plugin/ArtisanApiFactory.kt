@@ -36,6 +36,12 @@ internal object ArtisanApiFactory {
         plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger) { ticks, task ->
             plugin.scheduler.globalLater(ticks, task)
         }
+        // The tables are read at call time: the suite database opens after onEnable, and H2 is one server alone.
+        plugin.network = net.artisanmc.plugin.network.SuiteNetwork(
+            plugin, plugin.scheduler, net.artisanmc.plugin.text.ArtisanText, plugin.logger,
+            shared = { plugin.database.dialect != net.artisanmc.modules.api.database.DatabaseDialect.H2 },
+            rows = { plugin.suite.artisanData?.let { net.artisanmc.plugin.database.NetworkRows(it, plugin.database.tables) } },
+        )
         val api = ArtisanAPI.builder(
             plugin,
             DataSourceRegistry(),
@@ -109,6 +115,7 @@ internal object ArtisanApiFactory {
             .placeholders(plugin.placeholders)
             .translations(plugin.translations)
             .text(net.artisanmc.plugin.text.ArtisanText)
+            .network(plugin.network)
             .conditions(net.artisanmc.plugin.engine.ModuleConditions(
                 evaluator = { plugin.runtime.evaluatorOrNull },
                 ownsPlayer = { plugin.scheduler.ownsPlayer(it.uniqueId) },

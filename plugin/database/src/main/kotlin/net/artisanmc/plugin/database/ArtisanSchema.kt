@@ -82,6 +82,28 @@ object ArtisanSchema {
         // Where the other servers reach this one's `/ws/plugin` (ADR `peer-servers`): its public editor address, its internal one.
         Migration(17, "ALTER TABLE ${t.servers} ADD COLUMN editor_url VARCHAR(255) NOT NULL DEFAULT ''") { hasColumn(it, t.servers, "editor_url") },
         Migration(18, "ALTER TABLE ${t.servers} ADD COLUMN internal_url VARCHAR(255) NOT NULL DEFAULT ''") { hasColumn(it, t.servers, "internal_url") },
+        // `api.network` (design `reseau-artisan`): the messages between servers, read by id, kept a minute.
+        Migration(
+            19,
+            """CREATE TABLE IF NOT EXISTS ${t.networkMessages} (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                created_at TIMESTAMP NOT NULL,
+                server_from VARCHAR(64) NOT NULL,
+                channel VARCHAR(128) NOT NULL,
+                payload LONGTEXT NOT NULL
+            )""",
+        ),
+        Migration(20, "CREATE INDEX ${t.networkMessagesTimeIndex} ON ${t.networkMessages} (created_at)") { hasIndex(it, t.networkMessages, t.networkMessagesTimeIndex) },
+        // The players online on each server, rewritten by each server: what `api.network.presence` reads.
+        Migration(
+            21,
+            """CREATE TABLE IF NOT EXISTS ${t.networkPlayers} (
+                player_uuid CHAR(36) NOT NULL PRIMARY KEY,
+                name VARCHAR(16) NOT NULL,
+                server_name VARCHAR(64) NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )""",
+        ),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =
