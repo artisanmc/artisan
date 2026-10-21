@@ -394,6 +394,12 @@ jeu. Le module déclare le comportement avec un id stable, l'admin habille le re
 permission, cooldown, conditions, textes par langue, désactivation). Pas de suppression : la
 commande existe tant que le module est chargé.
 
+Chaque commande de module (sous-commandes comprises) a son fichier : au chargement et quand un
+module arrive, le plugin écrit celui qui manque dans le premier dossier du module, `schema` et
+`command` seuls, les valeurs du module en commentaires (`CommandOverrideStore.seed`, avec les
+templates, puis rechargement). Jamais de vraies clés, qui figeraient les valeurs du module à sa
+prochaine version ; jamais un fichier remplacé, ni un override doublé s'il vit dans un autre dossier.
+
 L'id, les arguments et les sous-commandes restent ceux du module : son code les lit. `steps`
 (chaîne d'actions, comme `command/v1`) remplace le code du module, sur la racine comme sur une
 sous-commande ; les arguments analysés y sont les valeurs `{nom}`, et un id de menu nu se résout
