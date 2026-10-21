@@ -8,7 +8,7 @@ import {
 } from "../../../../docs/schema/menu/v1/imageButtonGeometry";
 import { sha256Hex } from "../sha256";
 import type { AssetIndex } from "./assetIndexBuilder";
-import { createImage, decodePng, encodePng } from "./png";
+import { type RgbaImage, createImage, decodePng, encodePng } from "./png";
 
 export interface ImageButtonPlacement extends ImageButtonImage {
   fit: NonNullable<ImageButtonImage["fit"]>;
@@ -98,6 +98,36 @@ export function imageButtonsFromMenus(
   return out;
 }
 
+/**
+ * The image of a button as its slots show it: the source scaled by `fit`,
+ * centred then offset, clipped to the button's rectangle. Shared by the Java
+ * pack (a title glyph) and the Bedrock pack (an image over the slots).
+ */
+export function renderImageButton(
+  input: RgbaImage,
+  button: ImageButtonPlacement,
+): { image: RgbaImage; contentWidth: number } {
+  const output = createImage(button.width, button.height);
+  const {
+    width,
+    height,
+    x: dx,
+    y: dy,
+  } = imageButtonGeometry(button, input.width, input.height, button.width, button.height);
+  let contentWidth = 0;
+  for (let y = Math.max(0, -dy); y < Math.min(height, button.height - dy); y++)
+    for (let x = Math.max(0, -dx); x < Math.min(width, button.width - dx); x++) {
+      const src =
+        (Math.floor((y * input.height) / height) * input.width +
+          Math.floor((x * input.width) / width)) *
+        4;
+      const dest = ((y + dy) * button.width + x + dx) * 4;
+      output.data.set(input.data.subarray(src, src + 4), dest);
+      if (input.data[src + 3]) contentWidth = Math.max(contentWidth, x + dx + 1);
+    }
+  return { image: output, contentWidth };
+}
+
 export function buildImageButtons(
   files: Record<string, Uint8Array>,
   index: AssetIndex,
@@ -114,25 +144,7 @@ export function buildImageButtons(
     if (index.assets[key]) continue;
     const source = pngs.get(button.asset);
     if (!source) continue;
-    const input = decodePng(source);
-    const output = createImage(button.width, button.height);
-    const {
-      width,
-      height,
-      x: dx,
-      y: dy,
-    } = imageButtonGeometry(button, input.width, input.height, button.width, button.height);
-    let contentWidth = 0;
-    for (let y = Math.max(0, -dy); y < Math.min(height, button.height - dy); y++)
-      for (let x = Math.max(0, -dx); x < Math.min(width, button.width - dx); x++) {
-        const src =
-          (Math.floor((y * input.height) / height) * input.width +
-            Math.floor((x * input.width) / width)) *
-          4;
-        const dest = ((y + dy) * button.width + x + dx) * 4;
-        output.data.set(input.data.subarray(src, src + 4), dest);
-        if (input.data[src + 3]) contentWidth = Math.max(contentWidth, x + dx + 1);
-      }
+    const { image: output, contentWidth } = renderImageButton(decodePng(source), button);
     files[`assets/artisan/textures/${key}.png`] = encodePng(output);
     const ascent = 13 - button.y;
     files[`assets/artisan/font/${key}.json`] = strToU8(
