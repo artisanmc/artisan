@@ -17,3 +17,7 @@ services:
       TUNNEL_CLIENT_IP_HEADER: CF-Connecting-IP
     expose:
       - "8080"
+    # Loopback only: for a cloudflared (or reverse proxy) running on the host, which points at
+    # http://localhost:18080. Nothing is opened to the outside.
+    ports:
+      - "127.0.0.1:18080:8080"

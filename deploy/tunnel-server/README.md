@@ -26,11 +26,15 @@ HTTPS (HSTS préchargé), ce que Cloudflare fournit.
    cocher « Connect To Predefined Network » pour que le conteneur rejoigne le réseau `coolify`.
    Variable `TUNNEL_DOMAIN=artisanmc.app` : Coolify la pré-remplit avec le message d'erreur du
    compose, il faut la remplacer. `TUNNEL_ACCESS_CODE` reste vide : le tunnel est ouvert à tous.
-3. Tunnel Cloudflare existant (`cloudflared` sur le réseau `coolify`) : un hostname public
-   `*.artisanmc.app` vers `http://tunnel-server:8080`, le nom du service dans le compose, stable d'un
-   déploiement à l'autre (le nom du conteneur change à chaque fois). Un second hostname
-   `artisanmc.app` si la racine doit répondre. DNS : un CNAME `*` vers
-   `<id-du-tunnel>.cfargotunnel.com`, proxifié, s'il n'est pas créé seul.
+3. Tunnel Cloudflare existant : une route (« Published application route », ex-« Public Hostname »)
+   `*.artisanmc.app` vers le conteneur, et une seconde `artisanmc.app` si la racine doit répondre.
+   - `cloudflared` installé sur la machine (cas courant) : `http://localhost:18080`. Le compose
+     publie le port sur `127.0.0.1` seulement, rien n'est ouvert vers l'extérieur.
+   - `cloudflared` en conteneur sur le réseau `coolify` : `http://tunnel-server:8080`, le nom du
+     service, stable d'un déploiement à l'autre (le nom du conteneur change à chaque fois).
+
+   DNS : un CNAME `*` vers `<id-du-tunnel>.cfargotunnel.com`, proxifié, s'il n'est pas créé seul.
+   Un 502 de Cloudflare sur `/health` veut dire que `cloudflared` ne joint pas l'URL de la route.
 4. Vérifier : `curl https://connect.artisanmc.app/health` répond `ok`.
 
 Cloudflare transmet les WebSockets et garde l'en-tête `Host` ; il coupe un WebSocket inactif après
