@@ -47,7 +47,7 @@ class SyncedMenuProvider(
     private val evaluator: ConditionEvaluator = ConditionEvaluator.EMPTY,
     private val sessions: MenuSessionStore? = null,
     private val history: net.artisanmc.plugin.session.NavigationHistoryStore? = null,
-    private val onReload: (() -> Unit)? = null,
+    private val onReload: ((modules: Set<String>?) -> Unit)? = null,
     private val executorProvider: (() -> ActionExecutor)? = null,
     private val langManager: LangManager? = null,
     private val resourcePackManager: ResourcePackManager? = null,
@@ -162,7 +162,7 @@ class SyncedMenuProvider(
         }
         override fun reload() {
             reloadFromDisk()
-            onReload?.invoke()
+            onReload?.invoke(null)
         }
         override fun authoredBy(projectId: String, author: net.artisanmc.plugin.project.PublicationAuthor) {
             pendingAuthors[projectId] = author
@@ -220,6 +220,14 @@ class SyncedMenuProvider(
      */
     fun registerProjectRoot(projectId: String, dir: File) = roots.register(projectId, dir)
 
+    private val reloadQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val readEverything = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val readFolders: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    private val notifyAll = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val notifyOwners: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    private val registerQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val registeredFolders: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
     /**
      * Reloads the snapshot from disk, then notifies the modules.
      *
@@ -235,9 +243,29 @@ class SyncedMenuProvider(
      * takes seconds on a slow bind mount. Only [onReload] (command map, modules' `onReload()`)
      * goes back to the global thread, through the scheduler, once the snapshot is swapped.
      */
-    fun refreshFromDisk() = reloadExecutor.execute {
-        reloadFromDisk()
-        onReload?.invoke()
+    fun refreshFromDisk() = refresh(folders = null, notifyModules = true)
+
+    /**
+     * Asks that pile up before the read starts make one reload; an ask made during a read
+     * queues one more. It reads [folders] only (the folders just registered), or every
+     * project when an ask names none. [onReload] gets the modules to notify: every one when
+     * an ask has [notifyModules] (an editor publication, `api.project.reload()`), else only
+     * those whose folder was registered meanwhile (`notifyOwners`), which read it from the
+     * snapshot. Files Artisan wrote notify none.
+     */
+    private fun refresh(folders: Set<String>?, notifyModules: Boolean) {
+        if (folders == null) readEverything.set(true) else readFolders.addAll(folders)
+        if (notifyModules) notifyAll.set(true)
+        if (!reloadQueued.compareAndSet(false, true)) return
+        reloadExecutor.execute {
+            reloadQueued.set(false)
+            val everything = readEverything.getAndSet(false)
+            val some = readFolders.toSet().also { readFolders.removeAll(it) }
+            val everyModule = notifyAll.getAndSet(false)
+            val owners = notifyOwners.toSet().also { notifyOwners.removeAll(it) }
+            reloadFromDisk(if (everything) null else some)
+            onReload?.invoke(if (everyModule) null else owners)
+        }
     }
 
     override fun load() {
@@ -246,8 +274,18 @@ class SyncedMenuProvider(
         // `unknown_project` until the next reload. Deferred to the next tick so the
         // Add-on's onEnable has returned: its bootstrap writes are read, and its
         // onReload() never runs before its onEnable is done. The tick only orders the
-        // reload; the disk work itself leaves the global thread (refreshFromDisk).
-        roots.onRegister = { _, _ -> scheduler.global(::refreshFromDisk) }
+        // reload; the disk work itself leaves the global thread (refreshFromDisk). The
+        // modules enabled at startup register before the first tick: one reload for all,
+        // which notifies the folders' modules only, not every module each time.
+        roots.onRegister = { projectId, _ ->
+            registeredFolders += projectId
+            roots.ownerOf(projectId)?.let(notifyOwners::add)
+            if (registerQueued.compareAndSet(false, true)) scheduler.global {
+                registerQueued.set(false)
+                val folders = registeredFolders.toSet().also { registeredFolders.removeAll(it) }
+                refresh(folders, notifyModules = false)
+            }
+        }
         // The first load, and `/artisan reload`, read on the calling thread: menus and
         // commands exist when the server opens, and the admin's reply says they do.
         reloadFromDisk()
@@ -493,7 +531,7 @@ class SyncedMenuProvider(
             // After the templates: a module's folder they create receives its commands' files.
             runCatching { if (seedOverrides()) wrote = true }
                 .onFailure { logger?.warning("[Artisan] Command override files not written: ${it.message}") }
-            if (wrote) workspace.reload()
+            if (wrote) refresh(folders = null, notifyModules = false)
         }
     }
 
@@ -519,30 +557,43 @@ class SyncedMenuProvider(
     // A hand edit on disk applies only on `/artisan reload`, like any other Minecraft
     // plugin: the disk is deliberately not watched.
 
-    private fun reloadFromDisk() = synchronized(roots) {
+    /** Every project, or only [only]: the other projects keep what the last reload read. */
+    private fun reloadFromDisk(only: Set<String>? = null) = synchronized(roots) {
         val started = System.nanoTime()
         // Declared model docs feed the reader so BARE data files resolve their
         // schema from the JAR declaration (ADR bare-data-files ①).
         val failures = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
-        val loaded = ProjectReader(roots, logger, {
+        val reader = ProjectReader(roots, logger, {
             declaredModels().mapNotNull { doc ->
                 (doc["id"] as? String)?.let { it to doc }
             }.toMap()
         }, { projectId, rel, reason ->
             failures.getOrPut(projectId) { java.util.concurrent.ConcurrentHashMap() }[rel] = reason
-        }).readAll()
+        })
+        val read = if (only == null) reader.readAll() else reader.read(only)
         // The snapshot covers every file, not only those that compiled: what failed
         // must stay readable and fixable.
-        val dirs = roots.all()
-        projects = ProjectSnapshot(
-            files = dirs.mapValues { (_, dir) ->
-                runCatching { ProjectFilesReader.readAll(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
-            },
-            binaries = dirs.mapValues { (_, dir) ->
-                runCatching { ProjectFilesReader.binaries(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
-            },
-            skipped = failures,
-        )
+        val all = roots.all()
+        val dirs = if (only == null) all else all.filterKeys { it in only }
+        val files = dirs.mapValues { (_, dir) ->
+            runCatching { ProjectFilesReader.readAll(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
+        }
+        val binaries = dirs.mapValues { (_, dir) ->
+            runCatching { ProjectFilesReader.binaries(dir).filterKeys { !EditorPaths.isInvisible(it) } }.getOrDefault(emptyMap())
+        }
+        val loaded: List<RuntimeProject>
+        if (only == null) {
+            projects = ProjectSnapshot(files = files, binaries = binaries, skipped = failures)
+            loaded = read
+        } else {
+            fun <V> kept(map: Map<String, V>) = map.filterKeys { it in all && it !in only }
+            projects = ProjectSnapshot(
+                files = kept(projects.files) + files,
+                binaries = kept(projects.binaries) + binaries,
+                skipped = kept(projects.skipped) + failures,
+            )
+            loaded = (runtimes.filter { it.projectId in all && it.projectId !in only } + read).sortedBy { it.projectId }
+        }
         runtimes = loaded
         indexDocuments(loaded)
         val authors = HashMap(pendingAuthors).also { pendingAuthors.clear() }
