@@ -202,7 +202,7 @@ export function ServerConfigSection({
         {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
         <button
           type="button"
-          className="btn-primary btn-sm"
+          className="btn btn-primary btn-sm"
           disabled={saving || Object.keys(changes).length === 0}
           onClick={save}
         >

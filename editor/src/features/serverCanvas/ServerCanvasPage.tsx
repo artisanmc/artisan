@@ -152,7 +152,7 @@ export function ServerCanvasPage() {
         />
       ))}
       <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-        <Link to="/servers/$serverId" params={{ serverId }} className="btn-ghost btn-sm">
+        <Link to="/servers/$serverId" params={{ serverId }} className="btn btn-ghost btn-sm">
           ← {t("serverCanvas.back")}
         </Link>
         <h1 className="text-[15px] font-semibold text-[var(--text)]">{t("serverCanvas.title")}</h1>

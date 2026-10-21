@@ -46,10 +46,10 @@ export function EditorAddressBanner() {
   return (
     <div className="card flex flex-wrap items-center gap-3 p-4">
       <p className="flex-1 text-[13px] text-[var(--text)]">{t("editorAddress.banner", { url })}</p>
-      <Link to="/settings" hash="address" className="btn-primary btn-sm">
+      <Link to="/settings" hash="address" className="btn btn-primary btn-sm">
         {t("editorAddress.bannerAction")}
       </Link>
-      <button type="button" className="btn-ghost btn-sm" onClick={dismiss}>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={dismiss}>
         {t("editorAddress.bannerLater")}
       </button>
     </div>
