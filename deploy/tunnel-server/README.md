@@ -2,7 +2,8 @@
 
 Prototype (ADR `editor-tunnel`). Un plugin Artisan avec `web.tunnel` ouvre un WebSocket sortant
 vers ce serveur et reçoit l'adresse `https://<id>.<domaine>` ; chaque requête du navigateur vers
-cette adresse est passée telle quelle au plugin. Le serveur ne stocke rien.
+cette adresse est passée telle quelle au plugin. Le serveur ne garde que les noms que des adresses
+ont pris (`survie.artisanmc.app`, voir « Noms d'adresse »), rien de ce qui passe.
 
 ## Domaine et certificat
 
@@ -26,6 +27,8 @@ HTTPS (HSTS préchargé), ce que Cloudflare fournit.
    cocher « Connect To Predefined Network » pour que le conteneur rejoigne le réseau `coolify`.
    Variable `TUNNEL_DOMAIN=artisanmc.app` : Coolify la pré-remplit avec le message d'erreur du
    compose, il faut la remplacer. `TUNNEL_ACCESS_CODE` reste vide : le tunnel est ouvert à tous.
+   Pour les noms d'adresse : `TUNNEL_NAMES_WEBHOOK` (webhook Discord) et `TUNNEL_ADMIN_TOKEN` (un
+   long secret aléatoire, `openssl rand -hex 32`). Le volume `tunnel-data` garde les noms.
 3. Tunnel Cloudflare existant : une route (« Published application route », ex-« Public Hostname »)
    `*.artisanmc.app` vers le conteneur, et une seconde `artisanmc.app` si la racine doit répondre.
    - `cloudflared` installé sur la machine (cas courant) : `http://localhost:18080`. Le compose
@@ -55,6 +58,34 @@ Une feuille sans port vers son hub vise l'adresse du tunnel du hub :
 Au redémarrage, la console écrit `Editor reachable through the tunnel server at https://<id>.artisanmc.app`,
 et `/artisan editor` donne un lien vers cette adresse. Un code refusé s'écrit aussi dans la console.
 
+## Noms d'adresse
+
+Depuis les réglages de l'éditeur, un admin (`artisan.editor.config`) peut donner un nom à son
+adresse : `https://survie.artisanmc.app` répond alors comme `https://<id>.artisanmc.app`, qui
+continue de marcher. Le plugin demande le nom par sa connexion de tunnel, signée de son secret : seul
+le serveur (ou le réseau) qui détient l'adresse peut la nommer. Un nom par adresse, premier arrivé
+premier servi, libéré après 90 jours sans connexion.
+
+Refusés : les noms du serveur de tunnel et du projet (`connect`, `www`, `admin`, `artisan`…), ceux
+qui contiennent une marque où l'on se connecte ou un mot de hameçonnage (`paypal`, `discord`,
+`login`, `verify`…, liste dans `NameRegistry.kt`), et ceux de `TUNNEL_RESERVED_NAMES`. Au plus 3
+changements par adresse et 10 par IP de serveur et par jour.
+
+Chaque nom pris est envoyé au webhook Discord de `TUNNEL_NAMES_WEBHOOK`. Pour retirer un nom
+(`TUNNEL_ADMIN_TOKEN` dans la variable `TOKEN`) :
+
+```bash
+# Lister les noms
+curl -H "Authorization: Bearer $TOKEN" https://connect.artisanmc.app/admin/names
+# Libérer un nom ; ?ban=1 empêche aussi de le reprendre
+curl -X DELETE -H "Authorization: Bearer $TOKEN" "https://connect.artisanmc.app/admin/names/paypal-mc?ban=1"
+# Lever un bannissement
+curl -X DELETE -H "Authorization: Bearer $TOKEN" https://connect.artisanmc.app/admin/bans/paypal-mc
+```
+
+Le serveur concerné reçoit tout de suite son adresse `<id>` en retour. Sans `TUNNEL_ADMIN_TOKEN`,
+les routes `/admin/` n'existent pas.
+
 ## Variables
 
 | Variable | Défaut | Rôle |
@@ -70,9 +101,15 @@ et `/artisan editor` donne un lien vers cette adresse. Un code refusé s'écrit 
 | `TUNNEL_BANDWIDTH_KBPS` | `2048` | Débit par tunnel, deux sens confondus, en Kio/s : ralenti, jamais coupé ; 0 : sans limite. |
 | `TUNNEL_DAILY_MB` | `2048` | Volume par tunnel et par jour UTC (429 au-delà) ; 0 : sans limite. |
 | `TUNNEL_PER_ADDRESS` | `3` | Tunnels ouverts en même temps depuis une même adresse ; 0 : sans limite. |
+| `TUNNEL_NAMES_FILE` | vide (`/app/data/names.json` dans le compose) | Fichier des noms d'adresse ; vide : pas de noms, seulement les `<id>`. |
+| `TUNNEL_RESERVED_NAMES` | vide | Noms interdits en plus de la liste intégrée, séparés par des virgules. |
+| `TUNNEL_NAME_EXPIRY_DAYS` | `90` | Jours sans connexion après lesquels un nom redevient libre. |
+| `TUNNEL_NAMES_WEBHOOK` | vide | Webhook Discord prévenu de chaque nom pris. |
+| `TUNNEL_ADMIN_TOKEN` | vide | Jeton des routes `/admin/` ; vide : pas de routes admin. |
 | `TUNNEL_CLIENT_IP_HEADER` | vide | En-tête de l'adresse du client posé par le proxy TLS : `CF-Connecting-IP` derrière Cloudflare. Jamais sans un tel proxy (falsifiable). |
 
 ## Avant une ouverture publique
 
-Faits : limites par tunnel (variables ci-dessus) et cookie `__Host-` derrière le tunnel. Reste :
-une page d'abus et de contact sur le domaine.
+Faits : limites par tunnel (variables ci-dessus), cookie `__Host-` derrière le tunnel, noms
+filtrés et signalés au webhook. Reste : une page d'abus et de contact sur le domaine, et un moyen de
+couper une adresse `<id>` (seuls les noms se retirent aujourd'hui).

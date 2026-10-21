@@ -15,9 +15,20 @@ services:
       TUNNEL_MAX_STREAMS: "64"
       # Behind Cloudflare: the visitor's address, for the per-address tunnel limit.
       TUNNEL_CLIENT_IP_HEADER: CF-Connecting-IP
+      # Names addresses take (survie.<domain>), kept on the volume below.
+      TUNNEL_NAMES_FILE: /app/data/names.json
+      # A Discord webhook told of each name taken, to watch for abuse. Empty: none.
+      TUNNEL_NAMES_WEBHOOK: ${TUNNEL_NAMES_WEBHOOK:-}
+      # Bearer token of /admin/names on the tunnel server's own host. Empty: no admin routes.
+      TUNNEL_ADMIN_TOKEN: ${TUNNEL_ADMIN_TOKEN:-}
+    volumes:
+      - tunnel-data:/app/data
     expose:
       - "8080"
     # Loopback only: for a cloudflared (or reverse proxy) running on the host, which points at
     # http://localhost:18080. Nothing is opened to the outside.
     ports:
       - "127.0.0.1:18080:8080"
+
+volumes:
+  tunnel-data:

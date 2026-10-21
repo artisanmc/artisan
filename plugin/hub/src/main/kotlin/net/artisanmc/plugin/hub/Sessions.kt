@@ -89,6 +89,18 @@ class Sessions(
         return LinkResult.Issued(token)
     }
 
+    /**
+     * A link for [session]'s player on another address of the editor (its name just changed): the
+     * cookie stays on the old one. Not throttled like [issueLink]: the player is already signed in.
+     */
+    fun handOff(session: EditorSession): String {
+        val token = token()
+        val link = Link(session.playerId, session.playerName, session.permissions, clock.instant().plus(linkTtl), session.origin)
+        links[token] = link
+        store?.put(key(LINK + token), EditorSession(LINK, link.playerId, link.playerName, link.permissions, link.expiresAt, link.origin))
+        return token
+    }
+
     /** Trades a link for a session. Null: unknown, already used or expired link. */
     fun redeem(token: String): EditorSession? {
         val link = links.remove(token)

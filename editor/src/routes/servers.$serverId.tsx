@@ -7,6 +7,7 @@ import {
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
 import { buildModuleList, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection";
+import { EditorAddressBanner } from "@/features/settings/EditorAddressBanner";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
 import { projectUrlId } from "@/lib/projectUrlId";
@@ -218,6 +219,8 @@ function ServerOverview({
             {label}
           </h1>
         </header>
+
+        <EditorAddressBanner />
 
         {status === "ready" && pluginModules.length > 0 && (
           <section className="flex flex-col gap-3">

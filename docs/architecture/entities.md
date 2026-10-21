@@ -32,7 +32,7 @@ demande (`artisan.editor` les donne toutes). L'accès se donne avec un plugin de
 | `config.yml` | Réglages éditables (langue, pack de ressources, taille des pools…) | L'admin, ou l'éditeur (`server_config_write`, validé clé par clé). |
 | `environment.yml` | `name` (nom du serveur), `web.*` (port, bind, url, hub, secret, tunnel), identifiants de base et `dev.editor-bundles` (vue éditeur d'un module lue depuis un fichier) | L'admin seul ; jamais lu ni écrit par l'éditeur. |
 | `network-secret` | Secret du réseau généré par le hub quand ni `web.secret` ni Velocity n'en donnent ; les pairs d'une même base utilisent `network_secret` d'`artisan_meta` (ADR `peer-servers`) | Le hub, une fois. |
-| `tunnel-secret` | Secret du tunnel de l'éditeur ; l'adresse `<id>` sur le serveur de tunnel en est dérivée (ADR `editor-tunnel`) | Le hub, une fois, s'il ouvre un tunnel (par défaut, sans `web.url`). |
+| `tunnel-secret` | Secret du tunnel de l'éditeur ; l'adresse `<id>` sur le serveur de tunnel en est dérivée (ADR `editor-tunnel`). Le nom de l'adresse (`survie.artisanmc.app`) n'est gardé que par le serveur de tunnel (`TUNNEL_NAMES_FILE`), qui le renvoie à chaque connexion | Le hub, une fois, s'il ouvre un tunnel (par défaut, sans `web.url`). |
 | `projects/` | Les Projects | Le plugin (seul écrivain), sur geste de l'éditeur, ou l'admin à la main puis `/artisan reload`. |
 | `editor-prefs/<uuid>.json` | Préférences d'éditeur d'un joueur (`PATCH /api/v1/auth/me`) | Le hub. |
 | `cache/minecraft/<version>/` | Textures vanilla extraites du jar client Mojang (SHA-1 vérifié) | Le hub, à la première texture demandée. |

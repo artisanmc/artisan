@@ -2,6 +2,7 @@ package net.artisanmc.tunnelserver
 
 import net.artisanmc.tunnel.Frame
 import net.artisanmc.tunnel.Hello
+import net.artisanmc.tunnel.NameRequest
 import net.artisanmc.tunnel.RequestHead
 import net.artisanmc.tunnel.ResponseHead
 import net.artisanmc.tunnel.WsClose
@@ -34,6 +35,10 @@ class TunnelSession(
     val member: String = "",
     private val onOpen: (TunnelSession) -> Unit,
     private val onClose: (TunnelSession) -> Unit,
+    /** What the plugin is told once accepted, and again when its address changes. */
+    private val hello: () -> Hello = { Hello(config.publicUrl(id)) },
+    /** The plugin asks for a name ([Frame.Type.NAME]) on its own stream number. */
+    private val onName: (TunnelSession, Int, NameRequest) -> Unit = { _, _, _ -> },
 ) : Session.Listener.AutoDemanding {
     class Stream(val id: Int) {
         val frames = LinkedBlockingQueue<Frame>()
@@ -55,8 +60,10 @@ class TunnelSession(
             return
         }
         onOpen(this)
-        send(Frame.json(Frame.Type.HELLO, 0, Hello(config.publicUrl(id))))
+        sendHello()
     }
+
+    fun sendHello() = runCatching { send(Frame.json(Frame.Type.HELLO, 0, hello())) }
 
     override fun onWebSocketBinary(payload: ByteBuffer, callback: WsCallback) {
         val frame = runCatching { Frame.decode(payload) }.getOrNull()
@@ -75,6 +82,7 @@ class TunnelSession(
                 val close = frame.json<WsClose>()
                 socket.close(close.code, close.reason)
             }
+            Frame.Type.NAME -> runCatching { frame.json<NameRequest>() }.getOrNull()?.let { onName(this, frame.stream, it) }
             else -> logger.fine("Tunnel $id sent an unexpected ${frame.type}")
         }
     }

@@ -30,11 +30,11 @@ object Tunnel {
 
     /**
      * The tunnel's subdomain, derived from the secret the plugin keeps (`plugins/Artisan/tunnel-secret`):
-     * stable across restarts, and nobody can claim it without the secret. The tunnel server stores nothing.
+     * stable across restarts, and nobody can claim it without the secret. A name ([validName]) may stand
+     * for it too, kept by the tunnel server.
      */
     fun id(secret: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(secret.toByteArray())
-        val alphabet = "abcdefghijklmnopqrstuvwxyz234567"
         val out = StringBuilder()
         var buffer = 0
         var bits = 0
@@ -42,7 +42,7 @@ object Tunnel {
             buffer = (buffer shl 8) or (byte.toInt() and 0xFF)
             bits += 8
             while (bits >= 5 && out.length < ID_LENGTH) {
-                out.append(alphabet[(buffer shr (bits - 5)) and 31])
+                out.append(ALPHABET[(buffer shr (bits - 5)) and 31])
                 bits -= 5
             }
             if (out.length == ID_LENGTH) break
@@ -52,5 +52,16 @@ object Tunnel {
 
     fun major(version: String): String = version.substringBefore('.')
 
+    /**
+     * A name an address may take: 3 to 32 lowercase letters, digits and inner hyphens, never `--`
+     * (`xn--` is an encoded name), and never the shape of an id: it would answer for someone's tunnel.
+     */
+    fun validName(name: String): Boolean =
+        name.length in 3..32 && NAME.matches(name) && "--" !in name && !looksLikeId(name)
+
+    fun looksLikeId(label: String): Boolean = label.length == ID_LENGTH && label.all { it in ALPHABET }
+
     private const val ID_LENGTH = 16
+    private const val ALPHABET = "abcdefghijklmnopqrstuvwxyz234567"
+    private val NAME = Regex("[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
 }
