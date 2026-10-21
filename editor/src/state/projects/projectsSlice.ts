@@ -1,4 +1,3 @@
-import { liveDocumentIds, normalizeCanvasGroups } from "@/domain/canvasGroups";
 import { allDocuments, emptyDocuments, menusOf, mutableMenus } from "@/domain/documents";
 import { newProjectId } from "@/domain/ids";
 import { migrateTitle } from "@/domain/migrateTitle";
@@ -204,7 +203,6 @@ export const createProjectsSlice = ({
       if (idx === -1) throw new Error("menu not found in source project");
       const [moved] = mutableMenus(from).splice(idx, 1);
       if (!moved) return;
-      from.canvasGroups = normalizeCanvasGroups(from.canvasGroups, liveDocumentIds(from));
       moved.projectId = toProjectId;
       mutableMenus(to).push(moved);
     });
@@ -230,12 +228,6 @@ export const createProjectsSlice = ({
         }
         for (const kind of Object.keys(project.documents)) {
           project.documents[kind] = (project.documents[kind] ?? []).filter((d) => !ids.has(d.id));
-        }
-        if (project.canvasGroups) {
-          project.canvasGroups = normalizeCanvasGroups(
-            project.canvasGroups,
-            liveDocumentIds(project),
-          );
         }
         for (const id of ids) {
           delete (project.canvasLayout as Record<string, { x: number; y: number }>)[id];
