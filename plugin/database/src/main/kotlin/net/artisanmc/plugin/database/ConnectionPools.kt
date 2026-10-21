@@ -12,6 +12,8 @@ class ConnectionPools(
     private val logger: Logger,
 ) {
     private val pools = HashMap<String, HikariDataSource>()
+    /** Pools of disabled plugins, open until [closeReleased] unless their plugin asks again (a reload). */
+    private val released = HashMap<String, HikariDataSource>()
 
     companion object {
         const val H2_FILE = "suite"
@@ -21,6 +23,7 @@ class ConnectionPools(
 
     @Synchronized
     fun dataSource(owner: String): DataSource {
+        released.remove(owner)
         pools[owner]?.takeUnless { it.isClosed }?.let { return it }
         return open(owner, settings()).also { pools[owner] = it }
     }
@@ -31,6 +34,21 @@ class ConnectionPools(
             it.close()
             logger.info("[database] pool of $owner closed")
         }
+    }
+
+    /** Marks [owner]'s pool for [closeReleased]; false if it has none. */
+    @Synchronized
+    fun release(owner: String): Boolean {
+        val pool = pools[owner] ?: return false
+        released[owner] = pool
+        return true
+    }
+
+    /** Closes [owner]'s released pool, unless the plugin took it back since. */
+    @Synchronized
+    fun closeReleased(owner: String) {
+        val pool = released.remove(owner) ?: return
+        if (pools[owner] === pool) close(owner)
     }
 
     @Synchronized
