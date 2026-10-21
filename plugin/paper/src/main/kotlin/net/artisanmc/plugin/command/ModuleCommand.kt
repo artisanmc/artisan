@@ -40,12 +40,17 @@ class ResolvedPlayerCommand(
     val steps: List<Step>? = null,
     /** The override's folder, where a bare id in [steps] resolves. */
     val projectId: String? = null,
+    /** `open_menu` of the declaration's [PlayerCommandDeclaration.getOpensMenu]; null when it runs an executor. */
+    val menuSteps: List<Step>? = null,
 ) {
     val id: String get() = declaration.id
 
     fun withAliases(aliases: List<String>) = ResolvedPlayerCommand(
-        declaration, name, aliases, permission, description, enabled, handler, cooldownMessage, argDefs, children, steps, projectId,
+        declaration, name, aliases, permission, description, enabled, handler, cooldownMessage, argDefs, children, steps, projectId, menuSteps,
     )
+
+    /** What runs instead of an executor: the override's [steps], else the declared menu. */
+    val chain: List<Step>? get() = steps ?: menuSteps
 
     /** This command or one of its sub-commands, by id. */
     fun find(id: String): ResolvedPlayerCommand? =
@@ -101,8 +106,12 @@ class ResolvedPlayerCommand(
                 children = declaration.children.map { resolve(it, overrides, logger, isRoot = false) },
                 steps = steps,
                 projectId = override?.project,
+                menuSteps = declaration.opensMenu?.let { ActionChainCompiler.compile(openMenu(it)) },
             )
         }
+
+        /** The chain of a declared menu, as an override would write it. */
+        fun openMenu(menuRef: String): List<Map<String, Any>> = listOf(mapOf("open_menu" to menuRef))
 
         private fun argDef(arg: CommandArgument): ArgDef = when (arg.type) {
             CommandArgument.Type.STRING, CommandArgument.Type.TEXT -> ArgDef.StringArg(arg.name, arg.isRequired)
@@ -144,14 +153,15 @@ class ModuleCommand(
             return true
         }
         val run = node.declaration.executor
-        if (run == null && node.steps == null) {
+        val chain = node.chain
+        if (run == null && chain == null) {
             val subs = node.children.filter { c -> c.enabled && c.permission?.let(sender::hasPermission) != false }.map { it.name }
             val path = (listOf(commandLabel) + args.take(depth)).joinToString(" ")
             Chat.send(sender, lang.get("cmd.usage", sender, "command" to path, "subcommands" to subs.joinToString("|")))
             return true
         }
-        // A chain acts on a player: an override's steps never run from the console.
-        if (sender !is Player && (node.steps != null || !node.declaration.isConsoleAllowed)) {
+        // A chain acts on a player: an override's steps or a menu never run from the console.
+        if (sender !is Player && (chain != null || !node.declaration.isConsoleAllowed)) {
             Chat.send(sender, lang.get("cmd.in_game_only", sender))
             return true
         }
@@ -159,14 +169,17 @@ class ModuleCommand(
         val playerLang = lang.playerLang(sender)
         val context = ModuleCommandContext(node.id, sender, playerLang, parsed)
         val handler = node.handler
+            ?: chain?.let { ClickHandler(requirements = emptyList(), fallback = emptyList(), cooldown = null, steps = it) }
         if (sender !is Player || handler == null) {
             runSafely(node, sender) { run?.execute(context) }
             return true
         }
         val cooldown = handler.cooldown?.copy(message = node.cooldownMessage?.forLang(playerLang, playerLang))
-        val ctx = ExecutionContext(player = sender, args = parsed, lang = playerLang, projectId = node.projectId)
-        if (node.steps != null) {
-            executor.handle(handler.copy(cooldown = cooldown), ctx)
+        // The override's steps resolve a bare id in its folder; a declared menu, server-wide.
+        val projectId = if (node.steps != null) node.projectId else null
+        val ctx = ExecutionContext(player = sender, args = parsed, lang = playerLang, projectId = projectId)
+        if (chain != null) {
+            executor.handle(handler.copy(cooldown = cooldown, steps = chain), ctx)
         } else {
             executor.handle(handler.copy(cooldown = cooldown), ctx) { runSafely(node, sender) { run?.execute(context) } }
         }

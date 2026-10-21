@@ -180,6 +180,7 @@ describe("buildModuleList", () => {
       description: {},
       arguments: [],
       consoleAllowed: false,
+      opensMenu: null,
       children: [],
     });
     const { pluginModules } = buildModuleList({

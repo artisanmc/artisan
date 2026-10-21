@@ -781,6 +781,8 @@ const fr: typeof en = {
     },
   },
   projectPanel: {
+    moduleCommandHint:
+      "Commande interne du module {{module}} : son code est dans le plugin. Ouvre-la pour changer son nom, sa permission, ses textes ou ce qu'elle fait.",
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",
     multiSelection: "Édition multiple non prise en charge en v1. Sélectionnez un seul élément.",
     selectionNoEditor: "Aucun éditeur pour cette sélection.",
@@ -921,6 +923,7 @@ const fr: typeof en = {
     errFetchError: "Le module a échoué : {{message}}",
   },
   canvas: {
+    moduleCommand: "commande · {{module}}",
     armedHint: "armé — clique une case pour le placer",
     groups: {
       title: "Dossiers",

@@ -340,6 +340,7 @@ A module declares the commands players type: Artisan registers them in the comma
 | `PlayerCommandExecutor.execute(context)`, run on the sender's thread once permission, the override's requirements and cooldown pass; an exception is logged and the sender told (`cmd.failed`) | | 2.7.0 |
 | `PlayerCommandContext`: `getCommandId()`, `getSender()`, `getPlayer()` (null for the console), `getLanguage()`, `getArguments()`, `get(name, type)` | | 2.7.0 |
 | `PlayerCommandRegistry.onChange(callback)`, `ArtisanAPI.Builder.playerCommands(registry)` (`@Internal`) | | 2.7.0 |
+| `PlayerCommandDeclaration.Builder.opensMenu(menuRef)`, `getOpensMenu()`: the command opens that menu (Action DSL ref, `folder:menu` or a bare id resolved server-wide) instead of running an executor, its arguments as the menu's context; player-only. `build()` refuses an executor and a menu together, and a menu with `consoleAllowed(true)` (`IllegalArgumentException`). The editor draws the link on the board | | 2.11.0 |
 
 ```java
 api.getPlayerCommands().register(PlayerCommandDeclaration.builder("attribution:open")

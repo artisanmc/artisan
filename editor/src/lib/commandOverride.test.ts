@@ -18,6 +18,7 @@ const command = (id: string, moduleId: string | null = null): PlayerCommand => (
   description: {},
   arguments: [],
   consoleAllowed: false,
+  opensMenu: null,
   children: [],
 });
 

@@ -31,6 +31,10 @@ import org.jetbrains.annotations.Nullable;
  *
  * A child is reached as {@code /<root name> <child name>}; in this version only the root can be
  * renamed by the admin.
+ *
+ * <p>A command that only opens a menu declares it with {@link Builder#opensMenu(String)} instead of
+ * an executor: Artisan opens it (the arguments bind to the menu's context inputs of the same name)
+ * and the editor draws the link on the board.
  */
 @Beta
 public final class PlayerCommandDeclaration {
@@ -44,6 +48,7 @@ public final class PlayerCommandDeclaration {
     private final Map<String, String> description;
     private final List<CommandArgument> arguments;
     private final @Nullable PlayerCommandExecutor executor;
+    private final @Nullable String opensMenu;
     private final boolean consoleAllowed;
     private final List<PlayerCommandDeclaration> children;
 
@@ -56,10 +61,17 @@ public final class PlayerCommandDeclaration {
         this.description = Map.copyOf(b.description);
         this.arguments = List.copyOf(b.arguments);
         this.executor = b.executor;
+        this.opensMenu = b.opensMenu;
         this.consoleAllowed = b.consoleAllowed;
         this.children = List.copyOf(b.children);
-        if (executor == null && children.isEmpty()) {
-            throw new IllegalArgumentException("command '" + id + "' has neither an executor nor a child");
+        if (executor == null && opensMenu == null && children.isEmpty()) {
+            throw new IllegalArgumentException("command '" + id + "' has neither an executor, a menu nor a child");
+        }
+        if (executor != null && opensMenu != null) {
+            throw new IllegalArgumentException("command '" + id + "' has both an executor and a menu");
+        }
+        if (opensMenu != null && consoleAllowed) {
+            throw new IllegalArgumentException("command '" + id + "' opens a menu: the console cannot run it");
         }
         boolean optionalSeen = false;
         for (int i = 0; i < arguments.size(); i++) {
@@ -109,8 +121,15 @@ public final class PlayerCommandDeclaration {
 
     public List<CommandArgument> getArguments() { return arguments; }
 
-    /** Null only for a root that just groups children. */
+    /** Null for a root that just groups children, or for a command that opens a menu. */
     public @Nullable PlayerCommandExecutor getExecutor() { return executor; }
+
+    /**
+     * The menu this command opens instead of running an executor, as the Action DSL names it
+     * ({@code boutique_addon:shop_main}, or a bare id resolved server-wide); null otherwise.
+     */
+    @Beta
+    public @Nullable String getOpensMenu() { return opensMenu; }
 
     /** Whether the console may run it; a player-only command refuses the console with a message. */
     public boolean isConsoleAllowed() { return consoleAllowed; }
@@ -131,6 +150,7 @@ public final class PlayerCommandDeclaration {
         private final Map<String, String> description = new LinkedHashMap<>();
         private final List<CommandArgument> arguments = new ArrayList<>();
         private @Nullable PlayerCommandExecutor executor;
+        private @Nullable String opensMenu;
         private boolean consoleAllowed;
         private final List<PlayerCommandDeclaration> children = new ArrayList<>();
 
@@ -157,6 +177,18 @@ public final class PlayerCommandDeclaration {
         public Builder argument(CommandArgument argument) { arguments.add(argument); return this; }
 
         public Builder executor(PlayerCommandExecutor executor) { this.executor = Objects.requireNonNull(executor); return this; }
+
+        /**
+         * Opens {@code menuRef} instead of running an executor: a player-only command whose
+         * arguments become the menu's context. Qualify the ref with the module's folder
+         * ({@code boutique_addon:shop_main}) so that another folder's menu of the same id is not taken.
+         */
+        @Beta
+        public Builder opensMenu(String menuRef) {
+            if (menuRef.isBlank()) throw new IllegalArgumentException("menu ref is blank");
+            this.opensMenu = menuRef.trim();
+            return this;
+        }
 
         public Builder consoleAllowed(boolean allowed) { this.consoleAllowed = allowed; return this; }
 

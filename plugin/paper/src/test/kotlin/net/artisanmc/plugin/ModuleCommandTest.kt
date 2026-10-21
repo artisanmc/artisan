@@ -282,4 +282,72 @@ class ModuleCommandTest {
             root.deleteRecursively()
         }
     }
+
+    private class RecordingProvider : MenuProvider {
+        val opened = mutableListOf<Pair<String, Map<String, Any>>>()
+        override fun load() {}
+        override fun findMenu(menuId: String): RuntimeMenu? = null
+        override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) { opened += menuId to ctx.args }
+        override fun runtimeProjects(): List<RuntimeProject> = emptyList()
+    }
+
+    private fun shop() = PlayerCommandDeclaration.builder("boutique:open")
+        .name("boutique")
+        .argument(CommandArgument.string("category").optional())
+        .opensMenu("boutique_addon:shop_main")
+        .build()
+
+    @Test fun `a command that opens a menu opens it, its arguments as the context, and an override's steps replace it`() {
+        val player = MockBukkit.getMock()!!.addPlayer()
+        registry.register(shop())
+        val provider = RecordingProvider()
+        val exec = ActionExecutor(plugin.value, provider, MenuSessionStore(), deps, cooldowns, evaluator)
+        val registrar = registrar()
+        registrar.reload(emptyList(), exec, evaluator)
+        command("boutique").execute(player, "boutique", arrayOf("armes"))
+        assertEquals("boutique_addon:shop_main" to mapOf<String, Any>("category" to "armes"), provider.opened.single())
+
+        overrides = mapOf("boutique:open" to CommandOverrideYaml(command = "boutique:open", steps = say("closed")))
+        registrar.reload(emptyList(), exec, evaluator)
+        command("boutique").execute(player, "boutique", emptyArray())
+        assertEquals("closed", player.nextMessage())
+        assertEquals(1, provider.opened.size, "the override's steps run instead of the menu")
+    }
+
+    @Test fun `a command that opens a menu refuses the console`() {
+        val console = MockBukkit.getMock()!!.consoleSender
+        registry.register(shop())
+        val provider = RecordingProvider()
+        registrar().reload(emptyList(), ActionExecutor(plugin.value, provider, MenuSessionStore(), deps, cooldowns, evaluator), evaluator)
+        command("boutique").execute(console, "boutique", emptyArray())
+        assertTrue(provider.opened.isEmpty())
+    }
+
+    @Test fun `module_command opens the declared menu of a command`() {
+        val player = MockBukkit.getMock()!!.addPlayer()
+        registry.register(shop())
+        overrides = mapOf(
+            "boutique:open" to CommandOverrideYaml(
+                command = "boutique:open",
+                steps = listOf(mapOf("module_command" to mapOf("command" to "boutique:open", "args" to mapOf("category" to "{category}")))),
+            ),
+        )
+        val provider = RecordingProvider()
+        val actions = CoreActionHandlers.registry()
+        val registrar = registrar()
+        actions.register(net.artisanmc.plugin.command.ModuleCommandAction({ registrar.moduleCommands }, lang, plugin.value.logger).declaration())
+        registrar.reload(emptyList(), ActionExecutor(plugin.value, provider, MenuSessionStore(), deps, cooldowns, evaluator, registry = actions), evaluator)
+        command("boutique").execute(player, "boutique", arrayOf("outils"))
+        assertEquals("boutique_addon:shop_main" to mapOf<String, Any>("category" to "outils"), provider.opened.single())
+    }
+
+    @Test fun `a declaration opens a menu or runs an executor, never both, and never from the console`() {
+        assertFailsWith<IllegalArgumentException> {
+            PlayerCommandDeclaration.builder("boutique:open").opensMenu("shop_main").executor { }.build()
+        }
+        assertFailsWith<IllegalArgumentException> {
+            PlayerCommandDeclaration.builder("boutique:open").opensMenu("shop_main").consoleAllowed(true).build()
+        }
+        assertEquals("shop_main", PlayerCommandDeclaration.builder("boutique:open").opensMenu(" shop_main ").build().opensMenu)
+    }
 }

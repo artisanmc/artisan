@@ -26,6 +26,7 @@ const declared = {
   description: { fr: "Ouvre le parrainage" },
   arguments: [],
   consoleAllowed: false,
+  opensMenu: null,
   children: [],
 };
 
