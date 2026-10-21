@@ -363,6 +363,7 @@ A module declares the commands players type: each root becomes a `command/v1` fi
 | `PlayerCommandContext`: `getCommandId()`, `getSender()`, `getPlayer()` (null for the console), `getLanguage()`, `getArguments()`, `get(name, type)` | | 2.7.0 |
 | `PlayerCommandRegistry.onChange(callback)`, `ArtisanAPI.Builder.playerCommands(registry)` (`@Internal`) | | 2.7.0 |
 | `PlayerCommandDeclaration.Builder.opensMenu(menuRef)`, `getOpensMenu()`: the command opens that menu (Action DSL ref, `folder:menu` or a bare id resolved server-wide) instead of running an executor, its arguments as the menu's context; player-only. `build()` refuses an executor and a menu together, and a menu with `consoleAllowed(true)` (`IllegalArgumentException`). The editor draws the link on the board | | 2.11.0 |
+| `CommandArgument.suggestions(provider)`, `getSuggestions()` (nullable); `SuggestionProvider.suggest(SuggestionContext)`, `SuggestionContext`: `getSender()`, `getPreviousArguments()` (the arguments typed before, unparsed), `getInput()`. The values completed in place of Artisan's own (online players, worlds), computed at completion: kept by prefix ignoring case, without duplicates, 100 at most. Parsing is unchanged. Runs on the thread Bukkit completes on, so it must be cheap and thread-safe (memory, never the database); one that throws is logged and offers nothing. Not on a `choice` (`IllegalStateException`). Not announced in `player_commands` | | 2.14.0 |
 
 ```java
 api.getPlayerCommands().register(PlayerCommandDeclaration.builder("attribution:open")

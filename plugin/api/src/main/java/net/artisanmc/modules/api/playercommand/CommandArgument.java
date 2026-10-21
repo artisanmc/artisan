@@ -3,6 +3,7 @@ package net.artisanmc.modules.api.playercommand;
 import java.util.List;
 import java.util.Objects;
 import net.artisanmc.modules.api.annotations.Beta;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * A positional argument of a {@link PlayerCommandDeclaration}. Artisan parses it, completes it and
@@ -31,13 +32,19 @@ public final class CommandArgument {
     private final Type type;
     private final boolean required;
     private final List<String> values;
+    private final @Nullable SuggestionProvider suggestions;
 
-    private CommandArgument(String name, Type type, boolean required, List<String> values) {
+    private CommandArgument(String name, Type type, boolean required, List<String> values, @Nullable SuggestionProvider suggestions) {
         if (name.isBlank()) throw new IllegalArgumentException("argument name is blank");
         this.name = name;
         this.type = Objects.requireNonNull(type, "type");
         this.required = required;
         this.values = List.copyOf(values);
+        this.suggestions = suggestions;
+    }
+
+    private CommandArgument(String name, Type type, boolean required, List<String> values) {
+        this(name, type, required, values, null);
     }
 
     public static CommandArgument string(String name) { return new CommandArgument(name, Type.STRING, true, List.of()); }
@@ -53,7 +60,22 @@ public final class CommandArgument {
 
     /** The same argument, which the sender may leave out (the following ones must be optional too). */
     public CommandArgument optional() {
-        return new CommandArgument(name, type, false, values);
+        return new CommandArgument(name, type, false, values, suggestions);
+    }
+
+    /**
+     * The same argument, completed with what {@code provider} returns when the sender completes it,
+     * in place of Artisan's own completion (online players for {@link Type#PLAYER}, worlds for
+     * {@link Type#WORLD}). Parsing is unchanged: a {@code STRING} accepts any word, a suggested one
+     * or not. Not on an {@link Type#ENUM} argument, whose values are fixed.
+     *
+     * @throws IllegalStateException on an {@link Type#ENUM} argument
+     * @since 2.14.0
+     */
+    public CommandArgument suggestions(SuggestionProvider provider) {
+        Objects.requireNonNull(provider, "provider");
+        if (type == Type.ENUM) throw new IllegalStateException("argument '" + name + "' is a choice: its values are fixed");
+        return new CommandArgument(name, type, required, values, provider);
     }
 
     public String getName() { return name; }
@@ -61,16 +83,18 @@ public final class CommandArgument {
     public boolean isRequired() { return required; }
     /** The accepted values of an {@link Type#ENUM} argument, empty otherwise. */
     public List<String> getValues() { return values; }
+    /** What {@link #suggestions(SuggestionProvider)} set; null: Artisan's own completion. @since 2.14.0 */
+    public @Nullable SuggestionProvider getSuggestions() { return suggestions; }
 
     @Override
     public boolean equals(Object o) {
         return o instanceof CommandArgument other && name.equals(other.name) && type == other.type
-            && required == other.required && values.equals(other.values);
+            && required == other.required && values.equals(other.values) && suggestions == other.suggestions;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, type, required, values);
+        return Objects.hash(name, type, required, values, suggestions);
     }
 
     @Override

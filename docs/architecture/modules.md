@@ -429,6 +429,11 @@ api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track"
     .build());
 ```
 
+Un argument se complète avec des valeurs calculées à la frappe (API 2.14.0) :
+`CommandArgument.string("guild").suggestions(ctx -> guilds.names())`. Le fournisseur tourne sur le
+thread de complétion de Bukkit : il lit la mémoire du plugin, jamais la base. Il suit l'argument de
+même position dans le fichier de la commande, que l'admin l'ait renommé ou non.
+
 `CommandRegistrar` enregistre les `command/v1` des dossiers des admins, puis ceux des dossiers de
 modules (préfixe `/<module>:`), puis les commandes en mémoire ; un nom déjà pris laisse
 `/<préfixe>:<nom>`. Il renvoie l'arbre de commandes aux joueurs connectés quand il change. Contrat
