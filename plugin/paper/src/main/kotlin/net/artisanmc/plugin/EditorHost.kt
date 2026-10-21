@@ -124,7 +124,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
             // The suite database may still be opening (issue #42): the routes read it once it is.
             val data = net.artisanmc.plugin.database.LateSuiteData { suite.suiteData }
-            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts)
+            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts) { tunnel }
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
                 if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null
                 else suite.databaseId()

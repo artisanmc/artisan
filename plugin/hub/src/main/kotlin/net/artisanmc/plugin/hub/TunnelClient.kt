@@ -2,6 +2,8 @@ package net.artisanmc.plugin.hub
 
 import net.artisanmc.tunnel.Frame
 import net.artisanmc.tunnel.Hello
+import net.artisanmc.tunnel.NameRequest
+import net.artisanmc.tunnel.NameResult
 import net.artisanmc.tunnel.RequestHead
 import net.artisanmc.tunnel.ResponseHead
 import net.artisanmc.tunnel.Tunnel
@@ -19,10 +21,12 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.SecureRandom
 import java.util.Base64
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Level
 import java.util.logging.Logger
 
@@ -41,7 +45,7 @@ class TunnelClient(
     /** This server's id, when it shares its address with the other servers of its network (ADR `peer-servers`). */
     private val member: String = "",
     private val onUrl: (String?) -> Unit,
-) {
+) : TunnelNames {
     private val connectUrl = connectUrl(server)
     private val threads = Executors.newCachedThreadPool { r -> Thread(r, "artisan-tunnel").apply { isDaemon = true } }
     private val retries: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "artisan-tunnel-retry").apply { isDaemon = true } }
@@ -58,6 +62,14 @@ class TunnelClient(
     @Volatile private var stopped = false
     @Volatile private var retryDelay = 1L
     @Volatile private var lastRefusal: String? = null
+    @Volatile override var url: String? = null
+        private set
+    @Volatile override var name: String? = null
+        private set
+    @Volatile override var names: Boolean = false
+        private set
+    private val nameRequests = ConcurrentHashMap<Int, CompletableFuture<NameResult>>()
+    private val nextNameRequest = AtomicInteger(1)
 
     private class PendingRequest(val head: RequestHead) {
         val body = ByteArrayOutputStream()
@@ -87,6 +99,7 @@ class TunnelClient(
     }
 
     private fun reconnect() {
+        url = null
         onUrl(null)
         closeStreams()
         if (stopped) return
@@ -96,6 +109,8 @@ class TunnelClient(
     }
 
     private fun closeStreams() {
+        nameRequests.values.forEach { it.complete(NameResult(false, error = OFFLINE)) }
+        nameRequests.clear()
         requests.clear()
         sockets.values.forEach { it.cancel() }
         sockets.clear()
@@ -135,12 +150,17 @@ class TunnelClient(
         val id = frame.stream
         when (frame.type) {
             Frame.Type.HELLO -> {
-                val url = frame.json<Hello>().url
+                // Again whenever the address changes: a name taken here or by another server of the network.
+                val hello = frame.json<Hello>()
                 retryDelay = 1
                 lastRefusal = null
-                logger.info("[Artisan] Editor reachable through the tunnel server at $url")
-                onUrl(url)
+                if (hello.url != url) logger.info("[Artisan] Editor reachable through the tunnel server at ${hello.url}")
+                url = hello.url
+                name = hello.name
+                names = hello.names
+                onUrl(hello.url)
             }
+            Frame.Type.NAME_RESULT -> nameRequests.remove(id)?.complete(frame.json<NameResult>())
             Frame.Type.REQUEST -> requests[id] = PendingRequest(frame.json())
             Frame.Type.REQUEST_BODY -> {
                 val pending = requests[id] ?: return
@@ -166,6 +186,16 @@ class TunnelClient(
             }
             else -> logger.fine("[Artisan] Tunnel server sent an unexpected ${frame.type}")
         }
+    }
+
+    override fun requestName(name: String, check: Boolean): CompletableFuture<NameResult> {
+        if (tunnel == null || url == null) return CompletableFuture.completedFuture(NameResult(false, error = OFFLINE))
+        val number = nextNameRequest.getAndIncrement()
+        val answer = CompletableFuture<NameResult>()
+        nameRequests[number] = answer
+        send(Frame.json(Frame.Type.NAME, number, NameRequest(name, check)))
+        return answer.completeOnTimeout(NameResult(false, error = OFFLINE), NAME_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .whenComplete { _, _ -> nameRequests.remove(number) }
     }
 
     /** Replays one browser request on the local web port and sends its response back in chunks. */
@@ -263,6 +293,9 @@ class TunnelClient(
 
     companion object {
         private const val MAX_RETRY_SECONDS = 60L
+        private const val NAME_TIMEOUT_SECONDS = 10L
+        /** A name asked while the tunnel is down, or not answered in time. */
+        const val OFFLINE = "offline"
         private const val QUEUE_HIGH_WATER = 4L * 1024 * 1024
         /** The largest browser upload replayed: the hub's own resource pack limit. */
         const val MAX_BODY = 100 * 1024 * 1024

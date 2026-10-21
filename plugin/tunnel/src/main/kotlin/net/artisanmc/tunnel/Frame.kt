@@ -30,7 +30,14 @@ class Frame(val type: Type, val stream: Int, val payload: ByteArray = EMPTY) {
         /** Either way: [WsClose]. */
         WS_CLOSE(11),
         /** Either way: the stream is abandoned (browser gone, server error, tunnel closing). */
-        RESET(12);
+        RESET(12),
+        /**
+         * Plugin → tunnel server: [NameRequest], on a stream number of the plugin's own (not a browser's).
+         * Tunnel server → plugin: [NameResult] on the same number. A name taken sends [HELLO] again to
+         * every tunnel of the address, with the new one.
+         */
+        NAME(13),
+        NAME_RESULT(14);
 
         companion object {
             private val byCode = entries.associateBy { it.code }
@@ -50,7 +57,9 @@ class Frame(val type: Type, val stream: Int, val payload: ByteArray = EMPTY) {
         /** Body chunks are cut at this size, so one frame never holds a whole upload. */
         const val CHUNK = 256 * 1024
         val EMPTY = ByteArray(0)
+        /** Fields a newer end adds are skipped: either end may be updated first. */
         val mapper: ObjectMapper = jacksonObjectMapper()
+            .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
         fun decode(buffer: ByteBuffer): Frame {
             require(buffer.remaining() >= HEADER) { "frame too short" }
@@ -64,8 +73,21 @@ class Frame(val type: Type, val stream: Int, val payload: ByteArray = EMPTY) {
     }
 }
 
-/** What the tunnel server tells a plugin once its tunnel is accepted: the address browsers use. */
-data class Hello(val url: String)
+/**
+ * What the tunnel server tells a plugin once its tunnel is accepted: the address browsers use,
+ * `<name>.<domain>` when the address has a [name], else `<id>.<domain>` (both keep working).
+ * [names]: false when this tunnel server keeps no names.
+ */
+data class Hello(val url: String, val name: String? = null, val names: Boolean = false)
+
+/** Takes [name] for the tunnel's address, or only says whether it could ([check]). An empty [name] gives the name back. */
+data class NameRequest(val name: String, val check: Boolean = false)
+
+/**
+ * [error]: `invalid`, `reserved`, `taken`, `too_many` (changed too often) or `unavailable` (no names on this
+ * tunnel server). [url]: the address once taken.
+ */
+data class NameResult(val ok: Boolean, val name: String? = null, val url: String? = null, val error: String? = null)
 
 /** [path] holds the query string. Header names keep their case; a name may repeat. */
 data class RequestHead(val method: String, val path: String, val headers: List<List<String>>)

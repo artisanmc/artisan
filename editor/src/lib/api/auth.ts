@@ -19,6 +19,8 @@ export interface AuthUserDto {
   editorLanguage?: string | null;
   theme?: "dark" | "light" | null;
   editorTour?: EditorTourProgress | null;
+  /** The editor permissions of the session (`artisan.editor.config`…). */
+  permissions?: string[];
 }
 
 export async function logout(): Promise<void> {

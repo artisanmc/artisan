@@ -1,6 +1,9 @@
 package net.artisanmc.tunnelserver
 
 import net.artisanmc.tunnel.Frame
+import net.artisanmc.tunnel.Hello
+import net.artisanmc.tunnel.NameRequest
+import net.artisanmc.tunnel.NameResult
 import net.artisanmc.tunnel.RequestHead
 import net.artisanmc.tunnel.ResponseHead
 import net.artisanmc.tunnel.Tunnel
@@ -17,8 +20,11 @@ import org.eclipse.jetty.server.ServerConnector
 import org.eclipse.jetty.util.Callback
 import org.eclipse.jetty.util.thread.QueuedThreadPool
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeHandler
+import java.io.File
+import java.security.MessageDigest
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
@@ -29,11 +35,20 @@ import java.util.logging.Logger
  *
  * Several plugins may hold one `<id>`: the servers of a network share its secret (ADR `peer-servers`).
  * The last one connected answers; when it goes, the one before takes over.
+ *
+ * With [TunnelServerConfig.namesFile], an address may also take a name ([NameRegistry]): `<name>.<domain>`
+ * then answers like `<id>.<domain>`, which keeps working.
  */
 class TunnelServer(private val config: TunnelServerConfig, private val logger: Logger = Logger.getLogger("artisan-tunnel-server")) {
     /** The tunnels of each `<id>`, oldest first: the last one answers. */
     private val tunnels = ConcurrentHashMap<String, List<TunnelSession>>()
     private var server: Server? = null
+    val names: NameRegistry? = config.namesFile.takeIf { it.isNotBlank() }?.let {
+        NameRegistry(File(it), NameRegistry.RESERVED + config.reservedNames, Duration.ofDays(config.nameExpiryDays), logger = logger)
+    }
+    private val webhook = config.namesWebhook.takeIf { it.isNotBlank() }?.let { NamesWebhook(it, logger) }
+    /** Name requests write the names file: off the tunnel's own thread. */
+    private val nameThread = Executors.newSingleThreadExecutor { r -> Thread(r, "tunnel-names").apply { isDaemon = true } }
 
     val port: Int? get() = (server?.connectors?.firstOrNull() as? ServerConnector)?.localPort
 
@@ -77,6 +92,7 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
     fun join() = server?.join()
 
     fun stop() {
+        nameThread.shutdown()
         tunnels.values.flatten().forEach { it.close(1001, "tunnel server stopping") }
         server?.stop()
         server = null
@@ -105,31 +121,78 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
         val member = request.headers.get(Tunnel.MEMBER_HEADER).orEmpty().take(64)
         return TunnelSession(id, address, config, logger, refused, member, onOpen = { opened ->
             val held = tunnels.compute(id) { _, list -> list.orEmpty() + opened }!!.size
+            names?.let { registry -> nameThread.execute { registry.seen(id, tunnels.keys) } }
             logger.info("Tunnel $id connected ($held on this address, ${tunnels.size} addresses)")
         }, onClose = { closed ->
             tunnels.computeIfPresent(id) { _, list -> (list - closed).ifEmpty { null } }
+            names?.let { registry -> nameThread.execute { registry.seen(id, tunnels.keys) } }
             logger.info("Tunnel $id disconnected (${tunnels.size} addresses)")
+        }, hello = { hello(id) }, onName = { session, stream, request ->
+            nameThread.execute { answerName(session, stream, request) }
         })
     }
 
-    /** The tunnel answering [host]: the one of [member] when a request names one, else the last connected. */
+    private fun hello(id: String): Hello {
+        val name = names?.nameOf(id)
+        return Hello(config.publicUrl(name ?: id), name, names != null)
+    }
+
+    /** A plugin asks for a name, or only whether it is free; every tunnel of the address learns the new one. */
+    private fun answerName(session: TunnelSession, stream: Int, request: NameRequest) {
+        val registry = names
+        val name = request.name.trim().lowercase()
+        val result = when {
+            registry == null -> NameResult(false, error = "unavailable")
+            request.check -> registry.refusal(session.id, name, session.address)
+                ?.let { NameResult(false, name, error = it) } ?: NameResult(true, name, config.publicUrl(name))
+            name.isEmpty() -> {
+                registry.release(session.id)?.let { logger.info("Tunnel ${session.id} gave back the name $it") }
+                NameResult(true, null, config.publicUrl(session.id))
+            }
+            else -> when (val claim = registry.claim(session.id, name, session.address)) {
+                is NameRegistry.Claim.Refused -> NameResult(false, name, error = claim.error)
+                is NameRegistry.Claim.Taken -> {
+                    if (claim.previous != name) {
+                        logger.info("Tunnel ${session.id} took the name $name" + (claim.previous?.let { " (was $it)" } ?: ""))
+                        webhook?.taken(name, config.publicUrl(name), session.id, claim.previous, session.address)
+                    }
+                    NameResult(true, name, config.publicUrl(name))
+                }
+            }
+        }
+        runCatching { session.send(Frame.json(Frame.Type.NAME_RESULT, stream, result)) }
+        if (result.ok && !request.check) tunnels[session.id].orEmpty().forEach { it.sendHello() }
+    }
+
+    /**
+     * The tunnel answering [host], `<id>.<domain>` or `<name>.<domain>`: the one of [member] when a
+     * request names one, else the last connected.
+     */
     private fun tunnelFor(host: String, member: String?): TunnelSession? {
-        if (!host.endsWith(".${config.domain}")) return null
-        val id = host.removeSuffix(".${config.domain}")
-        if ('.' in id) return null
+        val label = label(host) ?: return null
+        val id = if (Tunnel.looksLikeId(label)) label else names?.idOf(label) ?: return null
         val held = tunnels[id] ?: return null
         return if (member.isNullOrEmpty()) held.lastOrNull() else held.lastOrNull { it.member == member }
     }
 
     private fun host(request: Request) = Request.getServerName(request).lowercase().trimEnd('.')
 
+    /** `survie` for `survie.<domain>`; null for the domain itself or a host below it. */
+    private fun label(host: String): String? =
+        host.takeIf { it.endsWith(".${config.domain}") }?.removeSuffix(".${config.domain}")?.takeIf { '.' !in it }
+
+    /** The domain itself, or a name no tunnel may take (`connect.<domain>`): the tunnel server's own pages. */
+    private fun ownHost(host: String) =
+        host == config.domain || label(host)?.let { it in NameRegistry.RESERVED || it in config.reservedNames } == true
+
     private inner class Routes : Handler.Abstract() {
         override fun handle(request: Request, response: Response, callback: Callback): Boolean {
             val host = host(request)
             val path = Request.getPathInContext(request)
-            if (host == config.domain) {
-                when (path) {
-                    "/health" -> text(response, callback, 200, "ok")
+            if (ownHost(host) && tunnelFor(host, null) == null) {
+                when {
+                    path == "/health" -> text(response, callback, 200, "ok")
+                    path.startsWith(ADMIN) -> admin(request, response, callback, path.removePrefix(ADMIN))
                     else -> text(response, callback, 404, "Artisan tunnel server")
                 }
                 return true
@@ -204,6 +267,42 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
         }
     }
 
+    /**
+     * `GET /admin/names`; `DELETE /admin/names/<name>` frees a name, `?ban=1` also keeps it from being
+     * taken again; `DELETE /admin/bans/<name>` lifts a ban. Bearer [TunnelServerConfig.adminToken].
+     */
+    private fun admin(request: Request, response: Response, callback: Callback, route: String) {
+        val registry = names
+        val token = request.headers.get(HttpHeader.AUTHORIZATION)?.removePrefix("Bearer ")?.trim().orEmpty()
+        if (config.adminToken.isEmpty() || registry == null) return text(response, callback, 404, "Artisan tunnel server")
+        if (!MessageDigest.isEqual(token.toByteArray(), config.adminToken.toByteArray())) return text(response, callback, 401, "unauthorized")
+        val parts = route.trim('/').split('/')
+        val ban = Request.extractQueryParameters(request).getValue("ban") in setOf("1", "true")
+        when {
+            request.method == "GET" && parts == listOf("names") -> json(response, callback, mapOf(
+                "names" to registry.all().mapValues { (_, e) -> mapOf("id" to e.id, "claimedAt" to e.claimedAt.toString(), "seenAt" to e.seenAt.toString(), "connected" to tunnels.containsKey(e.id)) },
+                "banned" to registry.bannedNames().sorted(),
+            ))
+            request.method == "DELETE" && parts.size == 2 && parts[0] == "names" -> {
+                val name = parts[1].lowercase()
+                val id = registry.revoke(name, ban)
+                logger.info("Admin freed the name $name" + (id?.let { " of tunnel $it" } ?: "") + if (ban) ", banned" else "")
+                id?.let { tunnels[it].orEmpty().forEach(TunnelSession::sendHello) }
+                json(response, callback, mapOf("name" to name, "id" to id, "banned" to ban))
+            }
+            request.method == "DELETE" && parts.size == 2 && parts[0] == "bans" ->
+                json(response, callback, mapOf("name" to parts[1], "unbanned" to registry.unban(parts[1].lowercase())))
+            else -> text(response, callback, 404, "unknown admin route")
+        }
+    }
+
+    private fun json(response: Response, callback: Callback, body: Any) {
+        response.status = 200
+        response.headers.put(HttpHeader.CONTENT_TYPE, "application/json")
+        response.headers.put(HttpHeader.CACHE_CONTROL, "no-store")
+        response.write(true, java.nio.ByteBuffer.wrap(Frame.mapper.writeValueAsBytes(body)), callback)
+    }
+
     private fun text(response: Response, callback: Callback, status: Int, body: String) {
         response.status = status
         response.headers.put(HttpHeader.CONTENT_TYPE, "text/plain; charset=utf-8")
@@ -217,6 +316,7 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
         /** A browser message, or a plugin frame carrying one: the editor's largest is a 4 MiB bundle as text. */
         const val MAX_MESSAGE = 32L * 1024 * 1024
         const val RESPONSE_TIMEOUT_SECONDS = 60L
+        private const val ADMIN = "/admin/"
 
         fun pathAndQuery(request: Request): String {
             val uri = request.httpURI

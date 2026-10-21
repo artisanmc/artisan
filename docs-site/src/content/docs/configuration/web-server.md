@@ -134,6 +134,14 @@ After a restart, the console shows `Editor reachable through the tunnel server a
 https://<id>.artisanmc.app`, and `/artisan editor` links use that address.
 `<id>` comes from `plugins/Artisan/tunnel-secret`: it stays the same across restarts.
 
+**A name for the address.** In the editor, **Settings → Editor address** (with
+`artisan.editor.config`) gives it a name: `https://survie.artisanmc.app` then answers like
+the `<id>` address, which keeps working. One name per server, or per network on a shared
+database; first come, first served. A name is freed after 90 days without the server
+connecting. Names of the tunnel server, of brands people sign in to and of phishing words
+(`login`, `verify`…) are refused. Taking a name gives you a link that signs you in on the new
+address; `/artisan editor` links use it from then on.
+
 What to know:
 
 - The tunnel server sees the traffic in clear text (it holds the TLS certificate),
