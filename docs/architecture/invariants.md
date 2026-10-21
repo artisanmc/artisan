@@ -132,7 +132,16 @@ choisit `RegionizedScheduler` (Paper, Folia, Leaf) ou `BukkitTaskScheduler` (Spi
 s'appelle que derrière `ServerPlatform.paper` (`runtime`, package `platform`) ; sur Spigot la JVM ne
 la lie jamais. Une classe Paper-only (profils de têtes) vit dans un objet à part, chargé sur Paper
 seulement (`PaperSkins`) : le vérifieur de la JVM peut charger les types d'une méthode qu'on
-n'exécute pas. Le texte Adventure et l'API publique suivent (plan de support Spigot, étapes 3 et 5).
+n'exécute pas.
+
+**Adventure.** Artisan embarque Adventure sous ses propres noms (`paper/build.gradle.kts`) : sur
+Paper la copie du serveur gagne (le class loader d'un plugin demande d'abord à son parent), sur
+Spigot c'est la nôtre. Un `Component` existe donc partout, mais seules les méthodes Bukkit de Paper
+le prennent : l'envoyer (chat, titre, broadcast) ou le poser sur un objet (nom, lore) passe par
+`Chat` et `ItemTexts` (`runtime`, package `platform`), jamais par `sendMessage(Component)`,
+`displayName(Component)` ou `lore(List<Component>)` directement. Sur Spigot, le chat passe en JSON
+par l'API de chat BungeeCord, les titres et textes d'objets en `§` (polices perdues). Les titres
+d'inventaire composés et les dialogues restent Paper-only (étape 6 du plan de support Spigot).
 
 Le hub ajoute ses propres threads : Jetty (`artisan-web`, 32 max) répond aux requêtes HTTP et
 WebSocket, et ne touche jamais le jeu directement. Le serveur du hub passe par `LocalServerLink`

@@ -18,6 +18,7 @@ import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import java.util.logging.Level
 import java.util.logging.Logger
+import net.artisanmc.plugin.platform.Chat
 
 /**
  * A module's declaration dressed by the admin's override: what is registered and run. A child
@@ -139,19 +140,19 @@ class ModuleCommand(
         }
         val permission = node.permission
         if (permission != null && !sender.hasPermission(permission)) {
-            sender.sendMessage(lang.get("cmd.no_permission", sender))
+            Chat.send(sender, lang.get("cmd.no_permission", sender))
             return true
         }
         val run = node.declaration.executor
         if (run == null && node.steps == null) {
             val subs = node.children.filter { c -> c.enabled && c.permission?.let(sender::hasPermission) != false }.map { it.name }
             val path = (listOf(commandLabel) + args.take(depth)).joinToString(" ")
-            sender.sendMessage(lang.get("cmd.usage", sender, "command" to path, "subcommands" to subs.joinToString("|")))
+            Chat.send(sender, lang.get("cmd.usage", sender, "command" to path, "subcommands" to subs.joinToString("|")))
             return true
         }
         // A chain acts on a player: an override's steps never run from the console.
         if (sender !is Player && (node.steps != null || !node.declaration.isConsoleAllowed)) {
-            sender.sendMessage(lang.get("cmd.in_game_only", sender))
+            Chat.send(sender, lang.get("cmd.in_game_only", sender))
             return true
         }
         val parsed = ArgParser.parse(node.argDefs, args.copyOfRange(depth, args.size), sender, lang) ?: return true
@@ -194,7 +195,7 @@ class ModuleCommand(
             block()
         } catch (e: Exception) {
             logger.log(Level.WARNING, "Command '${node.id}' failed for ${sender.name}", e)
-            sender.sendMessage(lang.get("cmd.failed", sender))
+            Chat.send(sender, lang.get("cmd.failed", sender))
         }
     }
 

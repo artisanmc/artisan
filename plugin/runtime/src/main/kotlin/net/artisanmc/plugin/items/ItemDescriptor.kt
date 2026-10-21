@@ -6,6 +6,7 @@ import org.bukkit.Material
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.SkullMeta
+import net.artisanmc.plugin.platform.ItemTexts
 
 /**
  * Display-descriptor derivation for captured items (ADR
@@ -39,7 +40,7 @@ object ItemDescriptor {
         if (meta != null) {
             if (runCatching { meta.hasEnchants() }.getOrDefault(false)) out["enchanted"] = true
             runCatching {
-                meta.displayName()?.let {
+                ItemTexts.name(meta)?.let {
                     out["name"] = PlainTextComponentSerializer.plainText().serialize(it)
                 }
             }
