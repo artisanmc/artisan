@@ -79,6 +79,9 @@ object ArtisanSchema {
         Migration(16, "ALTER TABLE ${t.versions} ADD CONSTRAINT ${t.versionsServerKey} FOREIGN KEY (server_id) REFERENCES ${t.servers}(id)") {
             hasForeignKey(it, t.versions, "server_id")
         },
+        // Where the other servers reach this one's `/ws/plugin` (ADR `peer-servers`): its public editor address, its internal one.
+        Migration(17, "ALTER TABLE ${t.servers} ADD COLUMN editor_url VARCHAR(255) NOT NULL DEFAULT ''") { hasColumn(it, t.servers, "editor_url") },
+        Migration(18, "ALTER TABLE ${t.servers} ADD COLUMN internal_url VARCHAR(255) NOT NULL DEFAULT ''") { hasColumn(it, t.servers, "internal_url") },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

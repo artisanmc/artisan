@@ -1520,6 +1520,39 @@ const fr: typeof en = {
     emptyMatch: "Aucune variable ne matche « {{query}} »",
     emptyContext: "Aucune variable disponible dans ce contexte",
   },
+  editorAddress: {
+    title: "Adresse de l'éditeur",
+    help: "Donne un nom à l'adresse de l'éditeur sur le tunnel. L'adresse actuelle continue de marcher.",
+    loading: "Lecture de l'adresse…",
+    unavailable:
+      "Rien à nommer : l'éditeur n'est pas servi par un tunnel qui garde des noms (web.url est renseigné, ou le serveur de tunnel n'en propose pas).",
+    current: "Adresse actuelle",
+    disconnected: "Tunnel déconnecté pour l'instant.",
+    name: "Nouveau nom",
+    nameHint:
+      "3 à 32 caractères : lettres minuscules, chiffres et tirets. Un nom par réseau, libéré après 90 jours sans connexion.",
+    checking: "Vérification…",
+    free: "Disponible.",
+    take: "Utiliser cette adresse",
+    release: "Rendre « {{name}} »",
+    releaseConfirm:
+      "Rendre le nom « {{name}} » ? N'importe qui pourra le prendre, et l'éditeur ne répondra plus que sur son adresse d'origine.",
+    takenHelp: "L'éditeur répond maintenant sur {{url}}. L'ancienne adresse marche toujours.",
+    releasedHelp: "Nom rendu : l'éditeur répond sur {{url}}.",
+    open: "Ouvrir la nouvelle adresse",
+    banner:
+      "Ton éditeur est sur {{url}}. Tu peux lui donner un nom plus simple, comme survie.artisanmc.app.",
+    bannerAction: "Choisir un nom",
+    bannerLater: "Plus tard",
+    errors: {
+      invalid: "Nom invalide : 3 à 32 lettres minuscules, chiffres et tirets.",
+      reserved: "Ce nom est réservé.",
+      taken: "Ce nom est déjà pris.",
+      too_many: "Trop de changements aujourd'hui, réessaie demain.",
+      unavailable: "Le serveur de tunnel ne garde pas de noms.",
+      offline: "Le serveur de tunnel n'a pas répondu, réessaie dans un instant.",
+    },
+  },
   serverConfig: {
     title: "Configuration",
     loading: "Lecture de la configuration…",

@@ -14,8 +14,23 @@ import java.util.logging.Logger
  * A network's hub as seen from a leaf: its `/ws/plugin`, the shared secret, the leaf's name,
  * server id and suite database. [databaseId] is read when the socket opens: null while the
  * suite database is still opening (issue #42), and the connection waits for it.
+ *
+ * A [peer] is another server that serves its own editor, found in the suite database (ADR
+ * `peer-servers`): [url] first, then each of [alternates] in turn until one answers.
  */
-data class HubLink(val url: String, val secret: String, val serverName: String, val databaseId: () -> String? = { "" }, val serverUuid: String = "")
+data class HubLink(
+    val url: String,
+    val secret: String,
+    val serverName: String,
+    val databaseId: () -> String? = { "" },
+    val serverUuid: String = "",
+    val alternates: List<String> = emptyList(),
+    val peer: Boolean = false,
+    /** Sent when the socket opens: which server of a shared tunnel address is meant. */
+    val headers: Map<String, String> = emptyMap(),
+) {
+    val urls: List<String> get() = (listOf(url) + alternates).filter { it.isNotBlank() }.distinct()
+}
 
 class WsClient(
     private val hub: HubLink,
@@ -33,6 +48,10 @@ class WsClient(
     private val scheduler = Executors.newSingleThreadScheduledExecutor()
     private val mapper = ObjectMapper()
 
+    private val urls = hub.urls
+    @Volatile private var index = 0
+    /** The address tried, or connected to: [HubLink.url] or one of its alternates. */
+    val url: String get() = urls.getOrElse(index) { hub.url }
     @Volatile private var socket: WebSocket? = null
     @Volatile private var retryDelay = 1L
     @Volatile private var authenticated = false
@@ -66,7 +85,7 @@ class WsClient(
             return
         }
         waitingForDatabase = false
-        val req = Request.Builder().url(hub.url).build()
+        val req = Request.Builder().url(url).apply { hub.headers.forEach { (name, value) -> header(name, value) } }.build()
         socket = httpClient.newWebSocket(req, Listener())
     }
 
@@ -115,7 +134,10 @@ class WsClient(
 
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
             clearRequests()
-            logger?.warning("WS failure: ${t.message}")
+            // A peer may not answer on one of its addresses, or be stopping: said once, not on every retry.
+            if (!hub.peer) logger?.warning("WS failure: ${t.message}")
+            else if (retryDelay == 1L) logger?.info("[Artisan] Network server not reached at $url (${t.message}), retrying")
+            nextAddress()
             scheduleReconnect()
         }
 
@@ -125,13 +147,22 @@ class WsClient(
         }
 
         override fun onClosed(ws: WebSocket, code: Int, reason: String) {
-            if (code == 1008) logger?.severe("[Artisan] The hub refused this server: $reason")
-            if (code != 1000) scheduleReconnect()
+            if (code == 1008 && !hub.peer) logger?.severe("[Artisan] The hub refused this server: $reason")
+            else if (code == 1008) logger?.info("[Artisan] Refused at $url: $reason")
+            if (code != 1000) {
+                nextAddress()
+                scheduleReconnect()
+            }
         }
     }
 
     private companion object {
         const val DATABASE_RETRY_SECONDS = 2L
+    }
+
+    /** The next address of the link: an internal one that answers nothing, or another server, falls back to the public one. */
+    private fun nextAddress() {
+        if (urls.size > 1) index = (index + 1) % urls.size
     }
 
     private fun scheduleReconnect() {
