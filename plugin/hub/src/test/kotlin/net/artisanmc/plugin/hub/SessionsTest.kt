@@ -165,6 +165,26 @@ class SessionsTest {
         assertNull(here.find(session.id))
     }
 
+    @Test
+    fun `a cookie found nowhere is read from the store once per window, then again`() {
+        val store = MemoryStore()
+        val here = Sessions(clock, store = store)
+        repeat(20) { assertNull(here.find("stale-cookie")) }
+        assertEquals(1, store.gets)
+        now = now.plus(Sessions.MISSING_FOR).plusSeconds(1)
+        assertNull(here.find("stale-cookie"))
+        assertEquals(2, store.gets)
+        // Opened on another server of the database, its row landing after this server's first look: found once the window is past.
+        val queued = mutableListOf<Runnable>()
+        val other = Sessions(clock, store = store, writer = java.util.concurrent.Executor { queued += it })
+        val session = signIn(other)
+        assertNull(here.find(session.id))
+        queued.forEach { it.run() }
+        assertNull(here.find(session.id), "unknown for the rest of the window")
+        now = now.plus(Sessions.MISSING_FOR).plusSeconds(1)
+        assertNotNull(here.find(session.id))
+    }
+
     private fun signIn(sessions: Sessions, origin: String = ""): EditorSession {
         val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(player, "Iban", setOf(EditorPermissions.VIEW), origin))
         return assertNotNull(sessions.redeem(link.token))
@@ -172,8 +192,9 @@ class SessionsTest {
 
     private class MemoryStore : SessionStore {
         val rows = HashMap<String, EditorSession>()
+        var gets = 0
         override fun put(key: String, session: EditorSession) { rows[key] = session }
-        override fun get(key: String) = rows[key]
+        override fun get(key: String) = rows[key].also { gets++ }
         override fun touch(key: String, expiresAt: Instant) { rows[key] = rows[key]!!.copy(expiresAt = expiresAt) }
         override fun delete(key: String) { rows.remove(key) }
         override fun purge(now: Instant) { rows.values.removeIf { !it.expiresAt.isAfter(now) } }

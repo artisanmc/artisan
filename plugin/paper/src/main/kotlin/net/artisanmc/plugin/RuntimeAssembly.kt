@@ -220,6 +220,7 @@ internal class RuntimeAssembly(
         seedLang = { api.translations.defaultLang },
         seedOverrides = ::seedOverrides,
         announcement = plugin::announcement,
+        announcementChanged = plugin::announcementChanged,
         declaredModels = { api.models.declared().map { it.document } },
         scheduler = scheduler,
         menuWindows = menuWindows,

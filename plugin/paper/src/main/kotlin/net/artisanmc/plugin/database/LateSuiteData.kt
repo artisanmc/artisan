@@ -23,13 +23,14 @@ class LateSuiteData(private val source: () -> SuiteProjectData?) {
     val loaded: LoadedProjects = object : LoadedProjects {
         override fun list(server: String) = source()?.loaded?.list(server)
         override fun read(server: String, folder: String) = source()?.loaded?.read(server, folder)
+        override fun hash(server: String, folder: String) = source()?.loaded?.hash(server, folder)
         override fun binary(server: String, folder: String, path: String) = source()?.loaded?.binary(server, folder, path)
     }
 
     val drafts: DraftStorage = object : DraftStorage {
         private fun open() = source()?.drafts ?: throw IllegalStateException("the suite database is not open")
         override fun knownProject(server: String, folder: String) = open().knownProject(server, folder)
-        override fun drafts(server: String, folder: String) = open().drafts(server, folder)
+        override fun drafts(server: String, folder: String, owner: String) = open().drafts(server, folder, owner)
         override fun draft(server: String, folder: String, id: String) = open().draft(server, folder, id)
         override fun receipt(operationId: String) = open().receipt(operationId)
         override fun commit(server: String, folder: String, commit: DraftCommit) = open().commit(server, folder, commit)

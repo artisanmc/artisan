@@ -72,6 +72,8 @@ class Sessions(
     private val sessions = ConcurrentHashMap<String, EditorSession>()
     /** When each session in memory was last read from the store. */
     private val checked = ConcurrentHashMap<String, Instant>()
+    /** Ids looked up and found nowhere, with when: a stale cookie is not read from the store on every request. */
+    private val missing = ConcurrentHashMap<String, Instant>()
     /** The last permissions each server reported per player: an unchanged report touches nothing. */
     private val reported = ConcurrentHashMap<Pair<String, UUID>, Set<String>>()
 
@@ -116,6 +118,7 @@ class Sessions(
         val now = clock.instant()
         if (!link.expiresAt.isAfter(now)) return null
         val session = EditorSession(token(), link.playerId, link.playerName, link.permissions, now.plus(sessionTtl), link.origin)
+        missing.remove(session.id)
         sessions[session.id] = session
         store?.let { s -> writer.execute { s.put(key(session.id), session) } }
         return session
@@ -125,10 +128,12 @@ class Sessions(
     fun find(id: String?): EditorSession? {
         if (id.isNullOrEmpty() || id.startsWith(LINK)) return null
         val session = cached(id)
+            ?: unknown(id)?.let { return null }
             ?: store?.get(key(id))?.copy(id = id)?.also { checked[id] = clock.instant() }
             // Opened while the database was not: in memory alone, never seen stored.
             ?: sessions[id]?.takeIf { checked[id] == null }
             ?: run {
+                remember(id)
                 close(id)
                 return null
             }
@@ -152,6 +157,20 @@ class Sessions(
         if (store == null) return session
         val last = checked[id]
         return if (last != null && last.plus(RECHECK).isAfter(clock.instant())) session else null
+    }
+
+    /** True while [id] was found nowhere less than [MISSING_FOR] ago: the store is not asked again. */
+    private fun unknown(id: String): Boolean? {
+        val since = missing[id] ?: return null
+        if (since.plus(MISSING_FOR).isAfter(clock.instant())) return true
+        missing.remove(id)
+        return null
+    }
+
+    /** A page load with a stale cookie is dozens of requests: the first asks the store, the others do not. */
+    private fun remember(id: String) {
+        if (missing.size >= MISSING_MAX) missing.clear()
+        missing[id] = clock.instant()
     }
 
     fun close(id: String) {
@@ -213,5 +232,11 @@ class Sessions(
         /** Prefix of a stored link's key: never a session id, which is plain base64url. */
         const val LINK = "link:"
         val RECHECK: Duration = Duration.ofSeconds(30)
+        /**
+         * How long an id found nowhere stays unknown without a store read. Short: a session opened on
+         * another server of the database reaches the store on its writer thread, a moment after its link.
+         */
+        val MISSING_FOR: Duration = Duration.ofSeconds(5)
+        const val MISSING_MAX = 4096
     }
 }

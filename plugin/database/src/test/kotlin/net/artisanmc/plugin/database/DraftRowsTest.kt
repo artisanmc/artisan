@@ -41,6 +41,18 @@ class DraftRowsTest {
     }
 
     @Test
+    fun `a listing reads one owner's active drafts, and the rows written before the owner column`() {
+        drafts.commit(server, "key-1", "mine", "{\"v\":1}", "active", "op-1", "f", "{}", owner = "alice")
+        drafts.commit(server, "key-1", "closed", "{\"v\":2}", "published", "op-2", "f", "{}", owner = "alice")
+        drafts.commit(server, "key-1", "bobs", "{\"v\":3}", "active", "op-3", "f", "{}", owner = "bob")
+        drafts.commit(server, "key-1", "legacy", "{\"v\":4}", "active", "op-4", "f", "{}")
+        assertEquals(listOf("{\"v\":4}", "{\"v\":1}").sorted(), drafts.active(server, "key-1", "alice").sorted())
+        assertEquals(listOf("{\"v\":3}", "{\"v\":4}").sorted(), drafts.active(server, "key-1", "bob").sorted())
+        drafts.commit(server, "key-1", "legacy", "{\"v\":5}", "active", "op-5", "f", "{}", owner = "carol")
+        assertEquals(listOf("{\"v\":1}"), drafts.active(server, "key-1", "alice"))
+    }
+
+    @Test
     fun `a replayed operation id fails as a whole, the draft untouched`() {
         drafts.commit(server, "key-1", "d1", "{\"v\":1}", "active", "op-1", "f1", "{}")
         assertFailsWith<java.sql.SQLException> { drafts.commit(server, "key-1", "d1", "{\"v\":2}", "active", "op-1", "f1", "{}") }

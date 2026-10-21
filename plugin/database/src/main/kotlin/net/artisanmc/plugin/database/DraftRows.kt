@@ -20,6 +20,19 @@ class DraftRows(private val dataSource: DataSource, private val t: ArtisanTables
         }
     }
 
+    /**
+     * The active drafts of [owner], and the active rows written before the owner column (owner ''):
+     * the caller still reads the owner in each body. Closed drafts and the other players' are not read.
+     */
+    fun active(server: ServerRow, projectKey: String, owner: String): List<String> = dataSource.connection.use { c ->
+        c.prepareStatement(
+            "SELECT draft FROM ${t.drafts} WHERE server_id = ? AND project_key = ? AND status = 'active' AND owner IN (?, '') ORDER BY id",
+        ).use { s ->
+            s.setInt(1, server.value); s.setString(2, projectKey); s.setString(3, owner)
+            s.executeQuery().use { rs -> generateSequence { if (rs.next()) rs.getString(1) else null }.toList() }
+        }
+    }
+
     fun get(server: ServerRow, projectKey: String, id: String): String? = dataSource.connection.use { c ->
         c.prepareStatement("SELECT draft FROM ${t.drafts} WHERE server_id = ? AND project_key = ? AND id = ?").use { s ->
             s.setInt(1, server.value); s.setString(2, projectKey); s.setString(3, key(id))
@@ -41,20 +54,20 @@ class DraftRows(private val dataSource: DataSource, private val t: ArtisanTables
      */
     fun commit(
         server: ServerRow, projectKey: String, id: String, draft: String, status: String,
-        operationId: String, fingerprint: String, result: String, now: Instant = Instant.now(),
+        operationId: String, fingerprint: String, result: String, now: Instant = Instant.now(), owner: String = "",
     ) = dataSource.connection.use { c ->
         transaction(c) {
             val updated = c.prepareStatement(
-                "UPDATE ${t.drafts} SET draft = ?, status = ?, updated_at = ? WHERE server_id = ? AND project_key = ? AND id = ?",
+                "UPDATE ${t.drafts} SET draft = ?, status = ?, owner = ?, updated_at = ? WHERE server_id = ? AND project_key = ? AND id = ?",
             ).use {
-                it.setString(1, draft); it.setString(2, status); it.setTimestamp(3, Timestamp.from(now))
-                it.setInt(4, server.value); it.setString(5, projectKey); it.setString(6, key(id)); it.executeUpdate()
+                it.setString(1, draft); it.setString(2, status); it.setString(3, owner); it.setTimestamp(4, Timestamp.from(now))
+                it.setInt(5, server.value); it.setString(6, projectKey); it.setString(7, key(id)); it.executeUpdate()
             }
             if (updated == 0) c.prepareStatement(
-                "INSERT INTO ${t.drafts} (server_id, project_key, id, draft, status, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO ${t.drafts} (server_id, project_key, id, draft, status, owner, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
             ).use {
                 it.setInt(1, server.value); it.setString(2, projectKey); it.setString(3, key(id)); it.setString(4, draft)
-                it.setString(5, status); it.setTimestamp(6, Timestamp.from(now)); it.executeUpdate()
+                it.setString(5, status); it.setString(6, owner); it.setTimestamp(7, Timestamp.from(now)); it.executeUpdate()
             }
             c.prepareStatement("INSERT INTO ${t.draftReceipts} (operation_id, fingerprint, result, created_at) VALUES (?, ?, ?, ?)").use {
                 it.setString(1, operationId); it.setString(2, fingerprint); it.setString(3, result); it.setTimestamp(4, Timestamp.from(now)); it.executeUpdate()

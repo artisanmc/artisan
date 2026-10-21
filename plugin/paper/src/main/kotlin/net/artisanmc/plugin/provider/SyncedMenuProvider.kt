@@ -64,6 +64,8 @@ class SyncedMenuProvider(
     private val seedOverrides: () -> Boolean = { false },
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
+    /** Told before each `modules_changed`: what [announcement] is built from moved, a kept copy is stale. */
+    private val announcementChanged: () -> Unit = {},
     /** Module-declared model/v1 documents: bare data files resolve their schema from them (ADR bare-data-files). */
     private val declaredModels: () -> List<Map<String, Any?>> = { emptyList() },
     /** Fetchers touch the Bukkit API: they run on the thread that owns the state they read. */
@@ -509,9 +511,13 @@ class SyncedMenuProvider(
      * tick, and each announcement used to seed every template of every module.
      */
     fun notifyModulesChanged() {
+        // Now, so a GET of the hub between this signal and the next tick builds afresh; again at the tick,
+        // for what registered in between.
+        announcementChanged()
         if (!modulesChangedQueued.compareAndSet(false, true)) return
         scheduler.global {
             modulesChangedQueued.set(false)
+            announcementChanged()
             broadcast(mapOf("type" to "modules_changed") + announcement().toMap())
             seedTemplates()
         }

@@ -10,5 +10,7 @@ interface LoadedProjects {
     fun list(server: String): Map<String, Any?>?
     /** A Project's `project_read` reply: `{hash, files, failed, binaries}`. */
     fun read(server: String, folder: String): Map<String, Any?>?
+    /** The Project's Snapshot hash alone: what an `if_hash` poll compares, without the files. */
+    fun hash(server: String, folder: String): String? = read(server, folder)?.get("hash") as? String
     fun binary(server: String, folder: String, path: String): ByteArray?
 }
