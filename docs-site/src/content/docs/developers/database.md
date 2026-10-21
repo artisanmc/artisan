@@ -41,7 +41,9 @@ DatabaseDialect dialect = api.getDatabase().getDialect();
 - The **first call opens the pool and tests a connection — it blocks.** Call it
   once, from `onEnable`, and keep the result.
 - The pool is keyed by your plugin's name and **closed automatically when your
-  plugin is disabled**. Do not close it yourself.
+  plugin is disabled**, 5 seconds after its `onDisable`: save there in `onDisable`.
+  Do not close it yourself. Enabled again within that delay (a plugin reloader),
+  your plugin gets the same pool back.
 - A misconfigured or unreachable database throws `IllegalStateException`
   naming your plugin and the file to fix. Let it propagate (or disable your
   plugin with a clear message): the admin has to fix `environment.yml`.
