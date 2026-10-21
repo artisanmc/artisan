@@ -37,6 +37,15 @@ class MenuEventDispatcher(private val logger: Logger) {
 
     fun close(event: MenuCloseEvent) = deliver(closes, event) { it.onClose(event) }
 
+    /** Removes the listeners [loader] loaded, those of a disabling plugin; returns how many. */
+    fun releaseLoadedBy(loader: ClassLoader): Int = release(opens, loader) + release(clicks, loader) + release(closes, loader)
+
+    private fun <L : Any> release(list: MutableList<L>, loader: ClassLoader): Int {
+        val gone = list.filter { it.javaClass.classLoader == loader }
+        list.removeAll(gone.toSet())
+        return gone.size
+    }
+
     private fun <L> subscribe(list: MutableList<L>, listener: L): MenuSubscription {
         list.add(listener)
         return MenuSubscription { list.remove(listener) }
@@ -47,6 +56,9 @@ class MenuEventDispatcher(private val logger: Logger) {
             try {
                 call(listener)
             } catch (e: Exception) {
+                logger.log(Level.WARNING, "[Artisan] menu listener failed on ${event.eventName}", e)
+            } catch (e: LinkageError) {
+                // A listener of a plugin whose jar was swapped: the menu still opens.
                 logger.log(Level.WARNING, "[Artisan] menu listener failed on ${event.eventName}", e)
             }
         }
