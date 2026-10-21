@@ -39,6 +39,10 @@ class TemplateRequests(
         replies.offThread("template_copy", workspace.io) {
             val projectDir = roots.dirFor(request.projectId)
             if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
+            // A module's system elements live in its folder only: copied there, it is a reset.
+            if (template.isSystem && roots.ownerOf(request.projectId) != request.moduleId) {
+                return@offThread reply.error("system_template")
+            }
             try {
                 val result = TemplateCopies.copy(projectDir, request.moduleId, template, request.paths, request.replace)
                 if (result.conflicts.isNotEmpty()) {

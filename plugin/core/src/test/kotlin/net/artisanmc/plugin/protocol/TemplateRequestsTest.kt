@@ -29,6 +29,7 @@ class TemplateRequestsTest {
     private val registry = TemplateRegistry().apply {
         bindOwner("quests")
         register(TemplateDeclaration.builder("daily", 1).file("menus/daily.yaml", "title: Daily\n".toByteArray()).build())
+        register(TemplateDeclaration.builder("menus", 1).system().file("menus/board.yaml", "title: Board\n".toByteArray()).build())
         bindOwner(null)
     }
     private val requests = TemplateRequests(workspace, Replies(workspace.io, { sent += it }, null)) { registry }
@@ -99,5 +100,16 @@ class TemplateRequestsTest {
         assertEquals("unknown_path", dispatch("""{"type":"template_copy","request_id":"r","project_id":"ghost","module_id":"quests","template_id":"daily","paths":["x.yaml"]}""")["error"])
         assertEquals("invalid_path", dispatch("""{"type":"project_origins_fetch","request_id":"r","project_id":"../x"}""")["error"])
         assertEquals(0, reloads)
+    }
+
+    @Test
+    fun `a system template is copied into its module's folder only, to reset a file`() {
+        File(coreRoot, "shop").mkdirs()
+        workspace.roots.register("quests_folder", File(coreRoot, "quests_folder").apply { mkdirs() }, "quests")
+        val copy = { project: String ->
+            """{"type":"template_copy","request_id":"r","project_id":"$project","module_id":"quests","template_id":"menus","replace":true}"""
+        }
+        assertEquals("system_template", dispatch(copy("shop"))["error"])
+        assertEquals(listOf("menus/board.yaml"), dispatch(copy("quests_folder"))["written"])
     }
 }
