@@ -199,7 +199,10 @@ class ModuleCommand(
                 .map { it.name }
         } else emptyList()
         if (node.permission?.let(sender::hasPermission) == false) return subs
-        return subs + ArgParser.tabComplete(node.argDefs, args.copyOfRange(depth, args.size))
+        val typed = args.copyOfRange(depth, args.size)
+        val provider = node.declaration.arguments.getOrNull(typed.size - 1)?.suggestions
+            ?: return subs + ArgParser.tabComplete(node.argDefs, typed)
+        return subs + ArgumentSuggestions.complete(provider, sender, typed.dropLast(1), typed.last(), node.id, logger)
     }
 
     /** A module's exception stays the module's: logged, and the sender told, never thrown into the server. */

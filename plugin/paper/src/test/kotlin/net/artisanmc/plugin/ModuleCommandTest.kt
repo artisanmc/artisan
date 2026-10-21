@@ -350,4 +350,41 @@ class ModuleCommandTest {
         }
         assertEquals("shop_main", PlayerCommandDeclaration.builder("boutique:open").opensMenu(" shop_main ").build().opensMenu)
     }
+
+    @Test fun `an argument with suggestions completes with what the module returns, filtered by prefix`() {
+        val player = MockBukkit.getMock()!!.addPlayer()
+        val seen = mutableListOf<Pair<List<String>, String>>()
+        registry.register(PlayerCommandDeclaration.builder("guilds:guild").name("guild")
+            .child(PlayerCommandDeclaration.builder("guilds:join")
+                .argument(CommandArgument.string("guild").suggestions { ctx ->
+                    seen += ctx.previousArguments to ctx.input
+                    listOf("Alpha", "alpine", "Beta", "Alpha")
+                })
+                .argument(CommandArgument.player("target").optional())
+                .executor { calls += it }.build())
+            .build())
+        registrar().reload(emptyList(), executor(), evaluator)
+        val cmd = command("guild")
+
+        assertEquals(listOf("Alpha", "alpine"), cmd.tabComplete(player, "guild", arrayOf("join", "al")))
+        assertEquals(emptyList<String>() to "al", seen.single())
+        assertEquals(listOf(player.name), cmd.tabComplete(player, "guild", arrayOf("join", "Alpha", "")), "no provider: Artisan's own completion")
+        cmd.execute(player, "guild", arrayOf("join", "Gamma"))
+        assertEquals("Gamma", calls.single().arguments["guild"], "parsing is unchanged")
+    }
+
+    @Test fun `a failing provider offers nothing`() {
+        val player = MockBukkit.getMock()!!.addPlayer()
+        registry.register(PlayerCommandDeclaration.builder("guilds:info").name("ginfo")
+            .argument(CommandArgument.string("guild").suggestions { error("boom") })
+            .executor { calls += it }.build())
+        registrar().reload(emptyList(), executor(), evaluator)
+        assertEquals(emptyList(), command("ginfo").tabComplete(player, "ginfo", arrayOf("")))
+    }
+
+    @Test fun `a choice keeps its fixed values`() {
+        assertFailsWith<IllegalStateException> { CommandArgument.choice("mode", listOf("a")).suggestions { listOf("b") } }
+        val provider = net.artisanmc.modules.api.playercommand.SuggestionProvider { emptyList() }
+        assertSame(provider, CommandArgument.string("x").suggestions(provider).optional().suggestions)
+    }
 }
