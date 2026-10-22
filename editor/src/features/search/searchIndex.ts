@@ -3,6 +3,7 @@ import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import { getText } from "@/lib/i18n";
+import { type ModuleCommandsInput, moduleCommandsOf } from "@/lib/moduleCommands";
 import { documentTitle } from "@/lib/moduleDocumentKinds";
 import { parsePositions } from "@/lib/positions";
 import { documentKindContribution } from "@artisan/editor-sdk";
@@ -26,8 +27,15 @@ function entry(partial: Omit<SearchEntry, "haystack">): SearchEntry {
   return { ...partial, haystack };
 }
 
-/** Flatten a project into searchable entries (element-level + content-level). Pure. */
-export function buildSearchIndex(project: Project, activeLang: string): SearchEntry[] {
+/**
+ * Flatten a project into searchable entries (element-level + content-level), the
+ * commands its module declares included. Pure.
+ */
+export function buildSearchIndex(
+  project: Project,
+  activeLang: string,
+  moduleCommands?: ModuleCommandsInput,
+): SearchEntry[] {
   const out: SearchEntry[] = [];
 
   for (const menu of menusOf(project)) {
@@ -94,6 +102,18 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
         group: "command",
         label: `/${cmd.name}`,
         target: { openId: cmd.id },
+      }),
+    );
+  }
+
+  // Drawn on this project's board, selected here like its own commands.
+  for (const node of moduleCommands ? moduleCommandsOf(project, moduleCommands) : []) {
+    out.push(
+      entry({
+        id: `command:${node.id}`,
+        group: "command",
+        label: `/${node.label}`,
+        target: { openId: node.id },
       }),
     );
   }

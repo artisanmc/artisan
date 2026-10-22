@@ -267,6 +267,30 @@ describe("ProjectSidebar", () => {
     });
   });
 
+  it("counts a project never opened from its published state", async () => {
+    useServerIndexStore.setState({
+      scope: "sk_1",
+      status: "ready",
+      failed: [],
+      projects: [
+        {
+          id: "pack_b",
+          name: "pack_b",
+          defaultLang: "fr",
+          i18nKeys: {},
+          documents: {
+            menu: [{ id: "catalogue", rows: 3, layers: [], title: [] }],
+            command: [],
+            dialog: [],
+            "shop:offer": [{ id: "vip" }],
+          },
+        } as never,
+      ],
+    });
+    render(<ProjectSidebar />);
+    expect(await screen.findByLabelText("2 éléments")).toBeInTheDocument();
+  });
+
   it("lists a plugin's folder under its module, before the admin's own", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({
       ok: true,
