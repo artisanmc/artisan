@@ -74,13 +74,12 @@ function typeLabel(type: DocumentType, t: TFunction): string {
   );
 }
 
-/** A kind's icon in its colour, for a row no kind header introduces. */
+/** A kind's tile in its colour: what says a row is a menu, a command, a dialog… */
 function KindGlyph({ kind }: { kind: DocumentType }) {
   const look = kindAppearance(kind);
-  const Icon = look.icon;
   return (
-    <span className="flex shrink-0" style={{ color: look.fg }} aria-hidden>
-      <Icon className="size-3" />
+    <span className="flex shrink-0" aria-hidden>
+      <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
     </span>
   );
 }
@@ -180,7 +179,7 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
 }
 
 /**
- * A project's registry: its Documents grouped by type.
+ * A project's registry: its Documents, each with its kind's tile.
  *
  * `header="name"`: a row with the project name and its actions (demo, where
  * no project row carries them). `header="none"`: the project's row in the
@@ -190,10 +189,13 @@ export function ProjectDocumentTree({
   projectId,
   onOpen,
   header = "name",
+  activeId,
 }: {
   projectId: ProjectId;
   onOpen: (documentId: string) => void;
   header?: "name" | "none";
+  /** The Document open in the view, highlighted in the tree. */
+  activeId?: string;
 }) {
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
@@ -223,14 +225,14 @@ export function ProjectDocumentTree({
       {empty ? (
         <EmptyState title={t("projectPanel.empty")} />
       ) : (
-        <DocumentGroups project={project} onOpen={onOpen} editable />
+        <DocumentGroups project={project} onOpen={onOpen} editable activeId={activeId} />
       )}
     </div>
   );
 }
 
 /**
- * A project's Documents grouped by type. `editable` adds the `···` menu
+ * A project's Documents, kind after kind, without a header per kind. `editable` adds the `···` menu
  * (edit, delete); without it, a read-only list — a server project seen
  * through the index (published state), not modified from here.
  */
@@ -238,10 +240,12 @@ export function DocumentGroups({
   project,
   onOpen,
   editable = false,
+  activeId,
 }: {
   project: Project;
   onOpen: (documentId: string) => void;
   editable?: boolean;
+  activeId?: string;
 }) {
   const { t } = useTranslation();
   const activeLang = useUiStore((s) => s.activeLang);
@@ -270,15 +274,15 @@ export function DocumentGroups({
           onOpen={onOpen}
           editable={editable}
           originOf={originOf}
+          activeId={activeId}
         />
       ))}
       {kinds.map((g) => {
         const rootItems = g.items.filter((it) => !it.folder);
         const moduleRows = g.type === "command" ? moduleCommands : [];
         if (rootItems.length === 0 && moduleRows.length === 0) return null;
-        // One icon per category, in its header: repeated on every row it said
-        // nothing more than the header and ate the width.
-        const look = kindAppearance(g.type);
+        // No kind header: each row wears its kind's tile, and the kinds follow each
+        // other in a fixed order, a little apart.
         const label = typeLabel(g.type, t);
         // A module's kind the active server does not register: its files are not
         // read back there (W6). The core kinds are always read.
@@ -287,21 +291,7 @@ export function DocumentGroups({
           ? t("projectPanel.kindNotSynced", { kind: label })
           : undefined;
         return (
-          <div key={g.type} className="flex flex-col">
-            <div
-              className="flex items-center gap-2 px-2 pt-2.5 pb-1 text-[11.5px] font-semibold text-[var(--text-mut)]"
-              title={notSyncedHint}
-            >
-              <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
-              <span>{label}</span>
-              {notSynced && (
-                <span
-                  role="img"
-                  aria-label={notSyncedHint}
-                  className="size-1.5 shrink-0 rounded-full bg-[var(--warning)]"
-                />
-              )}
-            </div>
+          <div key={g.type} className="flex flex-col pb-1.5 last:pb-0">
             <ul aria-label={label} className="flex flex-col">
               {rootItems.map((it) => (
                 <li key={it.id}>
@@ -309,8 +299,11 @@ export function DocumentGroups({
                     projectId={editable ? project.id : null}
                     project={project}
                     item={it}
+                    kind={g.type}
                     onOpen={() => onOpen(it.id)}
                     origin={originOf(it.id)}
+                    notSyncedHint={notSyncedHint}
+                    activeId={activeId}
                   />
                 </li>
               ))}
@@ -341,6 +334,7 @@ function FolderNode({
   onOpen,
   editable,
   originOf,
+  activeId,
 }: {
   project: Project;
   path: string;
@@ -349,6 +343,7 @@ function FolderNode({
   onOpen: (documentId: string) => void;
   editable: boolean;
   originOf: OriginOf;
+  activeId?: string;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(true);
@@ -363,11 +358,11 @@ function FolderNode({
           type="button"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-[10px] py-1 pr-2 text-left text-[12.5px] leading-5 text-[var(--text)]"
-          style={{ paddingLeft: 8 + depth * 12 }}
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-[10px] py-[5px] pr-2 text-left text-[13px] font-medium leading-5 text-[var(--text)]"
+          style={{ paddingLeft: 2 + depth * 14 }}
         >
           <Chevron className="size-3 shrink-0 text-[var(--text-faint)]" aria-hidden />
-          <Icon className="size-3.5 shrink-0 text-[var(--text-mut)]" aria-hidden />
+          <Icon className="size-4 shrink-0 text-[var(--text-mut)]" aria-hidden />
           <span className="flex-1 truncate">{folderName(path)}</span>
         </button>
         {editable && (
@@ -416,6 +411,7 @@ function FolderNode({
               onOpen={onOpen}
               editable={editable}
               originOf={originOf}
+              activeId={activeId}
             />
           ))}
           <ul aria-label={folderName(path)} className="flex flex-col">
@@ -429,6 +425,7 @@ function FolderNode({
                   kind={it.type}
                   onOpen={() => onOpen(it.id)}
                   origin={originOf(it.id)}
+                  activeId={activeId}
                 />
               </li>
             ))}
@@ -516,6 +513,8 @@ function DocumentRow({
   origin,
   depth = 0,
   kind,
+  notSyncedHint,
+  activeId,
 }: {
   /** `null` = read-only: no actions menu. */
   projectId: ProjectId | null;
@@ -523,12 +522,18 @@ function DocumentRow({
   item: ProjectDocumentItem;
   onOpen: () => void;
   origin?: DocumentOrigin | null;
-  /** Folder depth: 0 under a kind header at the module root. */
+  /** Folder depth: 0 at the module root. */
   depth?: number;
-  /** The kind, whose coloured icon shows where no kind header says it (inside a folder). */
-  kind?: DocumentType;
+  /** The kind, whose coloured tile leads the row. */
+  kind: DocumentType;
+  /** Set when the active server does not read this kind back: a warning dot says so. */
+  notSyncedHint?: string;
+  /** The Document open in the view, highlighted. */
+  activeId?: string;
 }) {
   const { t } = useTranslation();
+  const active = activeId === item.id;
+  const look = kindAppearance(kind);
   const originLabel = origin
     ? t(
         origin.system
@@ -543,15 +548,29 @@ function DocumentRow({
     ? t("projectPanel.systemDocumentHint", { module: origin.module })
     : undefined;
   return (
-    <div className="group flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
+    <div
+      className={`group flex items-center gap-0.5 rounded-[10px] ${active ? "" : "hover:bg-[var(--surface-hover)]"}`}
+      style={active ? { background: look.soft } : undefined}
+    >
       <button
         type="button"
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center gap-1.5 rounded-[10px] py-1 pr-2 text-left text-[12.5px] leading-5 text-[var(--text-mut)] hover:text-[var(--text)]"
-        style={{ paddingLeft: 24 + depth * 12 }}
+        aria-current={active ? "page" : undefined}
+        className={`flex min-w-0 flex-1 items-center gap-2 rounded-[10px] py-[5px] pr-2 text-left text-[13px] leading-5 ${
+          active ? "font-semibold text-[var(--text)]" : "text-[var(--text)]"
+        }`}
+        style={{ paddingLeft: 6 + depth * 14 }}
       >
-        {kind ? <KindGlyph kind={kind} /> : null}
+        <KindGlyph kind={kind} />
         <span className="flex-1 truncate">{item.label}</span>
+        {notSyncedHint && (
+          <span
+            role="img"
+            aria-label={notSyncedHint}
+            title={notSyncedHint}
+            className="size-1.5 shrink-0 rounded-full bg-[var(--warning)]"
+          />
+        )}
         {origin && !(origin.system && origin.tone === "identical") && (
           <span
             role="img"

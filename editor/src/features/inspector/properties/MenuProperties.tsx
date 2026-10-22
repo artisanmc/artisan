@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import { sourceFieldType } from "@/domain/dataModels";
 import type {
   ContextInput,
@@ -27,6 +28,7 @@ import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
 import { Library as LibraryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FieldLabel, Lane } from "../layout";
 import { MenuAppearanceControls } from "./MenuAppearanceControls";
 import { MenuSetBlock, ObjectParamLists } from "./MenuDataSection";
 import { PreviewContextSection } from "./PreviewContextSection";
@@ -88,9 +90,9 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col">
       {elementCount === 0 ? (
-        <div className="flex flex-col gap-2 rounded border border-[var(--brand-line)] border-dashed bg-[var(--brand-soft)] p-3">
+        <div className="mb-4 flex flex-col gap-2 rounded-[var(--r-md)] border border-[var(--brand-line)] border-dashed bg-[var(--brand-soft)] p-3">
           <div className="text-[12.5px] font-semibold text-[var(--brand)]">
             {t("menuProperties.emptyMenuTitle")}
           </div>
@@ -105,103 +107,91 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
           </button>
         </div>
       ) : null}
-      <MenuIdField projectId={projectId} menuId={menu.id} />
-      <div className="flex flex-col gap-1.5" data-testid="menu-properties-title-section">
-        <div className="field-label !mb-0">{t("menuProperties.titleSection")}</div>
-        <LayersPanel
-          projectId={projectId}
-          menuId={menu.id}
-          imageControl={<MenuAppearanceControls projectId={projectId} menuId={menu.id} />}
-        />
-      </div>
-      <PropertyField
-        label={t("menuProperties.permission")}
-        value={menu.permission ?? ""}
-        placeholder={t("menuProperties.permissionPlaceholder")}
-        onChange={(v) =>
-          setMenuField({ projectId, menuId: menu.id, field: "permission", value: v })
-        }
-      />
-      <div>
-        <div className="field-label !mb-1">{t("menuProperties.inventoryType")}</div>
-        <div className="flex gap-1">
-          {INVENTORY_TYPE_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => onTypeChange(opt)}
-              className={
-                opt === type
-                  ? "rounded border border-[var(--brand)] bg-[var(--brand-soft)] px-2 py-1 text-xs"
-                  : "rounded border border-[var(--border)] px-2 py-1 text-xs hover:border-[var(--border-strong)]"
-              }
-            >
-              {t(`menuProperties.type${opt[0]!.toUpperCase()}${opt.slice(1)}`)}
-            </button>
-          ))}
+      <Lane panel label={t("menuProperties.sectionGeneral")}>
+        <div className="flex flex-col gap-3">
+          <MenuIdField projectId={projectId} menuId={menu.id} />
+          <PropertyField
+            label={t("menuProperties.permission")}
+            value={menu.permission ?? ""}
+            placeholder={t("menuProperties.permissionPlaceholder")}
+            onChange={(v) =>
+              setMenuField({ projectId, menuId: menu.id, field: "permission", value: v })
+            }
+          />
         </div>
-        {outOfRange > 0 ? (
-          <div className="mt-1.5 rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[11px] text-[var(--warning)]">
-            {t("menuProperties.outOfRange", { count: outOfRange })}
+      </Lane>
+      <Lane panel label={t("menuProperties.titleSection")}>
+        <div data-testid="menu-properties-title-section">
+          <LayersPanel
+            projectId={projectId}
+            menuId={menu.id}
+            imageControl={<MenuAppearanceControls projectId={projectId} menuId={menu.id} />}
+          />
+        </div>
+      </Lane>
+      <Lane panel label={t("menuProperties.sectionInventory")}>
+        <div className="flex flex-col gap-3">
+          <div>
+            <FieldLabel>{t("menuProperties.inventoryType")}</FieldLabel>
+            <Segmented
+              label={t("menuProperties.inventoryType")}
+              options={INVENTORY_TYPE_OPTIONS.map((opt) => ({
+                value: opt,
+                label: t(`menuProperties.type${opt[0]!.toUpperCase()}${opt.slice(1)}`),
+              }))}
+              value={type}
+              onChange={onTypeChange}
+            />
+            {outOfRange > 0 ? (
+              <div className="mt-1.5 rounded-[var(--r-xs)] border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[11.5px] text-[var(--warning)]">
+                {t("menuProperties.outOfRange", { count: outOfRange })}
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
-      <div>
-        <div className="field-label !mb-1">{t("menuProperties.playerInventory")}</div>
-        <div className="flex gap-1">
-          {PLAYER_INVENTORY_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              aria-pressed={opt === (menu.playerInventory ?? "visible")}
-              onClick={() =>
+          {type === "chest" ? (
+            <div>
+              <FieldLabel>{t("menuProperties.rows")}</FieldLabel>
+              <Segmented
+                label={t("menuProperties.rows")}
+                options={ROWS_OPTIONS.map((r) => ({ value: r, label: r }))}
+                value={menu.rows as (typeof ROWS_OPTIONS)[number]}
+                onChange={onRowsChange}
+              />
+              {rowsError && (
+                <div className="mt-1 text-[11.5px] text-[var(--danger)]">{rowsError}</div>
+              )}
+            </div>
+          ) : null}
+          <div>
+            <FieldLabel>{t("menuProperties.playerInventory")}</FieldLabel>
+            <Segmented
+              label={t("menuProperties.playerInventory")}
+              options={PLAYER_INVENTORY_OPTIONS.map((opt) => ({
+                value: opt,
+                label: t(
+                  opt === "hidden"
+                    ? "menuProperties.playerInventoryHidden"
+                    : "menuProperties.playerInventoryVisible",
+                ),
+              }))}
+              value={menu.playerInventory ?? "visible"}
+              onChange={(opt) =>
                 setMenuField({ projectId, menuId: menu.id, field: "playerInventory", value: opt })
               }
-              className={
-                opt === (menu.playerInventory ?? "visible")
-                  ? "rounded border border-[var(--brand)] bg-[var(--brand-soft)] px-2 py-1 text-xs"
-                  : "rounded border border-[var(--border)] px-2 py-1 text-xs hover:border-[var(--border-strong)]"
-              }
-            >
+            />
+            <p className="mt-1.5 text-[11.5px] text-[var(--text-mut)]">
               {t(
-                opt === "hidden"
-                  ? "menuProperties.playerInventoryHidden"
-                  : "menuProperties.playerInventoryVisible",
+                menu.playerInventory === "hidden"
+                  ? "menuProperties.playerInventoryHintHidden"
+                  : "menuProperties.playerInventoryHintVisible",
               )}
-            </button>
-          ))}
-        </div>
-        <p className="mt-1 text-[11px] text-[var(--text-mut)]">
-          {t(
-            menu.playerInventory === "hidden"
-              ? "menuProperties.playerInventoryHintHidden"
-              : "menuProperties.playerInventoryHintVisible",
-          )}
-        </p>
-      </div>
-      {type === "chest" ? (
-        <div>
-          <div className="field-label !mb-1">{t("menuProperties.rows")}</div>
-          <div className="flex gap-1">
-            {ROWS_OPTIONS.map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => onRowsChange(r)}
-                className={
-                  r === menu.rows
-                    ? "rounded border border-[var(--brand)] bg-[var(--brand-soft)] px-2 py-1 text-xs"
-                    : "rounded border border-[var(--border)] px-2 py-1 text-xs hover:border-[var(--border-strong)]"
-                }
-              >
-                {r}
-              </button>
-            ))}
+            </p>
           </div>
-          {rowsError && <div className="mt-1 text-[11px] text-[var(--danger)]">{rowsError}</div>}
         </div>
-      ) : null}
-      <ContextInputsEditor projectId={projectId} menu={menu} />
+      </Lane>
+      <Lane panel label={t("menuProperties.dataSection")}>
+        <ContextInputsEditor projectId={projectId} menu={menu} />
+      </Lane>
     </div>
   );
 }
@@ -232,7 +222,7 @@ function MenuIdField({ projectId, menuId }: { projectId: ProjectId; menuId: Menu
 
   return (
     <div>
-      <div className="field-label !mb-1">{t("menuProperties.id")}</div>
+      <FieldLabel>{t("menuProperties.id")}</FieldLabel>
       <Input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -290,8 +280,7 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="field-label !mb-0">{t("menuProperties.dataSection")}</div>
-      <p className="text-[11px] text-[var(--text-faint)]">
+      <p className="text-[11.5px] text-[var(--text-faint)]">
         {t("menuProperties.contextInputsHint", { tag: "{name}" })}
       </p>
       <PreviewContextSection menu={menu} projectId={projectId} />

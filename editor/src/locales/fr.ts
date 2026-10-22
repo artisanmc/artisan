@@ -313,6 +313,8 @@ const fr: typeof en = {
     },
   },
   menuProperties: {
+    sectionGeneral: "Général",
+    sectionInventory: "Inventaire",
     kindLabel: "Menu",
     emptyMenuTitle: "Menu vide",
     emptyMenuHint:

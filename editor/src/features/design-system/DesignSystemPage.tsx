@@ -40,6 +40,7 @@ import { HBar } from "@/components/ui/h-bar";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { ResetButton } from "@/components/ui/reset-button";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Sheet,
   SheetBody,
@@ -180,6 +181,7 @@ export function DesignSystemPage() {
   const { t } = useTranslation();
   const [splitSize, setSplitSize] = useState(160);
   const [tourOpen, setTourOpen] = useState(false);
+  const [segValue, setSegValue] = useState<"chest" | "hopper" | "dropper">("chest");
   const tourTarget = useRef<HTMLButtonElement>(null);
 
   return (
@@ -485,6 +487,19 @@ export function DesignSystemPage() {
                 size="lg"
               />
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Segmented>"}</span>
+            <Segmented
+              label="Segmented"
+              options={[
+                { value: "chest", label: "Chest" },
+                { value: "hopper", label: "Hopper" },
+                { value: "dropper", label: "Dropper" },
+              ]}
+              value={segValue}
+              onChange={setSegValue}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">

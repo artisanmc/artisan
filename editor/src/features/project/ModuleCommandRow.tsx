@@ -1,4 +1,6 @@
+import { IconTile } from "@/components/ui/icon-tile";
 import { Tooltip } from "@/components/ui/tooltip";
+import { kindAppearance } from "@/lib/documentKindAppearance";
 import type { ModuleCommandNode } from "@/lib/moduleCommands";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { Link, useParams } from "@tanstack/react-router";
@@ -15,7 +17,7 @@ export function ModuleCommandRow({
   depth = 0,
 }: {
   node: ModuleCommandNode;
-  /** Folder depth: 0 under the kind header at the module root. */
+  /** Folder depth: 0 at the module root. */
   depth?: number;
 }) {
   const { t } = useTranslation();
@@ -23,18 +25,20 @@ export function ModuleCommandRow({
   const params = useParams({ strict: false }) as { commandId?: string };
   if (!serverId) return null;
   const active = params.commandId === node.id;
+  const look = kindAppearance("command");
   const hint = t("projectPanel.moduleCommandHint", { module: node.moduleId });
   return (
     <Link
       to="/servers/$serverId/commands/$commandId"
       params={{ serverId, commandId: node.id }}
-      className={`flex min-w-0 items-center gap-1.5 rounded-[10px] py-1 pr-2 text-left text-[12.5px] leading-5 hover:bg-[var(--surface-hover)] ${
-        active
-          ? "font-semibold text-[var(--text)]"
-          : "text-[var(--text-mut)] hover:text-[var(--text)]"
+      className={`flex min-w-0 items-center gap-2 rounded-[10px] py-[5px] pr-2 text-left text-[13px] leading-5 text-[var(--text)] ${
+        active ? "bg-[var(--kind-command-soft)] font-semibold" : "hover:bg-[var(--surface-hover)]"
       }`}
-      style={{ paddingLeft: 24 + depth * 12 }}
+      style={{ paddingLeft: 6 + depth * 14 }}
     >
+      <span className="flex shrink-0" aria-hidden>
+        <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
+      </span>
       <span
         className={
           node.state === "disabled" ? "flex-1 truncate line-through opacity-60" : "flex-1 truncate"

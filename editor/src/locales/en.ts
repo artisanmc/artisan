@@ -304,6 +304,8 @@ export default {
     },
   },
   menuProperties: {
+    sectionGeneral: "General",
+    sectionInventory: "Inventory",
     kindLabel: "Menu",
     emptyMenuTitle: "Empty menu",
     emptyMenuHint: "Drag an item from Buttons onto a slot, or select an item then tap a slot.",

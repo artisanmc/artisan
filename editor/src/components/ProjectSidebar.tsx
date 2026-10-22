@@ -402,7 +402,7 @@ function ScreenItem({
         onClick={() => useSidebarStore.getState().close()}
         className={
           isActive
-            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors"
+            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--text)] transition-colors"
             : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         }
       >
@@ -428,15 +428,17 @@ function ActiveProjectDocuments({
   serverId: string | null;
 }) {
   const navigate = useNavigate();
+  const { documentId } = useParams({ strict: false }) as { documentId?: string };
   const project = useProjectsStore((s) =>
     s.openProjects.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
   );
   if (!project) return null;
   return (
-    <div data-tour="elements" className="ml-3 border-l border-[var(--border)] pl-1">
+    <div data-tour="elements" className="px-1.5 pt-0.5">
       <ProjectDocumentTree
         projectId={project.id}
         header="none"
+        activeId={documentId}
         onOpen={(documentId) => {
           useSidebarStore.getState().close();
           goToDocument(navigate, { serverId, project, ref: documentId });
@@ -602,7 +604,16 @@ function ProjectItem({
   const open = isActiveProject ? !collapsed : expanded;
 
   return (
-    <li ref={sortable?.setNodeRef} style={style} className="flex flex-col">
+    <li
+      ref={sortable?.setNodeRef}
+      style={style}
+      className={
+        // The open project stands out as one block: its row and its Documents.
+        isActiveProject && !collapsed
+          ? "my-1 flex flex-col rounded-[12px] border border-[var(--border-soft)] bg-[var(--surface-raised)] pb-1.5"
+          : "flex flex-col"
+      }
+    >
       <div className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
         {isActiveProject ? (
           <ExpandToggle
@@ -620,7 +631,7 @@ function ProjectItem({
           serverId={serverId}
           className={
             isActiveProject
-              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors [&_svg]:text-[var(--brand)]"
+              ? "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--text)] transition-colors [&_svg]:text-[var(--brand)]"
               : "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:text-[var(--text)]"
           }
         >
@@ -630,7 +641,8 @@ function ProjectItem({
             <Folder className="size-[15px] shrink-0 text-[var(--text-faint)]" />
           )}
           <span className="min-w-0 truncate">{name}</span>
-          {count != null && <DocumentCount count={count} />}
+          {/* Open, its tree lists the Documents: the count would only take the name's room. */}
+          {count != null && !isActiveProject && <DocumentCount count={count} />}
         </ProjectLink>
         {isActiveProject && <ActiveProjectActions id={id} urlId={urlId} />}
         {sortable && (
@@ -830,7 +842,7 @@ function CommandItem({ command, serverId }: { command: PlayerCommand; serverId: 
         onClick={() => useSidebarStore.getState().close()}
         className={
           isActive
-            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors"
+            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--text)] transition-colors"
             : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         }
       >

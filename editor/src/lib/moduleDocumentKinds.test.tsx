@@ -172,10 +172,10 @@ describe("a module's Document kind on the host", () => {
       moduleId: "quests",
     };
 
-    // The server answered without the kind: the tree header and the creation dialog say so.
+    // The server answered without the kind: its rows in the tree and the creation dialog say so.
     useServerDocumentKindsStore.setState({ kinds: [core], status: "ready", loadedKey: "u:s" });
     const tree = render(<DocumentGroups project={project()} onOpen={() => {}} />);
-    expect(screen.getByRole("img", { name: /Quests/ })).toBeTruthy();
+    expect(screen.getAllByRole("img", { name: /Quests/ }).length).toBeGreaterThan(0);
     tree.unmount();
     const dialog = render(
       <NewDocumentDialog projectId={PID} kind="quest" open onOpenChange={() => {}} />,

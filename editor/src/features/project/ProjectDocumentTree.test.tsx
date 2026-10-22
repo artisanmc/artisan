@@ -57,21 +57,25 @@ describe("ProjectDocumentTree", () => {
     expect(screen.getByText("m2")).toBeInTheDocument();
   });
 
-  it("lists the documents by category", () => {
+  it("lists the documents kind after kind", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     expect(screen.getByText("/heal")).toBeInTheDocument();
     expect(screen.getByText("m1")).toBeInTheDocument();
   });
 
-  it("carries one icon per category, not one per document", () => {
+  it("gives each document its kind's tile, with no header per kind", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     const menus = screen.getByRole("list", { name: /menus/i });
-    expect(within(menus).getAllByRole("button", { name: /^m\d$/ })).toHaveLength(2);
-    for (const row of within(menus).getAllByRole("button", { name: /^m\d$/ })) {
-      expect(row.querySelector("svg")).toBeNull();
-    }
-    const heading = screen.getByText(/^menus$/i);
-    expect(heading.parentElement?.querySelector("svg")).not.toBeNull();
+    const rows = within(menus).getAllByRole("button", { name: /^m\d$/ });
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(row.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByText(/^menus$/i)).toBeNull();
+  });
+
+  it("highlights the document open in the view", () => {
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="c1" />);
+    expect(screen.getByText("/heal").closest("button")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("m1").closest("button")).not.toHaveAttribute("aria-current");
   });
 
   it("opens a document on click", () => {
