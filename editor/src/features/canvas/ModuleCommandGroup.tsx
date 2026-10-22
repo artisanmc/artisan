@@ -2,6 +2,7 @@ import type { ProjectId } from "@/domain/types";
 import type { ModuleCommandNode } from "@/lib/moduleCommands";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,13 +21,15 @@ interface ModuleCommandGroupProps {
 /**
  * A command a module declares, on the board of its folder: framed apart from the folder's
  * own commands (dashed, the module named under it), marked once the admin changed it,
- * struck when disabled. Never selected or deleted here: a double click opens its System page.
+ * struck when disabled. A click selects it, its override form in the Properties panel; a
+ * double click opens its System page. Never deleted here: the module declares it.
  */
 export function ModuleCommandGroup({ projectId, node, position }: ModuleCommandGroupProps) {
   const { t } = useTranslation();
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
   const nodeAlign = useNodeAlignment(projectId, node.id);
   const disabled = node.state === "disabled";
+  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(node.id));
 
   const onDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.moveToTop();
@@ -41,6 +44,14 @@ export function ModuleCommandGroup({ projectId, node, position }: ModuleCommandG
   );
 
   const open = useCallback(() => dispatchOpenSystemCommand(node.id), [node.id]);
+  const select = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      e.cancelBubble = true;
+      const { ids, menuId, set } = useSelectionStore.getState();
+      if (menuId !== null || !ids.has(node.id) || ids.size > 1) set([node.id]);
+    },
+    [node.id],
+  );
 
   return (
     <Group
@@ -51,12 +62,8 @@ export function ModuleCommandGroup({ projectId, node, position }: ModuleCommandG
       onDragStart={onDragStart}
       onDragMove={nodeAlign.onDragMove}
       onDragEnd={onDragEnd}
-      onClick={(e) => {
-        e.cancelBubble = true;
-      }}
-      onTap={(e) => {
-        e.cancelBubble = true;
-      }}
+      onClick={select}
+      onTap={select}
       onDblClick={open}
       onDblTap={open}
       onMouseEnter={(e) => showFullTitle(e, `/${node.label}`)}
@@ -69,8 +76,8 @@ export function ModuleCommandGroup({ projectId, node, position }: ModuleCommandG
         height={COMMAND_BOX.height}
         cornerRadius={6}
         fill="#1f1f23"
-        stroke="#a16207"
-        strokeWidth={1.5}
+        stroke={isSelected ? "#22c55e" : "#a16207"}
+        strokeWidth={isSelected ? 2 : 1.5}
         dash={[5, 3]}
         perfectDrawEnabled={false}
       />
