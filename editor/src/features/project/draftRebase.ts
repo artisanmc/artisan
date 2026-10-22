@@ -105,3 +105,35 @@ function assign<T>(target: Record<string, T>, path: string, value: T | undefined
   if (value === undefined) delete target[path];
   else target[path] = value;
 }
+
+/**
+ * Brings a resumed draft up to the disk it reopens on: a file the disk changed, added or
+ * removed since the draft's base, and that the draft left as it loaded it, takes the disk's
+ * version, base included. A module that removes or rewrites one of its files at startup, or
+ * another tool writing the folder, no longer leaves the draft showing (and later publishing)
+ * the old file. A file the draft did change stays the draft's: publishing reports it.
+ *
+ * "Left as loaded" is measured against `initialTree` (the tree right after opening), not
+ * the base's bytes: opening reformats files nobody touched. Returns null when nothing moved.
+ */
+export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<string, string> }>(
+  draft: S,
+  disk: Record<string, string>,
+): S | null {
+  const renamed = new Set((draft.renames ?? []).flatMap((r) => [r.from, r.to]));
+  const loaded = draft.initialTree ?? draft.baseline;
+  const baseline = { ...draft.baseline };
+  const tree = { ...draft.tree };
+  const initialTree = draft.initialTree ? { ...draft.initialTree } : undefined;
+  let moved = false;
+  for (const path of new Set([...Object.keys(draft.baseline), ...Object.keys(disk)])) {
+    if (renamed.has(path) || draft.baseline[path] === disk[path]) continue;
+    if (draft.tree[path] !== loaded[path]) continue;
+    assign(baseline, path, disk[path]);
+    assign(tree, path, disk[path]);
+    if (initialTree) assign(initialTree, path, disk[path]);
+    moved = true;
+  }
+  if (!moved) return null;
+  return { ...draft, baseline, tree, ...(initialTree ? { initialTree } : {}) };
+}

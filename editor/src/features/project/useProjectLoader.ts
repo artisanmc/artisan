@@ -19,6 +19,7 @@ import { useServersStore } from "@/state/serversStore";
 import { listModules } from "@artisan/editor-sdk";
 import { useEffect, useReducer, useRef } from "react";
 import { flushDraftEdits } from "./draftFlush";
+import { followDisk } from "./draftRebase";
 import { loadPersistedDrafts } from "./persistedDrafts";
 import {
   type ProjectLoadEvent,
@@ -227,6 +228,8 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
   }
   await loadPersistedDrafts(res.project.id, ctx.ownerId);
   if (ctx.isCancelled()) return;
+  const diskFiles = disk.unchanged ? cached?.tree : disk.files;
+  if (diskFiles) followDiskInDraft(res.project.id, diskFiles);
   const binaries = disk.unchanged ? (cached?.binaries ?? []) : (disk.binaries ?? []);
   setBinaryBaseline(res.project.id, binaries);
   if (disk.unchanged) {
@@ -261,6 +264,7 @@ async function readAndOpen(ctx: LoadContext, outcome: ReadOutcome): Promise<void
       return;
     }
     setBinaryBaseline(res.project.id, full.binaries ?? []);
+    followDiskInDraft(res.project.id, full.files);
     useProjectCacheStore.getState().put(cacheKey, {
       identity: res,
       diskId,
@@ -319,6 +323,15 @@ function setBinaryBaseline(
       projectId,
       Object.fromEntries(binaries.map(({ path, hash, size }) => [path, { hash, size }])),
     );
+}
+
+/** The draft about to be resumed, brought up to what the disk holds now (`followDisk`). */
+function followDiskInDraft(projectId: string, disk: Record<string, string>): void {
+  const store = useProjectDraftStore.getState();
+  const draft = store.get(projectId);
+  const renames = store.pendingRenames[projectId] ?? draft?.renames;
+  const next = draft ? followDisk({ ...draft, ...(renames ? { renames } : {}) }, disk) : null;
+  if (next) store.save(projectId, next);
 }
 
 /**
