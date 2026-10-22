@@ -1,8 +1,8 @@
+import { SystemCommandPage } from "@/components/SystemCommandPage";
 import { EditorHeader } from "@/components/ui/editor-header";
 import { documentsOf, menusOf } from "@/domain/documents";
 import type { Command, Dialog, Menu, Project, ProjectId } from "@/domain/types";
 import { selectionContext } from "@/features/project/selectionContext";
-import { SystemCommandPage } from "@/features/systemCommands/SystemCommandPage";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { contributionLabel, documentTitle } from "@/lib/moduleDocumentKinds";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
