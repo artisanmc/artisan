@@ -1,0 +1,111 @@
+name: Release plugin
+
+# A `v<version>` tag (v1.2.0, v1.3.0-beta.1) builds the shadow jar at that version and
+# publishes it to Modrinth and Hangar. Notes: the tag's annotation message. A platform
+# whose token is not set is skipped, so the workflow is harmless until the accounts exist.
+# Run by hand with a version and `publish: false` to get the jar as an artifact only.
+# Setup: deploy/README.md, "Release du plugin".
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build, without the leading v (1.2.0)
+        required: true
+      publish:
+        description: Publish to Modrinth and Hangar
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-plugin
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release
+    defaults:
+      run:
+        working-directory: plugin
+    env:
+      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+      MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+      HANGAR_API_TOKEN: ${{ secrets.HANGAR_API_TOKEN }}
+      HANGAR_PROJECT: ${{ vars.HANGAR_PROJECT }}
+      MINECRAFT_VERSIONS: ${{ vars.MINECRAFT_VERSIONS }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Resolve version and notes
+        id: plan
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+            publish=true
+            git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+            git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+          else
+            version="$INPUT_VERSION"
+            publish="$INPUT_PUBLISH"
+            : > "$RUNNER_TEMP/notes.md"
+          fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "Not a version: '$version' (expected 1.2.0 or 1.2.0-beta.1)" >&2
+            exit 1
+          fi
+          {
+            echo "version=$version"
+            echo "publish=$publish"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "RELEASE_NOTES<<__NOTES__"
+            cat "$RUNNER_TEMP/notes.md"
+            echo "__NOTES__"
+          } >> "$GITHUB_ENV"
+
+      - name: Test and build
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          args=(-PartisanVersion="$VERSION")
+          [ -n "$MINECRAFT_VERSIONS" ] && args+=(-PminecraftVersions="$MINECRAFT_VERSIONS")
+          bash ./gradlew test :artisan-paper:shadowJar "${args[@]}" --no-daemon
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: artisan-${{ steps.plan.outputs.version }}
+          path: plugin/paper/build/libs/artisan-plugin-${{ steps.plan.outputs.version }}-all.jar
+          if-no-files-found: error
+
+      - name: Publish to Modrinth
+        if: steps.plan.outputs.publish == 'true' && env.MODRINTH_TOKEN != ''
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          args=(-PartisanVersion="$VERSION")
+          [ -n "$MINECRAFT_VERSIONS" ] && args+=(-PminecraftVersions="$MINECRAFT_VERSIONS")
+          bash ./gradlew :artisan-paper:modrinth "${args[@]}" --no-daemon
+
+      - name: Publish to Hangar
+        if: steps.plan.outputs.publish == 'true' && env.HANGAR_API_TOKEN != ''
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          args=(-PartisanVersion="$VERSION")
+          [ -n "$MINECRAFT_VERSIONS" ] && args+=(-PminecraftVersions="$MINECRAFT_VERSIONS")
+          bash ./gradlew :artisan-paper:publishPluginPublicationToHangar "${args[@]}" --no-daemon

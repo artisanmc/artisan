@@ -83,6 +83,30 @@ En local : `npm ci --prefix docs-site`, puis `npm run dev:site --prefix editor`.
 - `.github/workflows/publish-api.yml` publie `artisan-core-api` sur `repo.artisanmc.net` ; déploiement
   et tokens Reposilite : [`reposilite/README.md`](reposilite/README.md).
 
+## Release du plugin
+
+`.github/workflows/release-plugin.yml` se déclenche sur un tag `v<version>` (`v1.2.0`, `v1.3.0-beta.1`) :
+tests, `shadowJar` à cette version, jar gardé en artefact du run, puis publication sur Modrinth
+(`:artisan-paper:modrinth`) et Hangar (`:artisan-paper:publishPluginPublicationToHangar`). Une version
+avec suffixe part en beta sur Modrinth et sur le canal `Snapshot` de Hangar. Les notes de version sont le
+message du tag annoté : `git tag -a v1.2.0 -m "…" && git push origin v1.2.0`. Une plateforme sans token
+est sautée. Le workflow ne fait donc rien de visible tant que les comptes ne sont pas configurés.
+Lancement à la main (Actions > Release plugin) : une version et `publish` décoché, pour récupérer le jar
+sans rien publier.
+
+Environnement GitHub `release` (le restreindre aux tags `v*`) :
+
+| Type | Nom | Valeur |
+|---|---|---|
+| Secret | `MODRINTH_TOKEN` | token personnel Modrinth, droits « Create versions » |
+| Variable | `MODRINTH_PROJECT_ID` | ID ou slug du projet Modrinth |
+| Secret | `HANGAR_API_TOKEN` | clé API Hangar, permission « create_version » |
+| Variable | `HANGAR_PROJECT` | slug du projet Hangar |
+| Variable | `MINECRAFT_VERSIONS` | facultatif : versions supportées séparées par des virgules, à la place de la liste par défaut de `plugin/paper/build.gradle.kts` |
+
+Les projets Modrinth et Hangar se créent à la main la première fois (nom, description, icône, licence).
+Le workflow ne fait que publier des versions.
+
 ## Retrait du cloud — checklist au passage de `main`
 
 À faire une fois la branche sans cloud mergée dans `main` :

@@ -1,5 +1,9 @@
+import io.papermc.hangarpublishplugin.model.Platforms
+
 plugins {
     id("io.github.goooler.shadow")
+    id("com.modrinth.minotaur")
+    id("io.papermc.hangar-publish-plugin")
 }
 
 dependencies {
@@ -106,4 +110,42 @@ val deploy by tasks.registering(Exec::class) {
         jar.copyTo(dest, overwrite = true)
     }
     commandLine("docker", "compose", "restart", "minecraft")
+}
+
+// Publication of the shadow jar, run by .github/workflows/release-plugin.yml on a `v*` tag.
+// Tokens, project ids and notes come from the environment; see deploy/README.md.
+// A version with a suffix (`1.2.0-beta.1`) goes out as a beta on Modrinth and on Hangar's
+// Snapshot channel.
+// Paper 1.21 and newer (docs-site requirements); 26.2 is the dev server (docker-compose.yml).
+val minecraftVersions = providers.gradleProperty("minecraftVersions")
+    .getOrElse("1.21,1.21.1,1.21.2,1.21.3,1.21.4,1.21.5,1.21.6,1.21.7,1.21.8,1.21.9,1.21.10,1.21.11,26.1,26.2")
+    .split(",").map { it.trim() }
+val prerelease = project.version.toString().contains("-")
+val releaseNotes = providers.environmentVariable("RELEASE_NOTES").orElse("")
+
+modrinth {
+    token.set(providers.environmentVariable("MODRINTH_TOKEN"))
+    projectId.set(providers.environmentVariable("MODRINTH_PROJECT_ID"))
+    versionNumber.set(project.version.toString())
+    versionType.set(if (prerelease) "beta" else "release")
+    uploadFile.set(tasks.shadowJar)
+    gameVersions.set(minecraftVersions)
+    loaders.set(listOf("paper", "folia", "purpur"))
+    changelog.set(releaseNotes)
+}
+
+hangarPublish {
+    publications.register("plugin") {
+        version.set(project.version.toString())
+        channel.set(if (prerelease) "Snapshot" else "Release")
+        id.set(providers.environmentVariable("HANGAR_PROJECT"))
+        apiKey.set(providers.environmentVariable("HANGAR_API_TOKEN"))
+        changelog.set(releaseNotes)
+        platforms {
+            register(Platforms.PAPER) {
+                jar.set(tasks.shadowJar.flatMap { it.archiveFile })
+                platformVersions.set(listOf("${minecraftVersions.first()}-${minecraftVersions.last()}"))
+            }
+        }
+    }
 }
