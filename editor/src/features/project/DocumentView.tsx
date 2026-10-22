@@ -92,7 +92,7 @@ export function DocumentView({
         className="btn btn-ghost btn-sm inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap"
       >
         <ArrowLeft className="size-4" /> {t("documentView.back")}
-        <kbd className="ml-1 rounded-[6px] border border-[var(--border)] bg-[var(--surface-raised)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-faint)]">
+        <kbd className="ml-1 rounded-[6px] border border-[var(--border)] bg-[var(--surface-raised)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-faint)]">
           Esc
         </kbd>
       </button>

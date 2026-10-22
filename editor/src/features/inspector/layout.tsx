@@ -2,14 +2,17 @@
 export function Lane({
   label,
   hint,
+  panel,
   children,
 }: {
   label: string;
   hint?: React.ReactNode;
+  /** Set the section off as a panel: the wide editors (command, dialog) stack these. */
+  panel?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-5 last:mb-0">
+    <div className={panel ? "panel mb-4 rounded-[var(--r-md)] p-4 last:mb-0" : "mb-5 last:mb-0"}>
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <div className="font-display text-[13.5px] font-bold text-[var(--text)] first-letter:uppercase">
           {label}

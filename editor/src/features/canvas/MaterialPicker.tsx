@@ -162,7 +162,7 @@ function Tile({ name, label, onClick }: { name: string; label: string; onClick: 
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="text-[8px] text-[var(--text-mut)]">{label.slice(0, 4)}</span>
+        <span className="text-[9.5px] text-[var(--text-mut)]">{label.slice(0, 4)}</span>
       )}
     </button>
   );

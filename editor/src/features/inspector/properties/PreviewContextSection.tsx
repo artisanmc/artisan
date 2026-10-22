@@ -110,15 +110,13 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
 
   return (
     <div className="flex flex-col gap-1.5" data-testid="preview-context-section">
-      <div className="font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
-        {t("menuProperties.previewContext")}
-      </div>
-      <p className="text-[10px] text-[var(--text-faint)]">
+      <div className="field-label !mb-0">{t("menuProperties.previewContext")}</div>
+      <p className="text-[11px] text-[var(--text-faint)]">
         {t("menuProperties.previewContextHint")}
       </p>
       {hasServerSource ? (
         // biome-ignore lint/a11y/noLabelWithoutControl: the label wraps the <input> rendered by PlayerNameInput (which takes no id); Biome cannot see through the component
-        <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
+        <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-mut)]">
           <span className="whitespace-nowrap">{t("menuProperties.previewAsPlayer")}</span>
           {/* Committed on blur / Enter, not on every keystroke: each change refetches
               every source of the menu from the live server, and "Iban_" typed letter
@@ -134,11 +132,11 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         </label>
       ) : null}
       {callContexts.length > 0 ? (
-        <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]">
+        <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-mut)]">
           <span>{t("menuProperties.previewContextFrom")}</span>
           <select
             data-testid="preview-call-context"
-            className="h-6 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[10px] text-[var(--text)]"
+            className="h-6 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[11px] text-[var(--text)]"
             value={selectedCallIdx}
             onChange={(e) => applyCallContext(Number(e.target.value))}
           >
@@ -156,14 +154,14 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         <label
           key={token}
           htmlFor={`${fieldId}-arg-${token}`}
-          className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]"
+          className="flex items-center gap-1.5 text-[11px] text-[var(--text-mut)]"
         >
           <span className="font-mono">{`{${token}}`}</span>
           {values.size > 0 ? (
             <select
               id={`${fieldId}-arg-${token}`}
               data-testid={`preview-arg-${token}`}
-              className="h-6 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[10px] text-[var(--text)]"
+              className="h-6 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[11px] text-[var(--text)]"
               value={typeof previewArgs[token] === "string" ? (previewArgs[token] as string) : ""}
               onChange={(e) => setMenuPreviewArg(menu.id, token, e.target.value)}
             >
@@ -180,7 +178,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
               data-testid={`preview-arg-${token}`}
               value={typeof previewArgs[token] === "string" ? (previewArgs[token] as string) : ""}
               onChange={(e) => setMenuPreviewArg(menu.id, token, e.target.value)}
-              className="h-6 flex-1 px-2 py-0 font-mono text-[10px]"
+              className="h-6 flex-1 px-2 py-0 font-mono text-[11px]"
             />
           )}
         </label>
@@ -193,12 +191,12 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         return (
           <label
             key={input.name}
-            className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]"
+            className="flex items-center gap-1.5 text-[11px] text-[var(--text-mut)]"
           >
             <span className="font-mono">{`{${input.name}}`}</span>
             <select
               data-testid={`preview-arg-${input.name}`}
-              className="h-6 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[10px] text-[var(--text)]"
+              className="h-6 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-[11px] text-[var(--text)]"
               value={selectedIdx}
               onChange={(e) => {
                 const row = list[Number(e.target.value)];
@@ -220,7 +218,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
         <label
           key={input.name}
           htmlFor={`${fieldId}-free-${input.name}`}
-          className="flex items-center gap-1.5 text-[10px] text-[var(--text-mut)]"
+          className="flex items-center gap-1.5 text-[11px] text-[var(--text-mut)]"
         >
           <span className="font-mono">{`{${input.name}}`}</span>
           <Input
@@ -231,7 +229,7 @@ export function PreviewContextSection({ menu, projectId }: { menu: Menu; project
             }
             placeholder={input.default ?? ""}
             onChange={(e) => setMenuPreviewArg(menu.id, input.name, e.target.value)}
-            className="h-6 flex-1 px-2 py-0 font-mono text-[10px]"
+            className="h-6 flex-1 px-2 py-0 font-mono text-[11px]"
           />
         </label>
       ))}

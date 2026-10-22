@@ -178,7 +178,7 @@ export function ObjectParamLists({
             onChange={(e) => setDraftPath(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addDraft()}
             placeholder={t("menuProperties.setAddPathPlaceholder")}
-            className="h-6 flex-1 px-2 font-mono text-[10px]"
+            className="h-6 flex-1 px-2 font-mono text-[11px]"
             aria-label={t("menuProperties.setAddPath")}
           />
           <Button variant="secondary" size="sm" onClick={addDraft}>
@@ -269,7 +269,7 @@ function MenuSetBlockCore({
   if (!el) {
     return (
       <div className="flex items-center gap-1.5" data-testid={`menu-set-${listName}`}>
-        <span className="text-[10px] text-[var(--text-mut)]">
+        <span className="text-[11px] text-[var(--text-mut)]">
           {t("menuProperties.setPlaceLead")}
         </span>
         <Button
@@ -320,13 +320,13 @@ function MenuSetBlockCore({
   if (el.iterates) {
     return (
       <div className="flex items-center gap-1.5" data-testid={`menu-set-${listName}`}>
-        <span className="text-[10px] text-[var(--text-mut)]">
+        <span className="text-[11px] text-[var(--text-mut)]">
           {t("menuProperties.setPaginated", { positions: el.positions || "—" })}
         </span>
         <button
           type="button"
           onClick={deleteSet}
-          className="ml-auto rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
         >
           ✕ {t("menuProperties.setDelete")}
         </button>
@@ -376,13 +376,13 @@ function PlacementRowsPanel({
   return (
     <div className="flex flex-col gap-1" data-testid={`menu-set-${places.source}`}>
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-[var(--text-mut)]">
+        <span className="text-[11px] text-[var(--text-mut)]">
           {t("menuProperties.setPlacedCount", { count: places.placements.length })}
         </span>
         <button
           type="button"
           onClick={onDelete}
-          className="ml-auto rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
         >
           ✕ {t("menuProperties.setDelete")}
         </button>
@@ -407,12 +407,12 @@ function PlacementRowsPanel({
               );
             })}
           </div>
-          <div className="text-[10px] text-[var(--text-faint)]">
+          <div className="text-[11px] text-[var(--text-faint)]">
             {t("menuProperties.setPanelHint")}
           </div>
         </>
       ) : (
-        <div className="text-[10px] text-[var(--text-faint)]">{t("menuProperties.setNoRows")}</div>
+        <div className="text-[11px] text-[var(--text-faint)]">{t("menuProperties.setNoRows")}</div>
       )}
     </div>
   );
@@ -473,7 +473,7 @@ function PlaceableRowTile({
       style={{ imageRendering: "pixelated" }}
     />
   ) : (
-    <span className="px-0.5 text-[8px] text-[var(--text-mut)]">
+    <span className="px-0.5 text-[9.5px] text-[var(--text-mut)]">
       {material.slice(0, 6) || rowKey.slice(0, 6)}
     </span>
   );
@@ -489,7 +489,7 @@ function PlaceableRowTile({
         className="group relative flex h-12 w-12 shrink-0 select-none items-center justify-center rounded-[8px] border border-[var(--border)] bg-[var(--surface-inset)] opacity-65 hover:border-rose-400/70 hover:opacity-90"
       >
         {icon}
-        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--brand)] text-[9px] text-white group-hover:bg-rose-500">
+        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--brand)] text-[10px] text-white group-hover:bg-rose-500">
           <span className="group-hover:hidden">✓</span>
           <span className="hidden group-hover:inline">✕</span>
         </span>

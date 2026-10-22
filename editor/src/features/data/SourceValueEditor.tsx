@@ -109,7 +109,7 @@ function MapEntryAdder({ existing, onAdd }: { existing: string[]; onAdd: (key: s
       <button
         type="button"
         onClick={commit}
-        className="btn-ghost h-6 rounded px-2 text-[10px]"
+        className="btn-ghost h-6 rounded px-2 text-[11px]"
         aria-label={t("dataSources.addMapEntry")}
       >
         {t("dataSources.addMapEntry")}
@@ -175,7 +175,7 @@ function RowKeyEditor({ projectId, sourceId, row, fieldName, type, value }: RowK
         aria-describedby={error ? errorId : undefined}
       />
       {error ? (
-        <p id={errorId} className="text-[10px] text-[var(--danger)]">
+        <p id={errorId} className="text-[11px] text-[var(--danger)]">
           {t(error === "required" ? "dataSources.rowKeyRequired" : "dataSources.rowKeyDuplicate")}
         </p>
       ) : null}
@@ -356,7 +356,7 @@ export function ValueEditor({
       // Sentinel ({key:""}) = not minted yet — mint runs on row/field add, so
       // this only shows transiently on non-conforming hand-imported data.
       if (!isLTextNode(value) || value.key === "")
-        return <span className="text-[10px] text-[var(--text-faint)]">—</span>;
+        return <span className="text-[11px] text-[var(--text-faint)]">—</span>;
       return (
         <Input
           value={getText(project, value, activeLang)}
@@ -390,7 +390,7 @@ export function ValueEditor({
               <button
                 type="button"
                 onClick={() => removeSourceListItem({ projectId, sourceId, row, path, index: i })}
-                className="mt-1 rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
+                className="mt-1 rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-rose-300"
                 aria-label={t("dataSources.removeItem")}
               >
                 ✕
@@ -400,7 +400,7 @@ export function ValueEditor({
           <button
             type="button"
             onClick={() => addSourceListItem({ projectId, sourceId, row, path })}
-            className="btn-ghost h-6 self-start rounded px-2 text-[10px]"
+            className="btn-ghost h-6 self-start rounded px-2 text-[11px]"
           >
             {t("dataSources.addItem")}
           </button>
@@ -449,7 +449,7 @@ export function ValueEditor({
                   delete next[k];
                   replaceTyped(next);
                 }}
-                className="mt-1 rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
+                className="mt-1 rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-rose-300"
                 aria-label={t("dataSources.removeMapEntry", { key: k })}
               >
                 ✕
@@ -525,7 +525,7 @@ export function ValueEditor({
     case "object":
     case "model": {
       const fields = resolveObjectFields(type, models);
-      if (!fields) return <span className="text-[10px] text-[var(--text-faint)]">—</span>;
+      if (!fields) return <span className="text-[11px] text-[var(--text-faint)]">—</span>;
       const obj =
         typeof value === "object" && value !== null && !Array.isArray(value)
           ? (value as Record<string, unknown>)
@@ -546,12 +546,12 @@ export function ValueEditor({
                   {f.label ? (
                     <>
                       <span className="block text-[11px] text-[var(--text-mut)]">{f.label}</span>
-                      <span className="block font-mono text-[9px] text-[var(--text-faint)]">
+                      <span className="block font-mono text-[10px] text-[var(--text-faint)]">
                         {f.name}
                       </span>
                     </>
                   ) : (
-                    <span className="block font-mono text-[10px] text-[var(--text-faint)]">
+                    <span className="block font-mono text-[11px] text-[var(--text-faint)]">
                       {f.name}
                     </span>
                   )}
@@ -570,7 +570,7 @@ export function ValueEditor({
                   {/* Visible, not a tooltip: the explanation is why a config
                       file feels more helpful than a form. */}
                   {f.help ? (
-                    <p className="mt-0.5 text-[10px] leading-snug text-[var(--text-faint)]">
+                    <p className="mt-0.5 text-[11px] leading-snug text-[var(--text-faint)]">
                       {f.help}
                     </p>
                   ) : null}
@@ -638,7 +638,7 @@ export function SourceRowsTable({
                     key={f.name}
                     title={f.help}
                     className={cx(
-                      "sticky top-0 z-10 whitespace-nowrap bg-[var(--surface-raised)] px-2 py-1 font-mono text-[10px] uppercase text-[var(--text-faint)]",
+                      "sticky top-0 z-10 whitespace-nowrap bg-[var(--surface-raised)] px-2 py-1 font-mono text-[11px] uppercase text-[var(--text-faint)]",
                       i === 0 && "left-0 z-20",
                     )}
                   >
@@ -686,7 +686,7 @@ export function SourceRowsTable({
                     <button
                       type="button"
                       onClick={() => removeSourceRow({ projectId, sourceId: source.id, index: i })}
-                      className="rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+                      className="rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
                       aria-label={t("dataSources.removeRow")}
                     >
                       ✕
@@ -789,7 +789,7 @@ function MasterDetailTable({
                 removeSourceRow({ projectId, sourceId: source.id, index: selected });
                 setSelectedKey(null);
               }}
-              className="rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+              className="rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
               aria-label={t("dataSources.removeRow")}
             >
               ✕ {t("dataSources.removeRow")}

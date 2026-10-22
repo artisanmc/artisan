@@ -91,7 +91,7 @@ export function ContextMenu({
             }}
           >
             {t("canvas.pasteHere")}
-            <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>
+            <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘V</span>
           </DropdownMenuItem>
         ) : state.target.kind === "empty" ? (
           <>
@@ -128,25 +128,25 @@ export function ContextMenu({
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onPaste}>
               Paste
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘V</span>
             </DropdownMenuItem>
           </>
         ) : (
           <>
             <DropdownMenuItem onSelect={onCopy} disabled={state.target.selectedIds.length === 0}>
               Copy
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘C</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘C</span>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onPaste}>
               Paste
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘V</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘V</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={onDuplicate}
               disabled={state.target.selectedIds.length === 0}
             >
               Duplicate
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌘D</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌘D</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {onGroup && (
@@ -156,7 +156,7 @@ export function ContextMenu({
             )}
             <DropdownMenuItem onSelect={onDelete} disabled={state.target.selectedIds.length === 0}>
               Delete
-              <span className="ml-auto text-[10px] text-[var(--text-faint)]">⌫</span>
+              <span className="ml-auto text-[11px] text-[var(--text-faint)]">⌫</span>
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger

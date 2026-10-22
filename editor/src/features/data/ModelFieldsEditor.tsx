@@ -158,7 +158,7 @@ function UnionShapeEditor({
   return (
     <div className="ml-4 flex flex-col gap-1.5 border-l border-[var(--border-soft)] pl-3">
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-[var(--text-faint)]">{t("dataSources.unionTag")}</span>
+        <span className="text-[11px] text-[var(--text-faint)]">{t("dataSources.unionTag")}</span>
         <Input
           defaultValue={type.tag}
           key={type.tag}
@@ -186,7 +186,7 @@ function UnionShapeEditor({
             <button
               type="button"
               onClick={() => commit({ variants: type.variants.filter((_, j) => j !== vi) })}
-              className="rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
+              className="rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-rose-300"
               aria-label={t("dataSources.removeVariant", { name: variant.name })}
             >
               ✕
@@ -218,7 +218,7 @@ function UnionShapeEditor({
                       fields: variant.fields.filter((_, j) => j !== fi),
                     })
                   }
-                  className="rounded px-1 text-[10px] text-[var(--text-faint)] hover:text-rose-300"
+                  className="rounded px-1 text-[11px] text-[var(--text-faint)] hover:text-rose-300"
                   aria-label={t("dataSources.removeField", { name: f.name })}
                 >
                   ✕
@@ -244,7 +244,7 @@ function UnionShapeEditor({
           if (type.variants.some((v) => v.name === name)) return;
           commit({ variants: [...type.variants, { name, fields: [] }] });
         }}
-        className="self-start rounded border border-dashed border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+        className="self-start rounded border border-dashed border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
       >
         {t("dataSources.addVariant")}
       </button>
@@ -276,7 +276,7 @@ function VariantFieldAdder({
       <button
         type="button"
         onClick={commit}
-        className="btn-ghost h-6 rounded px-2 text-[10px]"
+        className="btn-ghost h-6 rounded px-2 text-[11px]"
         aria-label={t("dataSources.addField")}
       >
         {t("dataSources.addField")}
@@ -358,7 +358,7 @@ function FieldRow({
         />
         {field.type.kind === "list" && listElem ? (
           <>
-            <span className="text-[10px] text-[var(--text-faint)]">{t("dataSources.listOf")}</span>
+            <span className="text-[11px] text-[var(--text-faint)]">{t("dataSources.listOf")}</span>
             <KindSelect
               value={kindOf(listElem)}
               allowComplex={false}
@@ -399,7 +399,7 @@ function FieldRow({
         ) : null}
         {field.type.kind === "map" && mapElem ? (
           <>
-            <span className="text-[10px] text-[var(--text-faint)]">{t("dataSources.mapOf")}</span>
+            <span className="text-[11px] text-[var(--text-faint)]">{t("dataSources.mapOf")}</span>
             <KindSelect
               value={kindOf(mapElem)}
               allowComplex={false}
@@ -431,7 +431,7 @@ function FieldRow({
           />
         ) : null}
         {isKeyField ? (
-          <span className="badge text-[9px]" title={t("dataSources.keyFieldHint")}>
+          <span className="badge text-[10px]" title={t("dataSources.keyFieldHint")}>
             {t("dataSources.keyField")}
           </span>
         ) : null}
@@ -440,7 +440,7 @@ function FieldRow({
           onClick={() =>
             editSourceField({ projectId, target, edit: { op: "remove", path, name: field.name } })
           }
-          className="ml-auto rounded px-1.5 py-0.5 text-[10px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
+          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-rose-300"
           aria-label={t("dataSources.removeField", { name: field.name })}
         >
           ✕
@@ -608,11 +608,11 @@ export function ModelFieldsEditor({
         <div className="flex items-center gap-2">
           <span className="eyebrow">{t("dataSources.modelName")}</span>
           <code className="font-mono text-[12px] text-[var(--text)]">{model.name}</code>
-          <span className="badge text-[9px]" title={t("dataSources.declaredModelHint")}>
+          <span className="badge text-[10px]" title={t("dataSources.declaredModelHint")}>
             {t("dataSources.declaredModel")}
           </span>
           {model.version !== undefined ? (
-            <span className="text-[10px] text-[var(--text-faint)]">v{model.version}</span>
+            <span className="text-[11px] text-[var(--text-faint)]">v{model.version}</span>
           ) : null}
         </div>
         <ul className="flex flex-col gap-0.5">
@@ -623,7 +623,7 @@ export function ModelFieldsEditor({
                 {t(`dataSources.kind.${f.type.kind}`)}
               </span>
               {f.name === model.keyField ? (
-                <span className="badge text-[9px]">{t("dataSources.keyField")}</span>
+                <span className="badge text-[10px]">{t("dataSources.keyField")}</span>
               ) : null}
             </li>
           ))}

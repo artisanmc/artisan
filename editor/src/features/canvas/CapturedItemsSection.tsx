@@ -99,7 +99,7 @@ export function CapturedItemsSection({
           ))}
         </div>
       ) : (
-        <p className="text-[10px] text-[var(--text-faint)]">{t("capturedItems.emptyHint")}</p>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("capturedItems.emptyHint")}</p>
       )}
 
       {/* Inventory mirror */}
@@ -117,25 +117,25 @@ export function CapturedItemsSection({
             data-testid="load-inventory"
             disabled={state.kind === "loading" || !player.trim()}
             onClick={() => void load()}
-            className="rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2 py-1 text-[10px] text-[var(--brand)] hover:bg-[var(--brand)]/20 disabled:opacity-50"
+            className="rounded border border-[var(--brand)]/60 bg-[var(--brand-soft)] px-2 py-1 text-[11px] text-[var(--brand)] hover:bg-[var(--brand)]/20 disabled:opacity-50"
           >
             {state.kind === "loading" ? t("capturedItems.loading") : t("capturedItems.load")}
           </button>
         </div>
       )}
       {state.kind === "error" ? (
-        <div className="rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[10px] text-[var(--warning)]">
+        <div className="rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[11px] text-[var(--warning)]">
           {t(`capturedItems.err_${state.code}`, t("capturedItems.err_fetch_error"))}
         </div>
       ) : null}
       {state.kind === "done" ? (
         state.slots.length === 0 ? (
-          <p className="text-[10px] text-[var(--text-faint)]">
+          <p className="text-[11px] text-[var(--text-faint)]">
             {t("capturedItems.inventoryEmpty")}
           </p>
         ) : (
           <>
-            <p className="text-[10px] text-[var(--text-faint)]">{t("capturedItems.captureHint")}</p>
+            <p className="text-[11px] text-[var(--text-faint)]">{t("capturedItems.captureHint")}</p>
             <div className="flex flex-wrap gap-1.5">
               {state.slots.map((slot) => (
                 <InventoryTile key={slot.slot} slot={slot} onCapture={() => capture(slot)} />
@@ -197,14 +197,14 @@ function CapturedTile({
             style={{ imageRendering: "pixelated" }}
           />
         ) : (
-          <span className="px-0.5 text-[8px] text-[var(--text-mut)]">
+          <span className="px-0.5 text-[9.5px] text-[var(--text-mut)]">
             {(display.material ?? "?").slice(0, 6)}
           </span>
         )}
         {display.enchanted ? (
           <span
             aria-hidden
-            className="pointer-events-none absolute top-0 left-0.5 text-[9px] text-[#c77dff] drop-shadow"
+            className="pointer-events-none absolute top-0 left-0.5 text-[10px] text-[#c77dff] drop-shadow"
           >
             ✦
           </span>
@@ -215,7 +215,7 @@ function CapturedTile({
           type="button"
           data-testid={`remove-captured-${item.id}`}
           onClick={onRemove}
-          className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised-2)] text-[9px] text-[var(--text-faint)] hover:text-[var(--danger)]"
+          className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised-2)] text-[10px] text-[var(--text-faint)] hover:text-[var(--danger)]"
         >
           ×
         </button>
@@ -255,12 +255,12 @@ function InventoryTile({
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="px-0.5 text-[8px] text-[var(--text-mut)]">
+        <span className="px-0.5 text-[9.5px] text-[var(--text-mut)]">
           {(slot.display.material ?? "?").slice(0, 6)}
         </span>
       )}
       {slot.display.count && slot.display.count > 1 ? (
-        <span className="absolute right-0.5 bottom-0 font-mono text-[9px] text-[var(--text)]">
+        <span className="absolute right-0.5 bottom-0 font-mono text-[10px] text-[var(--text)]">
           {slot.display.count}
         </span>
       ) : null}

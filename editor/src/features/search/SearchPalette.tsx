@@ -1,3 +1,4 @@
+import { IconTile } from "@/components/ui/icon-tile";
 import type { ElementId, ProjectId } from "@/domain/types";
 import type { Project } from "@/domain/types";
 import { goToDocument } from "@/features/project/goToDocument";
@@ -8,6 +9,7 @@ import {
 } from "@/features/serverIndex/serverIndex";
 import { serverIndexScope, useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { type KindAppearance, kindAppearance } from "@/lib/documentKindAppearance";
 import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -15,9 +17,8 @@ import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
-import { FileText, LayoutGrid, MessageSquare, Search, TerminalSquare } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type SearchEntry,
@@ -29,22 +30,17 @@ import {
 
 const NO_PROJECTS: Project[] = [];
 
-type GroupIcon = ComponentType<{ className?: string }>;
-const GROUP_ICON: Record<string, GroupIcon> = {
-  menu: LayoutGrid,
-  command: TerminalSquare,
-  dialog: MessageSquare,
-  content: Search,
-};
 const GROUP_LABEL: Record<string, string> = {
   menu: "search.groupMenu",
   command: "search.groupCommand",
   dialog: "search.groupDialog",
   content: "search.groupContent",
 };
-/** A module's kind takes its icon and label from its contribution. */
-function groupIcon(group: SearchGroup): GroupIcon {
-  return GROUP_ICON[group] ?? documentKindContribution(group)?.icon ?? FileText;
+/** A Document's row wears its kind's tile; a text match stays neutral. */
+function groupAppearance(group: SearchGroup): KindAppearance {
+  if (group === "content")
+    return { icon: Search, fg: "var(--text-faint)", soft: "transparent", line: "transparent" };
+  return kindAppearance(group);
 }
 function groupLabel(group: SearchGroup, t: TFunction): string {
   const key = GROUP_LABEL[group];
@@ -201,13 +197,11 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
             results.map((r, i) => {
               const header = r.group !== lastGroup ? r.group : null;
               lastGroup = r.group;
-              const Icon = groupIcon(r.group);
+              const look = groupAppearance(r.group);
               return (
                 <div key={r.id}>
                   {header && (
-                    <div className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                      {groupLabel(header, t)}
-                    </div>
+                    <div className="section-label px-3 pt-2.5 pb-1">{groupLabel(header, t)}</div>
                   )}
                   <button
                     type="button"
@@ -224,7 +218,7 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
                         : "text-[var(--text-mut)]"
                     }`}
                   >
-                    <Icon className="size-[15px] shrink-0 text-[var(--text-faint)]" />
+                    <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
                     <MiniMessageInline source={r.label} className="flex-1 truncate" />
                     {r.context && (
                       <span className="shrink-0 truncate text-[11px] text-[var(--text-faint)]">

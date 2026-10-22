@@ -100,10 +100,20 @@
   --danger: var(--red-500);
   --danger-soft: rgba(239, 68, 68, 0.14);
 
-  /* Document kinds — the colour a kind wears on the board and in its editor. */
+  /* Document kinds — the colour a kind wears on the board, in the sidebar and in its editor
+     (lib/documentKindAppearance.ts). A module kind uses its `board.accent`, else --kind-module. */
   --kind-command: #f5b83d;
   --kind-command-soft: rgba(245, 184, 61, 0.13);
   --kind-command-line: rgba(245, 184, 61, 0.38);
+  --kind-menu: #2ed573;
+  --kind-menu-soft: rgba(46, 213, 115, 0.13);
+  --kind-menu-line: rgba(46, 213, 115, 0.38);
+  --kind-dialog: #b49cfb;
+  --kind-dialog-soft: rgba(167, 139, 250, 0.14);
+  --kind-dialog-line: rgba(167, 139, 250, 0.4);
+  --kind-module: #38bdf8;
+  --kind-module-soft: rgba(56, 189, 248, 0.13);
+  --kind-module-line: rgba(56, 189, 248, 0.38);
 
   /* Action families — icon tiles and rails of the step chain (lib/actions/actionFamily.ts).
      Colour stays on small marks (icons, rails, keywords), never on large fills. */
@@ -174,6 +184,15 @@
   --kind-command: #b45309;
   --kind-command-soft: rgba(217, 119, 6, 0.1);
   --kind-command-line: rgba(180, 83, 9, 0.35);
+  --kind-menu: #15803d;
+  --kind-menu-soft: rgba(34, 185, 98, 0.1);
+  --kind-menu-line: rgba(21, 128, 61, 0.35);
+  --kind-dialog: #6d28d9;
+  --kind-dialog-soft: rgba(124, 58, 237, 0.09);
+  --kind-dialog-line: rgba(109, 40, 217, 0.32);
+  --kind-module: #0369a1;
+  --kind-module-soft: rgba(2, 132, 199, 0.1);
+  --kind-module-line: rgba(3, 105, 161, 0.32);
 
   --fam-logic: #7c3aed;
   --fam-logic-soft: rgba(124, 58, 237, 0.09);
@@ -462,12 +481,22 @@ body {
 ---------------------------------------------------------------- */
   .field-label {
     display: block;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: .04em;
+    font-size: 12px;
+    font-weight: 500;
     color: var(--text-mut);
-    margin-bottom: 6px;
+    margin-bottom: 5px;
+  }
+  /* Labels are written lower-case in the locales; sentence case on screen. */
+  .field-label::first-letter,
+  .section-label::first-letter {
     text-transform: uppercase;
+  }
+  /* A group heading in a list or panel (sidebar kinds, palette sections). */
+  .section-label {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-mut);
   }
   .input,
   .textarea,

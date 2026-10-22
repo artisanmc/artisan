@@ -54,7 +54,7 @@ export function EdgeTooltip({ project, groups }: EdgeTooltipProps) {
       style={{ left: x + 14, top: y + 14, boxShadow: "var(--shadow-md)" }}
       className="card pointer-events-none fixed z-[9999] max-w-[240px] px-2.5 py-2"
     >
-      <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wide text-[var(--text-mut)]">
+      <div className="section-label mb-1.5">
         <MiniMessageInline source={nodeName(edge.source)} /> →{" "}
         <MiniMessageInline source={nodeName(edge.target)} />
       </div>

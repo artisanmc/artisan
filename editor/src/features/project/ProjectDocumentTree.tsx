@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Tooltip } from "@/components/ui/tooltip";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
 import { documentCount } from "@/domain/documents";
@@ -25,6 +26,7 @@ import {
   useProjectTemplates,
 } from "@/features/templates/useProjectTemplates";
 import { copyTemplate } from "@/lib/api/templates";
+import { kindAppearance } from "@/lib/documentKindAppearance";
 import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
@@ -34,18 +36,13 @@ import type { TFunction } from "i18next";
 import {
   ChevronDown,
   ChevronRight,
-  FileText,
   Folder,
   FolderOpen,
-  LayoutGrid,
-  MessageSquare,
   Plus,
   Puzzle,
   Settings,
-  TerminalSquare,
 } from "lucide-react";
 import { useState } from "react";
-import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { documentRelPath } from "./DocumentYamlView";
@@ -59,22 +56,12 @@ import {
   isCoreDocumentType,
 } from "./useProjectDocuments";
 
-type KindIcon = ComponentType<{ className?: string }>;
-const TYPE_ICON: Record<string, KindIcon> = {
-  menu: LayoutGrid,
-  command: TerminalSquare,
-  dialog: MessageSquare,
-};
 const TYPE_LABEL_KEY: Record<string, string> = {
   menu: "projectPanel.menus",
   command: "projectPanel.commands",
   dialog: "projectPanel.dialogs",
 };
 
-/** A kind's icon: the core table, else its contribution, else a plain file. */
-function typeIcon(type: DocumentType): KindIcon {
-  return TYPE_ICON[type] ?? documentKindContribution(type)?.icon ?? FileText;
-}
 /** A kind's group label: the core key, else the contribution's (an i18n key or a literal), else the kind. */
 function typeLabel(type: DocumentType, t: TFunction): string {
   const key = TYPE_LABEL_KEY[type];
@@ -84,6 +71,17 @@ function typeLabel(type: DocumentType, t: TFunction): string {
     type,
     t,
     useUiStore.getState().editorLang,
+  );
+}
+
+/** A kind's icon in its colour, for a row no kind header introduces. */
+function KindGlyph({ kind }: { kind: DocumentType }) {
+  const look = kindAppearance(kind);
+  const Icon = look.icon;
+  return (
+    <span className="flex shrink-0" style={{ color: look.fg }} aria-hidden>
+      <Icon className="size-3" />
+    </span>
   );
 }
 
@@ -280,7 +278,7 @@ export function DocumentGroups({
         if (rootItems.length === 0 && moduleRows.length === 0) return null;
         // One icon per category, in its header: repeated on every row it said
         // nothing more than the header and ate the width.
-        const Icon = typeIcon(g.type);
+        const look = kindAppearance(g.type);
         const label = typeLabel(g.type, t);
         // A module's kind the active server does not register: its files are not
         // read back there (W6). The core kinds are always read.
@@ -291,10 +289,10 @@ export function DocumentGroups({
         return (
           <div key={g.type} className="flex flex-col">
             <div
-              className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]"
+              className="flex items-center gap-2 px-2 pt-2.5 pb-1 text-[11.5px] font-semibold text-[var(--text-mut)]"
               title={notSyncedHint}
             >
-              <Icon className="size-3 shrink-0" aria-hidden />
+              <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
               <span>{label}</span>
               {notSynced && (
                 <span
@@ -428,7 +426,7 @@ function FolderNode({
                   project={project}
                   item={it}
                   depth={depth + 1}
-                  icon={typeIcon(it.type)}
+                  kind={it.type}
                   onOpen={() => onOpen(it.id)}
                   origin={originOf(it.id)}
                 />
@@ -517,7 +515,7 @@ function DocumentRow({
   onOpen,
   origin,
   depth = 0,
-  icon: Icon,
+  kind,
 }: {
   /** `null` = read-only: no actions menu. */
   projectId: ProjectId | null;
@@ -527,8 +525,8 @@ function DocumentRow({
   origin?: DocumentOrigin | null;
   /** Folder depth: 0 under a kind header at the module root. */
   depth?: number;
-  /** The kind's icon, shown where no kind header says it (inside a folder). */
-  icon?: KindIcon;
+  /** The kind, whose coloured icon shows where no kind header says it (inside a folder). */
+  kind?: DocumentType;
 }) {
   const { t } = useTranslation();
   const originLabel = origin
@@ -552,7 +550,7 @@ function DocumentRow({
         className="flex min-w-0 flex-1 items-center gap-1.5 rounded-[10px] py-1 pr-2 text-left text-[12.5px] leading-5 text-[var(--text-mut)] hover:text-[var(--text)]"
         style={{ paddingLeft: 24 + depth * 12 }}
       >
-        {Icon && <Icon className="size-3 shrink-0 text-[var(--text-faint)]" aria-hidden />}
+        {kind ? <KindGlyph kind={kind} /> : null}
         <span className="flex-1 truncate">{item.label}</span>
         {origin && !(origin.system && origin.tone === "identical") && (
           <span

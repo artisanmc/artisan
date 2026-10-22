@@ -129,7 +129,7 @@ export function DataTable({
         </Table>
       )}
       {truncated ? (
-        <div data-testid="data-table-truncated" className="text-[10px] text-[var(--warning)]">
+        <div data-testid="data-table-truncated" className="text-[11px] text-[var(--warning)]">
           {truncatedLabel ?? ""}
         </div>
       ) : null}

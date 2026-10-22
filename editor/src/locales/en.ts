@@ -304,6 +304,7 @@ export default {
     },
   },
   menuProperties: {
+    kindLabel: "Menu",
     emptyMenuTitle: "Empty menu",
     emptyMenuHint: "Drag an item from Buttons onto a slot, or select an item then tap a slot.",
     openLibrary: "Open buttons",
@@ -998,6 +999,9 @@ export default {
     },
   },
   dialog: {
+    kindLabel: "Dialog",
+    buttonCount_one: "{{count}} button",
+    buttonCount_other: "{{count}} buttons",
     titleLabel: "title ({{lang}})",
     canCloseWithEscape: "can close with Escape",
     bodyLabel: "body",

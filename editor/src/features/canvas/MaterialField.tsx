@@ -43,7 +43,7 @@ export function MaterialField({
                 style={{ imageRendering: "pixelated" }}
               />
             ) : (
-              <span className="text-[8px] text-[var(--text-faint)]">
+              <span className="text-[9.5px] text-[var(--text-faint)]">
                 {value.slice(0, 3) || "—"}
               </span>
             )}

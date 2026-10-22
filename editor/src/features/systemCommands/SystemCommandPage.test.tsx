@@ -76,11 +76,12 @@ describe("SystemCommandPage", () => {
     });
   });
 
-  it("puts the root's name in its card, renamed as typed", () => {
+  it("puts the root's name in the header and its card, renamed as typed", () => {
     render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     fireEvent.change(screen.getByDisplayValue("attribution"), { target: { value: "parrainage" } });
-    expect(screen.getByText("/parrainage")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "/parrainage" })).toBeInTheDocument();
+    expect(screen.getAllByText("/parrainage")).toHaveLength(2);
   });
 
   it("turns a field's reset on only while it differs from the module, and puts the value back", () => {

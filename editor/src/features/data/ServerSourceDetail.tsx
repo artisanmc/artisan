@@ -84,7 +84,7 @@ export function ServerSourceDetail({ serverId, source }: ServerSourceDetailProps
           type="button"
           onClick={copyRef}
           title={t("dataSources.copyRef")}
-          className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+          className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
         >
           {t("dataSources.copyRef")}
         </button>

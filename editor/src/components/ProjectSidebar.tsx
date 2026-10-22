@@ -277,9 +277,7 @@ export function ProjectSidebar() {
         )}
         {pluginModules.length > 0 && (
           <div className="flex flex-col">
-            <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-              {t("sidebar.installedModules")}
-            </div>
+            <div className="section-label px-2 pt-0.5 pb-2">{t("sidebar.installedModules")}</div>
             <ul className="flex flex-col">
               {pluginModules.map((m) => (
                 <PluginModuleItem
@@ -294,9 +292,7 @@ export function ProjectSidebar() {
           </div>
         )}
         <div className={pluginModules.length > 0 ? "mt-4 flex flex-col" : "flex flex-col"}>
-          <div className="px-2 pt-0.5 pb-2 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-            {t("sidebar.myModules")}
-          </div>
+          <div className="section-label px-2 pt-0.5 pb-2">{t("sidebar.myModules")}</div>
           {projectsStatus !== "ready" && (
             <div className="px-2.5 pb-1 text-[11.5px] text-[var(--text-faint)]">
               {projectsStatus === "loading"
@@ -667,7 +663,7 @@ function DocumentCount({ count }: { count: number }) {
     <span
       title={t("serverDetail.documentCount", { count })}
       aria-label={t("serverDetail.documentCount", { count })}
-      className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-medium tabular-nums text-[var(--text-faint)]"
+      className="shrink-0 rounded-full bg-[var(--surface-raised)] px-1.5 text-[11px] font-medium tabular-nums text-[var(--text-faint)]"
     >
       {count}
     </span>
@@ -809,7 +805,7 @@ function EntryGroup({
 }) {
   return (
     <li className="flex flex-col">
-      <div className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-[9.5px] font-semibold uppercase tracking-[.14em] text-[var(--text-faint)]">
+      <div className="flex items-center gap-1.5 px-2 pt-2.5 pb-1 text-[11.5px] font-semibold text-[var(--text-mut)]">
         <Icon className="size-3" aria-hidden />
         {label}
       </div>

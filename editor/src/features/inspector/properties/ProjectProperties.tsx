@@ -38,14 +38,12 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         <div>
-          <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
-            {t("projectProperties.id")}
-          </div>
+          <div className="field-label !mb-1">{t("projectProperties.id")}</div>
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-[var(--text-mut)]">
               {projectUrlId(project)}
             </span>
-            <span className={`rounded px-1.5 py-0.5 text-[10px] ${sourceColor(project.source)}`}>
+            <span className={`rounded px-1.5 py-0.5 text-[11px] ${sourceColor(project.source)}`}>
               {t(`projectProperties.${sourceLabelKey(project.source)}`)}
             </span>
             <span className="ml-auto">
@@ -91,7 +89,7 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
               setProjectField({ projectId: project.id, field: "loreMaxWidth", value: v })
             }
           />
-          <p className="mt-1 text-[10px] text-[var(--text-faint)]">
+          <p className="mt-1 text-[11px] text-[var(--text-faint)]">
             {t("projectProperties.loreMaxWidthHint")}
           </p>
         </div>
@@ -106,13 +104,13 @@ export function ProjectProperties({ project }: ProjectPropertiesProps) {
               }
             />
           </div>
-          <p className="mt-1 text-[10px] text-[var(--text-faint)]">
+          <p className="mt-1 text-[11px] text-[var(--text-faint)]">
             {t("projectProperties.escapeGoesBackHint")}
           </p>
         </div>
       </div>
 
-      <div className="text-[10px] text-[var(--text-faint)]">
+      <div className="text-[11px] text-[var(--text-faint)]">
         {t("projectProperties.countAssets", {
           assets: project.assets.length,
           assetsPlural: t(

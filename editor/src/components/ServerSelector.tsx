@@ -89,9 +89,7 @@ export function ServerSelector({ servers }: Props) {
         className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 text-left transition-colors hover:border-[var(--border-strong)]"
       >
         <div className="flex min-w-0 flex-col">
-          <span className="text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-            {t("sidebar.serverLabel")}
-          </span>
+          <span className="section-label">{t("sidebar.serverLabel")}</span>
           <span className="mt-0.5 flex items-center gap-2 text-[13.5px] font-medium text-[var(--text)]">
             <span className="truncate">{displayLabel}</span>
             {active && <ServerState entry={active} />}

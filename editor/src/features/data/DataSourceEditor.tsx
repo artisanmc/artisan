@@ -98,7 +98,7 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
             className="w-full bg-transparent text-lg font-semibold text-[var(--text)] outline-none focus:border-b focus:border-[var(--brand-line)]"
           />
           {nameError ? (
-            <p id="data-source-name-error" className="text-[10px] text-[var(--danger)]">
+            <p id="data-source-name-error" className="text-[11px] text-[var(--danger)]">
               {nameError}
             </p>
           ) : null}

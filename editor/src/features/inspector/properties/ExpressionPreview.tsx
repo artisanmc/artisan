@@ -44,10 +44,10 @@ export function ExpressionPreview({ expr }: ExpressionPreviewProps) {
   if (state === null) return null;
   if (state.kind === "parseError") {
     const { key, params } = formatParseError(state.message);
-    return <div className="text-[10px] text-rose-300">{t(key, params)}</div>;
+    return <div className="text-[11px] text-rose-300">{t(key, params)}</div>;
   }
   return (
-    <div className="font-mono text-[10px] text-[var(--brand)]">
+    <div className="font-mono text-[11px] text-[var(--brand)]">
       {t("conditions.exprPreviewValid", { display: state.display || '""' })}
     </div>
   );
