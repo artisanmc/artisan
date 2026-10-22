@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -499,10 +500,11 @@ function templateOrigin(
   return { tone, module: entry.template.moduleId, system, ...(reset ? { reset } : {}) };
 }
 
-const ORIGIN_DOT: Record<TemplateOrigin["tone"], string> = {
-  update: "bg-[var(--warning)]",
-  modified: "bg-[var(--brand)]",
-  identical: "bg-[var(--success)]",
+/** What a copy's tag says in a word: nothing when it is the module's version as is. */
+const ORIGIN_TAG: Record<TemplateOrigin["tone"], "amber" | "terra" | null> = {
+  update: "amber",
+  modified: "terra",
+  identical: null,
 };
 
 function DocumentRow({
@@ -571,13 +573,24 @@ function DocumentRow({
             className="size-1.5 shrink-0 rounded-full bg-[var(--warning)]"
           />
         )}
-        {origin && !(origin.system && origin.tone === "identical") && (
-          <span
+        {origin && ORIGIN_TAG[origin.tone] ? (
+          <Badge
+            variant={ORIGIN_TAG[origin.tone]}
             role="img"
-            aria-label={originLabel}
             title={originLabel}
-            className={`ml-1 size-1.5 shrink-0 rounded-full ${ORIGIN_DOT[origin.tone]}`}
-          />
+            aria-label={originLabel}
+            className="shrink-0 !h-[17px] !px-1.5 text-[10.5px]"
+          >
+            {t(`projectPanel.originTag.${origin.tone}`)}
+          </Badge>
+        ) : null}
+        {/* A plain copy of a module's template, unchanged: the puzzle says where it comes from. */}
+        {origin && !origin.system && origin.tone === "identical" && (
+          <Tooltip content={originLabel} side="right">
+            <span role="img" aria-label={originLabel} className="flex shrink-0">
+              <Puzzle className="size-3 text-[var(--text-faint)]" aria-hidden />
+            </span>
+          </Tooltip>
         )}
         {systemHint && (
           <Tooltip content={systemHint} side="right">

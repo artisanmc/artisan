@@ -1,4 +1,5 @@
 import { ArtisanWordmark } from "@/components/ArtisanWordmark";
+import { Badge } from "@/components/ui/badge";
 import { projectNamespace } from "@/domain/docRef";
 import type { Project } from "@/domain/types";
 import {
@@ -855,7 +856,8 @@ function CommandItem({ command, serverId }: { command: PlayerCommand; serverId: 
           /{name}
         </span>
         {state !== "default" && (
-          <span
+          <Badge
+            variant={state === "disabled" ? "amber" : "terra"}
             role="img"
             aria-label={t(
               state === "disabled"
@@ -867,12 +869,14 @@ function CommandItem({ command, serverId }: { command: PlayerCommand; serverId: 
                 ? "systemCommands.stateDisabled"
                 : "systemCommands.stateModified",
             )}
-            className={
+            className="shrink-0 !h-[17px] !px-1.5 text-[10.5px]"
+          >
+            {t(
               state === "disabled"
-                ? "size-1.5 shrink-0 rounded-full bg-[var(--warning)]"
-                : "size-1.5 shrink-0 rounded-full bg-[var(--brand)]"
-            }
-          />
+                ? "projectPanel.originTag.disabled"
+                : "projectPanel.originTag.modified",
+            )}
+          </Badge>
         )}
       </Link>
     </li>

@@ -783,6 +783,7 @@ export default {
     },
   },
   projectPanel: {
+    originTag: { modified: "edited", update: "new version", disabled: "disabled" },
     systemDocumentHint:
       "Built into the module {{module}}: its code opens it. You can edit it; it cannot be deleted, and Reset puts the module's version back.",
     systemBadge: {

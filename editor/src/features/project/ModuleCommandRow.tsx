@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Tooltip } from "@/components/ui/tooltip";
 import { kindAppearance } from "@/lib/documentKindAppearance";
@@ -46,12 +47,15 @@ export function ModuleCommandRow({
         /{node.label}
       </span>
       {node.state === "modified" && (
-        <span
+        <Badge
+          variant="terra"
           role="img"
           aria-label={t("systemCommands.stateModified")}
           title={t("systemCommands.stateModified")}
-          className="size-1.5 shrink-0 rounded-full bg-[var(--brand)]"
-        />
+          className="shrink-0 !h-[17px] !px-1.5 text-[10.5px]"
+        >
+          {t("projectPanel.originTag.modified")}
+        </Badge>
       )}
       <Tooltip content={hint} side="right">
         <span role="img" aria-label={hint} className="flex shrink-0">
