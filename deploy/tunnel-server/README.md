@@ -44,6 +44,12 @@ Cloudflare transmet les WebSockets et garde l'en-tête `Host` ; il coupe un WebS
 100 s, le plugin envoie un ping toutes les 25 s. Corps limités à 100 Mo sur les offres Free et Pro,
 comme le pack du hub.
 
+Serveur Minecraft éteint ou muet : le serveur de tunnel répond **503** avec sa propre page (FR/EN
+selon le navigateur, rechargée toutes les 30 s, `OfflinePage.kt`), texte brut pour les scripts.
+Jamais 502 ni 504 : Cloudflare les remplace par sa page « Bad gateway », qui accuse l'infra Artisan.
+Une page 502 Cloudflare sur `<id>.artisanmc.app` vient donc du conteneur injoignable, ou d'un 502
+renvoyé par le hub lui-même (ses erreurs `fetch_error`).
+
 ## Côté serveur Minecraft
 
 ```yaml

@@ -200,7 +200,7 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
             val tunnel = tunnelFor(host, request.headers.get(Tunnel.MEMBER_HEADER))
             when {
                 tunnel == null && path == "/health" -> text(response, callback, 200, "ok")
-                tunnel == null -> text(response, callback, 502, "This Artisan server is not connected to the tunnel server.")
+                tunnel == null -> OfflinePage.write(request, response, callback, OfflinePage.Reason.OFFLINE, host)
                 config.blockedPrefixes.any { path.startsWith(it) } -> text(response, callback, 403, "Not served through the tunnel server.")
                 !tunnel.limits.allowRequest() -> text(response, callback, 429, "This server's editor is over its tunnel limits. Try again later.")
                 else -> proxy(tunnel, request, response, callback)
@@ -235,7 +235,7 @@ class TunnelServer(private val config: TunnelServerConfig, private val logger: L
             val first = stream.frames.poll(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             if (first == null || first.type != Frame.Type.RESPONSE) {
                 if (first == null) tunnel.send(Frame(Frame.Type.RESET, stream.id))
-                return text(response, callback, if (first == null) 504 else 502, "The Artisan server did not answer.")
+                return OfflinePage.write(request, response, callback, OfflinePage.Reason.NO_ANSWER, host(request))
             }
             val head = first.json<ResponseHead>()
             response.status = head.status
