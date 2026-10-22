@@ -39,11 +39,10 @@ import { ACTION_TYPES, defaultAction, defaultDeclaredAction } from "./defaults";
 import { conditionsSummary } from "./labels";
 
 /*
- * The rows of the Action chain editor: one line per action, `if` / `else if` / `else` blocks,
- * the "+ step" picker, and the drag handle wiring. `StepTree` assembles them.
+ * The rows of the Action chain editor: one block per action, `if` / `else if` / `else` in a
+ * framed block with a rail per branch, the "+ step" picker, and the drag handle wiring.
+ * `StepTree` assembles them; nesting comes from the containers, not from a left padding.
  */
-
-const INDENT = 20;
 
 // Drag-and-drop wiring
 
@@ -135,7 +134,6 @@ export function useStepIds(steps: Step[]): string[] {
 
 export function ActionLine({
   action,
-  indent,
   projectId,
   onChange,
   onRemove,
@@ -145,7 +143,6 @@ export function ActionLine({
   literalText,
 }: {
   action: Action;
-  indent: number;
   projectId: ProjectId;
   onChange: (next: Action) => void;
   onRemove: () => void;
@@ -164,7 +161,7 @@ export function ActionLine({
   return (
     <>
       <Row
-        indent={indent}
+        card
         selected={expanded}
         onClick={() => setExpanded((v) => !v)}
         handles={<RowHandles onRemove={onRemove} />}
@@ -174,7 +171,7 @@ export function ActionLine({
         <ActionSummaryArgs action={action} getText={getText} />
       </Row>
       {expanded ? (
-        <Expansion indent={indent + 1}>
+        <Expansion>
           <ActionEditor
             projectId={projectId}
             action={action}
@@ -220,7 +217,10 @@ export function IfBlock(props: IfBlockProps) {
     onToggleElse,
   } = props;
   return (
-    <div className="flex flex-col">
+    <div
+      className="flex flex-col gap-1.5 rounded-[var(--r-sm)] border border-[var(--fam-logic-line)] p-1.5"
+      style={{ backgroundImage: "linear-gradient(180deg, var(--fam-logic-soft), transparent 70%)" }}
+    >
       {step.cases.map((c, ci) => (
         <CaseBlock
           // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
@@ -243,20 +243,12 @@ export function IfBlock(props: IfBlockProps) {
           renderChildren={(childIndent) => renderCaseChildren(step.else!, "else", childIndent)}
         />
       ) : null}
-      <div className="flex items-center gap-1.5 py-1" style={{ paddingLeft: indent * INDENT + 6 }}>
-        <button
-          type="button"
-          onClick={onAddCase}
-          className="rounded-[var(--r-xs)] border border-[var(--fam-logic-line)] border-dashed px-2 py-1 text-[12px] text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]"
-        >
+      <div className="flex items-center gap-1 px-1">
+        <button type="button" onClick={onAddCase} className={BRANCH_ADD}>
           {t("flow.elseIfAdd")}
         </button>
         {!step.else ? (
-          <button
-            type="button"
-            onClick={() => onToggleElse(true)}
-            className="rounded-[var(--r-xs)] border border-[var(--fam-logic-line)] border-dashed px-2 py-1 text-[12px] text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]"
-          >
+          <button type="button" onClick={() => onToggleElse(true)} className={BRANCH_ADD}>
             {t("flow.elseAdd")}
           </button>
         ) : null}
@@ -292,7 +284,6 @@ function CaseBlock({
   return (
     <>
       <Row
-        indent={indent}
         selected={expanded}
         onClick={() => setExpanded((v) => !v)}
         handles={
@@ -305,10 +296,10 @@ function CaseBlock({
       >
         {showStepHandles ? <DragHandle /> : null}
         <BranchKeyword>{label}</BranchKeyword>
-        <span className="truncate text-[12.5px] text-[var(--text-mut)]">{summary}</span>
+        <span className="truncate text-[13.5px] text-[var(--text)]">{summary}</span>
       </Row>
       {expanded ? (
-        <Expansion indent={indent + 1}>
+        <Expansion>
           <ConditionListEditor
             label=""
             conditions={ifCase.conditions}
@@ -319,7 +310,7 @@ function CaseBlock({
           />
         </Expansion>
       ) : null}
-      {renderChildren(indent + 1)}
+      <Branch>{renderChildren(indent + 1)}</Branch>
     </>
   );
 }
@@ -336,10 +327,10 @@ function ElseBlock({
   const { t } = useTranslation();
   return (
     <>
-      <Row indent={indent} handles={<RowHandles onRemove={onRemove} />}>
+      <Row handles={<RowHandles onRemove={onRemove} />}>
         <BranchKeyword>{t("actionCatalog.branch.else")}</BranchKeyword>
       </Row>
-      {renderChildren(indent + 1)}
+      <Branch>{renderChildren(indent + 1)}</Branch>
     </>
   );
 }
@@ -363,12 +354,17 @@ export function AddStepLine({
   const declared = useServerActionsStore((s) => s.actions);
   const moduleActions = moduleActionsOf(declared);
   return (
-    <div className="flex items-center py-1" style={{ paddingLeft: indent * INDENT + 6 }}>
+    <div className="flex items-center">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="rounded-[var(--r-xs)] border border-[var(--border)] border-dashed px-2.5 py-1 text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+            className={
+              // In a branch, a quiet link; at the chain's top, a full-width dashed slot.
+              indent > 0
+                ? "rounded-[var(--r-xs)] px-2 py-0.5 text-[12px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                : "w-full rounded-[var(--r-sm)] border border-[var(--border)] border-dashed px-2.5 py-1.5 text-center text-[12.5px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+            }
           >
             {t("flow.addStep")}
           </button>
@@ -415,13 +411,14 @@ export function AddStepLine({
 // Visual primitives
 
 function Row({
-  indent,
+  card,
   onClick,
   handles,
   children,
   selected,
 }: {
-  indent: number;
+  /** An action: a block with its border. A branch header (`Si`, `Sinon`) sits bare in its frame. */
+  card?: boolean;
   onClick?: () => void;
   handles?: React.ReactNode;
   children: React.ReactNode;
@@ -432,11 +429,13 @@ function Row({
     <div
       data-row-selected={selected ? "true" : undefined}
       className={cx(
-        "group flex min-h-[36px] items-center rounded-[var(--r-sm)] px-1 hover:bg-[var(--surface-hover)]",
-        selected && "bg-[var(--surface-hover)]",
+        "group flex min-h-[40px] items-center rounded-[var(--r-sm)] pr-1 pl-1",
+        card
+          ? "border border-[var(--border)] bg-[var(--surface-raised)] hover:border-[var(--border-strong)]"
+          : "hover:bg-[var(--surface-hover)]",
+        selected && (card ? "border-[var(--border-strong)]" : "bg-[var(--surface-hover)]"),
       )}
     >
-      <IndentGuides indent={indent} />
       {onClick ? (
         <button
           type="button"
@@ -455,22 +454,12 @@ function Row({
 
 const branchColors = familyColors("logic");
 
-/**
- * Nesting guides: one thin rail per level, in the logic colour, so a step inside an
- * `if` reads as belonging to it.
- */
-function IndentGuides({ indent }: { indent: number }) {
-  if (indent === 0) return null;
-  return (
-    <div
-      aria-hidden
-      className="shrink-0 self-stretch"
-      style={{
-        width: indent * INDENT,
-        backgroundImage: `repeating-linear-gradient(90deg, transparent 0 ${INDENT / 2 + 1}px, var(--fam-logic-line) ${INDENT / 2 + 1}px ${INDENT / 2 + 3}px, transparent ${INDENT / 2 + 3}px ${INDENT}px)`,
-      }}
-    />
-  );
+const BRANCH_ADD =
+  "rounded-[var(--r-xs)] px-2 py-0.5 text-[12px] font-medium text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]";
+
+/** A branch's steps, on a rail in the logic colour: they read as belonging to it. */
+function Branch({ children }: { children: React.ReactNode }) {
+  return <div className="ml-3.5 border-[var(--fam-logic-line)] border-l-2 pl-3">{children}</div>;
 }
 
 /** An action as a person names it: its family's icon tile, then its translated name (wire name on hover). */
@@ -498,23 +487,19 @@ function ActionName({ name }: { name: string }) {
   );
 }
 
-/** `Si` / `Sinon si` / `Sinon`: the branch icon and keyword in the logic colour. */
+/** `SI` / `SINON SI` / `SINON`: a keyword pill in the logic colour, heading its branch. */
 function BranchKeyword({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      <IconTile icon={BRANCH_ICON} {...branchColors} />
-      <span className="shrink-0 text-[13px] font-semibold text-[var(--fam-logic)]">{children}</span>
-    </>
+    <span className="ml-1 shrink-0 rounded-[5px] bg-[var(--fam-logic-soft)] px-2 py-[3px] font-mono text-[11.5px] font-semibold uppercase tracking-[.04em] text-[var(--fam-logic)]">
+      {children}
+    </span>
   );
 }
 
-function Expansion({ indent, children }: { indent: number; children: React.ReactNode }) {
+function Expansion({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex">
-      <div style={{ width: indent * INDENT }} className="shrink-0" />
-      <div className="my-1 min-w-0 flex-1 rounded-[var(--r-sm)] border border-[var(--border-soft)] bg-[var(--surface-raised)] p-3">
-        {children}
-      </div>
+    <div className="min-w-0 rounded-[var(--r-sm)] border border-[var(--border-soft)] bg-[var(--surface-raised)] p-3">
+      {children}
     </div>
   );
 }

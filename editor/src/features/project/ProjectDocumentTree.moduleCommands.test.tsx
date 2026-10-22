@@ -61,7 +61,7 @@ beforeEach(() => {
 });
 
 describe("module commands in the folder's tree", () => {
-  it("lists the module's commands under one Commands header", () => {
+  it("lists the module's commands with the folder's own, in one list", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     expect(screen.getAllByText("/daily")).toHaveLength(1);
     expect(screen.getAllByText("/dailyadmin")).toHaveLength(1);

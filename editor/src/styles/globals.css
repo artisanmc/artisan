@@ -147,23 +147,23 @@
    LAYER 2 — Semantic tokens: LIGHT theme
 ---------------------------------------------------------------- */
 :root[data-theme="light"] {
-  /* Surfaces */
-  --surface: #ffffff;
-  --surface-raised: var(--gray-50);
-  --surface-raised-2: var(--gray-100);
-  --surface-inset: var(--gray-100);
-  --surface-hover: var(--gray-100);
+  /* Surfaces — off-white and warm (stone), not pure white: a full screen of #fff glares. */
+  --surface: #f3f1ec;
+  --surface-raised: #faf9f6;
+  --surface-raised-2: #eceae4;
+  --surface-inset: #f0eee8;
+  --surface-hover: #e9e6df;
 
   /* Text */
-  --text: #0f172a;
-  --text-mut: var(--gray-600);
-  --text-faint: var(--gray-400);
+  --text: #1c1917;
+  --text-mut: #57534e;
+  --text-faint: #8f8981;
   --text-on-accent: #ffffff;
 
   /* Borders */
-  --border-soft: var(--gray-200);
-  --border: var(--gray-300);
-  --border-strong: var(--gray-400);
+  --border-soft: #e4e0d8;
+  --border: #d5d0c6;
+  --border-strong: #aaa398;
 
   /* Brand (darker for white-bg AA contrast — emerald-500 #2ED573 fails AA) */
   --brand: var(--emerald-700); /* #179A4E — AA pass on white */

@@ -1,3 +1,4 @@
+import { Segmented } from "@/components/ui/segmented";
 import { type DragEvent, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -212,32 +213,16 @@ export function LayersPanel({ projectId, menuId, className, imageControl }: Laye
   return (
     <div className={cn("flex flex-col gap-3", className)} data-testid="layers-panel">
       {/* Mode toggle */}
-      <div className="flex rounded border border-[var(--border)] bg-[var(--surface-raised)] p-0.5 text-[11px]">
-        <button
-          type="button"
-          onClick={switchToVanilla}
-          className={cn(
-            "flex-1 rounded px-2 py-1 transition-colors",
-            isVanillaMode
-              ? "bg-[var(--surface-raised-2)] text-[var(--text)]"
-              : "text-[var(--text-mut)] hover:text-[var(--text)]",
-          )}
-        >
-          {t("layersPanel.vanilla")}
-        </button>
-        <button
-          type="button"
-          onClick={switchToComposed}
-          className={cn(
-            "flex-1 rounded px-2 py-1 transition-colors",
-            !isVanillaMode
-              ? "bg-[var(--surface-raised-2)] text-[var(--text)]"
-              : "text-[var(--text-mut)] hover:text-[var(--text)]",
-          )}
-        >
-          {t("layersPanel.composed")}
-        </button>
-      </div>
+      <Segmented
+        label={t("menuProperties.titleSection")}
+        className="flex w-full [&>button]:flex-1"
+        options={[
+          { value: "vanilla", label: t("layersPanel.vanilla") },
+          { value: "composed", label: t("layersPanel.composed") },
+        ]}
+        value={isVanillaMode ? "vanilla" : "composed"}
+        onChange={(mode) => (mode === "vanilla" ? switchToVanilla() : switchToComposed())}
+      />
 
       {isVanillaMode ? (
         // Vanilla mode: show the plain layer form directly.

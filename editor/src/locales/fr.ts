@@ -313,6 +313,8 @@ const fr: typeof en = {
     },
   },
   menuProperties: {
+    sectionGeneral: "Général",
+    sectionInventory: "Inventaire",
     kindLabel: "Menu",
     emptyMenuTitle: "Menu vide",
     emptyMenuHint:
@@ -798,6 +800,7 @@ const fr: typeof en = {
     },
   },
   projectPanel: {
+    originTag: { modified: "modifié", update: "nouvelle version", disabled: "désactivée" },
     systemDocumentHint:
       "Élément interne du module {{module}} : son code l'ouvre. Tu peux le modifier ; il ne se supprime pas, Réinitialiser le remet à la version du module.",
     systemBadge: {

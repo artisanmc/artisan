@@ -74,7 +74,7 @@ export function StepTree(props: StepTreeProps) {
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1.5">
           {steps.map((step, i) => (
             <SortableStep
               // biome-ignore lint/suspicious/noArrayIndexKey: stable per list per render
@@ -105,7 +105,6 @@ function StepLine({ step, stepIndex, ...tree }: StepTreeProps & { step: Step; st
     return (
       <ActionLine
         action={step.action}
-        indent={indent}
         projectId={projectId}
         menuId={actionContext?.menuId}
         elementId={actionContext?.elementId}
