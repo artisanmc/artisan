@@ -18,8 +18,13 @@ import java.util.logging.Level
  *   reads that folder at startup only: written once, then a restart;
  * - [isBedrock] tells the renderer who gets the title the pack reads.
  *
- * Geyser on a proxy (Velocity, BungeeCord) is not reached from here: those
- * players get the chest Geyser translates, as without this integration.
+ * Geyser on a proxy (Velocity, BungeeCord) is not reached from here: the pack
+ * and the mapping have to reach that Geyser by other means (its `packs/` and
+ * `custom_mappings/` folders, for now). Bedrock players are still recognised,
+ * through Floodgate when it runs here, else by the UUID Floodgate gives them
+ * (`00000000-0000-0000-xxxx-xxxxxxxxxxxx`: the Xbox id in the low bits, the
+ * high bits zero, which no Java account has). The mapping is also written
+ * under Artisan's own `cache/geyser/` so an admin can copy it.
  */
 class GeyserIntegration(private val plugin: JavaPlugin) {
     @Volatile private var bridge: GeyserBridge? = null
@@ -28,7 +33,12 @@ class GeyserIntegration(private val plugin: JavaPlugin) {
     val available: Boolean get() = bridge != null
 
     fun start() {
-        if (plugin.server.pluginManager.getPlugin("Geyser-Spigot") == null) return
+        writeMappings(File(plugin.dataFolder, "cache/geyser"), announce = false)
+        if (plugin.server.pluginManager.getPlugin("Geyser-Spigot") == null) {
+            plugin.logger.info("[Artisan] Geyser is not on this server: Bedrock players are recognised by their Floodgate UUID, " +
+                "the menus' Bedrock pack and ${File(plugin.dataFolder, "cache/geyser/custom_mappings/artisan.json").path} go to the proxy's Geyser by hand")
+            return
+        }
         try {
             val bridge = GeyserBridge(plugin) { pack }
             bridge.subscribe()
@@ -47,14 +57,34 @@ class GeyserIntegration(private val plugin: JavaPlugin) {
         packs.onChange { pack = it }
     }
 
-    fun isBedrock(player: Player): Boolean = bridge?.isBedrock(player.uniqueId) == true
+    fun isBedrock(player: Player): Boolean =
+        bridge?.isBedrock(player.uniqueId) == true || isFloodgatePlayer(player.uniqueId)
 
-    private fun writeMappings(configDirectory: File) {
+    /** The pack file an admin copies to a proxy's Geyser when Geyser is not on this server. */
+    fun currentPack(): File? = pack
+
+    private fun writeMappings(configDirectory: File, announce: Boolean = true) {
         val file = File(configDirectory, "custom_mappings/artisan.json")
         if (file.isFile && file.readText() == MAPPINGS) return
         file.parentFile.mkdirs()
         file.writeText(MAPPINGS)
-        plugin.logger.warning("[Artisan] Wrote ${file.path}: restart the server once so Geyser loads the mapping of image buttons")
+        if (announce) plugin.logger.warning("[Artisan] Wrote ${file.path}: restart the server once so Geyser loads the mapping of image buttons")
+    }
+
+    /** Floodgate's answer when it runs on this server, else the shape of the UUIDs it hands out. */
+    private fun isFloodgatePlayer(uuid: UUID): Boolean {
+        floodgate?.let { return it(uuid) }
+        return uuid.mostSignificantBits == 0L
+    }
+
+    private val floodgate: ((UUID) -> Boolean)? by lazy {
+        runCatching {
+            val apiClass = Class.forName("org.geysermc.floodgate.api.FloodgateApi")
+            val api = apiClass.getMethod("getInstance").invoke(null)
+            val isFloodgatePlayer = apiClass.getMethod("isFloodgatePlayer", UUID::class.java)
+            val check: (UUID) -> Boolean = { isFloodgatePlayer.invoke(api, it) as Boolean }
+            check
+        }.getOrNull()
     }
 
     companion object {

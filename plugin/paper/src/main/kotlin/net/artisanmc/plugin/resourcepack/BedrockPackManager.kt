@@ -69,7 +69,7 @@ open class BedrockPackManager(
         file.setLastModified(System.currentTimeMillis())
         current = file
         dir.listFiles { f -> f.name.matches(NAME) && f != file }?.forEach { it.delete() }
-        logger?.info("[bedrock-pack] pack ${file.name} ready for Bedrock players")
+        logger?.info("[bedrock-pack] ${file.path} ready for Bedrock players")
         listeners.forEach { it(file) }
     }
 

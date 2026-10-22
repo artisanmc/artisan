@@ -55,7 +55,9 @@ Artisan <version> enabled
 With Geyser-Spigot on the same server, Artisan hands Bedrock players a pack that redraws the menus
 the editor styled (chests of 3 or 6 rows). On first start next to Geyser, Artisan writes
 `plugins/Geyser-Spigot/custom_mappings/artisan.json` and asks for one more restart so that Geyser
-loads it. Geyser on a proxy is not supported yet.
+loads it. With Geyser on your proxy instead, copy `plugins/Artisan/cache/bedrock-pack/<hash>.mcpack`
+into that Geyser's `packs/` and `plugins/Artisan/cache/geyser/custom_mappings/artisan.json` into its
+`custom_mappings/`, and restart the proxy; Bedrock players are recognised by their Floodgate UUID.
 
 ## 3. Nothing to open (or your own address)
 
