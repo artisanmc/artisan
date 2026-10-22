@@ -136,6 +136,17 @@
   /* In-game chat backdrop: MiniMessage colours are made for it, in both themes. */
   --mc-chat-bg: rgba(0, 0, 0, 0.32);
 
+  /* Board nodes (commands, dialogs, module Documents) — read by Konva through useCssVar. */
+  --node-bg: #1f1f23;
+  --node-fg: #f4f4f5;
+  --node-sub: #8b8b94;
+  --node-row: #27272a;
+  --node-row-hover: #3f3f46;
+  --node-row-fg: #d4d4d8;
+  --node-row-selected: #14532d;
+  --node-row-selected-fg: #f4f4f5;
+  --node-shadow-opacity: 0.35;
+
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 6px 20px -8px rgba(0, 0, 0, 0.55);
@@ -147,23 +158,24 @@
    LAYER 2 — Semantic tokens: LIGHT theme
 ---------------------------------------------------------------- */
 :root[data-theme="light"] {
-  /* Surfaces — off-white and warm (stone), not pure white: a full screen of #fff glares. */
-  --surface: #f3f1ec;
-  --surface-raised: #faf9f6;
-  --surface-raised-2: #eceae4;
-  --surface-inset: #f0eee8;
-  --surface-hover: #e9e6df;
+  /* Surfaces — a light grey page under white panels and fields: the page never glares
+     (it is not white), and a panel or a field reads by its white, not by a third tint. */
+  --surface: #f3f4f6;
+  --surface-raised: #ffffff;
+  --surface-raised-2: #eef0f3;
+  --surface-inset: #ffffff;
+  --surface-hover: #eceef2;
 
   /* Text */
-  --text: #1c1917;
-  --text-mut: #57534e;
-  --text-faint: #8f8981;
+  --text: #111827;
+  --text-mut: #4b5563;
+  --text-faint: #8b93a1;
   --text-on-accent: #ffffff;
 
   /* Borders */
-  --border-soft: #e4e0d8;
-  --border: #d5d0c6;
-  --border-strong: #aaa398;
+  --border-soft: #e5e7eb;
+  --border: #d6dae0;
+  --border-strong: #a3abb8;
 
   /* Brand (darker for white-bg AA contrast — emerald-500 #2ED573 fails AA) */
   --brand: var(--emerald-700); /* #179A4E — AA pass on white */
@@ -211,6 +223,16 @@
   --fam-module-soft: rgba(8, 145, 178, 0.1);
 
   --mc-chat-bg: rgba(15, 17, 21, 0.88);
+
+  --node-bg: #ffffff;
+  --node-fg: #111827;
+  --node-sub: #6b7280;
+  --node-row: #f3f4f6;
+  --node-row-hover: #e5e7eb;
+  --node-row-fg: #374151;
+  --node-row-selected: #dcfce7;
+  --node-row-selected-fg: #14532d;
+  --node-shadow-opacity: 0.1;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
@@ -498,6 +520,12 @@ body {
     font-weight: 600;
     color: var(--text-mut);
   }
+  /* The kind's wash behind an editor header glows on a dark page; on a light one it reads
+     as a stain, the tile and the eyebrow carry the colour alone. */
+  :root[data-theme="light"] .editor-header-wash {
+    background-image: none !important;
+  }
+
   .input,
   .textarea,
   .select {

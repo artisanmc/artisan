@@ -26,7 +26,7 @@ export function EditorHeader({
   const look = appearance ?? kindAppearance(kind ?? "");
   return (
     <header
-      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-[var(--border-soft)] border-b px-4 py-3.5"
+      className="editor-header-wash flex flex-wrap items-center gap-x-4 gap-y-2 border-[var(--border-soft)] border-b px-4 py-3.5"
       style={{ backgroundImage: `linear-gradient(90deg, ${look.soft}, transparent 60%)` }}
     >
       <IconTile icon={look.icon} fg={look.fg} soft={look.soft} line={look.line} size="lg" />

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Circle, Group, Line, Rect, Text } from "react-konva";
 import { dispatchOpenElement } from "./canvasEvents";
 import { DOCUMENT_ITEMS, documentBoxSize } from "./menuLayout";
+import { useNodeColors } from "./nodeColors";
 import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
 
@@ -45,6 +46,7 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
   );
   const lang = useUiStore((s) => s.activeLang);
   const nodeAlign = useNodeAlignment(projectId, doc.id);
+  const node = useNodeColors();
   const contribution = documentKindContribution(kind);
   const size = documentBoxSize(kind, doc, project);
   const summary = contribution?.board?.summary?.(doc, { project, lang }) ?? kind;
@@ -102,12 +104,12 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
         width={size.width}
         height={size.height}
         cornerRadius={8}
-        fill="#18181b"
+        fill={node.bg}
         stroke={isSelected || selectedItem ? "#22c55e" : accent}
         strokeWidth={isSelected ? 2 : 1.5}
         shadowColor="#000000"
         shadowBlur={10}
-        shadowOpacity={0.35}
+        shadowOpacity={node.shadow}
         shadowOffsetY={2}
         perfectDrawEnabled={false}
       />
@@ -138,7 +140,7 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
         text={title}
         fontSize={13}
         fontStyle="600"
-        fill="#f4f4f5"
+        fill={node.fg}
         wrap="none"
         ellipsis
         listening={false}
@@ -150,7 +152,7 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
         text={title === doc.id ? summary : `${doc.id} · ${summary}`}
         fontFamily="ui-monospace, monospace"
         fontSize={9}
-        fill="#a1a1aa"
+        fill={node.sub}
         wrap="none"
         ellipsis
         listening={false}
@@ -205,6 +207,7 @@ function ItemRow({
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const node = useNodeColors();
   const h = DOCUMENT_ITEMS.row - 3;
   const { label, detail, marker, hover } = item;
   const detailWidth = detail ? Math.min(90, width / 3) : 0;
@@ -242,7 +245,7 @@ function ItemRow({
             x={MARKER.x - 6}
             y={h / 2}
             radius={MARKER.r}
-            fill={selected ? "#22c55e" : "#18181b"}
+            fill={selected ? "#22c55e" : node.bg}
             stroke={selected ? "#22c55e" : accent}
             strokeWidth={1.5}
             perfectDrawEnabled={false}
@@ -256,7 +259,7 @@ function ItemRow({
             fontFamily="ui-monospace, monospace"
             fontSize={10}
             fontStyle="600"
-            fill={selected ? "#052e16" : "#f4f4f5"}
+            fill={selected ? "#052e16" : node.fg}
             wrap="none"
             listening={false}
           />
@@ -267,7 +270,7 @@ function ItemRow({
         width={boxW}
         height={h}
         cornerRadius={4}
-        fill={selected ? "#14532d" : hovered ? "#3f3f46" : "#27272a"}
+        fill={selected ? node.rowSelected : hovered ? node.rowHover : node.row}
         stroke={selected ? "#22c55e" : undefined}
         strokeWidth={selected ? 1 : 0}
         perfectDrawEnabled={false}
@@ -278,7 +281,7 @@ function ItemRow({
         width={boxW - 16 - detailWidth}
         text={label}
         fontSize={11}
-        fill={selected || hovered ? "#f4f4f5" : "#d4d4d8"}
+        fill={selected ? node.rowSelectedFg : hovered ? node.fg : node.rowFg}
         wrap="none"
         ellipsis
         listening={false}
@@ -292,7 +295,7 @@ function ItemRow({
           text={detail}
           fontFamily="ui-monospace, monospace"
           fontSize={9}
-          fill="#a1a1aa"
+          fill={node.sub}
           wrap="none"
           ellipsis
           listening={false}

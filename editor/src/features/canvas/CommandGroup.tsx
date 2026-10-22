@@ -1,4 +1,5 @@
 import type { Command, ProjectId } from "@/domain/types";
+import { useCssVar } from "@/lib/themeColors";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -7,6 +8,7 @@ import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { dispatchOpenElement } from "./canvasEvents";
 import { COMMAND_BOX } from "./menuLayout";
+import { useNodeColors } from "./nodeColors";
 import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
 
@@ -20,6 +22,9 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(command.id));
   const nodeAlign = useNodeAlignment(projectId, command.id);
+  const node = useNodeColors();
+  const accent = useCssVar("--kind-command");
+  const line = useCssVar("--kind-command-line");
 
   const onDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.moveToTop();
@@ -68,8 +73,8 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
         width={COMMAND_BOX.width}
         height={COMMAND_BOX.height}
         cornerRadius={6}
-        fill="#1f1f23"
-        stroke={isSelected ? "#22c55e" : "#a16207"}
+        fill={node.bg}
+        stroke={isSelected ? "#22c55e" : line}
         strokeWidth={isSelected ? 2 : 1.5}
         perfectDrawEnabled={false}
       />
@@ -83,7 +88,7 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
         fontFamily="ui-monospace, monospace"
         fontSize={12}
         fontStyle="600"
-        fill="#fcd34d"
+        fill={accent}
         listening={false}
       />
       <Text
@@ -95,7 +100,7 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
         text="command"
         fontFamily="ui-monospace, monospace"
         fontSize={9}
-        fill="#71717a"
+        fill={node.sub}
         listening={false}
       />
     </Group>
