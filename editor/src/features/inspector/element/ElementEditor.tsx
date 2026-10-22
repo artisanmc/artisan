@@ -63,7 +63,7 @@ export function ElementEditor({
     <div className="flex h-full flex-col bg-[var(--surface)]">
       {/* Element identity strip — preview of the focused state. */}
       <div
-        className="flex items-center gap-3 border-[var(--border-soft)] border-b px-3 py-2.5"
+        className="editor-header-wash flex items-center gap-3 border-[var(--border-soft)] border-b px-3 py-2.5"
         style={{
           backgroundImage: "linear-gradient(90deg, var(--kind-menu-soft), transparent 70%)",
         }}

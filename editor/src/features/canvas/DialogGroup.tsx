@@ -1,4 +1,5 @@
 import type { Dialog, ProjectId } from "@/domain/types";
+import { useCssVar } from "@/lib/themeColors";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -8,6 +9,7 @@ import { Group, Rect, Text } from "react-konva";
 import { SystemTag } from "./SystemTag";
 import { dispatchOpenElement } from "./canvasEvents";
 import { DIALOG_BOX } from "./menuLayout";
+import { useNodeColors } from "./nodeColors";
 import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
 
@@ -23,6 +25,9 @@ export function DialogGroup({ projectId, dialog, position, systemModule }: Dialo
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(dialog.id));
   const nodeAlign = useNodeAlignment(projectId, dialog.id);
+  const node = useNodeColors();
+  const accent = useCssVar("--kind-dialog");
+  const line = useCssVar("--kind-dialog-line");
 
   const onDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.moveToTop();
@@ -72,8 +77,8 @@ export function DialogGroup({ projectId, dialog, position, systemModule }: Dialo
         width={DIALOG_BOX.width}
         height={DIALOG_BOX.height}
         cornerRadius={6}
-        fill="#1f1f23"
-        stroke={isSelected ? "#22c55e" : "#7c3aed"}
+        fill={node.bg}
+        stroke={isSelected ? "#22c55e" : line}
         strokeWidth={isSelected ? 2 : 1.5}
         perfectDrawEnabled={false}
       />
@@ -87,7 +92,7 @@ export function DialogGroup({ projectId, dialog, position, systemModule }: Dialo
         fontFamily="ui-monospace, monospace"
         fontSize={12}
         fontStyle="600"
-        fill="#c4b5fd"
+        fill={accent}
         listening={false}
       />
       <Text
@@ -99,7 +104,7 @@ export function DialogGroup({ projectId, dialog, position, systemModule }: Dialo
         text={`dialog · ${dialog.buttons.length}btn`}
         fontFamily="ui-monospace, monospace"
         fontSize={9}
-        fill="#71717a"
+        fill={node.sub}
         listening={false}
       />
     </Group>

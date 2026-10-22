@@ -1,5 +1,6 @@
 import type { ProjectId } from "@/domain/types";
 import type { ModuleCommandNode } from "@/lib/moduleCommands";
+import { useCssVar } from "@/lib/themeColors";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -9,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { Circle, Group, Rect, Text } from "react-konva";
 import { dispatchOpenSystemCommand } from "./canvasEvents";
 import { COMMAND_BOX } from "./menuLayout";
+import { useNodeColors } from "./nodeColors";
 import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
 
@@ -28,6 +30,9 @@ export function ModuleCommandGroup({ projectId, node, position }: ModuleCommandG
   const { t } = useTranslation();
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
   const nodeAlign = useNodeAlignment(projectId, node.id);
+  const colors = useNodeColors();
+  const accent = useCssVar("--kind-command");
+  const line = useCssVar("--kind-command-line");
   const disabled = node.state === "disabled";
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(node.id));
 
@@ -75,8 +80,8 @@ export function ModuleCommandGroup({ projectId, node, position }: ModuleCommandG
         width={COMMAND_BOX.width}
         height={COMMAND_BOX.height}
         cornerRadius={6}
-        fill="#1f1f23"
-        stroke={isSelected ? "#22c55e" : "#a16207"}
+        fill={colors.bg}
+        stroke={isSelected ? "#22c55e" : line}
         strokeWidth={isSelected ? 2 : 1.5}
         dash={[5, 3]}
         perfectDrawEnabled={false}
@@ -92,7 +97,7 @@ export function ModuleCommandGroup({ projectId, node, position }: ModuleCommandG
         fontSize={12}
         fontStyle="600"
         textDecoration={disabled ? "line-through" : ""}
-        fill="#fcd34d"
+        fill={accent}
         listening={false}
       />
       {node.state === "modified" && (
@@ -107,7 +112,7 @@ export function ModuleCommandGroup({ projectId, node, position }: ModuleCommandG
         text={t("canvas.moduleCommand", { module: node.moduleId })}
         fontFamily="ui-monospace, monospace"
         fontSize={9}
-        fill="#71717a"
+        fill={colors.sub}
         listening={false}
       />
     </Group>
