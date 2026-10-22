@@ -13,6 +13,8 @@ import { type KindAppearance, kindAppearance } from "@/lib/documentKindAppearanc
 import { contributionLabel } from "@/lib/moduleDocumentKinds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useServersStore } from "@/state/serversStore";
+import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -69,10 +71,23 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
   const scope = params.serverId ? serverIndexScope(params.serverId) : null;
   const serverProjects = useServerIndexStore((s) => (s.scope === scope ? s.projects : NO_PROJECTS));
   const editedNamespace = project ? namespaceOf(project) : projectId;
+  // The commands the modules declare, listed with their folder's Documents — this server's only.
+  const activeServerId = useServersStore((s) => s.activeServerId);
+  const commandsServer = useSystemCommandsStore((s) => s.serverId);
+  const commands = useSystemCommandsStore((s) => s.commands);
+  const overrides = useSystemCommandsStore((s) => s.overrides);
+  const folders = useSystemCommandsStore((s) => s.folders);
+  const moduleCommands = useMemo(
+    () =>
+      activeServerId && commandsServer === activeServerId
+        ? { commands, overrides, folders }
+        : undefined,
+    [activeServerId, commandsServer, commands, overrides, folders],
+  );
 
   const index = useMemo(
-    () => (project ? buildSearchIndex(project, activeLang) : []),
-    [project, activeLang],
+    () => (project ? buildSearchIndex(project, activeLang, moduleCommands) : []),
+    [project, activeLang, moduleCommands],
   );
   // The server's other projects: their Documents only (not their content).
   // The edited project is already indexed in detail, and live — never twice.
@@ -81,9 +96,9 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
       toSearchEntries(
         serverProjects
           .filter((p) => namespaceOf(p) !== editedNamespace)
-          .flatMap((p) => indexProjectDocuments(p, activeLang)),
+          .flatMap((p) => indexProjectDocuments(p, activeLang, moduleCommands)),
       ),
-    [serverProjects, editedNamespace, activeLang],
+    [serverProjects, editedNamespace, activeLang, moduleCommands],
   );
   const results = useMemo(
     () => groupResultsForDisplay(searchQuery([...index, ...remote], q)),

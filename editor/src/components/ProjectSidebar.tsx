@@ -80,6 +80,7 @@ export function ProjectSidebar() {
   const systemCommands = useSystemCommandsStore((s) => s.commands);
   const commandOverrides = useSystemCommandsStore((s) => s.overrides);
   const commandFolders = useSystemCommandsStore((s) => s.folders);
+  const indexedProjects = useServerIndexStore((s) => s.projects);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
   // Three states, like a server page: reading, read, could not read. An empty
@@ -220,19 +221,21 @@ export function ProjectSidebar() {
     commands: commandsServer === activeServerId ? systemCommands : [],
   });
 
-  // Document count per Project: only the ones actually opened (live count, it
-  // follows edits). Recomputing it for every Project would cost a disk read
-  // each just to fill a sidebar, so a Project never opened shows no badge.
+  // Document count per Project: live for the ones opened (it follows edits), else
+  // their published state from the server index, already read in the background to
+  // expand them. Before the index is in, a Project never opened shows no badge.
   // The commands its module declares count with its own Documents, as its list shows them.
   const commandInput = {
     commands: commandsServer === activeServerId ? systemCommands : [],
     overrides: commandOverrides,
     folders: commandFolders,
   };
-  const liveCount = new Map(
-    localProjects.map((p) => [p.id, documentCount(p) + moduleCommandsOf(p, commandInput).length]),
-  );
-  const countFor = (p: ProjectSummary): number | null => liveCount.get(p.id as ProjectId) ?? null;
+  const countOf = (p: Project) => documentCount(p) + moduleCommandsOf(p, commandInput).length;
+  const liveCount = new Map(localProjects.map((p) => [p.id as string, countOf(p)]));
+  // Ids carry their server: another server's index matches none of these rows.
+  const indexedCount = new Map(indexedProjects.map((p) => [p.id as string, countOf(p)]));
+  const countFor = (p: ProjectSummary): number | null =>
+    liveCount.get(p.id) ?? indexedCount.get(p.id) ?? null;
 
   // Does the open project have a row in the list? Otherwise (demo, unlisted
   // project), it is shown at the top with its Documents.

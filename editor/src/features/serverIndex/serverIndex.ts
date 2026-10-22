@@ -1,12 +1,17 @@
 import { projectNamespace } from "@/domain/docRef";
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
+import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import type { SearchEntry } from "@/features/search/searchIndex";
 import { getText } from "@/lib/i18n";
+import { type ModuleCommandsInput, moduleCommandsOf } from "@/lib/moduleCommands";
+import { documentTitle } from "@/lib/moduleDocumentKinds";
 import { projectUrlId } from "@/lib/projectUrlId";
+import { documentKindContribution } from "@artisan/editor-sdk";
 
-export type IndexedKind = "menu" | "command" | "dialog";
+/** `menu`, `command`, `dialog` or a module's kind. */
+export type IndexedKind = string;
 
 /**
  * A Document of a server project, seen from outside that project. `ref` is
@@ -26,8 +31,15 @@ export interface IndexedDocument {
 
 export const namespaceOf = (project: Project): string => projectNamespace(project);
 
-/** A project's Documents, in menus, commands, dialogs order. Pure. */
-export function indexProjectDocuments(project: Project, lang: string): IndexedDocument[] {
+/**
+ * A project's Documents, in menus, commands, dialogs, module kinds order, then the
+ * commands its module declares (listed with its own, as the sidebar shows them). Pure.
+ */
+export function indexProjectDocuments(
+  project: Project,
+  lang: string,
+  moduleCommands?: ModuleCommandsInput,
+): IndexedDocument[] {
   const namespace = namespaceOf(project);
   const common = { namespace, projectName: project.name, urlId: projectUrlId(project) };
   const doc = (docId: string, kind: IndexedKind, label: string): IndexedDocument => ({
@@ -46,8 +58,18 @@ export function indexProjectDocuments(project: Project, lang: string): IndexedDo
     ...dialogsOf(project).map((dialog) =>
       doc(dialog.id, "dialog", getText(project, dialog.title, lang) || dialog.id),
     ),
+    ...allDocuments(project)
+      .filter(({ kind }) => !CORE_KINDS.has(kind))
+      .map(({ kind, doc: d }) =>
+        doc(d.id, kind, documentTitle(documentKindContribution(kind), d, project, lang)),
+      ),
+    ...(moduleCommands ? moduleCommandsOf(project, moduleCommands) : []).map((node) =>
+      doc(node.id, "command", `/${node.label}`),
+    ),
   ];
 }
+
+const CORE_KINDS = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
 
 /**
  * Other projects' Documents, in the search palette's format. The project name
