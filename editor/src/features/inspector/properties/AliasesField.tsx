@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { useRef, useState } from "react";
+import { FieldLabel } from "../layout";
 
 interface AliasesFieldProps {
   label: string;
@@ -31,10 +32,10 @@ export function AliasesField({ label, aliases, onChange }: AliasesFieldProps) {
 
   return (
     <div>
-      <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{label}</div>
+      <FieldLabel>{label}</FieldLabel>
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: convenience click that focuses the inner <input>, itself reachable with Tab; the container has no action of its own */}
       <div
-        className="flex min-h-10 w-full cursor-text flex-wrap items-center gap-1 rounded-md border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+        className="flex min-h-[34px] w-full cursor-text flex-wrap items-center gap-1 rounded-[var(--r-xs)] border border-[var(--border)] bg-[var(--surface-inset)] px-2 py-1 focus-within:border-[var(--brand-line)] focus-within:shadow-[var(--ring-brand)]"
         onClick={() => inputRef.current?.focus()}
       >
         {aliases.map((alias) => (
@@ -67,7 +68,7 @@ export function AliasesField({ label, aliases, onChange }: AliasesFieldProps) {
               add();
             }
           }}
-          className="min-w-16 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          className="min-w-16 flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-faint)]"
         />
       </div>
     </div>

@@ -42,6 +42,7 @@ import { useUiStore } from "@/state/uiStore";
 import { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { UNALLOCATED_LTEXT_KEY } from "../chain/defaults";
+import { FieldLabel } from "../layout";
 
 interface ActionEditorProps {
   projectId: ProjectId;
@@ -581,7 +582,7 @@ function TextArgInput({
   const placeholderEntries = useActionEntries();
   return (
     <div>
-      <p className="mb-1 text-[10px] text-[var(--text-faint)]">
+      <p className="mb-1 text-[11.5px] text-[var(--text-faint)]">
         {edit.isFallback
           ? t("actionEditor.textLangFallback", { lang: edit.lang })
           : t("actionEditor.textLang", { lang: edit.lang })}
@@ -593,14 +594,15 @@ function TextArgInput({
         value={edit.value}
         onChange={(value) => setI18nValue({ projectId, lt, lang: edit.lang, value })}
         entries={placeholderEntries}
-        facade={<MiniMessageInline source={edit.value} className="font-mono text-xs" />}
+        className="min-h-0 rounded-[var(--r-xs)] text-[13px]"
+        facade={<MiniMessageInline source={edit.value} className="mc-text" />}
         preview={
           looksLikeMiniMessage(edit.value) ? (
             <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
               <span className="mr-2 text-[9px] uppercase text-[var(--text-faint)]">
                 {t("menuProperties.preview")}
               </span>
-              <MiniMessageInline source={edit.value} className="font-mono text-xs" />
+              <MiniMessageInline source={edit.value} className="mc-text text-[13px]" />
             </div>
           ) : null
         }
@@ -677,10 +679,6 @@ function JsonValueInput({
       ) : null}
     </div>
   );
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{children}</div>;
 }
 
 // Document references

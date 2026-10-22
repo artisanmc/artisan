@@ -1,3 +1,4 @@
+import { actionCatalogEn } from "./actionCatalog";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
 import { onboardingEn } from "./onboarding";
@@ -86,6 +87,7 @@ export default {
   selfHosted: selfHostedEn,
   serverCanvas: serverCanvasEn,
   changes: changesEn,
+  actionCatalog: actionCatalogEn,
   navigation: {
     label: "Main navigation",
     open: "Open navigation",
@@ -679,6 +681,9 @@ export default {
     senderDefault: "use command sender",
     argOrderError: "Required arg cannot follow an optional arg.",
     steps: "Steps",
+    stepsHint: "run top to bottom",
+    kindLabel: "Command",
+    settingsLabel: "Settings",
     idHint: "How the player invokes this command — `/{{name}}`.",
   },
   library: {
@@ -1355,6 +1360,7 @@ export default {
       borders: "Borders",
       brand: "Brand",
       status: "Status",
+      kinds: "Kinds & action families",
     },
     demo: {
       dialogTitle: "Dialog title",

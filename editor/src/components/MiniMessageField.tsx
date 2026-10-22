@@ -41,7 +41,7 @@ export function MiniMessageField({
       placeholder={placeholder}
       className={className}
       aria-label={ariaLabel}
-      facade={<MiniMessageInline source={value} />}
+      facade={<MiniMessageInline source={value} className="mc-text" />}
       preview={
         value.trim() ? (
           <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
@@ -50,7 +50,7 @@ export function MiniMessageField({
             </span>
             <MiniMessageInline
               source={value}
-              className={multiline ? "whitespace-pre-wrap text-xs" : "text-xs"}
+              className={multiline ? "mc-text whitespace-pre-wrap text-xs" : "mc-text text-xs"}
             />
           </div>
         ) : null

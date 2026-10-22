@@ -1,3 +1,4 @@
+import { actionCatalogFr } from "./actionCatalog";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import type en from "./en";
@@ -90,6 +91,7 @@ const fr: typeof en = {
   selfHosted: selfHostedFr,
   serverCanvas: serverCanvasFr,
   changes: changesFr,
+  actionCatalog: actionCatalogFr,
   navigation: {
     label: "Navigation principale",
     open: "Ouvrir la navigation",
@@ -694,6 +696,9 @@ const fr: typeof en = {
     senderDefault: "expéditeur de la commande",
     argOrderError: "Un argument requis ne peut pas suivre un argument optionnel.",
     steps: "Étapes",
+    stepsHint: "exécutées de haut en bas",
+    kindLabel: "Commande",
+    settingsLabel: "Réglages",
     idHint: "Comment le joueur invoque cette commande — `/{{name}}`.",
   },
   library: {
@@ -1379,6 +1384,7 @@ const fr: typeof en = {
       borders: "Bordures",
       brand: "Brand",
       status: "Statut",
+      kinds: "Types et familles d’actions",
     },
     demo: {
       dialogTitle: "Titre du dialog",
