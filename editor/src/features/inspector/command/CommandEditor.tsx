@@ -1,6 +1,9 @@
+import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import type { Command, CommandArg, CommandId, ProjectId } from "@/domain/types";
+import { cx } from "@/lib/cx";
 import { useProjectsStore } from "@/state/projectsStore";
+import { TerminalSquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionChainEditor } from "../chain/StepTree";
@@ -49,11 +52,11 @@ function CommandIdField({ projectId, commandId }: { projectId: ProjectId; comman
         }}
         className={
           error
-            ? "h-8 border-[var(--danger)] px-2 py-0 font-mono text-xs"
-            : "h-8 px-2 py-0 font-mono text-xs"
+            ? "h-8 rounded-[var(--r-xs)] border-[var(--danger)] px-2 py-0 font-mono text-xs"
+            : "h-8 rounded-[var(--r-xs)] px-2 py-0 font-mono text-xs"
         }
       />
-      {error ? <div className="mt-1 text-[10px] text-[var(--danger)]">{error}</div> : null}
+      {error ? <div className="mt-1 text-[12px] text-[var(--danger)]">{error}</div> : null}
     </div>
   );
 }
@@ -68,87 +71,86 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
   );
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
-      <div className="border-[var(--border-soft)] border-b bg-[var(--surface-raised)] px-3 py-2">
-        <div className="font-mono text-xs text-[var(--text)]">{commandSignature(command)}</div>
-        <div className="text-[10px] text-[var(--text-faint)]">
-          {command.permission ? `perm: ${command.permission} · ` : ""}command
-        </div>
-      </div>
-      <div className="@container flex-1 overflow-auto px-3 py-3">
-        {/* Wide containers (individual view) split into two columns: properties
-            left, arguments + steps right. The narrow right pane stays stacked. */}
-        <div className="grid grid-cols-1 gap-x-6 @2xl:grid-cols-2 @2xl:items-start">
-          <div className="min-w-0">
-            <Lane label={t("flow.propertiesLabel")}>
-              <div className="flex flex-col gap-2">
-                <CommandIdField projectId={projectId} commandId={command.id} />
-                <PropertyField
-                  label={t("command.nameLabel")}
-                  value={command.name}
-                  onChange={(v) =>
-                    setCommandField({ projectId, commandId: command.id, field: "name", value: v })
-                  }
-                />
-                <PropertyField
-                  label={t("command.permissionLabel")}
-                  value={command.permission ?? ""}
-                  placeholder={t("command.permissionPlaceholder")}
-                  onChange={(v) =>
-                    setCommandField({
-                      projectId,
-                      commandId: command.id,
-                      field: "permission",
-                      value: v,
-                    })
-                  }
-                />
-                <PropertyField
-                  label={t("command.descriptionLabel")}
-                  value={command.description ?? ""}
-                  placeholder={t("command.descriptionPlaceholder")}
-                  multiline
-                  onChange={(v) =>
-                    setCommandField({
-                      projectId,
-                      commandId: command.id,
-                      field: "description",
-                      value: v,
-                    })
-                  }
-                />
-                <AliasesField
-                  label={t("command.aliasesLabel")}
-                  aliases={command.aliases ?? []}
-                  onChange={(aliases) =>
-                    setCommandAliases({
-                      projectId,
-                      commandId: command.id,
-                      aliases,
-                    })
-                  }
-                />
-              </div>
-            </Lane>
+      <CommandHeader command={command} />
+      <div className="@container flex-1 overflow-auto px-4 py-4">
+        {/* Wide containers (individual view) split into two columns: settings left,
+            arguments and steps right. The narrow right pane stays stacked. */}
+        <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-[minmax(260px,340px)_1fr] @2xl:items-start">
+          <div className="flex min-w-0 flex-col gap-4">
+            <section className="panel rounded-[var(--r-md)] p-4">
+              <Lane label={t("command.settingsLabel")}>
+                <div className="flex flex-col gap-3">
+                  <PropertyField
+                    label={t("command.nameLabel")}
+                    value={command.name}
+                    onChange={(v) =>
+                      setCommandField({ projectId, commandId: command.id, field: "name", value: v })
+                    }
+                  />
+                  <PropertyField
+                    label={t("command.permissionLabel")}
+                    value={command.permission ?? ""}
+                    placeholder={t("command.permissionPlaceholder")}
+                    onChange={(v) =>
+                      setCommandField({
+                        projectId,
+                        commandId: command.id,
+                        field: "permission",
+                        value: v,
+                      })
+                    }
+                  />
+                  <PropertyField
+                    label={t("command.descriptionLabel")}
+                    value={command.description ?? ""}
+                    placeholder={t("command.descriptionPlaceholder")}
+                    multiline
+                    onChange={(v) =>
+                      setCommandField({
+                        projectId,
+                        commandId: command.id,
+                        field: "description",
+                        value: v,
+                      })
+                    }
+                  />
+                  <AliasesField
+                    label={t("command.aliasesLabel")}
+                    aliases={command.aliases ?? []}
+                    onChange={(aliases) =>
+                      setCommandAliases({
+                        projectId,
+                        commandId: command.id,
+                        aliases,
+                      })
+                    }
+                  />
+                  <CommandIdField projectId={projectId} commandId={command.id} />
+                </div>
+              </Lane>
+            </section>
           </div>
-          <div className="min-w-0">
-            <Lane label={t("command.argumentsLabel")}>
-              <CommandArgsEditor projectId={projectId} command={command} />
-            </Lane>
-            <Lane label={t("command.steps")}>
-              <div className="overflow-x-auto rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2">
-                {/* Args declared above are referenceable as {name} in any text
+          <div className="flex min-w-0 flex-col gap-4">
+            <section className="panel rounded-[var(--r-md)] p-4">
+              <Lane label={t("command.argumentsLabel")}>
+                <CommandArgsEditor projectId={projectId} command={command} />
+              </Lane>
+            </section>
+            <section className="panel min-w-0 rounded-[var(--r-md)] p-4">
+              <Lane label={t("command.steps")} hint={t("command.stepsHint")}>
+                <div className="overflow-x-auto">
+                  {/* Args declared above are referenceable as {name} in any text
                     field of the actions inside this step tree. */}
-                <ActionScopeProvider value={commandScope}>
-                  <div className="font-mono text-[12px]">
+                  <ActionScopeProvider value={commandScope}>
                     <ActionChainEditor
                       projectId={projectId}
                       address={{ kind: "command", commandId: command.id }}
                       steps={command.steps}
                     />
-                  </div>
-                </ActionScopeProvider>
-              </div>
-            </Lane>
+                  </ActionScopeProvider>
+                </div>
+              </Lane>
+            </section>
           </div>
         </div>
       </div>
@@ -156,20 +158,77 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
   );
 }
 
+/**
+ * The command as players type it, in the command colour of the board: kind tile,
+ * `/name` large, then its arguments, permission and aliases.
+ */
+function CommandHeader({ command }: { command: Command }) {
+  const { t } = useTranslation();
+  return (
+    <header
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-[var(--border-soft)] border-b px-4 py-3.5"
+      style={{
+        backgroundImage: "linear-gradient(90deg, var(--kind-command-soft), transparent 60%)",
+      }}
+    >
+      <IconTile
+        icon={TerminalSquare}
+        fg="var(--kind-command)"
+        soft="var(--kind-command-soft)"
+        size="lg"
+        className="border border-[var(--kind-command-line)]"
+      />
+      <div className="min-w-0">
+        <div className="text-[11.5px] font-semibold tracking-wide text-[var(--kind-command)]">
+          {t("command.kindLabel")}
+        </div>
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <h2 className="display truncate text-[22px] text-[var(--text)]">/{command.name}</h2>
+          {command.arguments.map((arg, i) => (
+            <span
+              // biome-ignore lint/suspicious/noArrayIndexKey: arg index stable per render
+              key={i}
+              className={cx(
+                "rounded-[var(--r-xs)] px-1.5 py-0.5 font-mono text-[12.5px]",
+                arg.required
+                  ? "bg-[var(--surface-raised-2)] text-[var(--text)]"
+                  : "bg-[var(--surface-raised)] text-[var(--text-mut)]",
+              )}
+            >
+              {argSignature(arg)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        {command.permission ? (
+          <span className="chip cursor-default text-[12px]">
+            {t("command.permissionLabel")}
+            <b className="font-mono font-medium text-[var(--text)]">{command.permission}</b>
+          </span>
+        ) : null}
+        {(command.aliases ?? []).length > 0 ? (
+          <span className="chip cursor-default text-[12px]">
+            {t("command.aliasesLabel")}
+            {(command.aliases ?? []).map((alias) => (
+              <b key={alias} className="font-mono font-medium text-[var(--text)]">
+                /{alias}
+              </b>
+            ))}
+          </span>
+        ) : null}
+      </div>
+    </header>
+  );
+}
+
 const ARG_TYPES: CommandArg["type"][] = ["player", "string", "integer", "number", "boolean"];
 
-/** `/cmd <player> [amount=10]` — Minecraft-y signature for the header. */
-function commandSignature(command: Command): string {
-  const parts = [`/${command.name}`];
-  for (const arg of command.arguments) {
-    const piece = arg.required
-      ? `<${arg.name}>`
-      : arg.default
-        ? `[${arg.name}=${arg.default}]`
-        : `[${arg.name}]`;
-    parts.push(piece);
-  }
-  return parts.join(" ");
+/** `<player>`, `[amount=10]`: an argument as the command's usage line writes it. */
+function argSignature(arg: CommandArg): string {
+  if (arg.required) return `<${arg.name}>`;
+  if (arg.default && arg.default !== "{sender}") return `[${arg.name}=${arg.default}]`;
+  return `[${arg.name}]`;
 }
 
 function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
@@ -209,16 +268,16 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[10px] text-[var(--text-faint)]">
+      <p className="text-[12px] text-[var(--text-faint)]">
         {t("command.argumentsHint", { tag: "{name}" })}
       </p>
       {orderError && (
-        <div className="rounded border border-[var(--warning)] bg-[var(--warning-soft)] px-2 py-1.5 text-[10px] text-[var(--warning)]">
+        <div className="rounded-[var(--r-xs)] border border-[var(--warning)] bg-[var(--warning-soft)] px-2 py-1.5 text-[12px] text-[var(--warning)]">
           {orderError}
         </div>
       )}
       {command.arguments.length === 0 ? (
-        <div className="rounded border border-[var(--border-soft)] border-dashed bg-[var(--surface-raised)] px-2 py-3 text-[11px] text-[var(--text-faint)]">
+        <div className="rounded-[var(--r-sm)] border border-[var(--border-soft)] border-dashed px-3 py-3 text-[12px] text-[var(--text-faint)]">
           {t("command.noArguments", { name: command.name })}
         </div>
       ) : (
@@ -230,8 +289,8 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
               key={i}
               className={
                 isInvalid
-                  ? "flex flex-col gap-1 rounded border border-[var(--danger)] bg-[var(--danger-soft)] p-1.5"
-                  : "flex flex-col gap-1 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5"
+                  ? "flex flex-col gap-1.5 rounded-[var(--r-sm)] border border-[var(--danger)] bg-[var(--danger-soft)] p-2"
+                  : "flex flex-col gap-1.5 rounded-[var(--r-sm)] border border-[var(--border-soft)] bg-[var(--surface-raised-2)] p-2"
               }
             >
               {/* Row 1: identity controls + remove button */}
@@ -242,14 +301,14 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
                   onChange={(e) => update(i, { name: e.target.value })}
                   className={
                     isInvalid
-                      ? "h-8 w-28 border-[var(--danger)] px-2 py-0 font-mono text-xs"
-                      : "h-8 w-28 px-2 py-0 font-mono text-xs"
+                      ? "h-8 w-28 rounded-[var(--r-xs)] border-[var(--danger)] px-2 py-0 font-mono text-xs"
+                      : "h-8 w-28 rounded-[var(--r-xs)] px-2 py-0 font-mono text-xs"
                   }
                 />
                 <select
                   value={arg.type}
                   onChange={(e) => update(i, { type: e.target.value as CommandArg["type"] })}
-                  className="h-8 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-xs text-[var(--text)]"
+                  className="select h-8 w-auto rounded-[var(--r-xs)] py-0 pr-7 pl-2 font-mono text-xs"
                 >
                   {ARG_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -262,8 +321,8 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
                   onClick={() => update(i, { required: !arg.required })}
                   className={
                     arg.required
-                      ? "h-8 rounded border border-[var(--brand)] bg-[var(--brand-soft)] px-2 font-mono text-[11px] text-[var(--brand)]"
-                      : "h-8 rounded border border-[var(--border)] px-2 font-mono text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+                      ? "h-8 rounded-[var(--r-xs)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 text-[12px] font-medium text-[var(--text)]"
+                      : "h-8 rounded-[var(--r-xs)] border border-[var(--border)] border-dashed px-2 text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
                   }
                 >
                   {arg.required ? t("command.required") : t("command.optional")}
@@ -281,7 +340,7 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
               {!arg.required ? (
                 <div className="flex items-center gap-2 pl-0.5">
                   <div className="flex items-center gap-1">
-                    <span className="font-mono text-[10px] text-[var(--text-faint)]">
+                    <span className="text-[12px] text-[var(--text-faint)]">
                       {t("command.defaultLabel")}:
                     </span>
                     <Input
@@ -289,11 +348,11 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
                       placeholder={t("command.defaultPlaceholder")}
                       disabled={arg.default === "{sender}"}
                       onChange={(e) => update(i, { default: e.target.value || undefined })}
-                      className="h-7 w-28 px-2 py-0 font-mono text-xs disabled:opacity-40"
+                      className="h-7 w-28 rounded-[var(--r-xs)] px-2 py-0 font-mono text-xs disabled:opacity-40"
                     />
                   </div>
                   {arg.type === "player" ? (
-                    <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--text-mut)]">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-[var(--text-mut)]">
                       <input
                         type="checkbox"
                         checked={arg.default === "{sender}"}
@@ -308,7 +367,7 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
                 </div>
               ) : null}
               {isInvalid ? (
-                <div className="text-[10px] text-[var(--danger)]">
+                <div className="text-[12px] text-[var(--danger)]">
                   {arg.name === ""
                     ? t("command.argNeedsName")
                     : t("command.argNameDup", { name: arg.name })}
@@ -321,7 +380,7 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
       <button
         type="button"
         onClick={addArg}
-        className="self-start rounded border border-[var(--border)] border-dashed px-3 py-1.5 text-xs text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+        className="self-start rounded-[var(--r-xs)] border border-[var(--border)] border-dashed px-3 py-1.5 text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
       >
         {t("command.addArg")}
       </button>

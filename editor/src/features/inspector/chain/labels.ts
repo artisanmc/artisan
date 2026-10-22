@@ -1,36 +1,5 @@
 import type { ClickType, Condition } from "@/domain/types";
 
-const ACTION_LABELS: Record<string, string> = {
-  open_menu: "menu",
-  close_menu: "close",
-  open_previous_menu: "back",
-  run_command: "cmd",
-  send_message: "msg",
-  show_title: "title",
-  give_item: "give",
-  take_item: "take",
-  take_money: "-$",
-  give_money: "+$",
-  give_xp: "xp",
-  give_level: "lvl",
-  broadcast: "bcast",
-  play_sound: "sound",
-  teleport: "tp",
-  pagination_next: "page",
-  pagination_prev: "page",
-  set_arg: "set",
-  set_arg_cycle_next: "next",
-  set_arg_cycle_prev: "prev",
-  open_dialog: "dialog",
-  close_dialog: "close_dlg",
-  run_actions: "run",
-};
-
-/** Short label for an action's wire name: a core tag, or a module action's module id. */
-export function actionTypeLabel(name: string): string {
-  return ACTION_LABELS[name] ?? (name.includes(":") ? name.slice(0, name.indexOf(":")) : "module");
-}
-
 /** One-line summary of a visibility / requirement predicate. */
 export function conditionSummary(condition: Condition): string {
   switch (condition.type) {

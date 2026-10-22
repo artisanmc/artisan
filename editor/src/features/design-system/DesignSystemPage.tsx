@@ -36,6 +36,7 @@ import { SaveFilledIcon } from "@/components/ui/filled-icons";
 import { FormField } from "@/components/ui/form-field";
 import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { ResetButton } from "@/components/ui/reset-button";
 import {
@@ -56,6 +57,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { ACTION_FAMILIES, actionAppearance, familyColors } from "@/lib/actions/actionFamily";
 import { useUiStore } from "@/state/uiStore";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
 import { useRef, useState } from "react";
@@ -98,7 +101,28 @@ const COLOR_GROUPS: { key: string; tokens: string[] }[] = [
       "--danger-soft",
     ],
   },
+  {
+    key: "kinds",
+    tokens: [
+      "--kind-command",
+      "--kind-command-soft",
+      ...ACTION_FAMILIES.flatMap((f) => [`--fam-${f}`, `--fam-${f}-soft`]),
+      "--fam-logic-line",
+      "--mc-chat-bg",
+    ],
+  },
 ];
+
+/** One action per family, for the IconTile specimen. */
+const SPECIMEN_ACTIONS = [
+  ["send_message", "message"],
+  ["play_sound", "effect"],
+  ["open_menu", "navigation"],
+  ["give_money", "reward"],
+  ["teleport", "world"],
+  ["set_arg", "logic"],
+  ["quests:start", "module"],
+] as const;
 
 const RADII = ["--r-xs", "--r-sm", "--r-md", "--r-lg", "--r-xl", "--r-pill"];
 const SHADOWS = ["--shadow-sm", "--shadow-md", "--shadow-lg"];
@@ -433,6 +457,34 @@ export function DesignSystemPage() {
                   {variant}
                 </Badge>
               ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<IconTile> · actionAppearance()"}
+            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {SPECIMEN_ACTIONS.map(([name, family]) => (
+                <span key={name} className="flex items-center gap-1.5 text-[12.5px]">
+                  <IconTile icon={actionAppearance(name).icon} {...familyColors(family)} />
+                  {t(`actionCatalog.families.${family}`)}
+                </span>
+              ))}
+              <IconTile
+                icon={TerminalSquare}
+                fg="var(--kind-command)"
+                soft="var(--kind-command-soft)"
+                size="lg"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">.mc-text</span>
+            <div className="text-[13px]">
+              <MiniMessageInline
+                className="mc-text"
+                source="<green>Healed <white>Alex</white> for 10 hearts."
+              />
             </div>
           </div>
           <div className="flex flex-col gap-2">

@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { FieldLabel } from "../layout";
 
 interface PropertyFieldProps {
   label: string;
@@ -19,10 +20,10 @@ export function PropertyField({
 }: PropertyFieldProps) {
   return (
     <div>
-      <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">{label}</div>
+      <FieldLabel>{label}</FieldLabel>
       {multiline ? (
         <textarea
-          className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2 font-mono text-xs"
+          className="textarea min-h-0 rounded-[var(--r-xs)] px-2.5 py-2 text-[13px]"
           rows={3}
           value={value}
           placeholder={placeholder}
@@ -30,6 +31,7 @@ export function PropertyField({
         />
       ) : (
         <Input
+          className="h-[34px] rounded-[var(--r-xs)] px-2.5 py-0 text-[13px]"
           type={type}
           min={type === "number" ? 0 : undefined}
           value={value}

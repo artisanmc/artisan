@@ -4,6 +4,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { IconTile } from "@/components/ui/icon-tile";
 import { isLTextNode, normalizeActionArgs } from "@/domain/actionArgs";
 import type {
   Action,
@@ -17,6 +18,12 @@ import type {
   Step,
 } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import {
+  BRANCH_ICON,
+  actionAppearance,
+  familyColors,
+  isCoreAction,
+} from "@/lib/actions/actionFamily";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { cx } from "@/lib/cx";
@@ -29,14 +36,14 @@ import { useTranslation } from "react-i18next";
 import { ActionEditor } from "../properties/ActionEditor";
 import { ConditionListEditor } from "../properties/ConditionListEditor";
 import { ACTION_TYPES, defaultAction, defaultDeclaredAction } from "./defaults";
-import { actionTypeLabel, conditionsSummary } from "./labels";
+import { conditionsSummary } from "./labels";
 
 /*
  * The rows of the Action chain editor: one line per action, `if` / `else if` / `else` blocks,
  * the "+ step" picker, and the drag handle wiring. `StepTree` assembles them.
  */
 
-const INDENT = 16;
+const INDENT = 20;
 
 // Drag-and-drop wiring
 
@@ -163,7 +170,7 @@ export function ActionLine({
         handles={<RowHandles onRemove={onRemove} />}
       >
         <DragHandle />
-        <Token kind="action">{action.name}</Token>
+        <ActionName name={action.name} />
         <ActionSummaryArgs action={action} getText={getText} />
       </Row>
       {expanded ? (
@@ -219,7 +226,7 @@ export function IfBlock(props: IfBlockProps) {
           // biome-ignore lint/suspicious/noArrayIndexKey: case index stable per render
           key={ci}
           ifCase={c}
-          label={ci === 0 ? "if" : "else if"}
+          label={ci === 0 ? t("actionCatalog.branch.if") : t("actionCatalog.branch.elseIf")}
           indent={indent}
           showStepHandles={ci === 0}
           onRemoveStep={onRemoveStep}
@@ -236,14 +243,11 @@ export function IfBlock(props: IfBlockProps) {
           renderChildren={(childIndent) => renderCaseChildren(step.else!, "else", childIndent)}
         />
       ) : null}
-      <div
-        className="flex items-center gap-1.5 py-0.5"
-        style={{ paddingLeft: indent * INDENT + 4 }}
-      >
+      <div className="flex items-center gap-1.5 py-1" style={{ paddingLeft: indent * INDENT + 6 }}>
         <button
           type="button"
           onClick={onAddCase}
-          className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+          className="rounded-[var(--r-xs)] border border-[var(--fam-logic-line)] border-dashed px-2 py-1 text-[12px] text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]"
         >
           {t("flow.elseIfAdd")}
         </button>
@@ -251,7 +255,7 @@ export function IfBlock(props: IfBlockProps) {
           <button
             type="button"
             onClick={() => onToggleElse(true)}
-            className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+            className="rounded-[var(--r-xs)] border border-[var(--fam-logic-line)] border-dashed px-2 py-1 text-[12px] text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]"
           >
             {t("flow.elseAdd")}
           </button>
@@ -300,8 +304,8 @@ function CaseBlock({
         }
       >
         {showStepHandles ? <DragHandle /> : null}
-        <Token kind="if">{label}</Token>
-        <span className="truncate text-[var(--text-mut)]">{summary}</span>
+        <BranchKeyword>{label}</BranchKeyword>
+        <span className="truncate text-[12.5px] text-[var(--text-mut)]">{summary}</span>
       </Row>
       {expanded ? (
         <Expansion indent={indent + 1}>
@@ -329,10 +333,11 @@ function ElseBlock({
   onRemove: () => void;
   renderChildren: (childIndent: number) => React.ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <Row indent={indent} handles={<RowHandles onRemove={onRemove} />}>
-        <Token kind="if">else</Token>
+        <BranchKeyword>{t("actionCatalog.branch.else")}</BranchKeyword>
       </Row>
       {renderChildren(indent + 1)}
     </>
@@ -358,30 +363,27 @@ export function AddStepLine({
   const declared = useServerActionsStore((s) => s.actions);
   const moduleActions = moduleActionsOf(declared);
   return (
-    <div className="flex items-center py-0.5" style={{ paddingLeft: indent * INDENT + 4 }}>
+    <div className="flex items-center py-1" style={{ paddingLeft: indent * INDENT + 6 }}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="rounded border border-[var(--border-soft)] border-dashed px-2 py-1 text-[11px] text-[var(--text-faint)] hover:border-[var(--border)] hover:text-[var(--text-mut)]"
+            className="rounded-[var(--r-xs)] border border-[var(--border)] border-dashed px-2.5 py-1 text-[12px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           >
             {t("flow.addStep")}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"
-          className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
+          className="max-h-[60vh] overflow-y-auto border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
         >
           {ACTION_TYPES.map((name) => (
             <DropdownMenuItem
               key={name}
               onSelect={() => onPick({ kind: "action", action: defaultAction(name, firstMenuId) })}
-              className="cursor-pointer focus:bg-[var(--surface-hover)]"
+              className="cursor-pointer gap-2 focus:bg-[var(--surface-hover)]"
             >
-              <span className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--text-mut)]">
-                {actionTypeLabel(name)}
-              </span>
-              <span className="font-mono text-[11px] text-[var(--text)]">{name}</span>
+              <ActionName name={name} />
             </DropdownMenuItem>
           ))}
           {moduleActions.map((decl) => (
@@ -390,25 +392,18 @@ export function AddStepLine({
               onSelect={() =>
                 onPick({ kind: "action", action: defaultDeclaredAction(decl, { literalText }) })
               }
-              className="cursor-pointer focus:bg-[var(--surface-hover)]"
+              className="cursor-pointer gap-2 focus:bg-[var(--surface-hover)]"
             >
-              <span className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--text-mut)]">
-                {decl.moduleId}
-              </span>
-              <span className="font-mono text-[11px] text-[var(--text)]">{decl.name}</span>
+              <ActionName name={decl.name} />
             </DropdownMenuItem>
           ))}
           {allowIf && (
             <DropdownMenuItem
               onSelect={() => onPick({ kind: "if", cases: [{ conditions: [], steps: [] }] })}
-              className="cursor-pointer focus:bg-[var(--surface-hover)]"
+              className="cursor-pointer gap-2 focus:bg-[var(--surface-hover)]"
             >
-              <span className="rounded bg-[var(--brand-soft)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--brand)]">
-                if
-              </span>
-              <span className="font-mono text-[11px] text-[var(--text)]">
-                {t("flow.addStepIfBranch")}
-              </span>
+              <IconTile icon={BRANCH_ICON} {...branchColors} />
+              <span className="text-[13px] text-[var(--text)]">{t("flow.addStepIfBranch")}</span>
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -437,47 +432,79 @@ function Row({
     <div
       data-row-selected={selected ? "true" : undefined}
       className={cx(
-        "group flex min-h-[28px] items-center rounded px-1 hover:bg-[var(--surface-raised)]",
-        selected && "bg-[var(--surface-raised)]",
+        "group flex min-h-[36px] items-center rounded-[var(--r-sm)] px-1 hover:bg-[var(--surface-hover)]",
+        selected && "bg-[var(--surface-hover)]",
       )}
     >
-      <div style={{ width: indent * INDENT }} className="shrink-0" />
+      <IndentGuides indent={indent} />
       {onClick ? (
         <button
           type="button"
           onClick={onClick}
-          className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2.5 py-1 text-left"
         >
           {children}
         </button>
       ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-2 py-1">{children}</div>
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 py-1">{children}</div>
       )}
       {handles ? <div className="ml-1 shrink-0">{handles}</div> : null}
     </div>
   );
 }
 
-function Token({
-  kind,
-  children,
-}: {
-  kind: "action" | "if";
-  children: React.ReactNode;
-}) {
-  const cls =
-    kind === "if"
-      ? "bg-[var(--brand-soft)] text-[var(--brand)]"
-      : "bg-[var(--surface-raised-2)] text-[var(--text-mut)]";
+const branchColors = familyColors("logic");
+
+/**
+ * Nesting guides: one thin rail per level, in the logic colour, so a step inside an
+ * `if` reads as belonging to it.
+ */
+function IndentGuides({ indent }: { indent: number }) {
+  if (indent === 0) return null;
   return (
-    <span
-      className={cx(
-        "shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide",
-        cls,
-      )}
-    >
-      {children}
-    </span>
+    <div
+      aria-hidden
+      className="shrink-0 self-stretch"
+      style={{
+        width: indent * INDENT,
+        backgroundImage: `repeating-linear-gradient(90deg, transparent 0 ${INDENT / 2 + 1}px, var(--fam-logic-line) ${INDENT / 2 + 1}px ${INDENT / 2 + 3}px, transparent ${INDENT / 2 + 3}px ${INDENT}px)`,
+      }}
+    />
+  );
+}
+
+/** An action as a person names it: its family's icon tile, then its translated name (wire name on hover). */
+function ActionName({ name }: { name: string }) {
+  const { t } = useTranslation();
+  const { family, icon } = actionAppearance(name);
+  const colon = name.indexOf(":");
+  const label = isCoreAction(name)
+    ? t(`actionCatalog.names.${name}`)
+    : colon > 0
+      ? name.slice(colon + 1)
+      : name;
+  return (
+    <>
+      <IconTile icon={icon} {...familyColors(family)} />
+      <span title={name} className="shrink-0 text-[13px] font-semibold text-[var(--text)]">
+        {label}
+      </span>
+      {colon > 0 ? (
+        <span className="shrink-0 rounded-[var(--r-xs)] bg-[var(--fam-module-soft)] px-1.5 py-0.5 font-mono text-[10.5px] text-[var(--fam-module)]">
+          {name.slice(0, colon)}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/** `Si` / `Sinon si` / `Sinon`: the branch icon and keyword in the logic colour. */
+function BranchKeyword({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <IconTile icon={BRANCH_ICON} {...branchColors} />
+      <span className="shrink-0 text-[13px] font-semibold text-[var(--fam-logic)]">{children}</span>
+    </>
   );
 }
 
@@ -485,7 +512,7 @@ function Expansion({ indent, children }: { indent: number; children: React.React
   return (
     <div className="flex">
       <div style={{ width: indent * INDENT }} className="shrink-0" />
-      <div className="my-1 min-w-0 flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2">
+      <div className="my-1 min-w-0 flex-1 rounded-[var(--r-sm)] border border-[var(--border-soft)] bg-[var(--surface-raised)] p-3">
         {children}
       </div>
     </div>
@@ -557,18 +584,21 @@ function ActionSummaryArgs({
     : [];
   if (texts.length === 0) {
     return (
-      <span className="text-[var(--text-mut)]">{actionSummaryArgs(action, getText, decl)}</span>
+      <span className="min-w-0 truncate font-mono text-[12px] text-[var(--text-mut)]">
+        {actionSummaryArgs(action, getText, decl)}
+      </span>
     );
   }
   const rest = actionSummaryArgs(action, getText, decl, new Set(texts.map((a) => a.name)));
   return (
-    <span className="min-w-0 truncate text-[var(--text-mut)]">
+    <span className="min-w-0 truncate text-[12.5px] text-[var(--text-mut)]">
       {texts.map((a, i) => (
         <span key={a.name}>
-          {i > 0 ? " / " : ""}"<MiniMessageInline source={getText(args[a.name] as LText)} />"
+          {i > 0 ? " " : ""}
+          <MiniMessageInline className="mc-text" source={getText(args[a.name] as LText)} />
         </span>
       ))}
-      {rest ? ` ${rest}` : ""}
+      {rest ? <span className="font-mono text-[12px]"> {rest}</span> : ""}
     </span>
   );
 }
