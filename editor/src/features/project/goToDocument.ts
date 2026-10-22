@@ -1,7 +1,9 @@
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
-import type { ElementId } from "@/domain/types";
+import type { ElementId, ProjectId } from "@/domain/types";
+import { moduleCommandsOf } from "@/lib/moduleCommands";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import type { useNavigate } from "@tanstack/react-router";
 
@@ -26,7 +28,11 @@ export function goToDocument(
   },
 ): void {
   const { serverId, project, ref } = args;
-  const { namespace, id } = parseDocRef(ref);
+  // A module command drawn on this project's board (`boutique:open`) reads like a
+  // qualified ref: it is selected here, its form in the Properties panel.
+  const { namespace, id } = isModuleCommandOf(project, ref)
+    ? { namespace: null, id: ref }
+    : parseDocRef(ref);
   const here = projectNamespace({ id: project.id, diskId: project.diskId ?? undefined });
   if (namespace !== null && namespace !== here) {
     void navigate({
@@ -38,4 +44,11 @@ export function goToDocument(
   useSelectionStore.getState().set([id as ElementId]);
   useUiStore.getState().requestCenter(project.id, id);
   void navigate({ ...projectDestination(project, serverId), search: {} } as never);
+}
+
+function isModuleCommandOf(project: { id: string; diskId?: string | null }, ref: string): boolean {
+  if (!ref.includes(":")) return false;
+  const { commands, overrides, folders } = useSystemCommandsStore.getState();
+  const folder = { id: project.id as ProjectId, diskId: project.diskId ?? undefined };
+  return moduleCommandsOf(folder, { commands, overrides, folders }).some((n) => n.id === ref);
 }

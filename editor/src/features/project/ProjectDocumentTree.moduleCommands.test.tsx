@@ -1,7 +1,7 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectDocumentTree } from "./ProjectDocumentTree";
 
@@ -66,5 +66,12 @@ describe("module commands in the folder's tree", () => {
     expect(screen.getAllByText("/daily")).toHaveLength(1);
     expect(screen.getAllByText("/dailyadmin")).toHaveLength(1);
     expect(screen.getAllByRole("list", { name: /command/i })).toHaveLength(1);
+  });
+
+  it("opens a module command like a Document, on the board", () => {
+    const onOpen = vi.fn();
+    render(<ProjectDocumentTree projectId={PID} onOpen={onOpen} />);
+    fireEvent.click(screen.getByText("/dailyadmin"));
+    expect(onOpen).toHaveBeenCalledWith("daily:dailyadmin");
   });
 });

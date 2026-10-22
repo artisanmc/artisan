@@ -787,8 +787,8 @@ export default {
       "Built into the module {{module}}: its code opens it. You can edit it; it cannot be deleted, and Reset puts the module's version back.",
     systemBadge: {
       identical: "The module {{module}}'s version",
-      modified: "Changed by you",
-      update: "Changed by you; {{module}} ships a new version",
+      modified: "Differs from {{module}}'s version",
+      update: "Differs from {{module}}'s version; {{module}} ships a new one",
     },
     systemReset: "Reset",
     systemResetHint: "Puts the module's version back. Save your pending changes first.",

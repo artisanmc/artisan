@@ -199,7 +199,7 @@ describe("ProjectSidebar", () => {
       const tree = await screen.findByRole("group", { name: /pack_a/ });
       const commands = within(tree).getByRole("list", { name: "Commandes" });
       expect(commands).toHaveTextContent("/heal");
-      const builtIn = within(commands).getByRole("link", { name: /\/shop/ });
+      const builtIn = within(commands).getByRole("button", { name: /^\/shop/ });
       expect(within(builtIn).getByRole("img")).toHaveAccessibleName(
         /Commande interne du module shop/,
       );

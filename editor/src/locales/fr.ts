@@ -804,8 +804,8 @@ const fr: typeof en = {
       "Élément interne du module {{module}} : son code l'ouvre. Tu peux le modifier ; il ne se supprime pas, Réinitialiser le remet à la version du module.",
     systemBadge: {
       identical: "Version du module {{module}}",
-      modified: "Modifié par toi",
-      update: "Modifié par toi ; {{module}} livre une nouvelle version",
+      modified: "Différent de la version de {{module}}",
+      update: "Différent de la version de {{module}}, qui en livre une nouvelle",
     },
     systemReset: "Réinitialiser",
     systemResetHint: "Remet la version du module. Enregistre d'abord tes modifications en cours.",

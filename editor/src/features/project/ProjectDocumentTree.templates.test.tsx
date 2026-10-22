@@ -129,7 +129,9 @@ it("marks a module's system menu, never deleted or moved: Reset puts the module'
   vi.spyOn(window, "confirm").mockReturnValue(true);
 
   render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
-  expect(await screen.findByRole("img", { name: "Modifié par toi" })).toBeInTheDocument();
+  expect(
+    await screen.findByRole("img", { name: "Différent de la version de boutique" }),
+  ).toBeInTheDocument();
   expect(
     screen.getAllByRole("img", { name: /Élément interne du module boutique/ }),
   ).not.toHaveLength(0);
