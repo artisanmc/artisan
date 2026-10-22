@@ -149,7 +149,7 @@ export function DocumentView({
         // Other kinds have no stage: their view (a command's pseudocode) stays centred,
         // with room at the top so the bubble never covers its first line.
         <div className="h-full overflow-auto">
-          <div className="mx-auto w-full max-w-3xl pt-16">
+          <div className="mx-auto w-full max-w-5xl pt-16">
             <SelectionInspector projectId={pId} />
           </div>
         </div>

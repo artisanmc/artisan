@@ -72,9 +72,10 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
     <div className="flex h-full flex-col bg-[var(--surface)]">
       <CommandHeader command={command} />
       <div className="@container flex-1 overflow-auto px-4 py-4">
-        {/* Wide containers (individual view) split into two columns: settings left,
-            arguments and steps right. The narrow right pane stays stacked. */}
-        <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-[minmax(260px,340px)_1fr] @2xl:items-start">
+        {/* Wide containers (individual view) split into two columns: settings and
+            arguments left, the steps right with the room they need. The narrow right
+            pane stays stacked. */}
+        <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-[minmax(280px,350px)_1fr] @3xl:items-start">
           <div className="flex min-w-0 flex-col gap-4">
             <section className="panel rounded-[var(--r-md)] p-4">
               <Lane label={t("command.settingsLabel")}>
@@ -128,13 +129,13 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
                 </div>
               </Lane>
             </section>
-          </div>
-          <div className="flex min-w-0 flex-col gap-4">
             <section className="panel rounded-[var(--r-md)] p-4">
               <Lane label={t("command.argumentsLabel")}>
                 <CommandArgsEditor projectId={projectId} command={command} />
               </Lane>
             </section>
+          </div>
+          <div className="flex min-w-0 flex-col gap-4">
             <section className="panel min-w-0 rounded-[var(--r-md)] p-4">
               <Lane label={t("command.steps")} hint={t("command.stepsHint")}>
                 <div className="overflow-x-auto">
