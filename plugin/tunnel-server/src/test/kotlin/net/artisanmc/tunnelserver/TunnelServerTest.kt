@@ -165,7 +165,20 @@ class TunnelServerTest {
     @Test
     fun `unknown tunnels are not served, the resource pack goes through`() {
         connect()
-        call("/api/v1/ping/x", host = "nobody.tunnel.test").use { assertEquals(502, it.code) }
+        call("/api/v1/ping/x", host = "nobody.tunnel.test").use {
+            // 503, not 502: Cloudflare replaces an origin 502 with its own "Bad gateway" page.
+            assertEquals(503, it.code)
+            assertEquals("text/plain; charset=utf-8", it.header("Content-Type"))
+        }
+        val page = Request.Builder().url("http://127.0.0.1:${tunnelServer.port}/").header("Host", "nobody.tunnel.test")
+            .header("Accept", "text/html,application/xhtml+xml").header("Accept-Language", "fr-FR,fr;q=0.9,en;q=0.8").build()
+        browser.newCall(page).execute().use {
+            assertEquals(503, it.code)
+            assertEquals("30", it.header("Retry-After"))
+            val html = it.body!!.string()
+            assertTrue(html.contains("Ce serveur Minecraft est hors ligne"), html)
+            assertTrue(html.contains("nobody.tunnel.test"))
+        }
         // Leaves download the pack from their hub; players never do (a pack plugin sends it).
         call("/resource-pack/abc.zip").use { assertEquals(503, it.code) } // the hub's own answer: no pack store here
         call("/health", host = "tunnel.test").use { assertEquals(200, it.code) }
@@ -207,7 +220,7 @@ class TunnelServerTest {
             call("/api/v1/whoami").use { assertEquals(200, it.code) }
             val first = Request.Builder().url("http://127.0.0.1:${tunnelServer.port}/api/v1/whoami").header("Host", host)
                 .header(Tunnel.MEMBER_HEADER, "u-nobody").build()
-            browser.newCall(first).execute().use { assertEquals(502, it.code) }
+            browser.newCall(first).execute().use { assertEquals(503, it.code) }
             second.stop()
             Thread.sleep(300)
             call("/api/v1/whoami").use { assertEquals(404, it.code, "the first server took over") }
