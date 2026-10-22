@@ -12,6 +12,7 @@ on:
     paths:
       - editor/**
       - docs-site/**
+      - docs/site/**
       - deploy/**
       - testdata/**
       - docs/schema/**
@@ -22,6 +23,7 @@ on:
     paths:
       - editor/**
       - docs-site/**
+      - docs/site/**
       - deploy/**
       - testdata/**
       - docs/schema/**

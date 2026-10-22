@@ -1,7 +1,7 @@
 # Commandes plugin `/artisan`
 
 Détail dev-facing. Source de vérité : `plugin/paper/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`.
-La table user-facing (EN) vit dans `docs-site/src/content/docs/getting-started/install-admin.md` —
+La table user-facing (EN) vit dans `docs/site/getting-started/install-admin.md` —
 les deux doivent bouger ensemble.
 
 | Sous-commande | Effet |

@@ -84,7 +84,8 @@ editor/          React 19 + Vite + Konva — servi par le plugin (hub)
 plugin/          Kotlin 2.0 + Paper : api · core · database · hub (Jetty 12) · paper
 docker/          Serveurs Minecraft locaux (itzg/minecraft-server), réseau dans docker/network/
 tools/minecraft-assets/  Générateurs Bun des assets MC vanilla (items, icônes 3D, largeurs de glyphes)
-docs-site/       Astro Starlight — docs user publiques (EN), servies sur artisanmc.net/wiki
+docs/site/       Docs user publiques (EN, Markdown Starlight) — assemblées par artisanmc.net
+docs-site/       Build Astro Starlight de docs/site/, servi sur artisanmc.net/wiki
 docs/            architecture/ · archive/ · decisions/ · specs/ · schema/
 ```
 

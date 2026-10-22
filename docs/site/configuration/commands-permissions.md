@@ -1,0 +1,41 @@
+---
+title: Commands & permissions
+description: The /artisan command and the editor permissions.
+sidebar:
+  order: 6
+---
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `/artisan menu <id>` | Open a menu by id. Players only; ids autocomplete. Requires `artisan.menu`. |
+| `/artisan reload` | Re-read `config.yml`, `environment.yml` and the language files, and reload every project from disk (including files edited by hand). On a leaf, reconnects to the hub. The web server and database pools are not restarted: `web.*` and `database.*` changes need a server restart. Requires `artisan.admin`. |
+| `/artisan editor` | Print your single-use sign-in link to the editor. Requires `artisan.editor.view`. From the console, signs in as the shared Console identity. See [Open the editor](../../getting-started/open-the-editor/). |
+| `/artisan editor logout [player]` | Sign a player out of the editor on every device. Without a name, signs yourself out (Console from the console). Naming another player, or `Console`, requires `artisan.admin`. |
+| `/artisan sync reject` | Reload projects from disk; on a leaf, reconnect to the hub. Requires `artisan.admin`. |
+| `/artisan sync status` | Only points to the server log. |
+
+Projects can also declare their own commands; they are registered when the project
+loads and skipped (with a warning in the log) if another plugin already owns the name.
+
+## Permissions
+
+| Permission | Allows | Default |
+|---|---|---|
+| `artisan.admin` | `/artisan reload`, `/artisan sync` and `/artisan dump-title`. | op |
+| `artisan.menu` | Open any menu by id with `/artisan menu`. Deny it to keep players to the menus your projects open for them. | everyone |
+| `artisan.editor` | All four editor permissions below. | op |
+| `artisan.editor.view` | Request a link with `/artisan editor`, open the editor, read projects. | op |
+| `artisan.editor.edit` | Change projects (private drafts). | op |
+| `artisan.editor.publish` | Publish projects to the server; upload the resource pack. | op |
+| `artisan.editor.config` | Change `config.yml` from the editor's server page. | op |
+
+The editor reads these permissions when the link is requested, then again every minute
+while the player is online on the server where they requested it. A change applies within a
+minute; removing `artisan.editor.view` signs them out of the editor.
+
+In a network, each server reads the permissions of the player who types
+`/artisan editor` **on that server** and passes them to the hub; the hub checks no
+permission of its own. Give editor permissions on the servers where your staff
+requests links.
