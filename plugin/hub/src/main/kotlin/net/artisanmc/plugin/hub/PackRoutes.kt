@@ -8,12 +8,21 @@ import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
  * itself (`/resource-pack/<sha1>.zip`, `/bedrock-pack/<sha1>.mcpack`, public)
  * and hands them to the plugin: the Java pack to `ResourcePackManager`
  * (delegation to the pack host), the Bedrock pack to `BedrockPackManager`
- * (Geyser hands it to Bedrock players).
+ * (Geyser hands it to Bedrock players). `GET SERVER/bedrock-pack` (public) tells a
+ * Geyser elsewhere which one is current.
  */
 class PackRoutes(private val servers: Servers, private val store: PackStore, private val bedrock: PackStore? = null) {
     fun register(router: Router) {
         register(router, store, "resource-pack") { server, hash, path -> server.applyResourcePack(hash, path) }
-        bedrock?.let { register(router, it, "bedrock-pack") { server, hash, path -> server.applyBedrockPack(hash, path) } }
+        bedrock?.let {
+            register(router, it, "bedrock-pack") { server, hash, path -> server.applyBedrockPack(hash, path) }
+            // The Artisan Geyser extension on a proxy polls this to follow the server's pack.
+            router.on("GET", "$SERVER/bedrock-pack", null) { call ->
+                val server = servers.of(call) ?: return@on call.error(404, "not_found")
+                val pack = server.bedrockPack() ?: return@on call.error(404, "no_pack")
+                call.json(pack)
+            }
+        }
     }
 
     private fun register(router: Router, store: PackStore, route: String, apply: (EditorServer, String, String) -> Unit) {

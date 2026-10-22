@@ -8,6 +8,7 @@
 | `hub` | Serveur web de l'éditeur (Jetty) : fichiers de l'éditeur, API, sessions ouvertes par `/artisan editor`. | Bukkit. |
 | `tunnel` | Fil du tunnel de l'éditeur (`Frame`), partagé par le client du hub et le serveur de tunnel (ADR `editor-tunnel`). | Tout code réseau, toute plateforme. |
 | `tunnel-server` | Serveur de tunnel autonome (Jetty), hors du jar du plugin ; déployé depuis `deploy/tunnel-server/`. | Dépendre de `core`, `hub` ou `paper` (hors tests). |
+| `geyser-extension` | Extension Geyser (`artisan-geyser.jar`, Java seul, sans dépendance) pour un Geyser sur un proxy : suit le pack Bedrock du serveur par `GET SERVER/bedrock-pack` et le donne à chaque session Bedrock. | Dépendre de tout autre module. |
 | `runtime` | Ce qui exécute le contenu d'un Project sur Paper sans l'éditeur : moteur d'actions et actions core, conditions, items (vanilla, custom, capturés), textes, traductions, schedulers, pool de la base. Consommé par `paper`, pas publié (ADR `runtime-library`). | Le rendu des menus, la présence, le hub. |
 | `paper` | Intégration Paper : listeners, commandes, rendu des menus et dialogs, WebSocket, pack de ressources. Racine de composition dans `ArtisanPlugin.onEnable`, qui assemble `ArtisanApiFactory` (API des add-ons), `SuiteDatabase` (base de la suite, Versions), `EditorHost` (éditeur ou lien au hub) et `RuntimeAssembly` (ce que `/artisan reload` reconstruit). Produit le jar. | — |
 

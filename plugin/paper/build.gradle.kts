@@ -67,6 +67,8 @@ tasks.processResources {
 }
 
 tasks.shadowJar {
+    // One build gives both jars: the plugin and the Geyser extension of a proxy (geyser-extension/build/libs/).
+    dependsOn(":artisan-geyser:jar")
     archiveBaseName.set("artisan-plugin")
     // NO `relocate("kotlin", …)`: it breaks the runtime. kotlin-reflect (pulled in by
     // jackson-module-kotlin, which reads our data classes) resolves built-ins BY STRING

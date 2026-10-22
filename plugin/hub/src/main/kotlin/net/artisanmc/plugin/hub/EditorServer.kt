@@ -33,4 +33,6 @@ interface EditorServer {
     fun applyResourcePack(hash: String, path: String)
     /** A Bedrock pack served by the hub under [path] becomes the one its Geyser hands to Bedrock players. */
     fun applyBedrockPack(hash: String, path: String) {}
+    /** Its current Bedrock pack, `{hash, url}` (the url absolute, or a path on this hub), for a Geyser elsewhere. */
+    fun bedrockPack(): Map<String, String>? = null
 }

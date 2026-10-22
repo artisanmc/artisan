@@ -63,6 +63,11 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val local = editorBind.takeUnless { it.isBlank() || it == "0.0.0.0" } ?: "127.0.0.1"
             provider.applyLocalBedrockPack("http://$local:$port$path", hash)
         }
+        /** The pack the plugin keeps names the file the hub's store serves (both are by SHA-1). */
+        override fun bedrockPack(): Map<String, String>? {
+            val hash = provider.currentBedrockPack()?.nameWithoutExtension ?: return null
+            return mapOf("hash" to hash, "url" to "${net.artisanmc.plugin.hub.PackStore.BEDROCK_PATH}/$hash.mcpack")
+        }
     }
 
     /** The editor address for browsers: `web.url`, else the tunnel server's, else [host] or the server IP. */

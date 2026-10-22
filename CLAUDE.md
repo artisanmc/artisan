@@ -55,6 +55,7 @@ Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
 cd plugin
 ./gradlew test          # tous les modules (api, core, database, hub, paper)
 ./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
+                        #   + geyser-extension/build/libs/artisan-geyser-1.0.0-SNAPSHOT.jar (extension Geyser d'un proxy)
 ./gradlew shadowJar -PwithEditor   # idem, avec l'éditeur et les icônes 3D embarqués (npm requis)
 ./gradlew deploy        # compile + redémarre le container
 

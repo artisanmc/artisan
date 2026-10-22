@@ -19,7 +19,7 @@ L'ancien modèle cloud (45 tables, 66 migrations Drizzle) est récupérable au c
 | **Lien de connexion** | Jeton à usage unique | Mémoire du hub, 60 s, un par joueur et par minute. |
 | **Préférences d'éditeur** | UUID du joueur | Disque du hub : `plugins/Artisan/editor-prefs/<uuid>.json` (`PlayerPrefs`) : langue, thème, avancement du tour guidé. Écriture atomique, clés connues seules. |
 | **Pack de ressources** | SHA-1 du zip | Disque du hub : `plugins/Artisan/cache/resource-pack/<sha1>.zip` (`PackStore`, trois derniers, un pack par serveur construit par l'éditeur). Dernier pack appliqué : `cache/resource-pack.json` sur chaque serveur. |
-| **Pack Bedrock** | SHA-1 du mcpack | Disque du hub : `cache/bedrock-pack-store/<sha1>.mcpack` (`PackStore`, trois derniers). Sur chaque serveur, le pack courant : `cache/bedrock-pack/<sha1>.mcpack` (`BedrockPackManager`), que Geyser remet à chaque joueur Bedrock à sa connexion. |
+| **Pack Bedrock** | SHA-1 du mcpack | Disque du hub : `cache/bedrock-pack-store/<sha1>.mcpack` (`PackStore`, trois derniers). Sur chaque serveur, le pack courant : `cache/bedrock-pack/<sha1>.mcpack` (`BedrockPackManager`), que Geyser remet à chaque joueur Bedrock à sa connexion. Un Geyser sur un proxy le suit par `GET SERVER/bedrock-pack` (extension `artisan-geyser.jar`, `plugin/geyser-extension/`, qui le garde dans `extensions/artisan/<sha1>.mcpack`). |
 
 Pas d'utilisateur : l'identité dans l'éditeur est le joueur Minecraft qui a demandé le lien,
 ses droits sont ses permissions `artisan.editor.view|edit|publish|config` au moment de la

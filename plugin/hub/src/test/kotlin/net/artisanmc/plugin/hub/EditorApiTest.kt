@@ -38,7 +38,9 @@ class EditorApiTest {
         override fun serverConfig() = mapOf<String, Any?>("language" to "en")
         override fun customItems() = listOf(mapOf("id" to "nexo:coin", "label" to "coin", "category" to "nexo"))
         override fun applyResourcePack(hash: String, path: String) { applied += hash to path }
-        override fun applyBedrockPack(hash: String, path: String) { applied += hash to path }
+        override fun applyBedrockPack(hash: String, path: String) { applied += hash to path; bedrockPack = mapOf("hash" to hash, "url" to path) }
+        @Volatile private var bedrockPack: Map<String, String>? = null
+        override fun bedrockPack() = bedrockPack
     }
     private val applied = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
     private var stored = false
@@ -405,6 +407,11 @@ class EditorApiTest {
         assertEquals(200, served.statusCode())
         assertTrue(zip.contentEquals(served.body()))
         assertEquals(404, client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/resource-pack/$hash.mcpack")).build(), HttpResponse.BodyHandlers.ofString()).statusCode())
+        // A Geyser elsewhere (the Artisan Geyser extension) asks which pack is current, without a session.
+        val current = client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/u-local/bedrock-pack")).build(), HttpResponse.BodyHandlers.ofString())
+        assertEquals(200, current.statusCode())
+        assertEquals(mapOf("hash" to hash, "url" to "/bedrock-pack/$hash.mcpack"), mapper.readValue(current.body(), Map::class.java))
+        assertEquals(404, client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:${hub.port}/api/v1/servers/nope/bedrock-pack")).build(), HttpResponse.BodyHandlers.ofString()).statusCode())
     }
 
     @Test

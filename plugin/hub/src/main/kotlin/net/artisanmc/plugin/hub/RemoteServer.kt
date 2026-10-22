@@ -63,6 +63,8 @@ class RemoteServer(
         send(mapOf("type" to "resource_pack_updated") + update)
     }
 
+    override fun bedrockPack() = bedrockPack
+
     override fun applyBedrockPack(hash: String, path: String) {
         val update = mapOf("url" to publicUrl() + path, "hash" to hash)
         bedrockPack = update
