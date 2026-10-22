@@ -6,7 +6,7 @@
 # CLAUDE.md is a ROUTER, not a reference: it only holds commands, the three
 # consequential pitfalls, the module import rule and the doc routing table.
 # Only map to it when a change actually touches one of those. Everything else
-# belongs in docs/architecture/*, CONTEXT.md or docs-site/.
+# belongs in docs/architecture/*, CONTEXT.md or docs/site/.
 # AGENTS.md mirrors CLAUDE.md: update both together.
 
 mappings:
@@ -14,25 +14,25 @@ mappings:
 
   - touches: "plugin/paper/src/main/resources/config.yml"
     updates:
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
     reason: "User-visible plugin config (Reference + Config sections)"
 
   - touches: "plugin/*/src/main/kotlin/**/PluginConfig.kt"
     updates:
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
     reason: "Plugin config schema / defaults"
 
   - touches: "plugin/*/src/main/kotlin/**/ArtisanCommand.kt"
     updates:
       - "docs/architecture/plugin-commands.md"
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
       - "CLAUDE.md"
       - "AGENTS.md"
     reason: "Commands: dev detail in plugin-commands.md, user table in install-admin, one-line list in CLAUDE.md"
 
   - touches: "plugin/*/src/main/kotlin/**/ResourcePackDelegator.kt"
     updates:
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
     reason: "Resource pack distribution modes (install-admin, Resource packs section)"
 
   # --- Plugin: sync, hashing, disk layout (the invariants) ---
@@ -124,12 +124,12 @@ mappings:
   - touches: "plugin/hub/src/main/kotlin/**/{Sessions,WebConfig,PackStore,VanillaAssets}.kt"
     updates:
       - "docs/architecture/entities.md"
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
     reason: "What the hub keeps (sessions, packs, caches) and the web settings admins configure"
 
   - touches: "plugin/paper/src/main/kotlin/**/config/{EnvironmentFile,NetworkSecret}.kt"
     updates:
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
       - "docs/architecture/entities.md"
     reason: "environment.yml template (web.*, database) and network secret resolution"
 
@@ -144,7 +144,7 @@ mappings:
     updates:
       - "CLAUDE.md"
       - "AGENTS.md"
-      - "docs-site/src/content/docs/getting-started/install-admin.md"
+      - "docs/site/getting-started/install-admin.md"
     reason: "Hub + leaf example (commands section, network setup guide)"
 
   # --- Editor ---
@@ -152,7 +152,7 @@ mappings:
   - touches: "editor/src/features/canvas/**"
     updates:
       - "docs/architecture/editor-internals.md"
-      - "docs-site/src/content/docs/editor/"
+      - "docs/site/editor/"
     reason: "Canvas internals + user-visible editor UX"
 
   - touches: "editor/src/components/ui/"
@@ -180,7 +180,7 @@ mappings:
   - touches: "editor/src/routes/settings.tsx"
     updates:
       - "docs/architecture/editor-internals.md"
-      - "docs-site/src/content/docs/editor/"
+      - "docs/site/editor/"
     reason: "/settings is user-facing — section list + Apparence flow"
 
   - touches: "editor/src/routes/networks.$networkId.servers.$serverId.projects.$projectId.tsx"
@@ -200,7 +200,7 @@ mappings:
     updates:
       - "CLAUDE.md"
       - "AGENTS.md"
-      - "docs-site/src/content/docs/contributing/"
+      - "docs/site/contributing/"
     reason: "Stack layout (commands section + contributing guide)"
 
   - touches: "*/package.json"

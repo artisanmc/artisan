@@ -54,7 +54,7 @@ patches for review.
   behavior or public surface area actually shifted before flagging.
 - **Do not** write documentation for things the user can't see.
   Internal invariants → `AGENTS.md`. User-facing prose →
-  `docs-site/`.
+  `docs/site/`.
 - **Do not** generate new sections beyond what the current docs
   contain. This skill maintains existing pages — it doesn't expand
   scope. If a new section is needed, surface the gap and let the
@@ -66,7 +66,7 @@ Final summary, one block:
 
 ```
 Proposed doc updates:
-[x] docs-site/.../install-admin.md
+[x] docs/site/.../install-admin.md
     Why: Resource pack distribution mode
     Change: update Nexo recipe to mention new delegate-reload-command
 [x] AGENTS.md

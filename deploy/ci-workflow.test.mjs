@@ -73,7 +73,7 @@ test("GitHub-maintained JavaScript actions use their Node 24 releases", () => {
 
 test("each workflow starts on its own inputs, the shared ones included, on push and on PR", () => {
   for (const [source, own] of [
-    [workflow, ["editor/**", "docs-site/**", "deploy/**", ".github/workflows/ci.yml"]],
+    [workflow, ["editor/**", "docs-site/**", "docs/site/**", "deploy/**", ".github/workflows/ci.yml"]],
     [pluginWorkflow, ["plugin/**", ".github/workflows/plugin.yml"]],
   ]) {
     const lists = triggerPaths(source);

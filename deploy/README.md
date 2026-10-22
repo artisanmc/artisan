@@ -39,7 +39,7 @@ Désactiver l'auto-deploy sur push : seul le workflow GitHub déploie.
 
 `.github/workflows/ci.yml` (job editor) : tests `deploy/*.test.mjs`, tests éditeur, smoke e2e,
 `npm run build` (éditeur auto-hébergé), `npm run build:site` (vitrine + wiki), `npm run verify` dans
-`docs-site` (liens, ancres, assets, index de recherche). `.github/workflows/plugin.yml` lance les tests
+`docs-site` (liens, ancres, assets, index de recherche). Les pages du wiki vivent dans `docs/site/` : `docs-site` les compile pour `/wiki/`, et le futur site artisanmc.net assemble le même dossier sous `/docs/artisan/`. `.github/workflows/plugin.yml` lance les tests
 Gradle et `shadowJar`.
 
 Le dépôt est privé : chaque minute de runner est décomptée du quota de l'organisation (2 000 min/mois
