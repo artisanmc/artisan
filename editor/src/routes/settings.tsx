@@ -42,9 +42,7 @@ export function SettingsRoute() {
         </header>
         <div className="flex flex-col gap-4 lg:flex-row">
           <nav aria-label="Settings sections" className="card shrink-0 p-3 lg:w-[224px]">
-            <div className="px-2 pt-1 pb-3 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-              {t("settingsPage.eyebrowSettings")}
-            </div>
+            <div className="section-label px-2 pt-1 pb-3">{t("settingsPage.eyebrowSettings")}</div>
             <ul className="flex flex-col gap-0.5">
               {sections.map(({ id, icon: Icon, label }) => (
                 <li key={id}>

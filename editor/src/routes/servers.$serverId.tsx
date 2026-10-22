@@ -1,3 +1,4 @@
+import { IconTile } from "@/components/ui/icon-tile";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
 import {
@@ -24,6 +25,7 @@ import {
   useNavigate,
   useParams,
 } from "@tanstack/react-router";
+import { ChevronRight, Folder, Puzzle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -232,7 +234,15 @@ function ServerOverview({
               {pluginModules.map((m) => (
                 <li key={m.id} className="card flex flex-col gap-3 p-4">
                   {/* TODO: render the module's icon once modules ship real icons */}
-                  <span className="text-[14px] font-semibold text-[var(--text)]">{m.label}</span>
+                  <span className="flex items-center gap-2.5 text-[14px] font-semibold text-[var(--text)]">
+                    <IconTile
+                      icon={Puzzle}
+                      fg="var(--kind-module)"
+                      soft="var(--kind-module-soft)"
+                      size="sm"
+                    />
+                    {m.label}
+                  </span>
                   <ul className="flex flex-wrap gap-1.5">
                     {m.projects.map((p) => (
                       <li key={`p:${p.id}`}>
@@ -318,11 +328,15 @@ function ServerOverview({
                   <Link
                     to="/servers/$serverId/projects/$projectId"
                     params={{ serverId, projectId: projectUrlId(w) }}
-                    className="card flex flex-1 items-center justify-between p-4 hover:bg-[var(--surface-hover)]"
+                    className="card group flex flex-1 items-center gap-3 p-3.5 transition-colors hover:border-[var(--brand-line)] hover:bg-[var(--surface-hover)]"
                   >
                     {/* No Document counter: the hub does not hold the files, so it
                         cannot know it without querying the server's disk. */}
-                    <span className="text-[14px] font-medium text-[var(--text)]">{w.name}</span>
+                    <IconTile icon={Folder} fg="var(--brand)" soft="var(--brand-soft)" size="md" />
+                    <span className="flex-1 text-[14px] font-medium text-[var(--text)]">
+                      {w.name}
+                    </span>
+                    <ChevronRight className="size-4 text-[var(--text-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--brand)]" />
                   </Link>
                   {/* The ID is changed in the project Properties; only resuming a pending change remains here. */}
                   {w.pendingRename && (

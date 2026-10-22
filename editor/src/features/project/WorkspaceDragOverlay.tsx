@@ -39,7 +39,9 @@ function LibraryDragGhost({ material }: { material: string }) {
           style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <span className="font-mono text-[8px] text-[var(--text-mut)]">{material.slice(0, 4)}</span>
+        <span className="font-mono text-[9.5px] text-[var(--text-mut)]">
+          {material.slice(0, 4)}
+        </span>
       )}
     </div>
   );

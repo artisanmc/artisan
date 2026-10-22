@@ -1,5 +1,6 @@
 import { MiniMessageField } from "@/components/MiniMessageField";
 import { Button } from "@/components/ui/button";
+import { EditorHeader } from "@/components/ui/editor-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -122,14 +123,16 @@ export function SystemCommandPage({
 
   return (
     <div className="mx-auto flex w-full max-w-[760px] flex-col gap-5 overflow-y-auto pb-10">
-      <header className="flex flex-col gap-1">
-        <span className="eyebrow">
-          {t("systemCommands.eyebrow", {
+      <div className="panel overflow-hidden rounded-[var(--r-md)]">
+        <EditorHeader
+          kind="command"
+          eyebrow={t("systemCommands.eyebrow", {
             module: command.moduleId ?? commandNamespace(command.id),
           })}
-        </span>
-        <p className="text-[12.5px] text-[var(--text-mut)]">{t("systemCommands.intro")}</p>
-      </header>
+          title={`/${drafts[command.id]?.name?.trim() || command.name}`}
+        />
+        <p className="px-4 py-3 text-[13px] text-[var(--text-mut)]">{t("systemCommands.intro")}</p>
+      </div>
       {logic && (
         <div className="card p-3 text-[12.5px] text-[var(--text-mut)]">
           {t("systemCommands.logicKept")}
@@ -229,7 +232,7 @@ function CommandForm({
 }: {
   command: PlayerCommand;
   root: boolean;
-  /** `/name` as players type it: the root's in large, a sub-command's in full. */
+  /** `/name` as players type it, a sub-command's in full. */
   label: string;
   fields: OverrideFields;
   onChange: (fields: OverrideFields) => void;
@@ -245,16 +248,10 @@ function CommandForm({
   const description = fields.description ?? command.description;
   const cooldown = fields.cooldown;
   return (
-    <section className="card flex flex-col gap-4 p-4">
+    <section className="panel flex flex-col gap-4 rounded-[var(--r-md)] p-4">
       <div className="flex items-center gap-3">
         <div className="flex min-w-0 flex-1 flex-col">
-          <span
-            className={
-              root
-                ? "truncate text-[19px] font-semibold text-[var(--text)]"
-                : "mono truncate text-[13px] text-[var(--text)]"
-            }
-          >
+          <span className="mono truncate text-[14px] font-medium text-[var(--kind-command)]">
             {label}
           </span>
           <span className="mono truncate text-[11px] text-[var(--text-faint)]">{command.id}</span>

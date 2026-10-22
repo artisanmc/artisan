@@ -29,6 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EditorHeader } from "@/components/ui/editor-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileDiff } from "@/components/ui/file-diff";
 import { FileDropzone } from "@/components/ui/file-dropzone";
@@ -104,8 +105,11 @@ const COLOR_GROUPS: { key: string; tokens: string[] }[] = [
   {
     key: "kinds",
     tokens: [
-      "--kind-command",
-      "--kind-command-soft",
+      ...["menu", "command", "dialog", "module"].flatMap((k) => [
+        `--kind-${k}`,
+        `--kind-${k}-soft`,
+        `--kind-${k}-line`,
+      ]),
       ...ACTION_FAMILIES.flatMap((f) => [`--fam-${f}`, `--fam-${f}-soft`]),
       "--fam-logic-line",
       "--mc-chat-bg",
@@ -317,6 +321,10 @@ export function DesignSystemPage() {
             <span className="mono text-[11px] text-[var(--text-faint)]">.field-label</span>
             <span className="field-label">Field label</span>
           </div>
+          <div className="flex flex-col gap-1">
+            <span className="mono text-[11px] text-[var(--text-faint)]">.section-label</span>
+            <span className="section-label">Section label</span>
+          </div>
         </div>
       </Section>
 
@@ -476,6 +484,23 @@ export function DesignSystemPage() {
                 soft="var(--kind-command-soft)"
                 size="lg"
               />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<EditorHeader> · kindAppearance()"}
+            </span>
+            <div className="flex flex-col gap-2">
+              {(["menu", "command", "dialog"] as const).map((kind) => (
+                <div key={kind} className="panel overflow-hidden rounded-[var(--r-md)]">
+                  <EditorHeader
+                    kind={kind}
+                    eyebrow={kind.charAt(0).toUpperCase() + kind.slice(1)}
+                    title={kind === "command" ? "/shop" : "Shop"}
+                    meta={<span className="chip cursor-default text-[12px]">meta</span>}
+                  />
+                </div>
+              ))}
             </div>
           </div>
           <div className="flex flex-col gap-2">
@@ -643,16 +668,12 @@ export function DesignSystemPage() {
               </span>
             </div>
             <div className="py-1">
-              <div className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                {t("search.groupMenu")}
-              </div>
+              <div className="section-label px-3 pt-2.5 pb-1">{t("search.groupMenu")}</div>
               <div className="flex w-full items-center gap-2.5 bg-[var(--brand-soft)] px-3 py-2 text-left text-[13px] text-[var(--text)]">
                 <LayoutGrid className="size-[15px] shrink-0 text-[var(--text-faint)]" />
                 <span className="flex-1 truncate">Shop</span>
               </div>
-              <div className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">
-                {t("search.groupCommand")}
-              </div>
+              <div className="section-label px-3 pt-2.5 pb-1">{t("search.groupCommand")}</div>
               <div className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-[var(--text-mut)]">
                 <TerminalSquare className="size-[15px] shrink-0 text-[var(--text-faint)]" />
                 <span className="flex-1 truncate">/heal</span>

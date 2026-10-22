@@ -13,6 +13,7 @@ import { useGetText } from "@/lib/useText";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FieldLabel, Lane } from "../layout";
@@ -61,8 +62,14 @@ export function ElementEditor({
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
       {/* Element identity strip — preview of the focused state. */}
-      <div className="flex items-center gap-3 border-[var(--border-soft)] border-b bg-[var(--surface-raised)] px-3 py-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded border border-[var(--border-soft)] bg-[var(--surface)]">
+      <div
+        className="flex items-center gap-3 border-[var(--border-soft)] border-b px-3 py-2.5"
+        style={{
+          backgroundImage: "linear-gradient(90deg, var(--kind-menu-soft), transparent 70%)",
+        }}
+      >
+        {/* An inventory slot: the item reads as it does in game. */}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--r-sm)] border border-[var(--kind-menu-line)] bg-[var(--mc-chat-bg)] shadow-[inset_0_1px_2px_rgba(0,0,0,.35)]">
           {headerTextureUrl ? (
             <img
               src={headerTextureUrl}
@@ -72,7 +79,7 @@ export function ElementEditor({
               style={{ imageRendering: "pixelated" }}
             />
           ) : (
-            <span className="text-[8px] text-[var(--text-faint)]">
+            <span className="text-[9.5px] text-[var(--text-faint)]">
               {headerMaterial.slice(0, 4)}
             </span>
           )}
@@ -82,9 +89,9 @@ export function ElementEditor({
               printing the raw tags. */}
           <MiniMessageInline
             source={headerTitle || headerMaterial}
-            className="block truncate font-mono text-xs text-[var(--text)]"
+            className="block truncate text-[14px] font-medium text-[var(--text)]"
           />
-          <div className="truncate text-[10px] text-[var(--text-faint)]">
+          <div className="truncate text-[11px] text-[var(--text-faint)]">
             <MiniMessageInline source={menuTitle} /> ·{" "}
             {t(appearances.length === 1 ? "flow.headerStateOne" : "flow.headerStateOther", {
               count: appearances.length,
@@ -101,9 +108,9 @@ export function ElementEditor({
             deleteElement({ projectId, menuId: menu.id, elementId: element.id });
             useSelectionStore.getState().clear();
           }}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-[var(--text-faint)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
         >
-          🗑
+          <Trash2 className="size-4" />
         </button>
       </div>
 
@@ -122,7 +129,7 @@ export function ElementEditor({
               source: element.iterates.source,
               alias: element.iterates.alias || "item",
             })}
-            <span className="ml-1 text-[10px] opacity-75">
+            <span className="ml-1 text-[11px] opacity-75">
               {t("flow.iterationManagedHint", {
                 example: `{${element.iterates.alias || "item"}.champ}`,
               })}
@@ -209,7 +216,7 @@ function ElementIdField({
             : "h-8 px-2 py-0 font-mono text-xs"
         }
       />
-      {error ? <div className="mt-1 text-[10px] text-[var(--danger)]">{error}</div> : null}
+      {error ? <div className="mt-1 text-[11px] text-[var(--danger)]">{error}</div> : null}
     </div>
   );
 }

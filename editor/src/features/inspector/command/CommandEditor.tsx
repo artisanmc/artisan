@@ -1,9 +1,8 @@
-import { IconTile } from "@/components/ui/icon-tile";
+import { EditorHeader } from "@/components/ui/editor-header";
 import { Input } from "@/components/ui/input";
 import type { Command, CommandArg, CommandId, ProjectId } from "@/domain/types";
 import { cx } from "@/lib/cx";
 import { useProjectsStore } from "@/state/projectsStore";
-import { TerminalSquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionChainEditor } from "../chain/StepTree";
@@ -164,61 +163,48 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
  */
 function CommandHeader({ command }: { command: Command }) {
   const { t } = useTranslation();
+  const aliases = command.aliases ?? [];
   return (
-    <header
-      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-[var(--border-soft)] border-b px-4 py-3.5"
-      style={{
-        backgroundImage: "linear-gradient(90deg, var(--kind-command-soft), transparent 60%)",
-      }}
-    >
-      <IconTile
-        icon={TerminalSquare}
-        fg="var(--kind-command)"
-        soft="var(--kind-command-soft)"
-        size="lg"
-        className="border border-[var(--kind-command-line)]"
-      />
-      <div className="min-w-0">
-        <div className="text-[11.5px] font-semibold tracking-wide text-[var(--kind-command)]">
-          {t("command.kindLabel")}
-        </div>
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <h2 className="display truncate text-[22px] text-[var(--text)]">/{command.name}</h2>
-          {command.arguments.map((arg, i) => (
-            <span
-              // biome-ignore lint/suspicious/noArrayIndexKey: arg index stable per render
-              key={i}
-              className={cx(
-                "rounded-[var(--r-xs)] px-1.5 py-0.5 font-mono text-[12.5px]",
-                arg.required
-                  ? "bg-[var(--surface-raised-2)] text-[var(--text)]"
-                  : "bg-[var(--surface-raised)] text-[var(--text-mut)]",
-              )}
-            >
-              {argSignature(arg)}
+    <EditorHeader
+      kind="command"
+      eyebrow={t("command.kindLabel")}
+      title={`/${command.name}`}
+      meta={
+        <>
+          {command.permission ? (
+            <span className="chip cursor-default text-[12px]">
+              {t("command.permissionLabel")}
+              <b className="font-mono font-medium text-[var(--text)]">{command.permission}</b>
             </span>
-          ))}
-        </div>
-      </div>
-      <div className="ml-auto flex flex-wrap items-center gap-1.5">
-        {command.permission ? (
-          <span className="chip cursor-default text-[12px]">
-            {t("command.permissionLabel")}
-            <b className="font-mono font-medium text-[var(--text)]">{command.permission}</b>
-          </span>
-        ) : null}
-        {(command.aliases ?? []).length > 0 ? (
-          <span className="chip cursor-default text-[12px]">
-            {t("command.aliasesLabel")}
-            {(command.aliases ?? []).map((alias) => (
-              <b key={alias} className="font-mono font-medium text-[var(--text)]">
-                /{alias}
-              </b>
-            ))}
-          </span>
-        ) : null}
-      </div>
-    </header>
+          ) : null}
+          {aliases.length > 0 ? (
+            <span className="chip cursor-default text-[12px]">
+              {t("command.aliasesLabel")}
+              {aliases.map((alias) => (
+                <b key={alias} className="font-mono font-medium text-[var(--text)]">
+                  /{alias}
+                </b>
+              ))}
+            </span>
+          ) : null}
+        </>
+      }
+    >
+      {command.arguments.map((arg, i) => (
+        <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: arg index stable per render
+          key={i}
+          className={cx(
+            "rounded-[var(--r-xs)] px-1.5 py-0.5 font-mono text-[12.5px]",
+            arg.required
+              ? "bg-[var(--surface-raised-2)] text-[var(--text)]"
+              : "bg-[var(--surface-raised)] text-[var(--text-mut)]",
+          )}
+        >
+          {argSignature(arg)}
+        </span>
+      ))}
+    </EditorHeader>
   );
 }
 

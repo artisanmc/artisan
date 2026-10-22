@@ -36,14 +36,14 @@ export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
   if (!plainLayer || plainLayer.kind !== "plain") return null;
 
   return (
-    <div className="flex flex-col gap-3 text-xs text-zinc-300">
-      <div className="rounded border border-zinc-700 bg-zinc-900/60 px-2.5 py-2 text-[10px] text-zinc-400 leading-snug">
-        {t("layerEditForm.plainHint")} (<code className="text-zinc-300">{"<gold>"}</code>,{" "}
-        <code className="text-zinc-300">{"<bold>"}</code>, etc.).
+    <div className="flex flex-col gap-3 text-xs text-[var(--text)]">
+      <div className="rounded border border-[var(--border)] bg-[var(--surface-inset)]/60 px-2.5 py-2 text-[11px] text-[var(--text-mut)] leading-snug">
+        {t("layerEditForm.plainHint")} (<code className="text-[var(--text)]">{"<gold>"}</code>,{" "}
+        <code className="text-[var(--text)]">{"<bold>"}</code>, etc.).
       </div>
 
       <div>
-        <div className="mb-1 block text-[10px] uppercase text-zinc-500">
+        <div className="field-label !mb-1">
           {t("layerEditForm.plainLabel", { lang: textEdit.lang })}
         </div>
         <RevealField
@@ -61,10 +61,8 @@ export function PlainTitleForm({ projectId, menuId }: PlainTitleFormProps) {
           className="text-xs"
           facade={<MiniMessageInline source={textEdit.value} className="font-mono text-xs" />}
           preview={
-            <div className="mt-1 rounded border border-zinc-800 bg-zinc-900/40 p-2">
-              <div className="mb-1 text-[10px] uppercase text-zinc-500">
-                {t("layerEditForm.preview")}
-              </div>
+            <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)]/40 p-2">
+              <div className="field-label !mb-1">{t("layerEditForm.preview")}</div>
               <MiniMessageInline source={textEdit.value} className="font-mono text-xs" />
             </div>
           }

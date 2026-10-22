@@ -202,7 +202,7 @@ function StateMaterialIcon({
                 style={{ imageRendering: "pixelated" }}
               />
             ) : (
-              <span className="text-[8px] text-[var(--text-faint)]">
+              <span className="text-[9.5px] text-[var(--text-faint)]">
                 {material.slice(0, 3) || "—"}
               </span>
             )}
@@ -440,19 +440,19 @@ function StateCard({
                 style={{ imageRendering: "pixelated" }}
               />
             ) : (
-              <span className="text-[8px] text-[var(--text-faint)]">
+              <span className="text-[9.5px] text-[var(--text-faint)]">
                 {material.slice(0, 3) || "—"}
               </span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
+            <div className="field-label !mb-0">
               {isDefault ? t("flow.stateDefault") : t("flow.stateN", { index: stateIndex })}
             </div>
             {conditionText ? (
               <div
                 title={conditionText}
-                className="truncate font-mono text-[10px] text-[var(--brand)]"
+                className="truncate font-mono text-[11px] text-[var(--brand)]"
               >
                 {t("flow.stateCondition", { summary: conditionText })}
               </div>
@@ -467,12 +467,12 @@ function StateCard({
                     // biome-ignore lint/suspicious/noArrayIndexKey: lore lines stable per render
                     key={i}
                     source={line}
-                    className="block truncate font-mono text-[10px] text-[var(--text-mut)]"
+                    className="block truncate font-mono text-[11px] text-[var(--text-mut)]"
                   />
                 ))
               : null}
             {lore.length > 2 ? (
-              <div className="font-mono text-[10px] text-[var(--text-faint)]">
+              <div className="font-mono text-[11px] text-[var(--text-faint)]">
                 {t(lore.length - 2 === 1 ? "flow.moreLinesOne" : "flow.moreLinesOther", {
                   count: lore.length - 2,
                 })}
@@ -495,10 +495,10 @@ function StateCard({
         <div className="flex min-w-0 flex-1 flex-col gap-2 px-2.5 py-2">
           {/* Header row — state name + delete. Click header to collapse. */}
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
+            <span className="field-label !mb-0">
               {isDefault ? t("flow.stateDefault") : t("flow.stateN", { index: stateIndex })}
             </span>
-            <span className="rounded bg-[var(--brand-soft)] px-1.5 py-0.5 text-[9px] text-[var(--brand)] uppercase">
+            <span className="rounded bg-[var(--brand-soft)] px-1.5 py-0.5 text-[10px] text-[var(--brand)] uppercase">
               {t("flow.editing")}
             </span>
             <span className="ml-auto" />

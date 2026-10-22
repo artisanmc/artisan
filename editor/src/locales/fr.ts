@@ -313,6 +313,7 @@ const fr: typeof en = {
     },
   },
   menuProperties: {
+    kindLabel: "Menu",
     emptyMenuTitle: "Menu vide",
     emptyMenuHint:
       "Glissez un item depuis le panneau Boutons sur un slot, ou sélectionnez un item puis tapez sur un slot.",
@@ -1019,6 +1020,9 @@ const fr: typeof en = {
     },
   },
   dialog: {
+    kindLabel: "Dialogue",
+    buttonCount_one: "{{count}} bouton",
+    buttonCount_other: "{{count}} boutons",
     titleLabel: "titre ({{lang}})",
     canCloseWithEscape: "fermer avec Échap",
     bodyLabel: "corps",

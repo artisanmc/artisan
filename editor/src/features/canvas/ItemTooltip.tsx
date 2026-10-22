@@ -192,7 +192,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
             {enchants.map((ench) => (
               <span
                 key={`${ench.id}-${ench.level}`}
-                className="block font-mono text-[10px] text-zinc-400"
+                className="block font-mono text-[11px] text-zinc-400"
               >
                 {formatEnchant(ench)}
               </span>
@@ -209,7 +209,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
                 // biome-ignore lint/suspicious/noArrayIndexKey: lines are stable per render
                 key={i}
                 source={line}
-                className="block font-mono text-[10px] text-white"
+                className="block font-mono text-[11px] text-white"
               />
             ))}
           </div>

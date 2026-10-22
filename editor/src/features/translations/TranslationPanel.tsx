@@ -195,11 +195,11 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
             >
               <span className="font-mono uppercase">{lang}</span>
               {isDefault ? (
-                <span className="rounded bg-[var(--surface-raised-2)] px-1 py-0.5 text-[8px] uppercase tracking-wide text-[var(--text-mut)]">
+                <span className="rounded bg-[var(--surface-raised-2)] px-1 py-0.5 text-[9.5px] uppercase tracking-wide text-[var(--text-mut)]">
                   src
                 </span>
               ) : count > 0 ? (
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[9px] text-[#2A140C]">
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[10px] text-[#2A140C]">
                   {count}
                 </span>
               ) : (
@@ -241,9 +241,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
           </div>
           {/* How texts are written on disk — a file shape, not content. */}
           <div className="ml-auto flex items-center gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--text-mut)]">
-              {t("translations.fileShape")}
-            </span>
+            <span className="section-label">{t("translations.fileShape")}</span>
             <div className="flex overflow-hidden rounded border border-[var(--border)]">
               <ShapeTab
                 active={!isInline}
@@ -418,8 +416,8 @@ function ShapeTab({
       aria-pressed={active}
       className={
         active
-          ? "bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] text-[var(--brand)]"
-          : "px-2 py-0.5 text-[10px] text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
+          ? "bg-[var(--brand-soft)] px-2 py-0.5 text-[11px] text-[var(--brand)]"
+          : "px-2 py-0.5 text-[11px] text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
       }
     >
       {children}
@@ -442,8 +440,8 @@ function ModeTab({
       onClick={onClick}
       className={
         active
-          ? "bg-[var(--brand-soft)] px-3 py-1 font-mono text-[10px] text-[var(--brand)] uppercase tracking-wide"
-          : "px-3 py-1 font-mono text-[10px] text-[var(--text-mut)] uppercase tracking-wide hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
+          ? "bg-[var(--brand-soft)] px-3 py-1 text-[12px] font-medium text-[var(--brand)]"
+          : "px-3 py-1 text-[12px] font-medium text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
       }
     >
       {children}
@@ -466,8 +464,8 @@ function FilterTab({
       onClick={onClick}
       className={
         active
-          ? "rounded bg-[var(--brand-soft)] px-2 py-1 font-mono text-[10px] text-[var(--brand)] uppercase tracking-wide"
-          : "rounded px-2 py-1 font-mono text-[10px] text-[var(--text-mut)] uppercase tracking-wide hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
+          ? "rounded bg-[var(--brand-soft)] px-2 py-1 text-[12px] font-medium text-[var(--brand)]"
+          : "rounded px-2 py-1 text-[12px] font-medium text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
       }
     >
       {children}
@@ -593,16 +591,16 @@ function VisualRow({
             </span>
           </Tooltip>
         )}
-        <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--text-faint)]">
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--text-faint)]">
           {row.context}
         </span>
         {isMissing ? (
-          <span className="flex items-center gap-1 rounded bg-[var(--warning-soft)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--warning)] uppercase">
+          <span className="flex items-center gap-1 rounded bg-[var(--warning-soft)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--warning)] uppercase">
             <AlertCircle className="h-2.5 w-2.5" />
             {t("translations.badgeMissing")}
           </span>
         ) : (
-          <span className="flex items-center gap-1 rounded bg-[var(--success-soft)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--success)] uppercase">
+          <span className="flex items-center gap-1 rounded bg-[var(--success-soft)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--success)] uppercase">
             <Check className="h-2.5 w-2.5" />
             {t("translations.badgeDone")}
           </span>
@@ -612,7 +610,7 @@ function VisualRow({
       {/* Source row (skipped when active === default — redundant). */}
       {!sameLang ? (
         <div className="flex items-start gap-2 px-3 pb-1.5 text-xs">
-          <span className="mt-0.5 w-7 shrink-0 font-mono text-[10px] text-[var(--text-faint)] uppercase">
+          <span className="mt-0.5 w-7 shrink-0 font-mono text-[11px] text-[var(--text-faint)]">
             {defaultLang}
           </span>
           <div className="min-w-0 flex-1">
@@ -644,7 +642,7 @@ function VisualRow({
           title/lore/action editors: a rendered MiniMessage facade until
           focused, then a raw editor with a live preview below. */}
       <div className="flex items-start gap-2 px-3 pb-2 text-xs">
-        <span className="mt-1.5 w-7 shrink-0 font-mono text-[10px] text-[var(--text-faint)] uppercase">
+        <span className="mt-1.5 w-7 shrink-0 font-mono text-[11px] text-[var(--text-faint)]">
           {activeLang}
         </span>
         <div className="min-w-0 flex-1">
@@ -660,9 +658,7 @@ function VisualRow({
             preview={
               row.target.split("\n").some(looksLikeMM) ? (
                 <div className="mt-1 flex flex-col rounded border border-[var(--border-soft)] bg-[var(--color-bg)] px-2 py-1">
-                  <span className="mb-0.5 font-mono text-[9px] text-[var(--text-faint)] uppercase">
-                    {t("translations.previewLabel")}
-                  </span>
+                  <span className="field-label !mb-0.5">{t("translations.previewLabel")}</span>
                   <MMLines text={row.target} />
                 </div>
               ) : undefined

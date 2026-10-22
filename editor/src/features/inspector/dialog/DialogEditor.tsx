@@ -1,7 +1,9 @@
 import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
+import { EditorHeader } from "@/components/ui/editor-header";
 import { Input } from "@/components/ui/input";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import type { Dialog, DialogId, DialogInput, ProjectId } from "@/domain/types";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useGetText } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -54,7 +56,7 @@ function DialogIdField({ projectId, dialogId }: { projectId: ProjectId; dialogId
             : "h-8 px-2 py-0 font-mono text-xs"
         }
       />
-      {error ? <div className="mt-1 text-[10px] text-[var(--danger)]">{error}</div> : null}
+      {error ? <div className="mt-1 text-[11px] text-[var(--danger)]">{error}</div> : null}
     </div>
   );
 }
@@ -85,20 +87,24 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
 
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
-      <div className="border-[var(--border-soft)] border-b bg-[var(--surface-raised)] px-3 py-2">
-        <div className="font-mono text-xs text-[var(--brand)]">{dialog.id}</div>
-        <div className="text-[10px] text-[var(--text-faint)]">
-          dialog · {dialog.buttons.length} button{dialog.buttons.length !== 1 ? "s" : ""}
-        </div>
-      </div>
+      <EditorHeader
+        kind="dialog"
+        eyebrow={t("dialog.kindLabel")}
+        title={<MiniMessageInline source={getText(dialog.title) || dialog.id} />}
+        meta={
+          <span className="chip cursor-default text-[12px]">
+            {t("dialog.buttonCount", { count: dialog.buttons.length })}
+          </span>
+        }
+      >
+        <span className="font-mono text-[12.5px] text-[var(--text-faint)]">{dialog.id}</span>
+      </EditorHeader>
 
-      <div className="flex-1 overflow-auto px-3 py-3">
-        <Lane label={t("flow.propertiesLabel")}>
+      <div className="flex-1 overflow-auto px-4 py-4">
+        <Lane panel label={t("flow.propertiesLabel")}>
           <DialogIdField projectId={projectId} dialogId={dialog.id} />
           <div>
-            <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
-              {t("dialog.titleLabel", { lang: activeLang })}
-            </div>
+            <div className="field-label !mb-1">{t("dialog.titleLabel", { lang: activeLang })}</div>
             <PlaceholderInput
               value={getText(dialog.title)}
               onChange={(v) =>
@@ -127,7 +133,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
           </div>
         </Lane>
 
-        <Lane label={t("dialog.bodyLabel")}>
+        <Lane panel label={t("dialog.bodyLabel")}>
           <div className="flex flex-col gap-2">
             {dialog.body.map((body, i) => (
               <div
@@ -209,7 +215,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                     body: { type: "text", text: { key: "" as Dialog["title"]["key"] } },
                   })
                 }
-                className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+                className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
               >
                 {t("dialog.addBodyText")}
               </button>
@@ -222,7 +228,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                     body: { type: "item", material: "DIAMOND", count: 1 },
                   })
                 }
-                className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+                className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
               >
                 {t("dialog.addBodyItem")}
               </button>
@@ -230,7 +236,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
           </div>
         </Lane>
 
-        <Lane label={t("dialog.inputsLabel")}>
+        <Lane panel label={t("dialog.inputsLabel")}>
           <div className="flex flex-col gap-2">
             {dialog.inputs.map((input, i) => (
               <div
@@ -239,7 +245,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                 className="flex flex-col gap-1.5 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5"
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--text-mut)]">
+                  <span className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-mut)]">
                     {input.type}
                   </span>
                   <Input
@@ -278,7 +284,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                 </div>
                 {input.type === "number_range" ? (
                   <div className="flex items-center gap-2 pl-0.5">
-                    <span className="font-mono text-[10px] text-[var(--text-faint)]">
+                    <span className="font-mono text-[11px] text-[var(--text-faint)]">
                       {t("dialog.inputMin")}
                     </span>
                     <Input
@@ -294,7 +300,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                       }
                       className="h-7 w-20 px-2 py-0 text-xs"
                     />
-                    <span className="font-mono text-[10px] text-[var(--text-faint)]">
+                    <span className="font-mono text-[11px] text-[var(--text-faint)]">
                       {t("dialog.inputMax")}
                     </span>
                     <Input
@@ -310,7 +316,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                       }
                       className="h-7 w-20 px-2 py-0 text-xs"
                     />
-                    <span className="font-mono text-[10px] text-[var(--text-faint)]">
+                    <span className="font-mono text-[11px] text-[var(--text-faint)]">
                       {t("dialog.inputDefault")}
                     </span>
                     <Input
@@ -330,7 +336,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                 ) : null}
                 {input.type === "text" ? (
                   <div className="flex items-center gap-2 pl-0.5">
-                    <span className="font-mono text-[10px] text-[var(--text-faint)]">
+                    <span className="font-mono text-[11px] text-[var(--text-faint)]">
                       {t("dialog.inputMaxLength")}
                     </span>
                     <Input
@@ -380,7 +386,7 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                   onClick={() =>
                     addDialogInput({ projectId, dialogId: dialog.id, inputType: type })
                   }
-                  className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+                  className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
                 >
                   + {type}
                 </button>
@@ -389,15 +395,15 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
           </div>
         </Lane>
 
-        <Lane label={t("dialog.buttonsLabel")}>
+        <Lane panel label={t("dialog.buttonsLabel")}>
           <div className="flex flex-col gap-3">
             {dialog.buttons.map((btn, btnIndex) => (
               <div
                 key={btn.id}
-                className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2"
+                className="rounded-[var(--r-sm)] border border-[var(--border-soft)] bg-[var(--surface)] p-2.5"
               >
                 <div className="mb-2 flex items-center gap-1.5">
-                  <span className="font-mono text-[10px] text-[var(--text-faint)]">{btn.id}</span>
+                  <span className="font-mono text-[11px] text-[var(--text-faint)]">{btn.id}</span>
                   <Input
                     value={getText(btn.label)}
                     placeholder={t("dialog.buttonLabelPlaceholder")}
@@ -428,14 +434,12 @@ export function DialogEditor({ projectId, dialog }: { projectId: ProjectId; dial
                     </button>
                   ) : null}
                 </div>
-                <div className="overflow-x-auto rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2">
-                  <div className="font-mono text-[12px]">
-                    <ActionChainEditor
-                      projectId={projectId}
-                      address={{ kind: "dialogButton", dialogId: dialog.id, buttonIndex: btnIndex }}
-                      steps={btn.steps}
-                    />
-                  </div>
+                <div className="overflow-x-auto">
+                  <ActionChainEditor
+                    projectId={projectId}
+                    address={{ kind: "dialogButton", dialogId: dialog.id, buttonIndex: btnIndex }}
+                    steps={btn.steps}
+                  />
                 </div>
               </div>
             ))}

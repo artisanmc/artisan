@@ -45,9 +45,7 @@ export function DataSourcesSidebar({
   return (
     <div className="flex flex-1 flex-col gap-4 p-3">
       <section>
-        <div className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
-          {t("dataSources.sectionProject")}
-        </div>
+        <div className="section-label mb-2">{t("dataSources.sectionProject")}</div>
         <ul className="flex flex-col gap-1">
           {ownSources.map((d) => (
             <li key={d.id}>
@@ -62,7 +60,7 @@ export function DataSourcesSidebar({
               >
                 <span>{d.shape === "table" ? "🗂" : "📦"}</span>
                 <span className="truncate">{d.name}</span>
-                <span className="ml-auto text-[9px] text-[var(--text-faint)]">
+                <span className="ml-auto text-[10px] text-[var(--text-faint)]">
                   {d.shape === "table" ? t("dataSources.shapeTable") : t("dataSources.shapeConfig")}
                 </span>
               </button>

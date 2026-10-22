@@ -22,7 +22,7 @@ export function TextSizeSelector({ id, value, onChange }: TextSizeSelectorProps)
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[10px] uppercase text-[var(--text-faint)]">
+      <label htmlFor={id} className="field-label !mb-0">
         {t("layerEditForm.size.label")}
       </label>
       <select

@@ -245,7 +245,7 @@ function WorkspaceViewNav({ project }: { project: Project }) {
             {v.badge > 0 ? (
               <span
                 title={t("project.tabs.missingTranslations", { count: v.badge })}
-                className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[8px] text-[var(--warning-fg)]"
+                className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[9.5px] text-[var(--warning-fg)]"
               >
                 {v.badge}
               </span>
@@ -434,7 +434,7 @@ function TopBarIconButton({
       {children}
       {badge != null ? (
         typeof badge === "string" || typeof badge === "number" ? (
-          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[9px] text-[var(--warning-fg)]">
+          <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 font-mono text-[10px] text-[var(--warning-fg)]">
             {badge}
           </span>
         ) : (

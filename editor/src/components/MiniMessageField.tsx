@@ -45,7 +45,7 @@ export function MiniMessageField({
       preview={
         value.trim() ? (
           <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-            <span className="mr-2 text-[9px] uppercase text-[var(--text-faint)]">
+            <span className="mr-2 text-[11px] font-medium text-[var(--text-faint)]">
               {t("menuProperties.preview")}
             </span>
             <MiniMessageInline

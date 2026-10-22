@@ -62,7 +62,7 @@ export function HeadField({ head, onChange }: { head: string; onChange: (v: stri
         ) : null}
       </div>
       {source === "hdb" ? (
-        <p className="mt-1 text-[10px] text-[var(--text-faint)]">{t("flow.headHdbHint")}</p>
+        <p className="mt-1 text-[11px] text-[var(--text-faint)]">{t("flow.headHdbHint")}</p>
       ) : null}
       {source === "playerhead" ? (
         <Button

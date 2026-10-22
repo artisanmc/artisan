@@ -45,7 +45,7 @@ function ImageTile({ asset }: { asset: Asset }) {
     >
       <AssetPreview asset={asset} lazy className="h-12 w-full object-contain pointer-events-none" />
       <span className="w-full truncate text-xs">{asset.name}</span>
-      <span className="text-[10px] text-[var(--text-mut)]">{t("imageButton.slots", size)}</span>
+      <span className="text-[11px] text-[var(--text-mut)]">{t("imageButton.slots", size)}</span>
     </Button>
   );
 }

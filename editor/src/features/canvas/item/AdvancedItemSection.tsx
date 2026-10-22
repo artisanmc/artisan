@@ -20,9 +20,7 @@ import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-1 font-mono text-[10px] text-[var(--text-faint)] uppercase">{children}</div>
-  );
+  return <div className="field-label !mb-1">{children}</div>;
 }
 
 /**
@@ -80,7 +78,7 @@ export function AdvancedItemSection({
           {inheritedEnchants.length > 0 && (
             <div className="mb-2 flex flex-wrap items-center gap-1 text-xs text-[var(--text-mut)]">
               <span>{inheritedEnchants.map(formatEnchant).join(", ")}</span>
-              <span className="text-[10px] text-[var(--text-faint)]">
+              <span className="text-[11px] text-[var(--text-faint)]">
                 {t("itemBinding.fromCatalog")}
               </span>
               {enchants.length > 0 && (
@@ -290,7 +288,7 @@ export function AdvancedItemSection({
             onFocus={onFocus}
             className="input min-h-0 w-full px-2 py-1 font-mono text-xs"
           />
-          <p className="mt-1 text-[10px] text-[var(--text-faint)]">{t("flow.advanced.nbtHint")}</p>
+          <p className="mt-1 text-[11px] text-[var(--text-faint)]">{t("flow.advanced.nbtHint")}</p>
         </div>
       </div>
     </Collapsible>

@@ -79,7 +79,7 @@ export function ExpressionConditionField({ expr, onChange }: ExpressionCondition
             type="button"
             onClick={switchToForm}
             title={t("conditions.exprFormMode")}
-            className="rounded px-1 text-[9px] uppercase text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
+            className="rounded px-1 text-[10px] uppercase text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
           >
             {t("conditions.exprFormModeShort")}
           </button>
@@ -102,7 +102,7 @@ export function ExpressionConditionField({ expr, onChange }: ExpressionCondition
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text)] hover:bg-[var(--surface-raised-2)]"
+              className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--text)] hover:bg-[var(--surface-raised-2)]"
             >
               {parts.op}
             </button>
@@ -132,7 +132,7 @@ export function ExpressionConditionField({ expr, onChange }: ExpressionCondition
           type="button"
           onClick={switchToFreetext}
           title={t("conditions.exprFreeTextMode")}
-          className="rounded px-1 text-[9px] uppercase text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
+          className="rounded px-1 text-[10px] uppercase text-[var(--text-faint)] hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)]"
         >
           {t("conditions.exprFreeTextModeShort")}
         </button>

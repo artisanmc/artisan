@@ -1,9 +1,13 @@
+import { EditorHeader } from "@/components/ui/editor-header";
 import { documentsOf, menusOf } from "@/domain/documents";
-import type { Command, Dialog, Menu, ProjectId } from "@/domain/types";
+import type { Command, Dialog, Menu, Project, ProjectId } from "@/domain/types";
 import { selectionContext } from "@/features/project/selectionContext";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { contributionLabel, documentTitle } from "@/lib/moduleDocumentKinds";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -73,6 +77,10 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
       if (View) {
         return (
           <div className="h-full min-h-0 overflow-y-auto">
+            {/* Command and dialog editors draw their own header (with their chips). */}
+            {kind !== "command" && kind !== "dialog" ? (
+              <DocumentHeader project={project} kind={kind} doc={doc} />
+            ) : null}
             <View
               projectId={projectId}
               documentId={id}
@@ -98,8 +106,11 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
       }
       if (kind === "menu") {
         return (
-          <div className="h-full overflow-y-auto p-3">
-            <MenuProperties projectId={projectId} menu={doc as Menu} />
+          <div className="h-full overflow-y-auto">
+            <DocumentHeader project={project} kind={kind} doc={doc} />
+            <div className="p-3">
+              <MenuProperties projectId={projectId} menu={doc as Menu} />
+            </div>
           </div>
         );
       }
@@ -124,5 +135,29 @@ function EmptyHint({ label }: { label: string }) {
     <div className="flex h-full items-center justify-center bg-[var(--surface)] text-xs text-[var(--text-faint)]">
       {label}
     </div>
+  );
+}
+
+/** A Document's header in the Properties panel: its kind's colour and name, its title. */
+function DocumentHeader({
+  project,
+  kind,
+  doc,
+}: { project: Project; kind: string; doc: Parameters<typeof documentTitle>[1] }) {
+  const { t } = useTranslation();
+  const lang = useUiStore((s) => s.activeLang);
+  const uiLang = useUiStore((s) => s.editorLang);
+  const contribution = documentKindContribution(kind);
+  const eyebrow =
+    kind === "menu"
+      ? t("menuProperties.kindLabel")
+      : contributionLabel(contribution, kind, t, uiLang);
+  const title = documentTitle(contribution, doc, project, lang);
+  return (
+    <EditorHeader kind={kind} eyebrow={eyebrow} title={<MiniMessageInline source={title} />}>
+      {title !== doc.id ? (
+        <span className="font-mono text-[12.5px] text-[var(--text-faint)]">{doc.id}</span>
+      ) : null}
+    </EditorHeader>
   );
 }

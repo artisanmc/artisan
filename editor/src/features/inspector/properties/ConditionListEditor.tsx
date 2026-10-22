@@ -153,7 +153,7 @@ export function ConditionListEditor({
     <div>
       {label ? (
         <div className="mb-1">
-          <span className="text-[10px] uppercase text-[var(--text-faint)]">{label}</span>
+          <span className="field-label !mb-0">{label}</span>
         </div>
       ) : null}
       {conditions.length === 0 ? (
@@ -234,7 +234,7 @@ function ConditionChip({ id, condition, joiner, onChange, onRemove }: ConditionC
               type="button"
               {...attributes}
               {...listeners}
-              className="cursor-grab rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--text)] hover:bg-[var(--surface-raised-2)] active:cursor-grabbing"
+              className="cursor-grab rounded bg-[var(--fam-logic-soft)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)] active:cursor-grabbing"
             >
               {labelForType(condition.type)}
             </button>
@@ -293,7 +293,7 @@ function ConditionInline({
     case "has_money":
       return (
         <>
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">≥</span>
+          <span className="font-mono text-[11px] text-[var(--text-faint)]">≥</span>
           <Input
             type="number"
             min={0}
@@ -315,7 +315,7 @@ function ConditionInline({
             onChange={(e) => onChange({ ...condition, placeholder: e.target.value })}
             className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
           />
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">=</span>
+          <span className="font-mono text-[11px] text-[var(--text-faint)]">=</span>
           <Input
             placeholder={t("conditions.placeholderValuePlaceholder")}
             value={condition.value}
@@ -333,7 +333,7 @@ function ConditionInline({
             onChange={(e) => onChange({ ...condition, placeholder: e.target.value })}
             className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
           />
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">~</span>
+          <span className="font-mono text-[11px] text-[var(--text-faint)]">~</span>
           <Input
             placeholder={t("conditions.placeholderRegexPlaceholder")}
             value={condition.regex}
@@ -349,7 +349,7 @@ function ConditionInline({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--text)] hover:bg-[var(--surface-raised-2)]"
+                className="rounded bg-[var(--fam-logic-soft)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]"
               >
                 {labelForType(condition.of.type)}
               </button>
@@ -384,7 +384,7 @@ function ConditionInline({
             onChange={(e) => onChange({ ...condition, material: e.target.value })}
             className="h-6 w-[120px] px-1.5 py-0 font-mono text-[11px]"
           />
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">×</span>
+          <span className="font-mono text-[11px] text-[var(--text-faint)]">×</span>
           <Input
             type="number"
             min={1}
@@ -402,7 +402,7 @@ function ConditionInline({
       const value = condition.type === "has_xp" ? condition.amount : condition.level;
       return (
         <>
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">≥</span>
+          <span className="font-mono text-[11px] text-[var(--text-faint)]">≥</span>
           <Input
             type="number"
             min={1}
@@ -462,7 +462,7 @@ function ConditionInline({
                 }}
                 className="h-6 w-[70px] px-1.5 py-0 text-[11px]"
               />
-              <span className="font-mono text-[10px] text-[var(--text-faint)]">→</span>
+              <span className="font-mono text-[11px] text-[var(--text-faint)]">→</span>
               <Input
                 type="number"
                 min={0}
@@ -483,7 +483,7 @@ function ConditionInline({
     case "random_chance":
       return (
         <>
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">p =</span>
+          <span className="font-mono text-[11px] text-[var(--text-faint)]">p =</span>
           <Input
             type="number"
             min={0}
@@ -567,13 +567,13 @@ function CompositeInner({
   return (
     <div className="flex flex-wrap items-center gap-1 rounded border border-[var(--border-soft)] border-dashed bg-[var(--surface)]/50 px-1 py-0.5">
       {condition.of.length === 0 ? (
-        <span className="font-mono text-[10px] text-[var(--text-faint)] italic">empty</span>
+        <span className="font-mono text-[11px] text-[var(--text-faint)] italic">empty</span>
       ) : (
         condition.of.map((inner, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: index stable per render
           <Fragment key={i}>
             {i > 0 ? (
-              <span className="select-none font-mono text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
+              <span className="select-none text-[11px] font-medium text-[var(--text-faint)]">
                 {op}
               </span>
             ) : null}
@@ -610,7 +610,7 @@ function InnerChip({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="rounded bg-[var(--surface-raised-2)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-[var(--text)] hover:bg-[var(--surface-raised-2)]"
+            className="rounded bg-[var(--fam-logic-soft)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]"
           >
             {labelForType(condition.type)}
           </button>
@@ -635,7 +635,7 @@ function InnerChip({
         type="button"
         title={t("conditions.removeCondition")}
         onClick={onRemove}
-        className="rounded px-1 text-[10px] text-[var(--text-faint)] opacity-0 hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)] group-hover:opacity-100"
+        className="rounded px-1 text-[11px] text-[var(--text-faint)] opacity-0 hover:bg-[var(--surface-raised-2)] hover:text-[var(--text)] group-hover:opacity-100"
       >
         ×
       </button>
@@ -655,7 +655,7 @@ function AppendChip({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="rounded border border-[var(--border)] border-dashed px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+          className="rounded border border-[var(--border)] border-dashed px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
         >
           {joiner ? `+ ${joiner}` : "+ add"}
         </button>
@@ -688,9 +688,7 @@ function JoinerToggle({ op, onToggle }: { op: "and" | "or"; onToggle?: () => voi
   const label = op === "or" ? "OR" : "AND";
   if (!onToggle) {
     return (
-      <span className="select-none font-mono text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
-        {label}
-      </span>
+      <span className="select-none text-[11px] font-medium text-[var(--text-faint)]">{label}</span>
     );
   }
   return (
@@ -699,10 +697,10 @@ function JoinerToggle({ op, onToggle }: { op: "and" | "or"; onToggle?: () => voi
       onClick={onToggle}
       title={t("conditions.switchOperator")}
       className={cx(
-        "rounded px-1 font-mono text-[9px] uppercase tracking-wide transition-colors",
+        "rounded px-1 font-mono text-[10.5px] font-medium transition-colors",
         op === "or"
           ? "bg-[var(--warning-soft)] text-[var(--warning)] hover:bg-[var(--warning)]/25"
-          : "bg-[var(--surface-raised-2)] text-[var(--text-mut)] hover:bg-[var(--surface-raised-2)]",
+          : "bg-[var(--fam-logic-soft)] text-[var(--fam-logic)] hover:bg-[var(--fam-logic-soft)]",
       )}
     >
       {label}

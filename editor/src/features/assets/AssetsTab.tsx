@@ -80,7 +80,7 @@ export function AssetsTab({
                 onClick={() => setCategory(entry)}
                 aria-pressed={category === entry}
                 className={cx(
-                  "rounded-full border px-2 py-0.5 text-[10px] capitalize",
+                  "rounded-full border px-2 py-0.5 text-[11px] capitalize",
                   category === entry
                     ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]"
                     : "border-[var(--border)] text-[var(--text-mut)] hover:border-[var(--border-strong)]",

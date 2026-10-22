@@ -64,9 +64,7 @@ export function SourceShapingEditor({
         ))}
       </datalist>
 
-      <div className="font-mono text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
-        {t("menuProperties.filterSection")}
-      </div>
+      <div className="field-label !mb-0">{t("menuProperties.filterSection")}</div>
       {rows.map(([field, value], i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional while editing
         <div key={i} className="flex items-center gap-1.5">
@@ -78,7 +76,7 @@ export function SourceShapingEditor({
             onChange={(e) => emit(rows.map((r, j) => (j === i ? [e.target.value, r[1]] : r)))}
             className="h-7 w-24! shrink-0 px-2 py-0 font-mono text-xs"
           />
-          <span className="text-[10px] text-[var(--text-faint)]">=</span>
+          <span className="text-[11px] text-[var(--text-faint)]">=</span>
           <Input
             data-testid="filter-value"
             value={value}
@@ -101,13 +99,13 @@ export function SourceShapingEditor({
         type="button"
         data-testid="filter-add"
         onClick={() => emit([...rows, ["", ""]])}
-        className="self-start rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+        className="self-start rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
       >
         {t("menuProperties.filterAdd")}
       </button>
 
       <div className="flex items-center gap-1.5">
-        <span className="font-mono text-[10px] text-[var(--text-faint)]">
+        <span className="font-mono text-[11px] text-[var(--text-faint)]">
           {t("menuProperties.sortLabel")}:
         </span>
         <Input
@@ -141,7 +139,7 @@ export function SourceShapingEditor({
           <option value="asc">{t("menuProperties.sortAsc")}</option>
           <option value="desc">{t("menuProperties.sortDesc")}</option>
         </select>
-        <span className="ml-2 font-mono text-[10px] text-[var(--text-faint)]">
+        <span className="ml-2 font-mono text-[11px] text-[var(--text-faint)]">
           {t("menuProperties.limitLabel")}:
         </span>
         <Input

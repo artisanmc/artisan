@@ -91,7 +91,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
     <div className="flex flex-col gap-3">
       {elementCount === 0 ? (
         <div className="flex flex-col gap-2 rounded border border-[var(--brand-line)] border-dashed bg-[var(--brand-soft)] p-3">
-          <div className="font-mono text-[10px] text-[var(--brand)] uppercase tracking-wide">
+          <div className="text-[12.5px] font-semibold text-[var(--brand)]">
             {t("menuProperties.emptyMenuTitle")}
           </div>
           <p className="text-[11px] text-[var(--text-mut)]">{t("menuProperties.emptyMenuHint")}</p>
@@ -107,9 +107,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
       ) : null}
       <MenuIdField projectId={projectId} menuId={menu.id} />
       <div className="flex flex-col gap-1.5" data-testid="menu-properties-title-section">
-        <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
-          {t("menuProperties.titleSection")}
-        </div>
+        <div className="field-label !mb-0">{t("menuProperties.titleSection")}</div>
         <LayersPanel
           projectId={projectId}
           menuId={menu.id}
@@ -125,9 +123,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
         }
       />
       <div>
-        <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
-          {t("menuProperties.inventoryType")}
-        </div>
+        <div className="field-label !mb-1">{t("menuProperties.inventoryType")}</div>
         <div className="flex gap-1">
           {INVENTORY_TYPE_OPTIONS.map((opt) => (
             <button
@@ -145,15 +141,13 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
           ))}
         </div>
         {outOfRange > 0 ? (
-          <div className="mt-1.5 rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[10px] text-[var(--warning)]">
+          <div className="mt-1.5 rounded border border-[var(--warning)]/50 bg-[var(--warning-soft)] px-2 py-1 text-[11px] text-[var(--warning)]">
             {t("menuProperties.outOfRange", { count: outOfRange })}
           </div>
         ) : null}
       </div>
       <div>
-        <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
-          {t("menuProperties.playerInventory")}
-        </div>
+        <div className="field-label !mb-1">{t("menuProperties.playerInventory")}</div>
         <div className="flex gap-1">
           {PLAYER_INVENTORY_OPTIONS.map((opt) => (
             <button
@@ -177,7 +171,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
             </button>
           ))}
         </div>
-        <p className="mt-1 text-[10px] text-[var(--text-mut)]">
+        <p className="mt-1 text-[11px] text-[var(--text-mut)]">
           {t(
             menu.playerInventory === "hidden"
               ? "menuProperties.playerInventoryHintHidden"
@@ -187,9 +181,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
       </div>
       {type === "chest" ? (
         <div>
-          <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
-            {t("menuProperties.rows")}
-          </div>
+          <div className="field-label !mb-1">{t("menuProperties.rows")}</div>
           <div className="flex gap-1">
             {ROWS_OPTIONS.map((r) => (
               <button
@@ -206,7 +198,7 @@ export function MenuProperties({ projectId, menu }: MenuPropertiesProps) {
               </button>
             ))}
           </div>
-          {rowsError && <div className="mt-1 text-[10px] text-[var(--danger)]">{rowsError}</div>}
+          {rowsError && <div className="mt-1 text-[11px] text-[var(--danger)]">{rowsError}</div>}
         </div>
       ) : null}
       <ContextInputsEditor projectId={projectId} menu={menu} />
@@ -240,9 +232,7 @@ function MenuIdField({ projectId, menuId }: { projectId: ProjectId; menuId: Menu
 
   return (
     <div>
-      <div className="mb-1 text-[10px] uppercase text-[var(--text-faint)]">
-        {t("menuProperties.id")}
-      </div>
+      <div className="field-label !mb-1">{t("menuProperties.id")}</div>
       <Input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -263,8 +253,8 @@ function MenuIdField({ projectId, menuId }: { projectId: ProjectId; menuId: Menu
             : "h-8 px-2 py-0 font-mono text-xs"
         }
       />
-      {error ? <div className="mt-1 text-[10px] text-[var(--danger)]">{error}</div> : null}
-      <div className="mt-1 text-[10px] text-[var(--text-faint)]">
+      {error ? <div className="mt-1 text-[11px] text-[var(--danger)]">{error}</div> : null}
+      <div className="mt-1 text-[11px] text-[var(--text-faint)]">
         {t("menuProperties.idHint", { tag: "open_menu" })}
       </div>
     </div>
@@ -300,10 +290,8 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="font-mono text-[10px] text-[var(--text-faint)] uppercase tracking-wide">
-        {t("menuProperties.dataSection")}
-      </div>
-      <p className="text-[10px] text-[var(--text-faint)]">
+      <div className="field-label !mb-0">{t("menuProperties.dataSection")}</div>
+      <p className="text-[11px] text-[var(--text-faint)]">
         {t("menuProperties.contextInputsHint", { tag: "{name}" })}
       </p>
       <PreviewContextSection menu={menu} projectId={projectId} />
@@ -353,7 +341,7 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
                 </>
               )}
               {isInvalid ? (
-                <div className="text-[10px] text-[var(--danger)]">
+                <div className="text-[11px] text-[var(--danger)]">
                   {input.name === ""
                     ? t("menuProperties.inputNeedsName")
                     : t("menuProperties.inputNameDup", { name: input.name })}
@@ -467,7 +455,7 @@ function PrimitiveInputRow({
       {/* Row 2: default value */}
       <div className="flex items-center gap-2 pl-0.5">
         <div className="flex items-center gap-1">
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">
+          <span className="font-mono text-[11px] text-[var(--text-faint)]">
             {t("menuProperties.inputDefault")}:
           </span>
           <Input
@@ -589,7 +577,7 @@ function SourcePickerOptions({
     <>
       {hasProjectData ? (
         <>
-          <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
+          <DropdownMenuLabel className="text-[11px] text-[var(--text-faint)]">
             {t("menuProperties.refSectionProjectData")}
           </DropdownMenuLabel>
           {(project.dataSources ?? []).map((d) => (
@@ -601,7 +589,7 @@ function SourcePickerOptions({
             >
               <span className="mr-1">{d.shape === "table" ? "🗂" : "📦"}</span>
               <span className="font-mono">{d.name}</span>
-              <span className="ml-auto text-[9px] text-[var(--text-faint)]">
+              <span className="ml-auto text-[10px] text-[var(--text-faint)]">
                 {summarizeFieldType(sourceFieldType(project, d))}
               </span>
             </DropdownMenuItem>
@@ -611,7 +599,7 @@ function SourcePickerOptions({
       {liveSources.length > 0 ? (
         <>
           {hasProjectData ? <DropdownMenuSeparator /> : null}
-          <DropdownMenuLabel className="text-[9px] uppercase text-[var(--text-faint)]">
+          <DropdownMenuLabel className="text-[11px] text-[var(--text-faint)]">
             {t("menuProperties.refSectionServer")}
           </DropdownMenuLabel>
           {liveSources.map((s) => (
@@ -624,7 +612,7 @@ function SourcePickerOptions({
               <span className="mr-1">🛰</span>
               <span className="font-mono">{s.ref}</span>
               {s.schemaHint ? (
-                <span className="ml-auto text-[9px] text-[var(--text-faint)]">{s.schemaHint}</span>
+                <span className="ml-auto text-[10px] text-[var(--text-faint)]">{s.schemaHint}</span>
               ) : null}
             </DropdownMenuItem>
           ))}

@@ -115,7 +115,7 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
           onChange={(value) => onChange({ name: action.name, value: value ?? null })}
           ariaLabel={action.name}
         />
-        <p className="mt-1 text-[10px] text-[var(--text-faint)]">
+        <p className="mt-1 text-[11px] text-[var(--text-faint)]">
           {t("actionEditor.moduleUnknown")}
         </p>
       </div>
@@ -177,7 +177,7 @@ function DeclaredActionForm({
               onChange={(v) => setArg(arg.name, v)}
               literalText={literalText}
             />
-            {help ? <p className="mt-1 text-[10px] text-[var(--text-faint)]">{help}</p> : null}
+            {help ? <p className="mt-1 text-[11px] text-[var(--text-faint)]">{help}</p> : null}
           </div>
         );
       })}
@@ -599,7 +599,7 @@ function TextArgInput({
         preview={
           looksLikeMiniMessage(edit.value) ? (
             <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2 py-1">
-              <span className="mr-2 text-[9px] uppercase text-[var(--text-faint)]">
+              <span className="mr-2 text-[11px] font-medium text-[var(--text-faint)]">
                 {t("menuProperties.preview")}
               </span>
               <MiniMessageInline source={edit.value} className="mc-text text-[13px]" />
@@ -611,7 +611,7 @@ function TextArgInput({
         <button
           type="button"
           onClick={onRemove}
-          className="mt-1 text-[10px] text-[var(--text-faint)] hover:text-[var(--danger)]"
+          className="mt-1 text-[11px] text-[var(--text-faint)] hover:text-[var(--danger)]"
         >
           {t("actionEditor.textRemove")}
         </button>
@@ -673,7 +673,7 @@ function JsonValueInput({
         aria-invalid={invalid}
       />
       {invalid ? (
-        <p className="mt-1 text-[10px] text-[var(--danger)]">
+        <p className="mt-1 text-[11px] text-[var(--danger)]">
           {t("actionEditor.moduleValueInvalid")}
         </p>
       ) : null}
@@ -761,9 +761,7 @@ function MenuRefInput({ projectId, value, onChange }: ArgInputProps) {
             .map((p) => (
               <DropdownMenuGroup key={p.id}>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[10px] uppercase text-[var(--text-faint)]">
-                  {p.name}
-                </DropdownMenuLabel>
+                <DropdownMenuLabel className="field-label !mb-0">{p.name}</DropdownMenuLabel>
                 {menusOf(p).map((m) => (
                   <DropdownMenuRadioItem
                     key={m.id}
@@ -884,7 +882,7 @@ function ContextMapInput({ projectId, decl, args, value, onChange }: ArgInputPro
           key={input.name}
           className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5"
         >
-          <div className="mb-1 flex items-center gap-2 font-mono text-[10px]">
+          <div className="mb-1 flex items-center gap-2 font-mono text-[11px]">
             <span className="text-[var(--brand)]">{input.name}</span>
             <span className="text-[var(--text-faint)]">
               : {input.kind === "primitive" ? input.type : "sourceRef"}
@@ -906,7 +904,7 @@ function ContextMapInput({ projectId, decl, args, value, onChange }: ArgInputPro
             key={k}
             className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5"
           >
-            <div className="mb-1 flex items-center gap-2 font-mono text-[10px]">
+            <div className="mb-1 flex items-center gap-2 font-mono text-[11px]">
               <span className="text-[var(--brand)]">{k}</span>
               <span className="text-[var(--text-faint)]">
                 {t("actionEditor.contextUndeclared")}
@@ -966,7 +964,7 @@ function AddContextKey({
           onAdd(draft);
           setDraft("");
         }}
-        className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[10px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)] disabled:opacity-40"
+        className="rounded border border-[var(--border)] border-dashed px-2 py-1 text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)] disabled:opacity-40"
       >
         {t("actionEditor.contextAdd")}
       </button>

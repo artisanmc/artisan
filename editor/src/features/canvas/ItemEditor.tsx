@@ -106,7 +106,7 @@ export function ItemEditor({
         ↺
       </button>
     ) : hasInherited(field) ? (
-      <span className="text-[10px] text-[var(--text-faint)]">{t("itemBinding.inherited")}</span>
+      <span className="text-[11px] text-[var(--text-faint)]">{t("itemBinding.inherited")}</span>
     ) : null;
   function textField(field: "title" | "lore", own: string | undefined, label: string) {
     // The base lore already applies without writing anything: prefilling the
@@ -207,7 +207,7 @@ export function ItemEditor({
                 className="block truncate text-sm font-medium"
               />
               {preview.title && (
-                <span className="block truncate font-mono text-[10px] text-[var(--text-faint)]">
+                <span className="block truncate font-mono text-[11px] text-[var(--text-faint)]">
                   {display.material}
                 </span>
               )}

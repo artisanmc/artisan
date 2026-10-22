@@ -56,7 +56,7 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
     <div className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-3">
       <div className="mb-1 flex items-center gap-2">
         <span
-          className={`rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase ${KIND_BADGE[pattern.kind]}`}
+          className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase ${KIND_BADGE[pattern.kind]}`}
         >
           {pattern.kind}
         </span>
