@@ -1,6 +1,7 @@
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { commandsOf, dialogsOf, findDocument, menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
+import { isModuleCommandId } from "@/lib/moduleCommands";
 
 /**
  * What the current selection designates, for the given project. A single
@@ -24,6 +25,8 @@ export type SelectionContext =
    * `item`: the part selected on its board node (`board.items`), scoped like an element.
    */
   | { kind: "document"; documentKind: string; id: string; item?: string }
+  /** A command the folder's module declares (`<module>:<name>`): its override form. */
+  | { kind: "moduleCommand"; id: string }
   | { kind: "unknown" };
 
 const CORE = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
@@ -46,6 +49,8 @@ export function selectionContext(
     if (found && !CORE.has(found.kind)) {
       return { kind: "document", documentKind: found.kind, id };
     }
+    // A Document id never holds `:`: this is a module command drawn on the board.
+    if (isModuleCommandId(id)) return { kind: "moduleCommand", id };
   }
 
   // A part of a module's Document (`board.items`): scoped by its Document, like an element.

@@ -316,7 +316,7 @@ export function DocumentGroups({
               ))}
               {moduleRows.map((node) => (
                 <li key={node.id}>
-                  <ModuleCommandRow node={node} />
+                  <ModuleCommandRow node={node} onOpen={() => onOpen(node.id)} />
                 </li>
               ))}
             </ul>

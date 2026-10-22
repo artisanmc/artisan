@@ -37,7 +37,13 @@ const DEFAULT_LANGS = ["fr", "en"];
 export function SystemCommandPage({
   serverId,
   commandId,
-}: { serverId: string; commandId: string }) {
+  layout = "page",
+}: {
+  serverId: string;
+  commandId: string;
+  /** `panel`: in the board's Properties panel, full width, no page margins. */
+  layout?: "page" | "panel";
+}) {
   const { t } = useTranslation();
   const status = useSystemCommandsStore((s) => s.status);
   const commands = useSystemCommandsStore((s) => s.commands);
@@ -122,7 +128,13 @@ export function SystemCommandPage({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-5 overflow-y-auto pb-10">
+    <div
+      className={
+        layout === "panel"
+          ? "flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto px-3 pt-3"
+          : "mx-auto flex w-full max-w-[760px] flex-col gap-5 overflow-y-auto pb-10"
+      }
+    >
       <div className="panel overflow-hidden rounded-[var(--r-md)]">
         <EditorHeader
           kind="command"

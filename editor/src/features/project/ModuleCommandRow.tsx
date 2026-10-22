@@ -1,34 +1,33 @@
 import { Tooltip } from "@/components/ui/tooltip";
 import type { ModuleCommandNode } from "@/lib/moduleCommands";
-import { useSystemCommandsStore } from "@/state/systemCommandsStore";
-import { Link, useParams } from "@tanstack/react-router";
+import { useSelectionStore } from "@/state/selectionStore";
 import { Puzzle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 /**
  * A command the folder's module declares, listed with the folder's own commands: the
  * puzzle marks it as the module's (its behaviour lives in the plugin, explained on hover),
- * a dot when the admin changed it, struck when disabled. It opens its System page.
+ * a dot when the admin changed it, struck when disabled. Like a Document, it opens on the
+ * board, selected, its form in the Properties panel.
  */
 export function ModuleCommandRow({
   node,
+  onOpen,
   depth = 0,
 }: {
   node: ModuleCommandNode;
+  onOpen: () => void;
   /** Folder depth: 0 under the kind header at the module root. */
   depth?: number;
 }) {
   const { t } = useTranslation();
-  const serverId = useSystemCommandsStore((s) => s.serverId);
-  const params = useParams({ strict: false }) as { commandId?: string };
-  if (!serverId) return null;
-  const active = params.commandId === node.id;
+  const active = useSelectionStore((s) => s.menuId === null && s.ids.has(node.id));
   const hint = t("projectPanel.moduleCommandHint", { module: node.moduleId });
   return (
-    <Link
-      to="/servers/$serverId/commands/$commandId"
-      params={{ serverId, commandId: node.id }}
-      className={`flex min-w-0 items-center gap-1.5 rounded-[10px] py-1 pr-2 text-left text-[12.5px] leading-5 hover:bg-[var(--surface-hover)] ${
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`flex w-full min-w-0 items-center gap-1.5 rounded-[10px] py-1 pr-2 text-left text-[12.5px] leading-5 hover:bg-[var(--surface-hover)] ${
         active
           ? "font-semibold text-[var(--text)]"
           : "text-[var(--text-mut)] hover:text-[var(--text)]"
@@ -55,6 +54,6 @@ export function ModuleCommandRow({
           <Puzzle className="size-3 text-[var(--text-faint)]" aria-hidden />
         </span>
       </Tooltip>
-    </Link>
+    </button>
   );
 }
