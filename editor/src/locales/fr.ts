@@ -187,12 +187,6 @@ const fr: typeof en = {
     removeLanguage: "Supprimer la langue",
   },
   translations: {
-    commandText: {
-      description: "/{{command}} · description",
-      cooldown_message: "/{{command}} · message pendant le délai",
-    },
-    commandTextHint:
-      "Texte d'une commande interne du module. Il va dans le fichier d'override de la commande, dans le brouillon du dossier.",
     statTranslated: "{{translated}} / {{total}} traduites en {{lang}}",
     statMissing: "{{count}} manquantes",
     statComplete: "complet",
@@ -809,7 +803,7 @@ const fr: typeof en = {
     },
   },
   projectPanel: {
-    originTag: { modified: "modifié", update: "nouvelle version", disabled: "désactivée" },
+    originTag: { modified: "modifié", update: "nouvelle version" },
     systemDocumentHint:
       "Élément interne du module {{module}} : son code l'ouvre. Tu peux le modifier ; il ne se supprime pas, Réinitialiser le remet à la version du module.",
     systemBadge: {
@@ -821,10 +815,6 @@ const fr: typeof en = {
     systemResetHint: "Remet la version du module. Enregistre d'abord tes modifications en cours.",
     systemResetConfirm:
       "Remettre la version du module ? Tes modifications de ce fichier seront perdues.",
-    unfoldSubCommands: "Déplier les sous-commandes de {{command}}",
-    foldSubCommands: "Replier les sous-commandes de {{command}}",
-    moduleCommandHint:
-      "Commande interne du module {{module}} : son code est dans le plugin. Ouvre-la pour changer son nom, sa permission, ses textes ou ce qu'elle fait.",
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",
     multiSelection: "Édition multiple non prise en charge en v1. Sélectionnez un seul élément.",
     selectionNoEditor: "Aucun éditeur pour cette sélection.",
@@ -968,7 +958,6 @@ const fr: typeof en = {
     systemElement: "système · {{module}}",
     systemDocumentKept:
       "Un menu ou dialogue système ne se supprime pas : réinitialise-le depuis la liste du dossier.",
-    moduleCommand: "commande · {{module}}",
     armedHint: "armé — clique une case pour le placer",
     groups: {
       title: "Dossiers",
@@ -1286,52 +1275,6 @@ const fr: typeof en = {
     neverConnected: "Jamais connecté",
     empty: "Aucun serveur lié",
     updateRequired: "Mise à jour requise",
-  },
-  systemCommands: {
-    eyebrow: "Commande système · {{module}}",
-    intro:
-      "Chaque champ part de la valeur du module. Le bouton à côté d'un champ s'active quand tu le modifies et lui rend cette valeur. Tes changements vont dans le brouillon du dossier, dans le fichier d'override de la commande, et partent au serveur avec Déployer.",
-    opening: "Ouverture du dossier de la commande…",
-    noFolder:
-      "Une commande se modifie dans le dossier de son module, comme ses Documents, et se déploie avec lui. Ce module n'a pas encore de dossier sur ce serveur : crée {{folder}} pour modifier la commande.",
-    createFolder: "Créer le dossier {{folder}}",
-    createFolderFailed: "Le dossier n'a pas pu être créé.",
-    enabledFor: "{{command}} activée",
-    edit: "Modifier",
-    collapse: "Replier",
-    loading: "Lecture des commandes du serveur…",
-    notFound: "Ce serveur ne déclare pas cette commande.",
-    logicKept:
-      "Cet override contient aussi des conditions ou un repli (fallback). Ils sont conservés tels quels et ne se modifient que dans le fichier.",
-    enabled: "Activée",
-    name: "Nom",
-    aliases: "Alias",
-    aliasesHint: "Séparés par des virgules. Vide : aucun alias.",
-    none: "Aucun",
-    permission: "Permission",
-    permissionHint: "Vide : aucune permission requise.",
-    resetField: "{{field}} : revenir à la valeur du module",
-    noMessage: "Aucun message",
-    description: "Description",
-    behaviour: "Comportement",
-    behaviourModule: "Le code du module s'exécute.",
-    behaviourMenu: "Ouvre le menu {{menu}}, comme le module le déclare.",
-    behaviourCustomHint:
-      "Ces étapes remplacent le code du module. L'action « module_command » l'appelle : garde-la pour ajouter des étapes avant ou après, retire-la pour le remplacer.",
-    behaviourCustomise: "Personnaliser",
-    behaviourReset: "Revenir au code du module",
-    textLang: "Langue : {{lang}}. Les autres langues sont dans l'onglet Traductions.",
-    textFallback:
-      "Pas encore traduit en {{lang}} : le texte grisé s'applique. Les autres langues sont dans l'onglet Traductions.",
-    cooldown: "Délai entre deux utilisations (secondes)",
-    cooldownHint: "0 : aucun délai.",
-    cooldownScope: "Portée du délai",
-    scopePlayer: "Par joueur",
-    scopeGlobal: "Tout le serveur",
-    cooldownMessage: "Message pendant le délai",
-    resetAll: "Revenir aux valeurs du module",
-    stateModified: "Modifiée",
-    stateDisabled: "Désactivée",
   },
   sidebar: {
     projectDocuments: "Documents de {{name}}",

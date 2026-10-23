@@ -1,6 +1,6 @@
 package net.artisanmc.plugin.protocol
 
-import net.artisanmc.modules.api.template.TemplateRegistry
+import net.artisanmc.plugin.project.ModuleTemplates
 import net.artisanmc.plugin.project.ProjectOrigins
 import net.artisanmc.plugin.project.TemplateCopies
 import java.util.Base64
@@ -13,7 +13,7 @@ import java.util.Base64
 class TemplateRequests(
     private val workspace: ProjectWorkspace,
     private val replies: Replies,
-    private val templates: () -> TemplateRegistry?,
+    private val templates: () -> ModuleTemplates?,
 ) {
     private val roots get() = workspace.roots
 

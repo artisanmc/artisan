@@ -3,7 +3,6 @@ import { selectModuleNavEntries } from "@/distribution/moduleNav";
 import type { Project } from "@/domain/types";
 import { fallbackScreensFor } from "@/features/screens/screenList";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import type { PlayerCommand } from "@/lib/api/playerCommands";
 import type { ProjectSummary } from "@/lib/api/servers";
 import { getModule } from "@artisan/editor-sdk";
 
@@ -142,34 +141,24 @@ export interface PluginModule {
   label: string;
   projects: ProjectRow[];
   entries: ModuleGroupEntry[];
-  /** Its system commands (design `framework-commandes` §3.9), root commands only. */
-  commands: PlayerCommand[];
 }
 
 /**
  * The server's modules, one folder = one module (design `projets-en-modules`):
  *
- * - `pluginModules`: every module a plugin provides, with its folders, screens and system
- *   commands, sorted by name. A module with neither a folder nor anything to configure is left out.
+ * - `pluginModules`: every module a plugin provides, with its folders and screens, sorted
+ *   by name. A module with neither a folder nor anything to configure is left out.
  * - `contentModules`: the admin's folders, owned by no plugin, in the caller's order.
  *
  * Built on [buildProjectGroups]: the same owners, labels and screens, grouped by module.
  */
-export function buildModuleList(
-  input: ProjectGroupsInput & {
-    /** The commands the server's modules declare: each goes under its module, created if needed. */
-    commands?: PlayerCommand[];
-  },
-): {
+export function buildModuleList(input: ProjectGroupsInput): {
   pluginModules: PluginModule[];
   contentModules: ProjectRow[];
 } {
   const { projects, moduleGroups } = buildProjectGroups(input);
   const byId = new Map<string, PluginModule>(
-    moduleGroups.map((g) => [
-      g.id,
-      { id: g.id, label: g.label, projects: [], entries: g.entries, commands: [] },
-    ]),
+    moduleGroups.map((g) => [g.id, { id: g.id, label: g.label, projects: [], entries: g.entries }]),
   );
   const contentModules: ProjectRow[] = [];
   for (const row of projects) {
@@ -182,17 +171,9 @@ export function buildModuleList(
       label: row.ownerLabel ?? row.ownerModule,
       projects: [],
       entries: [],
-      commands: [],
     };
     module.projects.push(row);
     byId.set(module.id, module);
-  }
-  // A command registered outside a module (no module id) goes under the module of its namespace.
-  for (const command of input.commands ?? []) {
-    const id = command.moduleId ?? command.id.slice(0, command.id.indexOf(":"));
-    const module = byId.get(id) ?? { id, label: id, projects: [], entries: [], commands: [] };
-    module.commands.push(command);
-    byId.set(id, module);
   }
   const pluginModules = [...byId.values()].sort((a, b) => a.label.localeCompare(b.label));
   return { pluginModules, contentModules };

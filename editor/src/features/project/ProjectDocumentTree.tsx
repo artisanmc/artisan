@@ -20,7 +20,6 @@ import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
-import { useModuleCommands } from "@/features/canvas/useModuleCommands";
 import { ModuleTemplatesDialog } from "@/features/templates/ModuleTemplatesDialog";
 import {
   type ProjectTemplates,
@@ -48,7 +47,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { documentRelPath } from "./DocumentYamlView";
 import { FolderNameDialog } from "./FolderNameDialog";
-import { ModuleCommandRow } from "./ModuleCommandRow";
 import { openProjectSettings } from "./projectSettings";
 import {
   type DocumentType,
@@ -200,13 +198,9 @@ export function ProjectDocumentTree({
 }) {
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
-  const { nodes: moduleCommands } = useModuleCommands(project);
   if (!project) return null;
 
-  const empty =
-    documentCount(project) === 0 &&
-    listFolders(project).length === 0 &&
-    moduleCommands.length === 0;
+  const empty = documentCount(project) === 0 && listFolders(project).length === 0;
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.
@@ -254,15 +248,6 @@ export function DocumentGroups({
   const templates = useProjectTemplates(project.id);
   const groups = buildProjectDocuments(project, activeLang);
   const originOf = (id: string) => templateOrigin(templates, documentRelPath(project, id), t);
-  // The commands the folder's module declares go with its own commands.
-  const { nodes: moduleCommands } = useModuleCommands(project);
-  // The command kind is seeded with the core kinds, so its group exists even without own
-  // commands; a second group of the same kind would be rendered twice (and, with two
-  // children keyed `command`, React duplicates them further on every re-render).
-  const kinds =
-    moduleCommands.length > 0 && !groups.some((g) => g.type === "command")
-      ? [...groups, { type: "command" as DocumentType, items: [] as ProjectDocumentItem[] }]
-      : groups;
   return (
     <>
       {childFolders(project, "").map((path) => (
@@ -278,10 +263,9 @@ export function DocumentGroups({
           activeId={activeId}
         />
       ))}
-      {kinds.map((g) => {
+      {groups.map((g) => {
         const rootItems = g.items.filter((it) => !it.folder);
-        const moduleRows = g.type === "command" ? moduleCommands : [];
-        if (rootItems.length === 0 && moduleRows.length === 0) return null;
+        if (rootItems.length === 0) return null;
         // No kind header: each row wears its kind's tile, and the kinds follow each
         // other in a fixed order, a little apart.
         const label = typeLabel(g.type, t);
@@ -306,11 +290,6 @@ export function DocumentGroups({
                     notSyncedHint={notSyncedHint}
                     activeId={activeId}
                   />
-                </li>
-              ))}
-              {moduleRows.map((node) => (
-                <li key={node.id}>
-                  <ModuleCommandRow node={node} onOpen={(id) => onOpen(id ?? node.id)} />
                 </li>
               ))}
             </ul>

@@ -57,11 +57,11 @@ class SyncedMenuProvider(
     /** A module's editor view by module id, served to the hub on `editor_bundle_fetch`. */
     private val editorBundles: (String) -> net.artisanmc.modules.api.editor.EditorBundleDeclaration? = { null },
     /** The modules' templates, served on `template_fetch` and copied on `template_copy` or once at seed. */
-    private val templates: () -> net.artisanmc.modules.api.template.TemplateRegistry? = { null },
+    private val templates: () -> net.artisanmc.plugin.project.ModuleTemplates? = { null },
     /** The server's language, given to the projects a template seeds. */
     private val seedLang: () -> String = { "en" },
-    /** Writes the module commands' default override files; true when it wrote one (`CommandOverrideStore.seed`). */
-    private val seedOverrides: () -> Boolean = { false },
+    /** Merges the old command overrides into the commands' files; true when it wrote one (`CommandOverrideMigration`). */
+    private val migrateCommandOverrides: () -> Boolean = { false },
     /** What this server announces at Presence: in its `hello` and each `modules_changed`. */
     private val announcement: () -> net.artisanmc.plugin.protocol.ServerAnnouncement = { net.artisanmc.plugin.protocol.ServerAnnouncement.EMPTY },
     /** Told before each `modules_changed`: what [announcement] is built from moved, a kept copy is stale. */
@@ -525,10 +525,9 @@ class SyncedMenuProvider(
 
     /**
      * Copies, once per server, the templates that name a seed project and were never seeded
-     * (`TemplateSeeds`), keeps the modules' system elements in their folders (`SystemFiles`),
-     * writes the module commands' missing override files, then reloads when something was
-     * written. Off the game threads, with
-     * the other disk writes.
+     * (`TemplateSeeds`), merges the old command overrides into the commands' files, keeps the
+     * modules' system elements in their folders (`SystemFiles`), then reloads when something
+     * was written. Off the game threads, with the other disk writes.
      */
     fun seedTemplates() {
         val registry = templates()
@@ -541,15 +540,15 @@ class SyncedMenuProvider(
                         .onFailure { logger?.warning("[Artisan] Template '$moduleId/${template.id}' not seeded: ${it.message}") }
                 }
             }
+            // Before the system files: a command's file holds its overrides before it is written as shipped.
+            runCatching { if (migrateCommandOverrides()) wrote = true }
+                .onFailure { logger?.warning("[Artisan] Command overrides not migrated: ${it.message}") }
             registry?.registered()?.forEach { (moduleId, list) ->
                 list.filter { it.isSystem }.forEach { template ->
                     runCatching { if (syncSystemFiles(moduleId, template)) wrote = true }
                         .onFailure { logger?.warning("[Artisan] System elements '$moduleId/${template.id}' not written: ${it.message}") }
                 }
             }
-            // After the templates: a module's folder they create receives its commands' files.
-            runCatching { if (seedOverrides()) wrote = true }
-                .onFailure { logger?.warning("[Artisan] Command override files not written: ${it.message}") }
             if (wrote) refresh(folders = null, notifyModules = false)
         }
     }
@@ -561,6 +560,8 @@ class SyncedMenuProvider(
     private fun syncSystemFiles(moduleId: String, template: net.artisanmc.modules.api.template.TemplateDeclaration): Boolean {
         val folder = roots.all().entries.filter { roots.ownerOf(it.key) == moduleId }.minByOrNull { it.key }
         if (folder == null) {
+            // Its commands run from memory without one (`CommandRegistrar`): nothing to say.
+            if (template.id == net.artisanmc.plugin.command.ModuleCommandFiles.TEMPLATE_ID) return false
             logger?.warning("[Artisan] Module '$moduleId' declares system elements but has no folder: call moduleFolder() in its onEnable.")
             return false
         }

@@ -25,6 +25,8 @@ data class CommandYaml(
     val steps:        String = "",
     /** Typed after the name, before the arguments: `/ah sell 100`. */
     val subcommands:  List<SubcommandYaml> = emptyList(),
+    /** Runs from the console too, when [actions] are exactly one `module_command`. */
+    val console:      Boolean = false,
 ) : RuntimeDocument {
     /** The Action DSL string: canonical `actions` (string form) or legacy `steps`. */
     val dsl: String get() = (actions as? String) ?: steps
@@ -62,4 +64,6 @@ data class SubcommandYaml(
     val fallback: Any? = null,
     val cooldown: CooldownYaml? = null,
     val subcommands: List<SubcommandYaml> = emptyList(),
+    /** Runs from the console too, when [actions] are exactly one `module_command`. */
+    val console: Boolean = false,
 )

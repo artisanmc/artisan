@@ -192,15 +192,17 @@ Some modules ship menus and dialogs their code opens by name, such as the shop's
 
 ## Commands a module provides
 
-The board of a module's folder also shows the commands the module declares, with a dashed
-frame and the module's name under each one. An arrow leaves a command when it opens
-something: the menu the module declares (`/boutique` opens the shop's main menu), or the
-`steps` you gave it on its page in the System section. A green dot means you changed the
-command, and a struck-out name means you disabled it. Double-click a command to open its page.
-You can move it on the board, but you cannot delete it: disable it from its page instead.
+The commands a module declares are command files of its folder, like the menus it provides:
+`commands/ah.yaml` for `/ah`, with one row per sub-command (`/ah sell`) on the board. You edit
+them as you edit your own commands: name, aliases, permission, description, cooldown,
+requirements, sub-commands turned on or off, and the steps. Their steps start with a
+`module_command` step, which runs the module's code: add steps before or after it, or replace
+it. Edited, a command stays yours; untouched, it follows each new version of the module, and
+**Reset** puts the module's version back.
 
-On its page, every field starts from the module's value. The button beside a field turns on
-once you change it, and puts the module's value back. Descriptions and the cooldown message
-accept MiniMessage and show their rendering. On the server's disk, each of these commands has a
-file in its module's folder, `overrides/command/<module>.<command>.yaml`, written with the
-module's values as comments: uncomment a line to change it, then run `/artisan reload`.
+A module without a folder on the server still has its commands: the server runs them as the
+module declares them, with nothing to edit until the module has a folder.
+
+If you had changed these commands with the older override files
+(`overrides/command/<module>.<command>.yaml`), the server moves your changes into the command
+files once, and keeps the old files in `.artisan/migrated/overrides-command/`.
