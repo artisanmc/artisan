@@ -30,8 +30,6 @@ import { Terminal } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-const DEFAULT_LANGS = ["fr", "en"];
-
 /**
  * A module command in the System section (design `framework-commandes` §3.9): every field
  * holds the module's value until the admin changes it, and a reset beside it, live only once
@@ -248,12 +246,6 @@ function labelOf(root: PlayerCommand, target: PlayerCommand): string {
     return null;
   };
   return `/${[root.name, ...(path(root, []) ?? [])].join(" ")}`;
-}
-
-function languagesOf(...values: (Texts | undefined)[]): string[] {
-  const langs = new Set(DEFAULT_LANGS);
-  for (const value of values) for (const lang of Object.keys(value ?? {})) langs.add(lang);
-  return [...langs];
 }
 
 function CommandForm({
@@ -488,9 +480,10 @@ function ResettableField({
 }
 
 /**
- * One MiniMessage field per language, each with its reset to [original]; `*` (a plain
- * string in the file) applies to every language. [onChange] receives the whole map: an
- * override's texts replace the module's.
+ * The text in the topbar's language, as menus edit theirs; the other languages are in
+ * the Translations tab. `*` (a plain string in the file) applies to every language, so
+ * it shows as the fallback until this language gets its own. [onChange] receives the
+ * whole map: an override's texts replace the module's.
  */
 function TextsField({
   label,
@@ -506,34 +499,37 @@ function TextsField({
   onChange: (value: Texts) => void;
 }) {
   const { t } = useTranslation();
-  const langs = languagesOf(value, original);
-  const write = (lang: string, text: string) => onChange({ ...value, [lang]: text });
+  const lang = useUiStore((s) => s.activeLang);
+  const own = value[lang];
+  const fallback = own === undefined ? textIn(value, lang) : "";
+  const write = (text: string) => {
+    const { [lang]: _, ...rest } = value;
+    onChange(text === "" ? rest : { ...rest, [lang]: text });
+  };
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="field-label !mb-0">{label}</span>
-      {langs.map((lang) => {
-        const name = lang === "*" ? t("systemCommands.allLanguages") : lang;
-        return (
-          <div key={lang} className="flex items-start gap-2">
-            <span className="mono w-14 shrink-0 pt-2 text-[11px] text-[var(--text-faint)]">
-              {name}
-            </span>
-            <div className="min-w-0 flex-1">
-              <MiniMessageField
-                value={value[lang] ?? ""}
-                placeholder={placeholder}
-                aria-label={`${label} (${name})`}
-                onChange={(text) => write(lang, text)}
-              />
-            </div>
-            <ResetButton
-              modified={(value[lang] ?? "") !== (original[lang] ?? "")}
-              onReset={() => write(lang, original[lang] ?? "")}
-              label={t("systemCommands.resetField", { field: `${label} (${name})` })}
-            />
-          </div>
-        );
-      })}
-    </div>
+    <FormField
+      label={label}
+      hint={
+        own === undefined && fallback !== ""
+          ? t("systemCommands.textFallback", { lang })
+          : t("systemCommands.textLang", { lang })
+      }
+    >
+      <div className="flex items-start gap-1">
+        <div className="min-w-0 flex-1">
+          <MiniMessageField
+            value={own ?? ""}
+            placeholder={fallback || placeholder}
+            aria-label={`${label} (${lang})`}
+            onChange={write}
+          />
+        </div>
+        <ResetButton
+          modified={(own ?? "") !== (original[lang] ?? "")}
+          onReset={() => write(original[lang] ?? "")}
+          label={t("systemCommands.resetField", { field: `${label} (${lang})` })}
+        />
+      </div>
+    </FormField>
   );
 }

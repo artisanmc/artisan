@@ -1,6 +1,7 @@
 import { configWrite } from "@/lib/api/configScreens";
 import { createProject } from "@/lib/api/servers";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
+import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SystemCommandPage } from "./SystemCommandPage";
@@ -95,6 +96,26 @@ describe("SystemCommandPage", () => {
         },
       ],
     });
+  });
+
+  it("edits a text in the topbar's language only, the others kept as they are", async () => {
+    useSystemCommandsStore.setState({
+      commands: [
+        { ...declared, description: { fr: "Ouvre le parrainage", en: "Opens referrals" } },
+      ],
+    });
+    useUiStore.setState({ activeLang: "en" });
+    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    expect(screen.queryByRole("button", { name: "Description (fr)" })).toBeNull();
+    expect(screen.queryByText("Ouvre le parrainage")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Description (en)" }));
+    const field = screen.getByDisplayValue("Opens referrals");
+    fireEvent.change(field, { target: { value: "Open referrals" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(configWrite).toHaveBeenCalled());
+    const content = vi.mocked(configWrite).mock.calls[0]![1].files[0]!.content;
+    expect(content).toContain("description:\n  fr: Ouvre le parrainage\n  en: Open referrals\n");
+    useUiStore.setState({ activeLang: "fr" });
   });
 
   it("puts the root's name in the header and its card, renamed as typed", () => {

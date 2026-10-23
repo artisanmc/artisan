@@ -1297,7 +1297,9 @@ const fr: typeof en = {
     resetField: "{{field}} : revenir à la valeur du module",
     noMessage: "Aucun message",
     description: "Description",
-    allLanguages: "toutes",
+    textLang: "Langue : {{lang}}. Les autres langues sont dans l'onglet Traductions.",
+    textFallback:
+      "Pas encore traduit en {{lang}} : le texte grisé s'applique. Les autres langues sont dans l'onglet Traductions.",
     cooldown: "Délai entre deux utilisations (secondes)",
     cooldownHint: "0 : aucun délai.",
     cooldownScope: "Portée du délai",

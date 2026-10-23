@@ -1274,7 +1274,9 @@ export default {
     resetField: "{{field}}: back to the module's value",
     noMessage: "No message",
     description: "Description",
-    allLanguages: "all",
+    textLang: "Language: {{lang}}. Other languages are in the Translations tab.",
+    textFallback:
+      "Not translated to {{lang}} yet: the greyed text applies. Other languages are in the Translations tab.",
     cooldown: "Cooldown between uses (seconds)",
     cooldownHint: "0: no cooldown.",
     cooldownScope: "Cooldown scope",
