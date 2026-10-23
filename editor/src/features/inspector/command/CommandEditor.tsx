@@ -293,10 +293,14 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
                   }
                 />
                 <select
-                  value={arg.type}
-                  onChange={(e) => update(i, { type: e.target.value as CommandArg["type"] })}
+                  value={arg.wireType ?? arg.type}
+                  onChange={(e) =>
+                    update(i, { type: e.target.value as CommandArg["type"], wireType: undefined })
+                  }
                   className="select h-8 w-auto rounded-[var(--r-xs)] py-0 pr-7 pl-2 font-mono text-xs"
                 >
+                  {/* A type written in the file that the editor has no control for: shown, kept until changed. */}
+                  {arg.wireType && <option value={arg.wireType}>{arg.wireType}</option>}
                   {ARG_TYPES.map((type) => (
                     <option key={type} value={type}>
                       {type}

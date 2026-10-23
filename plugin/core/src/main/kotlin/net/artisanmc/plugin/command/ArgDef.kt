@@ -39,6 +39,20 @@ sealed class ArgDef {
         override val required: Boolean = true,
     ) : ArgDef()
 
+    /** A decimal number (`number` in `command/v1`), bound as a Double. */
+    data class NumberArg(
+        override val name: String,
+        override val required: Boolean = true,
+        val default: Double? = null,
+    ) : ArgDef()
+
+    /** `true` or `false` (`boolean` in `command/v1`), bound as a Boolean. */
+    data class BooleanArg(
+        override val name: String,
+        override val required: Boolean = true,
+        val default: Boolean? = null,
+    ) : ArgDef()
+
     data class EnumArg(
         override val name: String,
         override val required: Boolean = true,
@@ -58,9 +72,13 @@ object ArgDefParser {
         val name     = raw["name"]?.toString()     ?: throw IllegalArgumentException("ArgDef missing 'name': $raw")
         val required = raw["required"] as? Boolean ?: true
         return when (raw["type"]?.toString() ?: throw IllegalArgumentException("ArgDef missing 'type': $raw")) {
-            "string"        -> ArgDef.StringArg(name, required, raw["default"] as? String)
-            "int"           -> ArgDef.IntArg(name, required, (raw["default"] as? Number)?.toInt())
-            "player"        -> ArgDef.PlayerArg(name, required, raw["default"]?.toString() == SENDER_DEFAULT)
+            "string"        -> ArgDef.StringArg(name, required, raw["default"]?.toString())
+            // `integer` is what the schema and the editor write; `int` the plugin's older spelling.
+            "int", "integer" -> ArgDef.IntArg(name, required, raw["default"]?.toString()?.toIntOrNull())
+            "number"        -> ArgDef.NumberArg(name, required, raw["default"]?.toString()?.toDoubleOrNull())
+            "boolean"       -> ArgDef.BooleanArg(name, required, raw["default"]?.toString()?.toBooleanStrictOrNull())
+            // Only online players are resolved: `online_player` is the schema's explicit spelling of the same.
+            "player", "online_player" -> ArgDef.PlayerArg(name, required, raw["default"]?.toString() == SENDER_DEFAULT)
             "world"         -> ArgDef.WorldArg(name, required)
             "item_material" -> ArgDef.ItemMaterialArg(name, required)
             "enum"          -> ArgDef.EnumArg(

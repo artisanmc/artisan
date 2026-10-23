@@ -1,6 +1,8 @@
 arg:
   missing: "<red>Missing required argument: <yellow>{arg}</yellow></red>"
   not_integer: "<red>Argument <yellow>{arg}</yellow> must be a whole number, got: <yellow>{value}</yellow></red>"
+  not_number: "<red>Argument <yellow>{arg}</yellow> must be a number, got: <yellow>{value}</yellow></red>"
+  not_boolean: "<red>Argument <yellow>{arg}</yellow> expects true or false, got: <yellow>{value}</yellow></red>"
   player_offline: "<red>Player <yellow>{value}</yellow> is not online.</red>"
   world_not_loaded: "<red>World <yellow>{value}</yellow> is not loaded.</red>"
   unknown_material: "<red>Unknown material: <yellow>{value}</yellow></red>"

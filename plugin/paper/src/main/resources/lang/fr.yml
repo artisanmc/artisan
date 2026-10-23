@@ -1,6 +1,8 @@
 arg:
   missing: "<red>Argument requis manquant : <yellow>{arg}</yellow></red>"
   not_integer: "<red>L'argument <yellow>{arg}</yellow> doit être un entier, reçu : <yellow>{value}</yellow></red>"
+  not_number: "<red>L'argument <yellow>{arg}</yellow> doit être un nombre, reçu : <yellow>{value}</yellow></red>"
+  not_boolean: "<red>L'argument <yellow>{arg}</yellow> attend true ou false, reçu : <yellow>{value}</yellow></red>"
   player_offline: "<red>Le joueur <yellow>{value}</yellow> n'est pas connecté.</red>"
   world_not_loaded: "<red>Le monde <yellow>{value}</yellow> n'est pas chargé.</red>"
   unknown_material: "<red>Matériau inconnu : <yellow>{value}</yellow></red>"
