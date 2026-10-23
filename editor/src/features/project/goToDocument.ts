@@ -1,10 +1,7 @@
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
-import type { ElementId, ProjectId } from "@/domain/types";
-import { moduleCommandNodeOf, moduleCommandsOf } from "@/lib/moduleCommands";
+import type { ElementId } from "@/domain/types";
 import { projectDestination } from "@/lib/projectNavigation";
-import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import type { useNavigate } from "@tanstack/react-router";
 
@@ -29,17 +26,6 @@ export function goToDocument(
   },
 ): void {
   const { serverId, project, ref } = args;
-  // A module command drawn on this project's board (`boutique:open`, or a sub-command,
-  // a row of its root's node) reads like a qualified ref: it is selected here, its form
-  // in the Properties panel.
-  const moduleCommand = moduleCommandOf(project, ref);
-  if (moduleCommand) {
-    const { node, item } = moduleCommand;
-    useSelectionStore.getState().set(item ? [item] : [node.id], null, item ? node.id : null);
-    useUiStore.getState().requestCenter(project.id, node.id);
-    void navigate({ ...projectDestination(project, serverId), search: {} } as never);
-    return;
-  }
   const { namespace, id } = parseDocRef(ref);
   const here = projectNamespace({ id: project.id, diskId: project.diskId ?? undefined });
   if (namespace !== null && namespace !== here) {
@@ -52,13 +38,4 @@ export function goToDocument(
   useSelectionStore.getState().set([id as ElementId]);
   useUiStore.getState().requestCenter(project.id, id);
   void navigate({ ...projectDestination(project, serverId), search: {} } as never);
-}
-
-function moduleCommandOf(project: { id: string; diskId?: string | null }, ref: string) {
-  if (!ref.includes(":")) return null;
-  const { commands, overrides, folders } = useSystemCommandsStore.getState();
-  // The open Project, its draft included, when it is this one.
-  const open = useProjectsStore.getState().openProjects.projects.find((p) => p.id === project.id);
-  const folder = open ?? { id: project.id as ProjectId, diskId: project.diskId ?? undefined };
-  return moduleCommandNodeOf(moduleCommandsOf(folder, { commands, overrides, folders }), ref);
 }

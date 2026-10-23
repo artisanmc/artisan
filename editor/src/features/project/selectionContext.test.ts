@@ -87,16 +87,6 @@ describe("selectionContext", () => {
   it("without scope, a shared element id falls back to the first menu", () => {
     expect(ctx(["grid"])).toEqual({ kind: "element", menuId: "m1", elementId: "grid" });
   });
-  it("a module command (`module:name`) → moduleCommand", () => {
-    expect(ctx(["boutique:open"])).toEqual({ kind: "moduleCommand", id: "boutique:open" });
-  });
-  it("a sub-command's row → its root's moduleCommand, the row as item", () => {
-    expect(ctx(["guilds:balance.add"], "guilds:guild")).toEqual({
-      kind: "moduleCommand",
-      id: "guilds:guild",
-      item: "guilds:balance.add",
-    });
-  });
   it("an unknown id → unknown", () => {
     expect(ctx(["zzz"])).toEqual({ kind: "unknown" });
   });

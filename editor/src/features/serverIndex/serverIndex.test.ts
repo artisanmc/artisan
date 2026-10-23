@@ -90,34 +90,16 @@ describe("indexProjectDocuments", () => {
     expect([...a, ...b].map((d) => d.ref)).toEqual(["core:main", "boutique:main"]);
   });
 
-  it("indexes a module's kind and the commands its module declares", () => {
+  it("indexes a module's kind", () => {
     const base = project("attribution", {}, { diskId: "attribution" });
     const withKind = {
       ...base,
       documents: { ...base.documents, "attribution:rewards": [{ id: "paliers" }] },
     } as unknown as Project;
-    const command = {
-      id: "attribution:attribution",
-      moduleId: "attribution",
-      name: "attribution",
-      aliases: [],
-      permission: null,
-      description: {},
-      arguments: [],
-      consoleAllowed: false,
-      opensMenu: null,
-      children: [],
-    };
-    const docs = indexProjectDocuments(withKind, "en", {
-      commands: [command],
-      overrides: {},
-      folders: [{ folder: "attribution", ownerModule: "attribution" }],
-    });
+    const docs = indexProjectDocuments(withKind, "en");
     expect(docs.map((d) => [d.kind, d.ref])).toEqual([
       ["attribution:rewards", "attribution:paliers"],
-      ["command", "attribution:attribution:attribution"],
     ]);
-    expect(docs[1]?.label).toBe("/attribution");
   });
 
   it("carries the project name so a result can say where it lives", () => {
