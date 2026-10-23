@@ -156,6 +156,28 @@ class ModuleCommandFilesTest {
         assertNull(ModuleCommandFiles.template(emptyList()))
     }
 
+    private fun guild(vararg children: String) = PlayerCommandDeclaration.builder("guilds:g")
+        .name("g").permission("guilds.use").executor(run)
+        .apply { children.forEach { child(PlayerCommandDeclaration.builder("guilds:$it").name(it).executor(run).build()) } }
+        .build()
+
+    @Test fun `an edited command file takes in the module's new sub-command`() {
+        val folder = kotlin.io.path.createTempDirectory("commands").toFile()
+        try {
+            val v1 = assertNotNull(ModuleCommandFiles.template(listOf(guild("bank"))))
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", v1)
+            val file = File(folder, "commands/g.yaml")
+            file.writeText(file.readText().replace("permission: guilds.use", "permission: vip"))
+
+            val v2 = guild("bank", "war")
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", assertNotNull(ModuleCommandFiles.template(listOf(v2))))
+            // In the editor's own form: a Deploy writes it back as is.
+            assertEquals(ModuleCommandFiles.yaml(v2).replace("permission: guilds.use", "permission: vip"), file.readText())
+        } finally {
+            folder.deleteRecursively()
+        }
+    }
+
     @Test fun `the shared vector is what the generator writes`() {
         val mapper = ObjectMapper()
         val expected: JsonNode = mapper.valueToTree(

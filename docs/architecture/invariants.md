@@ -88,7 +88,7 @@ L'éditeur **possède** `.artisan/editor.yaml` (layout du board, `i18n_mode`) et
 l'écrire. La règle de `project_read` / `project_write` (`EditorPaths`) est donc plus fine que
 l'exclusion hash — et symétrique : **ce que l'éditeur ne voit pas en lecture, il ne peut pas
 l'écrire**. Restent invisibles et interdits : `.artisan/history/`, `.artisan/drafts/`,
-`.artisan/transactions/` (`ProjectPathPolicy.isPrivate`), `.artisan/origins.yaml` (provenance des copies de modèles, écrite par le seul `template_copy`), `.artisan-trash/`, `.artisan-sync.yaml`.
+`.artisan/transactions/`, `.artisan/bases/` (bases de la fusion des éléments système, `SystemFiles`) (`ProjectPathPolicy.isPrivate`), `.artisan/origins.yaml` (provenance des copies de modèles, écrite par le seul `template_copy`), `.artisan-trash/`, `.artisan-sync.yaml`.
 Seule la graphie canonique `.artisan/editor.yaml` appartient à l'éditeur.
 
 ## Le hash n'est pas un invariant inter-langage

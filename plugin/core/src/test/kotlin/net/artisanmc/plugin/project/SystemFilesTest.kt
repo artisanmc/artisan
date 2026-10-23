@@ -49,6 +49,61 @@ class SystemFilesTest {
         assertEquals(FileOrigin("boutique", "menus", 2, hash("title: Shop v2\n")), origin(), "the editor offers v3")
     }
 
+    private fun bases() = File(folder, SystemFiles.BASES).list().orEmpty().toSet()
+
+    @Test
+    fun `an edited file takes in what the new version changes elsewhere`() {
+        val v1 = "title: Shop\nsize: 27\n"
+        SystemFiles.sync(folder, "boutique", system(1, v1))
+        assertEquals(setOf(hash(v1)), bases(), "the shipped content is kept as the base")
+        menu().writeText("title: Mine\nsize: 27\n")
+
+        val v2 = "title: Shop\nsize: 54\nescape_goes_back: true\n"
+        val merged = mutableListOf<Pair<String, List<String>>>()
+        assertEquals(listOf("menus/shop_main.yaml"), SystemFiles.sync(folder, "boutique", system(2, v2)) { p, c -> merged += p to c })
+        assertEquals("title: Mine\nsize: 54\nescape_goes_back: true\n", menu().readText())
+        assertEquals(listOf("menus/shop_main.yaml" to emptyList<String>()), merged)
+        assertEquals(FileOrigin("boutique", "menus", 2, hash(v2)), origin(), "follows v2 from here on")
+        assertEquals(setOf(hash(v2)), bases(), "v1's base goes with the last origin naming it")
+        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, v2)), "nothing to do twice")
+    }
+
+    @Test
+    fun `a conflict keeps the owner's value and the origin, so the editor offers the version`() {
+        SystemFiles.sync(folder, "boutique", system(1, "title: Shop\nsize: 27\n"))
+        menu().writeText("title: Mine\nsize: 27\n")
+        val v2 = "title: Shop v2\nsize: 54\n"
+        val merged = mutableListOf<List<String>>()
+        SystemFiles.sync(folder, "boutique", system(2, v2)) { _, c -> merged += c }
+        assertEquals("title: Mine\nsize: 54\n", menu().readText())
+        assertEquals(listOf(listOf("title")), merged)
+        assertEquals(1, origin().version)
+        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, v2)), "merged once: the next start has nothing to do")
+
+        // Reset: the shipped file again, followed from there.
+        menu().writeText(v2)
+        SystemFiles.sync(folder, "boutique", system(2, v2))
+        assertEquals(FileOrigin("boutique", "menus", 2, hash(v2)), origin())
+        assertEquals(setOf(hash(v2)), bases())
+    }
+
+    @Test
+    fun `without a kept base an edited file stays as it is`() {
+        SystemFiles.sync(folder, "boutique", system())
+        menu().writeText("title: Mine\n")
+        File(folder, SystemFiles.BASES).deleteRecursively()
+        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, "title: Shop\nsize: 54\n")))
+        assertEquals("title: Mine\n", menu().readText())
+        assertEquals(1, origin().version)
+    }
+
+    @Test
+    fun `bases are private metadata`() {
+        assertTrue(ProjectPathPolicy.isPrivate("${SystemFiles.BASES}/abc"))
+        SystemFiles.sync(folder, "boutique", system())
+        assertTrue(ProjectFilesReader.readAll(folder).keys.none { it.startsWith(SystemFiles.BASES) })
+    }
+
     @Test
     fun `a file there before the module made it a system element counts as edited`() {
         menu().apply { parentFile.mkdirs(); writeText("title: Copied once\n") }
