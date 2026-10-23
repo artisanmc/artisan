@@ -69,6 +69,10 @@ internal class RuntimeAssembly(
     /** The stores that outlive a reload, the asset index (from its disk cache) and the command registrar. */
     fun prepare(langManager: LangManager) {
         cooldowns = CooldownStore()
+        // Kept in the suite database once it opens: they survive a restart and follow a player across the network.
+        CooldownSync(cooldowns, {
+            suite.artisanData?.let { net.artisanmc.plugin.database.CooldownRows(it, plugin.database.dialect, plugin.database.tables) }
+        }, suite.sessionWriter(), plugin).start()
         sessions = MenuSessionStore()
         navigationHistory = NavigationHistoryStore()
         // Disk-cached asset index: glyph/font titles render from the last pack, even offline.

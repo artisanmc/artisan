@@ -85,6 +85,18 @@ object ArtisanSchema {
         // The owner's UUID, so a listing reads one player's active drafts, not every draft of the Project (`DraftRows.active`).
         // Rows from before carry '' until their next commit: a listing still reads those and filters them by their body.
         Migration(19, "ALTER TABLE ${t.drafts} ADD COLUMN owner VARCHAR(64) NOT NULL DEFAULT ''") { hasColumn(it, t.drafts, "owner") },
+        // Cooldowns of actions and commands (`CooldownRows`): kept across restarts, shared by the servers of a network.
+        // `subject` is a player's UUID, or `*` for a server-wide cooldown; `expires_at` in epoch milliseconds.
+        Migration(
+            20,
+            """CREATE TABLE IF NOT EXISTS ${t.cooldowns} (
+                cooldown_id VARCHAR(128) NOT NULL,
+                subject VARCHAR(36) NOT NULL,
+                expires_at BIGINT NOT NULL,
+                PRIMARY KEY (cooldown_id, subject)
+            )""",
+        ),
+        Migration(21, "CREATE INDEX ${t.cooldownsSubjectIndex} ON ${t.cooldowns} (subject)") { hasIndex(it, t.cooldowns, t.cooldownsSubjectIndex) },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =
