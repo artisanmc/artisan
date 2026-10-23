@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Fixed**: on a module command's card, the switch and the Edit button sat on different lines from the name; the tile, the name, the switch and the button now share one axis.
 - **Added**: a module command's form has a Behaviour section. The module's code runs until Customise replaces it with steps, edited like a command's, that start with a `module_command` step calling that code (its arguments passed through) so the admin adds steps before or after it, or removes it to replace it. Back to the module's code removes the steps. Steps an override already held are edited there instead of only in the file.
 - **Changed**: a module command's texts (description, cooldown message) are edited in the topbar language only, like a menu's, where the form showed one field per language. A language without its own text shows the text that applies as the greyed fallback; the other languages are in the Translations tab.
 - **Changed**: a module command's form shows one card per command and sub-command: its name as typed, a "modified" or "disabled" badge, its description in the topbar language, its switch and an Edit button that unfolds its fields. The root opens unfolded.

@@ -304,8 +304,9 @@ function CommandForm({
   const summary = open ? "" : textIn(description, lang);
   return (
     <section className="panel flex flex-col gap-4 rounded-[var(--r-md)] p-4">
-      <div className="flex items-start gap-3">
-        <span className="flex shrink-0 pt-0.5" aria-hidden>
+      {/* Tile, name and controls on one axis, whatever the summary's height. */}
+      <div className="flex items-center gap-3">
+        <span className="flex shrink-0" aria-hidden>
           <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
