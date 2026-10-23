@@ -6,7 +6,7 @@ const opts = { projectId: projectId("p1"), lang: "en" };
 
 describe("commandV1ToDomain", () => {
   it("maps id/name/aliases/permission/description and steps", () => {
-    const { command } = commandV1ToDomain(
+    const { command, i18nKeys } = commandV1ToDomain(
       {
         schema: "command/v1",
         id: "heal",
@@ -22,7 +22,8 @@ describe("commandV1ToDomain", () => {
     expect(command.name).toBe("heal");
     expect(command.aliases).toEqual(["h"]);
     expect(command.permission).toBe("a.heal");
-    expect(command.description).toBe("Heal");
+    // The description is a text slot: a bare string is the default language's.
+    expect(i18nKeys[command.description!.key]).toEqual({ [opts.lang]: "Heal" });
     expect(command.projectId).toBe("p1");
     expect(command.steps).toEqual([
       { kind: "action", action: { name: "close_menu", value: null } },

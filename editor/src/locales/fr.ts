@@ -699,6 +699,19 @@ const fr: typeof en = {
     kindLabel: "Commande",
     settingsLabel: "Réglages",
     idHint: "Comment le joueur invoque cette commande — `/{{name}}`.",
+    subcommandsLabel: "Sous-commandes",
+    subcommandsHint:
+      "Tapées après le nom de la commande, avant ses arguments. Choisis une ligne pour la modifier ; son interrupteur la désactive sans la supprimer.",
+    addSubcommand: "+ Ajouter une sous-commande",
+    removeSubcommand: "Supprimer la sous-commande",
+    enabledLabel: "Activée",
+    groupBadge: "liste ses sous-commandes",
+    groupHint:
+      "Aucune étape : taper {{command}} affiche les sous-commandes que le joueur peut lancer. Ajoute des étapes pour les exécuter à la place.",
+    subcommandNameInvalid:
+      "Une sous-commande a besoin d'un nom à elle : minuscules, chiffres, _ ou -, en commençant par une lettre.",
+    subPermissionPlaceholder: "(seulement celle du parent)",
+    descriptionLangLabel: "description ({{lang}})",
   },
   library: {
     search: "Rechercher des items…",

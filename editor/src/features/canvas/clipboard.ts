@@ -7,6 +7,7 @@ import type {
   ClickHandler,
   ClickType,
   Command,
+  CommandNode,
   Element,
   I18nKey,
   Layer,
@@ -163,11 +164,12 @@ export function rewriteIds(input: {
     id: menuRemap.get(m.id)!,
     layers: m.layers.map(remapLayer),
   }));
-  const commands = input.commands.map((c) => ({
-    ...c,
-    id: newCommandId(),
-    steps: c.steps.map(remapStep),
-  }));
+  const remapNode = <N extends CommandNode>(n: N): N => ({
+    ...n,
+    steps: n.steps.map(remapStep),
+    ...(n.subcommands ? { subcommands: n.subcommands.map(remapNode) } : {}),
+  });
+  const commands = input.commands.map((c) => ({ ...remapNode(c), id: newCommandId() }));
   const elements = (input.elements ?? []).map<ElementCopy>((ec) => ({
     sourceMenuId: ec.sourceMenuId,
     element: remapElement(ec.element),

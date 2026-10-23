@@ -79,6 +79,8 @@ class CommandRegistrar(
 
         for (runtime in runtimes) {
             for (cmdYaml in runtime.commands) {
+                // A disabled command claims nothing: its name stays free for the others.
+                if (!cmdYaml.enabled) continue
                 val name = cmdYaml.name.ifEmpty { cmdYaml.id }.lowercase()
                 val source = "project ${runtime.projectId}, command ${cmdYaml.id.ifEmpty { name }}"
 

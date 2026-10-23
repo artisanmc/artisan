@@ -686,6 +686,19 @@ export default {
     kindLabel: "Command",
     settingsLabel: "Settings",
     idHint: "How the player invokes this command — `/{{name}}`.",
+    subcommandsLabel: "Sub-commands",
+    subcommandsHint:
+      "Typed after the command's name, before its arguments. Pick a row to edit it; its switch turns it off without deleting it.",
+    addSubcommand: "+ Add sub-command",
+    removeSubcommand: "Remove sub-command",
+    enabledLabel: "Enabled",
+    groupBadge: "lists its sub-commands",
+    groupHint:
+      "No steps: typing {{command}} shows the sub-commands the player may run. Add steps to run them instead.",
+    subcommandNameInvalid:
+      "A sub-command needs a name of its own: lowercase letters, digits, _ or -, starting with a letter.",
+    subPermissionPlaceholder: "(only its parent's)",
+    descriptionLangLabel: "description ({{lang}})",
   },
   library: {
     search: "Search items…",

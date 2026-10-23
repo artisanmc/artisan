@@ -1,4 +1,5 @@
 import { actionDocumentRefs } from "@/domain/actionArgs";
+import { commandStepLists } from "@/domain/commandNodes";
 import { commandsOf, menusOf, mutableMenus, renamedDocumentFiles } from "@/domain/documents";
 import { addressedAppearances } from "@/domain/element";
 import { rekeyMenu } from "@/domain/i18nSites";
@@ -393,7 +394,7 @@ export const createMenusSlice = ({
         }
       }
       for (const cmd of commandsOf(project)) {
-        for (const a of walkActions(cmd.steps)) rewrite(a);
+        for (const steps of commandStepLists(cmd)) for (const a of walkActions(steps)) rewrite(a);
       }
       const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
       if (oldId in layout) {
