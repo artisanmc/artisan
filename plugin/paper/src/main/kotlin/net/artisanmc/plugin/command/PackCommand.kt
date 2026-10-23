@@ -10,7 +10,10 @@ import net.artisanmc.plugin.platform.Chat
 
 /**
  * A `command/v1` document in the command map. The leading arguments select a sub-command
- * (by name or alias, as deep as they match); the rest are that node's arguments.
+ * (by name or alias, as deep as they match); the rest are that node's arguments. The console
+ * may run a node marked `console` whose actions are one `module_command`: the module's code
+ * runs with the parsed arguments, without the node's requirements or cooldown, which test a
+ * player.
  */
 class PackCommand(
     private val compiled: CompiledCommand,
@@ -18,6 +21,7 @@ class PackCommand(
     private val lang: LangManager,
     /** Project defining the command: its `open_menu` with a bare id resolve there first. */
     private val projectId: String? = null,
+    private val console: ModuleCommandRunner? = null,
 ) : Command(
     compiled.name,
     compiled.description?.forLang(lang.defaultLang, lang.defaultLang) ?: "",
@@ -29,10 +33,6 @@ class PackCommand(
     }
 
     override fun execute(sender: CommandSender, commandLabel: String, args: Array<String>): Boolean {
-        if (sender !is Player) {
-            Chat.send(sender, lang.get("cmd.in_game_only", sender))
-            return true
-        }
         val path = walk(args, args.size)
         val node = path.last()
         val depth = path.size - 1
@@ -47,6 +47,16 @@ class PackCommand(
             Chat.send(sender, lang.get("cmd.usage", sender, "command" to typed, "subcommands" to subs.joinToString("|")))
             return true
         }
+        val moduleCommand = node.moduleCommand
+        if (sender !is Player) {
+            if (console == null || !node.console || moduleCommand == null) {
+                Chat.send(sender, lang.get("cmd.in_game_only", sender))
+                return true
+            }
+            val parsed = ArgParser.parse(node.argDefs, args.copyOfRange(depth, args.size), sender, lang) ?: return true
+            console.run(sender, moduleCommand, parsed)
+            return true
+        }
         val parsedArgs = ArgParser.parse(node.argDefs, args.copyOfRange(depth, args.size), sender, lang) ?: return true
         val ctx = ExecutionContext(
             player = sender,
@@ -59,7 +69,6 @@ class PackCommand(
     }
 
     override fun tabComplete(sender: CommandSender, alias: String, args: Array<String>): List<String> {
-        if (sender !is Player) return emptyList()
         // The last argument is being typed: only the ones before it select a node.
         val path = walk(args, args.size - 1)
         val node = path.last()

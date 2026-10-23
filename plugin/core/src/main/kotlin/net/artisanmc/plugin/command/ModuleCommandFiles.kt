@@ -1,8 +1,12 @@
 package net.artisanmc.plugin.command
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.modules.api.playercommand.CommandArgument
 import net.artisanmc.modules.api.playercommand.PlayerCommandDeclaration
 import net.artisanmc.modules.api.template.TemplateDeclaration
+import net.artisanmc.plugin.model.CommandYaml
 
 /**
  * The `command/v1` file of each command a module declares (design `commandes-unifiees` §2): its
@@ -20,6 +24,9 @@ object ModuleCommandFiles {
     /** The template holding the generated files, reserved among a module's templates. */
     const val TEMPLATE_ID = "player_commands"
 
+    /** The action that runs a declared command's code. */
+    const val ACTION = "module_command"
+
     /** `commands/<name>.yaml`: the document id is the command's name. */
     fun path(declaration: PlayerCommandDeclaration): String = "commands/${declaration.name}.yaml"
 
@@ -34,36 +41,54 @@ object ModuleCommandFiles {
 
     fun yaml(declaration: PlayerCommandDeclaration): String = EditorYaml.write(document(declaration))
 
-    /** The root document, without `id` (the file name) nor `name` (equal to it). */
-    fun document(declaration: PlayerCommandDeclaration): Map<String, Any?> {
+    /** The file as the plugin reads it, its id the file name: what runs while it is on no disk. */
+    fun commandYaml(declaration: PlayerCommandDeclaration): CommandYaml =
+        mapper.readValue(yaml(declaration), CommandYaml::class.java).copy(id = declaration.name)
+
+    /** The declared arguments, typed as the generated file types them. */
+    fun argDefs(declaration: PlayerCommandDeclaration): List<ArgDef> =
+        ArgDefParser.parseAll(declaration.arguments.map { arg -> argument(arg).mapNotNull { (k, v) -> v?.let { k to it } }.toMap() })
+
+    private val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+
+    /**
+     * The root document, without `id` (the file name) nor `name` (equal to it). [dress] changes
+     * each node's map once built, its sub-commands' included (the overrides' migration).
+     */
+    fun document(
+        declaration: PlayerCommandDeclaration,
+        dress: (PlayerCommandDeclaration, MutableMap<String, Any?>) -> Unit = { _, _ -> },
+    ): Map<String, Any?> {
         val out = linkedMapOf<String, Any?>("schema" to "command/v1")
         // A command without code nor menu only lists its sub-commands: the editor still writes `actions: []`.
         out["actions"] = actions(declaration)
-        out.putAll(fields(declaration))
+        out.putAll(fields(declaration, dress))
+        dress(declaration, out)
         return out
     }
 
-    private fun subcommand(declaration: PlayerCommandDeclaration): Map<String, Any?> {
+    private fun subcommand(declaration: PlayerCommandDeclaration, dress: (PlayerCommandDeclaration, MutableMap<String, Any?>) -> Unit): Map<String, Any?> {
         val out = linkedMapOf<String, Any?>("name" to declaration.name)
         actions(declaration).takeIf { it.isNotEmpty() }?.let { out["actions"] = it }
-        out.putAll(fields(declaration))
+        out.putAll(fields(declaration, dress))
+        dress(declaration, out)
         return out
     }
 
     private fun actions(declaration: PlayerCommandDeclaration): List<Map<String, Any?>> = when {
-        declaration.executor != null -> listOf(mapOf("module_command" to declaration.id))
+        declaration.executor != null -> listOf(mapOf(ACTION to declaration.id))
         declaration.opensMenu != null -> listOf(mapOf("open_menu" to declaration.opensMenu))
         else -> emptyList()
     }
 
     /** What a command and a sub-command write alike, in the editor's order; `console` last, as a key it keeps as read. */
-    private fun fields(declaration: PlayerCommandDeclaration): Map<String, Any?> {
+    private fun fields(declaration: PlayerCommandDeclaration, dress: (PlayerCommandDeclaration, MutableMap<String, Any?>) -> Unit): Map<String, Any?> {
         val out = linkedMapOf<String, Any?>()
         if (declaration.aliases.isNotEmpty()) out["aliases"] = declaration.aliases
         declaration.permission?.let { out["permission"] = it }
         description(declaration.description)?.let { out["description"] = it }
         if (declaration.arguments.isNotEmpty()) out["arguments"] = declaration.arguments.map(::argument)
-        if (declaration.children.isNotEmpty()) out["subcommands"] = declaration.children.map(::subcommand)
+        if (declaration.children.isNotEmpty()) out["subcommands"] = declaration.children.map { subcommand(it, dress) }
         if (declaration.isConsoleAllowed) out["console"] = true
         return out
     }
