@@ -21,6 +21,15 @@ export interface Edge {
 }
 
 /**
+ * A ref qualified with [project]'s own folder (`boutique_addon:shop_main`, as a module
+ * declares its command's menu) is a Document of this board: its bare id.
+ */
+export function localDocRef(project: Project, ref: string): string {
+  const { namespace, id } = parseDocRef(ref);
+  return namespace === projectNamespace(project) ? id : ref;
+}
+
+/**
  * The board's edges: one per (source Document, target Document) pair, carrying the
  * triggers that open the target. A trigger is any action with a `document_ref` argument
  * (`open_menu`, `open_dialog`, a module's action referencing a Document), read through
@@ -30,13 +39,7 @@ export function deriveEdges(project: Project): Edge[] {
   const edgeMap = new Map<string, Edge>();
   const triggerSeen = new Map<string, Set<string>>();
 
-  // A ref qualified with this project's own folder (`boutique_addon:shop_main`, as a
-  // module declares its command's menu) is a Document of this board: its bare id.
-  const here = projectNamespace(project);
-  const local = (ref: string): string => {
-    const { namespace, id } = parseDocRef(ref);
-    return namespace === here ? id : ref;
-  };
+  const local = (ref: string) => localDocRef(project, ref);
   const addTrigger = (source: string, rawTarget: string, trigger: EdgeTrigger) => {
     const target = local(rawTarget);
     const id = `${source}->${target}`;

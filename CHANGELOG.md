@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Changed**: on a module folder's board, a menu a sub-command opens links from that sub-command's row, on the side facing the menu, instead of from the command's header. A link the command itself draws keeps the node's anchor, and an end moved by hand stays where it was put.
 - **Changed**: on a module folder's board, a command is one node with a row per sub-command, as a quest group lists its quests, where a sub-command got a node of its own once it linked somewhere (or once Customise gave it steps). A row selects the sub-command and opens its card in Properties, the root folded; a menu a sub-command opens links from its root's node. In the sidebar, a command unfolds on its sub-commands.
 - **Changed**: a module command's changes (its form and its texts in the Translations tab) go to its folder's draft and reach the server with Deploy, like the folder's Documents, where the form and the Translations tab wrote the override file straight to the server with their own Save buttons. The board, the sidebar and the search show a draft's overrides before they are deployed. A command's link (sidebar, server board) opens its folder on it; a module without a folder on the server offers to create one. A double-click on a module command's node selects it instead of leaving the board.
 - **Fixed**: on a module command's card, the switch and the Edit button sat on different lines from the name; the tile, the name, the switch and the button now share one axis.

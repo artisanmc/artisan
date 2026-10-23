@@ -3,7 +3,10 @@ import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { type StoredOverride, parseOverride } from "@/lib/commandOverride";
 import { isModuleCommandId, moduleCommandsOf, withModuleCommands } from "@/lib/moduleCommands";
 import { describe, expect, it } from "vitest";
+import { deriveEdges } from "./deriveEdges";
+import { MODULE_COMMAND_ROWS, commandBox } from "./menuLayout";
 import { deriveServerGraph, documentKey } from "./serverGraph";
+import { subCommandAnchors } from "./subCommandAnchors";
 
 const command = (id: string, over: Partial<PlayerCommand> = {}): PlayerCommand => ({
   id,
@@ -110,8 +113,44 @@ describe("module commands on the board", () => {
       ["balance add", 2, "modified"],
       ["invite", 1, "default"],
     ]);
-    // The menu a sub-command opens links from its root's node.
+    // The node's chain gathers the menu a sub-command opens.
     expect(nodes[0]?.command.steps.length).toBe(1);
+  });
+
+  it("anchors a sub-command's link on its row, a link of the root's own on the node", () => {
+    const ah = command("auctions:ah", {
+      name: "ah",
+      children: [
+        command("auctions:sell", { name: "sell" }),
+        command("auctions:claim", { name: "claim" }),
+      ],
+    });
+    const overrides = {
+      "auctions:claim": override(
+        "auctions",
+        "command: auctions:claim\nsteps:\n  - open_menu: claims\n",
+      ),
+      "auctions:ah": override("auctions", "command: auctions:ah\nsteps:\n  - open_menu: main\n"),
+    };
+    const project = folder("auctions", ["claims", "main"]);
+    const nodes = moduleCommandsOf(project, {
+      commands: [ah],
+      overrides,
+      folders: [{ folder: "auctions", ownerModule: "auctions" }],
+    });
+    const board = withModuleCommands(project, nodes);
+    const src = { x: 0, y: 0, ...commandBox(nodes[0]!.command) };
+    const boxes = {
+      "auctions:ah": src,
+      claims: { x: 400, y: 0, width: 200, height: 100 },
+      main: { x: 400, y: 300, width: 200, height: 100 },
+    };
+    const anchors = subCommandAnchors(board, deriveEdges(board), boxes);
+    const rowMid =
+      MODULE_COMMAND_ROWS.header + MODULE_COMMAND_ROWS.row + (MODULE_COMMAND_ROWS.row - 3) / 2;
+    expect(anchors).toEqual({
+      "auctions:ah->claims": { from: { side: "right", t: rowMid / src.height } },
+    });
   });
 
   it("marks a disabled command, and its id never passes for a Document id", () => {
