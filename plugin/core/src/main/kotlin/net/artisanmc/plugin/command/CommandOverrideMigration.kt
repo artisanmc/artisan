@@ -3,6 +3,7 @@ package net.artisanmc.plugin.command
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import net.artisanmc.modules.api.playercommand.PlayerCommandDeclaration
+import net.artisanmc.plugin.project.EditorYaml
 import net.artisanmc.plugin.project.ProjectPathPolicy
 import net.artisanmc.plugin.project.ProjectPublisher
 import java.io.File

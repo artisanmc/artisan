@@ -396,8 +396,9 @@ jeu. Le module déclare le comportement avec un id stable ; la commande elle-mê
 déclarée le fichier `commands/<nom>.yaml` (`ModuleCommandFiles`, au format exact de l'éditeur :
 le vecteur partagé `testdata/module-command-files.json` l'impose aux deux côtés) et le garde dans
 le premier dossier du module comme élément système (template réservé `player_commands`,
-`SystemFiles`) : réécrit tant que l'admin n'y a pas touché, à lui dès qu'il l'édite, remis à la
-version du module par Reset. Ses actions appellent le code du module (`module_command: <id>`) ou
+`SystemFiles`) : réécrit tant que l'admin n'y a pas touché, à lui dès qu'il l'édite (la fusion à
+trois voies lui apporte ensuite ce que le module change ailleurs, sous-commandes appariées par
+`name`, voir « Éléments système »), remis à la version du module par Reset. Ses actions appellent le code du module (`module_command: <id>`) ou
 ouvrent le menu déclaré (`open_menu`), chaque sous-commande déclarée est un nœud de
 `subcommands`, `console: true` reprend `consoleAllowed`. L'admin y change tout ce qu'un
 `command/v1` permet : nom, alias, permission, description par langue, cooldown, conditions,
@@ -590,7 +591,17 @@ api.getTemplates().register(TemplateDeclaration
   l'arrivée du module, `SystemFiles` les garde dans le premier dossier du module par nom. Un fichier
   absent est réécrit (sauf si un fichier du même nom vit sous le même dossier de type ailleurs dans le
   module : déplacé), une copie intacte d'une version plus ancienne est remplacée, une copie modifiée
-  reste celle de l'admin, son origine sur la version copiée (l'éditeur signale la nouvelle version).
+  reste celle de l'admin et reçoit la nouvelle version par une fusion à trois voies
+  (`ThreeWayMerge`, design `commandes-unifiees` §5) : base = la version d'où vient le fichier,
+  gardée dans `.artisan/bases/<hash>` (privé, hors de tout scan, supprimé quand plus aucune origine
+  ne le nomme). Clé par clé ; une liste de maps qui portent toutes un `id` (sinon un `name`) se
+  fusionne élément par élément (calques, éléments, sous-commandes, arguments), toute autre liste est
+  une valeur. Un ajout du module se place après ce qui le précède chez lui. Sans conflit, le fichier
+  est réécrit au format de l'éditeur (`EditorYaml`) et son origine passe à la nouvelle version ;
+  une valeur changée des deux côtés garde celle de l'admin, et l'origine reste sur la version
+  copiée (l'éditeur signale la nouvelle version, Reset la prend), avec une ligne dans le log. Un
+  fichier non YAML, ou sans base gardée (modifié avant cette version d'Artisan alors que le module
+  livrait déjà une autre version que celle copiée), reste tel quel jusqu'à Reset.
   Un fichier présent avant que le module en fasse un élément système compte comme modifié. Copier un
   modèle système ailleurs que dans le dossier du module est refusé (`system_template`) : dans ce
   dossier, c'est une réinitialisation. L'éditeur ne le propose pas à la copie.

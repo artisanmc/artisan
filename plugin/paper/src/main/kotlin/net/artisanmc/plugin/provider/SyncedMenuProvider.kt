@@ -565,7 +565,10 @@ class SyncedMenuProvider(
             logger?.warning("[Artisan] Module '$moduleId' declares system elements but has no folder: call moduleFolder() in its onEnable.")
             return false
         }
-        val written = net.artisanmc.plugin.project.SystemFiles.sync(folder.value, moduleId, template)
+        val written = net.artisanmc.plugin.project.SystemFiles.sync(folder.value, moduleId, template) { path, conflicts ->
+            if (conflicts.isEmpty()) logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it.")
+            else logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it, except ${conflicts.joinToString()}, edited on both sides (the edit stays; Reset in the editor takes the module's version).")
+        }
         if (written.isNotEmpty()) logger?.info("[Artisan] System elements of '$moduleId' written in '${folder.key}': ${written.joinToString()}.")
         return written.isNotEmpty()
     }

@@ -7,7 +7,7 @@ import java.nio.file.Files
 object ProjectPathPolicy {
     fun isPrivate(path: String): Boolean {
         val parts = path.replace('\\', '/').lowercase().split('/')
-        return parts.any { it.startsWith(".artisan-write-") } || parts.zipWithNext().any { (parent, child) -> parent == ".artisan" && child in setOf("drafts", "transactions") } ||
+        return parts.any { it.startsWith(".artisan-write-") } || parts.zipWithNext().any { (parent, child) -> parent == ".artisan" && child in setOf("drafts", "transactions", "bases") } ||
             parts.lastOrNull() in setOf("rename-operation.json", "copy-operation.json") && parts.dropLast(1).lastOrNull() == ".artisan"
     }
 

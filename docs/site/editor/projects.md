@@ -188,7 +188,7 @@ above.
 
 ## Menus a module provides
 
-Some modules ship menus and dialogs their code opens by name, such as the shop's main menu. They sit in the module's folder like your own menus, marked with a puzzle icon in the list and with the module's name above them on the board. You can edit them freely. You cannot delete or move them: **Reset** in a menu's `···` options puts the module's version back. While you have not changed one, it follows each new version of the module by itself. Once you have, it stays yours, and a dot tells you when the module ships a new version.
+Some modules ship menus and dialogs their code opens by name, such as the shop's main menu. They sit in the module's folder like your own menus, marked with a puzzle icon in the list and with the module's name above them on the board. You can edit them freely. You cannot delete or move them: **Reset** in a menu's `···` options puts the module's version back. While you have not changed one, it follows each new version of the module by itself. Once you have, it stays yours and still takes in what a new version of the module changes elsewhere in it: a new button, a new layer. Where you and the module changed the same thing, your change stays, and a dot tells you the module ships another version.
 
 ## Commands a module provides
 
@@ -197,7 +197,9 @@ The commands a module declares are command files of its folder, like the menus i
 them as you edit your own commands: name, aliases, permission, description, cooldown,
 requirements, sub-commands turned on or off, and the steps. Their steps start with a
 `module_command` step, which runs the module's code: add steps before or after it, or replace
-it. Edited, a command stays yours; untouched, it follows each new version of the module, and
+it. Untouched, a command follows each new version of the module. Edited, it stays yours and still
+takes in what a new version changes elsewhere: rename `/ah` to `/hdv`, and the sub-command the
+module adds next still shows up. Where you and the module changed the same thing, yours stays, and
 **Reset** puts the module's version back.
 
 A module without a folder on the server still has its commands: the server runs them as the
