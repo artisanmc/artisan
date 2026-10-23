@@ -5,7 +5,6 @@ import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Project } from "@/domain/types";
 import type { SearchEntry } from "@/features/search/searchIndex";
 import { getText } from "@/lib/i18n";
-import { type ModuleCommandsInput, moduleCommandsOf } from "@/lib/moduleCommands";
 import { documentTitle } from "@/lib/moduleDocumentKinds";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { documentKindContribution } from "@artisan/editor-sdk";
@@ -32,14 +31,9 @@ export interface IndexedDocument {
 export const namespaceOf = (project: Project): string => projectNamespace(project);
 
 /**
- * A project's Documents, in menus, commands, dialogs, module kinds order, then the
- * commands its module declares (listed with its own, as the sidebar shows them). Pure.
+ * A project's Documents, in menus, commands, dialogs, module kinds order. Pure.
  */
-export function indexProjectDocuments(
-  project: Project,
-  lang: string,
-  moduleCommands?: ModuleCommandsInput,
-): IndexedDocument[] {
+export function indexProjectDocuments(project: Project, lang: string): IndexedDocument[] {
   const namespace = namespaceOf(project);
   const common = { namespace, projectName: project.name, urlId: projectUrlId(project) };
   const doc = (docId: string, kind: IndexedKind, label: string): IndexedDocument => ({
@@ -63,9 +57,6 @@ export function indexProjectDocuments(
       .map(({ kind, doc: d }) =>
         doc(d.id, kind, documentTitle(documentKindContribution(kind), d, project, lang)),
       ),
-    ...(moduleCommands ? moduleCommandsOf(project, moduleCommands) : []).map((node) =>
-      doc(node.id, "command", `/${node.label}`),
-    ),
   ];
 }
 

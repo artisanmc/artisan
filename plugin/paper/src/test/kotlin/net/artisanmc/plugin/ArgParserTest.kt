@@ -113,4 +113,19 @@ class ArgParserTest {
         val completions = ArgParser.tabComplete(defs, arrayOf(""))
         assertTrue(completions.isEmpty())
     }
+
+    @Test fun `parse number and boolean args`() {
+        val defs = listOf(ArgDef.NumberArg("price"), ArgDef.BooleanArg("notify"))
+        val result = ArgParser.parse(defs, arrayOf("12,5", "yes"), player(), lang)
+        assertNotNull(result)
+        assertEquals(12.5, result["price"])
+        assertEquals(true, result["notify"])
+        assertNull(ArgParser.parse(defs, arrayOf("abc", "true"), player(), lang))
+        assertNull(ArgParser.parse(defs, arrayOf("1", "maybe"), player(), lang))
+    }
+
+    @Test fun `boolean arg completes true and false`() {
+        assertEquals(listOf("true"), ArgParser.tabComplete(listOf(ArgDef.BooleanArg("b")), arrayOf("t")))
+    }
 }
+

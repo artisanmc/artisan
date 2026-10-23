@@ -1,7 +1,6 @@
 import { type DeclaredActionLookup, declaredActionOf } from "@/lib/actions/coreActions";
 import { createLTextAt, deleteLText } from "@/lib/i18n";
 import {
-  commandKeyPrefix,
   dialogBodyTextKey,
   dialogButtonKeyPrefix,
   dialogButtonLabelKey,
@@ -13,6 +12,7 @@ import {
   stateLabel,
 } from "@/lib/i18nKeys";
 import { isLTextNode, walkStepTextSlots } from "./actionTextSlots";
+import { walkCommandNodes } from "./commandNodes";
 import {
   type ChainSlot,
   documentChainSlots,
@@ -67,6 +67,7 @@ export type SiteKind =
   | "showTitle"
   | "showSubtitle"
   | "sourceField"
+  | "commandDescription"
   | "dialogTitle"
   | "dialogBody"
   | "dialogInputLabel"
@@ -183,9 +184,10 @@ export function* menuChainSlots(menu: Menu): Generator<ChainSlot> {
   }
 }
 
-/** The action chain of a command: its invocation. */
+/** The action chains of a command: its invocation, then each sub-command's (`invoke sell`). */
 export function* commandChainSlots(command: Command): Generator<ChainSlot> {
-  yield { name: "invoke", steps: command.steps, prefix: commandKeyPrefix(command.id) };
+  for (const { node, words, prefix } of walkCommandNodes(command))
+    yield { name: ["invoke", ...words.slice(1)].join(" "), steps: node.steps, prefix };
 }
 
 /** The action chains of a dialog: one per button. */
@@ -270,9 +272,24 @@ export function* visitMenuLTexts(menu: Menu): Generator<LTextSite> {
   }
 }
 
-/** Yield every site of a command's step tree. */
+/** Yield every site of a command: per node, its description then its step tree. */
 export function* visitCommandLTexts(command: Command): Generator<LTextSite> {
-  yield* visitStepLTexts(command.steps, commandKeyPrefix(command.id));
+  for (const { node, words, prefix } of walkCommandNodes(command)) {
+    if (node.description) {
+      const key = `${prefix}.description` as I18nKey;
+      yield {
+        lText: node.description,
+        key,
+        // Readable in the Translations tab: the command as typed, not the node's index.
+        path: `commands.${command.id}${words
+          .slice(1)
+          .map((w) => ` ${w}`)
+          .join("")}.description`,
+        kind: "commandDescription",
+      };
+    }
+    yield* visitStepLTexts(node.steps, prefix);
+  }
 }
 
 /** Yield every site of a dialog — title, body, input/option/button labels, button steps. */

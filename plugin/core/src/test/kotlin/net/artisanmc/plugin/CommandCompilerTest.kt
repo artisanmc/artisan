@@ -137,4 +137,98 @@ class CommandCompilerTest {
         assertNotNull(result)
         assertEquals("does_not_exist", assertIs<net.artisanmc.plugin.engine.Step.ActionStep>(result.handler.steps.single()).name)
     }
+
+    @Test fun `every argument type the editor and the schema write compiles`() {
+        val yaml = CommandYaml(
+            id = "pay",
+            arguments = listOf(
+                mapOf("name" to "target", "type" to "online_player"),
+                mapOf("name" to "amount", "type" to "integer"),
+                mapOf("name" to "rate", "type" to "number", "required" to false),
+                mapOf("name" to "notify", "type" to "boolean", "required" to false, "default" to true),
+            ),
+            actions = "close_menu",
+        )
+        val result = CommandCompiler.compile(yaml)
+        assertNotNull(result, "a type the editor offers must not leave the command unregistered")
+        assertEquals(
+            listOf(
+                ArgDef.PlayerArg("target"),
+                ArgDef.IntArg("amount"),
+                ArgDef.NumberArg("rate", required = false),
+                ArgDef.BooleanArg("notify", required = false, default = true),
+            ),
+            result.argDefs,
+        )
+    }
+
+    private val yamlMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
+
+    @Test fun `sub-commands compile as a tree, disabled ones left out`() {
+        val yaml = yamlMapper.readValue(
+            """
+            schema: command/v1
+            id: ah
+            description: { en: Auction house, fr: Hôtel des ventes }
+            subcommands:
+              - name: Sell
+                aliases: [s]
+                permission: ah.sell
+                arguments: [{ name: price, type: integer }]
+                actions: [{ send_message: sold }]
+              - name: admin
+                subcommands:
+                  - name: reindex
+                    actions: [{ send_message: done }]
+              - name: hidden
+                enabled: false
+                actions: [{ send_message: never }]
+            """.trimIndent(),
+            CommandYaml::class.java,
+        )
+        val result = assertNotNull(CommandCompiler.compile(yaml))
+        assertEquals("Hôtel des ventes", result.description?.forLang("fr", "en"))
+        assertEquals(listOf("sell", "admin"), result.children.map { it.name })
+        assertTrue(result.isGroup)
+        val sell = assertNotNull(result.child("S"))
+        assertEquals("sell", sell.name)
+        assertEquals("ah.sell", sell.permission)
+        assertEquals(listOf(ArgDef.IntArg("price")), sell.argDefs)
+        assertEquals(1, sell.handler.steps.size)
+        val admin = assertNotNull(result.child("admin"))
+        assertTrue(admin.isGroup)
+        assertNotNull(admin.child("reindex"))
+        assertNull(result.child("hidden"))
+    }
+
+    @Test fun `a bare string description is the text of every language`() {
+        val yaml = yamlMapper.readValue("schema: command/v1\ndescription: Open the shop\nactions: close_menu\n", CommandYaml::class.java)
+        assertEquals("Open the shop", CommandCompiler.compile(yaml)?.description?.forLang("fr", "en"))
+    }
+
+    @Test fun `a cooldown without an id is the command's own`() {
+        val yaml = CommandYaml(
+            id = "ah",
+            cooldown = CooldownYaml(duration = 5),
+            subcommands = listOf(
+                net.artisanmc.plugin.model.SubcommandYaml(name = "sell", cooldown = CooldownYaml(duration = 5), actions = "close_menu"),
+            ),
+        )
+        val result = assertNotNull(CommandCompiler.compile(yaml))
+        assertEquals("ah", result.handler.cooldown?.id)
+        assertEquals("ah sell", result.children.single().handler.cooldown?.id)
+    }
+
+    @Test fun `a sub-command that does not compile leaves its siblings`() {
+        val yaml = CommandYaml(
+            id = "ah",
+            subcommands = listOf(
+                net.artisanmc.plugin.model.SubcommandYaml(name = "broken", arguments = listOf(mapOf("name" to "x", "type" to "nope"))),
+                net.artisanmc.plugin.model.SubcommandYaml(name = ""),
+                net.artisanmc.plugin.model.SubcommandYaml(name = "ok", actions = "close_menu"),
+            ),
+        )
+        val result = assertNotNull(CommandCompiler.compile(yaml))
+        assertEquals(listOf("ok"), result.children.map { it.name })
+    }
 }

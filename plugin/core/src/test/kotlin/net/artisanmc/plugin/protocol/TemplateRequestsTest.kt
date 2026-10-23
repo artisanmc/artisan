@@ -33,7 +33,7 @@ class TemplateRequestsTest {
         register(TemplateDeclaration.builder("menus", 1).system().file("menus/board.yaml", "title: Board\n".toByteArray()).build())
         bindOwner(null)
     }
-    private val requests = TemplateRequests(workspace, Replies(workspace.io, { sent += it }, null)) { registry }
+    private val requests = TemplateRequests(workspace, Replies(workspace.io, { sent += it }, null)) { net.artisanmc.plugin.project.ModuleTemplates(registry) }
     private val mapper = ObjectMapper()
 
     @AfterTest fun teardown() { coreRoot.deleteRecursively() }

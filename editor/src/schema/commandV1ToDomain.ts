@@ -1,6 +1,7 @@
 import type {
   CommandArg,
   CommandId,
+  CommandNode,
   Command as DomainCommand,
   I18nKey,
   LText,
@@ -21,6 +22,26 @@ export interface CommandImportResult {
 }
 
 const ARG_TYPES = new Set(["player", "string", "integer", "number", "boolean"]);
+
+/** The keys the domain models on every node; every other key is kept in its `wire`. */
+const NODE_KEYS = [
+  "name",
+  "aliases",
+  "permission",
+  "description",
+  "enabled",
+  "arguments",
+  "actions",
+  "subcommands",
+];
+const COMMAND_KEYS = new Set([...NODE_KEYS, "schema", "id", "steps"]);
+const SUBCOMMAND_KEYS = new Set(NODE_KEYS);
+const ARG_KEYS = new Set(["name", "type", "required", "default"]);
+
+function rest(src: Json, modelled: Set<string>): Json | undefined {
+  const out = Object.fromEntries(Object.entries(src).filter(([key]) => !modelled.has(key)));
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 export function commandV1ToDomain(
   src: Json,
@@ -57,38 +78,53 @@ export function commandV1ToDomain(
     pushUnsupported: (s) => unsupported.push(s),
   });
 
-  // command/v1 action chain is an Action DSL string (ADR action-dsl).
-  // Canonical field is `actions`; `steps` is the legacy spelling still accepted.
-  const steps = parseSteps(src.actions ?? src.steps);
+  function readArgs(raw: unknown): CommandArg[] {
+    return ((raw as Json[]) ?? []).map((a) => {
+      const type = String(a.type ?? "string");
+      const known = type === "online_player" ? "player" : type === "int" ? "integer" : type;
+      const wire = rest(a, ARG_KEYS);
+      return {
+        name: a.name,
+        // A type without a control here reads as a string and goes back as written.
+        type: (ARG_TYPES.has(known) ? known : "string") as CommandArg["type"],
+        ...(ARG_TYPES.has(known) ? {} : { wireType: type }),
+        required: a.required ?? true,
+        ...(a.default !== undefined ? { default: String(a.default) } : {}),
+        ...(wire ? { wire } : {}),
+      };
+    });
+  }
 
-  const args: CommandArg[] = ((src.arguments as Json[]) ?? []).map((a) => {
-    let type = a.type as string;
-    if (type === "online_player") type = "player";
-    else if (!ARG_TYPES.has(type)) {
-      unsupported.push(`arg type: ${type}`);
-      type = "string";
-    }
+  /** The fields every node shares. `steps` is the root's legacy spelling of `actions`. */
+  function readNode(node: Json, modelled: Set<string>): Omit<CommandNode, "name"> {
+    // What the editor does not edit yet (requirements, fallback, cooldown…) rides along untouched.
+    const wire = rest(node, modelled);
+    const subcommands = Array.isArray(node.subcommands)
+      ? (node.subcommands as Json[]).map(
+          (sub): CommandNode => ({
+            name: String(sub.name ?? ""),
+            ...readNode(sub, SUBCOMMAND_KEYS),
+          }),
+        )
+      : undefined;
     return {
-      name: a.name,
-      type: type as CommandArg["type"],
-      required: a.required ?? true,
-      ...(a.default !== undefined ? { default: String(a.default) } : {}),
+      arguments: readArgs(node.arguments),
+      steps: parseSteps(modelled === COMMAND_KEYS ? (node.actions ?? node.steps) : node.actions),
+      ...(Array.isArray(node.aliases) && node.aliases.length > 0 ? { aliases: node.aliases } : {}),
+      ...(node.permission ? { permission: node.permission } : {}),
+      // A string is every language's text; `{lang: text}` its translations.
+      ...(node.description ? { description: text(node.description) } : {}),
+      ...(node.enabled === false ? { enabled: false } : {}),
+      ...(subcommands ? { subcommands } : {}),
+      ...(wire ? { wire } : {}),
     };
-  });
-
-  for (const field of ["requirements", "fallback", "cooldown"]) {
-    if (src[field] !== undefined) unsupported.push(`command.${field}`);
   }
 
   const command: DomainCommand = {
     id: src.id as CommandId,
     projectId: opts.projectId,
     name: src.name ?? src.id,
-    arguments: args,
-    steps,
-    ...(Array.isArray(src.aliases) && src.aliases.length > 0 ? { aliases: src.aliases } : {}),
-    ...(src.permission ? { permission: src.permission } : {}),
-    ...(src.description ? { description: src.description } : {}),
+    ...readNode(src, COMMAND_KEYS),
   };
 
   return { command, i18nKeys, unsupported };

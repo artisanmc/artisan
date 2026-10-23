@@ -1,0 +1,17 @@
+{
+  "note": "Command files Artisan generates from module declarations (ModuleCommandFiles, kept equal by ModuleCommandFilesTest; regenerate with ARTISAN_WRITE_VECTORS=1). The editor reads each one and writes it back: the bytes must not change, or a Deploy would count the file as edited (moduleCommandFiles.test.ts).",
+  "files": [
+    {
+      "id": "ah",
+      "yaml": "schema: command/v1\nactions:\n  - module_command: auctions:ah\naliases:\n  - auctionhouse\n  - hdv\npermission: artisanauctions.use\ndescription:\n  en: \"Open the auction house: now\"\n  fr: Ouvrir l'hôtel des ventes\nsubcommands:\n  - name: sell\n    actions:\n      - module_command: auctions:sell\n    permission: artisanauctions.sell\n    arguments:\n      - name: price\n        type: integer\n        required: false\n      - values:\n          - coins\n          - gems\n        name: currency\n        type: enum\n        required: false\n  - name: admin\n    permission: artisanauctions.admin\n    subcommands:\n      - name: reindex\n        actions:\n          - module_command: auctions:admin.reindex\n        description: \"Reindex #all\"\n        console: true\n      - name: give\n        actions:\n          - module_command: auctions:admin.give\n        arguments:\n          - name: target\n            type: player\n            required: true\n          - name: world\n            type: world\n            required: false\n          - name: reason\n            type: string\n            required: false\n"
+    },
+    {
+      "id": "boutique",
+      "yaml": "schema: command/v1\nactions:\n  - open_menu: boutique_addon:shop_main\ndescription:\n  en: \"'quoted' \\\"twice\\\" - yes\"\n  fr: \"true\"\n"
+    },
+    {
+      "id": "tricky",
+      "yaml": "schema: command/v1\nactions:\n  - module_command: x:tricky\npermission: x.*\ndescription:\n  de: \"123\"\n  en: \"- dash\"\n  es: \"#hash\"\n  fr: \"<gold>Ta guilde</gold> : ok\"\n  it: \"null\"\n  ja: \"a: b\"\n  nl: \"trailing \"\n  pt: \"@at\"\n  ru: \"%p%\"\n  zh: \"1.5e3\"\n"
+    }
+  ]
+}

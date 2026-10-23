@@ -1,9 +1,9 @@
 import dispenserTextureUrl from "@/assets/minecraft/dispenser.png";
 import vanillaChestTextureUrl from "@/assets/minecraft/generic_54.png";
 import hopperTextureUrl from "@/assets/minecraft/hopper.png";
+import { walkCommandNodes } from "@/domain/commandNodes";
 import type { Command, Project } from "@/domain/types";
 import type { InventoryType } from "@/domain/types";
-import { moduleCommandRows } from "@/lib/moduleCommands";
 import type { Box } from "./edgeRouting";
 import { INVENTORY_TYPES, positionCount, slotMcXY } from "./inventoryTypes";
 
@@ -59,17 +59,16 @@ export const TEXTURE_URLS: Record<"generic_54" | "hopper" | "dispenser", string>
 };
 
 export const COMMAND_BOX = { width: 140, height: 48 };
-/** A module command's node: its header, then one row per sub-command. */
-export const MODULE_COMMAND_ROWS = { header: 44, row: 22, pad: 6 };
-/** A command node's box: a module command's grows with its sub-command rows. */
+/** A command with sub-commands: its header, then one row per sub-command. */
+export const COMMAND_ROWS = { header: 44, row: 22, pad: 6 };
+/** A command node's box: it grows with its sub-command rows. */
 export function commandBox(command: Command): { width: number; height: number } {
-  const rows = moduleCommandRows(command);
+  const rows = [...walkCommandNodes(command)].length - 1;
   return rows === 0
     ? COMMAND_BOX
     : {
         width: COMMAND_BOX.width,
-        height:
-          MODULE_COMMAND_ROWS.header + rows * MODULE_COMMAND_ROWS.row + MODULE_COMMAND_ROWS.pad,
+        height: COMMAND_ROWS.header + rows * COMMAND_ROWS.row + COMMAND_ROWS.pad,
       };
 }
 export const DIALOG_BOX = { width: 140, height: 60 };

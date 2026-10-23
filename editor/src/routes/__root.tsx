@@ -13,7 +13,6 @@ import { useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
-import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { Outlet, createRootRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
@@ -56,7 +55,6 @@ export function RootLayout() {
     useModulesStore.getState().integrate({ serverId: activeServerId });
     useServerDataSourcesStore.getState().load({ serverId: activeServerId });
     useServerScreensStore.getState().load({ serverId: activeServerId });
-    void useSystemCommandsStore.getState().load(activeServerId);
     useServerActionsStore.getState().load({ serverId: activeServerId });
     useServerDocumentKindsStore.getState().load({ serverId: activeServerId });
     // Declared actions arriving after a project was read: adopt the texts of the module
@@ -86,10 +84,6 @@ export function RootLayout() {
       // it spares work in progress.
       onProjectsReloaded: (serverKeyId, projects) => {
         onProjectsReloadedInEditor(serverKeyId, projects);
-        // A reload re-applies the overrides on disk and may change the declared commands.
-        if (!cancelled && serverKeyId === activeServerId) {
-          void useSystemCommandsStore.getState().load(activeServerId, true);
-        }
         if (
           !cancelled &&
           serverKeyId === activeServerId &&

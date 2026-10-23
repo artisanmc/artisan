@@ -8,6 +8,7 @@ import org.bukkit.entity.Player
 import net.artisanmc.plugin.platform.Chat
 
 object ArgParser {
+    private val BOOLEANS = mapOf("true" to true, "false" to false, "yes" to true, "no" to false, "on" to true, "off" to false)
 
     fun parse(defs: List<ArgDef>, args: Array<String>, sender: CommandSender, lang: LangManager): Map<String, Any>? {
         val result = mutableMapOf<String, Any>()
@@ -27,6 +28,8 @@ object ArgParser {
                 val default: Any? = when (def) {
                     is ArgDef.StringArg -> def.default
                     is ArgDef.IntArg    -> def.default
+                    is ArgDef.NumberArg -> def.default
+                    is ArgDef.BooleanArg -> def.default
                     // The sender IS the default value — bound as the Player itself, so
                     // `{target.name}` and `{target.uuid}` read like an explicit one.
                     is ArgDef.PlayerArg -> if (def.defaultSender) sender as? Player else null
@@ -40,6 +43,14 @@ object ArgParser {
                 is ArgDef.StringArg      -> rawValue
                 is ArgDef.IntArg         -> rawValue.toIntOrNull() ?: run {
                     Chat.send(sender, lang.get("arg.not_integer", sender, "arg" to def.name, "value" to rawValue))
+                    return null
+                }
+                is ArgDef.NumberArg      -> rawValue.replace(',', '.').toDoubleOrNull()?.takeIf { it.isFinite() } ?: run {
+                    Chat.send(sender, lang.get("arg.not_number", sender, "arg" to def.name, "value" to rawValue))
+                    return null
+                }
+                is ArgDef.BooleanArg     -> BOOLEANS[rawValue.lowercase()] ?: run {
+                    Chat.send(sender, lang.get("arg.not_boolean", sender, "arg" to def.name, "value" to rawValue))
                     return null
                 }
                 is ArgDef.PlayerArg      -> Bukkit.getPlayerExact(rawValue) ?: run {
@@ -75,6 +86,7 @@ object ArgParser {
         val prefix = args.lastOrNull() ?: ""
         return when (def) {
             is ArgDef.EnumArg   -> def.values.filter { it.startsWith(prefix, ignoreCase = true) }
+            is ArgDef.BooleanArg -> listOf("true", "false").filter { it.startsWith(prefix, ignoreCase = true) }
             is ArgDef.PlayerArg -> Bukkit.getOnlinePlayers()
                 .map { it.name }
                 .filter { it.startsWith(prefix, ignoreCase = true) }

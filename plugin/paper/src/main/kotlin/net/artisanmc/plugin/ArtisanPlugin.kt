@@ -64,6 +64,8 @@ open class ArtisanPlugin : JavaPlugin() {
         internal set
     lateinit var api: ArtisanAPI
         private set
+    /** The modules' templates, with the files of their commands (`ModuleCommandFiles`). */
+    internal val moduleTemplates by lazy { net.artisanmc.plugin.project.ModuleTemplates(api.templates) }
     /** Editor sign-ins, kept in the suite database when it opens: they survive a restart. */
     lateinit var editorSessions: net.artisanmc.plugin.hub.Sessions
         private set
@@ -273,7 +275,7 @@ open class ArtisanPlugin : JavaPlugin() {
     private fun buildAnnouncement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
         modules = api.modules.active().map {
             net.artisanmc.plugin.protocol.ServerAnnouncement.module(
-                it.id, description.version, localEditorBundles.wire(it.id), api.templates.of(it.id).map { t -> t.toWire() },
+                it.id, description.version, localEditorBundles.wire(it.id), moduleTemplates.of(it.id).map { t -> t.toWire() },
             )
         },
         dataSources = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources),

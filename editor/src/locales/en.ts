@@ -183,12 +183,6 @@ export default {
     removeLanguage: "Remove language",
   },
   translations: {
-    commandText: {
-      description: "/{{command}} · description",
-      cooldown_message: "/{{command}} · cooldown message",
-    },
-    commandTextHint:
-      "Text of a command built into the module. It goes to the command's override file, in the folder's draft.",
     statTranslated: "{{translated}} / {{total}} translated in {{lang}}",
     statMissing: "{{count}} missing",
     statComplete: "complete",
@@ -686,6 +680,19 @@ export default {
     kindLabel: "Command",
     settingsLabel: "Settings",
     idHint: "How the player invokes this command — `/{{name}}`.",
+    subcommandsLabel: "Sub-commands",
+    subcommandsHint:
+      "Typed after the command's name, before its arguments. Pick a row to edit it; its switch turns it off without deleting it.",
+    addSubcommand: "+ Add sub-command",
+    removeSubcommand: "Remove sub-command",
+    enabledLabel: "Enabled",
+    groupBadge: "lists its sub-commands",
+    groupHint:
+      "No steps: typing {{command}} shows the sub-commands the player may run. Add steps to run them instead.",
+    subcommandNameInvalid:
+      "A sub-command needs a name of its own: lowercase letters, digits, _ or -, starting with a letter.",
+    subPermissionPlaceholder: "(only its parent's)",
+    descriptionLangLabel: "description ({{lang}})",
   },
   library: {
     search: "Search items…",
@@ -781,7 +788,7 @@ export default {
     },
   },
   projectPanel: {
-    originTag: { modified: "edited", update: "new version", disabled: "disabled" },
+    originTag: { modified: "edited", update: "new version" },
     systemDocumentHint:
       "Built into the module {{module}}: its code opens it. You can edit it; it cannot be deleted, and Reset puts the module's version back.",
     systemBadge: {
@@ -792,10 +799,6 @@ export default {
     systemReset: "Reset",
     systemResetHint: "Puts the module's version back. Save your pending changes first.",
     systemResetConfirm: "Put the module's version back? Your changes to this file will be lost.",
-    unfoldSubCommands: "Show the sub-commands of {{command}}",
-    foldSubCommands: "Hide the sub-commands of {{command}}",
-    moduleCommandHint:
-      "Built-in command of the {{module}} module: its code lives in the plugin. Open it to change its name, permission, texts or what it does.",
     noEditor: "No editor for this {{kind}} yet",
     multiSelection: "Multi-edit not supported in v1. Select one item.",
     selectionNoEditor: "Selection has no editor.",
@@ -936,7 +939,6 @@ export default {
     systemElement: "system · {{module}}",
     systemDocumentKept:
       "A system menu or dialog cannot be deleted: reset it from the folder's list instead.",
-    moduleCommand: "command · {{module}}",
     armedHint: "armed — tap a slot to place it",
     groups: {
       title: "Folders",
@@ -1252,52 +1254,6 @@ export default {
     neverConnected: "Never connected",
     empty: "No servers linked",
     updateRequired: "Update required",
-  },
-  systemCommands: {
-    eyebrow: "System command · {{module}}",
-    intro:
-      "Every field starts from the module's value. The button beside a field turns on once you change it and puts that value back. Your changes go to the folder's draft, in the command's override file, and reach the server with Deploy.",
-    opening: "Opening the command's folder…",
-    noFolder:
-      "A command is edited in its module's folder, like its Documents, and deployed with it. This module has no folder on this server yet: create {{folder}} to edit the command.",
-    createFolder: "Create the folder {{folder}}",
-    createFolderFailed: "The folder could not be created.",
-    enabledFor: "{{command}} enabled",
-    edit: "Edit",
-    collapse: "Collapse",
-    loading: "Reading the server's commands…",
-    notFound: "This server does not declare this command.",
-    logicKept:
-      "This override also holds requirements or a fallback. They are kept as written and can only be edited in the file.",
-    enabled: "Enabled",
-    name: "Name",
-    aliases: "Aliases",
-    aliasesHint: "Comma-separated. Empty: no alias.",
-    none: "None",
-    permission: "Permission",
-    permissionHint: "Empty: no permission required.",
-    resetField: "{{field}}: back to the module's value",
-    noMessage: "No message",
-    description: "Description",
-    behaviour: "Behaviour",
-    behaviourModule: "The module's code runs.",
-    behaviourMenu: "Opens the menu {{menu}}, as the module declares.",
-    behaviourCustomHint:
-      'These steps replace the module\'s code. The "module_command" action calls it: keep it to add steps before or after, remove it to replace it.',
-    behaviourCustomise: "Customise",
-    behaviourReset: "Back to the module's code",
-    textLang: "Language: {{lang}}. Other languages are in the Translations tab.",
-    textFallback:
-      "Not translated to {{lang}} yet: the greyed text applies. Other languages are in the Translations tab.",
-    cooldown: "Cooldown between uses (seconds)",
-    cooldownHint: "0: no cooldown.",
-    cooldownScope: "Cooldown scope",
-    scopePlayer: "Per player",
-    scopeGlobal: "Whole server",
-    cooldownMessage: "Message during the cooldown",
-    resetAll: "Back to the module's values",
-    stateModified: "Modified",
-    stateDisabled: "Disabled",
   },
   sidebar: {
     projectDocuments: "Documents of {{name}}",

@@ -5,7 +5,6 @@ import * as serversApi from "@/lib/api/servers";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
-import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
@@ -59,12 +58,6 @@ describe("ProjectSidebar", () => {
     });
     mockParams.current = { serverId: "sk_1" };
     useServerScreensStore.setState({ screens: [] } as never);
-    useSystemCommandsStore.setState({
-      serverId: null,
-      status: "idle",
-      commands: [],
-      overrides: {},
-    });
     useServersStore.setState({ activeServerId: null } as any);
     useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } } as any);
     vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
@@ -90,50 +83,6 @@ describe("ProjectSidebar", () => {
     });
     onProjectsReloaded("sk_1", []);
     expect(await screen.findByRole("link", { name: /shop/ })).toBeInTheDocument();
-  });
-
-  it("lists a module's system commands, marking the ones the admin disabled", async () => {
-    const declared = (id: string, name: string) => ({
-      id,
-      moduleId: "attribution",
-      name,
-      aliases: [],
-      permission: null,
-      description: {},
-      arguments: [],
-      consoleAllowed: false,
-      opensMenu: null,
-      children: [],
-    });
-    useSystemCommandsStore.setState({
-      serverId: "sk_1",
-      status: "ready",
-      commands: [declared("attribution:open", "attribution"), declared("attribution:top", "top")],
-      folders: [],
-      overrides: {
-        "attribution:top": {
-          command: "attribution:top",
-          folder: "attribution",
-          path: "overrides/command/attribution.top.yaml",
-          content: "",
-          fields: { enabled: false },
-          hasLogic: false,
-        },
-      },
-    });
-    render(<ProjectSidebar />);
-    // Folded with its module: nothing shows until the module is opened.
-    const toggle = await screen.findByRole("button", {
-      name: "Afficher les documents de attribution",
-    });
-    expect(screen.queryByRole("link", { name: "/attribution" })).toBeNull();
-    fireEvent.click(toggle);
-    expect(await screen.findByRole("link", { name: "/attribution" })).toHaveAttribute(
-      "href",
-      "/servers/$serverId/commands/$commandId",
-    );
-    const disabled = screen.getByRole("link", { name: /\/top/ });
-    expect(within(disabled).getByRole("img")).toHaveAccessibleName("Désactivée");
   });
 
   it("workspace links use the server-scoped URL pattern", async () => {
@@ -171,38 +120,6 @@ describe("ProjectSidebar", () => {
       const tree = await screen.findByRole("group", { name: /pack_a/ });
       expect(tree).toHaveTextContent("accueil");
       expect(tree).toHaveTextContent("/heal");
-    });
-
-    it("lists the commands its module declares with its own, marked as built in", async () => {
-      mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
-      useSystemCommandsStore.setState({
-        serverId: "sk_1",
-        status: "ready",
-        commands: [
-          {
-            id: "shop:open",
-            moduleId: "shop",
-            name: "shop",
-            aliases: [],
-            permission: null,
-            description: {},
-            arguments: [],
-            consoleAllowed: false,
-            opensMenu: "pack_a:accueil",
-            children: [],
-          },
-        ],
-        folders: [{ folder: "pack_a", ownerModule: "shop" }],
-        overrides: {},
-      });
-      render(<ProjectSidebar />);
-      const tree = await screen.findByRole("group", { name: /pack_a/ });
-      const commands = within(tree).getByRole("list", { name: "Commandes" });
-      expect(commands).toHaveTextContent("/heal");
-      const builtIn = within(commands).getByRole("button", { name: /^\/shop/ });
-      expect(within(builtIn).getByRole("img")).toHaveAccessibleName(
-        /Commande interne du module shop/,
-      );
     });
 
     it("puts settings and creation on the open project's row, no more 'Settings' row", async () => {

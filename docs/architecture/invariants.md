@@ -179,9 +179,9 @@ Rien de bloquant dans `onEnable` ni sur le thread global après lui (issue #42) 
   d'un brouillon, création, renommage ou suppression de dossier) ne relit que le ou les
   Projects qu'elle a touchés (`ProjectWorkspace.reload(projectIds)`), puis appelle le
   `onReload()` de **tous** les modules : le contrat d'un module est de relire les Documents
-  qu'il veut, dans n'importe quel dossier, et il ne dit pas lesquels. Les items capturés et
-  les overrides de commandes sont lus sur le thread qui a relu les Projects ; le thread
-  global ne fait que basculer les maps et reconstruire la command map (`applyReload`).
+  qu'il veut, dans n'importe quel dossier, et il ne dit pas lesquels. Les items capturés sont
+  lus sur le thread qui a relu les Projects ; le thread global ne fait que basculer la map
+  et reconstruire la command map (`applyReload`).
 - Une publication interrompue (`ProjectPublisher.recover`) n'est rejouée que par
   `ProjectRoots.all()`, à la première vue du dossier : plus aucune lecture ni écriture
   de l'éditeur ne la rejoue à chaque requête.

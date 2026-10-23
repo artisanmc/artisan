@@ -1,5 +1,5 @@
 import type { Project } from "@/domain/types";
-import { OPEN_ELEMENT_EVENT, OPEN_SYSTEM_COMMAND_EVENT } from "@/features/canvas/canvasEvents";
+import { OPEN_ELEMENT_EVENT } from "@/features/canvas/canvasEvents";
 import type { ProjectRenamed } from "@/features/project/onProjectRenamed";
 import { documentDestination, projectDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
@@ -73,16 +73,5 @@ export function useProjectDeepLinks({
     }
     window.addEventListener(OPEN_ELEMENT_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_ELEMENT_EVENT, onOpen);
-  }, [serverId, project, navigate]);
-
-  useEffect(() => {
-    // Its form is this folder's: selected and centered here, edited in the Properties panel.
-    function onOpenCommand(e: Event) {
-      const commandId = (e as CustomEvent<{ commandId: string }>).detail?.commandId;
-      if (!commandId || !project) return;
-      goToDocument(navigate, { serverId, project, ref: commandId });
-    }
-    window.addEventListener(OPEN_SYSTEM_COMMAND_EVENT, onOpenCommand);
-    return () => window.removeEventListener(OPEN_SYSTEM_COMMAND_EVENT, onOpenCommand);
   }, [serverId, project, navigate]);
 }

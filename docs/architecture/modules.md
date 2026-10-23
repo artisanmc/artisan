@@ -389,39 +389,34 @@ api.commands.register(CommandDeclaration(
 ### 4.2 bis Commandes joueur (API 2.7.0)
 
 Distinctes des commands ci-dessus, que seul un menu appelle : une **commande joueur** est tapée en
-jeu. Le module déclare le comportement avec un id stable, l'admin habille le reste par un fichier
-`command_override/v1` du dossier `overrides/command/` d'un project (nom et alias de la racine,
-permission, cooldown, conditions, textes par langue, désactivation). Pas de suppression : la
-commande existe tant que le module est chargé.
+jeu. Le module déclare le comportement avec un id stable ; la commande elle-même est un fichier
+`command/v1` du dossier du module, comme ses menus système (design `commandes-unifiees`).
 
-Chaque commande de module (sous-commandes comprises) a son fichier : au chargement et quand un
-module arrive, le plugin écrit celui qui manque dans le premier dossier du module, `schema` et
-`command` seuls, les valeurs du module en commentaires (`CommandOverrideStore.seed`, avec les
-templates, puis rechargement). Jamais de vraies clés, qui figeraient les valeurs du module à sa
-prochaine version ; jamais un fichier remplacé, ni un override doublé s'il vit dans un autre dossier.
+À chaque démarrage et à l'arrivée d'un module, Artisan génère pour chaque commande racine
+déclarée le fichier `commands/<nom>.yaml` (`ModuleCommandFiles`, au format exact de l'éditeur :
+le vecteur partagé `testdata/module-command-files.json` l'impose aux deux côtés) et le garde dans
+le premier dossier du module comme élément système (template réservé `player_commands`,
+`SystemFiles`) : réécrit tant que l'admin n'y a pas touché, à lui dès qu'il l'édite, remis à la
+version du module par Reset. Ses actions appellent le code du module (`module_command: <id>`) ou
+ouvrent le menu déclaré (`open_menu`), chaque sous-commande déclarée est un nœud de
+`subcommands`, `console: true` reprend `consoleAllowed`. L'admin y change tout ce qu'un
+`command/v1` permet : nom, alias, permission, description par langue, cooldown, conditions,
+`enabled`, et les actions autour de `module_command` (ou à sa place).
 
-L'id, les arguments et les sous-commandes restent ceux du module : son code les lit. `steps`
-(chaîne d'actions, comme `command/v1`) remplace le code du module, sur la racine comme sur une
-sous-commande ; les arguments analysés y sont les valeurs `{nom}`, et un id de menu nu se résout
-dans le dossier de l'override. L'action `module_command` (`command`, `args`) lance le code d'origine
-d'une commande de module depuis une chaîne, sans son override (ni conditions, ni cooldown, ni
-`steps` : pas de boucle), permission vérifiée et arguments typés comme à la saisie ; elle marche
-aussi pour une commande désactivée. Elle est déclarée comme une action de module (propriétaire
-`artisan`) : l'éditeur construit son formulaire depuis la déclaration.
+`module_command` (`command`, `args`, propriétaire `artisan`) lance le code de la commande : sans
+entrée dans `args`, un argument prend la valeur liée de son nom, celle que la commande a analysée.
+Appelée d'ailleurs (un bouton de menu), elle vérifie les permissions que le fichier de la commande
+pose sur le chemin du nœud qui l'appelle seul, sinon la permission déclarée. La console lance un
+nœud `console: true` dont les actions sont un seul `module_command`, si le module le permet.
 
-Une commande qui ne fait qu'ouvrir un menu le déclare par `opensMenu("dossier:menu")` (API 2.11.0)
-au lieu d'un exécuteur : Artisan ouvre le menu, les arguments en contexte, et la planche de l'éditeur
-dessine le lien. Un `steps` d'override la remplace comme un exécuteur, et `module_command` rouvre le
-menu déclaré.
+Un module sans dossier voit ses commandes enregistrées depuis les fichiers générés, en mémoire ;
+de même tant que le fichier n'est pas encore écrit. Un nœud qui appelle une commande qu'aucun
+module ne déclare (module désactivé) est laissé de côté, la commande entière si c'est la racine.
 
-```yaml
-schema: command_override/v1
-command: guilds:balance.add
-steps:
-  - open_menu: confirmer_depot        # le menu reçoit {amount} par son entrée de contexte
-# dans le bouton « Confirmer » du menu :
-#   - module_command: { command: guilds:balance.add, args: { amount: "{amount}" } }
-```
+Les anciens fichiers `command_override/v1` (`overrides/command/`) sont fusionnés une fois dans le
+fichier de la commande (`CommandOverrideMigration`, avant l'écriture des fichiers système), puis
+rangés dans `.artisan/migrated/overrides-command/`. Ceux d'une commande non déclarée, d'un module
+sans dossier, ou dont le fichier est déjà édité restent en place, avec une ligne dans le log.
 
 ```java
 api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track")
@@ -431,8 +426,9 @@ api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track"
     .build());
 ```
 
-`CommandRegistrar` les enregistre après les `command/v1` des projects (un nom déjà pris laisse
-`/<module>:<nom>`) et renvoie l'arbre de commandes aux joueurs connectés quand il change. Contrat
+`CommandRegistrar` enregistre les `command/v1` des dossiers des admins, puis ceux des dossiers de
+modules (préfixe `/<module>:`), puis les commandes en mémoire ; un nom déjà pris laisse
+`/<préfixe>:<nom>`. Il renvoie l'arbre de commandes aux joueurs connectés quand il change. Contrat
 détaillé : `api-surface.md`.
 
 ### 4.3 Avantages du pattern

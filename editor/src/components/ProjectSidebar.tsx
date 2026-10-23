@@ -1,5 +1,4 @@
 import { ArtisanWordmark } from "@/components/ArtisanWordmark";
-import { Badge } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
 import type { Project } from "@/domain/types";
@@ -42,12 +41,8 @@ import {
   diskProjectsToSummaries,
 } from "@/features/projects/projectGroups";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
-import { allCommands, overrideState } from "@/lib/commandOverride";
-import { kindAppearance } from "@/lib/documentKindAppearance";
-import { moduleCommandsOf } from "@/lib/moduleCommands";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlServerId } from "@/lib/urlIds";
 import { useModulesStore } from "@/state/modulesStore";
@@ -55,7 +50,6 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarStore } from "@/state/sidebarStore";
-import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { CSS } from "@dnd-kit/utilities";
 import {
   ChevronDown,
@@ -79,10 +73,6 @@ export function ProjectSidebar() {
   const reorderProjects = useProjectsStore((s) => s.reorderProjects);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   const serverScreens = useServerScreensStore((s) => s.screens);
-  const commandsServer = useSystemCommandsStore((s) => s.serverId);
-  const systemCommands = useSystemCommandsStore((s) => s.commands);
-  const commandOverrides = useSystemCommandsStore((s) => s.overrides);
-  const commandFolders = useSystemCommandsStore((s) => s.folders);
   const indexedProjects = useServerIndexStore((s) => s.projects);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
@@ -220,20 +210,12 @@ export function ProjectSidebar() {
     screens: serverScreens,
     mountedModuleIds,
     localProjects,
-    // Another server's commands, while the active one's are read, would file them under the wrong modules.
-    commands: commandsServer === activeServerId ? systemCommands : [],
   });
 
   // Document count per Project: live for the ones opened (it follows edits), else
   // their published state from the server index, already read in the background to
   // expand them. Before the index is in, a Project never opened shows no badge.
-  // The commands its module declares count with its own Documents, as its list shows them.
-  const commandInput = {
-    commands: commandsServer === activeServerId ? systemCommands : [],
-    overrides: commandOverrides,
-    folders: commandFolders,
-  };
-  const countOf = (p: Project) => documentCount(p) + moduleCommandsOf(p, commandInput).length;
+  const countOf = (p: Project) => documentCount(p);
   const liveCount = new Map(localProjects.map((p) => [p.id as string, countOf(p)]));
   // Ids carry their server: another server's index matches none of these rows.
   const indexedCount = new Map(indexedProjects.map((p) => [p.id as string, countOf(p)]));
@@ -701,17 +683,14 @@ function PluginModuleItem({
   serverId: string | null;
   serverIdOf: (p: ProjectSummary) => string | null;
 }) {
-  const params = useParams({ strict: false }) as { screenId?: string; commandId?: string };
+  const params = useParams({ strict: false }) as { screenId?: string };
   // The page shown is one of the module's: it opens folded out, so the active row is visible.
-  const showsChild =
-    module.entries.some((e) => e.kind === "screen" && e.screen.id === params.screenId) ||
-    allCommands(module.commands).some((c) => c.id === params.commandId);
+  const showsChild = module.entries.some(
+    (e) => e.kind === "screen" && e.screen.id === params.screenId,
+  );
   const [expanded, setExpanded] = useState(showsChild);
-  // With a folder, its commands are listed among the folder's own; only a module
-  // without one keeps them here.
-  const commands = module.projects.length > 0 ? [] : module.commands;
-  const entries = (module.entries.length > 0 || commands.length > 0) && (
-    <ModuleEntries entries={module.entries} commands={commands} serverId={serverId} />
+  const entries = module.entries.length > 0 && (
+    <ModuleEntries entries={module.entries} serverId={serverId} />
   );
   const [only] = module.projects;
   if (only && module.projects.length === 1) {
@@ -766,25 +745,19 @@ function PluginModuleItem({
 }
 
 /**
- * What a plugin module alone manages: its system commands, its screens and its
- * configuration, one row each with its tile, like the Documents of a folder (no header).
+ * What a plugin module alone manages: its screens and its configuration, one row each
+ * with its tile, like the Documents of a folder (no header).
  */
 function ModuleEntries({
   entries,
-  commands,
   serverId,
 }: {
   entries: ModuleGroupEntry[];
-  commands: PlayerCommand[];
   serverId: string | null;
 }) {
   const { t } = useTranslation();
   return (
     <ul className="flex flex-col">
-      {serverId &&
-        commands.map((command) => (
-          <CommandItem key={command.id} command={command} serverId={serverId} />
-        ))}
       {entries.map((e) =>
         e.kind === "screen" ? (
           <ScreenItem key={`s:${e.screen.id}`} screen={e.screen} serverId={serverId} />
@@ -813,68 +786,11 @@ function entryRowClass(active: boolean): string {
   }`;
 }
 
-/** A neutral tile for a module's screen or configuration (a command wears the command's). */
+/** A neutral tile for a module's screen or configuration. */
 function EntryTile({ icon }: { icon: typeof Terminal }) {
   return (
     <span className="flex shrink-0" aria-hidden>
       <IconTile icon={icon} fg="var(--text-mut)" soft="var(--surface-raised-2)" size="xs" />
     </span>
-  );
-}
-
-/** A system command: its label as players type it, marked once the admin changed or disabled it. */
-function CommandItem({ command, serverId }: { command: PlayerCommand; serverId: string }) {
-  const { t } = useTranslation();
-  const override = useSystemCommandsStore((s) => s.overrides[command.id]);
-  const params = useParams({ strict: false }) as { commandId?: string };
-  const state = overrideState(override);
-  const isActive = params.commandId === command.id;
-  const name = override?.fields.name || command.name;
-  const look = kindAppearance("command");
-  return (
-    <li>
-      <Link
-        to="/servers/$serverId/commands/$commandId"
-        params={{ serverId, commandId: command.id }}
-        onClick={() => useSidebarStore.getState().close()}
-        className={entryRowClass(isActive)}
-        style={isActive ? { background: look.soft } : undefined}
-      >
-        <span className="flex shrink-0" aria-hidden>
-          <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
-        </span>
-        <span
-          className={
-            state === "disabled" ? "truncate flex-1 line-through opacity-60" : "truncate flex-1"
-          }
-          title={`/${name}`}
-        >
-          /{name}
-        </span>
-        {state !== "default" && (
-          <Badge
-            variant={state === "disabled" ? "amber" : "terra"}
-            role="img"
-            aria-label={t(
-              state === "disabled"
-                ? "systemCommands.stateDisabled"
-                : "systemCommands.stateModified",
-            )}
-            title={t(
-              state === "disabled"
-                ? "systemCommands.stateDisabled"
-                : "systemCommands.stateModified",
-            )}
-            className="shrink-0 !h-[17px] !px-1.5 text-[10.5px]"
-          >
-            {t(
-              state === "disabled"
-                ? "projectPanel.originTag.disabled"
-                : "projectPanel.originTag.modified",
-            )}
-          </Badge>
-        )}
-      </Link>
-    </li>
   );
 }

@@ -52,7 +52,6 @@ internal class RuntimeAssembly(
         private set
     lateinit var commandRegistrar: CommandRegistrar
         private set
-    private lateinit var commandOverrides: net.artisanmc.plugin.command.CommandOverrideStore
     private lateinit var cooldowns: CooldownStore
     private lateinit var evaluator: ConditionEvaluator
     /** The event-registered resource-pack manager — swapped (not stacked) on `/artisan reload`. */
@@ -81,26 +80,29 @@ internal class RuntimeAssembly(
             cacheFile = java.io.File(dataFolder, "cache/asset-index.json"),
         )
         assetCatalog.loadFromDisk()
-        commandOverrides = net.artisanmc.plugin.command.CommandOverrideStore(
-            { (menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all() }, logger,
+        val moduleCommand = net.artisanmc.plugin.command.ModuleCommandAction(
+            api.playerCommands::find, { commandRegistrar.permissionsOf(it) }, langManager, logger,
         )
         commandRegistrar = CommandRegistrar(
             plugin, langManager, scheduler,
             playerCommands = { api.playerCommands.declarations() },
-            overrides = { commandOverrides.overrides },
+            commandOwner = api.playerCommands::ownerOf,
+            folderOwner = projectRoots::ownerOf,
+            consoleRunner = moduleCommand,
         )
         // A module enabled or disabled after the start: its commands come and go without a reload,
-        // and the editor's System section lists the new set (a leaf tells its hub). The
-        // declarations of one tick (a module's commands at its enable) rebuild the command map once.
+        // their files follow in its folder, and the editor lists the new set (a leaf tells its hub).
+        // The declarations of one tick (a module's commands at its enable) rebuild the command map once.
         api.playerCommands.onChange {
+            generateCommandFiles()
             if (commandsRefreshQueued.compareAndSet(false, true)) scheduler.global {
                 commandsRefreshQueued.set(false)
                 commandRegistrar.refresh()
             }
             (plugin.menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged()
         }
+        generateCommandFiles()
         // Listed with the modules' actions (owner `artisan`): the editor builds its form from the declaration.
-        val moduleCommand = net.artisanmc.plugin.command.ModuleCommandAction({ commandRegistrar.moduleCommands }, langManager, logger)
         api.actionRegistry.unregister(net.artisanmc.plugin.command.ModuleCommandAction.NAME)
         api.actionRegistry.bindOwner("artisan")
         try {
@@ -110,17 +112,32 @@ internal class RuntimeAssembly(
         }
     }
 
+    /** Each module's commands as its system template of their files (`ModuleCommandFiles`), kept in its folder with its menus. */
+    private fun generateCommandFiles() {
+        val registry = api.playerCommands
+        plugin.moduleTemplates.setGenerated(
+            registry.declarations()
+                .groupBy { registry.ownerOf(it.id) }
+                .mapNotNull { (module, roots) -> module?.let { m -> net.artisanmc.plugin.command.ModuleCommandFiles.template(roots)?.let { m to it } } }
+                .toMap(),
+        )
+    }
+
     /**
-     * Each module command without an override gets its file, the module's values commented out,
-     * in its module's first folder by name (`CommandOverrideStore.seed`). Run by the provider
-     * with its other disk writes, which then reloads.
+     * The old `command_override/v1` files, merged once into the commands' files
+     * (`CommandOverrideMigration`). Run by the provider before it writes the system files.
      */
-    private fun seedOverrides(): Boolean =
-        commandOverrides.seed(api.playerCommands) { moduleId ->
-            projectRoots.all().entries
-                .filter { projectRoots.ownerOf(it.key) == moduleId }
-                .minByOrNull { it.key }?.value
-        }
+    private fun migrateCommandOverrides(): Boolean = net.artisanmc.plugin.command.CommandOverrideMigration(
+        projectDirs = { (menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all() },
+        declarations = { api.playerCommands.declarations() },
+        folderOf = { rootId -> api.playerCommands.ownerOf(rootId)?.let(::moduleFolder) },
+        defaultLang = { api.translations.defaultLang },
+        logger = logger,
+    ).migrate()
+
+    /** A module's first folder by name, where its system files live. */
+    private fun moduleFolder(moduleId: String): File? =
+        projectRoots.all().entries.filter { projectRoots.ownerOf(it.key) == moduleId }.minByOrNull { it.key }?.value
 
     private val commandsRefreshQueued = java.util.concurrent.atomic.AtomicBoolean(false)
     private val applyQueued = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -128,17 +145,14 @@ internal class RuntimeAssembly(
     private val applyModules: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     /** Read on the reload thread, swapped in on the global thread; the latest read wins. */
     @Volatile private var pendingItems: Map<String, org.bukkit.inventory.ItemStack>? = null
-    @Volatile private var pendingOverrides: Map<String, net.artisanmc.plugin.model.CommandOverrideYaml>? = null
 
     /**
-     * Called on the thread that read the snapshot: the captured items and the overrides are
-     * read there too, so the global thread only swaps maps and rebuilds the command map.
+     * Called on the thread that read the snapshot: the captured items are read there too, so the global thread only swaps maps and rebuilds the command map.
      * Reloads that end before it runs the first one apply once. [modules]: the modules whose
      * `onReload()` runs, null for every one.
      */
     private fun scheduleApplyReload(modules: Set<String>?) {
         pendingItems = capturedItems.read((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
-        pendingOverrides = commandOverrides.read()
         if (modules == null) applyAll.set(true) else applyModules.addAll(modules)
         if (!applyQueued.compareAndSet(false, true)) return
         scheduler.onGlobal {
@@ -152,9 +166,8 @@ internal class RuntimeAssembly(
     /** Global thread (the command map is only safe there). No disk here: see [scheduleApplyReload]. */
     private fun applyReload(modules: Set<String>?) {
         pendingItems?.let { capturedItems.apply(it); pendingItems = null }
-        pendingOverrides?.let { commandOverrides.apply(it); pendingOverrides = null }
         commandRegistrar.reload(menuProvider.runtimeProjects(), executor, evaluator)
-        // Files Artisan wrote itself (override skeletons, system menus) notify no module: nothing to re-fetch.
+        // Files Artisan wrote itself (system menus and commands) notify no module: nothing to re-fetch.
         if (modules != null && modules.isEmpty()) return
         api.modules.active().filter { modules == null || it.id in modules }.forEach { runCatching { it.onReload() } }
         api.events.publish(ConfigReloadEvent("menus"))
@@ -204,7 +217,6 @@ internal class RuntimeAssembly(
         provider.load()
 
         executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry, plugin.langManager)
-        commandOverrides.reload()
         commandRegistrar.reload(provider.runtimeProjects(), executor, evaluator)
     }
 
@@ -220,9 +232,9 @@ internal class RuntimeAssembly(
         offsetEncoderProvider = assetCatalog::offsetEncoder,
         dataSources = api.dataSources,
         editorBundles = localEditorBundles::find,
-        templates = { api.templates },
+        templates = { plugin.moduleTemplates },
         seedLang = { api.translations.defaultLang },
-        seedOverrides = ::seedOverrides,
+        migrateCommandOverrides = ::migrateCommandOverrides,
         announcement = plugin::announcement,
         announcementChanged = plugin::announcementChanged,
         declaredModels = { api.models.declared().map { it.document } },

@@ -1,7 +1,16 @@
 import { EditorHeader } from "@/components/ui/editor-header";
 import { Input } from "@/components/ui/input";
-import type { Command, CommandArg, CommandId, ProjectId } from "@/domain/types";
+import { commandNodeAt } from "@/domain/commandNodes";
+import type {
+  Command,
+  CommandArg,
+  CommandId,
+  CommandNode,
+  CommandNodePath,
+  ProjectId,
+} from "@/domain/types";
 import { cx } from "@/lib/cx";
+import { useTextEdit } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +19,7 @@ import { FieldLabel, Lane } from "../layout";
 import { ActionScopeProvider } from "../properties/ActionEditor";
 import { AliasesField } from "../properties/AliasesField";
 import { PropertyField } from "../properties/PropertyField";
+import { SubcommandTree } from "./SubcommandTree";
 
 function CommandIdField({ projectId, commandId }: { projectId: ProjectId; commandId: CommandId }) {
   const { t } = useTranslation();
@@ -63,14 +73,27 @@ function CommandIdField({ projectId, commandId }: { projectId: ProjectId; comman
 export function CommandEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
   const setCommandField = useProjectsStore((s) => s.setCommandField);
   const setCommandAliases = useProjectsStore((s) => s.setCommandAliases);
+  const setCommandDescription = useProjectsStore((s) => s.setCommandDescription);
   const { t } = useTranslation();
+  // The node the panels edit: the command, or one of its sub-commands.
+  // Kept with the command it belongs to: another command opens on its root.
+  const [selection, setSelection] = useState<{ id: CommandId; path: CommandNodePath }>({
+    id: command.id,
+    path: [],
+  });
+  const selected = selection.id === command.id ? selection.path : [];
+  const setSelected = (path: CommandNodePath) => setSelection({ id: command.id, path });
+  const node = commandNodeAt(command, selected) ?? command;
+  const sub = node === command ? undefined : selected;
+  const words = [command.name, ...wordsTo(command, sub ?? [])];
+  const description = useTextEdit(projectId, node.description);
   const commandScope = useMemo(
-    () => ({ kind: "command" as const, commandId: command.id }),
-    [command.id],
+    () => ({ kind: "command" as const, commandId: command.id, sub }),
+    [command.id, sub],
   );
   return (
     <div className="flex h-full flex-col bg-[var(--surface)]">
-      <CommandHeader command={command} />
+      <CommandHeader node={node} words={words} />
       <div className="@container flex-1 overflow-auto px-4 py-4">
         {/* Wide containers (individual view) split into two columns: settings and
             arguments left, the steps right with the room they need. The narrow right
@@ -78,74 +101,113 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
         <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-[minmax(280px,350px)_1fr] @3xl:items-start">
           <div className="flex min-w-0 flex-col gap-4">
             <section className="panel rounded-[var(--r-md)] p-4">
+              <Lane label={t("command.subcommandsLabel")}>
+                <SubcommandTree
+                  projectId={projectId}
+                  command={command}
+                  selected={sub ?? []}
+                  onSelect={setSelected}
+                />
+              </Lane>
+            </section>
+            <section className="panel rounded-[var(--r-md)] p-4">
               <Lane label={t("command.settingsLabel")}>
                 <div className="flex flex-col gap-3">
                   <PropertyField
                     label={t("command.nameLabel")}
-                    value={command.name}
-                    onChange={(v) =>
-                      setCommandField({ projectId, commandId: command.id, field: "name", value: v })
-                    }
-                  />
-                  <PropertyField
-                    label={t("command.permissionLabel")}
-                    value={command.permission ?? ""}
-                    placeholder={t("command.permissionPlaceholder")}
+                    value={node.name}
                     onChange={(v) =>
                       setCommandField({
                         projectId,
                         commandId: command.id,
+                        sub,
+                        field: "name",
+                        value: sub ? v.trim().toLowerCase() : v,
+                      })
+                    }
+                  />
+                  <PropertyField
+                    label={t("command.permissionLabel")}
+                    value={node.permission ?? ""}
+                    placeholder={
+                      sub
+                        ? t("command.subPermissionPlaceholder")
+                        : t("command.permissionPlaceholder")
+                    }
+                    onChange={(v) =>
+                      setCommandField({
+                        projectId,
+                        commandId: command.id,
+                        sub,
                         field: "permission",
                         value: v,
                       })
                     }
                   />
                   <PropertyField
-                    label={t("command.descriptionLabel")}
-                    value={command.description ?? ""}
-                    placeholder={t("command.descriptionPlaceholder")}
+                    label={t("command.descriptionLangLabel", { lang: description.lang })}
+                    value={description.isFallback ? "" : description.value}
+                    placeholder={
+                      description.isFallback
+                        ? description.value
+                        : t("command.descriptionPlaceholder")
+                    }
                     multiline
                     onChange={(v) =>
-                      setCommandField({
+                      setCommandDescription({
                         projectId,
                         commandId: command.id,
-                        field: "description",
+                        sub,
+                        lang: description.lang,
                         value: v,
                       })
                     }
                   />
                   <AliasesField
                     label={t("command.aliasesLabel")}
-                    aliases={command.aliases ?? []}
+                    aliases={node.aliases ?? []}
                     onChange={(aliases) =>
                       setCommandAliases({
                         projectId,
                         commandId: command.id,
+                        sub,
                         aliases,
                       })
                     }
                   />
-                  <CommandIdField projectId={projectId} commandId={command.id} />
+                  {sub ? null : <CommandIdField projectId={projectId} commandId={command.id} />}
                 </div>
               </Lane>
             </section>
             <section className="panel rounded-[var(--r-md)] p-4">
               <Lane label={t("command.argumentsLabel")}>
-                <CommandArgsEditor projectId={projectId} command={command} />
+                <CommandArgsEditor
+                  projectId={projectId}
+                  commandId={command.id}
+                  sub={sub}
+                  node={node}
+                  typed={words.join(" ")}
+                />
               </Lane>
             </section>
           </div>
           <div className="flex min-w-0 flex-col gap-4">
             <section className="panel min-w-0 rounded-[var(--r-md)] p-4">
               <Lane label={t("command.steps")} hint={t("command.stepsHint")}>
+                {node.steps.length === 0 && (node.subcommands?.length ?? 0) > 0 ? (
+                  <p className="mb-2 text-[12px] text-[var(--text-faint)]">
+                    {t("command.groupHint", { command: `/${words.join(" ")}` })}
+                  </p>
+                ) : null}
                 <div className="overflow-x-auto">
                   {/* Args declared above are referenceable as {name} in any text
                     field of the actions inside this step tree. */}
                   <ActionScopeProvider value={commandScope}>
                     <ActionChainEditor
+                      key={(sub ?? []).join(".")}
                       projectId={projectId}
-                      address={{ kind: "command", commandId: command.id }}
-                      steps={command.steps}
+                      address={{ kind: "command", commandId: command.id, sub }}
+                      steps={node.steps}
                     />
                   </ActionScopeProvider>
                 </div>
@@ -158,24 +220,35 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
   );
 }
 
+/** The words typed after the command's name to reach the node at `path`. */
+function wordsTo(command: Command, path: CommandNodePath): string[] {
+  const out: string[] = [];
+  let node: CommandNode | undefined = command;
+  for (const index of path) {
+    node = node?.subcommands?.[index];
+    if (node) out.push(node.name);
+  }
+  return out;
+}
+
 /**
  * The command as players type it, in the command colour of the board: kind tile,
  * `/name` large, then its arguments, permission and aliases.
  */
-function CommandHeader({ command }: { command: Command }) {
+function CommandHeader({ node, words }: { node: CommandNode; words: string[] }) {
   const { t } = useTranslation();
-  const aliases = command.aliases ?? [];
+  const aliases = node.aliases ?? [];
   return (
     <EditorHeader
       kind="command"
       eyebrow={t("command.kindLabel")}
-      title={`/${command.name}`}
+      title={`/${words.join(" ")}`}
       meta={
         <>
-          {command.permission ? (
+          {node.permission ? (
             <span className="chip cursor-default text-[12px]">
               {t("command.permissionLabel")}
-              <b className="font-mono font-medium text-[var(--text)]">{command.permission}</b>
+              <b className="font-mono font-medium text-[var(--text)]">{node.permission}</b>
             </span>
           ) : null}
           {aliases.length > 0 ? (
@@ -183,7 +256,7 @@ function CommandHeader({ command }: { command: Command }) {
               {t("command.aliasesLabel")}
               {aliases.map((alias) => (
                 <b key={alias} className="font-mono font-medium text-[var(--text)]">
-                  /{alias}
+                  {words.length > 1 ? alias : `/${alias}`}
                 </b>
               ))}
             </span>
@@ -191,7 +264,7 @@ function CommandHeader({ command }: { command: Command }) {
         </>
       }
     >
-      {command.arguments.map((arg, i) => (
+      {node.arguments.map((arg, i) => (
         <span
           // biome-ignore lint/suspicious/noArrayIndexKey: arg index stable per render
           key={i}
@@ -218,7 +291,20 @@ function argSignature(arg: CommandArg): string {
   return `[${arg.name}]`;
 }
 
-function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; command: Command }) {
+function CommandArgsEditor({
+  projectId,
+  commandId,
+  sub,
+  node,
+  typed,
+}: {
+  projectId: ProjectId;
+  commandId: CommandId;
+  sub: CommandNodePath | undefined;
+  node: CommandNode;
+  /** The words typed before the arguments: `ah sell`. */
+  typed: string;
+}) {
   const addCommandArg = useProjectsStore((s) => s.addCommandArg);
   const setCommandArg = useProjectsStore((s) => s.setCommandArg);
   const removeCommandArg = useProjectsStore((s) => s.removeCommandArg);
@@ -227,17 +313,17 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
 
   const dupNames = new Set<string>();
   const seen = new Set<string>();
-  for (const a of command.arguments) {
+  for (const a of node.arguments) {
     if (a.name === "") continue;
     if (seen.has(a.name)) dupNames.add(a.name);
     seen.add(a.name);
   }
 
   const update = (index: number, patch: Partial<CommandArg>) => {
-    const current = command.arguments[index];
+    const current = node.arguments[index];
     if (!current) return;
     try {
-      setCommandArg({ projectId, commandId: command.id, index, arg: { ...current, ...patch } });
+      setCommandArg({ projectId, commandId, sub, index, arg: { ...current, ...patch } });
       setOrderError(null);
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : t("command.argOrderError"));
@@ -246,7 +332,7 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
 
   const addArg = () => {
     try {
-      addCommandArg({ projectId, commandId: command.id });
+      addCommandArg({ projectId, commandId, sub });
       setOrderError(null);
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : t("command.argOrderError"));
@@ -263,12 +349,12 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
           {orderError}
         </div>
       )}
-      {command.arguments.length === 0 ? (
+      {node.arguments.length === 0 ? (
         <div className="rounded-[var(--r-sm)] border border-[var(--border-soft)] border-dashed px-3 py-3 text-[12px] text-[var(--text-faint)]">
-          {t("command.noArguments", { name: command.name })}
+          {t("command.noArguments", { name: typed })}
         </div>
       ) : (
-        command.arguments.map((arg, i) => {
+        node.arguments.map((arg, i) => {
           const isInvalid = arg.name === "" || dupNames.has(arg.name);
           return (
             <div
@@ -293,10 +379,14 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
                   }
                 />
                 <select
-                  value={arg.type}
-                  onChange={(e) => update(i, { type: e.target.value as CommandArg["type"] })}
+                  value={arg.wireType ?? arg.type}
+                  onChange={(e) =>
+                    update(i, { type: e.target.value as CommandArg["type"], wireType: undefined })
+                  }
                   className="select h-8 w-auto rounded-[var(--r-xs)] py-0 pr-7 pl-2 font-mono text-xs"
                 >
+                  {/* A type written in the file that the editor has no control for: shown, kept until changed. */}
+                  {arg.wireType && <option value={arg.wireType}>{arg.wireType}</option>}
                   {ARG_TYPES.map((type) => (
                     <option key={type} value={type}>
                       {type}
@@ -317,7 +407,7 @@ function CommandArgsEditor({ projectId, command }: { projectId: ProjectId; comma
                 <button
                   type="button"
                   title={t("command.removeArg")}
-                  onClick={() => removeCommandArg({ projectId, commandId: command.id, index: i })}
+                  onClick={() => removeCommandArg({ projectId, commandId, sub, index: i })}
                   className="ml-auto flex h-7 w-7 items-center justify-center rounded text-[14px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                 >
                   ×

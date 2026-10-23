@@ -11,6 +11,7 @@ Format intermédiaire d'une commande Artisan. Une commande est une **entité de 
 | `examples/simple-heal.json` | Commande sans menu, sans argument — actions directes. |
 | `examples/profile-with-target.json` | Commande à 1 argument optionnel qui ouvre un menu avec contexte. |
 | `examples/pay-player.json` | Commande à 2 arguments required avec requirements + fallback + cooldown. |
+| `examples/auction-house-subcommands.json` | Commande à sous-commandes (alias, permission, arguments et cooldown par nœud, nœud sans actions, nœud désactivé), description multilingue. |
 
 ## Pourquoi des commandes côté Artisan
 
@@ -91,6 +92,36 @@ Menu profile_menu : %args_target% → "Notch"
                     %args_target_uuid% → "069a79f4-..."
                     %args_target_displayname% → "§eNotch"
 ```
+
+## Sous-commandes
+
+`subcommands` est une liste de nœuds, récursive, chacun avec les champs d'une commande :
+`name` (obligatoire), `aliases`, `permission`, `description`, `enabled`, `arguments`,
+`requirements`, `actions`, `fallback`, `cooldown`, `subcommands`.
+
+```
+/ah sell 100        → nœud sell, arguments [100]
+/ah vendre 100      → même nœud, par alias
+/ah admin           → nœud sans actions : usage « /ah admin (reload) »
+/ah 42              → aucun nœud ne s'appelle « 42 » : arguments de la racine
+```
+
+- Les premiers mots choisissent le nœud, par nom ou alias, aussi profond qu'ils correspondent ;
+  le reste est passé aux arguments de ce nœud.
+- La permission de chaque nœud du chemin est vérifiée : une sous-commande n'élargit jamais
+  l'accès donné par son parent.
+- Un nœud sans `actions` mais avec des enfants affiche l'usage de ses enfants autorisés.
+- `enabled: false` retire le nœud (et ses enfants) ; son nom retombe sur les arguments du parent.
+  Sur la racine, la commande n'est pas enregistrée.
+- Un `cooldown` sans `id` prend le chemin de la commande (`ah`, `ah sell`) : deux commandes ne
+  partagent plus un cooldown par accident.
+- La complétion propose les sous-commandes autorisées puis les arguments du nœud.
+
+`description` (racine et nœuds) est une chaîne pour toutes les langues ou une table
+`{langue: texte}`.
+
+Un jar Artisan antérieur ignore `subcommands` et `enabled` : la racine reste utilisable, les
+sous-commandes disparaissent.
 
 ## Propagation du contexte
 

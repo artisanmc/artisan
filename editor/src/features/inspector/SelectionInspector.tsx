@@ -1,5 +1,3 @@
-import { SystemCommandPage } from "@/components/SystemCommandPage";
-import { ControlledStepsEditor } from "@/features/inspector/chain/ControlledStepsEditor";
 import { EditorHeader } from "@/components/ui/editor-header";
 import { documentsOf, menusOf } from "@/domain/documents";
 import type { Command, Dialog, Menu, Project, ProjectId } from "@/domain/types";
@@ -9,7 +7,6 @@ import { contributionLabel, documentTitle } from "@/lib/moduleDocumentKinds";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import { useEffect } from "react";
@@ -42,7 +39,6 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
   const selectionMenuId = useSelectionStore((s) => s.menuId);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const setSub = useFlowSelectionStore((s) => s.set);
-  const commandsServerId = useSystemCommandsStore((s) => s.serverId);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ids change is the trigger
   useEffect(() => {
@@ -120,19 +116,6 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
       }
       return <EmptyHint label={t("projectPanel.noEditor", { kind })} />;
     }
-    case "moduleCommand":
-      // Its override form, the one of its System page: the module's values, the admin's changes.
-      return commandsServerId ? (
-        <SystemCommandPage
-          key={`${ctx.id}#${ctx.item ?? ""}`}
-          commandId={ctx.id}
-          focus={ctx.item}
-          project={project}
-          stepsEditor={ControlledStepsEditor}
-        />
-      ) : (
-        <EmptyHint label={t("systemCommands.loading")} />
-      );
     case "element": {
       const menu = menusOf(project).find((m) => m.id === ctx.menuId)!;
       const el = menu.layers.flatMap((l) => l.elements).find((e) => e.id === ctx.elementId)!;
