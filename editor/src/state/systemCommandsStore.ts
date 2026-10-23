@@ -1,12 +1,7 @@
 import { configRead } from "@/lib/api/configScreens";
 import { type PlayerCommand, fetchPlayerCommands } from "@/lib/api/playerCommands";
 import { listServerProjects } from "@/lib/api/projectFiles";
-import {
-  OVERRIDES_DIR,
-  type StoredOverride,
-  type Texts,
-  parseOverride,
-} from "@/lib/commandOverride";
+import { OVERRIDES_DIR, type StoredOverride, parseOverride } from "@/lib/commandOverride";
 import { create } from "zustand";
 
 /** A module folder of the server, as an override target. */
@@ -22,22 +17,15 @@ interface SystemCommandsState {
   folders: CommandFolder[];
   /** By command id; the first file by folder then path wins, as on the server. */
   overrides: Record<string, StoredOverride>;
-  /**
-   * Texts edited in the Translations tab and not written yet, whole maps by
-   * `commandTextKey`: they outlive a tab switch, not a change of server.
-   */
-  textDrafts: Record<string, Texts>;
   /** Reads the server's commands and every folder's overrides; [force] re-reads the same server. */
   load: (serverId: string, force?: boolean) => Promise<void>;
-  setTextDraft: (key: string, texts: Texts) => void;
-  discardTextDrafts: (keys: string[]) => void;
 }
 
 /**
  * The commands modules declare on the active server and the admin's overrides of them: the
  * editor's System section (design `framework-commandes` §3.9). The overrides are read from the
  * disk of every module folder, like a Config screen's table, so the list matches what the server
- * applies after its last reload.
+ * applies after its last reload; an open folder's draft speaks for its own (`withProjectOverrides`).
  */
 export const useSystemCommandsStore = create<SystemCommandsState>((set, get) => ({
   serverId: null,
@@ -45,17 +33,6 @@ export const useSystemCommandsStore = create<SystemCommandsState>((set, get) => 
   commands: [],
   folders: [],
   overrides: {},
-  textDrafts: {},
-  setTextDraft(key, texts) {
-    set((state) => ({ textDrafts: { ...state.textDrafts, [key]: texts } }));
-  },
-  discardTextDrafts(keys) {
-    set((state) => ({
-      textDrafts: Object.fromEntries(
-        Object.entries(state.textDrafts).filter(([key]) => !keys.includes(key)),
-      ),
-    }));
-  },
   async load(serverId, force = false) {
     if (!force && get().serverId === serverId && get().status !== "idle") return;
     if (get().serverId !== serverId) {
@@ -65,7 +42,6 @@ export const useSystemCommandsStore = create<SystemCommandsState>((set, get) => 
         commands: [],
         folders: [],
         overrides: {},
-        textDrafts: {},
       });
     }
     const [commands, listing] = await Promise.all([

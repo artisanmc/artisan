@@ -1,6 +1,11 @@
 import type { Command, CommandId, Project } from "@/domain/types";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
-import { type OverrideState, type StoredOverride, overrideState } from "@/lib/commandOverride";
+import {
+  type OverrideState,
+  type StoredOverride,
+  overrideState,
+  withProjectOverrides,
+} from "@/lib/commandOverride";
 import { commandV1ToDomain } from "@/schema/commandV1ToDomain";
 import type { CommandFolder } from "@/state/systemCommandsStore";
 
@@ -40,9 +45,9 @@ const folderOf = (project: Pick<Project, "id" | "diskId">): string => project.di
 
 /**
  * The folder a command shows in: the one holding its override (where its `steps`
- * resolve a bare id), else the module's first folder by name.
+ * resolve a bare id), else the module's first folder by name, else its namespace's.
  */
-function homeFolder(
+export function homeFolder(
   command: PlayerCommand,
   overrides: Record<string, StoredOverride>,
   folders: CommandFolder[],
@@ -56,7 +61,9 @@ function homeFolder(
     .filter((f) => f.ownerModule === module)
     .map((f) => f.folder)
     .sort();
-  return owned[0] ?? null;
+  // A module without a folder of its own: the one named after its namespace, created for it.
+  const namespace = command.id.slice(0, command.id.indexOf(":"));
+  return owned[0] ?? folders.find((f) => f.folder === namespace)?.folder ?? null;
 }
 
 function chainOf(command: PlayerCommand, override: StoredOverride | undefined): unknown {
@@ -74,22 +81,26 @@ export interface ModuleCommandEntry {
   label: string;
 }
 
+type Folder = Pick<Project, "id" | "diskId"> & Partial<Pick<Project, "moduleData">>;
+
 /**
  * Every command of the modules shown in [project]'s folder, sub-commands included: those
  * whose override it holds, else, with no override, those of its module (a sub-command
- * follows its root).
+ * follows its root). A Project read from files speaks for its own overrides (its draft's
+ * edits included); the server's disk for the other folders'.
  */
 export function moduleCommandEntriesOf(
-  project: Pick<Project, "id" | "diskId">,
+  project: Folder,
   input: ModuleCommandsInput,
 ): ModuleCommandEntry[] {
   const folder = folderOf(project);
+  const overrides = withProjectOverrides(input.overrides, project);
   const out: ModuleCommandEntry[] = [];
   const visit = (command: PlayerCommand, path: string[], parentHome: string | null) => {
-    const override = input.overrides[command.id];
+    const override = overrides[command.id];
     const root = path.length === 0;
     const name = root ? override?.fields.name?.trim() || command.name : command.name;
-    const home = homeFolder(command, input.overrides, input.folders, root ? null : parentHome);
+    const home = homeFolder(command, overrides, input.folders, root ? null : parentHome);
     if (home === folder) out.push({ command, override, root, label: [...path, name].join(" ") });
     for (const child of command.children) visit(child, [...path, name], home);
   };
@@ -102,10 +113,7 @@ export function moduleCommandEntriesOf(
  * each sub-command that links somewhere (its own `steps` or menu); a sub-command
  * running the module's code has nothing to draw and stays on the System page.
  */
-export function moduleCommandsOf(
-  project: Pick<Project, "id" | "diskId">,
-  input: ModuleCommandsInput,
-): ModuleCommandNode[] {
+export function moduleCommandsOf(project: Folder, input: ModuleCommandsInput): ModuleCommandNode[] {
   return moduleCommandEntriesOf(project, input).flatMap(({ command, override, root, label }) => {
     const chain = chainOf(command, override);
     if (!root && chain === undefined) return [];

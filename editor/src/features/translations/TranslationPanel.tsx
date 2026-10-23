@@ -1,5 +1,4 @@
 import { RevealField } from "@/components/RevealField";
-import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip } from "@/components/ui/tooltip";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
@@ -94,7 +93,7 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
     [project, activeLang],
   );
   // The texts of the module's commands shown in this folder, in the folder's languages:
-  // listed with its own, written to their override files by their own save.
+  // listed with its own, written to their override files in the folder's draft.
   const commandTexts = useModuleCommandTexts(project);
   const commandRows = useMemo<TranslationRow[]>(
     () =>
@@ -331,39 +330,6 @@ export function TranslationPanelContent({ projectId }: { projectId: ProjectId })
             />
           )}
         </div>
-        {commandTexts.pending.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-soft)] px-5 py-2.5">
-            <Puzzle className="size-3.5 text-[var(--text-faint)]" aria-hidden />
-            <span className="mr-auto text-[12px] text-[var(--text-mut)]">
-              {t("translations.commandTextsPending", { count: commandTexts.pending.length })}
-            </span>
-            {commandTexts.error && (
-              <span className="text-[12px] text-[var(--danger)]">
-                {t(`systemCommands.errors.${commandTexts.error}`, {
-                  defaultValue: t("systemCommands.errors.write_error"),
-                })}
-              </span>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={commandTexts.saving}
-              onClick={commandTexts.discard}
-            >
-              {t("systemCommands.discard")}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={commandTexts.saving}
-              onClick={() => void commandTexts.save()}
-            >
-              {commandTexts.saving
-                ? t("systemCommands.saving")
-                : t("translations.commandTextsSave")}
-            </Button>
-          </div>
-        )}
       </main>
     </>
   );

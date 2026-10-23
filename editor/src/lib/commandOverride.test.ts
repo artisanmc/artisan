@@ -1,11 +1,17 @@
 import type { PlayerCommand } from "@/lib/api/playerCommands";
+import { projectId } from "@/domain/ids";
 import {
+  OVERRIDES_NAMESPACE,
   overrideFolder,
   overridePath,
   overrideState,
   parseOverride,
   serializeOverride,
+  withOverrideFile,
+  withProjectOverrides,
 } from "@/lib/commandOverride";
+import { projectFromFiles } from "@/schema/projectFromFiles";
+import { projectToFiles } from "@/schema/projectToFiles";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
@@ -169,5 +175,42 @@ describe("command overrides", () => {
     expect(overrideFolder(command("daily:claim", "daily"), undefined, folders)).toBeNull();
     const existing = parseOverride("lobby", "overrides/command/a.yaml", "command: auctions:ah");
     expect(overrideFolder(command("auctions:ah"), existing ?? undefined, folders)).toBe("lobby");
+  });
+
+  it("reads a folder's overrides from its draft, and deploys the ones written there", () => {
+    const pid = projectId("p_lobby");
+    const base = "plugins/Artisan/projects/p_lobby";
+    const project = projectFromFiles(
+      pid,
+      {
+        [`${base}/manifest.yaml`]: "schema: manifest/v1\nproject_id: p_lobby\ndefault_lang: en\n",
+        [`${base}/overrides/command/a.open.yaml`]: "command: a:open\nenabled: false\n",
+      },
+      { name: "Lobby" },
+    );
+    const disk = {
+      "a:open": parseOverride("p_lobby", "overrides/command/a.open.yaml", "command: a:open\n")!,
+      "b:x": parseOverride("other", "overrides/command/b.x.yaml", "command: b:x\n")!,
+    };
+    const merged = withProjectOverrides(disk, project);
+    expect(merged["a:open"]?.fields.enabled).toBe(false);
+    expect(merged["b:x"]?.folder).toBe("other");
+    // A Project not read from files says nothing: the disk's stay.
+    expect(withProjectOverrides(disk, { id: "p_lobby" })).toBe(disk);
+
+    const edited = {
+      ...project,
+      moduleData: {
+        ...project.moduleData,
+        [OVERRIDES_NAMESPACE]: withOverrideFile(
+          project,
+          "overrides/command/a.open.yaml",
+          "command: a:open\nname: lobby\n",
+        ),
+      },
+    };
+    expect(projectToFiles(edited)[`${base}/overrides/command/a.open.yaml`]).toBe(
+      "command: a:open\nname: lobby\n",
+    );
   });
 });

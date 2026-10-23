@@ -125,10 +125,9 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
       return commandsServerId ? (
         <SystemCommandPage
           key={ctx.id}
-          serverId={commandsServerId}
           commandId={ctx.id}
+          project={project}
           stepsEditor={ControlledStepsEditor}
-          layout="panel"
         />
       ) : (
         <EmptyHint label={t("systemCommands.loading")} />

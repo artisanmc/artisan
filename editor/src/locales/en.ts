@@ -188,10 +188,7 @@ export default {
       cooldown_message: "/{{command}} · cooldown message",
     },
     commandTextHint:
-      "Text of a command built into the module. It is saved in the command's override file, apart from the folder.",
-    commandTextsPending_one: "{{count}} command text changed, not written to the server yet.",
-    commandTextsPending_other: "{{count}} command texts changed, not written to the server yet.",
-    commandTextsSave: "Save command texts",
+      "Text of a command built into the module. It goes to the command's override file, in the folder's draft.",
     statTranslated: "{{translated}} / {{total}} translated in {{lang}}",
     statMissing: "{{count}} missing",
     statComplete: "complete",
@@ -1256,7 +1253,12 @@ export default {
   systemCommands: {
     eyebrow: "System command · {{module}}",
     intro:
-      "Every field starts from the module's value. The button beside a field turns on once you change it and puts that value back. Saving writes the command's override file in the module's folder.",
+      "Every field starts from the module's value. The button beside a field turns on once you change it and puts that value back. Your changes go to the folder's draft, in the command's override file, and reach the server with Deploy.",
+    opening: "Opening the command's folder…",
+    noFolder:
+      "A command is edited in its module's folder, like its Documents, and deployed with it. This module has no folder on this server yet: create {{folder}} to edit the command.",
+    createFolder: "Create the folder {{folder}}",
+    createFolderFailed: "The folder could not be created.",
     enabledFor: "{{command}} enabled",
     edit: "Edit",
     collapse: "Collapse",
@@ -1290,21 +1292,9 @@ export default {
     scopePlayer: "Per player",
     scopeGlobal: "Whole server",
     cooldownMessage: "Message during the cooldown",
-    save: "Save",
-    saving: "Saving…",
-    discard: "Discard changes",
     resetAll: "Back to the module's values",
-    saved: "Saved. The server reloaded the command.",
     stateModified: "Modified",
     stateDisabled: "Disabled",
-    errors: {
-      server_offline: "The server is offline: nothing was written.",
-      fetch_timeout: "The server did not answer in time.",
-      invalid_path: "Path refused by the server.",
-      unknown_project: "The module's folder is not on the server.",
-      write_error: "The write failed on the server.",
-      network_error: "The hub cannot be reached.",
-    },
   },
   sidebar: {
     projectDocuments: "Documents of {{name}}",

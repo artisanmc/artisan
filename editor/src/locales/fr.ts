@@ -192,12 +192,7 @@ const fr: typeof en = {
       cooldown_message: "/{{command}} · message pendant le délai",
     },
     commandTextHint:
-      "Texte d'une commande interne du module. Il s'enregistre dans le fichier d'override de la commande, à part du dossier.",
-    commandTextsPending_one:
-      "{{count}} texte de commande modifié, pas encore écrit sur le serveur.",
-    commandTextsPending_other:
-      "{{count}} textes de commande modifiés, pas encore écrits sur le serveur.",
-    commandTextsSave: "Enregistrer les textes des commandes",
+      "Texte d'une commande interne du module. Il va dans le fichier d'override de la commande, dans le brouillon du dossier.",
     statTranslated: "{{translated}} / {{total}} traduites en {{lang}}",
     statMissing: "{{count}} manquantes",
     statComplete: "complet",
@@ -1279,7 +1274,12 @@ const fr: typeof en = {
   systemCommands: {
     eyebrow: "Commande système · {{module}}",
     intro:
-      "Chaque champ part de la valeur du module. Le bouton à côté d'un champ s'active quand tu le modifies et lui rend cette valeur. Enregistrer écrit le fichier d'override de la commande dans le dossier du module.",
+      "Chaque champ part de la valeur du module. Le bouton à côté d'un champ s'active quand tu le modifies et lui rend cette valeur. Tes changements vont dans le brouillon du dossier, dans le fichier d'override de la commande, et partent au serveur avec Déployer.",
+    opening: "Ouverture du dossier de la commande…",
+    noFolder:
+      "Une commande se modifie dans le dossier de son module, comme ses Documents, et se déploie avec lui. Ce module n'a pas encore de dossier sur ce serveur : crée {{folder}} pour modifier la commande.",
+    createFolder: "Créer le dossier {{folder}}",
+    createFolderFailed: "Le dossier n'a pas pu être créé.",
     enabledFor: "{{command}} activée",
     edit: "Modifier",
     collapse: "Replier",
@@ -1313,21 +1313,9 @@ const fr: typeof en = {
     scopePlayer: "Par joueur",
     scopeGlobal: "Tout le serveur",
     cooldownMessage: "Message pendant le délai",
-    save: "Enregistrer",
-    saving: "Enregistrement…",
-    discard: "Annuler les modifications",
     resetAll: "Revenir aux valeurs du module",
-    saved: "Enregistré. Le serveur a rechargé la commande.",
     stateModified: "Modifiée",
     stateDisabled: "Désactivée",
-    errors: {
-      server_offline: "Le serveur est hors ligne : rien n'a été écrit.",
-      fetch_timeout: "Le serveur n'a pas répondu à temps.",
-      invalid_path: "Chemin refusé par le serveur.",
-      unknown_project: "Le dossier du module est introuvable sur le serveur.",
-      write_error: "L'écriture a échoué sur le serveur.",
-      network_error: "Le hub est injoignable.",
-    },
   },
   sidebar: {
     projectDocuments: "Documents de {{name}}",

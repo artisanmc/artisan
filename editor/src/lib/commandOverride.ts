@@ -269,6 +269,69 @@ export function overrideFolder(
   );
 }
 
+/** The `moduleData` namespace a Project keeps its `overrides/` files in (`projectFromFiles`). */
+export const OVERRIDES_NAMESPACE = "overrides";
+
+type OverrideHolder = { id: string; diskId?: string | null; moduleData?: Record<string, unknown> };
+
+/**
+ * The `command_override/v1` files of [project]'s working copy (its draft), by path under
+ * `overrides/`; null when the Project was not read from files (nothing to say about them).
+ */
+export function projectOverrideFiles(project: OverrideHolder): Record<string, string> | null {
+  if (!project.moduleData) return null;
+  const files = (project.moduleData[OVERRIDES_NAMESPACE] as { __files?: Record<string, string> })
+    ?.__files;
+  return Object.fromEntries(
+    Object.entries(files ?? {}).filter(([rel]) => rel.startsWith("command/")),
+  );
+}
+
+/**
+ * [overrides] (read from the server's disk) with [project]'s as its working copy holds them:
+ * a draft's edits show before they are deployed. As on the server, the first folder by name
+ * and then the first file by path wins.
+ */
+export function withProjectOverrides(
+  overrides: Record<string, StoredOverride>,
+  project: OverrideHolder,
+): Record<string, StoredOverride> {
+  const files = projectOverrideFiles(project);
+  if (!files) return overrides;
+  const folder = project.diskId ?? project.id;
+  const out = Object.fromEntries(
+    Object.entries(overrides).filter(([, override]) => override.folder !== folder),
+  );
+  const own = new Set<string>();
+  for (const rel of Object.keys(files).sort()) {
+    const override = parseOverride(folder, `${OVERRIDES_NAMESPACE}/${rel}`, files[rel] as string);
+    if (!override || own.has(override.command)) continue;
+    const other = out[override.command];
+    if (other && other.folder.localeCompare(folder) < 0) continue;
+    own.add(override.command);
+    out[override.command] = override;
+  }
+  return out;
+}
+
+/**
+ * [project]'s `overrides` namespace once the file at [path] (`overrides/command/…`, as an
+ * override's `path`) holds [content]: what `setModuleData` writes to its draft.
+ */
+export function withOverrideFile(
+  project: OverrideHolder,
+  path: string,
+  content: string,
+): { __files: Record<string, string> } {
+  const data = project.moduleData?.[OVERRIDES_NAMESPACE] as
+    | { __files?: Record<string, string> }
+    | undefined;
+  const rel = path.startsWith(`${OVERRIDES_NAMESPACE}/`)
+    ? path.slice(OVERRIDES_NAMESPACE.length + 1)
+    : path;
+  return { ...data, __files: { ...(data?.__files ?? {}), [rel]: content } };
+}
+
 /** Every command id of [commands], children included. */
 export function allCommands(commands: PlayerCommand[]): PlayerCommand[] {
   return commands.flatMap((command) => [command, ...allCommands(command.children)]);
