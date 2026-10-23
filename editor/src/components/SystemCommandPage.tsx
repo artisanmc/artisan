@@ -127,69 +127,85 @@ export function SystemCommandPage({
     setDrafts((current) => ({ ...current, [id]: fields }));
   };
 
+  const header = (
+    <EditorHeader
+      kind="command"
+      eyebrow={t("systemCommands.eyebrow", {
+        module: command.moduleId ?? commandNamespace(command.id),
+      })}
+      title={`/${drafts[command.id]?.name?.trim() || command.name}`}
+    >
+      <span className="min-w-0 max-w-full truncate font-mono text-[12.5px] text-[var(--text-faint)]">
+        {command.id}
+      </span>
+    </EditorHeader>
+  );
   return (
     <div
       className={
         layout === "panel"
-          ? "flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto px-3 pt-3"
+          ? "flex h-full min-h-0 w-full flex-col overflow-y-auto"
           : "mx-auto flex w-full max-w-[760px] flex-col gap-5 overflow-y-auto pb-10"
       }
     >
-      <div className="panel overflow-hidden rounded-[var(--r-md)]">
-        <EditorHeader
-          kind="command"
-          eyebrow={t("systemCommands.eyebrow", {
-            module: command.moduleId ?? commandNamespace(command.id),
-          })}
-          title={`/${drafts[command.id]?.name?.trim() || command.name}`}
-        />
-        <p className="px-4 py-3 text-[13px] text-[var(--text-mut)]">{t("systemCommands.intro")}</p>
-      </div>
-      {logic && (
-        <div className="card p-3 text-[12.5px] text-[var(--text-mut)]">
-          {t("systemCommands.logicKept")}
-        </div>
+      {/* As a Document's: flush at the top of the panel, its id under the title. */}
+      {layout === "panel" ? (
+        header
+      ) : (
+        <div className="panel overflow-hidden rounded-[var(--r-md)]">{header}</div>
       )}
-      {tree.map((c) => (
-        <CommandForm
-          key={c.id}
-          command={c}
-          root={c.id === command.id}
-          label={
-            c.id === command.id
-              ? `/${drafts[command.id]?.name?.trim() || command.name}`
-              : labelOf(command, c)
-          }
-          fields={drafts[c.id] ?? { enabled: true }}
-          onChange={(fields) => update(c.id, fields)}
-        />
-      ))}
-      <div className="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-[var(--border)] bg-[var(--surface)] py-3">
-        <Button
-          variant="primary"
-          disabled={saving || changed.length === 0}
-          onClick={() => void save()}
-        >
-          {saving ? t("systemCommands.saving") : t("systemCommands.save")}
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={saving || changed.length === 0}
-          onClick={() => setDrafts(stored)}
-        >
-          {t("systemCommands.discard")}
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={saving}
-          onClick={() => setDrafts(Object.fromEntries(tree.map((c) => [c.id, { enabled: true }])))}
-        >
-          {t("systemCommands.resetAll")}
-        </Button>
-        {error && <span className="text-[12.5px] text-[var(--danger)]">{error}</span>}
-        {saved && !error && changed.length === 0 && (
-          <span className="text-[12.5px] text-[var(--text-mut)]">{t("systemCommands.saved")}</span>
+      <div className={layout === "panel" ? "flex flex-col gap-3 px-3 pt-3" : "contents"}>
+        <p className="text-[13px] text-[var(--text-mut)]">{t("systemCommands.intro")}</p>
+        {logic && (
+          <div className="card p-3 text-[12.5px] text-[var(--text-mut)]">
+            {t("systemCommands.logicKept")}
+          </div>
         )}
+        {tree.map((c) => (
+          <CommandForm
+            key={c.id}
+            command={c}
+            root={c.id === command.id}
+            label={
+              c.id === command.id
+                ? `/${drafts[command.id]?.name?.trim() || command.name}`
+                : labelOf(command, c)
+            }
+            fields={drafts[c.id] ?? { enabled: true }}
+            onChange={(fields) => update(c.id, fields)}
+          />
+        ))}
+        <div className="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-[var(--border)] bg-[var(--surface)] py-3">
+          <Button
+            variant="primary"
+            disabled={saving || changed.length === 0}
+            onClick={() => void save()}
+          >
+            {saving ? t("systemCommands.saving") : t("systemCommands.save")}
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={saving || changed.length === 0}
+            onClick={() => setDrafts(stored)}
+          >
+            {t("systemCommands.discard")}
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={saving}
+            onClick={() =>
+              setDrafts(Object.fromEntries(tree.map((c) => [c.id, { enabled: true }])))
+            }
+          >
+            {t("systemCommands.resetAll")}
+          </Button>
+          {error && <span className="text-[12.5px] text-[var(--danger)]">{error}</span>}
+          {saved && !error && changed.length === 0 && (
+            <span className="text-[12.5px] text-[var(--text-mut)]">
+              {t("systemCommands.saved")}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -262,11 +278,18 @@ function CommandForm({
   return (
     <section className="panel flex flex-col gap-4 rounded-[var(--r-md)] p-4">
       <div className="flex items-center gap-3">
+        {/* The root's name and id are the header's; a sub-command says which it is. */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="mono truncate text-[14px] font-medium text-[var(--kind-command)]">
-            {label}
-          </span>
-          <span className="mono truncate text-[11px] text-[var(--text-faint)]">{command.id}</span>
+          {!root && (
+            <>
+              <span className="mono truncate text-[14px] font-medium text-[var(--kind-command)]">
+                {label}
+              </span>
+              <span className="mono truncate text-[11px] text-[var(--text-faint)]">
+                {command.id}
+              </span>
+            </>
+          )}
         </div>
         <span className="text-[12.5px] text-[var(--text-mut)]">{t("systemCommands.enabled")}</span>
         <Switch

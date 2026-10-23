@@ -171,7 +171,9 @@ function DocumentHeader({
   return (
     <EditorHeader kind={kind} eyebrow={eyebrow} title={<MiniMessageInline source={title} />}>
       {title !== doc.id ? (
-        <span className="font-mono text-[12.5px] text-[var(--text-faint)]">{doc.id}</span>
+        <span className="min-w-0 max-w-full truncate font-mono text-[12.5px] text-[var(--text-faint)]">
+          {doc.id}
+        </span>
       ) : null}
     </EditorHeader>
   );

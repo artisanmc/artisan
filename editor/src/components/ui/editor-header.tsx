@@ -29,17 +29,24 @@ export function EditorHeader({
       className="editor-header-wash flex flex-wrap items-center gap-x-4 gap-y-2 border-[var(--border-soft)] border-b px-4 py-3.5"
       style={{ backgroundImage: `linear-gradient(90deg, ${look.soft}, transparent 60%)` }}
     >
-      <IconTile icon={look.icon} fg={look.fg} soft={look.soft} line={look.line} size="lg" />
-      <div className="min-w-0">
+      <span className="flex shrink-0">
+        <IconTile icon={look.icon} fg={look.fg} soft={look.soft} line={look.line} size="lg" />
+      </span>
+      {/* A zero basis: a long title truncates beside the tile instead of wrapping under it. */}
+      <div className="min-w-0 flex-1 basis-40">
         <div className="text-[11.5px] font-semibold tracking-wide" style={{ color: look.fg }}>
           {eyebrow}
         </div>
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-          <h2 className="display truncate text-[22px] text-[var(--text)]">{title}</h2>
+          <h2 className="display min-w-0 max-w-full truncate text-[22px] text-[var(--text)]">
+            {title}
+          </h2>
           {children}
         </div>
       </div>
-      {meta ? <div className="ml-auto flex flex-wrap items-center gap-1.5">{meta}</div> : null}
+      {meta ? (
+        <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">{meta}</div>
+      ) : null}
     </header>
   );
 }
