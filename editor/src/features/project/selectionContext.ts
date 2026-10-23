@@ -25,8 +25,11 @@ export type SelectionContext =
    * `item`: the part selected on its board node (`board.items`), scoped like an element.
    */
   | { kind: "document"; documentKind: string; id: string; item?: string }
-  /** A command the folder's module declares (`<module>:<name>`): its override form. */
-  | { kind: "moduleCommand"; id: string }
+  /**
+   * A command the folder's module declares (`<module>:<name>`): its override form.
+   * `item`: the sub-command selected on its row, scoped by the root like an element.
+   */
+  | { kind: "moduleCommand"; id: string; item?: string }
   | { kind: "unknown" };
 
 const CORE = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
@@ -51,6 +54,11 @@ export function selectionContext(
     }
     // A Document id never holds `:`: this is a module command drawn on the board.
     if (isModuleCommandId(id)) return { kind: "moduleCommand", id };
+  }
+
+  // A sub-command's row on its root's node: scoped by the root, like an element.
+  if (selectionMenuId !== null && isModuleCommandId(selectionMenuId) && isModuleCommandId(id)) {
+    return { kind: "moduleCommand", id: selectionMenuId, item: id };
   }
 
   // A part of a module's Document (`board.items`): scoped by its Document, like an element.

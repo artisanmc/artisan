@@ -124,8 +124,9 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
       // Its override form, the one of its System page: the module's values, the admin's changes.
       return commandsServerId ? (
         <SystemCommandPage
-          key={ctx.id}
+          key={`${ctx.id}#${ctx.item ?? ""}`}
           commandId={ctx.id}
+          focus={ctx.item}
           project={project}
           stepsEditor={ControlledStepsEditor}
         />

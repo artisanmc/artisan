@@ -35,11 +35,12 @@ const declared = {
 };
 
 /** The folder's form, re-rendered from the store as the board's Properties panel is. */
-function Page() {
+function Page({ focus }: { focus?: string }) {
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === FOLDER));
   return project ? (
     <SystemCommandPage
       commandId="attribution:open"
+      focus={focus}
       project={project}
       stepsEditor={ControlledStepsEditor}
     />
@@ -98,6 +99,21 @@ describe("SystemCommandPage", () => {
     fireEvent.click(edits[0]!);
     expect(screen.getByDisplayValue("artisan.attribution.sell")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Replier" })).toHaveLength(2);
+  });
+
+  it("opens the sub-command picked on the board, the root folded", () => {
+    const sell = {
+      ...declared,
+      id: "attribution:open.sell",
+      name: "sell",
+      aliases: [],
+      permission: "artisan.attribution.sell",
+      description: { fr: "Vend un objet" },
+    };
+    useSystemCommandsStore.setState({ commands: [{ ...declared, children: [sell] }] });
+    render(<Page focus="attribution:open.sell" />);
+    expect(screen.getByDisplayValue("artisan.attribution.sell")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("artisan.attribution")).toBeNull();
   });
 
   it("fills every field with the module's value and writes each change to the folder's draft", () => {

@@ -808,6 +808,8 @@ const fr: typeof en = {
     systemResetHint: "Remet la version du module. Enregistre d'abord tes modifications en cours.",
     systemResetConfirm:
       "Remettre la version du module ? Tes modifications de ce fichier seront perdues.",
+    unfoldSubCommands: "Déplier les sous-commandes de {{command}}",
+    foldSubCommands: "Replier les sous-commandes de {{command}}",
     moduleCommandHint:
       "Commande interne du module {{module}} : son code est dans le plugin. Ouvre-la pour changer son nom, sa permission, ses textes ou ce qu'elle fait.",
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",
