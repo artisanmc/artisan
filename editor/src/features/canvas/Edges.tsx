@@ -16,6 +16,7 @@ import { groupEdges } from "./groupedBoard";
 import { nodeBox } from "./menuLayout";
 import { findPreviewCallContexts } from "./previewCallContexts";
 import { nextCallContext } from "./previewCallNavigation";
+import { subCommandAnchors } from "./subCommandAnchors";
 
 /** Keeps only the edges whose two ends are on the board. */
 export function visibleEdges(
@@ -105,8 +106,19 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
     anchor: EdgeAnchor;
   } | null>(null);
 
+  const edges = useMemo(
+    () => visibleEdges(groupEdges(deriveEdges(project), representatives ?? {}), boxes),
+    [project, boxes, representatives],
+  );
+
   const overrides = useMemo(() => {
-    const base = project.canvasEdges ?? {};
+    // A sub-command's link leaves from its row, unless the user pinned that end.
+    const rowAnchors = subCommandAnchors(project, edges, boxes);
+    const pinned = project.canvasEdges ?? {};
+    const base: typeof pinned = { ...pinned };
+    for (const [id, { from }] of Object.entries(rowAnchors)) {
+      base[id] = { ...pinned[id], from: pinned[id]?.from ?? from };
+    }
     if (!dragOverride) return base;
     return {
       ...base,
@@ -115,17 +127,9 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
         [dragOverride.end]: dragOverride.anchor,
       },
     };
-  }, [project.canvasEdges, dragOverride]);
+  }, [project, edges, boxes, dragOverride]);
 
-  const routed = useMemo(
-    () =>
-      routeEdges({
-        edges: visibleEdges(groupEdges(deriveEdges(project), representatives ?? {}), boxes),
-        boxes,
-        overrides,
-      }),
-    [project, boxes, overrides, representatives],
-  );
+  const routed = useMemo(() => routeEdges({ edges, boxes, overrides }), [edges, boxes, overrides]);
 
   const selectEdge = (id: string) => {
     useEdgeSelectionStore.getState().select(id);

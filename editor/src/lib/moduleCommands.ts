@@ -1,3 +1,4 @@
+import { walkDocumentRefs } from "@/domain/actionArgs";
 import type { Command, CommandId, Project } from "@/domain/types";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
 import {
@@ -124,11 +125,16 @@ export function moduleCommandEntriesOf(
 
 /**
  * The module commands of [project]'s board: one node per root its module declares, its
- * sub-commands as rows. The node's chain gathers theirs, so a menu a sub-command opens
- * links from its root.
+ * sub-commands as rows. The node's chain gathers theirs; a menu a sub-command opens links
+ * from that sub-command's row (`moduleCommandRefs`).
  */
 export function moduleCommandsOf(project: Folder, input: ModuleCommandsInput): ModuleCommandNode[] {
-  const nodes: { node: Omit<ModuleCommandNode, "command">; chains: unknown[] }[] = [];
+  const nodes: {
+    node: Omit<ModuleCommandNode, "command">;
+    chains: unknown[];
+    rootChain: unknown;
+    rowChains: unknown[];
+  }[] = [];
   // Each sub-command's root: the node whose row it is.
   const rootOf = new Map<string, string>();
   const walk = (root: string, children: PlayerCommand[]) => {
@@ -152,6 +158,8 @@ export function moduleCommandsOf(project: Folder, input: ModuleCommandsInput): M
           children: [],
         },
         chains: chain === undefined ? [] : [chain],
+        rootChain: chain,
+        rowChains: [],
       });
       continue;
     }
@@ -165,16 +173,18 @@ export function moduleCommandsOf(project: Folder, input: ModuleCommandsInput): M
       depth: path.length - 1,
       state,
     });
+    parent.rowChains.push(chain);
     if (chain !== undefined) parent.chains.push(chain);
   }
-  return nodes.map(({ node, chains }) => ({
+  return nodes.map(({ node, chains, rootChain, rowChains }) => ({
     ...node,
     command: syntheticCommand(
       project.id,
       node.id,
       node.label,
       chains.length === 0 ? undefined : chains.flatMap((c) => (Array.isArray(c) ? c : [c])),
-      node.children.length,
+      rootChain,
+      rowChains,
     ),
   }));
 }
@@ -191,25 +201,52 @@ export function moduleCommandNodeOf(
   return null;
 }
 
-const subCommandRows = new WeakMap<Command, number>();
+interface SubCommandRows {
+  count: number;
+  /** The Documents the root's own chain references (raw refs). */
+  root: string[];
+  /** The Documents each row's chain references (raw refs), by row. */
+  rows: string[][];
+}
+
+const subCommandRows = new WeakMap<Command, SubCommandRows>();
 
 /** How many sub-command rows the node of a synthetic command has (0 for any other command). */
-export const moduleCommandRows = (command: Command): number => subCommandRows.get(command) ?? 0;
+export const moduleCommandRows = (command: Command): number =>
+  subCommandRows.get(command)?.count ?? 0;
+
+/**
+ * The Documents a synthetic command's chains reference (raw refs): its root's own, and
+ * each sub-command row's, by row.
+ */
+export const moduleCommandRefs = (command: Command): { root: string[]; rows: string[][] } => {
+  const entry = subCommandRows.get(command);
+  return { root: entry?.root ?? [], rows: entry?.rows ?? [] };
+};
+
+const stepsOf = (projectId: Project["id"], id: string, label: string, chain: unknown) =>
+  chain === undefined
+    ? []
+    : commandV1ToDomain({ id, name: label, actions: chain }, { projectId, lang: "en" }).command
+        .steps;
 
 function syntheticCommand(
   projectId: Project["id"],
   id: string,
   label: string,
   chain: unknown,
-  rows: number,
+  rootChain: unknown,
+  rowChains: unknown[],
 ): Command {
-  const steps =
-    chain === undefined
-      ? []
-      : commandV1ToDomain({ id, name: label, actions: chain }, { projectId, lang: "en" }).command
-          .steps;
+  const steps = stepsOf(projectId, id, label, chain);
   const command: Command = { id: id as CommandId, projectId, name: label, arguments: [], steps };
-  subCommandRows.set(command, rows);
+  const refsOf = (c: unknown) =>
+    [...walkDocumentRefs(stepsOf(projectId, id, label, c))].map((r) => r.id).filter(Boolean);
+  subCommandRows.set(command, {
+    count: rowChains.length,
+    root: refsOf(rootChain),
+    rows: rowChains.map(refsOf),
+  });
   return command;
 }
 
