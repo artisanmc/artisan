@@ -30,7 +30,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import { Terminal } from "lucide-react";
-import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ComponentType, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** The step chain editor a page edits a command's steps with (the inspector's, given by its caller). */
@@ -50,10 +50,13 @@ export type StepsEditor = ComponentType<{
  */
 export function SystemCommandPage({
   commandId,
+  focus,
   project,
   stepsEditor,
 }: {
   commandId: string;
+  /** A sub-command selected on its row: its card opens, the root's stays folded. */
+  focus?: string;
   /** The module folder the command shows in, as the editor holds it (its draft). */
   project: Project;
   stepsEditor: StepsEditor;
@@ -144,6 +147,7 @@ export function SystemCommandPage({
             key={c.id}
             command={c}
             root={c.id === command.id}
+            open={focus ? c.id === focus : c.id === command.id}
             label={
               c.id === command.id
                 ? `/${drafts[command.id]?.name?.trim() || command.name}`
@@ -204,6 +208,7 @@ function labelOf(root: PlayerCommand, target: PlayerCommand): string {
 function CommandForm({
   command,
   root,
+  open: initiallyOpen,
   label,
   projectId,
   stepsEditor,
@@ -212,6 +217,8 @@ function CommandForm({
 }: {
   command: PlayerCommand;
   root: boolean;
+  /** Unfolded at first: the root, or the sub-command selected on the board. */
+  open: boolean;
   /** `/name` as players type it, a sub-command's in full. */
   label: string;
   /** The module folder its override lives in: the project its steps edit against. */
@@ -232,8 +239,12 @@ function CommandForm({
   const description = fields.description ?? command.description;
   const cooldown = fields.cooldown;
   const lang = useUiStore((s) => s.activeLang);
-  // The root opens unfolded: its page is about it. A sub-command shows its card until edited.
-  const [open, setOpen] = useState(root);
+  const [open, setOpen] = useState(initiallyOpen);
+  const card = useRef<HTMLElement>(null);
+  // The sub-command picked on the board: brought into view under the header.
+  useEffect(() => {
+    if (initiallyOpen && !root) card.current?.scrollIntoView?.({ block: "start" });
+  }, [initiallyOpen, root]);
   const state = !fields.enabled
     ? "disabled"
     : Object.keys(moduleChanges(command, fields)).length > 1
@@ -242,7 +253,7 @@ function CommandForm({
   // Folded, the card says what the command does; open, its fields say it.
   const summary = open ? "" : textIn(description, lang);
   return (
-    <section className="panel flex flex-col gap-4 rounded-[var(--r-md)] p-4">
+    <section ref={card} className="panel flex flex-col gap-4 rounded-[var(--r-md)] p-4">
       {/* Tile, name and controls on one axis, whatever the summary's height. */}
       <div className="flex items-center gap-3">
         <span className="flex shrink-0" aria-hidden>

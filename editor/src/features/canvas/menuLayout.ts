@@ -1,8 +1,9 @@
 import dispenserTextureUrl from "@/assets/minecraft/dispenser.png";
 import vanillaChestTextureUrl from "@/assets/minecraft/generic_54.png";
 import hopperTextureUrl from "@/assets/minecraft/hopper.png";
-import type { Project } from "@/domain/types";
+import type { Command, Project } from "@/domain/types";
 import type { InventoryType } from "@/domain/types";
+import { moduleCommandRows } from "@/lib/moduleCommands";
 import type { Box } from "./edgeRouting";
 import { INVENTORY_TYPES, positionCount, slotMcXY } from "./inventoryTypes";
 
@@ -58,6 +59,19 @@ export const TEXTURE_URLS: Record<"generic_54" | "hopper" | "dispenser", string>
 };
 
 export const COMMAND_BOX = { width: 140, height: 48 };
+/** A module command's node: its header, then one row per sub-command. */
+export const MODULE_COMMAND_ROWS = { header: 44, row: 22, pad: 6 };
+/** A command node's box: a module command's grows with its sub-command rows. */
+export function commandBox(command: Command): { width: number; height: number } {
+  const rows = moduleCommandRows(command);
+  return rows === 0
+    ? COMMAND_BOX
+    : {
+        width: COMMAND_BOX.width,
+        height:
+          MODULE_COMMAND_ROWS.header + rows * MODULE_COMMAND_ROWS.row + MODULE_COMMAND_ROWS.pad,
+      };
+}
 export const DIALOG_BOX = { width: 140, height: 60 };
 /** The box of a Document whose kind declares no `board.size`. */
 export const DOCUMENT_BOX = { width: 140, height: 48 };
@@ -113,7 +127,8 @@ export function nodeBox(
   if (!pos) return null;
   const menu = menusOf(project).find((m) => m.id === id);
   if (menu) return { ...pos, ...menuBoxSize(menu.inventoryType ?? "chest", menu.rows) };
-  if (commandsOf(project).some((c) => c.id === id)) return { ...pos, ...COMMAND_BOX };
+  const command = commandsOf(project).find((c) => c.id === id);
+  if (command) return { ...pos, ...commandBox(command) };
   if (dialogsOf(project).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
   const other = findDocument(project, id);
   if (other) return { ...pos, ...documentBoxSize(other.kind, other.doc, project) };

@@ -74,4 +74,18 @@ describe("module commands in the folder's tree", () => {
     fireEvent.click(screen.getByText("/dailyadmin"));
     expect(onOpen).toHaveBeenCalledWith("daily:dailyadmin");
   });
+
+  it("folds a command's sub-commands under it, each opened on its own", () => {
+    useSystemCommandsStore.setState({
+      commands: [{ ...command("daily"), children: [command("daily.claim")] }],
+    } as never);
+    const onOpen = vi.fn();
+    render(<ProjectDocumentTree projectId={PID} onOpen={onOpen} />);
+    expect(screen.queryByText("daily.claim")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: /sous-commandes de \/daily|sub-commands of \/daily/ }),
+    );
+    fireEvent.click(screen.getByText("daily.claim"));
+    expect(onOpen).toHaveBeenCalledWith("daily:daily.claim");
+  });
 });

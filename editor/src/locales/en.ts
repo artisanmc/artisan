@@ -792,6 +792,8 @@ export default {
     systemReset: "Reset",
     systemResetHint: "Puts the module's version back. Save your pending changes first.",
     systemResetConfirm: "Put the module's version back? Your changes to this file will be lost.",
+    unfoldSubCommands: "Show the sub-commands of {{command}}",
+    foldSubCommands: "Hide the sub-commands of {{command}}",
     moduleCommandHint:
       "Built-in command of the {{module}} module: its code lives in the plugin. Open it to change its name, permission, texts or what it does.",
     noEditor: "No editor for this {{kind}} yet",

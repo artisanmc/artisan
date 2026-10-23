@@ -82,7 +82,7 @@ describe("module commands on the board", () => {
     expect(graph.edges.map((e) => e.target)).toEqual([documentKey("spawn", "closed")]);
   });
 
-  it("shows a sub-command only when it links somewhere, under its root's name", () => {
+  it("draws one node per root, its sub-commands as rows, their links from the root", () => {
     const guilds = command("guilds:guild", {
       name: "g",
       children: [
@@ -104,7 +104,14 @@ describe("module commands on the board", () => {
       overrides,
       folders: [{ folder: "guilds", ownerModule: "guilds" }],
     });
-    expect(nodes.map((n) => n.label)).toEqual(["g", "g balance add"]);
+    expect(nodes.map((n) => n.label)).toEqual(["g"]);
+    expect(nodes[0]?.children.map((c) => [c.label, c.depth, c.state])).toEqual([
+      ["balance", 1, "default"],
+      ["balance add", 2, "modified"],
+      ["invite", 1, "default"],
+    ]);
+    // The menu a sub-command opens links from its root's node.
+    expect(nodes[0]?.command.steps.length).toBe(1);
   });
 
   it("marks a disabled command, and its id never passes for a Document id", () => {

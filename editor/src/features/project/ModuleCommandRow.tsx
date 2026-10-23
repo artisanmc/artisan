@@ -2,16 +2,18 @@ import { Badge } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Tooltip } from "@/components/ui/tooltip";
 import { kindAppearance } from "@/lib/documentKindAppearance";
-import type { ModuleCommandNode } from "@/lib/moduleCommands";
+import type { ModuleCommandNode, ModuleSubCommand } from "@/lib/moduleCommands";
 import { useSelectionStore } from "@/state/selectionStore";
-import { Puzzle } from "lucide-react";
+import { ChevronDown, ChevronRight, Puzzle } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
  * A command the folder's module declares, listed with the folder's own commands: the
  * puzzle marks it as the module's (its behaviour lives in the plugin, explained on hover),
  * a dot when the admin changed it, struck when disabled. Like a Document, it opens on the
- * board, selected, its form in the Properties panel.
+ * board, selected, its form in the Properties panel. Its sub-commands fold under it, as
+ * they are rows of its node.
  */
 export function ModuleCommandRow({
   node,
@@ -19,14 +21,111 @@ export function ModuleCommandRow({
   depth = 0,
 }: {
   node: ModuleCommandNode;
-  onOpen: () => void;
+  /** Opens the command, or the sub-command [id] when given. */
+  onOpen: (id?: string) => void;
   /** Folder depth: 0 at the module root. */
   depth?: number;
 }) {
   const { t } = useTranslation();
   const active = useSelectionStore((s) => s.menuId === null && s.ids.has(node.id));
-  const look = kindAppearance("command");
+  const activeChild = useSelectionStore((s) =>
+    s.menuId === node.id && s.ids.size === 1 ? [...s.ids][0]! : null,
+  );
+  const [expanded, setExpanded] = useState(activeChild !== null);
   const hint = t("projectPanel.moduleCommandHint", { module: node.moduleId });
+  const Chevron = expanded ? ChevronDown : ChevronRight;
+  return (
+    <>
+      <Row
+        active={active}
+        label={`/${node.label}`}
+        state={node.state}
+        depth={depth}
+        onOpen={() => onOpen()}
+        hint={hint}
+        trailing={
+          node.children.length > 0 ? (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-label={t(
+                expanded ? "projectPanel.foldSubCommands" : "projectPanel.unfoldSubCommands",
+                {
+                  command: `/${node.label}`,
+                },
+              )}
+              onClick={() => setExpanded((v) => !v)}
+              className="relative shrink-0 px-2 py-1 text-[var(--text-faint)] hover:text-[var(--text)]"
+            >
+              {/* The width of a Document's "···": the puzzles stay in line. */}
+              <span aria-hidden className="invisible">
+                ···
+              </span>
+              <Chevron className="absolute inset-0 m-auto size-3.5" aria-hidden />
+            </button>
+          ) : null
+        }
+      />
+      {expanded &&
+        node.children.map((child) => (
+          <SubCommandRow
+            key={child.id}
+            child={child}
+            active={activeChild === child.id}
+            depth={depth + child.depth}
+            onOpen={() => onOpen(child.id)}
+            hint={hint}
+          />
+        ))}
+    </>
+  );
+}
+
+function SubCommandRow({
+  child,
+  active,
+  depth,
+  onOpen,
+  hint,
+}: {
+  child: ModuleSubCommand;
+  active: boolean;
+  depth: number;
+  onOpen: () => void;
+  hint: string;
+}) {
+  return (
+    <Row
+      active={active}
+      label={child.label}
+      state={child.state}
+      depth={depth}
+      onOpen={onOpen}
+      hint={hint}
+      trailing={null}
+    />
+  );
+}
+
+function Row({
+  active,
+  label,
+  state,
+  depth,
+  onOpen,
+  hint,
+  trailing,
+}: {
+  active: boolean;
+  label: string;
+  state: ModuleCommandNode["state"];
+  depth: number;
+  onOpen: () => void;
+  hint: string;
+  trailing: React.ReactNode;
+}) {
+  const { t } = useTranslation();
+  const look = kindAppearance("command");
   return (
     // Same frame as a Document's row, its actions' room kept empty: the puzzles line up.
     <div
@@ -47,14 +146,12 @@ export function ModuleCommandRow({
         </span>
         <span
           className={
-            node.state === "disabled"
-              ? "flex-1 truncate line-through opacity-60"
-              : "flex-1 truncate"
+            state === "disabled" ? "flex-1 truncate line-through opacity-60" : "flex-1 truncate"
           }
         >
-          /{node.label}
+          {label}
         </span>
-        {node.state === "modified" && (
+        {state === "modified" && (
           <Badge
             variant="terra"
             role="img"
@@ -71,9 +168,11 @@ export function ModuleCommandRow({
           </span>
         </Tooltip>
       </button>
-      <span aria-hidden className="invisible shrink-0 px-2 py-1">
-        ···
-      </span>
+      {trailing ?? (
+        <span aria-hidden className="invisible shrink-0 px-2 py-1">
+          ···
+        </span>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
 import { type Edge, deriveEdges } from "./deriveEdges";
-import { COMMAND_BOX, DIALOG_BOX, documentBoxSize, menuBoxSize } from "./menuLayout";
+import { DIALOG_BOX, commandBox, documentBoxSize, menuBoxSize } from "./menuLayout";
 
 /** A document kind id, as registered in `domain/documentKinds.ts`. */
 export type DocumentKind = string;
@@ -84,7 +84,7 @@ export function deriveServerGraph(projects: Project[]): ServerGraph {
         projectId: project.id,
         docId: command.id,
         kind: "command",
-        ...COMMAND_BOX,
+        ...commandBox(command),
       });
     }
     for (const dialog of dialogsOf(project)) {

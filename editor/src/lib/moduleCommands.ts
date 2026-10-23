@@ -9,11 +9,23 @@ import {
 import { commandV1ToDomain } from "@/schema/commandV1ToDomain";
 import type { CommandFolder } from "@/state/systemCommandsStore";
 
+/** A sub-command, a row of its root's node (as a quest is of its group's). */
+export interface ModuleSubCommand {
+  /** `<module>:<root>.<child>`: never a node of its own. */
+  id: string;
+  /** After the root's name, as players type it: `sell`, `balance add`. */
+  label: string;
+  /** 1 under the root, 2 under a sub-command… */
+  depth: number;
+  state: OverrideState;
+}
+
 /**
- * A command a module declares, drawn on the board of a module folder (design
- * `framework-commandes` §3.9): read-only there, edited on its System page. Its
- * links come from what runs in its place: the admin's `steps`, else the menu
- * the module declares (`opensMenu`). The module's own code draws none.
+ * A root command a module declares, drawn on the board of a module folder (design
+ * `framework-commandes` §3.9) with a row per sub-command: read-only there, edited in the
+ * Properties panel. Its links come from what runs in place of the module's code, its
+ * sub-commands' included: the admin's `steps`, else the menu the module declares
+ * (`opensMenu`). The module's own code draws none.
  */
 export interface ModuleCommandNode {
   /** `<module>:<name>`: the node's id on the board, never a Document id (they have no `:`). */
@@ -24,6 +36,8 @@ export interface ModuleCommandNode {
   state: OverrideState;
   /** What its links come from; null: the module's code, no link. */
   runs: "steps" | "menu" | null;
+  /** Its sub-commands, depth first. */
+  children: ModuleSubCommand[];
   /** The synthetic Command the board's edges and layout read. */
   command: Command;
 }
@@ -109,39 +123,94 @@ export function moduleCommandEntriesOf(
 }
 
 /**
- * The module commands of [project]'s board: every root its module declares, and
- * each sub-command that links somewhere (its own `steps` or menu); a sub-command
- * running the module's code has nothing to draw and stays on the System page.
+ * The module commands of [project]'s board: one node per root its module declares, its
+ * sub-commands as rows. The node's chain gathers theirs, so a menu a sub-command opens
+ * links from its root.
  */
 export function moduleCommandsOf(project: Folder, input: ModuleCommandsInput): ModuleCommandNode[] {
-  return moduleCommandEntriesOf(project, input).flatMap(({ command, override, root, label }) => {
+  const nodes: { node: Omit<ModuleCommandNode, "command">; chains: unknown[] }[] = [];
+  // Each sub-command's root: the node whose row it is.
+  const rootOf = new Map<string, string>();
+  const walk = (root: string, children: PlayerCommand[]) => {
+    for (const child of children) {
+      rootOf.set(child.id, root);
+      walk(root, child.children);
+    }
+  };
+  for (const command of input.commands) walk(command.id, command.children);
+  for (const { command, override, root, label } of moduleCommandEntriesOf(project, input)) {
     const chain = chainOf(command, override);
-    if (!root && chain === undefined) return [];
-    return [
-      {
-        id: command.id,
-        label,
-        moduleId: moduleOf(command),
-        state: overrideState(override),
-        runs: override?.steps != null ? "steps" : command.opensMenu ? "menu" : null,
-        command: syntheticCommand(project.id, command.id, label, chain),
-      },
-    ];
-  });
+    const state = overrideState(override);
+    if (root) {
+      nodes.push({
+        node: {
+          id: command.id,
+          label,
+          moduleId: moduleOf(command),
+          state,
+          runs: override?.steps != null ? "steps" : command.opensMenu ? "menu" : null,
+          children: [],
+        },
+        chains: chain === undefined ? [] : [chain],
+      });
+      continue;
+    }
+    // A sub-command whose root shows in another folder has no node here.
+    const parent = nodes.find((n) => n.node.id === rootOf.get(command.id));
+    if (!parent) continue;
+    const path = label.split(" ");
+    parent.node.children.push({
+      id: command.id,
+      label: path.slice(1).join(" "),
+      depth: path.length - 1,
+      state,
+    });
+    if (chain !== undefined) parent.chains.push(chain);
+  }
+  return nodes.map(({ node, chains }) => ({
+    ...node,
+    command: syntheticCommand(
+      project.id,
+      node.id,
+      node.label,
+      chains.length === 0 ? undefined : chains.flatMap((c) => (Array.isArray(c) ? c : [c])),
+      node.children.length,
+    ),
+  }));
 }
+
+/** The node a module command shows in: itself, or the root whose row it is. */
+export function moduleCommandNodeOf(
+  nodes: ModuleCommandNode[],
+  id: string,
+): { node: ModuleCommandNode; item: string | null } | null {
+  for (const node of nodes) {
+    if (node.id === id) return { node, item: null };
+    if (node.children.some((child) => child.id === id)) return { node, item: id };
+  }
+  return null;
+}
+
+const subCommandRows = new WeakMap<Command, number>();
+
+/** How many sub-command rows the node of a synthetic command has (0 for any other command). */
+export const moduleCommandRows = (command: Command): number => subCommandRows.get(command) ?? 0;
 
 function syntheticCommand(
   projectId: Project["id"],
   id: string,
   label: string,
   chain: unknown,
+  rows: number,
 ): Command {
   const steps =
     chain === undefined
       ? []
       : commandV1ToDomain({ id, name: label, actions: chain }, { projectId, lang: "en" }).command
           .steps;
-  return { id: id as CommandId, projectId, name: label, arguments: [], steps };
+  const command: Command = { id: id as CommandId, projectId, name: label, arguments: [], steps };
+  subCommandRows.set(command, rows);
+  return command;
 }
 
 /**
