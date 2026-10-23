@@ -600,7 +600,7 @@ const fr: typeof en = {
     lorePlaceholder: "Une ligne par entrée de lore.",
     visibility: "visibilité",
     visibilityAlwaysDefault: "défaut · toujours visible",
-    visibilityAlways: "(toujours — déposez une condition ici pour contrôler cet état)",
+    visibilityAlways: "(toujours — aucune condition sur cet état)",
     conditionAlways: "(toujours)",
     clickHandlers: "gestionnaires de clic",
     advanced: {
@@ -642,11 +642,12 @@ const fr: typeof en = {
     addStepIfBranch: "branche if",
     elseIfAdd: "+ sinon si",
     elseAdd: "+ sinon",
-    caseConditionEmpty: "(toujours — déposez une condition ici pour contrôler ce cas)",
+    caseConditionEmpty: "(toujours — aucune condition sur ce cas)",
   },
   conditions: {
     removeCondition: "Supprimer",
     alwaysNoCondition: "toujours (sans condition)",
+    addFirst: "Ajouter une condition",
     switchOperator: "Cliquer pour changer l'opérateur",
     placeholderPlaceholder: "{shop.rarity}",
     placeholderValuePlaceholder: "legendary",
