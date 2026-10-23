@@ -319,7 +319,7 @@ describe("ProjectSidebar", () => {
     ).toBeTruthy();
   });
 
-  it("folds a module's screens under Autres until the module is opened", async () => {
+  it("lists a module's screens as rows of their own once the module is opened, without a header", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({
       ok: true,
       projectIds: ["boutique_shop"],
@@ -351,11 +351,8 @@ describe("ProjectSidebar", () => {
     const toggle = screen.getByRole("button", { name: "Afficher les documents de boutique" });
     expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
     fireEvent.click(toggle);
-    const catalogue = await screen.findByRole("link", { name: "Catalogue" });
-    expect(
-      screen.getByText("Autres").compareDocumentPosition(catalogue) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Catalogue" })).toBeInTheDocument();
+    expect(screen.queryByText("Autres")).toBeNull();
   });
 
   it("shows no Modules section when no module has anything to configure", async () => {

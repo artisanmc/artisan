@@ -1295,8 +1295,6 @@ export default {
     },
   },
   sidebar: {
-    otherEntries: "Others",
-    systemCommands: "Commands",
     projectDocuments: "Documents of {{name}}",
     showDocuments: "Show the documents of {{name}}",
     settings: "Settings",

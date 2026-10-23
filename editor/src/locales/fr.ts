@@ -1318,8 +1318,6 @@ const fr: typeof en = {
     },
   },
   sidebar: {
-    otherEntries: "Autres",
-    systemCommands: "Commandes",
     projectDocuments: "Documents de {{name}}",
     showDocuments: "Afficher les documents de {{name}}",
     settings: "Paramètres",
