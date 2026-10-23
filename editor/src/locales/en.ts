@@ -1257,6 +1257,9 @@ export default {
     eyebrow: "System command · {{module}}",
     intro:
       "Every field starts from the module's value. The button beside a field turns on once you change it and puts that value back. Saving writes the command's override file in the module's folder.",
+    enabledFor: "{{command}} enabled",
+    edit: "Edit",
+    collapse: "Collapse",
     loading: "Reading the server's commands…",
     notFound: "This server does not declare this command.",
     logicKept:

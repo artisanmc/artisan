@@ -55,6 +55,27 @@ describe("SystemCommandPage", () => {
     "",
   ].join("\n");
 
+  it("folds a sub-command into its card, its description as summary, until Edit opens it", () => {
+    const sell = {
+      ...declared,
+      id: "attribution:open.sell",
+      name: "sell",
+      aliases: [],
+      permission: "artisan.attribution.sell",
+      description: { fr: "Vend un objet" },
+    };
+    useSystemCommandsStore.setState({ commands: [{ ...declared, children: [sell] }] });
+    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    expect(screen.getByText("/attribution sell")).toBeInTheDocument();
+    expect(screen.getByText("Vend un objet")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("artisan.attribution.sell")).toBeNull();
+    const edits = screen.getAllByRole("button", { name: "Modifier" });
+    expect(edits).toHaveLength(1);
+    fireEvent.click(edits[0]!);
+    expect(screen.getByDisplayValue("artisan.attribution.sell")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Replier" })).toHaveLength(2);
+  });
+
   it("fills every field with the module's value and writes only what the admin changed", async () => {
     render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
     expect(screen.getByDisplayValue("artisan.attribution")).toBeInTheDocument();
@@ -76,13 +97,13 @@ describe("SystemCommandPage", () => {
     });
   });
 
-  it("puts the root's name and id in the header only, renamed as typed", () => {
+  it("puts the root's name in the header and its card, renamed as typed", () => {
     render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     fireEvent.change(screen.getByDisplayValue("attribution"), { target: { value: "parrainage" } });
     expect(screen.getByRole("heading", { level: 2, name: "/parrainage" })).toBeInTheDocument();
-    expect(screen.getAllByText("/parrainage")).toHaveLength(1);
-    expect(screen.getAllByText("attribution:open")).toHaveLength(1);
+    expect(screen.getAllByText("/parrainage")).toHaveLength(2);
+    expect(screen.getAllByText("attribution:open")).toHaveLength(2);
   });
 
   it("turns a field's reset on only while it differs from the module, and puts the value back", () => {

@@ -1280,6 +1280,9 @@ const fr: typeof en = {
     eyebrow: "Commande système · {{module}}",
     intro:
       "Chaque champ part de la valeur du module. Le bouton à côté d'un champ s'active quand tu le modifies et lui rend cette valeur. Enregistrer écrit le fichier d'override de la commande dans le dossier du module.",
+    enabledFor: "{{command}} activée",
+    edit: "Modifier",
+    collapse: "Replier",
     loading: "Lecture des commandes du serveur…",
     notFound: "Ce serveur ne déclare pas cette commande.",
     logicKept:

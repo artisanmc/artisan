@@ -1,11 +1,14 @@
 import { MiniMessageField } from "@/components/MiniMessageField";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EditorHeader } from "@/components/ui/editor-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FormField } from "@/components/ui/form-field";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { ResetButton } from "@/components/ui/reset-button";
 import { Switch } from "@/components/ui/switch";
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { configWrite } from "@/lib/api/configScreens";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { createProject } from "@/lib/api/servers";
@@ -20,7 +23,9 @@ import {
   overridePath,
   serializeOverride,
 } from "@/lib/commandOverride";
+import { kindAppearance } from "@/lib/documentKindAppearance";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
+import { useUiStore } from "@/state/uiStore";
 import { Terminal } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -266,6 +271,7 @@ function CommandForm({
   onChange: (fields: OverrideFields) => void;
 }) {
   const { t } = useTranslation();
+  const look = kindAppearance("command");
   const set = (patch: Partial<OverrideFields>) => onChange({ ...fields, ...patch });
   const changes = (patch: Partial<OverrideFields>) =>
     moduleChanges(command, { enabled: true, ...patch });
@@ -275,139 +281,181 @@ function CommandForm({
   const permission = fields.permission ?? modulePermission;
   const description = fields.description ?? command.description;
   const cooldown = fields.cooldown;
+  const lang = useUiStore((s) => s.activeLang);
+  // The root opens unfolded: its page is about it. A sub-command shows its card until edited.
+  const [open, setOpen] = useState(root);
+  const state = !fields.enabled
+    ? "disabled"
+    : Object.keys(moduleChanges(command, fields)).length > 1
+      ? "modified"
+      : null;
+  // Folded, the card says what the command does; open, its fields say it.
+  const summary = open ? "" : textIn(description, lang);
   return (
     <section className="panel flex flex-col gap-4 rounded-[var(--r-md)] p-4">
-      <div className="flex items-center gap-3">
-        {/* The root's name and id are the header's; a sub-command says which it is. */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          {!root && (
-            <>
-              <span className="mono truncate text-[14px] font-medium text-[var(--kind-command)]">
-                {label}
-              </span>
-              <span className="mono truncate text-[11px] text-[var(--text-faint)]">
-                {command.id}
-              </span>
-            </>
+      <div className="flex items-start gap-3">
+        <span className="flex shrink-0 pt-0.5" aria-hidden>
+          <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className={`mono truncate text-[14px] font-medium text-[var(--kind-command)] ${
+                state === "disabled" ? "line-through opacity-60" : ""
+              }`}
+            >
+              {label}
+            </span>
+            {state && (
+              <Badge
+                variant={state === "disabled" ? "amber" : "terra"}
+                className="shrink-0 !h-[17px] !px-1.5 text-[10.5px]"
+              >
+                {t(`projectPanel.originTag.${state}`)}
+              </Badge>
+            )}
+          </div>
+          {summary ? (
+            <MiniMessageInline
+              source={summary}
+              className="truncate text-[12.5px] text-[var(--text-mut)]"
+            />
+          ) : (
+            <span className="mono truncate text-[11px] text-[var(--text-faint)]">{command.id}</span>
           )}
         </div>
-        <span className="text-[12.5px] text-[var(--text-mut)]">{t("systemCommands.enabled")}</span>
         <Switch
           checked={fields.enabled}
           onCheckedChange={(enabled) => set({ enabled })}
-          aria-label={t("systemCommands.enabled")}
+          aria-label={t("systemCommands.enabledFor", { command: label })}
         />
+        <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          {open ? t("systemCommands.collapse") : t("systemCommands.edit")}
+        </Button>
       </div>
-      {root && (
-        <div className="grid gap-3 sm:grid-cols-2">
+      {open && (
+        <>
+          {root && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ResettableField
+                label={t("systemCommands.name")}
+                modified={name.trim().toLowerCase() !== command.name}
+                onReset={() => set({ name: undefined })}
+              >
+                <Input
+                  value={name}
+                  onChange={(e) =>
+                    set({ name: e.target.value === command.name ? undefined : e.target.value })
+                  }
+                />
+              </ResettableField>
+              <ResettableField
+                label={t("systemCommands.aliases")}
+                hint={t("systemCommands.aliasesHint")}
+                modified={changes({ aliases: aliases.split(",") }).aliases !== undefined}
+                onReset={() => set({ aliases: undefined })}
+              >
+                <Input
+                  value={aliases}
+                  placeholder={t("systemCommands.none")}
+                  onChange={(e) => {
+                    const next = e.target.value.split(",");
+                    set({ aliases: changes({ aliases: next }).aliases ? next : undefined });
+                  }}
+                />
+              </ResettableField>
+            </div>
+          )}
           <ResettableField
-            label={t("systemCommands.name")}
-            modified={name.trim().toLowerCase() !== command.name}
-            onReset={() => set({ name: undefined })}
+            label={t("systemCommands.permission")}
+            hint={t("systemCommands.permissionHint")}
+            modified={permission.trim() !== modulePermission}
+            onReset={() => set({ permission: undefined })}
           >
             <Input
-              value={name}
+              value={permission}
+              placeholder={t("systemCommands.none")}
               onChange={(e) =>
-                set({ name: e.target.value === command.name ? undefined : e.target.value })
+                set({
+                  permission:
+                    e.target.value.trim() === modulePermission ? undefined : e.target.value,
+                })
               }
             />
           </ResettableField>
-          <ResettableField
-            label={t("systemCommands.aliases")}
-            hint={t("systemCommands.aliasesHint")}
-            modified={changes({ aliases: aliases.split(",") }).aliases !== undefined}
-            onReset={() => set({ aliases: undefined })}
-          >
-            <Input
-              value={aliases}
-              placeholder={t("systemCommands.none")}
-              onChange={(e) => {
-                const next = e.target.value.split(",");
-                set({ aliases: changes({ aliases: next }).aliases ? next : undefined });
-              }}
-            />
-          </ResettableField>
-        </div>
-      )}
-      <ResettableField
-        label={t("systemCommands.permission")}
-        hint={t("systemCommands.permissionHint")}
-        modified={permission.trim() !== modulePermission}
-        onReset={() => set({ permission: undefined })}
-      >
-        <Input
-          value={permission}
-          placeholder={t("systemCommands.none")}
-          onChange={(e) =>
-            set({
-              permission: e.target.value.trim() === modulePermission ? undefined : e.target.value,
-            })
-          }
-        />
-      </ResettableField>
-      <TextsField
-        label={t("systemCommands.description")}
-        value={description}
-        original={command.description}
-        onChange={(next) =>
-          set({ description: changes({ description: next }).description ? next : undefined })
-        }
-      />
-      <div className="flex flex-col gap-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ResettableField
-            label={t("systemCommands.cooldown")}
-            hint={t("systemCommands.cooldownHint")}
-            modified={cooldown !== undefined}
-            onReset={() => set({ cooldown: undefined })}
-          >
-            <Input
-              type="number"
-              min={0}
-              value={cooldown?.duration ?? 0}
-              onChange={(e) => {
-                const duration = Number(e.target.value);
-                set({
-                  cooldown: duration > 0 ? { scope: "player", ...cooldown, duration } : undefined,
-                });
-              }}
-            />
-          </ResettableField>
-          {cooldown && (
-            <FormField label={t("systemCommands.cooldownScope")}>
-              <select
-                className="select"
-                value={cooldown.scope}
-                onChange={(e) =>
-                  set({
-                    cooldown: {
-                      ...cooldown,
-                      scope: e.target.value === "global" ? "global" : "player",
-                    },
-                  })
-                }
-              >
-                <option value="player">{t("systemCommands.scopePlayer")}</option>
-                <option value="global">{t("systemCommands.scopeGlobal")}</option>
-              </select>
-            </FormField>
-          )}
-        </div>
-        {cooldown && (
           <TextsField
-            label={t("systemCommands.cooldownMessage")}
-            value={cooldown.message ?? {}}
-            original={{}}
-            placeholder={t("systemCommands.noMessage")}
-            onChange={(next) => {
-              const message = Object.values(next).some((text) => text.trim()) ? next : undefined;
-              set({ cooldown: { ...cooldown, message } });
-            }}
+            label={t("systemCommands.description")}
+            value={description}
+            original={command.description}
+            onChange={(next) =>
+              set({ description: changes({ description: next }).description ? next : undefined })
+            }
           />
-        )}
-      </div>
+          <div className="flex flex-col gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ResettableField
+                label={t("systemCommands.cooldown")}
+                hint={t("systemCommands.cooldownHint")}
+                modified={cooldown !== undefined}
+                onReset={() => set({ cooldown: undefined })}
+              >
+                <Input
+                  type="number"
+                  min={0}
+                  value={cooldown?.duration ?? 0}
+                  onChange={(e) => {
+                    const duration = Number(e.target.value);
+                    set({
+                      cooldown:
+                        duration > 0 ? { scope: "player", ...cooldown, duration } : undefined,
+                    });
+                  }}
+                />
+              </ResettableField>
+              {cooldown && (
+                <FormField label={t("systemCommands.cooldownScope")}>
+                  <select
+                    className="select"
+                    value={cooldown.scope}
+                    onChange={(e) =>
+                      set({
+                        cooldown: {
+                          ...cooldown,
+                          scope: e.target.value === "global" ? "global" : "player",
+                        },
+                      })
+                    }
+                  >
+                    <option value="player">{t("systemCommands.scopePlayer")}</option>
+                    <option value="global">{t("systemCommands.scopeGlobal")}</option>
+                  </select>
+                </FormField>
+              )}
+            </div>
+            {cooldown && (
+              <TextsField
+                label={t("systemCommands.cooldownMessage")}
+                value={cooldown.message ?? {}}
+                original={{}}
+                placeholder={t("systemCommands.noMessage")}
+                onChange={(next) => {
+                  const message = Object.values(next).some((text) => text.trim())
+                    ? next
+                    : undefined;
+                  set({ cooldown: { ...cooldown, message } });
+                }}
+              />
+            )}
+          </div>
+        </>
+      )}
     </section>
   );
+}
+
+/** [texts] in [lang], else in the first language it has: a card's one-line summary. */
+function textIn(texts: Texts, lang: string): string {
+  return (texts[lang] ?? texts["*"] ?? Object.values(texts)[0] ?? "").trim();
 }
 
 /** A field that starts from the module's value, its reset beside it. */
