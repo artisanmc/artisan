@@ -24,7 +24,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Fragment, useId } from "react";
+import { Fragment, type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { ExpressionConditionField } from "./ExpressionConditionField";
 
@@ -157,12 +157,17 @@ export function ConditionListEditor({
         </div>
       ) : null}
       {conditions.length === 0 ? (
-        <div className="flex items-center gap-1.5">
-          <div className="flex-1 rounded border border-[var(--border-soft)] border-dashed bg-[var(--surface-raised)]/30 px-2 py-1.5 text-[11px] text-[var(--text-faint)]">
-            {emptyHint ?? t("conditions.alwaysNoCondition")}
-          </div>
-          <AppendChip onPick={append} joiner="AND" />
-        </div>
+        <ConditionTypeMenu onPick={append}>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 rounded border border-[var(--border-soft)] border-dashed bg-[var(--surface-raised)]/30 px-2 py-1.5 text-left text-[11px] text-[var(--text-faint)] hover:border-[var(--border-strong)] hover:text-[var(--text-mut)]"
+          >
+            <span>{emptyHint ?? t("conditions.alwaysNoCondition")}</span>
+            <span className="shrink-0 font-mono text-[var(--text-mut)]">
+              + {t("conditions.addFirst")}
+            </span>
+          </button>
+        </ConditionTypeMenu>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={ids} strategy={horizontalListSortingStrategy}>
@@ -651,15 +656,28 @@ function AppendChip({
   joiner?: string | null;
 }) {
   return (
+    <ConditionTypeMenu onPick={onPick}>
+      <button
+        type="button"
+        className="rounded border border-[var(--border)] border-dashed px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+      >
+        {joiner ? `+ ${joiner}` : "+ add"}
+      </button>
+    </ConditionTypeMenu>
+  );
+}
+
+/** Condition-type picker opened by whatever trigger element it wraps. */
+function ConditionTypeMenu({
+  onPick,
+  children,
+}: {
+  onPick: (type: Condition["type"]) => void;
+  children: ReactNode;
+}) {
+  return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="rounded border border-[var(--border)] border-dashed px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-mut)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
-        >
-          {joiner ? `+ ${joiner}` : "+ add"}
-        </button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
         className="border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"

@@ -587,7 +587,7 @@ export default {
     lorePlaceholder: "One line per lore entry.",
     visibility: "visibility",
     visibilityAlwaysDefault: "default · always visible",
-    visibilityAlways: "(always — drop a condition here to gate this state)",
+    visibilityAlways: "(always — no condition gates this state)",
     conditionAlways: "(always)",
     clickHandlers: "click handlers",
     advanced: {
@@ -629,11 +629,12 @@ export default {
     addStepIfBranch: "if branch",
     elseIfAdd: "+ else if",
     elseAdd: "+ else",
-    caseConditionEmpty: "(always — drop a condition here to gate this case)",
+    caseConditionEmpty: "(always — no condition gates this case)",
   },
   conditions: {
     removeCondition: "Remove",
     alwaysNoCondition: "always (no condition)",
+    addFirst: "Add a condition",
     switchOperator: "Click to switch operator",
     placeholderPlaceholder: "{shop.rarity}",
     placeholderValuePlaceholder: "legendary",
