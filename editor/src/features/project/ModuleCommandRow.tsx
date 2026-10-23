@@ -28,40 +28,52 @@ export function ModuleCommandRow({
   const look = kindAppearance("command");
   const hint = t("projectPanel.moduleCommandHint", { module: node.moduleId });
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={`flex w-full min-w-0 items-center gap-2 rounded-[10px] py-[5px] pr-2 text-left text-[13px] leading-5 text-[var(--text)] ${
-        active ? "bg-[var(--kind-command-soft)] font-semibold" : "hover:bg-[var(--surface-hover)]"
+    // Same frame as a Document's row, its actions' room kept empty: the puzzles line up.
+    <div
+      className={`flex items-center gap-0.5 rounded-[10px] ${
+        active ? "bg-[var(--kind-command-soft)]" : "hover:bg-[var(--surface-hover)]"
       }`}
-      style={{ paddingLeft: 6 + depth * 14 }}
     >
-      <span className="flex shrink-0" aria-hidden>
-        <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
-      </span>
-      <span
-        className={
-          node.state === "disabled" ? "flex-1 truncate line-through opacity-60" : "flex-1 truncate"
-        }
+      <button
+        type="button"
+        onClick={onOpen}
+        className={`flex min-w-0 flex-1 items-center gap-2 rounded-[10px] py-[5px] pr-2 text-left text-[13px] leading-5 text-[var(--text)] ${
+          active ? "font-semibold" : ""
+        }`}
+        style={{ paddingLeft: 6 + depth * 14 }}
       >
-        /{node.label}
-      </span>
-      {node.state === "modified" && (
-        <Badge
-          variant="terra"
-          role="img"
-          aria-label={t("systemCommands.stateModified")}
-          title={t("systemCommands.stateModified")}
-          className="shrink-0 !h-[17px] !px-1.5 text-[10.5px]"
-        >
-          {t("projectPanel.originTag.modified")}
-        </Badge>
-      )}
-      <Tooltip content={hint} side="right">
-        <span role="img" aria-label={hint} className="flex shrink-0">
-          <Puzzle className="size-3 text-[var(--text-faint)]" aria-hidden />
+        <span className="flex shrink-0" aria-hidden>
+          <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
         </span>
-      </Tooltip>
-    </button>
+        <span
+          className={
+            node.state === "disabled"
+              ? "flex-1 truncate line-through opacity-60"
+              : "flex-1 truncate"
+          }
+        >
+          /{node.label}
+        </span>
+        {node.state === "modified" && (
+          <Badge
+            variant="terra"
+            role="img"
+            aria-label={t("systemCommands.stateModified")}
+            title={t("systemCommands.stateModified")}
+            className="shrink-0 !h-[17px] !px-1.5 text-[10.5px]"
+          >
+            {t("projectPanel.originTag.modified")}
+          </Badge>
+        )}
+        <Tooltip content={hint} side="right">
+          <span role="img" aria-label={hint} className="flex shrink-0">
+            <Puzzle className="size-3 text-[var(--text-faint)]" aria-hidden />
+          </span>
+        </Tooltip>
+      </button>
+      <span aria-hidden className="invisible shrink-0 px-2 py-1">
+        ···
+      </span>
+    </div>
   );
 }

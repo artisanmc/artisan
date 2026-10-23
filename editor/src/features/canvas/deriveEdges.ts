@@ -1,4 +1,5 @@
 import { walkDocumentRefs } from "@/domain/actionArgs";
+import { parseDocRef, projectNamespace } from "@/domain/docRef";
 import { documentChainSlots } from "@/domain/documentKindVisitors";
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
@@ -29,7 +30,15 @@ export function deriveEdges(project: Project): Edge[] {
   const edgeMap = new Map<string, Edge>();
   const triggerSeen = new Map<string, Set<string>>();
 
-  const addTrigger = (source: string, target: string, trigger: EdgeTrigger) => {
+  // A ref qualified with this project's own folder (`boutique_addon:shop_main`, as a
+  // module declares its command's menu) is a Document of this board: its bare id.
+  const here = projectNamespace(project);
+  const local = (ref: string): string => {
+    const { namespace, id } = parseDocRef(ref);
+    return namespace === here ? id : ref;
+  };
+  const addTrigger = (source: string, rawTarget: string, trigger: EdgeTrigger) => {
+    const target = local(rawTarget);
     const id = `${source}->${target}`;
     const triggerKey =
       trigger.kind === "element"
