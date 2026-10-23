@@ -8,8 +8,7 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { ResetButton } from "@/components/ui/reset-button";
 import { Switch } from "@/components/ui/switch";
-import type { ProjectId } from "@/domain/types";
-import { ControlledStepsEditor } from "@/features/inspector/chain/ControlledStepsEditor";
+import type { ProjectId, Step } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { configWrite } from "@/lib/api/configScreens";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
@@ -30,7 +29,7 @@ import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import { Terminal } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -40,13 +39,22 @@ import { useTranslation } from "react-i18next";
  * changed command (subcommands included); a command back to the module's values keeps its
  * file with those values as comments, as the server writes it.
  */
+/** The step chain editor a page edits a command's steps with (the inspector's, given by its caller). */
+export type StepsEditor = ComponentType<{
+  projectId: ProjectId;
+  value: Step[];
+  onChange: (steps: Step[]) => void;
+}>;
+
 export function SystemCommandPage({
   serverId,
   commandId,
+  stepsEditor,
   layout = "page",
 }: {
   serverId: string;
   commandId: string;
+  stepsEditor: StepsEditor;
   /** `panel`: in the board's Properties panel, full width, no page margins. */
   layout?: "page" | "panel";
 }) {
@@ -179,6 +187,7 @@ export function SystemCommandPage({
                 : labelOf(command, c)
             }
             folder={overrideFolder(c, overrides[c.id], folders) ?? commandNamespace(c.id)}
+            stepsEditor={stepsEditor}
             fields={drafts[c.id] ?? { enabled: true }}
             onChange={(fields) => update(c.id, fields)}
           />
@@ -258,6 +267,7 @@ function CommandForm({
   root,
   label,
   folder,
+  stepsEditor,
   fields,
   onChange,
 }: {
@@ -267,6 +277,7 @@ function CommandForm({
   label: string;
   /** The module folder its override lives in: the project its steps edit against. */
   folder: string;
+  stepsEditor: StepsEditor;
   fields: OverrideFields;
   onChange: (fields: OverrideFields) => void;
 }) {
@@ -450,6 +461,7 @@ function CommandForm({
           <BehaviourField
             command={command}
             folder={folder}
+            editor={stepsEditor}
             steps={fields.steps}
             onChange={(steps) => set({ steps })}
           />
@@ -467,11 +479,13 @@ function CommandForm({
 function BehaviourField({
   command,
   folder,
+  editor: Editor,
   steps,
   onChange,
 }: {
   command: PlayerCommand;
   folder: string;
+  editor: StepsEditor;
   steps: unknown;
   onChange: (steps: unknown) => void;
 }) {
@@ -520,7 +534,7 @@ function BehaviourField({
             : t("systemCommands.behaviourModule")}
       </p>
       {custom && (
-        <ControlledStepsEditor
+        <Editor
           projectId={folder as ProjectId}
           value={stepsFromWire(steps)}
           onChange={(next) => onChange(stepsToWire(next))}

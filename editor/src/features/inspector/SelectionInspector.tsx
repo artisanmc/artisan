@@ -1,4 +1,5 @@
 import { SystemCommandPage } from "@/components/SystemCommandPage";
+import { ControlledStepsEditor } from "@/features/inspector/chain/ControlledStepsEditor";
 import { EditorHeader } from "@/components/ui/editor-header";
 import { documentsOf, menusOf } from "@/domain/documents";
 import type { Command, Dialog, Menu, Project, ProjectId } from "@/domain/types";
@@ -126,6 +127,7 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
           key={ctx.id}
           serverId={commandsServerId}
           commandId={ctx.id}
+          stepsEditor={ControlledStepsEditor}
           layout="panel"
         />
       ) : (
