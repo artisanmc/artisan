@@ -1,13 +1,32 @@
 import { type ChainAddress, chainActionContext, chainAllowsIf } from "@/domain/chainAddress";
 import { menusOf } from "@/domain/documents";
-import type { StepFrame } from "@/domain/stepPath";
+import { type StepFrame, resolveParent } from "@/domain/stepPath";
 import type { ClickType, ElementId, MenuId, ProjectId, Step } from "@/domain/types";
+import { cx } from "@/lib/cx";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import {
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { ActionLine, AddStepLine, IfBlock, SortableStep, useStepIds } from "./StepRows";
+import { useId, useState } from "react";
+import {
+  ActionLine,
+  AddStepLine,
+  IfBlock,
+  SortableStep,
+  StepDragPreview,
+  useStepIds,
+} from "./StepRows";
 import { type ChainOps, storeChainOps } from "./chainOps";
+import { type StepDragData, dropTarget, innermostPointerCollision } from "./stepDrop";
 
 /**
  * Editor of one **Action chain** of the Project, addressed by `address`: its edits go to the
@@ -53,47 +72,85 @@ export interface StepTreeProps {
   actionContext?: { menuId?: MenuId; elementId?: ElementId; clickType?: ClickType };
 }
 
-/** One Step[] of a chain, drag-sortable, followed by its "+ step" line; recurses into `if`. */
+/**
+ * A chain's step tree under one drag context, so a step can be dragged into an `if` branch,
+ * out of it, or from one branch to another (`ChainOps.move` with two paths).
+ */
 export function StepTree(props: StepTreeProps) {
+  const { ops, steps } = props;
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const [dragged, setDragged] = useState<Step | null>(null);
+
+  const onDragStart = (e: DragStartEvent) => {
+    const from = e.active.data.current as StepDragData | undefined;
+    setDragged((from && resolveParent(steps, from.frames)?.[from.index]) ?? null);
+  };
+  const onDragEnd = (e: DragEndEvent) => {
+    setDragged(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = active.data.current as StepDragData | undefined;
+    const target = over.data.current as StepDragData | undefined;
+    if (!from || !target) return;
+    const to = dropTarget(from, target, active.rect.current.translated, over.rect);
+    if (to) ops.move(from, to);
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={innermostPointerCollision}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setDragged(null)}
+    >
+      <StepList {...props} />
+      <DragOverlay dropAnimation={null}>
+        {dragged ? <StepDragPreview step={dragged} /> : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
+/**
+ * One Step[] of a chain, drag-sortable, followed by its "+ step" line; recurses into `if`.
+ * The whole list is also a drop zone: dropped there (an empty branch, its "+ step" line),
+ * a step goes to the end of the list.
+ */
+function StepList(props: StepTreeProps) {
   const { projectId, ops, steps, frames, indent, allowIf = true, literalText = false } = props;
   const firstMenuId = useProjectsStore(
     (s) => menusOf(s.openProjects.projects.find((p) => p.id === projectId))[0]?.id,
   );
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const ids = useStepIds(steps);
-
-  const onDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const fromIndex = ids.indexOf(active.id as string);
-    const toIndex = ids.indexOf(over.id as string);
-    if (fromIndex < 0 || toIndex < 0) return;
-    ops.move(frames, fromIndex, toIndex);
-  };
+  const listData: StepDragData = { frames, index: steps.length, list: true };
+  const { setNodeRef, isOver } = useDroppable({ id: `steps-${useId()}`, data: listData });
 
   return (
-    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-1.5">
-          {steps.map((step, i) => (
-            <SortableStep
-              // biome-ignore lint/suspicious/noArrayIndexKey: stable per list per render
-              key={i}
-              id={ids[i]!}
-            >
-              <StepLine {...props} step={step} stepIndex={i} />
-            </SortableStep>
-          ))}
-          <AddStepLine
-            indent={indent}
-            firstMenuId={firstMenuId}
-            onPick={(newStep) => ops.add(frames, steps.length, newStep)}
-            allowIf={allowIf}
-            literalText={literalText}
-          />
-        </div>
-      </SortableContext>
-    </DndContext>
+    <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+      <div
+        ref={setNodeRef}
+        className={cx("flex flex-col gap-1.5 rounded", isOver && "bg-[var(--surface-hover)]")}
+      >
+        {steps.map((step, i) => (
+          <SortableStep
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable per list per render
+            key={i}
+            id={ids[i]!}
+            data={{ frames, index: i } satisfies StepDragData}
+          >
+            <StepLine {...props} step={step} stepIndex={i} />
+          </SortableStep>
+        ))}
+        <AddStepLine
+          indent={indent}
+          firstMenuId={firstMenuId}
+          onPick={(newStep) => ops.add(frames, steps.length, newStep)}
+          allowIf={allowIf}
+          literalText={literalText}
+        />
+      </div>
+    </SortableContext>
   );
 }
 
@@ -122,7 +179,7 @@ function StepLine({ step, stepIndex, ...tree }: StepTreeProps & { step: Step; st
       indent={indent}
       onRemoveStep={onRemove}
       renderCaseChildren={(caseSteps, descend, childIndent) => (
-        <StepTree
+        <StepList
           {...tree}
           steps={caseSteps}
           frames={[...frames, { stepIndex, descend }]}

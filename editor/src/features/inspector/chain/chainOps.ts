@@ -1,5 +1,5 @@
 import { type ChainAddress, chainTarget } from "@/domain/chainAddress";
-import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
+import { type StepFrame, type StepPath, moveStepMut, resolveParentMut } from "@/domain/stepPath";
 import type { Condition, ProjectId, Step } from "@/domain/types";
 import type { ProjectsState } from "@/state/projectsStore";
 import { produce } from "immer";
@@ -11,7 +11,8 @@ import { produce } from "immer";
 export interface ChainOps {
   /** Insert `step` at `index` (out of range → append). */
   add(frames: StepFrame[], index: number, step: Step): void;
-  move(frames: StepFrame[], fromIndex: number, toIndex: number): void;
+  /** Move a step, possibly into another Step[] of the chain — see `moveStepMut`. */
+  move(from: StepPath, to: StepPath): void;
   remove(path: StepPath): void;
   set(path: StepPath, step: Step): void;
   addCase(frames: StepFrame[], ifStepIndex: number): void;
@@ -80,8 +81,7 @@ export function storeChainOps(
       return {
         add: (frames, index, step) =>
           actions().addElementStep({ ...at, frames, index, step, lang }),
-        move: (frames, fromIndex, toIndex) =>
-          actions().moveElementStep({ ...at, frames, fromIndex, toIndex }),
+        move: (from, to) => actions().moveElementStep({ ...at, from, to }),
         remove: (path) => actions().removeElementStep({ ...at, path }),
         set: (path, step) => actions().setElementStep({ ...at, path, step, lang }),
         addCase: (frames, ifStepIndex) => actions().addIfCase({ ...at, frames, ifStepIndex }),
@@ -100,8 +100,7 @@ export function storeChainOps(
       return {
         add: (frames, index, step) =>
           actions().addCommandStep({ ...at, frames, index, step, lang }),
-        move: (frames, fromIndex, toIndex) =>
-          actions().moveCommandStep({ ...at, frames, fromIndex, toIndex }),
+        move: (from, to) => actions().moveCommandStep({ ...at, from, to }),
         remove: (path) => actions().removeCommandStep({ ...at, path }),
         set: (path, step) => actions().setCommandStep({ ...at, path, step, lang }),
         addCase: (frames, ifStepIndex) =>
@@ -127,8 +126,7 @@ export function storeChainOps(
       return {
         add: (frames, index, step) =>
           actions().addDialogButtonStep({ ...at, frames, index, step, lang }),
-        move: (frames, fromIndex, toIndex) =>
-          actions().moveDialogButtonStep({ ...at, frames, fromIndex, toIndex }),
+        move: (from, to) => actions().moveDialogButtonStep({ ...at, from, to }),
         remove: (path) => actions().removeDialogButtonStep({ ...at, path }),
         set: (path, step) => actions().setDialogButtonStep({ ...at, path, step, lang }),
         addCase: (frames, ifStepIndex) =>
@@ -177,12 +175,9 @@ export function controlledChainOps(value: Step[], onChange: (steps: Step[]) => v
         if (index < 0 || index >= parent.length) parent.push(step);
         else parent.splice(index, 0, step);
       }),
-    move: (frames, fromIndex, toIndex) =>
+    move: (from, to) =>
       mutate((root) => {
-        const parent = resolveParentMut(root, frames);
-        if (!parent) return;
-        const [moved] = parent.splice(fromIndex, 1);
-        if (moved) parent.splice(toIndex, 0, moved);
+        moveStepMut(root, from, to);
       }),
     remove: (path) =>
       mutate((root) => {

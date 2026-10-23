@@ -10,7 +10,7 @@ import {
   rectanglePositions,
 } from "@/domain/imageButton";
 import type { AdvancedFields } from "@/domain/itemAdvanced";
-import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
+import { type StepFrame, type StepPath, moveStepMut, resolveParentMut } from "@/domain/stepPath";
 import type {
   Appearance,
   ClickType,
@@ -216,15 +216,14 @@ export interface ElementsSlice {
       path: StepPath;
     } & AppearanceTarget,
   ) => void;
-  /** Reorder steps within the same Step[] (same parent). */
+  /** Move a step within its Step[] or to another one of the chain (into / out of an `if`). */
   moveElementStep: (
     input: {
       projectId: ProjectId;
       appearanceIndex: number;
       clickType: ClickType;
-      frames: StepFrame[];
-      fromIndex: number;
-      toIndex: number;
+      from: StepPath;
+      to: StepPath;
     } & AppearanceTarget,
   ) => void;
   /** Add a new case to an if-step. */
@@ -713,14 +712,9 @@ export const createElementsSlice = ({
       });
     },
     moveElementStep: (input) => {
-      const { projectId: pId, appearanceIndex, clickType, frames, fromIndex, toIndex } = input;
+      const { projectId: pId, appearanceIndex, clickType, from, to } = input;
       mutateClickHandler(pId, input, appearanceIndex, clickType, (handler) => {
-        const parent = resolveParentMut(handler.steps, frames);
-        if (!parent) return false;
-        if (fromIndex < 0 || fromIndex >= parent.length) return false;
-        if (toIndex < 0 || toIndex >= parent.length) return false;
-        const [moved] = parent.splice(fromIndex, 1);
-        if (moved) parent.splice(toIndex, 0, moved);
+        if (!moveStepMut(handler.steps, from, to)) return false;
       });
     },
     addIfCase: (input) =>

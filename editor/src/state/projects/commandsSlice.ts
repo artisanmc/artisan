@@ -1,7 +1,7 @@
 import { commandsOf, mutableCommands, renamedDocumentFiles } from "@/domain/documents";
 import { rekeyCommand } from "@/domain/i18nSites";
 import { commandId, newCommandId } from "@/domain/ids";
-import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
+import { type StepFrame, type StepPath, moveStepMut, resolveParentMut } from "@/domain/stepPath";
 import type { Command, CommandArg, CommandId, Condition, ProjectId, Step } from "@/domain/types";
 import { commandKeyPrefix } from "@/lib/i18nKeys";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
@@ -70,9 +70,8 @@ export interface CommandsSlice {
   moveCommandStep: (input: {
     projectId: ProjectId;
     commandId: CommandId;
-    frames: StepFrame[];
-    fromIndex: number;
-    toIndex: number;
+    from: StepPath;
+    to: StepPath;
   }) => void;
   addCommandIfCase: (input: {
     projectId: ProjectId;
@@ -229,14 +228,9 @@ export const createCommandsSlice = ({
       gcStepLTexts(project, [parent[path.index]!]);
       parent.splice(path.index, 1);
     }),
-  moveCommandStep: ({ projectId: pId, commandId: cId, frames, fromIndex, toIndex }) =>
+  moveCommandStep: ({ projectId: pId, commandId: cId, from, to }) =>
     mutateCommand(pId, cId, (cmd) => {
-      const parent = resolveParentMut(cmd.steps, frames);
-      if (!parent) return false;
-      if (fromIndex < 0 || fromIndex >= parent.length) return false;
-      if (toIndex < 0 || toIndex >= parent.length) return false;
-      const [moved] = parent.splice(fromIndex, 1);
-      if (moved) parent.splice(toIndex, 0, moved);
+      if (!moveStepMut(cmd.steps, from, to)) return false;
     }),
   addCommandIfCase: ({ projectId: pId, commandId: cId, frames, ifStepIndex }) =>
     mutateCommand(pId, cId, (cmd) => {
