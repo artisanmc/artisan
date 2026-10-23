@@ -8,37 +8,31 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { ResetButton } from "@/components/ui/reset-button";
 import { Switch } from "@/components/ui/switch";
-import type { ProjectId, Step } from "@/domain/types";
+import type { Project, ProjectId, Step } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { configWrite } from "@/lib/api/configScreens";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
-import { createProject } from "@/lib/api/servers";
 import {
   type OverrideFields,
   type StoredOverride,
   type Texts,
+  OVERRIDES_NAMESPACE,
   allCommands,
   commandNamespace,
   moduleChanges,
-  overrideFolder,
   overridePath,
   serializeOverride,
+  withOverrideFile,
+  withProjectOverrides,
 } from "@/lib/commandOverride";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import { Terminal } from "lucide-react";
 import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-/**
- * A module command in the System section (design `framework-commandes` §3.9): every field
- * holds the module's value until the admin changes it, and a reset beside it, live only once
- * it differs, puts the module's value back. Saving writes one `command_override/v1` file per
- * changed command (subcommands included); a command back to the module's values keeps its
- * file with those values as comments, as the server writes it.
- */
 /** The step chain editor a page edits a command's steps with (the inspector's, given by its caller). */
 export type StepsEditor = ComponentType<{
   projectId: ProjectId;
@@ -46,37 +40,55 @@ export type StepsEditor = ComponentType<{
   onChange: (steps: Step[]) => void;
 }>;
 
+/**
+ * A module command in its folder's Properties panel (design `framework-commandes` §3.9): every
+ * field holds the module's value until the admin changes it, and a reset beside it, live only
+ * once it differs, puts the module's value back. Each change rewrites the command's
+ * `command_override/v1` file in [project]'s draft (subcommands included), deployed with the rest
+ * of the folder; a command back to the module's values keeps its file with those values as
+ * comments, as the server writes it.
+ */
 export function SystemCommandPage({
-  serverId,
   commandId,
+  project,
   stepsEditor,
-  layout = "page",
 }: {
-  serverId: string;
   commandId: string;
+  /** The module folder the command shows in, as the editor holds it (its draft). */
+  project: Project;
   stepsEditor: StepsEditor;
-  /** `panel`: in the board's Properties panel, full width, no page margins. */
-  layout?: "page" | "panel";
 }) {
   const { t } = useTranslation();
   const status = useSystemCommandsStore((s) => s.status);
-  const folders = useSystemCommandsStore((s) => s.folders);
   const commands = useSystemCommandsStore((s) => s.commands);
-  const overrides = useSystemCommandsStore((s) => s.overrides);
+  const serverOverrides = useSystemCommandsStore((s) => s.overrides);
+  const setModuleData = useProjectsStore((s) => s.setModuleData);
+  const overrides = useMemo(
+    () => withProjectOverrides(serverOverrides, project),
+    [serverOverrides, project],
+  );
   const command = useMemo(
     () => allCommands(commands).find((c) => c.id === commandId),
     [commands, commandId],
   );
   const tree = useMemo(() => (command ? allCommands([command]) : []), [command]);
   const stored = useMemo(() => storedFields(tree, overrides), [tree, overrides]);
+  // The form's own state: what is typed (`p,` in the aliases) stays as typed while the
+  // file holds its normalized form.
   const [drafts, setDrafts] = useState<Record<string, OverrideFields>>(stored);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  // What the server holds changed (a save, a reload): the form starts again from it.
+  // The draft's files changed elsewhere (undo, Translations tab, a new version): the form
+  // starts again from them, unless they are what it wrote.
   useEffect(() => {
-    setDrafts(stored);
-  }, [stored]);
+    setDrafts((current) =>
+      tree.every(
+        (c) =>
+          fileFor(c, c.id === commandId, current, overrides) ===
+          fileFor(c, c.id === commandId, stored, overrides),
+      )
+        ? current
+        : stored,
+    );
+  }, [tree, commandId, stored, overrides]);
 
   if (!command) {
     return status === "ready" ? (
@@ -86,90 +98,41 @@ export function SystemCommandPage({
     );
   }
 
-  const changed = tree.filter(
-    (c) =>
-      fileFor(c, c === command, drafts, overrides) !== fileFor(c, c === command, stored, overrides),
-  );
+  const folder = project.diskId ?? project.id;
   const logic = tree.some((c) => overrides[c.id]?.hasLogic);
 
-  const save = async () => {
-    setSaving(true);
-    setError(null);
-    setSaved(false);
-    try {
-      const { folders } = useSystemCommandsStore.getState();
-      const byFolder = new Map<string, { path: string; content: string }[]>();
-      for (const c of changed) {
-        const existing = overrides[c.id];
-        let folder = overrideFolder(c, existing, folders);
-        if (!folder) {
-          // Its module has no folder on this server: the namespace's folder is created for it.
-          const namespace = commandNamespace(c.id);
-          folder = byFolder.has(namespace)
-            ? namespace
-            : ((await createProject(serverId, namespace)).externalId ?? namespace);
-        }
-        const files = byFolder.get(folder) ?? [];
-        files.push({
-          path: existing?.path ?? overridePath(c.id),
-          content: fileFor(c, c === command, drafts, overrides),
-        });
-        byFolder.set(folder, files);
-      }
-      for (const [folder, files] of byFolder) {
-        const res = await configWrite(serverId, { projectId: folder, files });
-        if (!res.ok) {
-          setError(
-            t(`systemCommands.errors.${res.error}`, {
-              defaultValue: t("systemCommands.errors.write_error"),
-            }),
-          );
-          return;
-        }
-      }
-      setSaved(true);
-    } catch {
-      setError(t("systemCommands.errors.write_error"));
-    } finally {
-      setSaving(false);
-      const { serverId: loaded, load } = useSystemCommandsStore.getState();
-      if (loaded) await load(loaded, true);
+  const update = (next: Record<string, OverrideFields>) => {
+    setDrafts((current) => ({ ...current, ...next }));
+    for (const [id, fields] of Object.entries(next)) {
+      const target = tree.find((c) => c.id === id);
+      if (!target) continue;
+      const existing = overrides[id];
+      const content = fileFor(target, id === command.id, { [id]: fields }, overrides);
+      if (content === existing?.content) continue;
+      // Read at write time: a reset of every command writes several files in a row.
+      const latest =
+        useProjectsStore.getState().openProjects.projects.find((p) => p.id === project.id) ??
+        project;
+      const path = existing?.folder === folder ? existing.path : overridePath(id);
+      setModuleData(project.id, OVERRIDES_NAMESPACE, withOverrideFile(latest, path, content));
     }
   };
 
-  const update = (id: string, fields: OverrideFields) => {
-    setSaved(false);
-    setDrafts((current) => ({ ...current, [id]: fields }));
-  };
-
-  const header = (
-    <EditorHeader
-      kind="command"
-      eyebrow={t("systemCommands.eyebrow", {
-        module: command.moduleId ?? commandNamespace(command.id),
-      })}
-      title={`/${drafts[command.id]?.name?.trim() || command.name}`}
-    >
-      <span className="min-w-0 max-w-full truncate font-mono text-[12.5px] text-[var(--text-faint)]">
-        {command.id}
-      </span>
-    </EditorHeader>
-  );
   return (
-    <div
-      className={
-        layout === "panel"
-          ? "flex h-full min-h-0 w-full flex-col overflow-y-auto"
-          : "mx-auto flex w-full max-w-[760px] flex-col gap-5 overflow-y-auto pb-10"
-      }
-    >
+    <div className="flex h-full min-h-0 w-full flex-col overflow-y-auto">
       {/* As a Document's: flush at the top of the panel, its id under the title. */}
-      {layout === "panel" ? (
-        header
-      ) : (
-        <div className="panel overflow-hidden rounded-[var(--r-md)]">{header}</div>
-      )}
-      <div className={layout === "panel" ? "flex flex-col gap-3 px-3 pt-3" : "contents"}>
+      <EditorHeader
+        kind="command"
+        eyebrow={t("systemCommands.eyebrow", {
+          module: command.moduleId ?? commandNamespace(command.id),
+        })}
+        title={`/${drafts[command.id]?.name?.trim() || command.name}`}
+      >
+        <span className="min-w-0 max-w-full truncate font-mono text-[12.5px] text-[var(--text-faint)]">
+          {command.id}
+        </span>
+      </EditorHeader>
+      <div className="flex flex-col gap-3 px-3 py-3">
         <p className="text-[13px] text-[var(--text-mut)]">{t("systemCommands.intro")}</p>
         {logic && (
           <div className="card p-3 text-[12.5px] text-[var(--text-mut)]">
@@ -186,43 +149,19 @@ export function SystemCommandPage({
                 ? `/${drafts[command.id]?.name?.trim() || command.name}`
                 : labelOf(command, c)
             }
-            folder={overrideFolder(c, overrides[c.id], folders) ?? commandNamespace(c.id)}
+            projectId={project.id}
             stepsEditor={stepsEditor}
             fields={drafts[c.id] ?? { enabled: true }}
-            onChange={(fields) => update(c.id, fields)}
+            onChange={(fields) => update({ [c.id]: fields })}
           />
         ))}
-        <div className="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-[var(--border)] bg-[var(--surface)] py-3">
-          <Button
-            variant="primary"
-            disabled={saving || changed.length === 0}
-            onClick={() => void save()}
-          >
-            {saving ? t("systemCommands.saving") : t("systemCommands.save")}
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={saving || changed.length === 0}
-            onClick={() => setDrafts(stored)}
-          >
-            {t("systemCommands.discard")}
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={saving}
-            onClick={() =>
-              setDrafts(Object.fromEntries(tree.map((c) => [c.id, { enabled: true }])))
-            }
-          >
-            {t("systemCommands.resetAll")}
-          </Button>
-          {error && <span className="text-[12.5px] text-[var(--danger)]">{error}</span>}
-          {saved && !error && changed.length === 0 && (
-            <span className="text-[12.5px] text-[var(--text-mut)]">
-              {t("systemCommands.saved")}
-            </span>
-          )}
-        </div>
+        <Button
+          variant="ghost"
+          className="self-start"
+          onClick={() => update(Object.fromEntries(tree.map((c) => [c.id, { enabled: true }])))}
+        >
+          {t("systemCommands.resetAll")}
+        </Button>
       </div>
     </div>
   );
@@ -266,7 +205,7 @@ function CommandForm({
   command,
   root,
   label,
-  folder,
+  projectId,
   stepsEditor,
   fields,
   onChange,
@@ -276,7 +215,7 @@ function CommandForm({
   /** `/name` as players type it, a sub-command's in full. */
   label: string;
   /** The module folder its override lives in: the project its steps edit against. */
-  folder: string;
+  projectId: ProjectId;
   stepsEditor: StepsEditor;
   fields: OverrideFields;
   onChange: (fields: OverrideFields) => void;
@@ -304,8 +243,9 @@ function CommandForm({
   const summary = open ? "" : textIn(description, lang);
   return (
     <section className="panel flex flex-col gap-4 rounded-[var(--r-md)] p-4">
-      <div className="flex items-start gap-3">
-        <span className="flex shrink-0 pt-0.5" aria-hidden>
+      {/* Tile, name and controls on one axis, whatever the summary's height. */}
+      <div className="flex items-center gap-3">
+        <span className="flex shrink-0" aria-hidden>
           <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -460,7 +400,7 @@ function CommandForm({
           </div>
           <BehaviourField
             command={command}
-            folder={folder}
+            projectId={projectId}
             editor={stepsEditor}
             steps={fields.steps}
             onChange={(steps) => set({ steps })}
@@ -478,13 +418,13 @@ function CommandForm({
  */
 function BehaviourField({
   command,
-  folder,
+  projectId,
   editor: Editor,
   steps,
   onChange,
 }: {
   command: PlayerCommand;
-  folder: string;
+  projectId: ProjectId;
   editor: StepsEditor;
   steps: unknown;
   onChange: (steps: unknown) => void;
@@ -535,7 +475,7 @@ function BehaviourField({
       </p>
       {custom && (
         <Editor
-          projectId={folder as ProjectId}
+          projectId={projectId}
           value={stepsFromWire(steps)}
           onChange={(next) => onChange(stepsToWire(next))}
         />

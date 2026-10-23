@@ -3,7 +3,6 @@ import { OPEN_ELEMENT_EVENT, OPEN_SYSTEM_COMMAND_EVENT } from "@/features/canvas
 import type { ProjectRenamed } from "@/features/project/onProjectRenamed";
 import { documentDestination, projectDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
-import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { goToDocument } from "./goToDocument";
@@ -11,7 +10,7 @@ import { goToDocument } from "./goToDocument";
 /**
  * Keeps the workspace URL in step with the Project: the `?doc=` deep link, the
  * canonical folder ID, a rename of the folder, and the "open this Document"
- * event of the board nodes (a module command's node opens its System page).
+ * event of the board nodes (a module command's node is selected, its form in Properties).
  */
 export function useProjectDeepLinks({
   project,
@@ -77,16 +76,13 @@ export function useProjectDeepLinks({
   }, [serverId, project, navigate]);
 
   useEffect(() => {
+    // Its form is this folder's: selected and centered here, edited in the Properties panel.
     function onOpenCommand(e: Event) {
       const commandId = (e as CustomEvent<{ commandId: string }>).detail?.commandId;
-      const server = serverId ?? useSystemCommandsStore.getState().serverId;
-      if (!commandId || !server) return;
-      void navigate({
-        to: "/servers/$serverId/commands/$commandId",
-        params: { serverId: server, commandId },
-      });
+      if (!commandId || !project) return;
+      goToDocument(navigate, { serverId, project, ref: commandId });
     }
     window.addEventListener(OPEN_SYSTEM_COMMAND_EVENT, onOpenCommand);
     return () => window.removeEventListener(OPEN_SYSTEM_COMMAND_EVENT, onOpenCommand);
-  }, [serverId, navigate]);
+  }, [serverId, project, navigate]);
 }

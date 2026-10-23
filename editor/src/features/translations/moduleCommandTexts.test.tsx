@@ -1,20 +1,14 @@
 import { projectId } from "@/domain/ids";
-import { configWrite } from "@/lib/api/configScreens";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { parseOverride } from "@/lib/commandOverride";
 import { mockOpenProjects } from "@/mock/fixtures";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
 import { TranslationPanelContent } from "./TranslationPanel";
-
-vi.mock("@/lib/api/configScreens", () => ({
-  configWrite: vi.fn(async () => ({ ok: true })),
-  configRead: vi.fn(async () => ({ ok: true, files: [] })),
-}));
 
 const PERSONAL = projectId("p_personal");
 
@@ -49,7 +43,6 @@ describe("Translations panel — module command texts", () => {
           "schema: command_override/v1\ncommand: daily:claim\nenabled: false\n",
         )!,
       },
-      textDrafts: {},
       load: vi.fn(async () => {}),
     });
   });
@@ -60,24 +53,15 @@ describe("Translations panel — module command texts", () => {
     expect(screen.getByText("Claim your reward")).toBeInTheDocument();
   });
 
-  it("writes an edited text to the command's override file, the rest of the file kept", async () => {
+  it("writes an edited text to the command's override file in the folder's draft, the rest kept", () => {
     render(<TranslationPanelContent projectId={PERSONAL} />);
     const row = screen.getByText("/daily · description").closest("li") as HTMLElement;
     fireEvent.click(row.querySelector("[data-testid=copy-default-value]") as HTMLElement);
-    expect(
-      screen.getByText(/1 command text changed|1 texte de commande modifié/),
-    ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /Save command texts|Enregistrer les textes des commandes/,
-      }),
-    );
-    await waitFor(() => expect(configWrite).toHaveBeenCalled());
-    const [server, request] = vi.mocked(configWrite).mock.calls[0]!;
-    expect(server).toBe("sk_1");
-    expect(request.projectId).toBe(PERSONAL);
-    expect(request.files[0]?.path).toBe("overrides/command/daily.claim.yaml");
-    expect(parse(request.files[0]?.content ?? "")).toEqual({
+    const project = useProjectsStore
+      .getState()
+      .openProjects.projects.find((p) => p.id === PERSONAL);
+    const files = (project?.moduleData?.overrides as { __files: Record<string, string> }).__files;
+    expect(parse(files["command/daily.claim.yaml"] ?? "")).toEqual({
       schema: "command_override/v1",
       command: "daily:claim",
       enabled: false,
@@ -87,6 +71,7 @@ describe("Translations panel — module command texts", () => {
         de: "Claim your reward",
       },
     });
-    await waitFor(() => expect(useSystemCommandsStore.getState().textDrafts).toEqual({}));
+    // The draft speaks for the folder from now on: the row reads the text it holds.
+    expect(screen.queryByRole("button", { name: /Save command texts|Enregistrer/ })).toBeNull();
   });
 });
