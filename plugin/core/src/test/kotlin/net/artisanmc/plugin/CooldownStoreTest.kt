@@ -54,4 +54,43 @@ class CooldownStoreTest {
         store.set("a", uuid, "player", 3600)
         assertFalse(store.isOnCooldown("b", uuid, "player"))
     }
+
+    @Test fun `each cooldown set is reported with its subject and expiry`() {
+        val written = mutableListOf<Triple<String, String, Long>>()
+        val store = CooldownStore { 1_000L }
+        store.onSet = { id, subject, expiresAt -> written += Triple(id, subject, expiresAt) }
+        val uuid = UUID.randomUUID()
+        store.set("daily", uuid, "player", 60)
+        store.set("event", uuid, "global", 5)
+        kotlin.test.assertEquals(
+            listOf(Triple("daily", uuid.toString(), 61_000L), Triple("event", CooldownStore.GLOBAL, 6_000L)),
+            written,
+        )
+    }
+
+    @Test fun `stored cooldowns apply, the later expiry winning`() {
+        var now = 1_000L
+        val store = CooldownStore { now }
+        val uuid = UUID.randomUUID()
+        store.set("daily", uuid, "player", 100)
+        store.loadPlayer(uuid, mapOf("daily" to 5_000L, "shop" to 50_000L, "old" to 500L))
+        store.loadGlobal(mapOf("event" to 20_000L))
+        now = 10_000L
+        assertTrue(store.isOnCooldown("daily", uuid, "player"))
+        assertTrue(store.isOnCooldown("shop", uuid, "player"))
+        assertFalse(store.isOnCooldown("old", uuid, "player"))
+        assertTrue(store.isOnCooldown("event", UUID.randomUUID(), "global"))
+    }
+
+    @Test fun `prune drops expired entries only`() {
+        var now = 0L
+        val store = CooldownStore { now }
+        val uuid = UUID.randomUUID()
+        store.set("short", uuid, "player", 1)
+        store.set("long", uuid, "player", 100)
+        now = 5_000L
+        store.prune()
+        assertFalse(store.isOnCooldown("short", uuid, "player"))
+        assertTrue(store.isOnCooldown("long", uuid, "player"))
+    }
 }
