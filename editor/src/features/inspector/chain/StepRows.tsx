@@ -85,13 +85,17 @@ function DragHandle() {
 /** Wraps a step row with a @dnd-kit/sortable item context. */
 export function SortableStep({
   id,
+  data,
   children,
 }: {
   id: string;
+  /** Where the step sits in its chain, read back on drop. */
+  data?: Record<string, unknown>;
   children: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
+    data,
   });
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -184,6 +188,20 @@ export function ActionLine({
         </Expansion>
       ) : null}
     </>
+  );
+}
+
+/** What follows the pointer while a step is dragged: its row, without its content or handles. */
+export function StepDragPreview({ step }: { step: Step }) {
+  const { t } = useTranslation();
+  return (
+    <Row card selected>
+      {step.kind === "action" ? (
+        <ActionName name={step.action.name} />
+      ) : (
+        <BranchKeyword>{t("actionCatalog.branch.if")}</BranchKeyword>
+      )}
+    </Row>
   );
 }
 

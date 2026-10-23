@@ -909,9 +909,8 @@ describe("projectsStore", () => {
       elementId: PROFILE_BTN,
       appearanceIndex: 0,
       clickType: "left",
-      frames: [],
-      fromIndex: 1,
-      toIndex: 0,
+      from: { frames: [], index: 1 },
+      to: { frames: [], index: 0 },
     });
     const steps = findElement()!.display!.click!.left!.steps;
     expect(steps[0]?.kind === "action" && steps[0].action.name).toBe("send_message");

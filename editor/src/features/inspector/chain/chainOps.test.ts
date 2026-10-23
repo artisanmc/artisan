@@ -40,7 +40,7 @@ describe("storeChainOps", () => {
       clickType: "left",
     };
     ops.add(frames, 3, step);
-    ops.move(frames, 0, 2);
+    ops.move({ frames, index: 0 }, { frames, index: 2 });
     ops.remove({ frames, index: 1 });
     ops.set({ frames, index: 1 }, step);
     ops.addCase(frames, 4);
@@ -57,9 +57,8 @@ describe("storeChainOps", () => {
     });
     expect(actions.moveElementStep).toHaveBeenCalledWith({
       ...at,
-      frames,
-      fromIndex: 0,
-      toIndex: 2,
+      from: { frames, index: 0 },
+      to: { frames, index: 2 },
     });
     expect(actions.removeElementStep).toHaveBeenCalledWith({ ...at, path: { frames, index: 1 } });
     expect(actions.setElementStep).toHaveBeenCalledWith({
@@ -131,13 +130,12 @@ describe("storeChainOps", () => {
       buttonIndex: 2,
     });
     const at = { projectId: PID, dialogId: "d", buttonIndex: 2 };
-    ops.move([], 1, 0);
+    ops.move({ frames: [], index: 1 }, { frames: [], index: 0 });
     ops.toggleElse([], 0, true);
     expect(actions.moveDialogButtonStep).toHaveBeenCalledWith({
       ...at,
-      frames: [],
-      fromIndex: 1,
-      toIndex: 0,
+      from: { frames: [], index: 1 },
+      to: { frames: [], index: 0 },
     });
     expect(actions.toggleDialogButtonIfElse).toHaveBeenCalledWith({
       ...at,
@@ -190,7 +188,9 @@ describe("controlledChainOps", () => {
       a("three"),
     ]);
     expect(run(value, (ops) => ops.add([], 0, a("zero")))).toEqual([a("zero"), a("one"), a("two")]);
-    expect(run(value, (ops) => ops.move([], 0, 1))).toEqual([a("two"), a("one")]);
+    expect(
+      run(value, (ops) => ops.move({ frames: [], index: 0 }, { frames: [], index: 1 })),
+    ).toEqual([a("two"), a("one")]);
     expect(run(value, (ops) => ops.set({ frames: [], index: 1 }, a("2")))).toEqual([
       a("one"),
       a("2"),
@@ -202,6 +202,15 @@ describe("controlledChainOps", () => {
   it("edits inside an if case through its frames", () => {
     const out = run([ifStep()], (ops) => ops.add(frames, 1, a("y")));
     expect(out?.[0]).toEqual({ kind: "if", cases: [{ conditions: [], steps: [a("x"), a("y")] }] });
+  });
+
+  it("moves a step into an if branch and back out", () => {
+    const into = run([ifStep(), a("m")], (ops) =>
+      ops.move({ frames: [], index: 1 }, { frames, index: 0 }),
+    );
+    expect(into).toEqual([{ kind: "if", cases: [{ conditions: [], steps: [a("m"), a("x")] }] }]);
+    const out = run(into!, (ops) => ops.move({ frames, index: 0 }, { frames: [], index: 1 }));
+    expect(out).toEqual([ifStep(), a("m")]);
   });
 
   it("adds and removes cases and toggles the else branch", () => {

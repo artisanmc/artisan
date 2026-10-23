@@ -1,5 +1,5 @@
 import { dialogsOf, mutableDialogs, renamedDocumentFiles } from "@/domain/documents";
-import { type StepFrame, type StepPath, resolveParentMut } from "@/domain/stepPath";
+import { type StepFrame, type StepPath, moveStepMut, resolveParentMut } from "@/domain/stepPath";
 import type {
   Condition,
   Dialog,
@@ -103,9 +103,8 @@ export interface DialogsSlice {
     projectId: ProjectId;
     dialogId: DialogId;
     buttonIndex: number;
-    frames: StepFrame[];
-    fromIndex: number;
-    toIndex: number;
+    from: StepPath;
+    to: StepPath;
   }) => void;
   setDialogButtonStep: (input: {
     projectId: ProjectId;
@@ -396,21 +395,9 @@ export const createDialogsSlice = ({
         parent.splice(at, 0, step);
         allocStepLTexts(project, btn.steps, lang, dialogButtonKeyPrefix(dId, btn.id));
       }),
-    moveDialogButtonStep: ({
-      projectId: pId,
-      dialogId: dId,
-      buttonIndex,
-      frames,
-      fromIndex,
-      toIndex,
-    }) =>
+    moveDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, from, to }) =>
       mutateButton(pId, dId, buttonIndex, (btn) => {
-        const parent = resolveParentMut(btn.steps, frames);
-        if (!parent) return false;
-        if (fromIndex < 0 || fromIndex >= parent.length) return false;
-        if (toIndex < 0 || toIndex >= parent.length) return false;
-        const [moved] = parent.splice(fromIndex, 1);
-        if (moved) parent.splice(toIndex, 0, moved);
+        if (!moveStepMut(btn.steps, from, to)) return false;
       }),
     setDialogButtonStep: ({ projectId: pId, dialogId: dId, buttonIndex, path, step, lang }) =>
       mutateButton(pId, dId, buttonIndex, (btn, project) => {
