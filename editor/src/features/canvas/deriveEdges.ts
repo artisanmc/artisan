@@ -1,4 +1,5 @@
 import { walkDocumentRefs } from "@/domain/actionArgs";
+import { commandStepLists } from "@/domain/commandNodes";
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
 import { documentChainSlots } from "@/domain/documentKindVisitors";
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
@@ -89,8 +90,10 @@ export function deriveEdges(project: Project): Edge[] {
   }
 
   for (const cmd of commandsOf(project)) {
-    for (const ref of walkDocumentRefs(cmd.steps)) {
-      if (ref.id !== "") addTrigger(cmd.id, ref.id, { kind: "command", commandId: cmd.id });
+    for (const steps of commandStepLists(cmd)) {
+      for (const ref of walkDocumentRefs(steps)) {
+        if (ref.id !== "") addTrigger(cmd.id, ref.id, { kind: "command", commandId: cmd.id });
+      }
     }
   }
 

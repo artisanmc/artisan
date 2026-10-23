@@ -1,3 +1,4 @@
+import { commandNodeAt } from "@/domain/commandNodes";
 import { sourceFieldType } from "@/domain/dataModels";
 import { commandsOf, menusOf } from "@/domain/documents";
 import type { FieldType, Menu, Project } from "@/domain/types";
@@ -68,7 +69,8 @@ export function compute(
     case "command": {
       const command = commandsOf(project).find((c) => c.id === location.commandId);
       const out: PlaceholderEntry[] = [];
-      const args = command?.arguments ?? [];
+      // A sub-command's chain sees its own arguments: the words before them chose the node.
+      const args = (command && commandNodeAt(command, location.sub)?.arguments) ?? [];
       if (!args.some((a) => a.name === "player")) out.push(...builtinPlayerEntries());
       for (const arg of args) {
         out.push({ path: arg.name, type: arg.type, sample: null, origin: "context" });

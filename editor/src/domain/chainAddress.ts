@@ -1,4 +1,4 @@
-import type { ClickType, CommandId, DialogId, ElementId, MenuId } from "./types";
+import type { ClickType, CommandId, CommandNodePath, DialogId, ElementId, MenuId } from "./types";
 
 /**
  * Where an **Action chain** lives in a Project: the click handler of one Element state, a
@@ -14,14 +14,19 @@ export type ChainAddress =
       stateIndex: number;
       clickType: ClickType;
     }
-  | { kind: "command"; commandId: CommandId }
+  | {
+      kind: "command";
+      commandId: CommandId;
+      /** The sub-command whose steps these are; absent: the command's own. */
+      sub?: CommandNodePath;
+    }
   | { kind: "dialogButton"; dialogId: DialogId; buttonIndex: number };
 
 /** The chain's location as the store reducers of its owner take it. */
 export type ChainTarget<A extends ChainAddress = ChainAddress> = A extends { kind: "element" }
   ? { menuId: MenuId; elementId: ElementId; appearanceIndex: number; clickType: ClickType }
   : A extends { kind: "command" }
-    ? { commandId: CommandId }
+    ? { commandId: CommandId; sub?: CommandNodePath }
     : { dialogId: DialogId; buttonIndex: number };
 
 export function chainTarget<A extends ChainAddress>(address: A): ChainTarget<A>;
@@ -35,7 +40,7 @@ export function chainTarget(address: ChainAddress): ChainTarget {
         clickType: address.clickType,
       };
     case "command":
-      return { commandId: address.commandId };
+      return { commandId: address.commandId, sub: address.sub };
     case "dialogButton":
       return { dialogId: address.dialogId, buttonIndex: address.buttonIndex };
   }

@@ -474,7 +474,31 @@ export type Condition =
    */
   | { type: "expression"; expr: string };
 
-export interface Command {
+/**
+ * What a command and each of its sub-commands carry (`command/v1`, and each node of its
+ * `subcommands`). A sub-command is typed after its parent's name, before its own
+ * arguments: `/ah sell 100`.
+ */
+export interface CommandNode {
+  name: string;
+  aliases?: string[];
+  permission?: string;
+  /** Shown in the server's command list, per language. */
+  description?: LText;
+  /** `false`: a command is not registered, a sub-command does not exist. Absent: on. */
+  enabled?: boolean;
+  arguments: CommandArg[];
+  steps: Step[];
+  subcommands?: CommandNode[];
+  /**
+   * Keys of the node the editor does not edit yet (`requirements`, `fallback`,
+   * `cooldown`, `notes`, unknown keys), written back as read: a deploy never drops
+   * what the admin wrote by hand.
+   */
+  wire?: Record<string, unknown>;
+}
+
+export interface Command extends CommandNode {
   id: CommandId;
   projectId: ProjectId;
   /**
@@ -482,19 +506,10 @@ export interface Command {
    * the module root. Not part of the id: moving changes no reference.
    */
   folder?: string;
-  name: string;
-  aliases?: string[];
-  permission?: string;
-  description?: string;
-  arguments: CommandArg[];
-  steps: Step[];
-  /**
-   * Keys of the `command/v1` file the editor does not edit yet (`requirements`,
-   * `fallback`, `cooldown`, `notes`, unknown keys), written back as read: a
-   * deploy never drops what the admin wrote by hand.
-   */
-  wire?: Record<string, unknown>;
 }
+
+/** A sub-command by its indexes from the root: `[1, 0]` is the first child of the second. Empty: the root. */
+export type CommandNodePath = readonly number[];
 
 export interface CommandArg {
   name: string;
