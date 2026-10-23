@@ -8,6 +8,7 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { ResetButton } from "@/components/ui/reset-button";
 import { Switch } from "@/components/ui/switch";
+import type { ProjectId, Step } from "@/domain/types";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { configWrite } from "@/lib/api/configScreens";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
@@ -24,13 +25,12 @@ import {
   serializeOverride,
 } from "@/lib/commandOverride";
 import { kindAppearance } from "@/lib/documentKindAppearance";
+import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import { Terminal } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-const DEFAULT_LANGS = ["fr", "en"];
 
 /**
  * A module command in the System section (design `framework-commandes` §3.9): every field
@@ -39,18 +39,28 @@ const DEFAULT_LANGS = ["fr", "en"];
  * changed command (subcommands included); a command back to the module's values keeps its
  * file with those values as comments, as the server writes it.
  */
+/** The step chain editor a page edits a command's steps with (the inspector's, given by its caller). */
+export type StepsEditor = ComponentType<{
+  projectId: ProjectId;
+  value: Step[];
+  onChange: (steps: Step[]) => void;
+}>;
+
 export function SystemCommandPage({
   serverId,
   commandId,
+  stepsEditor,
   layout = "page",
 }: {
   serverId: string;
   commandId: string;
+  stepsEditor: StepsEditor;
   /** `panel`: in the board's Properties panel, full width, no page margins. */
   layout?: "page" | "panel";
 }) {
   const { t } = useTranslation();
   const status = useSystemCommandsStore((s) => s.status);
+  const folders = useSystemCommandsStore((s) => s.folders);
   const commands = useSystemCommandsStore((s) => s.commands);
   const overrides = useSystemCommandsStore((s) => s.overrides);
   const command = useMemo(
@@ -176,6 +186,8 @@ export function SystemCommandPage({
                 ? `/${drafts[command.id]?.name?.trim() || command.name}`
                 : labelOf(command, c)
             }
+            folder={overrideFolder(c, overrides[c.id], folders) ?? commandNamespace(c.id)}
+            stepsEditor={stepsEditor}
             fields={drafts[c.id] ?? { enabled: true }}
             onChange={(fields) => update(c.id, fields)}
           />
@@ -250,16 +262,12 @@ function labelOf(root: PlayerCommand, target: PlayerCommand): string {
   return `/${[root.name, ...(path(root, []) ?? [])].join(" ")}`;
 }
 
-function languagesOf(...values: (Texts | undefined)[]): string[] {
-  const langs = new Set(DEFAULT_LANGS);
-  for (const value of values) for (const lang of Object.keys(value ?? {})) langs.add(lang);
-  return [...langs];
-}
-
 function CommandForm({
   command,
   root,
   label,
+  folder,
+  stepsEditor,
   fields,
   onChange,
 }: {
@@ -267,6 +275,9 @@ function CommandForm({
   root: boolean;
   /** `/name` as players type it, a sub-command's in full. */
   label: string;
+  /** The module folder its override lives in: the project its steps edit against. */
+  folder: string;
+  stepsEditor: StepsEditor;
   fields: OverrideFields;
   onChange: (fields: OverrideFields) => void;
 }) {
@@ -447,9 +458,89 @@ function CommandForm({
               />
             )}
           </div>
+          <BehaviourField
+            command={command}
+            folder={folder}
+            editor={stepsEditor}
+            steps={fields.steps}
+            onChange={(steps) => set({ steps })}
+          />
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * What the command runs: the module's code, or the admin's steps in its place (design
+ * `framework-commandes` Q6). Customising starts from a `module_command` step that calls
+ * the module's code, so the admin adds before or after it, or replaces it.
+ */
+function BehaviourField({
+  command,
+  folder,
+  editor: Editor,
+  steps,
+  onChange,
+}: {
+  command: PlayerCommand;
+  folder: string;
+  editor: StepsEditor;
+  steps: unknown;
+  onChange: (steps: unknown) => void;
+}) {
+  const { t } = useTranslation();
+  const custom = steps != null;
+  // A node with sub-commands only has no code of its own to call back.
+  const runnable = command.children.length === 0 || command.opensMenu !== null;
+  const customise = () =>
+    onChange(
+      runnable
+        ? [
+            {
+              module_command: {
+                command: command.id,
+                ...(command.arguments.length > 0
+                  ? {
+                      args: Object.fromEntries(
+                        command.arguments.map((arg) => [arg.name, `{${arg.name}}`]),
+                      ),
+                    }
+                  : {}),
+              },
+            },
+          ]
+        : [],
+    );
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <span className="field-label !mb-0 flex-1">{t("systemCommands.behaviour")}</span>
+        {custom ? (
+          <Button variant="ghost" size="sm" onClick={() => onChange(undefined)}>
+            {t("systemCommands.behaviourReset")}
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={customise}>
+            {t("systemCommands.behaviourCustomise")}
+          </Button>
+        )}
+      </div>
+      <p className="text-[12px] text-[var(--text-faint)]">
+        {custom
+          ? t("systemCommands.behaviourCustomHint")
+          : command.opensMenu
+            ? t("systemCommands.behaviourMenu", { menu: command.opensMenu })
+            : t("systemCommands.behaviourModule")}
+      </p>
+      {custom && (
+        <Editor
+          projectId={folder as ProjectId}
+          value={stepsFromWire(steps)}
+          onChange={(next) => onChange(stepsToWire(next))}
+        />
+      )}
+    </div>
   );
 }
 
@@ -488,9 +579,10 @@ function ResettableField({
 }
 
 /**
- * One MiniMessage field per language, each with its reset to [original]; `*` (a plain
- * string in the file) applies to every language. [onChange] receives the whole map: an
- * override's texts replace the module's.
+ * The text in the topbar's language, as menus edit theirs; the other languages are in
+ * the Translations tab. `*` (a plain string in the file) applies to every language, so
+ * it shows as the fallback until this language gets its own. [onChange] receives the
+ * whole map: an override's texts replace the module's.
  */
 function TextsField({
   label,
@@ -506,34 +598,37 @@ function TextsField({
   onChange: (value: Texts) => void;
 }) {
   const { t } = useTranslation();
-  const langs = languagesOf(value, original);
-  const write = (lang: string, text: string) => onChange({ ...value, [lang]: text });
+  const lang = useUiStore((s) => s.activeLang);
+  const own = value[lang];
+  const fallback = own === undefined ? textIn(value, lang) : "";
+  const write = (text: string) => {
+    const { [lang]: _, ...rest } = value;
+    onChange(text === "" ? rest : { ...rest, [lang]: text });
+  };
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="field-label !mb-0">{label}</span>
-      {langs.map((lang) => {
-        const name = lang === "*" ? t("systemCommands.allLanguages") : lang;
-        return (
-          <div key={lang} className="flex items-start gap-2">
-            <span className="mono w-14 shrink-0 pt-2 text-[11px] text-[var(--text-faint)]">
-              {name}
-            </span>
-            <div className="min-w-0 flex-1">
-              <MiniMessageField
-                value={value[lang] ?? ""}
-                placeholder={placeholder}
-                aria-label={`${label} (${name})`}
-                onChange={(text) => write(lang, text)}
-              />
-            </div>
-            <ResetButton
-              modified={(value[lang] ?? "") !== (original[lang] ?? "")}
-              onReset={() => write(lang, original[lang] ?? "")}
-              label={t("systemCommands.resetField", { field: `${label} (${name})` })}
-            />
-          </div>
-        );
-      })}
-    </div>
+    <FormField
+      label={label}
+      hint={
+        own === undefined && fallback !== ""
+          ? t("systemCommands.textFallback", { lang })
+          : t("systemCommands.textLang", { lang })
+      }
+    >
+      <div className="flex items-start gap-1">
+        <div className="min-w-0 flex-1">
+          <MiniMessageField
+            value={own ?? ""}
+            placeholder={fallback || placeholder}
+            aria-label={`${label} (${lang})`}
+            onChange={write}
+          />
+        </div>
+        <ResetButton
+          modified={(own ?? "") !== (original[lang] ?? "")}
+          onReset={() => write(original[lang] ?? "")}
+          label={t("systemCommands.resetField", { field: `${label} (${lang})` })}
+        />
+      </div>
+    </FormField>
   );
 }

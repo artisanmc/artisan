@@ -1286,7 +1286,7 @@ const fr: typeof en = {
     loading: "Lecture des commandes du serveur…",
     notFound: "Ce serveur ne déclare pas cette commande.",
     logicKept:
-      "Cet override contient aussi des conditions ou des étapes. Elles sont conservées telles quelles et ne se modifient que dans le fichier.",
+      "Cet override contient aussi des conditions ou un repli (fallback). Ils sont conservés tels quels et ne se modifient que dans le fichier.",
     enabled: "Activée",
     name: "Nom",
     aliases: "Alias",
@@ -1297,7 +1297,16 @@ const fr: typeof en = {
     resetField: "{{field}} : revenir à la valeur du module",
     noMessage: "Aucun message",
     description: "Description",
-    allLanguages: "toutes",
+    behaviour: "Comportement",
+    behaviourModule: "Le code du module s'exécute.",
+    behaviourMenu: "Ouvre le menu {{menu}}, comme le module le déclare.",
+    behaviourCustomHint:
+      "Ces étapes remplacent le code du module. L'action « module_command » l'appelle : garde-la pour ajouter des étapes avant ou après, retire-la pour le remplacer.",
+    behaviourCustomise: "Personnaliser",
+    behaviourReset: "Revenir au code du module",
+    textLang: "Langue : {{lang}}. Les autres langues sont dans l'onglet Traductions.",
+    textFallback:
+      "Pas encore traduit en {{lang}} : le texte grisé s'applique. Les autres langues sont dans l'onglet Traductions.",
     cooldown: "Délai entre deux utilisations (secondes)",
     cooldownHint: "0 : aucun délai.",
     cooldownScope: "Portée du délai",

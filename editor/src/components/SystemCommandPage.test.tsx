@@ -1,8 +1,10 @@
 import { configWrite } from "@/lib/api/configScreens";
 import { createProject } from "@/lib/api/servers";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
+import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ControlledStepsEditor } from "@/features/inspector/chain/ControlledStepsEditor";
 import { SystemCommandPage } from "./SystemCommandPage";
 
 vi.mock("@/lib/api/configScreens", () => ({
@@ -65,7 +67,13 @@ describe("SystemCommandPage", () => {
       description: { fr: "Vend un objet" },
     };
     useSystemCommandsStore.setState({ commands: [{ ...declared, children: [sell] }] });
-    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    render(
+      <SystemCommandPage
+        serverId="sk_1"
+        commandId="attribution:open"
+        stepsEditor={ControlledStepsEditor}
+      />,
+    );
     expect(screen.getByText("/attribution sell")).toBeInTheDocument();
     expect(screen.getByText("Vend un objet")).toBeInTheDocument();
     expect(screen.queryByDisplayValue("artisan.attribution.sell")).toBeNull();
@@ -77,7 +85,13 @@ describe("SystemCommandPage", () => {
   });
 
   it("fills every field with the module's value and writes only what the admin changed", async () => {
-    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    render(
+      <SystemCommandPage
+        serverId="sk_1"
+        commandId="attribution:open"
+        stepsEditor={ControlledStepsEditor}
+      />,
+    );
     expect(screen.getByDisplayValue("artisan.attribution")).toBeInTheDocument();
     expect(screen.getByDisplayValue("attribution")).toBeInTheDocument();
     expect(screen.getByDisplayValue("parrain")).toBeInTheDocument();
@@ -97,8 +111,59 @@ describe("SystemCommandPage", () => {
     });
   });
 
+  it("edits a text in the topbar's language only, the others kept as they are", async () => {
+    useSystemCommandsStore.setState({
+      commands: [
+        { ...declared, description: { fr: "Ouvre le parrainage", en: "Opens referrals" } },
+      ],
+    });
+    useUiStore.setState({ activeLang: "en" });
+    render(
+      <SystemCommandPage
+        serverId="sk_1"
+        commandId="attribution:open"
+        stepsEditor={ControlledStepsEditor}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Description (fr)" })).toBeNull();
+    expect(screen.queryByText("Ouvre le parrainage")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Description (en)" }));
+    const field = screen.getByDisplayValue("Opens referrals");
+    fireEvent.change(field, { target: { value: "Open referrals" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(configWrite).toHaveBeenCalled());
+    const content = vi.mocked(configWrite).mock.calls[0]![1].files[0]!.content;
+    expect(content).toContain("description:\n  fr: Ouvre le parrainage\n  en: Open referrals\n");
+    useUiStore.setState({ activeLang: "fr" });
+  });
+
+  it("replaces the module's code with steps that start by calling it, and goes back to it", async () => {
+    render(
+      <SystemCommandPage
+        serverId="sk_1"
+        commandId="attribution:open"
+        stepsEditor={ControlledStepsEditor}
+      />,
+    );
+    expect(screen.getByText("Le code du module s'exécute.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Personnaliser" }));
+    expect(screen.getByText("modifié")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(configWrite).toHaveBeenCalled());
+    const content = vi.mocked(configWrite).mock.calls[0]![1].files[0]!.content;
+    expect(content).toContain("steps:\n  - module_command:\n      command: attribution:open\n");
+    fireEvent.click(screen.getByRole("button", { name: "Revenir au code du module" }));
+    expect(screen.getByText("Le code du module s'exécute.")).toBeInTheDocument();
+  });
+
   it("puts the root's name in the header and its card, renamed as typed", () => {
-    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    render(
+      <SystemCommandPage
+        serverId="sk_1"
+        commandId="attribution:open"
+        stepsEditor={ControlledStepsEditor}
+      />,
+    );
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     fireEvent.change(screen.getByDisplayValue("attribution"), { target: { value: "parrainage" } });
     expect(screen.getByRole("heading", { level: 2, name: "/parrainage" })).toBeInTheDocument();
@@ -107,7 +172,13 @@ describe("SystemCommandPage", () => {
   });
 
   it("turns a field's reset on only while it differs from the module, and puts the value back", () => {
-    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    render(
+      <SystemCommandPage
+        serverId="sk_1"
+        commandId="attribution:open"
+        stepsEditor={ControlledStepsEditor}
+      />,
+    );
     const reset = () =>
       screen.getByRole("button", { name: "Permission : revenir à la valeur du module" });
     expect(reset()).toBeDisabled();
@@ -134,7 +205,13 @@ describe("SystemCommandPage", () => {
         },
       },
     });
-    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    render(
+      <SystemCommandPage
+        serverId="sk_1"
+        commandId="attribution:open"
+        stepsEditor={ControlledStepsEditor}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Revenir aux valeurs du module" }));
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() =>
@@ -152,7 +229,13 @@ describe("SystemCommandPage", () => {
 
   it("creates the module's folder when it has none on this server", async () => {
     useSystemCommandsStore.setState({ folders: [] });
-    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    render(
+      <SystemCommandPage
+        serverId="sk_1"
+        commandId="attribution:open"
+        stepsEditor={ControlledStepsEditor}
+      />,
+    );
     fireEvent.click(screen.getByRole("switch"));
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() => expect(configWrite).toHaveBeenCalled());
