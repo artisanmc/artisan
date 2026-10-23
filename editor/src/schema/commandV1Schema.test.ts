@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import pay from "../../../docs/schema/command/v1/examples/pay-player.json";
+import auctionHouse from "../../../docs/schema/command/v1/examples/auction-house-subcommands.json";
 import profile from "../../../docs/schema/command/v1/examples/profile-with-target.json";
 import heal from "../../../docs/schema/command/v1/examples/simple-heal.json";
 import schema from "../../../docs/schema/command/v1/schema.json";
@@ -10,7 +11,7 @@ describe("command/v1 schema shape", () => {
     expect(props.actions.$ref).toContain("ClickHandler");
     expect(props.steps.$ref).toContain("ClickHandler");
     expect((schema as any).required).toEqual(["schema"]);
-    expect((schema as any).anyOf).toEqual([{ required: ["actions"] }, { required: ["steps"] }]);
+    expect((schema as any).anyOf).toEqual([{ required: ["actions"] }, { required: ["steps"] }, { required: ["subcommands"] }]);
   });
 
   it("name is optional (defaults to id at load)", () => {
@@ -24,10 +25,21 @@ describe("command/v1 schema shape", () => {
   });
 
   it("all examples use the canonical `actions` DSL string, not legacy `steps`", () => {
-    for (const ex of [pay, profile, heal] as any[]) {
+    for (const ex of [pay, profile, heal, auctionHouse] as any[]) {
       expect(typeof ex.actions).toBe("string");
       expect(ex.actions.length).toBeGreaterThan(0);
       expect(ex.steps).toBeUndefined();
     }
+  });
+
+  it("nests sub-commands with the same node fields, at any depth", () => {
+    const sub = (schema as any).$defs.Subcommand;
+    expect(sub.required).toEqual(["name"]);
+    expect(sub.properties.subcommands.items.$ref).toBe("#/$defs/Subcommand");
+    for (const key of ["aliases", "permission", "description", "enabled", "arguments", "requirements", "actions", "fallback", "cooldown"]) {
+      expect(sub.properties[key], key).toBeDefined();
+    }
+    expect((schema as any).properties.description.$ref).toBe("#/$defs/LocalizedText");
+    expect((auctionHouse as any).subcommands[1].subcommands).toHaveLength(2);
   });
 });

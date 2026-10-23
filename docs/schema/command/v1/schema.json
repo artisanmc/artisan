@@ -18,6 +18,11 @@
       "required": [
         "steps"
       ]
+    },
+    {
+      "required": [
+        "subcommands"
+      ]
     }
   ],
   "properties": {
@@ -49,9 +54,13 @@
       "description": "Permission requise pour exécuter la commande. Si absente, accessible à tous (sous réserve des requirements)."
     },
     "description": {
-      "type": "string",
-      "maxLength": 256,
-      "description": "Description courte affichée dans la liste des commandes du serveur. Visible par les joueurs."
+      "$ref": "#/$defs/LocalizedText",
+      "description": "Description courte affichée dans la liste des commandes du serveur. Visible par les joueurs. Une chaîne (toutes les langues) ou une table `{langue: texte}`."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "false : la commande n'est pas enregistrée (rien n'est supprimé) et son nom reste libre."
     },
     "notes": {
       "type": "string",
@@ -114,6 +123,13 @@
           "type": "string"
         }
       }
+    },
+    "subcommands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Subcommand"
+      },
+      "description": "Sous-commandes, tapées après le nom et avant les arguments (`/ah sell 100`). Profondeur libre."
     }
   },
   "$defs": {
@@ -219,6 +235,99 @@
           }
         }
       ]
+    },
+    "LocalizedText": {
+      "description": "Un texte pour toutes les langues, ou une table langue → texte (repli : langue par défaut, puis la première présente).",
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 256
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "minProperties": 1
+        }
+      ]
+    },
+    "Subcommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "description": "Un nœud de `subcommands`. Atteint par son nom ou un alias après celui de son parent. Sans `actions`, il affiche l'usage de ses sous-commandes autorisées.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+          "description": "Mot tapé après celui du parent."
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+          },
+          "uniqueItems": true,
+          "description": "Alternatives au nom principal. Toutes pointent vers la même commande."
+        },
+        "permission": {
+          "type": "string",
+          "description": "Vérifiée en plus de celles des parents : une sous-commande n'élargit jamais l'accès."
+        },
+        "description": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "false : la sous-commande n'existe pas ; son nom retombe sur les arguments du parent."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "Notes internes de l'admin (jamais affichées aux joueurs). Survivent au round-trip JSON ↔ YAML."
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Argument"
+          },
+          "description": "Arguments positionnels, ordonnés. Les arguments required doivent précéder les optionnels."
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Condition"
+          },
+          "description": "Conditions ANDées évaluées avant exécution. Si une échoue, le fallback (s'il existe) est exécuté à la place des actions."
+        },
+        "actions": {
+          "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/ClickHandler",
+          "description": "Chaîne d'actions exécutée quand la commande est appelée. Wire canonique : steps structurés (ou un step / une liste). Une string = ancien Action DSL (legacy). Les arguments résolus sont disponibles via %args_<name>% et {arg}."
+        },
+        "fallback": {
+          "type": "array",
+          "items": {
+            "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Step"
+          },
+          "description": "Actions à exécuter si les requirements échouent. Typiquement un send_message expliquant pourquoi."
+        },
+        "cooldown": {
+          "$ref": "#/$defs/Cooldown",
+          "description": "Cooldown propre au nœud. Sans `id`, il vaut le chemin de la commande (`ah sell`)."
+        },
+        "subcommands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Subcommand"
+          }
+        }
+      }
     }
   }
 }
