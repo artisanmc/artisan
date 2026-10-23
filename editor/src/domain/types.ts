@@ -488,11 +488,24 @@ export interface Command {
   description?: string;
   arguments: CommandArg[];
   steps: Step[];
+  /**
+   * Keys of the `command/v1` file the editor does not edit yet (`requirements`,
+   * `fallback`, `cooldown`, `notes`, unknown keys), written back as read: a
+   * deploy never drops what the admin wrote by hand.
+   */
+  wire?: Record<string, unknown>;
 }
 
 export interface CommandArg {
   name: string;
   type: "player" | "string" | "integer" | "number" | "boolean";
+  /**
+   * The file's own type when the editor has no control for it (`world`, `enum`,
+   * `item_material`): written back instead of [type] until the admin picks another.
+   */
+  wireType?: string;
+  /** Keys of the argument the editor does not edit (`values`, `description`), written back as read. */
+  wire?: Record<string, unknown>;
   required: boolean;
   /**
    * Reserved value `"{sender}"` on a `player` argument: omitted → bind whoever

@@ -72,28 +72,34 @@ describe("commandV1ToDomain", () => {
     ]);
   });
 
-  it("flags requirements/fallback/cooldown and unsupported arg types", () => {
+  it("keeps requirements, fallback, cooldown and unknown argument types for the way back", () => {
     const { command, unsupported } = commandV1ToDomain(
       {
         schema: "command/v1",
         id: "c",
         name: "c",
-        arguments: [{ name: "w", type: "world", required: false }],
+        arguments: [{ name: "w", type: "world", required: false, description: "the world" }],
         requirements: [{ type: "has_money", amount: 1 }],
         fallback: [{ name: "close_menu", value: null }],
         cooldown: { id: "x", duration_seconds: 5 },
+        notes: "kept",
         steps: "close_menu",
       },
       opts,
     );
-    expect(command.arguments[0]).toEqual({ name: "w", type: "string", required: false });
-    expect(unsupported).toEqual(
-      expect.arrayContaining([
-        "command.requirements",
-        "command.fallback",
-        "command.cooldown",
-        "arg type: world",
-      ]),
-    );
+    expect(command.arguments[0]).toEqual({
+      name: "w",
+      type: "string",
+      wireType: "world",
+      required: false,
+      wire: { description: "the world" },
+    });
+    expect(command.wire).toEqual({
+      requirements: [{ type: "has_money", amount: 1 }],
+      fallback: [{ name: "close_menu", value: null }],
+      cooldown: { id: "x", duration_seconds: 5 },
+      notes: "kept",
+    });
+    expect(unsupported).toEqual([]);
   });
 });

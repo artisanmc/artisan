@@ -22,6 +22,25 @@ export interface CommandImportResult {
 
 const ARG_TYPES = new Set(["player", "string", "integer", "number", "boolean"]);
 
+/** The keys the domain models; every other key of the file is kept in `wire`. */
+const COMMAND_KEYS = new Set([
+  "schema",
+  "id",
+  "name",
+  "aliases",
+  "permission",
+  "description",
+  "arguments",
+  "actions",
+  "steps",
+]);
+const ARG_KEYS = new Set(["name", "type", "required", "default"]);
+
+function rest(src: Json, modelled: Set<string>): Json | undefined {
+  const out = Object.fromEntries(Object.entries(src).filter(([key]) => !modelled.has(key)));
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export function commandV1ToDomain(
   src: Json,
   opts: {
@@ -62,23 +81,22 @@ export function commandV1ToDomain(
   const steps = parseSteps(src.actions ?? src.steps);
 
   const args: CommandArg[] = ((src.arguments as Json[]) ?? []).map((a) => {
-    let type = a.type as string;
-    if (type === "online_player") type = "player";
-    else if (!ARG_TYPES.has(type)) {
-      unsupported.push(`arg type: ${type}`);
-      type = "string";
-    }
+    const raw = String(a.type ?? "string");
+    const known = raw === "online_player" ? "player" : raw === "int" ? "integer" : raw;
+    const wire = rest(a, ARG_KEYS);
     return {
       name: a.name,
-      type: type as CommandArg["type"],
+      // A type without a control here reads as a string and goes back as written.
+      type: (ARG_TYPES.has(known) ? known : "string") as CommandArg["type"],
+      ...(ARG_TYPES.has(known) ? {} : { wireType: raw }),
       required: a.required ?? true,
       ...(a.default !== undefined ? { default: String(a.default) } : {}),
+      ...(wire ? { wire } : {}),
     };
   });
 
-  for (const field of ["requirements", "fallback", "cooldown"]) {
-    if (src[field] !== undefined) unsupported.push(`command.${field}`);
-  }
+  // What the editor does not edit yet (requirements, fallback, cooldown…) rides along untouched.
+  const wire = rest(src, COMMAND_KEYS);
 
   const command: DomainCommand = {
     id: src.id as CommandId,
@@ -89,6 +107,7 @@ export function commandV1ToDomain(
     ...(Array.isArray(src.aliases) && src.aliases.length > 0 ? { aliases: src.aliases } : {}),
     ...(src.permission ? { permission: src.permission } : {}),
     ...(src.description ? { description: src.description } : {}),
+    ...(wire ? { wire } : {}),
   };
 
   return { command, i18nKeys, unsupported };

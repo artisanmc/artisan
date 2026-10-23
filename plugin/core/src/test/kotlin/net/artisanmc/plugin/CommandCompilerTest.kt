@@ -137,4 +137,29 @@ class CommandCompilerTest {
         assertNotNull(result)
         assertEquals("does_not_exist", assertIs<net.artisanmc.plugin.engine.Step.ActionStep>(result.handler.steps.single()).name)
     }
+
+    @Test fun `every argument type the editor and the schema write compiles`() {
+        val yaml = CommandYaml(
+            id = "pay",
+            arguments = listOf(
+                mapOf("name" to "target", "type" to "online_player"),
+                mapOf("name" to "amount", "type" to "integer"),
+                mapOf("name" to "rate", "type" to "number", "required" to false),
+                mapOf("name" to "notify", "type" to "boolean", "required" to false, "default" to true),
+            ),
+            actions = "close_menu",
+        )
+        val result = CommandCompiler.compile(yaml)
+        assertNotNull(result, "a type the editor offers must not leave the command unregistered")
+        assertEquals(
+            listOf(
+                ArgDef.PlayerArg("target"),
+                ArgDef.IntArg("amount"),
+                ArgDef.NumberArg("rate", required = false),
+                ArgDef.BooleanArg("notify", required = false, default = true),
+            ),
+            result.argDefs,
+        )
+    }
 }
+

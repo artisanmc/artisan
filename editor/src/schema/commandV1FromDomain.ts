@@ -20,13 +20,15 @@ export function commandV1FromDomain(cmd: Command, project: Project): DocumentV1 
   if (cmd.description) out.description = cmd.description;
   if (cmd.arguments && cmd.arguments.length > 0) {
     out.arguments = cmd.arguments.map((arg) => ({
+      ...arg.wire,
       name: arg.name,
-      type: arg.type,
+      type: arg.wireType ?? arg.type,
       required: arg.required,
       ...(arg.default !== undefined ? { default: arg.default } : {}),
     }));
   }
-  return out;
+  // Keys the editor does not edit, as read (requirements, fallback, cooldown…), after its own.
+  return { ...out, ...cmd.wire, id: out.id };
 }
 
 /** Serialize every command in a project to canonical command/v1 objects. */
