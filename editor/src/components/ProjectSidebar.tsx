@@ -1,5 +1,6 @@
 import { ArtisanWordmark } from "@/components/ArtisanWordmark";
 import { Badge } from "@/components/ui/badge";
+import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
 import type { Project } from "@/domain/types";
 import {
@@ -45,6 +46,7 @@ import type { PlayerCommand } from "@/lib/api/playerCommands";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
 import { allCommands, overrideState } from "@/lib/commandOverride";
+import { kindAppearance } from "@/lib/documentKindAppearance";
 import { moduleCommandsOf } from "@/lib/moduleCommands";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlServerId } from "@/lib/urlIds";
@@ -61,8 +63,9 @@ import {
   Folder,
   FolderOpen,
   GripVertical,
-  SlidersHorizontal,
-  Terminal,
+  Settings,
+  Table2,
+  type Terminal,
 } from "lucide-react";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { type ServerEntry, ServerSelector } from "./ServerSelector";
@@ -404,12 +407,9 @@ function ScreenItem({
         to="/servers/$serverId/screens/$screenId"
         params={{ serverId, screenId: screen.id }}
         onClick={() => useSidebarStore.getState().close()}
-        className={
-          isActive
-            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--text)] transition-colors"
-            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        }
+        className={entryRowClass(isActive)}
       >
+        <EntryTile icon={Table2} />
         <span className="truncate flex-1" title={screen.label}>
           {screen.label}
         </span>
@@ -765,7 +765,10 @@ function PluginModuleItem({
   );
 }
 
-/** What a plugin module alone manages: its system commands, then its screens and configuration route under "Others". */
+/**
+ * What a plugin module alone manages: its system commands, its screens and its
+ * configuration, one row each with its tile, like the Documents of a folder (no header).
+ */
 function ModuleEntries({
   entries,
   commands,
@@ -777,56 +780,45 @@ function ModuleEntries({
 }) {
   const { t } = useTranslation();
   return (
-    <ul className="ml-3 flex flex-col border-l border-[var(--border)] pl-1">
-      {commands.length > 0 && serverId && (
-        <EntryGroup icon={Terminal} label={t("sidebar.systemCommands")}>
-          {commands.map((command) => (
-            <CommandItem key={command.id} command={command} serverId={serverId} />
-          ))}
-        </EntryGroup>
-      )}
-      {entries.length > 0 && (
-        <EntryGroup icon={SlidersHorizontal} label={t("sidebar.otherEntries")}>
-          {entries.map((e) =>
-            e.kind === "screen" ? (
-              <ScreenItem key={`s:${e.screen.id}`} screen={e.screen} serverId={serverId} />
-            ) : (
-              <li key={`c:${e.moduleId}`}>
-                <Link
-                  to="/m/$moduleId"
-                  params={{ moduleId: e.moduleId }}
-                  onClick={() => useSidebarStore.getState().close()}
-                  className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                >
-                  <span className="truncate flex-1">{t("sidebar.configuration")}</span>
-                </Link>
-              </li>
-            ),
-          )}
-        </EntryGroup>
+    <ul className="flex flex-col">
+      {serverId &&
+        commands.map((command) => (
+          <CommandItem key={command.id} command={command} serverId={serverId} />
+        ))}
+      {entries.map((e) =>
+        e.kind === "screen" ? (
+          <ScreenItem key={`s:${e.screen.id}`} screen={e.screen} serverId={serverId} />
+        ) : (
+          <li key={`c:${e.moduleId}`}>
+            <Link
+              to="/m/$moduleId"
+              params={{ moduleId: e.moduleId }}
+              onClick={() => useSidebarStore.getState().close()}
+              className={entryRowClass(false)}
+            >
+              <EntryTile icon={Settings} />
+              <span className="truncate flex-1">{t("sidebar.configuration")}</span>
+            </Link>
+          </li>
+        ),
       )}
     </ul>
   );
 }
 
-/** A labelled group of a module's entries, headed like a Document type in the tree. */
-function EntryGroup({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon: typeof Terminal;
-  label: string;
-  children: ReactNode;
-}) {
+/** A module entry's row: the frame and type of a Document's row in the tree. */
+function entryRowClass(active: boolean): string {
+  return `flex items-center gap-2 rounded-[10px] py-[5px] pr-2 pl-1.5 text-[13px] leading-5 text-[var(--text)] transition-colors ${
+    active ? "bg-[var(--surface-hover)] font-semibold" : "hover:bg-[var(--surface-hover)]"
+  }`;
+}
+
+/** A neutral tile for a module's screen or configuration (a command wears the command's). */
+function EntryTile({ icon }: { icon: typeof Terminal }) {
   return (
-    <li className="flex flex-col">
-      <div className="flex items-center gap-1.5 px-2 pt-2.5 pb-1 text-[11.5px] font-semibold text-[var(--text-mut)]">
-        <Icon className="size-3" aria-hidden />
-        {label}
-      </div>
-      <ul className="flex flex-col">{children}</ul>
-    </li>
+    <span className="flex shrink-0" aria-hidden>
+      <IconTile icon={icon} fg="var(--text-mut)" soft="var(--surface-raised-2)" size="xs" />
+    </span>
   );
 }
 
@@ -838,18 +830,19 @@ function CommandItem({ command, serverId }: { command: PlayerCommand; serverId: 
   const state = overrideState(override);
   const isActive = params.commandId === command.id;
   const name = override?.fields.name || command.name;
+  const look = kindAppearance("command");
   return (
     <li>
       <Link
         to="/servers/$serverId/commands/$commandId"
         params={{ serverId, commandId: command.id }}
         onClick={() => useSidebarStore.getState().close()}
-        className={
-          isActive
-            ? "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-semibold text-[var(--text)] transition-colors"
-            : "flex items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-mut)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        }
+        className={entryRowClass(isActive)}
+        style={isActive ? { background: look.soft } : undefined}
       >
+        <span className="flex shrink-0" aria-hidden>
+          <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
+        </span>
         <span
           className={
             state === "disabled" ? "truncate flex-1 line-through opacity-60" : "truncate flex-1"
