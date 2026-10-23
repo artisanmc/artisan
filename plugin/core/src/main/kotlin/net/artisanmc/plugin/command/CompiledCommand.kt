@@ -12,6 +12,8 @@ data class CompiledCommand(
     val handler: ClickHandler,
     /** Enabled sub-commands, matched by name or alias before [argDefs]. */
     val children: List<CompiledCommand> = emptyList(),
+    /** `console: true`: the console may run it, through its single `module_command`. */
+    val console: Boolean = false,
 ) {
     /** The enabled sub-command typed as [token], by name or alias. */
     fun child(token: String): CompiledCommand? =

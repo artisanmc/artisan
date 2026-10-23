@@ -25,6 +25,7 @@ object CommandCompiler {
             argDefs     = ArgDefParser.parseAll(yaml.arguments),
             handler     = handler(yaml.requirements, yaml.fallback, yaml.cooldown, steps, yaml.id.ifEmpty { name }),
             children    = children(yaml.subcommands, yaml.id.ifEmpty { name }, I18nAddress.command(yaml.id), logger),
+            console     = yaml.console,
         )
     }.getOrElse { e ->
         logger?.warning("Failed to compile command '${yaml.name}': ${e.message}")
@@ -54,6 +55,7 @@ object CommandCompiler {
                     handler     = handler(node.requirements, node.fallback, node.cooldown,
                                           ActionChainCompiler.compile(node.actions, nodePrefix), nodePath),
                     children    = children(node.subcommands, nodePath, nodePrefix, logger),
+                    console     = node.console,
                 )
             }.getOrElse { e ->
                 logger?.warning("Failed to compile sub-command '/$nodePath': ${e.message}")
