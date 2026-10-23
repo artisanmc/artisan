@@ -88,6 +88,22 @@ describe("command overrides", () => {
     expect(out).toContain("# permission: artisan.open");
   });
 
+  it("edits the steps that replace the module's code, and drops them to run it again", () => {
+    const previous = "command: attribution:open\nsteps: [{ message: hi }]\n";
+    const read = parseOverride("x", "overrides/command/x.yaml", previous);
+    expect(read?.fields.steps).toEqual([{ message: "hi" }]);
+    expect(read?.hasLogic).toBe(false);
+    const declared = command("attribution:open");
+    const steps = [{ module_command: { command: "attribution:open" } }];
+    expect(parse(serializeOverride(declared, { enabled: true, steps }, previous)).steps).toEqual(
+      steps,
+    );
+    expect(parse(serializeOverride(declared, { enabled: true }, previous)).steps).toBeUndefined();
+    expect(
+      parse(serializeOverride(declared, { enabled: true, steps: [] }, previous)).steps,
+    ).toBeUndefined();
+  });
+
   it("keeps the file once nothing is left to override, the module's values as comments", () => {
     const declared: PlayerCommand = {
       ...command("attribution:open"),

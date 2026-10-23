@@ -118,6 +118,19 @@ describe("SystemCommandPage", () => {
     useUiStore.setState({ activeLang: "fr" });
   });
 
+  it("replaces the module's code with steps that start by calling it, and goes back to it", async () => {
+    render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
+    expect(screen.getByText("Le code du module s'exécute.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Personnaliser" }));
+    expect(screen.getByText("modifié")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(configWrite).toHaveBeenCalled());
+    const content = vi.mocked(configWrite).mock.calls[0]![1].files[0]!.content;
+    expect(content).toContain("steps:\n  - module_command:\n      command: attribution:open\n");
+    fireEvent.click(screen.getByRole("button", { name: "Revenir au code du module" }));
+    expect(screen.getByText("Le code du module s'exécute.")).toBeInTheDocument();
+  });
+
   it("puts the root's name in the header and its card, renamed as typed", () => {
     render(<SystemCommandPage serverId="sk_1" commandId="attribution:open" />);
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();

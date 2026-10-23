@@ -31,6 +31,11 @@ export interface OverrideFields {
   permission?: string;
   description?: Texts;
   cooldown?: OverrideCooldown;
+  /**
+   * The chain run instead of the module's code, keyed wire as in the file (a legacy DSL
+   * string read as is); undefined runs the module's code.
+   */
+  steps?: unknown;
 }
 
 /** An override found on the server's disk. */
@@ -41,7 +46,7 @@ export interface StoredOverride {
   path: string;
   content: string;
   fields: OverrideFields;
-  /** Requirements, fallback or steps: kept as written, edited in the file only. */
+  /** Requirements or a fallback: kept as written, edited in the file only. */
   hasLogic: boolean;
   /** The chain run instead of the module's code, as written; undefined when it sets none. */
   steps?: unknown;
@@ -102,10 +107,9 @@ export function parseOverride(
       ...(message ? { message } : {}),
     };
   }
+  if (hasSteps(raw.steps)) fields.steps = raw.steps;
   const hasLogic =
-    (Array.isArray(raw.requirements) && raw.requirements.length > 0) ||
-    raw.fallback != null ||
-    raw.steps != null;
+    (Array.isArray(raw.requirements) && raw.requirements.length > 0) || raw.fallback != null;
   return {
     command,
     folder,
@@ -142,12 +146,13 @@ export function moduleChanges(command: PlayerCommand, fields: OverrideFields): O
       ...(message ? { message } : {}),
     };
   }
+  if (hasSteps(fields.steps)) out.steps = fields.steps;
   return out;
 }
 
 /**
  * The file for [fields], written over [previous] so that what the form does not edit
- * (requirements, fallback, steps, a cooldown id, unknown keys) is kept. The module's values
+ * (requirements, fallback, a cooldown id, unknown keys) is kept. The module's values
  * that the override leaves alone follow as comments, as in the file the server writes for
  * each module command: once nothing is left to override, that is all the file holds.
  */
@@ -175,6 +180,7 @@ export function serializeOverride(
           ...(cooldown.message ? { message: textsToYaml(cooldown.message) } : {}),
         }
       : undefined,
+    steps: changes.steps,
   };
   const raw = Object.fromEntries(
     Object.entries({ ...kept, ...edited }).filter(
@@ -212,6 +218,13 @@ function sameList(a: string[], b: string[]): boolean {
 function sameTexts(a: Texts, b: Texts): boolean {
   const keys = Object.keys(a);
   return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
+}
+
+/** A chain that replaces the module's code: an empty list or text runs the module's. */
+function hasSteps(steps: unknown): boolean {
+  if (Array.isArray(steps)) return steps.length > 0;
+  if (typeof steps === "string") return steps.trim() !== "";
+  return steps != null;
 }
 
 function clean(value: Texts): Texts {

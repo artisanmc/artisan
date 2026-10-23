@@ -1263,7 +1263,7 @@ export default {
     loading: "Reading the server's commands…",
     notFound: "This server does not declare this command.",
     logicKept:
-      "This override also holds requirements or steps. They are kept as written and can only be edited in the file.",
+      "This override also holds requirements or a fallback. They are kept as written and can only be edited in the file.",
     enabled: "Enabled",
     name: "Name",
     aliases: "Aliases",
@@ -1274,6 +1274,13 @@ export default {
     resetField: "{{field}}: back to the module's value",
     noMessage: "No message",
     description: "Description",
+    behaviour: "Behaviour",
+    behaviourModule: "The module's code runs.",
+    behaviourMenu: "Opens the menu {{menu}}, as the module declares.",
+    behaviourCustomHint:
+      'These steps replace the module\'s code. The "module_command" action calls it: keep it to add steps before or after, remove it to replace it.',
+    behaviourCustomise: "Customise",
+    behaviourReset: "Back to the module's code",
     textLang: "Language: {{lang}}. Other languages are in the Translations tab.",
     textFallback:
       "Not translated to {{lang}} yet: the greyed text applies. Other languages are in the Translations tab.",

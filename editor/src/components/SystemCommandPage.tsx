@@ -8,6 +8,8 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { ResetButton } from "@/components/ui/reset-button";
 import { Switch } from "@/components/ui/switch";
+import type { ProjectId } from "@/domain/types";
+import { ControlledStepsEditor } from "@/features/inspector/chain/ControlledStepsEditor";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { configWrite } from "@/lib/api/configScreens";
 import type { PlayerCommand } from "@/lib/api/playerCommands";
@@ -24,6 +26,7 @@ import {
   serializeOverride,
 } from "@/lib/commandOverride";
 import { kindAppearance } from "@/lib/documentKindAppearance";
+import { stepsFromWire, stepsToWire } from "@/lib/literalSteps";
 import { useSystemCommandsStore } from "@/state/systemCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import { Terminal } from "lucide-react";
@@ -49,6 +52,7 @@ export function SystemCommandPage({
 }) {
   const { t } = useTranslation();
   const status = useSystemCommandsStore((s) => s.status);
+  const folders = useSystemCommandsStore((s) => s.folders);
   const commands = useSystemCommandsStore((s) => s.commands);
   const overrides = useSystemCommandsStore((s) => s.overrides);
   const command = useMemo(
@@ -174,6 +178,7 @@ export function SystemCommandPage({
                 ? `/${drafts[command.id]?.name?.trim() || command.name}`
                 : labelOf(command, c)
             }
+            folder={overrideFolder(c, overrides[c.id], folders) ?? commandNamespace(c.id)}
             fields={drafts[c.id] ?? { enabled: true }}
             onChange={(fields) => update(c.id, fields)}
           />
@@ -252,6 +257,7 @@ function CommandForm({
   command,
   root,
   label,
+  folder,
   fields,
   onChange,
 }: {
@@ -259,6 +265,8 @@ function CommandForm({
   root: boolean;
   /** `/name` as players type it, a sub-command's in full. */
   label: string;
+  /** The module folder its override lives in: the project its steps edit against. */
+  folder: string;
   fields: OverrideFields;
   onChange: (fields: OverrideFields) => void;
 }) {
@@ -439,9 +447,86 @@ function CommandForm({
               />
             )}
           </div>
+          <BehaviourField
+            command={command}
+            folder={folder}
+            steps={fields.steps}
+            onChange={(steps) => set({ steps })}
+          />
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * What the command runs: the module's code, or the admin's steps in its place (design
+ * `framework-commandes` Q6). Customising starts from a `module_command` step that calls
+ * the module's code, so the admin adds before or after it, or replaces it.
+ */
+function BehaviourField({
+  command,
+  folder,
+  steps,
+  onChange,
+}: {
+  command: PlayerCommand;
+  folder: string;
+  steps: unknown;
+  onChange: (steps: unknown) => void;
+}) {
+  const { t } = useTranslation();
+  const custom = steps != null;
+  // A node with sub-commands only has no code of its own to call back.
+  const runnable = command.children.length === 0 || command.opensMenu !== null;
+  const customise = () =>
+    onChange(
+      runnable
+        ? [
+            {
+              module_command: {
+                command: command.id,
+                ...(command.arguments.length > 0
+                  ? {
+                      args: Object.fromEntries(
+                        command.arguments.map((arg) => [arg.name, `{${arg.name}}`]),
+                      ),
+                    }
+                  : {}),
+              },
+            },
+          ]
+        : [],
+    );
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <span className="field-label !mb-0 flex-1">{t("systemCommands.behaviour")}</span>
+        {custom ? (
+          <Button variant="ghost" size="sm" onClick={() => onChange(undefined)}>
+            {t("systemCommands.behaviourReset")}
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={customise}>
+            {t("systemCommands.behaviourCustomise")}
+          </Button>
+        )}
+      </div>
+      <p className="text-[12px] text-[var(--text-faint)]">
+        {custom
+          ? t("systemCommands.behaviourCustomHint")
+          : command.opensMenu
+            ? t("systemCommands.behaviourMenu", { menu: command.opensMenu })
+            : t("systemCommands.behaviourModule")}
+      </p>
+      {custom && (
+        <ControlledStepsEditor
+          projectId={folder as ProjectId}
+          value={stepsFromWire(steps)}
+          onChange={(next) => onChange(stepsToWire(next))}
+        />
+      )}
+    </div>
   );
 }
 
