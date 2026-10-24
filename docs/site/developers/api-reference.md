@@ -213,7 +213,7 @@ listed under [Menus and actions](#menus-and-actions).
 
 ## File formats
 
-Add-ons that ship or read project files meet these YAML schemas: `manifest/v1`,
+Add-ons that ship or read project files meet these YAML schemas: `module/v1` (the module file, `artisan-module.yml`; `manifest/v1` in `manifest.yaml` is still read),
 `menu/v1`, `command/v1`, `dialog/v1`, `model/v1`, `template/v1`, plus bare data
 files under `data/`. Artisan rejects unsupported versions when it reads a
 project. The JSON Schemas live in the repository under

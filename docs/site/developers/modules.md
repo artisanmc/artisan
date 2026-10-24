@@ -127,7 +127,7 @@ project, with `/` separators:
 ```kotlin
 for (projectId in api.project.projectIds()) {
     for (rel in api.project.list(projectId, "data/homes")) {      // sorted, relative to the dir
-        if (!rel.endsWith(".yaml")) continue
+        if (!(rel.endsWith(".yml") || rel.endsWith(".yaml"))) continue
         val text = api.project.read(projectId, "data/homes/$rel") ?: continue
         // parse with your YAML library, then cache
     }
@@ -192,24 +192,33 @@ it at a subdirectory that holds nothing else (`plugins/Homes/editor/`, not
 ### Ship default content
 
 On first boot, write a starter project so admins open the editor to something
-real: a manifest, a menu, your data files, translations.
+real: a module file, a menu, your data files, translations.
 
 ```
 plugins/Homes/editor/
-  manifest.yaml
-  menus/homes.yaml
-  data/settings.yaml
-  lang/en.yaml
+  artisan-module.yml
+  menus/homes.yml
+  data/settings.yml
+  lang/en.yml
 ```
 
 ```yaml
-# manifest.yaml
-schema: manifest/v1
+# artisan-module.yml
+schema: module/v1
 default_lang: en
 languages: [en]
 ```
 
-A document's id is its file name: `menus/homes.yaml` is the menu `homes`.
+A document's id is its file name: `menus/homes.yml` is the menu `homes`.
+
+Artisan writes `.yml`, the Bukkit norm, and reads `.yaml` too: a file under
+either extension is found, by `api.project.read` as well (`read("lang/en.yaml")`
+returns `lang/en.yml`). The module file is `artisan-module.yml`; a folder with
+`manifest.yaml` (`schema: manifest/v1`) is still a module. At startup Artisan
+renames the `.yaml` files of the folders under `plugins/Artisan/modules/` to
+`.yml`, and `manifest.yaml` to `artisan-module.yml`; a directory your add-on
+registers elsewhere, or as configuration, is left as it is. If your code opens a file by name, look for `.yml`
+first, then `.yaml`.
 
 Write into a temporary sibling directory and rename it into place, so a crash
 mid-write never leaves a half-populated project that blocks the next attempt.

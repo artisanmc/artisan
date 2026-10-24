@@ -144,7 +144,7 @@ plugin keeps opening them by id. A minimal menu using a data source and a
 command:
 
 ```yaml
-# menus/homes.yaml
+# menus/homes.yml
 schema: menu/v1
 title: []
 size: 27
@@ -168,7 +168,7 @@ hard-coded Bukkit command, and admins can rename it, add aliases, a permission
 or a cooldown from the editor:
 
 ```yaml
-# commands/homes.yaml
+# commands/homes.yml
 schema: command/v1
 name: homes
 aliases: [h]
