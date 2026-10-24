@@ -1,4 +1,4 @@
-import { menusOf } from "@/domain/documents";
+import { docKey, menusOf } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
 import { useUiStore } from "@/state/uiStore";
 import type Konva from "konva";
@@ -88,9 +88,8 @@ export function useStageFraming({
   // not fit — never enlarged.
   const focusBox = useMemo<{ width: number; height: number; maxScale?: number } | null>(() => {
     if (!focus || !project) return null;
-    // `focus` is a Document id (the umbrella); `menu.id` is a MenuId. Nominal
-    // brands do not overlap, so the comparison is textual.
-    const menu = menusOf(project).find((m) => (m.id as string) === focus);
+    // `focus` is the Document's key (`docKey`).
+    const menu = menusOf(project).find((m) => docKey("menu", m.id) === focus);
     if (menu) return menuBoxSize(menu.inventoryType ?? "chest", menu.rows);
     const box = nodeBox(project, focus, { [focus]: { x: 0, y: 0 } });
     // A module's node is vector text, not pixel art: it may grow to fill its view.

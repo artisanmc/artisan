@@ -1,4 +1,4 @@
-import { dialogsOf, mutableDialogs, renamedDocumentFiles } from "@/domain/documents";
+import { dialogsOf, docKey, mutableDialogs, renamedDocumentFiles } from "@/domain/documents";
 import { type StepFrame, type StepPath, moveStepMut, resolveParentMut } from "@/domain/stepPath";
 import type {
   Condition,
@@ -20,12 +20,7 @@ import {
   dialogTitleKey,
 } from "@/lib/i18nKeys";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import {
-  allocStepLTexts,
-  gcStepLTexts,
-  rewriteCanvasEdgeIds,
-  updateDialogLTextKey,
-} from "./helpers";
+import { allocStepLTexts, gcStepLTexts, renameBoardKey, updateDialogLTextKey } from "./helpers";
 import type { Mutation } from "./mutate";
 import type { ProjectsSliceContext } from "./types";
 
@@ -217,7 +212,7 @@ export const createDialogsSlice = ({
           buttons: [{ id: "btn_confirm", label: { key: btnLabelKey }, steps: [] }],
         });
         if (position) {
-          (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+          project.canvasLayout[docKey("dialog", id)] = position;
         }
       });
       return dId;
@@ -251,12 +246,7 @@ export const createDialogsSlice = ({
             updateDialogLTextKey(d, key as I18nKey, newKey);
           }
         }
-        const layout = p.canvasLayout as Record<string, { x: number; y: number }>;
-        if (layout[oldId as string]) {
-          layout[newId as string] = layout[oldId as string]!;
-          delete layout[oldId as string];
-        }
-        rewriteCanvasEdgeIds(p, oldId as string, newId as string);
+        renameBoardKey(p, "dialog", oldId, newId);
       });
       // Renaming is a MOVE, and only the editor knows it: the tree alone would
       // only show a disappearance and an appearance. Without this intent, the

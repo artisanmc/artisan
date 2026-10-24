@@ -1,3 +1,4 @@
+import { docKey } from "@/domain/documents";
 import type { Dialog, ProjectId } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
 import { useAlignmentStore } from "@/state/alignmentStore";
@@ -22,9 +23,10 @@ interface DialogGroupProps {
 }
 
 export function DialogGroup({ projectId, dialog, position, systemModule }: DialogGroupProps) {
+  const key = docKey("dialog", dialog.id);
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
-  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(dialog.id));
-  const nodeAlign = useNodeAlignment(projectId, dialog.id);
+  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
+  const nodeAlign = useNodeAlignment(projectId, key);
   const node = useNodeColors();
   const accent = useCssVar("--kind-dialog");
   const line = useCssVar("--kind-dialog-line");
@@ -35,10 +37,10 @@ export function DialogGroup({ projectId, dialog, position, systemModule }: Dialo
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      setCanvasPosition({ projectId, nodeId: dialog.id, x: e.target.x(), y: e.target.y() });
+      setCanvasPosition({ projectId, nodeId: key, x: e.target.x(), y: e.target.y() });
       useAlignmentStore.getState().clear();
     },
-    [projectId, dialog.id, setCanvasPosition],
+    [projectId, key, setCanvasPosition],
   );
 
   const onClick = useCallback(
@@ -46,12 +48,12 @@ export function DialogGroup({ projectId, dialog, position, systemModule }: Dialo
       e.cancelBubble = true;
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
       const { ids, menuId: selectionMenuId, set, toggle } = useSelectionStore.getState();
-      if (additive) toggle(dialog.id);
-      else if (selectionMenuId !== null || !ids.has(dialog.id) || ids.size > 1) set([dialog.id]);
+      if (additive) toggle(key);
+      else if (selectionMenuId !== null || !ids.has(key) || ids.size > 1) set([key]);
       // Selecting on the canvas opens the Edit tab so the chosen element is
       // immediately editable — no manual tab switch.
     },
-    [dialog.id],
+    [key],
   );
 
   return (
@@ -64,13 +66,13 @@ export function DialogGroup({ projectId, dialog, position, systemModule }: Dialo
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
-      onDblClick={() => dispatchOpenElement(dialog.id)}
-      onDblTap={() => dispatchOpenElement(dialog.id)}
+      onDblClick={() => dispatchOpenElement(key)}
+      onDblTap={() => dispatchOpenElement(key)}
       // The title may be cut by its ellipsis: the full one shows on hover.
       onMouseEnter={(e) => showFullTitle(e, dialog.id)}
       onMouseLeave={(e) => showFullTitle(e, null)}
       name={`dialog:${dialog.id}`}
-      id={dialog.id}
+      id={key}
     >
       {systemModule && <SystemTag module={systemModule} width={DIALOG_BOX.width} />}
       <Rect

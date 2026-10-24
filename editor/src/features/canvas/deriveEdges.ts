@@ -3,7 +3,14 @@ import { commandStepLists } from "@/domain/commandNodes";
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
 import { documentChainSlots } from "@/domain/documentKindVisitors";
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
-import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import {
+  type DocKey,
+  allDocuments,
+  commandsOf,
+  dialogsOf,
+  docKey,
+  menusOf,
+} from "@/domain/documents";
 import { addressedAppearances } from "@/domain/element";
 import type { Project } from "@/domain/types";
 
@@ -16,8 +23,13 @@ export type EdgeTrigger =
 
 export interface Edge {
   id: string;
-  source: string;
-  target: string;
+  /** The source Document's key (`docKey`). */
+  source: DocKey;
+  /**
+   * The target's key: the kind the reference names, then its id, bare when it is a Document
+   * of this board (`menu/shop`), qualified otherwise (`menu/boutique:shop`).
+   */
+  target: DocKey;
   triggers: EdgeTrigger[];
 }
 
@@ -41,8 +53,12 @@ export function deriveEdges(project: Project): Edge[] {
   const triggerSeen = new Map<string, Set<string>>();
 
   const local = (ref: string) => localDocRef(project, ref);
-  const addTrigger = (source: string, rawTarget: string, trigger: EdgeTrigger) => {
-    const target = local(rawTarget);
+  const addTrigger = (
+    source: DocKey,
+    ref: { document: string; id: string },
+    trigger: EdgeTrigger,
+  ) => {
+    const target = docKey(ref.document, local(ref.id));
     const id = `${source}->${target}`;
     const triggerKey =
       trigger.kind === "element"
@@ -76,7 +92,7 @@ export function deriveEdges(project: Project): Edge[] {
             if (!handler) continue;
             for (const ref of walkDocumentRefs(handler.steps)) {
               if (ref.id === "") continue;
-              addTrigger(menu.id, ref.id, {
+              addTrigger(docKey("menu", menu.id), ref, {
                 kind: "element",
                 elementId: el.id,
                 material,
@@ -92,7 +108,8 @@ export function deriveEdges(project: Project): Edge[] {
   for (const cmd of commandsOf(project)) {
     for (const steps of commandStepLists(cmd)) {
       for (const ref of walkDocumentRefs(steps)) {
-        if (ref.id !== "") addTrigger(cmd.id, ref.id, { kind: "command", commandId: cmd.id });
+        if (ref.id !== "")
+          addTrigger(docKey("command", cmd.id), ref, { kind: "command", commandId: cmd.id });
       }
     }
   }
@@ -101,7 +118,7 @@ export function deriveEdges(project: Project): Edge[] {
     for (const btn of dialog.buttons) {
       for (const ref of walkDocumentRefs(btn.steps)) {
         if (ref.id === "") continue;
-        addTrigger(dialog.id, ref.id, {
+        addTrigger(docKey("dialog", dialog.id), ref, {
           kind: "dialog_button",
           dialogId: dialog.id,
           buttonId: btn.id,
@@ -117,7 +134,7 @@ export function deriveEdges(project: Project): Edge[] {
     for (const slot of documentChainSlots(kind, doc)) {
       for (const ref of walkDocumentRefs(slot.steps)) {
         if (ref.id === "") continue;
-        addTrigger(doc.id, ref.id, {
+        addTrigger(docKey(kind, doc.id), ref, {
           kind: "chain",
           documentId: doc.id,
           slot: slot.name,

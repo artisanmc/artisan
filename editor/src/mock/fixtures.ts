@@ -36,10 +36,10 @@ const personalProject = (): Project => {
     dataSources: [],
     importedConnectors: [],
     canvasLayout: {
-      [shopMainId]: { x: 60, y: 80 },
-      [profileId]: { x: 320, y: 200 },
-      [aboutId]: { x: 320, y: 320 },
-      [healCmdId]: { x: 540, y: 80 },
+      [`menu/${shopMainId}`]: { x: 60, y: 80 },
+      [`menu/${profileId}`]: { x: 320, y: 200 },
+      [`menu/${aboutId}`]: { x: 320, y: 320 },
+      [`command/${healCmdId}`]: { x: 540, y: 80 },
     },
     documents: {
       menu: [

@@ -5,6 +5,7 @@ import { filterBoard, parseBoardFilter } from "./boardFilter";
 
 const node = (projectId: string, docId: string, kind: BoardNode["kind"]): BoardNode => ({
   key: `${projectId}/${docId}`,
+  docKey: `${kind}/${docId}`,
   projectId: projectId as ProjectId,
   docId,
   kind,

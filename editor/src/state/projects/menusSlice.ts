@@ -1,6 +1,12 @@
 import { actionDocumentRefs } from "@/domain/actionArgs";
 import { commandStepLists } from "@/domain/commandNodes";
-import { commandsOf, menusOf, mutableMenus, renamedDocumentFiles } from "@/domain/documents";
+import {
+  commandsOf,
+  docKey,
+  menusOf,
+  mutableMenus,
+  renamedDocumentFiles,
+} from "@/domain/documents";
 import { addressedAppearances } from "@/domain/element";
 import { rekeyMenu } from "@/domain/i18nSites";
 import { newElementId, newLayerId } from "@/domain/ids";
@@ -24,7 +30,7 @@ import { parsePositions } from "@/lib/positions";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import {
   defaultIterateRange,
-  rewriteCanvasEdgeIds,
+  renameBoardKey,
   shiftPlayerPositions,
   titleLayerKeys,
 } from "./helpers";
@@ -147,7 +153,7 @@ export const createMenusSlice = ({
         layers: [{ id: newLayerId(), name: "default", elements: [] }],
       });
       if (position) {
-        (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+        project.canvasLayout[docKey("menu", id)] = position;
       }
     });
     return id;
@@ -396,12 +402,7 @@ export const createMenusSlice = ({
       for (const cmd of commandsOf(project)) {
         for (const steps of commandStepLists(cmd)) for (const a of walkActions(steps)) rewrite(a);
       }
-      const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
-      if (oldId in layout) {
-        layout[newId] = layout[oldId]!;
-        delete layout[oldId];
-      }
-      rewriteCanvasEdgeIds(project, oldId as string, newId as string);
+      renameBoardKey(project, "menu", oldId, newId);
       rekeyMenu(project, menu);
     });
     // Same intent as setDialogId, recorded once the rename is applied.

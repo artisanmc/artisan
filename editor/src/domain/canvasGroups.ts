@@ -1,8 +1,8 @@
-import { allDocuments, documentIds } from "./documents";
+import { allDocuments, docKey, documentKeys } from "./documents";
 import type { CanvasGroup, Project } from "./types";
 
-/** Every Document id in a project. */
-export const liveDocumentIds = (project: Project): string[] => documentIds(project);
+/** Every Document key in a project (`docKey`). */
+export const liveDocumentIds = (project: Project): string[] => documentKeys(project);
 
 export const DEFAULT_GROUP_COLOR = "#60a5fa";
 export const isGroupColor = (value: unknown): value is string =>
@@ -15,11 +15,11 @@ export const isGroupColor = (value: unknown): value is string =>
  */
 export function folderGroups(project: Pick<Project, "documents" | "folders">): CanvasGroup[] {
   const members = new Map<string, string[]>();
-  for (const { doc } of allDocuments(project as Project)) {
+  for (const { kind, doc } of allDocuments(project as Project)) {
     if (!doc.folder) continue;
     const top = doc.folder.split("/")[0]!;
     const list = members.get(top) ?? [];
-    list.push(doc.id);
+    list.push(docKey(kind, doc.id));
     members.set(top, list);
   }
   return [...members.keys()]

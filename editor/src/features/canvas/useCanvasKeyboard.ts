@@ -1,4 +1,4 @@
-import { commandsOf, menusOf } from "@/domain/documents";
+import { commandsOf, docKey, menusOf } from "@/domain/documents";
 import type { Command, Element, ElementId, Menu, MenuId, ProjectId } from "@/domain/types";
 import { isTypingTarget } from "@/lib/keyboard";
 import { formatPositions, parsePositions } from "@/lib/positions";
@@ -71,8 +71,8 @@ export const findSelectedEntities = (
   // view keeps its menu selected): copying the items must not copy the menu.
   const owners = new Set(elements.map((e) => e.sourceMenuId));
   return {
-    menus: menusOf(project).filter((m) => idSet.has(m.id) && !owners.has(m.id)),
-    commands: commandsOf(project).filter((c) => idSet.has(c.id)),
+    menus: menusOf(project).filter((m) => idSet.has(docKey("menu", m.id)) && !owners.has(m.id)),
+    commands: commandsOf(project).filter((c) => idSet.has(docKey("command", c.id))),
     elements,
   };
 };
@@ -90,7 +90,8 @@ const resolveTargetMenu = (projectId: ProjectId, elements: ElementCopy[]): MenuI
   if (!project) return null;
   const sel = [...useSelectionStore.getState().ids];
   for (const id of sel) {
-    if (menusOf(project).some((m) => m.id === id)) return id as MenuId;
+    const menu = menusOf(project).find((m) => docKey("menu", m.id) === id);
+    if (menu) return menu.id;
   }
   for (const id of sel) {
     for (const m of menusOf(project)) {
@@ -308,7 +309,7 @@ const deleteSelection = (projectId: ProjectId, selected: string[], onKept?: () =
   for (const { sourceMenuId, element } of elements) {
     store.deleteElement({ projectId, menuId: sourceMenuId, elementId: element.id as ElementId });
   }
-  const owners = new Set<string>(elements.map((e) => e.sourceMenuId));
+  const owners = new Set<string>(elements.map((e) => docKey("menu", e.sourceMenuId)));
   store.deleteFromProject({ projectId, nodeIds: ids.filter((id) => !owners.has(id)) });
 };
 

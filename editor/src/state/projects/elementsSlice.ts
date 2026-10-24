@@ -1,4 +1,4 @@
-import { mutableCommands, mutableMenus } from "@/domain/documents";
+import { docKey, mutableCommands, mutableMenus } from "@/domain/documents";
 import { addressedAppearances, appearanceAt } from "@/domain/element";
 import { rekeyCommand, rekeyMenu } from "@/domain/i18nSites";
 import { newLayerId } from "@/domain/ids";
@@ -1056,10 +1056,7 @@ export const createElementsSlice = ({
             }
             mutableMenus(project).push(stamped);
             rekeyMenu(project, stamped);
-            (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
-              x: offset.x,
-              y: offset.y,
-            };
+            project.canvasLayout[docKey("menu", stamped.id)] = { x: offset.x, y: offset.y };
             offset.x += 24;
             offset.y += 24;
           }
@@ -1068,10 +1065,7 @@ export const createElementsSlice = ({
             duplicateStepLTexts(project, stamped.steps);
             mutableCommands(project).push(stamped);
             rekeyCommand(project, stamped);
-            (project.canvasLayout as Record<string, { x: number; y: number }>)[stamped.id] = {
-              x: offset.x,
-              y: offset.y,
-            };
+            project.canvasLayout[docKey("command", stamped.id)] = { x: offset.x, y: offset.y };
             offset.x += 24;
             offset.y += 24;
           }

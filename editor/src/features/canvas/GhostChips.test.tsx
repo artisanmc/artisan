@@ -34,11 +34,11 @@ vi.mock("./title/VanillaMcText", async () => {
 
 // The edges are controlled directly, reconfigurable per test through mockEdges.
 let mockEdges: { id: string; source: string; target: string; triggers: unknown[] }[] = [
-  { id: "m1->shop", source: "m1", target: "shop", triggers: [] },
+  { id: "menu/m1->menu/shop", source: "menu/m1", target: "menu/shop", triggers: [] },
 ];
 vi.mock("@/features/project/useProjectDocuments", () => ({
   documentLabel: (_p: unknown, id: string) =>
-    id === "shop" ? "<b><gradient:#A5F869:#0CAB27>Shop</gradient></b>" : id,
+    id === "menu/shop" ? "<b><gradient:#A5F869:#0CAB27>Shop</gradient></b>" : id,
 }));
 
 vi.mock("./deriveEdges", () => ({
@@ -67,27 +67,31 @@ function project(): Project {
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    canvasLayout: { m1: { x: 0, y: 0 } } as any,
+    canvasLayout: { "menu/m1": { x: 0, y: 0 } } as any,
   } as Project;
 }
 
 describe("GhostChips", () => {
   beforeEach(() => {
-    mockEdges = [{ id: "m1->shop", source: "m1", target: "shop", triggers: [] }];
+    mockEdges = [
+      { id: "menu/m1->menu/shop", source: "menu/m1", target: "menu/shop", triggers: [] },
+    ];
     useProjectsStore.setState({
       openProjects: { projects: [project()], projectOrder: [PID] },
     } as any);
   });
 
   it("renders a chip for an off-board target from a node on the board", () => {
-    const layout = { m1: { x: 0, y: 0 } };
+    const layout = { "menu/m1": { x: 0, y: 0 } };
     render(<GhostChips project={project()} layout={layout} />);
-    expect(screen.getByTestId("konva-group").getAttribute("data-name")).toBe("ghostchip:m1->shop");
+    expect(screen.getByTestId("konva-group").getAttribute("data-name")).toBe(
+      "ghostchip:menu/m1->menu/shop",
+    );
   });
 
   it("on the board, the pill flags a missing target without writing anything", () => {
     const before = useProjectsStore.getState().openProjects;
-    const layout = { m1: { x: 0, y: 0 } };
+    const layout = { "menu/m1": { x: 0, y: 0 } };
     render(<GhostChips project={project()} layout={layout} />);
     fireEvent.click(screen.getByTestId("konva-group"));
     expect(useProjectsStore.getState().openProjects).toBe(before);
@@ -99,27 +103,27 @@ describe("GhostChips", () => {
    */
   it("in focus, the click opens the target instead of placing it on the board", () => {
     const onOpen = vi.fn();
-    const layout = { m1: { x: 0, y: 0 } };
+    const layout = { "menu/m1": { x: 0, y: 0 } };
     render(<GhostChips project={project()} layout={layout} onOpen={onOpen} />);
     fireEvent.click(screen.getByTestId("konva-group"));
-    expect(onOpen).toHaveBeenCalledWith("shop");
+    expect(onOpen).toHaveBeenCalledWith("menu/shop");
   });
 
   it("renders two distinct chips for two off-board targets of the same source", () => {
     mockEdges = [
-      { id: "m1->shop", source: "m1", target: "shop", triggers: [] },
-      { id: "m1->bank", source: "m1", target: "bank", triggers: [] },
+      { id: "menu/m1->menu/shop", source: "menu/m1", target: "menu/shop", triggers: [] },
+      { id: "menu/m1->menu/bank", source: "menu/m1", target: "menu/bank", triggers: [] },
     ];
-    const layout = { m1: { x: 0, y: 0 } };
+    const layout = { "menu/m1": { x: 0, y: 0 } };
     render(<GhostChips project={project()} layout={layout} />);
     const names = screen.getAllByTestId("konva-group").map((g) => g.getAttribute("data-name"));
-    expect(names).toContain("ghostchip:m1->shop");
-    expect(names).toContain("ghostchip:m1->bank");
+    expect(names).toContain("ghostchip:menu/m1->menu/shop");
+    expect(names).toContain("ghostchip:menu/m1->menu/bank");
     expect(new Set(names).size).toBe(2);
   });
 
   it("renders the target label as MiniMessage, not raw tags", () => {
-    render(<GhostChips project={project()} layout={{ m1: { x: 0, y: 0 } }} />);
+    render(<GhostChips project={project()} layout={{ "menu/m1": { x: 0, y: 0 } }} />);
     const text = screen
       .getAllByTestId("konva-text")
       .map((t) => t.textContent)
@@ -128,7 +132,7 @@ describe("GhostChips", () => {
   });
 
   it("draws the label with the vanilla MC font, keeping its MiniMessage styling", () => {
-    render(<GhostChips project={project()} layout={{ m1: { x: 0, y: 0 } }} />);
+    render(<GhostChips project={project()} layout={{ "menu/m1": { x: 0, y: 0 } }} />);
     const [node] = screen.getAllByTestId("konva-text");
     expect(node?.getAttribute("data-source")).toContain(
       "<b><gradient:#A5F869:#0CAB27>Shop</gradient></b>",

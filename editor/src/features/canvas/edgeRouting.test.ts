@@ -1,3 +1,4 @@
+import type { DocKey } from "@/domain/documents";
 import { describe, expect, it } from "vitest";
 import type { Edge } from "./deriveEdges";
 import { type Box, anchorPoint, autoSide, closestAnchorOnBox, routeEdges } from "./edgeRouting";
@@ -63,8 +64,8 @@ describe("autoSide", () => {
 
 const edge = (source: string, target: string): Edge => ({
   id: `${source}->${target}`,
-  source,
-  target,
+  source: source as DocKey,
+  target: target as DocKey,
   triggers: [],
 });
 

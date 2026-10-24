@@ -150,16 +150,16 @@ describe("projectToFiles", () => {
         ],
       },
       canvasLayout: {
-        [menuId("shop")]: { x: 40, y: 40 },
-        [commandId("heal")]: { x: 260, y: 40 },
-        [dialogId("confirm")]: { x: 480, y: 40 },
+        "menu/shop": { x: 40, y: 40 },
+        "command/heal": { x: 260, y: 40 },
+        "dialog/confirm": { x: 480, y: 40 },
       },
     });
     const files = projectToFiles(project);
     expect(parseEditorState(files)?.layout).toEqual({
-      shop: { x: 40, y: 40 },
-      heal: { x: 260, y: 40 },
-      confirm: { x: 480, y: 40 },
+      "menu/shop": { x: 40, y: 40 },
+      "command/heal": { x: 260, y: 40 },
+      "dialog/confirm": { x: 480, y: 40 },
     });
   });
 
@@ -302,13 +302,13 @@ describe("projectToFiles", () => {
         ],
       },
       canvasLayout: {
-        [menuId("shop")]: { x: 40, y: 40 },
+        "menu/shop": { x: 40, y: 40 },
         // "ghost_menu" is NOT in menusOf(project) — stale entry, should be dropped:
-        ghost_menu: { x: 999, y: 999 },
+        "menu/ghost_menu": { x: 999, y: 999 },
       } as Project["canvasLayout"],
     });
     const files = projectToFiles(project);
-    expect(parseEditorState(files)?.layout).toEqual({ shop: { x: 40, y: 40 } });
+    expect(parseEditorState(files)?.layout).toEqual({ "menu/shop": { x: 40, y: 40 } });
   });
 
   it("emits the board layout in block-style YAML the backend round-trip test parses", () => {
@@ -318,14 +318,14 @@ describe("projectToFiles", () => {
           { id: menuId("shop"), projectId: projectId("p_test"), rows: 3, title: [], layers: [] },
         ],
       },
-      canvasLayout: { [menuId("shop")]: { x: 123, y: 456 } },
+      canvasLayout: { "menu/shop": { x: 123, y: 456 } },
     });
     const files = projectToFiles(project);
     // The editor emits block-style YAML for nested objects (the `yaml` lib's
     // default with our yamlOpts).
     const editorYaml = files["plugins/Artisan/projects/p_test/.artisan/editor.yaml"]!;
     expect(editorYaml).toContain("layout:");
-    expect(editorYaml).toContain("shop:");
+    expect(editorYaml).toContain("menu/shop:");
     expect(editorYaml).toMatch(/x:\s*123/);
     expect(editorYaml).toMatch(/y:\s*456/);
   });
@@ -339,12 +339,12 @@ describe("projectToFiles", () => {
         ],
       },
       canvasEdges: {
-        "home->shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
+        "menu/home->menu/shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
       },
     });
     const files = projectToFiles(project);
     expect(parseEditorState(files)?.edges).toEqual({
-      "home->shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
+      "menu/home->menu/shop": { from: { side: "top", t: 0.25 }, to: { side: "left", t: 0.5 } },
     });
   });
 
@@ -369,14 +369,14 @@ describe("projectToFiles", () => {
         ],
       },
       canvasEdges: {
-        "home->shop": { from: { side: "right", t: 0.5 } },
-        "home->ghost": { from: { side: "right", t: 0.5 } },
-        "ghost->shop": { to: { side: "left", t: 0.5 } },
+        "menu/home->menu/shop": { from: { side: "right", t: 0.5 } },
+        "menu/home->menu/ghost": { from: { side: "right", t: 0.5 } },
+        "menu/ghost->menu/shop": { to: { side: "left", t: 0.5 } },
       },
     });
     const files = projectToFiles(project);
     expect(parseEditorState(files)?.edges).toEqual({
-      "home->shop": { from: { side: "right", t: 0.5 } },
+      "menu/home->menu/shop": { from: { side: "right", t: 0.5 } },
     });
   });
 

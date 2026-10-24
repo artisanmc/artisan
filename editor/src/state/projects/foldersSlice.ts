@@ -1,7 +1,7 @@
 import { isGroupColor } from "@/domain/canvasGroups";
 import { documentKindDef, isDocumentKind } from "@/domain/documentKinds";
 import { documentPath } from "@/domain/documentLayout";
-import { allDocuments } from "@/domain/documents";
+import { type DocKey, allDocuments, docKey } from "@/domain/documents";
 import {
   type FolderError,
   isWithin,
@@ -18,6 +18,7 @@ export interface FoldersSlice {
   /** Creates an empty folder in `parent` (`""`: the module root); returns its path. */
   createFolder: (input: { projectId: ProjectId; parent: string; name: string }) => string;
   /** Files Documents in `folder` (`""`: the module root). */
+  /** [nodeIds]: the Documents' keys (`docKey`). */
   moveToFolder: (input: { projectId: ProjectId; nodeIds: string[]; folder: string }) => void;
   /** Renames a folder in place; what it holds follows. */
   renameFolder: (input: { projectId: ProjectId; path: string; name: string }) => string;
@@ -39,12 +40,12 @@ type Move = { from: string; to: string };
 /** Sets each Document's folder through `refile`, returning the file moves it makes. */
 function refileDocuments(
   project: Project,
-  refile: (folder: string, id: string) => string | null,
+  refile: (folder: string, key: DocKey) => string | null,
 ): Move[] {
   const moves: Move[] = [];
   for (const { kind, doc } of allDocuments(project)) {
     const before = doc.folder ?? "";
-    const after = refile(before, doc.id);
+    const after = refile(before, docKey(kind, doc.id));
     if (after === null || after === before) continue;
     if (after) doc.folder = after;
     // biome-ignore lint/performance/noDelete: a root Document carries no folder field
@@ -96,7 +97,7 @@ export const createFoldersSlice = ({ get, mutateProject }: ProjectsSliceContext)
       const ids = new Set(nodeIds);
       let moves: Move[] = [];
       mutateProject(pId, (p) => {
-        moves = refileDocuments(p, (_, id) => (ids.has(id) ? folder : null));
+        moves = refileDocuments(p, (_, key) => (ids.has(key) ? folder : null));
         if (moves.length === 0) return false;
         // A Document that changes frame is laid out again inside its new one.
         for (const id of ids) delete (p.canvasLayout as Record<string, unknown>)[id];

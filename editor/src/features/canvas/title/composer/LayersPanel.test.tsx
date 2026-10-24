@@ -285,7 +285,11 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
     // menu pick is unambiguous. Title-bar center for MENU_ID = (40+176, 40+17)
     // = (216, 57) in canvas coords. With identity viewport + origin wrapper,
     // screen coords == canvas coords.
-    seedProject([], {}, { [MENU_ID]: { x: 40, y: 40 }, [OTHER_MENU_ID]: { x: 800, y: 800 } });
+    seedProject(
+      [],
+      {},
+      { [`menu/${MENU_ID}`]: { x: 40, y: 40 }, [`menu/${OTHER_MENU_ID}`]: { x: 800, y: 800 } },
+    );
 
     setStageGeometryProvider(() => ({
       wrapperRect: { left: 0, top: 0, right: 2000, bottom: 1400 },
@@ -325,7 +329,11 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
   it("drag-end far from any menu falls back to the panel's own menuId default placement", () => {
     // Both menus parked at small coords; cursor far away (9000, 9000) is
     // well beyond NEAREST_MENU_THRESHOLD_PX.
-    seedProject([], {}, { [MENU_ID]: { x: 0, y: 0 }, [OTHER_MENU_ID]: { x: 200, y: 0 } });
+    seedProject(
+      [],
+      {},
+      { [`menu/${MENU_ID}`]: { x: 0, y: 0 }, [`menu/${OTHER_MENU_ID}`]: { x: 200, y: 0 } },
+    );
 
     setStageGeometryProvider(() => ({
       wrapperRect: { left: 0, top: 0, right: 10000, bottom: 10000 },
@@ -351,7 +359,7 @@ describe("LayersPanel — cross-menu drag-to-attach", () => {
 
   it("drag-end with no Stage geometry registered falls back to default placement", () => {
     // No setStageGeometryProvider call → getStageGeometry returns null.
-    seedProject([], {}, { [MENU_ID]: { x: 40, y: 40 } });
+    seedProject([], {}, { [`menu/${MENU_ID}`]: { x: 40, y: 40 } });
 
     render(<LayersPanel projectId={PACK_ID} menuId={MENU_ID} />);
     const btn = screen.getByTestId("add-layer-text");

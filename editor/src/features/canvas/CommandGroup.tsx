@@ -1,4 +1,5 @@
 import { commandNodeAt, walkCommandNodes } from "@/domain/commandNodes";
+import { docKey } from "@/domain/documents";
 import type { Command, ProjectId } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
 import { useAlignmentStore } from "@/state/alignmentStore";
@@ -24,9 +25,10 @@ interface CommandGroupProps {
  * quests), indented by depth. A command or sub-command turned off is struck and faded.
  */
 export function CommandGroup({ projectId, command, position }: CommandGroupProps) {
+  const key = docKey("command", command.id);
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
-  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(command.id));
-  const nodeAlign = useNodeAlignment(projectId, command.id);
+  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
+  const nodeAlign = useNodeAlignment(projectId, key);
   const node = useNodeColors();
   const accent = useCssVar("--kind-command");
   const line = useCssVar("--kind-command-line");
@@ -46,10 +48,10 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      setCanvasPosition({ projectId, nodeId: command.id, x: e.target.x(), y: e.target.y() });
+      setCanvasPosition({ projectId, nodeId: key, x: e.target.x(), y: e.target.y() });
       useAlignmentStore.getState().clear();
     },
-    [projectId, command.id, setCanvasPosition],
+    [projectId, key, setCanvasPosition],
   );
 
   const onClick = useCallback(
@@ -57,12 +59,12 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
       e.cancelBubble = true;
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
       const { ids, menuId: selectionMenuId, set, toggle } = useSelectionStore.getState();
-      if (additive) toggle(command.id);
-      else if (selectionMenuId !== null || !ids.has(command.id) || ids.size > 1) set([command.id]);
+      if (additive) toggle(key);
+      else if (selectionMenuId !== null || !ids.has(key) || ids.size > 1) set([key]);
       // Selecting on the canvas opens the Edit tab so the chosen element is
       // immediately editable — no manual tab switch.
     },
-    [command.id],
+    [key],
   );
 
   return (
@@ -76,13 +78,13 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
-      onDblClick={() => dispatchOpenElement(command.id)}
-      onDblTap={() => dispatchOpenElement(command.id)}
+      onDblClick={() => dispatchOpenElement(key)}
+      onDblTap={() => dispatchOpenElement(key)}
       // The title may be cut by its ellipsis: the full one shows on hover.
       onMouseEnter={(e) => showFullTitle(e, `/${command.name}`)}
       onMouseLeave={(e) => showFullTitle(e, null)}
       name={`command:${command.id}`}
-      id={command.id}
+      id={key}
     >
       <Rect
         width={size.width}
