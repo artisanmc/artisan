@@ -56,6 +56,31 @@ class FieldLocalTextTest {
     }
 
     @Test
+    fun `lore accepts one list per language, each with its own line count`() {
+        val app = mapper.readValue(
+            """
+            lore:
+              en: ["<gray>Members: {r.members}", "", "Click"]
+              fr: ["<gray>Membres : {r.members}", "Clic"]
+            """.trimIndent(),
+            AppearanceYaml::class.java,
+        )
+        assertEquals(1, app.lore.size)
+        assertEquals("<gray>Membres : {r.members}\nClic", app.lore[0].forLang("fr", "en"))
+        assertEquals("<gray>Members: {r.members}\n\nClick", app.lore[0].forLang("en", "fr"))
+        // A missing language falls back as a whole block, never line by line.
+        assertEquals("<gray>Members: {r.members}\n\nClick", app.lore[0].forLang("de", "en"))
+    }
+
+    @Test
+    fun `lore keeps reading lines and a bare string`() {
+        assertEquals(listOf("a", "b"), mapper.readValue("{lore: [a, b]}", AppearanceYaml::class.java).lore.map { it.forLang("en", "en") })
+        assertEquals(listOf("only"), mapper.readValue("{lore: only}", AppearanceYaml::class.java).lore.map { it.forLang("en", "en") })
+        assertEquals(emptyList(), mapper.readValue("{lore: null}", AppearanceYaml::class.java).lore)
+        assertEquals(emptyList(), mapper.readValue("{material: STONE}", AppearanceYaml::class.java).lore)
+    }
+
+    @Test
     fun `dialog title body and labels accept a lang map`() {
         val d = mapper.readValue(
             """
