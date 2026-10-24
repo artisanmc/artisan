@@ -8,13 +8,15 @@ describe("deriveEdges", () => {
     const personal = mockOpenProjects().projects.find((p) => p.id === projectId("p_personal"))!;
     const edges = deriveEdges(personal);
     expect(edges).toHaveLength(1);
-    expect(edges[0]).toMatchObject({ source: "m_shop_main", target: "m_profile" });
+    expect(edges[0]).toMatchObject({ source: "menu/m_shop_main", target: "menu/m_profile" });
   });
 
   it("emits a command→menu edge when a command opens a menu", () => {
     const shop = mockOpenProjects().projects.find((p) => p.id === projectId("p_shop_system"))!;
     const edges = deriveEdges(shop);
-    expect(edges.find((e) => e.source === "c_shop" && e.target === "m_shop_root")).toBeTruthy();
+    expect(
+      edges.find((e) => e.source === "command/c_shop" && e.target === "menu/m_shop_root"),
+    ).toBeTruthy();
   });
 
   it("reads a ref qualified with the project's own folder as its bare id", () => {
@@ -31,7 +33,9 @@ describe("deriveEdges", () => {
       },
     } as typeof shop;
     const edges = deriveEdges(qualified);
-    expect(edges.find((e) => e.source === command.id)?.target).toBe("m_shop_root");
+    expect(edges.find((e) => e.source === `command/${command.id}`)?.target).toBe(
+      "menu/m_shop_root",
+    );
     // Another folder's ref stays qualified: it is not on this board.
     const other = {
       ...qualified,
@@ -40,8 +44,8 @@ describe("deriveEdges", () => {
         command: [opening("spawn:m_shop_root")],
       },
     } as typeof shop;
-    expect(deriveEdges(other).find((e) => e.source === command.id)?.target).toBe(
-      "spawn:m_shop_root",
+    expect(deriveEdges(other).find((e) => e.source === `command/${command.id}`)?.target).toBe(
+      "menu/spawn:m_shop_root",
     );
   });
 });

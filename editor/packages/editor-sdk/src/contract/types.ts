@@ -86,13 +86,8 @@ export interface BoardItem {
   /** A short second text, right-aligned and dimmed (`"3 objectives"`). */
   detail?: string;
   /**
-   * A line under the label, dimmed (SDK 1.7): what the part asks (`"Break 64 stone"`). When
-   * one row of the node has one, every row is drawn on two lines.
-   */
-  caption?: string;
-  /**
-   * A short mark that opens the row, in its own tinted column (SDK 1.5): the part's rank when
-   * the parts run in order (`"1"`, `"2"`…). Ranks are drawn on two digits (`01`) or more.
+   * A short mark before the label, in a disc (SDK 1.5): the part's rank when the parts run
+   * in order (`"1"`, `"2"`…). When every row has one, the discs are linked by a line.
    */
   marker?: string;
   /** What a tooltip shows while the pointer is over the row (SDK 1.5). */

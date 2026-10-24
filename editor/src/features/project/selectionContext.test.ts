@@ -65,16 +65,25 @@ describe("selectionContext", () => {
     expect(ctx([])).toEqual({ kind: "none" });
   });
   it("plusieurs ids → multi", () => {
-    expect(ctx(["m1", "c1"])).toEqual({ kind: "multi" });
+    expect(ctx(["menu/m1", "command/c1"])).toEqual({ kind: "multi" });
   });
   it("a menu → menu", () => {
-    expect(ctx(["m1"])).toEqual({ kind: "menu", menuId: "m1" });
+    expect(ctx(["menu/m1"])).toEqual({ kind: "menu", menuId: "m1" });
   });
   it("a command → command", () => {
-    expect(ctx(["c1"])).toEqual({ kind: "command", id: "c1" });
+    expect(ctx(["command/c1"])).toEqual({ kind: "command", id: "c1" });
+  });
+  it("a menu and a command sharing an id stay two Documents", () => {
+    const p = project();
+    p.documents.command!.push({ ...p.documents.command![0]!, id: "m1" } as never);
+    expect(selectionContext(p, new Set(["command/m1"]), null)).toEqual({
+      kind: "command",
+      id: "m1",
+    });
+    expect(selectionContext(p, new Set(["menu/m1"]), null)).toEqual({ kind: "menu", menuId: "m1" });
   });
   it("a dialog → dialog", () => {
-    expect(ctx(["d1"])).toEqual({ kind: "dialog", id: "d1" });
+    expect(ctx(["dialog/d1"])).toEqual({ kind: "dialog", id: "d1" });
   });
 
   /**

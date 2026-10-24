@@ -1,5 +1,5 @@
 import { liveDocumentIds } from "@/domain/canvasGroups";
-import type { ElementId, MenuId, ProjectId } from "@/domain/types";
+import type { MenuId, ProjectId } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -12,7 +12,7 @@ import { useCallback, useRef, useState } from "react";
 // accidentally starting a node drag when pressed over a menu.
 Konva.dragButtons = [0];
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
-import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { allDocuments, commandsOf, dialogsOf, docKey, menusOf } from "@/domain/documents";
 import { dismissInspector } from "@/features/project/projectSettings";
 import { useTranslation } from "react-i18next";
 import { Stage as KonvaStage, Layer, Text } from "react-konva";
@@ -63,9 +63,9 @@ interface StageProps {
    * Focus view: the stage only shows this Document, whatever its board
    * membership. All the remaining chrome (edges, chips, selection, item drop,
    * keyboard) is the board's — one implementation, two framings. What only the
-   * board has lives in `BoardChrome`.
+   * board has lives in `BoardChrome`. Its key (`docKey`).
    */
-  focus?: ElementId;
+  focus?: string;
 }
 
 export function Stage({ projectId, focus }: StageProps) {
@@ -331,16 +331,16 @@ function StageCanvas({ projectId, focus }: StageProps) {
         </Layer>
         <Layer name="menus" imageSmoothingEnabled={false}>
           {menusOf(project)
-            .filter((menu) => layout[menu.id])
+            .filter((menu) => layout[docKey("menu", menu.id)])
             .map((menu) => (
               <MenuGroup
                 key={menu.id}
                 projectId={projectId}
                 menu={menu}
-                position={layout[menu.id]!}
+                position={layout[docKey("menu", menu.id)]!}
                 layout={layout}
                 solo={focusMode}
-                systemModule={systemDocs.get(menu.id)}
+                systemModule={systemDocs.get(docKey("menu", menu.id))}
               />
             ))}
         </Layer>
@@ -348,35 +348,35 @@ function StageCanvas({ projectId, focus }: StageProps) {
             take click priority, even after a menu calls moveToTop() during drag. */}
         <Layer name="commands" imageSmoothingEnabled={false}>
           {commandsOf(project)
-            .filter((command) => layout[command.id])
+            .filter((command) => layout[docKey("command", command.id)])
             .map((command) => (
               <CommandGroup
                 key={command.id}
                 projectId={projectId}
                 command={command}
-                position={layout[command.id]!}
+                position={layout[docKey("command", command.id)]!}
               />
             ))}
           {dialogsOf(project)
-            .filter((dialog) => layout[dialog.id])
+            .filter((dialog) => layout[docKey("dialog", dialog.id)])
             .map((dialog) => (
               <DialogGroup
                 key={dialog.id}
                 projectId={projectId}
                 dialog={dialog}
-                position={layout[dialog.id]!}
-                systemModule={systemDocs.get(dialog.id)}
+                position={layout[docKey("dialog", dialog.id)]!}
+                systemModule={systemDocs.get(docKey("dialog", dialog.id))}
               />
             ))}
           {allDocuments(project)
-            .filter(({ kind, doc }) => !CORE_KINDS.has(kind) && layout[doc.id])
+            .filter(({ kind, doc }) => !CORE_KINDS.has(kind) && layout[docKey(kind, doc.id)])
             .map(({ kind, doc }) => (
               <DocumentGroup
-                key={doc.id}
+                key={docKey(kind, doc.id)}
                 project={project}
                 kind={kind}
                 doc={doc}
-                position={layout[doc.id]!}
+                position={layout[docKey(kind, doc.id)]!}
                 solo={focusMode}
               />
             ))}

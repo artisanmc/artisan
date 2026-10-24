@@ -33,6 +33,7 @@ export interface DraggingNewLayer {
 
 export interface CenterRequest {
   projectId: string;
+  /** The Document's key (`docKey`). */
   docId: string;
   nonce: number;
 }

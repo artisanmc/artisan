@@ -10,6 +10,7 @@ const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
   useParams: () => ({ serverId: "s1", projectId: "p1", elementId: "m1" }),
+  useSearch: () => ({}),
 }));
 vi.mock("@/features/canvas/Stage", () => ({ Stage: () => <div data-testid="focus-stage" /> }));
 vi.mock("@/features/inspector/EditorPane", () => ({
@@ -153,7 +154,7 @@ describe("DocumentView", () => {
   });
   it("selects the default menu when there is no relevant selection", () => {
     render(<DocumentView projectId={PID} documentId={"m1" as any} />);
-    expect([...useSelectionStore.getState().ids]).toEqual(["m1"]);
+    expect([...useSelectionStore.getState().ids]).toEqual(["menu/m1"]);
   });
   it("preserves an already-set child selection (e.g. from search)", () => {
     // The search palette selects the item BEFORE DocumentView mounts.

@@ -1,6 +1,14 @@
 import { projectNamespace, resolveDocRef } from "@/domain/docRef";
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
-import { allDocuments, commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import {
+  type DocKey,
+  allDocuments,
+  commandsOf,
+  dialogsOf,
+  docKey,
+  menusOf,
+  parseDocKey,
+} from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
 import { type Edge, deriveEdges } from "./deriveEdges";
 import { DIALOG_BOX, commandBox, documentBoxSize, menuBoxSize } from "./menuLayout";
@@ -12,6 +20,8 @@ export interface BoardNode {
   key: string;
   projectId: ProjectId;
   docId: string;
+  /** Its key on its project's board (`docKey`): an id is unique within its kind only. */
+  docKey: DocKey;
   kind: DocumentKind;
   width: number;
   height: number;
@@ -36,7 +46,8 @@ export interface ServerGraph {
   unresolved: UnresolvedLink[];
 }
 
-export const documentKey = (projectId: string, docId: string): string => `${projectId}/${docId}`;
+/** A Document's key on a server's board: its project, then its key on the project's board (`docKey`). */
+export const documentKey = (projectId: string, key: DocKey): string => `${projectId}/${key}`;
 
 const CORE = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
 
@@ -59,52 +70,68 @@ interface Target {
 export function deriveServerGraph(projects: Project[]): ServerGraph {
   const nodes: BoardNode[] = [];
   const targets = new Map<string, Target[]>();
-  const addTarget = (project: Project, docId: string, key: string) => {
+  // Targets by kind then id: a reference names the kind it opens.
+  const addTarget = (project: Project, kind: string, docId: string, key: string) => {
     const target = { key, projectId: project.id, namespace: projectNamespace(project) };
-    targets.set(docId, [...(targets.get(docId) ?? []), target]);
+    const at = docKey(kind, docId);
+    targets.set(at, [...(targets.get(at) ?? []), target]);
   };
-  const candidatesFor = (from: Project, raw: string): Target[] =>
-    resolveDocRef((id) => targets.get(id) ?? [], from.id, raw);
+  const candidatesFor = (from: Project, kind: string, raw: string): Target[] =>
+    resolveDocRef((id) => targets.get(docKey(kind, id)) ?? [], from.id, raw);
 
   for (const project of projects) {
     for (const menu of menusOf(project)) {
-      const key = documentKey(project.id, menu.id);
+      const at = docKey("menu", menu.id);
+      const key = documentKey(project.id, at);
       nodes.push({
         key,
         projectId: project.id,
         docId: menu.id,
+        docKey: at,
         kind: "menu",
         ...menuBoxSize(menu.inventoryType ?? "chest", menu.rows),
       });
-      addTarget(project, menu.id, key);
+      addTarget(project, "menu", menu.id, key);
     }
     for (const command of commandsOf(project)) {
+      const at = docKey("command", command.id);
       nodes.push({
-        key: documentKey(project.id, command.id),
+        key: documentKey(project.id, at),
         projectId: project.id,
         docId: command.id,
+        docKey: at,
         kind: "command",
         ...commandBox(command),
       });
     }
     for (const dialog of dialogsOf(project)) {
-      const key = documentKey(project.id, dialog.id);
-      nodes.push({ key, projectId: project.id, docId: dialog.id, kind: "dialog", ...DIALOG_BOX });
-      addTarget(project, dialog.id, key);
+      const at = docKey("dialog", dialog.id);
+      const key = documentKey(project.id, at);
+      nodes.push({
+        key,
+        projectId: project.id,
+        docId: dialog.id,
+        docKey: at,
+        kind: "dialog",
+        ...DIALOG_BOX,
+      });
+      addTarget(project, "dialog", dialog.id, key);
     }
     // A module's kind: a node per Document, a target like any Document (a `document_ref`
     // of that kind may point at it).
     for (const { kind, doc } of allDocuments(project)) {
       if (CORE.has(kind)) continue;
-      const key = documentKey(project.id, doc.id);
+      const at = docKey(kind, doc.id);
+      const key = documentKey(project.id, at);
       nodes.push({
         key,
         projectId: project.id,
         docId: doc.id,
+        docKey: at,
         kind,
         ...documentBoxSize(kind, doc, project),
       });
-      addTarget(project, doc.id, key);
+      addTarget(project, kind, doc.id, key);
     }
   }
 
@@ -113,17 +140,18 @@ export function deriveServerGraph(projects: Project[]): ServerGraph {
   for (const project of projects) {
     for (const edge of deriveEdges(project)) {
       const source = documentKey(project.id, edge.source);
-      const candidates = candidatesFor(project, edge.target);
+      const target = parseDocKey(edge.target)!;
+      const candidates = candidatesFor(project, target.kind, target.id);
       if (candidates.length !== 1) {
         unresolved.push({
           source,
-          targetId: edge.target,
+          targetId: target.id,
           reason: candidates.length === 0 ? "missing" : "ambiguous",
         });
         continue;
       }
-      const target = candidates[0]!.key;
-      edges.push({ id: `${source}->${target}`, source, target, edge });
+      const to = candidates[0]!.key;
+      edges.push({ id: `${source}->${to}`, source, target: to, edge });
     }
   }
 

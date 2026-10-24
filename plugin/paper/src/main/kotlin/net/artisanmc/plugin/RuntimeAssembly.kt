@@ -89,7 +89,6 @@ internal class RuntimeAssembly(
             commandOwner = api.playerCommands::ownerOf,
             folderOwner = projectRoots::ownerOf,
             consoleRunner = moduleCommand,
-            takenIds = ::takenIds,
         )
         // A module enabled or disabled after the start: its commands come and go without a reload,
         // their files follow in its folder, and the editor lists the new set (a leaf tells its hub).
@@ -113,33 +112,16 @@ internal class RuntimeAssembly(
         }
     }
 
-    /**
-     * Each module's commands as its system template of their files (`ModuleCommandFiles`), kept in
-     * its folder with its menus; named apart from the module's other Documents, built again only
-     * when their ids change.
-     */
+    /** Each module's commands as its system template of their files (`ModuleCommandFiles`), kept in its folder with its menus. */
     private fun generateCommandFiles() {
         val registry = api.playerCommands
         plugin.moduleTemplates.setGenerated(
             registry.declarations()
                 .groupBy { registry.ownerOf(it.id) }
-                .mapNotNull { (module, roots) ->
-                    module?.let { m ->
-                        var last: Pair<Set<String>, net.artisanmc.modules.api.template.TemplateDeclaration?>? = null
-                        m to { own: List<net.artisanmc.modules.api.template.TemplateDeclaration> ->
-                            val taken = net.artisanmc.plugin.command.ModuleCommandFiles.takenIds(own)
-                            last?.takeIf { it.first == taken }?.second
-                                ?: net.artisanmc.plugin.command.ModuleCommandFiles.template(roots, taken).also { last = taken to it }
-                        }
-                    }
-                }
+                .mapNotNull { (module, roots) -> module?.let { m -> net.artisanmc.plugin.command.ModuleCommandFiles.template(roots)?.let { m to it } } }
                 .toMap(),
         )
     }
-
-    /** The ids of [moduleId]'s own Documents, which its commands' files are named apart from. */
-    private fun takenIds(moduleId: String): Set<String> =
-        net.artisanmc.plugin.command.ModuleCommandFiles.takenIds(api.templates.of(moduleId))
 
     /**
      * The old `command_override/v1` files, merged once into the commands' files
@@ -151,7 +133,6 @@ internal class RuntimeAssembly(
         folderOf = { rootId -> api.playerCommands.ownerOf(rootId)?.let(::moduleFolder) },
         defaultLang = { api.translations.defaultLang },
         logger = logger,
-        taken = { rootId -> api.playerCommands.ownerOf(rootId)?.let(::takenIds).orEmpty() },
     ).migrate()
 
     /** A module's first folder by name, where its system files live. */

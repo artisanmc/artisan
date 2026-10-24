@@ -1,6 +1,7 @@
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
-import type { ElementId } from "@/domain/types";
+import { docKey, isDocKey, parseDocKey, resolveDocKey } from "@/domain/documents";
 import { projectDestination } from "@/lib/projectNavigation";
+import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import type { useNavigate } from "@tanstack/react-router";
@@ -16,6 +17,10 @@ type Navigate = ReturnType<typeof useNavigate>;
  * tab if there was one. A qualified ref to another project (`boutique:main`)
  * opens that project, centered via the `?doc=` link.
  * The focus view stays on double-click on a node.
+ *
+ * [ref]: a key (`menu/main`), a bare id, or a qualified ref. Two kinds may share an id:
+ * [kind], when the caller knows it, says which Document; a bare id without it goes to the
+ * first of that id (`resolveDocKey`).
  */
 export function goToDocument(
   navigate: Navigate,
@@ -23,19 +28,29 @@ export function goToDocument(
     serverId: string | null | undefined;
     project: { id: string; diskId?: string | null };
     ref: string;
+    kind?: string;
   },
 ): void {
   const { serverId, project, ref } = args;
-  const { namespace, id } = parseDocRef(ref);
+  // A key may carry a qualified id (`menu/boutique:main`, a link chip's target).
+  const keyed = isDocKey(ref) ? parseDocKey(ref) : null;
+  const kind = keyed?.kind ?? args.kind;
+  const { namespace, id } = parseDocRef(keyed?.id ?? ref);
   const here = projectNamespace({ id: project.id, diskId: project.diskId ?? undefined });
   if (namespace !== null && namespace !== here) {
     void navigate({
       ...projectDestination(namespace, serverId),
-      search: { doc: id },
+      search: { doc: kind ? docKey(kind, id) : id },
     } as never);
     return;
   }
-  useSelectionStore.getState().set([id as ElementId]);
-  useUiStore.getState().requestCenter(project.id, id);
+  const documents = useProjectsStore
+    .getState()
+    .openProjects.projects.find((p) => p.id === project.id);
+  const key = kind ? docKey(kind, id) : documents ? resolveDocKey(documents, id) : undefined;
+  if (key) {
+    useSelectionStore.getState().set([key]);
+    useUiStore.getState().requestCenter(project.id, key);
+  }
   void navigate({ ...projectDestination(project, serverId), search: {} } as never);
 }

@@ -6,7 +6,7 @@ import { menusOf } from "@/domain/documents";
 // (total — the export is a pure function of the Project, no timestamps).
 import type { DataModelId, DataSourceId, MenuId, Project, ProjectId } from "@/domain/types";
 import { describe, expect, it } from "vitest";
-import { projectFromFiles } from "./projectFromFiles";
+import { parseEditorEdges, parseEditorLayout, projectFromFiles } from "./projectFromFiles";
 import { projectToFiles } from "./projectToFiles";
 
 const PID = "p_roundtrip" as ProjectId;
@@ -206,8 +206,8 @@ function fixture(): Project {
         value: { motd: { key: "k_motd" }, discount: 5 },
       },
     ],
-    canvasLayout: { ["m1" as MenuId]: { x: 40, y: 80 } },
-    canvasEdges: { "m1->d1": { from: { side: "right", t: 0.5 } } },
+    canvasLayout: { "menu/m1": { x: 40, y: 80 } },
+    canvasEdges: { "menu/m1->dialog/d1": { from: { side: "right", t: 0.5 } } },
     moduleData: {
       shopmod: { __files: { "shop.yaml": "schema: shopmod/v1\nitems: []\n" } },
     },
@@ -317,13 +317,44 @@ describe("projectFromFiles (files → domain, inverse of projectToFiles)", () =>
 
   it("restores board state and the element's own iteration binding", () => {
     const p2 = projectFromFiles(PID, projectToFiles(fixture()), { name: "Round Trip" });
-    expect(p2.canvasLayout).toEqual({ m1: { x: 40, y: 80 } });
-    expect(p2.canvasEdges).toEqual({ "m1->d1": { from: { side: "right", t: 0.5 } } });
+    expect(p2.canvasLayout).toEqual({ "menu/m1": { x: 40, y: 80 } });
+    expect(p2.canvasEdges).toEqual({ "menu/m1->dialog/d1": { from: { side: "right", t: 0.5 } } });
     const el = menusOf(p2)[0]!
       .layers.flatMap((l) => l.elements)
       .find((e) => e.id === "tplbound")!;
     expect(el.iterates).toEqual({ source: "items", alias: "item" });
     expect(el.display!.material).toBe("{item.icon}");
+  });
+
+  it("moves a position saved under a bare id to every Document of that id", () => {
+    const documents = {
+      menu: [{ id: "shop" }],
+      command: [{ id: "shop" }, { id: "buy" }],
+    } as unknown as Project["documents"];
+    expect(
+      parseEditorLayout(
+        {
+          shop: { x: 1, y: 2 },
+          buy: { x: 3, y: 4 },
+          "command/shop": { x: 5, y: 6 },
+          gone: { x: 0, y: 0 },
+        },
+        documents,
+      ),
+    ).toEqual({
+      "menu/shop": { x: 1, y: 2 },
+      "command/shop": { x: 5, y: 6 },
+      "command/buy": { x: 3, y: 4 },
+    });
+    expect(
+      parseEditorEdges(
+        {
+          "buy->shop": { from: { side: "top", t: 0 } },
+          "buy->gone": { to: { side: "left", t: 1 } },
+        },
+        documents,
+      ),
+    ).toEqual({ "command/buy->menu/shop": { from: { side: "top", t: 0 } } });
   });
 
   it("re-emits unclaimed module files verbatim via moduleData.__files", () => {

@@ -80,7 +80,12 @@ describe("buildSearchIndex", () => {
   it("indexes menu items with target = menu + slot", () => {
     const idx = buildSearchIndex(project(), "en");
     const item = idx.find((e) => e.group === "content" && e.label === "DIAMOND");
-    expect(item?.target).toEqual({ openId: "m_shop", selectId: "el_buy", focusedSlot: 13 });
+    expect(item?.target).toEqual({
+      openId: "m_shop",
+      kind: "menu",
+      selectId: "el_buy",
+      focusedSlot: 13,
+    });
     expect(item?.context).toEqual({ key: "search.ctxInMenu", owner: "Shop" });
   });
   it("indexes texts (item title/lore, dialog body + button)", () => {

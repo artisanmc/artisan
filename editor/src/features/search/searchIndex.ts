@@ -18,7 +18,14 @@ export interface SearchEntry {
   context?: { key: string; owner: string };
   haystack: string;
   /** `projectUrlId`: the Document lives in another project of the server. */
-  target: { openId: string; selectId?: string; focusedSlot?: number; projectUrlId?: string };
+  target: {
+    openId: string;
+    /** The kind of `openId`'s Document: two kinds may share an id. */
+    kind: string;
+    selectId?: string;
+    focusedSlot?: number;
+    projectUrlId?: string;
+  };
 }
 
 function entry(partial: Omit<SearchEntry, "haystack">): SearchEntry {
@@ -38,7 +45,7 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
         id: `menu:${menu.id}`,
         group: "menu",
         label: menuLabel,
-        target: { openId: menu.id },
+        target: { openId: menu.id, kind: "menu" },
       }),
     );
 
@@ -49,7 +56,7 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
         if (!ap) continue;
         // the element's first slot (navigation anchor); undefined if positions is empty
         const slot = parsePositions(el.positions)[0];
-        const baseTarget = { openId: menu.id, selectId: el.id, focusedSlot: slot };
+        const baseTarget = { openId: menu.id, kind: "menu", selectId: el.id, focusedSlot: slot };
         if (ap.material) {
           out.push(
             entry({
@@ -93,7 +100,7 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
         id: `command:${cmd.id}`,
         group: "command",
         label: `/${cmd.name}`,
-        target: { openId: cmd.id },
+        target: { openId: cmd.id, kind: "command" },
       }),
     );
   }
@@ -105,7 +112,7 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
         id: `dialog:${dialog.id}`,
         group: "dialog",
         label: dlabel,
-        target: { openId: dialog.id },
+        target: { openId: dialog.id, kind: "dialog" },
       }),
     );
     const body = dialog.body ?? [];
@@ -120,7 +127,7 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
               group: "content",
               label: text,
               context: { key: "search.ctxDialogBody", owner: dlabel },
-              target: { openId: dialog.id },
+              target: { openId: dialog.id, kind: "dialog" },
             }),
           );
       }
@@ -134,7 +141,7 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
             group: "content",
             label: text,
             context: { key: "search.ctxDialogButton", owner: dlabel },
-            target: { openId: dialog.id },
+            target: { openId: dialog.id, kind: "dialog" },
           }),
         );
     }
@@ -149,7 +156,7 @@ export function buildSearchIndex(project: Project, activeLang: string): SearchEn
         id: `${kind}:${doc.id}`,
         group: kind,
         label: documentTitle(documentKindContribution(kind), doc, project, activeLang),
-        target: { openId: doc.id },
+        target: { openId: doc.id, kind },
       }),
     );
   }

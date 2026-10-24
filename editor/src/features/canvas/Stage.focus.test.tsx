@@ -1,5 +1,5 @@
 import { menusOf } from "@/domain/documents";
-import type { ElementId, Project, ProjectId } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -51,7 +51,7 @@ function project(): Project {
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    canvasLayout: { m1: { x: 0, y: 0 } } as any,
+    canvasLayout: { "menu/m1": { x: 0, y: 0 } } as any,
   } as Project;
 }
 
@@ -72,18 +72,18 @@ describe("Stage — mode focus", () => {
    * editable.
    */
   it("renders the targeted document even when absent from canvasLayout", () => {
-    render(<Stage projectId={PID} focus={"m2" as ElementId} />);
+    render(<Stage projectId={PID} focus="menu/m2" />);
     expect(groupNames()).toContain("menu:m2");
   });
 
   it("renders no other document, even one present on the board", () => {
-    render(<Stage projectId={PID} focus={"m2" as ElementId} />);
+    render(<Stage projectId={PID} focus="menu/m2" />);
     expect(groupNames()).not.toContain("menu:m1");
   });
 
   /** No board position in focus: moving it would have nothing to write. */
   it("the focused document cannot be dragged", () => {
-    render(<Stage projectId={PID} focus={"m2" as ElementId} />);
+    render(<Stage projectId={PID} focus="menu/m2" />);
     const g = screen
       .getAllByTestId("konva-group")
       .find((x) => x.getAttribute("data-name") === "menu:m2");
@@ -107,7 +107,7 @@ describe("Stage — mode focus", () => {
       y: 0,
       toJSON: () => ({}),
     } as DOMRect);
-    render(<Stage projectId={PID} focus={"m2" as ElementId} />);
+    render(<Stage projectId={PID} focus="menu/m2" />);
 
     const g = INVENTORY_TYPES.chest;
     const placed = tryStageDrop(

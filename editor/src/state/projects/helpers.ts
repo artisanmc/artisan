@@ -1,6 +1,6 @@
 import { isLTextNode, walkStepTextSlots } from "@/domain/actionTextSlots";
 import { normalizeDataSourceName } from "@/domain/dataModels";
-import { menusOf } from "@/domain/documents";
+import { docKey, menusOf } from "@/domain/documents";
 import {
   mintLTexts,
   rekeyDataSource,
@@ -279,6 +279,21 @@ export function validateArgOrder(args: CommandArg[]): void {
 }
 
 /** Rekey canvasEdges entries when a node id changes ("a->b" keys embed node ids). */
+/**
+ * A Document renamed from [oldId] to [newId] (its `kind`): its board position and the
+ * overrides of its links follow it, under its key (`docKey`).
+ */
+export function renameBoardKey(project: Project, kind: string, oldId: string, newId: string) {
+  const from = docKey(kind, oldId);
+  const to = docKey(kind, newId);
+  const layout = project.canvasLayout;
+  if (layout[from]) {
+    layout[to] = layout[from]!;
+    delete layout[from];
+  }
+  rewriteCanvasEdgeIds(project, from, to);
+}
+
 export function rewriteCanvasEdgeIds(project: Project, oldId: string, newId: string) {
   if (!project.canvasEdges) return;
   for (const key of Object.keys(project.canvasEdges)) {

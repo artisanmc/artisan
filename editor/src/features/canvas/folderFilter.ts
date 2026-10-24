@@ -1,4 +1,4 @@
-import { allDocuments } from "@/domain/documents";
+import { allDocuments, docKey } from "@/domain/documents";
 import { isWithin, listFolders } from "@/domain/folders";
 import type { Project } from "@/domain/types";
 import type { ProjectBoard } from "./autoLayout";
@@ -18,7 +18,7 @@ export function boardForFolder(
   const shown = new Set<string>(
     allDocuments(project)
       .filter(({ doc }) => doc.folder && isWithin(doc.folder, folder))
-      .map(({ doc }) => doc.id),
+      .map(({ kind, doc }) => docKey(kind, doc.id)),
   );
   return {
     ...board,

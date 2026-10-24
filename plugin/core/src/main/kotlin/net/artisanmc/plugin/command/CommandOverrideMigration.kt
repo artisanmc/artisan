@@ -12,7 +12,7 @@ import java.util.logging.Logger
 
 /**
  * Once per command: the admin's `command_override/v1` files (the old `overrides/command/`
- * folders) become the command's own file, `commands/<id>.yaml` in its module's folder (`ModuleCommandFiles.id`),
+ * folders) become the command's own file, `commands/<name>.yaml` in its module's folder,
  * written as `ModuleCommandFiles` would with the override's values in place of the module's:
  * name and aliases of the root, permission (`""`: none), description, cooldown, requirements,
  * fallback, `steps` as the actions, `enabled`. The file then counts as edited and stays the
@@ -29,8 +29,6 @@ class CommandOverrideMigration(
     private val folderOf: (rootId: String) -> File?,
     private val defaultLang: () -> String,
     private val logger: Logger?,
-    /** The ids of the other Documents of the module that declared root command `rootId` (`ModuleCommandFiles.takenIds`). */
-    private val taken: (rootId: String) -> Set<String> = { emptySet() },
 ) {
     private val mapper = ObjectMapper(YAMLFactory())
 
@@ -47,19 +45,18 @@ class CommandOverrideMigration(
             if (mine.isEmpty()) continue
             val folder = folderOf(root.id)
             if (folder == null) {
-                logger?.warning("[Artisan] Command overrides of '${root.id}' kept in place: its module has no folder to write '${ModuleCommandFiles.path(root, taken(root.id))}' in.")
+                logger?.warning("[Artisan] Command overrides of '${root.id}' kept in place: its module has no folder to write 'commands/${root.name}.yaml' in.")
                 continue
             }
-            val others = taken(root.id)
-            val path = ModuleCommandFiles.path(root, others)
+            val path = ModuleCommandFiles.path(root)
             val target = ProjectPathPolicy.resolve(folder, path)
-            if (target.exists() && target.readText() != ModuleCommandFiles.yaml(root, others)) {
+            if (target.exists() && target.readText() != ModuleCommandFiles.yaml(root)) {
                 logger?.warning("[Artisan] Command overrides of '${root.id}' kept in place: '$path' was already edited. Copy what they change into it, then delete them.")
                 continue
             }
             // The first by project then path, as the overrides were read.
             val byId = mine.groupBy { it.command }.mapValues { it.value.first().values }
-            val yaml = EditorYaml.write(ModuleCommandFiles.document(root, others) { node, out -> dress(node, out, byId[node.id], node === root) })
+            val yaml = EditorYaml.write(ModuleCommandFiles.document(root) { node, out -> dress(node, out, byId[node.id], node === root) })
             commit(folder, mapOf(path to yaml.toByteArray(Charsets.UTF_8)))
             logger?.info("[Artisan] Command overrides of '${root.id}' moved into '$path' (the old files are in $MIGRATED/).")
             moved += mine
@@ -85,7 +82,7 @@ class CommandOverrideMigration(
                 out.clear()
                 rest.take(1).forEach { (k, v) -> out[k] = v }
                 out["name"] = name
-                rest.drop(1).filter { it.first != "name" }.forEach { (k, v) -> out[k] = v }
+                rest.drop(1).forEach { (k, v) -> out[k] = v }
             }
             (o["aliases"] as? List<*>)?.let { list -> out["aliases"] = list.mapNotNull { it?.toString()?.lowercase() }.ifEmpty { null } }
         }

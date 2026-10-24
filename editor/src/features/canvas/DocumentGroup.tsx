@@ -1,3 +1,4 @@
+import { docKey } from "@/domain/documents";
 import type { Document, Project, ProjectId } from "@/domain/types";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useDocumentItemHoverStore } from "@/state/documentItemHoverStore";
@@ -8,9 +9,9 @@ import { documentKindContribution } from "@artisan/editor-sdk";
 import type { BoardItem } from "@artisan/editor-sdk";
 import type Konva from "konva";
 import { useCallback, useEffect, useState } from "react";
-import { Group, Rect, Text } from "react-konva";
+import { Circle, Group, Line, Rect, Text } from "react-konva";
 import { dispatchOpenElement } from "./canvasEvents";
-import { DOCUMENT_ITEMS, documentBoxSize, documentRowHeight } from "./menuLayout";
+import { DOCUMENT_ITEMS, documentBoxSize } from "./menuLayout";
 import { useNodeColors } from "./nodeColors";
 import { showFullTitle } from "./nodeTitle";
 import { useNodeAlignment } from "./useNodeAlignment";
@@ -26,19 +27,8 @@ interface DocumentGroupProps {
 
 /** The host's colour of a module node, when its kind declares no `board.accent`. */
 const DEFAULT_ACCENT = "#0ea5e9";
-/** The tinted column that opens a row with a marker: its width. */
-const MARKER_W = 34;
-
-/**
- * The markers as drawn: ranks (all digits) on the same number of digits, two at least
- * (`01`… `10`), so they line up; any other mark as given.
- */
-export function markerTexts(items: readonly BoardItem[]): (string | undefined)[] {
-  const ranks = items.every((item) => item.marker && /^\d+$/.test(item.marker));
-  if (!ranks) return items.map((item) => item.marker);
-  const digits = Math.max(2, ...items.map((item) => item.marker!.length));
-  return items.map((item) => item.marker!.padStart(digits, "0"));
-}
+/** A row's marker disc: centre x inside the node, radius. */
+const MARKER = { x: 17, r: 9 };
 
 /**
  * The board node of a Document whose kind a module contributes (ADR
@@ -48,15 +38,16 @@ export function markerTexts(items: readonly BoardItem[]): (string | undefined)[]
  * in-place editing menus have on the board is theirs alone.
  */
 export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGroupProps) {
+  const key = docKey(kind, doc.id);
   const projectId = project.id as ProjectId;
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
-  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(doc.id));
+  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
   // The part of this Document selected on its node (`board.items`), scoped like an element.
   const selectedItem = useSelectionStore((s) =>
-    s.menuId === doc.id && s.ids.size === 1 ? [...s.ids][0]! : null,
+    s.menuId === key && s.ids.size === 1 ? [...s.ids][0]! : null,
   );
   const lang = useUiStore((s) => s.activeLang);
-  const nodeAlign = useNodeAlignment(projectId, doc.id);
+  const nodeAlign = useNodeAlignment(projectId, key);
   const node = useNodeColors();
   const contribution = documentKindContribution(kind);
   const size = documentBoxSize(kind, doc, project);
@@ -65,9 +56,10 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
   const items = contribution?.board?.items?.(doc, { project, lang }) ?? [];
   const Preview = contribution?.board?.render;
   const accent = contribution?.board?.accent ?? DEFAULT_ACCENT;
-  const rowH = documentRowHeight(items);
-  const markers = markerTexts(items);
-  const rowY = (i: number) => DOCUMENT_ITEMS.header + i * rowH;
+  // Parts that run in order: their discs form a line, top to bottom.
+  const ordered = items.length > 1 && items.every((item) => item.marker);
+  const rowY = (i: number) => DOCUMENT_ITEMS.header + i * DOCUMENT_ITEMS.row;
+  const rowMid = (DOCUMENT_ITEMS.row - 3) / 2;
 
   const onDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.target.moveToTop();
@@ -75,10 +67,10 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      setCanvasPosition({ projectId, nodeId: doc.id, x: e.target.x(), y: e.target.y() });
+      setCanvasPosition({ projectId, nodeId: key, x: e.target.x(), y: e.target.y() });
       useAlignmentStore.getState().clear();
     },
-    [projectId, doc.id, setCanvasPosition],
+    [projectId, key, setCanvasPosition],
   );
 
   const onClick = useCallback(
@@ -86,10 +78,10 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
       e.cancelBubble = true;
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
       const { ids, menuId: selectionMenuId, set, toggle } = useSelectionStore.getState();
-      if (additive) toggle(doc.id);
-      else if (selectionMenuId !== null || !ids.has(doc.id) || ids.size > 1) set([doc.id]);
+      if (additive) toggle(key);
+      else if (selectionMenuId !== null || !ids.has(key) || ids.size > 1) set([key]);
     },
-    [doc.id],
+    [key],
   );
 
   return (
@@ -102,13 +94,13 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
-      onDblClick={solo ? undefined : () => dispatchOpenElement(doc.id)}
-      onDblTap={solo ? undefined : () => dispatchOpenElement(doc.id)}
+      onDblClick={solo ? undefined : () => dispatchOpenElement(key)}
+      onDblTap={solo ? undefined : () => dispatchOpenElement(key)}
       // The title may be cut by its ellipsis: the full one shows on hover.
       onMouseEnter={(e) => showFullTitle(e, title)}
       onMouseLeave={(e) => showFullTitle(e, null)}
       name={`${kind}:${doc.id}`}
-      id={doc.id}
+      id={key}
     >
       <Rect
         width={size.width}
@@ -167,19 +159,26 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
         ellipsis
         listening={false}
       />
+      {ordered ? (
+        <Line
+          points={[MARKER.x, rowY(0) + rowMid, MARKER.x, rowY(items.length - 1) + rowMid]}
+          stroke={accent}
+          strokeWidth={2}
+          opacity={0.45}
+          listening={false}
+        />
+      ) : null}
       {items.map((item, i) => (
         <ItemRow
           key={item.id}
           y={rowY(i)}
           width={size.width}
-          height={rowH - 3}
           item={item}
-          marker={markers[i]}
           accent={accent}
           selected={selectedItem === item.id}
           onSelect={(e) => {
             e.cancelBubble = true;
-            useSelectionStore.getState().set([item.id], null, doc.id);
+            useSelectionStore.getState().set([item.id], null, key);
           }}
         />
       ))}
@@ -197,35 +196,26 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
 function ItemRow({
   y,
   width,
-  height: h,
   item,
-  marker,
   accent,
   selected,
   onSelect,
 }: {
   y: number;
   width: number;
-  height: number;
   item: BoardItem;
-  /** The row's marker as drawn (`markerTexts`). */
-  marker: string | undefined;
   accent: string;
   selected: boolean;
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const node = useNodeColors();
-  const { label, detail, caption, hover } = item;
-  const boxW = width - 12;
-  const detailWidth = detail ? Math.min(90, boxW / 3) : 0;
-  // With a marker, the texts start after its column.
-  const textX = (marker ? MARKER_W : 0) + 9;
-  const textW = boxW - textX - 8;
-  const twoLines = h > DOCUMENT_ITEMS.row;
-  const labelSize = twoLines ? 12.5 : 11;
-  const labelY = twoLines ? h / 2 - 14 : (h - 11) / 2;
-  const fg = selected ? node.rowSelectedFg : hovered ? node.fg : node.rowFg;
+  const h = DOCUMENT_ITEMS.row - 3;
+  const { label, detail, marker, hover } = item;
+  const detailWidth = detail ? Math.min(90, width / 3) : 0;
+  // With a marker, the row's box starts after its disc.
+  const boxX = marker ? MARKER.x + MARKER.r + 4 - 6 : 0;
+  const boxW = width - 12 - boxX;
   const setHover = useDocumentItemHoverStore((s) => s.set);
   // A row removed under the pointer (its quest deleted) leaves no tooltip behind.
   useEffect(() => {
@@ -251,77 +241,57 @@ function ItemRow({
         if (hover) setHover(null);
       }}
     >
+      {marker ? (
+        <>
+          <Circle
+            x={MARKER.x - 6}
+            y={h / 2}
+            radius={MARKER.r}
+            fill={selected ? "#22c55e" : node.bg}
+            stroke={selected ? "#22c55e" : accent}
+            strokeWidth={1.5}
+            perfectDrawEnabled={false}
+          />
+          <Text
+            x={MARKER.x - 6 - MARKER.r}
+            y={h / 2 - 5}
+            width={MARKER.r * 2}
+            align="center"
+            text={marker}
+            fontFamily="ui-monospace, monospace"
+            fontSize={10}
+            fontStyle="600"
+            fill={selected ? "#052e16" : node.fg}
+            wrap="none"
+            listening={false}
+          />
+        </>
+      ) : null}
       <Rect
+        x={boxX}
         width={boxW}
         height={h}
-        cornerRadius={5}
+        cornerRadius={4}
         fill={selected ? node.rowSelected : hovered ? node.rowHover : node.row}
         stroke={selected ? "#22c55e" : undefined}
         strokeWidth={selected ? 1 : 0}
         perfectDrawEnabled={false}
       />
-      {marker ? (
-        <>
-          {/* The rank opens the row, in a column tinted with the node's colour. */}
-          <Rect
-            width={MARKER_W}
-            height={h}
-            cornerRadius={[5, 0, 0, 5]}
-            fill={selected ? "#22c55e" : accent}
-            opacity={selected ? 0.25 : 0.1}
-            listening={false}
-          />
-          <Rect
-            x={MARKER_W - 1}
-            width={1}
-            height={h}
-            fill={selected ? "#22c55e" : accent}
-            opacity={0.3}
-            listening={false}
-          />
-          <Text
-            width={MARKER_W}
-            y={(h - (twoLines ? 14 : 10)) / 2}
-            align="center"
-            text={marker}
-            fontFamily="ui-monospace, monospace"
-            fontSize={twoLines ? 14 : 10}
-            fontStyle="bold"
-            fill={selected ? "#22c55e" : accent}
-            wrap="none"
-            ellipsis
-            listening={false}
-          />
-        </>
-      ) : null}
       <Text
-        x={textX}
-        y={labelY}
-        width={textW - detailWidth}
+        x={boxX + 8}
+        y={(h - 11) / 2}
+        width={boxW - 16 - detailWidth}
         text={label}
-        fontSize={labelSize}
-        fill={fg}
+        fontSize={11}
+        fill={selected ? node.rowSelectedFg : hovered ? node.fg : node.rowFg}
         wrap="none"
         ellipsis
         listening={false}
       />
-      {caption ? (
-        <Text
-          x={textX}
-          y={h / 2 + 3}
-          width={textW}
-          text={caption}
-          fontSize={10.5}
-          fill={node.sub}
-          wrap="none"
-          ellipsis
-          listening={false}
-        />
-      ) : null}
       {detail ? (
         <Text
-          x={textX + textW - detailWidth}
-          y={labelY + (labelSize - 9) / 2}
+          x={boxX + boxW - 8 - detailWidth}
+          y={(h - 9) / 2}
           width={detailWidth}
           align="right"
           text={detail}

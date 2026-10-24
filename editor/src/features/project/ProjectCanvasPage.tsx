@@ -40,12 +40,18 @@ import { WorkspaceDragOverlay } from "./WorkspaceDragOverlay";
 import { WorkspaceGate } from "./WorkspaceGate";
 import { useActiveLangFallback } from "./useActiveLangFallback";
 import { useProjectDeepLinks } from "./useProjectDeepLinks";
+import { useSharedIdNotice } from "./useSharedIdNotice";
 import { useWorkspaceDnd } from "./useWorkspaceDnd";
 
 export type ProjectSearch = {
   tab?: "overview" | "translations" | "data-sources" | "resources" | "history";
-  /** Deep link: center the board on this Document on open (`goToDocument`). */
+  /**
+   * Deep link: center the board on this Document on open (`goToDocument`): its key
+   * (`menu/main`), or a bare id (the first Document of that id).
+   */
   doc?: string;
+  /** The kind of the Document the focus view shows (`document/$documentId`): an id is unique within its kind only. */
+  kind?: string;
 };
 
 export const validateProjectSearch = (search: Record<string, unknown>): ProjectSearch => {
@@ -53,7 +59,8 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
   if (t === "translations" || t === "data-sources" || t === "resources" || t === "history")
     return { tab: t };
   const doc = typeof search.doc === "string" && search.doc ? { doc: search.doc } : {};
-  return { tab: "overview", ...doc };
+  const kind = typeof search.kind === "string" && search.kind ? { kind: search.kind } : {};
+  return { tab: "overview", ...doc, ...kind };
 };
 
 /**
@@ -98,6 +105,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   const { tab = "overview", doc } = useSearch({ strict: false }) as ProjectSearch;
   useProjectDeepLinks({ project, urlId, projectId, serverId, documentId, doc });
   useActiveLangFallback(project);
+  useSharedIdNotice(project);
   const presentedTab = tourPresenting ? "overview" : tab;
   const exitToCanvas = () =>
     navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });

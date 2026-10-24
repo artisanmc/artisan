@@ -134,7 +134,7 @@ it.each([
       projectId,
       menuId,
       position: { x: 0, y: 0 },
-      layout: { [menuId]: { x: 0, y: 0 } },
+      layout: { [`menu/${menuId}`]: { x: 0, y: 0 } },
       menuLayers: menusOf(project)[0]!.layers,
       inventoryType: "chest",
       menuRows: menusOf(project)[0]!.rows,

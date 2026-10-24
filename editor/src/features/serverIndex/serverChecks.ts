@@ -1,6 +1,6 @@
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { commandsOf, dialogsOf, menusOf, parseDocKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
-import { deriveServerGraph, documentKey } from "@/features/canvas/serverGraph";
+import { deriveServerGraph } from "@/features/canvas/serverGraph";
 import { namespaceOf } from "./serverIndex";
 
 export interface IssueOwner {
@@ -144,22 +144,22 @@ function duplicateIds(all: Project[], editedNamespace: string): ServerIssue[] {
 }
 
 function brokenLinks(edited: Project, all: Project[]): ServerIssue[] {
-  const prefix = documentKey(edited.id, "");
-  const kindOf = (docId: string): "menu" | "command" | "dialog" =>
-    menusOf(edited).some((m) => m.id === docId)
-      ? "menu"
-      : commandsOf(edited).some((c) => c.id === docId)
-        ? "command"
-        : "dialog";
+  const prefix = `${edited.id}/`;
   return deriveServerGraph(all)
     .unresolved.filter((u) => u.source.startsWith(prefix))
     .map((u) => {
-      const docId = u.source.slice(prefix.length);
+      const from = parseDocKey(u.source.slice(prefix.length))!;
       return {
         kind: "broken_link" as const,
         reason: u.reason,
         targetId: u.targetId,
-        from: { docId, docKind: kindOf(docId) },
+        from: {
+          docId: from.id,
+          docKind: (from.kind === "menu" || from.kind === "command" ? from.kind : "dialog") as
+            | "menu"
+            | "command"
+            | "dialog",
+        },
       };
     })
     .sort((a, b) => byText(a.from.docId, b.from.docId) || byText(a.targetId, b.targetId));

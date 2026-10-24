@@ -53,8 +53,8 @@ const kinds = new Map<string, DocumentKindDef>();
 
 /**
  * Registers a kind. Two kinds may not share a kind id, a folder, or an id
- * prefix: `canvasLayout` and references are keyed by bare id, so the prefix is
- * what keeps ids of different kinds apart.
+ * prefix: the board keys a Document by kind and id (`docKey`), and the prefix keeps
+ * the ids a user reads apart.
  */
 export function registerDocumentKind(def: DocumentKindDef): void {
   for (const other of kinds.values()) {

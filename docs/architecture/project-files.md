@@ -77,7 +77,9 @@ La règle est une fonction pure des chemins, écrite deux fois et verrouillée p
   L'éditeur le porte dans `Document.folder` et un renommage enregistre le déplacement sous
   le dossier du Document (`renamedDocumentFiles`).
 - **Un id est unique par kind dans le module.** Deux fichiers du même kind et du même id,
-  dans deux dossiers : les deux sont refusés (`duplicate_id`).
+  dans deux dossiers : les deux sont refusés (`duplicate_id`). Deux kinds peuvent partager
+  un id (un menu et une commande `shop`) : `.artisan/editor.yaml` range alors la planche
+  (`layout`, `edges`) par `<kind>/<id>`, et l'éditeur signale ce partage à l'ouverture.
 - Un dossier de kind ne contient que des fichiers (`kind_dir_subfolder` sinon). Un dossier
   thématique ne peut pas porter le nom d'une ressource (`lang`, `items`, `data`, `models`,
   `templates`, `assets`, `overrides`, `config` : `reserved_folder`) ni dépasser 3 niveaux

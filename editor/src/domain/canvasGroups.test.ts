@@ -7,8 +7,8 @@ const doc = (id: string, folder?: string) => ({ id, ...(folder ? { folder } : {}
 function project(folders?: Project["folders"]): Pick<Project, "documents" | "folders"> {
   return {
     documents: {
-      menus: [doc("a", "boutique"), doc("b", "boutique/armes"), doc("c")],
-      commands: [doc("shop", "boutique"), doc("q", "quetes")],
+      menu: [doc("a", "boutique"), doc("b", "boutique/armes"), doc("c")],
+      command: [doc("shop", "boutique"), doc("q", "quetes")],
     },
     folders,
   } as unknown as Pick<Project, "documents" | "folders">;
@@ -16,8 +16,8 @@ function project(folders?: Project["folders"]): Pick<Project, "documents" | "fol
 
 it("frames each top-level folder with every Document filed under it, at any depth", () => {
   expect(folderGroups(project())).toEqual([
-    { id: "boutique", name: "boutique", nodeIds: ["a", "b", "shop"] },
-    { id: "quetes", name: "quetes", nodeIds: ["q"] },
+    { id: "boutique", name: "boutique", nodeIds: ["menu/a", "menu/b", "command/shop"] },
+    { id: "quetes", name: "quetes", nodeIds: ["command/q"] },
   ]);
 });
 

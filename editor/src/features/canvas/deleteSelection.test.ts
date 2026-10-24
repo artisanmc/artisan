@@ -46,9 +46,9 @@ it("deletes the selected items of a menu but never the menu that holds them", ()
       ],
     },
   } as never);
-  useSelectionStore.getState().set(["shop", "a", "b"]);
+  useSelectionStore.getState().set(["menu/shop", "a", "b"]);
 
-  canvasClipboardActions.deleteSelection(PID, ["shop", "a", "b"]);
+  canvasClipboardActions.deleteSelection(PID, ["menu/shop", "a", "b"]);
 
   const left = menusOf(useProjectsStore.getState().openProjects.projects[0]!)[0]!.layers[0]!
     .elements;
@@ -103,7 +103,7 @@ it("never deletes a module's system menu, and says so", () => {
   });
   const kept = vi.fn();
 
-  canvasClipboardActions.deleteSelection(PID, ["shop_main", "mine"], kept);
+  canvasClipboardActions.deleteSelection(PID, ["menu/shop_main", "menu/mine"], kept);
 
   expect(menusOf(useProjectsStore.getState().openProjects.projects[0]!).map((m) => m.id)).toEqual([
     "shop_main",

@@ -2,7 +2,15 @@ import { normalizeBaseLore } from "@/domain/baseLore";
 import { parseCapturedStack } from "@/domain/capturedStack";
 import { listDocumentKinds } from "@/domain/documentKinds";
 import { classifyDocumentLayout } from "@/domain/documentLayout";
-import { emptyDocuments, menusOf, mutableDocuments } from "@/domain/documents";
+import {
+  type DocKey,
+  allDocuments,
+  docKey,
+  emptyDocuments,
+  isDocKey,
+  menusOf,
+  mutableDocuments,
+} from "@/domain/documents";
 import { normalizeFolderMeta } from "@/domain/folders";
 import {
   adoptAddressedTranslations,
@@ -162,17 +170,36 @@ function scanDir(
 
 // Board state (layout / edges)
 
-function parseEditorLayout(raw: unknown): Record<string, { x: number; y: number }> {
+/**
+ * The board positions of `.artisan/editor.yaml`, keyed by Document key (`docKey`). A bare id,
+ * the key before kinds were told apart, moves to every Document holding that id: a menu and
+ * a command `shop` both start where `shop` was, and the next move sets each its own.
+ */
+export function parseEditorLayout(
+  raw: unknown,
+  documents: Project["documents"],
+): Record<DocKey, { x: number; y: number }> {
   if (!raw || typeof raw !== "object") return {};
-  const out: Record<string, { x: number; y: number }> = {};
-  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+  const out: Record<DocKey, { x: number; y: number }> = {};
+  const entries = Object.entries(raw as Record<string, unknown>);
+  // A key already written wins over the bare id it replaces.
+  entries.sort(([a], [b]) => Number(isDocKey(a)) - Number(isDocKey(b)));
+  for (const [id, v] of entries) {
     if (!v || typeof v !== "object") continue;
     const { x, y } = v as { x?: unknown; y?: unknown };
     if (typeof x !== "number" || typeof y !== "number") continue;
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-    out[id] = { x, y };
+    for (const key of boardKeys(id, documents)) out[key] = { x, y };
   }
   return out;
+}
+
+/** The keys a stored board key stands for: itself, or each Document of a bare id. */
+function boardKeys(id: string, documents: Project["documents"]): DocKey[] {
+  if (isDocKey(id)) return [id];
+  return allDocuments({ documents })
+    .filter((d) => d.doc.id === id)
+    .map((d) => docKey(d.kind, id));
 }
 
 const ANCHOR_SIDES = new Set(["top", "right", "bottom", "left"]);
@@ -185,7 +212,15 @@ function parseAnchor(raw: unknown): EdgeAnchor | null {
   return { side: side as EdgeAnchor["side"], t: Math.min(1, Math.max(0, t)) };
 }
 
-function parseEditorEdges(raw: unknown): Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }> {
+/**
+ * The pinned link ends of `.artisan/editor.yaml`, keyed `source->target` by Document key. A
+ * bare end (before kinds were told apart) goes to the first Document of that id; one naming
+ * nothing in the project is dropped.
+ */
+export function parseEditorEdges(
+  raw: unknown,
+  documents: Project["documents"],
+): Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }> {
   if (!raw || typeof raw !== "object") return {};
   const out: Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }> = {};
   for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
@@ -193,7 +228,11 @@ function parseEditorEdges(raw: unknown): Record<string, { from?: EdgeAnchor; to?
     const from = parseAnchor((v as { from?: unknown }).from);
     const to = parseAnchor((v as { to?: unknown }).to);
     if (!from && !to) continue;
-    out[id] = { ...(from ? { from } : {}), ...(to ? { to } : {}) };
+    const [src = "", tgt = ""] = id.split("->");
+    const source = isDocKey(src) ? src : boardKeys(src, documents)[0];
+    const target = isDocKey(tgt) ? tgt : boardKeys(tgt, documents)[0];
+    if (!source || !target) continue;
+    out[`${source}->${target}`] = { ...(from ? { from } : {}), ...(to ? { to } : {}) };
   }
   return out;
 }
@@ -901,6 +940,7 @@ export function projectFromFiles(
   }
 
   const folders = normalizeFolderMeta(editorState.folders);
+  const canvasEdges = parseEditorEdges(editorState.edges, documents);
 
   const project: Project = {
     id: projectId,
@@ -926,11 +966,9 @@ export function projectFromFiles(
     ...(manifest.lore_max_width ? { loreMaxWidth: manifest.lore_max_width } : {}),
     ...(manifest.escape_goes_back === true ? { escapeGoesBack: true } : {}),
     ...(editorState.i18n_mode === "inline" ? { i18nMode: "inline" as const } : {}),
-    canvasLayout: parseEditorLayout(editorState.layout),
+    canvasLayout: parseEditorLayout(editorState.layout, documents),
     ...(Object.keys(folders).length ? { folders } : {}),
-    ...(Object.keys(parseEditorEdges(editorState.edges)).length > 0
-      ? { canvasEdges: parseEditorEdges(editorState.edges) }
-      : {}),
+    ...(Object.keys(canvasEdges).length > 0 ? { canvasEdges } : {}),
     ...(Object.keys(moduleData).length > 0 ? { moduleData: { ...moduleData } } : {}),
     ...(Object.keys(unreadFiles).length > 0 ? { unreadFiles } : {}),
     ...(typeof manifest.module === "string" && manifest.module

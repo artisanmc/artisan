@@ -1,5 +1,5 @@
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
-import { commandsOf, dialogsOf, findDocument, menusOf } from "@/domain/documents";
+import { findDocumentByKey, menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 
 /**
@@ -38,21 +38,24 @@ export function selectionContext(
   if (ids.size === 0) return { kind: "none" };
 
   const id = [...ids][0]!;
+  // A Document is selected by its key (`docKey`): two kinds may share an id.
   if (selectionMenuId === null) {
-    if (commandsOf(project).some((c) => c.id === id)) return { kind: "command", id };
-    if (dialogsOf(project).some((d) => d.id === id)) return { kind: "dialog", id };
-    if (menusOf(project).some((m) => m.id === id)) return { kind: "menu", menuId: id };
-    const found = findDocument(project, id);
-    if (found && !CORE.has(found.kind)) {
-      return { kind: "document", documentKind: found.kind, id };
+    const found = findDocumentByKey(project, id);
+    if (found) {
+      const docId = found.doc.id;
+      if (found.kind === "command") return { kind: "command", id: docId };
+      if (found.kind === "dialog") return { kind: "dialog", id: docId };
+      if (found.kind === "menu") return { kind: "menu", menuId: docId };
+      if (!CORE.has(found.kind)) return { kind: "document", documentKind: found.kind, id: docId };
     }
   }
 
-  // A part of a module's Document (`board.items`): scoped by its Document, like an element.
+  // A part of a module's Document (`board.items`): scoped by its Document's key, like an
+  // element by its menu.
   if (selectionMenuId !== null) {
-    const owner = findDocument(project, selectionMenuId);
+    const owner = findDocumentByKey(project, selectionMenuId);
     if (owner && !CORE.has(owner.kind)) {
-      return { kind: "document", documentKind: owner.kind, id: selectionMenuId, item: id };
+      return { kind: "document", documentKind: owner.kind, id: owner.doc.id, item: id };
     }
   }
 
