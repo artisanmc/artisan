@@ -126,6 +126,7 @@ export function ItemEditor({
           onChange={(value) => onText(field, value)}
           onFocus={onFocus}
           profile={field === "title" ? ITEM_NAME : LORE}
+          wrapWidth={field === "lore" ? project?.loreMaxWidth : undefined}
           entries={suggestions}
           aria-label={label}
           minHeight={field === "title" ? "36px" : "96px"}

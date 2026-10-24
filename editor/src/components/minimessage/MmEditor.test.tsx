@@ -18,6 +18,15 @@ function Controlled({ initial, profile = CHAT }: { initial: string; profile?: ty
 }
 
 describe("MmEditor", () => {
+  it("marks where a lore line will wrap without writing in the text", () => {
+    const line = "word ".repeat(20).trim();
+    render(<MmEditor value={line} onChange={() => {}} profile={LORE} wrapWidth={60} />);
+    const marks = document.querySelectorAll(".cm-mm-wrap");
+    expect(marks.length).toBeGreaterThan(0);
+    expect((marks[0] as HTMLElement).title).toMatch(/60 px/);
+    expect(document.querySelector(".cm-content")!.textContent).toBe(line);
+  });
+
   it("hides the tags in the rich view and shows them in the code view", () => {
     render(<Controlled initial="<red>hello</red>" />);
     const content = () => document.querySelector(".cm-content")!.textContent;

@@ -27,6 +27,8 @@ export interface MmEditorProps {
   minHeight?: string;
   /** Shown while the text is empty. */
   placeholder?: string;
+  /** A lore's `lore_max_width`: where each line will wrap is marked, nothing is written. */
+  wrapWidth?: number;
   /** Called when the editor, toolbar included, takes the focus. */
   onFocus?: () => void;
   "aria-label"?: string;
@@ -50,6 +52,7 @@ export function MmEditor({
   initialMode = "rich",
   minHeight = "64px",
   placeholder,
+  wrapWidth,
   onFocus,
   "aria-label": ariaLabel,
   className,
@@ -86,7 +89,13 @@ export function MmEditor({
       return true;
     };
     return [
-      ...mmExtensions({ mode, profile, entries }),
+      ...mmExtensions({
+        mode,
+        profile,
+        entries,
+        wrapWidth,
+        wrapLabel: t("mmEditor.wrapMarker", { width: wrapWidth }),
+      }),
       Prec.high(
         keymap.of([
           { key: "Mod-b", run: shortcut("bold") },
@@ -95,7 +104,7 @@ export function MmEditor({
         ]),
       ),
     ];
-  }, [mode, profile, entries]);
+  }, [mode, profile, entries, wrapWidth, t]);
 
   const active = useMemo(() => {
     if (sel.from === sel.to) return {};

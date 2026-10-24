@@ -1,3 +1,4 @@
+import { loreWrapPoints } from "@/lib/loreWrap";
 import type { Segment, Style } from "@/lib/miniMessage";
 import { parseMiniMessageSource } from "@/lib/miniMessage";
 import { deleteVisible, diffText, splitLine } from "@/lib/mm/edit";
@@ -258,6 +259,14 @@ export const MM_THEME = EditorView.theme({
   ".cm-content": { padding: "8px 0", fontFamily: "var(--font-mono)", caretColor: "var(--text)" },
   ".cm-line": { padding: "0 10px" },
   ".cm-placeholder": { color: "var(--text-faint)", fontStyle: "normal" },
+  ".cm-mm-wrap": {
+    display: "inline-block",
+    width: "0",
+    height: "1.1em",
+    margin: "0 3px",
+    verticalAlign: "text-bottom",
+    borderLeft: "1px dashed var(--text-faint)",
+  },
   ".cm-cursor": { borderLeftColor: "var(--text)" },
   ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
     background: "var(--brand-soft) !important",
@@ -280,14 +289,71 @@ export const MM_THEME = EditorView.theme({
   ".cm-mm-obf": { textDecoration: "underline dashed", textDecorationColor: "var(--text-faint)" },
 });
 
+class WrapMarker extends WidgetType {
+  constructor(readonly label: string) {
+    super();
+  }
+  eq(other: WrapMarker) {
+    return other.label === this.label;
+  }
+  toDOM() {
+    const mark = document.createElement("span");
+    mark.className = "cm-mm-wrap";
+    mark.title = this.label;
+    mark.setAttribute("aria-hidden", "true");
+    return mark;
+  }
+  ignoreEvent() {
+    return true;
+  }
+}
+
+/**
+ * Faint marks where the plugin will wrap each line at `width` MC pixels
+ * (`lore_max_width`). Nothing is written in the text: the wrap happens at render,
+ * once placeholders have their length.
+ */
+function wrapMarkers(width: number, label: string): Extension {
+  const build = (state: EditorState): DecorationSet => {
+    const marks: Range<Decoration>[] = [];
+    for (let n = 1; n <= state.doc.lines; n++) {
+      const line = state.doc.line(n);
+      for (const at of loreWrapPoints(line.text, width)) {
+        marks.push(
+          Decoration.widget({ widget: new WrapMarker(label), side: -1 }).range(line.from + at),
+        );
+      }
+    }
+    return Decoration.set(marks);
+  };
+  return StateField.define<DecorationSet>({
+    create: build,
+    update: (deco, tr) => (tr.docChanged ? build(tr.state) : deco),
+    provide: (field) => EditorView.decorations.from(field),
+  });
+}
+
 export interface MmExtensionOptions {
   mode: MmViewMode;
   profile: MmProfile;
   entries: PlaceholderEntry[];
+  /** `lore_max_width` of a lore: where each line will wrap is marked. */
+  wrapWidth?: number;
+  /** Hover text of a wrap mark. */
+  wrapLabel?: string;
 }
 
-export function mmExtensions({ mode, profile, entries }: MmExtensionOptions): Extension[] {
+export function mmExtensions({
+  mode,
+  profile,
+  entries,
+  wrapWidth,
+  wrapLabel = "",
+}: MmExtensionOptions): Extension[] {
   const exts: Extension[] = [MM_THEME, EditorView.lineWrapping];
+  if (wrapWidth && wrapWidth > 0 && profile.lines === "separate") {
+    exts.push(wrapMarkers(wrapWidth, wrapLabel));
+  }
   if (profile.lines === "single") {
     exts.push(Prec.highest(keymap.of([{ key: "Enter", run: () => true }])));
   }

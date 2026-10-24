@@ -57,6 +57,7 @@ export const mmEditorEn = {
     placeholder: "Placeholder",
   },
   palettes: { builtin: "Built-in" },
+  wrapMarker: "The line wraps here in game (lore max width: {{width}} px)",
 };
 
 export const mmEditorFr: typeof mmEditorEn = {
@@ -119,6 +120,7 @@ export const mmEditorFr: typeof mmEditorEn = {
     placeholder: "Placeholder",
   },
   palettes: { builtin: "Intégrées" },
+  wrapMarker: "La ligne passe à la ligne ici en jeu (largeur max du lore : {{width}} px)",
 };
 
 export const textToolEn = {
