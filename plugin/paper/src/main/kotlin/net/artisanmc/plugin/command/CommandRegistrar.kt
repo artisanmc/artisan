@@ -53,6 +53,8 @@ class CommandRegistrar(
     private val folderOwner: (String) -> String? = { null },
     /** Runs a module command's code for the console (`console: true`). */
     private val consoleRunner: ModuleCommandRunner? = null,
+    /** The ids of a module's own Documents, which its commands' files are named apart from (`ModuleCommandFiles.id`). */
+    private val takenIds: (moduleId: String) -> Set<String> = { emptySet() },
 ) {
     private val logger: Logger get() = plugin.logger
     private val namespace get() = plugin.name.lowercase()
@@ -109,9 +111,10 @@ class CommandRegistrar(
         // A module without a folder, or whose file is not on disk yet: its commands as generated.
         for (declaration in declarations) {
             val module = commandOwner(declaration.id)
-            if (module != null && (module to declaration.name) in documents) continue
+            val taken = module?.let(takenIds).orEmpty()
+            if (module != null && (module to ModuleCommandFiles.id(declaration, taken)) in documents) continue
             val yaml = try {
-                ModuleCommandFiles.commandYaml(declaration)
+                ModuleCommandFiles.commandYaml(declaration, taken)
             } catch (e: Exception) {
                 logger.warning("Module command '${declaration.id}' could not be built: ${e.message}")
                 continue

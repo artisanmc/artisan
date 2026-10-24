@@ -136,7 +136,7 @@ class CommandOverrideMigrationTest {
         registry.bindOwner(null)
         val templates = ModuleTemplates(registry)
         val commands = assertNotNull(ModuleCommandFiles.template(listOf(balance())))
-        templates.setGenerated(mapOf("guilds" to commands, "shop" to commands))
+        templates.setGenerated(mapOf("guilds" to { _ -> commands }, "shop" to { _ -> commands }))
         assertEquals(listOf("menus", ModuleCommandFiles.TEMPLATE_ID), templates.of("guilds").map { it.id })
         assertEquals(listOf("guilds", "shop"), templates.registered().keys.toList())
         assertEquals(commands, templates.find("shop", ModuleCommandFiles.TEMPLATE_ID))
