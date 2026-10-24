@@ -13,6 +13,7 @@ import java.util.UUID
  * - missing: written, unless a file of that name was moved to another folder of the module;
  * - an untouched copy of an earlier version: replaced by the shipped one;
  * - holding the shipped content: only its origin is recorded;
+ * - no longer shipped: removed while untouched, kept once edited;
  * - edited, when the module ships another version: merged ([ThreeWayMerge]) from the version
  *   it was copied from, kept in [BASES], to the shipped one. Without a conflict the merged file
  *   follows the shipped version from then on; with one, the owner's values stay and the origin
@@ -79,7 +80,19 @@ object SystemFiles {
                 }
             }
         }
-        // The shipped content is the base of every file copied from it.
+        // A file the module no longer ships (a command file named apart from a menu since): removed
+        // while untouched; edited, it stays the owner's, still marked as the module's.
+        for ((path, origin) in origins.toList()) {
+            if (origin.module != moduleId || origin.template != template.id || path in template.paths) continue
+            val target = ProjectPathPolicy.resolve(projectDir, path)
+            if (!target.exists()) {
+                origins.remove(path)
+            } else if (target.isFile && ContentHash.hashBytes(target.readBytes()) == origin.hash) {
+                changes[path] = null
+                origins.remove(path)
+            }
+        }
+                // The shipped content is the base of every file copied from it.
         for (path in template.paths) {
             val hash = template.getHash(path)!!
             if (origins[path]?.hash == hash && !base(projectDir, hash).isFile) changes["$BASES/$hash"] = template.getFile(path)!!
