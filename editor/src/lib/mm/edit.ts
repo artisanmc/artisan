@@ -127,7 +127,8 @@ function run(src: string, from: number, to: number, op: Op, perLine: boolean): M
     const end = offset + line.length;
     offset = end + 1;
     const outStart = out.reduce((s, l) => s + l.length + 1, 0);
-    const res = from < end + 1 && to > start ? runOnFragment(line, from - start, to - start, op) : null;
+    const res =
+      from < end + 1 && to > start ? runOnFragment(line, from - start, to - start, op) : null;
     if (res) {
       changed = true;
       out.push(res.text);
@@ -198,7 +199,13 @@ export function setGradient(
   phase?: number,
 ) {
   const args = [...stops.map((s) => s.toLowerCase()), ...(phase ? [String(phase)] : [])];
-  return run(src, from, to, wrapOp(`<gradient:${args.join(":")}>`, "</gradient>", isColorEl), perLine);
+  return run(
+    src,
+    from,
+    to,
+    wrapOp(`<gradient:${args.join(":")}>`, "</gradient>", isColorEl),
+    perLine,
+  );
 }
 
 export function removeColor(src: string, from: number, to: number, perLine = false) {

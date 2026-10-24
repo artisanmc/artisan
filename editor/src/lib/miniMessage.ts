@@ -355,11 +355,7 @@ const explodePerChar = (segs: SourceSegment[]): SourceSegment[] => {
   return out;
 };
 
-const applyGradient = (
-  segs: SourceSegment[],
-  colors: string[],
-  phase: number,
-): SourceSegment[] => {
+const applyGradient = (segs: SourceSegment[], colors: string[], phase: number): SourceSegment[] => {
   const exploded = explodePerChar(segs);
   // Distribute uniformly across all chars. Phase shifts the t mapping but
   // the gradient is bounded — clamp instead of wrap so t=1 hits the last
@@ -374,11 +370,7 @@ const applyGradient = (
   return exploded;
 };
 
-const applyRainbow = (
-  segs: SourceSegment[],
-  phase: number,
-  reverse: boolean,
-): SourceSegment[] => {
+const applyRainbow = (segs: SourceSegment[], phase: number, reverse: boolean): SourceSegment[] => {
   const exploded = explodePerChar(segs);
   const total = exploded.length;
   if (total === 0) return exploded;

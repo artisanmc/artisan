@@ -13,7 +13,13 @@ export interface McTitleProps {
 }
 
 /** `/title` on screen: the title centered at 4×, the subtitle at 2× below it. */
-export function McTitle({ title, subtitle, defaults = TITLE.defaults, scale = 1, className }: McTitleProps) {
+export function McTitle({
+  title,
+  subtitle,
+  defaults = TITLE.defaults,
+  scale = 1,
+  className,
+}: McTitleProps) {
   return (
     <McScene height={150 * scale} className={className}>
       <div
@@ -29,7 +35,9 @@ export function McTitle({ title, subtitle, defaults = TITLE.defaults, scale = 1,
         }}
       >
         <McText source={title} defaults={defaults} scale={4 * scale} align="center" />
-        {subtitle ? <McText source={subtitle} defaults={defaults} scale={2 * scale} align="center" /> : null}
+        {subtitle ? (
+          <McText source={subtitle} defaults={defaults} scale={2 * scale} align="center" />
+        ) : null}
       </div>
     </McScene>
   );

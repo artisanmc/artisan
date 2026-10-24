@@ -52,9 +52,15 @@ export function McMotd({
       <div style={{ display: "flex", flexDirection: "column", gap: scale, minWidth: 0, flex: 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <McText source={name} defaults={{ color: "#ffffff" }} scale={scale} />
-          <div aria-hidden style={{ display: "flex", alignItems: "flex-end", gap: scale, height: 8 * scale }}>
+          <div
+            aria-hidden
+            style={{ display: "flex", alignItems: "flex-end", gap: scale, height: 8 * scale }}
+          >
             {[2, 3, 4, 5, 6].map((h) => (
-              <span key={h} style={{ width: scale, height: h * scale, background: "var(--mc-ping)" }} />
+              <span
+                key={h}
+                style={{ width: scale, height: h * scale, background: "var(--mc-ping)" }}
+              />
             ))}
           </div>
         </div>

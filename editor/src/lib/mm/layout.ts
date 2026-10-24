@@ -1,4 +1,9 @@
-import { type Segment, type SourceSegment, type Style, parseMiniMessageSource } from "../miniMessage";
+import {
+  type Segment,
+  type SourceSegment,
+  type Style,
+  parseMiniMessageSource,
+} from "../miniMessage";
 
 /** One thing the reader sees: a character (with its escape) or the text a tag shows. */
 export interface VisibleUnit {

@@ -67,12 +67,7 @@ export function McTooltip({
               <McText source={enchants.join("\n")} perLine defaults={ENCHANT} scale={scale} />
             )}
             {lines.length > 0 && (
-              <McText
-                source={lines.join("\n")}
-                perLine
-                defaults={loreDefaults}
-                scale={scale}
-              />
+              <McText source={lines.join("\n")} perLine defaults={loreDefaults} scale={scale} />
             )}
           </div>
         )}

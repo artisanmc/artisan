@@ -152,10 +152,20 @@ export function drawLine(
         }
         ctx.fillStyle = fill;
         if (s.underlined) {
-          ctx.fillRect(cursor + off - scale, y + (MAX_ASCENT + 1) * scale + off, adv + scale, scale);
+          ctx.fillRect(
+            cursor + off - scale,
+            y + (MAX_ASCENT + 1) * scale + off,
+            adv + scale,
+            scale,
+          );
         }
         if (s.strikethrough) {
-          ctx.fillRect(cursor + off - scale, y + (MAX_ASCENT - 3.5) * scale + off, adv + scale, scale);
+          ctx.fillRect(
+            cursor + off - scale,
+            y + (MAX_ASCENT - 3.5) * scale + off,
+            adv + scale,
+            scale,
+          );
         }
         cursor += adv;
       }

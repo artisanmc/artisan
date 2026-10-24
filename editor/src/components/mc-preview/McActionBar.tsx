@@ -11,7 +11,12 @@ export interface McActionBarProps {
 }
 
 /** The action bar: one line centered above the hotbar. */
-export function McActionBar({ text, defaults = ACTION_BAR.defaults, scale = 2, className }: McActionBarProps) {
+export function McActionBar({
+  text,
+  defaults = ACTION_BAR.defaults,
+  scale = 2,
+  className,
+}: McActionBarProps) {
   return (
     <McScene height={90 * scale} className={className}>
       <div

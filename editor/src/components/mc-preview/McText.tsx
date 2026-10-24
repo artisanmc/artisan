@@ -1,6 +1,6 @@
+import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { API_URL } from "@/lib/api/client";
 import { cn } from "@/lib/cx";
-import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import {
   type Segment,
   type Style,
@@ -105,19 +105,31 @@ export function McText({
     tint.imageSmoothingEnabled = false;
     lines.forEach((line, k) => {
       const x = align === "center" ? ((maxWidth - (shadow ? 1 : 0) - widths[k]!) / 2) * px : 0;
-      drawLine(ctx, atlases, line, Math.round(x), k * lineHeight * px, {
-        defaults,
-        scale: px,
-        shadow,
-        tick,
-      }, tint);
+      drawLine(
+        ctx,
+        atlases,
+        line,
+        Math.round(x),
+        k * lineHeight * px,
+        {
+          defaults,
+          scale: px,
+          shadow,
+          tick,
+        },
+        tint,
+      );
     });
   }, [atlases, lines, widths, maxWidth, height, scale, lineHeight, shadow, defaults, tick, align]);
 
   if (!atlases) {
     return (
       <span
-        className={cn("inline-flex flex-col font-mono", align === "center" && "items-center", className)}
+        className={cn(
+          "inline-flex flex-col font-mono",
+          align === "center" && "items-center",
+          className,
+        )}
         style={{
           color: defaults.color,
           fontStyle: defaults.italic ? "italic" : undefined,
@@ -140,7 +152,12 @@ export function McText({
       role="img"
       aria-label={label}
       className={cn("block", className)}
-      style={{ width: maxWidth * scale, height: height * scale, imageRendering: "pixelated", ...style }}
+      style={{
+        width: maxWidth * scale,
+        height: height * scale,
+        imageRendering: "pixelated",
+        ...style,
+      }}
     />
   );
 }

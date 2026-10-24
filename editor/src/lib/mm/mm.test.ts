@@ -206,7 +206,10 @@ describe("deleteVisible", () => {
 
 describe("splitLine", () => {
   it("closes and reopens tags around a lore line break", () => {
-    expect(splitLine("<red>abcd</red>", 7)).toEqual({ text: "<red>ab</red>\n<red>cd</red>", caret: 19 });
+    expect(splitLine("<red>abcd</red>", 7)).toEqual({
+      text: "<red>ab</red>\n<red>cd</red>",
+      caret: 19,
+    });
   });
 });
 
