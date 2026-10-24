@@ -804,6 +804,7 @@ const fr: typeof en = {
     },
   },
   projectPanel: {
+    relation: { parent: "Ouvre l'élément sélectionné", child: "Ouvert par l'élément sélectionné" },
     originTag: { modified: "modifié", update: "nouvelle version" },
     systemDocumentHint:
       "Élément interne du module {{module}} : son code l'ouvre. Tu peux le modifier ; il ne se supprime pas, Réinitialiser le remet à la version du module.",

@@ -118,3 +118,51 @@ describe("ProjectDocumentTree", () => {
     expect(screen.getByText(/Nouveau dialogue|New dialog/i)).toBeInTheDocument();
   });
 });
+
+describe("ProjectDocumentTree links and drag", () => {
+  const linked = () => {
+    const p = project();
+    (p.documents.command![0] as { steps: unknown[] }).steps = [
+      { kind: "action", action: { name: "open_menu", value: "m1" } },
+    ];
+    p.folders = { boutique: {} };
+    useProjectsStore.setState({ openProjects: { projects: [p], projectOrder: [PID] } } as never);
+  };
+
+  it("marks what opens the open document and what it opens", () => {
+    linked();
+    const { rerender } = render(
+      <ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="menu/m1" />,
+    );
+    const row = (text: string) => screen.getByText(text).closest("button")!;
+    expect(within(row("/heal")).getByRole("img", { name: /ouvre|opens/i })).toBeInTheDocument();
+    expect(within(row("m2")).queryByRole("img")).toBeNull();
+    rerender(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="command/c1" />);
+    expect(within(row("m1")).getByRole("img", { name: /ouvert|opened/i })).toBeInTheDocument();
+  });
+
+  it("files a document dropped on a folder, and back at the root", () => {
+    linked();
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      get types() {
+        return [...data.keys()];
+      },
+      setData: (k: string, v: string) => data.set(k, v),
+      getData: (k: string) => data.get(k) ?? "",
+      effectAllowed: "",
+      dropEffect: "",
+    };
+    const folder = () =>
+      useProjectsStore.getState().openProjects.projects[0]!.documents.menu![1] as {
+        folder?: string;
+      };
+    fireEvent.dragStart(screen.getByText("m2").closest("[draggable=true]")!, { dataTransfer });
+    fireEvent.drop(screen.getByRole("button", { name: "boutique" }), { dataTransfer });
+    expect(folder().folder).toBe("boutique");
+    fireEvent.dragStart(screen.getByText("m2").closest("[draggable=true]")!, { dataTransfer });
+    fireEvent.drop(screen.getByText("/heal"), { dataTransfer });
+    expect(folder().folder).toBeUndefined();
+  });
+});

@@ -788,6 +788,7 @@ export default {
     },
   },
   projectPanel: {
+    relation: { parent: "Opens the selected element", child: "Opened by the selected element" },
     originTag: { modified: "edited", update: "new version" },
     systemDocumentHint:
       "Built into the module {{module}}: its code opens it. You can edit it; it cannot be deleted, and Reset puts the module's version back.",

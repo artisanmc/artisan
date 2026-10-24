@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Added**: in the sidebar, drag a Document onto a folder to file it there, or outside every folder to put it back at the root; it joins its new folder's frame on the board. When a Document is open or selected, arrows mark the Documents that open it (←) and the ones it opens (→).
 - **Changed**: the board and the server board no longer print the "Not linked yet" label above unlinked Documents; they still sit apart at the bottom.
 - **Added**: on the board, a double-click on a folder frame's background shows only that folder, and Escape (with nothing selected) shows everything again. In the sidebar, a folder's icon takes the color of its frame on the board.
 - **Added**: Artisan reads `.yml` as well as `.yaml`, the Bukkit/Paper norm, for every file of a module: Documents, `lang/`, `data/`, `models/`, `templates/` and asset descriptors. The same file under both extensions is refused for a Document (`duplicate_id`, both skipped); for any other file the `.yml` copy is read and the log names the other. A folder is a module with `artisan-module.yml` (`schema: module/v1`, the fields of `manifest/v1`) as well as `manifest.yaml`, and a module zip is imported with either. The editor saves each file under the extension it has on disk. Artisan still writes `.yaml` and `manifest.yaml`: writing `.yml` comes once the add-ons read both.
