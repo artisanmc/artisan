@@ -50,7 +50,18 @@ export interface Segment {
   style: Style;
 }
 
-const NAMED_COLORS: Record<string, string> = {
+/**
+ * A segment that knows where its text comes from: `map[k]` is the source offset of
+ * `text[k]` (UTF-16 units), or -1 for text the source does not hold verbatim. Text a
+ * tag emits (`<newline>`, the `[key.jump]` of a `<key>`) carries `gen`, the range of
+ * that tag. What no segment covers is markup — what the rich editor hides.
+ */
+export interface SourceSegment extends Segment {
+  map: number[];
+  gen?: { from: number; to: number };
+}
+
+export const NAMED_COLORS: Record<string, string> = {
   black: "#000000",
   dark_blue: "#0000aa",
   dark_green: "#00aa00",
@@ -308,7 +319,7 @@ const placeholderFor = (head: string, parts: string[]): string => {
   }
 };
 
-const SELF_REPLACING = new Set([
+export const SELF_REPLACING = new Set([
   "key",
   "lang",
   "tr",
@@ -327,15 +338,28 @@ const INTERACTIVE = new Set(["click", "hover", "insert"]);
 
 /* --- per-character explosion for gradient/rainbow ----------------------- */
 
-const explodePerChar = (segs: Segment[]): Segment[] => {
-  const out: Segment[] = [];
+const explodePerChar = (segs: SourceSegment[]): SourceSegment[] => {
+  const out: SourceSegment[] = [];
   for (const seg of segs) {
-    for (const ch of seg.text) out.push({ text: ch, style: cloneStyle(seg.style) });
+    let k = 0;
+    for (const ch of seg.text) {
+      out.push({
+        text: ch,
+        style: cloneStyle(seg.style),
+        map: seg.map.slice(k, k + ch.length),
+        ...(seg.gen ? { gen: seg.gen } : {}),
+      });
+      k += ch.length;
+    }
   }
   return out;
 };
 
-const applyGradient = (segs: Segment[], colors: string[], phase: number): Segment[] => {
+const applyGradient = (
+  segs: SourceSegment[],
+  colors: string[],
+  phase: number,
+): SourceSegment[] => {
   const exploded = explodePerChar(segs);
   // Distribute uniformly across all chars. Phase shifts the t mapping but
   // the gradient is bounded — clamp instead of wrap so t=1 hits the last
@@ -350,7 +374,11 @@ const applyGradient = (segs: Segment[], colors: string[], phase: number): Segmen
   return exploded;
 };
 
-const applyRainbow = (segs: Segment[], phase: number, reverse: boolean): Segment[] => {
+const applyRainbow = (
+  segs: SourceSegment[],
+  phase: number,
+  reverse: boolean,
+): SourceSegment[] => {
   const exploded = explodePerChar(segs);
   const total = exploded.length;
   if (total === 0) return exploded;
@@ -408,37 +436,61 @@ const scopeOf = (
 
 interface ParseContext {
   startStyle: Style;
+  /** Source offset of `input[0]`: nested scopes are parsed from a slice. */
+  base: number;
 }
 
-function parseFragment(input: string, ctx: ParseContext): Segment[] {
-  const segments: Segment[] = [];
+function parseFragment(input: string, ctx: ParseContext): SourceSegment[] {
+  const segments: SourceSegment[] = [];
   let style: Style = cloneStyle(ctx.startStyle);
   const stack: OpenTag[] = [];
+  const base = ctx.base;
   let buf = "";
+  let bufMap: number[] = [];
+  let tagStart = 0;
 
   const flush = () => {
     if (buf.length > 0) {
-      segments.push({ text: buf, style: cloneStyle(style) });
+      segments.push({ text: buf, style: cloneStyle(style), map: bufMap });
       buf = "";
+      bufMap = [];
     }
   };
+  /** Appends `input[from, to)` verbatim — an unknown tag stays literal text. */
+  const literal = (from: number, to: number) => {
+    buf += input.slice(from, to);
+    for (let k = from; k < to; k++) bufMap.push(base + k);
+  };
+  const literalTag = () => literal(tagStart, i);
+  /** Text a tag stands for, attached to the tag's source range. */
+  const generated = (text: string) => {
+    segments.push({
+      text,
+      style: cloneStyle(style),
+      map: new Array(text.length).fill(-1),
+      gen: { from: base + tagStart, to: base + i },
+    });
+  };
+  const nested = (content: string, startStyle: Style) =>
+    parseFragment(content, { startStyle, base: base + i });
 
   let i = 0;
   while (i < input.length) {
     const ch = input[i]!;
     if (ch === "\\" && i + 1 < input.length) {
       buf += input[i + 1];
+      bufMap.push(base + i + 1);
       i += 2;
       continue;
     }
     if (ch !== "<") {
-      buf += ch;
+      literal(i, i + 1);
       i++;
       continue;
     }
     const close = input.indexOf(">", i + 1);
     if (close === -1) {
-      buf += ch;
+      literal(i, i + 1);
       i++;
       continue;
     }
@@ -446,6 +498,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
     const tagLower = innerRaw.toLowerCase();
     const parts = splitTagArgs(tagLower);
     const head = parts[0] ?? "";
+    tagStart = i;
     i = close + 1;
 
     // Closing tag </name>
@@ -453,7 +506,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
       const name = head.slice(1);
       const idx = stack.findIndex((t) => t.name === name);
       if (idx === -1) {
-        buf += `<${innerRaw}>`;
+        literalTag();
         continue;
       }
       flush();
@@ -473,7 +526,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
     // <newline> / <br/>
     if (tagLower === "newline" || tagLower === "br" || tagLower === "br/") {
       flush();
-      segments.push({ text: "\n", style: cloneStyle(style) });
+      generated("\n");
       continue;
     }
 
@@ -481,12 +534,12 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
     if (head === "gradient") {
       const args = parseGradientArgs(parts);
       if (!args) {
-        buf += `<${innerRaw}>`;
+        literalTag();
         continue;
       }
       const scope = scopeOf(input, i, "gradient");
       flush();
-      const inner = parseFragment(scope.content, { startStyle: style });
+      const inner = nested(scope.content, style);
       segments.push(...applyGradient(inner, args.colors, args.phase));
       i = scope.next;
       continue;
@@ -497,7 +550,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
       const args = parseRainbowArgs(parts);
       const scope = scopeOf(input, i, "rainbow");
       flush();
-      const inner = parseFragment(scope.content, { startStyle: style });
+      const inner = nested(scope.content, style);
       segments.push(...applyRainbow(inner, args.phase, args.reverse));
       i = scope.next;
       continue;
@@ -508,7 +561,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
       const args = parsePrideArgs(parts);
       const scope = scopeOf(input, i, "pride");
       flush();
-      const inner = parseFragment(scope.content, { startStyle: style });
+      const inner = nested(scope.content, style);
       segments.push(...applyGradient(inner, args.palette, args.phase));
       i = scope.next;
       continue;
@@ -518,17 +571,14 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
     if (head === "transition") {
       const args = parseTransitionArgs(parts);
       if (!args) {
-        buf += `<${innerRaw}>`;
+        literalTag();
         continue;
       }
       const scope = scopeOf(input, i, "transition");
       flush();
-      const inner = parseFragment(scope.content, { startStyle: style });
+      const inner = nested(scope.content, style);
       const sampled = sampleGradient(args.colors, Math.max(0, Math.min(1, (args.phase + 1) / 2)));
-      const recolored = inner.map((seg) => ({
-        text: seg.text,
-        style: { ...seg.style, color: sampled },
-      }));
+      const recolored = inner.map((seg) => ({ ...seg, style: { ...seg.style, color: sampled } }));
       segments.push(...recolored);
       i = scope.next;
       continue;
@@ -539,7 +589,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
       const fontKey = parts.slice(1).join(":") || "minecraft:default";
       const scope = scopeOf(input, i, "font");
       flush();
-      const inner = parseFragment(scope.content, { startStyle: { ...style, font: fontKey } });
+      const inner = nested(scope.content, { ...style, font: fontKey });
       segments.push(...inner);
       i = scope.next;
       continue;
@@ -549,9 +599,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
     if (INTERACTIVE.has(head)) {
       const scope = scopeOf(input, i, head);
       flush();
-      const inner = parseFragment(scope.content, {
-        startStyle: { ...style, interactive: true },
-      });
+      const inner = nested(scope.content, { ...style, interactive: true });
       segments.push(...inner);
       i = scope.next;
       continue;
@@ -560,7 +608,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
     // Self-replacing data tags — emit a placeholder text segment.
     if (SELF_REPLACING.has(head)) {
       flush();
-      segments.push({ text: placeholderFor(head, parts), style: cloneStyle(style) });
+      generated(placeholderFor(head, parts));
       continue;
     }
 
@@ -568,7 +616,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
     if (head === "shadow") {
       const shadow = parseShadowArgs(parts);
       if (!shadow) {
-        buf += `<${innerRaw}>`;
+        literalTag();
         continue;
       }
       flush();
@@ -590,7 +638,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
       const value = parts[1] ?? "";
       const resolved = resolveColor(value);
       if (!resolved) {
-        buf += `<${innerRaw}>`;
+        literalTag();
         continue;
       }
       flush();
@@ -603,7 +651,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
     if (head.startsWith("!")) {
       const key = decorationKey(head.slice(1));
       if (!key) {
-        buf += `<${innerRaw}>`;
+        literalTag();
         continue;
       }
       flush();
@@ -630,7 +678,7 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
     }
 
     // Unknown tag — pass through as literal so the editor stays usable.
-    buf += `<${innerRaw}>`;
+    literalTag();
   }
 
   flush();
@@ -638,7 +686,26 @@ function parseFragment(input: string, ctx: ParseContext): Segment[] {
 }
 
 export function parseMiniMessage(input: string): Segment[] {
-  return parseFragment(input, { startStyle: {} });
+  return parseFragment(input, { startStyle: {}, base: 0 }).map(({ text, style }) => ({
+    text,
+    style,
+  }));
+}
+
+/**
+ * {@link parseMiniMessage} with each segment's source offsets. `perLine` parses every
+ * line alone, as the game does for a lore (a tag never carries over to the next entry).
+ */
+export function parseMiniMessageSource(input: string, perLine = false): SourceSegment[] {
+  if (!perLine) return parseFragment(input, { startStyle: {}, base: 0 });
+  const out: SourceSegment[] = [];
+  let base = 0;
+  for (const line of input.split("\n")) {
+    if (base > 0) out.push({ text: "\n", style: {}, map: [base - 1] });
+    out.push(...parseFragment(line, { startStyle: {}, base }));
+    base += line.length + 1;
+  }
+  return out;
 }
 
 /** Strip all MiniMessage tags, returning just the displayed text. */
