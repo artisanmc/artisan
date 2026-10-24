@@ -6,8 +6,9 @@ import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
+import { isCollectionKind } from "@/lib/documentCollections";
 import { isTypingTarget } from "@/lib/keyboard";
-import { projectDestination } from "@/lib/projectNavigation";
+import { collectionDestination, projectDestination } from "@/lib/projectNavigation";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
@@ -64,9 +65,16 @@ export function DocumentView({
     if (!alreadyRelevant) useSelectionStore.getState().set([key]);
   }, [key]);
 
+  // A collection's Document goes back to its collection's page, the board does not show it.
+  const backKind = found && isCollectionKind(found.kind) ? found.kind : undefined;
   const back = useCallback(
-    () => navigate(projectDestination(project ?? projectId, params.serverId)),
-    [navigate, params.serverId, project, projectId],
+    () =>
+      navigate(
+        backKind && params.serverId
+          ? collectionDestination(project ?? projectId, params.serverId, backKind)
+          : projectDestination(project ?? projectId, params.serverId),
+      ),
+    [navigate, params.serverId, project, projectId, backKind],
   );
 
   // Escape goes back to the board. The event is ignored if focus is in an input

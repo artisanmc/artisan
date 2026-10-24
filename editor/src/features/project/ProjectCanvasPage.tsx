@@ -39,6 +39,7 @@ import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { WorkspaceDragOverlay } from "./WorkspaceDragOverlay";
 import { WorkspaceGate } from "./WorkspaceGate";
 import { useActiveLangFallback } from "./useActiveLangFallback";
+import { useCollectionsAtRoot } from "./useCollectionsAtRoot";
 import { useProjectDeepLinks } from "./useProjectDeepLinks";
 import { useSharedIdNotice } from "./useSharedIdNotice";
 import { useWorkspaceDnd } from "./useWorkspaceDnd";
@@ -69,9 +70,15 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
  * (`?tab=`). URL sync, drag-and-drop and the language fallback are named hooks.
  */
 export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) {
-  const { serverId, projectId, documentId, screenId } = useParams({
+  const { serverId, projectId, documentId, screenId, collectionKind } = useParams({
     strict: false,
-  }) as { serverId?: string; projectId: string; documentId?: string; screenId?: string };
+  }) as {
+    serverId?: string;
+    projectId: string;
+    documentId?: string;
+    screenId?: string;
+    collectionKind?: string;
+  };
   const loadRef = projectRef ?? projectId;
   // Resolve the public folder/module ID in its complete location scope.
   const {
@@ -106,6 +113,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
   useProjectDeepLinks({ project, urlId, projectId, serverId, documentId, doc });
   useActiveLangFallback(project);
   useSharedIdNotice(project);
+  useCollectionsAtRoot(project);
   const presentedTab = tourPresenting ? "overview" : tab;
   const exitToCanvas = () =>
     navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });
@@ -194,10 +202,12 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       </>
     );
 
-    // A module's screen opened in the project (`screen/$screenId`) covers the board.
+    // A module's screen (`screen/$screenId`) or a collection's page
+    // (`collection/$collectionKind`) opened in the project covers the board.
+    const pageOpen = !!screenId || !!collectionKind;
     const canvasActive =
       presentedTab === "overview" &&
-      !screenId &&
+      !pageOpen &&
       (!documentId || !!menusOf(project).some((menu) => menu.id === documentId));
 
     const tabContent = (
@@ -213,7 +223,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
               <ProjectLibraryWorkspace
                 projectId={pId}
                 active={canvasActive}
-                showMinimapToggle={!documentId && !screenId}
+                showMinimapToggle={!documentId && !pageOpen}
               >
                 {centerContent}
               </ProjectLibraryWorkspace>
@@ -231,7 +241,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
               <ProjectLibraryWorkspace
                 projectId={pId}
                 active={canvasActive}
-                showMinimapToggle={!documentId && !screenId}
+                showMinimapToggle={!documentId && !pageOpen}
               >
                 {centerContent}
               </ProjectLibraryWorkspace>

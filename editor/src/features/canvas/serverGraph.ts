@@ -10,6 +10,7 @@ import {
   parseDocKey,
 } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
+import { isCollectionKind } from "@/lib/documentCollections";
 import { type Edge, deriveEdges } from "./deriveEdges";
 import { DIALOG_BOX, commandBox, documentBoxSize, menuBoxSize } from "./menuLayout";
 
@@ -161,4 +162,18 @@ export function deriveServerGraph(projects: Project[]): ServerGraph {
     a.source !== b.source ? (a.source < b.source ? -1 : 1) : a.targetId < b.targetId ? -1 : 1,
   );
   return { nodes, edges, unresolved };
+}
+
+/**
+ * The graph the board draws: without the Documents of a collection kind (SDK 1.9), which
+ * live in their collection's page, not on the board. Links keep using the whole graph.
+ */
+export function boardGraph(graph: ServerGraph): ServerGraph {
+  const off = new Set(graph.nodes.filter((n) => isCollectionKind(n.kind)).map((n) => n.key));
+  if (off.size === 0) return graph;
+  return {
+    nodes: graph.nodes.filter((n) => !off.has(n.key)),
+    edges: graph.edges.filter((e) => !off.has(e.source) && !off.has(e.target)),
+    unresolved: graph.unresolved.filter((u) => !off.has(u.source)),
+  };
 }

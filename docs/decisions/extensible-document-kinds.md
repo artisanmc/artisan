@@ -319,3 +319,14 @@ additif).
   nœuds) : à griller avec le pilote, hors de cet ADR.
 - **Redéfinition d'une Action core** : un module est namespaced, collision =
   erreur à l'enregistrement.
+
+## Amendement 2026-10-24 : collections (SDK 1.9)
+
+Un kind peut déclarer `collection: { labels, screen? }` : ses Documents forment un conteneur unique
+dans le projet (le catalogue de la boutique, dont les catégories sont des Documents). L'éditeur le
+montre hors de la planche, par une entrée de sidebar et une page, et garde ses Documents à la racine,
+le seul endroit où leur module les lit. Raison : ces Documents sont de la donnée, sans lien vers ou
+depuis d'autres Documents ; sur la planche ils n'étaient que des nœuds isolés, et un dossier
+thématique les cachait au module sans que l'éditeur le signale. La collection n'a pas de fichier :
+elle est calculée du kind, et ses réglages vivent dans l'écran de config qu'elle désigne (`screen`).
+
