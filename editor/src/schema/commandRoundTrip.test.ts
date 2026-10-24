@@ -9,8 +9,8 @@ const base = "plugins/Artisan/projects/p";
 describe("command/v1 round trip", () => {
   it("writes back what the editor does not edit, so a deploy never drops it", () => {
     const files = {
-      [`${base}/manifest.yaml`]: "schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr]\n",
-      [`${base}/commands/heal.yaml`]: [
+      [`${base}/artisan-module.yml`]: "schema: module/v1\ndefault_lang: fr\nlanguages: [fr]\n",
+      [`${base}/commands/heal.yml`]: [
         "schema: command/v1",
         "name: soin",
         "arguments:",
@@ -27,7 +27,7 @@ describe("command/v1 round trip", () => {
       ].join("\n"),
     };
     const out = projectToFiles(projectFromFiles("p" as ProjectId, files));
-    const heal = parse(out[`${base}/commands/heal.yaml`] as string);
+    const heal = parse(out[`${base}/commands/heal.yml`] as string);
     expect(heal).toMatchObject({
       schema: "command/v1",
       name: "soin",

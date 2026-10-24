@@ -31,11 +31,11 @@ kits/
   src/main/resources/
     plugin.yml
     editor/             # the starter project, copied to plugins/Kits/editor/
-      manifest.yaml
-      menus/kits.yaml
-      commands/kits.yaml
-      data/kits/_source.yaml
-      data/kits/starter.yaml
+      artisan-module.yml
+      menus/kits.yml
+      commands/kits.yml
+      data/kits/_source.yml
+      data/kits/starter.yml
 ```
 
 ## Build
@@ -200,7 +200,7 @@ class KitsModule(private val plugin: KitsPlugin) : ArtisanModule {
         if (!::api.isInitialized) return
         val loaded = LinkedHashMap<String, Kit>()
         for (rel in api.project.list(PROJECT_ID, "data/kits")) {
-            if (!rel.endsWith(".yaml") || rel == "_source.yaml") continue
+            if (!(rel.endsWith(".yml") || rel.endsWith(".yaml")) || rel.startsWith("_source.")) continue
             val kit = api.project.read(PROJECT_ID, "data/kits/$rel")?.let(Kit::parse) ?: continue
             loaded[kit.id] = kit
         }
@@ -360,11 +360,11 @@ import java.nio.file.StandardCopyOption
 /** Copies the starter project out of the jar on first boot. Returns true when it wrote something. */
 object Bootstrap {
     private val FILES = listOf(
-        "manifest.yaml",
-        "menus/kits.yaml",
-        "commands/kits.yaml",
-        "data/kits/_source.yaml",
-        "data/kits/starter.yaml",
+        "artisan-module.yml",
+        "menus/kits.yml",
+        "commands/kits.yml",
+        "data/kits/_source.yml",
+        "data/kits/starter.yml",
     )
 
     fun writeIfAbsent(plugin: JavaPlugin, projectDir: File): Boolean {
@@ -387,20 +387,20 @@ object Bootstrap {
 The resources it copies:
 
 ```yaml
-# editor/manifest.yaml
-schema: manifest/v1
+# editor/artisan-module.yml
+schema: module/v1
 default_lang: en
 languages: [en]
 ```
 
 ```yaml
-# editor/data/kits/_source.yaml — binds the table to the declared model
+# editor/data/kits/_source.yml — binds the table to the declared model
 model: kits:kit
 order: [starter]
 ```
 
 ```yaml
-# editor/data/kits/starter.yaml — one row
+# editor/data/kits/starter.yml — one row
 id: starter
 name: "Starter kit"
 icon: IRON_SWORD
@@ -414,7 +414,7 @@ on_claim: 'send_message "Enjoy your {kit} kit!"'
 ```
 
 ```yaml
-# editor/menus/kits.yaml
+# editor/menus/kits.yml
 schema: menu/v1
 title: []
 size: 27
@@ -436,7 +436,7 @@ The click claims the kit, then reopens the menu so the lore shows the new
 cooldown — menus fetch their sources again on every render.
 
 ```yaml
-# editor/commands/kits.yaml
+# editor/commands/kits.yml
 schema: command/v1
 name: kits
 actions: 'open_menu kits'
@@ -452,7 +452,7 @@ actions: 'open_menu kits'
    screen with the generated form, and `kits:list` appears under
    **Data → Server sources** with a live preview.
 4. Change the cooldown or add an item in the screen and publish. Artisan writes
-   `plugins/Kits/editor/data/kits/starter.yaml`, calls `onReload()`, and the
+   `plugins/Kits/editor/data/kits/starter.yml`, calls `onReload()`, and the
    next `/kits` shows the change.
 
 ## Going further

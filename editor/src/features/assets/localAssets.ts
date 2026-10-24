@@ -18,6 +18,7 @@ import {
   assetDiskPath,
   assetFileName,
   descriptorOf,
+  descriptorPath,
   descriptorYaml,
   nextFreeCodepoint,
 } from "@/lib/pack/assetDiskWrite";
@@ -247,25 +248,26 @@ class DraftOverlay {
       bytes: Uint8Array;
       descriptor: DiskAssetDescriptor;
       baseHash: string | null;
-      descriptorBaseHash: string | null;
+      /** The descriptor on disk this write replaces, when there is one (`descriptorOf`). */
+      previous?: { path: string; hash: string };
     },
-    remove?: { path: string; hash: string; descriptorHash: string | null },
+    remove?: { path: string; hash: string; descriptor: { path: string; hash: string } | null },
   ) {
     const path = assetDiskPath(input.type, input.name);
     return this.commit({
       files: [
         {
-          path: path.replace(/\.png$/, ".yaml"),
+          path: input.previous?.path ?? descriptorPath(path),
           content: descriptorYaml(input.descriptor),
-          base_hash: input.descriptorBaseHash,
+          base_hash: input.previous?.hash ?? null,
         },
       ],
       binaries: [
         { path, content: input.bytes, baseHash: input.baseHash },
         ...(remove ? [{ path: remove.path, content: null, baseHash: remove.hash }] : []),
       ],
-      deletes: remove?.descriptorHash
-        ? [{ path: remove.path.replace(/\.png$/, ".yaml"), base_hash: remove.descriptorHash }]
+      deletes: remove?.descriptor
+        ? [{ path: remove.descriptor.path, base_hash: remove.descriptor.hash }]
         : [],
     });
   }
@@ -384,7 +386,7 @@ async function create(
       usages,
     },
     baseHash: existingSame?.hash ?? null,
-    descriptorBaseHash: previous ? textHash(previous.content) : null,
+    ...(previous ? { previous: { path: previous.path, hash: textHash(previous.content) } } : {}),
   });
   return {
     asset: JSON.parse(
@@ -465,13 +467,15 @@ async function patch(
         usages: nextUsages,
       },
       baseHash: renamed ? null : found.hash,
-      descriptorBaseHash: renamed ? null : previous ? textHash(previous.content) : null,
+      ...(previous && !renamed
+        ? { previous: { path: previous.path, hash: textHash(previous.content) } }
+        : {}),
     },
     renamed
       ? {
           path: found.path,
           hash: found.hash,
-          descriptorHash: previous ? textHash(previous.content) : null,
+          descriptor: previous ? { path: previous.path, hash: textHash(previous.content) } : null,
         }
       : undefined,
   );
@@ -514,7 +518,6 @@ async function duplicate(overlay: DraftOverlay, id: string): Promise<Body> {
       usages: src.usages,
     },
     baseHash: null,
-    descriptorBaseHash: null,
   });
   return { asset: serialize({ ...src, id: assetFileName(newName), name: newName, codepoint }) };
 }
@@ -549,9 +552,7 @@ async function remove(overlay: DraftOverlay, id: string): Promise<Body> {
   await overlay.commit({
     files: [],
     binaries: [{ path, content: null, baseHash: found.hash }],
-    deletes: previous
-      ? [{ path: path.replace(/\.png$/, ".yaml"), base_hash: textHash(previous.content) }]
-      : [],
+    deletes: previous ? [{ path: previous.path, base_hash: textHash(previous.content) }] : [],
   });
   return {};
 }

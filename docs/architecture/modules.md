@@ -593,7 +593,7 @@ api.getEditorBundles().register(
 ### 4.8 Modèles de module — API 2.6.0, protocole 1.3
 
 Un module livre du **contenu d'exemple** copiable dans n'importe quel Project (ADR `module-templates`) :
-un modèle = des fichiers de Project (Documents, menus, `lang/`… jamais `manifest.yaml`, propre à chaque Project) lus dans son jar, une version qu'il
+un modèle = des fichiers de Project (Documents, menus, `lang/`… jamais le fichier de module, propre à chaque Project) lus dans son jar, une version qu'il
 monte à chaque changement, un Project d'amorçage facultatif.
 
 ```java

@@ -83,13 +83,13 @@ const project = (overrides: Partial<Project> = {}): Project =>
   makeProject({ documents: { menu: [shopMenu()] }, i18nKeys: { ...I18N }, ...overrides });
 
 const langFile = (files: Record<string, string>, lang: string) => {
-  const raw = files[`${BASE}/lang/${lang}.yaml`];
+  const raw = files[`${BASE}/lang/${lang}.yml`];
   return raw === undefined ? undefined : flattenLangTree(parse(raw));
 };
 
 describe("projectToFiles — structural text is field-local", () => {
   it("writes a {lang: text} map for translated title, lore and layers", () => {
-    const menu = parse(projectToFiles(project())[`${BASE}/menus/shop.yaml`]!);
+    const menu = parse(projectToFiles(project())[`${BASE}/menus/shop.yml`]!);
     expect(menu.title).toEqual([
       { kind: "text", value: { en: "Shop", fr: "Boutique" }, x: 8, y: 5 },
     ]);
@@ -106,7 +106,7 @@ describe("projectToFiles — structural text is field-local", () => {
         fr: "Tranchante\nCliquer pour acheter",
       },
     };
-    const menu = parse(projectToFiles(project({ i18nKeys }))[`${BASE}/menus/shop.yaml`]!);
+    const menu = parse(projectToFiles(project({ i18nKeys }))[`${BASE}/menus/shop.yml`]!);
     expect(menu.elements[0].lore).toEqual({
       en: ["Sharp", "", "Click to buy"],
       fr: ["Tranchante", "Cliquer pour acheter"],
@@ -115,7 +115,7 @@ describe("projectToFiles — structural text is field-local", () => {
 
   it("writes a default-language-only lore as a plain list of lines", () => {
     const i18nKeys = { ...I18N, "menus.shop.elements.btn.default.lore": { en: "Sharp\nShiny" } };
-    const menu = parse(projectToFiles(project({ i18nKeys }))[`${BASE}/menus/shop.yaml`]!);
+    const menu = parse(projectToFiles(project({ i18nKeys }))[`${BASE}/menus/shop.yml`]!);
     expect(menu.elements[0].lore).toEqual(["Sharp", "Shiny"]);
   });
 
@@ -123,7 +123,7 @@ describe("projectToFiles — structural text is field-local", () => {
     const menu = parse(
       projectToFiles(
         project({ i18nKeys: { "menus.shop.title": { en: "Shop" } } as Project["i18nKeys"] }),
-      )[`${BASE}/menus/shop.yaml`]!,
+      )[`${BASE}/menus/shop.yml`]!,
     );
     expect(menu.title[0].value).toBe("Shop");
     // Untranslated keys with no value land as empty strings, never a raw key.
@@ -134,7 +134,7 @@ describe("projectToFiles — structural text is field-local", () => {
     const menu = parse(
       projectToFiles(
         project({ i18nKeys: { "menus.shop.title": { fr: "Boutique" } } as Project["i18nKeys"] }),
-      )[`${BASE}/menus/shop.yaml`]!,
+      )[`${BASE}/menus/shop.yml`]!,
     );
     // A bare string would mean the default language (en) — and was "" before.
     expect(menu.title[0].value).toEqual({ fr: "Boutique" });
@@ -142,7 +142,7 @@ describe("projectToFiles — structural text is field-local", () => {
 
   it("makes action text field-local too", () => {
     const files = projectToFiles(project());
-    const menu = parse(files[`${BASE}/menus/shop.yaml`]!);
+    const menu = parse(files[`${BASE}/menus/shop.yml`]!);
     expect(menu.elements[0].click.left).toEqual([
       { send_message: { en: "Bought!", fr: "Acheté !" } },
     ]);
@@ -206,10 +206,10 @@ describe("projectToFiles — structural text is field-local", () => {
       } as Project["i18nKeys"],
     });
     const files = projectToFiles(p);
-    expect(parse(files[`${BASE}/commands/heal.yaml`]!).actions).toEqual([
+    expect(parse(files[`${BASE}/commands/heal.yml`]!).actions).toEqual([
       { send_message: { en: "Healed", fr: "Soigné" } },
     ]);
-    const dialog = parse(files[`${BASE}/dialogs/confirm.yaml`]!);
+    const dialog = parse(files[`${BASE}/dialogs/confirm.yml`]!);
     expect(dialog.title).toEqual({ en: "Sure?", fr: "Sûr ?" });
     expect(dialog.body[0].text).toEqual({ en: "Confirm", fr: "Confirmer" });
     expect(dialog.buttons[0].label).toEqual({ en: "OK", fr: "OK" });

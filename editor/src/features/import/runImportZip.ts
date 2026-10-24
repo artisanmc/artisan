@@ -229,7 +229,7 @@ export async function applyImportZip(
         return { ok: false, error: mapCreateError(code) };
       }
     }
-    // The new Project may carry an anchoring `manifest.yaml`: the draft's base
+    // The new Project may carry an anchoring module file: the draft's base
     // must reflect it, otherwise publishing would conflict.
     const read = await readProjectFiles({ serverId: target.serverId, diskId: projectId });
     if (read.ok && !read.unchanged) reference = referenceOf(read.files, read.binaries ?? []);

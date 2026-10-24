@@ -75,7 +75,7 @@ export function useProjectTemplates(projectId: string): ProjectTemplates {
     for (const template of states) {
       for (const file of template.files) {
         if (file.status === "absent" || file.status === "occupied") continue;
-        out[file.path] = { template, file };
+        out[file.projectPath] = { template, file };
       }
     }
     return out;

@@ -1,3 +1,5 @@
+import { yamlPathOnDisk } from "@/lib/yamlFiles";
+
 type Meta = { hash: string; size: number };
 
 /**
@@ -117,9 +119,10 @@ function assign<T>(target: Record<string, T>, path: string, value: T | undefined
  * the base's bytes: opening reformats files nobody touched. Returns null when nothing moved.
  */
 export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<string, string> }>(
-  draft: S,
+  resumed: S,
   disk: Record<string, string>,
 ): S | null {
+  const draft = spelledAsDisk(resumed, disk);
   const renamed = new Set((draft.renames ?? []).flatMap((r) => [r.from, r.to]));
   const loaded = draft.initialTree ?? draft.baseline;
   const baseline = { ...draft.baseline };
@@ -134,6 +137,38 @@ export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<s
     if (initialTree) assign(initialTree, path, disk[path]);
     moved = true;
   }
-  if (!moved) return null;
+  if (!moved && draft === resumed) return null;
   return { ...draft, baseline, tree, ...(initialTree ? { initialTree } : {}) };
+}
+
+/**
+ * The draft's YAML paths as the disk spells them: a draft started before its
+ * folder moved to `.yml` names `menus/shop.yaml` where the disk now holds
+ * `menus/shop.yml` (and `manifest.yaml` where it holds `artisan-module.yml`).
+ * Without this, the draft would delete the old name and add the new one, and
+ * lose an edit made under the old name. A name the draft already holds stays.
+ */
+function spelledAsDisk<S extends DraftRebaseShape & { initialTree?: Record<string, string> }>(
+  draft: S,
+  disk: Record<string, string>,
+): S {
+  const held = new Set([...Object.keys(draft.baseline), ...Object.keys(draft.tree)]);
+  const moves = new Map<string, string>();
+  for (const path of held) {
+    const onDisk = yamlPathOnDisk(path, disk);
+    if (onDisk !== path && !held.has(onDisk)) moves.set(path, onDisk);
+  }
+  if (moves.size === 0) return draft;
+  const as = (path: string) => moves.get(path) ?? path;
+  const remap = (files: Record<string, string>) =>
+    Object.fromEntries(Object.entries(files).map(([path, text]) => [as(path), text]));
+  return {
+    ...draft,
+    baseline: remap(draft.baseline),
+    tree: remap(draft.tree),
+    ...(draft.initialTree ? { initialTree: remap(draft.initialTree) } : {}),
+    ...(draft.renames
+      ? { renames: draft.renames.map((r) => ({ from: as(r.from), to: as(r.to) })) }
+      : {}),
+  };
 }

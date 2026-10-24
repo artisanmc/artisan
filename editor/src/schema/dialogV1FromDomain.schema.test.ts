@@ -9,7 +9,7 @@ import { projectToFiles } from "./projectToFiles";
 
 /**
  * Fixture oracle for the published dialog/v1 schema: what the editor exports
- * (projectToFiles → dialogs/<id>.yaml) must validate against docs/schema/dialog/v1.
+ * (projectToFiles → dialogs/<id>.yml) must validate against docs/schema/dialog/v1.
  */
 
 const PACK = projectId("p_dialog");
@@ -95,7 +95,7 @@ describe("dialog/v1 schema fixture", () => {
   it("the editor's exported dialog YAML validates against docs/schema/dialog/v1", () => {
     const project = buildProject();
     const files = projectToFiles(project);
-    const yaml = files[`plugins/Artisan/projects/${PACK}/dialogs/confirm_purchase.yaml`];
+    const yaml = files[`plugins/Artisan/projects/${PACK}/dialogs/confirm_purchase.yml`];
     expect(yaml).toBeTruthy();
     const wire = parse(yaml!) as Record<string, unknown>;
 

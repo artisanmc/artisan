@@ -1,5 +1,6 @@
 import type { ActiveModule } from "@/lib/api/modules";
 import type { FileOrigin, TemplateInfo } from "@/lib/api/templates";
+import { sameYamlFile, yamlPathFor } from "@/lib/yamlFiles";
 
 /**
  * A template file seen from a Project (ADR `module-templates`), from the origins the server
@@ -13,7 +14,10 @@ import type { FileOrigin, TemplateInfo } from "@/lib/api/templates";
 export type TemplateFileStatus = "absent" | "occupied" | "identical" | "modified" | "removed";
 
 export interface TemplateFileState {
+  /** The file as the module ships it, what a copy names. */
   path: string;
+  /** Where it is, or would land, in the Project: `menus/daily.yml` for a shipped `menus/daily.yaml`. */
+  projectPath: string;
   status: TemplateFileStatus;
   /** The module ships another version of this file than the one copied here: the owner may take it. */
   updateAvailable: boolean;
@@ -40,25 +44,26 @@ export function templateState(
   projectHashes: Record<string, string>,
 ): TemplateState {
   const files = template.files.map((file): TemplateFileState => {
-    const current = projectHashes[file.path];
-    const origin = origins[file.path];
+    // A YAML file under the spelling the Project gives it, else `.yml` (as the copy writes it).
+    const at = yamlPathFor(file.path, { ...origins, ...projectHashes });
+    const paths = { path: file.path, projectPath: at };
+    const current = projectHashes[at];
+    const origin = origins[at];
     const fromHere = origin && origin.module === moduleId && origin.template === template.id;
     if (!fromHere) {
       // Same content as shipped is a copy in all but name: nothing to offer.
-      if (current === undefined)
-        return { path: file.path, status: "absent", updateAvailable: false };
+      if (current === undefined) return { ...paths, status: "absent", updateAvailable: false };
       return {
-        path: file.path,
+        ...paths,
         status: current === file.hash ? "identical" : "occupied",
         updateAvailable: false,
       };
     }
     const updateAvailable = origin.hash !== file.hash && current !== file.hash;
-    if (current === undefined) return { path: file.path, status: "removed", updateAvailable };
-    if (current === file.hash)
-      return { path: file.path, status: "identical", updateAvailable: false };
+    if (current === undefined) return { ...paths, status: "removed", updateAvailable };
+    if (current === file.hash) return { ...paths, status: "identical", updateAvailable: false };
     return {
-      path: file.path,
+      ...paths,
       status: current === origin.hash ? "identical" : "modified",
       updateAvailable,
     };
@@ -95,6 +100,6 @@ export function originOf(
   const template = modules
     .find((m) => m.id === origin.module)
     ?.templates?.find((t) => t.id === origin.template);
-  if (!template?.files.some((f) => f.path === path)) return null;
+  if (!template?.files.some((f) => sameYamlFile(f.path, path))) return null;
   return { moduleId: origin.module, template, origin };
 }

@@ -139,7 +139,7 @@ describe("performLocalAssetMutation", () => {
   it("creates a glyph: PNG blob + descriptor with the first free codepoint", async () => {
     const existing = png(8, 8);
     const snapshot = empty();
-    snapshot.tree["assets/glyphs/star.yaml"] = "codepoint: 57344\n";
+    snapshot.tree["assets/glyphs/star.yml"] = "codepoint: 57344\n";
     snapshot.binaryTree = {
       "assets/glyphs/star.png": { hash: sha256Hex(existing), size: existing.length },
     };
@@ -153,7 +153,7 @@ describe("performLocalAssetMutation", () => {
 
     expect(result.draft.revision).toBe(4);
     const written = result.draft.snapshot;
-    expect(parse(written.tree["assets/glyphs/heart.yaml"]!)).toEqual({
+    expect(parse(written.tree["assets/glyphs/heart.yml"]!)).toEqual({
       ascent: 7,
       codepoint: 57345,
       width: 16,
@@ -208,7 +208,7 @@ describe("performLocalAssetMutation", () => {
     expect(hub.calls.filter((call) => !call.startsWith("GET"))).toEqual([]);
   });
 
-  it("unpacks a font zip into one PNG per glyph plus font.yaml", async () => {
+  it("unpacks a font zip into one PNG per glyph plus font.yml", async () => {
     const glyph = png(8, 8, 5);
     const zip = zipSync({
       "font.json": strToU8(
@@ -239,7 +239,7 @@ describe("performLocalAssetMutation", () => {
       "assets/fonts/pixel/glyphs/a.png",
       "assets/fonts/pixel/glyphs/b.png",
     ]);
-    const descriptor = snapshot.tree["assets/fonts/pixel/font.yaml"]!;
+    const descriptor = snapshot.tree["assets/fonts/pixel/font.yml"]!;
     expect(parse(descriptor)).toMatchObject({
       namespace: "artisan:pixel",
       glyphs: [
@@ -258,7 +258,7 @@ describe("performLocalAssetMutation", () => {
   it("deletes an image and its descriptor, and duplicates a glyph on a new codepoint", async () => {
     const bytes = png(8, 8);
     const snapshot = empty();
-    snapshot.tree["assets/glyphs/star.yaml"] = "ascent: 8\ncodepoint: 57344\nwidth: 8\nheight: 8\n";
+    snapshot.tree["assets/glyphs/star.yml"] = "ascent: 8\ncodepoint: 57344\nwidth: 8\nheight: 8\n";
     snapshot.binaryTree = {
       "assets/glyphs/star.png": { hash: sha256Hex(bytes), size: bytes.length },
     };
@@ -279,7 +279,7 @@ describe("performLocalAssetMutation", () => {
       op(hub, { suffix: "/star", method: "DELETE", fields: {} }),
     );
     expect(removed.asset).toBeUndefined();
-    expect(removed.draft.snapshot.tree).not.toHaveProperty("assets/glyphs/star.yaml");
+    expect(removed.draft.snapshot.tree).not.toHaveProperty("assets/glyphs/star.yml");
     expect(removed.draft.snapshot.binaryTree).not.toHaveProperty("assets/glyphs/star.png");
     expect(removed.draft.snapshot.binaryTree).toHaveProperty("assets/glyphs/star_copy.png");
 
@@ -299,7 +299,7 @@ describe("performLocalAssetMutation", () => {
     );
     expect(result.asset).toMatchObject({ id: "new", height: 16, width: 16, codepoint: 57344 });
     expect(Object.keys(result.draft.snapshot.binaryTree!)).toEqual(["assets/glyphs/new.png"]);
-    expect(Object.keys(result.draft.snapshot.tree)).toEqual(["assets/glyphs/new.yaml"]);
+    expect(Object.keys(result.draft.snapshot.tree)).toEqual(["assets/glyphs/new.yml"]);
   });
 
   it("surfaces a stale revision as draft_conflict with the server draft", async () => {
@@ -320,11 +320,11 @@ describe("listLocalAssets", () => {
   it("lists the draft tree exactly like diskAssetsFromTree, and the published tree without draft", async () => {
     const bytes = png(8, 8);
     const snapshot = empty();
-    snapshot.baseline["assets/textures/bg.yaml"] = "width: 8\nheight: 8\n";
+    snapshot.baseline["assets/textures/bg.yml"] = "width: 8\nheight: 8\n";
     snapshot.binaryBaseline = {
       "assets/textures/bg.png": { hash: sha256Hex(bytes), size: bytes.length },
     };
-    snapshot.tree = { ...snapshot.baseline, "assets/glyphs/star.yaml": "codepoint: 57344\n" };
+    snapshot.tree = { ...snapshot.baseline, "assets/glyphs/star.yml": "codepoint: 57344\n" };
     snapshot.binaryTree = {
       ...snapshot.binaryBaseline,
       "assets/glyphs/star.png": { hash: "ab", size: 3 },

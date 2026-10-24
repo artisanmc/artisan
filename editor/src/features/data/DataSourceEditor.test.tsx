@@ -98,7 +98,7 @@ describe("DataSourceEditor", () => {
   it("shows the source's YAML", () => {
     render(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
-    expect((screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value).toContain(
+    expect((screen.getByLabelText("data/ds_1.yml") as HTMLTextAreaElement).value).toContain(
       "coins",
     );
   });
@@ -123,7 +123,7 @@ describe("DataSourceEditor", () => {
     view.rerender(<DataSourceEditor projectId={PID} source={project().dataSources[0]!} />);
 
     fireEvent.click(screen.getByRole("button", { name: "YAML" }));
-    const shown = (screen.getByLabelText("data/ds_1.yaml") as HTMLTextAreaElement).value;
+    const shown = (screen.getByLabelText("data/ds_1.yml") as HTMLTextAreaElement).value;
     expect(shown).toContain("jetons");
     expect(shown).not.toContain("coins");
   });

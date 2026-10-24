@@ -6,19 +6,19 @@ lossless, l'éditeur n'a pas de représentation privilégiée.
 ```
 plugins/Artisan/modules/
   <project_id>/
-    manifest.yaml
-    menus/<menu_id>.yaml           ← un dossier par kind de Document (cf. ci-dessous)
-    commands/<command_id>.yaml
-    dialogs/<dialog_id>.yaml
+    artisan-module.yml             ← fichier de module (`schema: module/v1`), anciennement manifest.yaml
+    menus/<menu_id>.yml            ← un dossier par kind de Document (cf. ci-dessous)
+    commands/<command_id>.yml
+    dialogs/<dialog_id>.yml
     <dossier>/                     ← dossier thématique (cf. ci-dessous), mêmes dossiers de kind
-      menus/<menu_id>.yaml
-      dialogs/<dialog_id>.yaml
+      menus/<menu_id>.yml
+      dialogs/<dialog_id>.yml
       <sous-dossier>/menus/…       ← jusqu'à 3 niveaux
-    lang/<lang>.yaml               ← arborescence YAML (cf. ci-dessous)
+    lang/<lang>.yml                ← arborescence YAML (cf. ci-dessous)
     items/<captured_item_id>.yml   ← ItemStacks capturés (refs material `item:<id>`), YAML Bukkit verbatim
-    data/<source_id>.yaml          ← Project sources (schema data/v1, refs `pack:<id>`)
-    templates/<id>.yaml            ← schema template/v1, résolus au load plugin
-    models/<id>.yaml               ← schema model/v1 ; `<id>` = la source qu'il type (model possédé) sinon l'id du model, l'identité reste l'`id:` interne
+    data/<source_id>.yml           ← Project sources (schema data/v1, refs `pack:<id>`)
+    templates/<id>.yml             ← schema template/v1, résolus au load plugin
+    models/<id>.yml                ← schema model/v1 ; `<id>` = la source qu'il type (model possédé) sinon l'id du model, l'identité reste l'`id:` interne
     assets/{glyphs,textures,fonts}/ ← images et polices (binaires, écrits par la publication)
     .artisan/editor.yaml           ← état de la planche éditeur (seul `.artisan*` que l'éditeur écrit)
     .artisan/project-id            ← UUID du projet, écrit une fois par le plugin (garde Versions et brouillons à travers un renommage)
@@ -36,8 +36,8 @@ Un échec remet tout en place et garde `projects/`. Conception : `design-projets
 
 ## Extensions YAML et fichier de module
 
-Le plugin et l'éditeur lisent `.yml` (la norme Bukkit/Paper) et `.yaml` (ce qu'Artisan écrit
-encore) partout : Documents, `lang/`, `data/`, `models/`, `templates/`, descripteurs d'`assets/`
+Le plugin et l'éditeur écrivent `.yml` (la norme Bukkit/Paper) et lisent aussi `.yaml` (ce
+qu'Artisan écrivait avant) partout : Documents, `lang/`, `data/`, `models/`, `templates/`, descripteurs d'`assets/`
 (`model/YamlFiles.kt`, `lib/yamlFiles.ts`). Le même fichier sous les deux extensions est une
 erreur : un Document est refusé (`duplicate_id`), un autre fichier est lu dans sa copie `.yml`
 et le log nomme l'autre. Le fichier qui fait d'un dossier un module est `artisan-module.yml`
@@ -47,9 +47,28 @@ l'autre extension, et `read("manifest.yaml")` rend le fichier de module quel que
 Une sauvegarde de l'éditeur réécrit chaque fichier sous l'extension qu'il a sur le disque
 (`keepYamlExtensions`), un écran de configuration aussi.
 
-L'écriture reste en `.yaml` (et `manifest.yaml`) tant que les add-ons qui lisent leurs fichiers
-par leur nom exact (Boutique, Auctions, DailyRewards) ne lisent pas les deux. Ensuite, Artisan
-écrit en `.yml` et une migration au démarrage renomme l'existant.
+Un fichier qui existe déjà est réécrit sous son nom : la copie d'un modèle ou d'un élément
+système (`TemplateCopies`, `SystemFiles`), le fichier d'une commande de module
+(`commands/<nom>.yml`), une publication de brouillon. Seul un fichier nouveau prend `.yml`
+(`YamlFiles.onDisk`, côté éditeur `yamlPathFor`). Un modèle de module garde les noms sous
+lesquels le module le livre (souvent `.yaml`) : l'éditeur compare ses fichiers à ceux du dossier
+sans l'extension (`TemplateFileState.projectPath`), et `template_copy` accepte l'une ou l'autre
+orthographe.
+
+**Migration au démarrage** (`YmlMigration`, appelée par `ProjectRoots` quand le serveur démarre,
+une fois par dossier et par démarrage) : chaque dossier de `plugins/Artisan/modules/` (le dossier
+propre d'un module compris) voit ses `.yaml` renommés en `.yml` et son `manifest.yaml` en
+`artisan-module.yml`, en un commit journalisé (`ProjectPublisher`), avec les clés de
+`.artisan/origins.yaml`. Seuls les noms changent : les octets restent, un `manifest.yaml`
+renommé garde `schema: manifest/v1` jusqu'à sa prochaine écriture par l'éditeur. Les
+métadonnées `.artisan*` gardent leur nom. Un fichier dont la copie `.yml` existe déjà reste
+tel quel, nommé dans le log. Une racine d'add-on hors de `modules/` et une racine de
+configuration ne sont pas touchées : l'add-on y lit ses fichiers comme il les a écrits.
+
+Un brouillon commencé avant la migration nomme encore `menus/shop.yaml` : l'éditeur, en le
+reprenant (`followDisk`), renomme ses chemins comme le disque les écrit, et le plugin fait de
+même à la publication (`DraftPublication`). Une modification faite sous l'ancien nom est donc
+gardée, sans conflit.
 
 Un Project s'identifie par le nom de son dossier sur son serveur ; pour le hub et l'éditeur, il
 s'appelle `<server id>.<dossier>`, quel que soit le serveur (cf. `entities.md`). `.artisan-sync.yaml` (ancienne
@@ -118,7 +137,7 @@ Les chemins dont le **premier segment** commence par `.artisan` sont hors hash e
 invisibles au scan disque — cf. `invariants.md` § Exclusion `.artisan*` universelle. Idem pour
 `.artisan-trash/`, au top de `projectsDir`.
 
-## `manifest.yaml` — `lore_max_width`
+## Fichier de module — `lore_max_width`
 
 Largeur max d'une ligne de lore, en **pixels MC** (avances de la police vanilla, +1 px par caractère
 gras ; ~6 px par caractère courant). Absent ou `0` = pas de retour à la ligne ; les projets créés
@@ -128,9 +147,9 @@ placeholders (`render/LoreWrap.kt`), l'aperçu éditeur applique le même algori
 espaces, un mot trop long déborde seul, et une ligne de continuation rouvre les balises
 MiniMessage encore ouvertes (chaque ligne de lore est parsée seule). Le lore de l'item de base
 n'est pas redécoupé, sauf placé par `{base.lore}`. Réglable dans les paramètres du projet
-(bouton YAML = `manifest.yaml` verbatim).
+(bouton YAML = le fichier de module verbatim).
 
-## `manifest.yaml` — `escape_goes_back`
+## Fichier de module — `escape_goes_back`
 
 Booléen, absent = `false`. Vrai : Échap dans un menu du projet rouvre l'écran précédent de la pile
 de navigation (comme `open_previous_menu`) au lieu de la vider ; pile vide = fermeture normale.
