@@ -32,6 +32,7 @@ internal object ArtisanApiFactory {
         )
         plugin.projectRoots = net.artisanmc.plugin.project.ProjectRoots(
             net.artisanmc.plugin.project.ModulesRootMigration.run(plugin.dataFolder, plugin.logger), plugin.logger,
+            moveToYml = true,
         )
         plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger) { ticks, task ->
             plugin.scheduler.globalLater(ticks, task)

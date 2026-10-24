@@ -45,10 +45,10 @@ class CommandOverrideMigration(
             if (mine.isEmpty()) continue
             val folder = folderOf(root.id)
             if (folder == null) {
-                logger?.warning("[Artisan] Command overrides of '${root.id}' kept in place: its module has no folder to write 'commands/${root.name}.yaml' in.")
+                logger?.warning("[Artisan] Command overrides of '${root.id}' kept in place: its module has no folder to write '${ModuleCommandFiles.path(root)}' in.")
                 continue
             }
-            val path = ModuleCommandFiles.path(root)
+            val path = net.artisanmc.plugin.model.YamlFiles.onDisk(folder, ModuleCommandFiles.path(root))
             val target = ProjectPathPolicy.resolve(folder, path)
             if (target.exists() && target.readText() != ModuleCommandFiles.yaml(root)) {
                 logger?.warning("[Artisan] Command overrides of '${root.id}' kept in place: '$path' was already edited. Copy what they change into it, then delete them.")

@@ -116,7 +116,7 @@ describe("EditorPane — mode YAML", () => {
 
     fireEvent.click(screen.getByTestId("editor-pane-yaml"));
 
-    expect(screen.getByTestId("yaml")).toHaveTextContent("menus/m1.yaml");
+    expect(screen.getByTestId("yaml")).toHaveTextContent("menus/m1.yml");
     expect(screen.queryByTestId("flow")).toBeNull();
   });
 
@@ -126,7 +126,7 @@ describe("EditorPane — mode YAML", () => {
 
     fireEvent.click(screen.getByTestId("editor-pane-yaml"));
 
-    expect(screen.getByTestId("yaml")).toHaveTextContent("manifest.yaml");
+    expect(screen.getByTestId("yaml")).toHaveTextContent("artisan-module.yml");
   });
 
   it("no toggle without a selected document", () => {

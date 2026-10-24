@@ -1,7 +1,7 @@
 import { injectDeclaredModels } from "@/domain/dataModels";
 import type { Project, ProjectId } from "@/domain/types";
 import type { ConfigFile, ServerEditorScreen } from "@/lib/api/configScreens";
-import { keepYamlExtensions, yamlStem } from "@/lib/yamlFiles";
+import { MODULE_FILE, keepYamlExtensions, yamlStem } from "@/lib/yamlFiles";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { projectToFiles } from "@/schema/projectToFiles";
 import { listModules } from "@artisan/editor-sdk";
@@ -29,7 +29,7 @@ export function isScreenScratchId(projectId: string): boolean {
 
 /**
  * Build the scratch Project from the files returned by `configRead`. Paths are
- * project-relative (`data/categories/weapons.yaml`); the declared models are
+ * project-relative (`data/categories/weapons.yml`); the declared models are
  * injected so the table resolves its schema from the JAR declaration.
  */
 export function buildScratchProject(
@@ -41,8 +41,8 @@ export function buildScratchProject(
   const id = screenScratchId(screen.id);
   const base = `plugins/Artisan/projects/${id}`;
   const fileMap: Record<string, string> = {
-    [`${base}/manifest.yaml`]:
-      "schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n",
+    [`${base}/${MODULE_FILE}`]:
+      "schema: module/v1\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n",
   };
   for (const f of contextFiles) {
     if (f.path.startsWith("items/") || f.path === ".artisan/editor.yaml")
@@ -70,7 +70,7 @@ export function diffScratchForWrite(
   const tablePrefix = `${screen.table}/`;
   const tableFile = (p: string) =>
     p === `${screen.table}.yaml` || p === `${screen.table}.yml` || p.startsWith(tablePrefix);
-  // A project-authored source keeps its schema in `models/<id>.yaml` beside the
+  // A project-authored source keeps its schema in `models/<id>.yml` beside the
   // data file (the canonical writer emits values-only). It travels with the
   // table: dropping it would strip the schema from disk on the first save.
   const sourceId = screen.table.split("/").pop() ?? "";

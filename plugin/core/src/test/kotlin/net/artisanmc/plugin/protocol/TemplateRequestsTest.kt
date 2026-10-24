@@ -77,18 +77,18 @@ class TemplateRequestsTest {
     fun `a copy writes, reloads, and reports conflicts without writing`() {
         File(coreRoot, "shop").mkdirs()
         val copy = """{"type":"template_copy","request_id":"r","project_id":"shop","module_id":"quests","template_id":"daily"}"""
-        assertEquals(listOf("menus/daily.yaml"), dispatch(copy)["written"])
+        assertEquals(listOf("menus/daily.yml"), dispatch(copy)["written"])
         assertEquals(1, reloads)
 
-        File(coreRoot, "shop/menus/daily.yaml").writeText("title: Mine\n")
+        File(coreRoot, "shop/menus/daily.yml").writeText("title: Mine\n")
         val refused = dispatch(copy)
         assertEquals("conflict", refused["error"])
-        assertEquals(listOf("menus/daily.yaml"), refused["conflicts"])
+        assertEquals(listOf("menus/daily.yml"), refused["conflicts"])
         assertEquals(1, reloads)
 
         val origins = dispatch("""{"type":"project_origins_fetch","request_id":"o","project_id":"shop"}""")
         @Suppress("UNCHECKED_CAST")
-        val entry = (origins["origins"] as Map<String, Map<String, Any>>).getValue("menus/daily.yaml")
+        val entry = (origins["origins"] as Map<String, Map<String, Any>>).getValue("menus/daily.yml")
         assertEquals("daily", entry["template"])
         // The editor neither sees nor writes the origins: only a copy does.
         assertEquals(true, EditorPaths.isInvisible(".artisan/origins.yaml"))
@@ -111,6 +111,6 @@ class TemplateRequestsTest {
             """{"type":"template_copy","request_id":"r","project_id":"$project","module_id":"quests","template_id":"menus","replace":true}"""
         }
         assertEquals("system_template", dispatch(copy("shop"))["error"])
-        assertEquals(listOf("menus/board.yaml"), dispatch(copy("quests_folder"))["written"])
+        assertEquals(listOf("menus/board.yml"), dispatch(copy("quests_folder"))["written"])
     }
 }

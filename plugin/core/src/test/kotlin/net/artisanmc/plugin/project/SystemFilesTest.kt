@@ -20,26 +20,26 @@ class SystemFilesTest {
             .file("menus/shop_main.yaml", menu.toByteArray())
             .build()
 
-    private fun menu() = File(folder, "menus/shop_main.yaml")
-    private fun origin() = ProjectOrigins.read(folder).getValue("menus/shop_main.yaml")
+    private fun menu() = File(folder, "menus/shop_main.yml")
+    private fun origin() = ProjectOrigins.read(folder).getValue("menus/shop_main.yml")
     private fun hash(text: String) = ContentHash.hashBytes(text.toByteArray())
 
     @Test
     fun `a missing system file is written, again after a delete`() {
-        assertEquals(listOf("menus/shop_main.yaml"), SystemFiles.sync(folder, "boutique", system()))
+        assertEquals(listOf("menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system()))
         assertEquals("title: Shop\n", menu().readText())
         assertEquals(FileOrigin("boutique", "menus", 1, hash("title: Shop\n")), origin())
         assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system()), "nothing to do twice")
 
         menu().delete()
-        assertEquals(listOf("menus/shop_main.yaml"), SystemFiles.sync(folder, "boutique", system()))
+        assertEquals(listOf("menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system()))
         assertTrue(menu().isFile)
     }
 
     @Test
     fun `an untouched copy follows the new version, an edited one stays the owner's`() {
         SystemFiles.sync(folder, "boutique", system())
-        assertEquals(listOf("menus/shop_main.yaml"), SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n")))
+        assertEquals(listOf("menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n")))
         assertEquals("title: Shop v2\n", menu().readText())
         assertEquals(2, origin().version)
 
@@ -60,9 +60,9 @@ class SystemFilesTest {
 
         val v2 = "title: Shop\nsize: 54\nescape_goes_back: true\n"
         val merged = mutableListOf<Pair<String, List<String>>>()
-        assertEquals(listOf("menus/shop_main.yaml"), SystemFiles.sync(folder, "boutique", system(2, v2)) { p, c -> merged += p to c })
+        assertEquals(listOf("menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system(2, v2)) { p, c -> merged += p to c })
         assertEquals("title: Mine\nsize: 54\nescape_goes_back: true\n", menu().readText())
-        assertEquals(listOf("menus/shop_main.yaml" to emptyList<String>()), merged)
+        assertEquals(listOf("menus/shop_main.yml" to emptyList<String>()), merged)
         assertEquals(FileOrigin("boutique", "menus", 2, hash(v2)), origin(), "follows v2 from here on")
         assertEquals(setOf(hash(v2)), bases(), "v1's base goes with the last origin naming it")
         assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, v2)), "nothing to do twice")
@@ -133,5 +133,16 @@ class SystemFilesTest {
             TemplateDeclaration.builder("menus", 1).system().seed("shop").file("menus/a.yaml", byteArrayOf(1)).build()
         }
         assertEquals(true, system().toWire()["system"])
+    }
+
+    @Test
+    fun `a copy an older start wrote under yaml is followed where it is`() {
+        val old = File(folder, "menus/shop_main.yaml").apply { parentFile.mkdirs(); writeText("title: Shop\n") }
+        File(folder, ProjectOrigins.PATH).apply { parentFile.mkdirs() }
+            .writeBytes(ProjectOrigins.serialize(mapOf("menus/shop_main.yaml" to FileOrigin("boutique", "menus", 1, hash("title: Shop\n")))))
+        assertEquals(listOf("menus/shop_main.yaml"), SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n")))
+        assertEquals("title: Shop v2\n", old.readText())
+        assertTrue(!menu().exists(), "no .yml twin beside it")
+        assertEquals(2, ProjectOrigins.read(folder).getValue("menus/shop_main.yaml").version)
     }
 }

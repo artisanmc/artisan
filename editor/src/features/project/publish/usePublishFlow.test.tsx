@@ -35,7 +35,7 @@ function project(): Project {
   };
 }
 
-const conflict = { path: "menus/shop.yaml", disk: "title: Server\n" };
+const conflict = { path: "menus/shop.yml", disk: "title: Server\n" };
 
 beforeEach(() => {
   vi.mocked(saveProjectToDisk).mockReset();
@@ -46,7 +46,7 @@ beforeEach(() => {
   useProjectDraftStore.getState().save(ID, {
     baseline: {},
     initialTree: {},
-    tree: { "manifest.yaml": "changed" },
+    tree: { "artisan-module.yml": "changed" },
     at: 0,
   });
 });
@@ -68,7 +68,7 @@ describe("usePublishFlow", () => {
     expect(result.current.dirty).toBe(true);
     expect(result.current.canSave).toBe(true);
     act(() => result.current.openReview());
-    expect(result.current.state.review?.changes.after).toHaveProperty("manifest.yaml");
+    expect(result.current.state.review?.changes.after).toHaveProperty("artisan-module.yml");
     expect(saveProjectToDisk).not.toHaveBeenCalled();
     act(() => result.current.confirmReview());
     await waitFor(() => expect(result.current.state.errorOpen).toBe(true));
@@ -102,7 +102,7 @@ describe("usePublishFlow", () => {
         ok: false,
         error: "conflict",
         conflicts: [conflict],
-        diskFiles: ["menus/shop.yaml"],
+        diskFiles: ["menus/shop.yml"],
       })
       .mockResolvedValueOnce({ ok: true, wrote: 1 });
     const { result } = renderHook(() => usePublishFlow(ID, false));
@@ -110,7 +110,7 @@ describe("usePublishFlow", () => {
     await waitFor(() => expect(result.current.state.conflict.conflicts).toEqual([conflict]));
     expect(result.current.state.conflict).toMatchObject({
       source: "save",
-      diskFiles: ["menus/shop.yaml"],
+      diskFiles: ["menus/shop.yml"],
       choices: {},
     });
 

@@ -34,8 +34,18 @@ describe("templateState", () => {
       { "quest_groups/daily.yaml": "g1", "menus/daily.yaml": "edited" },
     );
     expect(state.files).toEqual([
-      { path: "quest_groups/daily.yaml", status: "identical", updateAvailable: true },
-      { path: "menus/daily.yaml", status: "modified", updateAvailable: false },
+      {
+        path: "quest_groups/daily.yaml",
+        projectPath: "quest_groups/daily.yaml",
+        status: "identical",
+        updateAvailable: true,
+      },
+      {
+        path: "menus/daily.yaml",
+        projectPath: "menus/daily.yaml",
+        status: "modified",
+        updateAvailable: false,
+      },
     ]);
     expect(state.copied).toBe(true);
     expect(state.updateAvailable).toBe(true);
@@ -43,6 +53,7 @@ describe("templateState", () => {
     const removed = templateState("quests", template, { "menus/daily.yaml": origin("m1") }, {});
     expect(removed.files[1]).toEqual({
       path: "menus/daily.yaml",
+      projectPath: "menus/daily.yaml",
       status: "removed",
       updateAvailable: false,
     });
@@ -57,9 +68,26 @@ describe("templateState", () => {
     );
     expect(state.files[0]).toEqual({
       path: "quest_groups/daily.yaml",
+      projectPath: "quest_groups/daily.yaml",
       status: "identical",
       updateAvailable: false,
     });
+  });
+
+  it("finds a copy the Project holds under .yml, and places a new one there", () => {
+    const state = templateState(
+      "quests",
+      template,
+      { "menus/daily.yml": origin("m0") },
+      { "menus/daily.yml": "m0" },
+    );
+    expect(state.files[1]).toEqual({
+      path: "menus/daily.yaml",
+      projectPath: "menus/daily.yml",
+      status: "identical",
+      updateAvailable: true,
+    });
+    expect(state.files[0]?.projectPath).toBe("quest_groups/daily.yml");
   });
 
   it("ignores origins of another template", () => {
@@ -88,6 +116,9 @@ describe("announced templates", () => {
   it("finds a file's template while it is announced", () => {
     expect(
       originOf("menus/daily.yaml", { "menus/daily.yaml": origin("m1") }, modules)?.template.id,
+    ).toBe("daily");
+    expect(
+      originOf("menus/daily.yml", { "menus/daily.yml": origin("m1") }, modules)?.template.id,
     ).toBe("daily");
     expect(originOf("menus/other.yaml", { "menus/other.yaml": origin("m1") }, modules)).toBeNull();
     expect(originOf("menus/daily.yaml", {}, modules)).toBeNull();

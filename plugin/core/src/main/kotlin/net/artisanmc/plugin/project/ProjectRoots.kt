@@ -26,6 +26,8 @@ private val FOLDER = Regex("^[a-z0-9][a-z0-9_-]*$")
 class ProjectRoots(
     val coreRoot: File,
     private val logger: java.util.logging.Logger? = null,
+    /** The server's start moves the modules root's folders to `.yml` ([YmlMigration]); other readers leave the disk as it is. */
+    private val moveToYml: Boolean = false,
 ) : net.artisanmc.modules.api.project.ProjectRootRegistry {
 
     /** projectId -> project dir, for Add-on-owned projects registered at onEnable. */
@@ -36,6 +38,8 @@ class ProjectRoots(
     private val configRoots = ConcurrentHashMap.newKeySet<String>()
     /** Project dirs whose interrupted publications were replayed: a commit replays its own, so only a crash leaves one. */
     private val recovered = ConcurrentHashMap.newKeySet<String>()
+    /** Folders of the modules root already moved to `.yml` by this start ([YmlMigration]). */
+    private val migrated = ConcurrentHashMap.newKeySet<String>()
 
     /** The listing [all] serves, with the keys its scan read; null until the next scan. */
     private class Listing(val dirs: Map<String, File>, val keys: Map<String, String>)
@@ -173,6 +177,18 @@ class ProjectRoots(
         return keys
     }
 
+    /**
+     * Once per start, a folder of the modules root (a module's own `moduleFolder` included) moves
+     * to `.yml`. An Add-on root elsewhere, and a configuration root, stay as their Add-on reads them.
+     */
+    private fun migrateToYml(projectId: String, dir: File) {
+        if (!moveToYml || projectId in configRoots || !migrated.add(dir.absolutePath)) return
+        if (dir.absoluteFile.parentFile?.canonicalFile != coreRoot.canonicalFile) return
+        runCatching { YmlMigration.run(dir, logger) }.onFailure {
+            logger?.log(java.util.logging.Level.WARNING, "[Artisan] ${dir.name}: moving its files to .yml failed, they are read as they are", it)
+        }
+    }
+
     /** Forgets the listing: the next [all] lists the disk again. */
     fun invalidate() {
         listing = null
@@ -204,6 +220,7 @@ class ProjectRoots(
                 logger?.log(java.util.logging.Level.WARNING, "[Artisan] Publication recovery blocked; project remains isolated: ${dir.name}", it)
             }.isSuccess.also { if (it) recovered += dir.absolutePath }
         }
+        dirs.forEach { (projectId, dir) -> migrateToYml(projectId, dir) }
         Listing(dirs, keys).also { listing = it }
     }
 }

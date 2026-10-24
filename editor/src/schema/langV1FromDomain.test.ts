@@ -29,7 +29,7 @@ const makeProject = (overrides: Partial<Project> = {}): Project =>
   }) as Project;
 
 const langOf = (files: Record<string, string>, lang: string) =>
-  flattenLangTree(parse(files[`${BASE}/lang/${lang}.yaml`] ?? ""));
+  flattenLangTree(parse(files[`${BASE}/lang/${lang}.yml`] ?? ""));
 
 /**
  * Presentation keys (`artisan.duration.*`) belong to the **project**, not to any
@@ -51,7 +51,7 @@ describe("presentation keys in lang files", () => {
   it("survive inline mode, where the default lang file would otherwise not exist", () => {
     const files = projectToFiles(makeProject({ i18nMode: "inline" }));
 
-    expect(files[`${BASE}/lang/en.yaml`]).toBeDefined();
+    expect(files[`${BASE}/lang/en.yml`]).toBeDefined();
     expect(langOf(files, "en")[DURATION_KEYS.hours]).toBe("{n}h");
   });
 

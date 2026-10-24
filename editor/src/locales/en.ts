@@ -197,11 +197,11 @@ export default {
     fileShapeInline: "Plain text",
     fileShapeExtract: "Keys",
     fileShapeInlineHint:
-      "Menu files carry the {{lang}} text as written; other languages live in lang/ and no lang/{{lang}}.yaml is written.",
+      "Menu files carry the {{lang}} text as written; other languages live in lang/ and no lang/{{lang}}.yml is written.",
     fileShapeExtractHint:
       "Menu files carry {i18n:key} references; every language, {{lang}} included, lives in lang/.",
     fileShapeConfirmInline:
-      "Rewrite every menu, command and dialog file with the {{lang}} text in plain, and drop lang/{{lang}}.yaml? Translations are kept — only the file shape changes, and you can switch back.",
+      "Rewrite every menu, command and dialog file with the {{lang}} text in plain, and drop lang/{{lang}}.yml? Translations are kept — only the file shape changes, and you can switch back.",
     fileShapeConfirmExtract:
       "Rewrite every menu, command and dialog file with {i18n:key} references instead of plain text? Translations are kept — only the file shape changes.",
     modeVisual: "Visual",

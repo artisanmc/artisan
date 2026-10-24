@@ -117,12 +117,12 @@ Data lives in your project as plain, self-contained YAML. Two shapes:
 **Table** — a directory, one file per row, plus a descriptor:
 
 ```
-data/categories/_source.yaml     # name, model: boutique:category, model_version, order
-data/categories/weapons.yaml     # one row, fields at the top level
+data/categories/_source.yml      # name, model: boutique:category, model_version, order
+data/categories/weapons.yml      # one row, fields at the top level
 ```
 
 ```yaml
-# data/categories/weapons.yaml
+# data/categories/weapons.yml
 id: weapons
 name: "Weapons"
 icon: DIAMOND_SWORD
@@ -135,8 +135,8 @@ items:
 **Config** — a single object, one bare file, bound to its model by a sibling ref:
 
 ```
-data/shop_settings.yaml          # the values, nothing else
-models/shop_settings.yaml        # model: boutique:shop_settings
+data/shop_settings.yml           # the values, nothing else
+models/shop_settings.yml         # model: boutique:shop_settings
 ```
 
 The files are **bare**: no wrapper, no schema envelope, no editor bookkeeping.

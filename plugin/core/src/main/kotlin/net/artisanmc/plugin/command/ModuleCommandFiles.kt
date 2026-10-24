@@ -7,6 +7,7 @@ import net.artisanmc.modules.api.playercommand.CommandArgument
 import net.artisanmc.modules.api.playercommand.PlayerCommandDeclaration
 import net.artisanmc.modules.api.template.TemplateDeclaration
 import net.artisanmc.plugin.model.CommandYaml
+import net.artisanmc.plugin.model.YamlFiles
 import net.artisanmc.plugin.project.EditorYaml
 
 /**
@@ -28,8 +29,8 @@ object ModuleCommandFiles {
     /** The action that runs a declared command's code. */
     const val ACTION = "module_command"
 
-    /** `commands/<name>.yaml`: the document id is the command's name. */
-    fun path(declaration: PlayerCommandDeclaration): String = "commands/${declaration.name}.yaml"
+    /** `commands/<name>.yml`: the document id is the command's name. */
+    fun path(declaration: PlayerCommandDeclaration): String = "commands/${declaration.name}${YamlFiles.EXT}"
 
     /** The template of [declarations] (a module's root commands), or null when it declares none. */
     fun template(declarations: List<PlayerCommandDeclaration>): TemplateDeclaration? {

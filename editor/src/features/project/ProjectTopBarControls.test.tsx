@@ -33,12 +33,12 @@ describe("ProjectTopBarControls", () => {
     const previousUser = useAuthStore.getState().currentUser;
     const openProjects = mockOpenProjects();
     const project = openProjects.projects[0]!;
-    const mine = diskSave.projectTree(project)["manifest.yaml"]!;
+    const mine = diskSave.projectTree(project)["artisan-module.yml"]!;
     const save = vi.spyOn(diskSave, "saveProjectToDisk").mockResolvedValue({
       ok: false,
       error: "conflict",
-      conflicts: [{ path: "manifest.yaml", disk: "name: Remote shop\n" }],
-      diskFiles: ["manifest.yaml"],
+      conflicts: [{ path: "artisan-module.yml", disk: "name: Remote shop\n" }],
+      diskFiles: ["artisan-module.yml"],
     });
     try {
       useProjectsStore.setState({ openProjects });
@@ -47,7 +47,7 @@ describe("ProjectTopBarControls", () => {
       });
       useProjectDraftStore
         .getState()
-        .save(project.id, { baseline: {}, tree: { "manifest.yaml": mine }, at: 1 });
+        .save(project.id, { baseline: {}, tree: { "artisan-module.yml": mine }, at: 1 });
       render(<ProjectTopBarControls project={project} projectId={project.id} />);
       fireEvent.click(screen.getByRole("button", { name: /^(Deploy|Déployer)/ }));
       fireEvent.click(
@@ -77,17 +77,17 @@ describe("ProjectTopBarControls", () => {
     const previousUser = useAuthStore.getState().currentUser;
     const openProjects = mockOpenProjects();
     const project = openProjects.projects[0]!;
-    const mine = diskSave.projectTree(project)["manifest.yaml"]!;
+    const mine = diskSave.projectTree(project)["artisan-module.yml"]!;
     const save = vi.spyOn(diskSave, "saveProjectToDisk");
     try {
       useProjectsStore.setState({ openProjects });
       useAuthStore.setState({
         currentUser: { id: "open-user", email: "open@example.test", name: "Open", avatarUrl: null },
       });
-      useProjectBaselineStore.getState().set(project.id, { "manifest.yaml": "name: Base\n" });
+      useProjectBaselineStore.getState().set(project.id, { "artisan-module.yml": "name: Base\n" });
       useProjectDraftStore.getState().save(project.id, {
-        baseline: { "manifest.yaml": "name: Base\n" },
-        tree: { "manifest.yaml": mine },
+        baseline: { "artisan-module.yml": "name: Base\n" },
+        tree: { "artisan-module.yml": mine },
         at: 1,
       });
       usePersistedDraftStore.setState({
@@ -96,7 +96,7 @@ describe("ProjectTopBarControls", () => {
             ownerId: "open-user",
             drafts: [],
             status: "saved",
-            openConflicts: [{ path: "manifest.yaml", disk: "name: Remote shop\n" }],
+            openConflicts: [{ path: "artisan-module.yml", disk: "name: Remote shop\n" }],
           },
         },
       });
@@ -108,7 +108,7 @@ describe("ProjectTopBarControls", () => {
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(save).not.toHaveBeenCalled();
       expect(useProjectDraftStore.getState().get(project.id)?.baseline).toEqual({
-        "manifest.yaml": "name: Remote shop\n",
+        "artisan-module.yml": "name: Remote shop\n",
       });
       expect(usePersistedDraftStore.getState().sessions[project.id]?.openConflicts).toBeUndefined();
     } finally {
@@ -236,16 +236,16 @@ describe("ProjectTopBarControls", () => {
     const previousUser = useAuthStore.getState().currentUser;
     const openProjects = mockOpenProjects();
     const project = openProjects.projects[0]!;
-    const mine = diskSave.projectTree(project)["manifest.yaml"]!;
+    const mine = diskSave.projectTree(project)["artisan-module.yml"]!;
     try {
       useProjectsStore.setState({ openProjects });
       useAuthStore.setState({
         currentUser: { id: "u1", email: "draft@example.test", name: "Draft", avatarUrl: null },
       });
       useProjectDraftStore.getState().save(project.id, {
-        baseline: { "manifest.yaml": "base" },
-        tree: { "manifest.yaml": mine },
-        initialTree: { "manifest.yaml": "base" },
+        baseline: { "artisan-module.yml": "base" },
+        tree: { "artisan-module.yml": mine },
+        initialTree: { "artisan-module.yml": "base" },
         at: 1,
       });
       usePersistedDraftStore.setState({
@@ -263,19 +263,19 @@ describe("ProjectTopBarControls", () => {
                 revision: 2,
                 status: "active",
                 snapshot: {
-                  baseline: { "manifest.yaml": "base" },
-                  tree: { "manifest.yaml": "name: Other\n" },
-                  initialTree: { "manifest.yaml": "base" },
+                  baseline: { "artisan-module.yml": "base" },
+                  tree: { "artisan-module.yml": "name: Other\n" },
+                  initialTree: { "artisan-module.yml": "base" },
                   at: 2,
                 },
                 source: "editor",
                 updatedAt: "today",
               },
               merged: {
-                baseline: { "manifest.yaml": "base" },
-                tree: { "manifest.yaml": mine },
+                baseline: { "artisan-module.yml": "base" },
+                tree: { "artisan-module.yml": mine },
               },
-              conflicts: [{ path: "manifest.yaml", disk: "name: Other\n" }],
+              conflicts: [{ path: "artisan-module.yml", disk: "name: Other\n" }],
             },
           },
         },
@@ -286,7 +286,9 @@ describe("ProjectTopBarControls", () => {
       fireEvent.click(within(dialog).getByRole("button", { name: /Keep mine|Garder ma version/ }));
       fireEvent.click(within(dialog).getByRole("button", { name: /^(Apply|Appliquer)$/ }));
       await waitFor(() =>
-        expect(resolveDraftConflict).toHaveBeenCalledWith(project.id, { "manifest.yaml": "mine" }),
+        expect(resolveDraftConflict).toHaveBeenCalledWith(project.id, {
+          "artisan-module.yml": "mine",
+        }),
       );
     } finally {
       act(() => {

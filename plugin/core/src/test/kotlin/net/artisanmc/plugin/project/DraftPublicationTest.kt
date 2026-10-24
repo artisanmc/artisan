@@ -51,4 +51,23 @@ class DraftPublicationTest {
         assertEquals("a: hand edit", File(root, "a.yml").readText())
         assertFalse(File(root, "logo.png").exists())
     }
+
+    @Test
+    fun `a draft started before its folder moved to yml publishes onto the yml files`() {
+        File(root, "manifest.yaml").writeText("schema: manifest/v1\n")
+        YmlMigration.run(root)
+        val message = mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(mapOf(
+            "type" to "project_draft_publish", "request_id" to "r", "project_id" to "shop", "operation_id" to "op-yml",
+            "draft" to mapOf("snapshot" to mapOf(
+                "baseline" to mapOf("manifest.yaml" to "schema: manifest/v1\n", "menus/b.yaml" to "b: 0"),
+                "tree" to mapOf("manifest.yaml" to "schema: module/v1\n", "menus/b.yaml" to "b: 0", "menus/c.yaml" to "c: 0"),
+            )),
+        ))
+        File(root, "menus/b.yml").apply { parentFile.mkdirs(); writeText("b: 0") }
+        assertEquals(true, DraftPublication(root).publish(message)["ok"].asBoolean())
+        assertEquals("schema: module/v1\n", File(root, "artisan-module.yml").readText())
+        assertEquals("c: 0", File(root, "menus/c.yml").readText(), "a new file goes under .yml")
+        assertFalse(File(root, "manifest.yaml").exists())
+        assertFalse(File(root, "menus/b.yaml").exists())
+    }
 }
