@@ -76,8 +76,16 @@ export const DIALOG_BOX = { width: 140, height: 60 };
 export const DOCUMENT_BOX = { width: 140, height: 48 };
 
 /** The box of a Document of a module's kind: its contribution's `board.size`, else the default. */
-/** A Document node listing its parts (`board.items`): header, then one row per part. */
-export const DOCUMENT_ITEMS = { header: 46, row: 24, pad: 6 };
+/**
+ * A Document node listing its parts (`board.items`): header, then one row per part, `tall`
+ * when a row carries a `caption`, every row then on two lines.
+ */
+export const DOCUMENT_ITEMS = { header: 46, row: 24, tall: 46, pad: 6 };
+
+/** The height of a node's rows: tall as soon as one of them has a caption. */
+export function documentRowHeight(items: readonly { caption?: string }[]): number {
+  return items.some((item) => item.caption) ? DOCUMENT_ITEMS.tall : DOCUMENT_ITEMS.row;
+}
 
 /**
  * A module Document's box: its kind's `board.size`, else DOCUMENT_BOX; with `board.items`,
@@ -91,13 +99,13 @@ export function documentBoxSize(
   const board = documentKindContribution(kind)?.board;
   const base = board?.size ?? DOCUMENT_BOX;
   if (!board?.items || doc === undefined || !project) return base;
-  const rows = board.items(doc, { project, lang: project.defaultLang }).length;
-  if (rows === 0) return base;
+  const items = board.items(doc, { project, lang: project.defaultLang });
+  if (items.length === 0) return base;
   return {
     width: base.width,
     height: Math.max(
       base.height,
-      DOCUMENT_ITEMS.header + rows * DOCUMENT_ITEMS.row + DOCUMENT_ITEMS.pad,
+      DOCUMENT_ITEMS.header + items.length * documentRowHeight(items) + DOCUMENT_ITEMS.pad,
     ),
   };
 }
