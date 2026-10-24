@@ -14,7 +14,7 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { Tooltip } from "@/components/ui/tooltip";
 import { DEFAULT_GROUP_COLOR, folderGroups } from "@/domain/canvasGroups";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
-import { type DocKey, docKey, documentCount } from "@/domain/documents";
+import { type DocKey, docKey, documentCount, findDocumentByKey } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
 import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
@@ -41,6 +41,7 @@ import {
   documentKindContribution,
   listDocumentKindContributions,
 } from "@artisan/editor-sdk";
+import { useDraggable } from "@dnd-kit/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
 import {
@@ -54,11 +55,18 @@ import {
   Puzzle,
   Settings,
 } from "lucide-react";
-import { type DragEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { documentRelPath } from "./DocumentYamlView";
 import { FolderNameDialog } from "./FolderNameDialog";
+import {
+  DocumentDragArea,
+  useDocumentDrag,
+  useFolderDroppable,
+  useGlidingRows,
+  withDropPreview,
+} from "./documentDrag";
 import { type DocumentLinks, documentLinks } from "./documentLinks";
 import { openProjectSettings } from "./projectSettings";
 import { adoptDiskIntoProject } from "./saveProjectToDisk";
@@ -239,7 +247,12 @@ export function ProjectDocumentTree({
       {empty ? (
         <EmptyState title={t("projectPanel.empty")} />
       ) : (
-        <DocumentGroups project={project} onOpen={onOpen} editable activeId={activeId} />
+        <DocumentDragArea
+          projectId={project.id}
+          overlay={(key) => <DragGhost project={project} docKeyOf={key} />}
+        >
+          <DocumentGroups project={project} onOpen={onOpen} editable activeId={activeId} />
+        </DocumentDragArea>
       )}
     </div>
   );
@@ -266,7 +279,11 @@ export function DocumentGroups({
   const activeLang = useUiStore((s) => s.activeLang);
   const serverKinds = useServerDocumentKindsStore();
   const templates = useProjectTemplates(project.id);
-  const allGroups = buildProjectDocuments(project, activeLang);
+  const drag = useDocumentDrag();
+  // While a Document is dragged, the tree already shows it where it would land.
+  const allGroups = withDropPreview(buildProjectDocuments(project, activeLang), drag, (it) =>
+    docKey(it.type, it.id),
+  );
   // A collection's Documents are listed under its own entry, never at the root or in a folder.
   const groups = allGroups.filter((g) => !isCollectionKind(g.type));
   const collections = projectCollections(project);
@@ -279,11 +296,16 @@ export function DocumentGroups({
   );
   const relationOf = linkRelation(documentLinks(project), (activeId ?? boardPick) as DocKey);
   // Dropped outside every folder: back to the module's root.
-  const rootDrop = useFolderDrop(editable ? project.id : null, "");
+  const root = useFolderDroppable("", editable);
+  const container = useRef<HTMLDivElement>(null);
+  useGlidingRows(container, drag.key !== null);
   return (
     <div
-      {...rootDrop.props}
-      className={`flex flex-col gap-0.5 rounded-[10px] ${rootDrop.over ? DROP_RING : ""}`}
+      ref={(node) => {
+        container.current = node;
+        root.setNodeRef(node);
+      }}
+      className={`flex flex-col gap-0.5 rounded-[10px] ${drag.target === "" ? DROP_RING : ""}`}
     >
       {collections.map((c) => (
         <CollectionNode
@@ -328,7 +350,7 @@ export function DocumentGroups({
           <div key={g.type} className="flex flex-col pb-1.5 last:pb-0">
             <ul aria-label={label} className="flex flex-col">
               {rootItems.map((it) => (
-                <li key={it.id}>
+                <li key={it.id} data-flip={docKey(g.type, it.id)}>
                   <DocumentRow
                     projectId={editable ? project.id : null}
                     project={project}
@@ -362,56 +384,21 @@ function linkRelation(links: DocumentLinks, focus: DocKey | undefined) {
   };
 }
 
-/** The drag payload of a sidebar row: the Document's `docKey`. */
-const DOC_MIME = "application/x-artisan-document";
 const DROP_RING = "outline outline-1 outline-[var(--brand)] bg-[var(--brand-soft)]";
 
-/**
- * Where a dragged Document lands: `folder` (`""` = the module's root). `projectId`
- * `null` = read-only, no drop. The innermost target wins: a folder stops the drop
- * from reaching the folders around it.
- */
-function useFolderDrop(projectId: ProjectId | null, folder: string, onEnter?: () => void) {
-  const [over, setOver] = useState(false);
-  // dragenter/dragleave fire for every child crossed: count them.
-  const depth = useRef(0);
-  const carries = (e: DragEvent) => projectId !== null && e.dataTransfer.types.includes(DOC_MIME);
-  const leave = () => {
-    depth.current = 0;
-    setOver(false);
-  };
-  return {
-    over,
-    props: {
-      onDragEnter: (e: DragEvent) => {
-        if (!carries(e)) return;
-        e.stopPropagation();
-        depth.current += 1;
-        if (!over) onEnter?.();
-        setOver(true);
-      },
-      onDragOver: (e: DragEvent) => {
-        if (!carries(e)) return;
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = "move";
-      },
-      onDragLeave: (e: DragEvent) => {
-        if (!carries(e)) return;
-        e.stopPropagation();
-        depth.current -= 1;
-        if (depth.current <= 0) leave();
-      },
-      onDrop: (e: DragEvent) => {
-        if (!carries(e) || projectId === null) return;
-        e.preventDefault();
-        e.stopPropagation();
-        leave();
-        const key = e.dataTransfer.getData(DOC_MIME);
-        if (key) useProjectsStore.getState().moveToFolder({ projectId, nodeIds: [key], folder });
-      },
-    },
-  };
+/** The row that follows the pointer while a Document is dragged. */
+function DragGhost({ project, docKeyOf }: { project: Project; docKeyOf: string }) {
+  const found = findDocumentByKey(project, docKeyOf);
+  if (!found) return null;
+  return (
+    <div
+      className="flex cursor-grabbing items-center gap-2 rounded-[10px] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-[5px] text-[13px] leading-5 text-[var(--text)]"
+      style={{ boxShadow: "var(--shadow-lg)" }}
+    >
+      <KindGlyph kind={found.kind} />
+      <span className="truncate">{found.doc.id}</span>
+    </div>
+  );
 }
 
 type OriginOf = (id: string) => ReturnType<typeof templateOrigin>;
@@ -573,15 +560,22 @@ function FolderNode({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(true);
+  const drag = useDocumentDrag();
+  const drop = useFolderDroppable(path, editable);
   // A folded folder opens when a Document is dragged over it.
-  const drop = useFolderDrop(editable ? project.id : null, path, () => setOpen(true));
+  useEffect(() => {
+    if (drop.isOver) setOpen(true);
+  }, [drop.isOver]);
   const [dialog, setDialog] = useState<"sub" | "rename" | null>(null);
   const items = groups.flatMap((g) => g.items.filter((it) => it.folder === path));
   const Chevron = open ? ChevronDown : ChevronRight;
   const Icon = open ? FolderOpen : Folder;
   const color = frameColor(project, path);
   return (
-    <div {...drop.props} className={`flex flex-col rounded-[10px] ${drop.over ? DROP_RING : ""}`}>
+    <div
+      ref={drop.setNodeRef}
+      className={`flex flex-col rounded-[10px] ${drag.target === path ? DROP_RING : ""}`}
+    >
       <div className="group flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
         <button
           type="button"
@@ -650,7 +644,7 @@ function FolderNode({
           ))}
           <ul aria-label={folderName(path)} className="flex flex-col">
             {items.map((it) => (
-              <li key={`${it.type}:${it.id}`}>
+              <li key={`${it.type}:${it.id}`} data-flip={docKey(it.type, it.id)}>
                 <DocumentRow
                   projectId={editable ? project.id : null}
                   project={project}
@@ -805,6 +799,9 @@ function DocumentRow({
   const active = activeId === key;
   // A module's system element never leaves its place: no drag.
   const draggable = projectId !== null && !origin?.system && !fixed;
+  const handle = useDraggable({ id: key, disabled: !draggable });
+  // The dragged row stays in the tree as the gap it will fill.
+  const placeholder = useDocumentDrag().key === key;
   const look = kindAppearance(kind);
   const originLabel = origin
     ? t(
@@ -821,17 +818,13 @@ function DocumentRow({
     : undefined;
   return (
     <div
-      className={`group flex items-center gap-0.5 rounded-[10px] ${active ? "" : "hover:bg-[var(--surface-hover)]"}`}
+      ref={handle.setNodeRef}
+      {...(draggable ? handle.listeners : {})}
+      data-draggable={draggable || undefined}
+      className={`group flex items-center gap-0.5 rounded-[10px] ${active ? "" : "hover:bg-[var(--surface-hover)]"} ${
+        placeholder ? "opacity-40 outline-dashed outline-1 outline-[var(--border-strong)]" : ""
+      }`}
       style={active ? { background: look.soft } : undefined}
-      draggable={draggable}
-      onDragStart={
-        draggable
-          ? (e) => {
-              e.dataTransfer.setData(DOC_MIME, key);
-              e.dataTransfer.effectAllowed = "move";
-            }
-          : undefined
-      }
     >
       <button
         type="button"

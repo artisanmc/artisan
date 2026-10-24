@@ -141,7 +141,7 @@ Paper la copie du serveur gagne (le class loader d'un plugin demande d'abord à 
 Spigot c'est la nôtre. Un `Component` existe donc partout, mais seules les méthodes Bukkit de Paper
 le prennent : l'envoyer (chat, titre, broadcast) ou le poser sur un objet (nom, lore) passe par
 `Chat` et `ItemTexts` (`runtime`, package `platform`), jamais par `sendMessage(Component)`,
-`displayName(Component)` ou `lore(List<Component>)` directement. Sur Spigot, le chat passe en JSON
+`displayName(Component)` ou `lore(List<Component>)` directement. Le style par défaut d'un objet passe par `LenientText.itemName` (nom sans italique) et `LenientText.loreLine` (lore blanc sans italique), partout : menus, `give_item`, item specs. Les aperçus de l'éditeur reprennent ces défauts (profils `ITEM_NAME` et `LORE` de `editor/src/lib/mm/profiles.ts`) : changer l'un, c'est changer l'autre. Sur Spigot, le chat passe en JSON
 par l'API de chat BungeeCord, les titres et textes d'objets en `§` (polices perdues). Le titre
 composé d'un menu part dans le paquet d'ouverture sur Spigot (`MenuWindows`, polices gardées) ; un
 dialogue passe par l'API de dialogues BungeeCord que Spigot embarque (`SpigotDialogRenderer`, appelée

@@ -39,8 +39,8 @@ class ItemSpecs(
             ?: return null
         if (app.count != null) item.amount = count
         item.itemMeta?.let { meta ->
-            app.title?.allValues()?.firstOrNull()?.let { ItemTexts.setName(meta, text(it)) }
-            if (app.lore.isNotEmpty()) ItemTexts.setLore(meta, app.lore.flatMap { it.allValues().firstOrNull().orEmpty().split("\n") }.map(::text))
+            app.title?.allValues()?.firstOrNull()?.let { ItemTexts.setName(meta, LenientText.itemName(it)) }
+            if (app.lore.isNotEmpty()) ItemTexts.setLore(meta, app.lore.flatMap { it.allValues().firstOrNull().orEmpty().split("\n") }.map(LenientText::loreLine))
             ItemDetails.applyToMeta(app, meta)
             item.itemMeta = meta
         }
@@ -105,8 +105,6 @@ class ItemSpecs(
             .onFailure { logger.warning("[Artisan] unreadable item spec $spec: ${it.message}") }
             .getOrNull()
     }
-
-    private fun text(raw: String): Component = LenientText.parse(raw)
 
     private fun plain(component: Component?): String? = component?.let { PlainTextComponentSerializer.plainText().serialize(it) }
 

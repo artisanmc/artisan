@@ -6,6 +6,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectDocumentTree } from "./ProjectDocumentTree";
+import { dropDocument, withDropPreview } from "./documentDrag";
 
 const PID = "p1" as ProjectId;
 function project(): Project {
@@ -141,28 +142,38 @@ describe("ProjectDocumentTree links and drag", () => {
     expect(within(row("m1")).getByRole("img", { name: /ouvert|opened/i })).toBeInTheDocument();
   });
 
-  it("files a document dropped on a folder, and back at the root", () => {
+  it("files a dragged document in the folder it is dropped on, and back at the root", () => {
     linked();
-    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
-    const data = new Map<string, string>();
-    const dataTransfer = {
-      get types() {
-        return [...data.keys()];
-      },
-      setData: (k: string, v: string) => data.set(k, v),
-      getData: (k: string) => data.get(k) ?? "",
-      effectAllowed: "",
-      dropEffect: "",
-    };
     const folder = () =>
-      useProjectsStore.getState().openProjects.projects[0]!.documents.menu![1] as {
-        folder?: string;
-      };
-    fireEvent.dragStart(screen.getByText("m2").closest("[draggable=true]")!, { dataTransfer });
-    fireEvent.drop(screen.getByRole("button", { name: "boutique" }), { dataTransfer });
-    expect(folder().folder).toBe("boutique");
-    fireEvent.dragStart(screen.getByText("m2").closest("[draggable=true]")!, { dataTransfer });
-    fireEvent.drop(screen.getByText("/heal"), { dataTransfer });
-    expect(folder().folder).toBeUndefined();
+      (
+        useProjectsStore.getState().openProjects.projects[0]!.documents.menu![1] as {
+          folder?: string;
+        }
+      ).folder;
+    dropDocument(PID, "menu/m2", "folder:boutique");
+    expect(folder()).toBe("boutique");
+    dropDocument(PID, "menu/m2", null);
+    expect(folder()).toBe("boutique");
+    dropDocument(PID, "menu/m2", "folder:");
+    expect(folder()).toBeUndefined();
+  });
+
+  it("previews the dragged document in the folder under the pointer, in the tree's order", () => {
+    const groups = [
+      {
+        type: "menu",
+        items: [
+          { id: "a", label: "a", type: "menu", folder: "" },
+          { id: "b", label: "b", type: "menu", folder: "boutique" },
+        ],
+      },
+    ];
+    const keyOf = (it: { type: string; id: string }) => `${it.type}/${it.id}`;
+    expect(withDropPreview(groups, { key: "menu/a", target: null }, keyOf)).toBe(groups);
+    const preview = withDropPreview(groups, { key: "menu/a", target: "boutique" }, keyOf);
+    expect(preview[0]!.items.map((it) => [it.id, it.folder])).toEqual([
+      ["a", "boutique"],
+      ["b", "boutique"],
+    ]);
   });
 });

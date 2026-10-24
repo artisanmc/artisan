@@ -1,6 +1,7 @@
 import { actionCatalogEn } from "./actionCatalog";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
+import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
@@ -85,6 +86,8 @@ export default {
   },
   drafts: draftsEn,
   selfHosted: selfHostedEn,
+  mmEditor: mmEditorEn,
+  textTool: textToolEn,
   serverCanvas: serverCanvasEn,
   changes: changesEn,
   actionCatalog: actionCatalogEn,
@@ -522,6 +525,9 @@ export default {
     insertLore: "Insert source lore",
     replaceLore: "Replace the base item lore",
     editItem: "Edit item",
+    inGamePreview: "In game",
+    noLoreWrap:
+      "Lore lines are not wrapped: this project has no lore max width (project settings).",
     done: "Done",
     catalog: "Catalog",
     library: "Buttons",
@@ -616,6 +622,8 @@ export default {
     clickRemove: "Remove this click handler",
     clickHandlerOn: "on {{clickType}}:",
     dragToReorder: "Drag to reorder",
+    searchActions: "Search actions…",
+    noActionMatch: "No action matches.",
     addStep: "+ Add step",
     addStepIfBranch: "if branch",
     elseIfAdd: "+ else if",
@@ -1322,8 +1330,15 @@ export default {
       searchPalette: "Search palette (Cmd+K)",
       canvasToolbar: "Canvas toolbar (mode switcher)",
       codeEditor: "YAML code editor",
+      minimessage: "MiniMessage editor and in-game previews",
       dataViz: "Data viz",
     },
+    mmEditorHint:
+      "Rich MiniMessage input: tags hidden, toolbar filtered by the profile (here a lore: no click), Rich / Code switch. MmTextField adds the preview its profile calls for.",
+    mcPreviewHint:
+      "Presentational in-game previews, drawn with the vanilla font. They take resolved MiniMessage only.",
+    popoverHint:
+      "A small form anchored to its trigger; unlike a dropdown menu, typing in its fields works.",
     codeEditorHint: "Syntax highlighting, line numbers, folding; Enter keeps the indentation.",
     codeEditorReadOnlyHint:
       "Viewer mode: same highlighting and folding, content cannot be edited. Used to read data-source preview rows.",

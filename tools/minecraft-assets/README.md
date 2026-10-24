@@ -14,7 +14,7 @@ The Mojang client jar is downloaded into `mc-assets/<version>/` (ignored by git)
 | `gen-items.ts [version]` | `items/<version>.json`: the item catalogue (flat texture, or a `model` path for 3D blocks). |
 | `gen-icons.ts [version]` | Renders every item with a `model` to PNG (Playwright + Three.js via `renderer-browser.ts` / `renderer-worker.mjs`) into `mc-assets/<version>/textures/icons/`, then rewrites `items/<version>.json` to point at those icons. |
 | `pack-icons.ts [version...]` | `icons/icons-<version>.zip`: the rendered icons + the final catalogue. |
-| `gen-char-advances.ts [version]` | Vanilla glyph width tables: `plugin/core/.../render/CharAdvances.kt`, `editor/src/features/canvas/title/charAdvances.ts`, `charCells.ts`, `editor/src/lib/pack/vanillaFontChars.ts`. |
+| `gen-char-advances.ts [version]` | Vanilla glyph width tables: `plugin/core/.../render/CharAdvances.kt`, `editor/src/lib/mcFont/charAdvances.ts`, `charCells.ts`, `editor/src/lib/pack/vanillaFontChars.ts`. |
 | `gen-vanilla-font-zip.ts [version]` | `test-fonts/vanilla-ascii-<version>.zip`, a test MCFonts font built from `ascii.png`. |
 
 ## New Minecraft version

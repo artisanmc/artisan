@@ -142,10 +142,6 @@ describe("a collection kind", () => {
     expect(catalog.textContent).toMatch(/kits/);
     expect(catalog.textContent).toMatch(/keys/);
     expect(screen.getAllByText("keys")).toHaveLength(1);
-    // Its rows do not drag into a folder.
-    expect(screen.getByText("kits").closest("[draggable]")?.getAttribute("draggable")).toBe(
-      "false",
-    );
     fireEvent.click(entry);
     expect(navigate).toHaveBeenCalledWith({
       to: "/servers/$serverId/projects/$projectId/collection/$collectionKind",

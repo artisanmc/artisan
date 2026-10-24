@@ -265,6 +265,25 @@
   --input: var(--border);
   --ring: var(--brand-line);
   --radius: 14px;
+
+  /* Minecraft's own interface, for the in-game previews (components/mc-preview):
+     the game draws it the same in both themes. */
+  --mc-tooltip-bg: rgba(16, 0, 16, 0.94);
+  --mc-tooltip-border-top: rgba(80, 0, 255, 0.4);
+  --mc-tooltip-border-bottom: rgba(40, 0, 127, 0.4);
+  --mc-chat-line-bg: rgba(0, 0, 0, 0.5);
+  --mc-scene-sky: #7ba4f0;
+  --mc-scene-horizon: #c3d6f5;
+  --mc-scene-ground: #4f7a32;
+  --mc-hotbar-bg: rgba(0, 0, 0, 0.55);
+  --mc-hotbar-border: #8b8b8b;
+  --mc-list-bg: #201812;
+  --mc-list-border: #808080;
+  --mc-icon-bg: #3c3c3c;
+  --mc-ping: #3fbf3f;
+  --mc-slot-bg: #8b8b8b;
+  --mc-slot-dark: #373737;
+  --mc-slot-light: #ffffff;
 }
 
 /* ----------------------------------------------------------------
