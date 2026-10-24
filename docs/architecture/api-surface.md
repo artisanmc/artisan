@@ -316,6 +316,7 @@ A module may ship **templates**: example content (Documents, menus, `lang/` file
 |---|---|---|
 | `TemplateRegistry.register(decl)` (owner = the module whose `onEnable` runs; outside one, or a second template with that id for that module, `IllegalStateException`), `find(moduleId, templateId)` (nullable), `of(moduleId)` (registration order), `registered()` (module id → declarations) | | 2.6.0 |
 | `TemplateDeclaration.builder(id, version)` (`id` `^[a-z][a-z0-9_]*$`, `version` ≥ 1, raised each time the files change), `fromResources(loader, root, id, version, paths)` (missing resource: `IllegalArgumentException`); `Builder.title(title)`, `seed(projectId)` (`^[a-z0-9][a-z0-9_-]*$`), `file(path, bytes)` (relative `/` path of plain segments, no `..`, no leading dot, never `.artisan*`; ≤ `MAX_SIZE` = 4 MiB in all), `build()` | `TemplateDeclaration.Builder` | 2.6.0 |
+| `Builder.file` refuses every name of the module file (`artisan-module.yml`, `manifest.yml`, `manifest.yaml`), where it refused `manifest.yaml` only (`IllegalArgumentException`) | | 2.13.0 |
 | `TemplateDeclaration.getId()`, `getTitle()` (the id when none), `getVersion()`, `getSeedProject()` (nullable), `getPaths()`, `getFile(path)` (copy, nullable), `getHash(path)` (lowercase hex SHA-256, nullable), `toWire()`, `sha256(bytes)` | | 2.6.0 |
 | `TemplateDeclaration.Builder.system()`, `isSystem()`: the files are the module's **system elements** (the menus and dialogs its code opens by id), kept in the module's first folder by name at every start and module arrival. A missing file is written again (unless a file of that name sits under the same kind folder elsewhere in the module: moved), an untouched copy of an earlier version is replaced, an edited one stays until the editor resets it (`template_copy` with `replace`, into the module's folder only: elsewhere `system_template`). Not with `seed(...)` (`IllegalArgumentException`). Presence adds `system: true` to the template | | 2.12.0 |
 | `ArtisanAPI.Builder.templates(registry)` (`@Internal`) | `Builder` | 2.6.0 |
@@ -561,6 +562,7 @@ Read-only project content (`plugins/Artisan/modules/` and the registered roots),
 | `projectIds()` | `List<String>` | 1.2.0 |
 | `list(projectId: String, dir: String)` | `List<String>` | 1.2.0 |
 | `read(projectId: String, relPath: String)` | `String?` | 1.2.0 |
+| `read` finds a YAML file under either extension (`lang/fr.yaml` reads `lang/fr.yml` when only that one exists), and a module file under any of its names (`manifest.yaml` reads `artisan-module.yml`) | `String?` | 2.13.0 |
 | `hasContent(dir: String)` | `Boolean` | 1.2.0 |
 | `reload()` | `Unit` | 1.6.0 — asynchronous since 1.8.0: the disk is read on Artisan's reload thread, and modules' `onReload()` follows on the global thread |
 | `documents(projectId: String, kind: String)` (`@Beta`) | `List<Map<String, Object>>` | 2.1.0 — see `DocumentKindRegistry` |

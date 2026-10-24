@@ -42,6 +42,7 @@ import type {
 } from "@/domain/types";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
+import { MODULE_FILE_NAMES, isYamlPath, yamlFilesUnder } from "@/lib/yamlFiles";
 import { parse as parseYaml } from "yaml";
 import { documentCodec } from "./documentCodecs";
 import { makeAppearanceConverter } from "./menuV1ToDomain";
@@ -147,7 +148,7 @@ function leadingHandComment(text: string): string {
   return (gen === -1 ? head : head.slice(0, gen)).join("\n");
 }
 
-/** Scan `<dir>/<name>.yaml` entries, sorted by path (deterministic). `id` is
+/** Scan `<dir>/<name>.yml` (or `.yaml`) entries, sorted by name (deterministic). `id` is
  *  the doc's own `id:` when present, else the file name; `file` is always the
  *  file name. */
 function scanDir(
@@ -156,16 +157,12 @@ function scanDir(
   dir: string,
 ): { id: string; file: string; parsed: Json }[] {
   const prefix = `${baseOf(projectId)}${dir}/`;
-  return Object.keys(files)
-    .filter((k) => k.startsWith(prefix) && k.endsWith(".yaml"))
-    .sort()
-    .flatMap((k) => {
-      const parsed = tryParse<Json>(files[k]!);
-      if (!parsed) return [];
-      const file = k.slice(prefix.length, -".yaml".length);
-      const id = (parsed.id as string) ?? file;
-      return [{ id, file, parsed }];
-    });
+  return yamlFilesUnder(Object.keys(files), prefix).flatMap(([file, k]) => {
+    const parsed = tryParse<Json>(files[k]!);
+    if (!parsed) return [];
+    const id = (parsed.id as string) ?? file;
+    return [{ id, file, parsed }];
+  });
 }
 
 // Board state (layout / edges)
@@ -248,7 +245,8 @@ function readTranslations(
   for (const [path, content] of Object.entries(files)) {
     const rel = relativeToProject(path, projectId);
     const m = /^lang\/([A-Za-z0-9_-]+)\.ya?ml$/.exec(rel);
-    if (!m) continue;
+    // `lang/fr.yml` and `lang/fr.yaml` both there: the `.yml` copy is read.
+    if (!m || (rel.endsWith(".yaml") && `${path.slice(0, -".yaml".length)}.yml` in files)) continue;
     const lang = m[1]!;
     const parsed = tryParse<Record<string, unknown>>(content);
     if (!parsed || typeof parsed !== "object") continue;
@@ -444,7 +442,7 @@ function corePrefixes(): string[] {
     "data/",
   ];
 }
-const CORE_FILES = new Set(["manifest.yaml", "meta.yaml"]);
+const CORE_FILES = new Set<string>([...MODULE_FILE_NAMES, "meta.yaml"]);
 
 interface LegacyTemplate {
   alias: string;
@@ -529,7 +527,9 @@ export function projectFromFiles(
   // to the internal id once and for all: everything downstream addresses by
   // `baseOf(projectId)` and need not know the distinction.
   const files = normalizeProjectPrefix(rawFiles, projectId);
-  const manifest = tryParse<ManifestYaml>(getFile(files, projectId, "manifest.yaml")) ?? {};
+  const moduleFile = MODULE_FILE_NAMES.find((n) => getFile(files, projectId, n) !== null);
+  const manifest =
+    (moduleFile && tryParse<ManifestYaml>(getFile(files, projectId, moduleFile))) || {};
   const defaultLang = manifest.default_lang ?? "en";
   const now = new Date().toISOString();
 
@@ -694,16 +694,8 @@ export function projectFromFiles(
     return {};
   };
   // Top-level files only — nested paths belong to per-row source dirs below.
-  const topLevelDataSources = Object.keys(files)
-    .filter(
-      (k) =>
-        k.startsWith(dataPrefix) &&
-        k.endsWith(".yaml") &&
-        !k.slice(dataPrefix.length).includes("/"),
-    )
-    .sort()
-    .flatMap((k) => {
-      const fileId = k.slice(dataPrefix.length, -".yaml".length);
+  const topLevelDataSources = yamlFilesUnder(Object.keys(files), dataPrefix).flatMap(
+    ([fileId, k]) => {
       const raw = tryParse<unknown>(files[k]!);
       if (!raw) return [];
       // Bare list = table, bare mapping (no data/* header) = object source
@@ -744,7 +736,8 @@ export function projectFromFiles(
       }
       const id = (parsed.id as string) ?? fileId;
       return [{ id, parsed }];
-    });
+    },
+  );
   // Per-row dirs: any data/<dir>/ holding row files — `_source.yaml` is
   // OPTIONAL (absent → all files, byte-sorted; present → legacy full meta or
   // minimal `model:` + `order:`).
@@ -753,15 +746,16 @@ export function projectFromFiles(
       Object.keys(files)
         .filter(
           (k) =>
-            k.startsWith(dataPrefix) &&
-            k.endsWith(".yaml") &&
-            k.slice(dataPrefix.length).includes("/"),
+            k.startsWith(dataPrefix) && isYamlPath(k) && k.slice(dataPrefix.length).includes("/"),
         )
         .map((k) => k.slice(dataPrefix.length).split("/", 1)[0]!),
     ),
   ].sort();
   const perRowParsed = perRowSourceDirs.flatMap((dir) => {
-    const metaRawText = files[`${dataPrefix}${dir}/_source.yaml`];
+    const rowPrefix = `${dataPrefix}${dir}/`;
+    const rowFiles = new Map(yamlFilesUnder(Object.keys(files), rowPrefix));
+    const metaPath = rowFiles.get("_source");
+    const metaRawText = metaPath === undefined ? undefined : files[metaPath];
     const rawMeta = tryParse<Json>(metaRawText ?? null) ?? ({} as Json);
     const metaHeader = metaRawText ? leadingHandComment(metaRawText) : "";
     // Order-only (or absent) meta: resolve the model beside the data.
@@ -772,11 +766,7 @@ export function projectFromFiles(
       ...(rawMeta.name == null && b.name !== undefined ? { name: b.name } : {}),
       ...(metaHeader ? { header_comment: metaHeader } : {}),
     } as Json;
-    const rowPrefix = `${dataPrefix}${dir}/`;
-    const onDisk = Object.keys(files)
-      .filter((k) => k.startsWith(rowPrefix) && k.endsWith(".yaml") && !k.endsWith("/_source.yaml"))
-      .map((k) => k.slice(rowPrefix.length, -".yaml".length))
-      .filter((n) => !n.includes("/"));
+    const onDisk = [...rowFiles.keys()].filter((n) => n !== "_source");
     const order: string[] = Array.isArray(meta.order) ? meta.order.map(String) : [];
     // Declared order first, then hand-added files not in the order (byte-sorted).
     const names = [
@@ -784,7 +774,7 @@ export function projectFromFiles(
       ...onDisk.filter((n) => !order.includes(n)).sort(),
     ];
     const rows = names.flatMap((n) => {
-      const row = tryParse<Json>(files[`${rowPrefix}${n}.yaml`] ?? null);
+      const row = tryParse<Json>(files[rowFiles.get(n)!] ?? null);
       return row ? [row] : [];
     });
     return [

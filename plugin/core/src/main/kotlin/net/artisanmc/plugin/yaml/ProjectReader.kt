@@ -148,7 +148,7 @@ class ProjectReader(
 
     /**
      * The module's Documents, **discovered by scan** of every themed folder
-     * ([DocumentLayout]): `<folders…>/<kind dir>/<id>.yaml`. A file the layout
+     * ([DocumentLayout]): `<folders…>/<kind dir>/<id>.yml`. A file the layout
      * refuses (duplicate id, subfolder of a kind folder…) is reported through
      * [onSkip] and not read. Alphabetical order, so stable from one load to the next.
      */
@@ -217,11 +217,13 @@ class ProjectReader(
         )
     }
 
-    /** `manifest.yaml`, or `null` when the folder has none (not a project). */
+    /** [ModuleFile], or `null` when the folder has none (not a project). */
     private fun readManifest(projectId: String, projectDir: File): ManifestYaml? {
-        val manifestFile = File(projectDir, "manifest.yaml").takeIf { it.exists() } ?: return null
+        val manifestFile = ModuleFile.find(projectDir) ?: return null
+        ModuleFile.NAMES.drop(ModuleFile.NAMES.indexOf(manifestFile.name) + 1)
+            .map { File(projectDir, it) }.filter { it.isFile }.forEach(::ignored)
         val manifest = mapper.readValue(manifestFile, ManifestYaml::class.java)
-        requireSchema(manifestFile, manifest.schema, "manifest/v1")
+        requireSchema(manifestFile, manifest.schema, ModuleFile.SCHEMA, ModuleFile.LEGACY_SCHEMA)
         if (manifest.projectId.isNotEmpty() && manifest.projectId != projectId) {
             logger?.warning("[Artisan] ${manifestFile.path}: legacy project_id '${manifest.projectId}' ignored; resolved identity is '$projectId'. Remove project_id from this manifest.")
         }
@@ -238,9 +240,8 @@ class ProjectReader(
      */
     private fun readLangMaps(projectDir: File, manifest: ManifestYaml): Map<String, Map<String, String>> =
         manifest.languages.associateWith { lang ->
-            val langFile = File(projectDir, "lang/$lang.yaml")
-            if (!langFile.exists()) return@associateWith emptyMap()
-            tolerant("lang/$lang.yaml of project ${projectDir.name}") {
+            val langFile = YamlFiles.find(File(projectDir, "lang"), lang, ::ignored) ?: return@associateWith emptyMap()
+            tolerant("lang/${langFile.name} of project ${projectDir.name}") {
                 LangFlattener.flatten(mapper.readValue(langFile, object : TypeReference<Map<String, Any?>>() {}))
             } ?: emptyMap()
         }
@@ -254,17 +255,15 @@ class ProjectReader(
      * of an unknown schema is skipped like any broken one (not loud).
      */
     private fun readLegacyTemplates(projectDir: File): Map<String, TemplateYaml> =
-        File(projectDir, "templates")
-            .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
-            ?.sortedBy { it.name }
-            ?.mapNotNull { f ->
+        YamlFiles.list(File(projectDir, "templates"), ::ignored).values
+            .mapNotNull { f ->
                 tolerant("template ${f.name}", loudSchema = false) {
                     val t = mapper.readValue(f, TemplateYaml::class.java)
                     requireSchema(f, t.schema, "template/v1")
                     if (t.id.isEmpty()) t.copy(id = f.nameWithoutExtension) else t
                 }
             }
-            ?.associateBy { it.id } ?: emptyMap()
+            .associateBy { it.id }
 
     /**
      * Every Document the layout finds, each file through its kind's reader.
@@ -301,16 +300,13 @@ class ProjectReader(
         projectModels: Map<String, Map<String, Any?>>,
         langMaps: Map<String, Map<String, String>>,
         defaultLang: String,
-    ): List<RuntimeDataSource> = dataDir
-        .listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
-        ?.sortedBy { it.name }
-        ?.mapNotNull { f ->
+    ): List<RuntimeDataSource> = YamlFiles.list(dataDir, ::ignored)
+        .mapNotNull { (sourceId, f) ->
             tolerant("data source ${f.name}") {
-                val sourceId = f.name.removeSuffix(".yaml")
                 val dsYaml = readSourceDocument(f, sourceId, projectModels)
                 RuntimeDataSource(dsYaml, langMaps, defaultLang)
             }
-        } ?: emptyList()
+        }
 
     /**
      * Per-row granularity: data/<id>/ holds one file per row. `_source.yaml`
@@ -336,8 +332,8 @@ class ProjectReader(
         val sourceId = dir.name
         // `_source.yaml` is always META (legacy full form, or minimal
         // `model:` + `order:`) — never bare values.
-        val metaFile = File(dir, "_source.yaml")
-        val meta = if (metaFile.isFile) {
+        val metaFile = YamlFiles.find(dir, SOURCE_META, ::ignored)
+        val meta = if (metaFile != null) {
             val m = mapper.readValue(metaFile, DataSourceYaml::class.java)
             requireSchema(metaFile, m.schema, "data/v1")
             m.copy(
@@ -347,8 +343,7 @@ class ProjectReader(
         } else {
             DataSourceYaml(id = sourceId, fields = resolveFields(sourceId, null, projectModels))
         }
-        val onDisk = dir.listFiles { f -> f.isFile && f.name.endsWith(".yaml") && f.name != "_source.yaml" }
-            ?.associateBy { it.name.removeSuffix(".yaml") } ?: emptyMap()
+        val onDisk = YamlFiles.list(dir, ::ignored) - SOURCE_META
         // Declared order first, then hand-added files (byte-sorted).
         val names = meta.order.filter { it in onDisk } +
             onDisk.keys.filterNot { it in meta.order }.sorted()
@@ -463,13 +458,12 @@ class ProjectReader(
     /** models/<id>.yaml docs, keyed by BOTH the file id and the doc's `id:` (ns refs). */
     private fun readProjectModels(projectDir: File): Map<String, Map<String, Any?>> {
         val out = mutableMapOf<String, Map<String, Any?>>()
-        File(projectDir, "models").listFiles { f -> f.isFile && f.name.endsWith(".yaml") }
-            ?.sortedBy { it.name }
-            ?.forEach { f ->
+        YamlFiles.list(File(projectDir, "models"), ::ignored)
+            .forEach { (stem, f) ->
                 runCatching {
                     @Suppress("UNCHECKED_CAST")
                     val doc = mapper.readValue(f, Map::class.java) as Map<String, Any?>
-                    out[f.name.removeSuffix(".yaml")] = doc
+                    out[stem] = doc
                     (doc["id"] as? String)?.let { out.putIfAbsent(it, doc) }
                 }.getOrElse { e ->
                     logger?.warning("[Artisan] skipping model ${f.name}: ${e.message}")
@@ -513,7 +507,14 @@ class ProjectReader(
         return yaml.copy(elements = resolved, layers = emptyList())
     }
 
+    /** A file [YamlFiles] left out for its `.yml` twin (or a module file for a newer one). */
+    private fun ignored(file: File) {
+        logger?.warning("[Artisan] ignoring ${file.path}: a newer copy sits beside it. Merge it in, then delete it.")
+    }
+
     private companion object {
+        const val SOURCE_META = "_source"
+
         /** Deep enough to report a misplaced file a few levels past [DocumentLayout.MAX_DEPTH]. */
         const val SCAN_DEPTH = DocumentLayout.MAX_DEPTH + 5
     }

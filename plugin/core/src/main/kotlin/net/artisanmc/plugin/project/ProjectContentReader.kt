@@ -1,7 +1,9 @@
 package net.artisanmc.plugin.project
 
 import net.artisanmc.modules.api.project.ProjectContentApi
+import net.artisanmc.plugin.model.ModuleFile
 import net.artisanmc.plugin.model.RuntimeRawDocument
+import net.artisanmc.plugin.model.YamlFiles
 import net.artisanmc.plugin.engine.RuntimeProject
 import java.io.File
 
@@ -60,7 +62,20 @@ class ProjectContentReader(
             .toList()
     }
 
-    override fun read(projectId: String, relPath: String): String? {
+    override fun read(projectId: String, relPath: String): String? =
+        spellings(relPath).firstNotNullOfOrNull { readExact(projectId, it) }
+
+    /**
+     * [relPath], then its other YAML spellings: an add-on that asks for `lang/fr.yaml` gets
+     * `lang/fr.yml`, one that asks for `manifest.yaml` gets `artisan-module.yml`.
+     */
+    private fun spellings(relPath: String): List<String> {
+        val others = if (ModuleFile.isModuleFile(relPath)) ModuleFile.NAMES
+        else YamlFiles.stem(relPath)?.let { stem -> YamlFiles.EXTENSIONS.map { stem + it } }.orEmpty()
+        return listOf(relPath) + (others - relPath)
+    }
+
+    private fun readExact(projectId: String, relPath: String): String? {
         val projectRoot = roots.all()[projectId] ?: return null
         val f = resolve(projectId, relPath) ?: return null
         snapshot().files[projectId]?.get(f.relativeTo(projectRoot).invariantSeparatorsPath)?.let { return it }

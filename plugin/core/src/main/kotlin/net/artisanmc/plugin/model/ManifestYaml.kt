@@ -3,6 +3,7 @@ package net.artisanmc.plugin.model
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 
+/** A module's [ModuleFile]: `module/v1`, or the legacy `manifest/v1` with the same fields. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(
     val schema: String = "",

@@ -1,6 +1,7 @@
 import { injectDeclaredModels } from "@/domain/dataModels";
 import type { Project, ProjectId } from "@/domain/types";
 import type { ConfigFile, ServerEditorScreen } from "@/lib/api/configScreens";
+import { keepYamlExtensions, yamlStem } from "@/lib/yamlFiles";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { projectToFiles } from "@/schema/projectToFiles";
 import { listModules } from "@artisan/editor-sdk";
@@ -73,16 +74,19 @@ export function diffScratchForWrite(
   // data file (the canonical writer emits values-only). It travels with the
   // table: dropping it would strip the schema from disk on the first save.
   const sourceId = screen.table.split("/").pop() ?? "";
-  const besideModel = (p: string) => p === `models/${sourceId}.yaml`;
+  const besideModel = (p: string) => yamlStem(p) === `models/${sourceId}`;
 
-  const current = new Map<string, string>();
+  const scoped: Record<string, string> = {};
   for (const [full, content] of Object.entries(emitted)) {
     if (!full.startsWith(base)) continue;
     const rel = full.slice(base.length);
-    if (tableFile(rel) || besideModel(rel)) current.set(rel, content);
+    if (tableFile(rel) || besideModel(rel)) scoped[rel] = content;
   }
-
+  // The add-on reads its table by its own file names: each keeps its extension.
   const originalByPath = new Map(original.map((f) => [f.path, f.content]));
+  const current = new Map(
+    Object.entries(keepYamlExtensions(scoped, Object.fromEntries(originalByPath))),
+  );
   const files: ConfigFile[] = [];
   for (const [path, content] of current) {
     if (originalByPath.get(path) !== content) files.push({ path, content });

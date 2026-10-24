@@ -1,3 +1,4 @@
+import { isYamlPath } from "@/lib/yamlFiles";
 import { parse } from "yaml";
 
 export interface GlyphPlacement {
@@ -15,7 +16,7 @@ export function glyphPlacementsFromMenus(
 ): GlyphPlacement[] {
   const out: GlyphPlacement[] = [];
   for (const f of files) {
-    if (!f.path.startsWith("menus/") || !f.path.endsWith(".yaml")) continue;
+    if (!f.path.startsWith("menus/") || !isYamlPath(f.path)) continue;
     let doc: unknown;
     try {
       doc = parse(f.content);

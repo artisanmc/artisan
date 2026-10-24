@@ -161,7 +161,8 @@ const fr: typeof en = {
     summaryKept: "{{count}} fichier(s) du serveur absents de l'archive sont conservés",
     errors: {
       not_a_zip: "Ce fichier n'est pas un .zip lisible.",
-      no_manifest: "Aucun manifest.yaml trouvé — ce n'est pas une archive de projet.",
+      no_manifest:
+        "Aucun artisan-module.yml ni manifest.yaml trouvé — ce n'est pas une archive de module.",
       invalid_project_id: "Le nom du projet dans l'archive est invalide.",
       empty: "L'archive ne contient aucun fichier de projet exploitable.",
       server_offline: "Le serveur est éteint : son instantané actuel ne peut pas être lu.",
