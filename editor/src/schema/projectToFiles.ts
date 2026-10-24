@@ -15,7 +15,7 @@ import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { stringify } from "yaml";
 import { dataSourceI18n, emitDataSources, modelV1FromDomain } from "./dataV1FromDomain";
 import { documentCodec } from "./documentCodecs";
-import { collectReferencedKeys, serializeLang } from "./langV1FromDomain";
+import { collectReferencedKeys, keptLangEntries, serializeLang } from "./langV1FromDomain";
 
 /**
  * Removes the `id` field before writing a Document to disk: the file already
@@ -75,16 +75,14 @@ export function projectToFiles(project: Project): Record<string, string> {
   const referencedKeys = collectReferencedKeys(project);
   const dsI18n = dataSourceI18n(project);
   for (const lang of langs) {
-    // `lang/` now only holds siteless presentation keys and data-source
-    // addresses — document text is field-local in the documents.
+    // `lang/` now only holds siteless presentation keys, data-source addresses
+    // and the keys kept as read — document text is field-local in the documents.
     // Written as a YAML tree (`nestLangTree` sorts every level byte-order).
     const tree = nestLangTree(
-      serializeLang(
-        project,
-        lang,
-        referencedKeys,
-        lang === project.defaultLang ? {} : (dsI18n.byLang[lang] ?? {}),
-      ),
+      serializeLang(project, lang, referencedKeys, {
+        ...keptLangEntries(project, lang),
+        ...(lang === project.defaultLang ? {} : (dsI18n.byLang[lang] ?? {})),
+      }),
     );
     // Nothing to say for this language → no file (a pure mono-language,
     // structural-only project ships zero `lang/` files).

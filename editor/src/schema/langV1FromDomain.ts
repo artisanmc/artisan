@@ -1,6 +1,7 @@
 // Domain → `lang/<code>.yaml` entries. Since ADR `field-local-translations` and
 // `structured-action-wire`, document text lives in the documents: `lang/` only
 // holds siteless presentation keys and data-source addresses.
+import { visitProjectLTexts } from "@/domain/i18nSites";
 import type { Project } from "@/domain/types";
 import { DURATION_DEFAULTS, DURATION_KEYS } from "@/lib/expr/duration";
 
@@ -71,5 +72,26 @@ export function serializeLang(
   entries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const out: Record<string, string> = {};
   for (const [k, v] of entries) out[k] = v;
+  return out;
+}
+
+/**
+ * One language's entries for the keys kept as read (`Project.keptLangKeys`), from
+ * their current value: those removed from `i18nKeys` are gone, and a key a site
+ * owns by now (a module's kind, a model arrived after the import) is left to it.
+ */
+export function keptLangEntries(project: Project, lang: string): Record<string, string> {
+  const kept = project.keptLangKeys ?? [];
+  if (kept.length === 0) return {};
+  const owned = new Set<string>();
+  for (const site of visitProjectLTexts(project)) {
+    owned.add(site.key);
+    owned.add(site.lText.key);
+  }
+  const out: Record<string, string> = {};
+  for (const key of kept) {
+    const value = project.i18nKeys[key as keyof Project["i18nKeys"]]?.[lang];
+    if (value !== undefined && !owned.has(key)) out[key] = value;
+  }
   return out;
 }

@@ -208,6 +208,13 @@ export interface Project {
    */
   unreadFiles?: Record<string, string>;
   /**
+   * Keys of `lang/` that no Document or data source of the module read at import:
+   * an add-on's messages (ArtisanAuctions, a bundle `inFolder`), an admin's own keys.
+   * Written back from `i18nKeys` at each export, so a save keeps them; one removed
+   * from `i18nKeys` (Translations) goes, one a site owns by then is the site's.
+   */
+  keptLangKeys?: string[];
+  /**
    * Owning Add-on module id (from `manifest.module`) when this is an Add-on's
    * dedicated project — drives the sidebar "Installed modules" grouping and is
    * round-tripped through the manifest (ADR `addon-owned-project-roots`).
