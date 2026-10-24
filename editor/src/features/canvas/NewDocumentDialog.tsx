@@ -14,6 +14,8 @@ interface NewDocumentDialogProps {
   open: boolean;
   position?: { x: number; y: number };
   onOpenChange: (open: boolean) => void;
+  /** Called with the new Document's id once it exists (a collection's page opens it). */
+  onCreated?: (id: string) => void;
 }
 
 /**
@@ -27,6 +29,7 @@ export function NewDocumentDialog({
   open,
   position,
   onOpenChange,
+  onCreated,
 }: NewDocumentDialogProps) {
   const { t } = useTranslation();
   const contribution = documentKindContribution(kind);
@@ -45,9 +48,13 @@ export function NewDocumentDialog({
       title={t("canvas.newDocumentDialogTitle", { kind: kindLabel })}
       prefix={contribution?.idPrefix ?? ""}
       canCreate={!!contribution}
-      onCreate={(id) =>
-        useProjectsStore.getState().createDocument({ projectId, kind, id, position })
-      }
+      onCreate={(id) => {
+        const created = useProjectsStore
+          .getState()
+          .createDocument({ projectId, kind, id, position });
+        onCreated?.(created);
+        return created;
+      }}
     >
       {!synced && (
         <output className="text-xs text-[var(--warning)]">

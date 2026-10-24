@@ -27,15 +27,22 @@ import {
   type ProjectTemplates,
   useProjectTemplates,
 } from "@/features/templates/useProjectTemplates";
+import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
+import { collectionDestination } from "@/lib/projectNavigation";
 import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useUiStore } from "@/state/uiStore";
-import { documentKindContribution, listDocumentKindContributions } from "@artisan/editor-sdk";
+import {
+  type DocumentKindContribution,
+  documentKindContribution,
+  listDocumentKindContributions,
+} from "@artisan/editor-sdk";
 import { useDraggable } from "@dnd-kit/core";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
 import {
   ArrowLeft,
@@ -274,9 +281,12 @@ export function DocumentGroups({
   const templates = useProjectTemplates(project.id);
   const drag = useDocumentDrag();
   // While a Document is dragged, the tree already shows it where it would land.
-  const groups = withDropPreview(buildProjectDocuments(project, activeLang), drag, (it) =>
+  const allGroups = withDropPreview(buildProjectDocuments(project, activeLang), drag, (it) =>
     docKey(it.type, it.id),
   );
+  // A collection's Documents are listed under its own entry, never at the root or in a folder.
+  const groups = allGroups.filter((g) => !isCollectionKind(g.type));
+  const collections = projectCollections(project);
   const originOf = (id: string) =>
     templateOrigin(templates, project, documentRelPath(project, id), t);
   // The Document whose links are marked: the one open in the view, else the one
@@ -297,6 +307,19 @@ export function DocumentGroups({
       }}
       className={`flex flex-col gap-0.5 rounded-[10px] ${drag.target === "" ? DROP_RING : ""}`}
     >
+      {collections.map((c) => (
+        <CollectionNode
+          key={c.kind}
+          project={project}
+          contribution={c}
+          items={allGroups.find((g) => g.type === c.kind)?.items ?? []}
+          onOpen={onOpen}
+          editable={editable}
+          originOf={originOf}
+          activeId={activeId}
+          relationOf={relationOf}
+        />
+      ))}
       {childFolders(project, "").map((path) => (
         <FolderNode
           key={path}
@@ -388,6 +411,125 @@ function frameColor(project: Project, path: string): string | undefined {
   const top = path.split("/")[0]!;
   const frame = folderGroups(project).find((g) => g.id === top);
   return frame ? (frame.color ?? DEFAULT_GROUP_COLOR) : undefined;
+}
+
+/**
+ * A collection (SDK 1.9), a shop's catalogue: one entry, never renamed nor deleted, whose
+ * name opens its page and whose "+" creates a Document of its kind. Its Documents stay
+ * where their module reads them: no drag, no "Move to".
+ */
+function CollectionNode({
+  project,
+  contribution,
+  items,
+  onOpen,
+  editable,
+  originOf,
+  activeId,
+  relationOf,
+}: {
+  project: Project;
+  contribution: DocumentKindContribution;
+  items: ProjectDocumentItem[];
+  /** Its argument: the Document's key (`docKey`). */
+  onOpen: (documentId: string) => void;
+  editable: boolean;
+  originOf: OriginOf;
+  activeId?: string;
+  relationOf: (key: DocKey) => Relation | undefined;
+}) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { serverId, collectionKind } = useParams({ strict: false }) as {
+    serverId?: string;
+    collectionKind?: string;
+  };
+  const uiLang = useUiStore((s) => s.editorLang);
+  const [open, setOpen] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const kind = contribution.kind;
+  const label = collectionLabel(contribution, kind, uiLang);
+  const look = kindAppearance(kind);
+  const Chevron = open ? ChevronDown : ChevronRight;
+  const active = collectionKind === kind;
+  const canOpen = editable && !!serverId;
+  return (
+    <div className="flex flex-col">
+      <div
+        className={`group flex items-center gap-0.5 rounded-[10px] ${active ? "" : "hover:bg-[var(--surface-hover)]"}`}
+        style={active ? { background: look.soft } : undefined}
+      >
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={t(open ? "collections.collapse" : "collections.expand", {
+            collection: label,
+          })}
+          onClick={() => setOpen(!open)}
+          className="flex shrink-0 items-center py-[5px] pl-0.5"
+        >
+          <Chevron className="size-3 text-[var(--text-faint)]" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid={`collection-${kind}`}
+          aria-current={active ? "page" : undefined}
+          title={canOpen ? t("collections.open", { collection: label }) : undefined}
+          onClick={() =>
+            canOpen ? navigate(collectionDestination(project, serverId!, kind)) : setOpen(!open)
+          }
+          className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-[10px] py-[5px] pr-2 text-left text-[13px] leading-5 text-[var(--text)] ${active ? "font-semibold" : "font-medium"}`}
+        >
+          <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
+          <span className="flex-1 truncate">{label}</span>
+          <span className="shrink-0 text-[11px] text-[var(--text-faint)]">{items.length}</span>
+        </button>
+        {editable && kindCreatableIn(contribution, project) && (
+          <button
+            type="button"
+            data-testid={`collection-${kind}-create`}
+            onClick={() => setCreating(true)}
+            aria-label={t("projectProperties.newDocument", { kind: typeLabel(kind, t) })}
+            title={t("projectProperties.newDocument", { kind: typeLabel(kind, t) })}
+            className="flex shrink-0 items-center justify-center px-2 py-1 text-[var(--text-faint)] hover:text-[var(--text)] lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
+          >
+            <Plus className="size-[14px]" />
+          </button>
+        )}
+      </div>
+      {open && items.length > 0 && (
+        <ul aria-label={label} className="flex flex-col">
+          {items.map((it) => (
+            <li key={it.id}>
+              <DocumentRow
+                projectId={editable ? project.id : null}
+                project={project}
+                item={it}
+                depth={1}
+                kind={kind}
+                fixed
+                onOpen={() => onOpen(docKey(kind, it.id))}
+                origin={originOf(docKey(kind, it.id))}
+                activeId={activeId}
+                relation={relationOf(docKey(kind, it.id))}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      {creating && (
+        <NewDocumentDialog
+          projectId={project.id}
+          kind={kind}
+          open
+          onOpenChange={(o) => {
+            if (!o) setCreating(false);
+          }}
+          onCreated={(id) => onOpen(docKey(kind, id))}
+        />
+      )}
+    </div>
+  );
 }
 
 /**
@@ -631,6 +773,7 @@ function DocumentRow({
   notSyncedHint,
   activeId,
   relation,
+  fixed = false,
 }: {
   /** `null` = read-only: no actions menu. */
   projectId: ProjectId | null;
@@ -648,12 +791,14 @@ function DocumentRow({
   activeId?: string;
   /** Set when this Document opens the focused one (parent) or is opened by it (child). */
   relation?: Relation;
+  /** A collection's Document: it stays where its module reads it, no drag, no "Move to". */
+  fixed?: boolean;
 }) {
   const { t } = useTranslation();
   const key = docKey(kind, item.id);
   const active = activeId === key;
   // A module's system element never leaves its place: no drag.
-  const draggable = projectId !== null && !origin?.system;
+  const draggable = projectId !== null && !origin?.system && !fixed;
   const handle = useDraggable({ id: key, disabled: !draggable });
   // The dragged row stays in the tree as the gap it will fill.
   const placeholder = useDocumentDrag().key === key;
@@ -735,6 +880,7 @@ function DocumentRow({
           item={item}
           onOpen={onOpen}
           system={origin?.system === true}
+          fixed={fixed}
           onReset={origin?.reset}
         />
       )}
@@ -760,6 +906,7 @@ function RowActions({
   item,
   onOpen,
   system,
+  fixed,
   onReset,
 }: {
   projectId: ProjectId;
@@ -768,10 +915,13 @@ function RowActions({
   onOpen: () => void;
   /** A module's system element: kept where the module put it, never deleted. */
   system: boolean;
+  /** A collection's Document: never filed in a folder. */
+  fixed: boolean;
   onReset?: () => void;
 }) {
   const { t } = useTranslation();
-  const targets = system ? [] : ["", ...listFolders(project)].filter((f) => f !== item.folder);
+  const targets =
+    system || fixed ? [] : ["", ...listFolders(project)].filter((f) => f !== item.folder);
   const move = (folder: string) =>
     useProjectsStore
       .getState()

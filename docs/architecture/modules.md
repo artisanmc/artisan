@@ -117,6 +117,18 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > porte une valeur d'item que l'hôte dessine avant le libellé de la ligne. La boutique s'en sert pour
 > `boutique_category`, réservé à son dossier, dont le nœud liste les articles avec leur icône.
 
+> **Collection (depuis 2026-10-24, SDK 1.9)** — `DocumentKindContribution.collection: { labels, screen? }` :
+> les Documents du kind forment un seul conteneur (le catalogue de la boutique). Pas de nœud sur la
+> planche (`boardGraph` les retire ; les liens gardent le graphe entier), une entrée unique dans la
+> sidebar (`CollectionNode` : nom → page, `+` → création, pas de renommage ni de suppression) et une
+> page `projects/$projectId/collection/$collectionKind` (`CollectionView`) : l'écran de config
+> `screen` en tête, une carte par Document, le bouton de création. Les Documents restent à la racine :
+> `moveToFolder` refuse de les ranger dans un dossier et `useCollectionsAtRoot` ramène à la racine
+> ceux qu'un brouillon a dans un dossier (déplacement dans le brouillon, écrit par Déployer). Un
+> Document s'ouvre sur sa vue individuelle, dont le retour mène à la page de la collection. Aucun
+> fichier propre : la collection est calculée du kind. Pour un kind de donnée, sans lien vers ou
+> depuis d'autres Documents.
+
 > **Dossier du module (depuis 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > donne au module `plugins/Artisan/modules/<folder>/`, enregistré comme une racine d'add-on (clé
 > `addon:<folder>`, non renommable). L'ancienne racine (`legacyDir`) y est déplacée une fois ; le

@@ -1,7 +1,7 @@
 import { isGroupColor } from "@/domain/canvasGroups";
 import { documentKindDef, isDocumentKind } from "@/domain/documentKinds";
 import { documentPath } from "@/domain/documentLayout";
-import { type DocKey, allDocuments, docKey } from "@/domain/documents";
+import { type DocKey, allDocuments, docKey, parseDocKey } from "@/domain/documents";
 import {
   type FolderError,
   isWithin,
@@ -10,6 +10,7 @@ import {
   parentFolder,
 } from "@/domain/folders";
 import type { Project, ProjectId } from "@/domain/types";
+import { isCollectionKind } from "@/lib/documentCollections";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import type { ProjectsSliceContext } from "./types";
 
@@ -94,7 +95,11 @@ export const createFoldersSlice = ({ get, mutateProject }: ProjectsSliceContext)
     },
     moveToFolder: ({ projectId: pId, nodeIds, folder }) => {
       if (folder && !listFolders(project(pId)).includes(folder)) throw new Error("unknown folder");
-      const ids = new Set(nodeIds);
+      // A collection's Documents stay at the root (SDK 1.9): its module reads them there only.
+      const ids = new Set(
+        folder ? nodeIds.filter((key) => !isCollectionKind(parseDocKey(key)?.kind ?? "")) : nodeIds,
+      );
+      if (ids.size === 0) return;
       let moves: Move[] = [];
       mutateProject(pId, (p) => {
         moves = refileDocuments(p, (_, key) => (ids.has(key) ? folder : null));

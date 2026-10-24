@@ -25,6 +25,10 @@ its color, show only that folder, rearrange its contents or remove it (its docum
 Drag a frame's background to move the folder with everything in it. Double-click it to show only that
 folder; **Escape** shows everything again. Drop a document on another folder's frame to file it there.
 In the sidebar, drag a document onto a folder, or outside every folder to put it back at the root.
+Some modules gather their documents in a collection instead, such as the shop's **Catalog** of
+categories. A collection has one entry in the sidebar: click its name to open its page, with its
+settings and a card per document, or **+** to create one. Its documents are not on the canvas and
+always stay at the module's root, where the module reads them.
 Changes support Undo/Redo and are saved with the editor layout. The server-wide canvas groups by
 project too; editing stays in each project.
 

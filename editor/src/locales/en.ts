@@ -1628,6 +1628,19 @@ export default {
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "button · {{owner}}",
   },
+  collections: {
+    notFound: "This collection does not exist in this project.",
+    count_one: "{{count}} {{kind}}",
+    count_other: "{{count}} {{kind}}",
+    empty: "{{collection}} is empty.",
+    open: "Open {{collection}}",
+    collapse: "Collapse {{collection}}",
+    expand: "Expand {{collection}}",
+    movedToRoot_one:
+      "{{count}} Document of {{collection}} moved back to the root: its module only reads it there.",
+    movedToRoot_other:
+      "{{count}} Documents of {{collection}} moved back to the root: their module only reads them there.",
+  },
   screens: {
     stale: "Showing your last visit — checking with the server…",
     loading: "Reading files from the server…",

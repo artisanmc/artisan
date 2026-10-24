@@ -89,15 +89,18 @@ export function useMiddleClickPan({ containerRef, viewport, setViewport }: Args)
     };
     document.addEventListener("pointerdown", onDown, true);
     window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    // Release in the capture phase on `window`: `usePrimaryButtonOnly` stops
+    // non-primary presses at the canvas container, so the middle button's
+    // `pointerup` never bubbles back up to `window`.
+    window.addEventListener("pointerup", onUp, true);
+    window.addEventListener("pointercancel", onUp, true);
     const onBlur = () => onUp();
     window.addEventListener("blur", onBlur);
     return () => {
       document.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("pointerup", onUp, true);
+      window.removeEventListener("pointercancel", onUp, true);
       window.removeEventListener("blur", onBlur);
     };
   }, [containerRef, setViewport]);

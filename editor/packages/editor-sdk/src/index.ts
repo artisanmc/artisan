@@ -11,6 +11,7 @@ export type {
   ModuleRouteDecl,
   ConfigScreenProps,
   DocumentKindContribution,
+  DocumentCollection,
   DocumentEditorProps,
   DocumentPreviewProps,
   DocumentLabelContext,

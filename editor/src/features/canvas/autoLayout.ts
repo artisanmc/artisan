@@ -2,7 +2,7 @@ import { folderGroups } from "@/domain/canvasGroups";
 import type { Project } from "@/domain/types";
 import type { ArrangeMode } from "./arrangeBoard";
 import { type BoardGroup, arrangeProjectGroups } from "./groupedBoard";
-import { deriveServerGraph } from "./serverGraph";
+import { boardGraph, deriveServerGraph } from "./serverGraph";
 
 type Point = { x: number; y: number };
 
@@ -26,7 +26,7 @@ const bySignature = new Map<string, ProjectBoard>();
  * only an added, removed or resized Document or link does.
  */
 export function projectBoard(project: Project): ProjectBoard {
-  const graph = deriveServerGraph([project]);
+  const graph = boardGraph(deriveServerGraph([project]));
   const pinned: Record<string, Point> = {};
   const layout = project.canvasLayout as Record<string, Point>;
   for (const node of graph.nodes) {
@@ -108,7 +108,7 @@ export function rearrangeProjectLayout(
     ) as Project["canvasLayout"],
     folders: withFramePositions(project, before.groups),
   };
-  const graph = deriveServerGraph([snapshot]);
+  const graph = boardGraph(deriveServerGraph([snapshot]));
   const arranged = arrangeProjectGroups(snapshot, graph, {
     releaseOuterPositions: groupId === undefined,
     mode,
