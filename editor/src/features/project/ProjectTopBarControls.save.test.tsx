@@ -86,7 +86,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     useProjectDraftStore.getState().save("p1", {
       baseline: {},
       initialTree: {},
-      tree: { "manifest.yaml": "changed" },
+      tree: { "artisan-module.yml": "changed" },
       at: 0,
     });
     vi.mocked(saveProjectToDisk).mockResolvedValueOnce({
@@ -108,30 +108,28 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     useProjectDraftStore.getState().save("p1", {
       baseline: {},
       initialTree: {},
-      tree: { "manifest.yaml": "changed" },
+      tree: { "artisan-module.yml": "changed" },
       at: 0,
     });
     vi.mocked(saveProjectToDisk).mockResolvedValueOnce({
       ok: false,
       error: "write_error",
       status: 422,
-      message: "AccessDeniedException: menus/shop.yaml",
+      message: "AccessDeniedException: menus/shop.yml",
     });
     render(<ProjectTopBarControls project={p} projectId={p.id} />);
     await deployAndConfirm();
     expect(await screen.findByRole("dialog")).toHaveTextContent(
-      "AccessDeniedException: menus/shop.yaml",
+      "AccessDeniedException: menus/shop.yml",
     );
     await user.click(screen.getByRole("button", { name: /Copy details|Copier les détails/ }));
-    expect(await navigator.clipboard.readText()).toContain(
-      "AccessDeniedException: menus/shop.yaml",
-    );
+    expect(await navigator.clipboard.readText()).toContain("AccessDeniedException: menus/shop.yml");
     expect(await navigator.clipboard.readText()).toContain("HTTP 422");
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: /Save options|Options d’enregistrement/ }));
     await user.click(screen.getByRole("menuitem", { name: /Last save error|Dernière erreur/ }));
     expect(await screen.findByRole("dialog")).toHaveTextContent(
-      "AccessDeniedException: menus/shop.yaml",
+      "AccessDeniedException: menus/shop.yml",
     );
     await user.keyboard("{Escape}");
     await deployAndConfirm();
@@ -157,9 +155,9 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     // Save is only enabled when there is work in progress: the draft says so,
     // so a dirty draft is needed to be able to click.
     useProjectDraftStore.getState().save("p1", {
-      baseline: { "menus/m.yaml": "a\n" },
-      tree: { "menus/m.yaml": "b\n" },
-      initialTree: { "menus/m.yaml": "a\n" },
+      baseline: { "menus/m.yml": "a\n" },
+      tree: { "menus/m.yml": "b\n" },
+      initialTree: { "menus/m.yml": "a\n" },
       at: 0,
     });
 
@@ -181,7 +179,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     useProjectsStore.setState({
       openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
-    const tree = { "menus/m.yaml": "a\n" };
+    const tree = { "menus/m.yml": "a\n" };
     useProjectDraftStore.getState().save("p1", {
       baseline: tree,
       tree,
@@ -199,9 +197,9 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       openProjects: { projects: [p], projectOrder: [p.id] },
     } as never);
     useProjectDraftStore.getState().save("p1", {
-      baseline: { "menus/m.yaml": "a\n" },
-      tree: { "menus/m.yaml": "b\n" },
-      initialTree: { "menus/m.yaml": "a\n" },
+      baseline: { "menus/m.yml": "a\n" },
+      tree: { "menus/m.yml": "b\n" },
+      initialTree: { "menus/m.yml": "a\n" },
       at: 0,
     });
     vi.mocked(saveProjectToDisk).mockClear();
@@ -222,13 +220,13 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     useProjectDraftStore.getState().save("p1", {
       baseline: {},
       initialTree: {},
-      tree: { "manifest.yaml": "changed" },
+      tree: { "artisan-module.yml": "changed" },
       at: 0,
     });
     render(<ProjectTopBarControls project={p} projectId={p.id} />);
     fireEvent.click(screen.getByRole("button", { name: DEPLOY }));
     const review = await screen.findByRole("dialog");
-    expect(within(review).getByRole("button", { name: /manifest\.yaml/ })).toBeInTheDocument();
+    expect(within(review).getByRole("button", { name: /artisan-module\.yml/ })).toBeInTheDocument();
     expect(within(review).getAllByText(/New|Nouveau/).length).toBeGreaterThan(0);
     fireEvent.click(within(review).getByRole("button", { name: /^(Cancel|Annuler)$/ }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -259,7 +257,7 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       useProjectDraftStore.getState().save("p1", {
         baseline: {},
         initialTree: {},
-        tree: { "manifest.yaml": "changed" },
+        tree: { "artisan-module.yml": "changed" },
         at: 0,
       });
       useServerIndexStore.setState(index);

@@ -62,20 +62,20 @@ describe("projectToFiles", () => {
       ] as never,
     });
     const result = { files: projectToFiles(project) };
-    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yaml"]).toContain(
+    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yml"]).toContain(
       "{base.lore}",
     );
-    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yaml"]).not.toContain(
+    expect(result.files["plugins/Artisan/projects/p_test/data/settings.yml"]).not.toContain(
       "iconLore",
     );
     expect(
-      flattenLangTree(parse(result.files["plugins/Artisan/projects/p_test/lang/fr.yaml"]!)),
+      flattenLangTree(parse(result.files["plugins/Artisan/projects/p_test/lang/fr.yml"]!)),
     ).toMatchObject({
       "sources.settings.icon.title": "Article {item.name}",
       "sources.settings.icon.lore": "{base.lore}\nPrécieux",
     });
   });
-  it("emits manifest.yaml with menu and command ids", () => {
+  it("emits artisan-module.yml with menu and command ids", () => {
     const project = makeProject({
       documents: {
         menu: [
@@ -99,25 +99,25 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
-    expect(manifest.schema).toBe("manifest/v1");
+    const manifest = parse(files["plugins/Artisan/projects/p_test/artisan-module.yml"]!);
+    expect(manifest.schema).toBe("module/v1");
     expect(manifest).not.toHaveProperty("project_id");
     // No `files:` block: Documents are discovered by scanning the folders, on
     // both sides. What proves they exist is the file itself.
     expect(manifest.files).toBeUndefined();
-    expect(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]).toBeDefined();
-    expect(files["plugins/Artisan/projects/p_test/commands/heal.yaml"]).toBeDefined();
+    expect(files["plugins/Artisan/projects/p_test/menus/shop.yml"]).toBeDefined();
+    expect(files["plugins/Artisan/projects/p_test/commands/heal.yml"]).toBeDefined();
   });
 
   it("round-trips manifest.module for Add-on-owned projects", () => {
     const owned = parse(
       projectToFiles(makeProject({ ownerModule: "boutique" }))[
-        "plugins/Artisan/projects/p_test/manifest.yaml"
+        "plugins/Artisan/projects/p_test/artisan-module.yml"
       ]!,
     );
     expect(owned.module).toBe("boutique");
     const plain = parse(
-      projectToFiles(makeProject())["plugins/Artisan/projects/p_test/manifest.yaml"]!,
+      projectToFiles(makeProject())["plugins/Artisan/projects/p_test/artisan-module.yml"]!,
     );
     expect(plain.module).toBeUndefined();
   });
@@ -214,7 +214,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     const el = menu.elements[0];
     expect(el.iterates).toBeUndefined();
     expect(el.places).toEqual({
@@ -256,10 +256,10 @@ describe("projectToFiles", () => {
         schemaVersion: "shop/v1",
         sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
         routes: [],
-        exportFiles: () => ({ "boutique/items.yaml": "items: []" }),
+        exportFiles: () => ({ "boutique/items.yml": "items: []" }),
       });
       const files = projectToFiles(makeProject());
-      const key = Object.keys(files).find((k) => k.endsWith("/boutique/items.yaml"));
+      const key = Object.keys(files).find((k) => k.endsWith("/boutique/items.yml"));
       expect(key).toBeDefined();
       expect(files[key!]).toBe("items: []");
     });
@@ -267,11 +267,11 @@ describe("projectToFiles", () => {
     it("re-emits __files of moduleData namespaces no registered module claims", () => {
       const project = makeProject({
         moduleData: {
-          boutique: { __files: { "shop.yaml": "schema: boutique/v1\n", "notes/readme.txt": "hi" } },
+          boutique: { __files: { "shop.yml": "schema: boutique/v1\n", "notes/readme.txt": "hi" } },
         },
       });
       const files = projectToFiles(project);
-      expect(files["plugins/Artisan/projects/p_test/boutique/shop.yaml"]).toBe(
+      expect(files["plugins/Artisan/projects/p_test/boutique/shop.yml"]).toBe(
         "schema: boutique/v1\n",
       );
       expect(files["plugins/Artisan/projects/p_test/boutique/notes/readme.txt"]).toBe("hi");
@@ -284,13 +284,13 @@ describe("projectToFiles", () => {
         schemaVersion: "shop/v1",
         sidebar: { icon: () => null, label: "Boutique", to: "/m/boutique" },
         routes: [],
-        exportFiles: () => ({ "boutique/shop.yaml": "from-module" }),
+        exportFiles: () => ({ "boutique/shop.yml": "from-module" }),
       });
       const project = makeProject({
-        moduleData: { boutique: { __files: { "shop.yaml": "raw-bytes" } } },
+        moduleData: { boutique: { __files: { "shop.yml": "raw-bytes" } } },
       });
       const files = projectToFiles(project);
-      expect(files["plugins/Artisan/projects/p_test/boutique/shop.yaml"]).toBe("from-module");
+      expect(files["plugins/Artisan/projects/p_test/boutique/shop.yml"]).toBe("from-module");
     });
   });
 
@@ -396,7 +396,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.schema).toBe("menu/v1");
     // The identity is the FILE NAME, not a field of the document.
     expect("id" in menu).toBe(false);
@@ -463,7 +463,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     const app = menu.elements[0];
     expect(app.title).toBe("Buy");
     expect(app.lore).toEqual(["Click here"]);
@@ -502,7 +502,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     const app = menu.elements[0];
     expect(app.material).toBe("PLAYER_HEAD");
     expect(app.head).toBe("basehead:eyJ0ZXh0dXJlcyI6e319");
@@ -565,7 +565,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     const steps = menu.elements[0].click.left;
     expect(steps).toEqual([
       { show_title: { title: "Hello", subtitle: "World", fade_in: 5, stay: 40, fade_out: 15 } },
@@ -620,7 +620,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     const steps = menu.elements[0].click.left;
     // No subtitle / timings → only the title is carried, as the bare primary.
     expect(steps).toEqual([{ show_title: "Hello" }]);
@@ -670,7 +670,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     const steps = menu.elements[0].click.left;
     expect(steps).toEqual([{ open_menu: { menu_id: "profile", clear_context: true } }]);
   });
@@ -698,7 +698,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop_category.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop_category.yml"]!);
     expect(menu.inputs).toEqual([{ name: "cat", type: "object", row_of: "boutique:categories" }]);
   });
 
@@ -743,7 +743,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     const steps = menu.elements[0].click.left;
     expect(steps).toEqual([{ pagination_next: null }, { pagination_prev: "grid" }]);
   });
@@ -764,7 +764,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const cmd = parse(files["plugins/Artisan/projects/p_test/commands/heal.yaml"]!);
+    const cmd = parse(files["plugins/Artisan/projects/p_test/commands/heal.yml"]!);
     expect(cmd.schema).toBe("command/v1");
     expect("id" in cmd).toBe(false);
     // `name` is omitted when it equals `id`; action chain is the `actions` field.
@@ -790,7 +790,7 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const cmd = parse(files["plugins/Artisan/projects/p_test/commands/boutique_open.yaml"]!);
+    const cmd = parse(files["plugins/Artisan/projects/p_test/commands/boutique_open.yml"]!);
     expect(cmd.name).toBe("boutique");
   });
 
@@ -815,8 +815,8 @@ describe("projectToFiles", () => {
       },
     });
     const files = projectToFiles(project);
-    const en = flattenLangTree(parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!));
-    const fr = flattenLangTree(parse(files["plugins/Artisan/projects/p_test/lang/fr.yaml"]!));
+    const en = flattenLangTree(parse(files["plugins/Artisan/projects/p_test/lang/en.yml"]!));
+    const fr = flattenLangTree(parse(files["plugins/Artisan/projects/p_test/lang/fr.yml"]!));
     // Structural title travels field-local in the document, not in lang/.
     expect(en["menus.shop.title"]).toBeUndefined();
     expect(fr["menus.shop.title"]).toBeUndefined();
@@ -824,7 +824,7 @@ describe("projectToFiles", () => {
     expect(Object.keys(en).every((k) => k.startsWith("artisan."))).toBe(true);
     expect(en.lt_orphan).toBeUndefined();
     expect(en.greeting).toBeUndefined();
-    expect(files["plugins/Artisan/projects/p_test/translations.yaml"]).toBeUndefined();
+    expect(files["plugins/Artisan/projects/p_test/translations.yml"]).toBeUndefined();
   });
 
   it("manifest includes default_lang and languages", () => {
@@ -835,16 +835,16 @@ describe("projectToFiles", () => {
       } as Project["i18nKeys"],
     });
     const files = projectToFiles(project);
-    const manifest = parse(files["plugins/Artisan/projects/p_test/manifest.yaml"]!);
+    const manifest = parse(files["plugins/Artisan/projects/p_test/artisan-module.yml"]!);
     expect(manifest.default_lang).toBe("en");
     expect(manifest.languages).toContain("en");
     expect(manifest.languages).toContain("fr");
   });
 
-  it("emits no meta.yaml — the export is a pure function of the Project (no timestamps)", () => {
+  it("emits no meta.yml — the export is a pure function of the Project (no timestamps)", () => {
     const project = makeProject();
     const files = projectToFiles(project);
-    expect(files["plugins/Artisan/projects/p_test/meta.yaml"]).toBeUndefined();
+    expect(files["plugins/Artisan/projects/p_test/meta.yml"]).toBeUndefined();
     // Determinism: two exports of the same Project are byte-identical.
     expect(projectToFiles(project)).toEqual(files);
   });
@@ -868,7 +868,7 @@ describe("projectToFiles — dialogs", () => {
       ],
     };
     const files = projectToFiles(makeProject({ documents: { dialog: [dialog] } }));
-    expect(files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]).toBeDefined();
+    expect(files["plugins/Artisan/projects/p_test/dialogs/d_test.yml"]).toBeDefined();
   });
 
   it("dialog yaml contains schema, title, can_close_with_escape — but no longer the id", () => {
@@ -888,7 +888,7 @@ describe("projectToFiles — dialogs", () => {
       ],
     };
     const files = projectToFiles(makeProject({ documents: { dialog: [dialog] } }));
-    const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]!;
+    const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yml"]!;
     expect(yaml).toContain("schema: dialog/v1");
     expect(yaml).not.toContain("id: d_test");
     expect(yaml).toContain("can_close_with_escape: false");
@@ -913,9 +913,9 @@ describe("projectToFiles — dialogs", () => {
       ],
     };
     const files = projectToFiles(makeProject({ documents: { dialog: [dialog] } }));
-    const manifest = files["plugins/Artisan/projects/p_test/manifest.yaml"]!;
+    const manifest = files["plugins/Artisan/projects/p_test/artisan-module.yml"]!;
     expect(manifest).not.toContain("d_test");
-    expect(files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]).toBeDefined();
+    expect(files["plugins/Artisan/projects/p_test/dialogs/d_test.yml"]).toBeDefined();
   });
 
   it("button actions are serialized flat", () => {
@@ -935,7 +935,7 @@ describe("projectToFiles — dialogs", () => {
       ],
     };
     const files = projectToFiles(makeProject({ documents: { dialog: [dialog] } }));
-    const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]!;
+    const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yml"]!;
     expect(yaml).toContain("close_dialog");
   });
 
@@ -958,7 +958,7 @@ describe("projectToFiles — dialogs", () => {
       ],
     };
     const files = projectToFiles(projectWithDialog(dialog));
-    const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yaml"]!;
+    const yaml = files["plugins/Artisan/projects/p_test/dialogs/d_test.yml"]!;
     // Button actions are structured: `- open_dialog: d_other`.
     expect(yaml).toContain("open_dialog: d_other");
     expect(yaml).not.toContain("dialogId");
@@ -985,7 +985,7 @@ describe("projectToFiles — title layers", () => {
     const files = projectToFiles(
       menuWithTitle([{ kind: "plain", value: { key: "k_plain" as I18nKey } }]),
     );
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     // Field-local structural text: no i18nKeys entry ⇒ empty bare string.
     expect(menu.title).toBe("");
   });
@@ -994,7 +994,7 @@ describe("projectToFiles — title layers", () => {
     const files = projectToFiles(
       menuWithTitle([{ kind: "background", assetId: "asset_a1b2c3" as AssetId }]),
     );
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title).toEqual([{ kind: "background", asset_id: "asset_a1b2c3" }]);
   });
 
@@ -1002,7 +1002,7 @@ describe("projectToFiles — title layers", () => {
     const files = projectToFiles(
       menuWithTitle([{ kind: "glyph", assetId: "asset_d4e5f6" as AssetId, x: 32, y: 4 }]),
     );
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title).toEqual([{ kind: "glyph", asset_id: "asset_d4e5f6", x: 32, y: 4 }]);
   });
 
@@ -1010,7 +1010,7 @@ describe("projectToFiles — title layers", () => {
     const files = projectToFiles(
       menuWithTitle([{ kind: "text", value: { key: "k_text" as I18nKey }, x: 8, y: 5 }]),
     );
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title).toEqual([{ kind: "text", value: "", x: 8, y: 5 }]);
     expect(menu.title[0]).not.toHaveProperty("color");
     expect(menu.title[0]).not.toHaveProperty("font_asset_id");
@@ -1029,7 +1029,7 @@ describe("projectToFiles — title layers", () => {
         },
       ]),
     );
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title[0]).toEqual({
       kind: "text",
       value: "",
@@ -1046,7 +1046,7 @@ describe("projectToFiles — title layers", () => {
         { kind: "external_glyph", provider: "oraxen", glyphName: "g_coin", x: 12, y: 6 },
       ]),
     );
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title).toEqual([
       { kind: "external_glyph", provider: "oraxen", glyph_name: "g_coin", x: 12, y: 6 },
     ]);
@@ -1060,7 +1060,7 @@ describe("projectToFiles — title layers", () => {
         { kind: "text", value: { key: "k_title" as I18nKey }, x: 8, y: 5, color: "#FFAA00" },
       ]),
     );
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title).toEqual([
       { kind: "background", asset_id: "asset_bg" },
       { kind: "glyph", asset_id: "asset_g1", x: 10, y: 2 },
@@ -1070,7 +1070,7 @@ describe("projectToFiles — title layers", () => {
 
   it("emits title: [] for menus with no title layers", () => {
     const files = projectToFiles(menuWithTitle([]));
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title).toEqual([]);
   });
 
@@ -1082,7 +1082,7 @@ describe("projectToFiles — title layers", () => {
         { kind: "text", value: { key: "k_xyz" as I18nKey }, x: 8, y: 5, color: "#FFAA00" },
       ]),
     );
-    const yaml = files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!;
+    const yaml = files["plugins/Artisan/projects/p_test/menus/shop.yml"]!;
     // Spot-check the YAML body explicitly for the layered shape.
     expect(yaml).toContain("title:");
     expect(yaml).toContain("kind: background");
@@ -1133,7 +1133,7 @@ describe("projectToFiles — textarea title layer", () => {
         },
       ]),
     );
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title).toHaveLength(1);
     expect(menu.title[0]).toEqual({
       kind: "textarea",
@@ -1161,13 +1161,13 @@ describe("projectToFiles — textarea title layer", () => {
         },
       ]),
     );
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title[0]).not.toHaveProperty("font_asset_id");
     expect(menu.title[0].line_height).toBe(10);
     expect(menu.title[0].alignment).toBe("left");
   });
 
-  it("textarea text is field-local, not emitted to lang/<lang>.yaml", () => {
+  it("textarea text is field-local, not emitted to lang/<lang>.yml", () => {
     const project = makeProject({
       defaultLang: "en",
       i18nKeys: {
@@ -1196,10 +1196,10 @@ describe("projectToFiles — textarea title layer", () => {
       },
     });
     const files = projectToFiles(project);
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     expect(menu.title[0].value).toBe("Hello\nWorld");
     // Structural text no longer travels in lang/ (ADR field-local-translations).
-    expect(parse(files["plugins/Artisan/projects/p_test/lang/en.yaml"]!).k_ta).toBeUndefined();
+    expect(parse(files["plugins/Artisan/projects/p_test/lang/en.yml"]!).k_ta).toBeUndefined();
   });
 });
 
@@ -1220,7 +1220,7 @@ describe("projectToFiles — size field on text/textarea layers", () => {
       },
     });
     const files = projectToFiles(project);
-    const menuYaml = parse(files["plugins/Artisan/projects/p_test/menus/m.yaml"]!);
+    const menuYaml = parse(files["plugins/Artisan/projects/p_test/menus/m.yml"]!);
     expect(menuYaml.title[0].size).toBe(16);
   });
 
@@ -1243,7 +1243,7 @@ describe("projectToFiles — size field on text/textarea layers", () => {
       },
     });
     const files = projectToFiles(project);
-    const menuYaml = parse(files["plugins/Artisan/projects/p_test/menus/m.yaml"]!);
+    const menuYaml = parse(files["plugins/Artisan/projects/p_test/menus/m.yml"]!);
     expect(menuYaml.title[0].size).toBeUndefined();
     expect(menuYaml.title[1].size).toBeUndefined();
   });
@@ -1275,7 +1275,7 @@ describe("projectToFiles — size field on text/textarea layers", () => {
       },
     });
     const files = projectToFiles(project);
-    const menuYaml = parse(files["plugins/Artisan/projects/p_test/menus/m.yaml"]!);
+    const menuYaml = parse(files["plugins/Artisan/projects/p_test/menus/m.yml"]!);
     expect(menuYaml.title[0].size).toBe(12);
   });
 
@@ -1307,7 +1307,7 @@ describe("projectToFiles — size field on text/textarea layers", () => {
       },
     });
     const files = projectToFiles(project);
-    const menuYaml = files["plugins/Artisan/projects/p_test/menus/m.yaml"]!;
+    const menuYaml = files["plugins/Artisan/projects/p_test/menus/m.yml"]!;
     const parsed = parse(menuYaml).title as { size?: number }[];
     expect(parsed).toHaveLength(2);
     expect(parsed[0]?.size).toBe(16);
@@ -1338,7 +1338,7 @@ describe("projectToFiles — appearance conditions", () => {
   });
 
   const getApp = (files: Record<string, string>) => {
-    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yaml"]!);
+    const menu = parse(files["plugins/Artisan/projects/p_test/menus/shop.yml"]!);
     return menu.elements[0];
   };
 

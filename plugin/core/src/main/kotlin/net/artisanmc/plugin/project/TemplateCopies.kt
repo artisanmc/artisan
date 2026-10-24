@@ -1,6 +1,8 @@
 package net.artisanmc.plugin.project
 
 import net.artisanmc.modules.api.template.TemplateDeclaration
+import net.artisanmc.plugin.model.ModuleFile
+import net.artisanmc.plugin.model.YamlFiles
 import java.io.File
 import java.util.UUID
 
@@ -23,9 +25,18 @@ object TemplateCopies {
         val conflicts: List<String>,
     )
 
+    /** The path [template] ships [path] under: [path] itself, or its other YAML spelling. */
+    fun shipped(template: TemplateDeclaration, path: String): String? {
+        if (template.getHash(path) != null) return path
+        val stem = YamlFiles.stem(path) ?: return null
+        return template.paths.firstOrNull { YamlFiles.stem(it) == stem }
+    }
+
     /**
-     * Copies [paths] of [template] (all of them when null) into [projectDir]. With conflicts
-     * and [replace] off, writes nothing and returns them.
+     * Copies [paths] of [template] (all of them when null) into [projectDir], a YAML file under
+     * the spelling it has there, else `.yml` ([YamlFiles.onDisk]): the paths returned are the
+     * project's. With conflicts and [replace] off, writes nothing and returns them. [paths] may
+     * name a file as the module ships it or as the project holds it ([shipped]).
      *
      * @throws IllegalArgumentException for a path the template does not hold.
      */
@@ -36,27 +47,29 @@ object TemplateCopies {
         paths: List<String>? = null,
         replace: Boolean = false,
     ): Result {
-        val selected = paths ?: template.paths
-        selected.forEach { require(template.getHash(it) != null) { "unknown_path" } }
+        val selected = paths?.map { requireNotNull(shipped(template, it)) { "unknown_path" } }?.distinct() ?: template.paths
         val written = mutableListOf<String>()
         val unchanged = mutableListOf<String>()
         val conflicts = mutableListOf<String>()
         val changes = linkedMapOf<String, ByteArray?>()
+        val shippedAs = mutableMapOf<String, String>()
         for (path in selected) {
             val shipped = template.getFile(path)!!
-            val target = ProjectPathPolicy.resolve(projectDir, path)
+            // A YAML file goes where its twin is, else under `.yml` (YamlFiles).
+            val disk = YamlFiles.onDisk(projectDir, path).also { shippedAs[it] = path }
+            val target = ProjectPathPolicy.resolve(projectDir, disk)
             when {
-                !target.exists() -> { changes[path] = shipped; written += path }
-                target.isFile && ContentHash.hashBytes(target.readBytes()) == template.getHash(path) -> unchanged += path
-                replace && target.isFile -> { changes[path] = shipped; written += path }
-                else -> conflicts += path
+                !target.exists() -> { changes[disk] = shipped; written += disk }
+                target.isFile && ContentHash.hashBytes(target.readBytes()) == template.getHash(path) -> unchanged += disk
+                replace && target.isFile -> { changes[disk] = shipped; written += disk }
+                else -> conflicts += disk
             }
         }
         if (conflicts.isNotEmpty()) return Result(emptyList(), emptyList(), conflicts)
 
         val origins = ProjectOrigins.read(projectDir).toMutableMap()
-        for (path in written + unchanged) {
-            origins[path] = FileOrigin(moduleId, template.id, template.version, template.getHash(path)!!)
+        for (disk in written + unchanged) {
+            origins[disk] = FileOrigin(moduleId, template.id, template.version, template.getHash(shippedAs.getValue(disk))!!)
         }
         changes[ProjectOrigins.PATH] = ProjectOrigins.serialize(origins)
         projectDir.mkdirs()
@@ -120,7 +133,7 @@ class TemplateSeeds(
 
     /** Into the module's own folder, created empty by `moduleFolder`: a file already there wins. */
     private fun seedOwnFolder(dir: File, moduleId: String, template: TemplateDeclaration, key: String): Boolean {
-        if (net.artisanmc.plugin.model.ModuleFile.find(dir) == null) writeManifest(dir)
+        if (ModuleFile.find(dir) == null) writeManifest(dir)
         val result = TemplateCopies.copy(dir, moduleId, template)
         if (result.conflicts.isNotEmpty()) {
             logger?.warning("[Artisan] Template '$key' not seeded into ${dir.path}: ${result.conflicts.joinToString()} already hold other content.")
@@ -135,9 +148,9 @@ class TemplateSeeds(
         val lang = defaultLang().substringBefore('_').substringBefore('-').lowercase()
             .takeIf { it.matches(Regex("[a-z]{2,3}")) } ?: "en"
         dir.mkdirs()
-        val tmp = File(dir, "manifest.yaml.tmp")
-        tmp.writeText("schema: manifest/v1\ndefault_lang: $lang\nlanguages: [$lang]\n")
-        java.nio.file.Files.move(tmp.toPath(), File(dir, "manifest.yaml").toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        val tmp = File(dir, "${ModuleFile.NAME}.tmp")
+        tmp.writeText("schema: ${ModuleFile.SCHEMA}\ndefault_lang: $lang\nlanguages: [$lang]\n")
+        java.nio.file.Files.move(tmp.toPath(), File(dir, ModuleFile.NAME).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
     }
 
     private fun record(key: String) {

@@ -61,13 +61,13 @@ it("files Documents of any kind in a folder and records each file move", () => {
   expect([folderOf("shop"), folderOf("sell")]).toEqual(["boutique", "boutique"]);
   expect(renames()).toEqual(
     expect.arrayContaining([
-      { from: "menus/shop.yaml", to: "boutique/menus/shop.yaml" },
-      { from: "commands/sell.yaml", to: "boutique/commands/sell.yaml" },
+      { from: "menus/shop.yml", to: "boutique/menus/shop.yml" },
+      { from: "commands/sell.yml", to: "boutique/commands/sell.yml" },
     ]),
   );
   store.moveToFolder({ projectId: pid, nodeIds: ["menu/shop"], folder: "" });
   expect(folderOf("shop")).toBeUndefined();
-  expect(renames()).toEqual([{ from: "commands/sell.yaml", to: "boutique/commands/sell.yaml" }]);
+  expect(renames()).toEqual([{ from: "commands/sell.yml", to: "boutique/commands/sell.yml" }]);
 });
 
 it("renames a folder with its sub-folders and metadata, and the undo restores both", () => {
@@ -80,7 +80,7 @@ it("renames a folder with its sub-folders and metadata, and the undo restores bo
   expect(folderOf("shop")).toBe("magasin/armes");
   expect(project().folders?.magasin).toEqual({ color: "#a855f7" });
   expect(project().folders).not.toHaveProperty("boutique");
-  expect(renames()).toEqual([{ from: "menus/shop.yaml", to: "magasin/armes/menus/shop.yaml" }]);
+  expect(renames()).toEqual([{ from: "menus/shop.yml", to: "magasin/armes/menus/shop.yml" }]);
   useProjectsStore.temporal.getState().undo();
   expect(folderOf("shop")).toBe("boutique/armes");
 });

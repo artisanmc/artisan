@@ -7,7 +7,7 @@ import { rebuildServerPackInBackground } from "@/features/project/resourcePackSy
 import { adoptDiskIntoProject } from "@/features/project/saveProjectToDisk";
 import { hashContent } from "@/lib/contentHash";
 import { projectClient } from "@/lib/projectClient";
-import { yamlPathOnDisk } from "@/lib/yamlFiles";
+import { MODULE_FILE, yamlPathOnDisk } from "@/lib/yamlFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useRef, useState } from "react";
@@ -26,6 +26,11 @@ export function documentRelPath(project: Project, id: string): string | null {
   const dir = isDocumentKind(found.kind) ? documentKindDef(found.kind).dir : found.kind;
   const path = documentPath(dir, found.doc.id, found.doc.folder);
   return yamlPathOnDisk(path, useProjectBaselineStore.getState().get(project.id) ?? {});
+}
+
+/** The project's module file, under the name the disk gives it. */
+export function moduleFileRelPath(project: Project): string {
+  return yamlPathOnDisk(MODULE_FILE, useProjectBaselineStore.getState().get(project.id) ?? {});
 }
 
 /**

@@ -1,5 +1,5 @@
 import { menusOf } from "@/domain/documents";
-// Item templates were a PROJECT-level shared view (`templates/<id>.yaml`) that
+// Item templates were a PROJECT-level shared view (`templates/<id>.yml`) that
 // menu elements bound to by ref. They are gone: a set now lives entirely on the
 // element that renders it, in the menu it belongs to. This suite locks the
 // one-way migration — a legacy tree still on disk imports by INLINING the
@@ -21,8 +21,8 @@ const base = `plugins/Artisan/projects/${PID}`;
 /** A legacy tree: one template, two elements bound to it (iterates + places). */
 function legacyFiles(): Record<string, string> {
   return {
-    [`${base}/manifest.yaml`]: [
-      "schema: manifest/v1",
+    [`${base}/artisan-module.yml`]: [
+      "schema: module/v1",
       `project_id: ${PID}`,
       "default_lang: en",
       "languages:",
@@ -37,7 +37,7 @@ function legacyFiles(): Record<string, string> {
       "    - tpl1",
       "",
     ].join("\n"),
-    [`${base}/menus/m1.yaml`]: [
+    [`${base}/menus/m1.yml`]: [
       "schema: menu/v1",
       "id: m1",
       "rows: 3",
@@ -59,7 +59,7 @@ function legacyFiles(): Record<string, string> {
       "          position: 20",
       "",
     ].join("\n"),
-    [`${base}/templates/tpl1.yaml`]: [
+    [`${base}/templates/tpl1.yml`]: [
       "schema: template/v1",
       "id: tpl1",
       "name: Item tile",
@@ -71,14 +71,14 @@ function legacyFiles(): Record<string, string> {
       '    title: "{i18n:item_templates.tpl1.default.title}"',
       "",
     ].join("\n"),
-    [`${base}/lang/en.yaml`]: [
+    [`${base}/lang/en.yml`]: [
       "item_templates:",
       "  tpl1:",
       "    default:",
       "      title: Sword",
       "",
     ].join("\n"),
-    [`${base}/lang/fr.yaml`]: [
+    [`${base}/lang/fr.yml`]: [
       "item_templates:",
       "  tpl1:",
       "    default:",
@@ -102,7 +102,7 @@ const elementsOf = (p: ReturnType<typeof projectFromFiles>) =>
  */
 function flatTemplateFiles(): Record<string, string> {
   const files = legacyFiles();
-  files[`${base}/templates/tpl1.yaml`] = [
+  files[`${base}/templates/tpl1.yml`] = [
     "schema: template/v1",
     "id: tpl1",
     "alias: item",
@@ -182,21 +182,21 @@ describe("legacy templates/ migration", () => {
     const files = projectToFiles(projectFromFiles(PID, legacyFiles()));
 
     expect(Object.keys(files).filter((f) => f.includes("/templates/"))).toEqual([]);
-    expect(files[`${base}/menus/m1.yaml`]).not.toContain("template:");
+    expect(files[`${base}/menus/m1.yml`]).not.toContain("template:");
     // The manifest no longer advertises a templates list.
-    expect(files[`${base}/manifest.yaml`]).not.toContain("templates:");
+    expect(files[`${base}/artisan-module.yml`]).not.toContain("templates:");
 
     // Both elements' text is field-local in the menu document, in every language.
-    const menu = files[`${base}/menus/m1.yaml`]!;
+    const menu = files[`${base}/menus/m1.yml`]!;
     expect(menu).toContain("Sword");
     expect(menu).toContain("Épée");
     // Structural text no longer travels in lang/ (ADR field-local-translations).
-    expect(files[`${base}/lang/fr.yaml`] ?? "").not.toContain("Épée");
+    expect(files[`${base}/lang/fr.yml`] ?? "").not.toContain("Épée");
   });
 
   it("keeps a dangling template ref harmless", () => {
     const files = legacyFiles();
-    delete files[`${base}/templates/tpl1.yaml`];
+    delete files[`${base}/templates/tpl1.yml`];
     const p = projectFromFiles(PID, files);
     const [a] = elementsOf(p);
 

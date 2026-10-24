@@ -265,7 +265,7 @@ describe("menuV1ToDomain — round-trip oracle", () => {
   const project = buildProject();
   const original = menusOf(project)[0]!;
   const files = projectToFiles(project);
-  const menuYaml = files[`plugins/Artisan/projects/${PACK}/menus/shop.yaml`]!;
+  const menuYaml = files[`plugins/Artisan/projects/${PACK}/menus/shop.yml`]!;
   const wire = parse(menuYaml) as Record<string, unknown>;
   // The identity comes from the FILE NAME: `projectFromFiles` injects it; this
   // test bypasses loading, so it must do so too.

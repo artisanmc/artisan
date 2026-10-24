@@ -6,10 +6,11 @@ import {
   type ElementCopy,
   collectTexts,
 } from "@/features/canvas/clipboard";
+import { MODULE_FILE } from "@/lib/yamlFiles";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 
 const MANIFEST =
-  "schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n";
+  "schema: module/v1\ndefault_lang: en\nlanguages: [en]\nfiles:\n  menus: []\n  commands: []\n";
 
 /**
  * A template's default version as a Project, never stored nor saved: read to pick the
@@ -22,7 +23,7 @@ export function templateProject(
 ): Project {
   const id = `__template__${moduleId}_${templateId}` as ProjectId;
   const base = `plugins/Artisan/projects/${id}`;
-  const map: Record<string, string> = { [`${base}/manifest.yaml`]: MANIFEST };
+  const map: Record<string, string> = { [`${base}/${MODULE_FILE}`]: MANIFEST };
   for (const [path, content] of Object.entries(files)) map[`${base}/${path}`] = content;
   return projectFromFiles(id, map, { name: templateId });
 }

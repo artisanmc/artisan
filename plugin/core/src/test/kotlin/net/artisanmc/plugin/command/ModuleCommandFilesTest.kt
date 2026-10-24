@@ -152,7 +152,7 @@ class ModuleCommandFilesTest {
         val template = assertNotNull(ModuleCommandFiles.template(listOf(auctionHouse(), shop())))
         assertTrue(template.isSystem)
         assertEquals(ModuleCommandFiles.TEMPLATE_ID, template.id)
-        assertEquals(listOf("commands/ah.yaml", "commands/boutique.yaml"), template.paths)
+        assertEquals(listOf("commands/ah.yml", "commands/boutique.yml"), template.paths)
         assertNull(ModuleCommandFiles.template(emptyList()))
     }
 
@@ -160,11 +160,11 @@ class ModuleCommandFilesTest {
         val folder = kotlin.io.path.createTempDirectory("commands").toFile()
         try {
             net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(shop(), guild()))))
-            File(folder, "commands/g.yaml").appendText("enabled: false\n")
+            File(folder, "commands/g.yml").appendText("enabled: false\n")
             net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(auctionHouse()))))
-            assertTrue(!File(folder, "commands/boutique.yaml").exists())
-            assertTrue(File(folder, "commands/g.yaml").isFile)
-            assertTrue(File(folder, "commands/ah.yaml").isFile)
+            assertTrue(!File(folder, "commands/boutique.yml").exists())
+            assertTrue(File(folder, "commands/g.yml").isFile)
+            assertTrue(File(folder, "commands/ah.yml").isFile)
         } finally {
             folder.deleteRecursively()
         }
@@ -180,7 +180,7 @@ class ModuleCommandFilesTest {
         try {
             val v1 = assertNotNull(ModuleCommandFiles.template(listOf(guild("bank"))))
             net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", v1)
-            val file = File(folder, "commands/g.yaml")
+            val file = File(folder, "commands/g.yml")
             file.writeText(file.readText().replace("permission: guilds.use", "permission: vip"))
 
             val v2 = guild("bank", "war")

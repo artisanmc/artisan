@@ -25,32 +25,32 @@ class TemplateCopiesTest {
     @Test
     fun `a copy writes the files and records where they came from`() {
         val result = TemplateCopies.copy(project, "quests", template())
-        assertEquals(listOf("quest_groups/daily.yaml", "menus/daily.yaml"), result.written)
-        assertEquals("key: daily\n", File(project, "quest_groups/daily.yaml").readText())
+        assertEquals(listOf("quest_groups/daily.yml", "menus/daily.yml"), result.written)
+        assertEquals("key: daily\n", File(project, "quest_groups/daily.yml").readText())
 
         val origins = ProjectOrigins.read(project)
-        assertEquals(setOf("menus/daily.yaml", "quest_groups/daily.yaml"), origins.keys)
-        val origin = origins.getValue("menus/daily.yaml")
+        assertEquals(setOf("menus/daily.yml", "quest_groups/daily.yml"), origins.keys)
+        val origin = origins.getValue("menus/daily.yml")
         assertEquals(FileOrigin("quests", "daily", 1, ContentHash.hashBytes("title: Daily\n".toByteArray())), origin)
     }
 
     @Test
     fun `the owner's edits are never overwritten unless asked`() {
         TemplateCopies.copy(project, "quests", template())
-        File(project, "menus/daily.yaml").writeText("title: Mine\n")
+        File(project, "menus/daily.yml").writeText("title: Mine\n")
 
         val refused = TemplateCopies.copy(project, "quests", template(version = 2, menu = "title: Daily v2\n"))
-        assertEquals(listOf("menus/daily.yaml"), refused.conflicts)
+        assertEquals(listOf("menus/daily.yml"), refused.conflicts)
         assertTrue(refused.written.isEmpty())
-        assertEquals("title: Mine\n", File(project, "menus/daily.yaml").readText())
-        assertEquals(1, ProjectOrigins.read(project).getValue("quest_groups/daily.yaml").version, "nothing recorded on a conflict")
+        assertEquals("title: Mine\n", File(project, "menus/daily.yml").readText())
+        assertEquals(1, ProjectOrigins.read(project).getValue("quest_groups/daily.yml").version, "nothing recorded on a conflict")
 
-        val replaced = TemplateCopies.copy(project, "quests", template(version = 2, menu = "title: Daily v2\n"), listOf("menus/daily.yaml"), replace = true)
-        assertEquals(listOf("menus/daily.yaml"), replaced.written)
-        assertEquals("title: Daily v2\n", File(project, "menus/daily.yaml").readText())
+        val replaced = TemplateCopies.copy(project, "quests", template(version = 2, menu = "title: Daily v2\n"), refused.conflicts, replace = true)
+        assertEquals(listOf("menus/daily.yml"), replaced.written)
+        assertEquals("title: Daily v2\n", File(project, "menus/daily.yml").readText())
         val origins = ProjectOrigins.read(project)
-        assertEquals(2, origins.getValue("menus/daily.yaml").version)
-        assertEquals(1, origins.getValue("quest_groups/daily.yaml").version, "a partial copy leaves the other origins alone")
+        assertEquals(2, origins.getValue("menus/daily.yml").version)
+        assertEquals(1, origins.getValue("quest_groups/daily.yml").version, "a partial copy leaves the other origins alone")
     }
 
     @Test
@@ -58,7 +58,7 @@ class TemplateCopiesTest {
         File(project, "quest_groups").mkdirs()
         File(project, "quest_groups/daily.yaml").writeText("key: daily\n")
         val result = TemplateCopies.copy(project, "quests", template())
-        assertEquals(listOf("menus/daily.yaml"), result.written)
+        assertEquals(listOf("menus/daily.yml"), result.written)
         assertEquals(listOf("quest_groups/daily.yaml"), result.unchanged)
         assertEquals(2, ProjectOrigins.read(project).size)
     }
@@ -81,10 +81,10 @@ class TemplateCopiesTest {
         val roots = ProjectRoots(coreRoot)
         val seeds = TemplateSeeds(roots, defaultLang = { "fr_FR" })
         assertTrue(seeds.seed("quests", template(seed = "quests")))
-        assertTrue(File(coreRoot, "quests/menus/daily.yaml").isFile)
+        assertTrue(File(coreRoot, "quests/menus/daily.yml").isFile)
         assertEquals(
-            "schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr]\n",
-            File(coreRoot, "quests/manifest.yaml").readText(),
+            "schema: module/v1\ndefault_lang: fr\nlanguages: [fr]\n",
+            File(coreRoot, "quests/artisan-module.yml").readText(),
             "a template ships no manifest: the seed writes one in the server's language",
         )
         assertEquals(setOf("quests/daily"), seeds.seeded())
@@ -111,8 +111,8 @@ class TemplateCopiesTest {
         val dir = roots.moduleFolder("attribution", "attribution", null)
         val seeds = TemplateSeeds(roots, defaultLang = { "fr" })
         assertTrue(seeds.seed("attribution", template(seed = "attribution")))
-        assertTrue(File(dir, "menus/daily.yaml").isFile)
-        assertEquals("schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr]\n", File(dir, "manifest.yaml").readText())
+        assertTrue(File(dir, "menus/daily.yml").isFile)
+        assertEquals("schema: module/v1\ndefault_lang: fr\nlanguages: [fr]\n", File(dir, "artisan-module.yml").readText())
         assertEquals(setOf("attribution/daily"), seeds.seeded())
     }
 
@@ -126,7 +126,7 @@ class TemplateCopiesTest {
         assertFalse(seeds.seed("attribution", template(seed = "attribution")))
         assertEquals("mine", File(dir, "manifest.yaml").readText())
         assertEquals("edited", File(dir, "menus/daily.yaml").readText())
-        assertFalse(File(dir, "quest_groups/daily.yaml").exists(), "a conflict writes nothing")
+        assertFalse(File(dir, "quest_groups/daily.yml").exists(), "a conflict writes nothing")
         assertEquals(setOf("attribution/daily"), seeds.seeded())
     }
 

@@ -9,13 +9,13 @@ import { projectFromFiles } from "./projectFromFiles";
 import { projectToFiles } from "./projectToFiles";
 
 const base = "plugins/Artisan/projects/p_module";
-const MANIFEST = "schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr, en]\n";
+const MANIFEST = "schema: module/v1\ndefault_lang: fr\nlanguages: [fr, en]\n";
 
 describe("generated module command files", () => {
   for (const { id, yaml } of vector.files) {
-    it(`${id}.yaml is written back unchanged`, () => {
-      const path = `${base}/commands/${id}.yaml`;
-      const files = { [`${base}/manifest.yaml`]: MANIFEST, [path]: yaml };
+    it(`${id}.yml is written back unchanged`, () => {
+      const path = `${base}/commands/${id}.yml`;
+      const files = { [`${base}/artisan-module.yml`]: MANIFEST, [path]: yaml };
       const out = projectToFiles(projectFromFiles("p_module" as never, files));
       expect(out[path]).toBe(yaml);
     });
