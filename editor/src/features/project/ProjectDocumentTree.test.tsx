@@ -57,6 +57,22 @@ describe("ProjectDocumentTree", () => {
     expect(screen.getByText("m2")).toBeInTheDocument();
   });
 
+  it("colors a folder like its board frame, a sub-folder like its top folder's", () => {
+    const filed = project();
+    (filed.documents.menu![0] as { folder?: string }).folder = "boutique/armes";
+    filed.folders = { boutique: { color: "#a855f7" }, vide: {} };
+    useProjectsStore.setState({
+      openProjects: { projects: [filed], projectOrder: [PID] },
+    } as never);
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    const icon = (name: string) =>
+      screen.getByRole("button", { name }).querySelector("svg:nth-of-type(2)") as SVGElement;
+    expect(icon("boutique").style.color).toBe("rgb(168, 85, 247)");
+    expect(icon("armes").style.color).toBe("rgb(168, 85, 247)");
+    // An empty folder has no frame on the board: no color.
+    expect(icon("vide").style.color).toBe("");
+  });
+
   it("lists the documents kind after kind", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     expect(screen.getByText("/heal")).toBeInTheDocument();
