@@ -234,6 +234,7 @@ The system messages (commands, statuses, errors) of the suite's plugins: one rul
 | `TranslationsApi.getDefaultLang()`, `langOf(sender)` | `String` | 2.5.0 |
 | `TranslationsApi.register(declaration)`, `unregister(namespace)`, `bundle(namespace)`, `namespaces()` | | 2.5.0 |
 | `MessageBundleDeclaration.files(owner, namespace, bundledLangs...)`, `of(owner, namespace, source)`, `withDefaultLang(lang)` | `MessageBundleDeclaration` | 2.5.0 |
+| `MessageBundleDeclaration.inFolder(folder)`, `getFolder()` (nullable): the server's `lang/<code>.yml` of a `files` bundle are read from `folder/lang/`, the module's folder, instead of the data folder: published, versioned, shown in Translations, read again when the projects reload. The data folder's `lang/*.yml` move there once at `register`, a language the folder already has staying and logged. `IllegalStateException` on a bundle made with `of` | `MessageBundleDeclaration` | 2.17.0 |
 | `MessageSource.load()` (`@FunctionalInterface`) | `Map<String, Map<String, String>>` | 2.5.0 |
 | `MessageBundle.getNamespace()`, `getLanguages()`, `getDefaultLang()`, `langOf(viewer)`, `find`, `raw`, `format`, `get`, `reload()` | | 2.5.0 |
 | `TranslationsApi.NOOP`, `ArtisanAPI.Builder.translations(translations)` (`@Internal`) | | 2.5.0 |

@@ -237,6 +237,13 @@ export function parseEditorEdges(
 // Lang files
 
 /** lang/<lang>.yaml trees (or legacy flat maps) → key → { lang: value }. */
+/**
+ * Where the editor addresses its own texts: a key under these is a site's (a
+ * Document's or a data source's, maybe one whose kind or model comes later), never
+ * kept as read. `artisan.` holds the siteless presentation keys, written anyway.
+ */
+const EDITOR_LANG_NAMESPACES = ["menus.", "commands.", "dialogs.", "sources.", "artisan."];
+
 function readTranslations(
   files: Record<string, string>,
   projectId: string,
@@ -533,12 +540,21 @@ export function projectFromFiles(
   const defaultLang = manifest.default_lang ?? "en";
   const now = new Date().toISOString();
 
-  const translations = readTranslations(files, projectId);
+  const diskTranslations = readTranslations(files, projectId);
   const i18nKeys: Record<string, Record<string, string>> = {};
   // Seed every disk translation so keys referenced via `{i18n:...}` (and any
   // extra keys the admin keeps in lang files) survive the import.
-  for (const [key, langs] of Object.entries(translations)) i18nKeys[key] = { ...langs };
+  for (const [key, langs] of Object.entries(diskTranslations)) i18nKeys[key] = { ...langs };
   const unsupported: string[] = [];
+  // The keys a Document or a data source looks up below are theirs; the others are
+  // kept as read (`Project.keptLangKeys`).
+  const readKeys = new Set<string>();
+  const translations = new Proxy(diskTranslations, {
+    get(target, key, receiver) {
+      if (typeof key === "string") readKeys.add(key);
+      return Reflect.get(target, key, receiver);
+    },
+  });
 
   const convertOpts = { projectId, lang: defaultLang, translations };
 
@@ -972,6 +988,11 @@ export function projectFromFiles(
   // minted key; its other languages sit in lang/ at the site's canonical
   // address, so bring node and address back together.
   adoptAddressedTranslations(project, translations);
+
+  const keptLangKeys = Object.keys(diskTranslations)
+    .filter((key) => !readKeys.has(key) && !EDITOR_LANG_NAMESPACES.some((ns) => key.startsWith(ns)))
+    .sort();
+  if (keptLangKeys.length > 0) project.keptLangKeys = keptLangKeys;
 
   // The base lore is kept without writing anything: leading `{base.lore}`
   // inherited from when it had to be requested are removed (cf. baseLore.ts).

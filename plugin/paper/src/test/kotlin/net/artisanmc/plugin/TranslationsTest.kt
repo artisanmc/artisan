@@ -150,4 +150,51 @@ class TranslationsTest {
             MockBukkit.unmock()
         }
     }
+
+    @Test fun `inFolder moves the data folder's lang files into the module's folder once, and reads them there`() {
+        MockBukkit.mock()
+        val module = kotlin.io.path.createTempDirectory("artisan-module").toFile()
+        try {
+            val plugin = MockBukkit.createMockPlugin("Guilds")
+            val lang = File(plugin.dataFolder, "lang").apply { mkdirs() }
+            File(lang, "en.yml").writeText("artisan:\n  reloaded: \"custom\"\n")
+            File(lang, "de.yml").writeText("artisan:\n  reloaded: \"server\"\n")
+            File(module, "lang").mkdirs()
+            File(module, "lang/de.yaml").writeText("artisan:\n  reloaded: \"module\"\n")
+
+            val t = Translations()
+            val bundle = t.register(MessageBundleDeclaration.files(plugin, "guilds", "en").inFolder(module))
+
+            assertEquals("custom\n", File(module, "lang/en.yml").readText().substringAfter("reloaded: \"").replace("\"", ""))
+            assertFalse(File(lang, "en.yml").exists())
+            assertTrue(File(lang, "de.yml").isFile, "the module already has de: the server's file stays")
+            assertEquals("custom", bundle.find("en", "artisan.reloaded"))
+            assertEquals("module", bundle.find("de", "artisan.reloaded"))
+            assertTrue(bundle.find("en", "cmd.no_permission") != null, "the jar answers the other keys")
+
+            File(module, "lang/en.yml").writeText("artisan:\n  reloaded: \"published\"\n")
+            t.reloadFolderBundles()
+            assertEquals("published", bundle.find("en", "artisan.reloaded"))
+
+            t.unregister("guilds")
+            File(lang, "de.yml").delete()
+            t.register(MessageBundleDeclaration.files(plugin, "guilds", "en").inFolder(module))
+            assertFalse(lang.exists(), "an empty lang/ goes")
+        } finally {
+            module.deleteRecursively()
+            MockBukkit.unmock()
+        }
+    }
+
+    @Test fun `inFolder is for files, not a source of the plugin's own`() {
+        MockBukkit.mock()
+        try {
+            val plugin = MockBukkit.createMockPlugin("Own")
+            assertFailsWith<IllegalStateException> {
+                MessageBundleDeclaration.of(plugin, "own") { emptyMap() }.inFolder(plugin.dataFolder)
+            }
+        } finally {
+            MockBukkit.unmock()
+        }
+    }
 }
