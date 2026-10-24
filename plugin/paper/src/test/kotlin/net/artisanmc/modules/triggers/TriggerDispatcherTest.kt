@@ -35,7 +35,14 @@ class TriggerDispatcherTest {
         override fun validate(conditions: List<*>) = emptyList<String>()
     }
     private val registry = GameEventRegistry()
-    private val dispatcher = TriggerDispatcher({ actions }, { conditions }, { warnings += it }, { clock })
+    /** The core's store, the one `api.cooldowns` writes to (and `CooldownSync` persists). */
+    private val store = net.artisanmc.plugin.engine.CooldownStore { clock }
+    private val stored = mutableListOf<String>()
+    private val cooldowns = object : net.artisanmc.modules.api.cooldown.CooldownApi {
+        override fun isActive(id: String, player: java.util.UUID) = store.isOnCooldown(id, player, "player")
+        override fun start(id: String, player: java.util.UUID, seconds: Long) = store.set(id, player, "player", seconds)
+    }
+    private val dispatcher = TriggerDispatcher({ actions }, { conditions }, { cooldowns }, { warnings += it })
 
     @BeforeEach fun setup() {
         server = MockBukkit.mock()
@@ -60,11 +67,13 @@ class TriggerDispatcherTest {
 
     @Test
     fun `cooldown per player and filters`() {
+        store.onSet = { id, subject, _ -> stored += "$id|$subject" }
         dispatcher.load(listOf(trigger("a", cooldown = 10, conditions = listOf(mapOf("has_permission" to "x")))))
         registry.fire("player_join", player, emptyMap<String, Any>())
         clock = 9_000
         registry.fire("player_join", player, emptyMap<String, Any>())
         assertEquals(1, runs.size, "still cooling down")
+        assertEquals(listOf("triggers:demo/a|${player.uniqueId}"), stored, "kept like a menu's cooldown, to be persisted")
         clock = 10_000
         registry.fire("player_join", player, emptyMap<String, Any>())
         assertEquals(2, runs.size)

@@ -63,6 +63,8 @@ internal class RuntimeAssembly(
     /** Null until the first [start]: module actions arriving before it are dropped. */
     val executorOrNull: ActionExecutor? get() = if (::executor.isInitialized) executor else null
     val sessionsOrNull: MenuSessionStore? get() = if (::sessions.isInitialized) sessions else null
+    /** Null until [prepare]: the store behind `api.cooldowns`, persisted by `CooldownSync`. */
+    val cooldownsOrNull: CooldownStore? get() = if (::cooldowns.isInitialized) cooldowns else null
     /** Null until the first [start]: module conditions tested before it fail closed. */
     val evaluatorOrNull: ConditionEvaluator? get() = if (::evaluator.isInitialized) evaluator else null
 
@@ -72,6 +74,10 @@ internal class RuntimeAssembly(
         // Kept in the suite database once it opens: they survive a restart and follow a player across the network.
         CooldownSync(cooldowns, {
             suite.artisanData?.let { net.artisanmc.plugin.database.CooldownRows(it, plugin.database.dialect, plugin.database.tables) }
+        }, suite.sessionWriter(), plugin).start()
+        // Every player seen on the network, read by `{player.first_seen}`, `{player.last_seen}`, `{player.playtime}`.
+        PlayerSync({
+            suite.artisanData?.let { net.artisanmc.plugin.database.PlayerRows(it, plugin.database.tables) }
         }, suite.sessionWriter(), plugin).start()
         sessions = MenuSessionStore()
         navigationHistory = NavigationHistoryStore()

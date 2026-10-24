@@ -101,6 +101,10 @@ function builtinPlayerEntries(): PlaceholderEntry[] {
   return [
     { path: "player", type: "player", sample: SAMPLE_PLAYER_NAME, origin: "context" },
     ...playerSubfieldEntries("player", SAMPLE_PLAYER_NAME),
+    // `artisan_players`, network-wide, read with `.ago()` / `.duration()` (`3d 4h`, `12h 30m`).
+    { path: "player.first_seen.ago()", type: "string", sample: "40d", origin: "context" },
+    { path: "player.last_seen.ago()", type: "string", sample: "3d 4h", origin: "context" },
+    { path: "player.playtime.duration()", type: "string", sample: "12h 30m", origin: "context" },
   ];
 }
 

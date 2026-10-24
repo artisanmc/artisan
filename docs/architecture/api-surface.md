@@ -97,6 +97,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `text` (`getText()`, `@Beta`) | `TextApi` | 2.10.0 |
 | `network` (`getNetwork()`, `@Beta`) | `NetworkApi` | 2.13.0 |
 | `gameEvents` (`getGameEvents()`, `@Beta`) | `GameEventRegistry` | 2.16.0 |
+| `cooldowns` (`getCooldowns()`, `@Beta`) | `CooldownApi` : `isActive(id, player)`, `start(id, player, seconds)`, `inMemory()` (tests) ; le store des cooldowns de menus et de commandes, gardé dans `artisan_cooldowns` | 2.16.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -285,6 +286,7 @@ Every action of a chain, Artisan's own included, runs through this registry (ADR
 | `ActionHandler.execute(ctx, args, runtime): ActionContext` (`@FunctionalInterface`) | `ActionContext` | 2.0.0 |
 | `ActionContext.getPlayer()`, `getArgs()`, `getLang()`, `getProjectId()`, `withArgs(args)` | | 2.0.0 |
 | `ActionRuntime.text(ctx, ltext)`, `run(ctx, chain)`, `warn(message)` | | 2.0.0 |
+| `ActionRuntime.textFor(ctx, ltext, viewer)` : the text in `viewer`'s language, `{player}` still the acting player (a broadcast, a join message) ; default method, falls back to `text` | | 2.16.0 |
 | `RegisteredAction.getDeclaration()`, `getModuleId()`, `toWire()` (`{name, args, primary?, module_id?}`, the `declared_actions` wire) | `RegisteredAction` | 2.0.0 |
 | `ModelField(name, type[, required])`, `withDefault`, `withLabel`, `withHelp`, `withRequired`, `toWire()` | `ModelField` | 2.0.0 |
 | `ModelFieldType.string()`, `number()`, `integer()`, `bool()`, `ltext()`, `minimessage()`, `minimessageMultiline()`, `item()`, `actions()`, `conditions()`, `list(of)`, `object(fields)`, `model(ref)`, `map(of)`, `enumOf(values)`, `union(tag, variants)`, `documentRef(kind)` ; `toWire()` (the editor's `ModelFieldType` shape) | `ModelFieldType` | 2.0.0 |
@@ -338,6 +340,7 @@ if (api.getGameEvents().isObserved("quests:completed")) {
 | `GameEventDeclaration(name, group, frequency, context)`, `(name, group, frequency, context, cancellable, effects)` ; `getName()`, `getGroup()`, `getFrequency()`, `getContext()`, `isCancellable()`, `getEffects()`, `effect(name)`, `toWire()` | `GameEventDeclaration` | 2.16.0 |
 | `GameEventFrequency.RARE`, `NORMAL` (no class for per-tick or per-move events: they are not admitted), `wire()` | | 2.16.0 |
 | `GameEventFrame.getDeclaration()`, `getPlayer()`, `getContext()`, `isCancelled()`, `cancel()` (false if not cancellable), `setEffect(name, value)` (false if undeclared), `getEffects()`, `getEffect(name)` | `GameEventFrame` | 2.16.0 |
+| `GameEventFrame.getText(name, viewer)` : a text effect as `viewer` reads it (null viewer: the project's default language) ; `EffectText.render(viewer)`, what `set_event` writes for a text effect | `GameEventFrame`, `EffectText` | 2.16.0 |
 | `RegisteredGameEvent.getDeclaration()`, `getModuleId()`, `toWire()` (+ `module_id?`) ; `DuplicateGameEventException` (extends `IllegalStateException`) | | 2.16.0 |
 | `ArtisanAPI.Builder.gameEvents(registry)`, `GameEventRegistry.bindWarnings(warn)` (`@Internal`) | | 2.16.0 |
 

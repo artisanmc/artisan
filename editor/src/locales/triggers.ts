@@ -12,7 +12,8 @@ export const triggersFr = {
   cooldown: "Délai entre deux déclenchements (par joueur)",
   cooldownNone: "aucun",
   secondsUnit: "secondes",
-  cooldownHint: "Gardé en mémoire par le serveur : un redémarrage le remet à zéro.",
+  cooldownHint:
+    "Gardé dans la base : il survit au redémarrage et suit le joueur sur tout le réseau.",
   enabled: "Actif",
   disabledBadge: "Désactivé",
   disabledHint: "Désactivé : le fichier reste, le trigger ne se déclenche plus.",
@@ -145,7 +146,8 @@ export const triggersEn: typeof triggersFr = {
   cooldown: "Delay between two runs (per player)",
   cooldownNone: "none",
   secondsUnit: "seconds",
-  cooldownHint: "Kept in the server's memory: a restart resets it.",
+  cooldownHint:
+    "Kept in the database: it survives a restart and follows the player across the network.",
   enabled: "Enabled",
   disabledBadge: "Disabled",
   disabledHint: "Disabled: the file stays, the trigger no longer runs.",

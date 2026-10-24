@@ -32,7 +32,7 @@ class TriggersModule : ArtisanModule {
         CoreGameEvents.ALL.forEach { api.gameEvents.register(it.declaration) }
 
         val warn: (String) -> Unit = { api.plugin.logger.warning("[Artisan] $it") }
-        val dispatcher = TriggerDispatcher({ api.actions }, { api.conditions }, warn).also { this.dispatcher = it }
+        val dispatcher = TriggerDispatcher({ api.actions }, { api.conditions }, { api.cooldowns }, warn).also { this.dispatcher = it }
         api.gameEvents.addListener(object : net.artisanmc.modules.api.gameevent.GameEventListener {
             override fun onGameEvent(frame: net.artisanmc.modules.api.gameevent.GameEventFrame) {
                 ensureLoaded()

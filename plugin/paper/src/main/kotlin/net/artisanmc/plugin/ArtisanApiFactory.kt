@@ -126,6 +126,15 @@ internal object ArtisanApiFactory {
             // Artisan's own actions are registered like a module's: every chain, core
             // included, dispatches through this registry (ADR extensible-document-kinds, R1).
             .actionRegistry(ActionRegistry().also(net.artisanmc.plugin.engine.CoreActionHandlers::registerAll))
+            // The menus' and commands' store, read at call time: it exists once the runtime is prepared.
+            .cooldowns(object : net.artisanmc.modules.api.cooldown.CooldownApi {
+                private val early = net.artisanmc.modules.api.cooldown.CooldownApi.inMemory()
+                override fun isActive(id: String, player: java.util.UUID): Boolean =
+                    plugin.runtime.cooldownsOrNull?.isOnCooldown(id, player, "player") ?: early.isActive(id, player)
+                override fun start(id: String, player: java.util.UUID, seconds: Long) {
+                    plugin.runtime.cooldownsOrNull?.set(id, player, "player", seconds) ?: early.start(id, player, seconds)
+                }
+            })
             // Filled by the triggers module (the core catalog) and by any module's own events.
             .gameEvents(net.artisanmc.modules.api.gameevent.GameEventRegistry().also { r ->
                 r.bindWarnings { plugin.logger.warning("[Artisan] $it") }
