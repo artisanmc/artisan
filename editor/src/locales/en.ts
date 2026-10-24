@@ -986,7 +986,6 @@ export default {
     create: "Create",
     modeSelect: "Select",
     modeHand: "Pan",
-    gutter: "Not linked yet",
     rearrange: "Rearrange",
     rearrangeHint:
       "Rearrange groups and ungrouped documents while preserving each group's contents (Ctrl+Z to undo)",

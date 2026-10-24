@@ -224,7 +224,7 @@ nœuds décroissant, puis par plus petit id, et empilées verticalement à parti
 d'entrée (`/menu`, `/dailyq`…). Remplace un rangement en étagères sur 2 400 px, qui posait
 des parcours sans rapport côte à côte.
 
-**Étape 6 — Gouttière.** 160 px sous tout le reste, avec l'intitulé « Pas encore reliés ». Les
+**Étape 6 — Gouttière.** 160 px sous tout le reste, sans intitulé. Les
 Documents y sont posés en rangées, triés par type (menus, dialogs, commandes) puis par id, avec
 un retour à la ligne à 2 400 px.
 
