@@ -1,7 +1,13 @@
-# Automatismes et variables — réagir aux événements de jeu, retenir des valeurs
+# Triggers et variables — réagir aux événements de jeu, retenir des valeurs
 
 **Status:** proposed (2026-10-24). Aucune ligne de code encore ; ce texte fixe le contrat avant le
 premier lot.
+
+**Nommage (Iban, 2026-10-24)** : le kind s'appelle **Trigger** (et non « Automation »). L'événement
+qu'il écoute s'appelle donc **Game event**, pour ne pas dire « trigger » deux fois. C'est cohérent avec
+`extensible-document-kinds` (décision 8), où un trigger est un slot de chaîne point d'entrée : un
+Trigger est le Document dont le seul slot est ce point d'entrée. `api.events` (`ModuleEventBus`) reste
+le bus des événements entre modules, distinct des Game events.
 
 ## Contexte
 
@@ -35,14 +41,14 @@ Les fondations existent : `DocumentKindRegistry` et les **slots de chaînes** c�
 
 ## Décision
 
-### 1. Un kind **Automation** : un déclencheur, une chaîne
+### 1. Un kind **Trigger** : un événement, une chaîne
 
-Un **Automation** est un Document (`automations/<id>.yaml`, `schema: automation/v1`) qui associe
-un **événement déclencheur** à une Action chain. Il est déclaré par un module core `automations`
+Un **Trigger** est un Document (`triggers/<id>.yaml`, `schema: trigger/v1`) qui associe
+un **Game event** à une Action chain. Il est déclaré par un module core `triggers`
 via `DocumentKindRegistry`, comme menus, commands et dialogs.
 
 ```yaml
-schema: automation/v1
+schema: trigger/v1
 on: player_death            # nom d'un événement déclaré (§2)
 if:                         # optionnel : mêmes conditions qu'un `if:` de chaîne, AND implicite
   - not: { world_is: arene }
@@ -54,20 +60,20 @@ do:
 
 - Côté éditeur, `do` est le **slot de chaîne** du kind (`chainSlots`), donc le trigger devient un
   nœud-source sur la planche et les arêtes sortent des arguments `document_ref` sans code dédié.
-- Côté plugin, le module `automations` écoute les événements, filtre (`if`, `cooldown`, `enabled`)
+- Côté plugin, le module `triggers` écoute les événements, filtre (`if`, `cooldown`, `enabled`)
   avec `ConditionsApi`, puis exécute `do` par le runtime d'actions, avec le contexte de l'événement
   lié sous `event` (§3).
-- Plusieurs Automations peuvent écouter le même événement ; elles s'exécutent dans l'ordre
-  alphabétique de leur id qualifié, et l'échec de l'une n'empêche pas les autres.
+- Plusieurs Triggers peuvent écouter le même événement ; ils s'exécutent dans l'ordre
+  alphabétique de leur id qualifié, et l'échec de l'un n'empêche pas les autres.
 
-### 2. Les événements sont **déclarés**, comme les actions
+### 2. Les Game events sont **déclarés**, comme les actions
 
-Un événement déclencheur est une déclaration `EventTriggerDeclaration(name, context:
-ModelField[])` (`@Beta`) dans un nouveau registre `api.getTriggers()`, avec la même sémantique
+Un Game event est une déclaration `GameEventDeclaration(name, context:
+ModelField[])` (`@Beta`) dans un nouveau registre `api.getGameEvents()`, avec la même sémantique
 d'ownership que `ActionRegistry` : nom core nu (`player_death`), nom de module namespacé
 (`quests:completed`, `guilds:joined`), collision = erreur à l'enregistrement, retrait avec le
-module. Un module **déclenche** son événement par `api.getTriggers().fire(name, player, context)`.
-La Presence rapporte `declared_triggers` (hello, `modules_changed`), comme `declared_actions` ;
+module. Un module **déclenche** son événement par `api.getGameEvents().fire(name, player, context)`.
+La Presence rapporte `declared_game_events` (hello, `modules_changed`), comme `declared_actions` ;
 l'éditeur en tire le sélecteur de `on:` et le formulaire du contexte disponible.
 
 Catalogue core v1, volontairement court : uniquement des événements **discrets et liés à un
@@ -164,13 +170,13 @@ cible encore supportée ; le jeton marche partout et se teste sans serveur.
 
 ### 8. Exécution : thread, réentrance, budget
 
-- Une chaîne d'Automation s'exécute sur le thread qui possède le joueur (principal sur Paper,
+- Une chaîne de Trigger s'exécute sur le thread qui possède le joueur (principal sur Paper,
   région du joueur sur Folia et Leaf), jamais sur le thread de l'événement s'il diffère.
   `player_quit` s'exécute avant que le joueur ne soit retiré.
 - **Réentrance bornée** : une chaîne peut provoquer un autre événement (`teleport` peut provoquer
-  `player_change_world`). Au-delà de 4 niveaux d'Automations imbriqués pour un même joueur, le
+  `player_change_world`). Au-delà de 4 niveaux de Triggers imbriqués pour un même joueur, le
   déclenchement suivant est ignoré avec un avertissement.
-- **Budget** : 1 000 actions au plus par exécution d'une chaîne d'Automation, `run_actions`
+- **Budget** : 1 000 actions au plus par exécution d'une chaîne de Trigger, `run_actions`
   compris. Au-delà, la chaîne s'arrête avec un avertissement.
 
 ### 9. La frontière : ce qu'on refuse d'ajouter
@@ -191,21 +197,21 @@ core.
 
 ## Conséquences
 
-- **CONTEXT.md** : termes **Automation**, **Event trigger** et **Variable** ajoutés ; l'entrée
-  **Action chain** liste l'Automation parmi ses déclencheurs une fois le kind livré.
-- **API** : `EventTriggerDeclaration`, `TriggerRegistry`, `ModelFieldType.location()`, tous
+- **CONTEXT.md** : termes **Trigger**, **Game event** et **Variable** ajoutés ; l'entrée
+  **Action chain** liste le Trigger parmi ses déclencheurs une fois le kind livré.
+- **API** : `GameEventDeclaration`, `GameEventRegistry`, `ModelFieldType.location()`, tous
   `@Beta`. Version mineure de l'API ; champ de Presence additif, protocole inchangé.
-- **Schémas** : `automation/v1` et `variable/v1` dans `docs/schema/`, `$defs.Action` gagne
+- **Schémas** : `trigger/v1` et `variable/v1` dans `docs/schema/`, `$defs.Action` gagne
   `set_var`, `add_var`, `clear_var`, `chat_button` et l'argument `location` de `teleport`.
 - **Base** : une migration crée `artisan_vars` ; forward-only comme les autres
   (`docs/architecture/versioning.md`).
 - **Transition** : aucune donnée existante ne change. Le seul changement de comportement est §6 :
   un `teleport` dont un argument ne se résout pas ne téléporte plus en 0,0,0, il ne fait rien et
   l'écrit dans les logs.
-- **Assistant IA** : quand il revient dans `v2`, il gagne `upsert_automation` et
+- **Assistant IA** : quand il revient dans `v2`, il gagne `upsert_trigger` et
   `upsert_variable` ; ce chantier ne dépend pas de lui.
 - **Test d'acceptation** : la demande de référence, écrite à la main sous la forme ci-dessus
-  (un Automation `player_death`, une Variable `derniere_mort`), fonctionne en jeu sur Paper et sur
+  (un Trigger `player_death`, une Variable `derniere_mort`), fonctionne en jeu sur Paper et sur
   Folia, y compris après un redémarrage du serveur pendant la durée de validité de la variable
   (le bouton, lui, est perdu : attendu).
 
@@ -214,7 +220,7 @@ core.
 1. Type `location` et résolution des arguments par template (§4, §6), avec le vecteur
    `action-wire-conformance.json` étendu. Utile seul : corrige `teleport`.
 2. Kind Variable, actions et stockage (§5).
-3. Registre d'événements, kind Automation, catalogue core (§1 à §3, §8).
+3. Registre d'événements, kind Trigger, catalogue core (§1 à §3, §8).
 4. `chat_button` (§7).
 5. Éditeur : formulaires, sélecteur d'événement, nœuds de planche, champs de contexte proposés.
 
