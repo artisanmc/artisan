@@ -27,6 +27,24 @@ export function boardForFolder(
   };
 }
 
+/**
+ * The top-level folder whose frame holds the world point `at` (a double-click on its
+ * background), or none.
+ */
+export function folderAt(
+  groups: ProjectBoard["groups"],
+  at: { x: number; y: number },
+): string | undefined {
+  return groups.find(
+    (g) =>
+      g.kind === "group" &&
+      at.x >= g.x &&
+      at.x <= g.x + g.width &&
+      at.y >= g.y &&
+      at.y <= g.y + g.height,
+  )?.id;
+}
+
 /** The filter to apply: `folder` while it still exists in the project, else none. */
 export function activeBoardFolder(project: Project | undefined, folder: string | undefined) {
   return project && folder && listFolders(project).includes(folder) ? folder : undefined;

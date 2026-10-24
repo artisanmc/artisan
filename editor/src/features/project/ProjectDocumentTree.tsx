@@ -12,8 +12,9 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Tooltip } from "@/components/ui/tooltip";
+import { DEFAULT_GROUP_COLOR, folderGroups } from "@/domain/canvasGroups";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
-import { docKey, documentCount } from "@/domain/documents";
+import { type DocKey, docKey, documentCount } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
 import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
@@ -30,11 +31,14 @@ import { kindAppearance } from "@/lib/documentKindAppearance";
 import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution, listDocumentKindContributions } from "@artisan/editor-sdk";
 import type { TFunction } from "i18next";
 import {
+  ArrowLeft,
+  ArrowRight,
   ChevronDown,
   ChevronRight,
   Folder,
@@ -43,11 +47,12 @@ import {
   Puzzle,
   Settings,
 } from "lucide-react";
-import { useState } from "react";
+import { type DragEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { documentRelPath } from "./DocumentYamlView";
 import { FolderNameDialog } from "./FolderNameDialog";
+import { type DocumentLinks, documentLinks } from "./documentLinks";
 import { openProjectSettings } from "./projectSettings";
 import { adoptDiskIntoProject } from "./saveProjectToDisk";
 import {
@@ -257,8 +262,19 @@ export function DocumentGroups({
   const groups = buildProjectDocuments(project, activeLang);
   const originOf = (id: string) =>
     templateOrigin(templates, project, documentRelPath(project, id), t);
+  // The Document whose links are marked: the one open in the view, else the one
+  // Document selected on the board.
+  const boardPick = useSelectionStore((s) =>
+    s.menuId === null && s.ids.size === 1 ? [...s.ids][0] : undefined,
+  );
+  const relationOf = linkRelation(documentLinks(project), (activeId ?? boardPick) as DocKey);
+  // Dropped outside every folder: back to the module's root.
+  const rootDrop = useFolderDrop(editable ? project.id : null, "");
   return (
-    <>
+    <div
+      {...rootDrop.props}
+      className={`flex flex-col gap-0.5 rounded-[10px] ${rootDrop.over ? DROP_RING : ""}`}
+    >
       {childFolders(project, "").map((path) => (
         <FolderNode
           key={path}
@@ -270,6 +286,7 @@ export function DocumentGroups({
           editable={editable}
           originOf={originOf}
           activeId={activeId}
+          relationOf={relationOf}
         />
       ))}
       {groups.map((g) => {
@@ -298,6 +315,7 @@ export function DocumentGroups({
                     origin={originOf(docKey(g.type, it.id))}
                     notSyncedHint={notSyncedHint}
                     activeId={activeId}
+                    relation={relationOf(docKey(g.type, it.id))}
                   />
                 </li>
               ))}
@@ -305,11 +323,85 @@ export function DocumentGroups({
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
 
+type Relation = "parent" | "child";
+
+/** How a Document relates to `focus`: it opens it (parent), or `focus` opens it (child). */
+function linkRelation(links: DocumentLinks, focus: DocKey | undefined) {
+  return (key: DocKey): Relation | undefined => {
+    if (!focus || key === focus) return undefined;
+    if (links.parents.get(focus)?.has(key)) return "parent";
+    if (links.children.get(focus)?.has(key)) return "child";
+    return undefined;
+  };
+}
+
+/** The drag payload of a sidebar row: the Document's `docKey`. */
+const DOC_MIME = "application/x-artisan-document";
+const DROP_RING = "outline outline-1 outline-[var(--brand)] bg-[var(--brand-soft)]";
+
+/**
+ * Where a dragged Document lands: `folder` (`""` = the module's root). `projectId`
+ * `null` = read-only, no drop. The innermost target wins: a folder stops the drop
+ * from reaching the folders around it.
+ */
+function useFolderDrop(projectId: ProjectId | null, folder: string, onEnter?: () => void) {
+  const [over, setOver] = useState(false);
+  // dragenter/dragleave fire for every child crossed: count them.
+  const depth = useRef(0);
+  const carries = (e: DragEvent) => projectId !== null && e.dataTransfer.types.includes(DOC_MIME);
+  const leave = () => {
+    depth.current = 0;
+    setOver(false);
+  };
+  return {
+    over,
+    props: {
+      onDragEnter: (e: DragEvent) => {
+        if (!carries(e)) return;
+        e.stopPropagation();
+        depth.current += 1;
+        if (!over) onEnter?.();
+        setOver(true);
+      },
+      onDragOver: (e: DragEvent) => {
+        if (!carries(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "move";
+      },
+      onDragLeave: (e: DragEvent) => {
+        if (!carries(e)) return;
+        e.stopPropagation();
+        depth.current -= 1;
+        if (depth.current <= 0) leave();
+      },
+      onDrop: (e: DragEvent) => {
+        if (!carries(e) || projectId === null) return;
+        e.preventDefault();
+        e.stopPropagation();
+        leave();
+        const key = e.dataTransfer.getData(DOC_MIME);
+        if (key) useProjectsStore.getState().moveToFolder({ projectId, nodeIds: [key], folder });
+      },
+    },
+  };
+}
+
 type OriginOf = (id: string) => ReturnType<typeof templateOrigin>;
+
+/**
+ * The color of the board frame a folder lives in: its top-level folder's, while that
+ * folder holds a Document (a frame); none for a folder the board does not show.
+ */
+function frameColor(project: Project, path: string): string | undefined {
+  const top = path.split("/")[0]!;
+  const frame = folderGroups(project).find((g) => g.id === top);
+  return frame ? (frame.color ?? DEFAULT_GROUP_COLOR) : undefined;
+}
 
 /**
  * A themed folder: its sub-folders, then its Documents of every kind (each
@@ -324,6 +416,7 @@ function FolderNode({
   editable,
   originOf,
   activeId,
+  relationOf,
 }: {
   project: Project;
   path: string;
@@ -334,15 +427,19 @@ function FolderNode({
   editable: boolean;
   originOf: OriginOf;
   activeId?: string;
+  relationOf: (key: DocKey) => Relation | undefined;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(true);
+  // A folded folder opens when a Document is dragged over it.
+  const drop = useFolderDrop(editable ? project.id : null, path, () => setOpen(true));
   const [dialog, setDialog] = useState<"sub" | "rename" | null>(null);
   const items = groups.flatMap((g) => g.items.filter((it) => it.folder === path));
   const Chevron = open ? ChevronDown : ChevronRight;
   const Icon = open ? FolderOpen : Folder;
+  const color = frameColor(project, path);
   return (
-    <div className="flex flex-col">
+    <div {...drop.props} className={`flex flex-col rounded-[10px] ${drop.over ? DROP_RING : ""}`}>
       <div className="group flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
         <button
           type="button"
@@ -352,7 +449,11 @@ function FolderNode({
           style={{ paddingLeft: 2 + depth * 14 }}
         >
           <Chevron className="size-3 shrink-0 text-[var(--text-faint)]" aria-hidden />
-          <Icon className="size-4 shrink-0 text-[var(--text-mut)]" aria-hidden />
+          <Icon
+            className="size-4 shrink-0 text-[var(--text-mut)]"
+            style={color ? { color } : undefined}
+            aria-hidden
+          />
           <span className="flex-1 truncate">{folderName(path)}</span>
         </button>
         {editable && (
@@ -402,6 +503,7 @@ function FolderNode({
               editable={editable}
               originOf={originOf}
               activeId={activeId}
+              relationOf={relationOf}
             />
           ))}
           <ul aria-label={folderName(path)} className="flex flex-col">
@@ -416,6 +518,7 @@ function FolderNode({
                   onOpen={() => onOpen(docKey(it.type, it.id))}
                   origin={originOf(docKey(it.type, it.id))}
                   activeId={activeId}
+                  relation={relationOf(docKey(it.type, it.id))}
                 />
               </li>
             ))}
@@ -533,6 +636,7 @@ function DocumentRow({
   kind,
   notSyncedHint,
   activeId,
+  relation,
 }: {
   /** `null` = read-only: no actions menu. */
   projectId: ProjectId | null;
@@ -548,9 +652,14 @@ function DocumentRow({
   notSyncedHint?: string;
   /** The Document open in the view, highlighted. */
   activeId?: string;
+  /** Set when this Document opens the focused one (parent) or is opened by it (child). */
+  relation?: Relation;
 }) {
   const { t } = useTranslation();
-  const active = activeId === docKey(kind, item.id);
+  const key = docKey(kind, item.id);
+  const active = activeId === key;
+  // A module's system element never leaves its place: no drag.
+  const draggable = projectId !== null && !origin?.system;
   const look = kindAppearance(kind);
   const originLabel = origin
     ? t(
@@ -569,6 +678,15 @@ function DocumentRow({
     <div
       className={`group flex items-center gap-0.5 rounded-[10px] ${active ? "" : "hover:bg-[var(--surface-hover)]"}`}
       style={active ? { background: look.soft } : undefined}
+      draggable={draggable}
+      onDragStart={
+        draggable
+          ? (e) => {
+              e.dataTransfer.setData(DOC_MIME, key);
+              e.dataTransfer.effectAllowed = "move";
+            }
+          : undefined
+      }
     >
       <button
         type="button"
@@ -581,6 +699,7 @@ function DocumentRow({
       >
         <KindGlyph kind={kind} />
         <span className="flex-1 truncate">{item.label}</span>
+        {relation && <RelationMark relation={relation} />}
         {notSyncedHint && (
           <span
             role="img"
@@ -627,6 +746,18 @@ function DocumentRow({
         />
       )}
     </div>
+  );
+}
+
+/** The arrow on a Document linked to the focused one: ← it opens it, → it is opened by it. */
+function RelationMark({ relation }: { relation: Relation }) {
+  const { t } = useTranslation();
+  const label = t(`projectPanel.relation.${relation}`);
+  const Arrow = relation === "parent" ? ArrowLeft : ArrowRight;
+  return (
+    <span role="img" aria-label={label} title={label} className="flex shrink-0">
+      <Arrow className="size-3 text-[var(--brand)]" aria-hidden />
+    </span>
   );
 }
 

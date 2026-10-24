@@ -1,7 +1,7 @@
 import type { Project } from "@/domain/types";
 import { expect, it } from "vitest";
 import type { ProjectBoard } from "./autoLayout";
-import { activeBoardFolder, boardForFolder } from "./folderFilter";
+import { activeBoardFolder, boardForFolder, folderAt } from "./folderFilter";
 
 const project = {
   documents: {
@@ -39,4 +39,13 @@ it("drops a filter whose folder is gone", () => {
   expect(activeBoardFolder(project, "boutique/armes")).toBe("boutique/armes");
   expect(activeBoardFolder(project, "gone")).toBeUndefined();
   expect(activeBoardFolder(project, undefined)).toBeUndefined();
+});
+
+it("finds the folder frame under a point, not the project's", () => {
+  const groups = [
+    { ...frame("boutique"), x: 0, y: 0, width: 100, height: 50 },
+    { key: "p", id: "p", kind: "project", x: -500, y: -500, width: 2000, height: 2000 },
+  ] as unknown as ProjectBoard["groups"];
+  expect(folderAt(groups, { x: 50, y: 25 })).toBe("boutique");
+  expect(folderAt(groups, { x: 150, y: 25 })).toBeUndefined();
 });
