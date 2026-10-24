@@ -5,7 +5,7 @@ import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectCacheStore } from "@/state/projectCacheStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
-import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
+import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useMemo } from "react";
 import {
@@ -26,6 +26,13 @@ export interface ProjectTemplates {
   byPath: Record<string, { template: TemplateState; file: TemplateFileState }>;
   /** Unpublished changes: a copy (written by the server) would not reach the draft. */
   dirty: boolean;
+  /** The published files, by path. */
+  published: Record<string, string>;
+  /**
+   * A system template's files as its module ships them, once read: read for the system
+   * templates with a file that differs, to tell a formatting difference from an edit.
+   */
+  shipped: (moduleId: string, templateId: string) => Record<string, string> | undefined;
   /** Re-reads the Project from disk after a copy, then its origins. */
   refresh: () => void;
 }
@@ -41,6 +48,7 @@ export function useProjectTemplates(projectId: string): ProjectTemplates {
   const baseline = useProjectBaselineStore((s) => s.baselines[projectId]);
   const modules = useModulesStore((s) => s.active);
   const entry = useProjectTemplatesStore((s) => s.entries[projectId]);
+  const shippedFiles = useProjectTemplatesStore((s) => s.shipped);
   const draft = useProjectDraftStore((s) => s.drafts[projectId]);
   const dirty = draft ? isDirty(draft.initialTree, draft.tree) : false;
   const announced = useMemo(() => announcedTemplates(modules), [modules]);
@@ -73,6 +81,18 @@ export function useProjectTemplates(projectId: string): ProjectTemplates {
     return out;
   }, [states]);
 
+  // A system file that differs may differ only by its formatting: its shipped text says.
+  useEffect(() => {
+    if (!serverId) return;
+    for (const state of states) {
+      if (state.template.system !== true) continue;
+      if (!state.files.some((f) => f.status === "modified" || f.updateAvailable)) continue;
+      void useProjectTemplatesStore
+        .getState()
+        .loadShipped(serverId, state.moduleId, state.template.id);
+    }
+  }, [serverId, states]);
+
   return {
     target,
     serverId,
@@ -80,6 +100,9 @@ export function useProjectTemplates(projectId: string): ProjectTemplates {
     states,
     byPath,
     dirty,
+    published: baseline ?? {},
+    shipped: (moduleId, templateId) =>
+      serverId ? shippedFiles[shippedKey(serverId, moduleId, templateId)] : undefined,
     refresh: () => {
       // Nothing unpublished (a copy requires it): the re-read loses nothing.
       useProjectDraftStore.getState().clear(projectId);

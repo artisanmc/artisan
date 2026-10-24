@@ -136,6 +136,19 @@ Deux ajouts (API 2.7.0, `@artisan/editor-sdk` 1.6.0) :
 Critère qui ferait revenir au kind : plusieurs instances deviennent nécessaires (plusieurs
 calendriers de récompenses). Un module qui l'anticipe met une liste dans son fichier unique.
 
+### Amendement 2026-10-24 — un écran du dossier du module passe par le brouillon
+
+Constat (Boutique) : l'écran « Réglages » écrivait le fichier au serveur avec son propre bouton
+Enregistrer, alors que tout le reste du dossier passe par le brouillon puis Déployer ; et son lien,
+hors de la route du projet, refermait le dossier dans la sidebar. Depuis `server-disk-only-storage`,
+le dossier d'un module est un Project comme les autres : son `data/` est déjà dans sa copie de
+travail. Un écran dont la table vit dans un dossier listé s'ouvre donc **dans ce dossier**
+(`/servers/$serverId/projects/$projectId/screen/$screenId`) et édite sa copie de travail : le
+changement va au brouillon et part avec Déployer, comme ses Documents. Le dossier reste le projet
+actif, la sidebar le garde ouvert. L'onglet YAML n'y est pas : le Document YAML écrit en direct, ce
+serait une seconde voie d'écriture. Une racine de configuration (`role: config`), qui n'est pas un
+Project listé, garde la page autonome et son écriture live (§3, amendement 2026-10-19).
+
 ## Dette assumée / questions ouvertes
 
 - **Dédup schéma source ↔ model** : `DataSourceDeclaration.schema` (champs à la

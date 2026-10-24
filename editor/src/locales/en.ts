@@ -797,8 +797,10 @@ export default {
       update: "Differs from {{module}}'s version; {{module}} ships a new one",
     },
     systemReset: "Reset",
-    systemResetHint: "Puts the module's version back. Save your pending changes first.",
-    systemResetConfirm: "Put the module's version back? Your changes to this file will be lost.",
+    systemResetHint: "Puts the module's version back into your draft.",
+    systemResetDone: "Module version back in the draft. Deploy to publish it.",
+    systemResetConfirm:
+      "Put the module's version back into your draft? Your changes to this file are replaced; Deploy publishes it.",
     noEditor: "No editor for this {{kind}} yet",
     multiSelection: "Multi-edit not supported in v1. Select one item.",
     selectionNoEditor: "Selection has no editor.",

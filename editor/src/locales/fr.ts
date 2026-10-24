@@ -812,9 +812,10 @@ const fr: typeof en = {
       update: "Différent de la version de {{module}}, qui en livre une nouvelle",
     },
     systemReset: "Réinitialiser",
-    systemResetHint: "Remet la version du module. Enregistre d'abord tes modifications en cours.",
+    systemResetHint: "Remet la version du module dans ton brouillon.",
+    systemResetDone: "Version du module remise dans le brouillon. Déploie pour la publier.",
     systemResetConfirm:
-      "Remettre la version du module ? Tes modifications de ce fichier seront perdues.",
+      "Remettre la version du module dans ton brouillon ? Tes modifications de ce fichier seront remplacées ; Déployer la publie.",
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",
     multiSelection: "Édition multiple non prise en charge en v1. Sélectionnez un seul élément.",
     selectionNoEditor: "Aucun éditeur pour cette sélection.",

@@ -111,6 +111,12 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > enregistrée par `registerConfig` : versionnée, hors de la liste des Projects (ADR
 > `module-config-screens`, amendement 2026-10-19).
 
+> **Kind réservé et icônes de lignes (depuis 2026-10-24, SDK 1.8)** — `DocumentKindContribution.projects`
+> liste les dossiers (ids disque) où le kind peut être créé ; absent, partout. Un fichier du kind
+> ailleurs reste lu et affiché, seule la création est refusée (`kindCreatableIn`). `BoardItem.icon`
+> porte une valeur d'item que l'hôte dessine avant le libellé de la ligne. La boutique s'en sert pour
+> `boutique_category`, réservé à son dossier, dont le nœud liste les articles avec leur icône.
+
 > **Dossier du module (depuis 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > donne au module `plugins/Artisan/modules/<folder>/`, enregistré comme une racine d'add-on (clé
 > `addon:<folder>`, non renommable). L'ancienne racine (`legacyDir`) y est déplacée une fois ; le
@@ -606,6 +612,12 @@ api.getTemplates().register(TemplateDeclaration
   Un fichier présent avant que le module en fasse un élément système compte comme modifié. Copier un
   modèle système ailleurs que dans le dossier du module est refusé (`system_template`) : dans ce
   dossier, c'est une réinitialisation. L'éditeur ne le propose pas à la copie.
+  Dans l'éditeur, Reset d'un élément système remet le fichier livré (lu par
+  `GET …/modules/:module/templates/:template`) **dans le brouillon**, comme toute édition :
+  Déployer le publie, Abandonner l'annule, et un brouillon en cours ne le bloque pas. Le badge
+  « modifié » compare le fichier publié au fichier livré une fois tous deux réécrits au format
+  de l'éditeur (`sameAsShipped`) : un fichier déployé depuis l'éditeur, identique sur le fond,
+  reste la version du module.
 
 ```java
 api.getTemplates().register(TemplateDeclaration

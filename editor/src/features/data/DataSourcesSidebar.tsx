@@ -1,5 +1,6 @@
 import type { DataSource, DataSourceId, Project } from "@/domain/types";
 import { resolveScreen } from "@/features/screens/screenList";
+import { screenDestination } from "@/lib/projectNavigation";
 import { urlServerId } from "@/lib/urlIds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
@@ -93,11 +94,7 @@ export function DataSourcesSidebar({
                       <>
                         {" — "}
                         <Link
-                          to="/servers/$serverId/screens/$screenId"
-                          params={{
-                            serverId: urlServerId(servers, serverId)!,
-                            screenId: target.id,
-                          }}
+                          {...screenDestination(target, urlServerId(servers, serverId)!, [project])}
                           className="underline hover:text-[var(--text)]"
                         >
                           {t("screens.openScreen")}
