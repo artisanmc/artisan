@@ -70,14 +70,14 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
  * (`?tab=`). URL sync, drag-and-drop and the language fallback are named hooks.
  */
 export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) {
-  const { serverId, projectId, documentId, screenId, collectionKind } = useParams({
+  const { serverId, projectId, documentId, screenId, collectionDir } = useParams({
     strict: false,
   }) as {
     serverId?: string;
     projectId: string;
     documentId?: string;
     screenId?: string;
-    collectionKind?: string;
+    collectionDir?: string;
   };
   const loadRef = projectRef ?? projectId;
   // Resolve the public folder/module ID in its complete location scope.
@@ -203,8 +203,8 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     );
 
     // A module's screen (`screen/$screenId`) or a collection's page
-    // (`collection/$collectionKind`) opened in the project covers the board.
-    const pageOpen = !!screenId || !!collectionKind;
+    // (`$collectionDir`) opened in the project covers the board.
+    const pageOpen = !!screenId || !!collectionDir;
     const canvasActive =
       presentedTab === "overview" &&
       !pageOpen &&

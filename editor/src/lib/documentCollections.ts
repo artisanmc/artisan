@@ -16,6 +16,11 @@ export function isCollectionKind(kind: string): boolean {
   return documentKindContribution(kind)?.collection != null;
 }
 
+/** The collection kind stored in `dir` (its page's URL segment), if any. */
+export function collectionKindOfDir(dir: string): string | undefined {
+  return listDocumentKindContributions().find((c) => c.collection != null && c.dir === dir)?.kind;
+}
+
 /** The kinds a project shows as collections: creatable there, or already holding Documents. */
 export function projectCollections(
   project: Pick<Project, "id" | "diskId" | "documents">,

@@ -121,8 +121,8 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > les Documents du kind forment un seul conteneur (le catalogue de la boutique). Pas de nœud sur la
 > planche (`boardGraph` les retire ; les liens gardent le graphe entier), une entrée unique dans la
 > sidebar (`CollectionNode` : nom → page, `+` → création, pas de renommage ni de suppression) et une
-> page `projects/$projectId/collection/$collectionKind` (`CollectionView`) : l'écran de config
-> `screen` en tête, une carte par Document, le bouton de création. Les Documents restent à la racine :
+> page `projects/$projectId/$collectionDir` (`CollectionView`), au nom du dossier du kind
+> (`…/boutique_addon/catalogue`) : l'écran de config `screen` en tête s'il est déclaré, une carte par Document, le bouton de création. Les Documents restent à la racine :
 > `moveToFolder` refuse de les ranger dans un dossier et `useCollectionsAtRoot` ramène à la racine
 > ceux qu'un brouillon a dans un dossier (déplacement dans le brouillon, écrit par Déployer). Un
 > Document s'ouvre sur sa vue individuelle, dont le retour mène à la page de la collection. Aucun

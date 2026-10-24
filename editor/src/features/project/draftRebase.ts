@@ -116,7 +116,8 @@ function assign<T>(target: Record<string, T>, path: string, value: T | undefined
  * the old file. A file the draft did change stays the draft's: publishing reports it.
  *
  * "Left as loaded" is measured against `initialTree` (the tree right after opening), not
- * the base's bytes: opening reformats files nobody touched. Returns null when nothing moved.
+ * the base's bytes: opening reformats files nobody touched. A file the draft deleted stays
+ * deleted whatever the disk did to it. Returns null when nothing moved.
  */
 export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<string, string> }>(
   resumed: S,
@@ -132,6 +133,15 @@ export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<s
   for (const path of new Set([...Object.keys(draft.baseline), ...Object.keys(disk)])) {
     if (renamed.has(path) || draft.baseline[path] === disk[path]) continue;
     if (draft.tree[path] !== loaded[path]) continue;
+    // A file the draft deleted, in this session or an earlier one (in its base, not in its
+    // tree), stays deleted: a category moved into a folder must not come back at the root
+    // when the disk rewrites the file it was moved from.
+    if (draft.tree[path] === undefined && draft.baseline[path] !== undefined) {
+      if (disk[path] !== undefined) continue;
+      assign(baseline, path, undefined);
+      moved = true;
+      continue;
+    }
     assign(baseline, path, disk[path]);
     assign(tree, path, disk[path]);
     if (initialTree) assign(initialTree, path, disk[path]);
