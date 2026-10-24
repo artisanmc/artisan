@@ -75,12 +75,12 @@ export const ITEM_NAME: MmProfile = {
   preview: "item-name",
 };
 
-/** Lore keeps Minecraft's dark purple: the plugin only removes the italic. */
+/** Lore is white and not italic, as Artisan renders it (`LenientText.loreLine`). */
 export const LORE: MmProfile = {
   id: "lore",
   features: new Set(ONE_LINE),
   lines: "separate",
-  defaults: { color: "#aa00aa", italic: false },
+  defaults: { color: "#ffffff", italic: false },
   preview: "tooltip",
 };
 

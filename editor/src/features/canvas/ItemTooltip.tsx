@@ -190,8 +190,8 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
   return (
     <div className="pointer-events-none fixed z-50" style={{ left: x + 14, top: y + 14 }}>
       {/* Drawn as the client draws it, with the plugin's defaults: a lore without a
-          color is purple (the plugin only drops the italic), long lines wrap at the
-          project's lore_max_width — the same rendering as the Edit item dialog. */}
+          color is white and not italic, long lines wrap at the project's
+          lore_max_width — the same rendering as the Edit item dialog. */}
       <McTooltip
         title={title}
         titleDefaults={cachedName || resolved.title ? ITEM_NAME.defaults : MATERIAL_NAME}
