@@ -537,6 +537,7 @@ const fr: typeof en = {
     insertLore: "Insérer le lore source",
     replaceLore: "Remplacer le lore de l’item de base",
     editItem: "Modifier l’item",
+    inGamePreview: "En jeu",
     done: "Terminé",
     catalog: "Catalogue",
     library: "Boutons",

@@ -25,6 +25,10 @@ export interface MmEditorProps {
   /** Starting view; the user switches with the toolbar. */
   initialMode?: MmViewMode;
   minHeight?: string;
+  /** Shown while the text is empty. */
+  placeholder?: string;
+  /** Called when the editor, toolbar included, takes the focus. */
+  onFocus?: () => void;
   "aria-label"?: string;
   className?: string;
 }
@@ -45,6 +49,8 @@ export function MmEditor({
   palettes,
   initialMode = "rich",
   minHeight = "64px",
+  placeholder,
+  onFocus,
   "aria-label": ariaLabel,
   className,
 }: MmEditorProps) {
@@ -107,6 +113,7 @@ export function MmEditor({
 
   return (
     <div
+      onFocus={onFocus}
       className={cx(
         "overflow-hidden rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface-inset)] focus-within:border-[var(--brand-line)]",
         className,
@@ -137,6 +144,7 @@ export function MmEditor({
           onChange={onChange}
           extensions={extensions}
           theme="none"
+          placeholder={placeholder}
           basicSetup={{
             lineNumbers: false,
             foldGutter: false,

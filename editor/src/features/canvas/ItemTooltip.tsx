@@ -43,7 +43,7 @@ const findElementAndMenu = (
 };
 
 /** Convert "DIAMOND_SWORD" → "Diamond Sword" for tooltips when no custom title. */
-const humanize = (material: string): string =>
+export const humanizeMaterial = (material: string): string =>
   material
     .toLowerCase()
     .split("_")
@@ -178,7 +178,7 @@ export function ItemTooltip({ projectId }: ItemTooltipProps) {
 
   // A referenced item brings its own name and lore. The element's title wins
   // when it has one, its lore is APPENDED — same order as the runtime.
-  const rawTitle = cachedName || resolved.title || humanize(resolved.material ?? "");
+  const rawTitle = cachedName || resolved.title || humanizeMaterial(resolved.material ?? "");
   const title = renderPreview(rawTitle, ctx, project, activeLang);
   const lore = cachedLore ?? resolved.lore;
 

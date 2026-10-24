@@ -525,6 +525,7 @@ export default {
     insertLore: "Insert source lore",
     replaceLore: "Replace the base item lore",
     editItem: "Edit item",
+    inGamePreview: "In game",
     done: "Done",
     catalog: "Catalog",
     library: "Buttons",

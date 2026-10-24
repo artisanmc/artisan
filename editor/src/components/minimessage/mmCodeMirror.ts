@@ -257,6 +257,7 @@ export const MM_THEME = EditorView.theme({
   "&.cm-focused": { outline: "none" },
   ".cm-content": { padding: "8px 0", fontFamily: "var(--font-mono)", caretColor: "var(--text)" },
   ".cm-line": { padding: "0 10px" },
+  ".cm-placeholder": { color: "var(--text-faint)", fontStyle: "normal" },
   ".cm-cursor": { borderLeftColor: "var(--text)" },
   ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
     background: "var(--brand-soft) !important",
