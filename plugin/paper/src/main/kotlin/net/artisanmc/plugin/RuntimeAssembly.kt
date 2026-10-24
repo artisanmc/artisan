@@ -153,6 +153,8 @@ internal class RuntimeAssembly(
      */
     private fun scheduleApplyReload(modules: Set<String>?) {
         pendingItems = capturedItems.read((menuProvider as? SyncedMenuProvider)?.projectDirs() ?: projectRoots.all())
+        // A publication may have changed an add-on's messages kept in its module's folder.
+        plugin.translations.reloadFolderBundles()
         if (modules == null) applyAll.set(true) else applyModules.addAll(modules)
         if (!applyQueued.compareAndSet(false, true)) return
         scheduler.onGlobal {

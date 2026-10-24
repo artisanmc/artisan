@@ -171,6 +171,22 @@ Les trois readers (plugin, import éditeur, mutation module) acceptent **arbre /
 mélange** — rien à migrer. Une clé bloquée par une feuille (`a.b` et `a.b.c` coexistent) reste
 pointée à la racine plutôt que perdue.
 
+Une clé de `lang/` qu'aucun Document ni aucune data source du module ne lit à l'import est
+**gardée telle quelle** : les messages d'un add-on (ArtisanAuctions, un bundle déclaré
+`inFolder`), une clé ajoutée par l'admin. L'éditeur la note dans `Project.keptLangKeys`
+(`projectFromFiles`) et la réécrit depuis `i18nKeys` à chaque export (`keptLangEntries`) : une
+modification dans Traductions s'applique, une suppression l'enlève, une clé qu'un site possède
+entre-temps lui revient. Les clés sous `menus.`, `commands.`, `dialogs.`, `sources.` et
+`artisan.` restent à l'éditeur. Avant, un export ne gardait que les clés sans site et les data
+sources : un Déployer effaçait le reste.
+
+Un add-on range ses **messages système** dans le `lang/` de son dossier avec
+`MessageBundleDeclaration.files(...).inFolder(dossier)` (API 2.17.0) : Artisan y lit les
+fichiers du serveur à la place de `plugins/<Plugin>/lang/`, les y déplace une fois
+(`LangFolderMove`, un fichier dont la langue existe déjà dans le dossier reste et le log le
+nomme), et relit le bundle à chaque rechargement des projets (`Translations.reloadFolderBundles`).
+Le jar répond toujours pour les clés absentes.
+
 ## Textes structurels — field-local (ADR `field-local-translations`)
 
 Depuis 2026-09-30, les textes **structurels** (titre de menu, `title`/`lore` d'apparence, `title`/
