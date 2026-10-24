@@ -95,6 +95,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `templates` (`getTemplates()`, `@Beta`) | `TemplateRegistry` | 2.6.0 |
 | `playerCommands` (`getPlayerCommands()`, `@Beta`) | `PlayerCommandRegistry` | 2.7.0 |
 | `text` (`getText()`, `@Beta`) | `TextApi` | 2.10.0 |
+| `network` (`getNetwork()`, `@Beta`) | `NetworkApi` | 2.13.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -251,6 +252,26 @@ Text for players without Adventure types, so a plugin runs on Paper and Spigot a
 | `TextApi.legacy(miniMessage)`, `plain(miniMessage)`, `fromLegacy(legacy)` | `String` | 2.10.0 |
 | `TextApi.NOOP`, `ArtisanAPI.Builder.text(text)` (`@Internal`) | | 2.10.0 |
 
+### `net.artisanmc.modules.api.network.NetworkApi` (`@Beta`, 2.13.0)
+
+The servers that share the suite's MySQL/MariaDB database are one network (ADR `peer-servers`). A server's name is `name` in `environment.yml`, which must be its name in `velocity.toml`; without a valid name, or on H2, a server is a network of one and every call still works for it.
+
+- `subscribe(owner, channel, handler)`: the messages other servers publish on `channel` (`module:name`, lower case), delivered off the main thread in the order they were published, on Artisan's `Artisan-network` thread. Released when `owner` disables, or by `NetworkSubscription.cancel()`. A handler that throws is logged.
+- `publish(channel, payload[, includeSelf])`: never blocks. The message goes through `{prefix}network_messages`, read every 100 ms and kept a minute: a server that does not read it within that time never gets it. 60 000 characters at most. `includeSelf` delivers it to this server's subscribers too, on the same thread. Messages published before the suite database opens wait in memory (10 000 at most).
+- `getPresence()`: `isOnline(id)`, `getPlayer(id)`, `find(name)`, `getOnline()` across the network (`NetworkPlayer(id, name, server)`); `sendMessage(id, miniMessage)` reaches the player on whichever server. Each server writes its players in `{prefix}network_players`; the players of a server stopped or not seen for 3 minutes are not listed. Refreshed every second.
+- `getServers()`: the servers running (`NetworkServer(name, self)`), from `{prefix}servers`.
+- `teleport(player, location, delaySeconds)` / `connect(player, server, delaySeconds)`: after the delay, cancelled when the player moves a block (`MOVED`) or leaves (`OFFLINE`). Another server: the destination is announced on `artisan:teleport`, then the player is sent through the proxy's `BungeeCord` channel (Velocity accepts it by default) and placed on arrival, within 30 seconds. Completes once the player is placed here or sent away. `UNKNOWN_SERVER`, `UNKNOWN_WORLD`, `FAILED` otherwise.
+
+| Member | Type | Since |
+|---|---|---|
+| `NetworkApi.getServerName()`, `getServers()` | `String`, `List<NetworkServer>` | 2.13.0 |
+| `NetworkApi.subscribe(owner, channel, handler)`, `NetworkSubscription`, `NetworkMessageHandler`, `NetworkMessage` | `NetworkSubscription` | 2.13.0 |
+| `NetworkApi.publish(channel, payload)`, `publish(channel, payload, includeSelf)` | `void` | 2.13.0 |
+| `NetworkApi.getPresence()`, `NetworkPresence`, `NetworkPlayer` | `NetworkPresence` | 2.13.0 |
+| `NetworkApi.teleport(player, location, delaySeconds)`, `connect(player, server, delaySeconds)`, `NetworkLocation`, `TeleportResult` | `CompletableFuture<TeleportResult>` | 2.13.0 |
+| `NetworkApi.NOOP`, `NetworkPresence.NOOP`, `ArtisanAPI.Builder.network(network)` (`@Internal`) | | 2.13.0 |
+| `tablePrefix("network")` refused: `network` is a first segment of Artisan's tables | | 2.13.0 |
+
 ### `net.artisanmc.modules.api.action.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
 
 Every action of a chain, Artisan's own included, runs through this registry (ADR `extensible-document-kinds`, R1). A module registers its actions from `onEnable`; they are removed with the module. Names: `^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`, a module's namespaced (`quests:start`).
@@ -316,7 +337,7 @@ A module may ship **templates**: example content (Documents, menus, `lang/` file
 |---|---|---|
 | `TemplateRegistry.register(decl)` (owner = the module whose `onEnable` runs; outside one, or a second template with that id for that module, `IllegalStateException`), `find(moduleId, templateId)` (nullable), `of(moduleId)` (registration order), `registered()` (module id → declarations) | | 2.6.0 |
 | `TemplateDeclaration.builder(id, version)` (`id` `^[a-z][a-z0-9_]*$`, `version` ≥ 1, raised each time the files change), `fromResources(loader, root, id, version, paths)` (missing resource: `IllegalArgumentException`); `Builder.title(title)`, `seed(projectId)` (`^[a-z0-9][a-z0-9_-]*$`), `file(path, bytes)` (relative `/` path of plain segments, no `..`, no leading dot, never `.artisan*`; ≤ `MAX_SIZE` = 4 MiB in all), `build()` | `TemplateDeclaration.Builder` | 2.6.0 |
-| `Builder.file` refuses every name of the module file (`artisan-module.yml`, `manifest.yml`, `manifest.yaml`), where it refused `manifest.yaml` only (`IllegalArgumentException`) | | 2.13.0 |
+| `Builder.file` refuses every name of the module file (`artisan-module.yml`, `manifest.yml`, `manifest.yaml`), where it refused `manifest.yaml` only (`IllegalArgumentException`) | | 2.15.0 |
 | `TemplateDeclaration.getId()`, `getTitle()` (the id when none), `getVersion()`, `getSeedProject()` (nullable), `getPaths()`, `getFile(path)` (copy, nullable), `getHash(path)` (lowercase hex SHA-256, nullable), `toWire()`, `sha256(bytes)` | | 2.6.0 |
 | `TemplateDeclaration.Builder.system()`, `isSystem()`: the files are the module's **system elements** (the menus and dialogs its code opens by id), kept in the module's first folder by name at every start and module arrival. A missing file is written again (unless a file of that name sits under the same kind folder elsewhere in the module: moved), an untouched copy of an earlier version is replaced, an edited one stays until the editor resets it (`template_copy` with `replace`, into the module's folder only: elsewhere `system_template`). Not with `seed(...)` (`IllegalArgumentException`). Presence adds `system: true` to the template | | 2.12.0 |
 | `ArtisanAPI.Builder.templates(registry)` (`@Internal`) | `Builder` | 2.6.0 |
@@ -343,6 +364,7 @@ A module declares the commands players type: each root becomes a `command/v1` fi
 | `PlayerCommandContext`: `getCommandId()`, `getSender()`, `getPlayer()` (null for the console), `getLanguage()`, `getArguments()`, `get(name, type)` | | 2.7.0 |
 | `PlayerCommandRegistry.onChange(callback)`, `ArtisanAPI.Builder.playerCommands(registry)` (`@Internal`) | | 2.7.0 |
 | `PlayerCommandDeclaration.Builder.opensMenu(menuRef)`, `getOpensMenu()`: the command opens that menu (Action DSL ref, `folder:menu` or a bare id resolved server-wide) instead of running an executor, its arguments as the menu's context; player-only. `build()` refuses an executor and a menu together, and a menu with `consoleAllowed(true)` (`IllegalArgumentException`). The editor draws the link on the board | | 2.11.0 |
+| `CommandArgument.suggestions(provider)`, `getSuggestions()` (nullable); `SuggestionProvider.suggest(SuggestionContext)`, `SuggestionContext`: `getSender()`, `getPreviousArguments()` (the arguments typed before, unparsed), `getInput()`. The values completed in place of Artisan's own (online players, worlds), computed at completion: kept by prefix ignoring case, without duplicates, 100 at most. Parsing is unchanged. Runs on the thread Bukkit completes on, so it must be cheap and thread-safe (memory, never the database); one that throws is logged and offers nothing. Not on a `choice` (`IllegalStateException`). Not announced in `player_commands` | | 2.14.0 |
 
 ```java
 api.getPlayerCommands().register(PlayerCommandDeclaration.builder("attribution:open")
@@ -562,7 +584,7 @@ Read-only project content (`plugins/Artisan/modules/` and the registered roots),
 | `projectIds()` | `List<String>` | 1.2.0 |
 | `list(projectId: String, dir: String)` | `List<String>` | 1.2.0 |
 | `read(projectId: String, relPath: String)` | `String?` | 1.2.0 |
-| `read` finds a YAML file under either extension (`lang/fr.yaml` reads `lang/fr.yml` when only that one exists), and a module file under any of its names (`manifest.yaml` reads `artisan-module.yml`) | `String?` | 2.13.0 |
+| `read` finds a YAML file under either extension (`lang/fr.yaml` reads `lang/fr.yml` when only that one exists), and a module file under any of its names (`manifest.yaml` reads `artisan-module.yml`) | `String?` | 2.15.0 |
 | `hasContent(dir: String)` | `Boolean` | 1.2.0 |
 | `reload()` | `Unit` | 1.6.0 — asynchronous since 1.8.0: the disk is read on Artisan's reload thread, and modules' `onReload()` follows on the global thread |
 | `documents(projectId: String, kind: String)` (`@Beta`) | `List<Map<String, Object>>` | 2.1.0 — see `DocumentKindRegistry` |

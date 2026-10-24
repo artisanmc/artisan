@@ -11,6 +11,7 @@ import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection
 import { EditorAddressBanner } from "@/features/settings/EditorAddressBanner";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
+import { screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAuthStore } from "@/state/authStore";
@@ -259,8 +260,7 @@ function ServerOverview({
                       e.kind === "screen" ? (
                         <li key={`s:${e.screen.id}`}>
                           <Link
-                            to="/servers/$serverId/screens/$screenId"
-                            params={{ serverId, screenId: e.screen.id }}
+                            {...screenDestination(e.screen, serverId, m.projects)}
                             className="chip"
                           >
                             {e.screen.label}

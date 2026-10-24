@@ -21,13 +21,14 @@ import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
 import { ModuleTemplatesDialog } from "@/features/templates/ModuleTemplatesDialog";
+import { sameAsShipped } from "@/features/templates/sameAsShipped";
 import {
   type ProjectTemplates,
   useProjectTemplates,
 } from "@/features/templates/useProjectTemplates";
-import { copyTemplate } from "@/lib/api/templates";
 import { kindAppearance } from "@/lib/documentKindAppearance";
-import { contributionLabel } from "@/lib/moduleDocumentKinds";
+import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
+import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -48,6 +49,7 @@ import { toast } from "sonner";
 import { documentRelPath } from "./DocumentYamlView";
 import { FolderNameDialog } from "./FolderNameDialog";
 import { openProjectSettings } from "./projectSettings";
+import { adoptDiskIntoProject } from "./saveProjectToDisk";
 import {
   type DocumentType,
   type ProjectDocumentItem,
@@ -97,7 +99,11 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const templates = useProjectTemplates(projectId);
-  const moduleKinds = listDocumentKindContributions().filter((c) => !isCoreDocumentType(c.kind));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  // A kind may be reserved to its module's own folder (`projects`, SDK 1.8).
+  const moduleKinds = listDocumentKindContributions().filter(
+    (c) => !isCoreDocumentType(c.kind) && kindCreatableIn(c, project),
+  );
   const iconButton =
     "flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]";
   return (
@@ -249,7 +255,8 @@ export function DocumentGroups({
   const serverKinds = useServerDocumentKindsStore();
   const templates = useProjectTemplates(project.id);
   const groups = buildProjectDocuments(project, activeLang);
-  const originOf = (id: string) => templateOrigin(templates, documentRelPath(project, id), t);
+  const originOf = (id: string) =>
+    templateOrigin(templates, project, documentRelPath(project, id), t);
   return (
     <>
       {childFolders(project, "").map((path) => (
@@ -440,46 +447,73 @@ type DocumentOrigin = Omit<TemplateOrigin, "label"> & {
   module: string;
   /** One of the module's system elements: never deleted or moved, reset instead. */
   system: boolean;
-  /** Puts the module's version back; absent while it cannot be written (unsaved changes). */
+  /** Puts the module's version back into the draft; absent when it already is. */
   reset?: () => void;
 };
 
 function templateOrigin(
   templates: ProjectTemplates,
+  project: Project,
   path: string | null,
   t: TFunction,
 ): DocumentOrigin | null {
   const entry = path ? templates.byPath[path] : undefined;
   if (!path || !entry || entry.file.status === "removed") return null;
-  const tone = entry.file.updateAvailable
-    ? "update"
-    : entry.file.status === "modified"
-      ? "modified"
-      : "identical";
   const system = entry.template.template.system === true;
-  const { target } = templates;
+  const moduleId = entry.template.moduleId;
+  const templateId = entry.template.template.id;
+  // Deployed from the editor, a system file is rewritten in canonical form: unchanged in
+  // substance, it is still the module's version.
+  const shipped = templates.shipped(moduleId, templateId)?.[path];
+  const published = templates.published[path];
+  const formattedOnly =
+    system &&
+    (entry.file.status === "modified" || entry.file.updateAvailable) &&
+    shipped !== undefined &&
+    published !== undefined &&
+    sameAsShipped(project, path, published, shipped);
+  const tone = formattedOnly
+    ? "identical"
+    : entry.file.updateAvailable
+      ? "update"
+      : entry.file.status === "modified"
+        ? "modified"
+        : "identical";
+  const { serverId } = templates;
   const reset =
-    system && tone !== "identical" && target && !templates.dirty
+    system && tone !== "identical" && serverId
       ? () => {
           if (!window.confirm(t("projectPanel.systemResetConfirm"))) return;
-          void copyTemplate(target, {
-            module: entry.template.moduleId,
-            template: entry.template.template.id,
-            paths: [path],
-            replace: true,
-          }).then((result) => {
-            if (result.ok) templates.refresh();
-            else
-              toast.error(
-                t(
-                  `moduleTemplates.errors.${result.error}`,
-                  t("moduleTemplates.errors.fetch_error"),
-                ),
-              );
-          });
+          void resetIntoDraft(project.id, serverId, moduleId, templateId, path, t);
         }
       : undefined;
-  return { tone, module: entry.template.moduleId, system, ...(reset ? { reset } : {}) };
+  return { tone, module: moduleId, system, ...(reset ? { reset } : {}) };
+}
+
+/**
+ * Puts a system file back as its module ships it, in the draft: the canvas shows it at
+ * once, Deploy publishes it, Discard cancels it, like any edit.
+ */
+async function resetIntoDraft(
+  projectId: string,
+  serverId: string,
+  moduleId: string,
+  templateId: string,
+  path: string,
+  t: TFunction,
+) {
+  const store = useProjectTemplatesStore.getState();
+  await store.loadShipped(serverId, moduleId, templateId);
+  const content =
+    useProjectTemplatesStore.getState().shipped[shippedKey(serverId, moduleId, templateId)]?.[path];
+  const { openProjects, replaceProject } = useProjectsStore.getState();
+  const current = openProjects.projects.find((p) => p.id === projectId);
+  if (content === undefined || !current) {
+    toast.error(t("moduleTemplates.errors.fetch_error"));
+    return;
+  }
+  replaceProject(adoptDiskIntoProject(current, { [path]: content }, []));
+  toast.success(t("projectPanel.systemResetDone"));
 }
 
 /** What a copy's tag says in a word: nothing when it is the module's version as is. */

@@ -25,6 +25,7 @@ import net.artisanmc.modules.api.schemas.SchemaRegistry;
 import net.artisanmc.modules.api.screen.EditorScreenRegistry;
 import net.artisanmc.modules.api.playercommand.PlayerCommandRegistry;
 import net.artisanmc.modules.api.template.TemplateRegistry;
+import net.artisanmc.modules.api.network.NetworkApi;
 import net.artisanmc.modules.api.text.TextApi;
 import net.artisanmc.modules.api.translation.TranslationsApi;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -73,6 +74,7 @@ public final class ArtisanAPI {
     private final ConditionsApi conditions;
     private final TranslationsApi translations;
     private final TextApi text;
+    private final NetworkApi network;
 
     private ArtisanAPI(Builder b) {
         this.plugin = b.plugin;
@@ -100,6 +102,7 @@ public final class ArtisanAPI {
         this.conditions = b.conditions;
         this.translations = b.translations;
         this.text = b.text;
+        this.network = b.network;
     }
 
     /**
@@ -280,6 +283,16 @@ public final class ArtisanAPI {
         return text;
     }
 
+    /**
+     * The servers of the network and what crosses between them: channels, presence, teleports.
+     *
+     * @since 2.13.0
+     */
+    @Beta
+    public NetworkApi getNetwork() {
+        return network;
+    }
+
     /** Version of this API (the {@code Since} numbering of the published {@code artisan-core-api}). */
     @Stable
     public String getApiVersion() {
@@ -320,6 +333,7 @@ public final class ArtisanAPI {
         private ConditionsApi conditions = ConditionsApi.NOOP;
         private TranslationsApi translations = TranslationsApi.NOOP;
         private TextApi text = TextApi.NOOP;
+        private NetworkApi network = NetworkApi.NOOP;
 
         private Builder(
             JavaPlugin plugin,
@@ -423,6 +437,11 @@ public final class ArtisanAPI {
 
         public Builder text(TextApi text) {
             this.text = Objects.requireNonNull(text);
+            return this;
+        }
+
+        public Builder network(NetworkApi network) {
+            this.network = Objects.requireNonNull(network);
             return this;
         }
 

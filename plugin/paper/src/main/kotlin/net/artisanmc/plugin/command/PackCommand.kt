@@ -1,11 +1,13 @@
 package net.artisanmc.plugin.command
 
+import net.artisanmc.modules.api.playercommand.SuggestionProvider
 import net.artisanmc.plugin.engine.ActionExecutor
 import net.artisanmc.plugin.engine.ExecutionContext
 import net.artisanmc.plugin.lang.LangManager
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import java.util.logging.Logger
 import net.artisanmc.plugin.platform.Chat
 
 /**
@@ -22,12 +24,16 @@ class PackCommand(
     /** Project defining the command: its `open_menu` with a bare id resolve there first. */
     private val projectId: String? = null,
     private val console: ModuleCommandRunner? = null,
+    /** The module's provider for the argument at a position of the command it declares; null: Artisan's completion. */
+    private val suggestions: (String, Int) -> SuggestionProvider? = { _, _ -> null },
 ) : Command(
     compiled.name,
     compiled.description?.forLang(lang.defaultLang, lang.defaultLang) ?: "",
     "/${compiled.name}",
     compiled.aliases,
 ) {
+    private val logger = Logger.getLogger("Artisan")
+
     init {
         if (compiled.permission != null) permission = compiled.permission
     }
@@ -79,7 +85,10 @@ class PackCommand(
             node.children.filter { c -> allowed(sender, c) && c.name.startsWith(prefix, ignoreCase = true) }.map { it.name }
         } else emptyList()
         if (node.isGroup) return subs
-        return subs + ArgParser.tabComplete(node.argDefs, args.copyOfRange(depth, args.size))
+        val typed = args.copyOfRange(depth, args.size)
+        val provider = node.moduleCommand?.let { id -> suggestions(id, typed.size - 1)?.let { id to it } }
+            ?: return subs + ArgParser.tabComplete(node.argDefs, typed)
+        return subs + ArgumentSuggestions.complete(provider.second, sender, typed.dropLast(1), typed.last(), provider.first, logger)
     }
 
     /** The root, then each sub-command the first [limit] arguments name. */

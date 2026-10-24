@@ -188,7 +188,8 @@ describe("ServerDetailPage", () => {
     ];
     render(<ServerDetailPage />);
     const link = await screen.findByRole("link", { name: "Catalogue" });
-    expect(link).toHaveAttribute("href", "/servers/$serverId/screens/$screenId");
+    // The screen's file lives in the module's folder: it opens there, on its draft.
+    expect(link).toHaveAttribute("href", "/servers/$serverId/projects/$projectId/screen/$screenId");
     expect(screen.queryByText("screens.editorEntry")).not.toBeInTheDocument();
   });
 

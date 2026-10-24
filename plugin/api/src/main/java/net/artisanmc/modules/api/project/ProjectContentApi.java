@@ -28,7 +28,7 @@ public interface ProjectContentApi {
      * UTF-8 content of a project file, or null if absent / outside the project root. A YAML file is
      * found under either extension ({@code lang/fr.yaml} reads {@code lang/fr.yml} when only that
      * one exists), and {@code manifest.yaml} reads the module file {@code artisan-module.yml}.
-     * Since 2.13.0.
+     * Since 2.15.0.
      */
     @Stable
     @Nullable String read(String projectId, String relPath);

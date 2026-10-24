@@ -1,6 +1,7 @@
 package net.artisanmc.plugin.command
 
 import net.artisanmc.modules.api.playercommand.PlayerCommandDeclaration
+import net.artisanmc.modules.api.playercommand.SuggestionProvider
 import net.artisanmc.plugin.engine.ActionExecutor
 import net.artisanmc.plugin.engine.ConditionEvaluator
 import net.artisanmc.plugin.lang.LangManager
@@ -57,6 +58,8 @@ class CommandRegistrar(
     private val logger: Logger get() = plugin.logger
     private val namespace get() = plugin.name.lowercase()
     private val registered = mutableListOf<Command>()
+    /** The provider a module declares for an argument of its command (id, position); read at completion. */
+    @Volatile private var suggestions: (String, Int) -> SuggestionProvider? = { _, _ -> null }
     /** The command map keys pointing at [registered] after the last reload. */
     private var registeredLabels: Set<String> = emptySet()
 
@@ -92,6 +95,9 @@ class CommandRegistrar(
         val claim = Claim(ServerPlatform.commandMap(Bukkit.getServer()))
         val declarations = playerCommands()
         val declared = declarations.flatMapTo(hashSetOf()) { ids(it) }
+        val nodes = declarations.flatMap(::nodes).associateBy { it.id }
+        // A file may rename an argument: the declaration's arguments are matched by position.
+        suggestions = { id, index -> nodes[id]?.arguments?.getOrNull(index)?.suggestions }
         /** (module, document id) of every module command document found, enabled or not. */
         val documents = hashSetOf<Pair<String, String>>()
 
@@ -156,7 +162,7 @@ class CommandRegistrar(
                 owner == null
             }
 
-            val command = PackCommand(compiled.copy(aliases = aliases), executor, lang, projectId, consoleRunner)
+            val command = PackCommand(compiled.copy(aliases = aliases), executor, lang, projectId, consoleRunner) { id, index -> suggestions(id, index) }
             if (nameOwner == null) {
                 commandMap.register(prefix, command)
                 claimed[name] = source
@@ -191,6 +197,9 @@ class CommandRegistrar(
 
     private fun ids(declaration: PlayerCommandDeclaration): List<String> =
         listOf(declaration.id) + declaration.children.flatMap(::ids)
+
+    private fun nodes(declaration: PlayerCommandDeclaration): List<PlayerCommandDeclaration> =
+        listOf(declaration) + declaration.children.flatMap(::nodes)
 
     fun unregisterAll() {
         if (registered.isEmpty()) return

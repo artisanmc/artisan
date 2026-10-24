@@ -272,6 +272,51 @@ describe("ProjectSidebar", () => {
     expect(screen.queryByText("Autres")).toBeNull();
   });
 
+  it("opens a screen of the module's folder inside that folder, which stays open on it", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["boutique_shop"],
+      projects: [
+        {
+          id: "boutique_shop",
+          name: "boutique_shop",
+          externalId: "boutique_shop",
+          hash: "",
+          serverKeyId: "sk_1",
+          ownerModule: "boutique",
+        },
+      ],
+    } as never);
+    useServerScreensStore.setState({
+      screens: [
+        {
+          id: "boutique:settings",
+          moduleId: "boutique",
+          label: "Réglages",
+          table: "data/shop_settings",
+          projectId: "boutique_shop",
+        },
+      ],
+    } as never);
+    // The screen's page is the project's child route: the folder is the active project.
+    mockParams.current = {
+      serverId: "sk_1",
+      projectId: "boutique_shop",
+      screenId: "boutique:settings",
+    } as never;
+    render(<ProjectSidebar />);
+    // Once the disk listing names the folder, the link leads into it.
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Réglages" }).getAttribute("href")).toBe(
+        "/servers/$serverId/projects/$projectId/screen/$screenId",
+      ),
+    );
+    // Shown without unfolding anything: the folder is open on its screen.
+    expect(
+      screen.getByRole("button", { name: "Afficher les documents de boutique" }),
+    ).toHaveAttribute("aria-expanded", "true");
+  });
+
   it("shows no Modules section when no module has anything to configure", async () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);
