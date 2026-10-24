@@ -65,6 +65,24 @@ describe("useMiddleClickPan", () => {
     expect(result.current.panning).toBe(false);
   });
 
+  it("ends the pan even when the container swallows the middle button's release", () => {
+    const { wrapper, child, result } = setup();
+    // As `usePrimaryButtonOnly` does on the canvas container.
+    wrapper.addEventListener(
+      "pointerup",
+      (e) => {
+        if (e.button > 0) e.stopPropagation();
+      },
+      true,
+    );
+    pdown(child, 1, 0, 0);
+    expect(result.current.panning).toBe(true);
+    act(() => {
+      child.dispatchEvent(new MouseEvent("pointerup", { button: 1, bubbles: true }));
+    });
+    expect(result.current.panning).toBe(false);
+  });
+
   it("stops panning on window blur", () => {
     const { child, result } = setup();
     pdown(child, 1, 0, 0);
