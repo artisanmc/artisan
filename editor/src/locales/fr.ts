@@ -1656,6 +1656,19 @@ const fr: typeof en = {
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "bouton · {{owner}}",
   },
+  collections: {
+    notFound: "Cette collection n'existe pas dans ce projet.",
+    count_one: "{{count}} {{kind}}",
+    count_other: "{{count}} {{kind}}",
+    empty: "{{collection}} est vide.",
+    open: "Ouvrir {{collection}}",
+    collapse: "Replier {{collection}}",
+    expand: "Déplier {{collection}}",
+    movedToRoot_one:
+      "{{count}} Document de {{collection}} ramené à la racine : son module ne le lit que là.",
+    movedToRoot_other:
+      "{{count}} Documents de {{collection}} ramenés à la racine : leur module ne les lit que là.",
+  },
   screens: {
     stale: "Affichage de ta dernière visite — vérification auprès du serveur…",
     loading: "Lecture des fichiers du serveur…",

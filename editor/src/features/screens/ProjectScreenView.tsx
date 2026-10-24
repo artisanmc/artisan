@@ -44,12 +44,6 @@ export function ProjectScreenView({
       </div>
     );
   }
-  const source = screenSource(project, screen);
-  const moduleView =
-    screen.component && screen.moduleId
-      ? getModule(screen.moduleId)?.screens?.[screen.component]
-      : undefined;
-
   return (
     <div className="absolute inset-0 overflow-auto" data-testid="project-screen">
       <div className="mx-auto flex max-w-5xl flex-col gap-4 p-6 md:p-8">
@@ -57,22 +51,38 @@ export function ProjectScreenView({
           <div className="eyebrow">{project.name}</div>
           <h1 className="truncate text-lg font-semibold">{screen.label}</h1>
         </div>
-        {!source ? (
-          <EmptyState title={t("screens.emptyTable")} hint={screen.table} />
-        ) : moduleView ? (
-          <ModuleScreenView
-            view={moduleView}
-            projectId={project.id}
-            source={source}
-            readOnly={false}
-          />
-        ) : source.shape === "table" ? (
-          <SourceRowsTable projectId={project.id} project={project} source={source} />
-        ) : (
-          <ConfigValueForm projectId={project.id} project={project} source={source} />
-        )}
+        <ProjectScreenForm project={project} screen={screen} />
       </div>
     </div>
+  );
+}
+
+/**
+ * The form of a Config screen on the Project's working copy: the module's own view, else
+ * the generated table or form. Also shown at the top of a collection's page (SDK 1.9).
+ */
+export function ProjectScreenForm({
+  project,
+  screen,
+}: {
+  project: Project;
+  screen: ServerEditorScreen;
+}) {
+  const { t } = useTranslation();
+  const source = screenSource(project, screen);
+  const moduleView =
+    screen.component && screen.moduleId
+      ? getModule(screen.moduleId)?.screens?.[screen.component]
+      : undefined;
+  if (!source) return <EmptyState title={t("screens.emptyTable")} hint={screen.table} />;
+  if (moduleView)
+    return (
+      <ModuleScreenView view={moduleView} projectId={project.id} source={source} readOnly={false} />
+    );
+  return source.shape === "table" ? (
+    <SourceRowsTable projectId={project.id} project={project} source={source} />
+  ) : (
+    <ConfigValueForm projectId={project.id} project={project} source={source} />
   );
 }
 

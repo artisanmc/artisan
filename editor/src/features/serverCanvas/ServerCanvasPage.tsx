@@ -11,7 +11,7 @@ import type { Edge } from "@/features/canvas/deriveEdges";
 import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
 import { fitViewport } from "@/features/canvas/focusViewport";
 import { type BoardGroup, groupEdges, serverBoard } from "@/features/canvas/groupedBoard";
-import { type BoardNode, deriveServerGraph } from "@/features/canvas/serverGraph";
+import { type BoardNode, boardGraph, deriveServerGraph } from "@/features/canvas/serverGraph";
 import { usePanZoom } from "@/features/canvas/usePanZoom";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { diskProjectsToSummaries } from "@/features/projects/projectGroups";
@@ -121,7 +121,7 @@ export function ServerCanvasPage() {
     [refs, results],
   );
 
-  const graph = useMemo(() => deriveServerGraph(projects), [projects]);
+  const graph = useMemo(() => boardGraph(deriveServerGraph(projects)), [projects]);
   const visible = useMemo(() => filterBoard(graph, filter), [graph, filter]);
   const arrangement = useMemo(
     () => (settled ? serverBoard(projects, visible) : null),

@@ -69,3 +69,16 @@ export function screenDestination(
     params: { serverId, screenId: screen.id },
   };
 }
+
+/** The page of a collection kind's Documents in a project (SDK 1.9): a shop's catalogue. */
+export function collectionDestination(
+  project: string | ProjectUrlIdentity,
+  serverId: string,
+  kind: string,
+) {
+  const projectId = typeof project === "string" ? project : projectUrlId(project);
+  return {
+    to: "/servers/$serverId/projects/$projectId/collection/$collectionKind" as const,
+    params: { serverId, projectId, collectionKind: kind },
+  };
+}

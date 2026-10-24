@@ -28,6 +28,14 @@ export interface DocumentKindContribution {
    * already in another project are still read and shown: only creation is refused.
    */
   projects?: string[];
+  /**
+   * The kind's Documents form one collection (SDK 1.9): a shop's catalogue, its categories.
+   * The host shows them in a single container instead of the board: one sidebar entry and
+   * one page listing them, with a button to create one. They stay at the project's root
+   * (never in a themed folder) and get no board node; a Document opens on its own view.
+   * Meant for kinds that are data, with no links to or from other Documents.
+   */
+  collection?: DocumentCollection;
   /** The kind's plural name in the registry and the "New …" menu: an i18n key of the host, or a literal. */
   label: string;
   /** The same name per interface language (`{ en, fr }`): a module carries its own; wins over `label`. */
@@ -84,6 +92,17 @@ export interface DocumentKindContribution {
      */
     accent?: string;
   };
+}
+
+/** The container of a kind's Documents (`DocumentKindContribution.collection`). */
+export interface DocumentCollection {
+  /** The container's name per interface language (`{ en: "Catalog", fr: "Catalogue" }`). */
+  labels: Record<string, string>;
+  /**
+   * A Config screen of the module (`api.screens.declare` id, `"boutique:settings"`) shown at
+   * the top of the collection's page: the settings that apply to the whole collection.
+   */
+  screen?: string;
 }
 
 /** One row of a Document's board node (`board.items`). */
