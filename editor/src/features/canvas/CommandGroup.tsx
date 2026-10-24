@@ -3,12 +3,12 @@ import { docKey } from "@/domain/documents";
 import type { Command, ProjectId } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
 import { useAlignmentStore } from "@/state/alignmentStore";
-import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { Group, Rect, Text } from "react-konva";
 import { dispatchOpenElement } from "./canvasEvents";
+import { commitNodeDrag } from "./commitNodeDrag";
 import { COMMAND_BOX, COMMAND_ROWS, commandBox } from "./menuLayout";
 import { useNodeColors } from "./nodeColors";
 import { showFullTitle } from "./nodeTitle";
@@ -26,7 +26,6 @@ interface CommandGroupProps {
  */
 export function CommandGroup({ projectId, command, position }: CommandGroupProps) {
   const key = docKey("command", command.id);
-  const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
   const nodeAlign = useNodeAlignment(projectId, key);
   const node = useNodeColors();
@@ -48,10 +47,10 @@ export function CommandGroup({ projectId, command, position }: CommandGroupProps
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      setCanvasPosition({ projectId, nodeId: key, x: e.target.x(), y: e.target.y() });
+      commitNodeDrag(projectId, key, e.target);
       useAlignmentStore.getState().clear();
     },
-    [projectId, key, setCanvasPosition],
+    [projectId, key],
   );
 
   const onClick = useCallback(

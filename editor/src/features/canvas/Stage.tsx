@@ -38,7 +38,7 @@ import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
 import { StageContextMenu } from "./StageContextMenu";
 import { dispatchOpenElement } from "./canvasEvents";
-import { activeBoardFolder, folderAt } from "./folderFilter";
+import { activeBoardFolder } from "./folderFilter";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useFolderFraming } from "./useFolderFraming";
@@ -276,13 +276,9 @@ function StageCanvas({ projectId, focus }: StageProps) {
         }}
         onClick={onStageClick}
         onDblClick={(e) => {
-          if (e.target !== e.target.getStage()) return;
-          // Focus escape hatch: double-clicking the background reframes.
-          if (focusMode) return refitFocus();
-          // On a folder frame's background: show only that folder.
-          const pointer = e.target.getStage()?.getPointerPosition();
-          const hit = pointer && folderAt(board?.groups ?? [], screenToWorld(pointer, viewport));
-          if (hit && hit !== folder) useUiStore.getState().setBoardFolder(projectId, hit);
+          // Focus escape hatch: double-clicking the background reframes. On the board, a
+          // folder frame takes its own double-click (show only that folder).
+          if (focusMode && e.target === e.target.getStage()) refitFocus();
         }}
         onTap={onStageClick}
         onMouseDown={marquee.onMouseDown}
@@ -317,8 +313,8 @@ function StageCanvas({ projectId, focus }: StageProps) {
           <BoardGroupsLayer
             projectId={projectId}
             board={board}
-            onManage={setGroupDialog}
             onDrag={setGroupDrag}
+            interactive={!panMode}
           />
         )}
         <Layer name="edges">
