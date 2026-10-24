@@ -2,6 +2,7 @@ import { actionCatalogFr } from "./actionCatalog";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import type en from "./en";
+import { mmEditorFr, textToolFr } from "./mmEditor";
 import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
 import { selfHostedFr } from "./selfHosted";
@@ -90,6 +91,8 @@ const fr: typeof en = {
   },
   drafts: draftsFr,
   selfHosted: selfHostedFr,
+  mmEditor: mmEditorFr,
+  textTool: textToolFr,
   serverCanvas: serverCanvasFr,
   changes: changesFr,
   actionCatalog: actionCatalogFr,
@@ -536,6 +539,9 @@ const fr: typeof en = {
     insertLore: "Insérer le lore source",
     replaceLore: "Remplacer le lore de l’item de base",
     editItem: "Modifier l’item",
+    inGamePreview: "En jeu",
+    noLoreWrap:
+      "Les lignes du lore ne sont pas coupées : ce projet n'a pas de largeur max du lore (propriétés du projet).",
     done: "Terminé",
     catalog: "Catalogue",
     library: "Boutons",
@@ -630,6 +636,8 @@ const fr: typeof en = {
     clickRemove: "Supprimer ce gestionnaire de clic",
     clickHandlerOn: "sur {{clickType}} :",
     dragToReorder: "Glisser pour réordonner",
+    searchActions: "Rechercher une action…",
+    noActionMatch: "Aucune action ne correspond.",
     addStep: "+ Ajouter une étape",
     addStepIfBranch: "branche if",
     elseIfAdd: "+ sinon si",
@@ -782,6 +790,11 @@ const fr: typeof en = {
     },
   },
   folders: {
+    properties: {
+      kind: "Dossier",
+      count_one: "{{count}} élément",
+      count_other: "{{count}} éléments",
+    },
     showOnly: "N'afficher que ce dossier",
     filtered: "Dossier : {{folder}}",
     showAll: "Tout afficher",
@@ -977,10 +990,8 @@ const fr: typeof en = {
       rearrange: "Réarranger le contenu",
       dissolve: "Retirer le dossier",
       cancel: "Annuler",
-      save: "Enregistrer",
       description:
         "Déplace les documents sélectionnés dans ce dossier du module (boutique/menus/…). Un dossier existant est réutilisé. Les références ne changent pas.",
-      editDescription: "Renommer déplace ses fichiers ; les références ne changent pas.",
       invalidSelection: "Sélectionne des documents de ce module.",
     },
     minimap: "Minimap",
@@ -1343,8 +1354,15 @@ const fr: typeof en = {
       searchPalette: "Palette de recherche (Cmd+K)",
       canvasToolbar: "Toolbar canvas (sélecteur de mode)",
       codeEditor: "Éditeur de code YAML",
+      minimessage: "Éditeur MiniMessage et aperçus en jeu",
       dataViz: "Data viz",
     },
+    mmEditorHint:
+      "Saisie MiniMessage riche : balises masquées, barre filtrée par le profil (ici un lore : pas de clic), bascule Riche / Code. MmTextField ajoute l'aperçu que demande le profil.",
+    mcPreviewHint:
+      "Aperçus en jeu présentationnels, dessinés avec la police vanilla. Ils ne prennent que du MiniMessage résolu.",
+    popoverHint:
+      "Un petit formulaire ancré à son déclencheur ; contrairement à un menu déroulant, on peut taper dans ses champs.",
     codeEditorHint:
       "Coloration syntaxique, numéros de ligne, pliage ; Entrée conserve l'indentation.",
     codeEditorReadOnlyHint:

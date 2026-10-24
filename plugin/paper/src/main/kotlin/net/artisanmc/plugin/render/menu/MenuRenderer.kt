@@ -12,9 +12,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import net.artisanmc.plugin.resourcepack.AssetEntry
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.Style
-import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -45,14 +42,12 @@ object MenuRenderer {
 
     private val itemMapper = ObjectMapper().registerKotlinModule()
 
-    private val noItalic = Style.style(TextDecoration.ITALIC.withState(false))
-
     private val INVENTORY_TYPES: Map<String, InventoryType> = mapOf(
         "hopper" to InventoryType.HOPPER,
         "dropper" to InventoryType.DROPPER,
     )
 
-    private fun parse(text: String) = LenientText.parse(text).applyFallbackStyle(noItalic)
+    private fun parse(text: String) = LenientText.itemName(text)
 
     /**
      * Source list of an iteration / a placement: a flat args key (classic sourceRef) OR a
@@ -445,7 +440,7 @@ object MenuRenderer {
             val base = if (replacement) emptyList() else ItemTexts.lore(meta) ?: emptyList()
             val lines = tokened.flatMap { raw -> localCtx.render(raw, papi) { key -> localCtx.langMap[key] }.split("\n") }
                 .flatMap { LoreWrap.wrap(LenientText.legacyToMini(it), localCtx.loreMaxWidth) }
-            ItemTexts.setLore(meta, if (lines == listOf("")) base else base + lines.map { parse(it).colorIfAbsent(NamedTextColor.WHITE) })
+            ItemTexts.setLore(meta, if (lines == listOf("")) base else base + lines.map(LenientText::loreLine))
         }
         ItemDetails.applyToMeta(app, meta)
         item.itemMeta = meta

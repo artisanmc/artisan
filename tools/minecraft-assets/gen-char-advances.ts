@@ -7,8 +7,8 @@
  *
  * Output:
  *  - plugin/core/src/main/kotlin/net/artisanmc/plugin/render/CharAdvances.kt
- *  - editor/src/features/canvas/title/charAdvances.ts
- *  - editor/src/features/canvas/title/charCells.ts
+ *  - editor/src/lib/mcFont/charAdvances.ts
+ *  - editor/src/lib/mcFont/charCells.ts
  *  - editor/src/lib/pack/vanillaFontChars.ts
  *
  * The MC vanilla logic is: try each provider in order; the first to claim a
@@ -34,7 +34,7 @@ const VERSION = process.argv[2] ?? "1.21.4";
 const FONT_DIR = join(import.meta.dir, "mc-assets", VERSION, "font");
 const TEXTURE_DIR = join(import.meta.dir, "mc-assets", VERSION, "textures/font");
 const PLUGIN_OUT = join(import.meta.dir, "../../plugin/core/src/main/kotlin/net/artisanmc/plugin/render/CharAdvances.kt");
-const EDITOR_OUT = join(import.meta.dir, "../../editor/src/features/canvas/title/charAdvances.ts");
+const EDITOR_OUT = join(import.meta.dir, "../../editor/src/lib/mcFont/charAdvances.ts");
 
 interface BitmapProvider {
   type: "bitmap";
@@ -167,7 +167,7 @@ console.log(`[gen-char-advances] wrote ${EDITOR_OUT} (${sorted.length} entries)`
 // to render text by cropping the right cell from the right atlas image.
 // Resolution: same priority order as the advance table (highest wins) — space
 // provider has no glyph so we skip it here.
-const CELLS_OUT = join(import.meta.dir, "../../editor/src/features/canvas/title/charCells.ts");
+const CELLS_OUT = join(import.meta.dir, "../../editor/src/lib/mcFont/charCells.ts");
 type Cell = { atlas: "ascii" | "accented" | "nonlatin_european"; col: number; row: number };
 const cells = new Map<number, Cell>();
 // Write in reverse priority order so the higher-priority atlas overwrites.

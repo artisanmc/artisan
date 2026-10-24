@@ -24,6 +24,8 @@ export type SelectionContext =
    * `item`: the part selected on its board node (`board.items`), scoped like an element.
    */
   | { kind: "document"; documentKind: string; id: string; item?: string }
+  /** A themed folder, selected through its frame on the board. */
+  | { kind: "folder"; path: string }
   | { kind: "unknown" };
 
 const CORE = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
@@ -32,8 +34,10 @@ export function selectionContext(
   project: Project | undefined,
   ids: ReadonlySet<string>,
   selectionMenuId: string | null,
+  folder: string | null = null,
 ): SelectionContext {
   if (!project) return { kind: "none" };
+  if (folder !== null && ids.size === 0) return { kind: "folder", path: folder };
   if (ids.size > 1) return { kind: "multi" };
   if (ids.size === 0) return { kind: "none" };
 

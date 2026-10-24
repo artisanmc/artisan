@@ -1,0 +1,66 @@
+import { CHAT, LORE } from "@/lib/mm/profiles";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
+import { describe, expect, it } from "vitest";
+
+// The test environment runs the editor in French (src/i18n).
+import { MmEditor } from "./MmEditor";
+import { MmTextField } from "./MmTextField";
+
+function Controlled({ initial, profile = CHAT }: { initial: string; profile?: typeof CHAT }) {
+  const [value, setValue] = useState(initial);
+  return (
+    <>
+      <MmEditor value={value} onChange={setValue} profile={profile} />
+      <output data-testid="value">{value}</output>
+    </>
+  );
+}
+
+describe("MmEditor", () => {
+  it("marks where a lore line will wrap without writing in the text", () => {
+    const line = "word ".repeat(20).trim();
+    render(<MmEditor value={line} onChange={() => {}} profile={LORE} wrapWidth={60} />);
+    const marks = document.querySelectorAll(".cm-mm-wrap");
+    expect(marks.length).toBeGreaterThan(0);
+    expect((marks[0] as HTMLElement).title).toMatch(/60 px/);
+    expect(document.querySelector(".cm-content")!.textContent).toBe(line);
+  });
+
+  it("hides the tags in the rich view and shows them in the code view", () => {
+    render(<Controlled initial="<red>hello</red>" />);
+    const content = () => document.querySelector(".cm-content")!.textContent;
+    expect(content()).toBe("hello");
+    fireEvent.click(screen.getByRole("button", { name: "Code" }));
+    expect(content()).toBe("<red>hello</red>");
+  });
+
+  it("flags a click in a lore without removing it", () => {
+    render(<Controlled initial="<click:run_command:'/x'>go</click>" profile={LORE} />);
+    expect(screen.getByText(/Action au clic : ignoré par Minecraft ici/)).toBeTruthy();
+    expect(screen.getByTestId("value").textContent).toBe("<click:run_command:'/x'>go</click>");
+  });
+
+  it("offers no click button where the profile forbids it", () => {
+    render(<Controlled initial="x" profile={LORE} />);
+    expect(screen.queryByRole("button", { name: /Action au clic/ })).toBeNull();
+  });
+
+  it("converts legacy codes on request", () => {
+    render(<Controlled initial="§6Gold" />);
+    fireEvent.click(screen.getByRole("button", { name: "Convertir les codes &" }));
+    expect(screen.getByTestId("value").textContent).toBe("<gold>Gold");
+  });
+});
+
+describe("MmTextField", () => {
+  it("shows the preview its profile calls for", () => {
+    render(<MmTextField value="<gray>line" onChange={() => {}} profile={LORE} />);
+    expect(screen.getByTestId("mc-tooltip")).toBeTruthy();
+  });
+
+  it("leaves the preview to the screen with layout none", () => {
+    render(<MmTextField value="x" onChange={() => {}} profile={LORE} layout="none" />);
+    expect(screen.queryByTestId("mc-tooltip")).toBeNull();
+  });
+});

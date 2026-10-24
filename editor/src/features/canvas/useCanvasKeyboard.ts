@@ -498,7 +498,7 @@ export function useCanvasKeyboard({
           return;
         }
         const selection = useSelectionStore.getState();
-        if (selection.ids.size > 0) selection.clear();
+        if (selection.ids.size > 0 || selection.folder !== null) selection.clear();
         else if (!e.defaultPrevented) onIdleEscape?.();
       }
     };

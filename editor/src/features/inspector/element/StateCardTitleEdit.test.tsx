@@ -20,6 +20,7 @@ import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
+import { EditorView } from "@codemirror/view";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -68,6 +69,15 @@ function makeProject(): Project {
     defaultLang: "fr",
     canvasLayout: {},
   };
+}
+
+/** Replaces the whole text of the dialog's MiniMessage editor that holds `current`. */
+function replaceEditorText(current: string, next: string) {
+  const content = [...within(screen.getByRole("dialog")).getAllByRole("textbox")].find(
+    (node) => node.classList.contains("cm-content") && node.textContent === current,
+  )!;
+  const view = EditorView.findFromDOM(content)!;
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
 }
 
 describe("state card title editing reaches the store", () => {
@@ -151,16 +161,7 @@ describe("state card title editing reaches the store", () => {
     useUiStore.setState({ activeLang: "en" });
     render(<SelectionInspector projectId={PACK_ID} />);
     fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
-    // The title field renders as a facade button first — activate it (the
-    // element header shows the same text; only the RevealField facade is a
-    // button, so click the button occurrence).
-    const facade = within(screen.getByRole("dialog"))
-      .getAllByText("§7Retour")
-      .map((n) => n.closest("button"))
-      .find((b) => b !== null)!;
-    fireEvent.click(facade);
-    const input = screen.getByDisplayValue("§7Retour");
-    fireEvent.change(input, { target: { value: "<gray>Retour" } });
+    replaceEditorText("§7Retour", "<gray>Retour");
 
     const project = useProjectsStore
       .getState()
@@ -178,14 +179,7 @@ describe("state card title editing reaches the store", () => {
     useUiStore.setState({ activeLang: "fr" });
     render(<SelectionInspector projectId={PACK_ID} />);
     fireEvent.click(screen.getByRole("button", { name: /modifier l.item|edit item/i }));
-    const facade = within(screen.getByRole("dialog"))
-      .getAllByText("§7Retour")
-      .map((n) => n.closest("button"))
-      .find((b) => b !== null)!;
-    fireEvent.click(facade);
-    fireEvent.change(screen.getByDisplayValue("§7Retour"), {
-      target: { value: "<gray>Retour" },
-    });
+    replaceEditorText("§7Retour", "<gray>Retour");
     const project = useProjectsStore
       .getState()
       .openProjects.projects.find((p) => p.id === PACK_ID)!;

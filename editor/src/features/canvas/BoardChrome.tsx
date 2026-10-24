@@ -6,6 +6,7 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import type { Project, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -146,24 +147,34 @@ export function BoardChrome({
   );
 }
 
-/** The manual group frames, under every other layer. */
+/**
+ * The folder frames, under every other layer. A click on one selects its folder, a
+ * double-click shows only that folder, a drag moves it with its content.
+ */
 export function BoardGroupsLayer({
   projectId,
   board,
-  onManage,
   onDrag,
+  interactive,
 }: {
   projectId: ProjectId;
   board: ProjectBoard | null;
-  onManage: (dialog: GroupDialogState) => void;
   onDrag: (drag: GroupDrag | null) => void;
+  /** Off while panning: a press on a frame then drags the board, not the frame. */
+  interactive: boolean;
 }) {
+  const selected = useSelectionStore((s) => s.folder);
   return (
     <Layer name="groups">
       <BoardGroupFrames
         groups={board?.groups ?? []}
-        onManage={(group) => {
-          if (group.kind === "group") onManage({ groupId: group.id });
+        selected={selected}
+        interactive={interactive}
+        onSelect={(group) => {
+          if (group.kind === "group") useSelectionStore.getState().selectFolder(group.id);
+        }}
+        onShowOnly={(group) => {
+          if (group.kind === "group") useUiStore.getState().setBoardFolder(projectId, group.id);
         }}
         onDrag={onDrag}
         onMove={(group, dx, dy) =>

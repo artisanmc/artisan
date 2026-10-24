@@ -3,8 +3,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSearch,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  matchesMenuSearch,
 } from "@/components/ui/dropdown-menu";
 import { IconTile } from "@/components/ui/icon-tile";
 import { isLTextNode, normalizeActionArgs } from "@/domain/actionArgs";
@@ -16,6 +18,7 @@ import type {
   IfCase,
   LText,
   MenuId,
+  ModelField,
   ProjectId,
   Step,
 } from "@/domain/types";
@@ -34,6 +37,7 @@ import { useGetText } from "@/lib/useText";
 import { moduleActionsOf, useServerActionsStore } from "@/state/serverActionsStore";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { TFunction } from "i18next";
 import { type CSSProperties, createContext, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionEditor, defaultEffectValue } from "../properties/ActionEditor";
@@ -373,12 +377,36 @@ export function AddStepLine({
   const { t } = useTranslation();
   // Actions a module registered on the active server (ADR extensible-document-kinds, R1).
   const declared = useServerActionsStore((s) => s.actions);
+  // Typed in the menu's field: only the actions whose name or label hold it stay.
+  const [query, setQuery] = useState("");
+  const shown = (name: string) =>
+    matchesMenuSearch(actionLabel(name, t), query) || matchesMenuSearch(name, query);
+  const coreActions = ACTION_TYPES.filter(shown);
   // The event actions are offered from the chain's event below, never by name.
-  const moduleActions = moduleActionsOf(declared).filter((a) => !isEventAction(a.name));
+  const moduleActions = moduleActionsOf(declared).filter(
+    (decl) => !isEventAction(decl.name) && shown(decl.name),
+  );
+  const ifShown = allowIf && matchesMenuSearch(t("flow.addStepIfBranch"), query);
   const event = useChainEvent();
+  const effectLabel = (field: ModelField) =>
+    t("triggers.setEffect", {
+      effect: t(`triggers.effects.${field.name}`, { defaultValue: field.label ?? field.name }),
+    });
+  const cancelShown =
+    event?.cancellable === true &&
+    (matchesMenuSearch(actionLabel("cancel_event", t), query) ||
+      matchesMenuSearch("cancel_event", query));
+  const effectsShown = (event?.effects ?? []).filter((f) =>
+    matchesMenuSearch(effectLabel(f), query),
+  );
+  const eventShown = cancelShown || effectsShown.length > 0;
   return (
     <div className="flex items-center">
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (!open) setQuery("");
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -396,7 +424,12 @@ export function AddStepLine({
           align="start"
           className="max-h-[60vh] overflow-y-auto border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text)]"
         >
-          {ACTION_TYPES.map((name) => (
+          <DropdownMenuSearch
+            value={query}
+            onValueChange={setQuery}
+            placeholder={t("flow.searchActions")}
+          />
+          {coreActions.map((name) => (
             <DropdownMenuItem
               key={name}
               onSelect={() => onPick({ kind: "action", action: defaultAction(name, firstMenuId) })}
@@ -416,13 +449,13 @@ export function AddStepLine({
               <ActionName name={decl.name} />
             </DropdownMenuItem>
           ))}
-          {event && (event.cancellable || event.effects.length > 0) ? (
+          {eventShown ? (
             <>
               <DropdownMenuSeparator className="bg-[var(--border-soft)]" />
               <DropdownMenuLabel className="text-[11px] text-[var(--text-faint)]">
                 {t("triggers.eventSteps")}
               </DropdownMenuLabel>
-              {event.cancellable ? (
+              {cancelShown ? (
                 <DropdownMenuItem
                   onSelect={() =>
                     onPick({ kind: "action", action: { name: "cancel_event", value: {} } })
@@ -432,7 +465,7 @@ export function AddStepLine({
                   <ActionName name="cancel_event" />
                 </DropdownMenuItem>
               ) : null}
-              {event.effects.map((field) => (
+              {effectsShown.map((field) => (
                 <DropdownMenuItem
                   key={field.name}
                   onSelect={() =>
@@ -446,20 +479,13 @@ export function AddStepLine({
                   }
                   className="cursor-pointer gap-2 focus:bg-[var(--surface-hover)]"
                 >
-                  <ActionName
-                    name="set_event"
-                    label={t("triggers.setEffect", {
-                      effect: t(`triggers.effects.${field.name}`, {
-                        defaultValue: field.label ?? field.name,
-                      }),
-                    })}
-                  />
+                  <ActionName name="set_event" label={effectLabel(field)} />
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator className="bg-[var(--border-soft)]" />
             </>
           ) : null}
-          {allowIf && (
+          {ifShown && (
             <DropdownMenuItem
               onSelect={() => onPick({ kind: "if", cases: [{ conditions: [], steps: [] }] })}
               className="cursor-pointer gap-2 focus:bg-[var(--surface-hover)]"
@@ -467,6 +493,11 @@ export function AddStepLine({
               <IconTile icon={BRANCH_ICON} {...branchColors} />
               <span className="text-[13px] text-[var(--text)]">{t("flow.addStepIfBranch")}</span>
             </DropdownMenuItem>
+          )}
+          {coreActions.length + moduleActions.length === 0 && !ifShown && !eventShown && (
+            <div className="px-2.5 py-1.5 text-[12.5px] text-[var(--text-faint)]">
+              {t("flow.noActionMatch")}
+            </div>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -529,17 +560,18 @@ function Branch({ children }: { children: React.ReactNode }) {
 }
 
 /** An action as a person names it: its family's icon tile, then its translated name (wire name on hover). */
+/** An action's name as a row shows it: the catalog's for a core action, else its own (without its module). */
+function actionLabel(name: string, t: TFunction): string {
+  const colon = name.indexOf(":");
+  if (isCoreAction(name)) return t(`actionCatalog.names.${name}`);
+  return colon > 0 ? name.slice(colon + 1) : name;
+}
+
 function ActionName({ name, label: forced }: { name: string; label?: string }) {
   const { t } = useTranslation();
   const { family, icon } = actionAppearance(name);
   const colon = name.indexOf(":");
-  const label = forced
-    ? forced
-    : isCoreAction(name)
-      ? t(`actionCatalog.names.${name}`)
-      : colon > 0
-        ? name.slice(colon + 1)
-        : name;
+  const label = forced ?? actionLabel(name, t);
   return (
     <>
       <IconTile icon={icon} {...familyColors(family)} />

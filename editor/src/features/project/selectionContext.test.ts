@@ -103,3 +103,12 @@ describe("selectionContext", () => {
     expect(selectionContext(undefined, new Set(["m1"]), null)).toEqual({ kind: "none" });
   });
 });
+
+describe("selectionContext, folder", () => {
+  it("names the selected folder", () => {
+    expect(selectionContext(project(), new Set(), null, "boutique")).toEqual({
+      kind: "folder",
+      path: "boutique",
+    });
+  });
+});
