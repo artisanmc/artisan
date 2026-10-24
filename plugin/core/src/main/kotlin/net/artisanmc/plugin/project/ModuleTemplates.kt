@@ -9,32 +9,26 @@ import net.artisanmc.modules.api.template.TemplateRegistry
  * `ModuleCommandFiles`). A generated template takes its id over from a registered one.
  */
 class ModuleTemplates(private val registry: TemplateRegistry) {
-    /**
-     * module id → builds the template Artisan generates for it from the module's own templates,
-     * read at each call: a module may register them after its commands. Replaced as a whole.
-     */
+    /** module id → the template Artisan generated for it; replaced as a whole. */
     @Volatile
-    private var generators: Map<String, (own: List<TemplateDeclaration>) -> TemplateDeclaration?> = emptyMap()
+    private var generated: Map<String, TemplateDeclaration> = emptyMap()
 
     /** The generated templates by module id, in place of the previous ones. */
-    fun setGenerated(byModule: Map<String, (own: List<TemplateDeclaration>) -> TemplateDeclaration?>) {
-        generators = byModule.toMap()
+    fun setGenerated(byModule: Map<String, TemplateDeclaration>) {
+        generated = byModule.toMap()
     }
 
-    private fun generated(moduleId: String, own: List<TemplateDeclaration> = registry.of(moduleId)): TemplateDeclaration? =
-        generators[moduleId]?.invoke(own)
-
     fun find(moduleId: String, templateId: String): TemplateDeclaration? =
-        generated(moduleId)?.takeIf { it.id == templateId } ?: registry.find(moduleId, templateId)
+        generated[moduleId]?.takeIf { it.id == templateId } ?: registry.find(moduleId, templateId)
 
-    fun of(moduleId: String): List<TemplateDeclaration> = registry.of(moduleId).let { merge(it, generated(moduleId, it)) }
+    fun of(moduleId: String): List<TemplateDeclaration> = merge(registry.of(moduleId), generated[moduleId])
 
     /** Every module with a template, in registration order, then those with a generated one only. */
     fun registered(): Map<String, List<TemplateDeclaration>> {
-        val extra = generators.keys
+        val extra = generated
         val out = linkedMapOf<String, List<TemplateDeclaration>>()
-        registry.registered().forEach { (module, own) -> out[module] = merge(own, generated(module, own)) }
-        extra.forEach { module -> if (module !in out) generated(module, emptyList())?.let { out[module] = listOf(it) } }
+        registry.registered().forEach { (module, own) -> out[module] = merge(own, extra[module]) }
+        extra.forEach { (module, template) -> out.putIfAbsent(module, listOf(template)) }
         return out
     }
 

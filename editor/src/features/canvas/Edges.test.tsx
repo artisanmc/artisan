@@ -37,13 +37,23 @@ vi.mock("@/lib/themeColors", () => ({ useCssVar: () => "#000000" }));
 // Fixed edges — this test exercises routing/selection, not action-walking.
 vi.mock("./deriveEdges", () => ({
   deriveEdges: () => [
-    { id: "m_shop_main->m_profile", source: "m_shop_main", target: "m_profile", triggers: [] },
-    { id: "m_profile->m_shop_main", source: "m_profile", target: "m_shop_main", triggers: [] },
+    {
+      id: "menu/m_shop_main->menu/m_profile",
+      source: "menu/m_shop_main",
+      target: "menu/m_profile",
+      triggers: [],
+    },
+    {
+      id: "menu/m_profile->menu/m_shop_main",
+      source: "menu/m_profile",
+      target: "menu/m_shop_main",
+      triggers: [],
+    },
   ],
 }));
 
 const PERSONAL = projectId("p_personal");
-const layout = { m_shop_main: { x: 0, y: 0 }, m_profile: { x: 700, y: 0 } };
+const layout = { "menu/m_shop_main": { x: 0, y: 0 }, "menu/m_profile": { x: 700, y: 0 } };
 const getProject = () =>
   useProjectsStore.getState().openProjects.projects.find((p) => p.id === PERSONAL)!;
 
@@ -66,10 +76,10 @@ describe("Edges", () => {
   });
 
   it("click selects the edge, clears node selection, shows two handles", () => {
-    useSelectionStore.getState().set(["m_about"]);
+    useSelectionStore.getState().set(["menu/m_about"]);
     render(<Edges project={getProject()} layout={layout} />);
     fireEvent.click(screen.getAllByTestId("konva-arrow")[0]!);
-    expect(useEdgeSelectionStore.getState().edgeId).toBe("m_shop_main->m_profile");
+    expect(useEdgeSelectionStore.getState().edgeId).toBe("menu/m_shop_main->menu/m_profile");
     expect(useSelectionStore.getState().ids.size).toBe(0);
     expect(screen.getAllByTestId("konva-circle")).toHaveLength(2);
   });
@@ -77,13 +87,13 @@ describe("Edges", () => {
   it("double-click on a handle clears the override", () => {
     useProjectsStore.getState().setEdgeAnchor({
       projectId: PERSONAL,
-      edgeId: "m_shop_main->m_profile",
+      edgeId: "menu/m_shop_main->menu/m_profile",
       end: "from",
       anchor: { side: "top", t: 0.2 },
     });
     render(<Edges project={getProject()} layout={layout} />);
     fireEvent.click(screen.getAllByTestId("konva-arrow")[0]!);
     fireEvent.doubleClick(screen.getAllByTestId("konva-circle")[0]!);
-    expect(getProject().canvasEdges?.["m_shop_main->m_profile"]).toBeUndefined();
+    expect(getProject().canvasEdges?.["menu/m_shop_main->menu/m_profile"]).toBeUndefined();
   });
 });

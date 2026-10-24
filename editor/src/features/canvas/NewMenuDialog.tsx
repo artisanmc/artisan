@@ -15,6 +15,7 @@ export function NewMenuDialog({ projectId, open, position, onOpenChange }: NewMe
   return (
     <NewPrefixedIdDialog
       projectId={projectId}
+      kind="menu"
       open={open}
       onOpenChange={onOpenChange}
       title={t("canvas.newMenuDialogTitle")}

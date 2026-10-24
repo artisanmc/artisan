@@ -1,4 +1,5 @@
 import { resolveDisplayRef } from "@/domain/capturedItems";
+import { docKey } from "@/domain/documents";
 import type { ElementId, Menu, ProjectId } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
@@ -74,7 +75,8 @@ export function MenuGroup({
   solo = false,
   systemModule,
 }: MenuGroupProps) {
-  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(menu.id));
+  const key = docKey("menu", menu.id);
+  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
   const selectedIds = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
   const focusedSlot = useSelectionStore((s) => s.focusedSlot);
@@ -100,8 +102,8 @@ export function MenuGroup({
   const type = menu.inventoryType ?? "chest";
   const box = menuBoxSize(type, menu.rows);
 
-  const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ projectId, menuId: menu.id, position });
-  const nodeAlign = useNodeAlignment(projectId, menu.id);
+  const { onMenuDragStart, onMenuDragEnd } = useMenuDrag({ projectId, nodeId: key, position });
+  const nodeAlign = useNodeAlignment(projectId, key);
 
   const { onClick } = useMenuClick({ projectId, menu, layout });
 
@@ -170,10 +172,10 @@ export function MenuGroup({
       // cancelBubble, so only the background bubbles up here.
       onClick={onClick}
       onTap={onClick}
-      onDblClick={solo ? undefined : () => dispatchOpenElement(menu.id)}
-      onDblTap={solo ? undefined : () => dispatchOpenElement(menu.id)}
+      onDblClick={solo ? undefined : () => dispatchOpenElement(key)}
+      onDblTap={solo ? undefined : () => dispatchOpenElement(key)}
       name={`menu:${menu.id}`}
-      id={menu.id}
+      id={key}
     >
       <MenuBackground menu={menu} />
       {systemModule && !solo && <SystemTag module={systemModule} width={box.width} />}
@@ -189,7 +191,7 @@ export function MenuGroup({
         />
       ) : null}
       {/* Edge-hover halo: gold border when this menu is the source of the hovered edge */}
-      {hoveredEdge?.source === menu.id ? (
+      {hoveredEdge?.source === key ? (
         <Rect
           width={box.width}
           height={box.height}

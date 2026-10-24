@@ -124,6 +124,16 @@ Ordre de résolution côté plugin : (1) `{i18n:...}` → valeur stockée pour l
 
 Schéma : aucun changement — les champs restent `string`. C'est une convention de contenu, validée et rendue par le moteur de l'éditeur et du plugin.
 
+**Lore traduit.** `lore` est une liste de lignes, ou une liste de lignes **par langue** (`$defs/Lore`) :
+
+```yaml
+lore:
+  en: ["<gray>Members: <white>{r.members}", "", "<aqua>[Left click] <white>manage the permissions"]
+  fr: ["<gray>Membres : <white>{r.members}", "", "<aqua>[Clic gauche] <white>gérer les permissions"]
+```
+
+Chaque langue a son propre nombre de lignes ; une langue absente retombe en bloc sur `defaultLang`. La forme legacy (une map `{ lang: texte }` par ligne) reste valide en lecture, l'éditeur ne l'écrit plus.
+
 ## Contexte du menu et data sources
 
 Tout flux de données entrant dans un menu — qu'il vienne de l'appelant ou d'une data source tierce — passe par `Menu.contextInputs`. Chaque entrée est une **slot nommée et typée** que le menu déclare ; sa valeur peut venir de trois sources :

@@ -123,7 +123,7 @@ describe("toSearchEntries", () => {
 
   it("targets the owning project, not the one being edited", () => {
     const catalogue = entries.find((e) => e.label === "Catalogue");
-    expect(catalogue?.target).toEqual({ openId: "main", projectUrlId: "boutique" });
+    expect(catalogue?.target).toEqual({ openId: "main", kind: "menu", projectUrlId: "boutique" });
     expect(catalogue?.group).toBe("menu");
     expect(catalogue?.context).toEqual({ key: "search.ctxInProject", owner: "BOUTIQUE" });
   });

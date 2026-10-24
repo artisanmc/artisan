@@ -116,7 +116,7 @@ export interface CanvasGroup {
   /** The top-level folder's name, also what the frame shows. */
   id: string;
   name: string;
-  /** Any Document id in the project — menus, commands and dialogs alike. */
+  /** The key (`docKey`) of each Document it holds, whatever its kind. */
   nodeIds: string[];
   color?: string;
   position?: { x: number; y: number };
@@ -176,8 +176,11 @@ export interface Project {
    * `.artisan/editor.yaml` — both shapes are valid input for the plugin.
    */
   i18nMode?: "extract" | "inline";
-  /** Board position of each document, keyed by its id (ids are unique across kinds). */
-  canvasLayout: Record<string, { x: number; y: number }>;
+  /**
+   * Board position of each document, keyed by `<kind>/<id>` (`docKey`): an id is unique
+   * within its kind only.
+   */
+  canvasLayout: Record<`${string}/${string}`, { x: number; y: number }>;
   /**
    * Editor metadata of themed folders, keyed by folder path (`boutique`,
    * `boutique/armes`): a top-level folder's frame color and position, and the
@@ -186,7 +189,7 @@ export interface Project {
    */
   folders?: Record<string, FolderMeta>;
   /**
-   * Manual edge-endpoint overrides, keyed by edge id ("source->target").
+   * Manual edge-endpoint overrides, keyed by edge id ("source->target", each end a `docKey`).
    * Editor-only metadata — exported as manifest `editor_edges`.
    */
   canvasEdges?: Record<string, { from?: EdgeAnchor; to?: EdgeAnchor }>;

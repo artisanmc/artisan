@@ -69,14 +69,7 @@ class ModuleCommandFilesTest {
         )
         .executor(run).build()
 
-    /** (file id, declaration, the ids of the module's other Documents). */
-    private fun cases() = listOf(
-        Triple("ah", auctionHouse(), emptySet()),
-        Triple("boutique", shop(), emptySet()),
-        Triple("tricky", tricky(), emptySet()),
-        // Its menu holds its name: the file is named apart, its name written.
-        Triple("boutique_command", shop(), setOf("boutique", "shop_main")),
-    )
+    private fun cases() = listOf("ah" to auctionHouse(), "boutique" to shop(), "tricky" to tricky())
 
     @Test fun `a declaration becomes its command file`() {
         assertEquals(
@@ -163,32 +156,15 @@ class ModuleCommandFilesTest {
         assertNull(ModuleCommandFiles.template(emptyList()))
     }
 
-    @Test fun `a command whose name another Document of its module holds is named apart`() {
-        val taken = ModuleCommandFiles.takenIds(
-            listOf(
-                net.artisanmc.modules.api.template.TemplateDeclaration.builder("menus", 1)
-                    .file("menus/boutique.yaml", "schema: menu/v1\n".toByteArray()).build(),
-            ),
-        )
-        assertEquals(setOf("boutique"), taken)
-        val template = assertNotNull(ModuleCommandFiles.template(listOf(shop(), auctionHouse()), taken))
-        assertEquals(listOf("commands/boutique_command.yaml", "commands/ah.yaml"), template.paths)
-        assertTrue(ModuleCommandFiles.yaml(shop(), taken).startsWith("schema: command/v1\nname: boutique\nactions:\n"))
-        val yaml = ModuleCommandFiles.commandYaml(shop(), taken)
-        assertEquals("boutique_command", yaml.id)
-        assertEquals("boutique", assertNotNull(CommandCompiler.compile(yaml)).name)
-    }
-
     @Test fun `an untouched command file the module no longer ships is removed, an edited one kept`() {
         val folder = kotlin.io.path.createTempDirectory("commands").toFile()
         try {
             net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(shop(), guild()))))
             File(folder, "commands/g.yaml").appendText("enabled: false\n")
-            val renamed = assertNotNull(ModuleCommandFiles.template(listOf(shop(), guild()), setOf("boutique", "g")))
-            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", renamed)
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(auctionHouse()))))
             assertTrue(!File(folder, "commands/boutique.yaml").exists())
-            assertTrue(File(folder, "commands/boutique_command.yaml").isFile)
             assertTrue(File(folder, "commands/g.yaml").isFile)
+            assertTrue(File(folder, "commands/ah.yaml").isFile)
         } finally {
             folder.deleteRecursively()
         }
@@ -224,10 +200,7 @@ class ModuleCommandFilesTest {
                     "kept equal by ModuleCommandFilesTest; regenerate with ARTISAN_WRITE_VECTORS=1). The editor " +
                     "reads each one and writes it back: the bytes must not change, or a Deploy would count " +
                     "the file as edited (moduleCommandFiles.test.ts).",
-                "files" to cases().map { (id, declaration, taken) ->
-                    assertEquals(id, ModuleCommandFiles.id(declaration, taken))
-                    linkedMapOf("id" to id, "yaml" to ModuleCommandFiles.yaml(declaration, taken))
-                },
+                "files" to cases().map { (id, declaration) -> linkedMapOf("id" to id, "yaml" to ModuleCommandFiles.yaml(declaration)) },
             ),
         )
         val file = vectorFile()

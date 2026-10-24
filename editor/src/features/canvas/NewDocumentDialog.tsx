@@ -39,6 +39,7 @@ export function NewDocumentDialog({
   return (
     <NewPrefixedIdDialog
       projectId={projectId}
+      kind={kind}
       open={open}
       onOpenChange={onOpenChange}
       title={t("canvas.newDocumentDialogTitle", { kind: kindLabel })}

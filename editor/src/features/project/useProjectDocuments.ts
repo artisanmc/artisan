@@ -2,7 +2,7 @@
 // to anchor a future React-hook wrapper; for now only the pure
 // `buildProjectDocuments` is needed (ProjectPanel calls it directly).
 import { CORE_DOCUMENT_KINDS, listDocumentKinds } from "@/domain/documentKinds";
-import { allDocuments, findDocument } from "@/domain/documents";
+import { allDocuments, findDocumentRef, isDocKey, parseDocKey } from "@/domain/documents";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type { Command, Dialog, Document, Menu, Project } from "@/domain/types";
 import { getText } from "@/lib/i18n";
@@ -39,10 +39,14 @@ function coreTitle(project: Project, kind: string, doc: Document, activeLang: st
   return doc.id;
 }
 
-/** Human-readable label for any Document id in the project, through its kind; fallback to the id. */
+/**
+ * Human-readable label for any Document of the project (by key, or a bare id:
+ * `findDocumentRef`), through its kind; fallback to the id.
+ */
 export function documentLabel(project: Project, id: string, activeLang: string): string {
-  const found = findDocument(project, id);
-  if (!found) return id;
+  const found = findDocumentRef(project, id);
+  // A link to another project's Document (`menu/boutique:main`) reads as its ref.
+  if (!found) return isDocKey(id) ? (parseDocKey(id)?.id ?? id) : id;
   const contribution = documentKindContribution(found.kind);
   if (contribution) return documentTitle(contribution, found.doc, project, activeLang);
   return coreTitle(project, found.kind, found.doc, activeLang);

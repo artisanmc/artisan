@@ -121,7 +121,7 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > `documents: DocumentKindContribution[]` : `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
 > `icon?`, `component` (vue du panneau Propriétés), `title?`, `listByTitle?`, `create`, `parse`,
 > `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
-> aperçu non interactif, `items` : lignes sélectionnables, SDK 1.2, avec `marker` et `hover` en 1.5, `caption` en 1.7 ;
+> aperçu non interactif, `items` : lignes sélectionnables, SDK 1.2, avec `marker` et `hover` en 1.5 ;
 > `accent`, SDK 1.5). L'hôte l'installe à l'enregistrement (`registerEditorModule`,
 > `lib/moduleDocumentKinds.ts`) dans sa table des kinds, ses codecs et ses visiteurs ; le panneau,
 > les listings, la recherche, la planche, les traductions et les arêtes le lisent par le registre
@@ -393,10 +393,8 @@ jeu. Le module déclare le comportement avec un id stable ; la commande elle-mê
 `command/v1` du dossier du module, comme ses menus système (design `commandes-unifiees`).
 
 À chaque démarrage et à l'arrivée d'un module, Artisan génère pour chaque commande racine
-déclarée le fichier `commands/<nom>.yaml` (`ModuleCommandFiles`, au format exact de l'éditeur ;
-`commands/<nom>_command.yaml`, son `name` écrit, quand un autre Document des templates du module
-porte déjà cet id, comme le menu `attribution` qu'ouvre `/attribution` : l'éditeur repère planche,
-sélection et liens par id nu, tous kinds confondus ; le vecteur partagé `testdata/module-command-files.json` l'impose aux deux côtés) et le garde dans
+déclarée le fichier `commands/<nom>.yaml` (`ModuleCommandFiles`, au format exact de l'éditeur :
+le vecteur partagé `testdata/module-command-files.json` l'impose aux deux côtés) et le garde dans
 le premier dossier du module comme élément système (template réservé `player_commands`,
 `SystemFiles`) : réécrit tant que l'admin n'y a pas touché, à lui dès qu'il l'édite (la fusion à
 trois voies lui apporte ensuite ce que le module change ailleurs, sous-commandes appariées par

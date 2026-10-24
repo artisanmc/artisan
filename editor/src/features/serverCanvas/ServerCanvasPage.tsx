@@ -1,5 +1,5 @@
 import { listDocumentKinds } from "@/domain/documentKinds";
-import { commandsOf, dialogsOf, documentsOf, menusOf } from "@/domain/documents";
+import { type DocKey, commandsOf, dialogsOf, documentsOf, menusOf } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import type { ProjectId } from "@/domain/types";
 import { BoardGroupFrames } from "@/features/canvas/BoardGroupFrames";
@@ -229,8 +229,9 @@ export function ServerCanvasPage() {
               edges={visible.edges.map((e) => ({
                 ...e.edge,
                 id: e.id,
-                source: e.source,
-                target: e.target,
+                // Server keys: `<project>/<kind>/<id>`.
+                source: e.source as DocKey,
+                target: e.target as DocKey,
               }))}
               positions={arrangement.positions}
               groups={arrangement.groups}
@@ -244,7 +245,7 @@ export function ServerCanvasPage() {
                 void navigate({
                   to: "/servers/$serverId/projects/$projectId",
                   params: { serverId, projectId: projectUrlId(project) },
-                  search: { doc: node.docId },
+                  search: { doc: node.docKey },
                 });
               }}
             />
@@ -343,7 +344,7 @@ function Board({
       const p = positions[n.key];
       if (!p) continue;
       const layout = out.get(n.projectId) ?? {};
-      layout[n.docId] = p;
+      layout[n.docKey] = p;
       out.set(n.projectId, layout);
     }
     return out;

@@ -77,7 +77,9 @@ La règle est une fonction pure des chemins, écrite deux fois et verrouillée p
   L'éditeur le porte dans `Document.folder` et un renommage enregistre le déplacement sous
   le dossier du Document (`renamedDocumentFiles`).
 - **Un id est unique par kind dans le module.** Deux fichiers du même kind et du même id,
-  dans deux dossiers : les deux sont refusés (`duplicate_id`).
+  dans deux dossiers : les deux sont refusés (`duplicate_id`). Deux kinds peuvent partager
+  un id (un menu et une commande `shop`) : `.artisan/editor.yaml` range alors la planche
+  (`layout`, `edges`) par `<kind>/<id>`, et l'éditeur signale ce partage à l'ouverture.
 - Un dossier de kind ne contient que des fichiers (`kind_dir_subfolder` sinon). Un dossier
   thématique ne peut pas porter le nom d'une ressource (`lang`, `items`, `data`, `models`,
   `templates`, `assets`, `overrides`, `config` : `reserved_folder`) ni dépasser 3 niveaux
@@ -154,6 +156,13 @@ le runtime lit la map du slot. Vecteur retiré : `testdata/i18n-address-conforma
 valeur du `defaultLang` (donc détecté comme non traduit pour les autres langues). Migration
 paresseuse : un projet inline mono-langue se lit à l'identique, la promotion string → map ne se fait
 qu'à la saisie d'une deuxième langue. La lecture reste tolérante à l'ancienne forme adressée.
+
+Un **lore** traduit est une liste de lignes **par langue** (`lore: { en: [...], fr: [...] }`) :
+chaque langue a son propre nombre de lignes et le fallback (langue demandée → `defaultLang` →
+n'importe laquelle) porte sur le bloc entier. Sans traduction, c'est une simple liste de lignes.
+La forme « une map `{lang: texte}` par ligne » reste lue (plugin `LoreDeserializer`, éditeur
+`menuV1ToDomain.loreText`, qui la regroupe en un bloc par langue) mais n'est plus écrite
+(`schema/fieldText.ts` `loreWire`).
 
 ## Champ `title` d'un menu
 

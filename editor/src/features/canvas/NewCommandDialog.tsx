@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { docKey } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -46,7 +47,7 @@ export function NewCommandDialog({
       name: name.trim(),
       position,
     });
-    useSelectionStore.getState().set([id]);
+    useSelectionStore.getState().set([docKey("command", id)]);
     setName("");
     onOpenChange(false);
   };

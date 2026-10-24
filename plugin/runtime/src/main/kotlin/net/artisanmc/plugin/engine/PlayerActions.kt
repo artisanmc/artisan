@@ -54,7 +54,7 @@ internal object PlayerActions {
         if (name != null || lore.isNotEmpty()) {
             val meta = item.itemMeta
             if (name != null) ItemTexts.setName(meta, LenientText.parse(rt.text(ctx, args, "name")))
-            if (lore.isNotEmpty()) ItemTexts.setLore(meta, lore.map { LenientText.parse(rt.executor.resolveText(it, ctx)) })
+            if (lore.isNotEmpty()) ItemTexts.setLore(meta, lore.flatMap { rt.executor.resolveText(it, ctx).split("\n") }.map(LenientText::parse))
             item.itemMeta = meta
         }
         val overflow = ctx.player.inventory.addItem(item).values

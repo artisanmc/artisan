@@ -44,19 +44,21 @@ describe("a command's sub-commands on the board", () => {
   });
 
   it("reads the Documents each row's steps open", () => {
-    expect(commandRowRefs(ah())).toEqual({ root: ["main"], rows: [[], [], ["claims"]] });
+    expect(commandRowRefs(ah())).toEqual({ root: ["menu/main"], rows: [[], [], ["menu/claims"]] });
   });
 
   it("links a menu only a sub-command opens from that sub-command's row", () => {
     const project = board();
     const src = { x: 0, y: 0, ...commandBox(ah()) };
     const boxes = {
-      ah: src,
-      claims: { x: 400, y: 0, width: 200, height: 100 },
-      main: { x: 400, y: 300, width: 200, height: 100 },
+      "command/ah": src,
+      "menu/claims": { x: 400, y: 0, width: 200, height: 100 },
+      "menu/main": { x: 400, y: 300, width: 200, height: 100 },
     };
     const anchors = subCommandAnchors(project, deriveEdges(project), boxes);
     const rowMid = COMMAND_ROWS.header + 2 * COMMAND_ROWS.row + (COMMAND_ROWS.row - 3) / 2;
-    expect(anchors).toEqual({ "ah->claims": { from: { side: "right", t: rowMid / src.height } } });
+    expect(anchors).toEqual({
+      "command/ah->menu/claims": { from: { side: "right", t: rowMid / src.height } },
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { commandNodeAt, commandNodeKeyPrefix } from "@/domain/commandNodes";
-import { commandsOf, mutableCommands, renamedDocumentFiles } from "@/domain/documents";
+import { commandsOf, docKey, mutableCommands, renamedDocumentFiles } from "@/domain/documents";
 import { rekeyCommand } from "@/domain/i18nSites";
 import { commandId, newCommandId } from "@/domain/ids";
 import { type StepFrame, type StepPath, moveStepMut, resolveParentMut } from "@/domain/stepPath";
@@ -16,7 +16,7 @@ import type {
   Step,
 } from "@/domain/types";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { allocStepLTexts, gcStepLTexts, rewriteCanvasEdgeIds, validateArgOrder } from "./helpers";
+import { allocStepLTexts, gcStepLTexts, renameBoardKey, validateArgOrder } from "./helpers";
 import type { Mutation } from "./mutate";
 import type { ProjectsSliceContext } from "./types";
 
@@ -216,7 +216,7 @@ export const createCommandsSlice = ({
           steps: [],
         });
         if (position) {
-          (project.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+          project.canvasLayout[docKey("command", id)] = position;
         }
       });
       return id;
@@ -326,12 +326,7 @@ export const createCommandsSlice = ({
       }
       mutateCommand(pId, oldId, (cmd, project) => {
         cmd.id = newId;
-        const layout = project.canvasLayout as Record<string, { x: number; y: number }>;
-        if (oldId in layout) {
-          layout[newId] = layout[oldId]!;
-          delete layout[oldId];
-        }
-        rewriteCanvasEdgeIds(project, oldId as string, newId as string);
+        renameBoardKey(project, "command", oldId, newId);
         rekeyCommand(project, cmd);
       });
       // Same intent as setDialogId, recorded once the rename is applied.

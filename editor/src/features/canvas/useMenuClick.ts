@@ -1,3 +1,4 @@
+import { docKey } from "@/domain/documents";
 import type { Menu, MenuId, ProjectId } from "@/domain/types";
 import { parsePositions } from "@/lib/positions";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -100,8 +101,9 @@ export function useMenuClick({ projectId, menu, layout }: UseMenuClickArgs) {
       // catch it) toggles the item, never the whole menu.
       const itemId = additive ? itemUnderPointer(e, projectId, menu, layout) : undefined;
       if (itemId) toggleElement(itemId, menu.id);
-      else if (additive) toggle(menu.id);
-      else if (selectionMenuId !== null || !ids.has(menu.id) || ids.size > 1) set([menu.id]);
+      else if (additive) toggle(docKey("menu", menu.id));
+      else if (selectionMenuId !== null || !ids.has(docKey("menu", menu.id)) || ids.size > 1)
+        set([docKey("menu", menu.id)]);
     },
     [menu, projectId, layout],
   );

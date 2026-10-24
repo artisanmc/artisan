@@ -1,9 +1,10 @@
-import { allDocuments, emptyDocuments, menusOf, mutableMenus } from "@/domain/documents";
+import { allDocuments, docKey, emptyDocuments, menusOf, mutableMenus } from "@/domain/documents";
 import { newProjectId } from "@/domain/ids";
 import { migrateTitle } from "@/domain/migrateTitle";
 import type { MenuId, OpenProjects, Project, ProjectId } from "@/domain/types";
 import { migrateProjectToI18n } from "@/lib/i18nMigration";
 import { migrateProjectDocuments } from "@/lib/projectDocumentsMigration";
+import { parseEditorEdges, parseEditorLayout } from "@/schema/projectFromFiles";
 import { produce } from "immer";
 import { gcDocumentLTexts, mintSourceLTexts } from "./helpers";
 import type { ProjectsSliceContext, ProjectsState } from "./types";
@@ -33,6 +34,7 @@ export interface ProjectsSlice {
     fromProjectId: ProjectId;
     toProjectId: ProjectId;
   }) => void;
+  /** [nodeIds]: the Documents' keys (`docKey`); any other id is ignored. */
   deleteFromProject: (input: { projectId: ProjectId; nodeIds: string[] }) => void;
   setProjectField: (input: {
     projectId: ProjectId;
@@ -127,7 +129,11 @@ export const createProjectsSlice = ({
           assets: (folded.assets ?? []).map((a) => ({ ...a, projectId: id })),
           i18nKeys: folded.i18nKeys ?? {},
           defaultLang: folded.defaultLang ?? "en",
-          canvasLayout: folded.canvasLayout ?? {},
+          // A file from before kinds were told apart keys the board by bare id.
+          canvasLayout: parseEditorLayout(folded.canvasLayout, folded.documents),
+          ...(folded.canvasEdges
+            ? { canvasEdges: parseEditorEdges(folded.canvasEdges, folded.documents) }
+            : {}),
         };
         // Imported project may use the legacy plain-string shape — migrate
         // in place so it lines up with the current LText-based domain.
@@ -224,10 +230,12 @@ export const createProjectsSlice = ({
       pId,
       (project) => {
         for (const { kind, doc } of allDocuments(project)) {
-          if (ids.has(doc.id)) gcDocumentLTexts(project, kind, doc);
+          if (ids.has(docKey(kind, doc.id))) gcDocumentLTexts(project, kind, doc);
         }
         for (const kind of Object.keys(project.documents)) {
-          project.documents[kind] = (project.documents[kind] ?? []).filter((d) => !ids.has(d.id));
+          project.documents[kind] = (project.documents[kind] ?? []).filter(
+            (d) => !ids.has(docKey(kind, d.id)),
+          );
         }
         for (const id of ids) {
           delete (project.canvasLayout as Record<string, { x: number; y: number }>)[id];

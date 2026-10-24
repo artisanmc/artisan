@@ -1,3 +1,4 @@
+import { type DocKey, parseDocKey } from "@/domain/documents";
 import type { MenuId, ProjectId } from "@/domain/types";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -7,11 +8,13 @@ import { toast } from "sonner";
 
 interface UseMenuDragArgs {
   projectId: ProjectId;
-  menuId: MenuId;
+  /** The menu's key (`docKey`): its id follows the slash. */
+  nodeId: DocKey;
   position: { x: number; y: number };
 }
 
-export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
+export function useMenuDrag({ projectId, nodeId, position }: UseMenuDragArgs) {
+  const menuId = parseDocKey(nodeId)!.id as MenuId;
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
 
   const onMenuDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
@@ -38,7 +41,7 @@ export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
         cy = evt.changedTouches[0].clientY;
       } else {
         // No pointer info — just persist the new position in this project.
-        setCanvasPosition({ projectId, nodeId: menuId, x: e.target.x(), y: e.target.y() });
+        setCanvasPosition({ projectId, nodeId, x: e.target.x(), y: e.target.y() });
         return;
       }
 
@@ -61,9 +64,9 @@ export function useMenuDrag({ projectId, menuId, position }: UseMenuDragArgs) {
         }
         return;
       }
-      setCanvasPosition({ projectId, nodeId: menuId, x: e.target.x(), y: e.target.y() });
+      setCanvasPosition({ projectId, nodeId, x: e.target.x(), y: e.target.y() });
     },
-    [projectId, menuId, position.x, position.y, setCanvasPosition],
+    [projectId, nodeId, menuId, position.x, position.y, setCanvasPosition],
   );
 
   return { onMenuDragStart, onMenuDragEnd };

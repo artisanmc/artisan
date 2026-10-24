@@ -22,7 +22,7 @@ function singleMenuProject(inventoryType: InventoryType): {
     layers: [],
   } as unknown as Menu;
   const project = { documents: { menu: [menu], command: [], dialog: [] } } as unknown as Project;
-  return { project, layout: { [id]: { x: 0, y: 0 } }, menuId: id };
+  return { project, layout: { [`menu/${id}`]: { x: 0, y: 0 } }, menuId: id };
 }
 
 describe("hitTestSlot", () => {
@@ -35,7 +35,7 @@ describe("hitTestSlot", () => {
 
   it("returns the chest slot under the cursor", () => {
     const menu = menusOf(personal)[0]!;
-    const pos = layout[menu.id]!;
+    const pos = layout[`menu/${menu.id}`]!;
     // Aim at slot index 13 (row 1, col 4) — center of the cell.
     const col = 13 % 9;
     const row = Math.floor(13 / 9);
@@ -46,7 +46,7 @@ describe("hitTestSlot", () => {
 
   it("returns null when the point falls in the title bar above the chest grid", () => {
     const menu = menusOf(personal)[0]!;
-    const pos = layout[menu.id]!;
+    const pos = layout[`menu/${menu.id}`]!;
     // Aim inside the title bar.
     const x = pos.x + TEX_FIRST_SLOT_X + 10;
     const y = pos.y + TEX_TITLE_H / 2;
@@ -55,7 +55,7 @@ describe("hitTestSlot", () => {
 
   it("returns null when the point falls in the player-inv area below the chest grid", () => {
     const menu = menusOf(personal)[0]!;
-    const pos = layout[menu.id]!;
+    const pos = layout[`menu/${menu.id}`]!;
     // Just past the chest grid bottom.
     const x = pos.x + TEX_FIRST_SLOT_X + 10;
     const y = pos.y + TEX_TITLE_H + menu.rows * TEX_SLOT_STRIDE + 10;

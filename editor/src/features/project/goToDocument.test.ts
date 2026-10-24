@@ -16,9 +16,12 @@ beforeEach(() => {
 
 describe("goToDocument", () => {
   it("selects the document, asks the board to centre on it, and returns to the board", () => {
-    goToDocument(navigate, { serverId: "s", project: core, ref: "main" });
-    expect(useUiStore.getState().centerRequest).toMatchObject({ projectId: "p1", docId: "main" });
-    expect([...useSelectionStore.getState().ids]).toEqual(["main"]);
+    goToDocument(navigate, { serverId: "s", project: core, ref: "menu/main" });
+    expect(useUiStore.getState().centerRequest).toMatchObject({
+      projectId: "p1",
+      docId: "menu/main",
+    });
+    expect([...useSelectionStore.getState().ids]).toEqual(["menu/main"]);
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({
         to: BOARD,
@@ -29,9 +32,9 @@ describe("goToDocument", () => {
   });
 
   it("centres again when the same document is picked twice", () => {
-    goToDocument(navigate, { serverId: "s", project: core, ref: "main" });
+    goToDocument(navigate, { serverId: "s", project: core, ref: "main", kind: "menu" });
     const first = useUiStore.getState().centerRequest?.nonce;
-    goToDocument(navigate, { serverId: "s", project: core, ref: "main" });
+    goToDocument(navigate, { serverId: "s", project: core, ref: "main", kind: "menu" });
     expect(useUiStore.getState().centerRequest?.nonce).not.toBe(first);
   });
 
@@ -48,12 +51,19 @@ describe("goToDocument", () => {
   });
 
   it("treats a ref qualified with this project's own folder as local", () => {
-    goToDocument(navigate, { serverId: "s", project: core, ref: "core:main" });
-    expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "main" });
+    goToDocument(navigate, { serverId: "s", project: core, ref: "menu/core:main" });
+    expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "menu/main" });
   });
 });
 
 describe("validateProjectSearch", () => {
+  it("opens another project's Document of a known kind by its key", () => {
+    goToDocument(navigate, { serverId: "s", project: core, ref: "boutique:main", kind: "menu" });
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ search: { doc: "menu/main" } }),
+    );
+  });
+
   it("keeps the document to centre on, from a deep link", () => {
     expect(validateProjectSearch({ doc: "main" })).toEqual({ tab: "overview", doc: "main" });
   });

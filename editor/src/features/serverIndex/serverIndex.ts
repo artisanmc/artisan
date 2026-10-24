@@ -76,7 +76,7 @@ export function toSearchEntries(documents: IndexedDocument[]): SearchEntry[] {
       label: d.label,
       context,
       haystack: `${d.label} ${d.projectName} ${d.ref}`.toLowerCase(),
-      target: { openId: d.docId, projectUrlId: d.urlId },
+      target: { openId: d.docId, kind: d.kind, projectUrlId: d.urlId },
     };
   });
 }

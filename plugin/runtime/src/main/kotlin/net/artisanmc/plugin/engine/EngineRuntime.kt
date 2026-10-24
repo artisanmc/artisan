@@ -70,10 +70,20 @@ object Args {
         else -> LocalizedText.of(value.toString())
     }
 
-    /** A `list(ltext)` argument (`lore`): a single text counts as a one-line list. */
+    /**
+     * A `list(ltext)` argument (`lore`): a single text counts as a one-line list; one list
+     * per language (`{en: [...], fr: [...]}`) is one block per language, lines joined by `\n`.
+     */
     fun ltextList(args: Map<String, Any>, name: String): List<LocalizedText> = when (val v = args[name]) {
         null -> emptyList()
         is List<*> -> v.mapNotNull { ltext(it) }
+        is Map<*, *> -> if (v.values.none { it is List<*> }) listOfNotNull(ltext(v)) else listOf(
+            LocalizedText.ofMap(
+                v.entries.filter { it.key != null && it.value != null }.associate { (lang, lines) ->
+                    lang.toString() to ((lines as? List<*>)?.joinToString("\n") { it?.toString().orEmpty() } ?: lines.toString())
+                },
+            ),
+        )
         else -> listOfNotNull(ltext(v))
     }
 }

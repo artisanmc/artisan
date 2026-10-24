@@ -30,7 +30,7 @@ function seed() {
           importedConnectors: [],
           i18nKeys: {},
           defaultLang: "en",
-          canvasLayout: { m1: { x: 100, y: 100 }, m2: { x: 104, y: 600 } } as any,
+          canvasLayout: { "menu/m1": { x: 100, y: 100 }, "menu/m2": { x: 104, y: 600 } } as any,
         } as Project,
       ],
     },
@@ -55,7 +55,7 @@ describe("computeAndApplyAlignment", () => {
     seed();
     useAlignmentStore.getState().clear();
     const node = fakeNode(104, 600);
-    computeAndApplyAlignment(PID, "m2", node as any, false);
+    computeAndApplyAlignment(PID, "menu/m2", node as any, false);
     expect(node.x()).toBe(100); // aligned on m1.left (diff 4 <= threshold)
     expect(useAlignmentStore.getState().guides.length).toBeGreaterThan(0);
   });
@@ -63,7 +63,7 @@ describe("computeAndApplyAlignment", () => {
     seed();
     useAlignmentStore.getState().clear();
     const node = fakeNode(104, 600);
-    computeAndApplyAlignment(PID, "m2", node as any, true);
+    computeAndApplyAlignment(PID, "menu/m2", node as any, true);
     expect(node.x()).toBe(104);
     expect(useAlignmentStore.getState().guides).toEqual([]);
   });
@@ -73,7 +73,7 @@ describe("useNodeAlignment.onDragMove", () => {
   it("ignores events bubbled from a child (target.id != selfId)", () => {
     seed();
     useAlignmentStore.getState().clear();
-    const { result } = renderHook(() => useNodeAlignment(PID, "m2"));
+    const { result } = renderHook(() => useNodeAlignment(PID, "menu/m2"));
     let nx = 104;
     let ny = 600;
     const slotNode = {
@@ -95,11 +95,11 @@ describe("useNodeAlignment.onDragMove", () => {
   it("acts when target.id === selfId", () => {
     seed();
     useAlignmentStore.getState().clear();
-    const { result } = renderHook(() => useNodeAlignment(PID, "m2"));
+    const { result } = renderHook(() => useNodeAlignment(PID, "menu/m2"));
     let nx = 104;
     let ny = 600;
     const menuNode = {
-      id: () => "m2",
+      id: () => "menu/m2",
       x: (v?: number) => {
         if (v !== undefined) nx = v;
         return nx;

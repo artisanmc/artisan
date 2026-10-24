@@ -15,6 +15,7 @@ export function NewDialogDialog({ projectId, open, position, onOpenChange }: New
   return (
     <NewPrefixedIdDialog
       projectId={projectId}
+      kind="dialog"
       open={open}
       onOpenChange={onOpenChange}
       title={t("canvas.newDialogDialogTitle")}

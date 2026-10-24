@@ -1,4 +1,5 @@
 import { folderGroups } from "@/domain/canvasGroups";
+import type { DocKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { type ArrangeEdge, type ArrangeMode, type ArrangeNode, arrangeBoard } from "./arrangeBoard";
 import type { Edge } from "./deriveEdges";
@@ -69,9 +70,9 @@ export function arrangeProjectGroups(
   const nodes = graph.nodes.filter((n) => n.projectId === project.id);
   const live = new Set(nodes.map((n) => n.key));
   const edges = graph.edges.filter((e) => live.has(e.source) && live.has(e.target));
-  const docIds = new Set(nodes.map((n) => n.docId));
+  const docKeys = new Set<string>(nodes.map((n) => n.docKey));
   const groups = folderGroups(project)
-    .map((g) => ({ ...g, nodeIds: g.nodeIds.filter((id) => docIds.has(id)) }))
+    .map((g) => ({ ...g, nodeIds: g.nodeIds.filter((key) => docKeys.has(key)) }))
     .filter((g) => g.nodeIds.length > 0);
   const parent = new Map<string, string>();
   const inner = new Map<
@@ -82,14 +83,14 @@ export function arrangeProjectGroups(
   const pins: Record<string, Point> = {};
   const metadata = new Map(groups.map((g) => [manualKey(project.id, g.id), g]));
   for (const [key, group] of metadata) {
-    const members = group.nodeIds.map((id) => documentKey(project.id, id));
+    const members = group.nodeIds.map((key) => documentKey(project.id, key as DocKey));
     const memberSet = new Set(members);
     for (const id of members) parent.set(id, key);
     const childNodes = nodes.filter((n) => memberSet.has(n.key));
     const childEdges = edges.filter((e) => memberSet.has(e.source) && memberSet.has(e.target));
     const childPins = Object.fromEntries(
       childNodes.flatMap((n) => {
-        const p = project.canvasLayout[n.docId as keyof typeof project.canvasLayout];
+        const p = project.canvasLayout[n.docKey];
         return p ? [[n.key, p]] : [];
       }),
     );
@@ -119,7 +120,7 @@ export function arrangeProjectGroups(
   for (const n of nodes) {
     if (parent.has(n.key)) continue;
     outerNodes.push(n);
-    const p = project.canvasLayout[n.docId as keyof typeof project.canvasLayout];
+    const p = project.canvasLayout[n.docKey];
     if (p) pins[n.key] = p;
   }
   const outerEdges = edges
@@ -238,7 +239,14 @@ export function groupEdges(edges: Edge[], representatives: Record<string, string
     const id = changed ? `${source}->${target}` : edge.id;
     const existing = result.get(id);
     if (existing) existing.triggers.push(...edge.triggers);
-    else result.set(id, { ...edge, id, source, target, triggers: [...edge.triggers] });
+    else
+      result.set(id, {
+        ...edge,
+        id,
+        source: source as DocKey,
+        target: target as DocKey,
+        triggers: [...edge.triggers],
+      });
   }
   return [...result.values()];
 }

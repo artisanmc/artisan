@@ -60,6 +60,9 @@ export interface Menu {
  */
 export type LText = string | Record<string, string>;
 
+/** Lore : une liste de lignes, ou une liste de lignes par langue (`{ en: [...], fr: [...] }`). */
+export type Lore = LText[] | Record<string, string[]>;
+
 /** Taille de police autorisée pour les title-layers text/textarea. */
 export type TitleFontSize = 8 | 12 | 16 | 20 | 24 | 32;
 
@@ -184,7 +187,8 @@ export interface Appearance {
   head?: string;
   count?: number;
   title?: LText;
-  lore?: LText[];
+  /** Lignes, ou une liste de lignes par langue (forme canonique traduite). */
+  lore?: Lore;
   /** `replace` : cette lore ÉCARTE celle de l'item de base. Absent = elle s'y ajoute (défaut) ; écrire `{base.lore}` la positionne soi-même. */
   lore_mode?: "replace";
   /** Map id → niveau ({ sharpness: 5 }) ; la forme liste est lue mais jamais écrite. */
@@ -310,7 +314,7 @@ export interface CloseMenuAction  { type: "close_menu"; }
  * bouton avec le placeholder `has_previous_menu`.
  */
 export interface OpenPreviousMenuAction { type: "open_previous_menu"; }
-export interface GiveItemAction   { type: "give_item"; material: string; count: number; nbt?: string; name?: string; lore?: string[]; }
+export interface GiveItemAction   { type: "give_item"; material: string; count: number; nbt?: string; name?: string; lore?: LText[]; }
 export interface TakeItemAction   { type: "take_item"; material: string; count: number; nbt?: string; }
 export interface GiveMoneyAction  { type: "give_money"; amount: number; currency?: string; }
 export interface TakeMoneyAction  { type: "take_money"; amount: number; currency?: string; }

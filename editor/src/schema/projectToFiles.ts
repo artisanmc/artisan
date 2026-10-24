@@ -5,7 +5,7 @@
 // sources by `dataV1FromDomain.ts`, translations by `langV1FromDomain.ts`.
 import { listDocumentKinds } from "@/domain/documentKinds";
 import { documentPath } from "@/domain/documentLayout";
-import { documentIds, documentsOf } from "@/domain/documents";
+import { documentKeys, documentsOf } from "@/domain/documents";
 import { persistedFolderMeta } from "@/domain/folders";
 import type { Project } from "@/domain/types";
 import { listLanguages } from "@/lib/i18nUsages";
@@ -91,7 +91,7 @@ export function projectToFiles(project: Project): Record<string, string> {
     files[`${base}/lang/${lang}.yaml`] = stringify(tree, yamlOpts);
   }
 
-  const liveIds = new Set<string>(documentIds(project));
+  const liveIds = new Set<string>(documentKeys(project));
   const editorLayout = Object.fromEntries(
     Object.entries(project.canvasLayout).filter(([id]) => liveIds.has(id)),
   );

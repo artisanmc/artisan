@@ -81,7 +81,7 @@ describe("SearchPalette", () => {
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({ to: "/servers/$serverId/projects/$projectId" }),
     );
-    expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "m_shop" });
+    expect(useUiStore.getState().centerRequest).toMatchObject({ docId: "menu/m_shop" });
     expect(useUiStore.getState().searchOpen).toBe(false);
   });
   it("Enter on an item selects the element + slot", () => {
@@ -139,7 +139,7 @@ describe("SearchPalette", () => {
         expect.objectContaining({
           to: "/servers/$serverId/projects/$projectId",
           params: expect.objectContaining({ projectId: "boutique" }),
-          search: { doc: "catalogue" },
+          search: { doc: "menu/catalogue" },
         }),
       );
     });

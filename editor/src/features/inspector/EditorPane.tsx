@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { docKey } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
 import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
@@ -23,10 +24,12 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
   const ctx = selectionContext(project, ids, selectionMenuId);
   const docId =
     ctx.kind === "menu" || ctx.kind === "element"
-      ? ctx.menuId
-      : ctx.kind === "command" || ctx.kind === "dialog" || ctx.kind === "document"
-        ? ctx.id
-        : null;
+      ? docKey("menu", ctx.menuId)
+      : ctx.kind === "command" || ctx.kind === "dialog"
+        ? docKey(ctx.kind, ctx.id)
+        : ctx.kind === "document"
+          ? docKey(ctx.documentKind, ctx.id)
+          : null;
   const relPath =
     project && docId
       ? documentRelPath(project, docId)

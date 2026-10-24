@@ -86,7 +86,7 @@ function projectWithMenus(): Project {
     documents: {
       menu: [menu("m1"), menu("m2")],
     },
-    canvasLayout: { m1: { x: 0, y: 0 }, m2: { x: 1000, y: 1000 } },
+    canvasLayout: { "menu/m1": { x: 0, y: 0 }, "menu/m2": { x: 1000, y: 1000 } },
   } as Project;
 }
 
@@ -136,7 +136,7 @@ describe("useMarqueeSelection — selection logic", () => {
     ptr.y = 110;
     act(() => hook.result.current.onMouseMove());
     act(() => hook.result.current.onMouseUp(stageEvent()));
-    expect([...useSelectionStore.getState().ids]).toEqual(["m1"]);
+    expect([...useSelectionStore.getState().ids]).toEqual(["menu/m1"]);
   });
 
   it("shouldConsumeClick returns true once after a drag then false", () => {
@@ -154,7 +154,7 @@ describe("useMarqueeSelection — selection logic", () => {
 
   it("shift adds to the existing selection", () => {
     const pk = projectWithMenus();
-    useSelectionStore.getState().add("m2");
+    useSelectionStore.getState().add("menu/m2");
     const ptr = { x: 10, y: 10 };
     const { hook } = renderMarquee(pk, ptr);
     act(() => hook.result.current.onMouseDown(stageEvent(true)));
@@ -162,7 +162,7 @@ describe("useMarqueeSelection — selection logic", () => {
     ptr.y = 110;
     act(() => hook.result.current.onMouseMove());
     act(() => hook.result.current.onMouseUp(stageEvent(true)));
-    expect([...useSelectionStore.getState().ids].sort()).toEqual(["m1", "m2"]);
+    expect([...useSelectionStore.getState().ids].sort()).toEqual(["menu/m1", "menu/m2"]);
   });
 
   it("middle button does not start a marquee (reserved for pan)", () => {

@@ -1,4 +1,4 @@
-import { documentIds, hasDocument, menusOf } from "@/domain/documents";
+import { docKey, documentKeys, findDocumentByKey, menusOf, parseDocKey } from "@/domain/documents";
 import type { EdgeAnchor, Project } from "@/domain/types";
 import { useCssVar } from "@/lib/themeColors";
 import { useEdgeHoverStore } from "@/state/edgeHoverStore";
@@ -32,16 +32,27 @@ interface EdgesProps {
   representatives?: Record<string, string>;
 }
 
-function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<string> {
+/** The keys of the Documents a selection touches: a Document itself, or the menu of a selected element. */
+function deriveHighlightSet(
+  project: Project,
+  ids: ReadonlySet<string>,
+  scope: string | null,
+): Set<string> {
   const out = new Set<string>();
   for (const id of ids) {
-    if (hasDocument(project, id)) {
+    if (scope === null && findDocumentByKey(project, id)) {
       out.add(id);
       continue;
     }
+    // A module Document's part is scoped by its Document's key.
+    if (scope !== null && findDocumentByKey(project, scope)) {
+      out.add(scope);
+      continue;
+    }
     for (const m of menusOf(project)) {
+      if (scope !== null && m.id !== scope) continue;
       if (m.layers.some((l) => l.elements.some((el) => el.id === id))) {
-        out.add(m.id);
+        out.add(docKey("menu", m.id));
         break;
       }
     }
@@ -51,6 +62,7 @@ function deriveHighlightSet(project: Project, ids: ReadonlySet<string>): Set<str
 
 export function Edges({ project, layout, representatives }: EdgesProps) {
   const selectedIds = useSelectionStore((s) => s.ids);
+  const selectionScope = useSelectionStore((s) => s.menuId);
   const activeLang = useUiStore((s) => s.activeLang);
   const menuPreviewArgs = useUiStore((s) => s.menuPreviewArgs);
   const setMenuPreviewArgs = useUiStore((s) => s.setMenuPreviewArgs);
@@ -63,10 +75,11 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
    * Cf. ADR `parameterised-menu-over-menu-per-category`.
    */
   const enterEdge = (edge: Edge) => {
-    const target = menusOf(project).find((m) => m.id === edge.target);
+    const target = menusOf(project).find((m) => docKey("menu", m.id) === edge.target);
     if (!target || (target.contextInputs ?? []).length === 0) return;
     const contexts = findPreviewCallContexts(target, project, snapshots, activeLang);
-    const next = nextCallContext(contexts, menuPreviewArgs[target.id], edge.source);
+    const from = parseDocKey(edge.source)?.id;
+    const next = nextCallContext(contexts, menuPreviewArgs[target.id], from);
     if (!next) return;
     setMenuPreviewArgs(target.id, next.args);
   };
@@ -74,9 +87,11 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
   const highlightSet = useMemo(
     () =>
       new Set(
-        [...deriveHighlightSet(project, selectedIds)].map((id) => representatives?.[id] ?? id),
+        [...deriveHighlightSet(project, selectedIds, selectionScope)].map(
+          (id) => representatives?.[id] ?? id,
+        ),
       ),
-    [project, selectedIds, representatives],
+    [project, selectedIds, selectionScope, representatives],
   );
   const hoveredEdgeId = useEdgeHoverStore((s) => s.edge?.id ?? null);
   const setHover = useEdgeHoverStore((s) => s.set);
@@ -92,7 +107,7 @@ export function Edges({ project, layout, representatives }: EdgesProps) {
 
   const boxes = useMemo(() => {
     const out: Record<string, Box> = {};
-    for (const id of documentIds(project)) {
+    for (const id of documentKeys(project)) {
       const box = nodeBox(project, id, layout);
       if (box) out[id] = box;
     }
