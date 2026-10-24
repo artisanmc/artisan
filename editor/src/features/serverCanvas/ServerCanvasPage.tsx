@@ -7,7 +7,6 @@ import { CommandGroup } from "@/features/canvas/CommandGroup";
 import { DialogGroup } from "@/features/canvas/DialogGroup";
 import { DocumentGroup } from "@/features/canvas/DocumentGroup";
 import { MenuGroup } from "@/features/canvas/MenuGroup";
-import { GUTTER_LABEL_HEIGHT } from "@/features/canvas/arrangeBoard";
 import type { Edge } from "@/features/canvas/deriveEdges";
 import { type Box, routeEdges } from "@/features/canvas/edgeRouting";
 import { fitViewport } from "@/features/canvas/focusViewport";
@@ -28,7 +27,7 @@ import type { TFunction } from "i18next";
 import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Arrow, Stage as KonvaStage, Layer, Rect, Text } from "react-konva";
+import { Arrow, Stage as KonvaStage, Layer, Rect } from "react-konva";
 import { type BoardFilter, filterBoard, parseBoardFilter } from "./boardFilter";
 
 const ROUTE = "/servers/$serverId/canvas" as const;
@@ -236,8 +235,6 @@ export function ServerCanvasPage() {
               positions={arrangement.positions}
               groups={arrangement.groups}
               representatives={arrangement.representatives}
-              gutter={arrangement.gutter}
-              gutterLabel={t("serverCanvas.gutter")}
               onOpen={(node) => {
                 const project = projects.find((p) => p.id === node.projectId);
                 if (!project) return;
@@ -263,8 +260,6 @@ function Board({
   positions,
   groups,
   representatives,
-  gutter,
-  gutterLabel,
   onOpen,
 }: {
   storageKey: string;
@@ -274,8 +269,6 @@ function Board({
   positions: Record<string, { x: number; y: number }>;
   groups: BoardGroup[];
   representatives: Record<string, string>;
-  gutter: { x: number; y: number } | null;
-  gutterLabel: string;
   onOpen: (node: BoardNode) => void;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -287,7 +280,6 @@ function Board({
   const [hovered, setHovered] = useState<string | null>(null);
   const edgeColor = useCssVar("--border-strong");
   const brand = useCssVar("--brand");
-  const muted = useCssVar("--text-mut");
 
   useEffect(() => {
     if (!wrapperRef.current) return;
@@ -397,16 +389,6 @@ function Board({
               pointerWidth={8}
             />
           ))}
-          {gutter && (
-            <Text
-              x={gutter.x}
-              y={gutter.y}
-              text={gutterLabel}
-              fontSize={14}
-              fill={muted}
-              height={GUTTER_LABEL_HEIGHT}
-            />
-          )}
         </Layer>
         {/* Same rendering as the project views, but with no gesture: a layer
             that listens to nothing can neither move a menu nor edit a slot. */}

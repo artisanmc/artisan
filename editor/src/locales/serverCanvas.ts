@@ -16,7 +16,6 @@ export const serverCanvasFr = {
   unresolvedHint: "Cible introuvable, ou id porté par plusieurs projets",
   failed_one: "{{count}} projet illisible",
   failed_other: "{{count}} projets illisibles",
-  gutter: "Pas encore reliés",
   readOnly: "Lecture seule — clic pour ouvrir un Document",
 };
 
@@ -38,6 +37,5 @@ export const serverCanvasEn: typeof serverCanvasFr = {
   unresolvedHint: "Missing target, or an id shared by several projects",
   failed_one: "{{count}} unreadable project",
   failed_other: "{{count}} unreadable projects",
-  gutter: "Not linked yet",
   readOnly: "Read-only — click to open a Document",
 };

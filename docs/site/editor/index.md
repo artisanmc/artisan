@@ -73,8 +73,7 @@ replacing unsaved work. The arrow beside Deploy offers **Discard changes**.
 
 The canvas shows every document of the project and arranges them automatically:
 commands on the left, then the menus they open, then the next menus, following the
-links between them. Documents that nothing opens yet sit at the bottom, under
-**Not linked yet**. Drag a document to place it yourself: it stays where you put it,
+links between them. Documents that nothing opens yet sit at the bottom. Drag a document to place it yourself: it stays where you put it,
 and the others move out of its way. **Rearrange**, in the toolbar at the bottom,
 releases every position and link anchor you set by hand and arranges the whole canvas again;
 **Ctrl+Z** undoes it.
