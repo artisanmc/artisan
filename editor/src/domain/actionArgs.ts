@@ -1,4 +1,8 @@
-import { type DeclaredActionLookup, declaredActionOf } from "@/lib/actions/coreActions";
+import {
+  type DeclaredActionLookup,
+  declarationOfAction,
+  declaredActionOf,
+} from "@/lib/actions/coreActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { walkActions } from "./stepPath";
 import type { Action, LText, ModelField, Step } from "./types";
@@ -72,7 +76,7 @@ export function actionArgsOf(
   action: Action,
   declOf: DeclaredActionLookup = declaredActionOf,
 ): Record<string, unknown> {
-  const decl = declOf(action.name);
+  const decl = declarationOfAction(action, declOf);
   return decl ? normalizeActionArgs(decl, action.value) : {};
 }
 

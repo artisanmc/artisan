@@ -12,6 +12,8 @@ import net.artisanmc.modules.api.condition.ConditionsApi;
 import net.artisanmc.modules.api.database.DatabaseApi;
 import net.artisanmc.modules.api.datasource.DataSourceRegistry;
 import net.artisanmc.modules.api.document.DocumentKindRegistry;
+import net.artisanmc.modules.api.cooldown.CooldownApi;
+import net.artisanmc.modules.api.gameevent.GameEventRegistry;
 import net.artisanmc.modules.api.editor.EditorBundleRegistry;
 import net.artisanmc.modules.api.event.ModuleEventBus;
 import net.artisanmc.modules.api.item.ItemStackApi;
@@ -64,6 +66,8 @@ public final class ArtisanAPI {
     private final EditorScreenRegistry screens;
     private final ActionRegistry actionRegistry;
     private final DocumentKindRegistry documentKinds;
+    private final GameEventRegistry gameEvents;
+    private final CooldownApi cooldowns;
     private final EditorBundleRegistry editorBundles;
     private final TemplateRegistry templates;
     private final PlayerCommandRegistry playerCommands;
@@ -92,6 +96,8 @@ public final class ArtisanAPI {
         this.screens = b.screens;
         this.actionRegistry = b.actionRegistry;
         this.documentKinds = b.documentKinds;
+        this.gameEvents = b.gameEvents;
+        this.cooldowns = b.cooldowns;
         this.editorBundles = b.editorBundles;
         this.templates = b.templates;
         this.playerCommands = b.playerCommands;
@@ -212,6 +218,22 @@ public final class ArtisanAPI {
     }
 
     /**
+     * The Game events a Trigger may listen to (ADR {@code triggers-and-variables}): Artisan's catalog
+     * and the modules' own. A module declares its events here and fires them; reported at Presence
+     * as {@code declared_game_events}.
+     */
+    @Beta
+    public GameEventRegistry getGameEvents() {
+        return gameEvents;
+    }
+
+    /** Per-player cooldowns, kept in the suite database (API 2.16.0); see {@link CooldownApi}. */
+    @Beta
+    public CooldownApi getCooldowns() {
+        return cooldowns;
+    }
+
+    /**
      * The modules' editor views, shipped in their jars (runtime module bundles, level 3): one
      * script per module, reported at Presence on its {@code installed_modules} entry and served
      * to the editor by the hub.
@@ -323,6 +345,8 @@ public final class ArtisanAPI {
         private EditorScreenRegistry screens = new EditorScreenRegistry();
         private ActionRegistry actionRegistry = new ActionRegistry();
         private DocumentKindRegistry documentKinds = new DocumentKindRegistry();
+        private GameEventRegistry gameEvents = new GameEventRegistry();
+        private CooldownApi cooldowns = CooldownApi.inMemory();
         private EditorBundleRegistry editorBundles = new EditorBundleRegistry();
         private TemplateRegistry templates = new TemplateRegistry();
         private PlayerCommandRegistry playerCommands = new PlayerCommandRegistry();
@@ -387,6 +411,16 @@ public final class ArtisanAPI {
 
         public Builder documentKinds(DocumentKindRegistry documentKinds) {
             this.documentKinds = Objects.requireNonNull(documentKinds);
+            return this;
+        }
+
+        public Builder gameEvents(GameEventRegistry gameEvents) {
+            this.gameEvents = Objects.requireNonNull(gameEvents);
+            return this;
+        }
+
+        public Builder cooldowns(CooldownApi cooldowns) {
+            this.cooldowns = Objects.requireNonNull(cooldowns);
             return this;
         }
 

@@ -33,6 +33,8 @@ export const actionCatalogFr = {
     set_arg_cycle_next: "Valeur suivante",
     set_arg_cycle_prev: "Valeur précédente",
     run_actions: "Lancer des actions",
+    cancel_event: "Annuler l'événement",
+    set_event: "Modifier l'événement",
   },
   branch: { if: "Si", elseIf: "Sinon si", else: "Sinon" },
 };
@@ -71,6 +73,8 @@ export const actionCatalogEn: typeof actionCatalogFr = {
     set_arg_cycle_next: "Next value",
     set_arg_cycle_prev: "Previous value",
     run_actions: "Run actions",
+    cancel_event: "Cancel the event",
+    set_event: "Change the event",
   },
   branch: { if: "If", elseIf: "Else if", else: "Else" },
 };

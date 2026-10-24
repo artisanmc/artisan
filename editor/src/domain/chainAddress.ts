@@ -20,14 +20,21 @@ export type ChainAddress =
       /** The sub-command whose steps these are; absent: the command's own. */
       sub?: CommandNodePath;
     }
-  | { kind: "dialogButton"; dialogId: DialogId; buttonIndex: number };
+  | { kind: "dialogButton"; dialogId: DialogId; buttonIndex: number }
+  /**
+   * A chain slot of a Document of any kind that declares its chains (`chainSlots`): a
+   * Trigger's `do`. Edited through the generic `editDocumentChain` reducer.
+   */
+  | { kind: "document"; docKind: string; docId: string; slot: string };
 
 /** The chain's location as the store reducers of its owner take it. */
 export type ChainTarget<A extends ChainAddress = ChainAddress> = A extends { kind: "element" }
   ? { menuId: MenuId; elementId: ElementId; appearanceIndex: number; clickType: ClickType }
   : A extends { kind: "command" }
     ? { commandId: CommandId; sub?: CommandNodePath }
-    : { dialogId: DialogId; buttonIndex: number };
+    : A extends { kind: "dialogButton" }
+      ? { dialogId: DialogId; buttonIndex: number }
+      : { docKind: string; docId: string; slot: string };
 
 export function chainTarget<A extends ChainAddress>(address: A): ChainTarget<A>;
 export function chainTarget(address: ChainAddress): ChainTarget {
@@ -43,6 +50,8 @@ export function chainTarget(address: ChainAddress): ChainTarget {
       return { commandId: address.commandId, sub: address.sub };
     case "dialogButton":
       return { dialogId: address.dialogId, buttonIndex: address.buttonIndex };
+    case "document":
+      return { docKind: address.docKind, docId: address.docId, slot: address.slot };
   }
 }
 

@@ -107,10 +107,17 @@ offer ends. The template decides how it reads.
 | Method | Example | Result |
 |---|---|---|
 | `until()` | `{group.period_end.until()}` | `3h 12m` — time left from now |
+| `ago()` | `{player.last_seen.ago()}` | `3d 4h` — time elapsed since |
+| `duration()` | `{player.playtime.duration()}` | `12h 30m` — a length of time, in milliseconds |
 
 It shows the most significant unit plus the next one down when that one is not
 zero: `2d 5h`, `3h 12m`, `5m 4s`, `45s`. Once the instant has passed it reads `0s`
 rather than going negative.
+
+The player carries three such values, kept for the whole network: `{player.first_seen}`
+(their first visit), `{player.last_seen}` (the end of their previous visit, absent on the
+first one) and `{player.playtime}` (time played, every server counted). A join message such
+as `Welcome back {player}, last seen {player.last_seen.ago()} ago` reads `3d 4h ago`.
 
 The units come from your project's translations, under the reserved `artisan.`
 keys — add them to `lang/<code>.yml` to change or translate them:

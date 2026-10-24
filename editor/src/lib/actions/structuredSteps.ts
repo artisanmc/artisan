@@ -2,6 +2,7 @@ import { canonicalActionValue, isLTextNode, normalizeActionArgs } from "@/domain
 import type { Action, Condition, I18nKey, IfCase, LText, Step } from "@/domain/types";
 import {
   type DeclaredActionLookup,
+  declarationOfAction,
   declaredActionOf,
   isCoreAction,
 } from "@/lib/actions/coreActions";
@@ -87,7 +88,7 @@ function encodeTexts(value: unknown, c: ActionTextCodec): unknown {
  * field-local text. An undeclared action is written as it was read.
  */
 function encodeAction(a: Action, c: ActionTextCodec, declOf: DeclaredActionLookup): StructuredStep {
-  const decl = declOf(a.name);
+  const decl = declarationOfAction(a, declOf);
   const value = decl
     ? canonicalActionValue(
         decl,

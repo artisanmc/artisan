@@ -31,7 +31,7 @@ _Avoid_: verbe, verb
 An ordered sequence of **Steps** — each Step a leaf **action** (`give_item`,
 `send_message`, `open_menu`…) or an `if` / `else if` / `else` branch over typed
 **conditions** — that runs when something triggers it: an **Element**'s click, a
-**Command** invocation, or a data-source `actions` field. `Step[]` in the domain.
+**Command** invocation, a **Trigger**'s **Game event**, or a data-source `actions` field. `Step[]` in the domain.
 On disk and on the wire it is a YAML list keyed by name (`- send_message: "Hi"`,
 `- if: [...]`), the **keyed action wire** of ADR `structured-action-wire`; the
 older **Action DSL** string is only read, never written.
@@ -435,6 +435,22 @@ Non-examples:
 - An **Action chain** is a list of statements (actions, `if`/`else` branches).
   An Expression is one value, and appears *inside* one of its conditions.
 - The surrounding text of a lore line is a **Template**, not an Expression.
+
+## Game event
+
+A named, declared game event a **Trigger** can listen to (`player_death`,
+`player_join`, `quests:completed`), with a typed, read-only context
+(`event.location`, `event.cause`) and declared **effects**, the only things a chain
+may change on it (`cancel_event`, `set_event: { join_message: … }`), never an
+un-cancel. Core events are bare names; a Module declares its own, namespaced, and
+fires them. Only synchronous, discrete, player-bound events qualify:
+continuous ones (`player_move`, per tick) and asynchronous ones (chat) are
+excluded. Cf. ADR
+`triggers-and-variables`.
+
+Non-examples:
+- A **Module event** (`ConfigReloadEvent` on `api.events`) is not a Game event —
+  it tells code that content changed; no authored chain listens to it.
 
 ## Hub
 
@@ -842,6 +858,36 @@ _Avoid_: bundle, live files
 Non-examples:
 - A hand edit on the server disk is **not** in the Snapshot until the next reload.
 - A **Draft** is never a Snapshot: it is unpublished work.
+
+## Trigger
+
+A **Document** kind (`triggers/<id>.yml`) that binds one **Game event** to an
+**Action chain**: when the event fires for a player, the optional `if` conditions
+and `cooldown_seconds` are checked, then the chain runs with the event's context bound as
+`{event.…}`. ADR `triggers-and-variables`. In the sense of ADR
+`extensible-document-kinds`, a Trigger is the Document whose only chain slot is
+its entry point.
+
+Non-examples:
+- A **Command** is not a Trigger — a player invokes it; a Trigger reacts to
+  something that happened in the game.
+- A Bukkit listener in a Module's code is not a Trigger — it is code; a Trigger is
+  authored content in the closed action vocabulary.
+- A chain slot of another kind (an Element's click, an NPC's `right_click`) is a
+  trigger in the board's sense, not a Trigger Document.
+
+## Variable
+
+A declared, typed, persistent value (`variables/<id>.yml`): scope `player` or
+`server`, type `string`, `number`, `boolean` or `location`, optional expiry. Written
+by `set_var` / `add_var` / `clear_var`, read as `{var.<id>}` and by `has_var`;
+stored in the suite database, so a Network shares a player's values. Cf. ADR
+`triggers-and-variables`.
+
+Non-examples:
+- A context input set by `set_arg` is not a Variable — it lives for one menu
+  session and is never stored.
+- A cooldown is not a Variable — it only answers "has this delay passed?".
 
 ## Version
 

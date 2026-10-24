@@ -106,7 +106,7 @@ public final class ModuleRegistry {
 
     /** The registries that record a module's registrations, in unregister order. */
     private static List<OwnedRegistry> owned(ArtisanAPI api) {
-        return List.of(api.getDataSources(), api.getCommands(), api.getModels(), api.getScreens(), api.getActionRegistry(), api.getDocumentKinds(),
+        return List.of(api.getDataSources(), api.getCommands(), api.getModels(), api.getScreens(), api.getActionRegistry(), api.getDocumentKinds(), api.getGameEvents(),
             api.getEditorBundles(), api.getTemplates(), api.getPlayerCommands());
     }
 

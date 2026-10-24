@@ -96,6 +96,8 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `playerCommands` (`getPlayerCommands()`, `@Beta`) | `PlayerCommandRegistry` | 2.7.0 |
 | `text` (`getText()`, `@Beta`) | `TextApi` | 2.10.0 |
 | `network` (`getNetwork()`, `@Beta`) | `NetworkApi` | 2.13.0 |
+| `gameEvents` (`getGameEvents()`, `@Beta`) | `GameEventRegistry` | 2.16.0 |
+| `cooldowns` (`getCooldowns()`, `@Beta`) | `CooldownApi` : `isActive(id, player)`, `start(id, player, seconds)`, `inMemory()` (tests) ; le store des cooldowns de menus et de commandes, gardé dans `artisan_cooldowns` | 2.16.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -284,6 +286,7 @@ Every action of a chain, Artisan's own included, runs through this registry (ADR
 | `ActionHandler.execute(ctx, args, runtime): ActionContext` (`@FunctionalInterface`) | `ActionContext` | 2.0.0 |
 | `ActionContext.getPlayer()`, `getArgs()`, `getLang()`, `getProjectId()`, `withArgs(args)` | | 2.0.0 |
 | `ActionRuntime.text(ctx, ltext)`, `run(ctx, chain)`, `warn(message)` | | 2.0.0 |
+| `ActionRuntime.textFor(ctx, ltext, viewer)` : the text in `viewer`'s language, `{player}` still the acting player (a broadcast, a join message) ; default method, falls back to `text` | | 2.16.0 |
 | `RegisteredAction.getDeclaration()`, `getModuleId()`, `toWire()` (`{name, args, primary?, module_id?}`, the `declared_actions` wire) | `RegisteredAction` | 2.0.0 |
 | `ModelField(name, type[, required])`, `withDefault`, `withLabel`, `withHelp`, `withRequired`, `toWire()` | `ModelField` | 2.0.0 |
 | `ModelFieldType.string()`, `number()`, `integer()`, `bool()`, `ltext()`, `minimessage()`, `minimessageMultiline()`, `item()`, `actions()`, `conditions()`, `list(of)`, `object(fields)`, `model(ref)`, `map(of)`, `enumOf(values)`, `union(tag, variants)`, `documentRef(kind)` ; `toWire()` (the editor's `ModelFieldType` shape) | `ModelFieldType` | 2.0.0 |
@@ -312,6 +315,34 @@ api.getDocumentKinds().register(new DocumentKindDeclaration("quest", "quests", L
 // after api.getProject().reload(), or in onReload():
 for (Map<String, Object> quest : api.getProject().documents(projectId, "quest")) { … }
 ```
+
+### `net.artisanmc.modules.api.gameevent.GameEventRegistry` and the Game event contract (`@Beta`, 2.16.0)
+
+A Game event is something that happens to a player that a Trigger (`triggers/<id>.yml`) may react to (ADR `triggers-and-variables`). Artisan's catalog (`player_death`, `block_break`…, the core module `triggers`) and the modules' own events (`quests:completed`) are one table, reported at Presence as `declared_game_events`. A module declares its event from `onEnable` (removed with the module), then fires it where it happens; `fire` runs the listeners on the calling thread, inline, and returns the frame they wrote to. Fire from the thread that owns the player (main thread on Paper, the player's region on Folia): the Trigger runs the player's actions there. Names follow the action rule: a bare word for Artisan, `module:event` for a module.
+
+The context is the read-only map a Trigger's chain reads under `event` (`{event.quest}`); `cancelled` is added for a cancellable event. A listener may cancel the event (once cancelled, nothing un-cancels) and write the effects the declaration names; applying both to the real event is the firing module's job, and an effect it does not apply should not be declared.
+
+```java
+GameEventDeclaration done = new GameEventDeclaration("quests:completed", "quests", GameEventFrequency.RARE,
+    List.of(new ModelField("quest", ModelFieldType.string())), false, List.of());
+api.getGameEvents().register(done);
+// where a quest completes, on the player's thread:
+if (api.getGameEvents().isObserved("quests:completed")) {
+    api.getGameEvents().fire("quests:completed", player, Map.of("quest", quest.getId()));
+}
+```
+
+| Member | Type | Since |
+|---|---|---|
+| `GameEventRegistry.register(decl)` (throws `DuplicateGameEventException`), `unregister(name)`, `find(name)`, `has(name)`, `declarations()` (by name), `registered()` | | 2.16.0 |
+| `GameEventRegistry.fire(name, player, context)` (throws `IllegalArgumentException` for an undeclared name; a listener that throws is logged, the next one runs), `isObserved(name)` | `GameEventFrame` | 2.16.0 |
+| `GameEventRegistry.addListener(listener)`, `removeListener(listener)` ; `GameEventListener.onGameEvent(frame)`, `observes(name)` (default true) | | 2.16.0 |
+| `GameEventDeclaration(name, group, frequency, context)`, `(name, group, frequency, context, cancellable, effects)` ; `getName()`, `getGroup()`, `getFrequency()`, `getContext()`, `isCancellable()`, `getEffects()`, `effect(name)`, `toWire()` | `GameEventDeclaration` | 2.16.0 |
+| `GameEventFrequency.RARE`, `NORMAL` (no class for per-tick or per-move events: they are not admitted), `wire()` | | 2.16.0 |
+| `GameEventFrame.getDeclaration()`, `getPlayer()`, `getContext()`, `isCancelled()`, `cancel()` (false if not cancellable), `setEffect(name, value)` (false if undeclared), `getEffects()`, `getEffect(name)` | `GameEventFrame` | 2.16.0 |
+| `GameEventFrame.getText(name, viewer)` : a text effect as `viewer` reads it (null viewer: the project's default language) ; `EffectText.render(viewer)`, what `set_event` writes for a text effect | `GameEventFrame`, `EffectText` | 2.16.0 |
+| `RegisteredGameEvent.getDeclaration()`, `getModuleId()`, `toWire()` (+ `module_id?`) ; `DuplicateGameEventException` (extends `IllegalStateException`) | | 2.16.0 |
+| `ArtisanAPI.Builder.gameEvents(registry)`, `GameEventRegistry.bindWarnings(warn)` (`@Internal`) | | 2.16.0 |
 
 ### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (`@Beta`, 2.3.0)
 
