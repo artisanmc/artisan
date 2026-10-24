@@ -120,7 +120,7 @@ class TemplateSeeds(
 
     /** Into the module's own folder, created empty by `moduleFolder`: a file already there wins. */
     private fun seedOwnFolder(dir: File, moduleId: String, template: TemplateDeclaration, key: String): Boolean {
-        if (!File(dir, "manifest.yaml").isFile) writeManifest(dir)
+        if (net.artisanmc.plugin.model.ModuleFile.find(dir) == null) writeManifest(dir)
         val result = TemplateCopies.copy(dir, moduleId, template)
         if (result.conflicts.isNotEmpty()) {
             logger?.warning("[Artisan] Template '$key' not seeded into ${dir.path}: ${result.conflicts.joinToString()} already hold other content.")
@@ -130,7 +130,7 @@ class TemplateSeeds(
         return result.written.isNotEmpty()
     }
 
-    /** Before the files: a folder without `manifest.yaml` is not a project. */
+    /** Before the files: a folder without a module file is not a project. */
     private fun writeManifest(dir: File) {
         val lang = defaultLang().substringBefore('_').substringBefore('-').lowercase()
             .takeIf { it.matches(Regex("[a-z]{2,3}")) } ?: "en"

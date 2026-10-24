@@ -1,4 +1,5 @@
 import type { DataSource, Project } from "@/domain/types";
+import { yamlStem } from "@/lib/yamlFiles";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { projectToFiles } from "@/schema/projectToFiles";
 
@@ -12,10 +13,11 @@ const base = (project: Project) => `plugins/Artisan/projects/${project.diskId ??
 /** The paths belonging to this source: its data file (or its per-row
  *  folder) and its beside schema. */
 function ownsPath(rel: string, sourceId: string): boolean {
+  const stem = yamlStem(rel);
   return (
-    rel === `data/${sourceId}.yaml` ||
+    stem === `data/${sourceId}` ||
     rel.startsWith(`data/${sourceId}/`) ||
-    rel === `models/${sourceId}.yaml`
+    stem === `models/${sourceId}`
   );
 }
 

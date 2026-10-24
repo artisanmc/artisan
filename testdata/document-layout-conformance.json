@@ -1,5 +1,5 @@
 {
-  "note": "Where a module's Documents live on disk — the cross-language contract behind themed folders (docs/architecture/project-files.md § Dossiers thématiques). Input: every file path relative to the module folder, and the registered kind folders. A Document is `<folders…>/<kind dir>/<id>.yaml`: zero to three themed folders, then a kind folder holding files only. The id is the file name, unique per kind across the module; the themed path never enters it. Paths are sorted. Owned by: plugin DocumentLayoutConformanceTest + editor domain/documentLayout.test.ts.",
+  "note": "Where a module's Documents live on disk — the cross-language contract behind themed folders (docs/architecture/project-files.md § Dossiers thématiques). Input: every file path relative to the module folder, and the registered kind folders. A Document is `<folders…>/<kind dir>/<id>.yml` (or `.yaml`): zero to three themed folders, then a kind folder holding files only. The id is the file name, unique per kind across the module; the themed path never enters it. Paths are sorted. Owned by: plugin DocumentLayoutConformanceTest + editor domain/documentLayout.test.ts.",
   "cases": [
     {
       "name": "root kind folders, as before folders existed",
@@ -105,6 +105,19 @@
         { "path": "a b/menus/z.yaml", "reason": "invalid_folder" },
         { "path": "a/b/c/d/menus/w.yaml", "reason": "too_deep" },
         { "path": "boutique/lang/menus/x.yaml", "reason": "reserved_folder" }
+      ]
+    },
+    {
+      "name": "both YAML extensions are read; one id under both is a duplicate",
+      "kindDirs": ["menus", "commands"],
+      "paths": ["menus/shop.yml", "menus/main.yaml", "commands/spawn.yml", "commands/spawn.yaml", "menus/notes.txt"],
+      "documents": [
+        { "path": "menus/main.yaml", "dir": "menus", "id": "main", "folder": "" },
+        { "path": "menus/shop.yml", "dir": "menus", "id": "shop", "folder": "" }
+      ],
+      "errors": [
+        { "path": "commands/spawn.yaml", "reason": "duplicate_id" },
+        { "path": "commands/spawn.yml", "reason": "duplicate_id" }
       ]
     }
   ]

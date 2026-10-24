@@ -157,7 +157,7 @@ export default {
     summaryKept: "{{count}} server file(s) not in the archive are kept",
     errors: {
       not_a_zip: "That file is not a readable .zip.",
-      no_manifest: "No manifest.yaml found — this is not a project archive.",
+      no_manifest: "No artisan-module.yml or manifest.yaml found — this is not a module archive.",
       invalid_project_id: "The archive's project name is invalid.",
       empty: "The archive holds no usable project files.",
       server_offline: "The server is offline: its current snapshot cannot be read.",

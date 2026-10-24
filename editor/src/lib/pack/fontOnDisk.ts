@@ -17,7 +17,8 @@ import type { ParsedMcFont } from "./mcFontsParser";
  * The descriptor holds paths **relative to the font folder**, as in the
  * original zip: what is written there is what the admin reads next to it.
  */
-export const FONT_DESCRIPTOR = "font.yaml";
+export const FONT_STEM = "font";
+export const FONT_DESCRIPTOR = `${FONT_STEM}.yaml`;
 export const FONT_DIR = "assets/fonts";
 
 export interface FontGlyphMeta {

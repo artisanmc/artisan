@@ -32,8 +32,24 @@ déplace vers `modules/` (`ModulesRootMigration`) : chaque dossier garde son nom
 qualifiées) et son `.artisan/project-id` (Versions, brouillons), l'ancien dossier reste en
 `projects.artisan-migrated/` et `modules/.artisan-migrations.yaml` empêche de rejouer la migration.
 Un échec remet tout en place et garde `projects/`. Conception : `design-projets-en-modules.md`
-(fichiers du projet), dont c'est le lot 1 ; le reste (fichier `module.yaml`, éditeur par module,
-racines d'add-on) suit.
+(fichiers du projet), dont c'est le lot 1 ; le reste (éditeur par module, racines d'add-on) suit.
+
+## Extensions YAML et fichier de module
+
+Le plugin et l'éditeur lisent `.yml` (la norme Bukkit/Paper) et `.yaml` (ce qu'Artisan écrit
+encore) partout : Documents, `lang/`, `data/`, `models/`, `templates/`, descripteurs d'`assets/`
+(`model/YamlFiles.kt`, `lib/yamlFiles.ts`). Le même fichier sous les deux extensions est une
+erreur : un Document est refusé (`duplicate_id`), un autre fichier est lu dans sa copie `.yml`
+et le log nomme l'autre. Le fichier qui fait d'un dossier un module est `artisan-module.yml`
+(`schema: module/v1`, mêmes champs que `manifest/v1`), lu en premier, puis `manifest.yml` et
+`manifest.yaml` (`model/ModuleFile.kt`). `ProjectContentApi.read` trouve un fichier sous l'une ou
+l'autre extension, et `read("manifest.yaml")` rend le fichier de module quel que soit son nom.
+Une sauvegarde de l'éditeur réécrit chaque fichier sous l'extension qu'il a sur le disque
+(`keepYamlExtensions`), un écran de configuration aussi.
+
+L'écriture reste en `.yaml` (et `manifest.yaml`) tant que les add-ons qui lisent leurs fichiers
+par leur nom exact (Boutique, Auctions, DailyRewards) ne lisent pas les deux. Ensuite, Artisan
+écrit en `.yml` et une migration au démarrage renomme l'existant.
 
 Un Project s'identifie par le nom de son dossier sur son serveur ; pour le hub et l'éditeur, il
 s'appelle `<server id>.<dossier>`, quel que soit le serveur (cf. `entities.md`). `.artisan-sync.yaml` (ancienne
@@ -70,7 +86,7 @@ La règle est une fonction pure des chemins, écrite deux fois et verrouillée p
 `ProjectReader` et `ResourceInventory`) et `domain/documentLayout.ts` (éditeur, lu par
 `projectFromFiles`, `adoptLateDocuments` et `projectToFiles`).
 
-- Un Document est `<dossiers…>/<dir du kind>/<id>.yaml`, avec 0 à 3 dossiers thématiques
+- Un Document est `<dossiers…>/<dir du kind>/<id>.yaml` (ou `.yml`), avec 0 à 3 dossiers thématiques
   (slug `^[a-z0-9][a-z0-9_-]*$`).
 - **L'id reste le nom du fichier.** Le dossier n'entre ni dans l'id, ni dans les références,
   ni dans les clés `lang/` ou de planche : déplacer un Document ne change que son chemin.

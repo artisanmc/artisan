@@ -1,5 +1,6 @@
 /**
- * Where a module's Documents live on disk: `<folders…>/<kind dir>/<id>.yaml`.
+ * Where a module's Documents live on disk: `<folders…>/<kind dir>/<id>.yml`
+ * (or `.yaml`, `lib/yamlFiles.ts`; the same id under both is a `duplicate_id`).
  *
  * Zero to {@link MAX_FOLDER_DEPTH} themed folders group Documents of any kind;
  * under each, the kind folders (`menus/`, `commands/`, a module's `quest_groups/`)
@@ -10,6 +11,8 @@
  * Mirror of the plugin's `DocumentLayout.kt`, locked by
  * `testdata/document-layout-conformance.json`.
  */
+
+import { yamlStem } from "@/lib/yamlFiles";
 
 /** Module-root folders that are never themed folders: resources, overrides, config. */
 export const RESOURCE_DIRS: ReadonlySet<string> = new Set([
@@ -69,7 +72,8 @@ function classifyOne(
   const segs = path.split("/");
   if (segs.some((s) => s.length === 0 || s.startsWith("."))) return null;
   const file = segs[segs.length - 1]!;
-  if (!file.endsWith(".yaml")) return null;
+  const id = yamlStem(file);
+  if (id === null) return null;
   const dirs = segs.slice(0, -1);
   if (dirs.length === 0 || RESOURCE_DIRS.has(dirs[0]!)) return null;
   const kindAt = dirs.findIndex((d) => kindDirs.has(d));
@@ -84,7 +88,7 @@ function classifyOne(
   return {
     path,
     dir: dirs[kindAt]!,
-    id: file.slice(0, -".yaml".length),
+    id,
     folder: folders.join("/"),
   };
 }

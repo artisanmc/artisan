@@ -4,6 +4,7 @@ import { allDocuments, docKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import type { ActiveModule } from "@/lib/api/modules";
 import type { FileOrigin } from "@/lib/api/templates";
+import { yamlPathOnDisk } from "@/lib/yamlFiles";
 
 /**
  * The Documents of [project] that are a module's system elements (a `system` template,
@@ -19,7 +20,7 @@ export function systemDocuments(
   const out = new Map<string, string>();
   for (const { kind, doc } of allDocuments(project)) {
     const dir = isDocumentKind(kind) ? documentKindDef(kind).dir : kind;
-    const path = documentPath(dir, doc.id, doc.folder);
+    const path = yamlPathOnDisk(documentPath(dir, doc.id, doc.folder), origins);
     const origin = origins[path];
     if (!origin) continue;
     const template = modules

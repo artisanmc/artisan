@@ -73,7 +73,7 @@ class TemplateRegistryTest {
         assertFailsWith<IllegalArgumentException> { TemplateDeclaration.builder("Daily", 1) }
         assertFailsWith<IllegalArgumentException> { TemplateDeclaration.builder("daily", 0) }
         val builder = TemplateDeclaration.builder("daily", 1)
-        for (path in listOf("../x.yaml", "/x.yaml", ".artisan/origins.yaml", "a//b.yaml", "menus/", "manifest.yaml")) {
+        for (path in listOf("../x.yaml", "/x.yaml", ".artisan/origins.yaml", "a//b.yaml", "menus/", "manifest.yaml", "artisan-module.yml")) {
             assertFailsWith<IllegalArgumentException>(path) { builder.file(path, ByteArray(0)) }
         }
         builder.file("a.yaml", ByteArray(0))

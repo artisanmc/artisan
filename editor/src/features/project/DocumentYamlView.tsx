@@ -7,6 +7,7 @@ import { rebuildServerPackInBackground } from "@/features/project/resourcePackSy
 import { adoptDiskIntoProject } from "@/features/project/saveProjectToDisk";
 import { hashContent } from "@/lib/contentHash";
 import { projectClient } from "@/lib/projectClient";
+import { yamlPathOnDisk } from "@/lib/yamlFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useRef, useState } from "react";
@@ -14,13 +15,17 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { FileHistory } from "./FileHistory";
 
-/** A Document's file (by key, or a bare id: `findDocumentRef`): its folder says its kind, its name its identity. */
+/**
+ * A Document's file (by key, or a bare id: `findDocumentRef`): its folder says its kind, its name
+ * its identity, the disk its extension (`yamlPathOnDisk`).
+ */
 export function documentRelPath(project: Project, id: string): string | null {
   const found = findDocumentRef(project, id);
   if (!found) return null;
   // A kind nobody registered (its module is absent) keeps its folder name as the kind.
   const dir = isDocumentKind(found.kind) ? documentKindDef(found.kind).dir : found.kind;
-  return documentPath(dir, found.doc.id, found.doc.folder);
+  const path = documentPath(dir, found.doc.id, found.doc.folder);
+  return yamlPathOnDisk(path, useProjectBaselineStore.getState().get(project.id) ?? {});
 }
 
 /**

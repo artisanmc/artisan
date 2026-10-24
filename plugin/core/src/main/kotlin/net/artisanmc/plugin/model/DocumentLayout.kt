@@ -1,7 +1,8 @@
 package net.artisanmc.plugin.model
 
 /**
- * Where a module's Documents live on disk: `<folders…>/<kind dir>/<id>.yaml`.
+ * Where a module's Documents live on disk: `<folders…>/<kind dir>/<id>.yml` (or `.yaml`,
+ * [YamlFiles]; the same id under both is a `duplicate_id`).
  *
  * Zero to [MAX_DEPTH] themed folders group Documents of any kind; under each,
  * the kind folders (`menus/`, `commands/`, a module's `quest_groups/`) hold
@@ -51,7 +52,7 @@ object DocumentLayout {
         val segs = path.split('/')
         if (segs.any { it.isEmpty() || it.startsWith('.') }) return null
         val file = segs.last()
-        if (!file.endsWith(".yaml")) return null
+        val id = YamlFiles.stem(file) ?: return null
         val dirs = segs.dropLast(1)
         if (dirs.isEmpty() || dirs.first() in RESOURCE_DIRS) return null
         val kindAt = dirs.indexOfFirst { it in kindDirs }
@@ -63,7 +64,6 @@ object DocumentLayout {
             if (!FOLDER.matches(f)) return Error(path, "invalid_folder")
         }
         if (folders.size > MAX_DEPTH) return Error(path, "too_deep")
-        val id = file.removeSuffix(".yaml")
         return Entry(path, dirs[kindAt], id, folders.joinToString("/"))
     }
 }

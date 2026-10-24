@@ -502,3 +502,18 @@ describe("disk id ≠ internal id", () => {
     expect(keys.some((k) => k.includes(INTERNAL))).toBe(false);
   });
 });
+
+it("reads a module of .yml files and its artisan-module.yml", () => {
+  const p = projectFromFiles(PID, {
+    [`${base}/artisan-module.yml`]: "schema: module/v1\ndefault_lang: fr\nlanguages: [fr]\n",
+    [`${base}/manifest.yaml`]: "schema: manifest/v1\ndefault_lang: en\n",
+    [`${base}/menus/main.yml`]: "title: Boutique\nsize: 27\n",
+    [`${base}/data/settings.yml`]: "discount: 10\n",
+    [`${base}/lang/fr.yaml`]: "k: ancien\n",
+    [`${base}/lang/fr.yml`]: "k: nouveau\n",
+  });
+  expect(p.defaultLang).toBe("fr");
+  expect(menusOf(p).map((m) => m.id)).toEqual(["main"]);
+  expect(p.dataSources.map((s) => String(s.id))).toEqual(["settings"]);
+  expect(Object.entries(p.i18nKeys).find(([key]) => key === "k")?.[1].fr).toBe("nouveau");
+});

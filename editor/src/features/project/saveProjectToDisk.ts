@@ -3,6 +3,7 @@ import type { Project } from "@/domain/types";
 import { DraftApiError } from "@/lib/api/projectDrafts";
 import type { ProjectFileConflict, ProjectFilesError } from "@/lib/api/projectFiles";
 import { projectClient } from "@/lib/projectClient";
+import { keepYamlExtensions, yamlPathOnDisk } from "@/lib/yamlFiles";
 import { projectFromFiles } from "@/schema/projectFromFiles";
 import { projectToFiles } from "@/schema/projectToFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
@@ -10,11 +11,17 @@ import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { applyRenames, planWrite, toRelative } from "./diskSave";
 import { publishPersistedDraft, usePersistedDraftStore } from "./persistedDrafts";
 
-/** The rel-keyed tree a save of [project] would produce, without writing. */
+/**
+ * The rel-keyed tree a save of [project] would produce, without writing. A YAML file keeps
+ * the extension it has on disk (`keepYamlExtensions`).
+ */
 export function projectTree(project: Project): Record<string, string> {
   const cloned = structuredClone(project);
   rekeyProject(cloned);
-  return toRelative(projectToFiles(cloned), project.diskId ?? project.id);
+  return keepYamlExtensions(
+    toRelative(projectToFiles(cloned), project.diskId ?? project.id),
+    useProjectBaselineStore.getState().get(project.id),
+  );
 }
 
 /**
@@ -159,7 +166,10 @@ export async function saveProjectToDisk(
   }
   // Declared renames turn "delete + create" into a move: only the editor's
   // intent can tell them apart.
-  const declared = useProjectDraftStore.getState().pendingRenames[project.id] ?? [];
+  const declared = (useProjectDraftStore.getState().pendingRenames[project.id] ?? []).map((r) => ({
+    ...r,
+    from: yamlPathOnDisk(r.from, baseline),
+  }));
   const plan = await applyRenames(await planWrite(baseline, next), declared, baseline);
   // Nothing moved: skip the round trip, and above all do not write identical
   // files (which would pollute the trash for nothing).

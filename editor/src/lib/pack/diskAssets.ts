@@ -1,7 +1,8 @@
+import { yamlStem } from "@/lib/yamlFiles";
 import { parse } from "yaml";
 import { sha256Hex } from "../sha256";
 import { parseAssetUsages } from "./assetUsages";
-import { FONT_DESCRIPTOR, FONT_DIR, fontFromDisk } from "./fontOnDisk";
+import { FONT_DIR, FONT_STEM, fontFromDisk } from "./fontOnDisk";
 import type { AssetRow } from "./resourcePackBuilder";
 
 /**
@@ -59,11 +60,12 @@ export function diskAssetsFromTree(
 ): DiskAsset[] {
   const descriptors = new Map<string, Record<string, unknown>>();
   for (const f of files) {
-    if (!f.path.startsWith("assets/") || !f.path.endsWith(".yaml")) continue;
+    const stem = f.path.startsWith("assets/") ? yamlStem(f.path) : null;
+    if (stem === null || (descriptors.has(stem) && !f.path.endsWith(".yml"))) continue;
     try {
       const parsed = parse(f.content);
       if (parsed && typeof parsed === "object") {
-        descriptors.set(f.path.replace(/\.yaml$/, ""), parsed as Record<string, unknown>);
+        descriptors.set(stem, parsed as Record<string, unknown>);
       }
     } catch {
       // Unreadable descriptor: the image stays usable with defaults. Making it
@@ -77,8 +79,9 @@ export function diskAssetsFromTree(
   // PNG per glyph. The font is the asset — otherwise the library would show 95
   // "glyphs" named a, b, c… next to it.
   for (const f of files) {
-    if (!f.path.startsWith(`${FONT_DIR}/`) || !f.path.endsWith(`/${FONT_DESCRIPTOR}`)) continue;
-    const dir = f.path.slice(0, -(FONT_DESCRIPTOR.length + 1));
+    const descriptor = yamlStem(f.path);
+    if (!f.path.startsWith(`${FONT_DIR}/`) || !descriptor?.endsWith(`/${FONT_STEM}`)) continue;
+    const dir = descriptor.slice(0, -(FONT_STEM.length + 1));
     const name = dir.slice(dir.lastIndexOf("/") + 1);
     const meta = fontFromDisk(f.content);
     if (!meta) continue; // descripteur illisible : on n'invente pas de police
