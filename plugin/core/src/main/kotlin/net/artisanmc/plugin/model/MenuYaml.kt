@@ -151,6 +151,8 @@ data class AppearanceYaml(
     val count: Int? = null,
     /** Field-local text (ADR `field-local-translations`): literal or `{lang: text}` map. */
     val title: LocalizedText? = null,
+    /** Lines, or one list per language (see [LoreDeserializer]). */
+    @JsonDeserialize(using = LoreDeserializer::class)
     val lore: List<LocalizedText> = emptyList(),
     /** Wire handler per click type: string (legacy DSL), `{steps}`, or keyed (map/list). */
     val click: Map<String, Any?> = emptyMap(),

@@ -534,10 +534,7 @@
           "$ref": "#/$defs/LText"
         },
         "lore": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/LText"
-          }
+          "$ref": "#/$defs/Lore"
         },
         "enchants": {
           "description": "Enchantements appliqués à l'item. Forme canonique : map id → niveau ({ sharpness: 5 }). Les ids courts (sharpness), namespacés (minecraft:sharpness) et legacy Bukkit (DAMAGE_ALL) sont acceptés en lecture ; un id inconnu du serveur est ignoré avec un WARN. Les niveaux au-delà du max vanilla sont autorisés.",
@@ -777,6 +774,32 @@
             }
           },
           "description": "Map field-local { lang: texte }."
+        }
+      ]
+    },
+    "Lore": {
+      "description": "Un lore (ADR field-local-translations §1). Forme canonique traduite : une liste de lignes PAR LANGUE ({ en: [...], fr: [...] }), chaque langue avec son propre nombre de lignes, résolue en bloc : langue demandée → defaultLang → n'importe quelle entrée. Sans traduction : une simple liste de lignes. La liste de LText (une map { lang: texte } par ligne) reste lue pour les fichiers existants mais n'est plus écrite.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LText"
+          },
+          "description": "Liste de lignes ; une ligne peut être une map legacy { lang: texte }."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z]{2,3}(_[A-Za-z]{2,4})?$": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Une liste de lignes par langue."
         }
       ]
     },

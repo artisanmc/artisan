@@ -59,3 +59,44 @@ internal class LocalizedTextDeserializer : StdDeserializer<LocalizedText>(Locali
         }
     }
 }
+
+/**
+ * A lore: its lines as [LocalizedText]s. On disk (ADR `field-local-translations` §1) it is
+ * either one list per language — `{ en: [...], fr: [...] }`, the canonical form, each
+ * language with its own line count — or a list of lines, each a literal or a legacy
+ * per-line `{lang: text}` map. A bare string is a one-line lore.
+ *
+ * The per-language form becomes ONE map whose values are the language's lines joined
+ * by `\n`: renderers already split on it, and a missing language falls back as a whole
+ * block (requested → default), never line by line.
+ */
+internal class LoreDeserializer : StdDeserializer<List<LocalizedText>>(List::class.java) {
+    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): List<LocalizedText> =
+        lore(p.codec.readTree(p))
+
+    override fun getNullValue(ctxt: DeserializationContext): List<LocalizedText> = emptyList()
+
+    companion object {
+        fun lore(node: JsonNode?): List<LocalizedText> = when {
+            node == null || node.isNull -> emptyList()
+            node.isArray -> node.map(::line)
+            node.isObject && node.fields().asSequence().any { it.value.isArray } -> {
+                val blocks = LinkedHashMap<String, String>()
+                node.fields().forEach { (lang, v) ->
+                    blocks[lang] = if (v.isArray) v.joinToString("\n") { if (it.isNull) "" else it.asText() } else v.asText()
+                }
+                listOf(LocalizedText.ofMap(blocks))
+            }
+            else -> listOf(line(node))
+        }
+
+        private fun line(node: JsonNode): LocalizedText = when {
+            node.isObject -> LocalizedText.ofMap(
+                node.fields().asSequence().filter { it.value.isValueNode }
+                    .associate { (k, v) -> k to if (v.isNull) "" else v.asText() },
+            )
+            node.isNull -> LocalizedText.of("")
+            else -> LocalizedText.of(node.asText())
+        }
+    }
+}

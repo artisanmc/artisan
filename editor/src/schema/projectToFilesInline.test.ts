@@ -95,7 +95,28 @@ describe("projectToFiles — structural text is field-local", () => {
     ]);
     const app = menu.elements[0];
     expect(app.title).toEqual({ en: "Sword", fr: "Épée" });
-    expect(app.lore).toEqual([{ en: "Sharp", fr: "Tranchante" }]);
+    expect(app.lore).toEqual({ en: ["Sharp"], fr: ["Tranchante"] });
+  });
+
+  it("writes a multi-line lore as one list per language, line counts free", () => {
+    const i18nKeys = {
+      ...I18N,
+      "menus.shop.elements.btn.default.lore": {
+        en: "Sharp\n\nClick to buy",
+        fr: "Tranchante\nCliquer pour acheter",
+      },
+    };
+    const menu = parse(projectToFiles(project({ i18nKeys }))[`${BASE}/menus/shop.yaml`]!);
+    expect(menu.elements[0].lore).toEqual({
+      en: ["Sharp", "", "Click to buy"],
+      fr: ["Tranchante", "Cliquer pour acheter"],
+    });
+  });
+
+  it("writes a default-language-only lore as a plain list of lines", () => {
+    const i18nKeys = { ...I18N, "menus.shop.elements.btn.default.lore": { en: "Sharp\nShiny" } };
+    const menu = parse(projectToFiles(project({ i18nKeys }))[`${BASE}/menus/shop.yaml`]!);
+    expect(menu.elements[0].lore).toEqual(["Sharp", "Shiny"]);
   });
 
   it("emits a bare string when only the default language has a value", () => {

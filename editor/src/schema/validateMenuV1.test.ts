@@ -32,6 +32,16 @@ describe("validateMenuV1", () => {
     expect(validateMenuV1(m).valid).toBe(true);
   });
 
+  it("accepts a lore as one list per language, and the legacy map per line", () => {
+    const m = structuredClone(canonicalButton) as Record<string, any>;
+    m.layers[0].elements[0].lore = { en: ["Members", "", "Click"], fr: ["Membres", "Clic"] };
+    expect(validateMenuV1(m).valid).toBe(true);
+    m.layers[0].elements[0].lore = ["", { en: "Members", fr: "Membres" }];
+    expect(validateMenuV1(m).valid).toBe(true);
+    m.layers[0].elements[0].lore = { en: ["Members"], "BAD KEY": ["x"] };
+    expect(validateMenuV1(m).valid).toBe(false);
+  });
+
   it("accepts a field-local lang map on a title layer", () => {
     const m = structuredClone(canonicalButton) as Record<string, any>;
     m.title = [{ kind: "plain", value: { en: "Shop", fr: "Boutique" } }];
