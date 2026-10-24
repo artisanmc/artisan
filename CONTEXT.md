@@ -440,9 +440,12 @@ Non-examples:
 
 A named, declared game event a **Trigger** can listen to (`player_death`,
 `player_join`, `quests:completed`), with a typed, read-only context
-(`event.location`, `event.cause`). Core events are bare names; a Module declares
-its own, namespaced, and fires them. Only discrete, player-bound events qualify:
-continuous ones (`player_move`, per tick) are excluded. Cf. ADR
+(`event.location`, `event.cause`) and declared **effects**, the only things a chain
+may change on it (`cancel_event`, `set_event: { join_message: … }`), never an
+un-cancel. Core events are bare names; a Module declares its own, namespaced, and
+fires them. Only synchronous, discrete, player-bound events qualify:
+continuous ones (`player_move`, per tick) and asynchronous ones (chat) are
+excluded. Cf. ADR
 `triggers-and-variables`.
 
 Non-examples:

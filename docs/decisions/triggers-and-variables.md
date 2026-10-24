@@ -76,26 +76,89 @@ module. Un module **déclenche** son événement par `api.getGameEvents().fire(n
 La Presence rapporte `declared_game_events` (hello, `modules_changed`), comme `declared_actions` ;
 l'éditeur en tire le sélecteur de `on:` et le formulaire du contexte disponible.
 
-Catalogue core v1, volontairement court : uniquement des événements **discrets et liés à un
-joueur**.
+Un événement Bukkit entre au catalogue par une **déclaration d'une ligne**, côté core (forme
+indicative, l'API se fixe au lot 3) :
 
-| Événement | Contexte (`{event.…}`) |
-|---|---|
-| `player_join` | `first` (booléen) |
-| `player_first_join` | — |
-| `player_quit` | — |
-| `player_death` | `location`, `cause`, `killer` (nom du joueur tueur, absent sinon) |
-| `player_respawn` | `location` |
-| `player_change_world` | `from`, `to` (noms de monde) |
-| `player_kill_entity` | `entity` (type), `location` |
+```kotlin
+gameEvent<PlayerDeathEvent>("player_death", Frequency.RARE,
+    player = { it.player },
+    context = { location(it.player.location); text("cause", it.damageSource.damageType.key); player("killer", it.player.killer) },
+    effects = { message("death_message", it::deathMessage); bool("keep_inventory", it::setKeepInventory) })
+```
+
+**Règles d'admission**, vérifiées par un test sur tout le catalogue :
+
+1. l'événement est **synchrone** et tiré sur le thread qui possède le joueur (principal sur Paper,
+   région du joueur sur Folia) ; un événement asynchrone est refusé ;
+2. il concerne **un joueur**, que la déclaration sait extraire ;
+3. il est **discret** : classe `RARE` (connexion, mort) ou `NORMAL` (un clic, un bloc cassé).
+   La classe `HIGH` (mouvement, physique des blocs, chargement de chunks, chaque tick) est refusée ;
+4. son contexte et ses effets (§3 bis) sont **nommés et typés** dans la déclaration, jamais lus par
+   réflexion ;
+5. il existe sur Paper et Spigot, ou la déclaration dit sur quelle plateforme il manque (l'éditeur
+   le grise alors).
+
+Catalogue core du premier lot, à titre indicatif (le test d'admission fait foi) :
+
+| Domaine | Événements | Effets déclarés |
+|---|---|---|
+| Connexion | `player_join`, `player_first_join`, `player_quit`, `player_kick` | message de connexion, de départ, raison du kick ; annuler le kick |
+| Vie | `player_death`, `player_respawn`, `player_damage`, `player_food_change` | message de mort, garder l'inventaire et les niveaux, vider les drops, xp lâchée ; point de réapparition ; annuler les dégâts, la faim |
+| Monde | `player_change_world`, `player_teleport`, `player_portal`, `player_bed_enter`, `player_gamemode_change`, `player_toggle_flight` | annuler (sauf changement de monde) |
+| Blocs | `block_break`, `block_place`, `player_interact`, `player_interact_entity` | annuler ; xp et drops du bloc cassé |
+| Objets | `player_drop_item`, `player_pickup_item`, `player_consume_item`, `player_fish`, `craft_item`, `enchant_item`, `player_item_break` | annuler (sauf objet cassé) |
+| Combat | `player_kill_entity`, `player_kill_player` | xp lâchée, vider les drops |
+| Progression | `player_level_change`, `player_advancement_done` | — |
+| Commandes | `player_command` | annuler |
+
+Le chat (`AsyncChatEvent`) est asynchrone : hors catalogue v1 (Q5).
+
+Écarté : **exposer tous les événements Bukkit par réflexion**. Environ 300 événements, dont une partie
+se déclenche des milliers de fois par seconde (`PlayerMoveEvent`, `BlockPhysicsEvent`), d'autres
+asynchrones (appeler l'API Bukkit y casse le serveur, Folia ajoute ses régions), beaucoup sans
+joueur ; un contexte lu par réflexion n'est pas typé (ni l'éditeur ni une IA ne savent quels champs
+existent) et un renommage de Paper casse les configs en silence. La déclaration d'une ligne garde
+le coût d'ajout d'un événement à quelques minutes.
 
 ### 3. Le contexte d'événement est une liaison typée, en lecture seule
 
 Le contexte est lié comme une liaison de template sous `event` (`{event.location.x}`,
 `{event.cause}`), au même titre que les arguments d'une Command. Il est typé par la déclaration
 (`ModelField[]`), ce qui permet à l'éditeur de proposer les champs et de signaler une référence à
-un champ inexistant. Une chaîne ne peut pas modifier l'événement : pas d'annulation, pas de
-changement des drops. Un besoin de ce genre est une action de module, pas un effet du contexte.
+un champ inexistant. `{event.cancelled}` est toujours lié pour un événement annulable.
+
+### 3 bis. Effets déclarés : annuler, modifier un champ
+
+Un événement déclare ses **effets** : les seules choses qu'une chaîne peut changer sur lui. Deux
+actions, valides uniquement dans la chaîne d'un Trigger dont l'événement déclare l'effet :
+
+```yaml
+on: player_join
+do:
+  - set_event: { join_message: "<gold>{player} rejoint le royaume" }
+
+on: block_break
+if: [ { world_is: spawn }, { not: { has_permission: build.spawn } } ]
+do:
+  - cancel_event
+  - send_message: "<red>Tu ne peux pas casser ici."
+```
+
+- `cancel_event` passe l'événement à annulé ; `set_event: { <effet>: valeur }` écrit un effet
+  déclaré, avec la valeur typée et résolue par template (§6).
+- **On ne désannule jamais.** Les listeners Artisan tournent en priorité `HIGH` avec
+  `ignoreCancelled = true` : un événement déjà annulé par une protection (WorldGuard, GriefPrevention,
+  un plugin de claims) ne déclenche aucun Trigger, et aucun effet ne remet `cancelled` à faux.
+  Un Trigger ne peut donc pas contourner une protection.
+- Les effets s'appliquent **pendant** le traitement de l'événement : la chaîne s'exécute en ligne
+  dans le listener (§8). Dans une chaîne différée (`do` d'un `chat_button`), `cancel_event` et
+  `set_event` n'ont plus d'événement à modifier : l'éditeur les refuse à cet endroit, le plugin les
+  ignore avec un avertissement.
+- Plusieurs Triggers sur le même événement s'appliquent dans l'ordre du §1 ; pour un même effet, la
+  dernière écriture gagne. Un plugin en priorité `HIGHEST` ou `MONITOR` (EssentialsX pour les messages
+  de connexion, selon sa config) passe après Artisan : c'est documenté, pas contourné.
+- Pas de setter générique ni de modification par réflexion : un effet absent de la déclaration
+  n'existe pas.
 
 ### 4. Un nouveau type de champ `location`
 
@@ -170,8 +233,9 @@ cible encore supportée ; le jeton marche partout et se teste sans serveur.
 
 ### 8. Exécution : thread, réentrance, budget
 
-- Une chaîne de Trigger s'exécute sur le thread qui possède le joueur (principal sur Paper,
-  région du joueur sur Folia et Leaf), jamais sur le thread de l'événement s'il diffère.
+- Une chaîne de Trigger s'exécute **en ligne dans le listener**, sur le thread qui tire
+  l'événement ; la règle d'admission 1 garantit que c'est celui qui possède le joueur (principal sur
+  Paper, région du joueur sur Folia et Leaf). C'est ce qui permet les effets (§3 bis).
   `player_quit` s'exécute avant que le joueur ne soit retiré.
 - **Réentrance bornée** : une chaîne peut provoquer un autre événement (`teleport` peut provoquer
   `player_change_world`). Au-delà de 4 niveaux de Triggers imbriqués pour un même joueur, le
@@ -186,10 +250,10 @@ de ce chantier, et de tout chantier qui ne rouvre pas cet ADR :
 
 - les boucles (`for`, `while`, répétition) et les fonctions définies par l'admin au-delà de
   `run_actions` ;
-- les événements continus ou à haute fréquence (`player_move`, chaque tick, interaction
-  quelconque) ;
+- les événements continus ou à haute fréquence (classe `HIGH` : mouvement, chaque tick, physique
+  des blocs) et les événements asynchrones ;
 - les appels réseau sortants depuis une chaîne ;
-- l'annulation ou la modification d'un événement Bukkit depuis une chaîne.
+- toute modification d'un événement hors de ses effets déclarés, et la désannulation.
 
 Un besoin au-delà de cette frontière s'écrit en module (Kotlin ou Java) qui déclare ses propres
 actions et événements (§2). Un besoin récurrent qui tient dans la frontière rejoint le catalogue
@@ -202,7 +266,8 @@ core.
 - **API** : `GameEventDeclaration`, `GameEventRegistry`, `ModelFieldType.location()`, tous
   `@Beta`. Version mineure de l'API ; champ de Presence additif, protocole inchangé.
 - **Schémas** : `trigger/v1` et `variable/v1` dans `docs/schema/`, `$defs.Action` gagne
-  `set_var`, `add_var`, `clear_var`, `chat_button` et l'argument `location` de `teleport`.
+  `set_var`, `add_var`, `clear_var`, `chat_button`, `cancel_event`, `set_event` et l'argument
+  `location` de `teleport`.
 - **Base** : une migration crée `artisan_vars` ; forward-only comme les autres
   (`docs/architecture/versioning.md`).
 - **Transition** : aucune donnée existante ne change. Le seul changement de comportement est §6 :
@@ -220,7 +285,7 @@ core.
 1. Type `location` et résolution des arguments par template (§4, §6), avec le vecteur
    `action-wire-conformance.json` étendu. Utile seul : corrige `teleport`.
 2. Kind Variable, actions et stockage (§5).
-3. Registre d'événements, kind Trigger, catalogue core (§1 à §3, §8).
+3. Registre d'événements, kind Trigger, catalogue core avec son test d'admission, effets (§1 à §3 bis, §8).
 4. `chat_button` (§7).
 5. Éditeur : formulaires, sélecteur d'événement, nœuds de planche, champs de contexte proposés.
 
@@ -231,4 +296,5 @@ core.
 | Q1 | Identité stockée d'une variable : ref qualifiée `project/id` (renommer le Project perd les valeurs) ou id stable généré à la création ? | Ref qualifiée en v1, comme le reste des refs ; un renommage de Project est rare et l'éditeur peut avertir. |
 | Q2 | Déclencheurs sans joueur (`server_start`, horaire) : `ActionContext.getPlayer()` n'est jamais nul aujourd'hui. | Hors v1. Les rouvrir demande un contexte sans joueur et une liste d'actions qui le supportent. |
 | Q3 | Une action `wait` (délai borné avant la suite de la chaîne) ? | Hors v1 : elle casse l'exécution synchrone et pose la question du joueur déconnecté pendant l'attente. |
-| Q4 | `player_kill_entity` dans les fermes à mobs : fréquence élevée. | Garder, avec `cooldown` conseillé par l'éditeur ; mesurer avant d'ajouter un plafond global. |
+| Q4 | Événements `NORMAL` dans les fermes et le minage (`player_kill_entity`, `block_break`) : volume élevé. | Garder ; l'éditeur conseille un `if` ou un `cooldown` sur ces événements ; mesurer avant d'ajouter un plafond global. |
+| Q5 | Le chat, asynchrone, est l'une des demandes les plus probables (filtrer, reformater). | Hors v1. Le rouvrir avec un sous-vocabulaire sans appel à l'API Bukkit (texte, conditions sur des valeurs déjà lues, annulation), exécuté hors du thread principal. |
