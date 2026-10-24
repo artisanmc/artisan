@@ -107,7 +107,9 @@ internal object PlayerActions {
     }
 
     fun broadcast(ctx: ExecutionContext, args: Map<String, Any>, rt: EngineRuntime): ExecutionContext {
-        Chat.broadcast(LenientText.parse(rt.text(ctx, args, "text")))
+        // Each player reads it in their own language; the console in the project's default one.
+        Bukkit.getOnlinePlayers().forEach { Chat.send(it, LenientText.parse(rt.textFor(ctx, args, "text", it))) }
+        Chat.send(Bukkit.getConsoleSender(), LenientText.parse(rt.textFor(ctx, args, "text", null)))
         return ctx
     }
 

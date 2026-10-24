@@ -1,5 +1,6 @@
 import type { ModelField } from "@/domain/types";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
+import { CORE_GAME_EVENTS } from "@/modules/triggers/gameEvents";
 import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useCallback } from "react";
 import vector from "../../../../testdata/core-actions.json";
@@ -38,6 +39,46 @@ export const isCoreAction = (name: string): boolean => CORE_BY_NAME.has(name);
 
 /** How a declaration is found by name: the core table first, then whatever the caller adds. */
 export type DeclaredActionLookup = (name: string) => DeclaredAction | undefined;
+
+/** Effect names the core catalog declares as a flag or a number: never a text, even as a template string. */
+const NON_TEXT_EFFECTS: ReadonlySet<string> = new Set(
+  CORE_GAME_EVENTS.flatMap((e) => e.effects)
+    .filter(
+      (f) => f.type.kind === "boolean" || f.type.kind === "integer" || f.type.kind === "number",
+    )
+    .map((f) => f.name),
+);
+
+/**
+ * `set_event` declares no argument: its map is `{<effect>: value}` for whichever event the
+ * Trigger listens to. Its declaration is read off the value instead, so that its texts are
+ * translated like any action text (`…set_event.join_message`): a flag or a number is kept as
+ * is, every other value is a text.
+ */
+export function setEventDeclaration(value: unknown): DeclaredAction {
+  const entries =
+    value && typeof value === "object" && !Array.isArray(value) ? Object.entries(value) : [];
+  return {
+    name: "set_event",
+    args: entries.map(([name, v]): ModelField => {
+      if (typeof v === "boolean") return { name, type: { kind: "boolean" } };
+      if (typeof v === "number") return { name, type: { kind: "number" } };
+      if (typeof v === "string" && NON_TEXT_EFFECTS.has(name))
+        return { name, type: { kind: "string" } };
+      return { name, type: { kind: "ltext" } };
+    }),
+    primary: null,
+    moduleId: "triggers",
+  };
+}
+
+/** An action's declaration: by its name, or read off its value for `set_event`. */
+export function declarationOfAction(
+  action: { name: string; value: unknown },
+  declOf: DeclaredActionLookup,
+): DeclaredAction | undefined {
+  return action.name === "set_event" ? setEventDeclaration(action.value) : declOf(action.name);
+}
 
 /**
  * A declaration by name: Artisan's own, or one the active server registered (store

@@ -108,7 +108,8 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
   const declOf = useDeclaredActionOf();
   const decl = declOf(action.name);
   // The event actions are edited from the chain's Game event, not from their declaration.
-  if (isEventAction(action.name)) return <EventActionFields action={action} onChange={onChange} />;
+  if (isEventAction(action.name))
+    return <EventActionFields projectId={projectId} action={action} onChange={onChange} />;
   if (!decl) {
     return (
       <div>
@@ -148,9 +149,14 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
  * each typed. Outside a Trigger they have no event: a warning, the value kept as is.
  */
 function EventActionFields({
+  projectId,
   action,
   onChange,
-}: { action: Action; onChange: (a: Action) => void }) {
+}: {
+  projectId: ProjectId;
+  action: Action;
+  onChange: (a: Action) => void;
+}) {
   const { t } = useTranslation();
   const event = useChainEvent();
   const entries = useActionEntries();
@@ -192,7 +198,10 @@ function EventActionFields({
             </FieldLabel>
             <div className="flex items-center gap-1.5">
               <div className="min-w-0 flex-1">
-                {field?.type.kind === "boolean" ? (
+                {isLTextNode(value) ? (
+                  // A text players read: translated like any other, one value per language.
+                  <TextArgInput projectId={projectId} lt={value} />
+                ) : field?.type.kind === "boolean" ? (
                   <select
                     className="select h-7 w-full rounded-[var(--r-xs)] py-0 pr-7 pl-2 text-xs"
                     value={String(value === true || value === "true")}
@@ -257,7 +266,10 @@ function EventActionFields({
   );
 }
 
-/** What a fresh `set_event` entry holds: true for a flag, 0 for a number, "" for a text. */
+/**
+ * What a fresh `set_event` entry holds: true for a flag, 0 for a number, a text to translate
+ * (minted at `…set_event.<effect>` by the store) for anything players read.
+ */
 export function defaultEffectValue(field: ModelField): unknown {
   switch (field.type.kind) {
     case "boolean":
@@ -266,7 +278,7 @@ export function defaultEffectValue(field: ModelField): unknown {
     case "number":
       return 0;
     default:
-      return "";
+      return { key: UNALLOCATED_LTEXT_KEY };
   }
 }
 

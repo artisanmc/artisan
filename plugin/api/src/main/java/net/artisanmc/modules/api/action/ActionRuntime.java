@@ -1,6 +1,7 @@
 package net.artisanmc.modules.api.action;
 
 import net.artisanmc.modules.api.annotations.Beta;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -17,6 +18,16 @@ public interface ActionRuntime {
      * string is interpolated as is. Null resolves to the empty string.
      */
     String text(ActionContext ctx, @Nullable Object text);
+
+    /**
+     * The same text as {@code viewer} reads it (API 2.16.0): in the viewer's language, the
+     * templates still those of {@code ctx} ({@code {player}} is the acting player). For a text
+     * several players see (a broadcast, a join message); null renders it in the project's
+     * default language, for the console. The default ignores the viewer.
+     */
+    default String textFor(ActionContext ctx, @Nullable Object text, @Nullable Player viewer) {
+        return text(ctx, text);
+    }
 
     /**
      * Runs an action chain ({@code actions} argument: the keyed structured wire, a list or a

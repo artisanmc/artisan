@@ -7,6 +7,7 @@ import net.artisanmc.plugin.model.LocalizedText
 import net.artisanmc.plugin.scheduling.schedulerFor
 import net.artisanmc.plugin.text.LenientText
 import org.bukkit.Bukkit
+import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import net.artisanmc.plugin.integrations.SoftDepRegistry
 import net.artisanmc.plugin.session.NavigationHistoryStore
@@ -114,6 +115,22 @@ class ActionExecutor(
             result = if (case.joins.getOrNull(i - 1) == "or") result || next else result && next
         }
         return result
+    }
+
+    /**
+     * [ctx] as [viewer] reads a text of it: the viewer's language and the project's translations
+     * in it, everything else (`{player}`, args) unchanged. A null viewer reads the project's
+     * default language (the console).
+     */
+    fun viewerContext(ctx: ExecutionContext, viewer: Player?): ExecutionContext {
+        if (viewer != null && viewer.uniqueId == ctx.player.uniqueId) return ctx
+        val project = menuProvider.runtimeProjects().firstOrNull { it.projectId == ctx.projectId }
+        val viewerLang = when (viewer) {
+            null -> project?.defaultLang ?: ctx.defaultLang
+            else -> lang?.playerLang(viewer) ?: return ctx
+        }
+        if (viewerLang == ctx.lang) return ctx
+        return ctx.copy(lang = viewerLang, langMap = project?.langMapWithFallback(viewerLang) ?: ctx.langMap)
     }
 
     fun resolveArgs(text: String, ctx: ExecutionContext): String = ctx.render(text)

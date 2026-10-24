@@ -28,7 +28,7 @@
     "cooldown_seconds": {
       "type": "integer",
       "minimum": 0,
-      "description": "Délai par joueur entre deux exécutions de ce Trigger. Gardé en mémoire par le serveur : un redémarrage le remet à zéro."
+      "description": "Délai par joueur entre deux exécutions de ce Trigger. Gardé dans la base comme les cooldowns de menus : il survit au redémarrage et suit le joueur sur le réseau."
     },
     "enabled": {
       "type": "boolean",

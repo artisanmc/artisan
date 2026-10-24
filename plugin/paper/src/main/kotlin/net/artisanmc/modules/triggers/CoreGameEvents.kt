@@ -8,6 +8,7 @@ import net.artisanmc.modules.api.gameevent.GameEventFrequency.RARE
 import net.artisanmc.modules.api.model.ModelField
 import net.artisanmc.modules.api.model.ModelFieldType
 import net.artisanmc.modules.api.text.TextApi
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.block.Block
 import org.bukkit.entity.Entity
@@ -114,9 +115,24 @@ internal object CoreGameEvents {
 
     private fun key(e: Enum<*>): String = e.name.lowercase()
 
-    /** A MiniMessage effect as the legacy string Bukkit's setters take; empty = no message. */
-    private fun legacy(text: TextApi, frame: GameEventFrame, name: String): String? =
-        (frame.getEffect(name) as? String)?.let { if (it.isEmpty()) null else text.legacy(it) }
+    /**
+     * A message effect Bukkit would send as one string to everyone (join, quit, death): the event's
+     * own message is cleared and each player gets the text in their language, the console in the
+     * project's default one. An empty text sends nothing to that reader.
+     */
+    private fun announce(text: TextApi, frame: GameEventFrame, name: String, except: Player?, clear: () -> Unit) {
+        if (!frame.has(name)) return
+        clear()
+        for (viewer in Bukkit.getOnlinePlayers()) {
+            if (viewer.uniqueId == except?.uniqueId) continue
+            frame.getText(name, viewer)?.takeIf { it.isNotEmpty() }?.let { text.send(viewer, it) }
+        }
+        frame.getText(name, null)?.takeIf { it.isNotEmpty() }?.let { text.send(Bukkit.getConsoleSender(), it) }
+    }
+
+    /** A message effect for one reader, as the legacy string Bukkit's setters take; empty = none. */
+    private fun legacyFor(text: TextApi, frame: GameEventFrame, name: String, reader: Player): String? =
+        frame.getText(name, reader)?.let { if (it.isEmpty()) null else text.legacy(it) }
 
     private fun GameEventFrame.has(name: String) = getEffect(name) != null
     private fun GameEventFrame.bool(name: String) = getEffect(name) as? Boolean
@@ -151,20 +167,20 @@ internal object CoreGameEvents {
             effects = listOf(message("join_message")),
             player = { it.player },
             values = { mapOf("location" to locationOf(it.player.location), "first_join" to !it.player.hasPlayedBefore()) },
-            apply = { e, f, t -> if (f.has("join_message")) e.joinMessage = legacy(t, f, "join_message") }),
+            apply = { e, f, t -> announce(t, f, "join_message", except = null) { e.joinMessage = null } }),
         on<PlayerJoinEvent>("player_first_join", "connection", RARE,
             context = listOf(location()),
             effects = listOf(message("join_message")),
             accept = { !it.player.hasPlayedBefore() },
             player = { it.player },
             values = { mapOf("location" to locationOf(it.player.location)) },
-            apply = { e, f, t -> if (f.has("join_message")) e.joinMessage = legacy(t, f, "join_message") }),
+            apply = { e, f, t -> announce(t, f, "join_message", except = null) { e.joinMessage = null } }),
         on<PlayerQuitEvent>("player_quit", "connection", RARE,
             context = listOf(location()),
             effects = listOf(message("quit_message")),
             player = { it.player },
             values = { mapOf("location" to locationOf(it.player.location)) },
-            apply = { e, f, t -> if (f.has("quit_message")) e.quitMessage = legacy(t, f, "quit_message") }),
+            apply = { e, f, t -> announce(t, f, "quit_message", except = e.player) { e.quitMessage = null } }),
         on<PlayerKickEvent>("player_kick", "connection", RARE,
             context = listOf(text("reason")),
             cancellable = true,
@@ -172,8 +188,9 @@ internal object CoreGameEvents {
             player = { it.player },
             values = { mapOf("reason" to it.reason) },
             apply = { e, f, t ->
-                if (f.has("reason")) e.reason = legacy(t, f, "reason") ?: ""
-                if (f.has("leave_message")) e.leaveMessage = legacy(t, f, "leave_message") ?: ""
+                if (f.has("reason")) e.reason = legacyFor(t, f, "reason", e.player) ?: ""
+                // A cancelled kick leaves no one: nothing to announce.
+                if (!e.isCancelled) announce(t, f, "leave_message", except = e.player) { e.leaveMessage = "" }
             }),
 
         // Life
@@ -191,7 +208,7 @@ internal object CoreGameEvents {
                 )
             },
             apply = { e, f, t ->
-                if (f.has("death_message")) e.deathMessage = legacy(t, f, "death_message")
+                announce(t, f, "death_message", except = null) { e.deathMessage = null }
                 f.bool("keep_inventory")?.let { keep -> e.keepInventory = keep; if (keep) e.drops.clear() }
                 f.bool("keep_level")?.let { keep -> e.keepLevel = keep; if (keep) e.droppedExp = 0 }
                 if (f.bool("clear_drops") == true) e.drops.clear()

@@ -79,4 +79,15 @@ public final class GameEventFrame {
     public @Nullable Object getEffect(String name) {
         return effects.get(name);
     }
+
+    /**
+     * The text effect {@code name} as {@code viewer} reads it: an {@link EffectText} rendered in
+     * the viewer's language (null: the default one), a plain string as written, or null when
+     * nothing was written.
+     */
+    public @Nullable String getText(String name, @Nullable Player viewer) {
+        Object value = effects.get(name);
+        if (value instanceof EffectText text) return text.render(viewer);
+        return value == null ? null : value.toString();
+    }
 }

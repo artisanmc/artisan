@@ -56,6 +56,8 @@ class EventActionsCoerceTest {
         assertEquals(null, EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.bool()), "maybe", ctx, runtime))
         assertEquals(7L, EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.integer()), "{n}", ctx, runtime))
         assertEquals(2.5, EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.number()), 2.5, ctx, runtime))
-        assertEquals("hi 7", EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.minimessage()), "hi {n}", ctx, runtime))
+        // A text stays unresolved until a reader is known: one rendering per viewer's language.
+        val text = EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.minimessage()), "hi {n}", ctx, runtime)
+        assertEquals("hi 7", (text as net.artisanmc.modules.api.gameevent.EffectText).render(null))
     }
 }

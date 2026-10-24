@@ -1,7 +1,7 @@
 {
   "schema": "trigger/v1",
   "on": "player_join",
-  "notes": "Remplace le message de connexion vanilla.",
+  "notes": "Remplace le message de connexion vanilla, traduit : chaque joueur le lit dans sa langue.",
   "do": [
     {
       "if": [
@@ -12,14 +12,20 @@
       "do": [
         {
           "set_event": {
-            "join_message": "<gold>{player} rejoint le royaume"
+            "join_message": {
+              "fr": "<gold>{player} rejoint le royaume",
+              "en": "<gold>{player} joins the kingdom"
+            }
           }
         }
       ],
       "else": [
         {
           "set_event": {
-            "join_message": "<gray>{player} est arrivé"
+            "join_message": {
+              "fr": "<gray>{player} est de retour, absent depuis {player.last_seen.ago()}",
+              "en": "<gray>{player} is back after {player.last_seen.ago()}"
+            }
           }
         }
       ]

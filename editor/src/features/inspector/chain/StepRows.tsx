@@ -637,7 +637,7 @@ function ActionSummaryArgs({
     const effects = Object.entries(setEventArgs(action.value))
       .map(
         ([name, value]) =>
-          `${t(`triggers.effects.${name}`, { defaultValue: name })} = ${String(value)}`,
+          `${t(`triggers.effects.${name}`, { defaultValue: name })} = ${isLTextNode(value) ? getText(value) : String(value)}`,
       )
       .join(" · ");
     return <span className="min-w-0 truncate text-[12.5px] text-[var(--text-mut)]">{effects}</span>;

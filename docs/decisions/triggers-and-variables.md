@@ -305,13 +305,15 @@ core.
 Ce qui diffère du texte ci-dessus, et pourquoi :
 
 - **`cooldown_seconds: 30`** (un entier) au lieu de `cooldown: 30s` : pas de parseur de durée à
-  maintenir des deux côtés pour un seul champ. Le délai vit dans la mémoire du module `triggers`
-  (clé `project/id|uuid`), pas dans le store de `cooldown_passed` : un redémarrage le remet à zéro,
-  ce que la page du Trigger dit.
+  maintenir des deux côtés pour un seul champ. Le délai passe par `api.cooldowns`, le store des
+  cooldowns de menus et de commandes (id `triggers:<project>/<id>`) : gardé dans
+  `artisan_cooldowns`, il survit au redémarrage et suit le joueur sur le réseau.
 - **Budget de 1 000 actions** (§8) : reporté. La réentrance est bornée (4 niveaux, un avertissement
   par événement) ; le budget demande un compteur dans le moteur d'actions, lot à part.
-- **Textes de `set_event`** : littéraux (MiniMessage, `{event.…}` résolus), pas des clés de
-  traduction ; l'effet est appliqué une fois, pour tous les joueurs qui le voient.
+- **Textes de `set_event`** : traduisibles comme tout texte affiché au joueur (LText, adresse
+  `…do.set_event.<effet>`). Un message que Bukkit enverrait d'un bloc à tout le monde (connexion,
+  départ, mort) est remplacé par un envoi par joueur, chacun dans sa langue, la console dans la
+  langue par défaut du projet (`EffectText`, `ActionRuntime.textFor`). `broadcast` suit la même règle.
 - **Catalogue** : 29 Game events core en v1 (`CoreGameEvents.kt`), vecteur
   `testdata/core-game-events.json` partagé avec l'éditeur, qui l'embarque pour que le sélecteur
   fonctionne sans serveur.

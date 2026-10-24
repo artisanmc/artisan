@@ -3,6 +3,7 @@ package net.artisanmc.modules.triggers
 import net.artisanmc.modules.api.action.ActionContext
 import net.artisanmc.modules.api.action.ActionDeclaration
 import net.artisanmc.modules.api.action.ActionRuntime
+import net.artisanmc.modules.api.gameevent.EffectText
 import net.artisanmc.modules.api.model.ModelField
 
 /**
@@ -47,7 +48,7 @@ internal object EventActions {
 
     /**
      * [raw] as the effect's declared type, templates resolved (`{event.…}`, `{player}`); null when it
-     * does not read as that type. Text kinds resolve to the MiniMessage string the event applies.
+     * does not read as that type. A text kind stays an [EffectText]: translated per viewer when applied.
      */
     fun coerce(effect: ModelField, raw: Any?, ctx: ActionContext, runtime: ActionRuntime): Any? {
         fun text(): String = if (raw is String || raw is Map<*, *>) runtime.text(ctx, raw) else raw?.toString().orEmpty()
@@ -62,7 +63,8 @@ internal object EventActions {
             }
             "integer" -> (raw as? Number)?.toLong() ?: text().trim().toDoubleOrNull()?.toLong()
             "number" -> (raw as? Number)?.toDouble() ?: text().trim().toDoubleOrNull()
-            else -> text()
+            // Rendered when applied, once per player who sees it: in their language.
+            else -> EffectText { viewer -> runtime.textFor(ctx, raw, viewer) }
         }
     }
 }

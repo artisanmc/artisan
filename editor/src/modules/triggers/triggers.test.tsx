@@ -202,6 +202,35 @@ describe("un trigger dans le projet", () => {
     ]);
   });
 
+  it("traduit les textes de set_event comme tout texte affiché au joueur", () => {
+    useProjectsStore.getState().createDocument({ projectId: PID, kind: "trigger", id: "t_w" });
+    const ops = storeChainOps(
+      useProjectsStore.getState,
+      PID,
+      { kind: "document", docKind: "trigger", docId: "t_w", slot: "do" },
+      "en",
+    );
+    ops.add([], 0, {
+      kind: "action",
+      action: { name: "set_event", value: { join_message: { key: "" }, keep_level: true } },
+    });
+    const value = (trigger("t_w")!.steps[0] as { action: { value: Record<string, unknown> } })
+      .action.value;
+    const key = (value.join_message as { key: string }).key;
+    expect(key).toBe("triggers.t_w.do.set_event.join_message");
+    useProjectsStore
+      .getState()
+      .setI18nValue({ projectId: PID, lt: { key } as never, lang: "en", value: "Hi {player}" });
+    useProjectsStore
+      .getState()
+      .setI18nValue({ projectId: PID, lt: { key } as never, lang: "fr", value: "Salut {player}" });
+    expect(triggerToFile(trigger("t_w")!, current()).do).toEqual([
+      {
+        set_event: { join_message: { en: "Hi {player}", fr: "Salut {player}" }, keep_level: true },
+      },
+    ]);
+  });
+
   it("résume son événement et ses étapes sur le tableau", () => {
     const { doc } = parse(deathExample as Record<string, unknown>);
     expect(triggerKind.board?.summary?.(doc, { project: project(), lang: "fr" })).toBe(

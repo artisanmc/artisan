@@ -64,6 +64,11 @@ class TriggersModuleTest {
 
     private object Runtime : ActionRuntime {
         override fun text(ctx: ActionContext, text: Any?) = text.toString().replace("{player}", ctx.player.name)
+        // A text "translated" per reader: Alex reads French, the others and the console English.
+        override fun textFor(ctx: ActionContext, text: Any?, viewer: Player?): String {
+            val raw = (text as? Map<*, *>)?.let { it[if (viewer?.name == "Alex") "fr" else "en"] } ?: text
+            return text(ctx, raw)
+        }
         override fun run(ctx: ActionContext, chain: Any?) = ctx
         override fun warn(message: String) {}
     }
@@ -106,13 +111,23 @@ class TriggersModuleTest {
 
     @Test
     fun `set_event rewrites the join message`() {
-        docs += mapOf("id" to "welcome", "on" to "player_join", "do" to listOf(mapOf("set_event" to mapOf("join_message" to "Hello {player}"))))
+        docs += mapOf(
+            "id" to "welcome", "on" to "player_join",
+            "do" to listOf(mapOf("set_event" to mapOf("join_message" to mapOf("en" to "Hello {player}", "fr" to "Salut {player}")))),
+        )
         module.onReload()
+        val alex = server.addPlayer("Alex")
         val player = server.addPlayer("Steve")
+        // addPlayer fired their own joins: only the one below is read.
+        while (alex.nextMessage() != null) Unit
+        while (player.nextMessage() != null) Unit
         val event = PlayerJoinEvent(player, "Steve joined the game")
         server.pluginManager.callEvent(event)
+        // The single vanilla message is replaced by one per reader, in their language.
         @Suppress("DEPRECATION")
-        assertEquals("Hello Steve", event.joinMessage)
+        assertEquals(null, event.joinMessage)
+        assertEquals("Hello Steve", player.nextMessage())
+        assertEquals("Salut Steve", alex.nextMessage())
     }
 
     @Test
