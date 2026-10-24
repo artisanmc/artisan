@@ -28,6 +28,16 @@ export function fieldTextOf(project: Project): FieldTextOf {
   };
 }
 
+/**
+ * A lore on disk (ADR `field-local-translations` §1): a list of lines when only
+ * the default language has a value, otherwise one list per language, so each
+ * language keeps its own line count. A whole `{i18n:key}` ref stays one line.
+ */
+export function loreWire(text: FieldText): string[] | Record<string, string[]> {
+  if (typeof text === "string") return /^\{i18n:[^}]+\}$/.test(text) ? [text] : text.split("\n");
+  return Object.fromEntries(Object.entries(text).map(([lang, value]) => [lang, value.split("\n")]));
+}
+
 /** Codec for the structured action wire: only `toWire` is used on export. */
 export function actionTextCodec(project: Project): ActionTextCodec {
   return { toWire: fieldTextOf(project), fromWire: () => ({ key: "" as I18nKey }) };

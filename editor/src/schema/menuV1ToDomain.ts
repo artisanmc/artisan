@@ -55,6 +55,23 @@ export interface I18nBridge {
   text: (raw: string | Record<string, string> | undefined) => LText;
   ref: (key: string) => LText;
   pushUnsupported: (s: string) => void;
+  /** The project's default language: the fallback when a legacy lore line lacks a language. */
+  defaultLang?: string;
+}
+
+/**
+ * True when a wire lore is the canonical one-list-per-language form (ADR
+ * `field-local-translations` §1): `{ en: [...], fr: [...] }`. A language may
+ * also hold a single string, read as its whole block.
+ */
+export function isLangLines(v: unknown): v is Record<string, string | unknown[]> {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const values = Object.values(v as Record<string, unknown>);
+  return (
+    values.length > 0 &&
+    values.some(Array.isArray) &&
+    values.every((x) => typeof x === "string" || Array.isArray(x))
+  );
 }
 
 /**
@@ -79,9 +96,9 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
     return Object.keys(out).length > 0 ? out : undefined;
   }
 
-  // menu/v1 lore is `string[]`; domain lore is a single LText (lines joined by
-  // `\n`). A single `{i18n:}` line references that key; otherwise the literal
-  // lines are joined and allocated a fresh key.
+  // Domain lore is a single LText: one block per language, lines joined by
+  // `\n`. On the wire it is either one list per language (canonical) or a list
+  // of lines (a single `{i18n:}` line references that key).
   /**
    * A lore line, as it may appear on the wire.
    *
@@ -106,14 +123,32 @@ export function makeAppearanceConverter(bridge: I18nBridge): {
     return JSON.stringify(line);
   }
 
+  /** A legacy line in one language, with the plugin's fallback: that language, the default, any. */
+  function lineIn(line: string | Record<string, string>, lang: string): string {
+    if (typeof line === "string") return line;
+    const fallback = bridge.defaultLang === undefined ? undefined : line[bridge.defaultLang];
+    return line[lang] ?? fallback ?? Object.values(line)[0] ?? "";
+  }
+
   function loreText(lore: unknown): LText | undefined {
+    if (typeof lore === "string") return text(lore);
+    if (isLangLines(lore)) {
+      const blocks: Record<string, string> = {};
+      for (const [lang, lines] of Object.entries(lore)) {
+        blocks[lang] = Array.isArray(lines)
+          ? lines.map((l) => lineIn(loreLine(l), lang)).join("\n")
+          : lines;
+      }
+      return text(blocks);
+    }
     if (!Array.isArray(lore) || lore.length === 0) return undefined;
     if (lore.length === 1) return text(loreLine(lore[0]));
+    const lines = lore.map(loreLine);
+    const langs = [...new Set(lines.flatMap((l) => (typeof l === "string" ? [] : Object.keys(l))))];
+    if (langs.length === 0) return text(lines.join("\n"));
+    // Legacy per-line maps: regrouped into one block per language, so no line is lost.
     return text(
-      lore
-        .map(loreLine)
-        .filter((l): l is string => typeof l === "string")
-        .join("\n"),
+      Object.fromEntries(langs.map((lang) => [lang, lines.map((l) => lineIn(l, lang)).join("\n")])),
     );
   }
 
@@ -187,6 +222,7 @@ export function menuV1ToDomain(
     text,
     ref,
     pushUnsupported: (s) => unsupported.push(s),
+    defaultLang: opts.lang,
   });
 
   // Title layers (inverse of serializeTitleLayer)

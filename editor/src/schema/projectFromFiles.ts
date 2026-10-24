@@ -603,6 +603,7 @@ export function projectFromFiles(
     text,
     ref,
     pushUnsupported: (s) => unsupported.push(s),
+    defaultLang,
   });
 
   // Legacy templates/ migration (one-way)

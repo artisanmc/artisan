@@ -173,6 +173,13 @@ valeur du `defaultLang` (donc détecté comme non traduit pour les autres langue
 paresseuse : un projet inline mono-langue se lit à l'identique, la promotion string → map ne se fait
 qu'à la saisie d'une deuxième langue. La lecture reste tolérante à l'ancienne forme adressée.
 
+Un **lore** traduit est une liste de lignes **par langue** (`lore: { en: [...], fr: [...] }`) :
+chaque langue a son propre nombre de lignes et le fallback (langue demandée → `defaultLang` →
+n'importe laquelle) porte sur le bloc entier. Sans traduction, c'est une simple liste de lignes.
+La forme « une map `{lang: texte}` par ligne » reste lue (plugin `LoreDeserializer`, éditeur
+`menuV1ToDomain.loreText`, qui la regroupe en un bloc par langue) mais n'est plus écrite
+(`schema/fieldText.ts` `loreWire`).
+
 ## Champ `title` d'un menu
 
 Un `MenuTitleLayer[]` — `background` / `glyph` / `text` / `textarea` / `external_glyph`. Format YAML
