@@ -52,7 +52,7 @@ internal object EventActions {
     fun coerce(effect: ModelField, raw: Any?, ctx: ActionContext, runtime: ActionRuntime): Any? {
         fun text(): String = if (raw is String || raw is Map<*, *>) runtime.text(ctx, raw) else raw?.toString().orEmpty()
         return when (effect.type.kind) {
-            "bool" -> when (raw) {
+            "boolean" -> when (raw) {
                 is Boolean -> raw
                 else -> when (text().trim().lowercase()) {
                     "true", "yes", "1" -> true

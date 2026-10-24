@@ -27,7 +27,7 @@ class TriggersModule : ArtisanModule {
 
     override fun onEnable(api: ArtisanAPI) {
         this.api = api
-        api.documentKinds.register(DocumentKindDeclaration(Trigger.KIND, Trigger.DIR, listOf(Trigger.SCHEMA), "trigger_"))
+        api.documentKinds.register(DocumentKindDeclaration(Trigger.KIND, Trigger.DIR, listOf(Trigger.SCHEMA), "t_"))
         EventActions.declarations().forEach(api.actionRegistry::register)
         CoreGameEvents.ALL.forEach { api.gameEvents.register(it.declaration) }
 

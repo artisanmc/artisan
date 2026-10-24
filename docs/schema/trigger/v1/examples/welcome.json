@@ -1,7 +1,6 @@
 {
   "schema": "trigger/v1",
   "on": "player_join",
-  "enabled": true,
   "notes": "Remplace le message de connexion vanilla.",
   "do": [
     {

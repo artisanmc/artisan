@@ -31,7 +31,7 @@ _Avoid_: verbe, verb
 An ordered sequence of **Steps** — each Step a leaf **action** (`give_item`,
 `send_message`, `open_menu`…) or an `if` / `else if` / `else` branch over typed
 **conditions** — that runs when something triggers it: an **Element**'s click, a
-**Command** invocation, or a data-source `actions` field. `Step[]` in the domain.
+**Command** invocation, a **Trigger**'s **Game event**, or a data-source `actions` field. `Step[]` in the domain.
 On disk and on the wire it is a YAML list keyed by name (`- send_message: "Hi"`,
 `- if: [...]`), the **keyed action wire** of ADR `structured-action-wire`; the
 older **Action DSL** string is only read, never written.
@@ -863,8 +863,8 @@ Non-examples:
 
 A **Document** kind (`triggers/<id>.yml`) that binds one **Game event** to an
 **Action chain**: when the event fires for a player, the optional `if` conditions
-and `cooldown` are checked, then the chain runs with the event's context bound as
-`{event.…}`. Proposed by ADR `triggers-and-variables`. In the sense of ADR
+and `cooldown_seconds` are checked, then the chain runs with the event's context bound as
+`{event.…}`. ADR `triggers-and-variables`. In the sense of ADR
 `extensible-document-kinds`, a Trigger is the Document whose only chain slot is
 its entry point.
 

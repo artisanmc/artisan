@@ -36,3 +36,26 @@ class TriggerTest {
         assertTrue(Trigger.parse("demo", mapOf("id" to "a", "on" to "x", "cooldown_seconds" to "soon")).isFailure)
     }
 }
+
+class EventActionsCoerceTest {
+    private val runtime = object : net.artisanmc.modules.api.action.ActionRuntime {
+        override fun text(ctx: net.artisanmc.modules.api.action.ActionContext, text: Any?) = text.toString().replace("{n}", "7")
+        override fun run(ctx: net.artisanmc.modules.api.action.ActionContext, chain: Any?) = ctx
+        override fun warn(message: String) {}
+    }
+    private val ctx = java.lang.reflect.Proxy.newProxyInstance(
+        javaClass.classLoader, arrayOf(net.artisanmc.modules.api.action.ActionContext::class.java),
+    ) { _, _, _ -> null } as net.artisanmc.modules.api.action.ActionContext
+
+    private fun field(kind: net.artisanmc.modules.api.model.ModelFieldType) = net.artisanmc.modules.api.model.ModelField("x", kind)
+
+    @Test
+    fun `values become the declared type, templates resolved`() {
+        assertEquals(true, EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.bool()), true, ctx, runtime))
+        assertEquals(false, EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.bool()), "no", ctx, runtime))
+        assertEquals(null, EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.bool()), "maybe", ctx, runtime))
+        assertEquals(7L, EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.integer()), "{n}", ctx, runtime))
+        assertEquals(2.5, EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.number()), 2.5, ctx, runtime))
+        assertEquals("hi 7", EventActions.coerce(field(net.artisanmc.modules.api.model.ModelFieldType.minimessage()), "hi {n}", ctx, runtime))
+    }
+}

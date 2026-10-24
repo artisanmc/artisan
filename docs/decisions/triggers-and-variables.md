@@ -1,7 +1,8 @@
 # Triggers et variables — réagir aux événements de jeu, retenir des valeurs
 
-**Status:** proposed (2026-10-24). Aucune ligne de code encore ; ce texte fixe le contrat avant le
-premier lot.
+**Status:** accepted (2026-10-24). Lots 3 (registre, kind Trigger, catalogue core, effets) et 5
+(éditeur) livrés en premier, à la demande d'Iban ; les lots 1, 2 et 4 (type `location`, Variables,
+`chat_button`) restent à faire. Écarts de l'implémentation, voir « Implémentation » en fin de texte.
 
 **Nommage (Iban, 2026-10-24)** : le kind s'appelle **Trigger** (et non « Automation »). L'événement
 qu'il écoute s'appelle donc **Game event**, pour ne pas dire « trigger » deux fois. C'est cohérent avec
@@ -298,3 +299,22 @@ core.
 | Q3 | Une action `wait` (délai borné avant la suite de la chaîne) ? | Hors v1 : elle casse l'exécution synchrone et pose la question du joueur déconnecté pendant l'attente. |
 | Q4 | Événements `NORMAL` dans les fermes et le minage (`player_kill_entity`, `block_break`) : volume élevé. | Garder ; l'éditeur conseille un `if` ou un `cooldown` sur ces événements ; mesurer avant d'ajouter un plafond global. |
 | Q5 | Le chat, asynchrone, est l'une des demandes les plus probables (filtrer, reformater). | Hors v1. Le rouvrir avec un sous-vocabulaire sans appel à l'API Bukkit (texte, conditions sur des valeurs déjà lues, annulation), exécuté hors du thread principal. |
+
+## Implémentation (lots 3 et 5, 2026-10-24)
+
+Ce qui diffère du texte ci-dessus, et pourquoi :
+
+- **`cooldown_seconds: 30`** (un entier) au lieu de `cooldown: 30s` : pas de parseur de durée à
+  maintenir des deux côtés pour un seul champ. Le délai vit dans la mémoire du module `triggers`
+  (clé `project/id|uuid`), pas dans le store de `cooldown_passed` : un redémarrage le remet à zéro,
+  ce que la page du Trigger dit.
+- **Budget de 1 000 actions** (§8) : reporté. La réentrance est bornée (4 niveaux, un avertissement
+  par événement) ; le budget demande un compteur dans le moteur d'actions, lot à part.
+- **Textes de `set_event`** : littéraux (MiniMessage, `{event.…}` résolus), pas des clés de
+  traduction ; l'effet est appliqué une fois, pour tous les joueurs qui le voient.
+- **Catalogue** : 29 Game events core en v1 (`CoreGameEvents.kt`), vecteur
+  `testdata/core-game-events.json` partagé avec l'éditeur, qui l'embarque pour que le sélecteur
+  fonctionne sans serveur.
+- **Éditeur** : `cancel_event` / `set_event` ne sont proposés que dans la chaîne d'un Trigger, sous
+  « Cet événement », d'après l'événement choisi ; jamais dans la liste générique d'actions.
+
