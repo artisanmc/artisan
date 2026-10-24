@@ -2,7 +2,6 @@ import { McText, McTooltip } from "@/components/mc-preview";
 import { formatEnchant } from "@/domain/itemAdvanced";
 import { LORE } from "@/lib/mm/profiles";
 import { ImageIcon } from "lucide-react";
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ResolvedItem } from "../resolveItem";
 
@@ -17,37 +16,6 @@ export interface ItemPreviewColumnProps {
 }
 
 const SCALE = 2;
-
-/** Shrinks its content to the available width instead of cutting a long lore line. */
-function FitWidth({ children }: { children: ReactNode }) {
-  const outer = useRef<HTMLDivElement>(null);
-  const inner = useRef<HTMLDivElement>(null);
-  const [fit, setFit] = useState({ ratio: 1, height: 0 });
-  useLayoutEffect(() => {
-    const measure = () => {
-      if (!outer.current || !inner.current) return;
-      const width = inner.current.offsetWidth;
-      const ratio = width > 0 ? Math.min(1, outer.current.clientWidth / width) : 1;
-      setFit({ ratio, height: inner.current.offsetHeight * ratio });
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    if (outer.current) observer.observe(outer.current);
-    if (inner.current) observer.observe(inner.current);
-    return () => observer.disconnect();
-  }, []);
-  return (
-    <div ref={outer} className="w-full min-w-0" style={{ height: fit.height || undefined }}>
-      <div
-        ref={inner}
-        className="w-max"
-        style={{ transform: `scale(${fit.ratio})`, transformOrigin: "top left" }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
 
 /**
  * The item as the player sees it while editing it: its slot, then the tooltip the
@@ -66,8 +34,7 @@ export function ItemPreviewColumn({
       <span className="field-label">{t("itemBinding.inGamePreview")}</span>
       <div
         data-testid="item-preview-column"
-        className="flex flex-col items-start gap-1 rounded-[var(--r-sm)] p-3"
-        style={{ background: "var(--mc-inventory-bg)" }}
+        className="flex min-w-0 flex-col items-start gap-1 overflow-x-auto pb-1"
       >
         <div
           className="relative flex shrink-0 items-center justify-center"
@@ -100,19 +67,20 @@ export function ItemPreviewColumn({
             />
           )}
         </div>
-        <FitWidth>
-          <McTooltip
-            className="ml-6"
-            title={preview.title || materialName || ""}
-            titleDefaults={preview.title ? undefined : { color: "#ffffff", italic: false }}
-            enchants={(preview.enchants ?? []).map(formatEnchant)}
-            lore={preview.lore}
-            loreDefaults={LORE.defaults}
-            maxWidth={loreMaxWidth}
-            scale={SCALE}
-          />
-        </FitWidth>
+        <McTooltip
+          className="ml-6"
+          title={preview.title || materialName || ""}
+          titleDefaults={preview.title ? undefined : { color: "#ffffff", italic: false }}
+          enchants={(preview.enchants ?? []).map(formatEnchant)}
+          lore={preview.lore}
+          loreDefaults={LORE.defaults}
+          maxWidth={loreMaxWidth}
+          scale={SCALE}
+        />
       </div>
+      {!loreMaxWidth && preview.lore.length > 0 && (
+        <p className="text-xs text-[var(--text-faint)]">{t("itemBinding.noLoreWrap")}</p>
+      )}
     </section>
   );
 }

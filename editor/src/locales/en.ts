@@ -526,6 +526,8 @@ export default {
     replaceLore: "Replace the base item lore",
     editItem: "Edit item",
     inGamePreview: "In game",
+    noLoreWrap:
+      "Lore lines are not wrapped: this project has no lore max width (project settings).",
     done: "Done",
     catalog: "Catalog",
     library: "Buttons",

@@ -538,6 +538,8 @@ const fr: typeof en = {
     replaceLore: "Remplacer le lore de l’item de base",
     editItem: "Modifier l’item",
     inGamePreview: "En jeu",
+    noLoreWrap:
+      "Les lignes du lore ne sont pas coupées : ce projet n'a pas de largeur max du lore (propriétés du projet).",
     done: "Terminé",
     catalog: "Catalogue",
     library: "Boutons",
