@@ -433,6 +433,11 @@ api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track"
     .build());
 ```
 
+Un argument se complète avec des valeurs calculées à la frappe (API 2.14.0) :
+`CommandArgument.string("guild").suggestions(ctx -> guilds.names())`. Le fournisseur tourne sur le
+thread de complétion de Bukkit : il lit la mémoire du plugin, jamais la base. Il suit l'argument de
+même position dans le fichier de la commande, que l'admin l'ait renommé ou non.
+
 `CommandRegistrar` enregistre les `command/v1` des dossiers des admins, puis ceux des dossiers de
 modules (préfixe `/<module>:`), puis les commandes en mémoire ; un nom déjà pris laisse
 `/<préfixe>:<nom>`. Il renvoie l'arbre de commandes aux joueurs connectés quand il change. Contrat
@@ -539,6 +544,24 @@ player.sendMessage(messages.get(player, "quest.tracked", Map.of("quest_name", na
 Les valeurs des placeholders (`<name>`, `{name}`, `%name%`) sont insérées comme du texte. Un plugin
 qui garde ses propres fichiers passe un `MessageSource` (`MessageBundleDeclaration.of`). Détail :
 `api-surface.md`.
+
+### 4.6 ter Réseau entre serveurs (API 2.13.0)
+
+Les serveurs qui partagent la base MySQL/MariaDB de la suite forment le réseau : un plugin de la
+suite y publie des messages, voit les joueurs de tous les serveurs et téléporte d'un serveur à
+l'autre, sans MSCore ni Redis :
+
+```java
+NetworkApi network = api.getNetwork();
+network.subscribe(this, "guilds:sync", msg -> reload(UUID.fromString(msg.getPayload())));
+network.publish("guilds:sync", guild.getId().toString());
+network.getPresence().find("Alice");                           // NetworkPlayer(id, name, server) ou null
+network.teleport(player, NetworkLocation.of("survie", home), 3); // CompletableFuture<TeleportResult>
+```
+
+Transport par la base (`artisan_network_messages`, lue toutes les 100 ms, gardée une minute),
+présence dans `artisan_network_players`, changement de serveur par le canal `BungeeCord` du proxy.
+Sur H2, un serveur est un réseau à lui seul. Détail : `api-surface.md`.
 
 ### 4.7 Module editor bundle (level 3) — API 2.3.0, protocole 1.2
 

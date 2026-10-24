@@ -97,6 +97,28 @@ object ArtisanSchema {
             )""",
         ),
         Migration(21, "CREATE INDEX ${t.cooldownsSubjectIndex} ON ${t.cooldowns} (subject)") { hasIndex(it, t.cooldowns, t.cooldownsSubjectIndex) },
+        // `api.network` (design `reseau-artisan`): the messages between servers, read by id, kept a minute.
+        Migration(
+            22,
+            """CREATE TABLE IF NOT EXISTS ${t.networkMessages} (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                created_at TIMESTAMP NOT NULL,
+                server_from VARCHAR(64) NOT NULL,
+                channel VARCHAR(128) NOT NULL,
+                payload LONGTEXT NOT NULL
+            )""",
+        ),
+        Migration(23, "CREATE INDEX ${t.networkMessagesTimeIndex} ON ${t.networkMessages} (created_at)") { hasIndex(it, t.networkMessages, t.networkMessagesTimeIndex) },
+        // The players online on each server, rewritten by each server: what `api.network.presence` reads.
+        Migration(
+            24,
+            """CREATE TABLE IF NOT EXISTS ${t.networkPlayers} (
+                player_uuid CHAR(36) NOT NULL PRIMARY KEY,
+                name VARCHAR(16) NOT NULL,
+                server_name VARCHAR(64) NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )""",
+        ),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =
