@@ -1,4 +1,8 @@
-import { type DeclaredActionLookup, declaredActionOf } from "@/lib/actions/coreActions";
+import {
+  type DeclaredActionLookup,
+  declarationOfAction,
+  declaredActionOf,
+} from "@/lib/actions/coreActions";
 import { actionArgs, isLTextNode } from "./actionArgs";
 import { walkActions } from "./stepPath";
 import type { I18nKey, LText, ModelField, Step } from "./types";
@@ -64,7 +68,7 @@ export function* walkStepTextSlots(
   };
   for (const action of walkActions(steps)) {
     const wireName = action.name;
-    const decl = declOf(wireName);
+    const decl = declarationOfAction(action, declOf);
     if (!decl) continue;
     const args = actionArgs(action, decl);
     // The generic base is minted once per step, on its first slot-less text.

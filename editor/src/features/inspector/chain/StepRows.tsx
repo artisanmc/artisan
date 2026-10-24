@@ -2,7 +2,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSearch,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   matchesMenuSearch,
 } from "@/components/ui/dropdown-menu";
@@ -16,6 +18,7 @@ import type {
   IfCase,
   LText,
   MenuId,
+  ModelField,
   ProjectId,
   Step,
 } from "@/domain/types";
@@ -27,6 +30,7 @@ import {
   isCoreAction,
 } from "@/lib/actions/actionFamily";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
+import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { cx } from "@/lib/cx";
 import { useGetText } from "@/lib/useText";
@@ -36,7 +40,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { TFunction } from "i18next";
 import { type CSSProperties, createContext, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActionEditor } from "../properties/ActionEditor";
+import { ActionEditor, defaultEffectValue } from "../properties/ActionEditor";
 import { ConditionListEditor } from "../properties/ConditionListEditor";
 import { ACTION_TYPES, defaultAction, defaultDeclaredAction } from "./defaults";
 import { conditionsSummary } from "./labels";
@@ -378,8 +382,24 @@ export function AddStepLine({
   const shown = (name: string) =>
     matchesMenuSearch(actionLabel(name, t), query) || matchesMenuSearch(name, query);
   const coreActions = ACTION_TYPES.filter(shown);
-  const moduleActions = moduleActionsOf(declared).filter((decl) => shown(decl.name));
+  // The event actions are offered from the chain's event below, never by name.
+  const moduleActions = moduleActionsOf(declared).filter(
+    (decl) => !isEventAction(decl.name) && shown(decl.name),
+  );
   const ifShown = allowIf && matchesMenuSearch(t("flow.addStepIfBranch"), query);
+  const event = useChainEvent();
+  const effectLabel = (field: ModelField) =>
+    t("triggers.setEffect", {
+      effect: t(`triggers.effects.${field.name}`, { defaultValue: field.label ?? field.name }),
+    });
+  const cancelShown =
+    event?.cancellable === true &&
+    (matchesMenuSearch(actionLabel("cancel_event", t), query) ||
+      matchesMenuSearch("cancel_event", query));
+  const effectsShown = (event?.effects ?? []).filter((f) =>
+    matchesMenuSearch(effectLabel(f), query),
+  );
+  const eventShown = cancelShown || effectsShown.length > 0;
   return (
     <div className="flex items-center">
       <DropdownMenu
@@ -429,6 +449,42 @@ export function AddStepLine({
               <ActionName name={decl.name} />
             </DropdownMenuItem>
           ))}
+          {eventShown ? (
+            <>
+              <DropdownMenuSeparator className="bg-[var(--border-soft)]" />
+              <DropdownMenuLabel className="text-[11px] text-[var(--text-faint)]">
+                {t("triggers.eventSteps")}
+              </DropdownMenuLabel>
+              {cancelShown ? (
+                <DropdownMenuItem
+                  onSelect={() =>
+                    onPick({ kind: "action", action: { name: "cancel_event", value: {} } })
+                  }
+                  className="cursor-pointer gap-2 focus:bg-[var(--surface-hover)]"
+                >
+                  <ActionName name="cancel_event" />
+                </DropdownMenuItem>
+              ) : null}
+              {effectsShown.map((field) => (
+                <DropdownMenuItem
+                  key={field.name}
+                  onSelect={() =>
+                    onPick({
+                      kind: "action",
+                      action: {
+                        name: "set_event",
+                        value: { [field.name]: defaultEffectValue(field) },
+                      },
+                    })
+                  }
+                  className="cursor-pointer gap-2 focus:bg-[var(--surface-hover)]"
+                >
+                  <ActionName name="set_event" label={effectLabel(field)} />
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="bg-[var(--border-soft)]" />
+            </>
+          ) : null}
           {ifShown && (
             <DropdownMenuItem
               onSelect={() => onPick({ kind: "if", cases: [{ conditions: [], steps: [] }] })}
@@ -438,7 +494,7 @@ export function AddStepLine({
               <span className="text-[13px] text-[var(--text)]">{t("flow.addStepIfBranch")}</span>
             </DropdownMenuItem>
           )}
-          {coreActions.length + moduleActions.length === 0 && !ifShown && (
+          {coreActions.length + moduleActions.length === 0 && !ifShown && !eventShown && (
             <div className="px-2.5 py-1.5 text-[12.5px] text-[var(--text-faint)]">
               {t("flow.noActionMatch")}
             </div>
@@ -511,11 +567,11 @@ function actionLabel(name: string, t: TFunction): string {
   return colon > 0 ? name.slice(colon + 1) : name;
 }
 
-function ActionName({ name }: { name: string }) {
+function ActionName({ name, label: forced }: { name: string; label?: string }) {
   const { t } = useTranslation();
   const { family, icon } = actionAppearance(name);
   const colon = name.indexOf(":");
-  const label = actionLabel(name, t);
+  const label = forced ?? actionLabel(name, t);
   return (
     <>
       <IconTile icon={icon} {...familyColors(family)} />
@@ -605,8 +661,19 @@ function ActionSummaryArgs({
   action: Action;
   getText: (lt: LText | undefined) => string;
 }) {
+  const { t } = useTranslation();
   const declOf = useDeclaredActionOf();
   const decl = declOf(action.name);
+  if (action.name === "set_event") {
+    // The effects by their names: "Message de mort = …", not the wire map.
+    const effects = Object.entries(setEventArgs(action.value))
+      .map(
+        ([name, value]) =>
+          `${t(`triggers.effects.${name}`, { defaultValue: name })} = ${isLTextNode(value) ? getText(value) : String(value)}`,
+      )
+      .join(" · ");
+    return <span className="min-w-0 truncate text-[12.5px] text-[var(--text-mut)]">{effects}</span>;
+  }
   const args = decl ? normalizeActionArgs(decl, action.value) : {};
   const texts = decl
     ? decl.args.filter((a) => a.type.kind === "ltext" && isLTextNode(args[a.name]))

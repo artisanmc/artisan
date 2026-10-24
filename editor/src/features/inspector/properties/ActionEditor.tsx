@@ -33,6 +33,7 @@ import { MaterialField } from "@/features/canvas/MaterialField";
 import { useOtherServerProjects } from "@/features/serverIndex/useOtherServerProjects";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
+import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { getText as libGetText } from "@/lib/i18n";
 import type { FieldLocation, PlaceholderEntry } from "@/lib/placeholderCatalog";
@@ -106,6 +107,9 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
   const { t } = useTranslation();
   const declOf = useDeclaredActionOf();
   const decl = declOf(action.name);
+  // The event actions are edited from the chain's Game event, not from their declaration.
+  if (isEventAction(action.name))
+    return <EventActionFields projectId={projectId} action={action} onChange={onChange} />;
   if (!decl) {
     return (
       <div>
@@ -137,6 +141,145 @@ function ActionFields({ projectId, action, onChange, literalText }: ActionEditor
       literalText={literalText}
     />
   );
+}
+
+/**
+ * `cancel_event` and `set_event` (ADR `triggers-and-variables` §3 bis), from the Game event of
+ * the Trigger whose chain this is: whether it can be cancelled, and the effects it declares,
+ * each typed. Outside a Trigger they have no event: a warning, the value kept as is.
+ */
+function EventActionFields({
+  projectId,
+  action,
+  onChange,
+}: {
+  projectId: ProjectId;
+  action: Action;
+  onChange: (a: Action) => void;
+}) {
+  const { t } = useTranslation();
+  const event = useChainEvent();
+  const entries = useActionEntries();
+  const hint = (text: string, tone: "faint" | "warning" = "faint") => (
+    <p
+      className={
+        tone === "warning"
+          ? "text-[11px] text-[var(--warning)]"
+          : "text-[11px] text-[var(--text-faint)]"
+      }
+    >
+      {text}
+    </p>
+  );
+  if (!event) return hint(t("triggers.outsideTrigger"), "warning");
+  const eventTitle = t(`triggers.events.${event.name}.title`, { defaultValue: event.name });
+  if (action.name === "cancel_event") {
+    return event.cancellable
+      ? hint(t("triggers.cancelHint"))
+      : hint(t("triggers.notCancellable", { event: eventTitle }), "warning");
+  }
+  if (event.effects.length === 0) return hint(t("triggers.noEffectsHere"), "warning");
+  const args = setEventArgs(action.value);
+  const write = (next: Record<string, unknown>) => onChange({ name: action.name, value: next });
+  const effectLabel = (name: string) => {
+    const field = event.effects.find((e) => e.name === name);
+    return t(`triggers.effects.${name}`, { defaultValue: field?.label ?? name });
+  };
+  const unused = event.effects.filter((e) => !(e.name in args));
+  return (
+    <div className="flex flex-col gap-2">
+      {Object.entries(args).map(([name, value]) => {
+        const field = event.effects.find((e) => e.name === name);
+        return (
+          <div key={name}>
+            <FieldLabel>
+              {effectLabel(name)}
+              {field ? "" : ` (${t("actionEditor.moduleUnknown")})`}
+            </FieldLabel>
+            <div className="flex items-center gap-1.5">
+              <div className="min-w-0 flex-1">
+                {isLTextNode(value) ? (
+                  // A text players read: translated like any other, one value per language.
+                  <TextArgInput projectId={projectId} lt={value} />
+                ) : field?.type.kind === "boolean" ? (
+                  <select
+                    className="select h-7 w-full rounded-[var(--r-xs)] py-0 pr-7 pl-2 text-xs"
+                    value={String(value === true || value === "true")}
+                    onChange={(e) => write({ ...args, [name]: e.target.value === "true" })}
+                    aria-label={name}
+                  >
+                    <option value="true">{t("triggers.yes")}</option>
+                    <option value="false">{t("triggers.no")}</option>
+                  </select>
+                ) : (
+                  <PlaceholderInput
+                    value={value == null ? "" : String(value)}
+                    onChange={(v) => {
+                      const numeric =
+                        field?.type.kind === "integer" || field?.type.kind === "number";
+                      write({
+                        ...args,
+                        [name]:
+                          numeric && v.trim() !== "" && Number.isFinite(Number(v)) ? Number(v) : v,
+                      });
+                    }}
+                    entries={entries}
+                    className="h-7 px-2 py-0 font-mono text-xs"
+                    aria-label={name}
+                  />
+                )}
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost h-7 px-2 text-[12px]"
+                aria-label={t("triggers.removeEffect")}
+                onClick={() => {
+                  const { [name]: _, ...rest } = args;
+                  write(rest);
+                }}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        );
+      })}
+      {unused.length > 0 ? (
+        <select
+          className="select h-7 w-auto self-start rounded-[var(--r-xs)] py-0 pr-7 pl-2 text-xs"
+          value=""
+          onChange={(e) => {
+            const field = event.effects.find((f) => f.name === e.target.value);
+            if (field) write({ ...args, [field.name]: defaultEffectValue(field) });
+          }}
+          aria-label={t("triggers.pickEffect")}
+        >
+          <option value="">{t("triggers.pickEffect")}</option>
+          {unused.map((f) => (
+            <option key={f.name} value={f.name}>
+              {effectLabel(f.name)}
+            </option>
+          ))}
+        </select>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * What a fresh `set_event` entry holds: true for a flag, 0 for a number, a text to translate
+ * (minted at `…set_event.<effect>` by the store) for anything players read.
+ */
+export function defaultEffectValue(field: ModelField): unknown {
+  switch (field.type.kind) {
+    case "boolean":
+      return true;
+    case "integer":
+    case "number":
+      return 0;
+    default:
+      return { key: UNALLOCATED_LTEXT_KEY };
+  }
 }
 
 /** One row per declared argument, in the declaration's order. */

@@ -4,6 +4,7 @@ import net.artisanmc.modules.api.action.ActionContext
 import net.artisanmc.modules.api.action.ActionRuntime
 import net.artisanmc.plugin.model.LocalizedText
 import org.bukkit.Bukkit
+import org.bukkit.entity.Player
 
 /**
  * What the engine lends a handler for one step (API [ActionRuntime]): text resolution,
@@ -24,6 +25,17 @@ class EngineRuntime(
     fun text(ctx: ExecutionContext, args: Map<String, Any>, name: String): String {
         val ltext = Args.ltext(args[name]) ?: return ""
         return executor.resolveText(ltext, ctx, i18n[name])
+    }
+
+    override fun textFor(ctx: ActionContext, text: Any?, viewer: Player?): String {
+        val ltext = Args.ltext(text) ?: return ""
+        return executor.resolveText(ltext, executor.viewerContext(executor.context(ctx), viewer))
+    }
+
+    /** A core handler's `ltext` argument as [viewer] reads it (see [ActionExecutor.viewerContext]). */
+    fun textFor(ctx: ExecutionContext, args: Map<String, Any>, name: String, viewer: Player?): String {
+        val ltext = Args.ltext(args[name]) ?: return ""
+        return executor.resolveText(ltext, executor.viewerContext(ctx, viewer), i18n[name])
     }
 
     override fun run(ctx: ActionContext, chain: Any?): ActionContext {

@@ -9,13 +9,13 @@ import {
   renamedDocumentFiles,
 } from "@/domain/documents";
 import { mintLTexts, rekeyDocument } from "@/domain/i18nSites";
-import type { I18nKey, ProjectId } from "@/domain/types";
+import type { I18nKey, Project, ProjectId, Step } from "@/domain/types";
 import { setLText } from "@/lib/i18n";
 import { createDocumentOfKind } from "@/lib/moduleDocumentKinds";
 import { adoptLateDocuments } from "@/schema/projectFromFiles";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
-import { renameBoardKey } from "./helpers";
+import { allocStepLTexts, gcStepLTexts, renameBoardKey } from "./helpers";
 import type { ProjectsSliceContext } from "./types";
 
 /**
@@ -42,6 +42,19 @@ export interface DocumentsSlice {
     id: string;
     doc: unknown;
     texts?: { key: string; lang: string; value: string }[];
+  }) => void;
+  /**
+   * Edits one chain slot of a Document (`chainSlots` of its kind, a Trigger's `do`) in
+   * place: `edit` mutates the slot's Step[] and releases, through `gc`, the texts of the
+   * steps it drops; the slot's texts are then minted at its prefix in `lang`.
+   */
+  editDocumentChain: (input: {
+    projectId: ProjectId;
+    kind: string;
+    id: string;
+    slot: string;
+    lang: string;
+    edit: (steps: Step[], gc: (dropped: Step[]) => void) => void;
   }) => void;
   /**
    * Reads the Documents of a kind registered after the Project was read (a module's view
@@ -85,6 +98,16 @@ export const createDocumentsSlice = ({
       if (index < 0) return false;
       docs[index] = doc as (typeof docs)[number];
       for (const t of texts ?? []) setLText(p, { key: t.key as I18nKey }, t.lang, t.value);
+    }),
+  editDocumentChain: ({ projectId: pId, kind, id, slot, lang, edit }) =>
+    mutateProject(pId, (p) => {
+      const doc = documentsOf(p, kind).find((d) => d.id === id);
+      if (!doc) return false;
+      const chain = [...documentChainSlots(kind, doc)].find((c) => c.name === slot);
+      if (!chain) return false;
+      const project = p as Project;
+      edit(chain.steps, (dropped) => gcStepLTexts(project, dropped));
+      allocStepLTexts(project, chain.steps, lang, chain.prefix);
     }),
   adoptLateDocuments: ({ projectId: pId }) =>
     mutateProject(

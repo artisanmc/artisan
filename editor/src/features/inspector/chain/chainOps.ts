@@ -63,6 +63,7 @@ export type ChainStoreActions = Pick<
   | "setDialogButtonIfCaseConditions"
   | "setDialogButtonIfCaseJoin"
   | "toggleDialogButtonIfElse"
+  | "editDocumentChain"
 >;
 
 /**
@@ -76,6 +77,8 @@ export function storeChainOps(
   lang: string,
 ): ChainOps {
   switch (address.kind) {
+    case "document":
+      return documentChainOps(actions, projectId, address, lang);
     case "element": {
       const at = { projectId, ...chainTarget(address) };
       return {
@@ -158,11 +161,13 @@ export function storeChainOps(
 }
 
 /**
- * Chain edits applied to a value held by the caller (`value` + `onChange`, no store): the
- * `actions` field of module data. Each edit hands `onChange` a new Step[] (immer).
+ * One edit of a chain's top-level Step[], applied in place (immer draft). `gc` releases the
+ * texts of steps the edit drops, where the chain's texts are i18n sites.
  */
-export function controlledChainOps(value: Step[], onChange: (steps: Step[]) => void): ChainOps {
-  const mutate = (fn: (root: Step[]) => void) => onChange(produce(value, fn));
+type ChainEdit = (root: Step[], gc: (dropped: Step[]) => void) => void;
+
+/** The edits of {@link ChainOps}, over whatever applies them (`mutate`). */
+function chainEdits(mutate: (edit: ChainEdit) => void): ChainOps {
   const ifAt = (root: Step[], frames: StepFrame[], ifStepIndex: number) => {
     const s = resolveParentMut(root, frames)?.[ifStepIndex];
     return s && s.kind === "if" ? s : null;
@@ -180,8 +185,10 @@ export function controlledChainOps(value: Step[], onChange: (steps: Step[]) => v
         moveStepMut(root, from, to);
       }),
     remove: (path) =>
-      mutate((root) => {
-        resolveParentMut(root, path.frames)?.splice(path.index, 1);
+      mutate((root, gc) => {
+        const parent = resolveParentMut(root, path.frames);
+        if (!parent || path.index < 0 || path.index >= parent.length) return;
+        gc(parent.splice(path.index, 1));
       }),
     set: (path, step) =>
       mutate((root) => {
@@ -193,8 +200,9 @@ export function controlledChainOps(value: Step[], onChange: (steps: Step[]) => v
         ifAt(root, frames, ifStepIndex)?.cases.push({ conditions: [], steps: [] });
       }),
     removeCase: (frames, ifStepIndex, caseIndex) =>
-      mutate((root) => {
-        ifAt(root, frames, ifStepIndex)?.cases.splice(caseIndex, 1);
+      mutate((root, gc) => {
+        const dropped = ifAt(root, frames, ifStepIndex)?.cases.splice(caseIndex, 1) ?? [];
+        for (const c of dropped) gc(c.steps);
       }),
     setCaseConditions: (frames, ifStepIndex, caseIndex, conditions) =>
       mutate((root) => {
@@ -212,14 +220,46 @@ export function controlledChainOps(value: Step[], onChange: (steps: Step[]) => v
         c.joins[joinIndex] = op;
       }),
     toggleElse: (frames, ifStepIndex, enabled) =>
-      mutate((root) => {
+      mutate((root, gc) => {
         const s = ifAt(root, frames, ifStepIndex);
         if (!s) return;
         if (enabled) {
           if (!s.else) s.else = [];
         } else {
+          if (s.else) gc(s.else);
           s.else = undefined;
         }
       }),
   };
+}
+
+/**
+ * Chain edits applied to a value held by the caller (`value` + `onChange`, no store): the
+ * `actions` field of module data. Each edit hands `onChange` a new Step[] (immer).
+ */
+export function controlledChainOps(value: Step[], onChange: (steps: Step[]) => void): ChainOps {
+  return chainEdits((edit) => onChange(produce(value, (root) => edit(root, () => {}))));
+}
+
+/**
+ * Chain edits of one chain slot of a Document whose kind declares its chains
+ * (`chainSlots`, a Trigger's `do`): one store write per edit, texts minted at the slot's
+ * prefix in `lang` and released when a step is dropped.
+ */
+export function documentChainOps(
+  edit: () => Pick<ProjectsState, "editDocumentChain">,
+  projectId: ProjectId,
+  address: Extract<ChainAddress, { kind: "document" }>,
+  lang: string,
+): ChainOps {
+  return chainEdits((fn) =>
+    edit().editDocumentChain({
+      projectId,
+      kind: address.docKind,
+      id: address.docId,
+      slot: address.slot,
+      lang,
+      edit: fn,
+    }),
+  );
 }

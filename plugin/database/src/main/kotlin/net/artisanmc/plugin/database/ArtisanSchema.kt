@@ -119,6 +119,18 @@ object ArtisanSchema {
                 updated_at TIMESTAMP NOT NULL
             )""",
         ),
+        // Every player seen on the network (`PlayerRows`): read in templates as `{player.first_seen}`,
+        // `{player.last_seen}` and `{player.playtime}`. Instants and durations in epoch milliseconds.
+        Migration(
+            25,
+            """CREATE TABLE IF NOT EXISTS ${t.players} (
+                player_uuid CHAR(36) NOT NULL PRIMARY KEY,
+                name VARCHAR(16) NOT NULL,
+                first_seen BIGINT NOT NULL,
+                last_seen BIGINT NOT NULL,
+                playtime_ms BIGINT NOT NULL DEFAULT 0
+            )""",
+        ),
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

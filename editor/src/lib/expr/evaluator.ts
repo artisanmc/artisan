@@ -150,6 +150,18 @@ function invokeMethod(target: unknown, method: string, args: unknown[], scope: S
       if (at === null) return "";
       return formatDuration(at - scope.now(), (key) => scope.translate(key));
     }
+    case "ago": {
+      // The mirror of until(): time elapsed since a past instant (`{player.last_seen.ago()}`).
+      const at = toNumber(target);
+      if (at === null) return "";
+      return formatDuration(scope.now() - at, (key) => scope.translate(key));
+    }
+    case "duration": {
+      // A length of time in milliseconds (`{player.playtime.duration()}`), same units as until().
+      const ms = toNumber(target);
+      if (ms === null) return "";
+      return formatDuration(ms, (key) => scope.translate(key));
+    }
     default:
       return null;
   }

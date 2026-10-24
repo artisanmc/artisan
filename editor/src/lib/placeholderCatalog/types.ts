@@ -18,7 +18,9 @@ export type FieldLocation =
   | { kind: "action"; menuId: MenuId; elementId: ElementId; clickType: ClickType }
   | { kind: "command"; commandId: CommandId; sub?: CommandNodePath }
   | { kind: "dialog"; dialogId: DialogId }
-  | { kind: "dialog-action"; dialogId: DialogId; buttonId: string };
+  | { kind: "dialog-action"; dialogId: DialogId; buttonId: string }
+  /** A Trigger's chain: the builtin `{player}` and the `{event.…}` values its event binds. */
+  | { kind: "event"; values: PlaceholderEntry[] };
 
 export type PlaceholderType =
   | "player"

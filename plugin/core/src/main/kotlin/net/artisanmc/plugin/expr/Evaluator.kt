@@ -146,6 +146,16 @@ private fun invokeMethod(target: Any?, method: String, args: List<Any?>, scope: 
         val at = toNumberOrNull(target)
         if (at == null) "" else Duration.format(at.toLong() - scope.now()) { scope.translate(it) }
     }
+    "ago" -> {
+        // The mirror of until(): time elapsed since a past instant (`{player.last_seen.ago()}`).
+        val at = toNumberOrNull(target)
+        if (at == null) "" else Duration.format(scope.now() - at.toLong()) { scope.translate(it) }
+    }
+    "duration" -> {
+        // A length of time in milliseconds (`{player.playtime.duration()}`), same units as until().
+        val ms = toNumberOrNull(target)
+        if (ms == null) "" else Duration.format(ms.toLong()) { scope.translate(it) }
+    }
     else -> null
 }
 

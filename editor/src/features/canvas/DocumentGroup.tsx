@@ -1,5 +1,6 @@
 import { docKey } from "@/domain/documents";
 import type { Document, Project, ProjectId } from "@/domain/types";
+import { useCssVar } from "@/lib/themeColors";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useDocumentItemHoverStore } from "@/state/documentItemHoverStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -60,7 +61,11 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
   const title = contribution?.title?.(doc, { project, lang }) || doc.id;
   const items = contribution?.board?.items?.(doc, { project, lang }) ?? [];
   const Preview = contribution?.board?.render;
-  const accent = contribution?.board?.accent ?? DEFAULT_ACCENT;
+  // A `var(--token)` accent follows the theme: Konva paints literal colours only.
+  const declared = contribution?.board?.accent ?? DEFAULT_ACCENT;
+  const token = /^var\((--[\w-]+)\)$/.exec(declared)?.[1];
+  const themed = useCssVar(token ?? "--kind-module");
+  const accent = token ? themed || DEFAULT_ACCENT : declared;
   // Parts that run in order: their discs form a line, top to bottom.
   const ordered = items.length > 1 && items.every((item) => item.marker);
   const rowY = (i: number) => DOCUMENT_ITEMS.header + i * DOCUMENT_ITEMS.row;

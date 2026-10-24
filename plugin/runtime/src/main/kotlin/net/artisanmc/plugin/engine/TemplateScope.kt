@@ -8,6 +8,7 @@ import net.artisanmc.plugin.model.LocalizedText
 import org.bukkit.World
 import org.bukkit.entity.Player
 import net.artisanmc.plugin.integrations.PapiProvider
+import net.artisanmc.plugin.players.PlayerRecords
 
 /**
  * The seam between the runtime's context and the platform-agnostic Expression
@@ -31,7 +32,8 @@ fun argsScope(args: Map<String, Any?>): ExprScope = ExprScope(args.mapValues { a
 
 internal fun adapt(value: Any?): Any? = when (value) {
     is Player -> BukkitValue(
-        mapOf("name" to value.name, "uuid" to value.uniqueId.toString(), "world" to value.world.name),
+        mapOf("name" to value.name, "uuid" to value.uniqueId.toString(), "world" to value.world.name) +
+            PlayerRecords.fields(value.uniqueId),
         value.name,
     )
     is World -> BukkitValue(mapOf("name" to value.name), value.name)
