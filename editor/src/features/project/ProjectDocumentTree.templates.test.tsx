@@ -2,6 +2,7 @@ import type { Project, ProjectId } from "@/domain/types";
 import { hashContent } from "@/lib/contentHash";
 import { useModulesStore } from "@/state/modulesStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectRuntimeStore } from "@/state/projectRuntimeStore";
 import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -146,4 +147,67 @@ it("marks a module's system menu, never deleted or moved: Reset puts the module'
     { serverId: "srv", diskId: "shop" },
     { module: "boutique", template: "menus", paths: ["menus/shop_main.yaml"], replace: true },
   );
+});
+
+it("says why Reset is off while the draft holds unpublished changes", async () => {
+  const shipped = "schema: menu/v1\nsize: 27\n";
+  const hash = await hashContent(shipped);
+  api.fetchProjectOrigins.mockResolvedValue({
+    ok: true,
+    origins: {
+      "menus/shop_main.yaml": { module: "boutique", template: "menus", version: 1, hash },
+    },
+  });
+  useProjectsStore.setState({
+    openProjects: {
+      projectOrder: [PID],
+      projects: [
+        {
+          id: PID,
+          diskId: "shop",
+          name: "shop",
+          documents: {
+            menu: [{ id: "shop_main", projectId: PID, title: [], rows: 3, layers: [] }],
+          },
+          i18nKeys: {},
+          defaultLang: "en",
+          canvasLayout: {},
+          dataSources: [],
+        } as unknown as Project,
+      ],
+    },
+  } as never);
+  useProjectBaselineStore.getState().set(PID, { "menus/shop_main.yaml": "title: Mine\n" });
+  useProjectDraftStore.getState().save(PID, {
+    initialTree: { "menus/shop_main.yaml": "title: Mine\n" },
+    tree: { "menus/shop_main.yaml": "title: Edited\n" },
+  } as never);
+  useProjectTemplatesStore.setState({ entries: {} });
+  useModulesStore.setState({
+    active: [
+      {
+        id: "boutique",
+        version: "1",
+        templates: [
+          {
+            id: "menus",
+            title: "menus",
+            version: 1,
+            system: true,
+            files: [{ path: "menus/shop_main.yaml", hash, size: 1 }],
+          },
+        ],
+      },
+    ],
+  });
+
+  render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+  await screen.findByRole("img", { name: "Différent de la version de boutique" });
+  fireEvent.pointerDown(screen.getByRole("button", { name: "Options" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  const item = await screen.findByRole("menuitem", { name: /Réinitialiser/ });
+  expect(item).toHaveAttribute("aria-disabled", "true");
+  expect(item).toHaveTextContent("Déploie ou abandonne d'abord ton brouillon.");
 });

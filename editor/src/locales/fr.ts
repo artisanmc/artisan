@@ -812,7 +812,8 @@ const fr: typeof en = {
       update: "Différent de la version de {{module}}, qui en livre une nouvelle",
     },
     systemReset: "Réinitialiser",
-    systemResetHint: "Remet la version du module. Enregistre d'abord tes modifications en cours.",
+    systemResetHint: "Remet la version du module.",
+    systemResetBlocked: "Déploie ou abandonne d'abord ton brouillon.",
     systemResetConfirm:
       "Remettre la version du module ? Tes modifications de ce fichier seront perdues.",
     noEditor: "Pas encore d'éditeur pour ce {{kind}}",

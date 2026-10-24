@@ -443,6 +443,8 @@ type DocumentOrigin = Omit<TemplateOrigin, "label"> & {
   system: boolean;
   /** Puts the module's version back; absent while it cannot be written (unsaved changes). */
   reset?: () => void;
+  /** Differs from the module's version, but the draft holds unpublished changes. */
+  resetBlocked?: boolean;
 };
 
 function templateOrigin(
@@ -480,7 +482,14 @@ function templateOrigin(
           });
         }
       : undefined;
-  return { tone, module: entry.template.moduleId, system, ...(reset ? { reset } : {}) };
+  const resetBlocked = system && tone !== "identical" && templates.dirty;
+  return {
+    tone,
+    module: entry.template.moduleId,
+    system,
+    ...(reset ? { reset } : {}),
+    ...(resetBlocked ? { resetBlocked } : {}),
+  };
 }
 
 /** What a copy's tag says in a word: nothing when it is the module's version as is. */
@@ -591,6 +600,7 @@ function DocumentRow({
           onOpen={onOpen}
           system={origin?.system === true}
           onReset={origin?.reset}
+          resetBlocked={origin?.resetBlocked === true}
         />
       )}
     </div>
@@ -604,6 +614,7 @@ function RowActions({
   onOpen,
   system,
   onReset,
+  resetBlocked,
 }: {
   projectId: ProjectId;
   project: Project;
@@ -612,6 +623,8 @@ function RowActions({
   /** A module's system element: kept where the module put it, never deleted. */
   system: boolean;
   onReset?: () => void;
+  /** Why Reset is off: the draft has unpublished changes, said in the menu. */
+  resetBlocked?: boolean;
 }) {
   const { t } = useTranslation();
   const targets = system ? [] : ["", ...listFolders(project)].filter((f) => f !== item.folder);
@@ -645,7 +658,14 @@ function RowActions({
             title={t("projectPanel.systemResetHint")}
             onClick={onReset}
           >
-            {t("projectPanel.systemReset")}
+            <span className="flex flex-col">
+              {t("projectPanel.systemReset")}
+              {resetBlocked && (
+                <span className="text-[11px] text-[var(--text-faint)]">
+                  {t("projectPanel.systemResetBlocked")}
+                </span>
+              )}
+            </span>
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
