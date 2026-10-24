@@ -111,7 +111,7 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > enregistrée par `registerConfig` : versionnée, hors de la liste des Projects (ADR
 > `module-config-screens`, amendement 2026-10-19).
 
-> **Kind réservé et icônes de lignes (depuis 2026-10-24, SDK 1.7)** — `DocumentKindContribution.projects`
+> **Kind réservé et icônes de lignes (depuis 2026-10-24, SDK 1.8)** — `DocumentKindContribution.projects`
 > liste les dossiers (ids disque) où le kind peut être créé ; absent, partout. Un fichier du kind
 > ailleurs reste lu et affiché, seule la création est refusée (`kindCreatableIn`). `BoardItem.icon`
 > porte une valeur d'item que l'hôte dessine avant le libellé de la ligne. La boutique s'en sert pour
@@ -596,7 +596,8 @@ api.getTemplates().register(TemplateDeclaration
   les menus et dialogues que le code du module ouvre par id. Pas d'amorçage : à chaque démarrage et à
   l'arrivée du module, `SystemFiles` les garde dans le premier dossier du module par nom. Un fichier
   absent est réécrit (sauf si un fichier du même nom vit sous le même dossier de type ailleurs dans le
-  module : déplacé), une copie intacte d'une version plus ancienne est remplacée, une copie modifiée
+  module : déplacé), une copie intacte d'une version plus ancienne est remplacée, un fichier que le
+  module ne livre plus est supprimé s'il est intact, gardé s'il a été modifié, une copie modifiée
   reste celle de l'admin et reçoit la nouvelle version par une fusion à trois voies
   (`ThreeWayMerge`, design `commandes-unifiees` §5) : base = la version d'où vient le fichier,
   gardée dans `.artisan/bases/<hash>` (privé, hors de tout scan, supprimé quand plus aucune origine

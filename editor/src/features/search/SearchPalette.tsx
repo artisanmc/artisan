@@ -115,6 +115,7 @@ export function SearchPalette({ projectId }: { projectId: ProjectId }) {
       ref: entry.target.projectUrlId
         ? `${entry.target.projectUrlId}:${entry.target.openId}`
         : entry.target.openId,
+      kind: entry.target.kind,
     });
     if (entry.target.selectId) {
       // `openId` is the owning menu — scope the element selection to it so a

@@ -73,7 +73,7 @@ describe("ProjectDocumentTree", () => {
   });
 
   it("highlights the document open in the view", () => {
-    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="c1" />);
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="command/c1" />);
     expect(screen.getByText("/heal").closest("button")).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("m1").closest("button")).not.toHaveAttribute("aria-current");
   });
@@ -82,7 +82,7 @@ describe("ProjectDocumentTree", () => {
     const onOpen = vi.fn();
     render(<ProjectDocumentTree projectId={PID} onOpen={onOpen} />);
     fireEvent.click(screen.getByText("/heal"));
-    expect(onOpen).toHaveBeenCalledWith("c1");
+    expect(onOpen).toHaveBeenCalledWith("command/c1");
   });
 
   it("the root row opens the project settings without selecting anything", () => {

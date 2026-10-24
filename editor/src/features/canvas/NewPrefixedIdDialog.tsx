@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { docKey } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
 import { useSelectionStore } from "@/state/selectionStore";
 import { type ReactNode, useState } from "react";
@@ -12,6 +13,8 @@ interface NewPrefixedIdDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  /** The kind created: the new Document is selected by its key (`docKey`). */
+  kind: string;
   /** Prepended to what the user types (`menu_`, `dialog_`, a contribution's `idPrefix`). */
   prefix: string;
   placeholder?: string;
@@ -32,6 +35,7 @@ export function NewPrefixedIdDialog({
   open,
   onOpenChange,
   title,
+  kind,
   prefix,
   placeholder,
   canCreate = true,
@@ -48,7 +52,7 @@ export function NewPrefixedIdDialog({
   const submit = () => {
     if (!trimmed || conflict || !canCreate) return;
     const created = onCreate(prefixedId);
-    useSelectionStore.getState().set([created]);
+    useSelectionStore.getState().set([docKey(kind, created)]);
     setId("");
     onOpenChange(false);
   };

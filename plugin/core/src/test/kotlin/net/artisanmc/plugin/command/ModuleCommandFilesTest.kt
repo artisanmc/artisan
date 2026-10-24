@@ -156,6 +156,20 @@ class ModuleCommandFilesTest {
         assertNull(ModuleCommandFiles.template(emptyList()))
     }
 
+    @Test fun `an untouched command file the module no longer ships is removed, an edited one kept`() {
+        val folder = kotlin.io.path.createTempDirectory("commands").toFile()
+        try {
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(shop(), guild()))))
+            File(folder, "commands/g.yaml").appendText("enabled: false\n")
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(auctionHouse()))))
+            assertTrue(!File(folder, "commands/boutique.yaml").exists())
+            assertTrue(File(folder, "commands/g.yaml").isFile)
+            assertTrue(File(folder, "commands/ah.yaml").isFile)
+        } finally {
+            folder.deleteRecursively()
+        }
+    }
+
     private fun guild(vararg children: String) = PlayerCommandDeclaration.builder("guilds:g")
         .name("g").permission("guilds.use").executor(run)
         .apply { children.forEach { child(PlayerCommandDeclaration.builder("guilds:$it").name(it).executor(run).build()) } }

@@ -73,7 +73,7 @@ export function registerEditorModule(mod: FrontendModule): void {
 }
 
 /**
- * Whether a Document of this kind may be created in `project` (SDK 1.7): a kind listing
+ * Whether a Document of this kind may be created in `project` (SDK 1.8): a kind listing
  * `projects` is offered only in those folders, matched on the disk id (`projectNamespace`).
  */
 export function kindCreatableIn(

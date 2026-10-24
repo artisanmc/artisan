@@ -121,7 +121,7 @@ function project(): Project {
       ["quests.quest_b.title" as I18nKey]: { en: "Rescue" },
     },
     defaultLang: "en",
-    canvasLayout: { m1: { x: 0, y: 0 }, quest_a: { x: 300, y: 0 } } as never,
+    canvasLayout: { "menu/m1": { x: 0, y: 0 }, "quest/quest_a": { x: 300, y: 0 } } as never,
   } as Project;
 }
 
@@ -218,10 +218,10 @@ describe("a module's Document kind on the host", () => {
   });
 
   it("is what the selection designates, and what the Properties panel renders", () => {
-    const ctx = selectionContext(project(), new Set(["quest_a"]), null);
+    const ctx = selectionContext(project(), new Set(["quest/quest_a"]), null);
     expect(ctx).toEqual({ kind: "document", documentKind: "quest", id: "quest_a" });
 
-    useSelectionStore.getState().set(["quest_a"]);
+    useSelectionStore.getState().set(["quest/quest_a"]);
     render(<SelectionInspector projectId={PID} />);
     expect(screen.getByTestId("quest-view").textContent).toBe("quest_a");
   });
@@ -240,9 +240,9 @@ describe("a module's Document kind on the host", () => {
 
   it("gets its edges from its chain slots, on the project board and the server board", () => {
     const edges = deriveEdges(project());
-    const toMenu = edges.find((e) => e.source === "quest_a" && e.target === "m1");
+    const toMenu = edges.find((e) => e.source === "quest/quest_a" && e.target === "menu/m1");
     expect(toMenu?.triggers).toEqual([{ kind: "chain", documentId: "quest_a", slot: "complete" }]);
-    const toQuest = edges.find((e) => e.source === "quest_b" && e.target === "quest_a");
+    const toQuest = edges.find((e) => e.source === "quest/quest_b" && e.target === "quest/quest_a");
     expect(toQuest).toBeDefined();
 
     const graph = deriveServerGraph([project()]);
@@ -251,8 +251,8 @@ describe("a module's Document kind on the host", () => {
       width: 200,
       height: 80,
     });
-    expect(graph.edges.map((e) => e.id)).toContain("p1/quest_b->p1/quest_a");
-    expect(nodeBox(project(), "quest_a", { quest_a: { x: 1, y: 2 } })).toEqual({
+    expect(graph.edges.map((e) => e.id)).toContain("p1/quest/quest_b->p1/quest/quest_a");
+    expect(nodeBox(project(), "quest/quest_a", { "quest/quest_a": { x: 1, y: 2 } })).toEqual({
       x: 1,
       y: 2,
       width: 200,
@@ -282,7 +282,7 @@ describe("a module's Document kind on the host", () => {
     useProjectsStore.setState({ openProjects: { projects: [p], projectOrder: [PID] } });
 
     // Header plus one row per part: the node grows, its width stays.
-    expect(nodeBox(p, "chapter_1", { chapter_1: { x: 0, y: 0 } })).toMatchObject({
+    expect(nodeBox(p, "chapter/chapter_1", { "chapter/chapter_1": { x: 0, y: 0 } })).toMatchObject({
       width: 220,
       height: 46 + 2 * 24 + 6,
     });
@@ -326,7 +326,7 @@ describe("a module's Document kind on the host", () => {
     const c = (documentsOf(p, "quest") as unknown as Quest[]).find((q) => q.id === "quest_c")!;
     expect(c.title.key).toBe("quests.quest_c.title");
     expect(p.i18nKeys["quests.quest_c.title" as I18nKey]).toEqual({ en: "" });
-    expect((p.canvasLayout as Record<string, unknown>).quest_c).toEqual({ x: 5, y: 6 });
+    expect((p.canvasLayout as Record<string, unknown>)["quest/quest_c"]).toEqual({ x: 5, y: 6 });
     expect(() =>
       useProjectsStore.getState().createDocument({ projectId: PID, kind: "quest", id: "quest_c" }),
     ).toThrow(/already exists/);
@@ -341,7 +341,7 @@ describe("a module's Document kind on the host", () => {
     const z = quests.find((q) => q.id === "quest_z")!;
     expect(z.title.key).toBe("quests.quest_z.title");
     expect(p.i18nKeys["quests.quest_z.title" as I18nKey]).toEqual({ en: "Slay the dragon" });
-    expect((p.canvasLayout as Record<string, unknown>).quest_z).toEqual({ x: 300, y: 0 });
+    expect((p.canvasLayout as Record<string, unknown>)["quest/quest_z"]).toEqual({ x: 300, y: 0 });
     const b = quests.find((q) => q.id === "quest_b")!;
     expect(b.onComplete[0]).toEqual(open("quest_open", "quest_z"));
     expect(useProjectDraftStore.getState().pendingRenames[PID]).toEqual([

@@ -26,13 +26,13 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
-import { documentCount } from "@/domain/documents";
+import { docKey, documentCount, resolveDocKey } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
 import {
   type ModuleGroupEntry,
@@ -419,6 +419,7 @@ function ActiveProjectDocuments({
 }) {
   const navigate = useNavigate();
   const { documentId } = useParams({ strict: false }) as { documentId?: string };
+  const { kind } = useSearch({ strict: false }) as { kind?: string };
   const project = useProjectsStore((s) =>
     s.openProjects.projects.find((p) => p.id === id || (!!urlId && projectUrlId(p) === urlId)),
   );
@@ -428,7 +429,9 @@ function ActiveProjectDocuments({
       <ProjectDocumentTree
         projectId={project.id}
         header="none"
-        activeId={documentId}
+        activeId={
+          documentId && (kind ? docKey(kind, documentId) : resolveDocKey(project, documentId))
+        }
         onOpen={(documentId) => {
           useSidebarStore.getState().close();
           goToDocument(navigate, { serverId, project, ref: documentId });

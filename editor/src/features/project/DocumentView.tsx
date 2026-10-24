@@ -1,6 +1,6 @@
 import { EmptyState } from "@/components/ui/empty-state";
-import { findDocument, menusOf } from "@/domain/documents";
-import type { ElementId, ProjectId } from "@/domain/types";
+import { docKey, findDocumentByKey, resolveDocKey } from "@/domain/documents";
+import type { ElementId, Menu, ProjectId } from "@/domain/types";
 import { Stage } from "@/features/canvas/Stage";
 import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
@@ -12,7 +12,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,12 +33,18 @@ export function DocumentView({
   const activeLang = useUiStore((s) => s.activeLang);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
-  const eid = documentId as string;
+  // `?kind=` says which Document of that id; without it (an older link), the first.
+  const { kind } = useSearch({ strict: false }) as { kind?: string };
+  const key = kind
+    ? docKey(kind, documentId)
+    : project
+      ? (resolveDocKey(project, documentId) ?? docKey("menu", documentId))
+      : docKey("menu", documentId);
   const [yamlMode, setYamlMode] = useState(false);
-  const menu = menusOf(project).find((m) => m.id === eid);
   // Any kind, a module's included (its view is the kind's `component`, via SelectionInspector).
-  const found = project ? findDocument(project, eid) : undefined;
-  const relPath = project ? documentRelPath(project, eid) : null;
+  const found = project ? findDocumentByKey(project, key) : undefined;
+  const menu = found?.kind === "menu" ? (found.doc as Menu) : undefined;
+  const relPath = project ? documentRelPath(project, key) : null;
   // A module kind whose node lists its parts opens on its node, like a menu: clicking a
   // part edits it in the panel beside.
   const onStage =
@@ -50,13 +56,13 @@ export function DocumentView({
     // selection already targets this element or one of its children — e.g. the
     // search palette selecting a specific item before this view mounts — keep it
     // instead of overwriting it.
-    const childIds = new Set<string>([documentId as string]);
+    const childIds = new Set<string>([key]);
     for (const layer of menu?.layers ?? [])
       for (const el of layer.elements ?? []) childIds.add(el.id);
     const current = useSelectionStore.getState().ids;
     const alreadyRelevant = current.size > 0 && [...current].every((id) => childIds.has(id));
-    if (!alreadyRelevant) useSelectionStore.getState().set([documentId]);
-  }, [documentId]);
+    if (!alreadyRelevant) useSelectionStore.getState().set([key]);
+  }, [key]);
 
   const back = useCallback(
     () => navigate(projectDestination(project ?? projectId, params.serverId)),
@@ -99,7 +105,7 @@ export function DocumentView({
       {/* The label is MiniMessage (menu/dialog title): render the style
           instead of printing the tags. */}
       <MiniMessageInline
-        source={project ? documentLabel(project, documentId as string, activeLang) : documentId}
+        source={project ? documentLabel(project, key, activeLang) : documentId}
         className="truncate text-[13px] font-medium text-[var(--text)]"
       />
       {relPath ? (
@@ -140,7 +146,7 @@ export function DocumentView({
       {onStage ? (
         <CanvasWithInspector
           projectId={pId}
-          canvas={<Stage projectId={pId} focus={documentId} />}
+          canvas={<Stage projectId={pId} focus={key} />}
           mobileSize={editorPaneWidth}
           onMobileSizeChange={setEditorPaneWidth}
           minSecondary={280}

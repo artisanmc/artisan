@@ -46,7 +46,7 @@ function project(): Project {
     importedConnectors: [],
     i18nKeys: {},
     defaultLang: "en",
-    canvasLayout: { m1: { x: 0, y: 0 } } as any,
+    canvasLayout: { "menu/m1": { x: 0, y: 0 } } as any,
   } as Project;
 }
 
@@ -91,7 +91,7 @@ describe("Stage — derived board", () => {
     expect(
       screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1"),
     ).toBe(true);
-    rerender(<Stage projectId={PID} focus={"m1" as any} />);
+    rerender(<Stage projectId={PID} focus={"menu/m1" as any} />);
     expect(
       screen.getAllByTestId("konva-group").some((g) => g.getAttribute("data-name") === "menu:m1"),
     ).toBe(true);

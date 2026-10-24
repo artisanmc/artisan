@@ -65,6 +65,60 @@ export function allDocuments(project: Documents): KindedDocument[] {
   return out;
 }
 
+/**
+ * A Document's key on the board and in every kind-agnostic lookup: `<kind>/<id>`. An id is
+ * unique within its kind only (`project-files.md`): a menu `shop` and a command `shop` are
+ * two Documents, so position, selection, links and Properties key them by kind and id. A
+ * kind or an id never holds `/`.
+ */
+export type DocKey = `${string}/${string}`;
+
+export const docKey = (kind: string, id: string): DocKey => `${kind}/${id}`;
+
+export const isDocKey = (value: string): value is DocKey => value.includes("/");
+
+export function parseDocKey(key: string): { kind: string; id: string } | null {
+  const at = key.indexOf("/");
+  return at <= 0 ? null : { kind: key.slice(0, at), id: key.slice(at + 1) };
+}
+
+/** The key of every document, in `allDocuments` order. */
+export function documentKeys(project: Documents): DocKey[] {
+  return allDocuments(project).map((d) => docKey(d.kind, d.doc.id));
+}
+
+/** The document of that key. */
+export function findDocumentByKey(project: Documents, key: string): KindedDocument | undefined {
+  const parsed = parseDocKey(key);
+  if (!parsed) return undefined;
+  const doc = documentsOf(project, parsed.kind).find((d) => d.id === parsed.id);
+  return doc ? { kind: parsed.kind, doc } : undefined;
+}
+
+/** The document a key designates, or the first of a bare id (`resolveDocKey`). */
+export function findDocumentRef(project: Documents, keyOrId: string): KindedDocument | undefined {
+  return isDocKey(keyOrId) ? findDocumentByKey(project, keyOrId) : findDocument(project, keyOrId);
+}
+
+/**
+ * The key a link or a URL designates: a key as is, a bare id (an older `?doc=`, a module's
+ * call) as the first document of that id in `allDocuments` order.
+ */
+export function resolveDocKey(project: Documents, keyOrId: string): DocKey | undefined {
+  if (isDocKey(keyOrId)) return findDocumentByKey(project, keyOrId) ? keyOrId : undefined;
+  const found = allDocuments(project).find((d) => d.doc.id === keyOrId);
+  return found ? docKey(found.kind, found.doc.id) : undefined;
+}
+
+/** The ids two kinds or more share, each with its kinds: a folder to tell about. */
+export function sharedDocumentIds(project: Documents): { id: string; kinds: string[] }[] {
+  const kinds = new Map<string, string[]>();
+  for (const { kind, doc } of allDocuments(project)) {
+    kinds.set(doc.id, [...(kinds.get(doc.id) ?? []), kind]);
+  }
+  return [...kinds].filter(([, k]) => k.length > 1).map(([id, k]) => ({ id, kinds: k }));
+}
+
 /** The ids of every document, in `allDocuments` order. */
 export function documentIds(project: Documents): string[] {
   return allDocuments(project).map((d) => d.doc.id);
@@ -76,7 +130,10 @@ export function documentCount(project: Documents): number {
   return n;
 }
 
-/** The document with that id, whatever its kind. */
+/**
+ * The first document with that id, whatever its kind. Two kinds may share an id: a lookup
+ * that does not know the kind goes through a key (`findDocumentByKey`).
+ */
 export function findDocument(project: Documents, id: string): KindedDocument | undefined {
   for (const [kind, docs] of Object.entries(project.documents)) {
     const doc = docs.find((d) => d.id === id);

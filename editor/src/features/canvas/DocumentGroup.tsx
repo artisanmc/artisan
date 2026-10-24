@@ -1,3 +1,4 @@
+import { docKey } from "@/domain/documents";
 import type { Document, Project, ProjectId } from "@/domain/types";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useDocumentItemHoverStore } from "@/state/documentItemHoverStore";
@@ -43,15 +44,16 @@ const ICON = 16;
  * in-place editing menus have on the board is theirs alone.
  */
 export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGroupProps) {
+  const key = docKey(kind, doc.id);
   const projectId = project.id as ProjectId;
   const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
-  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(doc.id));
+  const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
   // The part of this Document selected on its node (`board.items`), scoped like an element.
   const selectedItem = useSelectionStore((s) =>
-    s.menuId === doc.id && s.ids.size === 1 ? [...s.ids][0]! : null,
+    s.menuId === key && s.ids.size === 1 ? [...s.ids][0]! : null,
   );
   const lang = useUiStore((s) => s.activeLang);
-  const nodeAlign = useNodeAlignment(projectId, doc.id);
+  const nodeAlign = useNodeAlignment(projectId, key);
   const node = useNodeColors();
   const contribution = documentKindContribution(kind);
   const size = documentBoxSize(kind, doc, project);
@@ -71,10 +73,10 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      setCanvasPosition({ projectId, nodeId: doc.id, x: e.target.x(), y: e.target.y() });
+      setCanvasPosition({ projectId, nodeId: key, x: e.target.x(), y: e.target.y() });
       useAlignmentStore.getState().clear();
     },
-    [projectId, doc.id, setCanvasPosition],
+    [projectId, key, setCanvasPosition],
   );
 
   const onClick = useCallback(
@@ -82,10 +84,10 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
       e.cancelBubble = true;
       const additive = "evt" in e && (e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
       const { ids, menuId: selectionMenuId, set, toggle } = useSelectionStore.getState();
-      if (additive) toggle(doc.id);
-      else if (selectionMenuId !== null || !ids.has(doc.id) || ids.size > 1) set([doc.id]);
+      if (additive) toggle(key);
+      else if (selectionMenuId !== null || !ids.has(key) || ids.size > 1) set([key]);
     },
-    [doc.id],
+    [key],
   );
 
   return (
@@ -98,13 +100,13 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
       onDragEnd={onDragEnd}
       onClick={onClick}
       onTap={onClick}
-      onDblClick={solo ? undefined : () => dispatchOpenElement(doc.id)}
-      onDblTap={solo ? undefined : () => dispatchOpenElement(doc.id)}
+      onDblClick={solo ? undefined : () => dispatchOpenElement(key)}
+      onDblTap={solo ? undefined : () => dispatchOpenElement(key)}
       // The title may be cut by its ellipsis: the full one shows on hover.
       onMouseEnter={(e) => showFullTitle(e, title)}
       onMouseLeave={(e) => showFullTitle(e, null)}
       name={`${kind}:${doc.id}`}
-      id={doc.id}
+      id={key}
     >
       <Rect
         width={size.width}
@@ -184,7 +186,7 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
           selected={selectedItem === item.id}
           onSelect={(e) => {
             e.cancelBubble = true;
-            useSelectionStore.getState().set([item.id], null, doc.id);
+            useSelectionStore.getState().set([item.id], null, key);
           }}
         />
       ))}

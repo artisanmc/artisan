@@ -1,4 +1,4 @@
-import { commandsOf, dialogsOf, menusOf } from "@/domain/documents";
+import { docKey, findDocumentByKey, menusOf } from "@/domain/documents";
 import { parsePositions } from "@/lib/positions";
 import type { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
@@ -82,12 +82,8 @@ export function useStageContextMenu({
         slotHit &&
         selected.ids.size > 1 &&
         ((selected.menuId === null &&
-          selected.ids.has(slotHit.menuId) &&
-          [...selected.ids].every((id) =>
-            [menusOf(project), commandsOf(project), dialogsOf(project)].some((nodes) =>
-              nodes?.some((n) => n.id === id),
-            ),
-          )) ||
+          selected.ids.has(docKey("menu", slotHit.menuId)) &&
+          [...selected.ids].every((id) => findDocumentByKey(project, id) !== undefined)) ||
           selectedElementAt(project, slotHit.menuId, slotHit.position, selected.ids));
       if (keepsSelection) {
         setCtxMenu({

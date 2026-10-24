@@ -5,7 +5,7 @@ import { kindCreatableIn } from "./moduleDocumentKinds";
 const kind = (projects?: string[]) =>
   ({ kind: "shop_thing", projects }) as DocumentKindContribution;
 
-describe("kindCreatableIn — a kind reserved to its module's folder (SDK 1.7)", () => {
+describe("kindCreatableIn — a kind reserved to its module's folder (SDK 1.8)", () => {
   it("offers a kind without `projects` everywhere", () => {
     expect(kindCreatableIn(kind(), { id: "pack_a" })).toBe(true);
   });

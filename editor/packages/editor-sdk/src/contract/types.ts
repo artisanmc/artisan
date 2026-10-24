@@ -23,7 +23,7 @@ export interface DocumentKindContribution {
   rank?: number;
   /**
    * The project folders (their disk ids) where a Document of this kind may be created (SDK
-   * 1.7); every project when absent. A kind that only means something beside its module's own
+   * 1.8); every project when absent. A kind that only means something beside its module's own
    * content (a shop's categories, read from the shop's folder only) lists that folder. Files
    * already in another project are still read and shown: only creation is refused.
    */
@@ -100,7 +100,7 @@ export interface BoardItem {
   /** What a tooltip shows while the pointer is over the row (SDK 1.5). */
   hover?: BoardItemHover;
   /**
-   * An item drawn before the label (SDK 1.7), as the Document holds it: a material
+   * An item drawn before the label (SDK 1.8), as the Document holds it: a material
    * (`DIAMOND`), a captured item (`item:<id>`) or an item map (`{extends, title, lore…}`). The
    * host resolves it like a menu button's item and draws its texture.
    */

@@ -150,7 +150,7 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
     fireEvent.click(outer);
     // Selection store still receives the menu id so drag-out / drag-to-move
     // continues working.
-    expect(useSelectionStore.getState().ids.has(MENU_ID)).toBe(true);
+    expect(useSelectionStore.getState().ids.has(`menu/${MENU_ID}`)).toBe(true);
   });
 
   it("solo: clicking the menu re-selects it after an element was selected", () => {
@@ -164,7 +164,7 @@ describe("MenuGroup — onClick updates uiStore.selectedMenuId", () => {
       .find((g) => g.getAttribute("data-name") === `menu:${MENU_ID}`)!;
     fireEvent.click(outer);
 
-    expect(useSelectionStore.getState().ids.has(MENU_ID)).toBe(true);
+    expect(useSelectionStore.getState().ids.has(`menu/${MENU_ID}`)).toBe(true);
     expect(useSelectionStore.getState().ids.has("el1")).toBe(false);
     expect(useUiStore.getState().selectedMenuId).toBe(MENU_ID);
   });

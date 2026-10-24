@@ -50,8 +50,8 @@ describe("EdgeTooltip", () => {
     useEdgeHoverStore.getState().set(
       {
         id: "m1->m2",
-        source: "m1",
-        target: "m2",
+        source: "menu/m1",
+        target: "menu/m2",
         triggers: [
           { kind: "element", elementId: "el1", material: "DIAMOND_SWORD", clickType: "left" },
         ],

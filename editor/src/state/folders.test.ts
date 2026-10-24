@@ -53,7 +53,11 @@ it("creates nested folders up to three levels, refusing bad names and duplicates
 it("files Documents of any kind in a folder and records each file move", () => {
   const store = useProjectsStore.getState();
   store.createFolder({ projectId: pid, parent: "", name: "boutique" });
-  store.moveToFolder({ projectId: pid, nodeIds: ["shop", "sell"], folder: "boutique" });
+  store.moveToFolder({
+    projectId: pid,
+    nodeIds: ["menu/shop", "command/sell"],
+    folder: "boutique",
+  });
   expect([folderOf("shop"), folderOf("sell")]).toEqual(["boutique", "boutique"]);
   expect(renames()).toEqual(
     expect.arrayContaining([
@@ -61,7 +65,7 @@ it("files Documents of any kind in a folder and records each file move", () => {
       { from: "commands/sell.yaml", to: "boutique/commands/sell.yaml" },
     ]),
   );
-  store.moveToFolder({ projectId: pid, nodeIds: ["shop"], folder: "" });
+  store.moveToFolder({ projectId: pid, nodeIds: ["menu/shop"], folder: "" });
   expect(folderOf("shop")).toBeUndefined();
   expect(renames()).toEqual([{ from: "commands/sell.yaml", to: "boutique/commands/sell.yaml" }]);
 });
@@ -70,7 +74,7 @@ it("renames a folder with its sub-folders and metadata, and the undo restores bo
   const store = useProjectsStore.getState();
   store.createFolder({ projectId: pid, parent: "", name: "boutique" });
   store.createFolder({ projectId: pid, parent: "boutique", name: "armes" });
-  store.moveToFolder({ projectId: pid, nodeIds: ["shop"], folder: "boutique/armes" });
+  store.moveToFolder({ projectId: pid, nodeIds: ["menu/shop"], folder: "boutique/armes" });
   store.setFolderColor({ projectId: pid, path: "boutique", color: "#a855f7" });
   expect(store.renameFolder({ projectId: pid, path: "boutique", name: "magasin" })).toBe("magasin");
   expect(folderOf("shop")).toBe("magasin/armes");
@@ -86,8 +90,8 @@ it("deletes a folder by lifting what it holds into its parent", () => {
   store.createFolder({ projectId: pid, parent: "", name: "boutique" });
   store.createFolder({ projectId: pid, parent: "boutique", name: "armes" });
   store.createFolder({ projectId: pid, parent: "boutique/armes", name: "epees" });
-  store.moveToFolder({ projectId: pid, nodeIds: ["shop"], folder: "boutique/armes/epees" });
-  store.moveToFolder({ projectId: pid, nodeIds: ["sell"], folder: "boutique/armes" });
+  store.moveToFolder({ projectId: pid, nodeIds: ["menu/shop"], folder: "boutique/armes/epees" });
+  store.moveToFolder({ projectId: pid, nodeIds: ["command/sell"], folder: "boutique/armes" });
   store.deleteFolder({ projectId: pid, path: "boutique/armes" });
   expect(folderOf("shop")).toBe("boutique/epees");
   expect(folderOf("sell")).toBe("boutique");

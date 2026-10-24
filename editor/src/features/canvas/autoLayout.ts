@@ -6,6 +6,7 @@ import { deriveServerGraph } from "./serverGraph";
 
 type Point = { x: number; y: number };
 
+/** Keyed by `docKey`: an id is unique within its kind only. */
 export interface ProjectBoard {
   layout: Record<string, Point>;
   gutter: Point | null;
@@ -29,7 +30,7 @@ export function projectBoard(project: Project): ProjectBoard {
   const pinned: Record<string, Point> = {};
   const layout = project.canvasLayout as Record<string, Point>;
   for (const node of graph.nodes) {
-    const p = layout[node.docId];
+    const p = layout[node.docKey];
     if (p) pinned[node.key] = p;
   }
   const signature = JSON.stringify([
@@ -49,16 +50,16 @@ export function projectBoard(project: Project): ProjectBoard {
     gutter: arrangement.gutter,
     groups: arrangement.groups.map((g) => ({
       ...g,
-      members: g.members.map((key) => graph.nodes.find((n) => n.key === key)!.docId),
+      members: g.members.map((key) => graph.nodes.find((n) => n.key === key)!.docKey),
     })),
     representatives: {},
   };
   for (const node of graph.nodes) {
     const p = arrangement.positions[node.key];
-    if (p) board.layout[node.docId] = p;
-    board.allLayout[node.docId] = arrangement.allPositions[node.key]!;
+    if (p) board.layout[node.docKey] = p;
+    board.allLayout[node.docKey] = arrangement.allPositions[node.key]!;
     const representative = arrangement.representatives[node.key]!;
-    board.representatives[node.docId] = representative === node.key ? node.docId : representative;
+    board.representatives[node.docKey] = representative === node.key ? node.docKey : representative;
   }
   if (bySignature.size > 64) bySignature.clear();
   bySignature.set(signature, board);
@@ -113,7 +114,7 @@ export function rearrangeProjectLayout(
     mode,
   });
   const canvasLayout = Object.fromEntries(
-    graph.nodes.map((node) => [node.docId, arranged.positions[node.key]!]),
+    graph.nodes.map((node) => [node.docKey, arranged.positions[node.key]!]),
   ) as Project["canvasLayout"];
   const membership = new Map(groups.flatMap((g) => g.nodeIds.map((id) => [id, g.id] as const)));
   const canvasEdges = Object.fromEntries(

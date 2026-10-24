@@ -15,7 +15,7 @@ it("files the selected menus in a new folder through the canvas controls", async
   useProjectsStore.setState({ openProjects: mockOpenProjects() });
   for (const id of ["craft_a", "craft_b"])
     useProjectsStore.getState().createMenu({ projectId: pid, id });
-  useSelectionStore.getState().set(["craft_a", "craft_b"]);
+  useSelectionStore.getState().set(["menu/craft_a", "menu/craft_b"]);
   function Harness() {
     const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === pid)!);
     const [dialog, setDialog] = useState<GroupDialogState>(null);
@@ -34,7 +34,11 @@ it("files the selected menus in a new folder through the canvas controls", async
   expect(
     folderGroups(useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!),
   ).toEqual([
-    expect.objectContaining({ name: "crafts", nodeIds: ["craft_a", "craft_b"], color: "#a855f7" }),
+    expect.objectContaining({
+      name: "crafts",
+      nodeIds: ["menu/craft_a", "menu/craft_b"],
+      color: "#a855f7",
+    }),
   ]);
 });
 
@@ -44,7 +48,7 @@ it("files a command and a menu from the selection", async () => {
   const store = useProjectsStore.getState();
   store.createMenu({ projectId: pid, id: "craft_a" });
   const cmdId = store.createCommand({ projectId: pid, id: "cmd_a" });
-  useSelectionStore.getState().set(["craft_a", cmdId]);
+  useSelectionStore.getState().set(["menu/craft_a", `command/${cmdId}`]);
   function Harness() {
     const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === pid)!);
     const [dialog, setDialog] = useState<GroupDialogState>(null);
@@ -59,7 +63,9 @@ it("files a command and a menu from the selection", async () => {
   await user.click(screen.getByRole("button", { name: /^(Ranger|File)$/i }));
   expect(
     folderGroups(useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!),
-  ).toEqual([expect.objectContaining({ name: "mixed", nodeIds: ["craft_a", cmdId] })]);
+  ).toEqual([
+    expect.objectContaining({ name: "mixed", nodeIds: ["menu/craft_a", `command/${cmdId}`] }),
+  ]);
 });
 
 it("rearranges a folder frame's contents from its menu", async () => {
@@ -68,8 +74,12 @@ it("rearranges a folder frame's contents from its menu", async () => {
   const store = useProjectsStore.getState();
   for (const id of ["craft_a", "craft_b"]) store.createMenu({ projectId: pid, id });
   const groupId = store.createFolder({ projectId: pid, parent: "", name: "crafts" });
-  store.moveToFolder({ projectId: pid, nodeIds: ["craft_a", "craft_b"], folder: groupId });
-  store.setCanvasPosition({ projectId: pid, nodeId: "craft_b", x: 5000, y: 3000 });
+  store.moveToFolder({
+    projectId: pid,
+    nodeIds: ["menu/craft_a", "menu/craft_b"],
+    folder: groupId,
+  });
+  store.setCanvasPosition({ projectId: pid, nodeId: "menu/craft_b", x: 5000, y: 3000 });
   const project = () =>
     useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!;
   const before = projectBoard(project());
@@ -82,7 +92,7 @@ it("rearranges a folder frame's contents from its menu", async () => {
   });
   action.focus();
   await user.keyboard("{Enter}");
-  expect(projectBoard(project()).layout.craft_b).not.toEqual(before.layout.craft_b);
+  expect(projectBoard(project()).layout["menu/craft_b"]).not.toEqual(before.layout["menu/craft_b"]);
   const frame = before.groups.find((g) => g.id === groupId)!;
   expect(projectBoard(project()).groups.find((g) => g.id === groupId)).toMatchObject({
     x: frame.x,
@@ -96,7 +106,11 @@ it("edits a folder's color and supports undo", async () => {
   const store = useProjectsStore.getState();
   for (const id of ["craft_a", "craft_b"]) store.createMenu({ projectId: pid, id });
   const groupId = store.createFolder({ projectId: pid, parent: "", name: "crafts" });
-  store.moveToFolder({ projectId: pid, nodeIds: ["craft_a", "craft_b"], folder: groupId });
+  store.moveToFolder({
+    projectId: pid,
+    nodeIds: ["menu/craft_a", "menu/craft_b"],
+    folder: groupId,
+  });
   store.setFolderColor({ projectId: pid, path: groupId, color: "#a855f7" });
   const project = () =>
     useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!;

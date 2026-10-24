@@ -1,16 +1,19 @@
 import { walkDocumentRefs } from "@/domain/actionArgs";
 import { walkCommandNodes } from "@/domain/commandNodes";
-import { commandsOf } from "@/domain/documents";
+import { type DocKey, commandsOf, docKey, parseDocKey } from "@/domain/documents";
 import type { Command, EdgeAnchor, Project } from "@/domain/types";
 import type { Edge } from "./deriveEdges";
 import { localDocRef } from "./deriveEdges";
 import { type Box, autoSide } from "./edgeRouting";
 import { COMMAND_ROWS } from "./menuLayout";
 
-/** The Documents (raw refs) the root's own steps reference, and each sub-command row's, by row. */
-export function commandRowRefs(command: Command): { root: string[]; rows: string[][] } {
+/**
+ * The Documents the root's own steps reference, and each sub-command row's, by row: as keys
+ * (`docKey`) holding the raw ref, a qualified one included.
+ */
+export function commandRowRefs(command: Command): { root: DocKey[]; rows: DocKey[][] } {
   const refs = (steps: Command["steps"]) =>
-    [...walkDocumentRefs(steps)].map((r) => r.id).filter(Boolean);
+    [...walkDocumentRefs(steps)].filter((r) => r.id).map((r) => docKey(r.document, r.id));
   const [root, ...rows] = [...walkCommandNodes(command)].map((v) => refs(v.node.steps));
   return { root: root ?? [], rows };
 }
@@ -26,14 +29,20 @@ export function subCommandAnchors(
   boxes: Record<string, Box>,
 ): Record<string, { from: EdgeAnchor }> {
   const out: Record<string, { from: EdgeAnchor }> = {};
-  const commands = new Map(commandsOf(project).map((c) => [c.id as string, c]));
+  const commands = new Map<string, Command>(
+    commandsOf(project).map((c) => [docKey("command", c.id), c]),
+  );
   for (const edge of edges) {
     const command = commands.get(edge.source);
     const src = boxes[edge.source];
     const tgt = boxes[edge.target];
     if (!command || !src || !tgt) continue;
     const { root, rows } = commandRowRefs(command);
-    const opens = (refs: string[]) => refs.some((r) => localDocRef(project, r) === edge.target);
+    const local = (key: DocKey) => {
+      const { kind, id } = parseDocKey(key)!;
+      return docKey(kind, localDocRef(project, id));
+    };
+    const opens = (refs: DocKey[]) => refs.some((r) => local(r) === edge.target);
     if (rows.length === 0 || opens(root)) continue;
     const row = rows.findIndex(opens);
     if (row < 0) continue;

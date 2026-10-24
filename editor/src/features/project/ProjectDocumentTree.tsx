@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Tooltip } from "@/components/ui/tooltip";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
-import { documentCount } from "@/domain/documents";
+import { docKey, documentCount } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
 import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
@@ -100,7 +100,7 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const templates = useProjectTemplates(projectId);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
-  // A kind may be reserved to its module's own folder (`projects`, SDK 1.7).
+  // A kind may be reserved to its module's own folder (`projects`, SDK 1.8).
   const moduleKinds = listDocumentKindContributions().filter(
     (c) => !isCoreDocumentType(c.kind) && kindCreatableIn(c, project),
   );
@@ -197,9 +197,10 @@ export function ProjectDocumentTree({
   activeId,
 }: {
   projectId: ProjectId;
+  /** Its argument: the Document's key (`docKey`). */
   onOpen: (documentId: string) => void;
   header?: "name" | "none";
-  /** The Document open in the view, highlighted in the tree. */
+  /** The key (`docKey`) of the Document open in the view, highlighted in the tree. */
   activeId?: string;
 }) {
   const { t } = useTranslation();
@@ -244,6 +245,7 @@ export function DocumentGroups({
   activeId,
 }: {
   project: Project;
+  /** Its argument: the Document's key (`docKey`). */
   onOpen: (documentId: string) => void;
   editable?: boolean;
   activeId?: string;
@@ -292,8 +294,8 @@ export function DocumentGroups({
                     project={project}
                     item={it}
                     kind={g.type}
-                    onOpen={() => onOpen(it.id)}
-                    origin={originOf(it.id)}
+                    onOpen={() => onOpen(docKey(g.type, it.id))}
+                    origin={originOf(docKey(g.type, it.id))}
                     notSyncedHint={notSyncedHint}
                     activeId={activeId}
                   />
@@ -327,6 +329,7 @@ function FolderNode({
   path: string;
   depth: number;
   groups: ReturnType<typeof buildProjectDocuments>;
+  /** Its argument: the Document's key (`docKey`). */
   onOpen: (documentId: string) => void;
   editable: boolean;
   originOf: OriginOf;
@@ -410,8 +413,8 @@ function FolderNode({
                   item={it}
                   depth={depth + 1}
                   kind={it.type}
-                  onOpen={() => onOpen(it.id)}
-                  origin={originOf(it.id)}
+                  onOpen={() => onOpen(docKey(it.type, it.id))}
+                  origin={originOf(docKey(it.type, it.id))}
                   activeId={activeId}
                 />
               </li>
@@ -547,7 +550,7 @@ function DocumentRow({
   activeId?: string;
 }) {
   const { t } = useTranslation();
-  const active = activeId === item.id;
+  const active = activeId === docKey(kind, item.id);
   const look = kindAppearance(kind);
   const originLabel = origin
     ? t(
@@ -646,7 +649,9 @@ function RowActions({
   const { t } = useTranslation();
   const targets = system ? [] : ["", ...listFolders(project)].filter((f) => f !== item.folder);
   const move = (folder: string) =>
-    useProjectsStore.getState().moveToFolder({ projectId, nodeIds: [item.id], folder });
+    useProjectsStore
+      .getState()
+      .moveToFolder({ projectId, nodeIds: [docKey(item.type, item.id)], folder });
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -680,7 +685,9 @@ function RowActions({
         ) : (
           <DropdownMenuItem
             onClick={() =>
-              useProjectsStore.getState().deleteFromProject({ projectId, nodeIds: [item.id] })
+              useProjectsStore
+                .getState()
+                .deleteFromProject({ projectId, nodeIds: [docKey(item.type, item.id)] })
             }
           >
             {t("projectPanel.delete")}

@@ -1,3 +1,5 @@
+import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
+import { type DocKey, allDocuments, docKey } from "@/domain/documents";
 import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { getText, newI18nKey } from "@/lib/i18n";
 import { fieldTextOf } from "@/schema/fieldText";
@@ -17,6 +19,22 @@ export function projectLanguages(project: Project): string[] {
 }
 
 /**
+ * The key of the module Document a view names by its id alone: the SDK passes no kind, and a
+ * module's view only selects its own kind's Documents, so a module kind wins over a core one
+ * sharing that id.
+ */
+function moduleDocumentKey(documentId: string): DocKey {
+  for (const project of useProjectsStore.getState().openProjects.projects) {
+    const found = allDocuments(project).filter((d) => d.doc.id === documentId);
+    const own = found.find((d) => !CORE_KINDS.has(d.kind)) ?? found[0];
+    if (own) return docKey(own.kind, own.doc.id);
+  }
+  return docKey("menu", documentId);
+}
+
+const CORE_KINDS = new Set(CORE_DOCUMENT_KINDS.map((k) => k.kind));
+
+/**
  * The editor as `@artisan/editor-sdk` exposes it to a module's views (ADR
  * `runtime-editor-modules`): the same stores the core views use, behind the SDK's
  * narrow contract, so a bundle never imports the editor's internals.
@@ -34,11 +52,11 @@ export const editorHost: Omit<EditorHost, "components"> = {
   text: (project, key, lang) => getText(project as Project, { key: key as I18nKey }, lang),
   fieldText: (project, key) => fieldTextOf(project as Project)(key as I18nKey),
   langs: (project) => projectLanguages(project as Project),
-  // A part is selected like a menu's element: its id, scoped by its Document.
+  // A part is selected like a menu's element: its id, scoped by its Document's key.
   selectDocumentItem: ({ documentId, item }) =>
     item
-      ? useSelectionStore.getState().set([item], null, documentId)
-      : useSelectionStore.getState().set([documentId]),
+      ? useSelectionStore.getState().set([item], null, moduleDocumentKey(documentId))
+      : useSelectionStore.getState().set([moduleDocumentKey(documentId)]),
   notify: (message, tone) => (tone === "error" ? toast.error(message) : toast(message)),
 };
 

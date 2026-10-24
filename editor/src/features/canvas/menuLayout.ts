@@ -2,7 +2,7 @@ import dispenserTextureUrl from "@/assets/minecraft/dispenser.png";
 import vanillaChestTextureUrl from "@/assets/minecraft/generic_54.png";
 import hopperTextureUrl from "@/assets/minecraft/hopper.png";
 import { walkCommandNodes } from "@/domain/commandNodes";
-import type { Command, Project } from "@/domain/types";
+import type { Command, Menu, Project } from "@/domain/types";
 import type { InventoryType } from "@/domain/types";
 import type { Box } from "./edgeRouting";
 import { INVENTORY_TYPES, positionCount, slotMcXY } from "./inventoryTypes";
@@ -112,26 +112,28 @@ export const menuBoxSize = (type: InventoryType, rows: number) => {
 };
 
 /**
- * Canvas bounding box for a node id, or null if it has no layout position.
+ * Canvas bounding box for a node key (`docKey`), or null if it has no layout position.
  * Type-dispatched: menu → menuBoxSize(rows), command → COMMAND_BOX, dialog → DIALOG_BOX,
  * any other kind → its contribution's `board.size` (else DOCUMENT_BOX).
  * Shared by Edges.tsx (box map) and GhostChips.tsx (chip anchor) to keep sizing in sync.
  */
 export function nodeBox(
   project: Project,
-  id: string,
+  key: string,
   layout: Record<string, { x: number; y: number }>,
 ): Box | null {
-  const pos = layout[id];
+  const pos = layout[key];
   if (!pos) return null;
-  const menu = menusOf(project).find((m) => m.id === id);
-  if (menu) return { ...pos, ...menuBoxSize(menu.inventoryType ?? "chest", menu.rows) };
-  const command = commandsOf(project).find((c) => c.id === id);
-  if (command) return { ...pos, ...commandBox(command) };
-  if (dialogsOf(project).some((d) => d.id === id)) return { ...pos, ...DIALOG_BOX };
-  const other = findDocument(project, id);
-  if (other) return { ...pos, ...documentBoxSize(other.kind, other.doc, project) };
-  return null;
+  const found = findDocumentByKey(project, key);
+  if (!found) return null;
+  const { kind, doc } = found;
+  if (kind === "menu") {
+    const menu = doc as Menu;
+    return { ...pos, ...menuBoxSize(menu.inventoryType ?? "chest", menu.rows) };
+  }
+  if (kind === "command") return { ...pos, ...commandBox(doc as Command) };
+  if (kind === "dialog") return { ...pos, ...DIALOG_BOX };
+  return { ...pos, ...documentBoxSize(kind, doc, project) };
 }
 
 export const bottomPieceY = (rows: number) => TEX_TITLE_H + rows * TEX_SLOT_STRIDE;
@@ -173,7 +175,7 @@ export const singleBackgroundCrop = (type: InventoryType) => ({
   height: INVENTORY_TYPES[type].boxHeight ?? MC_BOTTOM_Y,
 });
 
-import { commandsOf, dialogsOf, findDocument, menusOf } from "@/domain/documents";
+import { findDocumentByKey } from "@/domain/documents";
 import { documentKindContribution } from "@artisan/editor-sdk";
 
 /**

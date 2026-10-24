@@ -161,7 +161,10 @@ describe("projectsStore", () => {
     const project = useProjectsStore
       .getState()
       .openProjects.projects.find((p) => p.id === PERSONAL)!;
-    expect((project.canvasLayout as Record<string, unknown>).d_shop).toEqual({ x: 100, y: 200 });
+    expect((project.canvasLayout as Record<string, unknown>)["dialog/d_shop"]).toEqual({
+      x: 100,
+      y: 200,
+    });
   });
 
   describe("placement mode reducers", () => {
@@ -256,12 +259,14 @@ describe("projectsStore", () => {
     useProjectsStore
       .getState()
       .createDialog({ projectId: PERSONAL, id: "d_bye", position: { x: 10, y: 10 } });
-    useProjectsStore.getState().deleteFromProject({ projectId: PERSONAL, nodeIds: ["d_bye"] });
+    useProjectsStore
+      .getState()
+      .deleteFromProject({ projectId: PERSONAL, nodeIds: ["dialog/d_bye"] });
     const project = useProjectsStore
       .getState()
       .openProjects.projects.find((p) => p.id === PERSONAL)!;
     expect(dialogsOf(project).some((d) => d.id === "d_bye")).toBe(false);
-    expect((project.canvasLayout as Record<string, unknown>).d_bye).toBeUndefined();
+    expect((project.canvasLayout as Record<string, unknown>)["dialog/d_bye"]).toBeUndefined();
   });
 
   it("setEdgeAnchor stores an endpoint override; clearEdgeAnchor removes it and the empty entry", () => {
@@ -288,21 +293,23 @@ describe("projectsStore", () => {
   it("deleteFromProject prunes canvasEdges entries touching the deleted node", () => {
     useProjectsStore.getState().setEdgeAnchor({
       projectId: PERSONAL,
-      edgeId: "m_shop_main->m_about",
+      edgeId: "menu/m_shop_main->menu/m_about",
       end: "to",
       anchor: { side: "left", t: 0.5 },
     });
-    useProjectsStore.getState().deleteFromProject({ projectId: PERSONAL, nodeIds: ["m_about"] });
+    useProjectsStore
+      .getState()
+      .deleteFromProject({ projectId: PERSONAL, nodeIds: ["menu/m_about"] });
     const project = useProjectsStore
       .getState()
       .openProjects.projects.find((p) => p.id === PERSONAL)!;
-    expect(project.canvasEdges?.["m_shop_main->m_about"]).toBeUndefined();
+    expect(project.canvasEdges?.["menu/m_shop_main->menu/m_about"]).toBeUndefined();
   });
 
   it("setMenuId rewrites canvasEdges keys", () => {
     useProjectsStore.getState().setEdgeAnchor({
       projectId: PERSONAL,
-      edgeId: "m_shop_main->m_profile",
+      edgeId: "menu/m_shop_main->menu/m_profile",
       end: "from",
       anchor: { side: "bottom", t: 0.8 },
     });
@@ -314,8 +321,8 @@ describe("projectsStore", () => {
     const project = useProjectsStore
       .getState()
       .openProjects.projects.find((p) => p.id === PERSONAL)!;
-    expect(project.canvasEdges?.["m_shop_main->m_profile"]).toBeUndefined();
-    expect(project.canvasEdges?.["m_shop_main->m_profile2"]).toEqual({
+    expect(project.canvasEdges?.["menu/m_shop_main->menu/m_profile"]).toBeUndefined();
+    expect(project.canvasEdges?.["menu/m_shop_main->menu/m_profile2"]).toEqual({
       from: { side: "bottom", t: 0.8 },
     });
   });
@@ -412,10 +419,10 @@ describe("projectsStore", () => {
 
   it("deleteFromProject removes a leaf menu and its canvas position", () => {
     const pId = projectId("p_personal");
-    useProjectsStore.getState().deleteFromProject({ projectId: pId, nodeIds: ["m_about"] });
+    useProjectsStore.getState().deleteFromProject({ projectId: pId, nodeIds: ["menu/m_about"] });
     const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === pId)!;
     expect(menusOf(project).some((m) => m.id === "m_about")).toBe(false);
-    expect("m_about" in project.canvasLayout).toBe(false);
+    expect("menu/m_about" in project.canvasLayout).toBe(false);
   });
 
   it("deleteFromProject succeeds even when the menu has inbound refs", () => {
@@ -423,7 +430,7 @@ describe("projectsStore", () => {
     // those refs dangling — that's fine; the runtime no-ops on missing
     // open_menu targets.
     const pId = projectId("p_personal");
-    useProjectsStore.getState().deleteFromProject({ projectId: pId, nodeIds: ["m_profile"] });
+    useProjectsStore.getState().deleteFromProject({ projectId: pId, nodeIds: ["menu/m_profile"] });
     const project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === pId)!;
     expect(menusOf(project).some((m) => m.id === "m_profile")).toBe(false);
   });
@@ -2164,7 +2171,9 @@ describe("projectsStore — board positions", () => {
   });
 
   it("releaseBoardPositions releases every hand-placed position, without touching the Documents", () => {
-    useProjectsStore.getState().setCanvasPosition({ projectId: P, nodeId: "m_about", x: 5, y: 6 });
+    useProjectsStore
+      .getState()
+      .setCanvasPosition({ projectId: P, nodeId: "menu/m_about", x: 5, y: 6 });
     const menus = menusOf(project()).map((m) => m.id);
     useProjectsStore.getState().releaseBoardPositions({ projectId: P });
     expect(project().canvasLayout).toEqual({});
@@ -2184,9 +2193,14 @@ describe("projectsStore — board positions", () => {
   });
 
   it("releaseBoardPositions can be undone: the positions come back", () => {
-    useProjectsStore.getState().setCanvasPosition({ projectId: P, nodeId: "m_about", x: 5, y: 6 });
+    useProjectsStore
+      .getState()
+      .setCanvasPosition({ projectId: P, nodeId: "menu/m_about", x: 5, y: 6 });
     useProjectsStore.getState().releaseBoardPositions({ projectId: P });
     useProjectsStore.temporal.getState().undo();
-    expect((project().canvasLayout as Record<string, unknown>).m_about).toEqual({ x: 5, y: 6 });
+    expect((project().canvasLayout as Record<string, unknown>)["menu/m_about"]).toEqual({
+      x: 5,
+      y: 6,
+    });
   });
 });

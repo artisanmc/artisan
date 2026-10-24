@@ -2,6 +2,7 @@ import { walkDocumentRefs } from "@/domain/actionArgs";
 import { documentChainSlots, documentLTextSites } from "@/domain/documentKindVisitors";
 import {
   allDocuments,
+  docKey,
   documentsOf,
   hasDocument,
   mutableDocuments,
@@ -14,7 +15,7 @@ import { createDocumentOfKind } from "@/lib/moduleDocumentKinds";
 import { adoptLateDocuments } from "@/schema/projectFromFiles";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
-import { rewriteCanvasEdgeIds } from "./helpers";
+import { renameBoardKey } from "./helpers";
 import type { ProjectsSliceContext } from "./types";
 
 /**
@@ -72,7 +73,7 @@ export const createDocumentsSlice = ({
       mutableDocuments(p, kind).push(doc);
       mintLTexts(p, documentLTextSites(kind, doc), p.defaultLang);
       if (position) {
-        (p.canvasLayout as Record<string, { x: number; y: number }>)[id] = position;
+        p.canvasLayout[docKey(kind, id)] = position;
       }
     });
     return id;
@@ -107,12 +108,7 @@ export const createDocumentsSlice = ({
       doc.id = newId as typeof doc.id;
       // Texts are addressed by the id: the visitor moves each one to its new home.
       rekeyDocument(p, kind, doc);
-      const layout = p.canvasLayout as Record<string, { x: number; y: number }>;
-      if (layout[oldId]) {
-        layout[newId] = layout[oldId]!;
-        delete layout[oldId];
-      }
-      rewriteCanvasEdgeIds(p, oldId, newId);
+      renameBoardKey(p, kind, oldId, newId);
       // Every `document_ref` of that kind pointing at the old id follows (R3).
       for (const other of allDocuments(p)) {
         for (const slot of documentChainSlots(other.kind, other.doc)) {

@@ -1,10 +1,16 @@
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
+import { isDocKey, parseDocKey } from "@/domain/documents";
 import { type ProjectUrlIdentity, projectUrlId } from "./projectUrlId";
 
+/**
+ * [documentId]: the Document the focus view shows; [kind] says which, an id being unique
+ * within its kind only (`?kind=`).
+ */
 export function projectDestination(
   project: string | ProjectUrlIdentity,
   serverId?: string | null,
   documentId?: string,
+  kind?: string,
 ) {
   const projectId = typeof project === "string" ? project : projectUrlId(project);
   if (serverId)
@@ -12,6 +18,7 @@ export function projectDestination(
       ? {
           to: "/servers/$serverId/projects/$projectId/document/$documentId" as const,
           params: { serverId, projectId, documentId },
+          ...(kind ? { search: { kind } } : {}),
         }
       : {
           to: "/servers/$serverId/projects/$projectId" as const,
@@ -23,19 +30,20 @@ export function projectDestination(
 }
 
 /**
- * The view of a Document reached by a reference (`main` or `boutique:main`):
- * a qualified id opens the project it names, by its folder — the id project
- * URLs already accept.
+ * The view of a Document reached by a reference (`main` or `boutique:main`), or by its key
+ * (`menu/main`, `menu/boutique:main`): a qualified id opens the project it names, by its
+ * folder — the id project URLs already accept.
  */
 export function documentDestination(
   current: ProjectUrlIdentity,
   serverId: string | null | undefined,
   ref: string,
 ) {
-  const { namespace, id } = parseDocRef(ref);
+  const keyed = isDocKey(ref) ? parseDocKey(ref) : null;
+  const { namespace, id } = parseDocRef(keyed?.id ?? ref);
   const here = projectNamespace({ id: current.id, diskId: current.diskId ?? undefined });
   const project = namespace === null || namespace === here ? current : namespace;
-  return projectDestination(project, serverId, id);
+  return projectDestination(project, serverId, id, keyed?.kind);
 }
 
 /**

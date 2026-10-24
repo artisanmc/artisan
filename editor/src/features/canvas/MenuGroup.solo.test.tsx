@@ -74,7 +74,7 @@ describe("MenuGroup solo", () => {
     fireEvent.doubleClick(g);
     expect(spy).toHaveBeenCalled();
     const ev = spy.mock.calls[0]![0] as CustomEvent;
-    expect(ev.detail.id).toBe("m1");
+    expect(ev.detail.id).toBe("menu/m1");
     window.removeEventListener(OPEN_ELEMENT_EVENT, spy as any);
   });
 
