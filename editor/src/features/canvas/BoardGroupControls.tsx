@@ -27,8 +27,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-/** File the selection in a folder (`nodeIds`), or edit a folder frame (`groupId`: its top-level folder). */
-export type GroupDialogState = { nodeIds: string[] } | { groupId: string } | null;
+/** File the selection in a folder (`nodeIds`). A folder itself is edited in the Properties panel. */
+export type GroupDialogState = { nodeIds: string[] } | null;
 
 export function BoardGroupControls({
   project,
@@ -49,13 +49,14 @@ export function BoardGroupControls({
   const nodes = [...selected].filter((id) => live.has(id));
   const canFile = selectionScope === null && nodes.length >= 1 && nodes.length === selected.size;
   const frames = folderGroups(project);
-  const editing = dialog && "groupId" in dialog ? dialog.groupId : null;
   const [name, setName] = useState("");
   const [color, setColor] = useState(DEFAULT_GROUP_COLOR);
+  const opened = dialog !== null;
   useEffect(() => {
-    setName(editing ?? "");
-    setColor((editing && project.folders?.[editing]?.color) || DEFAULT_GROUP_COLOR);
-  }, [editing, project.folders]);
+    if (!opened) return;
+    setName("");
+    setColor(DEFAULT_GROUP_COLOR);
+  }, [opened]);
   const store = useProjectsStore.getState();
   const close = () => onDialogChange(null);
   const showOnly = (path: string | null) => useUiStore.getState().setBoardFolder(project.id, path);
@@ -63,15 +64,10 @@ export function BoardGroupControls({
     event.preventDefault();
     if (!name || !dialog) return;
     try {
-      if ("nodeIds" in dialog) {
-        if (!listFolders(project).includes(name))
-          store.createFolder({ projectId: project.id, parent: "", name });
-        store.setFolderColor({ projectId: project.id, path: name, color });
-        store.moveToFolder({ projectId: project.id, nodeIds: dialog.nodeIds, folder: name });
-      } else {
-        const path = store.renameFolder({ projectId: project.id, path: dialog.groupId, name });
-        store.setFolderColor({ projectId: project.id, path, color });
-      }
+      if (!listFolders(project).includes(name))
+        store.createFolder({ projectId: project.id, parent: "", name });
+      store.setFolderColor({ projectId: project.id, path: name, color });
+      store.moveToFolder({ projectId: project.id, nodeIds: dialog.nodeIds, folder: name });
       close();
     } catch (e) {
       toast.error(
@@ -109,7 +105,9 @@ export function BoardGroupControls({
                 <DropdownMenuSub key={group.id}>
                   <DropdownMenuSubTrigger>{group.name}</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
-                    <DropdownMenuItem onSelect={() => onDialogChange({ groupId: group.id })}>
+                    <DropdownMenuItem
+                      onSelect={() => useSelectionStore.getState().selectFolder(group.id)}
+                    >
                       {t("canvas.groups.edit")}
                     </DropdownMenuItem>
                     {folder !== group.id && (
@@ -144,10 +142,8 @@ export function BoardGroupControls({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t(editing ? "canvas.groups.edit" : "canvas.groups.create")}</DialogTitle>
-            <DialogDescription>
-              {t(editing ? "canvas.groups.editDescription" : "canvas.groups.description")}
-            </DialogDescription>
+            <DialogTitle>{t("canvas.groups.create")}</DialogTitle>
+            <DialogDescription>{t("canvas.groups.description")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={submit} className="flex flex-col gap-4">
             <label className="field-label" htmlFor="canvas-group-name">
@@ -156,18 +152,16 @@ export function BoardGroupControls({
             <Input
               id="canvas-group-name"
               autoFocus
-              list={editing ? undefined : "canvas-group-folders"}
+              list="canvas-group-folders"
               value={name}
               onChange={(e) => setName(slugifyFolderName(e.target.value))}
               maxLength={64}
             />
-            {!editing && (
-              <datalist id="canvas-group-folders">
-                {frames.map((g) => (
-                  <option key={g.id} value={g.id} />
-                ))}
-              </datalist>
-            )}
+            <datalist id="canvas-group-folders">
+              {frames.map((g) => (
+                <option key={g.id} value={g.id} />
+              ))}
+            </datalist>
             <label className="field-label" htmlFor="canvas-group-color">
               {t("canvas.groups.color")}
             </label>
@@ -183,7 +177,7 @@ export function BoardGroupControls({
                 {t("canvas.groups.cancel")}
               </Button>
               <Button type="submit" disabled={!name}>
-                {t(editing ? "canvas.groups.save" : "canvas.groups.create")}
+                {t("canvas.groups.create")}
               </Button>
             </div>
           </form>

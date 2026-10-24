@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { CommandEditor } from "./command/CommandEditor";
 import { DialogEditor } from "./dialog/DialogEditor";
 import { ElementEditor } from "./element/ElementEditor";
+import { FolderProperties } from "./properties/FolderProperties";
 import { MenuProperties } from "./properties/MenuProperties";
 import { ProjectProperties } from "./properties/ProjectProperties";
 
@@ -37,6 +38,7 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
   const { t } = useTranslation();
   const ids = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
+  const folder = useSelectionStore((s) => s.folder);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const setSub = useFlowSelectionStore((s) => s.set);
 
@@ -49,9 +51,15 @@ export function SelectionInspector({ projectId }: SelectionInspectorProps) {
 
   // The kind of selection is derived ONCE (`selectionContext`) and shared with
   // the panel's tab gating: two separate dispatches would end up disagreeing.
-  const ctx = selectionContext(project, ids, selectionMenuId);
+  const ctx = selectionContext(project, ids, selectionMenuId, folder);
 
   switch (ctx.kind) {
+    case "folder":
+      return (
+        <div className="h-full overflow-y-auto">
+          <FolderProperties project={project} path={ctx.path} />
+        </div>
+      );
     case "multi":
       return <EmptyHint label={t("projectPanel.multiSelection")} />;
     case "none":

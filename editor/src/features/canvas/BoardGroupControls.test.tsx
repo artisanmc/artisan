@@ -99,27 +99,3 @@ it("rearranges a folder frame's contents from its menu", async () => {
     y: frame.y,
   });
 });
-
-it("edits a folder's color and supports undo", async () => {
-  const pid = projectId("p_personal");
-  useProjectsStore.setState({ openProjects: mockOpenProjects() });
-  const store = useProjectsStore.getState();
-  for (const id of ["craft_a", "craft_b"]) store.createMenu({ projectId: pid, id });
-  const groupId = store.createFolder({ projectId: pid, parent: "", name: "crafts" });
-  store.moveToFolder({
-    projectId: pid,
-    nodeIds: ["menu/craft_a", "menu/craft_b"],
-    folder: groupId,
-  });
-  store.setFolderColor({ projectId: pid, path: groupId, color: "#a855f7" });
-  const project = () =>
-    useProjectsStore.getState().openProjects.projects.find((p) => p.id === pid)!;
-  render(<BoardGroupControls project={project()} dialog={{ groupId }} onDialogChange={() => {}} />);
-  const input = screen.getByLabelText(/Couleur du cadre|Frame color/i);
-  expect(input).toHaveValue("#a855f7");
-  fireEvent.change(input, { target: { value: "#22c55e" } });
-  await userEvent.setup().click(screen.getByRole("button", { name: /Enregistrer|Save/i }));
-  expect(project().folders?.crafts?.color).toBe("#22c55e");
-  useProjectsStore.temporal.getState().undo();
-  expect(project().folders?.crafts?.color).toBe("#a855f7");
-});

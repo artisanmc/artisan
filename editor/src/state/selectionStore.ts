@@ -16,6 +16,13 @@ interface SelectionState {
    * cross-scope multi-select (fall back to bare-id matching).
    */
   menuId: string | null;
+  /**
+   * A themed folder selected on the board (its path), edited in the Properties panel.
+   * Exclusive with `ids`: selecting anything else drops it.
+   */
+  folder: string | null;
+  /** Selects a folder (its frame on the board), and nothing else. */
+  selectFolder: (path: string) => void;
   set: (ids: Iterable<string>, focusedSlot?: number | null, menuId?: string | null) => void;
   add: (id: string) => void;
   toggle: (id: string) => void;
@@ -33,24 +40,27 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
   ids: new Set(),
   focusedSlot: null,
   menuId: null,
-  set: (ids, focusedSlot = null, menuId = null) => set({ ids: new Set(ids), focusedSlot, menuId }),
+  folder: null,
+  selectFolder: (path) => set({ ids: new Set(), focusedSlot: null, menuId: null, folder: path }),
+  set: (ids, focusedSlot = null, menuId = null) =>
+    set({ ids: new Set(ids), focusedSlot, menuId, folder: null }),
   // add/toggle build cross-scope multi-selects → drop the menu scope so element
   // resolution falls back to bare-id matching rather than a stale single menu.
-  add: (id) => set({ ids: new Set([...get().ids, id]), menuId: null }),
+  add: (id) => set({ ids: new Set([...get().ids, id]), menuId: null, folder: null }),
   toggle: (id) => {
     const next = new Set(get().ids);
     if (next.has(id)) next.delete(id);
     else next.add(id);
-    set({ ids: next, menuId: null });
+    set({ ids: next, menuId: null, folder: null });
   },
   toggleElement: (elementId, menuId) => {
     const { ids, menuId: current } = get();
     const next = new Set(current === menuId ? ids : []);
     if (next.has(elementId)) next.delete(elementId);
     else next.add(elementId);
-    set({ ids: next, focusedSlot: null, menuId });
+    set({ ids: next, focusedSlot: null, menuId, folder: null });
   },
-  clear: () => set({ ids: new Set(), focusedSlot: null, menuId: null }),
+  clear: () => set({ ids: new Set(), focusedSlot: null, menuId: null, folder: null }),
 }));
 
 /**

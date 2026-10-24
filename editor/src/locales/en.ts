@@ -764,6 +764,11 @@ export default {
     },
   },
   folders: {
+    properties: {
+      kind: "Folder",
+      count_one: "{{count}} element",
+      count_other: "{{count}} elements",
+    },
     showOnly: "Show only this folder",
     filtered: "Folder: {{folder}}",
     showAll: "Show everything",
@@ -955,10 +960,8 @@ export default {
       rearrange: "Rearrange contents",
       dissolve: "Remove folder",
       cancel: "Cancel",
-      save: "Save",
       description:
         "Moves the selected documents into this folder of the module (boutique/menus/…). An existing folder is reused. References don't change.",
-      editDescription: "Renaming moves its files; references don't change.",
       invalidSelection: "Select documents of this module.",
     },
     minimap: "Minimap",
