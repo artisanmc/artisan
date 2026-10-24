@@ -2,7 +2,6 @@ import { docKey } from "@/domain/documents";
 import type { Document, Project, ProjectId } from "@/domain/types";
 import { useAlignmentStore } from "@/state/alignmentStore";
 import { useDocumentItemHoverStore } from "@/state/documentItemHoverStore";
-import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
@@ -12,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Circle, Group, Image as KonvaImage, Line, Rect, Text } from "react-konva";
 import useImage from "use-image";
 import { dispatchOpenElement } from "./canvasEvents";
+import { commitNodeDrag } from "./commitNodeDrag";
 import { DOCUMENT_ITEMS, documentBoxSize } from "./menuLayout";
 import { useNodeColors } from "./nodeColors";
 import { showFullTitle } from "./nodeTitle";
@@ -46,7 +46,6 @@ const ICON = 16;
 export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGroupProps) {
   const key = docKey(kind, doc.id);
   const projectId = project.id as ProjectId;
-  const setCanvasPosition = useProjectsStore((s) => s.setCanvasPosition);
   const isSelected = useSelectionStore((s) => s.menuId === null && s.ids.has(key));
   // The part of this Document selected on its node (`board.items`), scoped like an element.
   const selectedItem = useSelectionStore((s) =>
@@ -73,10 +72,10 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
 
   const onDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      setCanvasPosition({ projectId, nodeId: key, x: e.target.x(), y: e.target.y() });
+      commitNodeDrag(projectId, key, e.target);
       useAlignmentStore.getState().clear();
     },
-    [projectId, key, setCanvasPosition],
+    [projectId, key],
   );
 
   const onClick = useCallback(

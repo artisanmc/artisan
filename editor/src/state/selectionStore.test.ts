@@ -6,6 +6,19 @@ describe("selectionStore", () => {
     useSelectionStore.getState().clear();
   });
 
+  it("a selected folder is exclusive with every other selection", () => {
+    const store = useSelectionStore.getState();
+    store.set(["menu/a"]);
+    store.selectFolder("boutique");
+    expect(useSelectionStore.getState()).toMatchObject({ folder: "boutique", menuId: null });
+    expect(useSelectionStore.getState().ids.size).toBe(0);
+    useSelectionStore.getState().set(["menu/a"]);
+    expect(useSelectionStore.getState().folder).toBeNull();
+    useSelectionStore.getState().selectFolder("boutique");
+    useSelectionStore.getState().clear();
+    expect(useSelectionStore.getState().folder).toBeNull();
+  });
+
   it("set replaces the selection", () => {
     useSelectionStore.getState().set(["a", "b"]);
     expect([...useSelectionStore.getState().ids]).toEqual(["a", "b"]);

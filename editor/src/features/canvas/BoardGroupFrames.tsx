@@ -3,7 +3,7 @@ import { useCssVar } from "@/lib/themeColors";
 import type Konva from "konva";
 import { useRef } from "react";
 import { Group, Rect, Text } from "react-konva";
-import { type BoardGroup, GROUP_HEADER } from "./groupedBoard";
+import type { BoardGroup } from "./groupedBoard";
 
 export interface GroupDrag {
   key: string;
@@ -13,7 +13,12 @@ export interface GroupDrag {
 
 interface Props {
   groups: BoardGroup[];
-  onManage?: (group: BoardGroup) => void;
+  /** The selected folder: its frame is outlined. */
+  selected?: string | null;
+  /** Frames take clicks and drags; off, they only draw. */
+  interactive?: boolean;
+  onSelect?: (group: BoardGroup) => void;
+  onShowOnly?: (group: BoardGroup) => void;
   onDrag?: (drag: GroupDrag | null) => void;
   onMove?: (group: BoardGroup, dx: number, dy: number) => void;
 }
@@ -28,7 +33,15 @@ export function BoardGroupFrames(props: Props) {
   );
 }
 
-function Frame({ group, onManage, onDrag, onMove }: Props & { group: BoardGroup }) {
+function Frame({
+  group,
+  selected,
+  interactive = true,
+  onSelect,
+  onShowOnly,
+  onDrag,
+  onMove,
+}: Props & { group: BoardGroup }) {
   const border = useCssVar("--border-strong");
   const text = useCssVar("--text");
   const muted = useCssVar("--text-mut");
@@ -37,16 +50,26 @@ function Frame({ group, onManage, onDrag, onMove }: Props & { group: BoardGroup 
   const stop = (e: Konva.KonvaEventObject<Event>) => {
     e.cancelBubble = true;
   };
-  const manage = (e: Konva.KonvaEventObject<Event>) => {
+  const select = (e: Konva.KonvaEventObject<Event>) => {
     stop(e);
-    onManage?.(group);
+    onSelect?.(group);
   };
+  const showOnly = (e: Konva.KonvaEventObject<Event>) => {
+    stop(e);
+    onShowOnly?.(group);
+  };
+  const isSelected = group.kind === "group" && selected === group.id;
   return (
     <Group
       x={group.x}
       y={group.y}
       name={`board-group:${group.key}`}
-      draggable={!!onMove}
+      draggable={!!onMove && interactive}
+      listening={interactive}
+      onClick={select}
+      onTap={select}
+      onDblClick={showOnly}
+      onDblTap={showOnly}
       onDragStart={(e) => {
         stop(e);
         start.current = { x: group.x, y: group.y };
@@ -67,28 +90,22 @@ function Frame({ group, onManage, onDrag, onMove }: Props & { group: BoardGroup 
         onDrag?.(null);
       }}
     >
+      {/* The whole background takes the press: a click selects, a drag moves the frame. */}
       <Rect
         width={group.width}
         height={group.height}
         fill={color}
         opacity={0.15}
         cornerRadius={12}
-        listening={false}
       />
       <Rect
         width={group.width}
         height={group.height}
         stroke={color}
-        strokeWidth={1}
-        opacity={0.65}
+        strokeWidth={isSelected ? 2.5 : 1}
+        opacity={isSelected ? 1 : 0.65}
         cornerRadius={12}
         listening={false}
-      />
-      <Rect
-        width={group.width}
-        height={GROUP_HEADER}
-        fill="transparent"
-        cornerRadius={[12, 12, 0, 0]}
       />
       <Text
         x={16}
@@ -100,8 +117,7 @@ function Frame({ group, onManage, onDrag, onMove }: Props & { group: BoardGroup 
         wrap="none"
         fontSize={14}
         fill={text}
-        onClick={manage}
-        onTap={manage}
+        listening={false}
       />
       <Text
         x={group.width - 48}

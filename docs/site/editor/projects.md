@@ -17,14 +17,16 @@ no known use appear under **Unclassified**. Changing classification does not rem
 images already placed in menus.
 Resource changes stay in your private draft until **Deploy**, like other edits.
 
-Each project has its own frame on the server-wide canvas. Inside a project, only manual groups have frames. Select two or more documents — menus, commands or dialogs, mixed if you like — then choose
-**Group selection** (also available on right-click), name the group and choose its color.
-The background, including the header, uses that color at 15% opacity. Drag a group's header to move its documents together.
-Click its name or use **Groups → Edit group** to change its name or color. You can also dissolve groups. Dissolving
-keeps the documents. A document belongs to one group within its project; groups cannot be nested.
-Groups always stay open, including groups saved as collapsed in older versions. Changes support Undo/Redo and
-are saved with the editor layout. The server-wide canvas groups by project too;
-editing stays in each project.
+Each project has its own frame on the server-wide canvas. Inside a project, each top-level folder
+that holds documents has a frame. Select documents, then choose **File in a folder** to put them in a
+new or existing folder, with a color; the background uses that color at 15% opacity.
+Click a frame's background to select its folder: the Properties panel then lets you rename it, change
+its color, show only that folder, rearrange its contents or remove it (its documents move up a level).
+Drag a frame's background to move the folder with everything in it. Double-click it to show only that
+folder; **Escape** shows everything again. Drop a document on another folder's frame to file it there.
+In the sidebar, drag a document onto a folder, or outside every folder to put it back at the root.
+Changes support Undo/Redo and are saved with the editor layout. The server-wide canvas groups by
+project too; editing stays in each project.
 
 **Rearrange** on the canvas toolbar moves groups as whole blocks, using their incoming
 and outgoing links to place them alongside ungrouped documents. It preserves every

@@ -784,6 +784,11 @@ const fr: typeof en = {
     },
   },
   folders: {
+    properties: {
+      kind: "Dossier",
+      count_one: "{{count}} élément",
+      count_other: "{{count}} éléments",
+    },
     showOnly: "N'afficher que ce dossier",
     filtered: "Dossier : {{folder}}",
     showAll: "Tout afficher",
@@ -978,10 +983,8 @@ const fr: typeof en = {
       rearrange: "Réarranger le contenu",
       dissolve: "Retirer le dossier",
       cancel: "Annuler",
-      save: "Enregistrer",
       description:
         "Déplace les documents sélectionnés dans ce dossier du module (boutique/menus/…). Un dossier existant est réutilisé. Les références ne changent pas.",
-      editDescription: "Renommer déplace ses fichiers ; les références ne changent pas.",
       invalidSelection: "Sélectionne des documents de ce module.",
     },
     minimap: "Minimap",

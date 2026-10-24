@@ -22,21 +22,22 @@ export interface Inspector {
 export function useInspector(projectId: ProjectId): Inspector {
   const ids = useSelectionStore((s) => s.ids);
   const selectionMenuId = useSelectionStore((s) => s.menuId);
+  const folder = useSelectionStore((s) => s.folder);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const projectSettingsOpen = useUiStore((s) => s.projectSettingsOpen);
   const setProjectSettingsOpen = useUiStore((s) => s.setProjectSettingsOpen);
 
   const ctx = useMemo(
-    () => selectionContext(project, ids, selectionMenuId),
-    [project, ids, selectionMenuId],
+    () => selectionContext(project, ids, selectionMenuId, folder),
+    [project, ids, selectionMenuId, folder],
   );
 
   // Selecting anything puts the project settings away: otherwise going back to
   // an empty selection would reopen them right after the user deselected to
   // clear the canvas.
   useEffect(() => {
-    if (ids.size > 0 && projectSettingsOpen) setProjectSettingsOpen(false);
-  }, [ids.size, projectSettingsOpen, setProjectSettingsOpen]);
+    if ((ids.size > 0 || folder !== null) && projectSettingsOpen) setProjectSettingsOpen(false);
+  }, [ids.size, folder, projectSettingsOpen, setProjectSettingsOpen]);
 
-  return { open: ids.size > 0 || projectSettingsOpen, ctx };
+  return { open: ids.size > 0 || folder !== null || projectSettingsOpen, ctx };
 }

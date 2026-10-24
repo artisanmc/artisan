@@ -5,6 +5,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import type Konva from "konva";
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { commitNodeDrag } from "./commitNodeDrag";
 
 interface UseMenuDragArgs {
   projectId: ProjectId;
@@ -64,7 +65,7 @@ export function useMenuDrag({ projectId, nodeId, position }: UseMenuDragArgs) {
         }
         return;
       }
-      setCanvasPosition({ projectId, nodeId, x: e.target.x(), y: e.target.y() });
+      commitNodeDrag(projectId, nodeId, e.target);
     },
     [projectId, nodeId, menuId, position.x, position.y, setCanvasPosition],
   );
