@@ -45,6 +45,8 @@ export interface McTextProps {
   shadow?: boolean;
   /** Each line parsed alone, as a lore's entries are. */
   perLine?: boolean;
+  /** Lines past this one are not drawn, as the game cuts a MOTD. */
+  maxLines?: number;
   /** Horizontal alignment of lines narrower than the widest one. */
   align?: "left" | "center";
   className?: string;
@@ -62,6 +64,7 @@ export function McText({
   lineHeight = 10,
   shadow = true,
   perLine = false,
+  maxLines,
   align = "left",
   className,
   style,
@@ -71,8 +74,8 @@ export function McText({
     const segs: Segment[] = perLine
       ? parseMiniMessageSource(source, true).map(({ text, style: s }) => ({ text, style: s }))
       : parseMiniMessage(source);
-    return splitLines(segs);
-  }, [source, perLine]);
+    return splitLines(segs).slice(0, maxLines);
+  }, [source, perLine, maxLines]);
   const label = useMemo(() => plainTextFromMiniMessage(source), [source]);
   const animated = hasObfuscated(lines, defaults);
   const [tick, setTick] = useState(0);
@@ -139,10 +142,13 @@ export function McText({
         }}
         data-testid="mc-text-fallback"
       >
-        {source.split(perLine ? "\n" : /\n|<newline>|<br\/?>/i).map((line, k) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: lines have no identity
-          <MiniMessageInline key={k} source={line || "​"} className="block whitespace-pre" />
-        ))}
+        {source
+          .split(perLine ? "\n" : /\n|<newline>|<br\/?>/i)
+          .slice(0, maxLines)
+          .map((line, k) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: lines have no identity
+            <MiniMessageInline key={k} source={line || "​"} className="block whitespace-pre" />
+          ))}
       </span>
     );
   }

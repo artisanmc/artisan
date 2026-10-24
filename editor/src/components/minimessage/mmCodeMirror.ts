@@ -2,7 +2,7 @@ import type { Segment, Style } from "@/lib/miniMessage";
 import { parseMiniMessageSource } from "@/lib/miniMessage";
 import { deleteVisible, diffText, splitLine } from "@/lib/mm/edit";
 import { type RichLayout, insertionPoint, richLayout } from "@/lib/mm/layout";
-import { type MmProfile, diagnose } from "@/lib/mm/profiles";
+import { type MmProfile, diagnose, lineCap, lineCount } from "@/lib/mm/profiles";
 import { markupTokens } from "@/lib/mm/tree";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { type CompletionContext, autocompletion } from "@codemirror/autocomplete";
@@ -176,6 +176,12 @@ function richInputFilter(profile: MmProfile) {
       }
     }
     if (text === src) return { selection: { anchor: caret } };
+    // No new line past the profile's cap, whether from Enter, a paste or a typed `<newline>`.
+    const cap = lineCap(profile);
+    if (cap !== undefined) {
+      const lines = lineCount(text, profile);
+      if (lines > cap && lines > lineCount(src, profile)) return [];
+    }
     return {
       changes: diffText(src, text),
       selection: { anchor: caret },

@@ -179,6 +179,25 @@ export interface MmDiagnostic {
   feature?: MmFeature;
 }
 
+/** How many lines the game shows at most for this profile, if it caps them. */
+export const lineCap = (profile: MmProfile): number | undefined =>
+  profile.lines === "single" ? 1 : profile.maxLines;
+
+/** Where each line break the reader sees starts in `src`: a `\n`, `<newline>` or `<br>`. */
+function lineBreaks(src: string, profile: MmProfile): number[] {
+  const out: number[] = [];
+  for (const seg of parseMiniMessageSource(src, profile.lines === "separate")) {
+    for (let k = 0; k < seg.text.length; k++) {
+      if (seg.text[k] === "\n") out.push(seg.gen ? seg.gen.from : seg.map[k]!);
+    }
+  }
+  return out;
+}
+
+/** The lines the reader sees, tags that break a line included. */
+export const lineCount = (src: string, profile: MmProfile): number =>
+  lineBreaks(src, profile).length + 1;
+
 /**
  * What the profile does not allow. Nothing is ever removed: a tag the game ignores here
  * stays in the text, flagged, since a module may rely on it elsewhere.
@@ -194,12 +213,10 @@ export function diagnose(src: string, profile: MmProfile): MmDiagnostic[] {
       out.push({ from: tk.from, to: tk.to, code: "feature", feature });
     }
   }
-  const lines = src.split("\n").length;
-  const cap = profile.lines === "single" ? 1 : profile.maxLines;
-  if (cap !== undefined && lines > cap) {
-    let at = 0;
-    for (let k = 0; k < cap; k++) at = src.indexOf("\n", at) + 1;
-    out.push({ from: at - 1, to: src.length, code: "lines" });
+  const breaks = lineBreaks(src, profile);
+  const cap = lineCap(profile);
+  if (cap !== undefined && breaks.length >= cap) {
+    out.push({ from: breaks[cap - 1]!, to: src.length, code: "lines" });
   }
   return out;
 }

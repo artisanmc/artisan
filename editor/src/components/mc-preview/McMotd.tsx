@@ -23,7 +23,6 @@ export function McMotd({
   scale = 2,
   className,
 }: McMotdProps) {
-  const lines = motd.split("\n").slice(0, 2).join("\n");
   return (
     <div
       data-testid="mc-motd"
@@ -64,7 +63,7 @@ export function McMotd({
             ))}
           </div>
         </div>
-        <McText source={lines} defaults={defaults} scale={scale} lineHeight={9} />
+        <McText source={motd} defaults={defaults} scale={scale} lineHeight={9} maxLines={2} />
       </div>
     </div>
   );

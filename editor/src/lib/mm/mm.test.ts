@@ -13,7 +13,7 @@ import {
 } from "./edit";
 import { insertionPoint, richLayout } from "./layout";
 import { hasLegacyCodes, legacyToMiniMessage } from "./legacy";
-import { CHAT, LORE, MOTD, TITLE, diagnose } from "./profiles";
+import { CHAT, LORE, MOTD, TITLE, diagnose, lineCount } from "./profiles";
 import { parseTree, serialize } from "./tree";
 
 /** Texts written by hand, migrated from production, or broken on purpose. */
@@ -249,6 +249,12 @@ describe("diagnose", () => {
   it("flags extra lines", () => {
     expect(diagnose("a\nb\nc", MOTD)).toEqual([{ from: 3, to: 5, code: "lines" }]);
     expect(diagnose("a\nb", TITLE)[0]?.code).toBe("lines");
+  });
+
+  it("counts the line breaks tags make", () => {
+    expect(lineCount("a<newline>b<br>c\nd", MOTD)).toBe(4);
+    expect(diagnose("a\nb<newline>c", MOTD)).toEqual([{ from: 3, to: 13, code: "lines" }]);
+    expect(diagnose("a<newline>b", MOTD)).toEqual([]);
   });
 });
 
