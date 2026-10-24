@@ -98,6 +98,19 @@ Non-examples:
   because nothing distinguished the fallback entry from the guarded ones. It is
   not read any more.
 
+## Automation
+
+A **Document** kind (`automations/<id>.yaml`) that binds one **Event trigger** to an
+**Action chain**: when the event fires for a player, the optional `if` conditions
+and `cooldown` are checked, then the chain runs with the event's context bound as
+`{event.…}`. Proposed by ADR `automations-and-variables`.
+
+Non-examples:
+- A **Command** is not an Automation — a player invokes it; an Automation reacts to
+  something that happened in the game.
+- A Bukkit listener in a Module's code is not an Automation — it is code; an
+  Automation is authored content in the closed action vocabulary.
+
 ## Board group
 
 A visual container on the canvas: each **Project** is the default outer group on the server-wide canvas. Its frame is hidden in the project's own view.
@@ -416,6 +429,19 @@ Non-examples:
 - A **Menu** / **Command** / **Dialog** is a **Document**, not an Element.
 - A slot **position** (an index like `13`) is not an Element; it's *where* an
   Element sits. One Element may span several positions.
+
+## Event trigger
+
+A named, declared game event an **Automation** can listen to (`player_death`,
+`player_join`, `quests:completed`), with a typed, read-only context
+(`event.location`, `event.cause`). Core events are bare names; a Module declares
+its own, namespaced, and fires them. Only discrete, player-bound events qualify:
+continuous ones (`player_move`, per tick) are excluded. Cf. ADR
+`automations-and-variables`.
+
+Non-examples:
+- A **Module event** (`ConfigReloadEvent` on `api.events`) is not an Event trigger —
+  it tells code that content changed; no authored chain listens to it.
 
 ## Expression
 
@@ -842,6 +868,19 @@ _Avoid_: bundle, live files
 Non-examples:
 - A hand edit on the server disk is **not** in the Snapshot until the next reload.
 - A **Draft** is never a Snapshot: it is unpublished work.
+
+## Variable
+
+A declared, typed, persistent value (`variables/<id>.yaml`): scope `player` or
+`server`, type `string`, `number`, `boolean` or `location`, optional expiry. Written
+by `set_var` / `add_var` / `clear_var`, read as `{var.<id>}` and by `has_var`;
+stored in the suite database, so a Network shares a player's values. Cf. ADR
+`automations-and-variables`.
+
+Non-examples:
+- A context input set by `set_arg` is not a Variable — it lives for one menu
+  session and is never stored.
+- A cooldown is not a Variable — it only answers "has this delay passed?".
 
 ## Version
 
