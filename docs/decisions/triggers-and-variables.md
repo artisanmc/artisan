@@ -43,7 +43,7 @@ Les fondations existent : `DocumentKindRegistry` et les **slots de chaînes** c�
 
 ### 1. Un kind **Trigger** : un événement, une chaîne
 
-Un **Trigger** est un Document (`triggers/<id>.yaml`, `schema: trigger/v1`) qui associe
+Un **Trigger** est un Document (`triggers/<id>.yml`, `schema: trigger/v1`) qui associe
 un **Game event** à une Action chain. Il est déclaré par un module core `triggers`
 via `DocumentKindRegistry`, comme menus, commands et dialogs.
 
@@ -106,7 +106,7 @@ Les arguments `world/x/y/z/yaw/pitch` restent lus (compatibilité du wire) ; l'�
 
 ### 5. Variables : déclarées, typées, persistantes
 
-Une **Variable** est un Document (`variables/<id>.yaml`, `schema: variable/v1`) qui déclare une
+Une **Variable** est un Document (`variables/<id>.yml`, `schema: variable/v1`) qui déclare une
 valeur nommée :
 
 ```yaml

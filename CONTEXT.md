@@ -858,7 +858,7 @@ Non-examples:
 
 ## Trigger
 
-A **Document** kind (`triggers/<id>.yaml`) that binds one **Game event** to an
+A **Document** kind (`triggers/<id>.yml`) that binds one **Game event** to an
 **Action chain**: when the event fires for a player, the optional `if` conditions
 and `cooldown` are checked, then the chain runs with the event's context bound as
 `{event.…}`. Proposed by ADR `triggers-and-variables`. In the sense of ADR
@@ -875,7 +875,7 @@ Non-examples:
 
 ## Variable
 
-A declared, typed, persistent value (`variables/<id>.yaml`): scope `player` or
+A declared, typed, persistent value (`variables/<id>.yml`): scope `player` or
 `server`, type `string`, `number`, `boolean` or `location`, optional expiry. Written
 by `set_var` / `add_var` / `clear_var`, read as `{var.<id>}` and by `has_var`;
 stored in the suite database, so a Network shares a player's values. Cf. ADR
