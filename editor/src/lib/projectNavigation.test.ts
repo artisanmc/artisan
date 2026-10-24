@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { documentDestination, projectDestination } from "./projectNavigation";
+import { documentDestination, projectDestination, screenDestination } from "./projectNavigation";
 
 describe("documentDestination — following a document reference", () => {
   const core = { id: "internal-1", diskId: "core" };
@@ -38,6 +38,28 @@ describe("project URLs", () => {
   it("without a server, leads back to the server list", () => {
     expect(projectDestination({ id: "internal", externalId: "My_Project" })).toEqual({
       to: "/servers",
+    });
+  });
+});
+
+describe("screenDestination", () => {
+  const folder = { id: "internal", externalId: "boutique_addon" };
+
+  it("opens a screen of a listed folder inside it", () => {
+    expect(
+      screenDestination({ id: "boutique:settings", projectId: "boutique_addon" }, "s", [folder]),
+    ).toEqual({
+      to: "/servers/$serverId/projects/$projectId/screen/$screenId",
+      params: { serverId: "s", projectId: "boutique_addon", screenId: "boutique:settings" },
+    });
+  });
+
+  it("keeps the standalone screen for a root no listed folder holds (a configuration root)", () => {
+    expect(
+      screenDestination({ id: "daily:rewards", projectId: "daily_config" }, "s", [folder]),
+    ).toEqual({
+      to: "/servers/$serverId/screens/$screenId",
+      params: { serverId: "s", screenId: "daily:rewards" },
     });
   });
 });

@@ -111,6 +111,12 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > enregistrée par `registerConfig` : versionnée, hors de la liste des Projects (ADR
 > `module-config-screens`, amendement 2026-10-19).
 
+> **Kind réservé et icônes de lignes (depuis 2026-10-24, SDK 1.7)** — `DocumentKindContribution.projects`
+> liste les dossiers (ids disque) où le kind peut être créé ; absent, partout. Un fichier du kind
+> ailleurs reste lu et affiché, seule la création est refusée (`kindCreatableIn`). `BoardItem.icon`
+> porte une valeur d'item que l'hôte dessine avant le libellé de la ligne. La boutique s'en sert pour
+> `boutique_category`, réservé à son dossier, dont le nœud liste les articles avec leur icône.
+
 > **Dossier du module (depuis 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > donne au module `plugins/Artisan/modules/<folder>/`, enregistré comme une racine d'add-on (clé
 > `addon:<folder>`, non renommable). L'ancienne racine (`legacyDir`) y est déplacée une fois ; le

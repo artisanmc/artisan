@@ -10,7 +10,7 @@ import {
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
-import { projectDestination } from "@/lib/projectNavigation";
+import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import {
   DndContext,
@@ -372,13 +372,18 @@ function ProjectLink({
   );
 }
 
-/** A plugin module's Config screen link (ADR module-config-screens). */
+/**
+ * A plugin module's Config screen link (ADR module-config-screens). A screen of the
+ * module's folder opens inside that folder, on its draft (`screenDestination`).
+ */
 function ScreenItem({
   screen,
   serverId,
+  projects,
 }: {
   screen: ServerEditorScreen;
   serverId: string | null;
+  projects: ProjectSummary[];
 }) {
   const params = useParams({ strict: false }) as { screenId?: string };
   const isActive = params.screenId === screen.id;
@@ -386,8 +391,7 @@ function ScreenItem({
   return (
     <li>
       <Link
-        to="/servers/$serverId/screens/$screenId"
-        params={{ serverId, screenId: screen.id }}
+        {...screenDestination(screen, serverId, projects)}
         onClick={() => useSidebarStore.getState().close()}
         className={entryRowClass(isActive)}
       >
@@ -650,7 +654,8 @@ function ProjectItem({
       {canExpand && expanded && indexed && (
         <OtherProjectDocuments project={indexed} serverId={serverId} />
       )}
-      {open && children}
+      {/* Inside the open project's block, aligned with its Documents. */}
+      {open && children && (isActiveProject ? <div className="px-1.5">{children}</div> : children)}
     </li>
   );
 }
@@ -690,7 +695,7 @@ function PluginModuleItem({
   );
   const [expanded, setExpanded] = useState(showsChild);
   const entries = module.entries.length > 0 && (
-    <ModuleEntries entries={module.entries} serverId={serverId} />
+    <ModuleEntries entries={module.entries} serverId={serverId} projects={module.projects} />
   );
   const [only] = module.projects;
   if (only && module.projects.length === 1) {
@@ -751,16 +756,23 @@ function PluginModuleItem({
 function ModuleEntries({
   entries,
   serverId,
+  projects,
 }: {
   entries: ModuleGroupEntry[];
   serverId: string | null;
+  projects: ProjectSummary[];
 }) {
   const { t } = useTranslation();
   return (
     <ul className="flex flex-col">
       {entries.map((e) =>
         e.kind === "screen" ? (
-          <ScreenItem key={`s:${e.screen.id}`} screen={e.screen} serverId={serverId} />
+          <ScreenItem
+            key={`s:${e.screen.id}`}
+            screen={e.screen}
+            serverId={serverId}
+            projects={projects}
+          />
         ) : (
           <li key={`c:${e.moduleId}`}>
             <Link

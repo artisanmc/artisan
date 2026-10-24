@@ -7,12 +7,16 @@ import { useUiStore } from "@/state/uiStore";
 import { documentKindContribution } from "@artisan/editor-sdk";
 import type { BoardItem } from "@artisan/editor-sdk";
 import type Konva from "konva";
-import { useCallback, useEffect, useState } from "react";
-import { Circle, Group, Line, Rect, Text } from "react-konva";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Circle, Group, Image as KonvaImage, Line, Rect, Text } from "react-konva";
+import useImage from "use-image";
 import { dispatchOpenElement } from "./canvasEvents";
 import { DOCUMENT_ITEMS, documentBoxSize } from "./menuLayout";
 import { useNodeColors } from "./nodeColors";
 import { showFullTitle } from "./nodeTitle";
+import { resolveItem } from "./resolveItem";
+import { useTextureUrl } from "./textureStore";
+import { useHeadPreviewUrl } from "./useHeadPreviewUrl";
 import { useNodeAlignment } from "./useNodeAlignment";
 
 interface DocumentGroupProps {
@@ -28,6 +32,8 @@ interface DocumentGroupProps {
 const DEFAULT_ACCENT = "#0ea5e9";
 /** A row's marker disc: centre x inside the node, radius. */
 const MARKER = { x: 17, r: 9 };
+/** A row's item icon (`BoardItem.icon`): its side, drawn at the start of the row's box. */
+const ICON = 16;
 
 /**
  * The board node of a Document whose kind a module contributes (ADR
@@ -172,6 +178,8 @@ export function DocumentGroup({ project, kind, doc, position, solo }: DocumentGr
           y={rowY(i)}
           width={size.width}
           item={item}
+          project={project}
+          lang={lang}
           accent={accent}
           selected={selectedItem === item.id}
           onSelect={(e) => {
@@ -195,6 +203,8 @@ function ItemRow({
   y,
   width,
   item,
+  project,
+  lang,
   accent,
   selected,
   onSelect,
@@ -202,6 +212,8 @@ function ItemRow({
   y: number;
   width: number;
   item: BoardItem;
+  project: Project;
+  lang: string;
   accent: string;
   selected: boolean;
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
@@ -209,8 +221,9 @@ function ItemRow({
   const [hovered, setHovered] = useState(false);
   const node = useNodeColors();
   const h = DOCUMENT_ITEMS.row - 3;
-  const { label, detail, marker, hover } = item;
+  const { label, detail, marker, hover, icon } = item;
   const detailWidth = detail ? Math.min(90, width / 3) : 0;
+  const hasIcon = icon != null && icon !== "";
   // With a marker, the row's box starts after its disc.
   const boxX = marker ? MARKER.x + MARKER.r + 4 - 6 : 0;
   const boxW = width - 12 - boxX;
@@ -275,10 +288,13 @@ function ItemRow({
         strokeWidth={selected ? 1 : 0}
         perfectDrawEnabled={false}
       />
+      {hasIcon ? (
+        <RowIcon value={icon} project={project} lang={lang} x={boxX + 4} y={(h - ICON) / 2} />
+      ) : null}
       <Text
-        x={boxX + 8}
+        x={boxX + (hasIcon ? 8 + ICON : 8)}
         y={(h - 11) / 2}
-        width={boxW - 16 - detailWidth}
+        width={boxW - 16 - detailWidth - (hasIcon ? ICON : 0)}
         text={label}
         fontSize={11}
         fill={selected ? node.rowSelectedFg : hovered ? node.fg : node.rowFg}
@@ -302,5 +318,63 @@ function ItemRow({
         />
       ) : null}
     </Group>
+  );
+}
+
+/**
+ * A row's item (`BoardItem.icon`), resolved like a menu button's (material, captured item,
+ * `extends`) and drawn as its texture; the material's first letters when none is known.
+ */
+function RowIcon({
+  value,
+  project,
+  lang,
+  x,
+  y,
+}: {
+  value: unknown;
+  project: Project;
+  lang: string;
+  x: number;
+  y: number;
+}) {
+  const node = useNodeColors();
+  const resolved = useMemo(() => {
+    try {
+      return resolveItem(value, {}, project, lang);
+    } catch {
+      return { lore: [] as string[] };
+    }
+  }, [value, project, lang]);
+  const material = resolved.material ?? "";
+  const materialUrl = useTextureUrl(material);
+  const url = useHeadPreviewUrl(resolved.head) ?? materialUrl;
+  const [image] = useImage(url ?? "");
+  if (url && image)
+    return (
+      <KonvaImage
+        image={image}
+        x={x}
+        y={y}
+        width={ICON}
+        height={ICON}
+        listening={false}
+        perfectDrawEnabled={false}
+      />
+    );
+  return (
+    <Text
+      x={x}
+      y={y}
+      width={ICON}
+      height={ICON}
+      text={material.replace(/^.*:/, "").slice(0, 2)}
+      fontFamily="ui-monospace, monospace"
+      fontSize={7}
+      align="center"
+      verticalAlign="middle"
+      fill={node.sub}
+      listening={false}
+    />
   );
 }

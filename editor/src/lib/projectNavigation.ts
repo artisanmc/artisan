@@ -37,3 +37,27 @@ export function documentDestination(
   const project = namespace === null || namespace === here ? current : namespace;
   return projectDestination(project, serverId, id);
 }
+
+/**
+ * Where a module's Config screen opens. A screen whose table lives in one of the listed
+ * Projects (its module folder) opens inside it, on the folder's draft; any other (a
+ * configuration root, never listed) opens as the standalone screen that writes on Save.
+ */
+export function screenDestination(
+  screen: { id: string; projectId?: string | null },
+  serverId: string,
+  projects: ProjectUrlIdentity[],
+) {
+  const owner = screen.projectId
+    ? projects.find((p) => projectUrlId(p) === screen.projectId)
+    : undefined;
+  if (owner)
+    return {
+      to: "/servers/$serverId/projects/$projectId/screen/$screenId" as const,
+      params: { serverId, projectId: projectUrlId(owner), screenId: screen.id },
+    };
+  return {
+    to: "/servers/$serverId/screens/$screenId" as const,
+    params: { serverId, screenId: screen.id },
+  };
+}

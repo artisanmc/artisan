@@ -27,7 +27,7 @@ import {
 } from "@/features/templates/useProjectTemplates";
 import { copyTemplate } from "@/lib/api/templates";
 import { kindAppearance } from "@/lib/documentKindAppearance";
-import { contributionLabel } from "@/lib/moduleDocumentKinds";
+import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -97,7 +97,11 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const templates = useProjectTemplates(projectId);
-  const moduleKinds = listDocumentKindContributions().filter((c) => !isCoreDocumentType(c.kind));
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  // A kind may be reserved to its module's own folder (`projects`, SDK 1.7).
+  const moduleKinds = listDocumentKindContributions().filter(
+    (c) => !isCoreDocumentType(c.kind) && kindCreatableIn(c, project),
+  );
   const iconButton =
     "flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]";
   return (

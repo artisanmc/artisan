@@ -1,3 +1,4 @@
+import { projectNamespace } from "@/domain/docRef";
 import { type ChainSlot, registerDocumentKindVisitors } from "@/domain/documentKindVisitors";
 import {
   documentKindDef,
@@ -69,6 +70,19 @@ export function registerEditorModule(mod: FrontendModule): void {
   if (getModule(mod.id)) return;
   registerModule(mod);
   installModuleDocumentKinds(mod);
+}
+
+/**
+ * Whether a Document of this kind may be created in `project` (SDK 1.7): a kind listing
+ * `projects` is offered only in those folders, matched on the disk id (`projectNamespace`).
+ */
+export function kindCreatableIn(
+  c: DocumentKindContribution,
+  project: { id: string; diskId?: string } | undefined,
+): boolean {
+  if (!c.projects) return true;
+  if (!project) return false;
+  return c.projects.includes(projectNamespace(project));
 }
 
 /** A fresh Document of a kind, through its contribution's seed. */

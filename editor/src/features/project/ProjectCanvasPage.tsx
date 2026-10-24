@@ -62,9 +62,9 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
  * (`?tab=`). URL sync, drag-and-drop and the language fallback are named hooks.
  */
 export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) {
-  const { serverId, projectId, documentId } = useParams({
+  const { serverId, projectId, documentId, screenId } = useParams({
     strict: false,
-  }) as { serverId?: string; projectId: string; documentId?: string };
+  }) as { serverId?: string; projectId: string; documentId?: string; screenId?: string };
   const loadRef = projectRef ?? projectId;
   // Resolve the public folder/module ID in its complete location scope.
   const {
@@ -186,8 +186,10 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       </>
     );
 
+    // A module's screen opened in the project (`screen/$screenId`) covers the board.
     const canvasActive =
       presentedTab === "overview" &&
+      !screenId &&
       (!documentId || !!menusOf(project).some((menu) => menu.id === documentId));
 
     const tabContent = (
@@ -203,7 +205,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
               <ProjectLibraryWorkspace
                 projectId={pId}
                 active={canvasActive}
-                showMinimapToggle={!documentId}
+                showMinimapToggle={!documentId && !screenId}
               >
                 {centerContent}
               </ProjectLibraryWorkspace>
@@ -221,7 +223,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
               <ProjectLibraryWorkspace
                 projectId={pId}
                 active={canvasActive}
-                showMinimapToggle={!documentId}
+                showMinimapToggle={!documentId && !screenId}
               >
                 {centerContent}
               </ProjectLibraryWorkspace>
