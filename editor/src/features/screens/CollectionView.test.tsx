@@ -144,8 +144,8 @@ describe("a collection kind", () => {
     expect(screen.getAllByText("keys")).toHaveLength(1);
     fireEvent.click(entry);
     expect(navigate).toHaveBeenCalledWith({
-      to: "/servers/$serverId/projects/$projectId/collection/$collectionKind",
-      params: { serverId: "s1", projectId: "boutique_addon", collectionKind: "shop_category" },
+      to: "/servers/$serverId/projects/$projectId/$collectionDir",
+      params: { serverId: "s1", projectId: "boutique_addon", collectionDir: "shop_categories" },
     });
   });
 

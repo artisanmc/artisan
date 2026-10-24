@@ -1,5 +1,6 @@
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
 import { isDocKey, parseDocKey } from "@/domain/documents";
+import { documentKindContribution } from "@artisan/editor-sdk";
 import { type ProjectUrlIdentity, projectUrlId } from "./projectUrlId";
 
 /**
@@ -70,7 +71,10 @@ export function screenDestination(
   };
 }
 
-/** The page of a collection kind's Documents in a project (SDK 1.9): a shop's catalogue. */
+/**
+ * The page of a collection kind's Documents in a project (SDK 1.9), at the kind's folder
+ * name: a shop's `…/projects/boutique_addon/catalogue`.
+ */
 export function collectionDestination(
   project: string | ProjectUrlIdentity,
   serverId: string,
@@ -78,7 +82,7 @@ export function collectionDestination(
 ) {
   const projectId = typeof project === "string" ? project : projectUrlId(project);
   return {
-    to: "/servers/$serverId/projects/$projectId/collection/$collectionKind" as const,
-    params: { serverId, projectId, collectionKind: kind },
+    to: "/servers/$serverId/projects/$projectId/$collectionDir" as const,
+    params: { serverId, projectId, collectionDir: documentKindContribution(kind)?.dir ?? kind },
   };
 }

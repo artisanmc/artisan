@@ -116,6 +116,31 @@ describe("followDisk", () => {
     expect(next?.initialTree).toEqual({ "menus/a.yaml": "a" });
   });
 
+  it("keeps a move made in an earlier session when the disk respells the moved file", () => {
+    // Moved into `catalogue/` while the disk said `.yaml`; the disk then went to `.yml`. The
+    // root copy must not come back: the same id twice hides both from the editor.
+    const draft = {
+      baseline: { "boutique_categories/keys.yaml": "old" },
+      initialTree: { "catalogue/boutique_categories/keys.yaml": "old" },
+      tree: { "catalogue/boutique_categories/keys.yaml": "old" },
+    };
+    const next = followDisk(draft, { "boutique_categories/keys.yml": "new" });
+    expect(next?.tree ?? draft.tree).toEqual({ "catalogue/boutique_categories/keys.yaml": "old" });
+  });
+
+  it("forgets a file the draft deleted once the disk removed it too", () => {
+    const next = followDisk(
+      {
+        baseline: { "a.yaml": "a", "b.yaml": "b" },
+        initialTree: { "a.yaml": "a" },
+        tree: { "a.yaml": "a" },
+      },
+      { "a.yaml": "a" },
+    );
+    expect(next?.baseline).toEqual({ "a.yaml": "a" });
+    expect(next?.tree).toEqual({ "a.yaml": "a" });
+  });
+
   it("takes a file the disk added or rewrote", () => {
     const next = followDisk(
       {

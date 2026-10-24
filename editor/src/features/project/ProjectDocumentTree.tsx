@@ -440,9 +440,9 @@ function CollectionNode({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { serverId, collectionKind } = useParams({ strict: false }) as {
+  const { serverId, collectionDir } = useParams({ strict: false }) as {
     serverId?: string;
-    collectionKind?: string;
+    collectionDir?: string;
   };
   const uiLang = useUiStore((s) => s.editorLang);
   const [open, setOpen] = useState(true);
@@ -451,7 +451,7 @@ function CollectionNode({
   const label = collectionLabel(contribution, kind, uiLang);
   const look = kindAppearance(kind);
   const Chevron = open ? ChevronDown : ChevronRight;
-  const active = collectionKind === kind;
+  const active = collectionDir === contribution.dir;
   const canOpen = editable && !!serverId;
   return (
     <div className="flex flex-col">
