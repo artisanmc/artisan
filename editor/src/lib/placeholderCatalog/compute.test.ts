@@ -33,7 +33,10 @@ const emptyProject = (): Project => ({
 
 const BUILTIN_PLAYER = [
   { path: "player", type: "player", sample: "Steve", origin: "context" },
+  { path: "player.first_seen.ago()", type: "string", sample: "40d", origin: "context" },
+  { path: "player.last_seen.ago()", type: "string", sample: "3d 4h", origin: "context" },
   { path: "player.name", type: "string", sample: "Steve", origin: "context" },
+  { path: "player.playtime.duration()", type: "string", sample: "12h 30m", origin: "context" },
   {
     path: "player.uuid",
     type: "string",
@@ -395,7 +398,10 @@ describe("PlaceholderCatalog.compute", () => {
     expect(out.map((e) => [e.path, e.type])).toEqual([
       ["amount", "integer"],
       ["player", "player"],
+      ["player.first_seen.ago()", "string"],
+      ["player.last_seen.ago()", "string"],
       ["player.name", "string"],
+      ["player.playtime.duration()", "string"],
       ["player.uuid", "string"],
       ["player.world", "string"],
       ["target", "player"],
@@ -572,7 +578,10 @@ describe("PlaceholderCatalog.compute", () => {
       "context:alpha",
       "context:has_previous_menu",
       "context:player",
+      "context:player.first_seen.ago()",
+      "context:player.last_seen.ago()",
       "context:player.name",
+      "context:player.playtime.duration()",
       "context:player.uuid",
       "context:player.world",
       "context:previous_menu",

@@ -103,6 +103,7 @@ open class ArtisanPlugin : JavaPlugin() {
         fun defaultModules(): List<ArtisanModule> = listOf(
             MenusModule(),
             CommandsModule(),
+            net.artisanmc.modules.triggers.TriggersModule(),
         )
 
         fun buildApi(plugin: ArtisanPlugin): ArtisanAPI = ArtisanApiFactory.build(plugin)
@@ -289,6 +290,7 @@ open class ArtisanPlugin : JavaPlugin() {
         screens = api.screens.declared().map { it.toWire() },
         actions = api.actionRegistry.registered().map { it.toWire() },
         documentKinds = api.documentKinds.registered().map { it.toWire() },
+        gameEvents = api.gameEvents.registered().map { it.toWire() },
         playerCommands = net.artisanmc.plugin.ws.PlayerCommandReport.build(api.playerCommands),
     )
 

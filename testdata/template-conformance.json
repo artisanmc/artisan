@@ -738,5 +738,41 @@
     },
     "now": 1754400000000,
     "expected": "Reset in 1h 30m"
+  },
+  {
+    "name": "ago — days and hours since a past instant",
+    "template": "{at.ago()}",
+    "scope": {
+      "at": 1754209200000
+    },
+    "now": 1754400000000,
+    "expected": "2d 5h"
+  },
+  {
+    "name": "ago — an instant still to come reads 0s",
+    "template": "{at.ago()}",
+    "scope": {
+      "at": 1754411520000
+    },
+    "now": 1754400000000,
+    "expected": "0s"
+  },
+  {
+    "name": "duration — milliseconds as hours and minutes",
+    "template": "{ms.duration()}",
+    "scope": {
+      "ms": 11520000
+    },
+    "now": 1754400000000,
+    "expected": "3h 12m"
+  },
+  {
+    "name": "duration — not a number reads empty",
+    "template": "[{ms.duration()}]",
+    "scope": {
+      "ms": "soon"
+    },
+    "now": 1754400000000,
+    "expected": "[]"
   }
 ]

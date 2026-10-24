@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.artisanmc.net/schema/trigger/v1.json",
+  "title": "Artisan Trigger",
+  "description": "Un Trigger associe un Game event à une Action chain (ADR triggers-and-variables). Fichier `triggers/<id>.yml` d'un Project ; l'id est le nom du fichier. Déclaré par le module core `triggers`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "on"
+  ],
+  "properties": {
+    "schema": {
+      "const": "trigger/v1"
+    },
+    "on": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$",
+      "description": "Nom d'un Game event déclaré : un événement du catalogue core (`player_death`) ou d'un module (`quests:completed`). Un nom que le serveur ne déclare pas est signalé au chargement et ne déclenche rien."
+    },
+    "if": {
+      "type": "array",
+      "items": {
+        "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/ConditionKeyed"
+      },
+      "description": "Conditions, toutes requises (AND implicite), évaluées avec le contexte de l'événement lié sous `event`. Échec : le Trigger ne s'exécute pas et son délai ne démarre pas."
+    },
+    "cooldown_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Délai par joueur entre deux exécutions de ce Trigger. Gardé dans la base comme les cooldowns de menus : il survit au redémarrage et suit le joueur sur le réseau."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "false : le Trigger est chargé mais ne s'exécute jamais."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes libres de l'auteur, jamais lues par le plugin."
+    },
+    "do": {
+      "type": "array",
+      "items": {
+        "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/Step"
+      },
+      "description": "La chaîne exécutée, en ligne pendant l'événement. Le contexte de l'événement est lié sous `event` (`{event.location.x}`) ; `cancel_event` et `set_event` agissent sur l'événement en cours."
+    }
+  }
+}

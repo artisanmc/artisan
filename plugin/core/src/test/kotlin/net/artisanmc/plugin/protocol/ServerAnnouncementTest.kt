@@ -19,6 +19,7 @@ class ServerAnnouncementTest {
          "editor_screens":[{"id":"boutique:catalog","table":"data/categories"}],
          "declared_actions":[{"name":"message","args":[],"primary":"text"}],
          "document_kinds":[{"kind":"quest","dir":"quests","schema_versions":["quest/v1"],"module_id":"quests"}],
+         "declared_game_events":[],
          "player_commands":[{"id":"attribution:open","module_id":"attribution","name":"attribution","children":[]}],
          "server_config":{"language":"fr"}}
     """.trimIndent()

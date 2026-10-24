@@ -1,0 +1,1664 @@
+{
+  "note": "Artisan's catalog of Game events, generated from plugin/paper CoreGameEvents.kt (CoreGameEventsVectorTest keeps it equal; regenerate with ARTISAN_WRITE_VECTORS=1). Entries are in the declared_game_events wire shape of Presence. The editor imports this file as its table of core events (modules/triggers/gameEvents.ts).",
+  "events": [
+    {
+      "name": "player_join",
+      "group": "connection",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "location",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "first_join",
+          "type": {
+            "kind": "boolean"
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [
+        {
+          "name": "join_message",
+          "type": {
+            "kind": "minimessage"
+          }
+        }
+      ]
+    },
+    {
+      "name": "player_first_join",
+      "group": "connection",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "location",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [
+        {
+          "name": "join_message",
+          "type": {
+            "kind": "minimessage"
+          }
+        }
+      ]
+    },
+    {
+      "name": "player_quit",
+      "group": "connection",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "location",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [
+        {
+          "name": "quit_message",
+          "type": {
+            "kind": "minimessage"
+          }
+        }
+      ]
+    },
+    {
+      "name": "player_kick",
+      "group": "connection",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "reason",
+          "type": {
+            "kind": "string"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [
+        {
+          "name": "reason",
+          "type": {
+            "kind": "minimessage"
+          }
+        },
+        {
+          "name": "leave_message",
+          "type": {
+            "kind": "minimessage"
+          }
+        }
+      ]
+    },
+    {
+      "name": "player_death",
+      "group": "life",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "location",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "cause",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "killer",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "name",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "uuid",
+                "type": {
+                  "kind": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "level",
+          "type": {
+            "kind": "integer"
+          }
+        },
+        {
+          "name": "death_message",
+          "type": {
+            "kind": "string"
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [
+        {
+          "name": "death_message",
+          "type": {
+            "kind": "minimessage"
+          }
+        },
+        {
+          "name": "keep_inventory",
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        {
+          "name": "keep_level",
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        {
+          "name": "clear_drops",
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        {
+          "name": "dropped_exp",
+          "type": {
+            "kind": "integer"
+          }
+        }
+      ]
+    },
+    {
+      "name": "player_respawn",
+      "group": "life",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "location",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "bed_spawn",
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        {
+          "name": "anchor_spawn",
+          "type": {
+            "kind": "boolean"
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [ ]
+    },
+    {
+      "name": "player_damage",
+      "group": "life",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "cause",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "damage",
+          "type": {
+            "kind": "number"
+          }
+        },
+        {
+          "name": "health",
+          "type": {
+            "kind": "number"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [
+        {
+          "name": "damage",
+          "type": {
+            "kind": "number"
+          }
+        }
+      ]
+    },
+    {
+      "name": "player_food_change",
+      "group": "life",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "food_level",
+          "type": {
+            "kind": "integer"
+          }
+        },
+        {
+          "name": "previous_level",
+          "type": {
+            "kind": "integer"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [
+        {
+          "name": "food_level",
+          "type": {
+            "kind": "integer"
+          }
+        }
+      ]
+    },
+    {
+      "name": "player_change_world",
+      "group": "world",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "from_world",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "world",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "location",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [ ]
+    },
+    {
+      "name": "player_teleport",
+      "group": "world",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "from",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "to",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "cause",
+          "type": {
+            "kind": "string"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_portal",
+      "group": "world",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "from",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "to",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "cause",
+          "type": {
+            "kind": "string"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_bed_enter",
+      "group": "world",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "bed",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "location",
+                "type": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "name": "world",
+                      "type": {
+                        "kind": "string"
+                      }
+                    },
+                    {
+                      "name": "x",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "y",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "z",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "yaw",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "pitch",
+                      "type": {
+                        "kind": "number"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "result",
+          "type": {
+            "kind": "string"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_gamemode_change",
+      "group": "world",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "gamemode",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "previous_gamemode",
+          "type": {
+            "kind": "string"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_toggle_flight",
+      "group": "world",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "flying",
+          "type": {
+            "kind": "boolean"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "block_break",
+      "group": "blocks",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "block",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "location",
+                "type": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "name": "world",
+                      "type": {
+                        "kind": "string"
+                      }
+                    },
+                    {
+                      "name": "x",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "y",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "z",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "yaw",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "pitch",
+                      "type": {
+                        "kind": "number"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "tool",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "amount",
+                "type": {
+                  "kind": "integer"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [
+        {
+          "name": "exp_to_drop",
+          "type": {
+            "kind": "integer"
+          }
+        },
+        {
+          "name": "drop_items",
+          "type": {
+            "kind": "boolean"
+          }
+        }
+      ]
+    },
+    {
+      "name": "block_place",
+      "group": "blocks",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "block",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "location",
+                "type": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "name": "world",
+                      "type": {
+                        "kind": "string"
+                      }
+                    },
+                    {
+                      "name": "x",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "y",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "z",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "yaw",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "pitch",
+                      "type": {
+                        "kind": "number"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "against",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "location",
+                "type": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "name": "world",
+                      "type": {
+                        "kind": "string"
+                      }
+                    },
+                    {
+                      "name": "x",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "y",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "z",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "yaw",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "pitch",
+                      "type": {
+                        "kind": "number"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_interact",
+      "group": "blocks",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "action",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "block",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "location",
+                "type": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "name": "world",
+                      "type": {
+                        "kind": "string"
+                      }
+                    },
+                    {
+                      "name": "x",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "y",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "z",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "yaw",
+                      "type": {
+                        "kind": "number"
+                      }
+                    },
+                    {
+                      "name": "pitch",
+                      "type": {
+                        "kind": "number"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "item",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "amount",
+                "type": {
+                  "kind": "integer"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_interact_entity",
+      "group": "blocks",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "entity",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "uuid",
+                "type": {
+                  "kind": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "item",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "amount",
+                "type": {
+                  "kind": "integer"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_drop_item",
+      "group": "items",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "item",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "amount",
+                "type": {
+                  "kind": "integer"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_pickup_item",
+      "group": "items",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "item",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "amount",
+                "type": {
+                  "kind": "integer"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_consume_item",
+      "group": "items",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "item",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "amount",
+                "type": {
+                  "kind": "integer"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_fish",
+      "group": "items",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "state",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "caught",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "uuid",
+                "type": {
+                  "kind": "string"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "craft_item",
+      "group": "items",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "item",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "amount",
+                "type": {
+                  "kind": "integer"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "enchant_item",
+      "group": "items",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "item",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "amount",
+                "type": {
+                  "kind": "integer"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "level_cost",
+          "type": {
+            "kind": "integer"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    },
+    {
+      "name": "player_item_break",
+      "group": "items",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "item",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "amount",
+                "type": {
+                  "kind": "integer"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [ ]
+    },
+    {
+      "name": "player_kill_entity",
+      "group": "combat",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "entity",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "type",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "uuid",
+                "type": {
+                  "kind": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "location",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [
+        {
+          "name": "dropped_exp",
+          "type": {
+            "kind": "integer"
+          }
+        },
+        {
+          "name": "clear_drops",
+          "type": {
+            "kind": "boolean"
+          }
+        }
+      ]
+    },
+    {
+      "name": "player_kill_player",
+      "group": "combat",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "victim",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "name",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "uuid",
+                "type": {
+                  "kind": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "location",
+          "type": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "world",
+                "type": {
+                  "kind": "string"
+                }
+              },
+              {
+                "name": "x",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "z",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "yaw",
+                "type": {
+                  "kind": "number"
+                }
+              },
+              {
+                "name": "pitch",
+                "type": {
+                  "kind": "number"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [ ]
+    },
+    {
+      "name": "player_level_change",
+      "group": "progression",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "level",
+          "type": {
+            "kind": "integer"
+          }
+        },
+        {
+          "name": "previous_level",
+          "type": {
+            "kind": "integer"
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [ ]
+    },
+    {
+      "name": "player_advancement_done",
+      "group": "progression",
+      "frequency": "rare",
+      "context": [
+        {
+          "name": "advancement",
+          "type": {
+            "kind": "string"
+          }
+        }
+      ],
+      "cancellable": false,
+      "effects": [ ]
+    },
+    {
+      "name": "player_command",
+      "group": "commands",
+      "frequency": "normal",
+      "context": [
+        {
+          "name": "command",
+          "type": {
+            "kind": "string"
+          }
+        },
+        {
+          "name": "message",
+          "type": {
+            "kind": "string"
+          }
+        }
+      ],
+      "cancellable": true,
+      "effects": [ ]
+    }
+  ]
+}

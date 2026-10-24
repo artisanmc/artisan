@@ -86,7 +86,8 @@ export interface DocumentKindContribution {
      */
     items?: (doc: unknown, ctx: DocumentLabelContext) => BoardItem[];
     /**
-     * The node's colour (`"#f59e0b"`): its border, header band and title (SDK 1.5). The
+     * The node's colour (`"#f59e0b"`, or a host token `"var(--kind-trigger)"` that follows the
+     * theme): its border, header band and title (SDK 1.5). The
      * host's default blue when absent.
      */
     accent?: string;

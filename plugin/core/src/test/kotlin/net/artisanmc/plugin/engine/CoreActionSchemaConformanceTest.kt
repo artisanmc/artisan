@@ -30,12 +30,18 @@ class CoreActionSchemaConformanceTest {
         error("docs/schema/menu/v1/schema.json not found from ${System.getProperty("user.dir")}")
     }
 
-    /** `{ name: spec }` of every `$defs.Action` alternative. */
+    /**
+     * Published in `$defs.Action` so that a Trigger's chain validates at any depth, but
+     * registered by the `triggers` module, not by [CoreActions].
+     */
+    private val moduleActions = setOf("set_event")
+
+    /** `{ name: spec }` of every core `$defs.Action` alternative. */
     private fun actions(): Map<String, JsonNode> =
         schema()["\$defs"]["Action"]["oneOf"].associate { alt ->
             val name = alt["required"][0].asText()
             name to alt["properties"][name]
-        }
+        }.filterKeys { it !in moduleActions }
 
     @Test fun `the core schemas and the published vocabulary are the same set`() {
         assertEquals(actions().keys.sorted(), CoreActions.all.map { it.name }.sorted())

@@ -7,6 +7,7 @@ import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
 import { selfHostedFr } from "./selfHosted";
 import { serverCanvasFr } from "./serverCanvas";
+import { triggersFr } from "./triggers";
 
 const fr: typeof en = {
   onboarding: onboardingFr,
@@ -95,6 +96,7 @@ const fr: typeof en = {
   serverCanvas: serverCanvasFr,
   changes: changesFr,
   actionCatalog: actionCatalogFr,
+  triggers: triggersFr,
   navigation: {
     label: "Navigation principale",
     open: "Ouvrir la navigation",
@@ -838,6 +840,7 @@ const fr: typeof en = {
     menus: "Menus",
     commands: "Commandes",
     dialogs: "Dialogs",
+    triggers: "Triggers",
     edit: "Éditer",
     delete: "Supprimer du projet",
     empty: "Aucun élément pour l'instant",
