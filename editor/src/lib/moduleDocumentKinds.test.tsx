@@ -345,7 +345,7 @@ describe("a module's Document kind on the host", () => {
     const b = quests.find((q) => q.id === "quest_b")!;
     expect(b.onComplete[0]).toEqual(open("quest_open", "quest_z"));
     expect(useProjectDraftStore.getState().pendingRenames[PID]).toEqual([
-      { from: "quests/quest_a.yaml", to: "quests/quest_z.yaml" },
+      { from: "quests/quest_a.yml", to: "quests/quest_z.yml" },
     ]);
   });
 });

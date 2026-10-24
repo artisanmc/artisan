@@ -1,3 +1,4 @@
+import { YAML_EXT, findYaml } from "@/lib/yamlFiles";
 import { parse, stringify } from "yaml";
 import type { AssetUsage } from "./assetUsages";
 import { CODEPOINT_MAX, CODEPOINT_MIN } from "./codepoints";
@@ -84,18 +85,28 @@ export type DiskAssetsRead =
   | ({ ok: true } & DiskAssetsTree)
   | { ok: false; error: "server_offline" | "read_error" };
 
-/** An asset's current descriptor, as it is on disk. */
+/** Where an asset's descriptor goes: beside its image, `.yml` (`diamant.png` → `diamant.yml`). */
+export function descriptorPath(path: string): string {
+  return path.replace(/\.png$/, YAML_EXT);
+}
+
+/** An asset's current descriptor, as it is on disk (`.yml`, else `.yaml`). */
 export function descriptorOf(
   files: { path: string; content: string }[],
   path: string,
-): { content: string; parsed: Record<string, unknown> } | null {
-  const descriptorPath = path.replace(/\.png$/, ".yaml");
-  const file = files.find((f) => f.path === descriptorPath);
+): { path: string; content: string; parsed: Record<string, unknown> } | null {
+  const stem = path.replace(/\.png$/, "");
+  const found = findYaml(stem, (p) => files.some((f) => f.path === p));
+  const file = found ? files.find((f) => f.path === found) : undefined;
   if (!file) return null;
   try {
     const parsed = parse(file.content);
-    return { content: file.content, parsed: (parsed ?? {}) as Record<string, unknown> };
+    return {
+      path: file.path,
+      content: file.content,
+      parsed: (parsed ?? {}) as Record<string, unknown>,
+    };
   } catch {
-    return { content: file.content, parsed: {} };
+    return { path: file.path, content: file.content, parsed: {} };
   }
 }

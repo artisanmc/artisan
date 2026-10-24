@@ -3,6 +3,7 @@ package net.artisanmc.plugin.project
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import net.artisanmc.modules.api.template.TemplateDeclaration
+import net.artisanmc.plugin.model.YamlFiles
 import java.io.File
 import java.util.UUID
 
@@ -49,9 +50,12 @@ object SystemFiles {
         val before = origins.toMap()
         val changes = linkedMapOf<String, ByteArray?>()
         val merged = linkedMapOf<String, List<String>>()
-        for (path in template.paths) {
-            val shipped = template.getFile(path)!!
-            val hash = template.getHash(path)!!
+        // Each shipped file where it sits in the folder: a YAML file under the spelling it has
+        // there, else `.yml` (YamlFiles), whatever extension the module ships it under.
+        val onDisk = template.paths.associateWith { YamlFiles.onDisk(projectDir, it) }
+        for ((shippedPath, path) in onDisk) {
+            val shipped = template.getFile(shippedPath)!!
+            val hash = template.getHash(shippedPath)!!
             val shippedOrigin = FileOrigin(moduleId, template.id, template.version, hash)
             val target = ProjectPathPolicy.resolve(projectDir, path)
             val origin = origins[path]?.takeIf { it.module == moduleId && it.template == template.id }
@@ -83,7 +87,7 @@ object SystemFiles {
         // A file the module no longer ships (a command file named apart from a menu since): removed
         // while untouched; edited, it stays the owner's, still marked as the module's.
         for ((path, origin) in origins.toList()) {
-            if (origin.module != moduleId || origin.template != template.id || path in template.paths) continue
+            if (origin.module != moduleId || origin.template != template.id || path in onDisk.values) continue
             val target = ProjectPathPolicy.resolve(projectDir, path)
             if (!target.exists()) {
                 origins.remove(path)
@@ -93,9 +97,9 @@ object SystemFiles {
             }
         }
                 // The shipped content is the base of every file copied from it.
-        for (path in template.paths) {
-            val hash = template.getHash(path)!!
-            if (origins[path]?.hash == hash && !base(projectDir, hash).isFile) changes["$BASES/$hash"] = template.getFile(path)!!
+        for ((shippedPath, path) in onDisk) {
+            val hash = template.getHash(shippedPath)!!
+            if (origins[path]?.hash == hash && !base(projectDir, hash).isFile) changes["$BASES/$hash"] = template.getFile(shippedPath)!!
         }
         val named = origins.values.mapTo(HashSet()) { it.hash }
         ProjectPathPolicy.resolve(projectDir, BASES).listFiles()?.forEach { file ->
@@ -142,10 +146,11 @@ object SystemFiles {
      */
     private fun movedElsewhere(projectDir: File, path: String): Boolean {
         val name = path.substringAfterLast('/')
+        val stem = YamlFiles.stem(name) ?: name
         val kindDir = path.substringBeforeLast('/', "").substringAfterLast('/')
         if (kindDir.isEmpty()) return false
         return projectDir.walkTopDown()
             .onEnter { it == projectDir || !it.name.startsWith(".artisan") }
-            .any { it.isFile && it.name == name && it.parentFile.name == kindDir }
+            .any { it.isFile && (YamlFiles.stem(it.name) ?: it.name) == stem && it.parentFile.name == kindDir }
     }
 }

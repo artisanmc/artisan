@@ -12,7 +12,7 @@
  * `testdata/document-layout-conformance.json`.
  */
 
-import { yamlStem } from "@/lib/yamlFiles";
+import { YAML_EXT, yamlStem } from "@/lib/yamlFiles";
 
 /** Module-root folders that are never themed folders: resources, overrides, config. */
 export const RESOURCE_DIRS: ReadonlySet<string> = new Set([
@@ -127,5 +127,5 @@ export function classifyDocumentLayout(
 
 /** The file of a Document, relative to the module folder. */
 export function documentPath(dir: string, id: string, folder?: string): string {
-  return folder ? `${folder}/${dir}/${id}.yaml` : `${dir}/${id}.yaml`;
+  return folder ? `${folder}/${dir}/${id}${YAML_EXT}` : `${dir}/${id}${YAML_EXT}`;
 }

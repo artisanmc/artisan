@@ -43,33 +43,33 @@ describe("document codecs", () => {
       }),
     });
     const project = projectFromFiles(PID, {
-      [`${base}/manifest.yaml`]: "schema: manifest/v1\n",
-      [`${base}/notes/hello.yaml`]: "schema: note/v1\ntext: hi\n",
+      [`${base}/artisan-module.yml`]: "schema: module/v1\n",
+      [`${base}/notes/hello.yml`]: "schema: note/v1\ntext: hi\n",
     });
     expect(documentsOf(project, "note")).toEqual([{ id: "hello", text: "hi" }]);
     expect(project.moduleData).toBeUndefined();
     const files = projectToFiles(project);
-    expect(parse(files[`${base}/notes/hello.yaml`]!)).toEqual({ schema: "note/v1", text: "hi" });
+    expect(parse(files[`${base}/notes/hello.yml`]!)).toEqual({ schema: "note/v1", text: "hi" });
   });
 
   it("leaves the folder of an unregistered kind to moduleData", () => {
     const project = projectFromFiles(PID, {
-      [`${base}/manifest.yaml`]: "schema: manifest/v1\n",
-      [`${base}/notes/hello.yaml`]: "schema: note/v1\ntext: hi\n",
+      [`${base}/artisan-module.yml`]: "schema: module/v1\n",
+      [`${base}/notes/hello.yml`]: "schema: note/v1\ntext: hi\n",
     });
     expect(project.documents.note).toBeUndefined();
     expect(project.moduleData).toEqual({
-      notes: { __files: { "hello.yaml": "schema: note/v1\ntext: hi\n" } },
+      notes: { __files: { "hello.yml": "schema: note/v1\ntext: hi\n" } },
     });
   });
 
   it("adopts the folder of a kind registered after the project was read, and nothing else", () => {
     const project = projectFromFiles(PID, {
-      [`${base}/manifest.yaml`]: "schema: manifest/v1\n",
-      [`${base}/notes/hello.yaml`]: "schema: note/v1\ntext: hi\n",
-      [`${base}/notes/broken.yaml`]: "text: [unclosed\n",
-      [`${base}/notes/deep/nested.yaml`]: "text: kept\n",
-      [`${base}/shop/shop.yaml`]: "items: []\n",
+      [`${base}/artisan-module.yml`]: "schema: module/v1\n",
+      [`${base}/notes/hello.yml`]: "schema: note/v1\ntext: hi\n",
+      [`${base}/notes/broken.yml`]: "text: [unclosed\n",
+      [`${base}/notes/deep/nested.yml`]: "text: kept\n",
+      [`${base}/shop/shop.yml`]: "items: []\n",
     });
     // The module's view arrives with the presence, after the read.
     registerDocumentKind({ kind: "note", dir: "notes", schemaVersion: "note/v1", rank: 9 });
@@ -92,9 +92,9 @@ describe("document codecs", () => {
     expect(project.i18nKeys["notes.hello" as never]).toEqual({ en: "hi" });
     // What did not parse, or is not a Document of the kind, stays verbatim.
     expect(project.moduleData?.notes).toEqual({
-      __files: { "broken.yaml": "text: [unclosed\n", "deep/nested.yaml": "text: kept\n" },
+      __files: { "broken.yml": "text: [unclosed\n", "deep/nested.yml": "text: kept\n" },
     });
-    expect(project.moduleData?.shop).toEqual({ __files: { "shop.yaml": "items: []\n" } });
+    expect(project.moduleData?.shop).toEqual({ __files: { "shop.yml": "items: []\n" } });
     expect(adoptLateDocuments(project)).toBe(0);
   });
 });

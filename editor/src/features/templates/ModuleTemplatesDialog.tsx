@@ -132,7 +132,7 @@ export function ModuleTemplatesDialog({
               <FileView
                 view={view}
                 shipped={shipped[keyOf(view.template)]?.[view.path] ?? ""}
-                current={baseline?.[view.path]}
+                current={baseline?.[projectPathOf(view)]}
                 writable={writable}
                 onReset={() => copy(view.template, [view.path], true)}
               />
@@ -264,7 +264,7 @@ function FileRow({ file, onShow }: { file: TemplateFileState; onShow: () => void
         className="flex w-full items-center gap-2 rounded-[8px] px-1.5 py-1 text-left text-[12px] hover:bg-[var(--surface-hover)]"
       >
         <span className="min-w-0 flex-1 truncate font-mono text-[var(--text-mut)]">
-          {file.path}
+          {file.projectPath}
         </span>
         {file.updateAvailable && <Badge variant="amber">{t("moduleTemplates.fileUpdate")}</Badge>}
         {variant ? (
@@ -295,12 +295,13 @@ function FileView({
 }) {
   const { t } = useTranslation();
   const state = view.template.files.find((f) => f.path === view.path);
+  const shownPath = state?.projectPath ?? view.path;
   const differs = current !== undefined && current !== shipped;
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-[var(--text)]">
-          {view.path}
+          {shownPath}
         </span>
         <Button
           size="sm"
@@ -484,4 +485,9 @@ function PickRow({
       {label}
     </label>
   );
+}
+
+/** Where the file a view shows is, or would land, in the Project. */
+function projectPathOf(view: { template: TemplateState; path: string }): string {
+  return view.template.files.find((f) => f.path === view.path)?.projectPath ?? view.path;
 }

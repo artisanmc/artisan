@@ -10,6 +10,7 @@ import { persistedFolderMeta } from "@/domain/folders";
 import type { Project } from "@/domain/types";
 import { listLanguages } from "@/lib/i18nUsages";
 import { nestLangTree } from "@/lib/langTree";
+import { MODULE_FILE, MODULE_SCHEMA, YAML_EXT } from "@/lib/yamlFiles";
 import { collectModuleExportFiles, getModule } from "@artisan/editor-sdk";
 import { stringify } from "yaml";
 import { dataSourceI18n, emitDataSources, modelV1FromDomain } from "./dataV1FromDomain";
@@ -88,7 +89,7 @@ export function projectToFiles(project: Project): Record<string, string> {
     // Nothing to say for this language → no file (a pure mono-language,
     // structural-only project ships zero `lang/` files).
     if (Object.keys(tree).length === 0) continue;
-    files[`${base}/lang/${lang}.yaml`] = stringify(tree, yamlOpts);
+    files[`${base}/lang/${lang}${YAML_EXT}`] = stringify(tree, yamlOpts);
   }
 
   const liveIds = new Set<string>(documentKeys(project));
@@ -97,7 +98,7 @@ export function projectToFiles(project: Project): Record<string, string> {
   );
 
   const manifest: Record<string, unknown> = {
-    schema: "manifest/v1",
+    schema: MODULE_SCHEMA,
     // Round-trip the Add-on owner id (ADR addon-owned-project-roots) so it survives
     // an editor save — `ownerModule` is re-derived from it on load.
     ...(project.ownerModule ? { module: project.ownerModule } : {}),
@@ -110,7 +111,7 @@ export function projectToFiles(project: Project): Record<string, string> {
     // whose only possible effect was to drift out of sync. Documents are
     // discovered by scanning, on both sides.
   };
-  // Data models: models/<id>.yaml (model/v1), fields VERBATIM (cross-model refs
+  // Data models: models/<id>.yml (model/v1), fields VERBATIM (cross-model refs
   // preserved) — the lossless editor store. data/<id>.yaml stays denormalized
   // and self-contained for the runtime (the plugin reads models/ only to type
   // a bare source beside its data).
@@ -121,7 +122,7 @@ export function projectToFiles(project: Project): Record<string, string> {
     // Owned by a source (doc emitted at models/<sourceId>.yaml, or an untyped
     // synthesized model with nothing to say) — ADR bare-data-files ⑤.
     if (claimedModelIds.has(String(m.id))) continue;
-    files[`${base}/models/${m.id}.yaml`] = stringify(modelV1FromDomain(m), yamlOpts);
+    files[`${base}/models/${m.id}${YAML_EXT}`] = stringify(modelV1FromDomain(m), yamlOpts);
   }
   // Editor presentation state (board layout/edges) lives in the hash-excluded
   // `.artisan/editor.yaml` — NOT in the manifest — so cosmetic board moves no
@@ -180,7 +181,7 @@ export function projectToFiles(project: Project): Record<string, string> {
     files[`${base}/${rel}`] ??= content;
   }
 
-  files[`${base}/manifest.yaml`] = stringify(manifest, yamlOpts);
+  files[`${base}/${MODULE_FILE}`] = stringify(manifest, yamlOpts);
 
   // No meta.yaml: nothing consumed it, and its `exported_at` timestamp made
   // every export a different byte tree. projectToFiles() is a pure function of

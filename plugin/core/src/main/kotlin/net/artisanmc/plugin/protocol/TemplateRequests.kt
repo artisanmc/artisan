@@ -35,7 +35,7 @@ class TemplateRequests(
         val reply = replies.to(request, "template_copy_result")
         if (!EditorPaths.isSafeProjectId(request.projectId)) return reply.error("invalid_path")
         val template = templates()?.find(request.moduleId, request.templateId) ?: return reply.error("not_found")
-        if (request.paths?.any { template.getHash(it) == null } == true) return reply.error("unknown_path")
+        if (request.paths?.any { TemplateCopies.shipped(template, it) == null } == true) return reply.error("unknown_path")
         replies.offThread("template_copy", workspace.io) {
             val projectDir = roots.dirFor(request.projectId)
             if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")

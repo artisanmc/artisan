@@ -95,7 +95,7 @@ class CommandOverrideMigrationTest {
             |  message: attends
             |
             """.trimMargin(),
-            File(guilds, "commands/g.yaml").readText(),
+            File(guilds, "commands/g.yml").readText(),
         )
         assertFalse(File(admin, "${CommandOverrideMigration.DIR}/g.yaml").exists())
         assertTrue(File(admin, "${CommandOverrideMigration.MIGRATED}/g.yaml").readText().contains("name: Guilde"))
@@ -108,10 +108,10 @@ class CommandOverrideMigrationTest {
         guilds.mkdirs()
         override(guilds, "g.yaml", "command: guilds:root\npermission: other\n")
         migration(balance()).migrate()
-        val migrated = File(guilds, "commands/g.yaml").readText()
+        val migrated = File(guilds, "commands/g.yml").readText()
         val template = assertNotNull(ModuleCommandFiles.template(listOf(balance())))
         SystemFiles.sync(guilds, "guilds", template)
-        assertEquals(migrated, File(guilds, "commands/g.yaml").readText())
+        assertEquals(migrated, File(guilds, "commands/g.yml").readText())
         assertTrue(migrated.contains("permission: other"))
     }
 

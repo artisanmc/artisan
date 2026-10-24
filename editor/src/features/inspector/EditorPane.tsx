@@ -2,7 +2,11 @@ import { Button } from "@/components/ui/button";
 import { docKey } from "@/domain/documents";
 import type { ProjectId } from "@/domain/types";
 import { SelectionInspector } from "@/features/inspector/SelectionInspector";
-import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
+import {
+  DocumentYamlView,
+  documentRelPath,
+  moduleFileRelPath,
+} from "@/features/project/DocumentYamlView";
 import { dismissInspector } from "@/features/project/projectSettings";
 import { selectionContext } from "@/features/project/selectionContext";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -34,7 +38,7 @@ export function EditorPane({ projectId }: { projectId: ProjectId }) {
     project && docId
       ? documentRelPath(project, docId)
       : project && ids.size === 0 && projectSettingsOpen
-        ? "manifest.yaml"
+        ? moduleFileRelPath(project)
         : null;
 
   return (

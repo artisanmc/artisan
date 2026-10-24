@@ -113,7 +113,7 @@ zero: `2d 5h`, `3h 12m`, `5m 4s`, `45s`. Once the instant has passed it reads `0
 rather than going negative.
 
 The units come from your project's translations, under the reserved `artisan.`
-keys — add them to `lang/<code>.yaml` to change or translate them:
+keys — add them to `lang/<code>.yml` to change or translate them:
 
 ```yaml
 artisan:

@@ -4,7 +4,7 @@ import { allDocuments, docKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import type { ActiveModule } from "@/lib/api/modules";
 import type { FileOrigin } from "@/lib/api/templates";
-import { yamlPathOnDisk } from "@/lib/yamlFiles";
+import { sameYamlFile, yamlPathOnDisk } from "@/lib/yamlFiles";
 
 /**
  * The Documents of [project] that are a module's system elements (a `system` template,
@@ -26,7 +26,7 @@ export function systemDocuments(
     const template = modules
       .find((m) => m.id === origin.module)
       ?.templates?.find((t) => t.id === origin.template);
-    if (template?.system && template.files.some((f) => f.path === path)) {
+    if (template?.system && template.files.some((f) => sameYamlFile(f.path, path))) {
       out.set(docKey(kind, doc.id), origin.module);
     }
   }

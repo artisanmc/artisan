@@ -26,7 +26,7 @@ Your project lives as YAML files on your server, and you can edit them by hand. 
 **Plain text** — the menu file carries the default language's text, right where you read it:
 
 ```yaml
-# menus/shop.yaml
+# menus/shop.yml
 title: Shop
 elements:
   - id: buy
@@ -34,12 +34,12 @@ elements:
     lore: Sharp and shiny
 ```
 
-The other languages live in `lang/fr.yaml`, `lang/de.yaml`… and there is **no file for your default language** — the menu already carries it. A single-language server therefore has no `lang/` folder at all.
+The other languages live in `lang/fr.yml`, `lang/de.yml`… and there is **no file for your default language** — the menu already carries it. A single-language server therefore has no `lang/` folder at all.
 
 **Keys** — the menu file carries references instead, and every language, the default one included, lives in `lang/`:
 
 ```yaml
-# menus/shop.yaml                    # lang/en.yaml
+# menus/shop.yml                     # lang/en.yml
 title: "{i18n:menus.shop.title}"     menus:
 elements:                              shop:
   - id: buy                              title: Shop

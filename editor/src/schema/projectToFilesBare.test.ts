@@ -1,7 +1,7 @@
 import { adoptBareLTexts } from "@/domain/i18nSites";
 // ADR bare-data-files: the exporter writes BARE data files — pure values,
 // ltext inlined as the default language's literal, schema beside the data
-// (models/<sourceId>.yaml doc or ref, minimal _source.yaml for per-row), and
+// (models/<sourceId>.yml doc or ref, minimal _source.yml for per-row), and
 // generated comments from model hints. Locked as a files-level fixed point
 // with the tolerant importer.
 import type { DataModelId, DataSourceId, ProjectId } from "@/domain/types";
@@ -38,7 +38,7 @@ function baseProject(): Record<string, unknown> {
 }
 
 describe("bare export (ADR bare-data-files T2)", () => {
-  it("declared per-row table: minimal _source.yaml, literal ltext rows, no defaultLang key", () => {
+  it("declared per-row table: minimal _source.yml, literal ltext rows, no defaultLang key", () => {
     const project = {
       ...baseProject(),
       i18nKeys: { "sources.categories.armes.name": { fr: "Armes", en: "Weapons" } },
@@ -69,7 +69,7 @@ describe("bare export (ADR bare-data-files T2)", () => {
     };
     const files = projectToFiles(project as never);
 
-    const meta = parse(files[`${base}/data/categories/_source.yaml`]!) as Record<string, unknown>;
+    const meta = parse(files[`${base}/data/categories/_source.yml`]!) as Record<string, unknown>;
     expect(meta).toEqual({
       name: "Catégories",
       model: "boutique:category",
@@ -77,19 +77,19 @@ describe("bare export (ADR bare-data-files T2)", () => {
       order: ["armes"],
     });
     // Row = pure values, ltext = the DEFAULT language's literal.
-    const row = parse(files[`${base}/data/categories/armes.yaml`]!) as Record<string, unknown>;
+    const row = parse(files[`${base}/data/categories/armes.yml`]!) as Record<string, unknown>;
     expect(row).toEqual({ id: "armes", name: "Armes" });
     // Default lang file no longer carries data-only keys; other langs keep
     // them under the canonical key-site address.
-    const fr = flattenLangTree(parse(files[`${base}/lang/fr.yaml`]!));
+    const fr = flattenLangTree(parse(files[`${base}/lang/fr.yml`]!));
     expect(fr["sources.categories.armes.name"]).toBeUndefined();
-    const en = flattenLangTree(parse(files[`${base}/lang/en.yaml`]!));
+    const en = flattenLangTree(parse(files[`${base}/lang/en.yml`]!));
     expect(en["sources.categories.armes.name"]).toBe("Weapons");
     // Declared models never emitted.
     expect(Object.keys(files).filter((k) => k.includes("/models/"))).toEqual([]);
   });
 
-  it("single-file table with an OWNED project model: bare list + models/<sourceId>.yaml doc", () => {
+  it("single-file table with an OWNED project model: bare list + models/<sourceId>.yml doc", () => {
     const project = {
       ...baseProject(),
       defaultLang: "en",
@@ -118,16 +118,16 @@ describe("bare export (ADR bare-data-files T2)", () => {
     const files = projectToFiles(project as never);
 
     // Data file is a top-level LIST of pure values.
-    expect(parse(files[`${base}/data/ranks.yaml`]!)).toEqual([{ id: "vip", name: "VIP" }]);
-    // The owned model doc lives at models/<sourceId>.yaml, identity preserved
-    // inside; no duplicate models/mdl_ranks.yaml.
-    const doc = parse(files[`${base}/models/ranks.yaml`]!) as Record<string, unknown>;
+    expect(parse(files[`${base}/data/ranks.yml`]!)).toEqual([{ id: "vip", name: "VIP" }]);
+    // The owned model doc lives at models/<sourceId>.yml, identity preserved
+    // inside; no duplicate models/mdl_ranks.yml.
+    const doc = parse(files[`${base}/models/ranks.yml`]!) as Record<string, unknown>;
     expect(doc.id).toBe("mdl_ranks");
     expect(doc.name).toBe("Ranks");
-    expect(files[`${base}/models/mdl_ranks.yaml`]).toBeUndefined();
+    expect(files[`${base}/models/mdl_ranks.yml`]).toBeUndefined();
   });
 
-  it("config: bare mapping + models/<sourceId>.yaml fields doc", () => {
+  it("config: bare mapping + models/<sourceId>.yml fields doc", () => {
     const project = {
       ...baseProject(),
       defaultLang: "en",
@@ -147,8 +147,8 @@ describe("bare export (ADR bare-data-files T2)", () => {
     };
     const files = projectToFiles(project as never);
 
-    expect(parse(files[`${base}/data/settings.yaml`]!)).toEqual({ motd: "Welcome", discount: 5 });
-    const doc = parse(files[`${base}/models/settings.yaml`]!) as Record<string, unknown>;
+    expect(parse(files[`${base}/data/settings.yml`]!)).toEqual({ motd: "Welcome", discount: 5 });
+    const doc = parse(files[`${base}/models/settings.yml`]!) as Record<string, unknown>;
     expect(doc.name).toBe("Réglages");
     expect(Array.isArray(doc.fields)).toBe(true);
   });
@@ -170,19 +170,19 @@ describe("bare export (ADR bare-data-files T2)", () => {
       ],
     };
     const files = projectToFiles(project as never);
-    const dataFile = files[`${base}/data/settings.yaml`]!;
+    const dataFile = files[`${base}/data/settings.yml`]!;
     // The hint sits above the key it documents (ADR yaml-assisted-editing ⑥).
     expect(dataFile).toContain("# Remise globale en % (0-100)\ndiscount: 0");
 
     // Hand-written header (leading comment lines before the generated block)
     // is captured at import and re-emitted verbatim.
     const edited = { ...files };
-    edited[`${base}/data/settings.yaml`] = `# ma note perso\n${dataFile}`;
+    edited[`${base}/data/settings.yml`] = `# ma note perso\n${dataFile}`;
     const p2 = projectFromFiles(PID, edited, { name: "Bare Out" });
     const files2 = projectToFiles(p2);
-    expect(files2[`${base}/data/settings.yaml`]!.startsWith("# ma note perso\n")).toBe(true);
+    expect(files2[`${base}/data/settings.yml`]!.startsWith("# ma note perso\n")).toBe(true);
     // The generated block is not duplicated.
-    const occurrences = files2[`${base}/data/settings.yaml`]!.split("# ──").length - 1;
+    const occurrences = files2[`${base}/data/settings.yml`]!.split("# ──").length - 1;
     expect(occurrences).toBe(1);
   });
 
@@ -271,9 +271,9 @@ describe("schemaless config source", () => {
       ],
     } as never;
     const files = projectToFiles(project);
-    const out = parse(files[`${base}/data/shop_settings.yaml`]!);
+    const out = parse(files[`${base}/data/shop_settings.yml`]!);
     expect(out).toEqual({ whole_shop_discount: 10, nested: { a: true }, list: [1, 2] });
-    expect(files[`${base}/models/shop_settings.yaml`]).toBeUndefined();
+    expect(files[`${base}/models/shop_settings.yml`]).toBeUndefined();
   });
 
   it("survives a full re-import round-trip", () => {
@@ -315,7 +315,7 @@ describe("table whose declared model is missing", () => {
       ],
     } as never;
     const files = projectToFiles(project);
-    const written = files[`${base}/data/categories.yaml`]!;
+    const written = files[`${base}/data/categories.yml`]!;
     expect(parse(written)).toEqual([{ id: "weapons", name: "Armes", discount: 5 }]);
   });
 });
@@ -371,7 +371,7 @@ describe("schema hints become per-key comments", () => {
     const files = projectToFiles(
       projectWith({ whole_shop_discount: 10, placeholders: { price_display: "%price% tokens" } }),
     );
-    const out = files[`${base}/data/shop_settings.yaml`]!;
+    const out = files[`${base}/data/shop_settings.yml`]!;
     const lines = out.split("\n");
     const at = (key: string) => lines.findIndex((l) => l.trimStart().startsWith(key));
 
@@ -383,7 +383,7 @@ describe("schema hints become per-key comments", () => {
 
   it("states that hand-written comments are overwritten", () => {
     const out = projectToFiles(projectWith({ whole_shop_discount: 10 }))[
-      `${base}/data/shop_settings.yaml`
+      `${base}/data/shop_settings.yml`
     ]!;
     expect(out).toMatch(/^# ──/m);
     expect(out.toLowerCase()).toContain("overwritten");

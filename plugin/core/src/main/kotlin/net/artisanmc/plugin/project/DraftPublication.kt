@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import net.artisanmc.plugin.project.ContentHash
 import net.artisanmc.plugin.project.ProjectFilesReader
+import net.artisanmc.plugin.model.YamlFiles
 import java.io.File
 import java.util.Base64
 
@@ -25,7 +26,7 @@ class DraftPublication(private val root: File) {
         val operationId = message.path("operation_id").asText().takeIf { it.length in 1..256 } ?: return fail("invalid_operation")
         val fingerprint = ContentHash.hashBytes(mapper.writeValueAsBytes((message.deepCopy() as ObjectNode).also { it.remove(listOf("request_id", "type")) }))
         publisher.previous(operationId, fingerprint)?.let { return it }
-        val snapshot = message.path("draft").path("snapshot").takeIf { it.isObject } ?: return fail("invalid_draft")
+        val snapshot = message.path("draft").path("snapshot").takeIf { it.isObject }?.let(::onDisk) ?: return fail("invalid_draft")
         val blobs = message.path("blobs").fields().asSequence().associate { (hash, base64) -> hash to Base64.getDecoder().decode(base64.asText()) }
         return try {
             val (changes, error) = plan(snapshot, blobs)
@@ -33,6 +34,30 @@ class DraftPublication(private val root: File) {
         } catch (e: IllegalArgumentException) {
             fail(e.message?.takeIf { it.matches(Regex("[a-z_]+")) } ?: "invalid_draft")
         }
+    }
+
+    /**
+     * A draft started before its folder moved to `.yml` ([YmlMigration]) names `menus/shop.yaml`
+     * where the disk now holds `menus/shop.yml`: every path of the draft is read as it is on disk
+     * ([YamlFiles.onDisk]), a new YAML file under `.yml`.
+     */
+    private fun onDisk(snapshot: JsonNode): JsonNode {
+        val out = snapshot.deepCopy<ObjectNode>()
+        val path = { p: String -> YamlFiles.onDisk(root, p) }
+        for (key in listOf("baseline", "tree", "binaryBaseline", "binaryTree")) {
+            val files = snapshot[key]?.takeIf { it.isObject } ?: continue
+            val mapped = mapper.createObjectNode()
+            // A path already spelled as on disk wins over its twin mapped onto it.
+            files.fields().asSequence().sortedBy { (p, _) -> if (path(p) == p) 0 else 1 }
+                .forEach { (p, v) -> if (!mapped.has(path(p))) mapped.set<JsonNode>(path(p), v) }
+            out.set<JsonNode>(key, mapped)
+        }
+        snapshot["renames"]?.takeIf { it.isArray }?.let { renames ->
+            out.set<JsonNode>("renames", mapper.createArrayNode().also { list ->
+                renames.forEach { r -> list.add(mapper.createObjectNode().put("from", path(r["from"].asText())).put("to", path(r["to"].asText()))) }
+            })
+        }
+        return out
     }
 
     private fun plan(snapshot: JsonNode, blobs: Map<String, ByteArray>): Pair<Map<String, ByteArray?>, JsonNode?> {

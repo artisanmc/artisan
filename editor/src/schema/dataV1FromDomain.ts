@@ -15,6 +15,7 @@ import type {
   ModelFieldType,
   Project,
 } from "@/domain/types";
+import { YAML_EXT } from "@/lib/yamlFiles";
 import { stringify } from "yaml";
 import { dataFileHeader, stringifyWithHints } from "./yamlHints";
 
@@ -306,7 +307,7 @@ export function emitDataSources(
               new Set(),
               i18n,
             );
-      files[`${base}/data/${ds.id}.yaml`] =
+      files[`${base}/data/${ds.id}${YAML_EXT}`] =
         dataFileHeader(ds, ds.name, ds.fields) + stringifyWithHints(value, ds.fields, yamlOpts);
       // A module-declared schema lives in the module's JAR and arrives via
       // Presence — the beside file is a one-line ref, never a copy (ADR
@@ -314,10 +315,13 @@ export function emitDataSources(
       const declaredModel =
         ds.modelId && models.find((m) => m.id === ds.modelId)?.provenance === "module";
       if (declaredModel) {
-        files[`${base}/models/${ds.id}.yaml`] = stringify({ model: String(ds.modelId) }, yamlOpts);
+        files[`${base}/models/${ds.id}${YAML_EXT}`] = stringify(
+          { model: String(ds.modelId) },
+          yamlOpts,
+        );
         claimed.add(String(ds.id));
       } else if (ds.fields.length > 0) {
-        files[`${base}/models/${ds.id}.yaml`] = stringify(
+        files[`${base}/models/${ds.id}${YAML_EXT}`] = stringify(
           { schema: "model/v1", id: ds.id, name: ds.name, fields: ds.fields },
           yamlOpts,
         );
@@ -362,15 +366,19 @@ export function emitDataSources(
 
     if (ds.granularity === "row") {
       const names = ds.rows.map((_, i) => rowFileName(ds.rows, model?.keyField ?? "id", i));
-      files[`${base}/data/${ds.id}/_source.yaml`] =
+      files[`${base}/data/${ds.id}/_source${YAML_EXT}`] =
         header + stringify({ ...link, order: names }, yamlOpts);
       rowsOut.forEach((row, i) => {
         // Each row file is a standalone file someone may open over SSH — it
         // carries the schema's hints like any other (ADR yaml-assisted-editing ⑥).
-        files[`${base}/data/${ds.id}/${names[i]}.yaml`] = stringifyWithHints(row, fields, yamlOpts);
+        files[`${base}/data/${ds.id}/${names[i]}${YAML_EXT}`] = stringifyWithHints(
+          row,
+          fields,
+          yamlOpts,
+        );
       });
       if (owned && fields.length > 0) {
-        files[`${base}/models/${ds.id}.yaml`] = stringify(modelV1FromDomain(owned), yamlOpts);
+        files[`${base}/models/${ds.id}${YAML_EXT}`] = stringify(modelV1FromDomain(owned), yamlOpts);
         claimed.add(String(owned.id));
       } else if (owned) {
         claimed.add(String(owned.id)); // untyped synthesized — no doc at all
@@ -378,15 +386,15 @@ export function emitDataSources(
       continue;
     }
 
-    files[`${base}/data/${ds.id}.yaml`] = header + stringify(rowsOut, yamlOpts);
+    files[`${base}/data/${ds.id}${YAML_EXT}`] = header + stringify(rowsOut, yamlOpts);
     if (owned && fields.length > 0) {
-      files[`${base}/models/${ds.id}.yaml`] = stringify(modelV1FromDomain(owned), yamlOpts);
+      files[`${base}/models/${ds.id}${YAML_EXT}`] = stringify(modelV1FromDomain(owned), yamlOpts);
       claimed.add(String(owned.id));
     } else if (owned) {
       claimed.add(String(owned.id)); // untyped synthesized — no doc at all
     } else {
       // Declared or shared model: one-line(ish) ref beside the data.
-      files[`${base}/models/${ds.id}.yaml`] = stringify(link, yamlOpts);
+      files[`${base}/models/${ds.id}${YAML_EXT}`] = stringify(link, yamlOpts);
     }
   }
   return claimed;

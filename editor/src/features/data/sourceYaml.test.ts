@@ -59,19 +59,19 @@ describe("sourceYamlFiles", () => {
   it("renders only the files of the requested source", () => {
     const p = project();
     const files = sourceYamlFiles(p, source(p, "ranks"));
-    expect(files.map((f) => f.path)).toContain("data/ranks.yaml");
+    expect(files.map((f) => f.path)).toContain("data/ranks.yml");
     expect(files.every((f) => f.path.includes("ranks"))).toBe(true);
   });
 
   it("includes the beside schema of a project-authored source", () => {
     const p = project();
     const paths = sourceYamlFiles(p, source(p, "ranks")).map((f) => f.path);
-    expect(paths).toContain("models/ranks.yaml");
+    expect(paths).toContain("models/ranks.yml");
   });
 
   it("shows the content the writer would write", () => {
     const p = project();
-    const data = sourceYamlFiles(p, source(p, "ranks")).find((f) => f.path === "data/ranks.yaml")!;
+    const data = sourceYamlFiles(p, source(p, "ranks")).find((f) => f.path === "data/ranks.yml")!;
     expect(data.content).toContain("vip");
     // Single-file table = list of rows: the schema's help texts are NOT repeated
     // on every row (they are for object and per-row files, cf. transformBare.test).
@@ -84,7 +84,7 @@ describe("applySourceYaml", () => {
     const p = project();
     const files = sourceYamlFiles(p, source(p, "settings"));
     const edited = files.map((f) =>
-      f.path === "data/settings.yaml" ? { ...f, content: 'motd: "bonjour"\n' } : f,
+      f.path === "data/settings.yml" ? { ...f, content: 'motd: "bonjour"\n' } : f,
     );
     const next = applySourceYaml(p, edited)!;
     const s = next.dataSources.find((d) => String(d.id) === "settings")!;

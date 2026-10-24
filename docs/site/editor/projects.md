@@ -193,7 +193,7 @@ Some modules ship menus and dialogs their code opens by name, such as the shop's
 ## Commands a module provides
 
 The commands a module declares are command files of its folder, like the menus it provides:
-`commands/ah.yaml` for `/ah`, with one row per sub-command (`/ah sell`) on the board. You edit
+`commands/ah.yml` for `/ah`, with one row per sub-command (`/ah sell`) on the board. You edit
 them as you edit your own commands: name, aliases, permission, description, cooldown,
 requirements, sub-commands turned on or off, and the steps. Their steps start with a
 `module_command` step, which runs the module's code: add steps before or after it, or replace

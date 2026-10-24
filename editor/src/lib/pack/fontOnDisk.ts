@@ -1,3 +1,4 @@
+import { YAML_EXT } from "@/lib/yamlFiles";
 import { parse, stringify } from "yaml";
 import { assetFileName } from "./assetDiskWrite";
 import type { ParsedMcFont } from "./mcFontsParser";
@@ -11,14 +12,14 @@ import type { ParsedMcFont } from "./mcFontsParser";
  * where everything else is hand-editable, and touching a single glyph would
  * have meant unzip, fix, rezip — to save 96 entries.
  *
- *     assets/fonts/<name>/font.yaml      ← which character, which image, ascent
+ *     assets/fonts/<name>/font.yml       ← which character, which image, ascent
  *     assets/fonts/<name>/<texture>.png  ← one file per glyph
  *
  * The descriptor holds paths **relative to the font folder**, as in the
  * original zip: what is written there is what the admin reads next to it.
  */
 export const FONT_STEM = "font";
-export const FONT_DESCRIPTOR = `${FONT_STEM}.yaml`;
+export const FONT_DESCRIPTOR = `${FONT_STEM}${YAML_EXT}`;
 export const FONT_DIR = "assets/fonts";
 
 export interface FontGlyphMeta {

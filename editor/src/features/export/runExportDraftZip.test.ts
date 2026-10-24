@@ -49,5 +49,5 @@ it("exports the current draft: unchanged images from the server, changed ones fr
     "private",
   );
   expect(drafts.readDraftBlob).toHaveBeenCalledWith(project.id, "d1", "new");
-  expect(files[`${root}/manifest.yaml`]).toBeTypeOf("string");
+  expect(files[`${root}/artisan-module.yml`]).toBeTypeOf("string");
 });

@@ -1933,7 +1933,7 @@ describe("projectsStore", () => {
         .getState()
         .setMenuId({ projectId: PERSONAL, oldId: SHOP_MAIN, newId: menuId("m_shop_renamed") });
       expect(renames()).toEqual([
-        { from: "menus/m_shop_main.yaml", to: "menus/m_shop_renamed.yaml" },
+        { from: "menus/m_shop_main.yml", to: "menus/m_shop_renamed.yml" },
       ]);
     });
 

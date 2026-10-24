@@ -1,7 +1,7 @@
 // Bare data emission (ADR bare-data-files): data files are PURE VALUES —
 // ltext inlined as the default language's literal, schema beside the data in
 // models/ (owned doc at the source's filename, or a `model:` ref), minimal
-// per-row _source.yaml. Same semantic coverage as the old data/v1 suite,
+// per-row _source.yml. Same semantic coverage as the old data/v1 suite,
 // relocked on the bare forms.
 import type { Project, ProjectId } from "@/domain/types";
 import { flattenLangTree } from "@/lib/langTree";
@@ -119,44 +119,44 @@ describe("bare data export", () => {
     const source = p.dataSources[0] as Extract<Project["dataSources"][number], { shape: "table" }>;
     source.rows[0]!.icon = icon;
     const files = projectToFiles(p);
-    expect(parse(files[`${BASE}/data/ranks.yaml`]!)[0].icon).toEqual(icon);
+    expect(parse(files[`${BASE}/data/ranks.yml`]!)[0].icon).toEqual(icon);
     const imported = projectFromFiles(PID, files);
     const importedSource = imported.dataSources.find((s) => s.id === "ranks") as typeof source;
     expect(importedSource.rows[0]!.icon).toEqual(icon);
   });
-  it("emits one BARE data/<id>.yaml per table source — a list of pure-value rows", () => {
+  it("emits one BARE data/<id>.yml per table source — a list of pure-value rows", () => {
     const files = projectToFiles(makeProject());
-    const ranks = parse(files[`${BASE}/data/ranks.yaml`]!);
+    const ranks = parse(files[`${BASE}/data/ranks.yml`]!);
     // ltext values inline the DEFAULT language's literal; item refs verbatim.
     expect(ranks).toEqual([{ id: "vip", name: "VIP", icon: "item:ci_1", perks: ["Fly"] }]);
   });
 
-  it("a model shared via a model-kind ref links through a one-line models/<sourceId>.yaml ref", () => {
+  it("a model shared via a model-kind ref links through a one-line models/<sourceId>.yml ref", () => {
     const files = projectToFiles(makeProject());
     // m_rank is referenced by m_cat's `featured` field — shared, so the
     // source links by ref and the model keeps its own doc.
-    expect(parse(files[`${BASE}/models/ranks.yaml`]!)).toEqual({ model: "m_rank" });
-    const rank = parse(files[`${BASE}/models/m_rank.yaml`]!);
+    expect(parse(files[`${BASE}/models/ranks.yml`]!)).toEqual({ model: "m_rank" });
+    const rank = parse(files[`${BASE}/models/m_rank.yml`]!);
     expect(rank.id).toBe("m_rank");
     expect(rank.fields[1]).toEqual({ name: "name", type: { kind: "ltext" } });
   });
 
-  it("an OWNED model's doc lives at models/<sourceId>.yaml, cross-model refs preserved", () => {
+  it("an OWNED model's doc lives at models/<sourceId>.yml, cross-model refs preserved", () => {
     const files = projectToFiles(makeProject());
-    const cats = parse(files[`${BASE}/data/cats.yaml`]!);
+    const cats = parse(files[`${BASE}/data/cats.yml`]!);
     expect(cats).toEqual([
       { id: "c1", featured: { id: "vip", name: "Nested", icon: "", perks: [] } },
     ]);
-    const doc = parse(files[`${BASE}/models/cats.yaml`]!);
+    const doc = parse(files[`${BASE}/models/cats.yml`]!);
     expect(doc.id).toBe("m_cat");
     // Refs stay refs — models/ is the editor's lossless store.
     expect(doc.fields[1]).toEqual({ name: "featured", type: { kind: "model", ref: "m_rank" } });
-    expect(files[`${BASE}/models/m_cat.yaml`]).toBeUndefined();
+    expect(files[`${BASE}/models/m_cat.yml`]).toBeUndefined();
   });
 
   it("config sources are a bare mapping + a fields doc beside", () => {
     const files = projectToFiles(makeProject());
-    expect(parse(files[`${BASE}/data/settings.yaml`]!)).toEqual({
+    expect(parse(files[`${BASE}/data/settings.yml`]!)).toEqual({
       currency: "coins",
       motd: "Welcome",
       broadcast: "<gold>Hello",
@@ -164,7 +164,7 @@ describe("bare data export", () => {
       // actions keep their DSL string verbatim.
       on_join: 'broadcast "hi"\ngive_item DIAMOND 1',
     });
-    const doc = parse(files[`${BASE}/models/settings.yaml`]!);
+    const doc = parse(files[`${BASE}/models/settings.yml`]!);
     expect(doc.name).toBe("settings");
     // Fields are VERBATIM domain fields — minimessage kinds survive lossless
     // (the runtime is tolerant: unknown kinds pass values through).
@@ -179,10 +179,10 @@ describe("bare data export", () => {
 
   it("default-language file drops data-only keys; other languages keep the canonical address", () => {
     const files = projectToFiles(makeProject());
-    const en = flattenLangTree(parse(files[`${BASE}/lang/en.yaml`]!));
+    const en = flattenLangTree(parse(files[`${BASE}/lang/en.yml`]!));
     expect(en?.["sources.ranks.vip.name"]).toBeUndefined();
     expect(en?.["sources.settings.motd"]).toBeUndefined();
-    const fr = flattenLangTree(parse(files[`${BASE}/lang/fr.yaml`]!));
+    const fr = flattenLangTree(parse(files[`${BASE}/lang/fr.yml`]!));
     expect(fr["sources.ranks.vip.name"]).toBe("V.I.P.");
   });
 });
@@ -268,7 +268,7 @@ describe("bare export — map / enum / union kinds", () => {
 
   it("serializes values bare: enum as string, map entries by `of`, union by active variant (tag kept), ltext literal", () => {
     const files = projectToFiles(questsProject());
-    const data = parse(files[`${B}/data/quests.yaml`]!);
+    const data = parse(files[`${B}/data/quests.yml`]!);
     expect(data).toEqual([
       {
         id: "daily",
@@ -283,15 +283,15 @@ describe("bare export — map / enum / union kinds", () => {
 
   it("keeps the union/map shape verbatim in the owned model doc; nested ltext addresses reach lang/", () => {
     const files = projectToFiles(questsProject());
-    const doc = parse(files[`${B}/models/quests.yaml`]!);
+    const doc = parse(files[`${B}/models/quests.yml`]!);
     expect(doc.id).toBe("m_quest");
     expect(doc.fields[2]).toEqual({
       name: "tiers",
       type: { kind: "map", of: { kind: "model", ref: "m_action" } },
     });
     // m_action is model-kind-referenced → its own doc.
-    expect(parse(files[`${B}/models/m_action.yaml`]!).id).toBe("m_action");
-    const fr = flattenLangTree(parse(files[`${B}/lang/fr.yaml`]!));
+    expect(parse(files[`${B}/models/m_action.yml`]!).id).toBe("m_action");
+    const fr = flattenLangTree(parse(files[`${B}/lang/fr.yml`]!));
     expect(fr["sources.quests.daily.tiers.gold.act.text"]).toBe("Bravo !");
   });
 });
@@ -347,17 +347,17 @@ describe("bare export — per-row file granularity", () => {
     } as unknown as Project;
   }
 
-  it("emits a MINIMAL _source.yaml (name/model/order) and bare row files", () => {
+  it("emits a MINIMAL _source.yml (name/model/order) and bare row files", () => {
     const files = projectToFiles(perRowProject());
-    expect(files[`${B}/data/cats2.yaml`]).toBeUndefined();
-    expect(parse(files[`${B}/data/cats2/_source.yaml`]!)).toEqual({
+    expect(files[`${B}/data/cats2.yml`]).toBeUndefined();
+    expect(parse(files[`${B}/data/cats2/_source.yml`]!)).toEqual({
       name: "categories",
       model: "m_cat2",
       order: ["weekly", "daily"],
     });
-    expect(parse(files[`${B}/data/cats2/weekly.yaml`]!)).toEqual({ id: "weekly", label: "Weekly" });
-    expect(parse(files[`${B}/data/cats2/daily.yaml`]!)).toEqual({ id: "daily", label: "Daily" });
+    expect(parse(files[`${B}/data/cats2/weekly.yml`]!)).toEqual({ id: "weekly", label: "Weekly" });
+    expect(parse(files[`${B}/data/cats2/daily.yml`]!)).toEqual({ id: "daily", label: "Daily" });
     // Owned model doc at the source's filename.
-    expect(parse(files[`${B}/models/cats2.yaml`]!).id).toBe("m_cat2");
+    expect(parse(files[`${B}/models/cats2.yml`]!).id).toBe("m_cat2");
   });
 });

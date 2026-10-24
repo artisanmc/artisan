@@ -81,6 +81,27 @@ describe("rebaseDraft", () => {
 });
 
 describe("followDisk", () => {
+  it("renames a draft's files as the disk now spells them, an edit kept", () => {
+    const next = followDisk(
+      {
+        baseline: { "menus/a.yaml": "a", "manifest.yaml": "m", "lang/fr.yaml": "x" },
+        initialTree: { "menus/a.yaml": "a", "manifest.yaml": "m", "lang/fr.yaml": "x" },
+        tree: { "menus/a.yaml": "mine", "manifest.yaml": "m", "lang/fr.yaml": "x" },
+      },
+      { "menus/a.yml": "a", "artisan-module.yml": "m", "lang/fr.yaml": "x" },
+    );
+    expect(next?.tree).toEqual({
+      "menus/a.yml": "mine",
+      "artisan-module.yml": "m",
+      "lang/fr.yaml": "x",
+    });
+    expect(next?.baseline).toEqual({
+      "menus/a.yml": "a",
+      "artisan-module.yml": "m",
+      "lang/fr.yaml": "x",
+    });
+  });
+
   it("drops a file the disk removed and the draft left as loaded", () => {
     const next = followDisk(
       {
