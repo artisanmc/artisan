@@ -4,7 +4,7 @@ import { writeAdvanced } from "@/domain/itemAdvanced";
 import type { Appearance, Element, Menu, MenuTitleLayer, Project } from "@/domain/types";
 import { slotCount } from "@/features/canvas/inventoryTypes";
 import { conditionsToStructured, stepsToStructured } from "@/lib/actions/structuredSteps";
-import { type FieldTextOf, actionTextCodec, fieldTextOf } from "./fieldText";
+import { type FieldTextOf, actionTextCodec, fieldTextOf, loreWire } from "./fieldText";
 
 /** A Document as its writer returns it: the canonical file object, `id` included. */
 export type DocumentV1 = { id: string } & Record<string, unknown>;
@@ -19,7 +19,7 @@ function serializeAppearance(app: Appearance, project: Project): Record<string, 
   if (app.count !== undefined) out.count = app.count;
   const t = fieldTextOf(project);
   if (app.title) out.title = t(app.title.key);
-  if (app.lore) out.lore = [t(app.lore.key)];
+  if (app.lore) out.lore = loreWire(t(app.lore.key));
   if (app.loreMode) {
     out.lore_mode = app.loreMode;
     if (!app.lore) out.lore = [];

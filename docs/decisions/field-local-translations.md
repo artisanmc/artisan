@@ -102,6 +102,13 @@ traduction est portée **au champ** (au Key site), sans aucune adresse — qui
 l'intérieur — il réintroduirait le matching d'adresses **dans** le fichier **et**
 un second store (le pire des deux). La forme champ-local l'évite.
 
+> **Précisé le 2026-10-24 (lore).** La forme liste de §1, `Record<LangCode, string[]>`, est
+> la forme canonique d'un lore traduit : une liste par langue, fallback par bloc. L'implémentation
+> avait d'abord porté une map par ligne (`[{en, fr}, …]`), qui impose le même nombre de lignes à
+> toutes les langues et fait un fallback ligne à ligne (lore mélangé sans signal) ; l'éditeur
+> perdait en outre ces lignes à l'import. Cette forme reste lue, n'est plus écrite. Les clés de
+> traduction (`{i18n:key}`) restent l'échappatoire, pas la forme par défaut.
+
 ## Conséquences
 
 - **Éditeur** — `LText { key }` (`domain/types.ts`) devient

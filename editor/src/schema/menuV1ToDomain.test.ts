@@ -508,6 +508,41 @@ describe("menuV1ToDomain — title layers + menu assembly", () => {
     expect(Object.keys(r.i18nKeys)).toHaveLength(0);
   });
 
+  it("reads one lore list per language, each with its own line count", () => {
+    const src = menuWithAppearance({
+      material: "STONE",
+      lore: {
+        en: ["<gray>Members: {r.members}", "", "Click"],
+        fr: ["<gray>Membres : {r.members}", "Clic"],
+      },
+    });
+    const r = menuV1ToDomain(src, opts);
+    const lore = r.menu.layers[0]!.elements[0]!.display!.lore!;
+    expect(r.i18nKeys[lore.key]).toEqual({
+      en: "<gray>Members: {r.members}\n\nClick",
+      fr: "<gray>Membres : {r.members}\nClic",
+    });
+  });
+
+  it("regroups legacy per-line lang maps into one block per language, losing no line", () => {
+    const src = menuWithAppearance({
+      material: "STONE",
+      lore: [
+        "",
+        { en: "<gray>Members", fr: "<gray>Membres" },
+        { en: "Only english" },
+        "{r.members}",
+      ],
+    });
+    const r = menuV1ToDomain(src, opts);
+    const lore = r.menu.layers[0]!.elements[0]!.display!.lore!;
+    // A line missing a language falls back to the default one, as the plugin renders it.
+    expect(r.i18nKeys[lore.key]).toEqual({
+      en: "\n<gray>Members\nOnly english\n{r.members}",
+      fr: "\n<gray>Membres\nOnly english\n{r.members}",
+    });
+  });
+
   it("leaves lore undefined when absent", () => {
     const src = menuWithAppearance({ material: "STONE" });
     const r = menuV1ToDomain(src, opts);
