@@ -622,6 +622,8 @@ export default {
     clickRemove: "Remove this click handler",
     clickHandlerOn: "on {{clickType}}:",
     dragToReorder: "Drag to reorder",
+    searchActions: "Search actions…",
+    noActionMatch: "No action matches.",
     addStep: "+ Add step",
     addStepIfBranch: "if branch",
     elseIfAdd: "+ else if",

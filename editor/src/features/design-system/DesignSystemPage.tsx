@@ -28,8 +28,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSearch,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  matchesMenuSearch,
 } from "@/components/ui/dropdown-menu";
 import { EditorHeader } from "@/components/ui/editor-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -711,6 +713,7 @@ export function DesignSystemPage() {
                 <DropdownMenuItem>Item three</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <SearchableMenuSpecimen />
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Card>"}</span>
@@ -988,5 +991,26 @@ function SwitchSpecimen() {
         {t("adminDesign.specimens.switchHint")}
       </p>
     </div>
+  );
+}
+
+/** `DropdownMenuSearch`: the field filters the items as one types; ↓ then Enter picks. */
+function SearchableMenuSpecimen() {
+  const [query, setQuery] = useState("");
+  const items = ["Ouvrir un menu", "Fermer le menu", "Donner un objet", "Téléporter"].filter((i) =>
+    matchesMenuSearch(i, query),
+  );
+  return (
+    <DropdownMenu onOpenChange={(open) => !open && setQuery("")}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline">{"<DropdownMenuSearch>"}</Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuSearch value={query} onValueChange={setQuery} placeholder="Search…" />
+        {items.map((i) => (
+          <DropdownMenuItem key={i}>{i}</DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

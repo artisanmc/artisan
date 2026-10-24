@@ -634,6 +634,8 @@ const fr: typeof en = {
     clickRemove: "Supprimer ce gestionnaire de clic",
     clickHandlerOn: "sur {{clickType}} :",
     dragToReorder: "Glisser pour réordonner",
+    searchActions: "Rechercher une action…",
+    noActionMatch: "Aucune action ne correspond.",
     addStep: "+ Ajouter une étape",
     addStepIfBranch: "branche if",
     elseIfAdd: "+ sinon si",
