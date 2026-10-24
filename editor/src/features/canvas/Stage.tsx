@@ -1,6 +1,5 @@
 import { liveDocumentIds } from "@/domain/canvasGroups";
 import type { MenuId, ProjectId } from "@/domain/types";
-import { useCssVar } from "@/lib/themeColors";
 import { useEdgeSelectionStore } from "@/state/edgeSelectionStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -14,8 +13,7 @@ Konva.dragButtons = [0];
 import { CORE_DOCUMENT_KINDS } from "@/domain/documentKinds";
 import { allDocuments, commandsOf, dialogsOf, docKey, menusOf } from "@/domain/documents";
 import { dismissInspector } from "@/features/project/projectSettings";
-import { useTranslation } from "react-i18next";
-import { Stage as KonvaStage, Layer, Text } from "react-konva";
+import { Stage as KonvaStage, Layer } from "react-konva";
 import { toast } from "sonner";
 import { AlignmentGuides } from "./AlignmentGuidesOverlay";
 import { ArmedBanner } from "./ArmedBanner";
@@ -40,7 +38,7 @@ import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
 import { StageContextMenu } from "./StageContextMenu";
 import { dispatchOpenElement } from "./canvasEvents";
-import { activeBoardFolder } from "./folderFilter";
+import { activeBoardFolder, folderAt } from "./folderFilter";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useFolderFraming } from "./useFolderFraming";
@@ -80,7 +78,6 @@ export function Stage({ projectId, focus }: StageProps) {
 
 function StageCanvas({ projectId, focus }: StageProps) {
   const focusMode = focus != null;
-  const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const systemDocs = useSystemDocuments(project);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -116,7 +113,6 @@ function StageCanvas({ projectId, focus }: StageProps) {
   // their own affordances — the grab hand over an item read as incoherent.
   const [overEmpty, setOverEmpty] = useState(true);
 
-  const gutterColor = useCssVar("--text-mut");
   const [groupDialog, setGroupDialog] = useState<GroupDialogState>(null);
   const creation = useBoardCreation();
 
@@ -207,6 +203,10 @@ function StageCanvas({ projectId, focus }: StageProps) {
     projectId,
     onError: (msg) => toast.error(msg),
     getPasteAnchor,
+    onIdleEscape:
+      !focusMode && folder
+        ? () => useUiStore.getState().setBoardFolder(projectId, null)
+        : undefined,
   });
 
   if (!project) return <div className="p-8 text-[var(--text-mut)]">Project not found.</div>;
@@ -276,8 +276,13 @@ function StageCanvas({ projectId, focus }: StageProps) {
         }}
         onClick={onStageClick}
         onDblClick={(e) => {
+          if (e.target !== e.target.getStage()) return;
           // Focus escape hatch: double-clicking the background reframes.
-          if (e.target === e.target.getStage()) refitFocus();
+          if (focusMode) return refitFocus();
+          // On a folder frame's background: show only that folder.
+          const pointer = e.target.getStage()?.getPointerPosition();
+          const hit = pointer && folderAt(board?.groups ?? [], screenToWorld(pointer, viewport));
+          if (hit && hit !== folder) useUiStore.getState().setBoardFolder(projectId, hit);
         }}
         onTap={onStageClick}
         onMouseDown={marquee.onMouseDown}
@@ -318,16 +323,6 @@ function StageCanvas({ projectId, focus }: StageProps) {
         )}
         <Layer name="edges">
           <Edges project={project} layout={layout} representatives={board?.representatives} />
-          {board?.gutter && (
-            <Text
-              x={board.gutter.x}
-              y={board.gutter.y}
-              text={t("canvas.gutter")}
-              fontSize={14}
-              fill={gutterColor}
-              listening={false}
-            />
-          )}
         </Layer>
         <Layer name="menus" imageSmoothingEnabled={false}>
           {menusOf(project)

@@ -318,12 +318,15 @@ interface UseCanvasKeyboardArgs {
   onError?: (message: string) => void;
   /** Slot under the cursor at paste time; null → the paste picks its own slot. */
   getPasteAnchor?: () => PasteAnchor | null;
+  /** Escape with nothing selected (the board narrowed to a folder shows everything again). */
+  onIdleEscape?: () => void;
 }
 
 export function useCanvasKeyboard({
   projectId,
   onError,
   getPasteAnchor,
+  onIdleEscape,
 }: UseCanvasKeyboardArgs): void {
   const { t } = useTranslation();
   useEffect(() => {
@@ -494,12 +497,14 @@ export function useCanvasKeyboard({
           flow.clear();
           return;
         }
-        useSelectionStore.getState().clear();
+        const selection = useSelectionStore.getState();
+        if (selection.ids.size > 0) selection.clear();
+        else if (!e.defaultPrevented) onIdleEscape?.();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [projectId, onError, getPasteAnchor, t]);
+  }, [projectId, onError, getPasteAnchor, onIdleEscape, t]);
 }
 
 export const canvasClipboardActions = {
