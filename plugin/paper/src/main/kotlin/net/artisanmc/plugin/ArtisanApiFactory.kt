@@ -125,6 +125,10 @@ internal object ArtisanApiFactory {
             // Artisan's own actions are registered like a module's: every chain, core
             // included, dispatches through this registry (ADR extensible-document-kinds, R1).
             .actionRegistry(ActionRegistry().also(net.artisanmc.plugin.engine.CoreActionHandlers::registerAll))
+            // Filled by the triggers module (the core catalog) and by any module's own events.
+            .gameEvents(net.artisanmc.modules.api.gameevent.GameEventRegistry().also { r ->
+                r.bindWarnings { plugin.logger.warning("[Artisan] $it") }
+            })
             .build()
         // A module reports the core plugin version: ArtisanModule has no version of its own.
         registry.bind(api) {

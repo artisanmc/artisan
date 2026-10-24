@@ -1585,6 +1585,30 @@
               "type": "string"
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "set_event"
+          ],
+          "description": "Trigger seulement (ADR triggers-and-variables §3 bis) : écrit les effets que l'événement en cours déclare. Hors d'un Trigger, ignoré avec un avertissement. `cancel_event`, sans argument, s'écrit en step nu.",
+          "properties": {
+            "set_event": {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              }
+            }
+          }
         }
       ]
     },

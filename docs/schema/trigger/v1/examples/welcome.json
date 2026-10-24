@@ -1,0 +1,29 @@
+{
+  "schema": "trigger/v1",
+  "on": "player_join",
+  "enabled": true,
+  "notes": "Remplace le message de connexion vanilla.",
+  "do": [
+    {
+      "if": [
+        {
+          "has_permission": "rank.vip"
+        }
+      ],
+      "do": [
+        {
+          "set_event": {
+            "join_message": "<gold>{player} rejoint le royaume"
+          }
+        }
+      ],
+      "else": [
+        {
+          "set_event": {
+            "join_message": "<gray>{player} est arrivé"
+          }
+        }
+      ]
+    }
+  ]
+}
