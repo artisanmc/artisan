@@ -1,4 +1,4 @@
-import { CHAR_ADVANCES } from "@/features/canvas/title/charAdvances";
+import { CHAR_ADVANCES } from "@/lib/mcFont/charAdvances";
 
 /**
  * Wraps one rendered lore line to `maxWidth` MC pixels (vanilla font advances,

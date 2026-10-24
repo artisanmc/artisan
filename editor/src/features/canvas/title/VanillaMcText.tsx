@@ -3,8 +3,8 @@ import { Group, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
 import { parseMiniMessage } from "@/lib/miniMessage";
-import { CHAR_ADVANCES } from "./charAdvances";
-import { ATLAS_META, type AtlasName, charCell } from "./charCells";
+import { CHAR_ADVANCES } from "@/lib/mcFont/charAdvances";
+import { ATLAS_META, type AtlasName, charCell } from "@/lib/mcFont/charCells";
 
 /**
  * Per-character advance lookup. Backed by the generated CHAR_ADVANCES map
