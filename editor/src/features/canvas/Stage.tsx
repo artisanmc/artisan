@@ -40,7 +40,7 @@ import { MenuGroup } from "./MenuGroup";
 import { Selection } from "./Selection";
 import { StageContextMenu } from "./StageContextMenu";
 import { dispatchOpenElement } from "./canvasEvents";
-import { activeBoardFolder } from "./folderFilter";
+import { activeBoardFolder, folderAt } from "./folderFilter";
 import { hitTestSlot, screenToWorld } from "./hitTest";
 import { useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useFolderFraming } from "./useFolderFraming";
@@ -207,6 +207,10 @@ function StageCanvas({ projectId, focus }: StageProps) {
     projectId,
     onError: (msg) => toast.error(msg),
     getPasteAnchor,
+    onIdleEscape:
+      !focusMode && folder
+        ? () => useUiStore.getState().setBoardFolder(projectId, null)
+        : undefined,
   });
 
   if (!project) return <div className="p-8 text-[var(--text-mut)]">Project not found.</div>;
@@ -276,8 +280,13 @@ function StageCanvas({ projectId, focus }: StageProps) {
         }}
         onClick={onStageClick}
         onDblClick={(e) => {
+          if (e.target !== e.target.getStage()) return;
           // Focus escape hatch: double-clicking the background reframes.
-          if (e.target === e.target.getStage()) refitFocus();
+          if (focusMode) return refitFocus();
+          // On a folder frame's background: show only that folder.
+          const pointer = e.target.getStage()?.getPointerPosition();
+          const hit = pointer && folderAt(board?.groups ?? [], screenToWorld(pointer, viewport));
+          if (hit && hit !== folder) useUiStore.getState().setBoardFolder(projectId, hit);
         }}
         onTap={onStageClick}
         onMouseDown={marquee.onMouseDown}

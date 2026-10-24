@@ -12,6 +12,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Tooltip } from "@/components/ui/tooltip";
+import { DEFAULT_GROUP_COLOR, folderGroups } from "@/domain/canvasGroups";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
 import { docKey, documentCount } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
@@ -312,6 +313,16 @@ export function DocumentGroups({
 type OriginOf = (id: string) => ReturnType<typeof templateOrigin>;
 
 /**
+ * The color of the board frame a folder lives in: its top-level folder's, while that
+ * folder holds a Document (a frame); none for a folder the board does not show.
+ */
+function frameColor(project: Project, path: string): string | undefined {
+  const top = path.split("/")[0]!;
+  const frame = folderGroups(project).find((g) => g.id === top);
+  return frame ? (frame.color ?? DEFAULT_GROUP_COLOR) : undefined;
+}
+
+/**
  * A themed folder: its sub-folders, then its Documents of every kind (each
  * with its kind's icon, since a folder mixes them). Open by default.
  */
@@ -341,6 +352,7 @@ function FolderNode({
   const items = groups.flatMap((g) => g.items.filter((it) => it.folder === path));
   const Chevron = open ? ChevronDown : ChevronRight;
   const Icon = open ? FolderOpen : Folder;
+  const color = frameColor(project, path);
   return (
     <div className="flex flex-col">
       <div className="group flex items-center gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
@@ -352,7 +364,11 @@ function FolderNode({
           style={{ paddingLeft: 2 + depth * 14 }}
         >
           <Chevron className="size-3 shrink-0 text-[var(--text-faint)]" aria-hidden />
-          <Icon className="size-4 shrink-0 text-[var(--text-mut)]" aria-hidden />
+          <Icon
+            className="size-4 shrink-0 text-[var(--text-mut)]"
+            style={color ? { color } : undefined}
+            aria-hidden
+          />
           <span className="flex-1 truncate">{folderName(path)}</span>
         </button>
         {editable && (
