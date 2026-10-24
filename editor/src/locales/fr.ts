@@ -1005,7 +1005,6 @@ const fr: typeof en = {
     create: "Créer",
     modeSelect: "Sélection",
     modeHand: "Navigation",
-    gutter: "Pas encore reliés",
     rearrange: "Réarranger",
     rearrangeHint:
       "Réarrange les groupes et les éléments hors groupe en conservant le contenu de chaque groupe (Ctrl+Z pour annuler)",
