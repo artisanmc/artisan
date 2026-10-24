@@ -21,13 +21,14 @@ import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
 import { ModuleTemplatesDialog } from "@/features/templates/ModuleTemplatesDialog";
+import { sameAsShipped } from "@/features/templates/sameAsShipped";
 import {
   type ProjectTemplates,
   useProjectTemplates,
 } from "@/features/templates/useProjectTemplates";
-import { copyTemplate } from "@/lib/api/templates";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
+import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
 import { useUiStore } from "@/state/uiStore";
@@ -48,6 +49,7 @@ import { toast } from "sonner";
 import { documentRelPath } from "./DocumentYamlView";
 import { FolderNameDialog } from "./FolderNameDialog";
 import { openProjectSettings } from "./projectSettings";
+import { adoptDiskIntoProject } from "./saveProjectToDisk";
 import {
   type DocumentType,
   type ProjectDocumentItem,
@@ -251,7 +253,8 @@ export function DocumentGroups({
   const serverKinds = useServerDocumentKindsStore();
   const templates = useProjectTemplates(project.id);
   const groups = buildProjectDocuments(project, activeLang);
-  const originOf = (id: string) => templateOrigin(templates, documentRelPath(project, id), t);
+  const originOf = (id: string) =>
+    templateOrigin(templates, project, documentRelPath(project, id), t);
   return (
     <>
       {childFolders(project, "").map((path) => (
@@ -441,55 +444,73 @@ type DocumentOrigin = Omit<TemplateOrigin, "label"> & {
   module: string;
   /** One of the module's system elements: never deleted or moved, reset instead. */
   system: boolean;
-  /** Puts the module's version back; absent while it cannot be written (unsaved changes). */
+  /** Puts the module's version back into the draft; absent when it already is. */
   reset?: () => void;
-  /** Differs from the module's version, but the draft holds unpublished changes. */
-  resetBlocked?: boolean;
 };
 
 function templateOrigin(
   templates: ProjectTemplates,
+  project: Project,
   path: string | null,
   t: TFunction,
 ): DocumentOrigin | null {
   const entry = path ? templates.byPath[path] : undefined;
   if (!path || !entry || entry.file.status === "removed") return null;
-  const tone = entry.file.updateAvailable
-    ? "update"
-    : entry.file.status === "modified"
-      ? "modified"
-      : "identical";
   const system = entry.template.template.system === true;
-  const { target } = templates;
+  const moduleId = entry.template.moduleId;
+  const templateId = entry.template.template.id;
+  // Deployed from the editor, a system file is rewritten in canonical form: unchanged in
+  // substance, it is still the module's version.
+  const shipped = templates.shipped(moduleId, templateId)?.[path];
+  const published = templates.published[path];
+  const formattedOnly =
+    system &&
+    (entry.file.status === "modified" || entry.file.updateAvailable) &&
+    shipped !== undefined &&
+    published !== undefined &&
+    sameAsShipped(project, path, published, shipped);
+  const tone = formattedOnly
+    ? "identical"
+    : entry.file.updateAvailable
+      ? "update"
+      : entry.file.status === "modified"
+        ? "modified"
+        : "identical";
+  const { serverId } = templates;
   const reset =
-    system && tone !== "identical" && target && !templates.dirty
+    system && tone !== "identical" && serverId
       ? () => {
           if (!window.confirm(t("projectPanel.systemResetConfirm"))) return;
-          void copyTemplate(target, {
-            module: entry.template.moduleId,
-            template: entry.template.template.id,
-            paths: [path],
-            replace: true,
-          }).then((result) => {
-            if (result.ok) templates.refresh();
-            else
-              toast.error(
-                t(
-                  `moduleTemplates.errors.${result.error}`,
-                  t("moduleTemplates.errors.fetch_error"),
-                ),
-              );
-          });
+          void resetIntoDraft(project.id, serverId, moduleId, templateId, path, t);
         }
       : undefined;
-  const resetBlocked = system && tone !== "identical" && templates.dirty;
-  return {
-    tone,
-    module: entry.template.moduleId,
-    system,
-    ...(reset ? { reset } : {}),
-    ...(resetBlocked ? { resetBlocked } : {}),
-  };
+  return { tone, module: moduleId, system, ...(reset ? { reset } : {}) };
+}
+
+/**
+ * Puts a system file back as its module ships it, in the draft: the canvas shows it at
+ * once, Deploy publishes it, Discard cancels it, like any edit.
+ */
+async function resetIntoDraft(
+  projectId: string,
+  serverId: string,
+  moduleId: string,
+  templateId: string,
+  path: string,
+  t: TFunction,
+) {
+  const store = useProjectTemplatesStore.getState();
+  await store.loadShipped(serverId, moduleId, templateId);
+  const content =
+    useProjectTemplatesStore.getState().shipped[shippedKey(serverId, moduleId, templateId)]?.[path];
+  const { openProjects, replaceProject } = useProjectsStore.getState();
+  const current = openProjects.projects.find((p) => p.id === projectId);
+  if (content === undefined || !current) {
+    toast.error(t("moduleTemplates.errors.fetch_error"));
+    return;
+  }
+  replaceProject(adoptDiskIntoProject(current, { [path]: content }, []));
+  toast.success(t("projectPanel.systemResetDone"));
 }
 
 /** What a copy's tag says in a word: nothing when it is the module's version as is. */
@@ -600,7 +621,6 @@ function DocumentRow({
           onOpen={onOpen}
           system={origin?.system === true}
           onReset={origin?.reset}
-          resetBlocked={origin?.resetBlocked === true}
         />
       )}
     </div>
@@ -614,7 +634,6 @@ function RowActions({
   onOpen,
   system,
   onReset,
-  resetBlocked,
 }: {
   projectId: ProjectId;
   project: Project;
@@ -623,8 +642,6 @@ function RowActions({
   /** A module's system element: kept where the module put it, never deleted. */
   system: boolean;
   onReset?: () => void;
-  /** Why Reset is off: the draft has unpublished changes, said in the menu. */
-  resetBlocked?: boolean;
 }) {
   const { t } = useTranslation();
   const targets = system ? [] : ["", ...listFolders(project)].filter((f) => f !== item.folder);
@@ -658,14 +675,7 @@ function RowActions({
             title={t("projectPanel.systemResetHint")}
             onClick={onReset}
           >
-            <span className="flex flex-col">
-              {t("projectPanel.systemReset")}
-              {resetBlocked && (
-                <span className="text-[11px] text-[var(--text-faint)]">
-                  {t("projectPanel.systemResetBlocked")}
-                </span>
-              )}
-            </span>
+            {t("projectPanel.systemReset")}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem

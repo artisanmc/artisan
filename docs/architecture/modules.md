@@ -611,6 +611,12 @@ api.getTemplates().register(TemplateDeclaration
   Un fichier présent avant que le module en fasse un élément système compte comme modifié. Copier un
   modèle système ailleurs que dans le dossier du module est refusé (`system_template`) : dans ce
   dossier, c'est une réinitialisation. L'éditeur ne le propose pas à la copie.
+  Dans l'éditeur, Reset d'un élément système remet le fichier livré (lu par
+  `GET …/modules/:module/templates/:template`) **dans le brouillon**, comme toute édition :
+  Déployer le publie, Abandonner l'annule, et un brouillon en cours ne le bloque pas. Le badge
+  « modifié » compare le fichier publié au fichier livré une fois tous deux réécrits au format
+  de l'éditeur (`sameAsShipped`) : un fichier déployé depuis l'éditeur, identique sur le fond,
+  reste la version du module.
 
 ```java
 api.getTemplates().register(TemplateDeclaration
