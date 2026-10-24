@@ -1,4 +1,5 @@
 import {
+  Ban,
   ChevronsLeft,
   ChevronsRight,
   Coins,
@@ -12,6 +13,7 @@ import {
   MessagesSquare,
   PackageMinus,
   PackagePlus,
+  PenLine,
   Puzzle,
   Repeat,
   Sparkles,
@@ -72,6 +74,9 @@ const CORE: Record<string, { family: ActionFamily; icon: LucideIcon }> = {
   set_arg_cycle_next: { family: "logic", icon: Repeat },
   set_arg_cycle_prev: { family: "logic", icon: Repeat },
   run_actions: { family: "logic", icon: Zap },
+  // The triggers module's two actions: they change the running Game event (eventActions.ts).
+  cancel_event: { family: "effect", icon: Ban },
+  set_event: { family: "effect", icon: PenLine },
 };
 
 /** The icon of an `if` / `else` step. */

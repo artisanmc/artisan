@@ -5,6 +5,7 @@ import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
 import { selfHostedEn } from "./selfHosted";
 import { serverCanvasEn } from "./serverCanvas";
+import { triggersEn } from "./triggers";
 export default {
   onboarding: onboardingEn,
   resources: {
@@ -88,6 +89,7 @@ export default {
   serverCanvas: serverCanvasEn,
   changes: changesEn,
   actionCatalog: actionCatalogEn,
+  triggers: triggersEn,
   navigation: {
     label: "Main navigation",
     open: "Open navigation",
@@ -809,6 +811,7 @@ export default {
     menus: "Menus",
     commands: "Commands",
     dialogs: "Dialogs",
+    triggers: "Triggers",
     edit: "Edit",
     delete: "Delete from project",
     empty: "No elements yet",

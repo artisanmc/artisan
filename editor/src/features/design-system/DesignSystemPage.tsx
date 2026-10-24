@@ -106,7 +106,7 @@ const COLOR_GROUPS: { key: string; tokens: string[] }[] = [
   {
     key: "kinds",
     tokens: [
-      ...["menu", "command", "dialog", "module"].flatMap((k) => [
+      ...["menu", "command", "dialog", "trigger", "module"].flatMap((k) => [
         `--kind-${k}`,
         `--kind-${k}-soft`,
         `--kind-${k}-line`,
@@ -506,7 +506,7 @@ export function DesignSystemPage() {
               {"<EditorHeader> · kindAppearance()"}
             </span>
             <div className="flex flex-col gap-2">
-              {(["menu", "command", "dialog"] as const).map((kind) => (
+              {(["menu", "command", "dialog", "trigger"] as const).map((kind) => (
                 <div key={kind} className="panel overflow-hidden rounded-[var(--r-md)]">
                   <EditorHeader
                     kind={kind}

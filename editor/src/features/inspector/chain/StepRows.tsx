@@ -2,6 +2,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IconTile } from "@/components/ui/icon-tile";
@@ -25,6 +27,7 @@ import {
   isCoreAction,
 } from "@/lib/actions/actionFamily";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
+import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
 import { cx } from "@/lib/cx";
 import { useGetText } from "@/lib/useText";
@@ -33,7 +36,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { type CSSProperties, createContext, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActionEditor } from "../properties/ActionEditor";
+import { ActionEditor, defaultEffectValue } from "../properties/ActionEditor";
 import { ConditionListEditor } from "../properties/ConditionListEditor";
 import { ACTION_TYPES, defaultAction, defaultDeclaredAction } from "./defaults";
 import { conditionsSummary } from "./labels";
@@ -370,7 +373,9 @@ export function AddStepLine({
   const { t } = useTranslation();
   // Actions a module registered on the active server (ADR extensible-document-kinds, R1).
   const declared = useServerActionsStore((s) => s.actions);
-  const moduleActions = moduleActionsOf(declared);
+  // The event actions are offered from the chain's event below, never by name.
+  const moduleActions = moduleActionsOf(declared).filter((a) => !isEventAction(a.name));
+  const event = useChainEvent();
   return (
     <div className="flex items-center">
       <DropdownMenu>
@@ -411,6 +416,49 @@ export function AddStepLine({
               <ActionName name={decl.name} />
             </DropdownMenuItem>
           ))}
+          {event && (event.cancellable || event.effects.length > 0) ? (
+            <>
+              <DropdownMenuSeparator className="bg-[var(--border-soft)]" />
+              <DropdownMenuLabel className="text-[11px] text-[var(--text-faint)]">
+                {t("triggers.eventSteps")}
+              </DropdownMenuLabel>
+              {event.cancellable ? (
+                <DropdownMenuItem
+                  onSelect={() =>
+                    onPick({ kind: "action", action: { name: "cancel_event", value: {} } })
+                  }
+                  className="cursor-pointer gap-2 focus:bg-[var(--surface-hover)]"
+                >
+                  <ActionName name="cancel_event" />
+                </DropdownMenuItem>
+              ) : null}
+              {event.effects.map((field) => (
+                <DropdownMenuItem
+                  key={field.name}
+                  onSelect={() =>
+                    onPick({
+                      kind: "action",
+                      action: {
+                        name: "set_event",
+                        value: { [field.name]: defaultEffectValue(field) },
+                      },
+                    })
+                  }
+                  className="cursor-pointer gap-2 focus:bg-[var(--surface-hover)]"
+                >
+                  <ActionName
+                    name="set_event"
+                    label={t("triggers.setEffect", {
+                      effect: t(`triggers.effects.${field.name}`, {
+                        defaultValue: field.label ?? field.name,
+                      }),
+                    })}
+                  />
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="bg-[var(--border-soft)]" />
+            </>
+          ) : null}
           {allowIf && (
             <DropdownMenuItem
               onSelect={() => onPick({ kind: "if", cases: [{ conditions: [], steps: [] }] })}
@@ -481,15 +529,17 @@ function Branch({ children }: { children: React.ReactNode }) {
 }
 
 /** An action as a person names it: its family's icon tile, then its translated name (wire name on hover). */
-function ActionName({ name }: { name: string }) {
+function ActionName({ name, label: forced }: { name: string; label?: string }) {
   const { t } = useTranslation();
   const { family, icon } = actionAppearance(name);
   const colon = name.indexOf(":");
-  const label = isCoreAction(name)
-    ? t(`actionCatalog.names.${name}`)
-    : colon > 0
-      ? name.slice(colon + 1)
-      : name;
+  const label = forced
+    ? forced
+    : isCoreAction(name)
+      ? t(`actionCatalog.names.${name}`)
+      : colon > 0
+        ? name.slice(colon + 1)
+        : name;
   return (
     <>
       <IconTile icon={icon} {...familyColors(family)} />
@@ -579,8 +629,19 @@ function ActionSummaryArgs({
   action: Action;
   getText: (lt: LText | undefined) => string;
 }) {
+  const { t } = useTranslation();
   const declOf = useDeclaredActionOf();
   const decl = declOf(action.name);
+  if (action.name === "set_event") {
+    // The effects by their names: "Message de mort = …", not the wire map.
+    const effects = Object.entries(setEventArgs(action.value))
+      .map(
+        ([name, value]) =>
+          `${t(`triggers.effects.${name}`, { defaultValue: name })} = ${String(value)}`,
+      )
+      .join(" · ");
+    return <span className="min-w-0 truncate text-[12.5px] text-[var(--text-mut)]">{effects}</span>;
+  }
   const args = decl ? normalizeActionArgs(decl, action.value) : {};
   const texts = decl
     ? decl.args.filter((a) => a.type.kind === "ltext" && isLTextNode(args[a.name]))

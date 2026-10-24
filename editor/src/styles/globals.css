@@ -111,6 +111,9 @@
   --kind-dialog: #b49cfb;
   --kind-dialog-soft: rgba(167, 139, 250, 0.14);
   --kind-dialog-line: rgba(167, 139, 250, 0.4);
+  --kind-trigger: #f4517f;
+  --kind-trigger-soft: rgba(244, 81, 127, 0.13);
+  --kind-trigger-line: rgba(244, 81, 127, 0.4);
   --kind-module: #38bdf8;
   --kind-module-soft: rgba(56, 189, 248, 0.13);
   --kind-module-line: rgba(56, 189, 248, 0.38);
@@ -202,6 +205,9 @@
   --kind-dialog: #6d28d9;
   --kind-dialog-soft: rgba(124, 58, 237, 0.09);
   --kind-dialog-line: rgba(109, 40, 217, 0.32);
+  --kind-trigger: #be123c;
+  --kind-trigger-soft: rgba(225, 29, 99, 0.09);
+  --kind-trigger-line: rgba(190, 18, 60, 0.32);
   --kind-module: #0369a1;
   --kind-module-soft: rgba(2, 132, 199, 0.1);
   --kind-module-line: rgba(3, 105, 161, 0.32);

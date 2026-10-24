@@ -1,5 +1,5 @@
 import { documentKindContribution } from "@artisan/editor-sdk";
-import { FileText, LayoutGrid, MessageSquare, TerminalSquare } from "lucide-react";
+import { FileText, LayoutGrid, MessageSquare, TerminalSquare, Zap } from "lucide-react";
 import type { ComponentType } from "react";
 
 type KindIcon = ComponentType<{ className?: string }>;
@@ -21,6 +21,7 @@ const CORE: Record<string, KindIcon> = {
   menu: LayoutGrid,
   command: TerminalSquare,
   dialog: MessageSquare,
+  trigger: Zap,
 };
 
 export function kindAppearance(kind: string): KindAppearance {

@@ -84,6 +84,8 @@ export function compute(
       // navigation placeholders are still in scope at runtime, so the popup is
       // never empty.
       return sorted([...builtinPlayerEntries(), ...builtinNavigationEntries()]);
+    case "event":
+      return sorted([...builtinPlayerEntries(), ...location.values]);
   }
 }
 
