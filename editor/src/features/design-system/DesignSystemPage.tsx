@@ -1,5 +1,7 @@
 import { SplitPane } from "@/components/SplitPane";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { McActionBar, McChat, McMotd, McTitle, McTooltip } from "@/components/mc-preview";
+import { MmTextField } from "@/components/minimessage";
 import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
@@ -41,6 +43,7 @@ import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ResetButton } from "@/components/ui/reset-button";
 import { Segmented } from "@/components/ui/segmented";
 import {
@@ -63,6 +66,7 @@ import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
 import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { ACTION_FAMILIES, actionAppearance, familyColors } from "@/lib/actions/actionFamily";
+import { LORE } from "@/lib/mm/profiles";
 import { useUiStore } from "@/state/uiStore";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
 import { useRef, useState } from "react";
@@ -153,6 +157,59 @@ placeholders:
 
 const BADGE_VARIANTS = ["amber", "sage", "terra", "brick"] as const;
 const BADGE_CLASSES = ["badge-amber", "badge-sage", "badge-terra", "badge-brick"];
+
+const SAMPLE_LORE =
+  "<gray>Forged in <gradient:#ff3d00:#ffb300>dragon fire</gradient>.\n<gold>★★★★☆</gold>";
+
+function MiniMessageSpecimens() {
+  const { t } = useTranslation();
+  const [lore, setLore] = useState(SAMPLE_LORE);
+  const [color, setColor] = useState("#5ab4ff");
+  return (
+    <div className="card flex flex-col gap-6 p-5">
+      <div className="flex flex-col gap-2">
+        <span className="mono text-[11px] text-[var(--text-faint)]">
+          {'<MmTextField profile={LORE} layout="column">'}
+        </span>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.mmEditorHint")}</p>
+        <MmTextField value={lore} onChange={setLore} profile={LORE} layout="column" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="mono text-[11px] text-[var(--text-faint)]">
+          {"<McChat> <McTooltip> <McMotd> <McActionBar> <McTitle>"}
+        </span>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.mcPreviewHint")}</p>
+        <div className="flex flex-wrap items-start gap-4">
+          <McChat messages={["<green>Ready</green> <gray>— 3 players online"]} />
+          <McTooltip
+            title="<aqua>Diamond Sword"
+            enchants={["Sharpness V"]}
+            lore={["<gray>Sharp."]}
+          />
+          <McMotd motd={"<gold>Artisan</gold> <gray>1.21\n<yellow>Open!"} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <McActionBar text="<green>+25 coins" />
+          <McTitle title="<gold><bold>Victory" subtitle="<gray>Round 3" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="mono text-[11px] text-[var(--text-faint)]">{"<Popover>"}</span>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.popoverHint")}</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className="btn btn-outline btn-sm self-start">
+              {color}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent>
+            <input className="input" value={color} onChange={(e) => setColor(e.target.value)} />
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  );
+}
 
 function Section({
   id,
@@ -773,6 +830,10 @@ export function DesignSystemPage() {
             <YamlCodeEditor value={SAMPLE_YAML} ariaLabel="YamlCodeEditor readOnly" readOnly />
           </div>
         </div>
+      </Section>
+
+      <Section id="minimessage" title={t("adminDesign.sections.minimessage")}>
+        <MiniMessageSpecimens />
       </Section>
 
       <Section id="dataViz" title={t("adminDesign.sections.dataViz")}>

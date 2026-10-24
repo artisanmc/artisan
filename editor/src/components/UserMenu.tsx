@@ -8,7 +8,7 @@ import {
 import { useAuthStore } from "@/state/authStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { Link } from "@tanstack/react-router";
-import { LogOut, Settings as SettingsIcon, UserIcon } from "lucide-react";
+import { LogOut, Settings as SettingsIcon, Type, UserIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -76,6 +76,12 @@ export function UserMenu({
               <Link to="/settings" onClick={closeSidebar} className="flex items-center gap-2.5">
                 <SettingsIcon className="size-[14px]" />
                 {t("sidebar.settings")}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/tools/text" onClick={closeSidebar} className="flex items-center gap-2.5">
+                <Type className="size-[14px]" />
+                {t("textTool.menuEntry")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

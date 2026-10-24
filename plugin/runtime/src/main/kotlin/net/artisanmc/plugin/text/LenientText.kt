@@ -1,6 +1,9 @@
 package net.artisanmc.plugin.text
 
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.Style
+import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 
@@ -15,6 +18,7 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 object LenientText {
     private val mm = MiniMessage.miniMessage()
     private val legacy = LegacyComponentSerializer.legacySection()
+    private val noItalic = Style.style(TextDecoration.ITALIC.withState(false))
 
     /** Convert `§`-coded text to equivalent MiniMessage tags; identity without `§`. */
     fun legacyToMini(text: String): String =
@@ -26,4 +30,13 @@ object LenientText {
             .getOrElse {
                 runCatching { legacy.deserialize(text) }.getOrElse { Component.text(text) }
             }
+
+    /** An item's name as Artisan shows it everywhere: not italic unless the text asks for it. */
+    fun itemName(text: String): Component = parse(text).applyFallbackStyle(noItalic)
+
+    /**
+     * A lore line as Artisan shows it everywhere (menus, given items): white and not
+     * italic unless the text says otherwise, where Minecraft would draw it purple and italic.
+     */
+    fun loreLine(text: String): Component = itemName(text).colorIfAbsent(NamedTextColor.WHITE)
 }

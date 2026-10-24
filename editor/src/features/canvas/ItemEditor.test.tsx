@@ -175,3 +175,29 @@ it("shows an empty lore field rather than a {base.lore} placeholder when nothing
   fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
   expect(screen.queryByDisplayValue("{base.lore}")).not.toBeInTheDocument();
 });
+
+it("edits the name and lore in rich editors next to the item's in-game tooltip", () => {
+  render(
+    <ItemEditor
+      source={null}
+      appearance={{}}
+      inherited={{ lore: [] }}
+      preview={{ material: "DIAMOND_SWORD", title: "<gold>Rare sword", lore: ["A reward"] }}
+      title="<gold>Rare sword"
+      lore="A reward"
+      onText={vi.fn()}
+      onCount={vi.fn()}
+      onAdvanced={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /modifier l.item/i }));
+  const dialog = screen.getByRole("dialog", { name: /modifier l.item/i });
+  const editors = [...dialog.querySelectorAll(".cm-content")].map((node) => node.textContent);
+  // Rich view: the tags are hidden, the text shows styled.
+  expect(editors).toEqual(["Rare sword", "A reward"]);
+  // No click action on an item's text: the game ignores it there.
+  expect(within(dialog).queryByRole("button", { name: /^Action au clic/ })).toBeNull();
+  expect(within(dialog).getAllByRole("button", { name: /^Dégradé/ })).toHaveLength(2);
+  const column = within(dialog).getByTestId("item-preview-column");
+  expect(within(column).getByTestId("mc-tooltip")).toBeInTheDocument();
+});

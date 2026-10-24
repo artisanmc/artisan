@@ -1,4 +1,4 @@
-import { CHAR_ADVANCES } from "@/features/canvas/title/charAdvances";
+import { CHAR_ADVANCES } from "@/lib/mcFont/charAdvances";
 
 /**
  * Wraps one rendered lore line to `maxWidth` MC pixels (vanilla font advances,
@@ -8,10 +8,24 @@ import { CHAR_ADVANCES } from "@/features/canvas/title/charAdvances";
  * locked by `testdata/lore-wrap-conformance.json`.
  */
 export function wrapLore(line: string, maxWidth: number): string[] {
-  if (maxWidth <= 0 || line === "") return [line];
+  return wrap(line, maxWidth).lines;
+}
+
+/**
+ * Where `wrapLore` starts a new line, as offsets into `line`: the start of the word
+ * that goes down (the spaces before it are dropped). Empty when the line fits.
+ */
+export function loreWrapPoints(line: string, maxWidth: number): number[] {
+  return wrap(line, maxWidth).breaks;
+}
+
+function wrap(line: string, maxWidth: number): { lines: string[]; breaks: number[] } {
+  if (maxWidth <= 0 || line === "") return { lines: [line], breaks: [] };
   const tokens = line.match(/<[^<>]*>|\s+|[^\s<]+|</g) ?? [];
   const stack: string[] = [];
   const out: string[] = [];
+  const breaks: number[] = [];
+  let pos = 0;
   let cur = "";
   let curWidth = 0;
   let curHasText = false;
@@ -22,10 +36,12 @@ export function wrapLore(line: string, maxWidth: number): string[] {
     while (i < tokens.length && isSpace(tokens[i]!)) {
       ws += tokens[i];
       wsWidth += width(tokens[i]!, isBold(stack));
+      pos += tokens[i]!.length;
       i++;
     }
     if (i >= tokens.length) break;
     const reopen = stack.join("");
+    const wordStart = pos;
     let word = "";
     let wordWidth = 0;
     while (i < tokens.length && !isSpace(tokens[i]!)) {
@@ -33,6 +49,7 @@ export function wrapLore(line: string, maxWidth: number): string[] {
       if (isTag(tk)) applyTag(stack, tk);
       else wordWidth += width(tk, isBold(stack));
       word += tk;
+      pos += tk.length;
       i++;
     }
     if (!curHasText || curWidth + wsWidth + wordWidth <= maxWidth) {
@@ -40,13 +57,14 @@ export function wrapLore(line: string, maxWidth: number): string[] {
       curWidth += wsWidth + wordWidth;
     } else {
       out.push(cur);
+      breaks.push(wordStart);
       cur = reopen + word;
       curWidth = wordWidth;
     }
     if (wordWidth > 0) curHasText = true;
   }
   out.push(cur);
-  return out.length === 1 ? [line] : out;
+  return out.length === 1 ? { lines: [line], breaks: [] } : { lines: out, breaks };
 }
 
 const VOID_TAGS = new Set([

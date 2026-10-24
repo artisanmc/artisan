@@ -1,6 +1,9 @@
 package net.artisanmc.plugin
 
 import net.artisanmc.plugin.text.LenientText
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -45,5 +48,24 @@ class LenientTextTest {
         val c = LenientText.parse("<gradient:oops")
         // Whatever the exact rendering, it must not throw and must keep content.
         assertTrue(plain.serialize(c).isNotEmpty())
+    }
+
+    @Test
+    fun `a lore line without style is white and not italic`() {
+        val c = LenientText.loreLine("A reward")
+        assertEquals(NamedTextColor.WHITE, c.color())
+        assertEquals(TextDecoration.State.FALSE, c.decoration(TextDecoration.ITALIC))
+    }
+
+    @Test
+    fun `a lore line keeps the color and italic it asks for`() {
+        // Flattened as the client sees it: red and italic, never the white fallback.
+        val legacy = LegacyComponentSerializer.legacySection().serialize(LenientText.loreLine("<red><italic>Cursed"))
+        assertEquals("§c§oCursed", legacy)
+    }
+
+    @Test
+    fun `an item name is not italic by default`() {
+        assertEquals(TextDecoration.State.FALSE, LenientText.itemName("Sword").decoration(TextDecoration.ITALIC))
     }
 }

@@ -14,8 +14,8 @@
       "playwright-report",
       "test-results",
       "src/routeTree.gen.ts",
-      "src/features/canvas/title/charAdvances.ts",
-      "src/features/canvas/title/charCells.ts",
+      "src/lib/mcFont/charAdvances.ts",
+      "src/lib/mcFont/charCells.ts",
       "package.json",
       "package-lock.json"
     ]
