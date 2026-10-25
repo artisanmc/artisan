@@ -156,7 +156,13 @@ export function followDisk<S extends DraftRebaseShape & { initialTree?: Record<s
  * folder moved to `.yml` names `menus/shop.yaml` where the disk now holds
  * `menus/shop.yml` (and `manifest.yaml` where it holds `artisan-module.yml`).
  * Without this, the draft would delete the old name and add the new one, and
- * lose an edit made under the old name. A name the draft already holds stays.
+ * lose an edit made under the old name.
+ *
+ * A draft that already holds both spellings (an older resume took the disk's new
+ * file beside the old one) is folded onto the disk's: the same id twice is a
+ * `duplicate_id`, and the editor reads neither, so the menus vanished. Each map
+ * keeps the old name's text where the draft edited it (it differs from the base)
+ * and the new name's otherwise.
  */
 function spelledAsDisk<S extends DraftRebaseShape & { initialTree?: Record<string, string> }>(
   draft: S,
@@ -166,19 +172,34 @@ function spelledAsDisk<S extends DraftRebaseShape & { initialTree?: Record<strin
   const moves = new Map<string, string>();
   for (const path of held) {
     const onDisk = yamlPathOnDisk(path, disk);
-    if (onDisk !== path && !held.has(onDisk)) moves.set(path, onDisk);
+    if (onDisk !== path) moves.set(path, onDisk);
   }
   if (moves.size === 0) return draft;
   const as = (path: string) => moves.get(path) ?? path;
-  const remap = (files: Record<string, string>) =>
-    Object.fromEntries(Object.entries(files).map(([path, text]) => [as(path), text]));
+  const edited = (path: string) => draft.tree[path] !== draft.baseline[path];
+  const remap = (files: Record<string, string>) => {
+    const out: Record<string, string> = {};
+    for (const [path, text] of Object.entries(files)) {
+      const to = as(path);
+      if (to === path) {
+        // The disk's name, unless the old one carries the draft's edit.
+        const old = [...moves].find(([, target]) => target === path)?.[0];
+        if (old !== undefined && old in files && edited(old) && !edited(path)) continue;
+        out[path] = text;
+      } else if (!(to in files) || (edited(path) && !edited(to))) {
+        out[to] = text;
+      }
+    }
+    return out;
+  };
+  const renames = draft.renames
+    ?.map((r) => ({ from: as(r.from), to: as(r.to) }))
+    .filter((r) => r.from !== r.to);
   return {
     ...draft,
     baseline: remap(draft.baseline),
     tree: remap(draft.tree),
     ...(draft.initialTree ? { initialTree: remap(draft.initialTree) } : {}),
-    ...(draft.renames
-      ? { renames: draft.renames.map((r) => ({ from: as(r.from), to: as(r.to) })) }
-      : {}),
+    ...(renames ? { renames } : {}),
   };
 }
