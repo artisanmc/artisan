@@ -20,6 +20,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
 import { DocumentGroups } from "../project/ProjectDocumentTree";
+import { opensOnStage } from "../project/documentStage";
+import { goToDocument } from "../project/goToDocument";
 import { CollectionView } from "./CollectionView";
 
 const navigate = vi.fn();
@@ -163,6 +165,28 @@ describe("a collection kind", () => {
       }),
     );
     expect(screen.getByRole("button", { name: /Categories/ })).toBeTruthy();
+  });
+
+  it("opens a Document picked in the sidebar on its own view, not on the board", () => {
+    goToDocument(navigate, {
+      serverId: "s1",
+      project: stored(),
+      ref: "shop_category/kits",
+    });
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "/servers/$serverId/projects/$projectId/document/$documentId",
+        params: expect.objectContaining({ documentId: "kits" }),
+        search: { kind: "shop_category" },
+      }),
+    );
+  });
+
+  it("opens on a page, never on a stage, even when its node lists parts", () => {
+    categoryKind.board = { summary: () => "2 articles", items: () => [] };
+    expect(opensOnStage(stored(), "shop_category/kits")).toBe(false);
+    expect(opensOnStage(stored(), "menu/shop_main")).toBe(true);
+    categoryKind.board = { summary: () => "2 articles" };
   });
 
   it("refuses a kind that is not a collection", () => {

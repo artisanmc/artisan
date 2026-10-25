@@ -848,6 +848,7 @@ const fr: typeof en = {
   },
   documentView: {
     back: "Retour au canvas",
+    backTo: "Retour : {{name}}",
     notFound: "Cet élément n'existe plus",
   },
   editorPane: {
