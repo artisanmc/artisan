@@ -1,5 +1,5 @@
 import { WorkspaceView } from "@/components/ui/workspace-view";
-import { menusOf } from "@/domain/documents";
+import { docKey, resolveDocKey } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import { Stage } from "@/features/canvas/Stage";
@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
 import { WorkspaceDragOverlay } from "./WorkspaceDragOverlay";
 import { WorkspaceGate } from "./WorkspaceGate";
+import { opensOnStage } from "./documentStage";
 import { useActiveLangFallback } from "./useActiveLangFallback";
 import { useCollectionsAtRoot } from "./useCollectionsAtRoot";
 import { useProjectDeepLinks } from "./useProjectDeepLinks";
@@ -109,7 +110,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     return mountEditorTour({ playerId, ready: tourReady });
   }, [playerId, tourReady, pId]);
   const navigate = useNavigate();
-  const { tab = "overview", doc } = useSearch({ strict: false }) as ProjectSearch;
+  const { tab = "overview", doc, kind: docKind } = useSearch({ strict: false }) as ProjectSearch;
   useProjectDeepLinks({ project, urlId, projectId, serverId, documentId, doc });
   useActiveLangFallback(project);
   useSharedIdNotice(project);
@@ -205,10 +206,16 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     // A module's screen (`screen/$screenId`) or a collection's page
     // (`$collectionDir`) opened in the project covers the board.
     const pageOpen = !!screenId || !!collectionDir;
+    // The board, or a Document whose view is a stage: the Properties panel shows beside.
+    const focusKey = documentId
+      ? docKind
+        ? docKey(docKind, documentId)
+        : resolveDocKey(project, documentId)
+      : undefined;
     const canvasActive =
       presentedTab === "overview" &&
       !pageOpen &&
-      (!documentId || !!menusOf(project).some((menu) => menu.id === documentId));
+      (!documentId || (!!focusKey && opensOnStage(project, focusKey)));
 
     const tabContent = (
       // `h-full` (not just `flex-1`) so it fills the content frame — otherwise the

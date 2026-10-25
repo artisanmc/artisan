@@ -832,6 +832,7 @@ export default {
   },
   documentView: {
     back: "Back to canvas",
+    backTo: "Back to {{name}}",
     notFound: "This element no longer exists",
   },
   editorPane: {

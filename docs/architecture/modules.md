@@ -125,7 +125,9 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > (`…/boutique_addon/catalogue`) : l'écran de config `screen` en tête s'il est déclaré, une carte par Document, le bouton de création. Les Documents restent à la racine :
 > `moveToFolder` refuse de les ranger dans un dossier et `useCollectionsAtRoot` ramène à la racine
 > ceux qu'un brouillon a dans un dossier (déplacement dans le brouillon, écrit par Déployer). Un
-> Document s'ouvre sur sa vue individuelle, dont le retour mène à la page de la collection. Aucun
+> Document s'ouvre sur sa page (`document/$documentId`), jamais sur une planche : son formulaire
+> (le `component` du kind) en pleine largeur, depuis la sidebar (`goToDocument`) comme depuis la page de la
+> collection, et son retour mène à la page de la collection (`opensOnStage`, `documentStage.ts`). Aucun
 > fichier propre : la collection est calculée du kind. Pour un kind de donnée, sans lien vers ou
 > depuis d'autres Documents.
 

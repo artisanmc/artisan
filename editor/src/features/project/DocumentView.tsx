@@ -6,7 +6,7 @@ import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { DocumentYamlView, documentRelPath } from "@/features/project/DocumentYamlView";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
-import { isCollectionKind } from "@/lib/documentCollections";
+import { collectionLabel, isCollectionKind } from "@/lib/documentCollections";
 import { isTypingTarget } from "@/lib/keyboard";
 import { collectionDestination, projectDestination } from "@/lib/projectNavigation";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -18,6 +18,7 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ResolvedProjectContext } from "./ResolvedProjectContext";
+import { opensOnStage } from "./documentStage";
 import { documentLabel } from "./useProjectDocuments";
 
 export function DocumentView({
@@ -32,6 +33,7 @@ export function DocumentView({
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === resolvedId));
   const pId = (project?.id ?? projectId) as ProjectId;
   const activeLang = useUiStore((s) => s.activeLang);
+  const uiLang = useUiStore((s) => s.editorLang);
   const editorPaneWidth = useUiStore((s) => s.editorPaneWidth);
   const setEditorPaneWidth = useUiStore((s) => s.setEditorPaneWidth);
   // `?kind=` says which Document of that id; without it (an older link), the first.
@@ -48,8 +50,7 @@ export function DocumentView({
   const relPath = project ? documentRelPath(project, key) : null;
   // A module kind whose node lists its parts opens on its node, like a menu: clicking a
   // part edits it in the panel beside.
-  const onStage =
-    menu != null || (found != null && documentKindContribution(found.kind)?.board?.items != null);
+  const onStage = project ? opensOnStage(project, key) : false;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the default selection is applied once per opened document; re-running on `menu.layers` edits would reset the user's selection on every change
   useEffect(() => {
@@ -105,7 +106,12 @@ export function DocumentView({
         onClick={back}
         className="btn btn-ghost btn-sm inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap"
       >
-        <ArrowLeft className="size-4" /> {t("documentView.back")}
+        <ArrowLeft className="size-4" />{" "}
+        {backKind
+          ? t("documentView.backTo", {
+              name: collectionLabel(documentKindContribution(backKind), backKind, uiLang),
+            })
+          : t("documentView.back")}
         <kbd className="ml-1 rounded-[6px] border border-[var(--border)] bg-[var(--surface-raised)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-faint)]">
           Esc
         </kbd>
