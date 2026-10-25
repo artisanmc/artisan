@@ -1,11 +1,12 @@
-import type { Project, ProjectId } from "@/domain/types";
+import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { syncPersistedDraft, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import { saveProjectToDisk } from "@/features/project/saveProjectToDisk";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useAccountStore } from "@/state/accountStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useUiStore } from "@/state/uiStore";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectTopBarControls } from "./ProjectTopBarControls";
@@ -254,7 +255,9 @@ describe("ProjectTopBarControls — Enregistrer", () => {
       const review = await screen.findByRole("dialog");
       expect(review).toHaveTextContent(/\/craft .* p1:c1, shop:c2/);
       expect(
-        within(review).getByRole("button", { name: /Deploy to the server|Déployer sur le serveur/ }),
+        within(review).getByRole("button", {
+          name: /Deploy to the server|Déployer sur le serveur/,
+        }),
       ).toBeEnabled();
     });
 
@@ -363,5 +366,32 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     } finally {
       usePersistedDraftStore.setState({ sessions: {} });
     }
+  });
+});
+
+/**
+ * Régression : la pastille de l'onglet Traductions comptait les manquants sur
+ * la prop `project` figée au chargement — elle ne bougeait qu'au rechargement
+ * de la page, même une fois toutes les traductions remplies.
+ */
+describe("ProjectTopBarControls — pastille Traductions", () => {
+  it("se met à jour en direct quand une traduction est remplie", () => {
+    const key = "k1" as I18nKey;
+    const stale: Project = { ...baseProject("trad"), i18nKeys: { [key]: { en: "Hi", fr: "" } } };
+    useAccountStore.setState({
+      account: { id: "n1", projects: [stale], projectOrder: [stale.id] },
+    } as never);
+    useUiStore.setState({ activeLang: "fr" });
+
+    render(<ProjectTopBarControls project={stale} projectId={stale.id} networkId="n1" />);
+    const tab = screen.getByTestId("open-view-translations");
+    expect(within(tab).getByText("1")).toBeInTheDocument();
+
+    act(() =>
+      useAccountStore
+        .getState()
+        .setI18nValue({ projectId: stale.id, lt: { key }, lang: "fr", value: "Salut" }),
+    );
+    expect(within(tab).queryByText("1")).not.toBeInTheDocument();
   });
 });
