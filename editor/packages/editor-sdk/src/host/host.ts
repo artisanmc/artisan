@@ -1,4 +1,4 @@
-import { type ComponentType, type ReactElement, createElement } from "react";
+import { type ComponentType, type ReactElement, type ReactNode, createElement } from "react";
 
 /**
  * What a module's view needs from the editor that hosts it: the open Project, its texts,
@@ -103,7 +103,22 @@ export interface MiniMessageInputProps {
   "aria-label"?: string;
 }
 
-/** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`, `MiniMessageInput`). */
+export interface SortableListProps {
+  /** One stable id per row, in order: a row keeps its id when it moves. */
+  ids: readonly string[];
+  /** The row at `from` is dropped at `to` (indexes in `ids`): remove it, insert it at `to`. */
+  onMove: (from: number, to: number) => void;
+  /** A row's content; `handle` is its drag handle, to place in the row (first, usually). */
+  children: (index: number, handle: ReactElement) => ReactNode;
+  /** Classes of the list (`<ul>`). */
+  className?: string;
+  /** Classes of each row (`<li>`). */
+  itemClassName?: string;
+  /** The handle's accessible name; default: the editor's own ("Drag to reorder"). */
+  handleLabel?: string;
+}
+
+/** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`). */
 export interface HostComponents {
   ActionChainEditor: ComponentType<ActionChainEditorProps>;
   MaterialInput: ComponentType<MaterialInputProps>;
@@ -111,6 +126,8 @@ export interface HostComponents {
   ItemInput: ComponentType<ItemInputProps>;
   /** SDK 1.4. */
   MiniMessageInput: ComponentType<MiniMessageInputProps>;
+  /** SDK 1.10. */
+  SortableList: ComponentType<SortableListProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -180,5 +197,15 @@ export function ItemInput(props: ItemInputProps): ReactElement {
  */
 export function MiniMessageInput(props: MiniMessageInputProps): ReactElement {
   const Impl = current().components.MiniMessageInput;
+  return createElement(Impl, props);
+}
+
+/**
+ * A list reordered the editor's way: a grip handle per row, dragged with the pointer, or
+ * focused and moved with Space, ↑/↓, Space; the drop calls `onMove` once. Lists nest, each
+ * keeping its rows (SDK 1.10). Replaces up/down arrow buttons.
+ */
+export function SortableList(props: SortableListProps): ReactElement {
+  const Impl = current().components.SortableList;
   return createElement(Impl, props);
 }

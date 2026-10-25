@@ -131,6 +131,12 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > fichier propre : la collection est calculée du kind. Pour un kind de donnée, sans lien vers ou
 > depuis d'autres Documents.
 
+> **Listes réordonnables (depuis 2026-10-25, SDK 1.10)** — `SortableList` (composant hôte, comme
+> `MaterialInput`) : `ids` stables, `onMove(from, to)` appelé une fois au dépôt, `children(index, handle)`
+> place la poignée dans la ligne. Glisser à la souris ou au clavier (Espace, ↑/↓, Espace) ; les listes
+> s'imbriquent (étapes → objectifs). C'est la seule façon de réordonner une liste dans une vue de
+> module : plus de boutons flèches monter/descendre (Boutique, MSQuests).
+
 > **Dossier du module (depuis 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > donne au module `plugins/Artisan/modules/<folder>/`, enregistré comme une racine d'add-on (clé
 > `addon:<folder>`, non renommable). L'ancienne racine (`legacyDir`) y est déplacée une fois ; le
