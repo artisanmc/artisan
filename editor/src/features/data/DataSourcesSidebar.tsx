@@ -44,7 +44,7 @@ export function DataSourcesSidebar({
   const managedSources = (project.dataSources ?? []).filter((d) => isModuleManaged(d));
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3">
       <section>
         <div className="section-label mb-2">{t("dataSources.sectionProject")}</div>
         <ul className="flex flex-col gap-1">
