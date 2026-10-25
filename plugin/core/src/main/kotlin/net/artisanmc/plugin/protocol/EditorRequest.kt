@@ -64,6 +64,13 @@ sealed interface EditorRequest {
     data class ProjectHistory(override val requestId: String, val projectId: String, val path: String) : WithReply
     data class AssetRead(override val requestId: String, val projectId: String, val path: String) : WithReply
     data class ConfigRead(override val requestId: String, val projectId: String, val table: String) : WithReply
+    /** Would [files] (path → text) load once written, [deletes] gone? (protocol 1.4, [ProtocolVersion.DOCUMENT_CHECKS]). */
+    data class DocumentsCheck(
+        override val requestId: String,
+        val projectId: String,
+        val files: Map<String, String>,
+        val deletes: List<String>,
+    ) : WithReply
 
     data class ProjectWrite(
         override val requestId: String,
@@ -156,6 +163,14 @@ sealed interface EditorRequest {
                     requestId, node.text("project_id") ?: return null, node.text("path") ?: return null,
                 )
                 "asset_read" -> AssetRead(requestId, node.text("project_id") ?: return null, node.text("path") ?: return null)
+                "documents_check" -> DocumentsCheck(
+                    requestId = requestId,
+                    projectId = node.text("project_id") ?: return null,
+                    files = node.array("files").associate { f ->
+                        (f.text("path") ?: return null) to (f.text("content") ?: return null)
+                    },
+                    deletes = node.array("deletes").mapNotNull { it.takeIf { d -> d.isTextual }?.asText() },
+                )
                 "config_read" -> ConfigRead(requestId, node.text("project_id") ?: return null, node.text("table") ?: return null)
                 "project_write" -> projectWrite(requestId, node.text("project_id") ?: return null, node)
                 "config_write" -> ConfigWrite(
