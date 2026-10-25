@@ -51,7 +51,7 @@ export function DataSourcesPanelContent({ projectId }: { projectId: ProjectId })
   return (
     <>
       {/* Left card — sources list */}
-      <div className="card flex shrink-0 flex-col overflow-hidden lg:w-[224px]">
+      <div className="card flex min-h-0 shrink-0 flex-col overflow-hidden lg:w-[224px]">
         <DataSourcesSidebar
           project={project}
           selectedId={selection?.kind === "project" ? selection.id : null}
