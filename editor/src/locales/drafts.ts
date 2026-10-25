@@ -34,8 +34,12 @@ export const draftsFr = {
   failed: "Opération impossible. Votre travail local est conservé.",
   current: "Actuel",
   refresh: "Actualiser la liste",
+  aiSource: "IA",
+  aiSourceHint: "Écrit par un client IA connecté (MCP). Relisez les changements avant de déployer.",
 };
 export const draftsEn = {
+  aiSource: "AI",
+  aiSourceHint: "Written by a connected AI client (MCP). Review the changes before deploying.",
   conflictShort: "Conflict",
   offlineShort: "Local copy",
   title: "Drafts",

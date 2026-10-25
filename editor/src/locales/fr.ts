@@ -2,6 +2,7 @@ import { actionCatalogFr } from "./actionCatalog";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import type en from "./en";
+import { mcpFr } from "./mcp";
 import { mmEditorFr, textToolFr } from "./mmEditor";
 import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
@@ -1554,6 +1555,7 @@ const fr: typeof en = {
     emptyMatch: "Aucune variable ne matche « {{query}} »",
     emptyContext: "Aucune variable disponible dans ce contexte",
   },
+  mcp: mcpFr,
   editorAddress: {
     title: "Adresse de l'éditeur",
     help: "Donne un nom à l'adresse de l'éditeur sur le tunnel. L'adresse actuelle continue de marcher.",

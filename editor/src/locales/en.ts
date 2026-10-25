@@ -1,6 +1,7 @@
 import { actionCatalogEn } from "./actionCatalog";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
+import { mcpEn } from "./mcp";
 import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
@@ -1528,6 +1529,7 @@ export default {
     emptyMatch: 'No variable matches "{{query}}"',
     emptyContext: "No variable available in this context",
   },
+  mcp: mcpEn,
   editorAddress: {
     title: "Editor address",
     help: "Give the editor's tunnel address a name. The current address keeps working.",
