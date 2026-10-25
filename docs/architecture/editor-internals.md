@@ -556,7 +556,10 @@ la version du disque, base comprise. Un fichier modifié dans le brouillon reste
 la publication le signalera. Un fichier que le brouillon a supprimé (dans sa base, absent
 de son arbre) reste supprimé, même repris dans une session ultérieure où `initialTree` ne
 l'a plus : sinon un Document déplacé revenait à son ancien chemin quand le disque le
-réécrivait (renommage `.yml`), et le même id en double masquait les deux copies.
+réécrivait (renommage `.yml`), et le même id en double masquait les deux copies. Un brouillon qui tient un fichier sous ses
+deux orthographes (`.yaml` et `.yml`, laissées par une reprise antérieure) est replié sur
+celle du disque (`spelledAsDisk`), avec le texte que le brouillon a modifié : les deux
+formaient un `duplicate_id` que chaque sauvegarde gardait.
 **Conflit entre deux sessions (2026-09-29)** : une écriture refusée en `409
 draft_conflict` (l'autre session a avancé la révision) n'enchaîne plus des relectures
 silencieuses. `persistedDrafts` rebase l'arbre local sur le snapshot distant

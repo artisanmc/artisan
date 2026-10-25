@@ -102,6 +102,31 @@ describe("followDisk", () => {
     });
   });
 
+  it("folds a draft holding both spellings onto the disk's, keeping the new one", () => {
+    // An older resume took `shop.yml` from the disk beside the draft's `shop.yaml`: the
+    // same id twice hid the menu.
+    const both = { "menus/shop.yaml": "old", "menus/shop.yml": "new" };
+    const next = followDisk(
+      { baseline: { ...both }, initialTree: { ...both }, tree: { ...both } },
+      { "menus/shop.yml": "new" },
+    );
+    expect(next?.tree).toEqual({ "menus/shop.yml": "new" });
+    expect(next?.baseline).toEqual({ "menus/shop.yml": "new" });
+    expect(next?.initialTree).toEqual({ "menus/shop.yml": "new" });
+  });
+
+  it("keeps the edit made under the old spelling when folding", () => {
+    const next = followDisk(
+      {
+        baseline: { "menus/shop.yaml": "old", "menus/shop.yml": "new" },
+        tree: { "menus/shop.yaml": "mine", "menus/shop.yml": "new" },
+      },
+      { "menus/shop.yml": "new" },
+    );
+    expect(next?.tree).toEqual({ "menus/shop.yml": "mine" });
+    expect(next?.baseline).toEqual({ "menus/shop.yml": "old" });
+  });
+
   it("drops a file the disk removed and the draft left as loaded", () => {
     const next = followDisk(
       {
