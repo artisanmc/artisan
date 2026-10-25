@@ -84,10 +84,13 @@ export function ProjectTopBarControls({
   offlineSince,
   unpublished,
 }: ProjectTopBarControlsProps) {
-  const currentName = useProjectsStore(
-    (s) => s.openProjects.projects.find((p) => p.id === projectId)?.name,
+  // La prop `project` vient de `useProjectLoader`, figée au chargement : tout ce
+  // qui reflète une édition (pastille Traductions, langues) lit le store vivant.
+  const liveProject = useProjectsStore((s) =>
+    s.openProjects.projects.find((p) => p.id === projectId),
   );
-  const displayName = currentName ?? projectName ?? project.name;
+  const currentProject = liveProject ?? project;
+  const displayName = liveProject?.name ?? projectName ?? project.name;
   const { t } = useTranslation();
   const navigationPinned = useSidebarStore((s) => s.pinned);
   const { tab } = useSearch({ strict: false }) as { tab?: string };
@@ -132,12 +135,12 @@ export function ProjectTopBarControls({
           data-tour="tabs"
           className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface)] px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:static lg:min-w-0 lg:flex-1 lg:overflow-x-auto lg:border-0 lg:bg-transparent lg:p-0"
         >
-          <WorkspaceViewNav project={project} />
+          <WorkspaceViewNav project={currentProject} />
         </div>
         <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
           {(!tab || tab === "overview") && <UndoRedoButtons />}
           {(!tab || tab === "overview" || tab === "translations") && (
-            <LangSwitcher project={project} />
+            <LangSwitcher project={currentProject} />
           )}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
