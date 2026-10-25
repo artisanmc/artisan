@@ -24,6 +24,11 @@ data class WebConfig(
     val tunnel: String = "",
     /** The code a private tunnel server asks for; empty: none. */
     val tunnelAccess: String = "",
+    /**
+     * The MCP endpoint `/mcp` and its OAuth sign-in (ADR `mcp-server`): AI clients (Claude,
+     * ChatGPT…) write drafts for a player who approved them. Off unless set.
+     */
+    val mcp: Boolean = false,
 ) {
     val leaf: Boolean get() = hubUrl.isNotBlank()
 

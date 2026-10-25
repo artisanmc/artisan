@@ -199,6 +199,30 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         override fun deletePlayer(playerId: UUID, origin: String?) = safe { it.deletePlayer(playerId, origin) } ?: 0
     }
 
+    /**
+     * The MCP endpoint's clients and grants (ADR `mcp-server`): `artisan_mcp_*` once the suite
+     * database is open; before that, in memory, lost on restart (a client signs in again).
+     */
+    fun mcpGrantStore(): net.artisanmc.plugin.hub.McpGrantStore = object : net.artisanmc.plugin.hub.McpGrantStore {
+        private val memory = net.artisanmc.plugin.hub.MemoryMcpGrantStore()
+        private fun store(): net.artisanmc.plugin.hub.McpGrantStore =
+            artisanData?.let { net.artisanmc.plugin.database.McpGrantSql(net.artisanmc.plugin.database.McpGrantRows(it, database.tables)) } ?: memory
+
+        override fun putClient(client: net.artisanmc.plugin.hub.McpClient) = store().putClient(client)
+        override fun client(id: String) = store().client(id)
+        override fun purgeClients(before: java.time.Instant) = store().purgeClients(before)
+        override fun countClients() = store().countClients()
+        override fun insert(grant: net.artisanmc.plugin.hub.McpGrant) = store().insert(grant)
+        override fun replace(old: net.artisanmc.plugin.hub.McpGrant, new: net.artisanmc.plugin.hub.McpGrant) = store().replace(old, new)
+        override fun find(credential: net.artisanmc.plugin.hub.McpGrantStore.Credential, hash: String) = store().find(credential, hash)
+        override fun grants(playerId: UUID) = store().grants(playerId)
+        override fun delete(id: String) = store().delete(id)
+        override fun touch(id: String, at: java.time.Instant) = store().touch(id, at)
+        override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) = store().setPermissions(playerId, origin, permissions)
+        override fun deletePlayer(playerId: UUID, origin: String?) = store().deletePlayer(playerId, origin)
+        override fun purge(now: java.time.Instant) = store().purge(now)
+    }
+
     /** The Versions still queued are written, within 5 s. */
     fun stopWriter() {
         versionWriter.shutdown()

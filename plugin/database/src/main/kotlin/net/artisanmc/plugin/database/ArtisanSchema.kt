@@ -131,6 +131,43 @@ object ArtisanSchema {
                 playtime_ms BIGINT NOT NULL DEFAULT 0
             )""",
         ),
+        // The MCP endpoint's OAuth (ADR `mcp-server`): the AI clients that registered, then each
+        // player's approval of one, with its credentials as SHA-256 hashes (`McpGrantRows`).
+        Migration(
+            26,
+            """CREATE TABLE IF NOT EXISTS ${t.mcpClients} (
+                client_id VARCHAR(64) NOT NULL PRIMARY KEY,
+                name VARCHAR(80) NOT NULL,
+                redirect_uris TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL
+            )""",
+        ),
+        Migration(
+            27,
+            """CREATE TABLE IF NOT EXISTS ${t.mcpGrants} (
+                id CHAR(36) NOT NULL PRIMARY KEY,
+                client_id VARCHAR(64) NOT NULL,
+                client_name VARCHAR(80) NOT NULL,
+                player_id CHAR(36) NOT NULL,
+                player_name VARCHAR(32) NOT NULL,
+                origin VARCHAR(64) NOT NULL,
+                permissions VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                last_used_at TIMESTAMP NOT NULL,
+                code_hash CHAR(64) NULL,
+                code_challenge VARCHAR(64) NULL,
+                redirect_uri VARCHAR(512) NULL,
+                code_expires_at TIMESTAMP NULL,
+                access_hash CHAR(64) NULL,
+                access_expires_at TIMESTAMP NULL,
+                refresh_hash CHAR(64) NULL,
+                refresh_expires_at TIMESTAMP NULL
+            )""",
+        ),
+        Migration(28, "CREATE INDEX ${t.mcpGrantsAccessIndex} ON ${t.mcpGrants} (access_hash)") { hasIndex(it, t.mcpGrants, t.mcpGrantsAccessIndex) },
+        Migration(29, "CREATE INDEX ${t.mcpGrantsRefreshIndex} ON ${t.mcpGrants} (refresh_hash)") { hasIndex(it, t.mcpGrants, t.mcpGrantsRefreshIndex) },
+        Migration(30, "CREATE INDEX ${t.mcpGrantsCodeIndex} ON ${t.mcpGrants} (code_hash)") { hasIndex(it, t.mcpGrants, t.mcpGrantsCodeIndex) },
+        Migration(31, "CREATE INDEX ${t.mcpGrantsPlayerIndex} ON ${t.mcpGrants} (player_id)") { hasIndex(it, t.mcpGrants, t.mcpGrantsPlayerIndex) },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =
