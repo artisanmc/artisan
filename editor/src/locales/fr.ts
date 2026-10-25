@@ -854,6 +854,9 @@ const fr: typeof en = {
   editorPane: {
     close: "Fermer le panneau",
   },
+  sortableList: {
+    handle: "Glisser pour réordonner",
+  },
   materialPicker: {
     title: "Choisir un item",
     tabItems: "Items",
@@ -1327,6 +1330,11 @@ const fr: typeof en = {
       defaultTexture: "Texture par défaut",
       switchHint:
         "Pour un réglage enregistré qui change le résultat en jeu. Un masquage d'aperçu garde l'œil.",
+      sortableRow1: "Clé légendaire",
+      sortableRow2: "5 clés légendaires",
+      sortableRow3: "15 clés légendaires",
+      sortableHint:
+        "Pour réordonner une liste : glisser la poignée, ou la focaliser puis Espace, ↑/↓, Espace. Jamais de boutons flèches monter/descendre.",
     },
     title: "Design system",
     intro:

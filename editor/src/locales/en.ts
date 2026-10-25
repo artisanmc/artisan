@@ -838,6 +838,9 @@ export default {
   editorPane: {
     close: "Close panel",
   },
+  sortableList: {
+    handle: "Drag to reorder",
+  },
   materialPicker: {
     title: "Pick item",
     tabItems: "Items",
@@ -1306,6 +1309,11 @@ export default {
       defaultTexture: "Default texture",
       switchHint:
         "For a saved setting that changes the in-game result. A preview-only toggle keeps the eye icon.",
+      sortableRow1: "Legendary key",
+      sortableRow2: "5 legendary keys",
+      sortableRow3: "15 legendary keys",
+      sortableHint:
+        "To reorder a list: drag the handle, or focus it and press Space, ↑/↓, Space. Never up/down arrow buttons.",
     },
     title: "Design system",
     intro:

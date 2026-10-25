@@ -55,6 +55,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SortableList } from "@/components/ui/sortable-list";
 import { Spinner } from "@/components/ui/spinner";
 import { StatCard } from "@/components/ui/stat-card";
 import { Switch } from "@/components/ui/switch";
@@ -610,6 +611,7 @@ export function DesignSystemPage() {
           </div>
           <SwitchSpecimen />
           <CheckboxSpecimen />
+          <SortableListSpecimen />
           <div className="flex max-w-sm flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">
               {"<FileDropzone file onFile accept label prompt hint>"}
@@ -961,6 +963,44 @@ function CheckboxSpecimen() {
       </div>
       <p className="text-[11.5px] text-[var(--text-faint)]">
         {t("adminDesign.specimens.checkboxHint")}
+      </p>
+    </div>
+  );
+}
+
+function SortableListSpecimen() {
+  const { t } = useTranslation();
+  const [rows, setRows] = useState(() => [
+    t("adminDesign.specimens.sortableRow1"),
+    t("adminDesign.specimens.sortableRow2"),
+    t("adminDesign.specimens.sortableRow3"),
+  ]);
+  return (
+    <div className="flex max-w-sm flex-col gap-2">
+      <span className="mono text-[11px] text-[var(--text-faint)]">
+        {"<SortableList ids onMove>{(index, handle) => …}</SortableList>"}
+      </span>
+      <SortableList
+        ids={rows}
+        onMove={(from, to) =>
+          setRows((list) => {
+            const next = [...list];
+            next.splice(to, 0, next.splice(from, 1)[0]!);
+            return next;
+          })
+        }
+        className="flex flex-col gap-1"
+        itemClassName="flex items-center gap-2 rounded-[10px] border border-[var(--border-soft)] bg-[var(--surface-raised)] py-1.5 pr-3 pl-1"
+      >
+        {(index, handle) => (
+          <>
+            {handle}
+            <span className="text-[13px] text-[var(--text)]">{rows[index]}</span>
+          </>
+        )}
+      </SortableList>
+      <p className="text-[11.5px] text-[var(--text-faint)]">
+        {t("adminDesign.specimens.sortableHint")}
       </p>
     </div>
   );

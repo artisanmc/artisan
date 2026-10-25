@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { type ReactElement, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
@@ -7,6 +7,7 @@ import {
   ItemInput,
   MaterialInput,
   MiniMessageInput,
+  SortableList,
   installEditorHost,
 } from "./host";
 
@@ -17,6 +18,12 @@ describe("host components", () => {
         ActionChainEditor: ({ value }) => createElement("i", null, `chain:${value.length}`),
         MaterialInput: ({ value }) => createElement("b", null, `material:${value}`),
         MiniMessageInput: ({ value }) => createElement("s", null, `mm:${value}`),
+        SortableList: ({ ids, children }) =>
+          createElement(
+            "ol",
+            null,
+            ids.map((id, i) => createElement("li", { key: id }, children(i, createElement("hr")))),
+          ),
         ItemInput: ({ value, match }) =>
           createElement(
             "u",
@@ -42,10 +49,17 @@ describe("host components", () => {
           onChange: () => {},
         }),
         createElement(MiniMessageInput, { key: "t", value: "<red>Hi", onChange: () => {} }),
+        createElement(
+          SortableList,
+          { key: "s", ids: ["a", "b"], onMove: () => {} },
+          (index: number, handle: ReactElement) =>
+            createElement("span", null, handle, `row${index}`),
+        ),
       ]),
     );
     expect(html).toBe(
-      "<div><i>chain:1</i><b>material:STONE</b><u>item:FISHING_ROD:material,enchants</u><s>mm:&lt;red&gt;Hi</s></div>",
+      "<div><i>chain:1</i><b>material:STONE</b><u>item:FISHING_ROD:material,enchants</u><s>mm:&lt;red&gt;Hi</s>" +
+        "<ol><li><span><hr/>row0</span></li><li><span><hr/>row1</span></li></ol></div>",
     );
   });
 });

@@ -330,3 +330,9 @@ depuis d'autres Documents ; sur la planche ils n'étaient que des nœuds isolés
 thématique les cachait au module sans que l'éditeur le signale. La collection n'a pas de fichier :
 elle est calculée du kind, et ses réglages vivent dans l'écran de config qu'elle désigne (`screen`).
 
+## Amendement 2026-10-25 : listes réordonnables (SDK 1.10)
+
+Le SDK expose `SortableList`, composant hôte (dnd-kit dans l'éditeur, rien d'embarqué dans le bundle)
+: une vue de module réordonne ses listes par une poignée de glisser, au pointeur ou au clavier, avec
+le même geste que la sidebar. Raison : les boutons flèches monter/descendre coûtaient un clic par
+place et chaque module les redessinait ; le geste vit maintenant à un seul endroit.
