@@ -1,94 +1,94 @@
 # UI Information Architecture Design
 
-> Spec brainstormée le 2026-05-26 pour cadrer la navigation principale d'Artisan à l'arrivée des modules. Source de vérité pour le plan d'implémentation correspondant.
+> Spec brainstormed on 2026-05-26 to frame Artisan's main navigation as modules arrive. Source of truth for the corresponding implementation plan.
 
-**Goal** — Remplacer la sidebar placeholders (`Menus` + `Commandes` qui pointaient tous deux sur `/networks`, héritage de la migration modular monolith) par une vraie information architecture qui scale jusqu'à l'arrivée des modules tiers (Shop V1.5, Quests V2…). Au passage, renommer "Pack" pour éviter la confusion avec "resource pack" et fixer la structure d'une page Module qui sera utilisée en V1.5+.
+**Goal** — Replace the placeholder sidebar (`Menus` + `Commands` which both pointed to `/networks`, a legacy of the modular monolith migration) with a real information architecture that scales up to the arrival of third-party modules (Shop V1.5, Quests V2…). Along the way, rename "Pack" to avoid confusion with "resource pack" and fix the structure of a Module page that will be used in V1.5+.
 
-**Statut** — Spec validée. Implémentation V1 = sidebar restructure + renommage. Module hub UI documenté mais implémenté en V1.5 quand shop arrive.
+**Status** — Spec validated. V1 implementation = sidebar restructure + rename. Module hub UI documented but implemented in V1.5 when shop arrives.
 
 ---
 
-## 1. Vocabulaire
+## 1. Vocabulary
 
-| Avant | Après | Pourquoi |
+| Before | After | Why |
 |---|---|---|
-| Pack | **Workspace** | "Pack" évoque resource/datapack en contexte Minecraft. "Workspace" est neutre et industrie-standard. |
-| Canvas (du Module hub) | **Overview** | Vue par défaut d'une page (Workspace ou Module), pas une référence à l'implémentation Konva. |
+| Pack | **Workspace** | "Pack" evokes resource/datapack in a Minecraft context. "Workspace" is neutral and industry-standard. |
+| Canvas (of the Module hub) | **Overview** | Default view of a page (Workspace or Module), not a reference to the Konva implementation. |
 
-Le mot "Workspace" est utilisé identique en EN et en FR (le marché anglophone est plus large, et "Espace" en FR est moins clair).
+The word "Workspace" is used identically in EN and FR (the English-speaking market is larger, and "Espace" in FR is less clear).
 
-**Périmètre du rename** :
-- ✅ Labels UI partout
+**Rename perimeter**:
+- ✅ UI labels everywhere
 - ✅ Route `/pack/$packId` → `/workspace/$workspaceId`
-- ❌ Type DB `packs` (table), colonnes `pack_id`, `packs.id` — pas touchés (refactor non rentable)
-- ❌ Protocole WS — `pack_id`, `pack_hashes`, `bundle_available.pack_id` (changer = breaking, hors scope)
-- ❌ REST API — `/api/v1/user/packs/*`, `/api/v1/networks/:id/packs/*` (versionnée, breaking = besoin de v2)
+- ❌ DB type `packs` (table), columns `pack_id`, `packs.id` — not touched (refactor not worth it)
+- ❌ WS protocol — `pack_id`, `pack_hashes`, `bundle_available.pack_id` (changing = breaking, out of scope)
+- ❌ REST API — `/api/v1/user/packs/*`, `/api/v1/networks/:id/packs/*` (versioned, breaking = needs v2)
 
-Conséquence : "Pack" reste un terme interne (DB, protocole, API) mais disparaît côté utilisateur. C'est OK — les admins ne voient jamais le DB schema.
+Consequence: "Pack" stays an internal term (DB, protocol, API) but disappears on the user side. That is OK — admins never see the DB schema.
 
-## 2. Sidebar (toujours visible)
+## 2. Sidebar (always visible)
 
-Composition de haut en bas :
+Composition from top to bottom:
 
 ```
 ┌─────────────────────────────┐
-│ [Mon Network ▼]             │  ← Network dropdown
+│ [My Network ▼]              │  ← Network dropdown
 ├─────────────────────────────┤
-│ MES WORKSPACES              │
-│  📋 Menu principal          │  ← workspaces du network courant
+│ MY WORKSPACES               │
+│  📋 Main menu               │  ← workspaces of the current network
 │  🏠 Lobby                   │
-│  ⭐ Grades                  │
-│  + Nouveau workspace        │
+│  ⭐ Ranks                   │
+│  + New workspace            │
 │                             │
-│ MODULES INSTALLÉS           │
+│ INSTALLED MODULES           │
 │  ┌─────────────────────┐    │
-│  │ Aucun module        │    │  ← V1 : empty state
-│  │ installé. Shop,     │    │
-│  │ Quests… arrivent.   │    │
+│  │ No module           │    │  ← V1: empty state
+│  │ installed. Shop,    │    │
+│  │ Quests… coming.     │    │
 │  └─────────────────────┘    │
 └─────────────────────────────┘
 ```
 
 ### 2.1 Network dropdown
 
-- Affiche le name du Network actif.
-- Click → dropdown listant tous les Networks de l'user (membership). Click sur un autre Network = switch.
-- Une entrée "Gérer les networks" en bas du dropdown → page `/networks` (liste + settings, current behavior).
-- État vide : si l'user n'a aucun Network (cas après /artisan setup sans flow complet), redirect direct vers `/networks` ou `/setup`.
+- Shows the name of the active Network.
+- Click → dropdown listing all the user's Networks (membership). Click on another Network = switch.
+- A "Manage networks" entry at the bottom of the dropdown → `/networks` page (list + settings, current behavior).
+- Empty state: if the user has no Network (case after /artisan setup without the complete flow), redirect straight to `/networks` or `/setup`.
 
-### 2.2 Section "MES WORKSPACES"
+### 2.2 "MY WORKSPACES" section
 
-- Liste les workspaces du Network actif, ordonnée par updated_at desc (most-recently-edited first).
-- Click sur un workspace → navigate `/workspace/$workspaceId`.
-- "+ Nouveau workspace" → modal de création (name + description, comme aujourd'hui).
-- Visible **toujours**, même si la liste est vide (avec un bouton + au milieu plus visible).
+- Lists the workspaces of the active Network, ordered by updated_at desc (most-recently-edited first).
+- Click on a workspace → navigate `/workspace/$workspaceId`.
+- "+ New workspace" → creation modal (name + description, as today).
+- Visible **always**, even if the list is empty (with a more visible + button in the middle).
 
-### 2.3 Section "MODULES INSTALLÉS"
+### 2.3 "INSTALLED MODULES" section
 
-- **V1** : empty state factuel. Texte :
-  > Aucun module installé. Les plugins compatibles Artisan (Shop, Quests, etc.) apparaîtront ici quand tu les ajouteras à ton serveur.
+- **V1**: factual empty state. Text:
+  > No module installed. Artisan-compatible plugins (Shop, Quests, etc.) will appear here when you add them to your server.
 
-  Pas de promo, pas de "coming soon", pas de lien Discord — signal neutre que cet espace existe et se remplira.
+  No promo, no "coming soon", no Discord link — a neutral signal that this space exists and will fill up.
 
-- **V1.5+** (hors scope implémentation V1, documenté ici pour le plan futur) :
-  - Liste les modules installés agrégés depuis les server_keys du Network actif.
-  - Source de vérité : `hello.installed_modules: [{id, version}, …]` qu'envoie chaque plugin (déjà spécifié dans `versioning.md` §4.1). Backend stocke par server_key, dérive l'union pour un Network.
-  - Si deux server_keys d'un même Network ont des versions de module différentes (cas rare), prendre la version la plus haute et logger un warning UI.
-  - Click sur un module → navigate `/module/$moduleId` (route à part — module n'est pas un workspace).
+- **V1.5+** (out of V1 implementation scope, documented here for the future plan):
+  - Lists the installed modules aggregated from the active Network's server_keys.
+  - Source of truth: `hello.installed_modules: [{id, version}, …]` that each plugin sends (already specified in `versioning.md` §4.1). Backend stores per server_key, derives the union for a Network.
+  - If two server_keys of the same Network have different module versions (rare case), take the highest version and log a UI warning.
+  - Click on a module → navigate `/module/$moduleId` (separate route — a module is not a workspace).
 
-## 3. Page Workspace `/workspace/$workspaceId`
+## 3. Workspace page `/workspace/$workspaceId`
 
-**Comportement V1** : identique à `/pack/$packId` actuel, juste le path renommé et les labels UI mis à jour.
+**V1 behavior**: identical to the current `/pack/$packId`, just the path renamed and the UI labels updated.
 
-Pas d'onglets en haut. Le canvas Konva occupe la majeure partie de l'écran, avec la PackMiniSidebar à gauche pour naviguer entre menus du workspace, et les panels (Library, Translations, DataSources, History, BranchSwitcher) accessibles via les boutons existants.
+No tabs at the top. The Konva canvas takes up most of the screen, with the PackMiniSidebar on the left to navigate between the workspace's menus, and the panels (Library, Translations, DataSources, History, BranchSwitcher) reachable via the existing buttons.
 
-Une seule modif visible côté UI : tout label "Pack" devient "Workspace".
+A single visible UI change: every "Pack" label becomes "Workspace".
 
-## 4. Page Module `/module/$moduleId` (V1.5+, spec uniquement)
+## 4. Module page `/module/$moduleId` (V1.5+, spec only)
 
-**Hors scope d'implémentation V1.** Documenté ici parce que la structure dicte la forme du `FrontendModule` interface qu'on a déjà posée dans la migration modular monolith.
+**Out of V1 implementation scope.** Documented here because the structure dictates the shape of the `FrontendModule` interface we already laid down in the modular monolith migration.
 
-### 4.1 Shell : onglets en haut
+### 4.1 Shell: tabs at the top
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -97,17 +97,17 @@ Une seule modif visible côté UI : tout label "Pack" devient "Workspace".
 │ [Overview] [Data] [Categories]                   │  ← tabs
 ├──────────────────────────────────────────────────┤
 │                                                  │
-│  (contenu de l'onglet actif)                     │
+│  (content of the active tab)                     │
 │                                                  │
 └──────────────────────────────────────────────────┘
 ```
 
-### 4.2 Onglets
+### 4.2 Tabs
 
-- **Overview** (toujours présent, le premier) : le canvas. Pré-rempli avec les menus / commands / dialogs que le plugin a seedés au bootstrap du module. Éditable comme un workspace normal.
-- **Onglets suivants** : déclarés par le plugin via son `FrontendModule`. Chaque onglet = nom + composant React + (optionnel) JSON Schema rendu via `<SchemaForm>`.
+- **Overview** (always present, the first): the canvas. Pre-filled with the menus / commands / dialogs that the plugin seeded at module bootstrap. Editable like a normal workspace.
+- **Following tabs**: declared by the plugin via its `FrontendModule`. Each tab = name + React component + (optional) JSON Schema rendered via `<SchemaForm>`.
 
-Exemple pour Shop V1.5 :
+Example for Shop V1.5:
 ```ts
 const shopModule: FrontendModule = {
   id: "shop",
@@ -123,71 +123,71 @@ const shopModule: FrontendModule = {
 };
 ```
 
-### 4.3 Discovery côté plugin
+### 4.3 Discovery on the plugin side
 
-Comment l'éditeur sait qu'un module Shop existe ?
-1. Le plugin Java `ArtisanShop.jar` est installé sur un MC server.
-2. Au hello WS, il envoie `installed_modules: [{id: "shop", version: "1.0.0"}, …]`.
-3. Backend persiste par server_key (table `server_modules`, à créer en V1.5).
-4. Éditeur fetch les modules d'un Network = union des modules de ses server_keys.
-5. Pour render la page Module, l'éditeur a besoin du `FrontendModule` côté JS. Deux options à explorer en V1.5 :
-   - (a) Bundler les `FrontendModule` JS dans l'app éditeur (registry statique). Marche pour les modules officiels Artisan.
-   - (b) Charger dynamiquement depuis un CDN ou depuis l'endpoint backend. Nécessaire pour modules tiers V3+.
+How does the editor know a Shop module exists?
+1. The Java plugin `ArtisanShop.jar` is installed on an MC server.
+2. At the WS hello, it sends `installed_modules: [{id: "shop", version: "1.0.0"}, …]`.
+3. Backend persists per server_key (table `server_modules`, to create in V1.5).
+4. The editor fetches a Network's modules = union of the modules of its server_keys.
+5. To render the Module page, the editor needs the `FrontendModule` on the JS side. Two options to explore in V1.5:
+   - (a) Bundle the `FrontendModule`s JS in the editor app (static registry). Works for official Artisan modules.
+   - (b) Load dynamically from a CDN or from the backend endpoint. Necessary for third-party modules V3+.
 
-V1.5 ship probablement avec (a). (b) attendre V3+.
+V1.5 probably ships with (a). (b) wait for V3+.
 
-## 5. Suppression V1
+## 5. V1 removal
 
-À retirer de la sidebar actuelle :
-- Entrée "Menus" pointant vers `/networks`
-- Entrée "Commandes" pointant vers `/networks`
+To remove from the current sidebar:
+- "Menus" entry pointing to `/networks`
+- "Commands" entry pointing to `/networks`
 
-Ces entrées venaient de la migration modular monolith où on avait posé les `FrontendModule` `menus` et `commands` comme placeholders. La nouvelle sidebar prend leur place.
+These entries came from the modular monolith migration where we laid down the `menus` and `commands` `FrontendModule`s as placeholders. The new sidebar takes their place.
 
-Les `FrontendModule` `menus` et `commands` peuvent rester dans le code éditeur (`editor/src/modules/{menus,commands}/index.ts`) — ils gardent leur utilité conceptuelle dans le registry. On les retire juste du rendu sidebar.
+The `menus` and `commands` `FrontendModule`s can stay in the editor code (`editor/src/modules/{menus,commands}/index.ts`) — they keep their conceptual usefulness in the registry. We just remove them from the sidebar rendering.
 
-## 6. V1 scope d'implémentation
+## 6. V1 implementation scope
 
-Ce qui est implémenté maintenant :
+What is implemented now:
 
-| Item | Détail |
+| Item | Detail |
 |---|---|
-| Composant `WorkspaceSidebar` | Remplace `ModuleSidebar` actuel. Network dropdown + section Workspaces + section Modules (empty state). |
-| Network dropdown component | Lit `useAuthStore` + `useNetworksStore`, gère le switching. |
-| Workspaces section | Fetch via `listNetworkPacks(networkId)` (route backend existante). |
-| Modules section empty state | Texte fixé (pas d'API call en V1). |
-| Route rename | `editor/src/routes/pack.$packId.tsx` → `workspace.$workspaceId.tsx`. Le route `/pack/:id` reste mounted comme stub qui appelle `useNavigate({ to: "/workspace/$id", replace: true })` au mount, pour préserver les bookmarks et liens externes. |
-| UI label rename | Tous les `Pack` user-facing → `Workspace`. Inclut breadcrumbs, modals, error messages, toasts. |
-| Sidebar deletion | Retirer rendu de `menus` et `commands` modules (le registry les garde, juste pas affichés). |
+| `WorkspaceSidebar` component | Replaces the current `ModuleSidebar`. Network dropdown + Workspaces section + Modules section (empty state). |
+| Network dropdown component | Reads `useAuthStore` + `useNetworksStore`, handles switching. |
+| Workspaces section | Fetch via `listNetworkPacks(networkId)` (existing backend route). |
+| Modules section empty state | Fixed text (no API call in V1). |
+| Route rename | `editor/src/routes/pack.$packId.tsx` → `workspace.$workspaceId.tsx`. The `/pack/:id` route stays mounted as a stub that calls `useNavigate({ to: "/workspace/$id", replace: true })` on mount, to preserve bookmarks and external links. |
+| UI label rename | All user-facing `Pack` → `Workspace`. Includes breadcrumbs, modals, error messages, toasts. |
+| Sidebar deletion | Remove the rendering of the `menus` and `commands` modules (the registry keeps them, just not displayed). |
 
-Ce qui n'est PAS implémenté en V1 (différé V1.5) :
-- Page `/module/$moduleId` et son shell tabs
-- Détection `installed_modules` depuis WS hello (côté backend storage + côté éditeur fetch)
-- `FrontendModule.tabs[]` extension du type (interface)
-- Wiring `<SchemaForm>` aux tabs Data
+What is NOT implemented in V1 (deferred V1.5):
+- `/module/$moduleId` page and its tabs shell
+- `installed_modules` detection from the WS hello (backend storage side + editor fetch side)
+- `FrontendModule.tabs[]` type extension (interface)
+- `<SchemaForm>` wiring to the Data tabs
 
-## 7. Edge cases V1
+## 7. V1 edge cases
 
-- **User sans Network** : redirect vers `/setup` (existing behavior preserved).
-- **User avec un seul Network** : dropdown affiche le nom mais ne montre pas le menu de switching (juste un caret discret, pas de spam).
-- **Switching Network avec workspace ouvert** : navigate to `/networks/$newNetworkId` (page d'accueil du new network), pas vers un workspace au hasard. L'user voit la nouvelle liste de workspaces.
-- **Deeplink legacy `/pack/abc123`** : le route `/pack/$packId` reste mounted mais `useNavigate({ to: "/workspace/$packId", replace: true })` au mount (client-side redirect, préserve les bookmarks et liens externes).
+- **User without a Network**: redirect to `/setup` (existing behavior preserved).
+- **User with a single Network**: the dropdown shows the name but does not show the switching menu (just a discreet caret, no spam).
+- **Switching Network with a workspace open**: navigate to `/networks/$newNetworkId` (the new network's home page), not to a random workspace. The user sees the new list of workspaces.
+- **Legacy deeplink `/pack/abc123`**: the `/pack/$packId` route stays mounted but does `useNavigate({ to: "/workspace/$packId", replace: true })` on mount (client-side redirect, preserves bookmarks and external links).
 
-## 8. Non-décisions reportées
+## 8. Deferred non-decisions
 
-Pas tranché ici (à creuser quand le besoin émerge) :
-- **Module = par network ou par server_key ?** En V1.5+, si un Network a 3 server_keys et seul un d'entre eux a Shop installé, est-ce que Shop apparaît dans la sidebar du Network ? Probable oui (l'admin gère Shop pour ce server depuis l'éditeur). Mais à valider quand on implémente.
-- **Tabs ordre / pin** : V1.5+ — l'utilisateur peut-il réordonner les onglets d'un Module ? V1.5 = non, ordre dicté par le plugin. À revisiter avec feedback.
-- **Workspace pinning** : l'utilisateur peut-il épingler ses workspaces favoris en haut de la liste ? V1 = non, sort par updated_at. À revisiter avec feedback.
+Not settled here (to dig into when the need emerges):
+- **Module = per network or per server_key?** In V1.5+, if a Network has 3 server_keys and only one of them has Shop installed, does Shop appear in the Network's sidebar? Probably yes (the admin manages Shop for that server from the editor). But to validate when we implement.
+- **Tab order / pin**: V1.5+ — can the user reorder a Module's tabs? V1.5 = no, order dictated by the plugin. To revisit with feedback.
+- **Workspace pinning**: can the user pin their favorite workspaces at the top of the list? V1 = no, sort by updated_at. To revisit with feedback.
 
 ---
 
-## Annexe : décisions de l'utilisateur capturées
+## Appendix: captured user decisions
 
-1. **Q : Pack = Module ou Pack ≠ Module ?** → **B (Workspaces vs Modules séparés)**
-2. **Q : Comment renommer Pack ?** → **Workspace** (EN + FR)
-3. **Q : Layout interne ?** → **Workspace = canvas seul. Module = canvas + tabs**
-4. **Q : Comment renommer Canvas ?** → **Overview**
-5. **Q : Hiérarchie Network dans sidebar ?** → **B (Network dropdown en haut)**
-6. **Q : Modules section V1 ?** → **Empty state factuel**
-7. **Q : Renommer aussi le route path ?** → **Oui**
+1. **Q: Pack = Module or Pack ≠ Module?** → **B (separate Workspaces vs Modules)**
+2. **Q: How to rename Pack?** → **Workspace** (EN + FR)
+3. **Q: Internal layout?** → **Workspace = canvas only. Module = canvas + tabs**
+4. **Q: How to rename Canvas?** → **Overview**
+5. **Q: Network hierarchy in the sidebar?** → **B (Network dropdown at the top)**
+6. **Q: Modules section V1?** → **Factual empty state**
+7. **Q: Rename the route path too?** → **Yes**

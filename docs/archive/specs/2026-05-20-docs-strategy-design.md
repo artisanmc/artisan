@@ -1,50 +1,50 @@
 # Docs Strategy — Design
 
-**Date** : 2026-05-20
-**Status** : Approuvé, prêt pour plan d'implémentation
-**Auteur** : Iban + Claude (brainstorming)
+**Date**: 2026-05-20
+**Status**: Approved, ready for implementation plan
+**Author**: Iban + Claude (brainstorming)
 
-## Contexte
+## Context
 
-Le projet n'a aujourd'hui aucune documentation utilisateur publique. Côté
-AI, la fondation existe (`CLAUDE.md`, `CONTEXT.md`, `docs/decisions/`,
-`docs/specs/`, `docs/superpowers/specs/+plans/`, `docs/schema/`) et
-fonctionne — Claude est productif. Le besoin :
+The project today has no public user documentation. On the AI side, the
+foundation exists (`CLAUDE.md`, `CONTEXT.md`, `docs/decisions/`,
+`docs/specs/`, `docs/superpowers/specs/+plans/`, `docs/schema/`) and
+works — Claude is productive. The need:
 
-1. Démarrer une doc utilisateur publique, en anglais.
-2. Garantir que doc utilisateur et doc AI restent à jour quand Claude
-   exécute des tâches sur le code.
+1. Start public user docs, in English.
+2. Guarantee that user docs and AI docs stay up to date when Claude
+   runs tasks on the code.
 
-Audiences cibles, par priorité :
-1. **Admins serveur** — installation, config, troubleshooting.
-2. **Créateurs de menus** — usage de l'éditeur web (couvert plus tard).
-3. **Contributeurs/forkers** — archi, comment développer (couvert plus tard).
+Target audiences, by priority:
+1. **Server admins** — installation, config, troubleshooting.
+2. **Menu creators** — using the web editor (covered later).
+3. **Contributors/forkers** — architecture, how to develop (covered later).
 
-Audience explicitement exclue : devs qui self-hostent leur propre backend.
+Explicitly excluded audience: devs who self-host their own backend.
 
-## Décisions clés
+## Key decisions
 
-| Sujet | Décision |
+| Topic | Decision |
 |---|---|
-| Outil site doc | Astro Starlight |
-| Langue | Anglais uniquement (FR ouvert plus tard via Starlight i18n) |
-| Localisation site | `/docs-site/` à la racine du repo |
-| Maintenance | Combo règles CLAUDE.md + skill local `/sync-docs` |
-| Scope MVP | 1 quickstart admin riche + stubs `editor/` et `contributing/` + skill `/sync-docs` |
-| Hébergement | Non décidé (portable Astro, décidable au moment du deploy) |
+| Docs site tool | Astro Starlight |
+| Language | English only (FR open later via Starlight i18n) |
+| Site location | `/docs-site/` at the repo root |
+| Maintenance | Combo of CLAUDE.md rules + local `/sync-docs` skill |
+| MVP scope | 1 rich admin quickstart + `editor/` and `contributing/` stubs + `/sync-docs` skill |
+| Hosting | Not decided (portable Astro, decidable at deploy time) |
 
-## Architecture — Layout du repo
+## Architecture — Repo layout
 
 ```
 Artisan/
-├── CLAUDE.md                      étendu — règles maintenance doc
-├── CONTEXT.md                     inchangé
-├── docs/                          inchangé — archive AI/design
+├── CLAUDE.md                      extended — doc maintenance rules
+├── CONTEXT.md                     unchanged
+├── docs/                          unchanged — AI/design archive
 │   ├── decisions/
 │   ├── specs/
 │   ├── schema/
 │   └── superpowers/specs/+plans/
-├── docs-site/                     NOUVEAU — Astro Starlight, EN
+├── docs-site/                     NEW — Astro Starlight, EN
 │   ├── astro.config.mjs
 │   ├── package.json
 │   ├── src/
@@ -66,89 +66,85 @@ Artisan/
             └── doc-impact-map.yaml
 ```
 
-Justifications :
+Justifications:
 
-- **`docs-site/` à la racine** : sous-projet Node distinct, mérite sa
-  racine au même titre que `editor/` et `backend/`. Pas dans `docs/`
-  parce que `docs/` est le territoire des artefacts AI/design (specs,
-  plans, ADRs, schemas) — séparer les deux territoires garde les rôles
-  clairs.
-- **`docs/` existant inchangé** : c'est ce qui marche aujourd'hui, ne
-  pas y toucher.
-- **Stubs visibles** pour `editor/` et `contributing/` : signalent aux
-  visiteurs que c'est en chantier, et créent une pression sur toi pour
-  les remplir.
+- **`docs-site/` at the root**: a distinct Node sub-project, deserves its
+  own root just like `editor/` and `backend/`. Not in `docs/` because
+  `docs/` is the territory of AI/design artifacts (specs, plans, ADRs,
+  schemas) — separating the two territories keeps the roles clear.
+- **Existing `docs/` unchanged**: it is what works today, do not touch it.
+- **Visible stubs** for `editor/` and `contributing/`: signal to visitors
+  that it is work in progress, and create pressure on you to fill them.
 
-## Contenu MVP — `install-admin.md`
+## MVP content — `install-admin.md`
 
-Une seule page riche. Sections :
+A single rich page. Sections:
 
-1. **Prerequisites** — Paper 1.21.4+, Java 21, compte Artisan
-   (self-hosting backend hors scope MVP, ouvre la voie via Contributing
-   plus tard).
-2. **Download** — lien GitHub Releases, drop jar, restart pour générer
+1. **Prerequisites** — Paper 1.21.4+, Java 21, Artisan account
+   (backend self-hosting out of MVP scope, opens the way via Contributing
+   later).
+2. **Download** — GitHub Releases link, drop the jar, restart to generate
    `config.yml`.
-3. **Link your server** — récupérer server_key depuis dashboard,
-   coller dans `config.yml`, `/artisan reload`.
-4. **Open the editor** — `/artisan editor`, click trust link.
-5. **Create your first menu** — un paragraphe, lien vers `/editor`
-   (stub) ou GIF court.
-6. **Troubleshooting** — 3-5 problèmes courants : backend unreachable,
+3. **Link your server** — get server_key from the dashboard,
+   paste into `config.yml`, `/artisan reload`.
+4. **Open the editor** — `/artisan editor`, click the trust link.
+5. **Create your first menu** — one paragraph, link to `/editor`
+   (stub) or a short GIF.
+6. **Troubleshooting** — 3-5 common problems: backend unreachable,
    invalid server_key, resource pack not loading.
-7. **Resource pack distribution (advanced)** — decision tree 3 modes
-   (default / Nexo zip / dir mode), chacun avec 4 lignes de config
+7. **Resource pack distribution (advanced)** — 3-mode decision tree
+   (default / Nexo zip / dir mode), each with 4 lines of config
    snippet.
-8. **Reference: config.yml** — config annotée (manuel pour MVP, possible
-   automatisation step 2).
+8. **Reference: config.yml** — annotated config (manual for MVP, possible
+   automation in step 2).
 
-Hors v1 : section commandes exhaustive, permissions Bukkit, FAQ étendue.
-Ces sections naissent quand des questions réelles arrivent.
+Not in v1: exhaustive commands section, Bukkit permissions, extended FAQ.
+These sections are born when real questions arrive.
 
-Format : Markdown vanilla, screenshots dans `docs-site/src/assets/install/`.
+Format: vanilla Markdown, screenshots in `docs-site/src/assets/install/`.
 
-## CLAUDE.md — Changements
+## CLAUDE.md — Changes
 
-Une seule modification : étendre le tableau "Règles de mise à jour des
-docs" avec 4 lignes pour `docs-site/`, et ajouter une règle de
-comportement explicite juste après.
+A single modification: extend the "Doc update rules" table with 4 lines
+for `docs-site/`, and add an explicit behavior rule right after.
 
-### Lignes ajoutées au tableau
+### Lines added to the table
 
-| Tu touches | Tu mets à jour |
+| You touch | You update |
 |---|---|
-| Config plugin (`config.yml`, defaults) | `docs-site/getting-started/install-admin.md` (sections Config / Reference) |
-| Commande user-visible (`/artisan editor`, `/artisan reload`) | `docs-site/getting-started/install-admin.md` |
-| Resource pack distribution modes | `docs-site/getting-started/install-admin.md` (section Resource pack) |
-| UI éditeur (nouveau bouton/flow visible user) | `docs-site/editor/<feature>.md` (créer si nécessaire) |
+| Plugin config (`config.yml`, defaults) | `docs-site/getting-started/install-admin.md` (Config / Reference sections) |
+| User-visible command (`/artisan editor`, `/artisan reload`) | `docs-site/getting-started/install-admin.md` |
+| Resource pack distribution modes | `docs-site/getting-started/install-admin.md` (Resource pack section) |
+| Editor UI (new user-visible button/flow) | `docs-site/editor/<feature>.md` (create if necessary) |
 
-### Règle de comportement (ajoutée juste après le tableau)
+### Behavior rule (added right after the table)
 
-> Quand un commit touche du code marqué dans le tableau, la doc
-> correspondante doit être mise à jour dans le même commit si l'update
-> reste petit (changement ciblé d'une ou deux sections existantes,
-> typiquement ≤30 lignes diff de doc). Si l'update doc dépasse ce
-> volume ou nécessite des screenshots/refonte, invoquer le skill
-> `/sync-docs` à la fin de la feature pour traiter la dette doc en un
-> commit séparé. Ne jamais merger une PR avec dette doc non-listée.
+> When a commit touches code marked in the table, the corresponding doc
+> must be updated in the same commit if the update stays small (targeted
+> change of one or two existing sections, typically ≤30 lines of doc
+> diff). If the doc update exceeds this volume or needs
+> screenshots/rework, invoke the `/sync-docs` skill at the end of the
+> feature to handle the doc debt in a separate commit. Never merge a PR
+> with unlisted doc debt.
 
-### Non-changements
+### Non-changes
 
-- CLAUDE.md reste monolithique (pas de split en sous-fichiers).
-- CONTEXT.md inchangé.
-- `docs/specs/`, `docs/decisions/`, `docs/superpowers/` inchangés.
+- CLAUDE.md stays monolithic (no split into sub-files).
+- CONTEXT.md unchanged.
+- `docs/specs/`, `docs/decisions/`, `docs/superpowers/` unchanged.
 
-## Skill `/sync-docs`
+## `/sync-docs` skill
 
-Localisation : `.claude/skills/sync-docs/`.
+Location: `.claude/skills/sync-docs/`.
 
 ### `doc-impact-map.yaml`
 
-Source de vérité unique du mapping `pattern → docs à vérifier`. La
-table de CLAUDE.md devient un résumé humain de ce YAML.
+Single source of truth of the `pattern → docs to check` mapping. The
+CLAUDE.md table becomes a human summary of this YAML.
 
-**Syntaxe des patterns** : globs style minimatch (`**` = wildcard
-récursif, `*` = wildcard simple, chemins exacts autorisés). Le skill
-match chaque `touches` contre chaque fichier changé via cette syntaxe.
+**Pattern syntax**: minimatch-style globs (`**` = recursive wildcard,
+`*` = simple wildcard, exact paths allowed). The skill matches each
+`touches` against each changed file via this syntax.
 
 ```yaml
 mappings:
@@ -181,94 +177,94 @@ mappings:
     reason: "User-visible editor UX"
 ```
 
-Mappings additionnelles à ajouter au fil des features. Quand on ajoute
-une mapping, on update le YAML et la table CLAUDE.md dans le même commit.
+Additional mappings to be added as features come. When a mapping is
+added, we update the YAML and the CLAUDE.md table in the same commit.
 
 ### `SKILL.md` — Process
 
-1. `git diff main...HEAD --name-only` pour les fichiers changés.
-2. Lire `doc-impact-map.yaml`.
-3. Pour chaque mapping où un `touches` match :
-   - Lister les `updates` paths et le `reason`.
-   - Lire chaque `updates` path pour comprendre l'état actuel.
-   - Lire les fichiers source changés pour comprendre ce qui a changé.
-   - Proposer un patch concret (Edit) par doc — jamais auto-appliqué.
-4. Présenter un checklist au user. User choisit skip / edit / apply pour
-   chaque update.
-5. Après application, proposer un commit séparé `docs: sync to <feature>`.
-6. Si un fichier changé matche AUCUNE mapping ET ressemble à du
-   user-facing (touche UI éditeur, commande plugin, config, endpoint
-   public), warn l'user — possible mapping à ajouter.
+1. `git diff main...HEAD --name-only` for the changed files.
+2. Read `doc-impact-map.yaml`.
+3. For each mapping where a `touches` matches:
+   - List the `updates` paths and the `reason`.
+   - Read each `updates` path to understand the current state.
+   - Read the changed source files to understand what changed.
+   - Propose a concrete patch (Edit) per doc — never auto-applied.
+4. Present a checklist to the user. User chooses skip / edit / apply for
+   each update.
+5. After applying, propose a separate commit `docs: sync to <feature>`.
+6. If a changed file matches NO mapping AND looks user-facing (touches
+   editor UI, plugin command, config, public endpoint), warn the user —
+   possible mapping to add.
 
-### Anti-patterns du skill
+### Skill anti-patterns
 
-- Ne pas update une doc juste parce qu'un fichier a changé cosmétiquement
-  (rename, whitespace, refacto interne). Vérifier que le comportement
-  observable ou la surface API a bougé.
-- Ne pas écrire de doc pour ce que l'user ne peut pas voir (invariants
-  internes → CLAUDE.md, pas docs-site).
-- Ne pas générer de sections neuves exhaustives. Le skill maintient
-  l'existant, n'étend pas le scope.
+- Do not update a doc just because a file changed cosmetically
+  (rename, whitespace, internal refactor). Check that observable
+  behavior or the API surface moved.
+- Do not write docs for what the user cannot see (internal invariants
+  → CLAUDE.md, not docs-site).
+- Do not generate exhaustive new sections. The skill maintains what
+  exists, does not extend the scope.
 
 ### Invocation
 
-- Manuelle : tu tapes `/sync-docs` en fin de feature.
-- Auto-suggestion : Claude le mentionne dans son end-of-turn quand il
-  sent une dette doc.
-- Hors boucle critique — pas un hook bloquant.
+- Manual: you type `/sync-docs` at the end of a feature.
+- Auto-suggestion: Claude mentions it in its end-of-turn when it
+  senses doc debt.
+- Outside the critical loop — not a blocking hook.
 
-## Process quotidien
+## Daily process
 
-1. Tu donnes une tâche à Claude (feature, fix, refacto).
-2. Claude lit CLAUDE.md → voit la table → met à jour les docs concernées
-   **dans le même commit** quand l'update est trivial (1-2 lignes).
-3. En fin de feature, tu tapes `/sync-docs` → balayage diff complet →
-   patches proposés → tu valides → commit séparé `docs: sync …`.
-4. PR mergeable sans dette doc.
+1. You give Claude a task (feature, fix, refactor).
+2. Claude reads CLAUDE.md → sees the table → updates the relevant docs
+   **in the same commit** when the update is trivial (1-2 lines).
+3. At the end of a feature, you type `/sync-docs` → full diff sweep →
+   patches proposed → you validate → separate commit `docs: sync …`.
+4. PR mergeable without doc debt.
 
-## Garde-fous
+## Safeguards
 
-- **CLAUDE.md** : règle "ne jamais merger avec dette doc non-listée".
-- **Skill warning** : signale les fichiers user-facing non mappés.
-- **Self-audit ad-hoc** : tous les ~10 features, `/sync-docs` avec
-  `git diff <ancien-tag>..HEAD` pour rattraper.
+- **CLAUDE.md**: rule "never merge with unlisted doc debt".
+- **Skill warning**: flags unmapped user-facing files.
+- **Ad-hoc self-audit**: every ~10 features, `/sync-docs` with
+  `git diff <old-tag>..HEAD` to catch up.
 
-## Ce qu'on NE fait PAS
+## What we do NOT do
 
-- **Pas de hook git** — trop bloquant pour le rythme solo actuel.
-- **Pas de CI check** — discipline interne suffit tant qu'Iban est seul
-  committer. À ajouter si contributeurs externes.
-- **Pas de versioning de la doc** — une seule version "latest" en MVP.
-- **Pas d'i18n** — English only, FR ouvert plus tard via Starlight i18n.
+- **No git hook** — too blocking for the current solo rhythm.
+- **No CI check** — internal discipline is enough while Iban is the only
+  committer. To add if external contributors.
+- **No doc versioning** — a single "latest" version in MVP.
+- **No i18n** — English only, FR open later via Starlight i18n.
 
-## Validation après livraison
+## Validation after delivery
 
-- **Doc** : `cd docs-site && npm run dev`, suivre `install-admin.md`
-  sur un Paper neuf, ça doit marcher sans deviner.
-- **Skill** : après prochaine feature, `/sync-docs` doit lister des
-  updates pertinents (pas de bruit sur refactors internes), au moins
-  une mapping fire si la feature touche du user-facing. Si manque
-  évident, ajouter la mapping manquante.
-- **CLAUDE.md** : prochaine session, Claude mentionne spontanément la
-  doc en présentant son plan ("je vais aussi mettre à jour
+- **Docs**: `cd docs-site && npm run dev`, follow `install-admin.md`
+  on a fresh Paper, it must work without guessing.
+- **Skill**: after the next feature, `/sync-docs` must list relevant
+  updates (no noise on internal refactors), at least one mapping fires
+  if the feature touches something user-facing. If an obvious one is
+  missing, add the missing mapping.
+- **CLAUDE.md**: next session, Claude spontaneously mentions the
+  docs when presenting its plan ("I will also update
   install-admin.md").
 
-## Out of scope explicite
+## Explicit out of scope
 
-- Choix de l'hébergeur (Vercel / GitHub Pages / Cloudflare).
-- Branding / theme Starlight custom.
-- Génération automatique de `Reference: config.yml` depuis source.
-- Contenu des sections `editor/` et `contributing/` au-delà des stubs.
-- Doc FR.
+- Choice of host (Vercel / GitHub Pages / Cloudflare).
+- Custom Starlight branding / theme.
+- Automatic generation of `Reference: config.yml` from source.
+- Content of the `editor/` and `contributing/` sections beyond the stubs.
+- FR docs.
 
 ## Next steps
 
-Plan d'implémentation à écrire via skill `writing-plans`. Étapes
-attendues :
+Implementation plan to be written via the `writing-plans` skill. Expected
+steps:
 1. Bootstrap `docs-site/` (Astro Starlight init, config, structure).
-2. Écrire `install-admin.md` complet.
-3. Écrire stubs `editor/index.md` et `contributing/index.md`.
-4. Étendre `CLAUDE.md` (tableau + règle de comportement).
-5. Créer `.claude/skills/sync-docs/` (SKILL.md + doc-impact-map.yaml
-   initial).
-6. Premier test du skill sur la branche courante pour valider.
+2. Write the complete `install-admin.md`.
+3. Write the `editor/index.md` and `contributing/index.md` stubs.
+4. Extend `CLAUDE.md` (table + behavior rule).
+5. Create `.claude/skills/sync-docs/` (SKILL.md + initial
+   doc-impact-map.yaml).
+6. First test of the skill on the current branch to validate.
