@@ -67,6 +67,7 @@ class ProjectRoutes(
         for (base in listOf("/api/v1/projects/:project", "$SERVER/projects/:project")) {
             onProject(router, "GET", "$base/files", VIEW, ::read)
             onProject(router, "PUT", "$base/files", PUBLISH, ::write)
+            onProject(router, "POST", "$base/check", PUBLISH, ::check)
             onProject(router, "GET", "$base/history", VIEW, ::history)
         }
         onProject(router, "GET", "/api/v1/projects/:project/binary", VIEW, ::asset)
@@ -236,6 +237,26 @@ class ProjectRoutes(
                 error in OPERATION_ERRORS -> call.json(mapOf("error" to error), 409)
                 else -> readError(call, reply)
             }
+        }
+    }
+
+    /**
+     * Would these files load on the Project's server? `documents_check` (ADR `mcp-server`), for
+     * Deploy's review: the same check `project_write` runs, before the click. Nothing is written.
+     */
+    private fun check(call: Call, project: ProjectRef) {
+        val request = call.body()
+        if (request == null || !request.path("files").isArray) return call.error(422, "invalid_input")
+        if (ProtocolVersion.minor(project.server.protocolVersion) < ProtocolVersion.DOCUMENT_CHECKS)
+            return call.error(503, "plugin_update_required")
+        val message = mapOf(
+            "type" to "documents_check",
+            "project_id" to project.folder,
+            "files" to request["files"],
+            "deletes" to (request["deletes"] ?: emptyList<Any>()),
+        )
+        relay.send(call, project.server, message) { reply ->
+            if (ok(reply)) call.json(mapOf("problems" to (reply["problems"] ?: emptyList<Any>()))) else readError(call, reply)
         }
     }
 

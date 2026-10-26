@@ -11,6 +11,7 @@
 import type { ChangeSet } from "@/components/ui/change-list";
 import type { ConflictChoice } from "@/features/project/resolveConflicts";
 import type { ServerChecks } from "@/features/serverIndex/serverChecks";
+import type { DocumentProblem } from "@/lib/api/documentChecks";
 import type { ProjectFileConflict } from "@/lib/api/projectFiles";
 
 /**
@@ -39,11 +40,25 @@ export interface PublishState {
   savingDraft: boolean;
   conflict: ConflictState;
   /** The deploy review is open with these changes. */
-  review: { changes: ChangeSet; checks: ServerChecks | undefined } | null;
+  review: {
+    changes: ChangeSet;
+    checks: ServerChecks | undefined;
+    /** Whether the changed files would load on the server, asked when the review opens. */
+    documents?: DocumentChecks;
+  } | null;
   /** Details of the last failed save, kept until a save succeeds. */
   lastError: string | null;
   errorOpen: boolean;
 }
+
+/**
+ * The server's `documents_check` of the review's files. `unavailable`: the check could not run
+ * (an older plugin, a timeout) — no problem listed must then never read as a green light.
+ */
+export type DocumentChecks =
+  | { status: "pending" }
+  | { status: "ready"; problems: DocumentProblem[] }
+  | { status: "unavailable"; code: string };
 
 export type PublishEvent =
   | { type: "saveStarted" }
@@ -61,6 +76,8 @@ export type PublishEvent =
   | { type: "conflictsClosed" }
   | { type: "reviewOpened"; changes: ChangeSet; checks: ServerChecks | undefined }
   | { type: "reviewClosed" }
+  /** `changes` names the review it answers: a reply for a closed or reopened review is dropped. */
+  | { type: "documentsChecked"; changes: ChangeSet; documents: DocumentChecks }
   | { type: "errorDialogToggled"; open: boolean }
   | { type: "draftSaveStarted" }
   | { type: "draftSaveSettled" };
@@ -128,6 +145,9 @@ export function publishReducer(state: PublishState, event: PublishEvent): Publis
       return { ...state, review: { changes: event.changes, checks: event.checks } };
     case "reviewClosed":
       return { ...state, review: null };
+    case "documentsChecked":
+      if (state.review?.changes !== event.changes) return state;
+      return { ...state, review: { ...state.review, documents: event.documents } };
     case "errorDialogToggled":
       return { ...state, errorOpen: event.open };
     case "draftSaveStarted":

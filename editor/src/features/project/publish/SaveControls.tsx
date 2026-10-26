@@ -169,6 +169,7 @@ export function SaveControls({
       <DeployReviewDialog
         changes={state.review?.changes ?? null}
         checks={state.review?.checks}
+        documents={state.review?.documents}
         onCancel={flow.closeReview}
         onConfirm={flow.confirmReview}
       />

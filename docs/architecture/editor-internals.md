@@ -146,6 +146,12 @@ disk files and per-file choices, the last failure), tested without React;
 (conflicts found at draft open, silent rebase of a draft conflict without diverging
 file, the `OPEN_DEPLOY_REVIEW` event of the History tab); `SaveControls` and
 `ConflictResolutionDialog` only render. A new conflict always starts with no choice.
+Opening the review also asks the server whether the changed files would load
+(`checkDocuments`, `POST …/check`, the `documents_check` Deploy runs before writing): the
+review's `documents` is `pending`, then `ready` with its problems or `unavailable` (never read
+as a green light). `DeployReviewDialog` lists each problem on its file in the `ChangeList`
+(`problems` prop: a count on the header, the lines above the diff, the file opened) and
+disables Deploy while there are any. A reply is kept only for the review it was asked for.
 
 ## Page du workspace (`features/project/ProjectCanvasPage.tsx`)
 

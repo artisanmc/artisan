@@ -65,7 +65,8 @@ qu'il est déployé.
    suppressions compris, fichiers `.artisan*` exclus) avant tout compare-and-swap ; un échec répond
    `invalid_documents` (`message` : une ligne `chemin: problème` par problème, `problems` en liste),
    rien n'est écrit. Le hub le rend en 422 ; l'éditeur affiche les lignes dans la fenêtre d'échec de
-   Déployer. Pour que les add-ons passent, le schéma accepte les actions qu'un serveur déclare : un nom
+   Déployer. Depuis le 2026-10-26, la revue de Déployer lance la même vérification à son ouverture
+   (`POST …/check`) et montre chaque problème sur son fichier du diff, avant le clic. Pour que les add-ons passent, le schéma accepte les actions qu'un serveur déclare : un nom
    préfixé (`guilds:rank_delete`) ou `module_command`/`cancel_event`. Le schéma ne connaît pas ces
    déclarations : l'étape `actions` (`ActionCheck`, 2026-10-26) compare chaque action préfixée à
    `declared_actions` du serveur. Un nom non déclaré est refusé, avec le nom déclaré le plus proche
@@ -91,7 +92,6 @@ qu'il est déployé.
 
 ## Reporté
 
-- Afficher les problèmes dans le diff de la revue de Déployer, avant le clic, plutôt qu'après.
 - L'assistant cloud intégré, le portefeuille par serveur et le mode « fournisseur + clé de l'admin »
   (relais `/ai` du hub) : jalons suivants de la proposition.
 - La détection de réutilisation d'un jeton de rafraîchissement (révoquer l'autorisation entière) :

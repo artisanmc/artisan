@@ -6,6 +6,8 @@ export const changesFr = {
   empty: "Aucun changement",
   binary: "Fichier binaire modifié — pas d’aperçu texte.",
   renamedFrom: "renommé depuis {{from}}",
+  problems_one: "{{count}} problème",
+  problems_other: "{{count}} problèmes",
   expandAll: "Tout déplier",
   collapseAll: "Tout replier",
   status: {
@@ -23,6 +25,8 @@ export const changesEn = {
   empty: "No changes",
   binary: "Binary file changed — no text preview.",
   renamedFrom: "renamed from {{from}}",
+  problems_one: "{{count}} problem",
+  problems_other: "{{count}} problems",
   expandAll: "Expand all",
   collapseAll: "Collapse all",
   status: {
