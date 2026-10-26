@@ -60,14 +60,14 @@ du stockage, des comptes. Analyse : `cloud-ou-auto-hebergement.md` (fichiers du 
    rend un lien de connexion pour la nouvelle (`Sessions.handOff`).
 9. **Serveur autonome** dans le dépôt (`plugin/tunnel-server`, Jetty, `deploy/tunnel-server/`), déployé
    comme un conteneur derrière un proxy TLS qui couvre `*.<domaine>`.
-10. **Un relais près du serveur Minecraft** (2026-10-26, essai). Un seul serveur de tunnel en France
+10. **Un relais près du serveur Minecraft** (2026-10-26). Un seul serveur de tunnel en France
     fait faire deux fois la distance à un admin et un serveur loin de la France (Vietnam : ~400-500 ms
     par requête). Le même fil est servi par un Cloudflare Worker (`deploy/tunnel-worker/`) : un Durable
     Object par adresse, créé près du premier plugin qui s'y connecte, les noms dans un Durable Object
     unique et lus depuis KV. Le plugin ne change pas, les adresses non plus. Le serveur Kotlin reste la
     référence et le secours : route en « fail open » et requêtes rejouées sur l'origine quand le Worker
-    ne peut pas servir. Essai sur `*-test.artisanmc.app` ; la bascule de `*.artisanmc.app` est une route
-    à ajouter ou à retirer. Étude : `tunnel-latence-regions-2026-10-26.md` (fichiers du projet).
+    ne peut pas servir. En production sur `*.artisanmc.app` depuis le 2026-10-26 (route retirable pour
+    revenir au serveur Kotlin), essai sur `*-test.artisanmc.app`. Étude : `tunnel-latence-regions-2026-10-26.md` (fichiers du projet).
 
 *Rejeté :* éditeur hébergé appelant le plugin (contenu mixte HTTPS → HTTP bloqué, et retour de
 l'axe éditeur ↔ moteur) ; hub hébergé (multi-tenant avec état, une version de hub face à toutes

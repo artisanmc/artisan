@@ -74,12 +74,15 @@ Compte Cloudflare d'Iban, zone `artisanmc.app` :
 - `npm run build` puis `wrangler deploy` (ou l'API Workers) ; secret `TUNNEL_ADMIN_TOKEN`
   (`wrangler secret put`), et `TUNNEL_NAMES_WEBHOOK` pour les noms.
 
-## Passer en production
+## Production (depuis le 2026-10-26)
 
-1. Worker de production : `TUNNEL_LABEL_SUFFIX` vide, route `*.artisanmc.app/*` en fail open, même KV
-   ou un nouveau. Le `*` DNS ne change pas.
-2. Reprendre les noms : `POST https://connect.artisanmc.app/admin/import` avec le `names.json` du volume
-   `tunnel-data` (Bearer `TUNNEL_ADMIN_TOKEN`).
-3. Les plugins connectés au serveur Kotlin y restent jusqu'à leur prochaine reconnexion ; d'ici là le
-   Worker renvoie leurs requêtes à l'origine. Aucun jar à mettre à jour, aucune adresse ne change.
-4. Retour arrière : supprimer la route. Tout repart sur le serveur Kotlin.
+- Worker `artisan-tunnel`, route `*.artisanmc.app/*` en fail open, KV `artisan-tunnel`
+  (`439f307bdb1f407abd709ac445103228`), `TUNNEL_LABEL_SUFFIX` vide. Le `*` DNS ne change pas. La route de
+  l'essai (`*-test.artisanmc.app/*`), plus précise, garde la priorité.
+- Les noms du serveur Kotlin ont été repris (`POST https://connect.artisanmc.app/admin/import` avec la sortie de
+  son `GET /admin/names`). Le secret `TUNNEL_ADMIN_TOKEN` du Worker est propre au Worker. `TUNNEL_NAMES_WEBHOOK`
+  n'est pas encore posé : ajouter le même que sur Coolify pour être prévenu des nouveaux noms.
+- Les plugins connectés au serveur Kotlin y restent jusqu'à leur prochaine reconnexion ; d'ici là le Worker
+  renvoie leurs requêtes à l'origine. Aucun jar à mettre à jour, aucune adresse ne change.
+- Retour arrière : supprimer la route. Tout repart sur le serveur Kotlin, qui reste déployé en secours. Un nom
+  pris sur le Worker entre-temps n'y est pas recopié.

@@ -29,7 +29,7 @@ Cloudflare gère les nameservers de `artisanmc.net`. Le Tunnel nommé publie :
 | `coolify.artisanmc.net` | interface Coolify, derrière Cloudflare Access |
 | `*.artisanmc.app` | serveur de tunnel de l'éditeur, `http://localhost:18080` ([`tunnel-server/`](tunnel-server/README.md)) |
 
-Le Worker `artisan-tunnel-test` intercepte `*-test.artisanmc.app` avant ce tunnel (essai, [`tunnel-worker/`](tunnel-worker/README.md)).
+Le Worker `artisan-tunnel` (route `*.artisanmc.app/*`, fail open) sert le tunnel avant ce serveur, qui reste le secours ; `artisan-tunnel-test` intercepte `*-test.artisanmc.app` ([`tunnel-worker/`](tunnel-worker/README.md)).
 
 Aucun enregistrement A/AAAA vers l'origine ; le firewall du VPS n'expose aucun port web entrant.
 
