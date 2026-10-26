@@ -8,6 +8,7 @@ import org.bukkit.command.CommandMap
 import org.bukkit.command.SimpleCommandMap
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemFlag
+import org.bukkit.plugin.Plugin
 
 /**
  * The server calls that differ between Paper and Spigot. A Paper-only method is reached
@@ -47,6 +48,18 @@ object ServerPlatform {
         else SimpleCommandMap::class.java.getDeclaredField("knownCommands")
             .apply { isAccessible = true }
             .get(map) as MutableMap<String, Command>
+
+    /** True while the server shuts down; null on Spigot, which cannot tell. */
+    fun isStopping(server: Server): Boolean? = if (paper) runCatching { server.isStopping }.getOrNull() else null
+
+    /**
+     * The plugins [plugin] needs or may use, hard and soft, by name: `plugin.yml` and `paper-plugin.yml`
+     * alike on Paper, `plugin.yml` only on Spigot.
+     */
+    fun dependencies(plugin: Plugin): Set<String> =
+        (if (paper) runCatching { plugin.pluginMeta.let { it.pluginDependencies + it.pluginSoftDependencies } }.getOrNull() else null)
+            ?.toSet()
+            ?: plugin.description.let { it.depend + it.softDepend }.toSet()
 
     /** An [ItemFlag] by any of its names: Paper and Spigot name some of them differently. */
     fun itemFlag(vararg names: String): ItemFlag? =

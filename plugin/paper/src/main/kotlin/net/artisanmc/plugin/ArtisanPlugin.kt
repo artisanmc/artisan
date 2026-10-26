@@ -119,6 +119,7 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     override fun onEnable() {
+        HotReloadGuard.reloadedWarning(dependentsOf(name))?.let(logger::severe)
         // Menu contents are only sent as packets: without PacketEvents, windows
         // open empty (clicks and sessions stay active).
         val packets = packetEventsLoaded && runCatching { PacketEvents.getAPI().init() }
@@ -213,6 +214,7 @@ open class ArtisanPlugin : JavaPlugin() {
             @org.bukkit.event.EventHandler
             fun on(event: org.bukkit.event.server.PluginDisableEvent) {
                 if (event.plugin === this@ArtisanPlugin) return
+                warnIfReloaded(event.plugin.name)
                 api.modules.unregisterLoadedBy(event.plugin.javaClass.classLoader).forEach {
                     logger.log(java.util.logging.Level.WARNING, "[Artisan] ${it.message}", it.cause)
                 }
@@ -238,7 +240,28 @@ open class ArtisanPlugin : JavaPlugin() {
         if (left.isNotEmpty()) logger.fine("[Artisan] ${plugin.name} disabled: removed ${left.joinToString()}")
     }
 
+    /**
+     * The plugins that run and depend on [plugin], directly or not ([HotReloadGuard.dependents]).
+     * [disabling] counts as running: its disable event fires before it stops.
+     */
+    private fun dependentsOf(plugin: String, disabling: String? = null): List<String> = HotReloadGuard.dependents(
+        plugin,
+        server.pluginManager.plugins.map {
+            HotReloadGuard.Entry(it.name, it.isEnabled || it.name == disabling, net.artisanmc.plugin.platform.ServerPlatform.dependencies(it))
+        },
+    )
+
+    /** A plugin of the suite (or Artisan) disabling while the server runs: a reload, logged with what it leaves broken. */
+    private fun warnIfReloaded(plugin: String) {
+        if (net.artisanmc.plugin.platform.ServerPlatform.isStopping(server) != false) return
+        if (plugin != name && plugin !in dependentsOf(name, disabling = plugin)) return
+        HotReloadGuard.disabledWarning(plugin, dependentsOf(plugin))?.let {
+            if (plugin == name) logger.severe(it) else logger.warning(it)
+        }
+    }
+
     override fun onDisable() {
+        warnIfReloaded(name)
         localEditorBundles.stop()
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).
