@@ -845,6 +845,7 @@ const fr: typeof en = {
     edit: "Éditer",
     delete: "Supprimer du projet",
     empty: "Aucun élément pour l'instant",
+    emptyBoard: "Rien sur la planche : le contenu de ce module est dans sa collection.",
     options: "Options",
   },
   documentView: {
@@ -1670,6 +1671,13 @@ const fr: typeof en = {
     ctxDialogButton: "bouton · {{owner}}",
   },
   collections: {
+    create: "Nouveau",
+    filter: "Filtrer {{collection}}",
+    emptyHint: "Commence par en créer un.",
+    noMatch: "Rien ne correspond à « {{filter}} ».",
+    noParts: "Vide pour l'instant.",
+    more_one: "+{{count}} autre",
+    more_other: "+{{count}} autres",
     notFound: "Cette collection n'existe pas dans ce projet.",
     count_one: "{{count}} {{kind}}",
     count_other: "{{count}} {{kind}}",

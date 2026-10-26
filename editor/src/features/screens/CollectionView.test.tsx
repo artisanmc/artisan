@@ -189,6 +189,52 @@ describe("a collection kind", () => {
     categoryKind.board = { summary: () => "2 articles" };
   });
 
+  it("shows a Document's first parts on its card, then how many more", () => {
+    categoryKind.board = {
+      summary: () => "7 articles",
+      items: () =>
+        Array.from({ length: 7 }, (_, i) => ({
+          id: `a${i}`,
+          label: `Article ${i + 1}`,
+          caption: i === 0 ? "Diamond sword" : undefined,
+          marker: String(i + 1),
+        })),
+    };
+    render(<CollectionView projectId={PID} kind="shop_category" />);
+    expect(screen.getAllByText("Article 5")).toHaveLength(2);
+    expect(screen.queryByText("Article 6")).toBeNull();
+    expect(screen.getAllByText("Diamond sword")).toHaveLength(2);
+    expect(screen.getAllByText(/^\+2 (more|autres)$/)).toHaveLength(2);
+    categoryKind.board = { summary: () => "2 articles" };
+  });
+
+  it("offers a filter once the collection is long", () => {
+    const many = Object.fromEntries(
+      Array.from({ length: 7 }, (_, i) => [
+        `${base}/shop_categories/c${i}.yml`,
+        `schema: shop_category/v1\nname: ${i === 3 ? "Weapons" : `Cat ${i}`}\n`,
+      ]),
+    );
+    useProjectsStore.setState({
+      openProjects: {
+        projects: [
+          projectFromFiles(PID, {
+            [`${base}/manifest.yaml`]: "schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\n",
+            ...many,
+          }),
+        ],
+        projectOrder: [PID],
+      },
+    } as never);
+    render(<CollectionView projectId={PID} kind="shop_category" />);
+    const filter = screen.getByRole("textbox", { name: /Filt(er|rer) Catalog/ });
+    fireEvent.change(filter, { target: { value: "weap" } });
+    expect(screen.getByText("Weapons")).toBeTruthy();
+    expect(screen.queryByText("Cat 0")).toBeNull();
+    fireEvent.change(filter, { target: { value: "zzz" } });
+    expect(screen.getByText(/zzz/)).toBeTruthy();
+  });
+
   it("refuses a kind that is not a collection", () => {
     render(<CollectionView projectId={PID} kind="menu" />);
     expect(screen.queryByTestId("collection-page")).toBeNull();

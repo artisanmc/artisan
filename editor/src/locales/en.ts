@@ -829,6 +829,7 @@ export default {
     edit: "Edit",
     delete: "Delete from project",
     empty: "No elements yet",
+    emptyBoard: "Nothing on the board: this module’s content is in its collection.",
     options: "Options",
   },
   documentView: {
@@ -1642,6 +1643,13 @@ export default {
     ctxDialogButton: "button · {{owner}}",
   },
   collections: {
+    create: "New",
+    filter: "Filter {{collection}}",
+    emptyHint: "Start by creating one.",
+    noMatch: "Nothing matches “{{filter}}”.",
+    noParts: "Empty for now.",
+    more_one: "+{{count}} more",
+    more_other: "+{{count}} more",
     notFound: "This collection does not exist in this project.",
     count_one: "{{count}} {{kind}}",
     count_other: "{{count}} {{kind}}",
