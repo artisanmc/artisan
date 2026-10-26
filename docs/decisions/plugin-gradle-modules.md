@@ -1,49 +1,46 @@
-# Le plugin découpé en modules Gradle
+# The plugin split into Gradle modules
 
-**Statut :** accepté (2026-10-12). Première étape de la phase A du plan
-d'auto-hébergement : le jar livré ne change pas de comportement.
+**Status:** accepted (2026-10-12). First step of phase A of the self-hosting plan:
+the shipped jar does not change behavior.
 
-## Contexte
+## Context
 
-Le plugin était un seul module de 17 500 lignes. Le code sans Bukkit (langage
-d'actions, expressions, modèle, lecture des projets) existait déjà, mais rien ne
-l'empêchait d'importer `org.bukkit`. Un hub web (Javalin) et un point d'entrée
-Velocity doivent pouvoir réutiliser ce code sans charger Paper.
+The plugin was a single 17,500-line module. The Bukkit-free code (action language,
+expressions, model, project reading) already existed, but nothing prevented it from
+importing `org.bukkit`. A web hub (Javalin) and a Velocity entry point must be able to
+reuse this code without loading Paper.
 
-## Décisions
+## Decisions
 
-**① La frontière est un module Gradle, pas une convention.** Un module qui n'a
-pas `paper-api` dans son classpath ne peut pas l'importer : le compilateur tient
-la règle.
+**① The boundary is a Gradle module, not a convention.** A module that does not have
+`paper-api` on its classpath cannot import it: the compiler enforces the rule.
 
-| Module | Contenu | Dépend de |
+| Module | Content | Depends on |
 |---|---|---|
-| `api` | Surface publique pour les add-ons (`net.artisanmc.modules.api`), en Java depuis l'API 2.0.0. Publiée comme `artisan-core-api`. | `paper-api` (compileOnly) |
-| `core` | Domaine sans plateforme : projets, modèle, langage d'actions, expressions, parseurs de menus. | `api`, Jackson |
-| `database` | Pools HikariCP par plugin, réglages de connexion. | `api`, HikariCP (compileOnly) |
-| `paper` | Tout ce qui importe Bukkit, et la racine de composition (`ArtisanPlugin`). Produit le jar. | les trois, `paper-api` |
+| `api` | Public surface for add-ons (`net.artisanmc.modules.api`), in Java since API 2.0.0. Published as `artisan-core-api`. | `paper-api` (compileOnly) |
+| `core` | Platform-free domain: projects, model, action language, expressions, menu parsers. | `api`, Jackson |
+| `database` | Per-plugin HikariCP pools, connection settings. | `api`, HikariCP (compileOnly) |
+| `paper` | Everything that imports Bukkit, and the composition root (`ArtisanPlugin`). Produces the jar. | the three, `paper-api` |
 
-**② Les packages ne changent pas.** Un fichier change de module, pas de nom
-complet : le jar contient les mêmes classes, et l'historique git suit les
-déplacements.
+**② Packages do not change.** A file changes module, not fully qualified name: the jar
+contains the same classes, and git history follows the moves.
 
-**③ `core` ne contient que du code fermé sur lui-même.** Le moteur d'exécution
-des actions, le rendu et les adaptateurs d'E/S (WebSocket, mise à jour, objets
-custom, délégation de pack) restent dans `paper` pour l'instant ; ils en sortent
-quand un port les remplace, pas avant.
+**③ `core` only contains self-contained code.** The action execution engine, rendering
+and the I/O adapters (WebSocket, update, custom objects, pack delegation) stay in
+`paper` for now; they leave when a port replaces them, not before.
 
-*Rejeté :* une convention de packages vérifiée par un test (ArchUnit seul). Le
-compilateur est plus strict et ne demande aucune maintenance.
+*Rejected:* a package convention checked by a test (ArchUnit alone). The compiler is
+stricter and requires no maintenance.
 
-## Conséquences
+## Consequences
 
-- Les tests suivent leur code : `core` et `database` se testent sans MockBukkit.
-- Le jar sort de `plugin/paper/build/libs/`.
-- `deploy/api-version.mjs` surveille `plugin/api/src/main/`.
+- Tests follow their code: `core` and `database` are tested without MockBukkit.
+- The jar comes out of `plugin/paper/build/libs/`.
+- `deploy/api-version.mjs` watches `plugin/api/src/main/`.
 
-### Amendement 2026-10-18 — le moteur sort de `paper`
+### Amendment 2026-10-18 — the engine leaves `paper`
 
-La règle ③ est levée par l'ADR `runtime-library` : le moteur d'exécution des actions, les
-conditions, les items, les traductions et le pool de la base vivent dans le module `runtime`
-(`paper-api` en `compileOnly`), que `paper` consomme et que la suite shade relocalisé. Le rendu
-des menus, la présence et le hub restent dans `paper`.
+Rule ③ is lifted by the ADR `runtime-library`: the action execution engine, conditions,
+items, translations and the database pool live in the `runtime` module (`paper-api` as
+`compileOnly`), which `paper` consumes and which the suite shades relocated. Menu
+rendering, presence and the hub stay in `paper`.

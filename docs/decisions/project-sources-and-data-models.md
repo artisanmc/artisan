@@ -35,15 +35,9 @@ monolingual hole (per-item literal `name`/`lore`).
    target). **Config** = a single object for interpolation (settings/constants),
    not placeable, not a Set target; nested lists inside it remain iterable via the
    existing dotted-path support.
-   > **Supersédé par l'ADR `bare-data-files` (2026-07-26)** : les shapes sont
-   > unifiés — une source est une valeur typée ; ce qui était Table/Config se
-   > dérive du kind racine (liste de model vs objet). `shape:` = alias legacy.
-
-4. **Model edits: data migrated, references dangled.** Editing a model rewrites the
-   rows the editor owns synchronously (add/rename/retype/drop, with coercion
-   text↔ltext). Consumers of a changed field (`{alias.field}` interpolations,
-   Placements via Row key) are never rewritten — they dangle, per the non-hermetic
-   contract.
+   > **Superseded by the ADR `bare-data-files` (2026-07-26)**: the shapes are
+   > unified — a source is a typed value; what used to be Table/Config is
+   > derived from the root kind (list of model vs object). `shape:` = legacy alias.
 
 5. **Row ltext values are ordinary LTexts / Key sites.** Canonical keys derive from
    the Row key: `sources.<sourceName>.<rowKey>.<fieldPath>` (all segments lowercase;
