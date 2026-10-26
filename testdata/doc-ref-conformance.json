@@ -1,5 +1,5 @@
 {
-  "description": "Résolution d'une référence de Document (open_menu / open_dialog) sur un serveur à plusieurs projects. Lu par l'éditeur (editor/src/domain/docRef.test.ts) et par le plugin (DocRefConformanceTest) : un id nu se résout d'abord dans le project qui référence (`from`), puis sur le serveur s'il n'y est défini qu'une fois ; `project:id` vise ce project. `expect` = `<project>:<id>` du Document atteint, `missing` ou `ambiguous`.",
+  "description": "Resolution of a Document reference (open_menu / open_dialog) on a server with several projects. Read by the editor (editor/src/domain/docRef.test.ts) and by the plugin (DocRefConformanceTest): a bare id resolves first in the referencing project (`from`), then on the server if it is defined only once there; `project:id` targets that project. `expect` = `<project>:<id>` of the Document reached, `missing` or `ambiguous`.",
   "documents": [
     { "project": "core", "id": "main" },
     { "project": "shop", "id": "main" },

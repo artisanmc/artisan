@@ -191,7 +191,7 @@ export async function writeProjectFiles(
 }
 
 export interface FileVersion {
-  /** Millis de l'archivage. */
+  /** Archive time in milliseconds. */
   at: number;
   content: string;
   /** Present when the history comes from Versions; `null` = the server. */

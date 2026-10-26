@@ -22,51 +22,51 @@ Some prose. Since 1.4.0.
 `;
 const apiFile = "plugin/api/src/main/kotlin/net/artisanmc/modules/api/ProjectRootRegistry.kt";
 
-test("la version courante est la plus haute version Since (tri numérique, pas lexical)", () => {
+test("current version is the highest Since version (numeric sort, not lexical)", () => {
   assert.equal(currentApiVersion(surface), "1.10.0");
   assert.equal(currentApiVersion("Captured items. Since 2.0.0.\n| a | b | 1.9.0 |"), "2.0.0");
 });
 
-test("api-surface.md réel : une version Since est trouvée", () => {
+test("real api-surface.md: a Since version is found", () => {
   const real = readFileSync(fileURLToPath(new URL("../docs/architecture/api-surface.md", import.meta.url)), "utf8");
   assert.match(currentApiVersion(real), /^\d+\.\d+\.\d+$/);
 });
 
-test("la dernière release ignore les pré-releases et les autres tags", () => {
+test("latest release ignores pre-releases and other tags", () => {
   assert.equal(latestRelease(["api-v1.6.0", "api-v1.10.2", "api-v1.9.0", "api-v2.0.0-rc1", "v3.0.0"]), "1.10.2");
   assert.equal(latestRelease([]), null);
 });
 
-test("le snapshot annonce la mineure suivante", () => {
+test("snapshot announces the next minor", () => {
   assert.equal(nextSnapshot("1.6.0"), "1.7.0-SNAPSHOT");
   assert.equal(nextSnapshot("1.10.2"), "1.11.0-SNAPSHOT");
 });
 
-test("push sur main : release quand la version documentée dépasse la dernière release", () => {
+test("push to main: release when the documented version exceeds the latest release", () => {
   assert.deepEqual(planPublish(surface, []), { kind: "release", version: "1.10.0" });
   assert.deepEqual(planPublish(surface, ["api-v1.6.0"]), { kind: "release", version: "1.10.0" });
 });
 
-test("push sur main : snapshot quand la version documentée est déjà publiée", () => {
+test("push to main: snapshot when the documented version is already published", () => {
   assert.deepEqual(planPublish(surface, ["api-v1.10.0"]), { kind: "snapshot", version: "1.11.0-SNAPSHOT" });
   assert.deepEqual(planPublish(surface, ["api-v1.12.0"]), { kind: "snapshot", version: "1.13.0-SNAPSHOT" });
 });
 
-test("PR : passe sans changement des sources de l'API", () => {
+test("PR: passes with no change to the API sources", () => {
   assert.equal(checkApiChange({ changedFiles: ["backend/x.ts"], markdown: surface, tags: ["api-v1.10.0"] }).ok, true);
 });
 
-test("PR : un changement de l'API sans nouvelle version Since échoue", () => {
+test("PR: an API change without a new Since version fails", () => {
   const result = checkApiChange({ changedFiles: [apiFile], markdown: surface, tags: ["api-v1.10.0"] });
   assert.equal(result.ok, false);
   assert.match(result.reason, /1\.11\.0/);
 });
 
-test("PR : un changement de l'API avec une version Since au-dessus de la dernière release passe", () => {
+test("PR: an API change with a Since version above the latest release passes", () => {
   assert.equal(checkApiChange({ changedFiles: [apiFile], markdown: surface, tags: ["api-v1.9.0"] }).ok, true);
 });
 
-test("PR : le label d'exemption laisse passer un changement sans effet sur l'API publiée", () => {
+test("PR: the exemption label lets through a change with no effect on the published API", () => {
   const result = checkApiChange({ changedFiles: [apiFile], markdown: surface, tags: ["api-v1.10.0"], labels: [NO_RELEASE_LABEL] });
   assert.equal(result.ok, true);
 });
