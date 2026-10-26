@@ -34,6 +34,13 @@ object McpFixtures {
         override val pluginVersion = "2.0.0"
         override fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
             documentKinds = listOf(mapOf("kind" to "menu", "dir" to "menus", "schema_versions" to listOf("menu/v1"))),
+            actions = listOf(
+                mapOf("name" to "open_menu", "args" to emptyList<Any>()),
+                mapOf(
+                    "name" to "guilds:rank_delete", "module_id" to "guilds", "primary" to "rank",
+                    "args" to listOf(mapOf("name" to "rank", "type" to mapOf("kind" to "string"), "required" to true, "help" to "The rank to delete.")),
+                ),
+            ),
         )
         override fun serverConfig() = emptyMap<String, Any?>()
         override fun customItems() = emptyList<Map<String, String>>()

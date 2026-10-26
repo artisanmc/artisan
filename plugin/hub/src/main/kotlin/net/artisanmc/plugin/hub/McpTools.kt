@@ -36,8 +36,9 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
         ),
         Tool(
             "get_kind_guide", "Document kind guide",
-            "How to write a Document of one kind: where it goes (<kind dir>/<id>.yml), the `schema:` label to put first, and an outline " +
-                "of its fields, actions and conditions. Pass project to also get an existing Document of that kind as an example. " +
+            "How to write a Document of one kind: where it goes (<kind dir>/<id>.yml), the `schema:` label to put first, an outline " +
+                "of its fields, actions and conditions, the actions this server's modules add, and how texts are translated. Pass project " +
+                "to also get the Project's languages and an existing Document of that kind as an example. " +
                 "detail: \"schema\" returns the full JSON schema every file is checked against instead of the outline.",
             schema(
                 "kind" to string("A Document kind from artisan_overview: menu, command, dialog, trigger…"), "project" to PROJECT_OPTIONAL,
@@ -156,25 +157,11 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
         val dir = kind["dir"] as String
         val label = (kind["schema_versions"] as? List<*>)?.firstOrNull()?.toString().orEmpty()
         val schema = McpTools::class.java.getResourceAsStream("/schema/$label.json")?.use { Call.mapper.readTree(it) }
-        val example = project?.let { p ->
-            val tree = files(projects.read(p))
-            DocumentLayout.classify(tree.keys, setOf(dir)).documents.firstOrNull()?.let { it.path to tree[it.path]!!.take(MAX_EXAMPLE) }
+        val tree = project?.let { files(projects.read(it)) }
+        val example = tree?.let { t ->
+            DocumentLayout.classify(t.keys, setOf(dir)).documents.firstOrNull()?.let { it.path to t[it.path]!!.take(MAX_EXAMPLE) }
         }
-        return buildString {
-            append("# ").append(name).append(" Documents\n\n")
-            append("File: ").append(dir).append("/<id>.yml (or <folders>/").append(dir).append("/<id>.yml); the file name is the Document's id.\n")
-            append("First line: `schema: ").append(label).append("`\n")
-            (kind["id_prefix"] as? String)?.let { append("Ids start with `").append(it).append("`.\n") }
-            when {
-                schema == null -> append("\nThis kind comes from a module: no schema ships with Artisan. The server's engine still checks each file; ")
-                    .append("follow the example and fix what write_document reports.\n")
-                full -> append("\n## JSON schema\n```json\n").append(Call.mapper.writeValueAsString(schema)).append("\n```\n")
-                else -> append('\n').append(SchemaOutline(schema).render())
-                    .append("\nThe outline leaves out legacy forms, which are still read but never written. ")
-                    .append("get_kind_guide with detail: \"schema\" returns the full JSON schema.\n")
-            }
-            example?.let { (path, content) -> append("\n## Example: ").append(path).append("\n```yaml\n").append(content.trimEnd()).append("\n```\n") }
-        }
+        return KindGuide(name, kind, schema, server.announcement().actions, tree, example).render(full)
     }
 
     private fun startDraft(principal: McpPrincipal, args: JsonNode): Any {

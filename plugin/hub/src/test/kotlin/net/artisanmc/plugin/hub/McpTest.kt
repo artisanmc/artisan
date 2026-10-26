@@ -147,6 +147,10 @@ class McpTest {
         assertFalse(guide.has("structuredContent"))
         assertTrue(text.startsWith("# menu Documents\n") && "\n## Fields\n" in text && "## Example: menus/shop.yml" in text, text)
         assertTrue(text.length < 25_000, "${text.length} characters")
+        // The schema knows the core's actions; the server adds its modules', each once.
+        assertTrue("- guilds:rank_delete (module guilds): {rank: string}; primary: rank\n  - rank: The rank to delete." in text, text)
+        assertFalse("- open_menu (module" in text || "\n- open_menu: no arguments" in text)
+        assertTrue("## Texts and languages\n" in text && "title: { fr: Boutique, en: Shop }" in text)
         val full = tool(access, "get_kind_guide", "kind" to "menu", "detail" to "schema")["content"][0]["text"].asText()
         assertTrue("```json\n{\"\$schema\"" in full)
         assertEquals(-32601, rpc(access, "resources/list").body!!["error"]["code"].asInt())

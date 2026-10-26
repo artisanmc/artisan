@@ -24,8 +24,9 @@ qu'il est déployé.
 2. **L'IA n'écrit que des brouillons.** Six outils : `artisan_overview`, `list_documents`,
    `read_document`, `get_kind_guide` (lecture), `start_draft`, `write_document` (brouillon privé du
    joueur, `source: "ai"`). `get_kind_guide` répond en texte : un plan du schéma (chaque champ sur une
-   ligne, puis chaque type, actions et conditions une par ligne, formes legacy omises, `SchemaOutline`)
-   et un exemple du Project ; le schéma complet seulement avec `detail: "schema"`. Aucun outil ne déploie, ne supprime de Project, ne copie de modèle. Les
+   ligne, puis chaque type, actions et conditions une par ligne, formes legacy omises, `SchemaOutline`),
+   les actions que déclarent les modules du serveur (`declared_actions`), l'écriture des textes par
+   langue avec les langues du Project, et un exemple du Project (`KindGuide`) ; le schéma complet seulement avec `detail: "schema"`. Aucun outil ne déploie, ne supprime de Project, ne copie de modèle. Les
    seules actions de brouillon que le code MCP peut envoyer sont `list`, `read`, `create`, `update`
    (`McpProjects.DRAFT_ACTIONS`) ; un test d'architecture (`McpTest`) refuse toute autre action et
    tout nom de message qui écrit un disque dans les sources `Mcp*`. Le brouillon apparaît dans
