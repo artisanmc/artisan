@@ -2,7 +2,7 @@ package net.artisanmc.modules.api.item;
 
 import java.util.Map;
 import java.util.Set;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.inventory.ItemStack;
 
 /**
@@ -17,7 +17,7 @@ import org.bukkit.inventory.ItemStack;
  * {@code custom_model_data}, {@code count}…). {@link #build} makes its stack the way a menu does,
  * {@link #matches} says whether a player's stack is that item.
  */
-@Beta
+@Stable
 public interface ItemStackApi {
     /** Inert default (tests / partial wiring). */
     ItemStackApi NOOP = new ItemStackApi() {

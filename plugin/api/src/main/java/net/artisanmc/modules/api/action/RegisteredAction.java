@@ -3,11 +3,11 @@ package net.artisanmc.modules.api.action;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.jetbrains.annotations.Nullable;
 
 /** A registered action plus the module that owns it (null = Artisan's own, or registered outside a module's onEnable). */
-@Beta
+@Stable
 public final class RegisteredAction {
     private final ActionDeclaration declaration;
     private final @Nullable String moduleId;

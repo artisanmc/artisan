@@ -4,10 +4,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 
 /** One variant of a {@link ModelFieldType#union} field: the tag value and the fields it carries. */
-@Beta
+@Stable
 public final class UnionVariant {
     private final String name;
     private final List<ModelField> fields;

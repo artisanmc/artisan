@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.artisanmc.modules.api.OwnedRegistry;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.annotations.Internal;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,7 +19,7 @@ import org.jetbrains.annotations.Nullable;
  *     EditorBundleDeclaration.fromResource(getClass().getClassLoader(), "artisan-editor/ui.js", "1.0"));
  * }</pre>
  */
-@Beta
+@Stable
 public final class EditorBundleRegistry implements OwnedRegistry {
     private final Map<String, EditorBundleDeclaration> bundles = new LinkedHashMap<>();
 
@@ -38,7 +38,7 @@ public final class EditorBundleRegistry implements OwnedRegistry {
      * @throws IllegalStateException outside a module's {@code onEnable}.
      * @throws DuplicateEditorBundleException if that module already registered one.
      */
-    @Beta
+    @Stable
     public synchronized void register(EditorBundleDeclaration decl) {
         String owner = currentOwner;
         if (owner == null) throw new IllegalStateException("an editor bundle is registered from a module's onEnable");
@@ -47,7 +47,7 @@ public final class EditorBundleRegistry implements OwnedRegistry {
     }
 
     /** Removes the bundle of {@code moduleId}; false if it had none. */
-    @Beta
+    @Stable
     public synchronized boolean unregister(String moduleId) {
         return bundles.remove(moduleId) != null;
     }
@@ -59,13 +59,13 @@ public final class EditorBundleRegistry implements OwnedRegistry {
     }
 
     /** The bundle of {@code moduleId}, or null. */
-    @Beta
+    @Stable
     public synchronized @Nullable EditorBundleDeclaration find(String moduleId) {
         return bundles.get(moduleId);
     }
 
     /** The bundles by module id, in registration order. */
-    @Beta
+    @Stable
     public synchronized Map<String, EditorBundleDeclaration> registered() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(bundles));
     }

@@ -5,7 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import net.artisanmc.modules.api.OwnedRegistry;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.annotations.Internal;
 import org.jetbrains.annotations.Nullable;
 
@@ -15,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
  * completion when they change. Distinct from {@code api.commands}, which a menu's
  * {@code run_command} calls and players never type.
  */
-@Beta
+@Stable
 public final class PlayerCommandRegistry implements OwnedRegistry {
     private record Entry(PlayerCommandDeclaration declaration, @Nullable String moduleId) {}
 
@@ -34,7 +34,7 @@ public final class PlayerCommandRegistry implements OwnedRegistry {
      *
      * @throws DuplicatePlayerCommandException if its id or a child's id is taken.
      */
-    @Beta
+    @Stable
     public void register(PlayerCommandDeclaration declaration) {
         synchronized (this) {
             List<String> taken = new ArrayList<>();
@@ -49,7 +49,7 @@ public final class PlayerCommandRegistry implements OwnedRegistry {
     }
 
     /** Removes the root command {@code id}; false if none was registered. */
-    @Beta
+    @Stable
     public boolean unregister(String id) {
         boolean removed;
         synchronized (this) {
@@ -60,7 +60,7 @@ public final class PlayerCommandRegistry implements OwnedRegistry {
     }
 
     /** The registered root commands, in registration order. */
-    @Beta
+    @Stable
     public synchronized List<PlayerCommandDeclaration> declarations() {
         return commands.values().stream().map(Entry::declaration).toList();
     }
@@ -73,7 +73,7 @@ public final class PlayerCommandRegistry implements OwnedRegistry {
     }
 
     /** The command or child {@code id}, or null. */
-    @Beta
+    @Stable
     public synchronized @Nullable PlayerCommandDeclaration find(String id) {
         for (Entry entry : commands.values()) {
             PlayerCommandDeclaration found = find(entry.declaration(), id);

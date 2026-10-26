@@ -2,7 +2,7 @@ package net.artisanmc.modules.api.translation;
 
 import java.util.Map;
 import java.util.Set;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.Nullable;
@@ -16,7 +16,7 @@ import org.jetbrains.annotations.Nullable;
  * <p>The texts of a Project ({@code ltext}, {@code {i18n:key}}) are not here: actions read them
  * with {@code ActionRuntime.text}.
  */
-@Beta
+@Stable
 public interface TranslationsApi {
     /** Inert default (tests / partial wiring): {@code en}, and bundles that answer the key itself. */
     TranslationsApi NOOP = new TranslationsApi() {
