@@ -29,6 +29,8 @@ Cloudflare runs the nameservers of `artisanmc.net`. The named Tunnel publishes:
 | `coolify.artisanmc.net` | Coolify UI, behind Cloudflare Access |
 | `*.artisanmc.app` | the editor's tunnel server, `http://localhost:18080` ([`tunnel-server/`](tunnel-server/README.md)) |
 
+The `artisan-tunnel` Worker (route `*.artisanmc.app/*`, fail open) serves the tunnel ahead of this server, which stays as the fallback; `artisan-tunnel-test` takes `*-test.artisanmc.app` ([`tunnel-worker/`](tunnel-worker/README.md)).
+
 No A/AAAA record to the origin; the VPS firewall exposes no inbound web port.
 
 The showcase's Coolify resource (historically "editor", hence `COOLIFY_EDITOR_UUID`) builds

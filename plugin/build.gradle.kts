@@ -45,6 +45,9 @@ subprojects {
         // A hung test fails with its name and a thread dump instead of stalling CI.
         systemProperty("junit.jupiter.execution.timeout.default", "2m")
         systemProperty("junit.jupiter.execution.timeout.threaddump.enabled", "true")
+        // No tunnel by default (WebConfig.TUNNEL_PROPERTY): every plugin a test loads would otherwise open
+        // one to the production tunnel server, with a fresh address each time.
+        systemProperty("artisan.web.tunnel", "")
         testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
     }
 }

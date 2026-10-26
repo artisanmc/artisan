@@ -1,0 +1,24 @@
+// The editor tunnel as a Worker (README.md). Production keeps `TUNNEL_LABEL_SUFFIX` empty and routes
+// `*.artisanmc.app/*`; the trial serves `<id>-test.artisanmc.app` beside it.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "artisan-tunnel-test",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "routes": [{ "pattern": "*-test.artisanmc.app/*", "zone_name": "artisanmc.app" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "TUNNELS", "class_name": "TunnelObject" },
+      { "name": "NAMES", "class_name": "NamesObject" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TunnelObject", "NamesObject"] }],
+  "kv_namespaces": [{ "binding": "KV", "id": "cb67923c0f2e4e668917ce9720d3514b" }],
+  "vars": {
+    "TUNNEL_DOMAIN": "artisanmc.app",
+    "TUNNEL_LABEL_SUFFIX": "-test",
+    "TUNNEL_FALLBACK": "origin"
+  },
+  "observability": { "enabled": true }
+}

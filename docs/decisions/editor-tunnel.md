@@ -60,6 +60,15 @@ storage, accounts. Analysis: `cloud-ou-auto-hebergement.md` (project files).
    returns a login link for the new one (`Sessions.handOff`).
 9. **Standalone server** in the repository (`plugin/tunnel-server`, Jetty, `deploy/tunnel-server/`), deployed
    as a container behind a TLS proxy that covers `*.<domain>`.
+10. **A relay next to the Minecraft server** (2026-10-26). A single tunnel server in France makes an
+    admin and a server both far from France pay the distance twice (Vietnam: ~400-500 ms per
+    request). The same wire is served by a Cloudflare Worker (`deploy/tunnel-worker/`): one Durable
+    Object per address, created next to the first plugin that connects to it, names in a single
+    Durable Object and read from KV. Neither the plugin nor the addresses change. The Kotlin server stays
+    the reference and the fallback: the route "fails open" and a request the Worker cannot serve is
+    replayed on the origin. In production on `*.artisanmc.app` since 2026-10-26 (removing the route
+    goes back to the Kotlin server), trials on `*-test.artisanmc.app`. Study:
+    `tunnel-latence-regions-2026-10-26.md` (project files).
 
 *Rejected:* hosted editor calling the plugin (mixed content HTTPS → HTTP blocked, and the return of the
 editor ↔ engine axis); hosted hub (stateful multi-tenant, one hub version facing all
