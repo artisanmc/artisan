@@ -22,10 +22,15 @@ browser enters Cloudflare next to it and crosses the network only once. Measured
   `X-Artisan-Tunnel-Member` picks one (ADR `peer-servers`).
 - `src/names.ts` (`NamesObject`, a single one): the address names, with `NameRegistry`'s rules (filter,
   quotas, expiry after 90 days, bans, Discord webhook). The Worker reads `name:<name>` from KV, never the object.
-- KV `loc:<id>` = `{gen, continent}`: which object serves the address. A plugin connecting from another
-  continent, while no plugin holds the old object, gets a new one (`gen + 1`) next to it. The address does
-  not change. Browsers see it within a minute (KV cache and the Worker's cache).
-- An address never connected creates no object: the plugin, not a browser, chooses where it lives.
+- KV `loc:<id>` = `{gen, continent}`: which object serves the address, written only when an address moves.
+  Without it the address is at generation 0, whose object keeps the continent of its first plugin. A
+  plugin connecting from another continent, while no plugin holds the old object, gets a new one (`gen + 1`)
+  next to it. The address does not change. Browsers see it within a minute (KV cache and the Worker's cache).
+  A KV write per new address would spend the free plan's 1,000 writes a day: on 2026-10-26, test runs that
+  opened a fresh address per test did in an hour.
+- An address's object is created next to its first plugin: nobody knows the address before its plugin
+  connects. A browser request for an address with no plugin reaches the object, which answers "absent";
+  the Worker then remembers it for 30 s and sends the next ones to the fallback.
 
 ## The Kotlin server as fallback
 
