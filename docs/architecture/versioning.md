@@ -253,7 +253,7 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
 ```json
 {
   "type": "hello",
-  "protocol_version": "1.4",
+  "protocol_version": "1.5",
   "server_key": "<secret du réseau>",
   "proxy_name": "survie2",
   "plugin_version": "1.0.42",
@@ -275,7 +275,9 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
   `1.3` (`TEMPLATES`) ajoute `templates` aux `installed_modules`, `template_fetch`, `template_copy` et
   `project_origins_fetch` ; une feuille plus ancienne reçoit 501 sur ces trois routes. `1.4`
   (`DOCUMENT_CHECKS`) ajoute `documents_check` (ADR `mcp-server`) ; l'outil MCP `write_document`
-  refuse d'écrire dans un brouillon d'un Project dont le serveur est plus ancien.
+  refuse d'écrire dans un brouillon d'un Project dont le serveur est plus ancien. `1.5`
+  (`SUITE_PLUGINS`) ajoute `suite_plugins` à l'annonce et `plugin` aux `installed_modules` ; une
+  feuille plus ancienne annonce une liste vide.
 - **Une release = un numéro** pour tous les jars ; mettre à jour hub et feuilles ensemble.
 
 Le serveur qui héberge le hub lui parle en process (`LocalServerLink`) : jamais d'écart de version.

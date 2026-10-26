@@ -1635,6 +1635,15 @@ const fr: typeof en = {
         "Image au format dispenser.png (256×256, ou un multiple pour un pack HD). Redessine les autres distributeurs et droppers quand un menu distributeur désactive sa texture vanilla.",
     },
   },
+  suitePlugins: {
+    title: "Plugins",
+    loading: "Chargement des plugins…",
+    unavailable: "Ce serveur ne liste pas encore ses plugins : mets à jour son Artisan.",
+    enabled: "Actif",
+    disabled: "Désactivé",
+    file: "Fichier : {{file}}",
+    depends: "Dépend de",
+  },
   serverDetail: {
     accessDenied: "Vous n’avez pas accès à ce serveur.",
     myModules: "Mes modules",

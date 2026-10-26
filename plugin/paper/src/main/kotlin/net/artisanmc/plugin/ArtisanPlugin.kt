@@ -215,11 +215,17 @@ open class ArtisanPlugin : JavaPlugin() {
             fun on(event: org.bukkit.event.server.PluginDisableEvent) {
                 if (event.plugin === this@ArtisanPlugin) return
                 warnIfReloaded(event.plugin.name)
+                inventoryChanged(event.plugin.name, disabling = event.plugin.name)
                 api.modules.unregisterLoadedBy(event.plugin.javaClass.classLoader).forEach {
                     logger.log(java.util.logging.Level.WARNING, "[Artisan] ${it.message}", it.cause)
                 }
                 translations.unregisterOwnedBy(event.plugin)
                 releaseListeners(event.plugin)
+            }
+
+            @org.bukkit.event.EventHandler
+            fun on(event: org.bukkit.event.server.PluginEnableEvent) {
+                if (event.plugin !== this@ArtisanPlugin) inventoryChanged(event.plugin.name)
             }
         }, this)
     }
@@ -258,6 +264,13 @@ open class ArtisanPlugin : JavaPlugin() {
         HotReloadGuard.disabledWarning(plugin, dependentsOf(plugin))?.let {
             if (plugin == name) logger.severe(it) else logger.warning(it)
         }
+    }
+
+    /** A plugin of the suite enabled or disabled: the editor's inventory ([suitePlugins]) is announced again. */
+    private fun inventoryChanged(plugin: String, disabling: String? = null) {
+        if (net.artisanmc.plugin.platform.ServerPlatform.isStopping(server) == true) return
+        if (plugin !in dependentsOf(name, disabling)) return
+        (menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged() ?: announcementChanged()
     }
 
     override fun onDisable() {
@@ -306,6 +319,7 @@ open class ArtisanPlugin : JavaPlugin() {
         modules = api.modules.active().map {
             net.artisanmc.plugin.protocol.ServerAnnouncement.module(
                 it.id, description.version, localEditorBundles.wire(it.id), moduleTemplates.of(it.id).map { t -> t.toWire() },
+                pluginOf(it.javaClass.classLoader)?.name,
             )
         },
         dataSources = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources),
@@ -315,7 +329,29 @@ open class ArtisanPlugin : JavaPlugin() {
         documentKinds = api.documentKinds.registered().map { it.toWire() },
         gameEvents = api.gameEvents.registered().map { it.toWire() },
         playerCommands = net.artisanmc.plugin.ws.PlayerCommandReport.build(api.playerCommands),
+        suitePlugins = suitePlugins(),
     )
+
+    /** The plugin whose jar loaded a class of [loader], or null (a class of the server or a library). */
+    private fun pluginOf(loader: ClassLoader?): org.bukkit.plugin.Plugin? =
+        server.pluginManager.plugins.firstOrNull { it.javaClass.classLoader === loader }
+
+    /** Artisan, then every plugin that depends on it directly or not, running or not: the suite's inventory. */
+    private fun suitePlugins(): List<Map<String, Any?>> {
+        val all = server.pluginManager.plugins.toList()
+        val dependsOn = all.associate { it.name to net.artisanmc.plugin.platform.ServerPlatform.dependencies(it) }
+        val names = listOf(name) + HotReloadGuard.dependents(name, all.map { HotReloadGuard.Entry(it.name, true, dependsOn.getValue(it.name)) })
+        return names.mapNotNull { n -> all.firstOrNull { it.name == n } }.map {
+            net.artisanmc.plugin.protocol.ServerAnnouncement.plugin(
+                it.name, it.description.version, jarName(it), it.isEnabled, dependsOn.getValue(it.name).sorted(),
+            )
+        }
+    }
+
+    /** The file name of [plugin]'s jar, null when it does not come from one (tests, a dev classpath). */
+    private fun jarName(plugin: org.bukkit.plugin.Plugin): String? = runCatching {
+        File(plugin.javaClass.protectionDomain.codeSource.location.toURI()).takeIf { it.isFile }?.name
+    }.getOrNull()
 
     val environmentFile: File get() = File(dataFolder, "environment.yml")
 

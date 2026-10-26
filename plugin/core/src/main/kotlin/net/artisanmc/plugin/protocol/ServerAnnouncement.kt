@@ -6,7 +6,8 @@ package net.artisanmc.plugin.protocol
  * (`{id, version, editor_bundle?}`, data sources, `model/v1` documents, Config screens, `{name, args, primary?,
  * module_id?}` actions, `{kind, dir, schema_versions, id_prefix?, module_id?}` Document kinds, `{name, group, frequency,
  * context, cancellable, effects, module_id?}` Game events, and the
- * player commands modules declare, as `PlayerCommandReport` writes them).
+ * player commands modules declare, as `PlayerCommandReport` writes them), and the plugins of the suite
+ * (`{name, version, file?, enabled, depends}`: Artisan and every plugin that depends on it, directly or not).
  */
 data class ServerAnnouncement(
     val modules: List<Map<String, Any?>> = emptyList(),
@@ -17,6 +18,7 @@ data class ServerAnnouncement(
     val documentKinds: List<Map<String, Any?>> = emptyList(),
     val gameEvents: List<Map<String, Any?>> = emptyList(),
     val playerCommands: List<Map<String, Any?>> = emptyList(),
+    val suitePlugins: List<Map<String, Any?>> = emptyList(),
 ) {
     /** The wire fields, in the order `hello` sends them. */
     fun toMap(): Map<String, Any?> = linkedMapOf(
@@ -28,6 +30,7 @@ data class ServerAnnouncement(
         DOCUMENT_KINDS to documentKinds,
         DECLARED_GAME_EVENTS to gameEvents,
         PLAYER_COMMANDS to playerCommands,
+        SUITE_PLUGINS to suitePlugins,
     )
 
     /** The `editor_bundle` ([module]) announced for [moduleId], or null: no such module, or no bundle. */
@@ -53,6 +56,7 @@ data class ServerAnnouncement(
             documentKinds = field(DOCUMENT_KINDS, documentKinds),
             gameEvents = field(DECLARED_GAME_EVENTS, gameEvents),
             playerCommands = field(PLAYER_COMMANDS, playerCommands),
+            suitePlugins = field(SUITE_PLUGINS, suitePlugins),
         )
     }
 
@@ -65,6 +69,7 @@ data class ServerAnnouncement(
         const val DOCUMENT_KINDS = "document_kinds"
         const val DECLARED_GAME_EVENTS = "declared_game_events"
         const val PLAYER_COMMANDS = "player_commands"
+        const val SUITE_PLUGINS = "suite_plugins"
         const val EDITOR_BUNDLE = "editor_bundle"
         const val TEMPLATES = "templates"
 
@@ -73,18 +78,30 @@ data class ServerAnnouncement(
         /**
          * An `installed_modules` entry: a module reports the core plugin's version, it has none of its own.
          * [editorBundle] is its `EditorBundleDeclaration.toWire()` (`{sdk, hash, size}`), when it ships one;
-         * [templates] its `TemplateDeclaration.toWire()` entries, when it ships some.
+         * [templates] its `TemplateDeclaration.toWire()` entries, when it ships some; [plugin] the name of the
+         * plugin whose jar holds it (Artisan for its own modules).
          */
         fun module(
             id: String,
             version: String,
             editorBundle: Map<String, Any?>? = null,
             templates: List<Map<String, Any?>> = emptyList(),
+            plugin: String? = null,
         ): Map<String, Any?> = buildMap {
             put("id", id)
             put("version", version)
+            if (plugin != null) put("plugin", plugin)
             if (editorBundle != null) put(EDITOR_BUNDLE, editorBundle)
             if (templates.isNotEmpty()) put(TEMPLATES, templates)
+        }
+
+        /** A `suite_plugins` entry: [file] is the jar's file name (what `plugins/update/` replaces), when known. */
+        fun plugin(name: String, version: String, file: String?, enabled: Boolean, depends: List<String>): Map<String, Any?> = buildMap {
+            put("name", name)
+            put("version", version)
+            if (file != null) put("file", file)
+            put("enabled", enabled)
+            put("depends", depends)
         }
 
         fun from(message: Map<*, *>): ServerAnnouncement = EMPTY.updatedBy(message)

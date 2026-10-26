@@ -1609,6 +1609,15 @@ export default {
         "A dispenser.png layout (256×256, or a multiple for an HD pack). Draws back every other dispenser and dropper when a dispenser menu turns its vanilla texture off.",
     },
   },
+  suitePlugins: {
+    title: "Plugins",
+    loading: "Loading plugins…",
+    unavailable: "This server does not list its plugins yet: update its Artisan.",
+    enabled: "Enabled",
+    disabled: "Disabled",
+    file: "File: {{file}}",
+    depends: "Depends on",
+  },
   serverDetail: {
     accessDenied: "You do not have access to this server.",
     myModules: "My modules",

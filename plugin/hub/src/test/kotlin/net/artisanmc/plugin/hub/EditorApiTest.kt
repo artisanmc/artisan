@@ -34,6 +34,7 @@ class EditorApiTest {
         override fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
             modules = listOf(mapOf("id" to "menus", "version" to "2.0.0")),
             models = listOf(mapOf("id" to "plain"), mapOf("id" to "shop:item")),
+            suitePlugins = listOf(net.artisanmc.plugin.protocol.ServerAnnouncement.plugin("Artisan", "2.0.0", "Artisan.jar", true, emptyList())),
         )
         override fun serverConfig() = mapOf<String, Any?>("language" to "en")
         override fun customItems() = listOf(mapOf("id" to "nexo:coin", "label" to "coin", "category" to "nexo"))
@@ -133,6 +134,7 @@ class EditorApiTest {
         assertEquals(404, call("GET", "/api/v1/servers/other/modules").first)
         assertEquals("menus", call("GET", "/api/v1/servers/u-local/modules").second!!["modules"][0]["id"].asText())
         assertEquals(listOf("shop:item"), call("GET", "/api/v1/servers/u-local/models").second!!["models"].map { it["id"].asText() })
+        assertEquals("Artisan.jar", call("GET", "/api/v1/servers/u-local/plugins").second!!["plugins"][0]["file"].asText())
     }
 
     @Test
