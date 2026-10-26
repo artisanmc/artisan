@@ -95,12 +95,14 @@ class HubServer(
                 else assets.serve(call)
                 return true
             }
-            val session = sessions.find(sessionId(request))
+            val foreign = !sameOrigin(request)
+            // Another site's call to a cross-origin route acts with its own credentials, never the cookie.
+            val session = if (match.crossOrigin && foreign) null else sessions.find(sessionId(request))
             val call = Call(request, response, callback, match.params, session)
             when {
                 match.permission != null && session == null -> call.error(401, "unauthorized")
                 match.permission != null && !session!!.can(match.permission) -> call.error(403, "forbidden")
-                request.method != "GET" && !sameOrigin(request) -> call.error(403, "cross_origin")
+                request.method != "GET" && foreign && !match.crossOrigin -> call.error(403, "cross_origin")
                 else -> try {
                     match.handler(call)
                 } catch (e: Exception) {

@@ -76,6 +76,12 @@ class ArtisanTables(prefix: String) {
     val networkMessagesTimeIndex = "${prefix}network_messages_time"
     val networkPlayers = "${prefix}network_players"
     val players = "${prefix}players"
+    val mcpClients = "${prefix}mcp_clients"
+    val mcpGrants = "${prefix}mcp_grants"
+    val mcpGrantsAccessIndex = "${prefix}mcp_grants_access"
+    val mcpGrantsRefreshIndex = "${prefix}mcp_grants_refresh"
+    val mcpGrantsCodeIndex = "${prefix}mcp_grants_code"
+    val mcpGrantsPlayerIndex = "${prefix}mcp_grants_player"
 
     companion object {
         val DEFAULT = ArtisanTables(TablePrefix.DEFAULT)

@@ -124,7 +124,15 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
             // The suite database may still be opening (issue #42): the routes read it once it is.
             val data = net.artisanmc.plugin.database.LateSuiteData { suite.suiteData }
-            val router = net.artisanmc.plugin.hub.EditorApi.router(servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts) { tunnel }
+            // ADR `mcp-server`: AI clients write drafts for the players who approved them; `web.mcp` turns it on.
+            val mcp = if (web.mcp) net.artisanmc.plugin.hub.McpGrants(suite.mcpGrantStore()).also { grants ->
+                editorSessions.onPermissions(grants::permissionsChanged)
+                logger.info("[Artisan] MCP endpoint enabled at /mcp")
+            } else null
+            val router = net.artisanmc.plugin.hub.EditorApi.router(
+                servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, { tunnel },
+                mcp = mcp, version = description.version,
+            )
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
                 if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null
                 else suite.databaseId()

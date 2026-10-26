@@ -156,6 +156,30 @@ What to know:
   `/ws/plugin` and downloads its pack through the tunnel too. On the same machine or
   private network, the internal address (`web.hub: "hub"`) is faster.
 
+## AI clients (MCP, preview)
+
+With `web.mcp: true` in `environment.yml`, the editor's address also answers the
+[Model Context Protocol](https://modelcontextprotocol.io) at `/mcp`. A player adds
+`https://<editor address>/mcp` as a custom connector in Claude, ChatGPT or another MCP client
+(Settings → AI apps in the editor shows the address to copy).
+
+- **Sign-in**: the client opens the editor's consent page. The player signs in as usual
+  (`/artisan editor`), sees which client asks, and allows or denies it. The client then acts
+  as that player, with their editor permissions less `artisan.editor.publish` and
+  `artisan.editor.config`. It needs `artisan.editor.edit`.
+- **What it can do**: list the servers, Projects and Documents; read files; read the JSON
+  schema of a Document kind; start a draft and write files into it. Each file is checked by the
+  Project's server (path, YAML, schema, engine) before it enters the draft.
+- **What it cannot do**: deploy. The draft shows up in the player's Drafts in the editor; the
+  player reviews the changes and clicks Deploy.
+- **Revoking**: Settings → AI apps lists the connected clients; Disconnect cuts one off at its
+  next call. Losing `artisan.editor.edit` in game cuts every client of that player; losing
+  `artisan.editor.view` removes them.
+
+The endpoint needs an HTTPS address the AI provider can reach: the tunnel server's (the
+default), or `web.url` behind a reverse proxy. A reverse proxy must pass `/mcp`, `/oauth/` and
+`/.well-known/` to the editor, with `X-Forwarded-Proto` and `Host`.
+
 ## Networks and `/ws/plugin`
 
 **Servers that share a MySQL or MariaDB database find each other**, with nothing to set:

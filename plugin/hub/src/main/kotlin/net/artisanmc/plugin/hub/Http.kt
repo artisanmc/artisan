@@ -31,6 +31,23 @@ class Call(
 
     fun body(): JsonNode? = runCatching { mapper.readTree(Content.Source.asString(request)) }.getOrNull()
 
+    /** An `application/x-www-form-urlencoded` body (OAuth's token endpoint), at most [limit] bytes; null when larger. */
+    fun form(limit: Int = 16 * 1024): Map<String, String>? {
+        val text = bytes(limit)?.toString(Charsets.UTF_8) ?: return null
+        return text.split('&').filter { it.isNotEmpty() }.associate { pair ->
+            val name = pair.substringBefore('=')
+            val value = pair.substringAfter('=', "")
+            java.net.URLDecoder.decode(name, Charsets.UTF_8) to java.net.URLDecoder.decode(value, Charsets.UTF_8)
+        }
+    }
+
+    private val extraHeaders = LinkedHashMap<String, String>()
+
+    /** A header every response of this call carries: CORS, `WWW-Authenticate`. */
+    fun addHeader(name: String, value: String) {
+        extraHeaders[name] = value
+    }
+
     /** The raw body, or null beyond [limit] bytes. */
     fun bytes(limit: Int): ByteArray? {
         if (request.length > limit) return null
@@ -53,6 +70,7 @@ class Call(
         if (status >= 400 && request.length != 0L) response.headers.put(HttpHeader.CONNECTION, "close")
         response.headers.put(HttpHeader.CONTENT_TYPE, contentType)
         response.headers.put(HttpHeader.CACHE_CONTROL, cacheControl)
+        extraHeaders.forEach { (name, value) -> response.headers.put(name, value) }
         headers.forEach { (name, value) -> response.headers.put(name, value) }
         response.write(true, java.nio.ByteBuffer.wrap(bytes), callback)
     }
@@ -63,6 +81,7 @@ class Call(
         response.status = 302
         response.headers.put(HttpHeader.LOCATION, location)
         response.headers.put(HttpHeader.CACHE_CONTROL, "no-store")
+        extraHeaders.forEach { (name, value) -> response.headers.put(name, value) }
         callback.succeeded()
     }
 
@@ -73,13 +92,18 @@ class Call(
 
 /** Routes like `GET /api/v1/projects/:id/files`: `:name` segments become parameters. */
 class Router {
-    private class Route(val method: String, val segments: List<String>, val permission: String?, val handler: (Call) -> Unit)
+    private class Route(val method: String, val segments: List<String>, val permission: String?, val crossOrigin: Boolean, val handler: (Call) -> Unit)
 
     private val routes = mutableListOf<Route>()
 
-    /** Null [permission]: public route. Otherwise, a session holding that permission. */
-    fun on(method: String, pattern: String, permission: String?, handler: (Call) -> Unit) {
-        routes += Route(method, split(pattern), permission, handler)
+    /**
+     * Null [permission]: public route. Otherwise, a session holding that permission.
+     * [crossOrigin]: a route other sites call (MCP, OAuth, ADR `mcp-server`), any `Origin`
+     * accepted; a call from another origin then gets no session, the cookie never acts for it.
+     */
+    fun on(method: String, pattern: String, permission: String?, crossOrigin: Boolean = false, handler: (Call) -> Unit) {
+        require(!crossOrigin || permission == null) { "a cross-origin route checks its own credentials" }
+        routes += Route(method, split(pattern), permission, crossOrigin, handler)
     }
 
     fun match(method: String, path: String): Match? {
@@ -98,7 +122,7 @@ class Router {
                     true
                 } else expected == segments[i]
             }
-            if (matches) return Match(route.permission, params, route.handler)
+            if (matches) return Match(route.permission, params, route.crossOrigin, route.handler)
         }
         return null
     }
@@ -112,7 +136,7 @@ class Router {
     private fun fits(pattern: List<String>, segments: List<String>) =
         if (pattern.lastOrNull() == "*") segments.size >= pattern.size else segments.size == pattern.size
 
-    class Match(val permission: String?, val params: Map<String, String>, val handler: (Call) -> Unit)
+    class Match(val permission: String?, val params: Map<String, String>, val crossOrigin: Boolean, val handler: (Call) -> Unit)
 
     private fun split(path: String) = path.trim('/').split('/').filter { it.isNotEmpty() }
 }

@@ -8,6 +8,9 @@ object EditorApi {
         drafts: DraftStorage? = null,
         /** The tunnel this hub is reached through, once open (ADR `editor-tunnel`). */
         tunnel: () -> TunnelNames? = { null },
+        /** The MCP endpoint's grants when `web.mcp` is on (ADR `mcp-server`); null: no `/mcp`, no OAuth. */
+        mcp: McpGrants? = null,
+        version: String = "",
     ): Router {
         val router = Router()
         val relay = Relay(logger)
@@ -17,6 +20,10 @@ object EditorApi {
         ItemRoutes(servers, relay, vanilla).register(router)
         packs?.let { PackRoutes(servers, it).register(router) }
         AddressRoutes(tunnel, sessions).register(router)
+        if (mcp != null) {
+            OAuthRoutes(mcp).register(router)
+            McpRoutes(McpTools(McpProjects(servers, loaded, drafts)), mcp, version, logger).register(router)
+        }
         return router
     }
 }

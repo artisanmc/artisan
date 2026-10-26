@@ -76,6 +76,12 @@ class Sessions(
     private val missing = ConcurrentHashMap<String, Instant>()
     /** The last permissions each server reported per player: an unchanged report touches nothing. */
     private val reported = ConcurrentHashMap<Pair<String, UUID>, Set<String>>()
+    /** Told of each changed report of [refresh]: MCP grants follow the player's permissions too (ADR `mcp-server`). */
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<(origin: String, playerId: UUID, permissions: Set<String>) -> Unit>()
+
+    fun onPermissions(listener: (origin: String, playerId: UUID, permissions: Set<String>) -> Unit) {
+        listeners += listener
+    }
 
     sealed interface LinkResult {
         data class Issued(val token: String) : LinkResult
@@ -200,6 +206,7 @@ class Sessions(
     fun refresh(origin: String, players: Map<UUID, Set<String>>) {
         for ((playerId, permissions) in players) {
             if (reported.put(origin to playerId, permissions) == permissions) continue
+            listeners.forEach { listener -> writer.execute { runCatching { listener(origin, playerId, permissions) } } }
             val mine = { s: EditorSession -> s.playerId == playerId && s.origin == origin }
             if (EditorPermissions.VIEW in permissions) {
                 sessions.replaceAll { _, s -> if (mine(s)) s.copy(permissions = permissions) else s }

@@ -1,6 +1,7 @@
 import { actionCatalogEn } from "./actionCatalog";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
+import { mcpEn } from "./mcp";
 import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
 import { projectIdentityEn } from "./projectIdentity";
@@ -1433,6 +1434,8 @@ export default {
     copied: "Details copied",
     copyFailed: "Could not copy — select the text to copy it manually.",
     errors: {
+      invalid_documents:
+        "Nothing was deployed: these documents would not load on the server. Fix them, then deploy again.",
       server_offline: "The Minecraft server is offline.",
       network_error: "The connection to the backend failed.",
       fetch_timeout: "The server did not respond in time. Check its state before retrying.",
@@ -1528,6 +1531,7 @@ export default {
     emptyMatch: 'No variable matches "{{query}}"',
     emptyContext: "No variable available in this context",
   },
+  mcp: mcpEn,
   editorAddress: {
     title: "Editor address",
     help: "Give the editor's tunnel address a name. The current address keeps working.",

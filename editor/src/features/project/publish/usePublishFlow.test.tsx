@@ -78,6 +78,24 @@ describe("usePublishFlow", () => {
     expect(result.current.state.lastError).toContain("HTTP 422");
   });
 
+  it("a deploy refused by the server's check lists each document that would not load", async () => {
+    vi.mocked(saveProjectToDisk).mockResolvedValueOnce({
+      ok: false,
+      error: "write_error",
+      code: "invalid_documents",
+      status: 422,
+      message:
+        "menus/vip.yml: unknown property 'tittle'\ncommands/shop.yml: required property 'name'",
+    });
+    const { result } = renderHook(() => usePublishFlow(ID, false));
+    act(() => result.current.openReview());
+    act(() => result.current.confirmReview());
+    await waitFor(() => expect(result.current.state.errorOpen).toBe(true));
+    expect(result.current.state.lastError).toContain("Rien n’a été déployé");
+    expect(result.current.state.lastError).toContain("menus/vip.yml: unknown property 'tittle'");
+    expect(result.current.state.lastError).toContain("commands/shop.yml: required property 'name'");
+  });
+
   it("opens no review while the server is offline", () => {
     const { result } = renderHook(() => usePublishFlow(ID, true));
     act(() => result.current.openReview());

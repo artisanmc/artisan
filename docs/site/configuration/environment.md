@@ -43,6 +43,7 @@ connect to the hub. The name is a label: the server is identified by the id in
 | `web.secret` | `""` | Secret shared by the hub and its leaves. Empty: the Velocity forwarding secret, else a secret the hub generates. See [the shared secret](../../network/setup/#4-the-shared-secret). |
 | `web.tunnel` | `"connect.artisanmc.app"` | Preview. The Artisan tunnel server the hub connects out to when `web.url` is empty: it gives the editor an `https://<id>.artisanmc.app` address, used by `/artisan editor` links. No port to open. `""`: no tunnel. Ignored on a leaf. See [Through a tunnel server](../web-server/#through-a-tunnel-server-preview-the-default). |
 | `web.tunnel-access` | `""` | The access code a private tunnel server asks for. |
+| `web.mcp` | `false` | Preview. Serves an MCP endpoint at `<editor address>/mcp`, so a player can connect an AI client (Claude, ChatGPT, an IDE) to Artisan: the client reads the Projects and writes drafts, which the player reviews and deploys in the editor. The client cannot deploy. See [AI clients](../web-server/#ai-clients-mcp-preview). |
 
 On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no port.
 

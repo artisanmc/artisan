@@ -72,4 +72,34 @@ class ProjectFolderRequestsTest {
         assertEquals("invalid_path", dispatch("""{"type":"project_rename","request_id":"r","project_id":".artisan-trash","target_project_id":"x"}""")["error"])
         assertEquals(0, reloads)
     }
+
+    @Test fun `deploying refuses a Document that would not load, and writes nothing`() {
+        File(coreRoot, "shop").mkdirs()
+        writes.write(EditorRequest.parse(mapper.readTree(
+            """{"type":"project_write","request_id":"w2","project_id":"shop","operation_id":"op2","files":[{"path":"menus/vip.yml","content":"schema: menu/v1\ntittle: VIP\nsize: 27\n"}],"deletes":[],"renames":[]}""",
+        )) as EditorRequest.ProjectWrite)
+        val refused = sent.last()
+        assertEquals("invalid_documents", refused["error"])
+        @Suppress("UNCHECKED_CAST")
+        val problems = refused["problems"] as List<Map<String, Any?>>
+        assertTrue(problems.any { it["path"] == "menus/vip.yml" && "tittle" in it["message"].toString() }, problems.toString())
+        assertTrue(!File(coreRoot, "shop/menus/vip.yml").exists())
+        assertEquals(0, reloads)
+    }
+
+    @Test fun `publishing a draft goes through the same check`() {
+        File(coreRoot, "shop").mkdirs()
+        val bad = mapOf(
+            "type" to "project_draft_publish", "request_id" to "p1", "project_id" to "shop", "operation_id" to "op3", "blobs" to emptyMap<String, Any>(),
+            "draft" to mapOf("snapshot" to mapOf("baseline" to emptyMap<String, String>(), "tree" to mapOf("menus/vip.yml" to "schema: menu/v1\nsize: [27"), "at" to 1)),
+        )
+        writes.publishDraft(EditorRequest.parse(mapper.valueToTree(bad)) as EditorRequest.ProjectDraftPublish)
+        assertEquals("invalid_documents", sent.last()["error"])
+        assertTrue(!File(coreRoot, "shop/menus/vip.yml").exists())
+        // Metadata the editor owns is not a Document: never refused by the check.
+        writes.write(EditorRequest.parse(mapper.readTree(
+            """{"type":"project_write","request_id":"w3","project_id":"shop","operation_id":"op4","files":[{"path":".artisan/editor.yaml","content":"folders: []\n"}],"deletes":[],"renames":[]}""",
+        )) as EditorRequest.ProjectWrite)
+        assertEquals(true, sent.last()["ok"])
+    }
 }

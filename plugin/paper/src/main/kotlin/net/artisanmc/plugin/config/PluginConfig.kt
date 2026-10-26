@@ -73,6 +73,7 @@ data class PluginConfig(
                     sessionDays = environment.getInt("web.session-days", 7).coerceAtLeast(1),
                     tunnel = EnvironmentFile.string(environment, "web.tunnel", WebConfig.DEFAULT_TUNNEL).trim(),
                     tunnelAccess = EnvironmentFile.string(environment, "web.tunnel-access", ""),
+                    mcp = environment.getBoolean("web.mcp", false),
                 ),
                 devEditorBundles = environment.getConfigurationSection("dev.editor-bundles")?.let { section ->
                     section.getKeys(false)

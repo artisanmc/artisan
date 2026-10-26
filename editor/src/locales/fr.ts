@@ -2,6 +2,7 @@ import { actionCatalogFr } from "./actionCatalog";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import type en from "./en";
+import { mcpFr } from "./mcp";
 import { mmEditorFr, textToolFr } from "./mmEditor";
 import { onboardingFr } from "./onboarding";
 import { projectIdentityFr } from "./projectIdentity";
@@ -1455,6 +1456,8 @@ const fr: typeof en = {
     copied: "Détails copiés",
     copyFailed: "Copie impossible — sélectionne le texte pour le copier.",
     errors: {
+      invalid_documents:
+        "Rien n’a été déployé : ces documents ne se chargeraient pas sur le serveur. Corrige-les, puis redéploie.",
       server_offline: "Le serveur Minecraft est hors ligne.",
       network_error: "La connexion au backend a échoué.",
       fetch_timeout: "Le serveur n’a pas répondu à temps. Vérifie son état avant de réessayer.",
@@ -1554,6 +1557,7 @@ const fr: typeof en = {
     emptyMatch: "Aucune variable ne matche « {{query}} »",
     emptyContext: "Aucune variable disponible dans ce contexte",
   },
+  mcp: mcpFr,
   editorAddress: {
     title: "Adresse de l'éditeur",
     help: "Donne un nom à l'adresse de l'éditeur sur le tunnel. L'adresse actuelle continue de marcher.",

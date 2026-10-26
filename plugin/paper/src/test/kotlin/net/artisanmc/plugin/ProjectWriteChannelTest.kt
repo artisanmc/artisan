@@ -141,12 +141,12 @@ class ProjectWriteChannelTest {
         h.write(p, "manifest.yaml", "id: boutique\n")
 
         h.send(writeMsg("boutique", """[
-            {"path":"menus/shop_main.yaml","content":"title: Boutique\n","base_hash":null}
+            {"path":"menus/shop_main.yaml","content":"schema: menu/v1\ntitle: Boutique\nsize: 27\nelements: []\n","base_hash":null}
         ]"""))
 
         assertEquals("project_write_result", h.reply()["type"])
-        assertEquals(true, h.reply()["ok"])
-        assertEquals("title: Boutique\n", h.read(p, "menus/shop_main.yaml"))
+        assertEquals(true, h.reply()["ok"], h.reply().toString())
+        assertEquals("schema: menu/v1\ntitle: Boutique\nsize: 27\nelements: []\n", h.read(p, "menus/shop_main.yaml"))
     }
 
     @Test
@@ -157,11 +157,11 @@ class ProjectWriteChannelTest {
         val base = ContentHash.hashContent("title: Ancien\n")
 
         h.send(writeMsg("boutique", """[
-            {"path":"menus/shop_main.yaml","content":"title: Nouveau\n","base_hash":"$base"}
+            {"path":"menus/shop_main.yaml","content":"schema: menu/v1\ntitle: Nouveau\nsize: 27\nelements: []\n","base_hash":"$base"}
         ]"""))
 
-        assertEquals(true, h.reply()["ok"])
-        assertEquals("title: Nouveau\n", h.read(p, "menus/shop_main.yaml"))
+        assertEquals(true, h.reply()["ok"], h.reply().toString())
+        assertEquals("schema: menu/v1\ntitle: Nouveau\nsize: 27\nelements: []\n", h.read(p, "menus/shop_main.yaml"))
         assertEquals(emptyList<String>(), h.historyOf(p, "menus/shop_main.yaml"))
     }
 

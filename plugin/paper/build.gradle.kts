@@ -81,6 +81,9 @@ tasks.shadowJar {
     relocate("com.fasterxml.jackson", "net.artisanmc.shaded.jackson")
     relocate("okhttp3", "net.artisanmc.shaded.okhttp3")
     relocate("okio", "net.artisanmc.shaded.okio")
+    // Document checks against the JSON schemas (ADR `mcp-server`) and its date/time parser.
+    relocate("com.networknt", "net.artisanmc.shaded.networknt")
+    relocate("com.ethlo", "net.artisanmc.shaded.ethlo")
     relocate("com.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.api")
     relocate("io.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.impl")
     // `adventure.nbt.api` belongs to adventure-api (provided by Paper): not relocated.

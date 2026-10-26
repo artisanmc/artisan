@@ -172,6 +172,7 @@ class SyncedMenuProvider(
     }
     private val replies = Replies(httpClient.dispatcher.executorService, ::send, logger)
     private val projectReads = ProjectReads(workspace, replies)
+    private val documentChecks = net.artisanmc.plugin.protocol.DocumentChecks(workspace, replies)
     private val projectWrites = ProjectWrites(workspace, replies, ::send, logger)
     private val templateRequests = net.artisanmc.plugin.protocol.TemplateRequests(workspace, replies, templates)
     private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles)
@@ -701,6 +702,7 @@ class SyncedMenuProvider(
             is EditorRequest.ProjectHistory -> projectReads.history(request)
             is EditorRequest.AssetRead -> projectReads.asset(request)
             is EditorRequest.ConfigRead -> projectReads.config(request)
+            is EditorRequest.DocumentsCheck -> documentChecks.check(request)
 
             is EditorRequest.ProjectWrite -> projectWrites.write(request)
             is EditorRequest.ConfigWrite -> projectWrites.config(request)

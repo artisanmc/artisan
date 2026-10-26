@@ -14,6 +14,8 @@ import net.artisanmc.plugin.protocol.EditorRequest.ProjectDraftPublish
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectRename
 import net.artisanmc.plugin.protocol.EditorRequest.ProjectWrite
 import net.artisanmc.plugin.project.ContentHash
+import net.artisanmc.plugin.model.YamlFiles
+import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectFilesReader
 import java.io.File
 import java.util.Base64
@@ -30,6 +32,7 @@ class ProjectWrites(
     private val replies: Replies,
     private val send: (Map<String, Any?>) -> Unit,
     private val logger: Logger?,
+    private val check: DocumentCheck = DocumentCheck(),
 ) {
     private val roots get() = workspace.roots
     private val mutations = ProjectMutations(roots)
@@ -59,6 +62,9 @@ class ProjectWrites(
                     val onDisk = ProjectFilesReader.readAll(projectDir).keys.filter { !EditorPaths.isInvisible(it) }.sorted()
                     return@offThread reply.send(mapOf("ok" to false, "error" to "conflict", "conflicts" to conflicts, "disk_files" to onDisk))
                 }
+                val renamed = request.renames.associate { it.to to ProjectPathPolicy.resolve(projectDir, it.from).readText(Charsets.UTF_8) }
+                refused(projectId, projectDir, renamed + request.writes.associate { it.path to it.content }, request.deletes.map { it.path } + request.renames.map { it.from })
+                    ?.let { return@offThread reply.send(it) }
                 mutations.commit(projectDir, request.message, changes(projectDir, request, decoded))
                 noteAuthor(projectId, request.message)
                 workspace.reload(setOf(projectId))
@@ -204,7 +210,7 @@ class ProjectWrites(
             when {
                 !EditorPaths.isSafeProjectId(projectId) -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "invalid_path"))
                 !root.isDirectory -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "unknown_project"))
-                else -> DraftPublication(root).publish(request.message)
+                else -> draftRefused(projectId, root, request.message) ?: DraftPublication(root).publish(request.message)
             }
         } catch (error: Exception) {
             logger?.log(Level.WARNING, "[Artisan] Draft publication failed", error)
@@ -222,6 +228,36 @@ class ProjectWrites(
                 logger?.log(Level.WARNING, "[Artisan] Draft published but runtime reload failed", error)
             }
         }
+    }
+
+    /** A draft's text changes: the tree against its baseline. */
+    private fun draftRefused(projectId: String, root: File, message: JsonNode): JsonNode? {
+        val snapshot = message.path("draft").path("snapshot")
+        fun texts(key: String) = snapshot.path(key).fields().asSequence().filter { it.value.isTextual }.associate { it.key to it.value.asText() }
+        val baseline = texts("baseline")
+        val tree = texts("tree")
+        return refused(projectId, root, tree.filter { (path, text) -> baseline[path] != text }, baseline.keys - tree.keys)
+            ?.let { mapper.valueToTree<JsonNode>(it) }
+    }
+
+    /**
+     * Deploying refuses files that would not load, by the check an AI client's drafts pass
+     * (`DocumentCheck`, ADR `mcp-server`): the refusal names each file and what is wrong.
+     * Metadata (`.artisan/editor.yaml`) is not a Document and is not checked. Null: nothing to refuse.
+     */
+    private fun refused(projectId: String, root: File, files: Map<String, String>, deletes: Collection<String>): Map<String, Any?>? {
+        val written = files.mapKeys { (path, _) -> YamlFiles.onDisk(root, path) }
+        val paths = written.keys.filter { !ProjectMetadataPaths.isMeta(it) }
+        if (paths.isEmpty()) return null
+        val tree = workspace.snapshot.files[projectId] ?: emptyMap()
+        val problems = check.check(projectId, tree, written, deletes.map { YamlFiles.onDisk(root, it) }, paths)
+        if (problems.isEmpty()) return null
+        return mapOf(
+            "ok" to false, "error" to "invalid_documents",
+            // One line per problem: the editor's failure dialog shows `message` as is.
+            "message" to problems.joinToString("\n") { "${it.path}: ${it.message}" },
+            "problems" to problems.map { mapOf("path" to it.path, "stage" to it.stage, "message" to it.message) },
+        )
     }
 
     private fun noteAuthor(projectId: String, message: JsonNode, restoredFrom: String? = null) {

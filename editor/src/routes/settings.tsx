@@ -1,14 +1,15 @@
+import { McpAppsSection } from "@/features/mcp/McpAppsSection";
 import { AppearanceSection } from "@/features/settings/AppearanceSection";
 import { EditorAddressSection } from "@/features/settings/EditorAddressSection";
 import { useAuthStore } from "@/state/authStore";
 import { createFileRoute } from "@tanstack/react-router";
-import { Globe, Palette } from "lucide-react";
+import { Bot, Globe, Palette } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/settings")({ component: SettingsRoute });
 
-type Section = "appearance" | "address";
+type Section = "appearance" | "address" | "ai";
 
 export function SettingsRoute() {
   const { t } = useTranslation();
@@ -16,12 +17,14 @@ export function SettingsRoute() {
   const canConfigure = useAuthStore(
     (s) => s.currentUser?.permissions?.includes("artisan.editor.config") ?? false,
   );
-  const [section, setSection] = useState<Section>(() =>
-    typeof window !== "undefined" && window.location.hash === "#address" ? "address" : "appearance",
-  );
-  const current: Section = section === "address" && canConfigure ? "address" : "appearance";
+  const [section, setSection] = useState<Section>(() => {
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    return hash === "#address" ? "address" : hash === "#ai" ? "ai" : "appearance";
+  });
+  const current: Section = section === "address" && !canConfigure ? "appearance" : section;
   const sections: { id: Section; icon: typeof Palette; label: string }[] = [
     { id: "appearance", icon: Palette, label: t("settings.appearance.title") },
+    { id: "ai", icon: Bot, label: t("mcp.apps.title") },
     ...(canConfigure
       ? [{ id: "address" as const, icon: Globe, label: t("editorAddress.title") }]
       : []),
@@ -34,10 +37,18 @@ export function SettingsRoute() {
             className="display text-[32px] tracking-tight text-[var(--text)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            {current === "address" ? t("editorAddress.title") : t("settings.appearance.title")}
+            {current === "address"
+              ? t("editorAddress.title")
+              : current === "ai"
+                ? t("mcp.apps.title")
+                : t("settings.appearance.title")}
           </h1>
           <p className="text-[13px] text-[var(--text-mut)]">
-            {current === "address" ? t("editorAddress.help") : t("settingsPage.appearanceHelp")}
+            {current === "address"
+              ? t("editorAddress.help")
+              : current === "ai"
+                ? t("mcp.apps.help")
+                : t("settingsPage.appearanceHelp")}
           </p>
         </header>
         <div className="flex flex-col gap-4 lg:flex-row">
@@ -64,7 +75,13 @@ export function SettingsRoute() {
             </ul>
           </nav>
           <main className="card flex-1 p-6 md:p-8">
-            {current === "address" ? <EditorAddressSection /> : <AppearanceSection />}
+            {current === "address" ? (
+              <EditorAddressSection />
+            ) : current === "ai" ? (
+              <McpAppsSection />
+            ) : (
+              <AppearanceSection />
+            )}
           </main>
         </div>
       </div>
