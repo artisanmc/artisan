@@ -1,137 +1,137 @@
-# Artisan — Instructions Claude
+# Artisan — Claude instructions
 
-Ce fichier est un **routeur** : l'opérationnel (commandes, pièges) + où aller pour le détail.
-Il reste court volontairement — le détail vit dans `docs/`, lu quand la tâche y touche.
+This file is a **router**: the operational bits (commands, pitfalls) plus where to find the detail.
+It stays short on purpose — the detail lives in `docs/`, read when the task touches it.
 
 ## Agent skills
 
 ### Issue tracker
 
-Les tickets et PRD vivent dans GitHub Issues. Voir `docs/agents/issue-tracker.md`.
+Tickets and PRDs live in GitHub Issues. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Les cinq statuts standards sont utilisés. Voir `docs/agents/triage-labels.md`.
+The five standard statuses are used. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Dépôt à contexte unique : `CONTEXT.md` et `docs/decisions/`. Voir `docs/agents/domain.md`.
+Single-context repository: `CONTEXT.md` and `docs/decisions/`. See `docs/agents/domain.md`.
 
-## Règle de mise à jour des docs
+## Docs update rule
 
-Quand tu modifies du code, mets à jour la doc correspondante. **Le mapping source-de-vérité est
-`.claude/skills/sync-docs/doc-impact-map.yaml`** (quel fichier touché → quels docs mettre à jour) —
-consulte-le, ne le devine pas.
+When you change code, update the matching docs. **The source-of-truth mapping is
+`.claude/skills/sync-docs/doc-impact-map.yaml`** (which touched file → which docs to update) —
+read it, do not guess it.
 
-- Update petit (une ou deux sections existantes, ≲30 lignes de diff doc) → **même commit** que le code.
-- Update gros ou nécessitant des screenshots / refonte → skill `/sync-docs` en fin de feature, commit séparé.
-- Jamais de merge avec dette doc non-listée.
+- Small update (one or two existing sections, ≲30 lines of doc diff) → **same commit** as the code.
+- Large update, or one needing screenshots / a rewrite → `/sync-docs` skill at the end of the feature, separate commit.
+- Never merge with unlisted doc debt.
 
-Ne pas mettre à jour = la prochaine session ne saura pas que le code a changé.
+Not updating = the next session will not know the code changed.
 
-## Docs de référence
+## Reference docs
 
-| Doc | Contenu |
+| Doc | Contents |
 |---|---|
-| `CONTEXT.md` | Glossaire domaine — **source de vérité des termes**. |
-| `docs/architecture/invariants.md` | Les invariants critiques en détail (disque, CAS, exclusions, threads). |
-| `docs/architecture/modules.md` | Modular monolith : abstraction module, data sources + commands, comment en ajouter un. |
-| `docs/architecture/versioning.md` | Les disciplines (CHANGELOG, schemas versionnés, version du protocole, REST `/api/v1/`). |
-| `docs/architecture/api-surface.md` | Surface API publique stable (`@Stable`/`@Beta`/`@Internal`/`@Sunset`). |
-| `docs/architecture/ws-protocol.md` | Messages hub ↔ serveur (`/ws/plugin`) + `/ws/editor`. |
-| `docs/architecture/rest-endpoints.md` | Index des routes du hub (quel `*Routes.kt` ouvrir) + conventions. |
-| `docs/architecture/entities.md` | Ce qui persiste où (disque, base de la suite, mémoire du hub), auth, historique. |
-| `docs/architecture/editor-internals.md` | Title composer, édition de Document, canvas, UI shell, design system. |
-| `docs/architecture/project-files.md` | Structure d'un project sur disque, codec `lang/`, champ `title`. |
-| `docs/architecture/plugin-commands.md` | Détail des sous-commandes `/artisan`. |
-| `docs/architecture/testing.md` | Couverture des suites + vecteurs de conformance. |
-| `docs/architecture/schemas-codegen.md` | Schémas JSON ↔ types éditeur/plugin. |
-| `docs/decisions/` | ADRs (`editor-web-server` : le hub). `docs/specs/` : specs produit ; `docs/archive/specs/` : conceptions passées (voir son README). |
+| `CONTEXT.md` | Domain glossary — **source of truth for terms**. |
+| `docs/architecture/invariants.md` | The critical invariants in detail (disk, CAS, exclusions, threads). |
+| `docs/architecture/modules.md` | Modular monolith: module abstraction, data sources + commands, how to add one. |
+| `docs/architecture/versioning.md` | The disciplines (CHANGELOG, versioned schemas, protocol version, REST `/api/v1/`). |
+| `docs/architecture/api-surface.md` | Stable public API surface (`@Stable`/`@Beta`/`@Internal`/`@Sunset`). |
+| `docs/architecture/ws-protocol.md` | Hub ↔ server messages (`/ws/plugin`) + `/ws/editor`. |
+| `docs/architecture/rest-endpoints.md` | Index of the hub's routes (which `*Routes.kt` to open) + conventions. |
+| `docs/architecture/entities.md` | What persists where (disk, suite database, hub memory), auth, history. |
+| `docs/architecture/editor-internals.md` | Title composer, Document editing, canvas, UI shell, design system. |
+| `docs/architecture/project-files.md` | Layout of a project on disk, `lang/` codec, `title` field. |
+| `docs/architecture/plugin-commands.md` | Detail of the `/artisan` subcommands. |
+| `docs/architecture/testing.md` | Suite coverage + conformance vectors. |
+| `docs/architecture/schemas-codegen.md` | JSON schemas ↔ editor/plugin types. |
+| `docs/decisions/` | ADRs (`editor-web-server`: the hub). `docs/specs/`: product specs; `docs/archive/specs/`: past designs (see its README). |
 
-## Commandes
+## Commands
 
 ```bash
 # Plugin (Kotlin 2.0 / Paper 1.21+, Folia, Leaf)
 cd plugin
-./gradlew test          # tous les modules (api, core, database, hub, paper)
+./gradlew test          # every module (api, core, database, hub, paper)
 ./gradlew shadowJar     # → paper/build/libs/artisan-plugin-1.0.0-SNAPSHOT-all.jar
-./gradlew shadowJar -PwithEditor   # idem, avec l'éditeur et les icônes 3D embarqués (npm requis)
-./gradlew deploy        # compile + redémarre le container
+./gradlew shadowJar -PwithEditor   # same, with the editor and the 3D icons bundled (npm required)
+./gradlew deploy        # build + restart the container
 
-# Éditeur (React 19 + Vite 6)
+# Editor (React 19 + Vite 6)
 cd editor
-npm run dev             # port 5173, /api et /ws relayés au hub (ARTISAN_HUB_URL, défaut :8765)
+npm run dev             # port 5173, /api and /ws proxied to the hub (ARTISAN_HUB_URL, default :8765)
 npm test
-npm run build           # le build servi par le hub (appelé par -PwithEditor)
-npm run build:site      # vitrine + wiki d'artisanmc.net (editor/Dockerfile)
+npm run build           # the build served by the hub (called by -PwithEditor)
+npm run build:site      # artisanmc.net showcase + wiki (editor/Dockerfile)
 
-# Serveur local
-docker compose up       # Paper :25565 + éditeur du plugin :8765 + MySQL de la boutique
-docker compose -f docker/network/compose.yml up   # réseau : un hub + une feuille
+# Local server
+docker compose up       # Paper :25565 + plugin editor :8765 + the shop's MySQL
+docker compose -f docker/network/compose.yml up   # network: one hub + one leaf
 ```
 
-**Commandes plugin** — `/artisan menu|reload|sync|editor|dump-title`, détail dans
+**Plugin commands** — `/artisan menu|reload|sync|editor|dump-title`, detail in
 `docs/architecture/plugin-commands.md`.
 
-**Assets MC** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`
-(→ `items/<version>.json` + `icons/icons-<version>.zip`, **à committer** ; le hub les embarque dans le
-jar). Détail : `tools/minecraft-assets/README.md`.
+**MC assets** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`
+(→ `items/<version>.json` + `icons/icons-<version>.zip`, **to be committed**; the hub bundles them in the
+jar). Detail: `tools/minecraft-assets/README.md`.
 
 ## Architecture
 
 ```
-editor/          React 19 + Vite + Konva — servi par le plugin (hub)
-plugin/          Kotlin 2.0 + Paper : api · core · database · hub (Jetty 12) · paper
-docker/          Serveurs Minecraft locaux (itzg/minecraft-server), réseau dans docker/network/
-tools/minecraft-assets/  Générateurs Bun des assets MC vanilla (items, icônes 3D, largeurs de glyphes)
-docs/site/       Docs user publiques (EN, Markdown Starlight) — assemblées par artisanmc.net
-docs-site/       Build Astro Starlight de docs/site/, servi sur artisanmc.net/wiki
+editor/          React 19 + Vite + Konva — served by the plugin (hub)
+plugin/          Kotlin 2.0 + Paper: api · core · database · hub (Jetty 12) · paper
+docker/          Local Minecraft servers (itzg/minecraft-server), network in docker/network/
+tools/minecraft-assets/  Bun generators for vanilla MC assets (items, 3D icons, glyph widths)
+docs/site/       Public user docs (EN, Starlight Markdown) — assembled by artisanmc.net
+docs-site/       Astro Starlight build of docs/site/, served at artisanmc.net/wiki
 docs/            architecture/ · archive/ · decisions/ · specs/ · schema/
 ```
 
-**Pas de backend** — le plugin sert l'éditeur, l'API `/api/v1/…` et les WebSockets sur `web.port`
-(8765). Connexion par le lien de `/artisan editor`. Réseau : un serveur `web.role: hub`, les autres
-`leaf` reliés à son `/ws/plugin` par un secret partagé. ADR `editor-web-server`.
+**No backend** — the plugin serves the editor, the `/api/v1/…` API and the WebSockets on `web.port`
+(8765). Sign-in through the link from `/artisan editor`. Network: one server with `web.role: hub`, the
+others `leaf`, connected to its `/ws/plugin` with a shared secret. ADR `editor-web-server`.
 
-**Plugin en modules Gradle** — `plugin/api` (surface add-ons, **en Java** : API 2.0.0), `plugin/core` (domaine, sans Bukkit),
-`plugin/database`, `plugin/hub` (serveur web, sans Bukkit), `plugin/runtime` (moteur d'actions, conditions, items,
-traductions), `plugin/paper` (menus, présence, jar). Un import
-`org.bukkit` hors de `paper`, `runtime` ou `api` ne compile pas. Détail : `plugin/README.md`, ADR `plugin-gradle-modules`,
+**Plugin as Gradle modules** — `plugin/api` (add-on surface, **in Java**: API 2.0.0), `plugin/core` (domain, no Bukkit),
+`plugin/database`, `plugin/hub` (web server, no Bukkit), `plugin/runtime` (action engine, conditions, items,
+translations), `plugin/paper` (menus, presence, jar). An
+`org.bukkit` import outside `paper`, `runtime` or `api` does not compile. Detail: `plugin/README.md`, ADRs `plugin-gradle-modules`,
 `runtime-library`.
 
-**Modular monolith** — chaque module vit en 2 layers symétriques :
-`plugin/…/modules/{id}/` (impl `ArtisanModule`) et `editor/src/modules/{id}/` (`FrontendModule`).
-Communication cross-module via `DataSourceRegistry` et `CommandRegistry` uniquement — aucune dépendance
-directe. **Un `ArtisanModule` n'importe que depuis `net.artisanmc.modules.api.*`**, jamais depuis
-`net.artisanmc.plugin.*` (implicitement `@Internal`). Ajouter un module : `docs/architecture/modules.md`.
+**Modular monolith** — each module lives in 2 symmetric layers:
+`plugin/…/modules/{id}/` (`ArtisanModule` impl) and `editor/src/modules/{id}/` (`FrontendModule`).
+Cross-module communication only through `DataSourceRegistry` and `CommandRegistry` — no direct
+dependency. **An `ArtisanModule` only imports from `net.artisanmc.modules.api.*`**, never from
+`net.artisanmc.plugin.*` (implicitly `@Internal`). Adding a module: `docs/architecture/modules.md`.
 
-## Pièges à conséquence
+## Costly pitfalls
 
-Les trois qu'on ne peut pas se permettre de découvrir après coup. Le reste — et le détail de
-ceux-ci — dans **`docs/architecture/invariants.md`**.
+The three we cannot afford to discover after the fact. The rest — and the detail of
+these — in **`docs/architecture/invariants.md`**.
 
-1. **Le contenu publié vit sur le disque du serveur, le reste dans la base de la suite** — seul
-   le serveur écrit ses fichiers (`project_write` ou publication d'un brouillon, compare-and-swap).
-   La base garde ce que chaque serveur a chargé (`artisan_servers`, Versions,
-   `artisan_server_state`) et les brouillons privés (`artisan_drafts`, un jeu par UUID de joueur,
-   autosave) : le hub lit et édite depuis la base, serveur éteint compris ; seules les écritures et
-   les données live vont au serveur (ADR `server-identity-and-versions`).
-2. **`.artisan*` en premier segment = métadonnée** — hors hash, invisible au scan disque. L'éditeur
-   possède `.artisan/editor.yaml` (il peut l'écrire) ; `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`, `.artisan/origins.yaml`,
-   `.artisan-trash/` et `.artisan-sync.yaml` lui restent invisibles **et** interdits en écriture.
-3. **Threads : Paper, Folia, Leaf** — jamais `Bukkit.getScheduler()` : tout passe par le port
-   `Scheduler`. Jetty répond sur ses propres threads ; tout accès au jeu depuis le hub repasse par
-   le scheduler.
+1. **Published content lives on the server's disk, the rest in the suite database** — only
+   the server writes its files (`project_write` or publishing a draft, compare-and-swap).
+   The database keeps what each server loaded (`artisan_servers`, Versions,
+   `artisan_server_state`) and the private drafts (`artisan_drafts`, one set per player UUID,
+   autosave): the hub reads and edits from the database, even with the server off; only writes and
+   live data go to the server (ADR `server-identity-and-versions`).
+2. **`.artisan*` as first segment = metadata** — outside the hash, invisible to the disk scan. The editor
+   owns `.artisan/editor.yaml` (it may write it); `.artisan/history/`, `.artisan/drafts/`, `.artisan/project-id`, `.artisan/origins.yaml`,
+   `.artisan-trash/` and `.artisan-sync.yaml` stay invisible to it **and** off-limits for writing.
+3. **Threads: Paper, Folia, Leaf** — never `Bukkit.getScheduler()`: everything goes through the
+   `Scheduler` port. Jetty answers on its own threads; any game access from the hub goes back through
+   the scheduler.
 
-## Design system éditeur
+## Editor design system
 
-Tout nouveau développement UI passe **en priorité** par le design system (spécimen sur `/design`) :
+All new UI work goes **first** through the design system (specimen at `/design`):
 
-1. Composants `editor/src/components/ui/` ou classes utilitaires de `globals.css` (`.btn*`, `.input`,
-   `.card`, `.chip`, `.badge*`, `.tab`, `.eyebrow`, `.field-label`…) d'abord.
-2. Composant manquant → le créer dans `components/ui/` + ajouter son spécimen à `/design`
-   dans le même commit. Pas de styling ad-hoc dupliqué.
-3. Couleurs uniquement via `var(--token)`, jamais de hex/rgba en dur. Exception : canvas Konva.
+1. Components in `editor/src/components/ui/` or the utility classes of `globals.css` (`.btn*`, `.input`,
+   `.card`, `.chip`, `.badge*`, `.tab`, `.eyebrow`, `.field-label`…) first.
+2. Missing component → create it in `components/ui/` + add its specimen to `/design`
+   in the same commit. No duplicated ad-hoc styling.
+3. Colors only through `var(--token)`, never hard-coded hex/rgba. Exception: the Konva canvas.
 
-Les strings UI passent par react-i18next (`en.ts` + `fr.ts` dans le même commit) — jamais de
-français/anglais en dur dans le JSX.
+UI strings go through react-i18next (`en.ts` + `fr.ts` in the same commit) — never hard-coded
+French/English in JSX.
