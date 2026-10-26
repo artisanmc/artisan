@@ -1,0 +1,62 @@
+name: Release
+
+# A tag v<version> (`v1.0.50`) builds the plugin with its editor, then, once the `release`
+# environment is approved, signs the jar (deploy/sign-release.sh) and publishes it with
+# release.json on the tag's GitHub Release. `/artisan update` downloads both and checks the
+# signature against the keys Artisan pins (ReleaseKeys). The private key never leaves the
+# `release` environment: set ARTISAN_SIGNING_KEY there, with a required reviewer.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editor/package-lock.json
+      - run: npm ci
+        working-directory: editor
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v5
+      - run: bash ./gradlew test :artisan-paper:shadowJar -PwithEditor -PartisanVersion="${GITHUB_REF_NAME#v}" --no-daemon
+        working-directory: plugin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jar
+          path: plugin/paper/build/libs/artisan-plugin-*-all.jar
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: jar
+          path: dist
+      - name: Sign
+        env:
+          ARTISAN_SIGNING_KEY: ${{ secrets.ARTISAN_SIGNING_KEY }}
+        run: deploy/sign-release.sh dist/*.jar "${GITHUB_REF_NAME#v}"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.jar dist/release.json --title "Artisan $GITHUB_REF_NAME" --generate-notes

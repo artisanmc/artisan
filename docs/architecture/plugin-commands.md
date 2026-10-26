@@ -11,6 +11,7 @@ les deux doivent bouger ensemble.
 | `sync status` | Message fixe renvoyant aux logs (vestige de la synchro cloud). |
 | `sync reject` | Permission `artisan.admin`. `menuProvider.unload()/load()` — recharge depuis le disque et, sur une feuille, reconnecte au hub. |
 | `editor` | Lien de connexion à l'éditeur. Cf. ci-dessous. |
+| `update [plugin]` | Permission `artisan.admin`. Sans argument : la dernière GitHub Release de chaque plugin de la suite qui nomme son dépôt (`artisan-releases: <owner>/<repo>` dans son `plugin.yml` ou `paper-plugin.yml`), comparée à la version installée. Avec un plugin : télécharge `release.json` et le jar, vérifie la signature Ed25519 (`SignedRelease`, clés de `ReleaseKeys`), le SHA-256, puis le nom et la version du descripteur du jar, et l'écrit dans `plugins/update/` sous le nom du jar installé : Paper l'applique au prochain démarrage. Rien n'est chargé à chaud. Réseau hors du thread principal (`ModuleUpdater`). Sans clé épinglée, rien n'est déposé. Releases produites par `.github/workflows/release.yml` de chaque dépôt (`deploy/sign-release.sh`). |
 | `dump-title <menu_id> [lang]` | Permission `artisan.admin`. **Diagnostic**, non documenté côté user. Compile le titre du menu et imprime chaque étape : le MiniMessage exact émis, les advances d'offset, et le curseur X MC à chaque frontière de layer. À utiliser quand la position en jeu diffère de l'aperçu éditeur. |
 
 Supprimés en phase F : `link <code>` (liaison au cloud), `member add <email>` (accès console),

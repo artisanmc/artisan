@@ -336,17 +336,29 @@ open class ArtisanPlugin : JavaPlugin() {
     private fun pluginOf(loader: ClassLoader?): org.bukkit.plugin.Plugin? =
         server.pluginManager.plugins.firstOrNull { it.javaClass.classLoader === loader }
 
-    /** Artisan, then every plugin that depends on it directly or not, running or not: the suite's inventory. */
-    private fun suitePlugins(): List<Map<String, Any?>> {
+    /** Artisan, then every plugin that depends on it directly or not, running or not. */
+    private fun suite(): List<org.bukkit.plugin.Plugin> {
         val all = server.pluginManager.plugins.toList()
-        val dependsOn = all.associate { it.name to net.artisanmc.plugin.platform.ServerPlatform.dependencies(it) }
-        val names = listOf(name) + HotReloadGuard.dependents(name, all.map { HotReloadGuard.Entry(it.name, true, dependsOn.getValue(it.name)) })
-        return names.mapNotNull { n -> all.firstOrNull { it.name == n } }.map {
-            net.artisanmc.plugin.protocol.ServerAnnouncement.plugin(
-                it.name, it.description.version, jarName(it), it.isEnabled, dependsOn.getValue(it.name).sorted(),
-            )
-        }
+        val entries = all.map { HotReloadGuard.Entry(it.name, true, net.artisanmc.plugin.platform.ServerPlatform.dependencies(it)) }
+        return (listOf(name) + HotReloadGuard.dependents(name, entries)).mapNotNull { n -> all.firstOrNull { it.name == n } }
     }
+
+    /** The suite's inventory, as the editor's Plugins section shows it. */
+    private fun suitePlugins(): List<Map<String, Any?>> = suite().map {
+        net.artisanmc.plugin.protocol.ServerAnnouncement.plugin(
+            it.name, it.description.version, jarName(it), it.isEnabled,
+            net.artisanmc.plugin.platform.ServerPlatform.dependencies(it).sorted(),
+        )
+    }
+
+    /** `/artisan update`: stages signed releases in the server's update folder, applied at the next start. */
+    internal val updater by lazy {
+        net.artisanmc.plugin.update.ModuleUpdater(server.updateFolderFile, net.artisanmc.plugin.update.ReleaseKeys.TRUSTED)
+    }
+
+    /** The plugins of the suite that name their releases (`artisan-releases`). */
+    internal fun updateSources(): List<net.artisanmc.plugin.update.ModuleUpdater.Source> =
+        suite().mapNotNull(net.artisanmc.plugin.update.ModuleUpdater::sourceOf)
 
     /** The file name of [plugin]'s jar, null when it does not come from one (tests, a dev classpath). */
     private fun jarName(plugin: org.bukkit.plugin.Plugin): String? = runCatching {

@@ -76,6 +76,20 @@ révision saine (le site est statique, sans état).
 
 En local : `npm ci --prefix docs-site`, puis `npm run dev:site --prefix editor`.
 
+## Releases signées du plugin
+
+Un tag `v<version>` (`git tag v1.0.50 && git push origin v1.0.50`) lance `.github/workflows/release.yml` :
+build avec l'éditeur (`-PwithEditor -PartisanVersion=<version>`), puis, après approbation de
+l'environnement `release`, signature Ed25519 par `deploy/sign-release.sh` et GitHub Release avec le jar
+et `release.json` (`{plugin, version, sha256, signature}`, message signé
+`artisan-release\n<plugin>\n<version>\n<sha256>`). `/artisan update` les vérifie avec les clés de
+`ReleaseKeys` avant d'écrire dans `plugins/update/`. Chaque dépôt de module a le même workflow et le même
+script.
+
+Mise en place, une fois par dépôt : environnement `release` (Settings → Environments) avec un reviewer
+requis et le secret `ARTISAN_SIGNING_KEY` (clé privée PEM, `openssl genpkey -algorithm ed25519`). La clé
+publique (`openssl pkey -in key.pem -pubout -outform DER | base64 -w0`) va dans `ReleaseKeys.TRUSTED`.
+
 ## API publique et Reposilite
 
 - `.github/workflows/api-version-check.yml` + `deploy/api-version.mjs` : une PR qui touche l'API publique

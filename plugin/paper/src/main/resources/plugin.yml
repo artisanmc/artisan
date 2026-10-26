@@ -3,6 +3,8 @@ version: '${version}'
 main: net.artisanmc.plugin.ArtisanPlugin
 api-version: '1.21'
 folia-supported: true
+# Where /artisan update finds Artisan's signed releases (ModuleUpdater).
+artisan-releases: artisanmc/artisan
 softdepend: [Vault, PlaceholderAPI, WorldGuard, Nexo, Oraxen, ItemsAdder, HeadDatabase]
 description: Artisan GUI editor plugin
 # Downloaded by Paper at startup, kept out of the jar (ADR suite-foundation-database).
@@ -17,10 +19,10 @@ libraries:
 commands:
   artisan:
     description: Artisan commands
-    usage: /artisan <menu <id>|reload|sync <status|reject>|editor|dump-title <id>>
+    usage: /artisan <menu <id>|reload|sync <status|reject>|editor|dump-title <id>|update [plugin]>
 permissions:
   artisan.admin:
-    description: Run /artisan reload, sync and dump-title
+    description: Run /artisan reload, sync, dump-title and update
     default: op
   artisan.menu:
     description: Open any menu by id with /artisan menu

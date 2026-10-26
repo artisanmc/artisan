@@ -70,7 +70,7 @@ docker compose up       # Paper :25565 + éditeur du plugin :8765 + MySQL de la 
 docker compose -f docker/network/compose.yml up   # réseau : un hub + une feuille
 ```
 
-**Commandes plugin** — `/artisan menu|reload|sync|editor|dump-title`, détail dans
+**Commandes plugin** — `/artisan menu|reload|sync|editor|dump-title|update`, détail dans
 `docs/architecture/plugin-commands.md`.
 
 **Assets MC** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`
