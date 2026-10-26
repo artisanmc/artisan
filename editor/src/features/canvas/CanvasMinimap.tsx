@@ -48,7 +48,7 @@ export function CanvasMinimap({ boxes, size, viewport, onNavigate }: Props) {
       aria-label={t("canvas.minimap")}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: The interactive map supports arrow-key navigation.
       tabIndex={0}
-      className="absolute right-2 bottom-2 z-20 w-[128px] overflow-hidden sm:w-[220px] rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] shadow-md"
+      className="absolute right-2 bottom-2 z-20 w-[96px] overflow-hidden sm:w-[148px] rounded-md border border-[var(--border)] bg-[var(--surface-raised)] shadow-md"
       style={{
         aspectRatio: "11 / 7",
         touchAction: "none",
@@ -122,7 +122,7 @@ export function CanvasMinimap({ boxes, size, viewport, onNavigate }: Props) {
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-1 right-1 z-10 size-6 bg-[var(--surface-raised)]"
+        className="absolute top-0.5 right-0.5 z-10 size-5 bg-[var(--surface-raised)]"
         aria-label={t("canvas.closeMinimap")}
         title={t("canvas.closeMinimap")}
         onPointerDown={(event) => event.stopPropagation()}
@@ -131,7 +131,7 @@ export function CanvasMinimap({ boxes, size, viewport, onNavigate }: Props) {
           useUiStore.getState().setMinimapVisible(false);
         }}
       >
-        <X className="size-3.5" />
+        <X className="size-3" />
       </Button>
       <svg
         width="100%"
@@ -157,7 +157,8 @@ export function CanvasMinimap({ boxes, size, viewport, onNavigate }: Props) {
           fill="var(--brand-soft)"
           fillOpacity={0.5}
           stroke="var(--brand)"
-          strokeWidth={2 / scale}
+          strokeWidth={1.5}
+          vectorEffect="non-scaling-stroke"
         />
       </svg>
     </div>
