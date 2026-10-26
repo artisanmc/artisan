@@ -66,8 +66,12 @@ qu'il est déployé.
    `invalid_documents` (`message` : une ligne `chemin: problème` par problème, `problems` en liste),
    rien n'est écrit. Le hub le rend en 422 ; l'éditeur affiche les lignes dans la fenêtre d'échec de
    Déployer. Pour que les add-ons passent, le schéma accepte les actions qu'un serveur déclare : un nom
-   préfixé (`guilds:rank_delete`) ou `module_command`/`cancel_event`, arguments non vérifiés. Un
-   nom du cœur mal écrit reste refusé ; un nom préfixé mal écrit passe. Mesure préalable : les documents livrés avec
+   préfixé (`guilds:rank_delete`) ou `module_command`/`cancel_event`. Le schéma ne connaît pas ces
+   déclarations : l'étape `actions` (`ActionCheck`, 2026-10-26) compare chaque action préfixée à
+   `declared_actions` du serveur. Un nom non déclaré est refusé, avec le nom déclaré le plus proche
+   (`guilds:rank_delet` → `guilds:rank_delete`), de même qu'un argument inconnu ou un argument requis
+   absent. Les valeurs ne sont pas vérifiées (elles sont souvent des expressions, `{r.id}`), ni une
+   clé préfixée sous une liste de conditions. Mesure préalable : les documents livrés avec
    MSGuilds, artisan-auctions et artisan-attribution passent tous (MSGuilds en comptait 90 avant la
    branche « déclarée », attribution 15). Un seul utilisateur d'Artisan à cette date : bloquer tout
    de suite plutôt qu'une phase d'avertissements.
@@ -87,8 +91,6 @@ qu'il est déployé.
 
 ## Reporté
 
-- Vérifier les actions préfixées et leurs arguments contre ce que le serveur déclare réellement
-  (`guilds:rank_delet` passe aujourd'hui le schéma).
 - Afficher les problèmes dans le diff de la revue de Déployer, avant le clic, plutôt qu'après.
 - L'assistant cloud intégré, le portefeuille par serveur et le mode « fournisseur + clé de l'admin »
   (relais `/ai` du hub) : jalons suivants de la proposition.

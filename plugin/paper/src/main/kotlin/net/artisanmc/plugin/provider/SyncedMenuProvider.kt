@@ -172,8 +172,9 @@ class SyncedMenuProvider(
     }
     private val replies = Replies(httpClient.dispatcher.executorService, ::send, logger)
     private val projectReads = ProjectReads(workspace, replies)
-    private val documentChecks = net.artisanmc.plugin.protocol.DocumentChecks(workspace, replies)
-    private val projectWrites = ProjectWrites(workspace, replies, ::send, logger)
+    private val documentCheck = net.artisanmc.plugin.protocol.DocumentCheck { announcement().actions }
+    private val documentChecks = net.artisanmc.plugin.protocol.DocumentChecks(workspace, replies, documentCheck)
+    private val projectWrites = ProjectWrites(workspace, replies, ::send, logger, documentCheck)
     private val templateRequests = net.artisanmc.plugin.protocol.TemplateRequests(workspace, replies, templates)
     private val queries = ServerQueries(replies, scheduler, logger, evaluator, dataSources, nexoGlyphs, serverConfig, editorBundles)
     @Volatile private var testSendOverride: ((String) -> Unit)? = null

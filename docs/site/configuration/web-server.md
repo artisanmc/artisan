@@ -169,7 +169,7 @@ With `web.mcp: true` in `environment.yml`, the editor's address also answers the
   `artisan.editor.config`. It needs `artisan.editor.edit`.
 - **What it can do**: list the servers, Projects and Documents; read files; read the JSON
   schema of a Document kind; start a draft and write files into it. Each file is checked by the
-  Project's server (path, YAML, schema, engine) before it enters the draft.
+  Project's server (path, YAML, schema, the modules' actions, engine) before it enters the draft.
 - **What it cannot do**: deploy. The draft shows up in the player's Drafts in the editor; the
   player reviews the changes and clicks Deploy.
 - **Revoking**: Settings → AI apps lists the connected clients; Disconnect cuts one off at its
