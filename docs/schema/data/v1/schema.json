@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://docs.artisanmc.net/schema/data/v1.json",
   "title": "Artisan Project Source",
-  "description": "Fichier data/<source_id>.yaml d'un Bundle : une Project source dénormalisée (le Data model est inliné dans `fields` à l'export — le runtime ne voit jamais l'identité des models). Cf. ADR project-sources-and-data-models.",
+  "description": "A data/<source_id>.yaml file: a self-contained Project source. Its Data model is inlined in `fields`; the server never sees model identities.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "id", "shape", "fields"],
@@ -26,55 +26,55 @@
   "properties": {
     "schema": {
       "const": "data/v1",
-      "description": "Version du schéma. Verrouillée pour permettre les migrations applicables au load."
+      "description": "Schema version. Fixed, so that migrations can apply on load."
     },
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]{0,63}$",
-      "description": "Identifiant stable de la source. Référencée par les menus via `pack:<id>`."
+      "description": "Stable id of the source. Menus reference it as `pack:<id>`."
     },
     "name": {
       "type": "string",
-      "description": "Nom d'affichage de la source dans l'éditeur. Ignoré par le plugin."
+      "description": "Display name in the editor. Ignored by the server."
     },
     "shape": {
       "enum": ["table", "config"],
-      "description": "table = liste de rows (itérable, plaçable) ; config = objet unique consommé par interpolation."
+      "description": "table: a list of rows (iterated or placed); config: a single object read through placeholders."
     },
     "model": {
       "type": "string",
-      "description": "Back-ref lossless vers models/<id>.yaml (table uniquement) : le Data model qui type cette source côté éditeur. Un id namespacé (ns:model) référence un model DÉCLARÉ par un Add-on (Presence). `fields` reste la vue aplatie runtime ; le plugin ignore ce champ. Cf. ADR files-first-source-of-truth + composable-data-models."
+      "description": "Tables only: the Data model (models/<id>.yaml) that types this source in the editor. A namespaced id (ns:model) is a model declared by an add-on. The server ignores it and reads `fields`."
     },
     "model_version": {
       "type": "integer",
-      "description": "Version du model déclaré sous laquelle les rows ont été écrites (ADR composable-data-models §5) — l'éditeur applique la chaîne de migrations déclaratives quand elle retarde sur la déclaration. Ignoré par le plugin."
+      "description": "Version of the declared model the rows were written with; the editor migrates them when it lags behind. Ignored by the server."
     },
     "key_field": {
       "type": "string",
-      "description": "Row key (table uniquement) : champ scalaire top-level identifiant chaque row de façon stable. Ancre des Placements."
+      "description": "Tables only: the top-level scalar field that identifies each row. Placements anchor on it."
     },
     "granularity": {
       "const": "row",
-      "description": "Granularité par-row (ADR composable-data-models §2) : ce document est le `_source.yaml` d'un dossier `data/<id>/` — les rows vivent dans un fichier par Row key à côté, `rows:` absent ici."
+      "description": "One file per row: this is the `_source.yaml` of a `data/<id>/` folder, the rows live next to it (one file per row key) and `rows:` is absent."
     },
     "order": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Ordre des fichiers de rows (granularité par-row). Un fichier ajouté à la main hors de cette liste est appendé (tri byte)."
+      "description": "Order of the row files (one file per row). A file added by hand outside this list is appended, sorted by name."
     },
     "fields": {
       "type": "array",
       "items": { "$ref": "#/$defs/Field" },
-      "description": "Schéma déclaré des rows (table) ou de l'objet (config). Data models inlinés — pas de refs ici."
+      "description": "The fields of the rows (table) or of the object (config). Models are inlined, no refs."
     },
     "rows": {
       "type": "array",
       "items": { "type": "object" },
-      "description": "Les rows d'une table. Valeurs ltext = clé i18n (string, résolue via lang/) ; valeurs item = material ou ref `item:<id>`."
+      "description": "The rows of a table. ltext values are i18n keys (resolved through lang/); item values are a material or `item:<id>`."
     },
     "value": {
       "type": "object",
-      "description": "L'objet d'une config. Mêmes conventions de valeurs que rows."
+      "description": "The object of a config. Same value conventions as rows."
     }
   },
   "$defs": {
@@ -86,24 +86,24 @@
         "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
         "kind": {
           "enum": ["string", "number", "integer", "boolean", "ltext", "item", "actions", "conditions", "list", "object", "map", "enum", "union"],
-          "description": "ltext = clé i18n (résolue au bind selon la langue du joueur) ; item = espace de valeurs material (`DIAMOND` | `item:<id>` | ref custom) ; actions = Action chain en steps structurés keyed (ADR structured-action-wire ; une ancienne string Action DSL reste lue) ; map = dictionnaire clé→valeur ; enum = string d'un ensemble fermé ; union = variante discriminée par `tag` (ADR composable-data-models). `model` n'existe pas ici : inliné à l'export — le fichier reste self-contained."
+          "description": "ltext: an i18n key, resolved in the player's language; item: a material (`DIAMOND`, `item:<id>` or a custom ref); actions: an action chain of steps (a legacy DSL string is still read); map: key → value; enum: a string from a closed set; union: a variant chosen by `tag`. No `model` here: it is inlined, the file stays self-contained."
         },
-        "of": { "$ref": "#/$defs/FieldType", "description": "Type des éléments (kind=list) ou des valeurs (kind=map)." },
+        "of": { "$ref": "#/$defs/FieldType", "description": "Type of the items (kind=list) or of the values (kind=map)." },
         "fields": {
           "type": "array",
           "items": { "$ref": "#/$defs/Field" },
-          "description": "Champs imbriqués (kind=object uniquement)."
+          "description": "Nested fields (kind=object only)."
         },
         "values": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Valeurs admises (kind=enum uniquement)."
+          "description": "Allowed values (kind=enum only)."
         },
-        "tag": { "type": "string", "description": "Champ discriminant (kind=union uniquement)." },
+        "tag": { "type": "string", "description": "The field that picks the variant (kind=union only)." },
         "variants": {
           "type": "array",
           "items": { "$ref": "#/$defs/Variant" },
-          "description": "Variantes de données (kind=union uniquement)."
+          "description": "Data variants (kind=union only)."
         }
       }
     },

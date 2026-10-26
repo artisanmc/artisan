@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Project, ProjectId } from "@/domain/types";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
+import { AssistantButton } from "@/features/project/assistant/AssistantButton";
 import { openProjectSettings } from "@/features/project/projectSettings";
 import { SaveControls } from "@/features/project/publish/SaveControls";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "@/features/project/workspaceTabs";
@@ -144,6 +145,7 @@ export function ProjectTopBarControls({
           )}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
+          <AssistantButton projectId={projectId} />
           <SearchButton />
           <div data-tour="save" className="flex items-center gap-1">
             <SaveControls key={projectId} projectId={projectId} offline={offline} />

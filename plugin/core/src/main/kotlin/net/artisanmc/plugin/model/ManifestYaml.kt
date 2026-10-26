@@ -2,6 +2,10 @@ package net.artisanmc.plugin.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.readValue
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 
 /** A module's [ModuleFile]: `module/v1`, or the legacy `manifest/v1` with the same fields. */
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -19,4 +23,11 @@ data class ManifestYaml(
     @JsonProperty("lore_max_width") val loreMaxWidth: Int = 0,
     /** ESC reopens the previous screen of the stack instead of closing everything ([net.artisanmc.plugin.render.MenuListener]). */
     @JsonProperty("escape_goes_back") val escapeGoesBack: Boolean = false,
-)
+) {
+    companion object {
+        private val yaml = ObjectMapper(YAMLFactory()).registerKotlinModule()
+
+        /** A module file's text, or null when it does not parse. */
+        fun parse(text: String): ManifestYaml? = runCatching { yaml.readValue<ManifestYaml>(text) }.getOrNull()
+    }
+}

@@ -1,4 +1,5 @@
 import { actionCatalogEn } from "./actionCatalog";
+import { aiEn } from "./ai";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
 import { mcpEn } from "./mcp";
@@ -1527,6 +1528,7 @@ export default {
     emptyContext: "No variable available in this context",
   },
   mcp: mcpEn,
+  ai: aiEn,
   editorAddress: {
     title: "Editor address",
     help: "Give the editor's tunnel address a name. The current address keeps working.",
