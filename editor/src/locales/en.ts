@@ -204,7 +204,7 @@ export default {
     fileShapeInline: "Plain text",
     fileShapeExtract: "Keys",
     fileShapeInlineHint:
-      "Menu files carry each text as written, with one entry per language once translated; no lang/{{lang}}.yml is written.",
+      "Menu files carry the {{lang}} text as written; other languages live in lang/ and no lang/{{lang}}.yml is written.",
     fileShapeExtractHint:
       "Menu files carry {i18n:key} references; every language, {{lang}} included, lives in lang/.",
     fileShapeConfirmInline:
