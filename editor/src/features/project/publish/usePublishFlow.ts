@@ -31,6 +31,8 @@ import {
 } from "@/features/project/saveProjectToDisk";
 import { serverChecksFor } from "@/features/serverIndex/serverChecks";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
+import { ApiError } from "@/lib/api/client";
+import { checkDocuments, deploymentDelta } from "@/lib/api/documentChecks";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
@@ -174,18 +176,35 @@ export function usePublishFlow(
     flushDraftEdits();
     const live = useProjectsStore.getState().openProjects.projects.find((p) => p.id === projectId);
     const current = useProjectDraftStore.getState().get(projectId);
+    const changes = {
+      before: useProjectBaselineStore.getState().get(projectId) ?? {},
+      after: projectTree(live ?? project),
+      renames: useProjectDraftStore.getState().pendingRenames[projectId] ?? current?.renames,
+      binaryBefore: current?.binaryBaseline,
+      binaryAfter: current?.binaryTree,
+    };
     dispatch({
       type: "reviewOpened",
       // Checks against the other projects' published state, read at review time.
       checks: serverChecksFor(live ?? project, useServerIndexStore.getState()),
-      changes: {
-        before: useProjectBaselineStore.getState().get(projectId) ?? {},
-        after: projectTree(live ?? project),
-        renames: useProjectDraftStore.getState().pendingRenames[projectId] ?? current?.renames,
-        binaryBefore: current?.binaryBaseline,
-        binaryAfter: current?.binaryTree,
-      },
+      changes,
     });
+    // The check Deploy runs before writing, asked now: the problems show in the review.
+    const { files, deletes } = deploymentDelta(changes.before, changes.after);
+    dispatch({ type: "documentsChecked", changes, documents: { status: "pending" } });
+    void checkDocuments(projectId, files, deletes).then(
+      (problems) =>
+        dispatch({ type: "documentsChecked", changes, documents: { status: "ready", problems } }),
+      (error) =>
+        dispatch({
+          type: "documentsChecked",
+          changes,
+          documents: {
+            status: "unavailable",
+            code: error instanceof ApiError ? error.code : "unknown_error",
+          },
+        }),
+    );
   };
   // "Restore and publish" from the History tab goes through this same review.
   // biome-ignore lint/correctness/useExhaustiveDependencies: `openReview` reads the stores when it runs.

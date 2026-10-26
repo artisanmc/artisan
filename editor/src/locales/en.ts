@@ -1499,6 +1499,18 @@ export default {
     server: "Server",
     draft: "Draft",
     confirm: "Deploy to the server",
+    documents: {
+      title: "Server check",
+      pending: "The server is checking the changed files…",
+      none: "Every changed file loads on the server.",
+      problems_one:
+        "{{count}} problem: the server would refuse this deployment. Fix it, then deploy.",
+      problems_other:
+        "{{count}} problems: the server would refuse this deployment. Fix them, then deploy.",
+      unavailable:
+        "The server could not check the files ({{code}}): it checks them again when you deploy.",
+      blocked: "Fix the problems the server found first.",
+    },
     checks: {
       title: "Cross-project checks",
       none: "No conflict with the other projects.",

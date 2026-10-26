@@ -63,10 +63,15 @@ deployed.
    run `DocumentCheck` on the tree they would write (renames and deletions included, `.artisan*`
    files excluded) before any compare-and-swap; a failure answers `invalid_documents` (`message`: one
    `path: problem` line per problem, `problems` as a list), nothing is written. The hub returns it as
-   a 422; the editor shows the lines in Deploy's failure dialog. So that add-ons pass, the schema
-   accepts the actions a server declares: a prefixed name (`guilds:rank_delete`) or
-   `module_command`/`cancel_event`, arguments unchecked. A misspelled core name is still refused; a
-   misspelled prefixed name passes. Prior measurement: the documents shipped with MSGuilds,
+   a 422; the editor shows the lines in Deploy's failure dialog. Since 2026-10-26, Deploy's review runs
+   the same check when it opens (`POST …/check`) and shows each problem on its file in the diff,
+   before the click. So that add-ons pass, the schema accepts the actions a server declares: a
+   prefixed name (`guilds:rank_delete`) or `module_command`/`cancel_event`. The schema does not know
+   those declarations: the `actions` stage (`ActionCheck`, 2026-10-26) compares each prefixed action
+   with the server's `declared_actions`. An undeclared name is refused, with the closest declared name
+   (`guilds:rank_delet` → `guilds:rank_delete`), as is an unknown argument or a missing required one.
+   Values are not checked (they are often expressions, `{r.id}`), nor a prefixed key under a list of
+   conditions. Prior measurement: the documents shipped with MSGuilds,
    artisan-auctions and artisan-attribution all pass (MSGuilds had 90 failures before the "declared"
    branch, attribution 15). Only one Artisan user at this date: block right away rather than run a
    warning phase.
@@ -86,9 +91,6 @@ deployed.
 
 ## Deferred
 
-- Check prefixed actions and their arguments against what the server actually declares
-  (`guilds:rank_delet` passes the schema today).
-- Show the problems in the diff of the Deploy review, before the click, rather than after.
 - The built-in cloud assistant, the per-server wallet and the "provider + admin's key" mode (the hub's
   `/ai` relay): next milestones of the proposal.
 - Detecting reuse of a refresh token (revoke the whole authorization): this would require keeping the

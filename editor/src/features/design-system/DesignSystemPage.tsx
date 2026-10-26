@@ -322,6 +322,7 @@ export function DesignSystemPage() {
             "lang/en.yaml": "shop.title: Shop\n",
           }}
           renames={[{ from: "menus/old.yaml", to: "menus/new.yaml" }]}
+          problems={{ "menus/shop.yaml": ["schema: price is not allowed"] }}
         />
       </Section>
       {/* Rules */}
