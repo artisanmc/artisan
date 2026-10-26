@@ -44,13 +44,13 @@ class SignedReleaseTest {
         assertFalse(SignedRelease.verify(signed().copy(signature = "%%%"), listOf(publicKey)))
     }
 
-    /** The bytes `scripts/sign-release.sh` signs: no trailing newline. */
+    /** The bytes `sign-release.yml` signs: no trailing newline. */
     @Test
     fun `the signed message matches the release script`() {
         assertEquals("artisan-release\nP\n1.0\nab", String(SignedRelease.message("P", "1.0", "ab")))
     }
 
-    /** A release.json written by `scripts/sign-release.sh` (OpenSSL) with a throwaway test key. */
+    /** A release.json written by `sign-release.yml` (OpenSSL) with a throwaway test key. */
     @Test
     fun `a signature made by the release script verifies`() {
         val release = ReleaseManifest(

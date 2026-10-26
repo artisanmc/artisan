@@ -7,7 +7,7 @@ import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 
 /**
- * `release.json` of a plugin's GitHub Release, written by the repository's `scripts/sign-release.sh`:
+ * `release.json` of a plugin's GitHub Release, written by Artisan's shared `sign-release.yml` workflow:
  * the jar's plugin name, version and SHA-256, signed with Ed25519 by the release workflow.
  */
 data class ReleaseManifest(val plugin: String, val version: String, val sha256: String, val signature: String) {

@@ -81,15 +81,24 @@ Locally: `npm ci --prefix docs-site`, then `npm run dev:site --prefix editor`.
 ## Signed plugin releases
 
 A `v<version>` tag (`git tag v1.0.50 && git push origin v1.0.50`) runs `.github/workflows/release.yml`:
-build with the editor (`-PwithEditor -PartisanVersion=<version>`), then, once the `release` environment
-is approved, Ed25519 signature by `deploy/sign-release.sh` and a GitHub Release with the jar and
-`release.json` (`{plugin, version, sha256, signature}`, signed message
-`artisan-release\n<plugin>\n<version>\n<sha256>`). `/artisan update` checks them against the keys of
-`ReleaseKeys` before writing to `plugins/update/`. Each module repo has the same workflow and script.
+build with the editor (`-PwithEditor -PartisanVersion=<version>`), then `.github/workflows/sign-release.yml`
+signs the jar with Ed25519 and publishes a GitHub Release with the jar and `release.json`
+(`{plugin, version, sha256, signature}`, signed message `artisan-release\n<plugin>\n<version>\n<sha256>`).
+`/artisan update` checks them against the keys of `ReleaseKeys` before writing to `plugins/update/`.
 
-Setup, once per repo: a `release` environment (Settings → Environments) with a required reviewer and
-the `ARTISAN_SIGNING_KEY` secret (PEM private key, `openssl genpkey -algorithm ed25519`). The public key
-(`openssl pkey -in key.pem -pubout -outform DER | base64 -w0`) goes into `ReleaseKeys.TRUSTED`.
+`sign-release.yml` is shared: every plugin of the suite releases from its own repo, builds its jar,
+uploads it as the `jar` artifact and calls
+`uses: artisanmc/artisan/.github/workflows/sign-release.yml@v2` with `secrets: inherit` and
+`permissions: contents: write`.
+
+Setup, once for the organization:
+
+- Secret `ARTISAN_SIGNING_KEY` (Settings → Secrets and variables → Actions → organization secret,
+  limited to the plugin repos): the PEM private key, `openssl genpkey -algorithm ed25519`. Its public
+  half (`openssl pkey -in key.pem -pubout -outform DER | base64 -w0`) goes into `ReleaseKeys.TRUSTED`.
+- A tag ruleset (Settings → Rules → Rulesets) on `v*` for every repo, restricting creation, update
+  and deletion, with only the maintainer as bypass: it decides who publishes. Anyone who can push a
+  workflow to one of these repos can still read the secret.
 
 ## Public API and Reposilite
 

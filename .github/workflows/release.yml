@@ -1,10 +1,10 @@
 name: Release
 
-# A tag v<version> (`v1.0.50`) builds the plugin with its editor, then, once the `release`
-# environment is approved, signs the jar (deploy/sign-release.sh) and publishes it with
-# release.json on the tag's GitHub Release. `/artisan update` downloads both and checks the
-# signature against the keys Artisan pins (ReleaseKeys). The private key never leaves the
-# `release` environment: set ARTISAN_SIGNING_KEY there, with a required reviewer.
+# A tag v<version> (`v1.0.50`) builds the plugin with its editor, then sign-release.yml (the
+# workflow every plugin of the suite calls) signs the jar with the organization secret
+# ARTISAN_SIGNING_KEY and publishes it with release.json on the tag's GitHub Release.
+# `/artisan update` downloads both and checks the signature against the keys Artisan pins
+# (ReleaseKeys).
 on:
   push:
     tags: ['v*']
@@ -41,22 +41,7 @@ jobs:
 
   publish:
     needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: release
     permissions:
       contents: write
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v4
-        with:
-          name: jar
-          path: dist
-      - name: Sign
-        env:
-          ARTISAN_SIGNING_KEY: ${{ secrets.ARTISAN_SIGNING_KEY }}
-        run: deploy/sign-release.sh dist/*.jar "${GITHUB_REF_NAME#v}"
-      - name: Publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.jar dist/release.json --title "Artisan $GITHUB_REF_NAME" --generate-notes
+    uses: ./.github/workflows/sign-release.yml
+    secrets: inherit
