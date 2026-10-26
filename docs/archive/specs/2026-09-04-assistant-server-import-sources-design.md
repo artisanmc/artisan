@@ -1,60 +1,59 @@
-# Sources d’import serveur pour l’assistant
+# Server import sources for the assistant
 
-**Statut :** design approuvé le 2026-09-04, non implémenté.
+**Status:** design approved on 2026-09-04, not implemented.
 
-## Problème
+## Problem
 
-L’assistant Artisan accepte aujourd’hui des fichiers déposés depuis le navigateur.
-L’éditeur lit leur texte, puis l’envoie dans `attachments` au backend avec le tour
-de conversation. Ce flux fonctionne quand l’administrateur possède les fichiers
-sur sa machine, mais il oblige à télécharger puis redéposer des menus déjà présents
-sur le serveur Minecraft — notamment les configurations zMenu et DeluxeMenus à
-migrer.
+The Artisan assistant today accepts files dropped from the browser.
+The editor reads their text, then sends it in `attachments` to the backend with the
+conversation turn. This flow works when the administrator owns the files
+on their machine, but it forces downloading then re-dropping menus already present
+on the Minecraft server — notably the zMenu and DeluxeMenus configurations to
+migrate.
 
-Le backend ne peut pas lire ces fichiers lui-même : il peut vivre dans un autre
-conteneur ou sur une autre machine. Le plugin Artisan est le seul composant qui
-dispose d’une vue fiable du disque du serveur. L’accès doit néanmoins rester bien
-plus étroit qu’un explorateur de fichiers général, car les dossiers de plugins
-peuvent contenir des secrets.
+The backend cannot read these files itself: it may live in another container or on
+another machine. The Artisan plugin is the only component that has a reliable view
+of the server's disk. Access must nevertheless stay much narrower than a general
+file explorer, because plugin folders can contain secrets.
 
-## Décision
+## Decision
 
-Ajouter à l’assistant une seconde origine de pièces jointes, **Depuis le serveur**,
-en complément de l’upload **Depuis mon appareil**.
+Add to the assistant a second origin of attachments, **From the server**,
+in addition to the **From my device** upload.
 
-Les dossiers accessibles sont des **sources d’import nommées**, déclarées dans le
-`config.yml` du plugin. Le plugin liste et lit leur contenu à la demande par le
-relais WebSocket existant. Le backend ne conserve aucun miroir des fichiers. Une
-sélection serveur rejoint la working copy actuelle de l’assistant et suit ensuite
-exactement le même flux de conversion que les pièces jointes locales.
+The accessible folders are **named import sources**, declared in the plugin's
+`config.yml`. The plugin lists and reads their content on demand through the
+existing WebSocket relay. The backend keeps no mirror of the files. A server
+selection joins the assistant's current working copy and then follows exactly the
+same conversion flow as local attachments.
 
-## Objectifs
+## Goals
 
-- Joindre un fichier ou un dossier déjà présent sur le serveur sans transfert
-  manuel par le poste de l’utilisateur.
-- Préserver les chemins relatifs lors d’une sélection récursive afin que
-  l’assistant puisse comprendre les références entre menus.
-- Autoriser plusieurs racines configurables, avec des exemples prêts à l’emploi
-  pour zMenu et DeluxeMenus.
-- Garder le plugin maître de son disque et ne transporter que les fichiers
-  explicitement sélectionnés.
-- Réutiliser le moteur de pièces jointes et de migration de l’assistant.
-- Conserver l’upload local comme solution pour les fichiers du poste ou lorsque
-  le serveur est hors ligne.
+- Attach a file or folder already present on the server without a manual transfer
+  through the user's machine.
+- Preserve relative paths on a recursive selection so that the assistant can
+  understand the references between menus.
+- Allow several configurable roots, with ready-to-use examples for zMenu and
+  DeluxeMenus.
+- Keep the plugin master of its disk and only transport the explicitly selected
+  files.
+- Reuse the assistant's attachment and migration engine.
+- Keep the local upload as the solution for files on the user's machine or when
+  the server is offline.
 
-## Hors périmètre
+## Out of scope
 
-- Explorer arbitrairement le système de fichiers du serveur.
-- Modifier, supprimer ou déplacer les fichiers sources.
-- Synchroniser ou sauvegarder ces sources dans le backend.
-- Créer un assistant de migration distinct du chat existant.
-- Supporter les fichiers binaires ; cette première version lit uniquement du
-  texte UTF-8 filtré par extension.
+- Arbitrarily exploring the server's filesystem.
+- Modifying, deleting or moving the source files.
+- Synchronizing or backing up these sources in the backend.
+- Creating a migration assistant separate from the existing chat.
+- Supporting binary files; this first version only reads UTF-8 text filtered by
+  extension.
 
-## Configuration du plugin
+## Plugin configuration
 
-Le plugin charge une map de sources sous `assistant.import-sources`. L’id est un
-slug stable utilisé sur le wire ; il n’est jamais interprété comme un chemin.
+The plugin loads a map of sources under `assistant.import-sources`. The id is a
+stable slug used on the wire; it is never interpreted as a path.
 
 ```yaml
 assistant:
@@ -71,66 +70,65 @@ assistant:
       extensions: [".yml", ".yaml"]
 ```
 
-Les deux sources connues sont présentes dans le `config.yml` distribué. Un
-administrateur peut les désactiver, changer leur chemin ou ajouter autant de
-sources nommées que nécessaire. Un chemin relatif part du répertoire de travail
-du serveur ; un chemin absolu est accepté uniquement parce qu’il a été déclaré
-explicitement par l’administrateur dans ce fichier local.
+The two known sources are present in the distributed `config.yml`. An
+administrator can disable them, change their path or add as many named
+sources as needed. A relative path starts from the server's working directory; an
+absolute path is accepted only because it was explicitly declared by the
+administrator in this local file.
 
-Une source invalide, absente ou illisible est omise du listing et produit un WARN
-précis dans la console du serveur. Elle n’empêche pas les autres sources de
-fonctionner.
+An invalid, missing or unreadable source is omitted from the listing and produces a
+precise WARN in the server console. It does not prevent the other sources from
+working.
 
-## Expérience utilisateur
+## User experience
 
-Le bouton trombone ouvre un `DropdownMenu` avec deux choix :
+The paperclip button opens a `DropdownMenu` with two choices:
 
-- **Depuis mon appareil**, qui déclenche l’input fichier actuel ;
-- **Depuis le serveur**, qui ouvre un `Dialog` de sélection.
+- **From my device**, which triggers the current file input;
+- **From the server**, which opens a selection `Dialog`.
 
-Le sélecteur serveur contient :
+The server picker contains:
 
-- le choix de la source configurée ;
-- une arborescence reconstruite depuis les chemins relatifs ;
-- des cases à cocher, avec état intermédiaire pour les dossiers ;
-- la sélection récursive d’un dossier ;
-- une recherche par nom ou chemin ;
-- le nombre de fichiers et leur taille cumulée estimée ;
-- les actions **Actualiser**, **Annuler** et **Joindre**.
+- the choice of the configured source;
+- a tree rebuilt from the relative paths;
+- checkboxes, with an indeterminate state for folders;
+- recursive selection of a folder;
+- a search by name or path;
+- the number of files and their estimated cumulative size;
+- the **Refresh**, **Cancel** and **Attach** actions.
 
-Le listing renvoie une liste plate de fichiers `{path, size}`. Le navigateur
-reconstruit les dossiers et transforme toute sélection de dossier en chemins de
-fichiers explicites. Un fichier ajouté sur le disque après le listing ne rejoint
-donc pas implicitement le message.
+The listing returns a flat list of `{path, size}` files. The browser rebuilds the
+folders and turns any folder selection into explicit file paths. A file added to
+the disk after the listing therefore does not implicitly join the message.
 
-Après validation, chaque sélection apparaît comme un groupe de pièces jointes,
-par exemple `zMenu · 12 fichiers`. Le groupe peut être développé ou retiré. Des
-pièces jointes locales et serveur peuvent coexister dans le même tour.
+After validation, each selection appears as a group of attachments,
+for example `zMenu · 12 files`. The group can be expanded or removed. Local and
+server attachments can coexist in the same turn.
 
-Si le serveur est hors ligne, **Depuis le serveur** reste visible mais désactivé
-avec une explication. **Depuis mon appareil** reste disponible.
+If the server is offline, **From the server** stays visible but disabled
+with an explanation. **From my device** stays available.
 
-## Architecture et flux de données
+## Architecture and data flow
 
 ### Listing
 
-1. L’éditeur appelle une route REST scellée par le Network, le Server et le
-   Project actuellement ouvert.
-2. Le backend vérifie la session, l’appartenance au Network et que le Project
-   appartient bien au Server demandé.
-3. Le backend envoie `import_sources_list` au plugin connecté, avec un
+1. The editor calls a REST route scoped by the currently open Network, Server and
+   Project.
+2. The backend checks the session, the Network membership and that the Project
+   belongs to the requested Server.
+3. The backend sends `import_sources_list` to the connected plugin, with a
    `request_id`.
-4. Le plugin parcourt chaque source active sans lire le contenu et répond avec
-   les métadonnées autorisées.
-5. Le backend relaie le résultat sans le persister.
+4. The plugin walks each active source without reading the content and answers with
+   the authorized metadata.
+5. The backend relays the result without persisting it.
 
-Route proposée :
+Proposed route:
 
 ```text
 GET /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/import-sources
 ```
 
-Réponse nominale :
+Nominal response:
 
 ```json
 {
@@ -147,10 +145,10 @@ Réponse nominale :
 }
 ```
 
-### Envoi d’un tour
+### Sending a turn
 
-Le contrat existant `attachments: Record<string, string>` reste inchangé pour
-les uploads locaux. Le corps d’un tour accepte en plus :
+The existing `attachments: Record<string, string>` contract stays unchanged for
+local uploads. The body of a turn additionally accepts:
 
 ```json
 {
@@ -163,36 +161,36 @@ les uploads locaux. Le corps d’un tour accepte en plus :
 }
 ```
 
-1. L’éditeur envoie les références, jamais le contenu serveur.
-2. Le backend refait les contrôles d’accès à la conversation et au Project.
-3. Avant de lancer le modèle, il envoie `import_sources_read` au plugin.
-4. Le plugin résout la source par son id, revalide chaque chemin et lit un
-   instantané UTF-8.
-5. Le backend fusionne ces fichiers dans les attachments de la `WorkingCopy`
-   sous des ids `server:<sourceId>/<path>` afin d’éviter toute collision avec un
-   nom local ou une autre source.
-6. La note système existante énumère ces ids ; `read_attachment` lit leur contenu
-   comme pour un upload local.
-7. Le tour IA démarre seulement après une réponse complète et valide du plugin.
+1. The editor sends the references, never the server content.
+2. The backend redoes the access checks on the conversation and the Project.
+3. Before launching the model, it sends `import_sources_read` to the plugin.
+4. The plugin resolves the source by its id, revalidates each path and reads a
+   UTF-8 snapshot.
+5. The backend merges these files into the `WorkingCopy` attachments
+   under ids `server:<sourceId>/<path>` to avoid any collision with a
+   local name or another source.
+6. The existing system note enumerates these ids; `read_attachment` reads their
+   content as for a local upload.
+7. The AI turn only starts after a complete and valid response from the plugin.
 
-Le backend ne crée aucune table, aucun cache ni aucune copie persistante du payload
-brut lu depuis la source. Le résultat brut de `read_attachment` est remplacé par un
-marqueur non sensible avant la sauvegarde du transcript. Les réponses et artefacts
-dérivés produits par le modèle restent soumis à la persistance normale de la
-conversation et du Project ; cette garantie ne cherche pas à les filtrer.
+The backend creates no table, no cache and no persistent copy of the raw payload
+read from the source. The raw result of `read_attachment` is replaced by a
+non-sensitive marker before the transcript is saved. The responses and derived
+artifacts produced by the model remain subject to the normal persistence of the
+conversation and the Project; this guarantee does not seek to filter them.
 
-## Protocole WebSocket
+## WebSocket protocol
 
-Les messages suivent le pattern corrélé `request_id` déjà utilisé par
-`project_read` et `data_source_fetch`.
+The messages follow the `request_id`-correlated pattern already used by
+`project_read` and `data_source_fetch`.
 
-### `import_sources_list` — backend vers plugin
+### `import_sources_list` — backend to plugin
 
 ```json
 { "type": "import_sources_list", "request_id": "uuid" }
 ```
 
-### `import_sources_list_result` — plugin vers backend
+### `import_sources_list_result` — plugin to backend
 
 ```json
 {
@@ -209,7 +207,7 @@ Les messages suivent le pattern corrélé `request_id` déjà utilisé par
 }
 ```
 
-### `import_sources_read` — backend vers plugin
+### `import_sources_read` — backend to plugin
 
 ```json
 {
@@ -221,7 +219,7 @@ Les messages suivent le pattern corrélé `request_id` déjà utilisé par
 }
 ```
 
-### `import_sources_read_result` — plugin vers backend
+### `import_sources_read_result` — plugin to backend
 
 ```json
 {
@@ -238,172 +236,173 @@ Les messages suivent le pattern corrélé `request_id` déjà utilisé par
 }
 ```
 
-Le timeout nominal est de 5 secondes pour le listing et de 10 secondes pour la
-lecture. Les plugins antérieurs ignorent les types inconnus : le backend expire
-alors proprement et présente la source comme indisponible.
+The nominal timeout is 5 seconds for the listing and 10 seconds for the
+read. Earlier plugins ignore unknown types: the backend then expires
+cleanly and presents the source as unavailable.
 
-## Sécurité
+## Security
 
-La frontière de sécurité est appliquée dans le plugin, jamais déléguée à
-l’éditeur ou au backend :
+The security boundary is enforced in the plugin, never delegated to
+the editor or the backend:
 
-1. `source_id` doit correspondre à une source active chargée depuis
+1. `source_id` must match an active source loaded from
    `config.yml`.
-2. Les chemins sont relatifs, non vides, sans segment `..`, et ne commencent pas
-   par un séparateur.
-3. La racine et chaque cible sont canonicalisées ; la cible doit rester sous la
-   racine canonique.
-4. Les liens symboliques sont rejetés, y compris lorsqu’un segment intermédiaire
-   est un lien.
-5. Tout segment caché (`.` en préfixe), tout dossier et toute extension absente
-   de l’allowlist sont rejetés lors de la lecture.
-6. Les fichiers doivent être réguliers, lisibles et décodables en UTF-8 strict.
-7. Le résultat est en lecture seule : aucun message, endpoint ou outil d’écriture
-   n’est créé pour ces sources.
+2. Paths are relative, non-empty, without `..` segments, and do not start
+   with a separator.
+3. The root and each target are canonicalized; the target must stay under the
+   canonical root.
+4. Symbolic links are rejected, including when an intermediate segment
+   is a link.
+5. Any hidden segment (`.` prefix), any folder and any extension absent
+   from the allowlist are rejected on read.
+6. Files must be regular, readable and decodable as strict UTF-8.
+7. The result is read-only: no message, endpoint or write tool
+   is created for these sources.
 
-Le backend exige une session authentifiée et le même accès qui permet déjà à un
-membre de modifier le Project. Il vérifie aussi la relation Network → Server →
-Project avant le listing et avant chaque tour. La configuration des racines reste
-une action locale de l’administrateur du serveur.
+The backend requires an authenticated session and the same access that already lets
+a member modify the Project. It also checks the Network → Server →
+Project relation before the listing and before each turn. The configuration of the
+roots stays a local action of the server administrator.
 
-Comme pour les uploads actuels, le prompt système rappelle que le contenu des
-fichiers est une donnée non fiable à convertir, jamais une instruction à suivre.
+As for the current uploads, the system prompt reminds that the content of the
+files is untrusted data to convert, never an instruction to follow.
 
-## Limites et atomicité
+## Limits and atomicity
 
-Constantes initiales côté plugin :
+Initial constants on the plugin side:
 
-| Limite | Valeur | Comportement |
+| Limit | Value | Behavior |
 |---|---:|---|
-| Entrées listées par source | 5 000 | Source signalée `too_many_entries`, aucun listing partiel |
-| Fichiers lus par tour | 200 | Rejet du lot |
-| Taille d’un fichier | 1 Mio | Rejet du lot |
-| Taille cumulée | 8 Mio | Rejet du lot |
+| Entries listed per source | 5,000 | Source flagged `too_many_entries`, no partial listing |
+| Files read per turn | 200 | Batch rejected |
+| Size of one file | 1 MiB | Batch rejected |
+| Cumulative size | 8 MiB | Batch rejected |
 
-L’éditeur prévient les dépassements connus depuis les métadonnées, mais le plugin
-reste autoritaire et recompte au moment de lire.
+The editor warns about known overruns from the metadata, but the plugin
+stays authoritative and recounts at read time.
 
-La lecture d’un tour est tout ou rien. Si une source ou un fichier est absent,
-interdit, modifié en dossier, illisible ou trop grand, `ok` vaut `false`, aucun
-contenu partiel n’est remis à l’assistant et aucun crédit IA n’est consommé.
-L’utilisateur actualise la sélection ou retire les fichiers en erreur.
+Reading for a turn is all or nothing. If a source or a file is missing,
+forbidden, turned into a folder, unreadable or too large, `ok` is `false`, no partial
+content is handed to the assistant and no AI credit is consumed.
+The user refreshes the selection or removes the failing files.
 
-Codes d’erreur du protocole :
+Protocol error codes:
 
-- `unknown_source` ;
-- `invalid_path` ;
-- `unsupported_file` ;
-- `not_found` ;
-- `too_many_files` ;
-- `file_too_large` ;
-- `too_large` ;
-- `invalid_utf8` ;
+- `unknown_source`;
+- `invalid_path`;
+- `unsupported_file`;
+- `not_found`;
+- `too_many_files`;
+- `file_too_large`;
+- `too_large`;
+- `invalid_utf8`;
 - `read_error`.
 
-Le backend traduit également l’absence de connexion en `503 server_offline` et
-les expirations en `504 fetch_timeout`.
+The backend also translates the absence of a connection into `503 server_offline`
+and expirations into `504 fetch_timeout`.
 
-## Composants concernés
-
-### Plugin
-
-- Parsing et validation de `assistant.import-sources` dans la configuration.
-- Un composant isolé `ImportSourceReader` responsable du listing et de la lecture
-  sûre ; le handler WebSocket ne contient pas la logique de fichiers.
-- Handlers des quatre messages dans `SyncedMenuProvider`, exécutés sur
-  l’executor HTTP et jamais sur le callback OkHttp.
-
-### Backend
-
-- Types du protocole et deux relais corrélés dans `hub.ts`.
-- Résolution des réponses plugin et nettoyage systématique des pending requests.
-- Route de listing dans `userNetworks.ts`.
-- Résolution de `serverAttachments` dans la route assistant avant `runTurn` et
-  avant toute consommation de crédit.
-- Extension de la `WorkingCopy` uniquement par fusion des attachments résolus.
-
-### Éditeur
-
-- Client API pour le listing des sources.
-- `DropdownMenu` du trombone et `Dialog` de sélection, construits avec le design
-  system existant.
-- État séparé pour les uploads locaux et les références serveur.
-- Sérialisation `serverAttachments` lors de l’envoi du tour.
-- Groupes de pièces jointes serveur dans le composer.
-
-## Gestion des erreurs
-
-- Source absente au listing : elle est omise, avec WARN serveur.
-- Aucune source valide : état vide expliquant la configuration attendue.
-- Serveur hors ligne : choix serveur désactivé ; upload local inchangé.
-- Timeout de listing : erreur récupérable dans le Dialog avec **Réessayer**.
-- Erreur de lecture à l’envoi : le message reste dans le composer, le tour ne
-  rejoint pas le transcript et l’utilisateur peut corriger la sélection.
-- Plugin trop ancien : même présentation qu’un timeout/une fonctionnalité
-  indisponible, sans faire croire que le dossier est vide.
-
-## Stratégie de tests
+## Affected components
 
 ### Plugin
 
-- Parse les sources actives, désactivées, relatives et absolues.
-- Liste récursivement avec chemins normalisés et triés.
-- Exclut extensions non autorisées, fichiers/dossiers cachés et symlinks.
-- Rejette traversal, préfixe voisin (`root-other`) et symlink intermédiaire.
-- Applique les quatre limites et ne renvoie jamais de lot partiel.
-- Répond correctement aux deux opérations WS hors du callback OkHttp.
+- Parsing and validation of `assistant.import-sources` in the configuration.
+- An isolated `ImportSourceReader` component responsible for the safe listing and
+  reading; the WebSocket handler contains no file logic.
+- Handlers of the four messages in `SyncedMenuProvider`, executed on the
+  HTTP executor and never on the OkHttp callback.
 
 ### Backend
 
-- Route de listing : non authentifié, non-membre, mauvais Network/Server/Project,
-  offline, timeout, résultat nominal et erreur plugin.
-- Corrélation et nettoyage des pending requests pour les deux messages.
-- Tour assistant : mélange local/serveur, ids sans collision, source inconnue,
-  lecture partielle refusée et aucun appel modèle/crédit en cas d’échec.
-- Compatibilité d’un client qui n’envoie que `attachments`.
+- Protocol types and two correlated relays in `hub.ts`.
+- Resolution of the plugin responses and systematic cleanup of the pending requests.
+- Listing route in `userNetworks.ts`.
+- Resolution of `serverAttachments` in the assistant route before `runTurn` and
+  before any credit consumption.
+- Extension of the `WorkingCopy` only by merging the resolved attachments.
 
-### Éditeur
+### Editor
 
-- Le trombone conserve l’upload local et propose le serveur.
-- Le Dialog reconstruit l’arbre, recherche, sélectionne récursivement et calcule
-  le résumé.
-- Les groupes peuvent être développés et retirés.
-- Le payload contient les chemins explicites et mélange les deux origines.
-- Les états vide, hors ligne, timeout et dépassement sont compréhensibles.
+- API client for the sources listing.
+- Paperclip `DropdownMenu` and selection `Dialog`, built with the existing design
+  system.
+- Separate state for the local uploads and the server references.
+- `serverAttachments` serialization when sending the turn.
+- Server attachment groups in the composer.
 
-## Documentation à mettre à jour avec l’implémentation
+## Error handling
 
-- `docs/architecture/ws-protocol.md` — quatre nouveaux messages.
-- `docs/architecture/rest-endpoints.md` — route de listing.
-- `docs-site/src/content/docs/getting-started/install-admin.md` — configuration
-  `assistant.import-sources` et règles de sécurité.
-- Un guide utilisateur sous `docs-site/src/content/docs/editor/` pour joindre et
-  migrer des fichiers serveur.
-- `docs/architecture/editor-internals.md` si le composer ou un composant du
-  design system change structurellement.
-- `CHANGELOG.md` `[Unreleased]` pour le nouvel endpoint REST.
+- Source missing at listing: it is omitted, with a server WARN.
+- No valid source: empty state explaining the expected configuration.
+- Server offline: server choice disabled; local upload unchanged.
+- Listing timeout: recoverable error in the Dialog with **Retry**.
+- Read error at send: the message stays in the composer, the turn does not
+  join the transcript and the user can fix the selection.
+- Plugin too old: same presentation as a timeout / an unavailable feature, without
+  making it look like the folder is empty.
 
-## Critères d’acceptation
+## Test strategy
 
-1. Un membre ouvrant un Project en ligne peut sélectionner un dossier zMenu et
-   demander sa migration sans télécharger les fichiers sur son poste.
-2. L’assistant reçoit tous les fichiers compatibles sélectionnés avec leurs
-   chemins relatifs et peut les lire via `read_attachment`.
-3. Aucun chemin non déclaré, caché, traversant ou atteint par symlink ne peut être
-   lu, même avec une requête forgée.
-4. Une erreur sur un seul fichier empêche entièrement le tour et sa facturation.
-5. Un serveur hors ligne ou un ancien plugin n’altère pas l’upload local.
-6. Le backend ne persiste ni copie/cache du payload brut des sources importées, ni
-   résultat brut `read_attachment`. Les réponses et artefacts générés par le modèle
-   conservent la politique de persistance normale de la conversation et du Project.
+### Plugin
 
-## Alternatives rejetées
+- Parses active, disabled, relative and absolute sources.
+- Lists recursively with normalized and sorted paths.
+- Excludes disallowed extensions, hidden files/folders and symlinks.
+- Rejects traversal, neighboring prefix (`root-other`) and intermediate symlink.
+- Applies the four limits and never returns a partial batch.
+- Answers the two WS operations correctly off the OkHttp callback.
 
-- **Miroir des sources dans le backend.** Navigation hors ligne, mais copie
-  persistante, risque de fuite et données périmées.
-- **Lecture directe par le backend.** Ne fonctionne pas lorsque le backend et le
-  serveur Minecraft ne partagent pas le même disque.
-- **Explorateur générique du serveur.** Surface d’exposition disproportionnée et
-  inutile pour le besoin de migration.
-- **Parcours “Migrer depuis le serveur” séparé.** Duplique le moteur de pièces
-  jointes, les erreurs et l’interface sans ajouter de capacité.
+### Backend
+
+- Listing route: unauthenticated, non-member, wrong Network/Server/Project,
+  offline, timeout, nominal result and plugin error.
+- Correlation and cleanup of the pending requests for the two messages.
+- Assistant turn: local/server mix, collision-free ids, unknown source,
+  partial read refused and no model call/credit on failure.
+- Compatibility of a client that only sends `attachments`.
+
+### Editor
+
+- The paperclip keeps the local upload and offers the server.
+- The Dialog rebuilds the tree, searches, selects recursively and computes
+  the summary.
+- The groups can be expanded and removed.
+- The payload contains the explicit paths and mixes the two origins.
+- The empty, offline, timeout and overrun states are understandable.
+
+## Documentation to update with the implementation
+
+- `docs/architecture/ws-protocol.md` — four new messages.
+- `docs/architecture/rest-endpoints.md` — listing route.
+- `docs-site/src/content/docs/getting-started/install-admin.md` — `assistant.import-sources`
+  configuration and security rules.
+- A user guide under `docs-site/src/content/docs/editor/` to attach and
+  migrate server files.
+- `docs/architecture/editor-internals.md` if the composer or a design system
+  component changes structurally.
+- `CHANGELOG.md` `[Unreleased]` for the new REST endpoint.
+
+## Acceptance criteria
+
+1. A member opening an online Project can select a zMenu folder and
+   request its migration without downloading the files to their machine.
+2. The assistant receives all the selected compatible files with their relative
+   paths and can read them via `read_attachment`.
+3. No undeclared, hidden, traversing or symlink-reached path can be
+   read, even with a forged request.
+4. An error on a single file entirely prevents the turn and its billing.
+5. An offline server or an old plugin does not alter the local upload.
+6. The backend persists neither a copy/cache of the raw payload of the imported
+   sources, nor the raw `read_attachment` result. The responses and artifacts
+   generated by the model keep the normal persistence policy of the conversation
+   and the Project.
+
+## Rejected alternatives
+
+- **Mirror of the sources in the backend.** Offline browsing, but a
+  persistent copy, leak risk and stale data.
+- **Direct reading by the backend.** Does not work when the backend and the
+  Minecraft server do not share the same disk.
+- **Generic server explorer.** Disproportionate exposure surface and
+  unnecessary for the migration need.
+- **Separate "Migrate from the server" flow.** Duplicates the attachment
+  engine, the errors and the interface without adding capability.

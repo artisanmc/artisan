@@ -1,167 +1,167 @@
-# Workspace : planche curée + panneau source-de-vérité + vue individuelle — Design
+# Workspace: curated board + source-of-truth panel + individual view — Design
 
-> Spec brainstormée le 2026-06-13. **Amende et supersède partiellement** [`2026-06-02-per-element-focus-mode-design.md`](./2026-06-02-per-element-focus-mode-design.md) : on garde son concept de vue par élément, on remplace son modèle de canvas (« le canvas garde tout » → « planche curée »), et on réintroduit le panneau de navigation qu'elle écartait. Source de vérité pour le plan d'implémentation associé.
+> Spec brainstormed on 2026-06-13. **Amends and partially supersedes** [`2026-06-02-per-element-focus-mode-design.md`](./2026-06-02-per-element-focus-mode-design.md): we keep its per-element view concept, we replace its canvas model ("the canvas keeps everything" → "curated board"), and we reintroduce the navigation panel it ruled out. Source of truth for the associated implementation plan.
 
-**Statut** — Spec validée en brainstorming, à transformer en plan d'implémentation.
+**Status** — Spec validated in brainstorming, to be turned into an implementation plan.
 
 ---
 
-## 1. Le problème
+## 1. The problem
 
-Aujourd'hui le workspace est un **canvas libre type Canva** : `autoLayout(pack)` force *chaque* menu, commande et dialog dans une grille, et l'utilisateur peut les glisser pour les ranger (positions persistées dans `pack.canvasLayout`). `Edges` trace les liens entre eux.
+Today the workspace is a **free Canva-style canvas**: `autoLayout(pack)` forces *every* menu, command and dialog into a grid, and the user can drag them to tidy them (positions persisted in `pack.canvasLayout`). `Edges` draws the links between them.
 
-Constat de l'utilisateur (mots propres) :
+The user's finding (in their own words):
 
-- Le canvas devient **le bordel dès une dizaine d'éléments** (spaghetti d'edges, grille dense).
-- Son **seul vrai bénéfice** = visualiser quels menus/commandes sont liés — mais ce bénéfice n'apparaît **qu'après un travail de rangement manuel**.
-- Il n'est **pas adapté à tous les éléments** : une commande qui n'ouvre aucun menu flotte « quelque part » sur le canvas, sans logique de placement.
-- Ce qui est réellement utile et qu'il faut garder : **voir les liens menu→menu**, **afficher des menus côte à côte**, **copier-coller entre menus**.
+- The canvas becomes **a mess from about ten elements** (edge spaghetti, dense grid).
+- Its **only real benefit** = seeing which menus/commands are linked — but this benefit **only appears after manual tidying work**.
+- It is **not suited to all elements**: a command that opens no menu floats "somewhere" on the canvas, with no placement logic.
+- What is really useful and must be kept: **seeing menu→menu links**, **displaying menus side by side**, **copy-paste between menus**.
 
-Le job principal de l'utilisateur dans le workspace est **l'édition focalisée d'un élément** ; la vue d'ensemble spatiale est, pour cet usage, un coût plus qu'un bénéfice.
+The user's main job in the workspace is **focused editing of one element**; the spatial overview is, for that usage, more a cost than a benefit.
 
-### 1.1 Leçon de l'ancien focus mode (reverté)
+### 1.1 Lesson from the old focus mode (reverted)
 
-Un mode focus avait été construit puis **reverté**. Raisons (mots de l'utilisateur) : *« redondant avec le canvas, et pas mal de bugs — les éléments n'étaient pas fonctionnels ou désignés pareil, donc au lieu de corriger je les ai enlevés pour pas batailler »*.
+A focus mode had been built then **reverted**. Reasons (user's words): *"redundant with the canvas, and quite a few bugs — the elements were not functional or designed the same, so instead of fixing I removed them to avoid struggling"*.
 
-→ La cause racine n'est pas l'idée du focus, mais **deux surfaces d'édition parallèles qui divergent**. C'est l'invariant n°1 de cette spec (§2).
+→ The root cause is not the focus idea, but **two parallel editing surfaces that diverge**. This is invariant #1 of this spec (§2).
 
-## 2. Principes directeurs
+## 2. Guiding principles
 
-1. **Une seule implémentation de rendu/édition par type d'élément.** La planche et la vue individuelle rendent un menu via *le même* composant (`MenuGroup` + sous-composants), une commande/dialog via *les mêmes* composants de flux. La vue individuelle = ce composant rendu **seul et centré**, pas une réécriture. Zéro divergence possible → la cause du revert disparaît.
-2. **Découpler « exister dans le pack » de « être sur la planche ».** Le pack contient tous les éléments ; la planche n'en montre qu'un sous-ensemble choisi.
-3. **La curation supprime la redondance.** Un élément hors-planche ne s'édite que via la vue individuelle ; le focus n'est donc plus un doublon du canvas.
-4. **Mobile-first** ([[mobile-first]]) : aucune affordance hover-only, panneaux en drawers sous `lg`.
-5. **Design-system d'abord** ([[design-system-first]]) : tout nouveau composant via `components/ui` + tokens, spécimen sur `/admin/design` si manquant.
+1. **A single rendering/editing implementation per element type.** The board and the individual view render a menu via *the same* component (`MenuGroup` + sub-components), a command/dialog via *the same* flow components. The individual view = this component rendered **alone and centered**, not a rewrite. Zero possible divergence → the cause of the revert disappears.
+2. **Decouple "existing in the pack" from "being on the board".** The pack contains all elements; the board only shows a chosen subset.
+3. **Curation removes the redundancy.** An off-board element is edited only via the individual view; focus is therefore no longer a duplicate of the canvas.
+4. **Mobile-first** ([[mobile-first]]): no hover-only affordance, panels as drawers below `lg`.
+5. **Design-system first** ([[design-system-first]]): every new component via `components/ui` + tokens, specimen on `/admin/design` if missing.
 
-## 3. Modèle de données
+## 3. Data model
 
-**`pack.canvasLayout` devient l'ensemble d'appartenance à la planche.** Un élément est « sur la planche » **ssi** il a une entrée explicite `canvasLayout[id] = {x, y}`.
+**`pack.canvasLayout` becomes the board membership set.** An element is "on the board" **iff** it has an explicit entry `canvasLayout[id] = {x, y}`.
 
-- `autoLayout.ts` **ne remplit plus** la grille pour les éléments manquants. Il ne retourne que les entrées explicites de `pack.canvasLayout`.
-- L'ancienne logique de grille est **conservée mais déplacée** dans une fonction `gridArrange(ids)` appelée uniquement par le bouton « Tout arranger sur la planche » (§8).
-- Aucun changement de schéma DB ni de `Pack` type : `canvasLayout` existe déjà (`Record<string, {x,y}>`). Seule sa *sémantique* change (appartenance, pas juste position). À documenter dans `entities.md` / `editor-internals.md`.
+- `autoLayout.ts` **no longer fills** the grid for missing elements. It only returns the explicit entries of `pack.canvasLayout`.
+- The old grid logic is **kept but moved** into a `gridArrange(ids)` function called only by the "Arrange all on the board" button (§8).
+- No DB schema or `Pack` type change: `canvasLayout` already exists (`Record<string, {x,y}>`). Only its *semantics* change (membership, not just position). To document in `entities.md` / `editor-internals.md`.
 
-### 3.1 Trois actions distinctes
+### 3.1 Three distinct actions
 
-| Action | Effet | D'où |
+| Action | Effect | From where |
 |---|---|---|
-| **Ajouter à la planche** | Écrit `canvasLayout[id]` (à la position de drop, ou via `gridArrange`) | Drag panneau→planche, ou menu contextuel panneau |
-| **Retirer de la planche** | Supprime `canvasLayout[id]` — **l'élément reste dans le pack** (toujours dans le panneau) | Menu contextuel sur un nœud de la planche, ou panneau |
-| **Supprimer du pack** | Destructif : retire l'élément du pack (existant : `deleteFromPack`) | Panneau ou planche, avec confirmation |
+| **Add to the board** | Writes `canvasLayout[id]` (at the drop position, or via `gridArrange`) | Drag panel→board, or panel context menu |
+| **Remove from the board** | Deletes `canvasLayout[id]` — **the element stays in the pack** (still in the panel) | Context menu on a board node, or panel |
+| **Delete from the pack** | Destructive: removes the element from the pack (existing: `deleteFromPack`) | Panel or board, with confirmation |
 
-Nouvelles actions `accountStore` : `addToBoard({packId, id, position?})`, `removeFromBoard({packId, id})`. `deleteFromPack` existe déjà.
+New `accountStore` actions: `addToBoard({packId, id, position?})`, `removeFromBoard({packId, id})`. `deleteFromPack` already exists.
 
-## 4. Le panneau gauche — source de vérité
+## 4. The left panel — source of truth
 
-Nouveau composant `WorkspacePanel` (ou nom proche), 3ᵉ zone de l'overview, à gauche de la planche.
+New `WorkspacePanel` component (or a close name), 3rd zone of the overview, left of the board.
 
-- Liste **tout** le pack, groupé par catégorie : **Menus**, **Commandes**, **Dialogs** (extensible aux futurs modules).
-- **Recherche** (filtre texte sur nom/id).
-- Chaque item affiche : icône de type, nom, et un badge **« sur la planche »** si présent dans `canvasLayout`.
-- **Interactions** :
-  - **Clic** → ouvre la **vue individuelle** de l'élément (§6). N'ajoute pas à la planche.
-  - **Drag** → ajoute à la planche (drop sur le canvas place à la position du curseur).
-  - **Menu contextuel** : Éditer (= clic) · Ajouter/Retirer de la planche · Dupliquer · Supprimer du pack.
-- **Création** : bouton `+` par catégorie (ou unique avec type-picker) réutilisant `NewMenuDialog` / `NewCommandDialog` / `NewDialogDialog` existants. Un élément créé apparaît dans le panneau ; il n'est ajouté à la planche que si créé via clic-droit sur le canvas (flux existant) — sinon il vit hors-planche par défaut.
-- Construit via design-system (`components/ui`, tokens). Pattern de drag : `dnd-kit` (déjà la dépendance du workspace).
+- Lists **everything** in the pack, grouped by category: **Menus**, **Commands**, **Dialogs** (extensible to future modules).
+- **Search** (text filter on name/id).
+- Each item shows: type icon, name, and an **"on the board"** badge if present in `canvasLayout`.
+- **Interactions**:
+  - **Click** → opens the element's **individual view** (§6). Does not add to the board.
+  - **Drag** → adds to the board (drop on the canvas places at the cursor position).
+  - **Context menu**: Edit (= click) · Add/Remove from the board · Duplicate · Delete from the pack.
+- **Creation**: `+` button per category (or a single one with a type picker) reusing the existing `NewMenuDialog` / `NewCommandDialog` / `NewDialogDialog`. A created element appears in the panel; it is added to the board only if created via right-click on the canvas (existing flow) — otherwise it lives off-board by default.
+- Built via the design system (`components/ui`, tokens). Drag pattern: `dnd-kit` (already the workspace's dependency).
 
-## 5. La planche (canvas curé)
+## 5. The board (curated canvas)
 
-`Stage.tsx` ne mappe que les éléments présents dans `canvasLayout` (menus, commandes, dialogs confondus). Tout le reste du canvas (pan/zoom, sélection, edges, copier-coller, drop d'items Library sur slots) **reste identique**.
+`Stage.tsx` only maps the elements present in `canvasLayout` (menus, commands, dialogs together). Everything else about the canvas (pan/zoom, selection, edges, copy-paste, dropping Library items on slots) **stays identical**.
 
-### 5.1 Chips fantômes (liens hors-planche)
+### 5.1 Ghost chips (off-board links)
 
-Quand un nœud sur la planche référence une cible **absente** de la planche (ex. `hub` ouvre `shop`, mais `shop` n'est pas posé), on n'affiche pas un edge dans le vide. À la place, un **chip fantôme cliquable** sur le nœud source : `→ shop ↗`. Clic = `addToBoard(shop)` (et trace alors l'edge réel). `Edges.tsx` ne trace des edges qu'entre nœuds présents sur la planche ; les liens vers le hors-planche sont délégués aux chips.
+When a node on the board references a target **absent** from the board (e.g. `hub` opens `shop`, but `shop` is not placed), we do not draw an edge into the void. Instead, a **clickable ghost chip** on the source node: `→ shop ↗`. Click = `addToBoard(shop)` (and then draws the real edge). `Edges.tsx` only draws edges between nodes present on the board; links to off-board elements are delegated to the chips.
 
-### 5.2 Côté-à-côte & copier-coller
+### 5.2 Side by side & copy-paste
 
-Ces deux besoins sont **déjà** servis par la planche (plusieurs nœuds visibles + `canvasClipboardActions` existants). La curation ne les retire pas — elle les rend plus utiles (on ne pose côte à côte que ce qu'on veut comparer). Aucune nouvelle UX nécessaire ici.
+These two needs are **already** served by the board (several visible nodes + existing `canvasClipboardActions`). Curation does not remove them — it makes them more useful (you only place side by side what you want to compare). No new UX needed here.
 
-## 6. La vue individuelle (deep-linkable)
+## 6. The individual view (deep-linkable)
 
-Nouvelle route enfant TanStack sous la route server-scoped actuelle :
+New child TanStack route under the current server-scoped route:
 
 ```
 /networks/$networkId/servers/$serverId/workspaces/$workspaceId/element/$elementId
 ```
 
-(Le hook `childMatches` + `<Outlet/>` déjà présent dans `networks.$networkId.servers.$serverId.workspaces.$workspaceId.tsx` est exactement le point d'accroche — il bascule déjà le rendu vers la route enfant quand elle matche.)
+(The `childMatches` hook + `<Outlet/>` already present in `networks.$networkId.servers.$serverId.workspaces.$workspaceId.tsx` is exactly the hook-in point — it already switches the rendering to the child route when it matches.)
 
-- **Deep-linkable** : rechargement conserve la vue, bouton retour navigateur fonctionne, lien partageable.
-- Résolution : `pack.menus/commands/dialogs.find(... === elementId)`. Introuvable → empty state « Cet élément n'existe plus » + retour planche.
-- **Dispatch par type** (`ElementView` router) :
-  - **Menu** → le **même** `MenuGroup` + sous-composants que la planche, rendu **seul, centré**, à largeur disponible. Cliquer un slot l'édite dans le pane de droite (comportement actuel inchangé).
-  - **Commande / Dialog** → le **même** éditeur de flux que celui utilisé ailleurs, **centré** (liste indentée pseudo-code, cf. [[editor-ux-prefer-pseudocode]]) — pas de FlowCanvas cards-and-arrows. Le pane de droite porte les propriétés (trigger, cooldown, requirements / title, body, boutons).
-- **Top bar focus** : `⟵ Retour à la planche` + icône type + nom + contrôles workspace partagés (`WorkspaceTopBarControls` existant, monté à l'identique). Pas de duplication de barre.
-- `Esc` = retour planche (non destructif si un input est focusé).
+- **Deep-linkable**: reload keeps the view, the browser back button works, shareable link.
+- Resolution: `pack.menus/commands/dialogs.find(... === elementId)`. Not found → empty state "This element no longer exists" + back to the board.
+- **Dispatch by type** (`ElementView` router):
+  - **Menu** → the **same** `MenuGroup` + sub-components as the board, rendered **alone, centered**, at the available width. Clicking a slot edits it in the right pane (current behavior unchanged).
+  - **Command / Dialog** → the **same** flow editor as used elsewhere, **centered** (indented pseudo-code list, cf. [[editor-ux-prefer-pseudocode]]) — no cards-and-arrows FlowCanvas. The right pane carries the properties (trigger, cooldown, requirements / title, body, buttons).
+- **Focus top bar**: `⟵ Back to the board` + type icon + name + shared workspace controls (existing `WorkspaceTopBarControls`, mounted identically). No bar duplication.
+- `Esc` = back to the board (non-destructive if an input is focused).
 
-> **Différence clé vs spec 2026-06-02** : celle-ci créait des composants `MenuEditor`/`CommandEditor`/`DialogEditor` distincts — la porte d'entrée de la divergence qui a causé le revert. Ici, `ElementView` **ne réimplémente rien** : il monte les composants de rendu déjà utilisés par la planche, en layout solo. La seule chose « nouvelle » est le conteneur de layout, pas l'édition.
+> **Key difference vs the 2026-06-02 spec**: that one created distinct `MenuEditor`/`CommandEditor`/`DialogEditor` components — the entry door to the divergence that caused the revert. Here, `ElementView` **reimplements nothing**: it mounts the rendering components already used by the board, in a solo layout. The only "new" thing is the layout container, not the editing.
 
-## 7. Refactor prérequis
+## 7. Prerequisite refactor
 
-Pour que le principe n°1 (rendu partagé) tienne, le rendu d'un menu doit être **montable seul** aussi bien que dans la planche. Aujourd'hui `MenuGroup.tsx` (603 lignes) suppose un contexte de planche (position absolue, drag du nœud). Avant la vue individuelle :
+For principle #1 (shared rendering) to hold, a menu's rendering must be **mountable alone** as well as in the board. Today `MenuGroup.tsx` (603 lines) assumes a board context (absolute position, node drag). Before the individual view:
 
-- Extraire de `MenuGroup` un cœur de rendu **agnostique du contexte** (slots, background, titre, édition de slot) des préoccupations *planche* (position, drag inter-nœuds, sélection multi). Le nœud-de-planche devient un wrapper fin autour du cœur ; la vue individuelle monte le cœur directement.
-- Idem au besoin pour l'éditeur de flux commande/dialog : un `ActionsChainEditor` partagé, utilisable centré (vue individuelle) comme dans le pane.
-- Cible ≤ ~200 lignes/fichier, gardé par les test suites existantes (`MenuGroup.test.tsx` doit passer sans modif de comportement).
+- Extract from `MenuGroup` a **context-agnostic** rendering core (slots, background, title, slot editing) from the *board* concerns (position, inter-node drag, multi-selection). The board-node becomes a thin wrapper around the core; the individual view mounts the core directly.
+- Likewise as needed for the command/dialog flow editor: a shared `ActionsChainEditor`, usable centered (individual view) as in the pane.
+- Target ≤ ~200 lines/file, guarded by the existing test suites (`MenuGroup.test.tsx` must pass without behavior change).
 
-C'est un sous-ensemble du refactor P1/P2 de la spec 2026-06-02, recadré sur l'objectif « un seul rendu » plutôt que « split pour la taille ».
+This is a subset of the P1/P2 refactor of the 2026-06-02 spec, reframed on the "single rendering" goal rather than "split for size".
 
-## 8. Migration & états vides
+## 8. Migration & empty states
 
-- **Packs existants** : à l'arrivée de cette version, démarrer avec une **planche vide** (on n'auto-remplit plus `canvasLayout`). Les positions déjà persistées (éléments réellement draggés par le passé) restent et s'affichent. Pour les packs où tout était implicitement placé, la planche apparaîtra vide → c'est voulu (le constat de départ est « c'est le bordel avec tout »).
-- **Bouton « Tout arranger sur la planche »** (dans l'état vide + accessible depuis le panneau) : appelle `gridArrange` sur tous les éléments, écrivant des entrées `canvasLayout` — un clic pour retrouver l'ancien comportement si désiré.
-- **Planche vide** → état vide engageant : « Glisse un élément ici, ou ouvre-en un depuis le panneau » + le bouton ci-dessus.
-- **Ouverture d'un pack** → mode planche par défaut.
+- **Existing packs**: on arrival of this version, start with an **empty board** (we no longer auto-fill `canvasLayout`). Positions already persisted (elements actually dragged in the past) remain and are displayed. For packs where everything was implicitly placed, the board will appear empty → intended (the starting finding is "it's a mess with everything").
+- **"Arrange all on the board" button** (in the empty state + accessible from the panel): calls `gridArrange` on all elements, writing `canvasLayout` entries — one click to get the old behavior back if desired.
+- **Empty board** → engaging empty state: "Drag an element here, or open one from the panel" + the button above.
+- **Opening a pack** → board mode by default.
 
 ## 9. Mobile (< lg)
 
-- Panneau gauche → **drawer** (pattern `WorkspaceSidebar` déjà en place).
-- Centre mono-panneau ; pane de droite → drawer/onglet.
-- Bascule **Planche ↔ Vue individuelle** via la navigation (la route enfant gère l'état). Pas d'affordance hover-only — les actions add/remove/delete passent par menu contextuel (long-press) ou boutons visibles.
+- Left panel → **drawer** (`WorkspaceSidebar` pattern already in place).
+- Single-panel center; right pane → drawer/tab.
+- **Board ↔ Individual view** switch via navigation (the child route handles the state). No hover-only affordance — the add/remove/delete actions go through a context menu (long-press) or visible buttons.
 
-## 10. Impact code (haut niveau)
+## 10. Code impact (high level)
 
-| Zone | Changement |
+| Area | Change |
 |---|---|
-| `editor/src/features/canvas/autoLayout.ts` | Ne plus remplir la grille ; n'émettre que les entrées explicites. Extraire `gridArrange(ids)` pour le bouton « Tout arranger ». |
-| `editor/src/features/canvas/Stage.tsx` | Ne mapper que les éléments dans `canvasLayout`. Brancher le rendu des chips fantômes. |
-| `editor/src/features/canvas/Edges.tsx` | Edges seulement entre nœuds présents ; déléguer hors-planche aux chips. |
-| `editor/src/features/canvas/MenuGroup.tsx` (+ split) | Extraire un cœur de rendu agnostique du contexte (refactor §7). |
-| **Nouveau** `WorkspacePanel` | Panneau gauche : catégories, recherche, drag source, badges, menu contextuel, création. |
-| **Nouveau** route `…/element/$elementId.tsx` + `ElementView` | Vue individuelle deep-linkable ; dispatch par type ; monte les composants de rendu partagés. |
-| **Nouveau** `ActionsChainEditor` partagé (si pas déjà factorisable) | Éditeur de flux commande/dialog réutilisable centré + en pane. |
-| `state/accountStore` | `addToBoard` / `removeFromBoard` ; `deleteFromPack` existant. |
-| Route overview `…workspaces.$workspaceId.tsx` | Ajouter la zone panneau gauche au layout overview (3 zones desktop : panneau · planche · éditeur). La route enfant existante (`childMatches`/`Outlet`) rend la vue individuelle. |
-| Docs | `editor-internals.md` (modèle planche/panneau/vue individuelle, sémantique `canvasLayout`), `entities.md` (sémantique `canvasLayout`). Marquer 2026-06-02 comme superseded. |
+| `editor/src/features/canvas/autoLayout.ts` | No longer fill the grid; only emit explicit entries. Extract `gridArrange(ids)` for the "Arrange all" button. |
+| `editor/src/features/canvas/Stage.tsx` | Only map elements in `canvasLayout`. Wire the ghost chips rendering. |
+| `editor/src/features/canvas/Edges.tsx` | Edges only between present nodes; delegate off-board to the chips. |
+| `editor/src/features/canvas/MenuGroup.tsx` (+ split) | Extract a context-agnostic rendering core (refactor §7). |
+| **New** `WorkspacePanel` | Left panel: categories, search, drag source, badges, context menu, creation. |
+| **New** route `…/element/$elementId.tsx` + `ElementView` | Deep-linkable individual view; dispatch by type; mounts the shared rendering components. |
+| **New** shared `ActionsChainEditor` (if not already factorable) | Command/dialog flow editor reusable centered + in the pane. |
+| `state/accountStore` | `addToBoard` / `removeFromBoard`; existing `deleteFromPack`. |
+| Overview route `…workspaces.$workspaceId.tsx` | Add the left panel zone to the overview layout (3 desktop zones: panel · board · editor). The existing child route (`childMatches`/`Outlet`) renders the individual view. |
+| Docs | `editor-internals.md` (board/panel/individual view model, `canvasLayout` semantics), `entities.md` (`canvasLayout` semantics). Mark 2026-06-02 as superseded. |
 
 ## 11. Phasing
 
-Chaque phase shippable sans casser l'existant.
+Each phase shippable without breaking the existing.
 
-| Phase | Scope | UX visible | Risque |
+| Phase | Scope | Visible UX | Risk |
 |---|---|---|---|
-| **P1** | Refactor : extraire le cœur de rendu menu agnostique (§7), gardé par tests | Non | Bas (gate tests) |
-| **P2** | Modèle d'appartenance : `autoLayout` n'auto-remplit plus + `gridArrange` + `addToBoard`/`removeFromBoard` + migration planche vide + bouton « Tout arranger » | Oui (planche curée) | Moyen (sémantique `canvasLayout`) |
-| **P3** | `WorkspacePanel` (liste, recherche, badges, drag→planche, menu contextuel, clic=ouvrir) | Oui | Moyen |
-| **P4** | Route `…/element/$elementId` + `ElementView` dispatch + top bar focus + empty state ; vue individuelle **menu** (cœur de rendu solo) | Oui (édition hors-planche pour les menus) | Moyen |
-| **P5** | Vue individuelle **commande/dialog** (flux centré, `ActionsChainEditor` partagé) | Oui | Moyen |
-| **P6** | Chips fantômes (liens hors-planche cliquables) + double-clic nœud planche → vue individuelle | Oui | Bas |
-| **P7** | Mobile : drawers panneau/éditeur, bascule planche↔individuelle, actions sans hover | Oui | Bas |
+| **P1** | Refactor: extract the context-agnostic menu rendering core (§7), guarded by tests | No | Low (tests gate) |
+| **P2** | Membership model: `autoLayout` no longer auto-fills + `gridArrange` + `addToBoard`/`removeFromBoard` + empty-board migration + "Arrange all" button | Yes (curated board) | Medium (`canvasLayout` semantics) |
+| **P3** | `WorkspacePanel` (list, search, badges, drag→board, context menu, click=open) | Yes | Medium |
+| **P4** | Route `…/element/$elementId` + `ElementView` dispatch + focus top bar + empty state; **menu** individual view (solo rendering core) | Yes (off-board editing for menus) | Medium |
+| **P5** | **Command/dialog** individual view (centered flow, shared `ActionsChainEditor`) | Yes | Medium |
+| **P6** | Ghost chips (clickable off-board links) + board node double-click → individual view | Yes | Low |
+| **P7** | Mobile: panel/editor drawers, board↔individual switch, hover-free actions | Yes | Low |
 
 ## 12. Testing
 
-- **Refactor (P1)** : `MenuGroup.test.tsx` passe sans modif de comportement ; tests unitaires sur les helpers de géométrie extraits.
-- **Modèle (P2)** : `autoLayout` n'émet que les entrées explicites ; `addToBoard`/`removeFromBoard` muent `canvasLayout` sans toucher au reste du pack ; `removeFromBoard` ≠ `deleteFromPack` (l'élément survit) ; `gridArrange` place tout.
-- **Panneau (P3)** : rendu groupé par catégorie, filtre recherche, badge « sur la planche » réactif, clic → navigate vers la route élément, drag → `addToBoard`.
-- **Vue individuelle (P4/P5)** : navigation directe par URL, empty state si introuvable, retour fonctionne ; menu rendu solo édite via le **même** chemin que la planche (test anti-divergence : éditer un slot en vue individuelle et sur la planche produit le même mut store) ; commande/dialog flux centré édite/ajoute/réordonne.
-- **Chips (P6)** : un lien vers une cible hors-planche rend un chip ; clic = `addToBoard` + edge réel apparaît.
-- **Mobile (P7)** : drawers, pas de hover-only, actions accessibles.
+- **Refactor (P1)**: `MenuGroup.test.tsx` passes without behavior change; unit tests on the extracted geometry helpers.
+- **Model (P2)**: `autoLayout` only emits explicit entries; `addToBoard`/`removeFromBoard` mutate `canvasLayout` without touching the rest of the pack; `removeFromBoard` ≠ `deleteFromPack` (the element survives); `gridArrange` places everything.
+- **Panel (P3)**: rendering grouped by category, search filter, reactive "on the board" badge, click → navigate to the element route, drag → `addToBoard`.
+- **Individual view (P4/P5)**: direct navigation by URL, empty state if not found, back works; solo-rendered menu edits through the **same** path as the board (anti-divergence test: editing a slot in the individual view and on the board produces the same store mutation); centered command/dialog flow edits/adds/reorders.
+- **Chips (P6)**: a link to an off-board target renders a chip; click = `addToBoard` + the real edge appears.
+- **Mobile (P7)**: drawers, no hover-only, actions accessible.
 
 ## 13. Non-goals (V1)
 
-- **Cross-navigation riche** (reverse links « utilisé par », backstack) — reportée comme dans 2026-06-02 ; les edges + chips suffisent.
-- **Preview dialog Minecraft natif** — slot V2 (renderer 1.21+ requis).
-- **Plusieurs planches / scènes par pack** — une seule planche par pack en V1.
-- **Changement de schéma DB** — `canvasLayout` réutilisé tel quel, seule sa sémantique évolue.
-- **Module HUD** — `ElementView` est extensible (ajouter un cas au dispatch) quand le module arrivera.
+- **Rich cross-navigation** (reverse links "used by", backstack) — postponed as in 2026-06-02; edges + chips are enough.
+- **Native Minecraft dialog preview** — V2 slot (1.21+ renderer required).
+- **Several boards / scenes per pack** — a single board per pack in V1.
+- **DB schema change** — `canvasLayout` reused as is, only its semantics evolve.
+- **HUD module** — `ElementView` is extensible (add a case to the dispatch) when the module arrives.
