@@ -1,31 +1,31 @@
-# Accounts-only editing — suppression du mode session anonyme
+# Accounts-only editing — removing the anonymous session mode
 
-**Statut : remplacé (phase F, 2026-10)** — plus de comptes : l'identité est le joueur qui a demandé le lien de `/artisan editor`, les droits ses permissions `artisan.editor.*`. Voir [editor-web-server](editor-web-server.md).
+**Status: superseded (phase F, 2026-10)** — no more accounts: identity is the player who requested the `/artisan editor` link, and rights are their `artisan.editor.*` permissions. See [editor-web-server](editor-web-server.md).
 
-**Statut : accepted (2026-07-11).** Décision issue d'une session grill-with-docs ; termes `Link` et `Membership` fixés dans `CONTEXT.md` le même jour.
+**Status: accepted (2026-07-11).** Decision from a grill-with-docs session; the terms `Link` and `Membership` were fixed in `CONTEXT.md` the same day.
 
-L'édition web exige désormais un compte : le lien de session anonyme émis par `/artisan editor` (trust dance `trusteditor`, surface REST `/api/v1/editor-session/:token/*`, `sessionStore` éditeur) est supprimé — cutover sec, pas de fenêtre de coexistence. `/artisan editor` devient purement informatif (link code si le Server est vierge, URL de l'éditeur sinon), l'autorisation d'éditer est portée par la **Membership** (owner/member, scope Network, checks par capacités centralisées), et l'entrée d'équipe se fait par invitation (lien + email — infra Scaleway TEM). La sync plugin ↔ backend (server key, bundles, `local_push`/FTP) n'est pas concernée : c'est une auth serveur, pas une session navigateur.
+Web editing now requires an account: the anonymous session link issued by `/artisan editor` (`trusteditor` trust dance, `/api/v1/editor-session/:token/*` REST surface, editor `sessionStore`) is removed — a hard cutover, no coexistence window. `/artisan editor` becomes purely informational (link code if the Server is blank, editor URL otherwise), permission to edit is carried by the **Membership** (owner/member, Network scope, centralized capability checks), and team entry is by invitation (link + email — Scaleway TEM infra). The plugin ↔ backend sync (server key, bundles, `local_push`/FTP) is not affected: it is server auth, not a browser session.
 
-## Pourquoi
+## Why
 
-**Amendement limité — démo hébergée (2026-09-13).** Une session invitée peut éditer
-uniquement son projet hébergé temporaire. Elle ne crée ni User, ni Network, ni
-Server ; l'autorisation commune reçoit un principal invité borné au projet.
-Les serveurs, l'IA facturée et les données d'autres projets restent réservés aux
-comptes autorisés. Après connexion, une réclamation durable rattache le même
-projet à un Network autorisé et révoque l'invité. Ce parcours ne rétablit pas les
-anciennes sessions anonymes liées aux serveurs.
+**Limited amendment — hosted demo (2026-09-13).** A guest session may edit only
+its temporary hosted project. It creates no User, Network or Server; the shared
+authorization receives a guest principal bounded to the project. Servers, billed
+AI and other projects' data remain reserved for authorized accounts. After
+sign-in, a durable claim attaches the same project to an authorized Network and
+revokes the guest. This flow does not bring back the old anonymous sessions tied
+to servers.
 
-Le mode session date de la V1, avant le système comptes/networks. Depuis, c'est un **second modèle d'auth complet** : chaque feature paie la taxe deux fois (routes REST jumelles `editor-session/*` vs `user/*`, branches session/user dans l'auto-save, le deploy, la presence, l'assistant). La semaine du 2026-07-07 en a donné la mesure empirique : cinq bugs distincts imputables à la dualité, dont une éjection UX en mode dual-auth (cookie 403 sur un network autorisé par session), des server keys orphelins créés par `/artisan setup` relancé face à une UI incompréhensible, un crash backend (duplicate key non catché) déclenché par ce même setup, et des deploys user-auth qui perdaient les fichiers module (les modules ne s'enregistraient qu'en session).
+Session mode dates from V1, before the accounts/networks system. Since then it has been a **second complete auth model**: every feature pays the tax twice (twin REST routes `editor-session/*` vs `user/*`, session/user branches in auto-save, deploy, presence, the assistant). The week of 2026-07-07 gave an empirical measure: five distinct bugs attributable to the duality, including a UX ejection in dual-auth mode (cookie 403 on a network authorized by session), orphan server keys created by `/artisan setup` rerun against an incomprehensible UI, a backend crash (uncaught duplicate key) triggered by that same setup, and user-auth deploys that lost module files (modules only registered in session mode).
 
-## Alternatives rejetées
+## Rejected alternatives
 
-- **Conserver les deux modes** : la taxe est structurelle, pas transitoire — chaque nouvel écran/endpoint devra raisonner sur les deux identités pour toujours.
-- **Fenêtre de dépréciation** : outil pour ne pas casser des clients existants ; le produit est pré-launch, il n'y en a pas.
-- **Session anonyme « upgradeable » vers compte** : garde toute la machinerie session pour un bénéfice d'onboarding marginal face au claim-flow comptes (lien in-game → OAuth Discord → serveur lié, ~30 s une seule fois).
+- **Keep both modes**: the tax is structural, not transitional — every new screen/endpoint would have to reason about both identities forever.
+- **Deprecation window**: a tool for not breaking existing clients; the product is pre-launch, there are none.
+- **Anonymous session "upgradeable" to an account**: keeps all the session machinery for a marginal onboarding benefit compared to the accounts claim flow (in-game link → Discord OAuth → linked server, ~30 s, once).
 
-## Conséquences
+## Consequences
 
-- Friction assumée au premier contact (mur de connexion) — trade-off accepté contre la suppression d'une classe de bugs ; le billing suppose de toute façon des comptes.
-- Le trust dance disparaît **sans remplacement** : la preuve « je suis admin de ce serveur » est donnée une fois au Link ; ensuite c'est la Membership qui autorise.
-- Séquencement : ① cutover comptes-only → ② infra email (Scaleway TEM) → ③ Members (rôles + invitations). Chaque bloc shippe seul.
+- Accepted friction on first contact (sign-in wall) — a trade-off accepted against removing a whole class of bugs; billing assumes accounts anyway.
+- The trust dance disappears **with no replacement**: the proof "I am admin of this server" is given once at the Link; after that the Membership authorizes.
+- Sequencing: ① accounts-only cutover → ② email infra (Scaleway TEM) → ③ Members (roles + invitations). Each block ships on its own.
