@@ -4,7 +4,7 @@
   "aliases": ["hdv"],
   "permission": "shop.ah",
   "description": { "en": "Open the auction house", "fr": "Ouvrir l'hôtel des ventes" },
-  "notes": "Sous-commandes : chaque nœud a ses arguments, sa permission et ses actions ; `admin` n'a pas d'actions et affiche l'usage de ses enfants.",
+  "notes": "Subcommands: each node has its own arguments, permission and actions; `admin` has no actions and shows the usage of its children.",
   "actions": "open_menu auction_house",
   "subcommands": [
     {
