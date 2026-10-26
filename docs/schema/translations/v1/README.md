@@ -65,7 +65,7 @@ elements:                                  shop:
                                                    click: { left: { message: Acheté ! } }
 ```
 
-Both forms are read interchangeably, including mixed within a single file. The choice is a project mode (`.artisan/editor.yaml` → `i18n_mode`), not a field property. The addressing scheme is locked cross-language by `testdata/i18n-address-conformance.json`. See ADR `files-first-source-of-truth` §4.
+Both forms are read interchangeably, including mixed within a single file. Both forms are historical: since ADR `field-local-translations` (2026-09-30), the editor writes languages at the field, and the `i18n_mode` of `.artisan/editor.yaml` no longer exists (2026-10-26). The addressing scheme is locked cross-language by `testdata/i18n-address-conformance.json`. See ADR `files-first-source-of-truth` §4.
 
 ## Resolution order at runtime
 

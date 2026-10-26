@@ -84,7 +84,7 @@ there. A deeper `.artisan` (`data/.artisan/x`) is ordinary content. The rule is 
 once, `project/ProjectMetadataPaths` (core); all callers delegate to it, except
 `EditorScreenRegistry` (`api` module, without access to core) which applies the same rule.
 
-The editor **owns** `.artisan/editor.yaml` (board layout, `i18n_mode`) and must be able to
+The editor **owns** `.artisan/editor.yaml` (board layout) and must be able to
 write it. The `project_read` / `project_write` rule (`EditorPaths`) is therefore finer than
 the hash exclusion — and symmetric: **what the editor cannot see when reading, it cannot
 write**. Still invisible and forbidden: `.artisan/history/`, `.artisan/drafts/`,
