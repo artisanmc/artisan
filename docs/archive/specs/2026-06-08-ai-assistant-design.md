@@ -1,84 +1,84 @@
-# Assistant IA — génération de menus en langage naturel + migration zmenu/DeluxeMenus
+# AI assistant — natural-language menu generation + zmenu/DeluxeMenus migration
 
-**Statut :** design approuvé — **DÉPARQUÉ** (P1 canonicalisation `menu/v1` terminée : P1.0 schéma + P1.1 éditeur + P1.2 plugin, mergées). Le contrat émis par l'IA = `menu/v1` **canonique** ; le gate = `ajv(menu/v1/schema.json)` (cf. `editor/src/schema/validateMenuV1.ts`) + checks cross-field. Sous-plans séquentiels : **(1) convertisseur `menu/v1 → domain`** — réduit par la P1 au pont i18n + un-snake + `size`/`rows` + `pagination_*`→`paginate` (plan `2026-06-08-ai-converter-menuv1-to-domain.md`) ; (2) moteur backend ; (3) crédits ; (4) panel éditeur. **Le sous-plan (3) crédits est réalisé — étendu en système de modèles complet — par `2026-07-02-ai-model-system-design.md` (plans `2026-07-02-ai-models-1..4`).**
-**Auteur :** brainstorm 2026-06-08
-**Code lié (à créer) :** `backend/src/modules/assistant/`, `editor/src/modules/assistant/`
-**Code lié (réutilisé) :** `docs/schema/menu/v1/{schema.json,types.ts}` (validation), pipeline export domain→menu/v1 de l'éditeur, modèle commits (`pack_commits`, onglet History/Restore), `editor/src/state/accountStore.ts`.
+**Status:** design approved — **UNBLOCKED** (P1 `menu/v1` canonicalization done: P1.0 schema + P1.1 editor + P1.2 plugin, merged). The contract emitted by the AI = **canonical** `menu/v1`; the gate = `ajv(menu/v1/schema.json)` (cf. `editor/src/schema/validateMenuV1.ts`) + cross-field checks. Sequential sub-plans: **(1) `menu/v1 → domain` converter** — reduced by P1 to the i18n bridge + un-snake + `size`/`rows` + `pagination_*`→`paginate` (plan `2026-06-08-ai-converter-menuv1-to-domain.md`); (2) backend engine; (3) credits; (4) editor panel. **Sub-plan (3) credits is delivered — extended into a full model system — by `2026-07-02-ai-model-system-design.md` (plans `2026-07-02-ai-models-1..4`).**
+**Author:** brainstorm 2026-06-08
+**Related code (to create):** `backend/src/modules/assistant/`, `editor/src/modules/assistant/`
+**Related code (reused):** `docs/schema/menu/v1/{schema.json,types.ts}` (validation), the editor's domain→menu/v1 export pipeline, commits model (`pack_commits`, History/Restore tab), `editor/src/state/accountStore.ts`.
 
-## Contexte
+## Context
 
-Aujourd'hui un admin construit ses menus à la main dans l'éditeur web. Deux frictions :
+Today an admin builds their menus by hand in the web editor. Two frictions:
 
-1. **Onboarding** — les admins arrivent avec des configs existantes (zmenu, DeluxeMenus). Les retaper à la main est un mur d'entrée.
-2. **Vélocité** — décrire un menu en langage naturel et le voir apparaître est plus rapide qu'un placement manuel pour les cas courants.
+1. **Onboarding** — admins arrive with existing configs (zmenu, DeluxeMenus). Retyping them by hand is an entry wall.
+2. **Velocity** — describing a menu in natural language and seeing it appear is faster than manual placement for common cases.
 
-Ce spec couvre une **feature produit long-terme** : un assistant IA persistant dans la plateforme avec **deux portes d'entrée sur un moteur commun** — (1) décrire un menu en langage naturel, (2) drop un fichier zmenu/DeluxeMenus à convertir. Driver immédiat : migrer les menus zmenu de prod de l'auteur pour valider la stack de bout en bout.
+This spec covers a **long-term product feature**: a persistent AI assistant in the platform with **two entry points on a common engine** — (1) describe a menu in natural language, (2) drop a zmenu/DeluxeMenus file to convert. Immediate driver: migrate the author's production zmenu menus to validate the stack end to end.
 
-## Décisions du brainstorm
+## Brainstorm decisions
 
-| Question | Choix |
+| Question | Choice |
 |---|---|
-| Intention | Feature produit long-terme (pas un outil de migration jetable) |
-| Scope des portes d'entrée v1 | **Les deux** (NL + migration) sur un moteur commun |
-| Forme d'interaction | **Chat multi-tours, édition incluse** (l'IA crée ET modifie des menus existants) |
-| Coût / clé | **Toi tu fournis la clé** (provider pas forcément Anthropic) ; les users dépensent des **crédits** |
-| Scope facturation v1 | **Consommation seule** (ledger + métering + débit + blocage à zéro, octroi manuel pour tester). Acquisition (Stripe/abonnements) = projet séparé. |
-| Moteur | **A — Agent à tool-use hébergé par nous** (Claude API + tool use, boucle manuelle). Pas Managed Agents. |
+| Intent | Long-term product feature (not a throwaway migration tool) |
+| v1 entry-point scope | **Both** (NL + migration) on a common engine |
+| Interaction shape | **Multi-turn chat, editing included** (the AI creates AND modifies existing menus) |
+| Cost / key | **You provide the key** (provider not necessarily Anthropic); users spend **credits** |
+| v1 billing scope | **Consumption only** (ledger + metering + debit + block at zero, manual grant for testing). Acquisition (Stripe/subscriptions) = separate project. |
+| Engine | **A — Tool-use agent hosted by us** (Claude API + tool use, manual loop). Not Managed Agents. |
 
 ## Goals
 
-- Une surface chat unique où l'utilisateur **écrit en langage naturel OU drop des fichiers** zmenu/DeluxeMenus.
-- L'IA **crée et modifie** des menus du pack courant de façon **fiable** : tout menu produit est structurellement valide (jamais de menu cassé silencieux).
-- **Réversible** : l'édition en place n'est pas effrayante (checkpoint commit + undo).
-- **Provider-agnostique** : aucune dépendance hard à Anthropic dans l'architecture.
-- **Métré** : chaque opération consomme des crédits ; blocage propre à zéro.
+- A single chat surface where the user **writes in natural language OR drops** zmenu/DeluxeMenus files.
+- The AI **creates and modifies** menus of the current pack **reliably**: every menu produced is structurally valid (never a silently broken menu).
+- **Reversible**: in-place editing is not scary (checkpoint commit + undo).
+- **Provider-agnostic**: no hard dependency on Anthropic in the architecture.
+- **Metered**: each operation consumes credits; clean block at zero.
 
 ## Non-goals (v1)
 
-- Génération de **commands / dialogs / translations** (les sources de migration sont des plugins de menus → cut sur les menus ; extension ultérieure).
-- **Acquisition de crédits** (paiement Stripe, abonnements, achat) — projet séparé. V1 = octroi manuel/admin.
-- Persistance durable du **transcript** de chat à travers les reloads / redémarrages backend (l'état conversation est en mémoire serveur, re-seedable — cf. §4).
-- Création automatique de la **commande d'ouverture** d'un menu migré (`open_command` zmenu / DeluxeMenus) — notée dans les `notes` du menu, création différée.
-- Multi-pack / multi-network dans une même conversation (une conversation = un (network, pack)).
-- Édition concurrente fine (modèle **last-writer** simple ; cf. §4).
+- Generation of **commands / dialogs / translations** (migration sources are menu plugins → cut to menus; later extension).
+- **Credit acquisition** (Stripe payment, subscriptions, purchase) — separate project. V1 = manual/admin grant.
+- Durable persistence of the chat **transcript** across reloads / backend restarts (conversation state is in server memory, re-seedable — cf. §4).
+- Automatic creation of the **opening command** of a migrated menu (zmenu / DeluxeMenus `open_command`) — noted in the menu's `notes`, creation deferred.
+- Multi-pack / multi-network in a single conversation (one conversation = one (network, pack)).
+- Fine-grained concurrent editing (simple **last-writer** model; cf. §4).
 
 ## Architecture
 
-Nouveau module **`assistant`** suivant le pattern modular monolith (`docs/architecture/modules.md`), **2 layers** (pas de layer plugin — c'est éditeur ↔ backend) :
+New **`assistant`** module following the modular monolith pattern (`docs/architecture/modules.md`), **2 layers** (no plugin layer — it is editor ↔ backend):
 
-- **Backend** `backend/src/modules/assistant/` — exporte un `BackendModule`, register dans `app.ts` (`mountModules`). Contient : endpoints, moteur (boucle agentique), tools, grounding, `LLMProvider`, métering.
-- **Éditeur** `editor/src/modules/assistant/` — exporte un `FrontendModule`, `registerModule(...)` dans `main.tsx`. Contient : panel chat, file-drop, client SSE, convertisseur `menu/v1 → domain`, application des writes.
+- **Backend** `backend/src/modules/assistant/` — exports a `BackendModule`, registered in `app.ts` (`mountModules`). Contains: endpoints, engine (agentic loop), tools, grounding, `LLMProvider`, metering.
+- **Editor** `editor/src/modules/assistant/` — exports a `FrontendModule`, `registerModule(...)` in `main.tsx`. Contains: chat panel, file-drop, SSE client, `menu/v1 → domain` converter, applying the writes.
 
 ```
-[Panel chat éditeur]                                              [Module assistant backend]
-   │ 1. open conversation (seed working-copy = pack en menu/v1)        │
+[Editor chat panel]                                               [Backend assistant module]
+   │ 1. open conversation (seed working-copy = pack in menu/v1)        │
    │    POST /api/v1/assistant/conversations                           │
-   │ 2. POST .../conversations/:id/messages  (SSE)  ───────────────▶   ├─ LLMProvider (Claude défaut, swappable)
-   │       { text, attachmentIds[] }                                   ├─ boucle agentique manuelle (@anthropic-ai/sdk)
-   ◀── SSE: text_delta · tool_use · menu_written(menu/v1) ·            ├─ tools sur la working-copy (menu/v1 only)
+   │ 2. POST .../conversations/:id/messages  (SSE)  ───────────────▶   ├─ LLMProvider (Claude default, swappable)
+   │       { text, attachmentIds[] }                                   ├─ manual agentic loop (@anthropic-ai/sdk)
+   ◀── SSE: text_delta · tool_use · menu_written(menu/v1) ·            ├─ tools on the working-copy (menu/v1 only)
    │        menu_deleted · credits · error · done                      ├─ gate: ajv(schema.json) + validateMenuLayout
-   │ 3. importe menu/v1 → domain, applique à accountStore (undo)       ├─ débit ledger crédits
-   │ 4. checkpoint commit avant 1er write (réversibilité)              └─ grounding (préfixe système caché)
+   │ 3. imports menu/v1 → domain, applies to accountStore (undo)       ├─ credit ledger debit
+   │ 4. checkpoint commit before 1st write (reversibility)             └─ grounding (cached system prefix)
 ```
 
-### Décision structurante : le backend reste en `menu/v1`
+### Structuring decision: the backend stays in `menu/v1`
 
-Le backend **ne connaît jamais le domain model de l'éditeur**. Toute la conversion vit côté client :
+The backend **never knows the editor's domain model**. All conversion lives client-side:
 
-- **domain → menu/v1** (seed de la working-copy) : *existe déjà* (pipeline export de l'éditeur). Réutilisé tel quel.
-- **menu/v1 → domain** (application des writes) : **construit** (sous-plan (1), 2026-06-09) — `editor/src/schema/menuV1ToDomain.ts` (placé dans `schema/` à côté de `validateMenuV1.ts` car réutilisable hors IA ; le futur module assistant l'importe depuis là). Fonction pure `menuV1ToDomain(src, opts) → { menu, i18nKeys, unsupported }` — aucune mutation de pack, retourne les clés i18n allouées. Couverture : tests unitaires (`menuV1ToDomain.test.ts`) + oracle round-trip domain↔menu/v1 (`menuV1ToDomain.roundtrip.test.ts`). C'est le plus gros morceau de code déterministe du projet, et il est réutilisable (import de fichiers `menu/v1` en général). Il fait :
-  - **pont i18n** : un champ texte `menu/v1` est un `string` qui est soit un littéral, soit une réf inline `{i18n:KEY}`. Cas littéral → **allouer une clé**, ranger le littéral sous la langue active dans `pack.i18nKeys`, produire un `LText { key }`. Cas `{i18n:KEY}` → `LText { key: KEY }` + importer les valeurs depuis le `translations/v1` accompagnant dans `pack.i18nKeys`. (Côté domain le texte est **toujours** un `LText`, jamais un littéral inline.)
-  - **structure** : monte les step-trees depuis les `actions[]` plats, construit `MenuTitleLayer[]` depuis le `title`, convertit `size` → `rows`.
-- **Côté IA** : elle émet du **texte littéral lisible** (MiniMessage + placeholders PAPI préservés) ; c'est le convertisseur qui gère le keying i18n. L'IA ne manipule jamais de clés.
-- **Validation** côté backend : `ajv` contre `docs/schema/menu/v1/schema.json` + `validateMenuLayout` (importé de `docs/schema/menu/v1/types.ts`, TS framework-agnostic). **Exactement le même validateur que l'éditeur** → cohérence garantie.
+- **domain → menu/v1** (seeding the working-copy): *already exists* (the editor's export pipeline). Reused as is.
+- **menu/v1 → domain** (applying the writes): **built** (sub-plan (1), 2026-06-09) — `editor/src/schema/menuV1ToDomain.ts` (placed in `schema/` next to `validateMenuV1.ts` because it is reusable outside the AI; the future assistant module imports it from there). Pure function `menuV1ToDomain(src, opts) → { menu, i18nKeys, unsupported }` — no pack mutation, returns the allocated i18n keys. Coverage: unit tests (`menuV1ToDomain.test.ts`) + domain↔menu/v1 round-trip oracle (`menuV1ToDomain.roundtrip.test.ts`). It is the biggest piece of deterministic code in the project, and it is reusable (importing `menu/v1` files in general). It does:
+  - **i18n bridge**: a `menu/v1` text field is a `string` that is either a literal or an inline ref `{i18n:KEY}`. Literal case → **allocate a key**, store the literal under the active language in `pack.i18nKeys`, produce an `LText { key }`. `{i18n:KEY}` case → `LText { key: KEY }` + import the values from the accompanying `translations/v1` into `pack.i18nKeys`. (On the domain side the text is **always** an `LText`, never an inline literal.)
+  - **structure**: builds step-trees from the flat `actions[]`, builds `MenuTitleLayer[]` from the `title`, converts `size` → `rows`.
+- **AI side**: it emits **readable literal text** (MiniMessage + PAPI placeholders preserved); the converter handles the i18n keying. The AI never handles keys.
+- **Validation** on the backend side: `ajv` against `docs/schema/menu/v1/schema.json` + `validateMenuLayout` (imported from `docs/schema/menu/v1/types.ts`, framework-agnostic TS). **Exactly the same validator as the editor** → guaranteed consistency.
 
-Conséquence : la working-copy serveur est un objet `menu/v1`, les tools lisent/écrivent du `menu/v1`, la validation tourne sur du `menu/v1`. Aucun convertisseur côté serveur.
+Consequence: the server working-copy is a `menu/v1` object, the tools read/write `menu/v1`, validation runs on `menu/v1`. No converter on the server side.
 
-## Moteur (boucle agentique)
+## Engine (agentic loop)
 
-### `LLMProvider` (abstraction provider)
+### `LLMProvider` (provider abstraction)
 
-Interface neutre, dans `backend/src/modules/assistant/provider/`:
+Neutral interface, in `backend/src/modules/assistant/provider/`:
 
 ```ts
 interface LlmUsage { inputTokens: number; outputTokens: number; cachedInputTokens?: number; }
@@ -93,163 +93,163 @@ type LlmMessage =
   | { role: "user"; content: string }
   | { role: "assistant"; content: string | null; toolCalls?: { id: string; name: string; arguments: string }[] }
   | { role: "tool"; toolCallId: string; content: string };
-interface ToolDef { name: string; description: string; parameters: object; } // JSON Schema des params
+interface ToolDef { name: string; description: string; parameters: object; } // JSON Schema of the params
 
 interface LlmProvider {
-  /** Un tour : messages (le system est le 1er message) + tools → flux d'events. Le caller exécute les tools et renvoie les tool results (role "tool") au tour suivant. */
+  /** One turn: messages (system is the 1st message) + tools → event stream. The caller executes the tools and sends the tool results (role "tool") back on the next turn. */
   streamTurn(args: { messages: LlmMessage[]; tools: ToolDef[]; model: string }): AsyncIterable<LlmStreamEvent>;
 }
 ```
 
-- Impl **unique `OpenAICompatibleProvider`** (SDK `openai`) — **décision 2026-06-09 : provider-agnostique via le protocole OpenAI-compatible, pas Anthropic-only.**
-  - Configurée par **`baseURL` + `model` + `apiKey`** → couvre **OpenAI, DeepSeek, Mistral, OpenRouter, Ollama local…**. Preset sélectionné par env (`ASSISTANT_PROVIDER`) ou override explicite (`ASSISTANT_BASE_URL`/`ASSISTANT_MODEL`/`ASSISTANT_API_KEY`). **Changer de provider = changer la conf, pas le code.**
-  - Tool calling via le function-calling OpenAI (`tools`/`tool_calls`) ; streaming `stream:true` avec accumulation des deltas `tool_calls` (`id`/`name`/`arguments`) → normalisé en `LlmStreamEvent`.
-  - Prompt caching : **transparent côté provider** (OpenAI auto-cache, DeepSeek context cache) — aucune config client ; `cachedInputTokens` remonté dans l'usage si le provider le fournit.
-  - Anthropic/Claude **non inclus** comme adaptateur natif en v1 — joignable via son endpoint OpenAI-compat ou OpenRouter si besoin. (Le skill `claude-api` ne s'applique donc pas à ce moteur.)
-- L'interface reste neutre : un éventuel adaptateur natif (Anthropic, Google…) s'insère plus tard sans toucher la boucle/tools/grounding.
+- **Single `OpenAICompatibleProvider`** impl (`openai` SDK) — **decision 2026-06-09: provider-agnostic via the OpenAI-compatible protocol, not Anthropic-only.**
+  - Configured by **`baseURL` + `model` + `apiKey`** → covers **OpenAI, DeepSeek, Mistral, OpenRouter, local Ollama…**. Preset selected by env (`ASSISTANT_PROVIDER`) or explicit override (`ASSISTANT_BASE_URL`/`ASSISTANT_MODEL`/`ASSISTANT_API_KEY`). **Changing provider = changing the config, not the code.**
+  - Tool calling via OpenAI function-calling (`tools`/`tool_calls`); `stream:true` streaming with accumulation of the `tool_calls` deltas (`id`/`name`/`arguments`) → normalized into `LlmStreamEvent`.
+  - Prompt caching: **transparent on the provider side** (OpenAI auto-cache, DeepSeek context cache) — no client config; `cachedInputTokens` reported in the usage if the provider supplies it.
+  - Anthropic/Claude **not included** as a native adapter in v1 — reachable through its OpenAI-compat endpoint or OpenRouter if needed. (The `claude-api` skill therefore does not apply to this engine.)
+- The interface stays neutral: any native adapter (Anthropic, Google…) slots in later without touching the loop/tools/grounding.
 
-### Tools (exécutés serveur, sur la working-copy `menu/v1`)
+### Tools (executed server-side, on the `menu/v1` working-copy)
 
-| Tool | Effet |
+| Tool | Effect |
 |---|---|
-| `list_menus()` | `[{ id, title, size, summary }]` — vue compacte (l'IA fetch le détail à la demande, garde le contexte léger). |
-| `get_menu(id)` | renvoie le `menu/v1` complet du menu. |
-| `upsert_menu(menu)` | **le gate** — valide ; OK → écrit dans la working-copy + émet SSE `menu_written` ; ERREUR → `tool_result` `is_error` avec la liste d'erreurs → l'IA s'auto-corrige. |
-| `delete_menu(id)` | supprime de la working-copy + émet SSE `menu_deleted` (édition incluse). |
-| `read_attachment(file_id)` | renvoie le texte brut d'un fichier zmenu/DeluxeMenus dropé. |
+| `list_menus()` | `[{ id, title, size, summary }]` — compact view (the AI fetches the detail on demand, keeps the context light). |
+| `get_menu(id)` | returns the full `menu/v1` of the menu. |
+| `upsert_menu(menu)` | **the gate** — validates; OK → writes into the working-copy + emits SSE `menu_written`; ERROR → `tool_result` `is_error` with the list of errors → the AI self-corrects. |
+| `delete_menu(id)` | removes from the working-copy + emits SSE `menu_deleted` (editing included). |
+| `read_attachment(file_id)` | returns the raw text of a dropped zmenu/DeluxeMenus file. |
 
-`upsert_menu` valide : `ajv(schema.json)` (structure) **puis** `validateMenuLayout` (ids uniques cross-layer, positions in-bounds, cohérence `iterates`/`component_ref`, résolution des `iterates.source`). Les `errors` de `validateMenuLayout` sont renvoyés tels quels au modèle — ils sont déjà rédigés en langage actionnable.
+`upsert_menu` validates: `ajv(schema.json)` (structure) **then** `validateMenuLayout` (unique ids cross-layer, in-bounds positions, `iterates`/`component_ref` consistency, resolution of `iterates.source`). The `errors` of `validateMenuLayout` are returned as is to the model — they are already written in actionable language.
 
-### Boucle
+### Loop
 
-Boucle agentique **manuelle** (contrôle fin pour métering + validation + budget) :
+**Manual** agentic loop (fine control for metering + validation + budget):
 
-1. `streamTurn(...)` → on relaie les `text` en SSE, on accumule les `tool_use`.
-2. Pour chaque `tool_use` → exécution serveur → `tool_result` (succès ou erreurs).
-3. On somme `usage`, on vérifie le **budget crédits du tour**.
-4. Tant qu'il reste des `tool_use` → re-`streamTurn` avec les `tool_results`. Sinon → `done`.
-5. Caps : **itérations max** (défaut 25) et **budget crédits/tour** (configurable). Dépassement → on coupe proprement + message à l'utilisateur.
+1. `streamTurn(...)` → we relay the `text` as SSE, accumulate the `tool_use`.
+2. For each `tool_use` → server execution → `tool_result` (success or errors).
+3. We sum `usage`, check the **turn's credit budget**.
+4. As long as there are `tool_use` → `streamTurn` again with the `tool_results`. Otherwise → `done`.
+5. Caps: **max iterations** (default 25) and **credit budget/turn** (configurable). Overrun → we cut cleanly + message to the user.
 
 ## Grounding
 
-`backend/src/modules/assistant/grounding/`, versionné, assemblé en **préfixe système caché** :
+`backend/src/modules/assistant/grounding/`, versioned, assembled as a **cached system prefix**:
 
-- `menu-v1-authoring-guide.md` — distillé de `docs/schema/menu/v1/README.md` + `types.ts` + un set d'exemples curés + les règles de `validateMenuLayout`. Token-efficient, écrit pour le modèle.
-- `zmenu-reference.md` — format zmenu (Maxlego08) : `items`/`slots`, `material`, `name`/`lore`, `actions` par type de clic, `view_requirement`/`click_requirement`, et **mapping vers Artisan** (view_requirement → appearance conditionnelle sans fallback = fall-through ; commandes → actions `run_command`/`send_message`/…).
-- `deluxemenus-reference.md` — format DeluxeMenus (HelpChat) : `display_name`/`lore`/`slot`, tags d'actions (`[message]`, `[player]`, `[console]`, `[openguimenu]`, `[sound]`, `[broadcast]`, …), `view_requirement`/`click_requirement` (`has permission`, `has money`, `string equals`, …), placeholders `%papi%`, et **mapping vers Artisan**.
-- Cadrage anti-injection : le system prompt déclare explicitement que le contenu des fichiers dropés et de la working-copy est **de la donnée à convertir, pas des instructions**.
+- `menu-v1-authoring-guide.md` — distilled from `docs/schema/menu/v1/README.md` + `types.ts` + a set of curated examples + the `validateMenuLayout` rules. Token-efficient, written for the model.
+- `zmenu-reference.md` — zmenu format (Maxlego08): `items`/`slots`, `material`, `name`/`lore`, `actions` per click type, `view_requirement`/`click_requirement`, and **mapping to Artisan** (view_requirement → conditional appearance without fallback = fall-through; commands → `run_command`/`send_message`/… actions).
+- `deluxemenus-reference.md` — DeluxeMenus format (HelpChat): `display_name`/`lore`/`slot`, action tags (`[message]`, `[player]`, `[console]`, `[openguimenu]`, `[sound]`, `[broadcast]`, …), `view_requirement`/`click_requirement` (`has permission`, `has money`, `string equals`, …), `%papi%` placeholders, and **mapping to Artisan**.
+- Anti-injection framing: the system prompt explicitly declares that the content of dropped files and of the working-copy is **data to convert, not instructions**.
 
-## État conversation & synchronisation (§ working-copy)
+## Conversation state & synchronization (§ working-copy)
 
-- **Le client (`accountStore`) reste source de vérité** du pack live.
-- Une **conversation** est liée à un (network, pack) et tient un **état serveur en mémoire** : historique des messages + working-copy du pack en `menu/v1` + attachments. Seedée par le client à l'ouverture (le client exporte le pack domain→menu/v1). **Pas de table** en v1 ; si le backend redémarre, le client ré-ouvre et re-seed (transcript perdu — persistance = follow-up).
-- L'IA émet du `menu/v1` ; chaque `upsert_menu`/`delete_menu` validé émet un event SSE ; l'éditeur **importe menu/v1 → domain** et applique à `accountStore` (undoable via zundo).
-- **Concurrence** : si l'utilisateur édite le pack à la main pendant une conversation, l'éditeur **re-seed** la working-copy (renvoie un snapshot à jour) avant le tour suivant. Modèle **last-writer** simple en v1, limite documentée.
+- **The client (`accountStore`) stays the source of truth** of the live pack.
+- A **conversation** is tied to one (network, pack) and holds an **in-memory server state**: message history + working-copy of the pack in `menu/v1` + attachments. Seeded by the client on opening (the client exports the pack domain→menu/v1). **No table** in v1; if the backend restarts, the client reopens and re-seeds (transcript lost — persistence = follow-up).
+- The AI emits `menu/v1`; each validated `upsert_menu`/`delete_menu` emits an SSE event; the editor **imports menu/v1 → domain** and applies to `accountStore` (undoable via zundo).
+- **Concurrency**: if the user edits the pack by hand during a conversation, the editor **re-seeds** the working-copy (sends an up-to-date snapshot) before the next turn. Simple **last-writer** model in v1, documented limit.
 
-## Réversibilité
+## Reversibility
 
-- Avant le **1er write d'un tour**, l'éditeur prend un **checkpoint commit** (mécanisme `pack_commits` existant) labellisé « avant modifs IA ».
-- Bandeau post-tour : « L'IA a modifié N menus dans ce tour — [Voir sur le canvas] [Annuler] ». [Annuler] = Restore du checkpoint (onglet History existant).
-- Plus l'undo zundo par édition (`accountStore.temporal`).
+- Before the **1st write of a turn**, the editor takes a **checkpoint commit** (existing `pack_commits` mechanism) labelled "before AI changes".
+- Post-turn banner: "The AI modified N menus in this turn — [View on canvas] [Undo]". [Undo] = Restore of the checkpoint (existing History tab).
+- Plus the zundo undo per edit (`accountStore.temporal`).
 
-## Crédits / métering (côté consommation seulement)
+## Credits / metering (consumption side only)
 
-- **Schéma** : table `ai_credit_ledger` — `(id, accountId, delta, reason, operationId, createdAt)`. Solde = `SUM(delta)` par account. Migration Drizzle générée (`bun run db:generate`) et committée. `reason` ∈ `{ grant, debit, refund }`.
-- **Conversion tokens → crédits** : formule paramétrable par env —
-  `crédits = ceil((in·wIn + out·wOut + cacheRead·wCacheRead + cacheWrite·wCacheWrite) / DIVISOR)`
-  où les poids reflètent le coût provider × marge. Tous configurables, **calibrés à l'implémentation** contre le pricing réel du provider (cf. table modèles : `claude-opus-4-8` $5/$25 par 1M in/out, cache read ~0.1×, cache write ~1.25×).
-- **Débit** : à la fin de chaque tour, somme `usage` de tous les appels modèle → 1 entrée `debit`. **Pré-check du solde** avant un tour ; **cap de budget par tour**. Solde ≤ 0 → refus du tour (message clair).
-- **Pas de débit** si le provider n'a rien renvoyé (échec terminal) — on ne facture que les tokens réellement consommés/retournés.
-- **Octroi** : endpoint admin `POST /api/v1/assistant/admin/credits { accountId, amount, reason }` (auth admin) + script CLI pour tester. C'est l'unique point d'entrée que le futur projet Stripe réutilisera (insère des entrées `grant`).
+- **Schema**: `ai_credit_ledger` table — `(id, accountId, delta, reason, operationId, createdAt)`. Balance = `SUM(delta)` per account. Drizzle migration generated (`bun run db:generate`) and committed. `reason` ∈ `{ grant, debit, refund }`.
+- **Tokens → credits conversion**: formula configurable by env —
+  `credits = ceil((in·wIn + out·wOut + cacheRead·wCacheRead + cacheWrite·wCacheWrite) / DIVISOR)`
+  where the weights reflect provider cost × margin. All configurable, **calibrated at implementation** against the provider's real pricing (cf. models table: `claude-opus-4-8` $5/$25 per 1M in/out, cache read ~0.1×, cache write ~1.25×).
+- **Debit**: at the end of each turn, sum the `usage` of all model calls → 1 `debit` entry. **Balance pre-check** before a turn; **per-turn budget cap**. Balance ≤ 0 → turn refused (clear message).
+- **No debit** if the provider returned nothing (terminal failure) — we only bill the tokens actually consumed/returned.
+- **Grant**: admin endpoint `POST /api/v1/assistant/admin/credits { accountId, amount, reason }` (admin auth) + CLI script for testing. This is the single entry point the future Stripe project will reuse (inserts `grant` entries).
 
-## API REST (sous `/api/v1/assistant/`)
+## REST API (under `/api/v1/assistant/`)
 
-| Méthode | Route | Rôle |
+| Method | Route | Role |
 |---|---|---|
-| `POST` | `/api/v1/assistant/conversations` | Ouvre une conversation (auth editor-session) ; body = pack snapshot en `menu/v1` ; renvoie `conversationId`. |
-| `POST` | `/api/v1/assistant/conversations/:id/attachments` | Upload d'un fichier zmenu/DeluxeMenus dropé ; renvoie `fileId`. |
-| `POST` | `/api/v1/assistant/conversations/:id/messages` | Envoie un message `{ text, attachmentIds[], packSnapshot? }` ; **réponse SSE** (cf. events). `packSnapshot` optionnel = re-seed concurrence. |
-| `GET` | `/api/v1/assistant/credits` | Solde de l'account courant. |
-| `POST` | `/api/v1/assistant/admin/credits` | Octroi (admin). |
+| `POST` | `/api/v1/assistant/conversations` | Opens a conversation (editor-session auth); body = pack snapshot in `menu/v1`; returns `conversationId`. |
+| `POST` | `/api/v1/assistant/conversations/:id/attachments` | Upload of a dropped zmenu/DeluxeMenus file; returns `fileId`. |
+| `POST` | `/api/v1/assistant/conversations/:id/messages` | Sends a message `{ text, attachmentIds[], packSnapshot? }`; **SSE response** (cf. events). Optional `packSnapshot` = concurrency re-seed. |
+| `GET` | `/api/v1/assistant/credits` | Balance of the current account. |
+| `POST` | `/api/v1/assistant/admin/credits` | Grant (admin). |
 
-**Events SSE** : `text_delta` · `tool_use` (menu en cours d'écriture, pour feedback) · `menu_written` (`menu/v1` payload) · `menu_deleted` (`{id}`) · `credits` (`{ debited, balance }`) · `error` (`{ message }`) · `done`.
+**SSE events**: `text_delta` · `tool_use` (menu being written, for feedback) · `menu_written` (`menu/v1` payload) · `menu_deleted` (`{id}`) · `credits` (`{ debited, balance }`) · `error` (`{ message }`) · `done`.
 
-Toutes les routes (sauf admin) sont sous l'auth editor-session existante ; les crédits sont liés à l'account authentifié.
+All routes (except admin) are under the existing editor-session auth; credits are tied to the authenticated account.
 
-## UX éditeur
+## Editor UX
 
-- **Panel assistant** : drawer droit ≥lg ; sheet plein écran <lg (mobile-first — pas d'affordance hover-only, cf. préférence projet). Transcript + composer avec **drag-drop** de fichiers zmenu/DeluxeMenus (dropzone sur le composer). Tokens en streaming.
-- Quand l'IA écrit/supprime un menu → carte dans le transcript « Créé / Modifié / Supprimé : *menu X* » linkant vers le menu sur le canvas ; **le canvas se met à jour live** (via l'import → accountStore).
-- **Solde crédits** visible dans le panel ; état « plus de crédits » (CTA top-up = placeholder pour le projet Stripe futur).
-- **Entrée** : item sidebar du `FrontendModule` `assistant` + bouton « ✨ » dans `WorkspaceTopBarControls`.
-- **Strings i18n** : toutes via react-i18next (clés ajoutées dans `en.ts` + `fr.ts` dans le même commit — pas de hardcode FR/EN).
+- **Assistant panel**: right drawer ≥lg; full-screen sheet <lg (mobile-first — no hover-only affordance, cf. project preference). Transcript + composer with **drag-drop** of zmenu/DeluxeMenus files (dropzone on the composer). Streaming tokens.
+- When the AI writes/deletes a menu → card in the transcript "Created / Modified / Deleted: *menu X*" linking to the menu on the canvas; **the canvas updates live** (via the import → accountStore).
+- **Credit balance** visible in the panel; "out of credits" state (top-up CTA = placeholder for the future Stripe project).
+- **Entry**: sidebar item of the `assistant` `FrontendModule` + "✨" button in `WorkspaceTopBarControls`.
+- **i18n strings**: all via react-i18next (keys added in `en.ts` + `fr.ts` in the same commit — no hard-coded FR/EN).
 
-## Sécurité
+## Security
 
-- Clé provider **serveur only** (env), jamais exposée au client.
-- Endpoints sous l'auth editor-session ; crédits liés à l'account.
-- Fichiers dropés & working-copy **traités comme data, pas instructions** (cadrage system prompt anti-injection).
-- **Rate-limit** par account en plus des crédits (anti-abus).
+- Provider key **server only** (env), never exposed to the client.
+- Endpoints under editor-session auth; credits tied to the account.
+- Dropped files & working-copy **treated as data, not instructions** (anti-injection system prompt framing).
+- **Rate-limit** per account on top of credits (anti-abuse).
 
-## Gestion d'erreurs
+## Error handling
 
-| Cas | Comportement |
+| Case | Behavior |
 |---|---|
-| Provider 429/5xx | Retries SDK ; échec terminal → SSE `error` « réessaie » ; **pas de débit**. |
-| Validation jamais OK après N itérations | Résultat partiel + explication ; **jamais de menu invalide écrit**. |
-| Solde ≤ 0 (pré-check ou cap atteint) | Refus / coupure propre + message clair. |
-| Fichier dropé non-parsable | L'IA le signale dans le chat (donnée illisible), pas de crash. |
-| Pack édité à la main pendant la conversation | Re-seed au tour suivant (last-writer). |
+| Provider 429/5xx | SDK retries; terminal failure → SSE `error` "try again"; **no debit**. |
+| Validation never OK after N iterations | Partial result + explanation; **never an invalid menu written**. |
+| Balance ≤ 0 (pre-check or cap reached) | Refusal / clean cut + clear message. |
+| Dropped file not parseable | The AI flags it in the chat (unreadable data), no crash. |
+| Pack edited by hand during the conversation | Re-seed on the next turn (last-writer). |
 
-## Variables d'environnement (backend)
+## Environment variables (backend)
 
-| Variable | Défaut | Usage |
+| Variable | Default | Usage |
 |---|---|---|
-| `ASSISTANT_PROVIDER` | `openai` | Preset OpenAI-compatible : `openai` / `deepseek` / `mistral` / `openrouter` / `local` (résout `baseURL`). Vide/override possible via `ASSISTANT_BASE_URL`. |
-| `ASSISTANT_BASE_URL` | (selon preset) | Override explicite de l'URL OpenAI-compatible (ex: `http://localhost:11434/v1`). |
-| `ASSISTANT_API_KEY` | (vide) | Clé du provider. Vide → feature désactivée. |
-| `ASSISTANT_MODEL` | (selon preset) | Modèle (ex: `gpt-4.1-mini`, `deepseek-chat`, `mistral-large-latest`). |
-| `ASSISTANT_CREDIT_DIVISOR` + `ASSISTANT_CREDIT_W_*` | calibrés à l'impl | Poids/diviseur de conversion tokens→crédits (selon pricing provider). |
-| `ASSISTANT_MAX_ITERATIONS` | `25` | Cap d'itérations par tour. |
-| `ASSISTANT_TURN_BUDGET` | calibré à l'impl | Cap de crédits par tour (selon coût moyen d'une migration menu). |
+| `ASSISTANT_PROVIDER` | `openai` | OpenAI-compatible preset: `openai` / `deepseek` / `mistral` / `openrouter` / `local` (resolves `baseURL`). Empty/override possible via `ASSISTANT_BASE_URL`. |
+| `ASSISTANT_BASE_URL` | (per preset) | Explicit override of the OpenAI-compatible URL (e.g. `http://localhost:11434/v1`). |
+| `ASSISTANT_API_KEY` | (empty) | Provider key. Empty → feature disabled. |
+| `ASSISTANT_MODEL` | (per preset) | Model (e.g. `gpt-4.1-mini`, `deepseek-chat`, `mistral-large-latest`). |
+| `ASSISTANT_CREDIT_DIVISOR` + `ASSISTANT_CREDIT_W_*` | calibrated at impl | Weights/divisor for the tokens→credits conversion (per provider pricing). |
+| `ASSISTANT_MAX_ITERATIONS` | `25` | Iteration cap per turn. |
+| `ASSISTANT_TURN_BUDGET` | calibrated at impl | Credit cap per turn (per average cost of a menu migration). |
 
-## Scope v1
+## v1 scope
 
-- **Entités générées : menus uniquement** (+ i18n / actions / conditions qu'ils contiennent). Commands / dialogs / translations = extension ultérieure (même moteur, grounding + importer étendus).
-- L'`open_command` zmenu/DeluxeMenus → noté dans `menu.notes` ; création de la commande Artisan différée.
+- **Generated entities: menus only** (+ the i18n / actions / conditions they contain). Commands / dialogs / translations = later extension (same engine, extended grounding + importer).
+- zmenu/DeluxeMenus `open_command` → noted in `menu.notes`; creation of the Artisan command deferred.
 
 ## Tests (TDD)
 
-| Couche | Couverture |
+| Layer | Coverage |
 |---|---|
-| Backend — provider | `LlmProvider` mocké (provider scripté). |
-| Backend — tools | `upsert_menu` accepte un `menu/v1` valide / rejette un invalide avec erreurs réinjectées ; `get_menu`/`list_menus`/`delete_menu`. |
-| Backend — boucle | provider scripté → converge ; **auto-correction** sur menu invalide (1 rejet → 2e essai OK). |
-| Backend — métering | math tokens→crédits ; débit ; pré-check + cap ; blocage à zéro ; pas de débit sur échec. |
-| Backend — grounding | les fichiers de grounding chargent et s'assemblent. |
-| Éditeur — convertisseur | **menu/v1 → domain** : round-trip avec l'export domain→menu/v1 existant ; alloc i18nKeys ; step-trees ; `MenuTitleLayer[]`. |
-| Éditeur — panel | rendu SSE ; drag-drop ; application des `menu_written`/`menu_deleted` à accountStore ; checkpoint + undo ; état « plus de crédits ». |
-| Fidélité migration | **corpus** d'échantillons zmenu + DeluxeMenus → menus valides + assertions de mapping (material/slot/name/lore ; clics → actions ; view_requirement → appearance conditionnelle ; placeholders préservés). |
+| Backend — provider | Mocked `LlmProvider` (scripted provider). |
+| Backend — tools | `upsert_menu` accepts a valid `menu/v1` / rejects an invalid one with errors fed back; `get_menu`/`list_menus`/`delete_menu`. |
+| Backend — loop | scripted provider → converges; **self-correction** on an invalid menu (1 rejection → 2nd try OK). |
+| Backend — metering | tokens→credits math; debit; pre-check + cap; block at zero; no debit on failure. |
+| Backend — grounding | the grounding files load and assemble. |
+| Editor — converter | **menu/v1 → domain**: round-trip with the existing domain→menu/v1 export; i18nKeys alloc; step-trees; `MenuTitleLayer[]`. |
+| Editor — panel | SSE rendering; drag-drop; applying `menu_written`/`menu_deleted` to accountStore; checkpoint + undo; "out of credits" state. |
+| Migration fidelity | **corpus** of zmenu + DeluxeMenus samples → valid menus + mapping assertions (material/slot/name/lore; clicks → actions; view_requirement → conditional appearance; placeholders preserved). |
 
-## Docs à mettre à jour (mapping `CLAUDE.md` / `doc-impact-map.yaml`)
+## Docs to update (mapping `CLAUDE.md` / `doc-impact-map.yaml`)
 
-- `docs/architecture/modules.md` — section « Module assistant ».
-- `docs/architecture/rest-endpoints.md` — routes `/api/v1/assistant/*`.
-- `docs/architecture/entities.md` — table `ai_credit_ledger` + migration.
-- `docs/architecture/editor-internals.md` — panel assistant + convertisseur menu/v1→domain.
+- `docs/architecture/modules.md` — "Assistant module" section.
+- `docs/architecture/rest-endpoints.md` — `/api/v1/assistant/*` routes.
+- `docs/architecture/entities.md` — `ai_credit_ledger` table + migration.
+- `docs/architecture/editor-internals.md` — assistant panel + menu/v1→domain converter.
 - `CHANGELOG.md` `[Unreleased]`.
-- `.env.example` + `CLAUDE.md` (vars `ASSISTANT_*`).
-- `docs-site/src/content/docs/editor/assistant.md` (user docs, créer).
+- `.env.example` + `CLAUDE.md` (`ASSISTANT_*` vars).
+- `docs-site/src/content/docs/editor/assistant.md` (user docs, to create).
 
-## Découpage en sous-projets (suite)
+## Breakdown into sub-projects (next)
 
-1. **Ce spec** — assistant IA, côté consommation des crédits, menus only.
-2. **Facturation acquisition** (séparé) — Stripe, plans d'abonnement, achat de crédits → insère des entrées `grant` dans `ai_credit_ledger`.
-3. **Extension entités** (séparé) — génération commands / dialogs / translations.
-4. **Persistance transcript** (séparé) — historique de chat durable + reprise.
+1. **This spec** — AI assistant, credit consumption side, menus only.
+2. **Acquisition billing** (separate) — Stripe, subscription plans, credit purchase → inserts `grant` entries into `ai_credit_ledger`.
+3. **Entity extension** (separate) — generation of commands / dialogs / translations.
+4. **Transcript persistence** (separate) — durable chat history + resume.
 
-## Limites connues (assumées en v1)
+## Known limits (accepted in v1)
 
-- Concurrence édition manuelle ↔ IA = last-writer (re-seed).
-- Transcript non durable (mémoire serveur).
-- Fidélité de migration best-effort : ce qui ne mappe pas proprement est signalé dans le chat, pas inventé.
+- Manual editing ↔ AI concurrency = last-writer (re-seed).
+- Transcript not durable (server memory).
+- Best-effort migration fidelity: what does not map cleanly is flagged in the chat, not invented.

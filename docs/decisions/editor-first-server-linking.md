@@ -1,45 +1,45 @@
-# Editor-first server linking — un seul chemin `link`, `setup` supprimé
+# Editor-first server linking — a single `link` path, `setup` removed
 
-**Statut : remplacé (phase F, 2026-10)** — plus de liaison au cloud : `/artisan link` et les clés serveur sont supprimés ; une feuille se relie au hub par `web.hub-url` et le secret du réseau. Voir [editor-web-server](editor-web-server.md).
+**Status: superseded (phase F, 2026-10)** — no more linking to the cloud: `/artisan link` and server keys are removed; a leaf connects to the hub through `web.hub-url` and the network secret. See [editor-web-server](editor-web-server.md).
 
-**Statut : accepted (2026-07-15).** Fait suite à l'accounts-only cutover (`accounts-only-editing.md`) qui avait déjà pointé « des server keys orphelins créés par `/artisan setup` relancé face à une UI incompréhensible ».
+**Status: accepted (2026-07-15).** Follows the accounts-only cutover (`accounts-only-editing.md`), which had already pointed at "orphan server keys created by `/artisan setup` rerun against an incomprehensible UI".
 
-Le lien d'un Server à un Network passe désormais par **un seul flux, initié depuis l'éditeur** :
+Linking a Server to a Network now goes through **a single flow, initiated from the editor**:
 
-1. Dans l'éditeur, **« Ajouter un serveur »** crée un `server_key` *non-redeemé* (pas encore de secret, `hash` NULL) + un `link_code` court lié à cette clé, et affiche le **code**.
-2. Sur le serveur Minecraft, **`/artisan link <code>`** échange le code contre le secret via `POST /api/v1/link/:code/redeem` (non-authentifié, le code = bearer). Le backend **génère le secret à ce moment-là**, pose le `hash`, marque le code consommé, et renvoie le secret **une seule fois**. Le plugin l'écrit dans `config.yml` (`ConfigWriter.writeServerKey`) puis se connecte.
-3. **Re-link / rotation** = même chemin : « Régénérer un code » sur la carte serveur → nouveau code lié au **même** `server_key` → `/artisan link` = rotation du secret. Aucune nouvelle ligne n'est jamais créée.
+1. In the editor, **"Add a server"** creates an *unredeemed* `server_key` (no secret yet, `hash` NULL) + a short `link_code` tied to that key, and displays the **code**.
+2. On the Minecraft server, **`/artisan link <code>`** exchanges the code for the secret via `POST /api/v1/link/:code/redeem` (unauthenticated, the code = bearer). The backend **generates the secret at that moment**, sets the `hash`, marks the code consumed, and returns the secret **only once**. The plugin writes it to `config.yml` (`ConfigWriter.writeServerKey`) then connects.
+3. **Re-link / rotation** = same path: "Regenerate a code" on the server card → new code tied to the **same** `server_key` → `/artisan link` = secret rotation. No new row is ever created.
 
-`/artisan setup` (+ `SetupClient` WS pairing) et le flux web `claim` (`POST /link`, `POST /link/:code/claim`) sont **supprimés d'un coup** (projet pré-launch, pas de clients à migrer).
+`/artisan setup` (+ the `SetupClient` WS pairing) and the web `claim` flow (`POST /link`, `POST /link/:code/claim`) are **removed in one go** (pre-launch project, no clients to migrate).
 
-## Pourquoi
+## Why
 
-Il existait **deux** chemins de link, en directions opposées :
+There were **two** link paths, in opposite directions:
 
-- **Pairing WS** (`/artisan setup`) : le plugin ouvre un WS, mint un code (`setup_request`), l'admin claim dans le web (`/link?code=`), le backend crée la clé et pousse le secret (`link_confirmed`).
-- **Wizard éditeur** (`SetupWizard` Step2) : l'admin génère une clé dans le web, copie le `sk_…` brut, le colle à la main dans `config.yml`.
+- **WS pairing** (`/artisan setup`): the plugin opens a WS, mints a code (`setup_request`), the admin claims it in the web UI (`/link?code=`), the backend creates the key and pushes the secret (`link_confirmed`).
+- **Editor wizard** (`SetupWizard` Step2): the admin generates a key in the web UI, copies the raw `sk_…`, pastes it by hand into `config.yml`.
 
-Deux modèles = double surface (routes, messages WS, UI) pour un même acte. Surtout, **chaque re-link mintait une nouvelle `server_key`** sans réutiliser ni nettoyer l'ancienne : un serveur re-linké N fois laissait N clés dans le Network (incident réel 2026-07-15 : 3 clés pour 1 serveur, projects éclatés sur deux d'entre elles). Le badge « serveurs liés » comptant toutes les clés, l'utilisateur voyait « 3 serveurs » pour une seule machine.
+Two models = double surface (routes, WS messages, UI) for a single act. Above all, **each re-link minted a new `server_key`** without reusing or cleaning up the old one: a server re-linked N times left N keys in the Network (real incident 2026-07-15: 3 keys for 1 server, projects split across two of them). The "linked servers" badge counted all keys, so the user saw "3 servers" for a single machine.
 
-Le flux editor-first règle les deux : un seul modèle, et le re-link **rote** une clé existante au lieu d'en créer.
+The editor-first flow fixes both: a single model, and re-link **rotates** an existing key instead of creating one.
 
-## Sémantique clé
+## Key semantics
 
-- **Clé non-redeemée** : `server_keys.hash` devient **nullable**. `hash = NULL` ⇒ clé créée dans l'éditeur mais jamais redeemée ⇒ ne s'authentifie jamais (`validateServerKeyHeader` ne matche que des hash réels). Un Server peut donc exister « en attente de link » avant que le plugin ne se connecte.
-- **Secret jamais stocké en clair** : généré uniquement dans la réponse `redeem` (comme l'ancien push WS). Le code porte les garanties : haute entropie, TTL 10 min, single-use atomique.
-- **`/artisan link <code>` sur un serveur déjà lié** : **écrase** la clé en config (rotation ou bascule vers un autre Server de l'éditeur). Le code est explicite, donc pas de blocage — un WARN log pour le post-mortem.
-- **`/artisan editor`** : lié → deep-link `server_url` ; pas lié → home éditeur (après login) pour créer un serveur. Ne lance plus de setup.
+- **Unredeemed key**: `server_keys.hash` becomes **nullable**. `hash = NULL` ⇒ key created in the editor but never redeemed ⇒ never authenticates (`validateServerKeyHeader` only matches real hashes). A Server can therefore exist "pending link" before the plugin connects.
+- **Secret never stored in clear**: generated only in the `redeem` response (like the old WS push). The code carries the guarantees: high entropy, 10 min TTL, atomic single use.
+- **`/artisan link <code>` on an already linked server**: **overwrites** the key in config (rotation or switch to another editor Server). The code is explicit, so no blocking — a WARN log for post-mortem.
+- **`/artisan editor`**: linked → `server_url` deep link; not linked → editor home (after login) to create a server. No longer starts a setup.
 
-## Alternatives rejetées
+## Rejected alternatives
 
-- **Garder les deux chemins** : c'est exactement la dualité que l'accounts-only cutover a condamnée ailleurs — taxe structurelle permanente.
-- **Réutiliser la clé côté `claim` web** (param `server_key_id`) : corrige les doublons mais garde le double chemin et le sens plugin-mint-code. Prototypé le 2026-07-15 puis reverté au profit de ce design.
-- **Stocker le secret en clair côté serveur en attendant le redeem** : inutile — générer au redeem évite tout secret at rest.
-- **Fichier de credential dédié** (hors `config.yml`) : `ConfigWriter.writeServerKey` écrit déjà dans `config.yml` ; pas de raison d'introduire un second fichier.
+- **Keep both paths**: this is exactly the duality that the accounts-only cutover condemned elsewhere — a permanent structural tax.
+- **Reuse the key on the web `claim` side** (`server_key_id` param): fixes the duplicates but keeps the double path and the plugin-mints-code direction. Prototyped on 2026-07-15 then reverted in favor of this design.
+- **Store the secret in clear on the server while waiting for the redeem**: useless — generating at redeem avoids any secret at rest.
+- **Dedicated credential file** (outside `config.yml`): `ConfigWriter.writeServerKey` already writes to `config.yml`; no reason to introduce a second file.
 
-## Conséquences
+## Consequences
 
-- Migration DB forward-only : `server_keys.hash` nullable.
-- Terme domaine : **`setup` → `link`** (cf. `CONTEXT.md`). `/artisan link <code>` remplace `/artisan setup [code]`.
-- Le plugin dérive sa base HTTP du `ws_url` de config (`wss://host/ws/plugin` → `https://host`) pour appeler `redeem` avant d'être lié — pas de nouvelle clé de config.
-- Surface retirée : WS `setup_request`/`setup_code`/`setup_claim`/`link_confirmed`, REST `POST /link` + `POST /link/:code/claim`, route éditeur `/link`, `SetupClient`.
+- Forward-only DB migration: `server_keys.hash` nullable.
+- Domain term: **`setup` → `link`** (see `CONTEXT.md`). `/artisan link <code>` replaces `/artisan setup [code]`.
+- The plugin derives its HTTP base from the config `ws_url` (`wss://host/ws/plugin` → `https://host`) to call `redeem` before being linked — no new config key.
+- Surface removed: WS `setup_request`/`setup_code`/`setup_claim`/`link_confirmed`, REST `POST /link` + `POST /link/:code/claim`, editor route `/link`, `SetupClient`.

@@ -7,7 +7,7 @@
   ],
   "permission": "artisan.cmd.profile",
   "description": "Affiche le profil d'un joueur.",
-  "notes": "Si aucun joueur passé, affiche le profil de l'auteur de la commande grâce au default %player_name%.",
+  "notes": "If no player is passed, shows the profile of the command's sender thanks to the default %player_name%.",
   "arguments": [
     {
       "name": "target",

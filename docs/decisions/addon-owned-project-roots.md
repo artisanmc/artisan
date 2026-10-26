@@ -55,22 +55,22 @@ grilled later). This ADR captures only the small, separable, decided slice.
   **not** adopted here — they move to the deferred track.
 - No prod data migration (the boutique format is untouched).
 
-### Amendement 2026-07-31 — le masquage d'une racine core est signalé
+### Amendment 2026-07-31 — shadowing a core root is reported
 
-Quand un Add-on enregistre `<id>` alors que `plugins/Artisan/projects/<id>/`
-existe déjà, la racine enregistrée gagne et la copie core devient invisible :
-plus lue, plus hashée, plus synchronisée, plus scannée. Le passage à cet ADR a
-laissé exactement ça sur le serveur de dev — un arbre `boutique_shop` figé au
-2026-07-25, avec un `.artisan-sync.yaml` déjà divergent.
+When an Add-on registers `<id>` while `plugins/Artisan/projects/<id>/` already
+exists, the registered root wins and the core copy becomes invisible: no longer
+read, hashed, synced or scanned. The switch to this ADR left exactly that on the
+dev server — a `boutique_shop` tree frozen at 2026-07-25, with an
+already-diverged `.artisan-sync.yaml`.
 
-Ce n'est pas un déchet inerte. Le jour où l'Add-on échoue à démarrer, personne
-n'enregistre la racine, `ProjectRoots.all()` réexpose la copie périmée comme
-project vivant, et la bannière de divergence — **dont le défaut est « disque »**
-— propose de la pousser par-dessus la vraie.
+It is not inert garbage. The day the Add-on fails to start, nobody registers the
+root, `ProjectRoots.all()` exposes the stale copy again as a live project, and
+the divergence banner — **whose default is "disk"** — offers to push it over the
+real one.
 
-`ProjectRoots.register` émet donc un WARN nommant les deux chemins. Un log, pas
-un refus : l'Add-on a le droit de posséder sa racine, c'est la copie orpheline
-qui doit disparaître, et seul l'admin peut en décider.
+So `ProjectRoots.register` emits a WARN naming both paths. A log, not a
+refusal: the Add-on has the right to own its root, it is the orphan copy that
+must go, and only the admin can decide that.
 
 ### Amendment 2026-09-12 — resolved identity and durable rename
 
@@ -96,26 +96,29 @@ including `create: true`; renaming back to a previously used name returns
 `destination_reserved`. Case-only rename is supported with the new exact spelling.
 Safe name reuse requires a later lifecycle generation carried by every writer.
 
-### Amendement 2026-10-18 — plus de « projet du module » dans l'éditeur
+### Amendment 2026-10-18 — no more "module project" in the editor
 
-Le §2 est remplacé. Un module chargé s'utilise dans **n'importe quel** project : ses kinds se
-créent et se lisent partout (ArtisanQuests lit `quest_groups/` de tous les projects), comme ses
-sources de données. Ranger le project d'un add-on sous « Modules installés » montrait donc deux
-sortes de projects, et laissait croire que le contenu du module ne vivait que là.
+§2 is replaced. A loaded module is usable in **any** project: its kinds can be
+created and read everywhere (ArtisanQuests reads `quest_groups/` from all
+projects), like its data sources. Filing an add-on's project under "Installed
+modules" showed two kinds of projects, and suggested the module's content lived
+only there.
 
-L'éditeur liste désormais **tous** les projects dans « Projects » ; celui d'un add-on y porte un
-badge au nom du module. « Modules installés » ne garde que ce que le module est seul à gérer : ses
-Config screens et sa route `/m/<id>`. L'entrée « Éditeur » disparaît (ADR `module-config-screens`
-§2), et un module sans rien à configurer n'apparaît plus. La racine enregistrée (§1) ne change
-pas. Suite prévue : les exemples d'un module livrés comme modèles dans son jar, copiés une seule
-fois, avec leur provenance (`architecture/design-modeles-de-module.md` du projet).
+The editor now lists **all** projects under "Projects"; an add-on's project
+carries a badge with the module name. "Installed modules" keeps only what the
+module alone manages: its Config screens and its `/m/<id>` route. The "Editor"
+entry goes away (ADR `module-config-screens` §2), and a module with nothing to
+configure no longer appears. The registered root (§1) does not change. Planned
+follow-up: a module's examples shipped as templates in its jar, copied once, with
+their provenance (`architecture/design-modeles-de-module.md` in the project).
 
-### Amendement 2026-10-19 — la racine d'add-on rejoint `modules/`
+### Amendment 2026-10-19 — the add-on root joins `modules/`
 
-Les projects fusionnent avec les modules : un dossier de `plugins/Artisan/modules/` par module.
-`moduleFolder(folder, moduleId, legacyDir)` (API 2.8.0) remplace pour un add-on le dossier qu'il
-possédait dans son plugin par `modules/<folder>/`, enregistré comme une racine d'add-on : même
-clé `addon:<folder>`, toujours non renommable. La racine du §1 y est déplacée une fois. Tant que
-les deux dossiers contiennent des fichiers (une copie restée dans `projects/`, migrée avec le reste),
-la racine d'origine reste lue : on ne choisit jamais à la place de l'admin quel contenu est le bon.
-`register` reste disponible pour les add-ons qui n'ont pas migré.
+Projects merge with modules: one folder of `plugins/Artisan/modules/` per module.
+`moduleFolder(folder, moduleId, legacyDir)` (API 2.8.0) replaces, for an add-on,
+the folder it owned in its plugin with `modules/<folder>/`, registered as an
+add-on root: same `addon:<folder>` key, still not renamable. The §1 root is moved
+there once. As long as both folders contain files (a copy left in `projects/`,
+migrated with the rest), the original root stays read: we never choose for the
+admin which content is the right one. `register` remains available for add-ons
+that have not migrated.

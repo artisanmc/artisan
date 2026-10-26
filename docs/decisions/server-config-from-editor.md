@@ -1,45 +1,43 @@
-# Config serveur modifiable depuis l'éditeur — `connection.yml` à part
+# Server config editable from the editor — `connection.yml` apart
 
-**Status :** accepted (2026-10-08). `connection.yml` renommé `environment.yml`
-et étendu aux identifiants de base de données par l'ADR `suite-foundation-database`
-(2026-10-11) ; le critère « jamais écrit depuis l'éditeur » est inchangé.
+**Status:** accepted (2026-10-08). `connection.yml` renamed `environment.yml`
+and extended to database credentials by the ADR `suite-foundation-database`
+(2026-10-11); the "never written from the editor" criterion is unchanged.
 
-## Contexte
+## Context
 
-Les textures de remplacement des conteneurs (coffre, entonnoir, distributeur)
-étaient des usages d'asset (`chest_texture`…) cochés sur une image de Project.
-Or le réglage est **par serveur** : le pack est construit pour un serveur à partir
-de tous ses Projects, une seule image par conteneur, « la première trouvée ».
-Le porter sur un asset le rendait local en apparence, et le changer passait par
-le brouillon du Project puis une publication.
+The replacement textures of containers (chest, hopper, dispenser) were asset usages
+(`chest_texture`…) ticked on a Project image. But the setting is **per server**: the
+pack is built for one server from all its Projects, a single image per container, "the
+first one found". Carrying it on an asset made it look local, and changing it went
+through the Project's draft and then a publication.
 
-Les autres réglages du plugin (`config.yml`) n'étaient modifiables qu'à la main.
+The plugin's other settings (`config.yml`) could only be edited by hand.
 
-## Décisions
+## Decisions
 
-1. **Le disque reste la vérité.** Les réglages serveur vivent dans des fichiers du
-   plugin ; le plugin fonctionne sans éditeur.
-2. **Deux fichiers, séparés par qui peut les écrire :**
-   - `connection.yml` — `server_key` et `ws_url`, le lien plugin ↔ backend.
-     Jamais écrit depuis l'éditeur (le backend pourrait sinon se rediriger ou se
-     retirer l'accès).
-   - `config.yml` — tout le reste, modifiable à la main **ou** depuis la page
-     serveur de l'éditeur.
-3. **Pas de liste d'exclusion « sécurité » au-delà de la connexion.** Un utilisateur
-   de l'éditeur peut déjà lancer des commandes console depuis une action de menu :
-   `delegate-reload-command` ou les réglages d'accès n'ajoutent rien. Seuls les
-   **chemins** ajoutent un pouvoir (lire/écrire des fichiers) : le plugin refuse
-   depuis l'éditeur tout chemin absolu ou contenant `..`.
-4. **Textures des conteneurs** : `resource-pack.container-textures.{chest,hopper,dispenser}`
-   = `projet:image` (vide = texture vanilla). Le backend les résout à la
-   construction du pack. Les usages d'asset `*_texture` sont retirés (aucune
-   migration : réglage marginal, re-choisi sur la page serveur).
-5. **Protocole** : le plugin rapporte sa config éditable dans `hello`
-   (`server_config`). L'éditeur écrit via `server_config_write` ; le plugin valide,
-   réécrit `config.yml` (commentaires conservés), recharge, et renvoie la config.
-6. **Migration** : au démarrage, `server_key`/`ws_url` présents dans `config.yml`
-   sont déplacés vers `connection.yml`.
+1. **The disk stays the truth.** Server settings live in plugin files; the plugin
+   works without an editor.
+2. **Two files, separated by who may write them:**
+   - `connection.yml` — `server_key` and `ws_url`, the plugin ↔ backend link.
+     Never written from the editor (the backend could otherwise redirect itself or
+     remove its own access).
+   - `config.yml` — everything else, editable by hand **or** from the editor's
+     server page.
+3. **No "security" exclusion list beyond the connection.** An editor user can
+   already run console commands from a menu action: `delegate-reload-command` or the
+   access settings add nothing. Only **paths** add power (reading/writing files): the
+   plugin refuses from the editor any absolute path or one containing `..`.
+4. **Container textures**: `resource-pack.container-textures.{chest,hopper,dispenser}`
+   = `project:image` (empty = vanilla texture). The backend resolves them when
+   building the pack. The `*_texture` asset usages are removed (no migration:
+   marginal setting, re-chosen on the server page).
+5. **Protocol**: the plugin reports its editable config in `hello`
+   (`server_config`). The editor writes via `server_config_write`; the plugin
+   validates, rewrites `config.yml` (comments kept), reloads, and returns the config.
+6. **Migration**: at startup, `server_key`/`ws_url` present in `config.yml`
+   are moved to `connection.yml`.
 
-*Rejeté :* `settings.yml` à côté de `config.yml` (noms indiscernables pour un admin) ;
-choix fermés (Nexo/Oraxen…) pour la délégation du pack (garde-fou sans objet vu le
-point 3) ; stocker le réglage en base backend (le plugin doit fonctionner seul).
+*Rejected:* `settings.yml` next to `config.yml` (names indistinguishable for an admin);
+closed choices (Nexo/Oraxen…) for pack delegation (guardrail moot given point 3);
+storing the setting in the backend database (the plugin must work alone).

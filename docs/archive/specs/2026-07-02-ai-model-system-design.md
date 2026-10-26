@@ -1,206 +1,206 @@
-# Système de modèles IA — catalogue admin, sélecteur user, métering & credits
+# AI model system — admin catalog, user selector, metering & credits
 
-**Statut :** design approuvé (brainstorm 2026-07-02).
-**Auteur :** brainstorm 2026-07-02
-**Filiation :** réalise et remplace le **sub-plan 3 (crédits)** du spec `2026-06-08-ai-assistant-design.md`, en l'étendant : catalogue de modèles multi-provider, sélecteur user, analytics admin. Le porteur de credits, laissé ouvert dans l'ancien spec (`accountId`), est tranché : **network**.
-**Code lié (à créer) :** `backend/src/modules/ai/` (models, providers, credits, metering), pages admin `/admin/ai*`, sélecteur de modèle + solde dans le panneau assistant.
-**Code lié (modifié) :** `backend/src/modules/assistant/` (loop.ts, routes.ts — consommateur du module `ai`), `OpenAICompatibleProvider` (réutilisé tel quel), `lib/appSettings.ts` + `lib/secretBox.ts` (réutilisés), `middleware/requireAdmin.ts` (réutilisé), `AdminSidebar`, suppression de `adminRoutes.ts` assistant-config + `AssistantConfigForm`.
+**Status:** design approved (brainstorm 2026-07-02).
+**Author:** brainstorm 2026-07-02
+**Lineage:** delivers and replaces **sub-plan 3 (credits)** of the `2026-06-08-ai-assistant-design.md` spec, extending it: multi-provider model catalog, user selector, admin analytics. The credits carrier, left open in the old spec (`accountId`), is settled: **network**.
+**Related code (to create):** `backend/src/modules/ai/` (models, providers, credits, metering), admin pages `/admin/ai*`, model selector + balance in the assistant panel.
+**Related code (modified):** `backend/src/modules/assistant/` (loop.ts, routes.ts — consumer of the `ai` module), `OpenAICompatibleProvider` (reused as is), `lib/appSettings.ts` + `lib/secretBox.ts` (reused), `middleware/requireAdmin.ts` (reused), `AdminSidebar`, removal of the assistant-config `adminRoutes.ts` + `AssistantConfigForm`.
 
-## Contexte
+## Context
 
-L'assistant IA est shippé avec **un seul modèle global** (`app_settings.assistant.model`), une seule clé provider, aucune persistance d'usage (les événements `usage` sont émis en SSE puis ignorés) et aucun credits. Le cahier des charges 2026-07-02 demande :
+The AI assistant ships with **a single global model** (`app_settings.assistant.model`), a single provider key, no usage persistence (the `usage` events are emitted via SSE then ignored) and no credits. The 2026-07-02 requirements ask for:
 
-1. **Panel admin** — gérer un catalogue de modèles (multi-provider, prix, badges, défaut, test rapide).
-2. **Sélecteur user** — choisir son modèle en connaissance de cause (badge, description, estimation de coût), mémorisé, changeable en cours de conversation.
-3. **Consommations admin** — dashboards (tokens, credits facturés, coût réel, marge, répartitions, évolution), logs filtrables + export, focus par user.
-4. **Règles** — blocage à solde nul, pas de débit sur erreur provider, fallback si défaut désactivé, panel protégé, prompts tronqués par défaut.
+1. **Admin panel** — manage a model catalog (multi-provider, prices, badges, default, quick test).
+2. **User selector** — choose one's model knowingly (badge, description, cost estimate), remembered, changeable mid-conversation.
+3. **Admin consumption** — dashboards (tokens, billed credits, real cost, margin, breakdowns, trends), filterable logs + export, per-user focus.
+4. **Rules** — block at zero balance, no debit on provider error, fallback if the default is disabled, protected panel, prompts truncated by default.
 
-## Décisions du brainstorm
+## Brainstorm decisions
 
-| Question | Choix |
+| Question | Choice |
 |---|---|
-| Périmètre credits | **Ledger + débit + blocage inclus** ; l'achat réel (Stripe) reste un projet séparé — le « redirigé vers l'achat » pointe vers une page placeholder |
-| Porteur du solde | **Network** (dérivé du project de la conversation). Les sessions server-key (`sk:`) débitent le network de leur server key ; les stats par user viennent des logs |
-| Multi-provider | **OpenAI-compat partout** — l'unique `OpenAICompatibleProvider` + une entrée credentials (baseUrl, clé chiffrée) par provider. Anthropic/Google/DeepSeek exposent tous un endpoint compatible |
-| Rôles | **`is_admin` pour tout en V1** — panel, analytics, vue complète des prompts (tronqués par défaut dans l'UI) |
-| Marge | **Saisie admin** : prix réels USD/1M tokens par modèle + setting global « valeur d'un credit en USD » |
-| Amorçage des soldes | **Grant admin uniquement** — pas de grant automatique à la création de network |
-| Architecture | **Nouveau module `ai`** (`backend/src/modules/ai/`) ; le module `assistant` en devient un consommateur |
+| Credits scope | **Ledger + debit + blocking included**; the real purchase (Stripe) stays a separate project — the "redirected to purchase" points to a placeholder page |
+| Balance carrier | **Network** (derived from the conversation's project). Server-key (`sk:`) sessions debit the network of their server key; per-user stats come from the logs |
+| Multi-provider | **OpenAI-compat everywhere** — the single `OpenAICompatibleProvider` + one credentials entry (baseUrl, encrypted key) per provider. Anthropic/Google/DeepSeek all expose a compatible endpoint |
+| Roles | **`is_admin` for everything in V1** — panel, analytics, full prompt view (truncated by default in the UI) |
+| Margin | **Admin input**: real USD/1M tokens prices per model + global "value of a credit in USD" setting |
+| Balance bootstrap | **Admin grant only** — no automatic grant on network creation |
+| Architecture | **New `ai` module** (`backend/src/modules/ai/`); the `assistant` module becomes a consumer |
 
 ## Goals
 
-- L'admin gère un **catalogue de modèles** multi-provider : prix credits, prix réels USD, badge, description, actif/inactif, défaut unique, test live.
-- Le user **choisit son modèle** parmi les actifs, voit badge + description + estimation de coût par action typique, son choix est mémorisé, il peut changer en cours de conversation sans perdre le contexte.
-- Chaque tour d'assistant est **métré** (tokens, credits, coût réel, statut) et **débité** du solde network ; solde nul = refus propre.
-- L'admin pilote **coût et marge** : dashboards par période, répartitions modèle/provider, évolution, logs filtrables exportables, focus user.
+- The admin manages a multi-provider **model catalog**: credits price, real USD price, badge, description, active/inactive, unique default, live test.
+- The user **chooses their model** among the active ones, sees badge + description + cost estimate per typical action, their choice is remembered, they can switch mid-conversation without losing context.
+- Every assistant turn is **metered** (tokens, credits, real cost, status) and **debited** from the network balance; zero balance = clean refusal.
+- The admin steers **cost and margin**: dashboards per period, model/provider breakdowns, trends, filterable exportable logs, user focus.
 
 ## Non-goals (V1)
 
-- **Achat réel de credits** (Stripe, abonnements) — ~~page placeholder seulement~~ **RÉALISÉ** par le sous-projet billing C : la route `/credits` est désormais une vraie page (achat de packs + abonnement via Stripe Checkout, gestion via Customer Portal, historique). Voir `docs/superpowers/plans/2026-07-04-billing-C-credit-ui.md`.
-- Rate limiting par user, discounts/promo codes, sélection automatique du modèle selon la tâche, A/B testing (hors périmètre cahier des charges).
-- **Suppression de modèle** — désactivation uniquement (l'historique y réfère).
-- Grant automatique à la création de network.
-- Tables d'agrégation pré-calculées — les dashboards sont des `GROUP BY` SQL sur `ai_usage_log`.
-- SDKs providers natifs (prompt caching Anthropic natif, etc.) — extension ultérieure derrière la même interface `LlmProvider`.
-- Actions IA non-chat (migration batch, génération hors conversation) — le champ `action_type` les anticipe, seul `chat` existe en V1.
+- **Real credit purchase** (Stripe, subscriptions) — ~~placeholder page only~~ **DONE** by billing sub-project C: the `/credits` route is now a real page (pack purchase + subscription via Stripe Checkout, management via Customer Portal, history). See `docs/superpowers/plans/2026-07-04-billing-C-credit-ui.md`.
+- Per-user rate limiting, discounts/promo codes, automatic model selection by task, A/B testing (out of the requirements' scope).
+- **Model deletion** — deactivation only (history refers to it).
+- Automatic grant on network creation.
+- Pre-computed aggregation tables — dashboards are SQL `GROUP BY`s on `ai_usage_log`.
+- Native provider SDKs (native Anthropic prompt caching, etc.) — later extension behind the same `LlmProvider` interface.
+- Non-chat AI actions (batch migration, generation outside a conversation) — the `action_type` field anticipates them, only `chat` exists in V1.
 
-## Modèle de données
+## Data model
 
-3 nouvelles tables + 1 colonne + 2 rows `app_settings`. Migration Drizzle générée (`bun run db:generate`) et committée.
+3 new tables + 1 column + 2 `app_settings` rows. Drizzle migration generated (`bun run db:generate`) and committed.
 
-### `ai_models` — catalogue
+### `ai_models` — catalog
 
-| Colonne | Type | Notes |
+| Column | Type | Notes |
 |---|---|---|
 | `id` | uuid PK | |
-| `display_name` | text | Nom visible user |
-| `description` | text | Courte, visible user |
+| `display_name` | text | User-visible name |
+| `description` | text | Short, user-visible |
 | `badge` | text | `cheap \| balanced \| premium` |
-| `provider` | text | Slug : `anthropic`, `openai`, `deepseek`, `google`, ou custom — clé dans `ai_providers` |
-| `provider_model_id` | text | Ex. `claude-sonnet-5` |
-| `credits_per_m_input` | integer | Credits par 1M tokens input |
-| `credits_per_m_output` | integer | Credits par 1M tokens output |
-| `real_usd_per_m_input` | integer | **Micro-USD** par 1M tokens ($0.075 → 75 000) — pas de flottants en DB |
-| `real_usd_per_m_output` | integer | idem |
+| `provider` | text | Slug: `anthropic`, `openai`, `deepseek`, `google`, or custom — key in `ai_providers` |
+| `provider_model_id` | text | E.g. `claude-sonnet-5` |
+| `credits_per_m_input` | integer | Credits per 1M input tokens |
+| `credits_per_m_output` | integer | Credits per 1M output tokens |
+| `real_usd_per_m_input` | integer | **Micro-USD** per 1M tokens ($0.075 → 75,000) — no floats in DB |
+| `real_usd_per_m_output` | integer | same |
 | `is_active` | boolean | default true |
-| `is_default` | boolean | default false — **index unique partiel** (une seule row à true) |
+| `is_default` | boolean | default false — **partial unique index** (a single row at true) |
 | `created_at` / `updated_at` | timestamp | |
 
-### `ai_usage_log` — une row par tour (ou action IA future)
+### `ai_usage_log` — one row per turn (or future AI action)
 
-| Colonne | Type | Notes |
+| Column | Type | Notes |
 |---|---|---|
 | `id` | uuid PK | |
-| `network_id` | FK networks | Porteur du débit |
-| `user_id` | FK users, nullable | Acteur si session user |
-| `server_key_id` | FK server_keys, nullable | Acteur si session `sk:` |
+| `network_id` | FK networks | Debit carrier |
+| `user_id` | FK users, nullable | Actor if user session |
+| `server_key_id` | FK server_keys, nullable | Actor if `sk:` session |
 | `model_id` | FK ai_models, nullable | |
-| `model_name` / `provider` / `provider_model_id` | text | **Snapshots** — le log survit aux renommages |
+| `model_name` / `provider` / `provider_model_id` | text | **Snapshots** — the log survives renames |
 | `action_type` | text | `chat` (V1) — extensible `migration \| generation \| other` |
-| `conversation_id` | FK assistant_conversations, nullable | Lien vers le transcript complet |
-| `input_tokens` / `output_tokens` / `cached_input_tokens` | integer | Somme des `usage` du tour |
-| `credits_charged` | integer | 0 si erreur |
-| `real_cost_micro_usd` | integer | Calculé aux prix du modèle au moment du tour |
+| `conversation_id` | FK assistant_conversations, nullable | Link to the full transcript |
+| `input_tokens` / `output_tokens` / `cached_input_tokens` | integer | Sum of the turn's `usage` |
+| `credits_charged` | integer | 0 on error |
+| `real_cost_micro_usd` | integer | Computed at the model's prices at the time of the turn |
 | `duration_ms` | integer, nullable | |
 | `status` | text | `success \| error` |
 | `error_message` | text, nullable | |
-| `prompt_preview` | text | ~200 premiers chars du message user — **seul contenu stocké dans le log** |
+| `prompt_preview` | text | ~first 200 chars of the user message — **only content stored in the log** |
 | `created_at` | timestamp | |
 
-Index : `(network_id, created_at)`, `(user_id, created_at)`, `(model_id)`, `created_at`.
+Indexes: `(network_id, created_at)`, `(user_id, created_at)`, `(model_id)`, `created_at`.
 
-**Vie privée** : le contenu complet vit déjà dans `assistant_conversations.messages` — la « vue complète » admin = lien vers le transcript (gate `is_admin`). Aucune duplication.
+**Privacy**: the full content already lives in `assistant_conversations.messages` — the admin "full view" = link to the transcript (`is_admin` gate). No duplication.
 
-### `ai_credit_ledger` — solde = `SUM(delta)` par network
+### `ai_credit_ledger` — balance = `SUM(delta)` per network
 
-| Colonne | Type | Notes |
+| Column | Type | Notes |
 |---|---|---|
 | `id` | uuid PK | |
 | `network_id` | FK networks | |
-| `delta` | integer | Grant positif / débit négatif |
+| `delta` | integer | Positive grant / negative debit |
 | `reason` | text | `grant \| debit \| refund \| adjustment` |
-| `usage_log_id` | FK ai_usage_log, nullable | Renseigné pour les débits |
+| `usage_log_id` | FK ai_usage_log, nullable | Filled for debits |
 | `note` | text, nullable | |
-| `created_by` | FK users, nullable | Admin pour les grants |
+| `created_by` | FK users, nullable | Admin for grants |
 | `created_at` | timestamp | |
 
-Index `(network_id, created_at)`. Pas de solde matérialisé en V1 — `SUM` indexé suffit.
+Index `(network_id, created_at)`. No materialized balance in V1 — an indexed `SUM` is enough.
 
-### Divers
+### Misc
 
-- **`users.preferred_ai_model_id`** — FK ai_models, nullable. Dernier choix, cross-device. Sessions `sk:` : localStorage.
-- **`app_settings.ai_providers`** : `{ [slug]: { label, baseUrl, apiKeyEncrypted } }` — clés chiffrées via `secretBox` (`CONFIG_ENC_KEY`), write-only côté API (pattern `keySet` existant).
-- **`app_settings.ai_settings`** : `{ creditUsdMicroRate, maxCreditsPerTurn? }` — taux credit→USD pour la marge + plafond optionnel par tour (garde-fou boucle agentique).
+- **`users.preferred_ai_model_id`** — FK ai_models, nullable. Last choice, cross-device. `sk:` sessions: localStorage.
+- **`app_settings.ai_providers`**: `{ [slug]: { label, baseUrl, apiKeyEncrypted } }` — keys encrypted via `secretBox` (`CONFIG_ENC_KEY`), write-only on the API side (existing `keySet` pattern).
+- **`app_settings.ai_settings`**: `{ creditUsdMicroRate, maxCreditsPerTurn? }` — credit→USD rate for the margin + optional per-turn cap (agentic loop safeguard).
 
-**Formule de débit** : `ceil((input_tokens × credits_per_m_input + output_tokens × credits_per_m_output) / 1_000_000)`. Les tokens cachés comptent comme input en V1 (pas de pricing cache séparé).
+**Debit formula**: `ceil((input_tokens × credits_per_m_input + output_tokens × credits_per_m_output) / 1_000_000)`. Cached tokens count as input in V1 (no separate cache pricing).
 
-## Backend — module `ai`
+## Backend — `ai` module
 
-`backend/src/modules/ai/` (BackendModule, monté dans `app.ts`) :
+`backend/src/modules/ai/` (BackendModule, mounted in `app.ts`):
 
-- **`models/`** — repo CRUD + `resolveModel(modelId?)` : modelId demandé (actif) → sinon défaut → **si défaut inactif ou absent, fallback déterministe** : premier actif trié badge (`cheap` → `balanced` → `premium`) puis nom.
-- **`providers/`** — lecture/écriture `ai_providers` + `createProviderFor(model)` : instancie `OpenAICompatibleProvider` avec le baseUrl + clé du provider du modèle. **L'interface `LlmProvider` ne change pas.**
-- **`credits/`** — `getBalance(networkId)`, `grant({networkId, amount, note, createdBy})`, `debitForUsage(usageLog)` (insert usage_log + ledger dans **une transaction**).
-- **`metering/`** — agrégats summary (totaux, répartitions, série journalière), logs paginés (cursor), export CSV, focus user.
+- **`models/`** — CRUD repo + `resolveModel(modelId?)`: requested modelId (active) → otherwise default → **if the default is inactive or absent, deterministic fallback**: first active sorted by badge (`cheap` → `balanced` → `premium`) then name.
+- **`providers/`** — read/write `ai_providers` + `createProviderFor(model)`: instantiates `OpenAICompatibleProvider` with the baseUrl + key of the model's provider. **The `LlmProvider` interface does not change.**
+- **`credits/`** — `getBalance(networkId)`, `grant({networkId, amount, note, createdBy})`, `debitForUsage(usageLog)` (insert usage_log + ledger in **one transaction**).
+- **`metering/`** — summary aggregates (totals, breakdowns, daily series), paginated logs (cursor), CSV export, user focus.
 
-### Cycle d'un tour d'assistant
+### Lifecycle of an assistant turn
 
-Modifications dans `assistant/routes.ts` + `loop.ts` :
+Changes in `assistant/routes.ts` + `loop.ts`:
 
-1. `POST /conversations/:id/messages` accepte **`modelId` optionnel** → `resolveModel`.
-2. **Pre-check** : network résolu via le project de la conversation → `getBalance` ; si ≤ 0 → erreur structurée `insufficient_credits`, aucun tour, aucun débit.
-3. Le tour tourne ; la loop **accumule les événements `usage`** (déjà émis, aujourd'hui ignorés). Si `maxCreditsPerTurn` est dépassé en cours de tour, la loop s'arrête proprement à la fin de l'itération courante.
-4. **Fin de tour** : transaction `ai_usage_log` (`status=success`) + débit ledger. **Erreur provider** → usage_log `status=error` avec les tokens réellement consommés (visibilité admin), **aucun débit**.
-5. Nouvel événement SSE **`credits { debited, balance }`** en fin de stream.
+1. `POST /conversations/:id/messages` accepts an optional **`modelId`** → `resolveModel`.
+2. **Pre-check**: network resolved via the conversation's project → `getBalance`; if ≤ 0 → structured error `insufficient_credits`, no turn, no debit.
+3. The turn runs; the loop **accumulates the `usage` events** (already emitted, ignored today). If `maxCreditsPerTurn` is exceeded mid-turn, the loop stops cleanly at the end of the current iteration.
+4. **End of turn**: transaction `ai_usage_log` (`status=success`) + ledger debit. **Provider error** → usage_log `status=error` with the tokens actually consumed (admin visibility), **no debit**.
+5. New SSE event **`credits { debited, balance }`** at the end of the stream.
 
-### API REST
+### REST API
 
-Tout sous `/api/v1`, admin = `userAuth()` + `requireAdmin()` (pattern existant).
+All under `/api/v1`, admin = `userAuth()` + `requireAdmin()` (existing pattern).
 
-| Route | Rôle |
+| Route | Role |
 |---|---|
-| `GET/POST /admin/ai/models`, `GET/PUT /admin/ai/models/:id` | CRUD catalogue (pas de DELETE) |
-| `PUT /admin/ai/models/:id/default` | Définir le défaut (transactionnel : unset l'ancien) |
-| `POST /admin/ai/models/:id/test` | Test live « Reply with OK. » → latence + tokens + coût estimé |
-| `GET/PUT /admin/ai/providers` | Credentials par provider — clé write-only, `keySet` boolean |
-| `GET/PUT /admin/ai/settings` | Taux credit→USD, plafond par tour |
-| `GET /admin/ai/usage/summary?from&to` | Totaux tokens/credits/coût réel/**marge** + répartitions modèle & provider + série journalière |
-| `GET /admin/ai/usage/logs?user&model&provider&action&status&from&to&cursor` | Logs paginés ; `&format=csv` = export mêmes filtres |
-| `GET /admin/ai/users/:userId?from&to` | Focus user : conso, répartition par modèle, tokens cumulés, networks avec soldes + historique grants |
+| `GET/POST /admin/ai/models`, `GET/PUT /admin/ai/models/:id` | Catalog CRUD (no DELETE) |
+| `PUT /admin/ai/models/:id/default` | Set the default (transactional: unsets the previous one) |
+| `POST /admin/ai/models/:id/test` | Live test "Reply with OK." → latency + tokens + estimated cost |
+| `GET/PUT /admin/ai/providers` | Per-provider credentials — write-only key, `keySet` boolean |
+| `GET/PUT /admin/ai/settings` | Credit→USD rate, per-turn cap |
+| `GET /admin/ai/usage/summary?from&to` | Totals tokens/credits/real cost/**margin** + model & provider breakdowns + daily series |
+| `GET /admin/ai/usage/logs?user&model&provider&action&status&from&to&cursor` | Paginated logs; `&format=csv` = export with the same filters |
+| `GET /admin/ai/users/:userId?from&to` | User focus: consumption, breakdown by model, cumulative tokens, networks with balances + grant history |
 | `POST /admin/ai/credits/grant` | `{networkId, amount, note}` |
-| `GET /ai/models` (authentifié, non-admin) | Modèles **actifs** : nom, description, badge, prix credits, estimations par action typique |
-| `GET /ai/balance?projectId` | Solde du network courant (session user ou `sk:`) |
+| `GET /ai/models` (authenticated, non-admin) | **Active** models: name, description, badge, credits prices, estimates per typical action |
+| `GET /ai/balance?projectId` | Balance of the current network (user or `sk:` session) |
 
-Marge = `credits facturés × creditUsdMicroRate − Σ real_cost_micro_usd`.
+Margin = `billed credits × creditUsdMicroRate − Σ real_cost_micro_usd`.
 
-## UI éditeur
+## Editor UI
 
-Design system d'abord (`components/ui` + tokens, spécimen `/admin/design` pour tout nouveau composant, même commit). Tous les strings via react-i18next (en + fr). Mobile : pas d'affordance hover-only.
+Design system first (`components/ui` + tokens, `/admin/design` specimen for any new component, same commit). All strings via react-i18next (en + fr). Mobile: no hover-only affordance.
 
-### Panel admin
+### Admin panel
 
-- **`/admin/ai` — Modèles** (remplace la page config assistant) : table du catalogue (nom, provider, badge, prix credits, coût réel, actif, défaut) triable/filtrable, toggle actif, « définir par défaut », édition en Sheet, bouton **Test** par ligne (latence + tokens + coût du ping). Section **Providers** sur la même page : une carte par provider (baseUrl, clé write-only `keySet`) + ajout de provider custom.
-- **`/admin/ai/usage` — Consommations** : période (7j / 30j / custom), cartes stats (tokens in/out, credits facturés, coût réel USD, marge), répartitions modèle & provider (barres horizontales), évolution journalière. **Pas de lib de charts** — barres SVG/CSS maison ajoutées au design system.
-- **`/admin/ai/usage/logs`** : table paginée, filtres (user, modèle, provider, action, statut, période), **Export CSV**, détail par ligne : `prompt_preview` tronqué + lien « ouvrir la conversation » (vue complète, admin).
-- **`/admin/users/:userId`** — onglet **AI** : conso totale sur période, répartition par modèle, tokens cumulés, networks du user avec **solde + historique grants + bouton « Créditer »** (le grant vit ici — pas de page networks admin).
-- `AdminSidebar` : entrée AI éclatée en **Modèles** et **Consommations**.
+- **`/admin/ai` — Models** (replaces the assistant config page): catalog table (name, provider, badge, credits price, real cost, active, default) sortable/filterable, active toggle, "set as default", editing in a Sheet, per-row **Test** button (latency + tokens + cost of the ping). **Providers** section on the same page: one card per provider (baseUrl, write-only key `keySet`) + custom provider addition.
+- **`/admin/ai/usage` — Consumption**: period (7d / 30d / custom), stat cards (tokens in/out, billed credits, real USD cost, margin), model & provider breakdowns (horizontal bars), daily trend. **No charts lib** — home-made SVG/CSS bars added to the design system.
+- **`/admin/ai/usage/logs`**: paginated table, filters (user, model, provider, action, status, period), **CSV export**, per-row detail: truncated `prompt_preview` + "open the conversation" link (full view, admin).
+- **`/admin/users/:userId`** — **AI** tab: total consumption over the period, breakdown by model, cumulative tokens, the user's networks with **balance + grant history + "Credit" button** (the grant lives here — no admin networks page).
+- `AdminSidebar`: AI entry split into **Models** and **Consumption**.
 
-### Panneau assistant (user)
+### Assistant panel (user)
 
-- **Sélecteur de modèle** dans le composer : dropdown des modèles actifs — nom, badge, description, estimation « ~N credits / message · ~M credits / migration de menu ». Profils de tokens typiques = **constantes code** en V1 (ex. chat ≈ 2k in / 500 out ; migration ≈ 10k in / 3k out) × prix du modèle. Présélection : `preferred_ai_model_id` → sinon défaut. Le `modelId` part avec **chaque message** → changement en cours de conversation sans conversion (transcript provider-agnostique).
-- **Chip solde** du network en tête de panneau, mis à jour par l'événement SSE `credits`.
-- **État « plus de credits »** : composer désactivé + explication + CTA vers la page `/credits` (achat réel, sous-projet billing C).
+- **Model selector** in the composer: dropdown of active models — name, badge, description, estimate "~N credits / message · ~M credits / menu migration". Typical token profiles = **code constants** in V1 (e.g. chat ≈ 2k in / 500 out; migration ≈ 10k in / 3k out) × the model's price. Preselection: `preferred_ai_model_id` → otherwise default. The `modelId` goes with **each message** → switching mid-conversation without conversion (provider-agnostic transcript).
+- **Balance chip** of the network at the top of the panel, updated by the SSE `credits` event.
+- **"Out of credits" state**: composer disabled + explanation + CTA to the `/credits` page (real purchase, billing sub-project C).
 
-## Cas limites & règles
+## Edge cases & rules
 
-- **Solde insuffisant** → refus avant le tour, erreur `insufficient_credits`, zéro débit, UI dédiée.
-- **Erreur provider en cours de tour** → log `status=error`, tokens consommés loggés, **aucun débit** (perte assumée plateforme).
-- **Défaut désactivé** → fallback runtime déterministe (cf. `resolveModel`) ; l'UI admin demande de choisir un nouveau défaut au moment de la désactivation.
-- **Activation d'un modèle dont le provider n'a pas de clé** → refusée (guard `keySet`).
-- **Tours concurrents** même network : les deux pre-checks peuvent passer → solde légèrement négatif possible. Accepté en V1, ledger exact.
-- **Modèle préféré désactivé** → le sélecteur retombe silencieusement sur le défaut.
-- **Prompts tronqués par défaut** : les logs n'exposent que `prompt_preview` ; vue complète = transcript de conversation, `is_admin`.
+- **Insufficient balance** → refusal before the turn, `insufficient_credits` error, zero debit, dedicated UI.
+- **Provider error mid-turn** → log `status=error`, consumed tokens logged, **no debit** (loss borne by the platform).
+- **Default disabled** → deterministic runtime fallback (cf. `resolveModel`); the admin UI asks to choose a new default at the time of deactivation.
+- **Activating a model whose provider has no key** → refused (`keySet` guard).
+- **Concurrent turns** on the same network: both pre-checks can pass → slightly negative balance possible. Accepted in V1, exact ledger.
+- **Preferred model disabled** → the selector silently falls back to the default.
+- **Prompts truncated by default**: the logs only expose `prompt_preview`; full view = conversation transcript, `is_admin`.
 
-## Migration de l'existant
+## Migration of the existing
 
-- **Seed legacy** : au boot, si le catalogue est vide et `app_settings.assistant` (ou env `ASSISTANT_*`) existe → créer l'entrée `ai_providers` + un `ai_model` défaut correspondant, une fois, en DB. Le **fallback env runtime est supprimé** — un seul chemin de résolution.
-- Suppression : routes `assistant-config` (`adminRoutes.ts` assistant), `AssistantConfigForm`, `dbConfig.ts` (remplacé par `providers/`).
-- Env vars : `ASSISTANT_PROVIDER/BASE_URL/API_KEY/MODEL` ne servent plus qu'au seed initial — documenté dans `.env.example`.
+- **Legacy seed**: at boot, if the catalog is empty and `app_settings.assistant` (or env `ASSISTANT_*`) exists → create the `ai_providers` entry + a matching default `ai_model`, once, in DB. The **runtime env fallback is removed** — a single resolution path.
+- Removal: `assistant-config` routes (assistant `adminRoutes.ts`), `AssistantConfigForm`, `dbConfig.ts` (replaced by `providers/`).
+- Env vars: `ASSISTANT_PROVIDER/BASE_URL/API_KEY/MODEL` only serve for the initial seed — documented in `.env.example`.
 
 ## Tests (TDD)
 
-- **Backend** : CRUD modèles + unicité du défaut (index partiel + route transactionnelle), `resolveModel` (demandé/défaut/fallback), grant/debit/balance, **tour complet avec provider scripté** (`__setProviderForTests`) vérifiant usage_log + ledger + SSE `credits`, erreur provider → pas de débit, refus à zéro, `maxCreditsPerTurn`, agrégats summary (fixtures multi-modèles/providers), export CSV, focus user, guards `requireAdmin`, clé write-only providers, seed legacy.
-- **Éditeur** : sélecteur (liste, présélection, estimations, modèle préféré désactivé), chip solde + état à sec, table modèles + form + test, dashboard avec fixtures, filtres logs + export, onglet AI user, clés i18n en+fr présentes.
-- **Migration Drizzle** committée.
+- **Backend**: models CRUD + default uniqueness (partial index + transactional route), `resolveModel` (requested/default/fallback), grant/debit/balance, **full turn with scripted provider** (`__setProviderForTests`) checking usage_log + ledger + SSE `credits`, provider error → no debit, refusal at zero, `maxCreditsPerTurn`, summary aggregates (multi-model/provider fixtures), CSV export, user focus, `requireAdmin` guards, write-only providers key, legacy seed.
+- **Editor**: selector (list, preselection, estimates, disabled preferred model), balance chip + dry state, models table + form + test, dashboard with fixtures, logs filters + export, user AI tab, en+fr i18n keys present.
+- **Drizzle migration** committed.
 
-## Docs impactées
+## Impacted docs
 
-| Doc | Quoi |
+| Doc | What |
 |---|---|
-| `docs/architecture/rest-endpoints.md` | Nouvelles routes `/admin/ai/*`, `/ai/*` ; retrait `assistant-config` |
-| `docs/architecture/entities.md` | `ai_models`, `ai_usage_log`, `ai_credit_ledger`, porteur network |
-| `CHANGELOG.md [Unreleased]` | Endpoints ajoutés/retirés |
-| `docs/architecture/editor-internals.md` | Composant barres (design system) |
-| `docs-site/.../editor/` | Page sélecteur de modèle + credits (user-facing) |
-| `.env.example` | `ASSISTANT_*` = seed uniquement |
-| `docs/superpowers/specs/2026-06-08-ai-assistant-design.md` | Note : sub-plan 3 réalisé par ce spec |
+| `docs/architecture/rest-endpoints.md` | New `/admin/ai/*`, `/ai/*` routes; removal of `assistant-config` |
+| `docs/architecture/entities.md` | `ai_models`, `ai_usage_log`, `ai_credit_ledger`, network carrier |
+| `CHANGELOG.md [Unreleased]` | Endpoints added/removed |
+| `docs/architecture/editor-internals.md` | Bars component (design system) |
+| `docs-site/.../editor/` | Model selector + credits page (user-facing) |
+| `.env.example` | `ASSISTANT_*` = seed only |
+| `docs/superpowers/specs/2026-06-08-ai-assistant-design.md` | Note: sub-plan 3 delivered by this spec |

@@ -1,5 +1,5 @@
 {
-  "note": "Where a module's Documents live on disk — the cross-language contract behind themed folders (docs/architecture/project-files.md § Dossiers thématiques). Input: every file path relative to the module folder, and the registered kind folders. A Document is `<folders…>/<kind dir>/<id>.yml` (or `.yaml`): zero to three themed folders, then a kind folder holding files only. The id is the file name, unique per kind across the module; the themed path never enters it. Paths are sorted. Owned by: plugin DocumentLayoutConformanceTest + editor domain/documentLayout.test.ts.",
+  "note": "Where a module's Documents live on disk — the cross-language contract behind themed folders (docs/architecture/project-files.md § Thematic folders). Input: every file path relative to the module folder, and the registered kind folders. A Document is `<folders…>/<kind dir>/<id>.yml` (or `.yaml`): zero to three themed folders, then a kind folder holding files only. The id is the file name, unique per kind across the module; the themed path never enters it. Paths are sorted. Owned by: plugin DocumentLayoutConformanceTest + editor domain/documentLayout.test.ts.",
   "cases": [
     {
       "name": "root kind folders, as before folders existed",

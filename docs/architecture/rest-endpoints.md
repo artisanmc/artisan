@@ -1,102 +1,102 @@
-# Routes REST du hub — index
+# Hub REST routes — index
 
-> Le serveur web de l'éditeur (module `plugin/hub`, Jetty 12) sert l'éditeur, son API et ses
-> WebSockets sur `web.port` (8765 par défaut). Source de vérité : les fichiers `*Routes.kt` de
-> `plugin/hub/src/main/kotlin/net/artisanmc/plugin/hub/`, assemblés par `EditorApi.router`.
+> The editor web server (`plugin/hub` module, Jetty 12) serves the editor, its API and its
+> WebSockets on `web.port` (8765 by default). Source of truth: the `*Routes.kt` files in
+> `plugin/hub/src/main/kotlin/net/artisanmc/plugin/hub/`, assembled by `EditorApi.router`.
 > ADR `editor-web-server`.
 
-Depuis la phase F (2026-10), il n'y a plus de backend. Le hub sert ses propres routes, sans
-plus imiter celles du backend (phase H, issue #44) : ses serveurs sous `/api/v1/servers`
-(celui qui héberge le hub en premier, puis chaque feuille par nom), et un Project identifié par
-`<server id>.<dossier>` sur tout serveur, celui du hub compris (`f3a1….shop`, `Servers.project` ;
-le dossier seul répond `unknown_project`). Plus de `network`, de ticket WS ni d'`editor-access` : le cookie de
-session suffit partout, et aucun quota ne s'applique.
+Since phase F (2026-10), there is no backend. The hub serves its own routes and no longer
+imitates the backend's (phase H, issue #44): its servers under `/api/v1/servers`
+(the one hosting the hub first, then each leaf by name), and a Project identified by
+`<server id>.<folder>` on every server, the hub's included (`f3a1….shop`, `Servers.project`;
+the folder alone answers `unknown_project`). No more `network`, WS ticket or `editor-access`: the
+session cookie is enough everywhere, and no quota applies.
 
 ## Conventions
 
-- **Session obligatoire** : toute route `/api/` porte une permission (`Router.on(…, permission)`).
-  Sans cookie de session valide (`__Host-artisan_session` derrière HTTPS ou `X-Forwarded-Proto: https`, sinon `artisan_session` ; le premier gagne) → 401 `unauthorized` ; sans la permission → 403
-  `forbidden`. Permissions : `artisan.editor.view` (lire), `.edit` (brouillons), `.publish`
-  (publier, écrans de config, pack), `.config` (configuration du serveur).
-- **Même origine** : une requête autre que `GET` dont l'en-tête `Origin` ne désigne pas l'hôte
-  qui répond → 403 `cross_origin`. Idem à l'ouverture de `/ws/editor`. Exception : les routes
-  `crossOrigin` (`Router.on(…, crossOrigin = true)`, MCP et OAuth, ADR `mcp-server`) acceptent tout
-  `Origin`, sans permission déclarée ; appelées depuis une autre origine, elles ne reçoivent **pas**
-  de session (le cookie n'agit jamais pour un autre site) et vérifient leurs propres identifiants.
-- **Erreurs** : `{error, message?}`. **Le code décide, jamais le statut seul** : un seul mapping
-  code → statut, `ErrorStatus` (`Relay.kt`), partagé par toutes les routes. Un 404 est
-  `unknown_project` (`:project` ne désigne aucun serveur/dossier connu, ou le serveur ne l'a pas
-  chargé), `draft_not_found` (pas de brouillon de cet id pour ce propriétaire) ou `not_found`
-  (chemin `/api/` inconnu, fichier, joueur) ; l'éditeur ne traite que le second comme « brouillon
-  disparu ». Méthode inconnue sur un chemin connu → 405. Exception d'un handler → 500
+- **Session required**: every `/api/` route carries a permission (`Router.on(…, permission)`).
+  Without a valid session cookie (`__Host-artisan_session` behind HTTPS or `X-Forwarded-Proto: https`, otherwise `artisan_session`; the first wins) → 401 `unauthorized`; without the permission → 403
+  `forbidden`. Permissions: `artisan.editor.view` (read), `.edit` (drafts), `.publish`
+  (publish, config screens, pack), `.config` (server configuration).
+- **Same origin**: a non-`GET` request whose `Origin` header does not name the host
+  that answers → 403 `cross_origin`. Same when opening `/ws/editor`. Exception: the
+  `crossOrigin` routes (`Router.on(…, crossOrigin = true)`, MCP and OAuth, ADR `mcp-server`) accept any
+  `Origin`, with no declared permission; when called from another origin, they do **not** receive
+  a session (the cookie never acts for another site) and check their own credentials.
+- **Errors**: `{error, message?}`. **The code decides, never the status alone**: a single
+  code → status mapping, `ErrorStatus` (`Relay.kt`), shared by all routes. A 404 is
+  `unknown_project` (`:project` names no known server/folder, or the server has not
+  loaded it), `draft_not_found` (no draft with this id for this owner) or `not_found`
+  (unknown `/api/` path, file, player); the editor treats only the last as a "draft
+  gone". Unknown method on a known path → 405. Handler exception → 500
   `internal_error`.
-- **Relais** (`Relay`) : chaque route qui touche un serveur envoie un message du protocole
-  (cf. `ws-protocol.md`). Serveur `updateRequired` → 503 `plugin_update_required` ; hors
-  ligne → 503 `server_offline` ; timeout → 504 `fetch_timeout` ; échec → 502 `fetch_error`.
-  Toute réponse refusée d'un serveur passe par `readError` → `ErrorStatus` : `*_not_found`/
+- **Relay** (`Relay`): every route that touches a server sends a protocol message
+  (see `ws-protocol.md`). Server `updateRequired` → 503 `plugin_update_required`; offline
+  → 503 `server_offline`; timeout → 504 `fetch_timeout`; failure → 502 `fetch_error`.
+  Every refused response from a server goes through `readError` → `ErrorStatus`: `*_not_found`/
   `unknown_*` 404, `invalid_*`/`missing_blob`/`player_required` 422, `too_large` 413,
   `conflict`/`*_exists`/`addon_immutable`/`draft_*`/`operation_*`/`too_soon` 409,
   `write_error`/`storage_error`/`server_offline`/`plugin_update_required` 503,
-  `fetch_timeout` 504, inconnu 502.
-- **Versionnage** : tout sous `/api/v1/` ; éditeur et hub voyagent dans le même jar, l'API
-  n'est plus un contrat entre deux déploiements (cf. `versioning.md`).
+  `fetch_timeout` 504, unknown 502.
+- **Versioning**: everything under `/api/v1/`; editor and hub ship in the same jar, the API
+  is no longer a contract between two deployments (see `versioning.md`).
 
-## Hors API
+## Outside the API
 
-| Chemin | Fichier | Rôle |
+| Path | File | Role |
 |---|---|---|
-| `GET /login/<jeton>` | `HubServer.kt` | Échange le lien de `/artisan editor` (usage unique, 60 s) contre une session de 12 h : cookie `HttpOnly`, `SameSite=Strict`, `Secure` si la requête l'est. Jeton invalide → `/login?expired=1`. |
-| `WS /ws/editor` | `HubServer.kt`, `EditorChannel.kt` | Annonces aux onglets ouverts. |
-| `WS /ws/plugin` | `PluginChannel.kt` | Feuilles du réseau, authentifiées par le secret partagé au `hello`. Pas de session navigateur. |
-| `GET /resource-pack/<sha1>.zip` | `PackRoutes.kt` | **Public** (les serveurs le téléchargent pour le déléguer à leur plugin de pack) ; `PackStore` garde les trois derniers. |
-| `POST /mcp` | `McpRoutes.kt`, `McpTools.kt`, `McpProjects.kt` | Serveur MCP (Streamable HTTP sans état, réponses JSON, ADR `mcp-server`) si `web.mcp: true`. JSON-RPC `initialize` (versions `2025-11-25`, `2025-06-18`, `2025-03-26`), `ping`, `tools/list`, `tools/call` ; notification → 202 ; `GET`/`DELETE` → 405. Appelant : `Authorization: Bearer amcp_…` (jeton OAuth) ou cookie de session même origine ; sans → 401 `WWW-Authenticate: Bearer resource_metadata="…"` ; sans `artisan.editor.edit` → 403 `insufficient_scope`. Sept outils : `artisan_overview`, `list_documents`, `read_document`, `get_kind_guide`, `read_docs` (doc utilisateur embarquée, `UserDocs`), `start_draft` (brouillon `source: "ai"` du joueur), `write_document` (`documents_check` sur le serveur du Project, puis `update` du brouillon ; refus → `isError` avec les problèmes, brouillon inchangé). Actions de brouillon permises : `list`, `read`, `create`, `update` (`McpProjects.DRAFT_ACTIONS`) ; aucune publication. |
-| `GET /.well-known/oauth-protected-resource[/mcp]`, `GET /.well-known/oauth-authorization-server` | `OAuthRoutes.kt` | Métadonnées RFC 9728 et RFC 8414 ; base = `X-Forwarded-Proto`/`X-Forwarded-Host`, sinon la requête. PKCE `S256` seul, clients publics (`none`). CORS `*` sans cookie. |
-| `POST /oauth/register` | `OAuthRoutes.kt` | RFC 7591 : `{client_name, redirect_uris}` → 201 `{client_id: "mcp_…"}`. `https`, ou `http` sur `localhost`/`127.0.0.1`/`[::1]` ; 1 à 10 URI, sans fragment. 1 000 clients au plus : au-delà, ceux de plus d'une heure sans autorisation sont purgés. |
-| `GET /oauth/authorize` | `OAuthRoutes.kt` | Client et `redirect_uri` connus → 302 vers la page de l'éditeur `/oauth/consent?…` ; sinon `/oauth/consent?error=invalid_client` (jamais de redirection vers une adresse non enregistrée). `response_type` ≠ `code` ou PKCE absent → retour au client avec `error`. |
-| `POST /oauth/token` | `OAuthRoutes.kt` | Formulaire. `authorization_code` (`code`, `client_id`, `redirect_uri`, `code_verifier`) : code de 60 s, à usage unique, brûlé par un mauvais vérificateur ; `refresh_token` : les deux jetons tournent. Accès 1 h, rafraîchissement 30 j. Erreur → 400 `invalid_grant`, client inconnu 401 `invalid_client`. |
-| `GET /*` | `EditorAssets.kt` | Build de l'éditeur embarqué (`-PwithEditor`) ; tout chemin inconnu rend `index.html`. Sans build embarqué : 503 texte. |
+| `GET /login/<token>` | `HubServer.kt` | Exchanges the `/artisan editor` link (single use, 60 s) for a 12 h session: `HttpOnly` cookie, `SameSite=Strict`, `Secure` if the request is. Invalid token → `/login?expired=1`. |
+| `WS /ws/editor` | `HubServer.kt`, `EditorChannel.kt` | Announcements to open tabs. |
+| `WS /ws/plugin` | `PluginChannel.kt` | Network leaves, authenticated by the shared secret at `hello`. No browser session. |
+| `GET /resource-pack/<sha1>.zip` | `PackRoutes.kt` | **Public** (servers download it to hand it to their pack plugin); `PackStore` keeps the last three. |
+| `POST /mcp` | `McpRoutes.kt`, `McpTools.kt`, `McpProjects.kt` | MCP server (stateless Streamable HTTP, JSON responses, ADR `mcp-server`) if `web.mcp: true`. JSON-RPC `initialize` (versions `2025-11-25`, `2025-06-18`, `2025-03-26`), `ping`, `tools/list`, `tools/call`; notification → 202; `GET`/`DELETE` → 405. Caller: `Authorization: Bearer amcp_…` (OAuth token) or same-origin session cookie; without → 401 `WWW-Authenticate: Bearer resource_metadata="…"`; without `artisan.editor.edit` → 403 `insufficient_scope`. Seven tools: `artisan_overview`, `list_documents`, `read_document`, `get_kind_guide`, `read_docs` (embedded user docs, `UserDocs`), `start_draft` (the player's `source: "ai"` draft), `write_document` (`documents_check` on the Project's server, then `update` of the draft; refusal → `isError` with the problems, draft unchanged). Allowed draft actions: `list`, `read`, `create`, `update` (`McpProjects.DRAFT_ACTIONS`); no publishing. |
+| `GET /.well-known/oauth-protected-resource[/mcp]`, `GET /.well-known/oauth-authorization-server` | `OAuthRoutes.kt` | RFC 9728 and RFC 8414 metadata; base = `X-Forwarded-Proto`/`X-Forwarded-Host`, otherwise the request. `S256` PKCE only, public clients (`none`). CORS `*` without cookie. |
+| `POST /oauth/register` | `OAuthRoutes.kt` | RFC 7591: `{client_name, redirect_uris}` → 201 `{client_id: "mcp_…"}`. `https`, or `http` on `localhost`/`127.0.0.1`/`[::1]`; 1 to 10 URIs, no fragment. At most 1,000 clients: beyond that, those older than an hour with no authorization are purged. |
+| `GET /oauth/authorize` | `OAuthRoutes.kt` | Known client and `redirect_uri` → 302 to the editor page `/oauth/consent?…`; otherwise `/oauth/consent?error=invalid_client` (never a redirect to an unregistered address). `response_type` ≠ `code` or PKCE missing → back to the client with `error`. |
+| `POST /oauth/token` | `OAuthRoutes.kt` | Form. `authorization_code` (`code`, `client_id`, `redirect_uri`, `code_verifier`): 60 s code, single use, burned by a wrong verifier; `refresh_token`: both tokens rotate. Access 1 h, refresh 30 d. Error → 400 `invalid_grant`, unknown client 401 `invalid_client`. |
+| `GET /*` | `EditorAssets.kt` | Embedded editor build (`-PwithEditor`); any unknown path returns `index.html`. Without an embedded build: 503 text. |
 
-## Index par fichier de routes
+## Index by routes file
 
-`SERVER` = `/api/v1/servers/:server`, `:server` = server id (UUID de `plugins/Artisan/server-id`). Partout où le hub renvoie un serveur (`servers[].id`, `serverKeyId` d'un Project, `server_key_id` de `projects_reloaded`), c'est son UUID, le serveur du hub compris ; un id de Project est `<server id>.<dossier>` partout (issue #43 : plus de sentinelle `local`).
+`SERVER` = `/api/v1/servers/:server`, `:server` = server id (UUID from `plugins/Artisan/server-id`). Everywhere the hub returns a server (`servers[].id`, a Project's `serverKeyId`, `server_key_id` of `projects_reloaded`), it is its UUID, the hub's server included; a Project id is `<server id>.<folder>` everywhere (issue #43: no more `local` sentinel).
 
-| Fichier | Routes | Notes |
+| File | Routes | Notes |
 |---|---|---|
-| `AccountRoutes.kt` | `GET/PATCH /api/v1/auth/me`, `POST /api/v1/auth/logout`, `GET /api/v1/servers` | Le joueur de la session (UUID, nom, permissions) sous la forme d'un compte. `PATCH` enregistre ses préférences (`PlayerPrefs`) : `editor_language`, `theme` (`dark`/`light`/`null`), `editor_tour` (`start` → `tourStarted`, `progress`, `complete`, `import`, règles du backend) ; corps ≤ 4 Ko sinon 400 `invalid_body`, valeur refusée → 422 `invalid_*`, clé inconnue ignorée. `/servers` : `{servers: [{id, label, online, minecraftVersion, pluginVersion, lastSeenAt, updateRequired}]}`, le serveur du hub en premier (`lastSeenAt` depuis `artisan_servers`). |
-| `ServerRoutes.kt` | `GET SERVER/modules`, `/data-sources`, `/models`, `/screens`, `/actions`, `/document-kinds`, `/game-events`, `/player-commands` ; `GET` + `PATCH SERVER/server-config` ; `POST SERVER/config/read`, `/config/write` ; `GET SERVER/players`, `/papi-placeholders`, `/head-texture?id=`, `/player-inventory?player=` ; `POST SERVER/data-sources/preview` ; `GET SERVER/modules/:module/ui.js?v=` ; `GET SERVER/modules/:module/templates/:template` | Ce que le serveur déclare (lu en mémoire, sans aller-retour), sa configuration, ses écrans de config et ses données live. `ui.js` : la vue éditeur d'un module (bundles de module, niveau 3, `modules.md`), cf. ci-dessous. |
-| `ProjectRoutes.kt` | `GET SERVER/projects` ; `GET /api/v1/user/projects/:project` ; `GET` + `PUT …/files` et `GET …/history?path=` sous `/api/v1/projects/:project` et `SERVER/projects/:project` ; `GET /api/v1/projects/:project/binary?path=`, `GET SERVER/projects/:project/asset?path=` ; `GET /api/v1/projects/:project/versions[/:version]`, `GET …/versions/:version/binary?path=` | Liste, lecture (`if_hash`, comparé à l'empreinte de l'état chargé avant toute lecture de Version : un poll inchangé ne lit pas les fichiers) et octets d'un asset lus en base (`LoadedProjects`, repli sur le serveur) ; serveur éteint : la lecture porte `offlineSince` (dernière présence) et `connection.available` vaut `false` — l'éditeur ouvre le projet, point de statut rouge, Publier désactivé, publication directe (`project_write`, CAS), historique d'un fichier, octets d'un asset. Capacités annoncées (`liveData`, `captureInGame`, `preview`, `canRename`, `canDelete`) : renommer et supprimer pour un Project `folder` d'un serveur qui parle la mineure 1 du protocole. Versions et historique d'un fichier lus en base par le hub (`ProjectHistory`, `artisan_versions`), serveur éteint compris ; sans base, l'historique d'un fichier retombe sur les archives `.artisan/history/`. Une publication porte `author_id`/`author_name` de la session. |
-| `ProjectRoutes.kt` (cycle de vie) | `POST SERVER/projects` `{name}` (serveur inconnu : 404 `not_found`, nom absent : 422 `invalid_input`) ; `DELETE /api/v1/user/projects/:project` ; `POST /api/v1/projects/:project/rename` `{targetId}` | `artisan.editor.publish`. `project_create` (201 `{project}`), `project_delete` (dossier déplacé dans `.artisan-trash/` du serveur), `project_rename` (`{projectId, diskId}`, brouillons inclus). `project_exists`/`destination_exists`/`addon_immutable` 409, `invalid_name`/`invalid_path` 422, `unknown_project` 404. Feuille d'une release antérieure (protocole `1.0`) : 501 `plugin_update_required` sans rien lui envoyer. |
-| `ProjectRoutes.kt` (modèles) | `GET …/origins` et `POST …/templates` `{module, template, paths?, replace}` sous `/api/v1/projects/:project` et `SERVER/projects/:project` | ADR `module-templates`. `project_origins_fetch` (`{origins}`, `artisan.editor.view`) et `template_copy` (`artisan.editor.publish`, `{written, unchanged}`) ; fichier existant au contenu différent sans `replace` : 409 `{error: "conflict", conflicts}`, rien d'écrit. `unknown_path`/`invalid_input` 422. Feuille de mineure < 3 : 501 `plugin_update_required` sans relais. |
-| `ProjectRoutes.kt` (brouillons) | `GET/POST /api/v1/user/projects/:project/drafts`, `GET/PUT/DELETE …/drafts/:draft`, `POST …/drafts/:draft/publish`, `POST …/drafts/:draft/blobs`, `GET …/drafts/:draft/blobs/:hash` | Servies par le hub sur la base (`ProjectDrafts`), serveur éteint compris ; seule la publication part au serveur (`project_draft_publish`). `owner_id` = UUID de la session. Mutations : `revision` ≥ 1 et `operationId` (`[a-zA-Z0-9_-]{1,100}`, généré s'il manque). Codes (`ErrorStatus`) : `draft_not_found` 404, `unknown_project` 404, `draft_conflict`/`draft_exists`/`draft_closed`/`conflict`/`operation_*` 409, `invalid_draft`/`invalid_blob`/`missing_blob` 422, `storage_error` 503 (la base a échoué, ou s'ouvre encore au démarrage — `LateSuiteData`, issue #42 ; une même opération envoyée deux fois à la fois reçoit le reçu de l'autre), sans base, relayé au serveur. Le reçu d'une opération ne garde pas le corps du brouillon : au rejeu, le brouillon courant est renvoyé. `PUT …/drafts/:draft` répond le brouillon **sans** `snapshot` (l'éditeur garde celui qu'il a envoyé) ; `GET` et le rejeu le renvoient entier. |
-| `ItemRoutes.kt` | `GET /api/v1/user/projects/:project/items`, `/custom-items`, `/nexo-glyphs`, `/nexo-glyphs/:glyph` ; `GET /api/v1/textures/:version/*` | Catalogue vanilla embarqué (version la plus proche de celle du serveur), items Nexo/Oraxen/ItemsAdder du serveur du Project, textures vanilla extraites du jar client Mojang (`VanillaAssets`, la version demandée est ignorée), glyphes Nexo. Les items custom ne portent que `{id, label, category}` (spec `custom-items-names-only`) : pas de `textures/custom/…`, l'éditeur leur garde un placeholder. Pas de `model-bundle` ni de `models/…` non plus : le catalogue embarqué pointe vers des icônes 3D déjà rendues (`gen-icons.ts`), seul le générateur hors ligne sert ces routes. |
-| `AddressRoutes.kt` | `GET` + `POST /api/v1/editor-address` | `artisan.editor.config`. L'adresse de l'éditeur sur le serveur de tunnel (ADR `editor-tunnel`, décision 8) : `{tunnel, connected, url, name, names, suffix}` ; sans tunnel `{tunnel: false}`. `POST {name, check}` : `check` dit seulement si le nom est libre, sinon le prend (`""` le rend) et renvoie `{name, url, login}`, `login` = lien de connexion sur la nouvelle adresse. Refus : `taken` 409, `invalid`/`reserved` 422, `too_many` 429, `unavailable`/`offline` 503 ; sans tunnel 404 `no_tunnel`. |
-| `OAuthRoutes.kt` (éditeur) | `GET` + `POST /api/v1/oauth/consent` ; `GET /api/v1/user/mcp/grants`, `DELETE /api/v1/user/mcp/grants/:grant` | Si `web.mcp: true`. `GET` (`view`) : `{client: {name, redirectHost}, player, canEdit}` pour `client_id` + `redirect_uri` ; `POST` (`edit`, même origine) `{client_id, redirect_uri, state, code_challenge, approve}` → `{redirect}` vers le client, avec `code` ou `error=access_denied`. Le client autorisé agit avec les permissions du joueur moins `publish` et `config`, relues à chaque rapport de permissions (`Sessions.onPermissions`) ; sans `view`, l'autorisation est supprimée. Liste et révocation (`view`) : les clients du joueur, `{grants: [{id, client, createdAt, lastUsedAt}]}` ; une révocation agit au prochain appel. |
-| `AiRoutes.kt`, `AiAssistant.kt` | `GET /api/v1/ai` ; `GET` + `POST /api/v1/ai/conversations` ; `GET` + `DELETE …/conversations/:conversation` ; `POST …/conversations/:conversation/messages` | ADR `editor-assistant`. `GET /api/v1/ai` (`view`) : `{enabled, model, canUse}`, toujours servi (`enabled: false` sans section `ai`). Le reste (`edit`, seulement avec un assistant) : `POST` `{project?}` → 201 la conversation `{id, project, title, running, createdAt, lastActive, inputTokens, outputTokens}` ; `GET ?after=N` → la même + `events` à partir du N-ième (`{seq, type: user\|text\|tool\|notice\|error\|done, …}`, un `tool` porte `name`, `path`, `ok`, `error`, `problems`, `draft`) ; message `{text}` (≤ 8 000) → 202, la boucle tourne sur le hub (`ai_busy` 409 pendant un tour, vide ou trop long 422). Conversation d'un autre joueur ou oubliée : 404. Erreurs du fournisseur en événement `error` : `ai_key_refused`, `ai_rate_limited`, `ai_unreachable`, `ai_provider_error`. |
-| `PackRoutes.kt` | `PUT SERVER/resource-pack` ; `GET /resource-pack/:file` | L'éditeur envoie le zip qu'il a construit (≤ 100 Mo, doit commencer par `PK`) ; le hub le range sous son SHA-1 et le remet au serveur (`applyResourcePack` en process, `resource_pack_updated` pour une feuille). |
+| `AccountRoutes.kt` | `GET/PATCH /api/v1/auth/me`, `POST /api/v1/auth/logout`, `GET /api/v1/servers` | The session's player (UUID, name, permissions) in the shape of an account. `PATCH` saves their preferences (`PlayerPrefs`): `editor_language`, `theme` (`dark`/`light`/`null`), `editor_tour` (`start` → `tourStarted`, `progress`, `complete`, `import`, backend rules); body ≤ 4 KB otherwise 400 `invalid_body`, refused value → 422 `invalid_*`, unknown key ignored. `/servers`: `{servers: [{id, label, online, minecraftVersion, pluginVersion, lastSeenAt, updateRequired}]}`, the hub's server first (`lastSeenAt` from `artisan_servers`). |
+| `ServerRoutes.kt` | `GET SERVER/modules`, `/data-sources`, `/models`, `/screens`, `/actions`, `/document-kinds`, `/game-events`, `/player-commands`; `GET` + `PATCH SERVER/server-config`; `POST SERVER/config/read`, `/config/write`; `GET SERVER/players`, `/papi-placeholders`, `/head-texture?id=`, `/player-inventory?player=`; `POST SERVER/data-sources/preview`; `GET SERVER/modules/:module/ui.js?v=`; `GET SERVER/modules/:module/templates/:template` | What the server declares (read from memory, no round trip), its configuration, its config screens and its live data. `ui.js`: a module's editor view (module bundles, level 3, `modules.md`), see below. |
+| `ProjectRoutes.kt` | `GET SERVER/projects`; `GET /api/v1/user/projects/:project`; `GET` + `PUT …/files` and `GET …/history?path=` under `/api/v1/projects/:project` and `SERVER/projects/:project`; `GET /api/v1/projects/:project/binary?path=`, `GET SERVER/projects/:project/asset?path=`; `GET /api/v1/projects/:project/versions[/:version]`, `GET …/versions/:version/binary?path=` | List, read (`if_hash`, compared to the hash of the loaded state before any Version read: an unchanged poll does not read the files) and an asset's bytes read from the database (`LoadedProjects`, falling back to the server); server off: the read carries `offlineSince` (last presence) and `connection.available` is `false` — the editor opens the project, red status dot, Publish disabled, direct publish (`project_write`, CAS), a file's history, an asset's bytes. Advertised capabilities (`liveData`, `captureInGame`, `preview`, `canRename`, `canDelete`): rename and delete for a `folder` Project of a server that speaks protocol minor 1. Versions and a file's history read from the database by the hub (`ProjectHistory`, `artisan_versions`), offline server included; without a database, a file's history falls back to the `.artisan/history/` archives. A publish carries the session's `author_id`/`author_name`. |
+| `ProjectRoutes.kt` (lifecycle) | `POST SERVER/projects` `{name}` (unknown server: 404 `not_found`, name missing: 422 `invalid_input`); `DELETE /api/v1/user/projects/:project`; `POST /api/v1/projects/:project/rename` `{targetId}` | `artisan.editor.publish`. `project_create` (201 `{project}`), `project_delete` (folder moved to the server's `.artisan-trash/`), `project_rename` (`{projectId, diskId}`, drafts included). `project_exists`/`destination_exists`/`addon_immutable` 409, `invalid_name`/`invalid_path` 422, `unknown_project` 404. Leaf from an earlier release (protocol `1.0`): 501 `plugin_update_required` without sending it anything. |
+| `ProjectRoutes.kt` (templates) | `GET …/origins` and `POST …/templates` `{module, template, paths?, replace}` under `/api/v1/projects/:project` and `SERVER/projects/:project` | ADR `module-templates`. `project_origins_fetch` (`{origins}`, `artisan.editor.view`) and `template_copy` (`artisan.editor.publish`, `{written, unchanged}`); existing file with different content without `replace`: 409 `{error: "conflict", conflicts}`, nothing written. `unknown_path`/`invalid_input` 422. Leaf with minor < 3: 501 `plugin_update_required` without relay. |
+| `ProjectRoutes.kt` (drafts) | `GET/POST /api/v1/user/projects/:project/drafts`, `GET/PUT/DELETE …/drafts/:draft`, `POST …/drafts/:draft/publish`, `POST …/drafts/:draft/blobs`, `GET …/drafts/:draft/blobs/:hash` | Served by the hub from the database (`ProjectDrafts`), offline server included; only publishing goes to the server (`project_draft_publish`). `owner_id` = the session's UUID. Mutations: `revision` ≥ 1 and `operationId` (`[a-zA-Z0-9_-]{1,100}`, generated if missing). Codes (`ErrorStatus`): `draft_not_found` 404, `unknown_project` 404, `draft_conflict`/`draft_exists`/`draft_closed`/`conflict`/`operation_*` 409, `invalid_draft`/`invalid_blob`/`missing_blob` 422, `storage_error` 503 (the database failed, or is still opening at startup — `LateSuiteData`, issue #42; the same operation sent twice at once gets the other's receipt), without a database, relayed to the server. An operation's receipt does not keep the draft body: on replay, the current draft is returned. `PUT …/drafts/:draft` answers the draft **without** `snapshot` (the editor keeps the one it sent); `GET` and the replay return it whole. |
+| `ItemRoutes.kt` | `GET /api/v1/user/projects/:project/items`, `/custom-items`, `/nexo-glyphs`, `/nexo-glyphs/:glyph`; `GET /api/v1/textures/:version/*` | Embedded vanilla catalog (version closest to the server's), Nexo/Oraxen/ItemsAdder items of the Project's server, vanilla textures extracted from the Mojang client jar (`VanillaAssets`, the requested version is ignored), Nexo glyphs. Custom items carry only `{id, label, category}` (spec `custom-items-names-only`): no `textures/custom/…`, the editor keeps a placeholder for them. No `model-bundle` or `models/…` either: the embedded catalog points to 3D icons that are already rendered (`gen-icons.ts`), only the offline generator uses those routes. |
+| `AddressRoutes.kt` | `GET` + `POST /api/v1/editor-address` | `artisan.editor.config`. The editor's address on the tunnel server (ADR `editor-tunnel`, decision 8): `{tunnel, connected, url, name, names, suffix}`; without a tunnel `{tunnel: false}`. `POST {name, check}`: `check` only says whether the name is free, otherwise takes it (`""` releases it) and returns `{name, url, login}`, `login` = sign-in link on the new address. Refusals: `taken` 409, `invalid`/`reserved` 422, `too_many` 429, `unavailable`/`offline` 503; without a tunnel 404 `no_tunnel`. |
+| `OAuthRoutes.kt` (editor) | `GET` + `POST /api/v1/oauth/consent`; `GET /api/v1/user/mcp/grants`, `DELETE /api/v1/user/mcp/grants/:grant` | If `web.mcp: true`. `GET` (`view`): `{client: {name, redirectHost}, player, canEdit}` for `client_id` + `redirect_uri`; `POST` (`edit`, same origin) `{client_id, redirect_uri, state, code_challenge, approve}` → `{redirect}` to the client, with `code` or `error=access_denied`. The authorized client acts with the player's permissions minus `publish` and `config`, re-read at every permissions report (`Sessions.onPermissions`); without `view`, the authorization is removed. List and revocation (`view`): the player's clients, `{grants: [{id, client, createdAt, lastUsedAt}]}`; a revocation takes effect on the next call. |
+| `PackRoutes.kt` | `PUT SERVER/resource-pack`; `GET /resource-pack/:file` | The editor sends the zip it built (≤ 100 MB, must start with `PK`); the hub stores it under its SHA-1 and hands it to the server (`applyResourcePack` in process, `resource_pack_updated` for a leaf). |
+| `AiRoutes.kt`, `AiAssistant.kt` | `GET /api/v1/ai`; `GET` + `POST /api/v1/ai/conversations`; `GET` + `DELETE …/conversations/:conversation`; `POST …/conversations/:conversation/messages` | ADR `editor-assistant`. `GET /api/v1/ai` (`view`): `{enabled, model, canUse}`, always served (`enabled: false` without an `ai` section). The rest (`edit`, only with an assistant): `POST` `{project?}` → 201 the conversation `{id, project, title, running, createdAt, lastActive, inputTokens, outputTokens}`; `GET ?after=N` → the same + `events` from the N-th on (`{seq, type: user\|text\|tool\|notice\|error\|done, …}`, a `tool` carries `name`, `path`, `ok`, `error`, `problems`, `draft`); message `{text}` (≤ 8,000) → 202, the loop runs on the hub (`ai_busy` 409 during a turn, empty or too long 422). Another player's or a forgotten conversation: 404. Provider errors as an `error` event: `ai_key_refused`, `ai_rate_limited`, `ai_unreachable`, `ai_provider_error`. |
 
-## Flux non évidents
+## Non-obvious flows
 
-- **Publier** passe par le brouillon (`POST …/drafts/:draft/publish`) ; `PUT …/files` reste la
-  publication directe (`project_write`, `create: true` pour un Project neuf). Les deux finissent en CAS contre le disque,
-  après `DocumentCheck` : un Document qui ne chargerait pas → 422 `invalid_documents` `{error, message, problems}`, rien d'écrit.
-- **Après publication**, l'éditeur reconstruit le pack dans le navigateur
-  (`editor/src/lib/pack/buildServerPack.ts`) puis le `PUT` au hub : le serveur ne calcule rien.
-- **Feuille** : la même route sert un serveur distant ; seul le transport change
-  (`RemoteServer` au lieu de `LocalServerLink`).
-- **Bundle éditeur d'un module** (`GET SERVER/modules/:module/ui.js`, `artisan.editor.view`) :
-  404 `not_found` sans relais si l'entrée `installed_modules` du module n'annonce pas
-  d'`editor_bundle` (feuille de mineure < 2 comprise). Sinon le hub sert sa copie du `hash` annoncé
-  (`BundleCache` de `ServerRoutes` : 8 bundles, 16 MiB, le moins récemment servi sort), ou relaie
-  `editor_bundle_fetch` ; le SHA-256 du contenu reçu doit égaler le `hash` de la réponse et celui
-  de l'annonce (annonce périmée, module rechargé : 502 `fetch_error`), puis il est gardé. 200
-  `text/javascript; charset=utf-8`, `X-Content-Type-Options: nosniff` ; `Cache-Control: private,
-  max-age=31536000, immutable` si `?v=` égale le hash, `no-cache` sinon. Le module sans bundle côté
-  serveur : 404 `not_found`.
+- **Publishing** goes through the draft (`POST …/drafts/:draft/publish`); `PUT …/files` remains
+  the direct publish (`project_write`, `create: true` for a new Project). Both end in a CAS against the disk,
+  after `DocumentCheck`: a Document that would not load → 422 `invalid_documents` `{error, message, problems}`, nothing written.
+- **After publishing**, the editor rebuilds the pack in the browser
+  (`editor/src/lib/pack/buildServerPack.ts`) then `PUT`s it to the hub: the server computes nothing.
+- **Leaf**: the same route serves a remote server; only the transport changes
+  (`RemoteServer` instead of `LocalServerLink`).
+- **A module's editor bundle** (`GET SERVER/modules/:module/ui.js`, `artisan.editor.view`):
+  404 `not_found` without relay if the module's `installed_modules` entry does not advertise
+  an `editor_bundle` (a leaf with minor < 2 included). Otherwise the hub serves its copy of the advertised `hash`
+  (`BundleCache` of `ServerRoutes`: 8 bundles, 16 MiB, the least recently served goes out), or relays
+  `editor_bundle_fetch`; the SHA-256 of the received content must equal the response's `hash` and that
+  of the advertisement (stale advertisement, module reloaded: 502 `fetch_error`), then it is kept. 200
+  `text/javascript; charset=utf-8`, `X-Content-Type-Options: nosniff`; `Cache-Control: private,
+  max-age=31536000, immutable` if `?v=` equals the hash, `no-cache` otherwise. A module with no bundle on the
+  server: 404 `not_found`.
 
-## Supprimé en phase F (ne pas réintroduire sans ADR)
+## Removed in phase F (do not reintroduce without an ADR)
 
-Comptes (inscription, connexion e-mail/Google/Discord, suppression), réseaux multiples,
-membres, invitations, demandes d'accès, transferts, clés serveur et codes de liaison,
-démo, facturation et crédits, administration, assistant IA et sources d'import, copie de
-Project vers un autre serveur, miroir d'instantané, diffusion et mise à jour
-signée du jar. État cloud récupérable au commit `ccade092` (branche `v2`).
+Accounts (sign-up, email/Google/Discord sign-in, deletion), multiple networks,
+members, invitations, access requests, transfers, server keys and link codes,
+demo, billing and credits, administration, AI assistant and import sources, copying a
+Project to another server, snapshot mirror, broadcast and signed
+jar update. Cloud state recoverable at commit `ccade092` (branch `v2`).

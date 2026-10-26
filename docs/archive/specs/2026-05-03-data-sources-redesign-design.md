@@ -1,67 +1,67 @@
 # Data Sources Redesign — Design Spec
 
-**Date** : 2026-05-03
-**Statut** : Design validé, à découper en plans d'implémentation (C1, C2, C3)
-**Auteur** : iban (brainstorming session avec Claude)
+**Date**: 2026-05-03
+**Status**: Design validated, to be split into implementation plans (C1, C2, C3)
+**Author**: iban (brainstorming session with Claude)
 
-## Résumé
+## Summary
 
-Refonte complète du modèle de contexte des menus pour résoudre trois pain points identifiés à l'usage :
+Full rework of the menu context model to solve three pain points found in use:
 
-1. **Complexité non uniforme** : `ContextInput.default` (runtime fallback) et `Menu.sampleContext` (preview éditeur) sont deux concepts qui se chevauchent.
-2. **Preview manuelle** : l'admin doit écrire `sampleContext` à la main pour voir des données dans l'éditeur.
-3. **Objects non typés** : pas de schema sur `type: "object"` ou `type: "list"`, donc pas d'autocomplete sur `{quest.name}` et pas de validation au design time.
+1. **Uneven complexity**: `ContextInput.default` (runtime fallback) and `Menu.sampleContext` (editor preview) are two overlapping concepts.
+2. **Manual preview**: the admin has to write `sampleContext` by hand to see data in the editor.
+3. **Untyped objects**: no schema on `type: "object"` or `type: "list"`, so no autocomplete on `{quest.name}` and no validation at design time.
 
-Solution : unifier le concept en **"sources de données typées"**, drop `sampleContext`, ajouter un schema récursif sur les valeurs typées, séparer les data admin-made (page dédiée) des connecteurs plugin (import depuis Java).
+Solution: unify the concept as **"typed data sources"**, drop `sampleContext`, add a recursive schema on typed values, and separate admin-made data (dedicated page) from plugin connectors (import from Java).
 
 ## Motivation
 
-### Pain points concrets
+### Concrete pain points
 
-- `ContextInput.default: string` ne peut pas représenter naturellement une liste de catégories (`["weapon", "armor"]`). L'admin doit utiliser des connecteurs ou se rabattre sur du JSON encodé en string — ni l'un ni l'autre n'est satisfaisant pour les cas simples.
-- `Menu.sampleContext` est un blob YAML/JSON séparé que l'admin écrit pour la preview. Le contenu duplique souvent les valeurs `default` des inputs primitifs.
-- L'autocomplete sur `{quest.name}` est impossible aujourd'hui parce que rien ne déclare ce que `quest` contient. `quest` est juste une string opaque pour l'éditeur.
+- `ContextInput.default: string` cannot naturally represent a list of categories (`["weapon", "armor"]`). The admin has to use connectors or fall back to JSON encoded in a string — neither is satisfying for simple cases.
+- `Menu.sampleContext` is a separate YAML/JSON blob the admin writes for the preview. Its content often duplicates the `default` values of primitive inputs.
+- Autocomplete on `{quest.name}` is impossible today because nothing declares what `quest` contains. `quest` is just an opaque string to the editor.
 
-### Use case déclencheur
+### Triggering use case
 
-Pendant le brainstorming Plan B, deux frictions sont remontées :
-- **Array literals** dans `set_arg_cycle.list` : pour cycler `["weapon", "armor"]`, l'admin doit déclarer un `ContextInput type=list` mais n'a aucun moyen propre d'y mettre des valeurs hardcodées.
-- **Quotes obligatoires** dans `set_arg.value` : symptôme de l'absence de typage — le parser ne peut pas distinguer un nom d'identifier d'une valeur littérale, donc tout est expression.
+During the Plan B brainstorming, two frictions came up:
+- **Array literals** in `set_arg_cycle.list`: to cycle through `["weapon", "armor"]`, the admin has to declare a `ContextInput type=list` but has no clean way to put hardcoded values in it.
+- **Mandatory quotes** in `set_arg.value`: a symptom of the lack of typing — the parser cannot tell an identifier name from a literal value, so everything is an expression.
 
-Avec le redesign, l'admin déclare une `pack.categories: list of string = ["weapon", "armor", "food"]`, le menu la référence, et tout coule de source : preview, autocomplete, runtime.
+With the redesign, the admin declares a `pack.categories: list of string = ["weapon", "armor", "food"]`, the menu references it, and everything flows from the source: preview, autocomplete, runtime.
 
-## Décisions de design (résumé)
+## Design decisions (summary)
 
-- **Drop `Menu.sampleContext`** entièrement. La preview éditeur s'autobuild des `default`s primitifs + valeurs des data sources + samples des connecteurs.
-- **`ContextInput` devient une union discriminée** par `kind` : `"primitive"` (player/string/int/number/boolean avec default) vs `"sourceRef"` (référence à une source par `ref`).
-- **Nouveau `FieldType` récursif** pour décrire les schemas (string/number/boolean/list/object récursifs).
-- **Nouveau `Pack.dataSources[]`** : sources admin-made avec id, name, type (FieldType), value. Vivent au niveau du pack, référencées en live par les menus.
-- **Nouveau `Pack.importedConnectors[]`** : specs de connecteurs sourcés depuis Java plugin (ChestShop, Essentials, etc.).
-- **Pas de catalogue centralisé** : les connecteurs sont entièrement Java-sourced. Le plugin Artisan génère un YAML par connecteur dans `plugins/Artisan/connectors/`. Le plugin auteur tier (V2+) fait pareil via `registerDataSource`.
-- **Plan paid (WS)** : auto-push des connecteurs YAMLs à la connexion. **Plan free** : bouton "Importer connecteurs" pour drop-and-drop manuel.
-- **Pas de migration** : les packs existants verront `sampleContext` dropped au load et leurs `ContextInput type=list/object` devenir invalides. L'admin recrée. Acceptable parce qu'on est en pré-launch et qu'iban est le seul admin avec packs en dev.
-- **Découpage en 3 specs** d'implémentation (C1, C2, C3) — détails section 8.
+- **Drop `Menu.sampleContext`** entirely. The editor preview is built automatically from primitive `default`s + data source values + connector samples.
+- **`ContextInput` becomes a union discriminated** by `kind`: `"primitive"` (player/string/int/number/boolean with default) vs `"sourceRef"` (reference to a source by `ref`).
+- **New recursive `FieldType`** to describe schemas (recursive string/number/boolean/list/object).
+- **New `Pack.dataSources[]`**: admin-made sources with id, name, type (FieldType), value. They live at pack level and menus reference them live.
+- **New `Pack.importedConnectors[]`**: specs of connectors sourced from Java plugins (ChestShop, Essentials, etc.).
+- **No central catalog**: connectors are entirely Java-sourced. The Artisan plugin generates one YAML per connector in `plugins/Artisan/connectors/`. The third-party author plugin (V2+) does the same via `registerDataSource`.
+- **Paid plan (WS)**: connector YAMLs are auto-pushed on connection. **Free plan**: an "Import connectors" button for manual drag-and-drop.
+- **No migration**: existing packs will have `sampleContext` dropped at load and their `ContextInput type=list/object` become invalid. The admin recreates them. Acceptable because we are pre-launch and iban is the only admin with packs in development.
+- **Split into 3 implementation specs** (C1, C2, C3) — details in section 8.
 
-## 1. Modèle de domaine
+## 1. Domain model
 
-### 1.1 Vue d'ensemble — trois origines unifiées
+### 1.1 Overview — three unified origins
 
-Tout `ContextInput` d'un menu pointe vers une "source de données typée". Trois origines :
+Every `ContextInput` of a menu points to a "typed data source". Three origins:
 
-| Source | Auteur | Schema connu via | Valeurs preview |
+| Source | Author | Schema known via | Preview values |
 |---|---|---|---|
-| **Primitive** (`player`/`string`/`integer`/`number`/`boolean`) | Caller (commande, parent menu) | Type built-in | Le `default` du primitive |
-| **Pack data source** (admin-made) | Admin dans la page Data | `FieldType` explicite stocké avec | Les valeurs entrées par l'admin |
-| **Connecteur** (plugin tier) | Java plugin (ou Artisan plugin pour V1 homemade) | Spec YAML générée par le plugin | `sample` dans le YAML |
+| **Primitive** (`player`/`string`/`integer`/`number`/`boolean`) | Caller (command, parent menu) | Built-in type | The primitive's `default` |
+| **Pack data source** (admin-made) | Admin in the Data page | Explicit `FieldType` stored with it | The values entered by the admin |
+| **Connector** (third-party plugin) | Java plugin (or Artisan plugin for homemade V1) | YAML spec generated by the plugin | `sample` in the YAML |
 
-Le menu déclare ses inputs ; l'éditeur résout chaque ref vers sa source ; preview + autocomplete tombent automatiquement.
+The menu declares its inputs; the editor resolves each ref to its source; preview + autocomplete follow automatically.
 
-### 1.2 Types TypeScript
+### 1.2 TypeScript types
 
 ```typescript
 // web/src/domain/types.ts (changes)
 
-// Récursif, décrit n'importe quelle shape de donnée typée
+// Recursive, describes any shape of typed data
 export type FieldType =
   | { kind: "string" }
   | { kind: "number" }
@@ -70,7 +70,7 @@ export type FieldType =
   | { kind: "list"; of: FieldType }
   | { kind: "object"; fields: { name: string; type: FieldType }[] };
 
-// Source de données admin-made — vit au niveau pack
+// Admin-made data source — lives at pack level
 export type DataSourceId = string & { __brand: "DataSourceId" };
 
 export interface DataSource {
@@ -80,7 +80,7 @@ export interface DataSource {
   value: unknown;       // concrete data, validated against `type` at edit time
 }
 
-// Spec d'un connecteur (importé manuellement ou poussé via WS)
+// Spec of a connector (imported manually or pushed via WS)
 export interface ConnectorSpec {
   ref: string;          // "chestshop:items", "essentials:warps", "questx:quests"
   type: FieldType;      // typically `{ kind: "list", of: { kind: "object", ... } }`
@@ -89,12 +89,12 @@ export interface ConnectorSpec {
 
 // Pack additions
 export interface Pack {
-  // ... champs existants
+  // ... existing fields
   dataSources: DataSource[];           // NEW
   importedConnectors: ConnectorSpec[];  // NEW
 }
 
-// ContextInput devient une union discriminée
+// ContextInput becomes a discriminated union
 export type ContextInput =
   | {
       kind: "primitive";
@@ -108,18 +108,18 @@ export type ContextInput =
       ref: SourceRef;
     };
 
-// Référence vers une source — discriminée par préfixe
-// "pack:<dataSourceId>" pour admin-made
-// "<plugin>:<connectorSource>" pour connecteur (e.g., "chestshop:items")
+// Reference to a source — discriminated by prefix
+// "pack:<dataSourceId>" for admin-made
+// "<plugin>:<connectorSource>" for connector (e.g., "chestshop:items")
 export type SourceRef = string & { __brand: "SourceRef" };
 ```
 
-### 1.3 Suppression de `Menu.sampleContext`
+### 1.3 Removal of `Menu.sampleContext`
 
-Le champ `Menu.sampleContext` disparaît du schéma. La preview éditeur build à la volée :
+The `Menu.sampleContext` field disappears from the schema. The editor preview builds on the fly:
 
 ```typescript
-// Pseudo-code de l'algo de résolution preview
+// Pseudo-code of the preview resolution algorithm
 function buildPreviewScope(menu: Menu, pack: Pack): Record<string, unknown> {
   const scope: Record<string, unknown> = {};
   for (const input of menu.contextInputs ?? []) {
@@ -127,104 +127,104 @@ function buildPreviewScope(menu: Menu, pack: Pack): Record<string, unknown> {
       scope[input.name] = coerceDefault(input.default, input.type);
     } else {
       const source = resolveSourceRef(input.ref, pack);
-      if (source !== null) scope[input.name] = source.value;  // pour DataSource
-      // ou source.sample pour ConnectorSpec
+      if (source !== null) scope[input.name] = source.value;  // for DataSource
+      // or source.sample for ConnectorSpec
     }
   }
   return scope;
 }
 ```
 
-Plus de blob JSON/YAML manuel. Plus de `SampleContextEditor` UI.
+No more manual JSON/YAML blob. No more `SampleContextEditor` UI.
 
 ### 1.4 ContextInput live references — semantics
 
-Quand un `ContextInput { kind: "sourceRef" }` pointe vers `pack:categories` :
-- Au render preview, l'éditeur lit `pack.dataSources` et trouve l'entry avec `id === "categories"`.
-- Si l'admin renomme `categories` → `shop_categories`, **tous les menus qui référencent `pack:categories` voient leur ref mise à jour atomiquement** (immer transaction). Les ContextInputs sont mis à jour avec le nouveau ref.
-- Si l'admin **supprime** une DataSource, l'éditeur warn ("3 menus utilisent cette source — supprimer rendra leurs inputs invalides"). Si confirmé, les ContextInputs concernés deviennent invalides (lookup retourne null au runtime, panneau "Issues" liste l'erreur à l'édition).
+When a `ContextInput { kind: "sourceRef" }` points to `pack:categories`:
+- At preview render, the editor reads `pack.dataSources` and finds the entry with `id === "categories"`.
+- If the admin renames `categories` → `shop_categories`, **all menus that reference `pack:categories` get their ref updated atomically** (immer transaction). The ContextInputs are updated with the new ref.
+- If the admin **deletes** a DataSource, the editor warns ("3 menus use this source — deleting it will make their inputs invalid"). If confirmed, the affected ContextInputs become invalid (lookup returns null at runtime, the "Issues" panel lists the error at edit time).
 
-## 2. Page Data Sources (UX)
+## 2. Data Sources page (UX)
 
 ### 2.1 Placement
 
-Onglet/page dédié au niveau du pack, accessible depuis le top-bar (à côté de "Translations", "Patterns"). Layout pleine page comme TranslationPanel existante.
+Dedicated tab/page at pack level, reachable from the top bar (next to "Translations", "Patterns"). Full-page layout like the existing TranslationPanel.
 
-### 2.2 Layout 2-column
+### 2.2 2-column layout
 
 ```
 ┌──────────────────────────┬─────────────────────────────────────┐
 │ Pack data                │ categories                          │
 │ ├ 🗂 categories       ✓  │ ┌─ Schema (inline) ──────────────┐  │
-│ ├ 🗂 quests              │ │ Liste de [string ▾]             │ │
+│ ├ 🗂 quests              │ │ List of [string ▾]              │ │
 │ └ 📦 server_motd         │ └─────────────────────────────────┘ │
-│ + Liste  + Objet         │                                     │
+│ + List  + Object         │                                     │
 ├──────────────────────────┤ ┌─ Values ───────────────────────┐  │
 │ Connectors               │ │  • weapon                       │ │
 │ ├ 🔌 chestshop:items     │ │  • armor                        │ │
 │ ├ 🔌 chestshop:cats      │ │  • food                         │ │
 │ └ 🔌 essentials:warps    │ │  + Add                          │ │
-│ + Importer               │ └────────────────────────────────┘  │
+│ + Import                 │ └────────────────────────────────┘  │
 └──────────────────────────┴─────────────────────────────────────┘
 ```
 
-### 2.3 Sidebar gauche
+### 2.3 Left sidebar
 
-Deux sections empilées :
+Two stacked sections:
 
-**Pack data** (top) — sources admin-made.
-- Chaque entrée : icône (🗂 list / 📦 object), nom, optionnellement un badge type courte ("string list", "object")
-- Boutons "+ Liste" et "+ Objet" en bas → crée une DataSource avec un nom auto (`new_list`, `new_object`) et schema minimal
-- Click une entrée → l'éditeur la sélectionne et affiche son schema + values dans le panneau droit
-- Right-click ou hover → menu "Renommer", "Supprimer", "Dupliquer"
+**Pack data** (top) — admin-made sources.
+- Each entry: icon (🗂 list / 📦 object), name, optionally a short type badge ("string list", "object")
+- "+ List" and "+ Object" buttons at the bottom → create a DataSource with an auto name (`new_list`, `new_object`) and a minimal schema
+- Click an entry → the editor selects it and shows its schema + values in the right panel
+- Right-click or hover → "Rename", "Delete", "Duplicate" menu
 
 **Connectors** (bottom) — `Pack.importedConnectors`.
-- Chaque entrée : icône 🔌, le `ref` (e.g., `chestshop:items`)
-- Bouton "+ Importer" → workflow d'import (cf. section 3.3)
-- Click une entrée → panneau droit en mode read-only, montre le schema + sample. L'admin ne peut pas éditer (ça vient du plugin), mais peut copier le `ref`.
+- Each entry: 🔌 icon, the `ref` (e.g., `chestshop:items`)
+- "+ Import" button → import workflow (see section 3.3)
+- Click an entry → right panel in read-only mode, shows the schema + sample. The admin cannot edit it (it comes from the plugin), but can copy the `ref`.
 
-### 2.4 Édition du schema (inline, en haut du panneau droit)
+### 2.4 Schema editing (inline, at the top of the right panel)
 
-Le schema d'une DataSource est éditable en permanence en haut du panneau, pas caché derrière une modale. Builder récursif :
+The schema of a DataSource is always editable at the top of the panel, not hidden behind a modal. Recursive builder:
 
-- Type racine = dropdown : `string` / `number` / `integer` / `boolean` / `list of...` / `object with...`
-- "list of" → panneau enfant avec un dropdown récursif pour le type d'item
-- "object with" → liste de paires `(name, type)` éditables, drag-handle pour réordonner. Chaque type est récursif (peut être primitive, list, ou object).
+- Root type = dropdown: `string` / `number` / `integer` / `boolean` / `list of...` / `object with...`
+- "list of" → child panel with a recursive dropdown for the item type
+- "object with" → list of editable `(name, type)` pairs, drag handle to reorder. Each type is recursive (can be primitive, list, or object).
 
-Exemple visuel pour un `list of object` à 2 niveaux :
+Visual example for a 2-level `list of object`:
 
 ```
 Schema:
-  Liste de
-    Objet avec
+  List of
+    Object with
       ├ name      [string ▾]                       [×]
       ├ gold      [number ▾]                       [×]
       ├ tags      [list of [string ▾]]             [×]
       └ + Add field
 ```
 
-### 2.5 Modifications destructives du schema
+### 2.5 Destructive schema changes
 
-Changer un type de `string → number`, retirer un field, etc. peut casser des `value`s existantes ou des références dans des templates. L'éditeur warn par modale :
+Changing a type from `string → number`, removing a field, etc. can break existing `value`s or references in templates. The editor warns with a modal:
 
 > Schema change will reset 3 values incompatible with the new type. Continue?
 
-Si confirmé, l'éditeur coerce les valeurs compatibles, drop les autres. Les templates qui pointaient vers le field supprimé deviennent invalides au panel Issues (pas de cascade automatique sur les templates ; trop magique).
+If confirmed, the editor coerces compatible values and drops the others. Templates that pointed to the removed field become invalid in the Issues panel (no automatic cascade on templates; too magic).
 
-### 2.6 Édition des valeurs (inline, sous le schema)
+### 2.6 Value editing (inline, below the schema)
 
-Driven by le schema résolu :
+Driven by the resolved schema:
 
-- **Liste de primitive** : input par item, chaque item dans une row, drag-handle pour réordonner, "+ Add" en bas.
-- **Liste de objet** : tableau (rows = items, cols = fields). Cliquer sur une cell → input typé selon le field. "+ Add row" en bas, "× delete row" inline.
-- **Objet** : form layout (un input par field).
-- **Nesting** : un field "list" devient un sous-tableau inline (collapsable). Un field "object" devient un sous-form. Récursif.
+- **List of primitive**: one input per item, each item in a row, drag handle to reorder, "+ Add" at the bottom.
+- **List of object**: table (rows = items, cols = fields). Clicking a cell → input typed by the field. "+ Add row" at the bottom, inline "× delete row".
+- **Object**: form layout (one input per field).
+- **Nesting**: a "list" field becomes an inline sub-table (collapsible). An "object" field becomes a sub-form. Recursive.
 
-L'éditeur valide les valeurs contre le schema en live ; cells invalides ont un border rouge + message inline.
+The editor validates values against the schema live; invalid cells get a red border + inline message.
 
-### 2.7 Référencement depuis un menu
+### 2.7 Referencing from a menu
 
-Dans le `ContextInputsEditor` du `MenuProperties` panel, l'admin clique "+ Add input" et choisit :
+In the `ContextInputsEditor` of the `MenuProperties` panel, the admin clicks "+ Add input" and chooses:
 
 ```
 + Add input
@@ -241,19 +241,19 @@ Dans le `ContextInputsEditor` du `MenuProperties` panel, l'admin clique "+ Add i
   [ Add ]  [ Cancel ]
 ```
 
-- "Primitive" → comme aujourd'hui (name + type + optional default)
-- "Pack data source" → dropdown listant `pack.dataSources[*]` par id+name
-- "Connector" → dropdown listant `pack.importedConnectors[*]` par ref
+- "Primitive" → as today (name + type + optional default)
+- "Pack data source" → dropdown listing `pack.dataSources[*]` by id+name
+- "Connector" → dropdown listing `pack.importedConnectors[*]` by ref
 
-Sélectionner une source pré-remplit le `name` du ContextInput avec un défault sensé (genre l'id de la source). L'admin peut renommer (le `name` est l'identifier interne au menu pour le placeholder `{name}`).
+Selecting a source pre-fills the ContextInput's `name` with a sensible default (such as the source's id). The admin can rename it (`name` is the identifier internal to the menu for the `{name}` placeholder).
 
-Le dropdown affiche le schema résolu en hover (genre `[list of {name: string, gold: number}]`) pour confirmation.
+The dropdown shows the resolved schema on hover (such as `[list of {name: string, gold: number}]`) for confirmation.
 
-## 3. Connecteurs
+## 3. Connectors
 
-### 3.1 Format YAML
+### 3.1 YAML format
 
-Un fichier par connecteur dans `plugins/Artisan/connectors/<plugin>-<source>.yaml` :
+One file per connector in `plugins/Artisan/connectors/<plugin>-<source>.yaml`:
 
 ```yaml
 ref: chestshop:items
@@ -273,115 +273,115 @@ sample:
   - { id: bread, name: "Pain", material: BREAD, price: 5, tags: [food] }
 ```
 
-Le `schema` mirror exactement la `FieldType` récursive du domain. Le `sample` est validé contre le schema au parse.
+The `schema` mirrors the domain's recursive `FieldType` exactly. The `sample` is validated against the schema at parse time.
 
-### 3.2 Génération côté Java plugin
+### 3.2 Generation on the Java plugin side
 
-Au boot, le plugin Artisan :
-1. Récupère sa liste de connecteurs enregistrés (registre interne en V1, plus `registerDataSource` API en V2+ pour plugins tiers)
-2. Pour chacun, demande à son auteur le schema + sample (Java methods sur `Connector`)
-3. Sérialise en YAML dans `plugins/Artisan/connectors/`
+At boot, the Artisan plugin:
+1. Gets its list of registered connectors (internal registry in V1, plus a `registerDataSource` API in V2+ for third-party plugins)
+2. For each one, asks its author for the schema + sample (Java methods on `Connector`)
+3. Serializes to YAML in `plugins/Artisan/connectors/`
 
-L'API Java précise (interfaces, méthodes) est **hors scope du présent spec**. Couvert dans la spec Java plugin séparée.
+The exact Java API (interfaces, methods) is **out of scope of this spec**. Covered in the separate Java plugin spec.
 
-### 3.3 Import workflow côté éditeur
+### 3.3 Import workflow on the editor side
 
-#### Plan paid (WebSocket connecté)
+#### Paid plan (WebSocket connected)
 
-À la connexion serveur, le plugin push un message `connectors-update` contenant la liste des YAMLs. L'éditeur les parse et merge dans `pack.importedConnectors[]`. Si un connecteur existait déjà (par `ref`), update remplace.
+On server connection, the plugin pushes a `connectors-update` message containing the list of YAMLs. The editor parses them and merges into `pack.importedConnectors[]`. If a connector already existed (by `ref`), the update replaces it.
 
-#### Plan free
+#### Free plan
 
-Bouton "📥 Importer connecteurs" dans la sidebar gauche de la page Data sources. Click → file picker système, multi-select de `.yaml`. Chaque fichier :
-- Parsed → ConnectorSpec validé
-- Si OK → ajouté à `pack.importedConnectors[]` (replace by ref si existant)
-- Si erreur → toast d'erreur, fichier ignoré, autres processés normalement
+"📥 Import connectors" button in the left sidebar of the Data sources page. Click → system file picker, multi-select of `.yaml`. Each file:
+- Parsed → validated ConnectorSpec
+- If OK → added to `pack.importedConnectors[]` (replace by ref if existing)
+- If error → error toast, file ignored, others processed normally
 
-Bouton "Re-importer" et "Supprimer ce connecteur" sur chaque entrée importée (hover overlay).
+"Re-import" and "Delete this connector" buttons on each imported entry (hover overlay).
 
-### 3.4 Stockage avec le pack
+### 3.4 Storage with the pack
 
-Les `ConnectorSpec` importés vivent dans `pack.importedConnectors[]` — donc shippés avec le pack lors d'un export. Un pack importé chez quelqu'un d'autre (Discord, marketplace V2) arrive avec ses connecteurs déjà préemballés. Pas besoin que le destinataire ait le plugin source pour éditer (juste pour exécuter au runtime).
+Imported `ConnectorSpec`s live in `pack.importedConnectors[]` — so they ship with the pack on export. A pack imported by someone else (Discord, V2 marketplace) arrives with its connectors already bundled. The recipient does not need the source plugin to edit (only to run at runtime).
 
-### 3.5 Résolution d'un sourceRef
+### 3.5 Resolving a sourceRef
 
-Au render preview ou autocomplete, étant donné un `ref: SourceRef` :
+At preview render or autocomplete, given a `ref: SourceRef`:
 
-1. Si `ref` commence par `pack:` → lookup dans `pack.dataSources` par id
-2. Sinon → lookup dans `pack.importedConnectors` par `ref` exact
-3. Sinon → null (input invalide, surfacé au panel Issues)
+1. If `ref` starts with `pack:` → lookup in `pack.dataSources` by id
+2. Otherwise → lookup in `pack.importedConnectors` by exact `ref`
+3. Otherwise → null (invalid input, surfaced in the Issues panel)
 
 ## 4. Migration
 
-**Aucune migration**. Les packs existants au moment du déploiement de C1 verront :
-- `Menu.sampleContext` dropped silencieusement par l'immer producer (le champ disparaît du schéma TS, donc pas préservé)
-- Les `ContextInput` existants avec `type: "list"` ou `type: "object"` deviennent invalides selon le nouveau modèle (le union discriminé ne permet pas ces types pour `kind: "primitive"`). TypeScript catch ça à la compilation des reducers.
-- Les `ContextInput` existants avec `source: ConnectorBinding` deviennent aussi invalides (le champ source disparaît du primitive, et il faut migrer vers `kind: "sourceRef"`).
+**No migration**. Packs existing when C1 is deployed will see:
+- `Menu.sampleContext` silently dropped by the immer producer (the field disappears from the TS schema, so it is not preserved)
+- Existing `ContextInput`s with `type: "list"` or `type: "object"` become invalid under the new model (the discriminated union does not allow these types for `kind: "primitive"`). TypeScript catches this when compiling the reducers.
+- Existing `ContextInput`s with `source: ConnectorBinding` also become invalid (the source field disappears from the primitive, and they must migrate to `kind: "sourceRef"`).
 
-Acceptable parce que :
-- Pré-launch : iban est le seul admin avec des packs réels
-- Les packs de tests/exemples seront mis à jour à la main si besoin
-- Une approche "soft-fail" (les inputs invalides apparaissent comme tels au panneau Issues, runtime no-op) protège des crashs
+Acceptable because:
+- Pre-launch: iban is the only admin with real packs
+- Test/example packs will be updated by hand if needed
+- A "soft-fail" approach (invalid inputs show up as such in the Issues panel, runtime no-op) protects against crashes
 
 ## 5. Out of scope V1
 
-Volontairement reportés :
+Deliberately deferred:
 
-- **WS push de connecteurs depuis le plugin** (V2 — couvre plan paid). C1/C2/C3 ne traitent que l'import manuel.
-- **Live data fetch** côté connecteurs (V2 — quand serveur connecté en plan paid, push de vraies données qui override le sample du YAML).
-- **Multi-iter preview** (déjà différé en B4)
-- **Autocomplete poussé sur les `{alias.field}`** — l'infrastructure type est mise en place par C1, mais le wiring autocomplete UI peut attendre un plan séparé après C2.
-- **Plain-language errors étendus** (déjà adressés en B5 pour parse errors ; type errors sur les sourceRefs sont à venir)
-- **Field rename cascade** : si l'admin renomme un field d'une DataSource, les templates qui pointent vers `{quest.<oldname>}` ne sont pas auto-renommés. Trop magique. L'éditeur les signale au panel Issues.
+- **WS push of connectors from the plugin** (V2 — covers paid plan). C1/C2/C3 only handle manual import.
+- **Live data fetch** on the connector side (V2 — when the server is connected on the paid plan, push of real data that overrides the YAML sample).
+- **Multi-iter preview** (already deferred in B4)
+- **Advanced autocomplete on `{alias.field}`** — the type infrastructure is put in place by C1, but the autocomplete UI wiring can wait for a separate plan after C2.
+- **Extended plain-language errors** (already addressed in B5 for parse errors; type errors on sourceRefs are still to come)
+- **Field rename cascade**: if the admin renames a field of a DataSource, templates that point to `{quest.<oldname>}` are not auto-renamed. Too magic. The editor flags them in the Issues panel.
 
-## 6. Découpage en 3 specs
+## 6. Split into 3 specs
 
-Vu l'ampleur, le travail s'éclate en 3 plans d'implémentation séquentiels avec parallélisme entre C2 et C3 :
+Given the scope, the work breaks into 3 sequential implementation plans with parallelism between C2 and C3:
 
 ### Spec C1 — Domain refactor
 
-**Scope** :
-- Refactor des types : `FieldType`, `DataSource`, `ConnectorSpec`, `ContextInput` union discriminée, `Pack.dataSources`, `Pack.importedConnectors`
+**Scope**:
+- Refactor the types: `FieldType`, `DataSource`, `ConnectorSpec`, `ContextInput` discriminated union, `Pack.dataSources`, `Pack.importedConnectors`
 - Drop `Menu.sampleContext`
-- Update les reducers immer : addPackDataSource, removePackDataSource, etc.
-- Update `walkActions`, `placeholders.ts`, etc. pour pointer vers le nouveau modèle
-- Casse les packs existants (assumed OK)
+- Update the immer reducers: addPackDataSource, removePackDataSource, etc.
+- Update `walkActions`, `placeholders.ts`, etc. to point to the new model
+- Breaks existing packs (assumed OK)
 
-**Dépendances** : aucune
+**Dependencies**: none
 
-**Estimation** : medium — beaucoup de refactor mais pas de UI new
+**Estimate**: medium — lots of refactoring but no new UI
 
 ### Spec C2 — Data sources page
 
-**Scope** :
-- Nouvelle page `/pack/$packId/data` (route TanStack)
-- Composant `DataSourcesPage` avec layout 2-column
-- Sidebar gauche : sources admin-made + section connecteurs imported (read-only display)
-- Panneau droit : `<DataSourceEditor>` avec schema editor inline + value editor récursif
-- Bouton trigger dans le top-bar du pack
+**Scope**:
+- New page `/pack/$packId/data` (TanStack route)
+- `DataSourcesPage` component with 2-column layout
+- Left sidebar: admin-made sources + imported connectors section (read-only display)
+- Right panel: `<DataSourceEditor>` with inline schema editor + recursive value editor
+- Trigger button in the pack's top bar
 - i18n keys
 
-**Dépendances** : Spec C1
+**Dependencies**: Spec C1
 
 ### Spec C3 — Connector import workflow
 
-**Scope** :
-- Bouton "Importer connecteurs" dans la sidebar de la page Data sources
-- File picker → parser YAML → ConnectorSpec
-- Validation du schema + sample contre `FieldType`
-- Stockage dans `pack.importedConnectors`
-- Toasts pour succès/erreur par fichier
-- Boutons re-import / delete par connecteur importé
+**Scope**:
+- "Import connectors" button in the sidebar of the Data sources page
+- File picker → YAML parser → ConnectorSpec
+- Validation of the schema + sample against `FieldType`
+- Storage in `pack.importedConnectors`
+- Toasts for success/error per file
+- Re-import / delete buttons per imported connector
 
-**Dépendances** : Spec C1 (au moins ContextInput.sourceRef et Pack.importedConnectors). Peut être implémenté en parallèle avec C2.
+**Dependencies**: Spec C1 (at least ContextInput.sourceRef and Pack.importedConnectors). Can be implemented in parallel with C2.
 
-## 7. Glossaire
+## 7. Glossary
 
-| Terme | Sens |
+| Term | Meaning |
 |---|---|
-| **DataSource** | Source de données admin-made, vit dans `pack.dataSources[]`. A un id, name, FieldType (schema), value. Référencée par `ref: "pack:<id>"` depuis les ContextInputs. |
-| **ConnectorSpec** | Spec d'un connecteur de plugin tier. Vit dans `pack.importedConnectors[]`. A un ref (e.g., `chestshop:items`), schema, sample. Vient d'un YAML importé manuellement (plan free) ou pushé via WS (plan paid). |
-| **FieldType** | Type récursif décrivant la shape d'une donnée typée. Discriminé par `kind` (string/number/integer/boolean/list/object). |
-| **ContextInput** | Slot typé qu'un menu déclare et que ses appearances/actions/conditions consomment via `{name}`. Union discriminée par `kind` : `"primitive"` (caller-passed simple) ou `"sourceRef"` (référence vers une source). |
-| **SourceRef** | Référence textuelle vers une source : `"pack:<dataSourceId>"` pour admin-made, `"<plugin>:<source>"` pour connecteur. |
-| **Pack data** | Sources admin-made (DataSource), distinct des Connectors (sourcés depuis Java plugins). |
+| **DataSource** | Admin-made data source, lives in `pack.dataSources[]`. Has an id, name, FieldType (schema), value. Referenced by `ref: "pack:<id>"` from ContextInputs. |
+| **ConnectorSpec** | Spec of a third-party plugin connector. Lives in `pack.importedConnectors[]`. Has a ref (e.g., `chestshop:items`), schema, sample. Comes from a manually imported YAML (free plan) or pushed via WS (paid plan). |
+| **FieldType** | Recursive type describing the shape of typed data. Discriminated by `kind` (string/number/integer/boolean/list/object). |
+| **ContextInput** | Typed slot a menu declares and that its appearances/actions/conditions consume via `{name}`. Discriminated union by `kind`: `"primitive"` (simple caller-passed) or `"sourceRef"` (reference to a source). |
+| **SourceRef** | Text reference to a source: `"pack:<dataSourceId>"` for admin-made, `"<plugin>:<source>"` for connector. |
+| **Pack data** | Admin-made sources (DataSource), distinct from Connectors (sourced from Java plugins). |

@@ -1,109 +1,109 @@
-# Extensibilité modules first-party — design
+# First-party module extensibility — design
 
-**Date** : 2026-06-17
-**Statut** : design validé (brainstorming), prêt pour plan d'implémentation **P1**
-**Portée** : rendre la couture « modules » réellement **porteuse** pour que l'auteur construise ses modules métier (ex. quêtes) dans des **repos séparés** consommant des **SDK versionnés publiés**, réutilisant les composants/styles de base, et **activés par présence** du JAR sur le serveur client.
+**Date**: 2026-06-17
+**Status**: design validated (brainstorming), ready for the **P1** implementation plan
+**Scope**: make the "modules" seam actually **load-bearing** so the author can build their business modules (e.g. quests) in **separate repos** consuming **published versioned SDKs**, reusing the base components/styles, and **activated by presence** of the JAR on the customer server.
 
-> Ce document **fait suite à** et **rend exécutable** `2026-06-15-modules-architecture-design.md`, à la lumière de (1) une clarification produit — le tiers/runtime est explicitement abandonné — et (2) un **audit du code** qui a révélé que la couture éditeur est *déclarée mais inerte*. Il **re-confirme explicitement** la décision « repos séparés » et fige un découpage en 4 phases. Quand l'implémentation démarre (P1), `modules.md` et `api-surface.md` sont mis à jour (discipline doc `CLAUDE.md`).
+> This document **follows** and **makes executable** `2026-06-15-modules-architecture-design.md`, in light of (1) a product clarification — third-party/runtime is explicitly dropped — and (2) a **code audit** that revealed the editor seam is *declared but inert*. It **explicitly re-confirms** the "separate repos" decision and fixes a split into 4 phases. When implementation starts (P1), `modules.md` and `api-surface.md` are updated (`CLAUDE.md` doc discipline).
 
 ---
 
-## 1. Ce qui a changé depuis le 2026-06-15
+## 1. What changed since 2026-06-15
 
-Point de départ : *« l'architecture actuelle couvre-t-elle l'ajout de modules à l'éditeur (ex. quêtes) avec leur propre UI/logique, réutilisant les composants de base, dans leur propre repo, à la WordPress/Azuriom ? »*
+Starting point: *"does the current architecture cover adding modules to the editor (e.g. quests) with their own UI/logic, reusing the base components, in their own repo, WordPress/Azuriom-style?"*
 
-Trois clarifications successives ont cadré la réponse :
+Three successive clarifications framed the answer:
 
-1. **Tiers + runtime → abandonné.** D'abord envisagé (le « vrai WordPress » : n'importe qui publie un module, chargé à chaud sans rebuild). Écarté parce que l'analogie **ne tient pas en SaaS** : WordPress/Azuriom sont auto-hébergés (le plugin tourne chez l'utilisateur, rayon de souffle = son propre site), alors qu'Artisan héberge éditeur + backend — du code tiers y tournerait sur l'infra **mutualisée** de l'auteur. On reste sur la position monopole (`2026-06-15` §2/§14).
-2. **Backend des modules → complet pour le first-party.** La contrainte « backend générique » envisagée ne concernait que la *sûreté du tiers*. Le tiers retiré, les modules de l'auteur sont du **code de confiance** : ils gardent un backend complet sur le SaaS.
-3. **Forme → repos séparés + SDK publié, re-confirmé explicitement.** Le brainstorming a proposé une option plus légère (« seam réel in-repo », sans packages publiés) ; l'auteur a **maintenu** le choix repos-séparés en connaissance de la taxe cross-repo.
+1. **Third parties + runtime → dropped.** First considered (the "real WordPress": anyone publishes a module, hot-loaded without rebuild). Ruled out because the analogy **does not hold in SaaS**: WordPress/Azuriom are self-hosted (the plugin runs at the user's, blast radius = their own site), whereas Artisan hosts editor + backend — third-party code would run there on the author's **shared** infra. We stay on the monopoly position (`2026-06-15` §2/§14).
+2. **Module backend → full for first-party.** The "generic backend" constraint that was considered only concerned *third-party safety*. With third parties removed, the author's modules are **trusted code**: they keep a full backend on the SaaS.
+3. **Shape → separate repos + published SDK, explicitly re-confirmed.** The brainstorming proposed a lighter option ("real in-repo seam", without published packages); the author **kept** the separate-repos choice knowing the cross-repo tax.
 
-## 2. Conséquence sur les décisions antérieures
+## 2. Consequence on earlier decisions
 
-- **`modules.md §13.9`** posait « monorepo Gradle multi-module, **PAS de repos séparés** ». Le `2026-06-15` l'avait renversé sur 3 piliers : hygiène, monétisation, *préparation au tiers*. Aujourd'hui le **tiers tombe**, et la **monétisation est portée par le seul JAR** (séparable en sous-projet/repo sans sortir le code éditeur+backend du repo plateforme — `2026-06-15` §4 : « seul le JAR plugin est distribué »). Il ne reste donc que l'**hygiène** comme justification. L'auteur **maintient néanmoins** le choix repos-séparés : décision **assumée**, pas par défaut. Ce doc l'enregistre comme telle.
-- Le reste du `2026-06-15` **reste la référence** : topologie repos/artefacts (§5), frontières SDK 3 couches (§6), activation par présence (§8), versioning/discipline SDK (§9), dev-loop cross-repo (§10). Ce doc ne le remplace pas — il **comble les trous d'exécution** révélés par l'audit et fixe l'ordre de construction.
+- **`modules.md §13.9`** stated "multi-module Gradle monorepo, **NOT separate repos**". `2026-06-15` had overturned it on 3 pillars: hygiene, monetization, *third-party preparation*. Today **third parties drop**, and **monetization is carried by the JAR alone** (separable into a subproject/repo without taking the editor+backend code out of the platform repo — `2026-06-15` §4: "only the plugin JAR is distributed"). Only **hygiene** is left as a justification. The author **nonetheless keeps** the separate-repos choice: a decision **owned**, not a default. This doc records it as such.
+- The rest of `2026-06-15` **remains the reference**: repos/artifacts topology (§5), 3-layer SDK boundaries (§6), activation by presence (§8), SDK versioning/discipline (§9), cross-repo dev-loop (§10). This doc does not replace it — it **fills the execution gaps** revealed by the audit and fixes the build order.
 
-## 3. Décisions verrouillées (2026-06-17)
+## 3. Locked decisions (2026-06-17)
 
-| Axe | Décision |
+| Axis | Decision |
 |---|---|
-| **Tiers** | Hors-scope (monopole). La couture lazy-`import()` est préservée comme rampe future, **non implémentée**. |
-| **Hosting** | SaaS — éditeur + backend hébergés par l'auteur ; les clients ne font tourner que des **JAR**. |
-| **Distribution** | **Repos séparés** par module métier, consommant des **SDK versionnés publiés** (npm privé + Maven). |
-| **Backend module** | **Complet** (first-party) : routes Hono `/api/v1/{module}` + tables Drizzle + migrations. |
-| **Activation** | **Par présence** du JAR : l'éditeur ne montre que les modules installés sur le serveur courant. |
-| **Module-preuve** | `artisan-quests`. |
+| **Third parties** | Out of scope (monopoly). The lazy-`import()` seam is preserved as a future ramp, **not implemented**. |
+| **Hosting** | SaaS — editor + backend hosted by the author; customers only run **JARs**. |
+| **Distribution** | **Separate repos** per business module, consuming **published versioned SDKs** (private npm + Maven). |
+| **Module backend** | **Full** (first-party): Hono routes `/api/v1/{module}` + Drizzle tables + migrations. |
+| **Activation** | **By presence** of the JAR: the editor only shows the modules installed on the current server. |
+| **Proof module** | `artisan-quests`. |
 
-## 4. La surface à construire (audit du code, 2026-06-17)
+## 4. The surface to build (code audit, 2026-06-17)
 
-État **réel** constaté dans le code — au-delà de ce que le `2026-06-15` liste comme « déjà là » :
+**Real** state found in the code — beyond what `2026-06-15` lists as "already there":
 
-| Trou | Constat dans le code | À construire |
+| Gap | Finding in the code | To build |
 |---|---|---|
-| **Barrel SDK = contrat seul** | `editor/src/sdk/index.ts` n'exporte que `FrontendModule` + registre + eventBus | y faire entrer les **primitives de base** ; définir une **surface publique délibérée** |
-| **Seam éditeur inerte** | `FrontendModule.routes`/`.sidebar` consommés **nulle part** en prod ; `listModules()` n'est qu'un guard dans `main.tsx` ; routage 100 % file-based TanStack ; nav codée à la main | routes + nav **réellement pilotées par module** |
-| **Présence non lue (éditeur)** | `server_modules` est persisté côté backend (`schema.ts`, `hub.ts`, `protocol.ts`, `editorSession.ts`), mais `main.tsx` monte **tout** inconditionnellement | endpoint de lecture + **montage conditionnel** |
-| **Pas d'intégrateur** | aucun `distribution/modules.manifest.ts` ; `main.tsx` importe `menus`/`commands` **en dur** | manifeste + assemblage + lazy `import()` |
-| **SDK non publiés** | `@artisan/editor-sdk` / `@artisan/backend-sdk` = **alias tsconfig** internes ; pas de packages | publish **GitHub Packages** (npm privé) + Maven (`:api`) |
+| **SDK barrel = contract only** | `editor/src/sdk/index.ts` only exports `FrontendModule` + registry + eventBus | bring the **base primitives** in; define a **deliberate public surface** |
+| **Inert editor seam** | `FrontendModule.routes`/`.sidebar` consumed **nowhere** in prod; `listModules()` is only a guard in `main.tsx`; 100% file-based TanStack routing; hand-coded nav | routes + nav **actually module-driven** |
+| **Presence not read (editor)** | `server_modules` is persisted on the backend side (`schema.ts`, `hub.ts`, `protocol.ts`, `editorSession.ts`), but `main.tsx` mounts **everything** unconditionally | read endpoint + **conditional mounting** |
+| **No integrator** | no `distribution/modules.manifest.ts`; `main.tsx` imports `menus`/`commands` **hard-coded** | manifest + assembly + lazy `import()` |
+| **SDKs not published** | `@artisan/editor-sdk` / `@artisan/backend-sdk` = internal **tsconfig aliases**; no packages | publish to **GitHub Packages** (private npm) + Maven (`:api`) |
 
-> Asymétrie à noter : le **backend est déjà plus avancé** — `mountModules(app, [menusModule, commandsModule, assistantModule])` (`backend/src/app.ts:62`) monte réellement les routers Hono des modules ; le seam backend est **déjà porteur**. Le gros du travail « rendre porteur » est **côté éditeur**.
+> Asymmetry to note: the **backend is already more advanced** — `mountModules(app, [menusModule, commandsModule, assistantModule])` (`backend/src/app.ts:62`) actually mounts the modules' Hono routers; the backend seam is **already load-bearing**. Most of the "make it load-bearing" work is **on the editor side**.
 
-### Précisions de l'audit de code (2026-06-17)
+### Code audit clarifications (2026-06-17)
 
-Avant de rédiger les plans, un audit des 3 couches a affiné le tableau ci-dessus :
+Before drafting the plans, an audit of the 3 layers refined the table above:
 
-- **Le pipe de présence existe déjà de bout en bout.** Le plugin envoie `installed_modules` au `hello` (`WsClient.kt`), le backend `persistServerModules` (upsert + prune par `server_key`, `hub.ts`), et **l'endpoint de lecture éditeur existe et est testé** : `GET /api/v1/editor-session/:token/modules` (`editorSession.ts`). Le trou « présence » se réduit donc à : (a) l'éditeur ne **consomme** pas l'endpoint, (b) `installed_modules` est sourcé de la liste **hardcodée** `defaultModules()`, pas d'un enregistrement runtime.
-- **Le seam plugin est plus profond que §4 ne le laissait croire.** Aucun moyen aujourd'hui pour un JAR séparé d'enregistrer un module : pas d'interface `ArtisanCorePlugin`, pas de `ModuleRegistry`, pas de `register()`/`isCompatibleWith()`, et `ArtisanAPI` **back-référence** la classe interne `ArtisanPlugin` (donc `api/` ne compile pas seul). C'est l'essentiel de **P1a**.
-- **Conséquence : P1 est découpé en 3 sous-plans** (P1a plugin / P1b éditeur / P1c intégration cross-repo), chacun testable seul. Ordre retenu : **P1b en premier** (preuve la plus directe de l'objectif, va E2E seule grâce au pipe présence déjà en place). Plan : `docs/superpowers/plans/2026-06-17-p1b-editor-module-seam.md`.
+- **The presence pipe already exists end to end.** The plugin sends `installed_modules` at `hello` (`WsClient.kt`), the backend `persistServerModules` (upsert + prune per `server_key`, `hub.ts`), and **the editor read endpoint exists and is tested**: `GET /api/v1/editor-session/:token/modules` (`editorSession.ts`). The "presence" gap therefore reduces to: (a) the editor does not **consume** the endpoint, (b) `installed_modules` is sourced from the **hardcoded** `defaultModules()` list, not from a runtime registration.
+- **The plugin seam is deeper than §4 made it seem.** No way today for a separate JAR to register a module: no `ArtisanCorePlugin` interface, no `ModuleRegistry`, no `register()`/`isCompatibleWith()`, and `ArtisanAPI` **back-references** the internal `ArtisanPlugin` class (so `api/` does not compile on its own). This is the bulk of **P1a**.
+- **Consequence: P1 is split into 3 sub-plans** (P1a plugin / P1b editor / P1c cross-repo integration), each testable on its own. Chosen order: **P1b first** (most direct proof of the goal, goes E2E alone thanks to the presence pipe already in place). Plan: `docs/superpowers/plans/2026-06-17-p1b-editor-module-seam.md`.
 
-## 5. Découpage en 4 phases
+## 5. Split into 4 phases
 
-Trop gros pour un seul plan → **4 sous-projets, 1 plan d'implémentation chacun**.
+Too big for a single plan → **4 sub-projects, 1 implementation plan each**.
 
-**Ordre = tracer-bullet** (prouver le pipe cross-repo *mince mais bout-en-bout* avant d'investir des semaines), et non « machinery-first ». Motivation : le plus gros risque/inconnue est que la chaîne **publish → consume → assemble → présence-gate → JAR** fonctionne *du tout* sous Windows (question ouverte de `2026-06-15` §10/§13.9). On le dé-risque par construction.
+**Order = tracer-bullet** (prove the *thin but end-to-end* cross-repo pipe before investing weeks), and not "machinery-first". Motivation: the biggest risk/unknown is whether the **publish → consume → assemble → presence-gate → JAR** chain works *at all* under Windows (open question of `2026-06-15` §10/§13.9). We de-risk it by construction.
 
-### P1 — Tracer bullet cross-repo
-**But** : prouver que la frontière repo-séparé fonctionne E2E **avant tout investissement de surface**.
-- SDK **minimal** publié (contrat `FrontendModule` + 1-2 composants de base, ex. `Button`) sur le registry privé.
-- Repo **squelette** `artisan-quests` consommant le SDK **versionné**, exposant *un* écran trivial via `@artisan/quests-editor`.
-- Intégrateur + `distribution/modules.manifest.ts` **minimal** ; `main.tsx`/`app.ts` assemblent **depuis le manifeste** (fin des imports en dur).
-- Présence-gating E2E : JAR quêtes squelette `depend:[Artisan]` s'annonce au `hello` → `server_modules` → l'éditeur **monte l'écran**.
-- Dev-loop validé **sous Windows** : `npm link`/`file:` (JS) + Gradle **composite build** `includeBuild("../artisan-core")` (JVM).
+### P1 — Cross-repo tracer bullet
+**Goal**: prove that the separate-repo boundary works E2E **before any surface investment**.
+- **Minimal** published SDK (`FrontendModule` contract + 1-2 base components, e.g. `Button`) on the private registry.
+- **Skeleton** `artisan-quests` repo consuming the **versioned** SDK, exposing *one* trivial screen via `@artisan/quests-editor`.
+- **Minimal** integrator + `distribution/modules.manifest.ts`; `main.tsx`/`app.ts` assemble **from the manifest** (end of hard-coded imports).
+- E2E presence-gating: skeleton quests JAR `depend:[Artisan]` announces itself at `hello` → `server_modules` → the editor **mounts the screen**.
+- Dev-loop validated **under Windows**: `npm link`/`file:` (JS) + Gradle **composite build** `includeBuild("../artisan-core")` (JVM).
 
-**Critère de sortie** : sur un serveur où le JAR quêtes squelette est **présent**, ouvrir l'éditeur affiche l'écran trivial servi par `@artisan/quests-editor` ; **absent** → l'entrée est cachée. Le tout sans rebuild manuel du repo plateforme pour intégrer le module.
+**Exit criterion**: on a server where the skeleton quests JAR is **present**, opening the editor shows the trivial screen served by `@artisan/quests-editor`; **absent** → the entry is hidden. All without a manual rebuild of the platform repo to integrate the module.
 
-### P2 — Fatten le SDK éditeur
-**But** : un module peut composer une UI au **look natif** sans deep-import.
-- Définir la **surface publique éditeur** : design system (`components/ui/*` + tokens), `<SchemaForm>` + widgets, rendu MiniMessage, catalogue de placeholders, plomberie i18n, client API de base, types domaine partagés.
-- Étendre le marquage `@Stable`/`@Internal` (aujourd'hui JVM-only) au **SDK JS** ; étendre `docs/architecture/api-surface.md` aux packages npm.
-- **Dogfood** : `menus`/`commands` ne consomment **que** le barrel.
+### P2 — Fatten the editor SDK
+**Goal**: a module can compose a **native-looking** UI without deep-imports.
+- Define the **editor public surface**: design system (`components/ui/*` + tokens), `<SchemaForm>` + widgets, MiniMessage rendering, placeholder catalog, i18n plumbing, base API client, shared domain types.
+- Extend the `@Stable`/`@Internal` marking (today JVM-only) to the **JS SDK**; extend `docs/architecture/api-surface.md` to the npm packages.
+- **Dogfood**: `menus`/`commands` consume **only** the barrel.
 
-**Critère de sortie** : `artisan-quests` construit un écran non-trivial (formulaire généré + composants) en n'important **que** depuis `@artisan/editor-sdk`.
+**Exit criterion**: `artisan-quests` builds a non-trivial screen (generated form + components) importing **only** from `@artisan/editor-sdk`.
 
-### P3 — Seam éditeur porteur + backend SDK complet
-**But** : un module livre **routes + nav + backend** complets via les seuls SDK.
-- **Routes** pilotées par `FrontendModule.routes` — réconcilier avec le routage file-based TanStack (deux pistes : un **catch-all par module** délégant au composant racine du module, ou des **routes code-based fusionnées par l'intégrateur** ; tranché dans le plan P3).
-- **Nav/sidebar** rendue depuis `listModules()` **filtré par présence**.
-- **Backend SDK** : surface publique délibérée — `BackendModule`, `mountModules`, auth (`validateAccessToken` / résolution `server_key`), accès hub WS, schema registry, et un **mécanisme d'enregistrement des migrations** du module (appliquées par l'intégrateur au boot).
-- **Dogfood backend** : `assistant`/`menus`/`commands` via le barrel.
+### P3 — Load-bearing editor seam + full backend SDK
+**Goal**: a module delivers full **routes + nav + backend** via the SDKs alone.
+- **Routes** driven by `FrontendModule.routes` — reconcile with TanStack file-based routing (two tracks: a **per-module catch-all** delegating to the module's root component, or **code-based routes merged by the integrator**; decided in the P3 plan).
+- **Nav/sidebar** rendered from `listModules()` **filtered by presence**.
+- **Backend SDK**: deliberate public surface — `BackendModule`, `mountModules`, auth (`validateAccessToken` / `server_key` resolution), WS hub access, schema registry, and a **migration registration mechanism** for the module (applied by the integrator at boot).
+- **Backend dogfood**: `assistant`/`menus`/`commands` via the barrel.
 
-**Critère de sortie** : un module en repo séparé contribue une route, une entrée de nav présence-gatée, et des endpoints `/api/v1/{module}` + une migration, sans toucher au repo plateforme.
+**Exit criterion**: a module in a separate repo contributes a route, a presence-gated nav entry, and `/api/v1/{module}` endpoints + a migration, without touching the platform repo.
 
-### P4 — Vrai module quêtes
-**But** : le **dogfood** qui prouve que la frontière tient au split complet.
-- `artisan-quests` étoffé en module **3 couches complètes** : éditeur bespoke (graph/timeline des chaînes de quêtes), backend (routes + tables + migrations), plugin runtime (objectives/rewards, data sources/commands).
-- Activation présence E2E ; build de la **distribution** hébergée incluant quêtes ; JAR sur le pattern `depend:[Artisan]` + check `isCompatibleWith(MIN_CORE_API_VERSION)`.
+### P4 — Real quests module
+**Goal**: the **dogfood** that proves the boundary holds at full split.
+- `artisan-quests` fleshed out into a **full 3-layer** module: bespoke editor (graph/timeline of quest chains), backend (routes + tables + migrations), plugin runtime (objectives/rewards, data sources/commands).
+- E2E presence activation; build of the hosted **distribution** including quests; JAR on the `depend:[Artisan]` pattern + `isCompatibleWith(MIN_CORE_API_VERSION)` check.
 
-**Critère de sortie** : un admin qui installe le JAR quêtes voit et édite un module quêtes complet ; le code éditeur/backend/plugin de quêtes vit **entièrement** dans `artisan-quests`, consommant uniquement les SDK versionnés.
+**Exit criterion**: an admin who installs the quests JAR sees and edits a full quests module; the quests editor/backend/plugin code lives **entirely** in `artisan-quests`, consuming only the versioned SDKs.
 
-## 6. Risques & questions ouvertes
+## 6. Risks & open questions
 
-- **Dev-loop cross-repo sous Windows** (Gradle composite + `npm link`) — **dé-risqué en P1 par construction** (c'est l'objet du tracer-bullet).
-- **Réconciliation routes module ↔ TanStack file-based** — tranchée dans le plan P3 (deux pistes ci-dessus).
-- **Migrations DB de modules en multi-tenant** (ordre d'application, isolation par network, rollback) — mécanisme défini en P3, exposé dans `@artisan/backend-sdk`.
-- **Registry privé** : GitHub Packages (défaut, `2026-06-15` §13) vs Verdaccio self-hosted — tranché en P1.
-- **Surface SDK trop large** → bumps cross-repo fréquents — mitigation : dogfooding (P2/P3) + `@Internal` agressif + revue de surface.
+- **Cross-repo dev-loop under Windows** (Gradle composite + `npm link`) — **de-risked in P1 by construction** (it is the object of the tracer bullet).
+- **Module routes ↔ TanStack file-based reconciliation** — decided in the P3 plan (two tracks above).
+- **Module DB migrations in multi-tenant** (application order, isolation per network, rollback) — mechanism defined in P3, exposed in `@artisan/backend-sdk`.
+- **Private registry**: GitHub Packages (default, `2026-06-15` §13) vs self-hosted Verdaccio — decided in P1.
+- **SDK surface too wide** → frequent cross-repo bumps — mitigation: dogfooding (P2/P3) + aggressive `@Internal` + surface review.
 
-## 7. Hors-scope (inchangé)
+## 7. Out of scope (unchanged)
 
-- Modules **tiers** (devs externes), **federation runtime**, **licensing/billing** (différés), **self-host client** de l'éditeur/backend. La couture lazy-`import()` (P1/P3) **prépare** la federation runtime mais ne l'implémente pas.
+- **Third-party** modules (external devs), **runtime federation**, **licensing/billing** (deferred), **customer self-host** of the editor/backend. The lazy-`import()` seam (P1/P3) **prepares** runtime federation but does not implement it.

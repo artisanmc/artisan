@@ -1,73 +1,75 @@
-# Vues de module chargées à l'exécution — le jar porte sa vue
+# Module views loaded at runtime — the jar carries its view
 
-**Statut :** accepté (2026-10-17). Lot L5 d'ArtisanQuests, partie Artisan (niveau 3 de
+**Status:** accepted (2026-10-17). Batch L5 of ArtisanQuests, Artisan part (level 3 of
 `auto-hebergement.md` §10).
 
-## Contexte
+## Context
 
-Jusqu'ici la vue éditeur d'un module (`FrontendModule`) était compilée dans l'éditeur, donc
-livrée par le jar du socle : une correction de la vue des quêtes demandait une release
-d'Artisan, et un serveur dont le plugin de quêtes est plus récent ou plus ancien que
-l'éditeur affichait une vue qui ne correspondait pas au plugin. Iban a tranché le
-2026-10-16 : la vue des quêtes est livrée **dans le jar ArtisanQuests**.
+Until now a module's editor view (`FrontendModule`) was compiled into the editor, hence
+shipped by the suite's jar: fixing the quests view required an Artisan release, and a
+server whose quests plugin is newer or older than the editor displayed a view that did
+not match the plugin. Iban decided on 2026-10-16: the quests view is shipped **in the
+ArtisanQuests jar**.
 
-## Décisions
+## Decisions
 
-1. **Le jar déclare son bundle.** `api.getEditorBundles().register(EditorBundleDeclaration
-   .fromResource(loader, "artisan-editor/ui.js", sdk))` (`@Beta`, API 2.3.0) depuis
-   `onEnable`. La Presence l'annonce dans `installed_modules[].editor_bundle`
-   (`{sdk, hash, size}`) ; le hub le sert sur `GET /api/v1/servers/:server/modules/:module/ui.js`,
-   relayé au serveur (`editor_bundle_fetch`, protocole 1.2), vérifié contre le SHA-256
-   annoncé et gardé en mémoire par hash. Détail plugin : `modules.md` §4.6.
-2. **SDK versionné.** `@artisan/editor-sdk` porte `SDK_VERSION` (1.2.0). Même discipline que
-   l'API Java : majeure = un export change de sens ou disparaît, mineure = un ajout. Un bundle
-   est chargé si sa majeure est celle de l'éditeur et sa mineure ≤ celle de l'éditeur ; sinon
-   il est refusé avant téléchargement (`older-editor` : mettre à jour Artisan ;
-   `older-bundle` : mettre à jour le module) et l'éditeur se rabat sur la copie intégrée
-   s'il en a une.
-3. **Pas d'import map, des modules partagés réécrits.** Un bundle est **un seul module ES**.
-   Ses seuls imports autorisés sont `react`, `react-dom`, `react/jsx-runtime` et
-   `@artisan/editor-sdk` (`distribution/sharedModules.ts`) : une seule instance de React et du
-   SDK dans la page, sinon les hooks cassent et le module s'enregistre dans un registre que
-   l'éditeur ne lit pas. Une import map ne peut plus être ajoutée une fois l'éditeur lancé,
-   donc l'éditeur réécrit chaque spécifieur (`es-module-lexer`, build asm.js sans
-   WebAssembly) vers un petit module qui réexporte sa propre instance, puis importe le
-   bundle depuis une URL `blob:`. Tout autre import (chunk relatif, paquet non partagé) est
-   refusé. *Rejeté :* import map dynamique (pas supportée partout), iframe isolée (le JS
-   d'un module n'a pas plus de pouvoir que son jar, déjà installé par l'admin).
-4. **Le SDK expose l'hôte, jamais ses internes.** Une vue lit et écrit par le SDK :
-   `useProject`, `useContentLang`, `useUiLang`, `updateDocument` (Document + textes en un
-   seul pas d'annulation), `newTextKey`, `textValue`, `fieldText`, `projectLangs`, `notify`, et depuis 1.1 deux
-   widgets de l'éditeur, `ActionChainEditor` (chaîne d'actions au format du fichier) et
-   `MaterialInput` (palette d'items), rendus par l'hôte (`EditorHost.components`,
-   `distribution/hostComponents.tsx`).
-   L'éditeur installe l'implémentation au démarrage (`lib/editorHost.ts`). Un module porte
-   ses libellés (`createModuleI18n`, `labels` d'un kind par langue) et ses styles
-   (`injectModuleStyles`, classes préfixées, couleurs par `var(--token)`) : un bundle n'a
-   pas été scanné par le Tailwind de l'éditeur, il ne compte que sur les classes du design
-   system (`.btn`, `.input`, `.select`, `.field-label`…).
-5. **Le bundle prime.** `modulesStore.integrate` charge le bundle annoncé (il correspond
-   exactement au plugin installé), sinon l'entrée de `modules.manifest.ts` s'il en existe une
-   (un module compilé dans l'éditeur, comme la boutique) ; un module livré par son jar n'en a
-   pas. L'échec d'un module ne coûte que sa vue. `origins` et `refused`
-   disent d'où vient chaque vue et pourquoi un bundle a été écarté.
-6. **Un kind enregistré après la lecture d'un Project ne perd rien.** La vue arrive avec la
-   Presence, parfois après la lecture du Project : son dossier est alors gardé tel quel
-   dans `moduleData[<dir>].__files` (réexporté à l'identique), puis `adoptLateDocuments`
-   le lit par le codec du kind dès que les modules sont prêts.
-7. **Construire un bundle.** `artisanModuleBundle({ entry })` (`@artisan/editor-sdk/bundle`)
-   donne la config Vite : lib ES, partagés en externes, tout le reste inliné, et la version
-   du SDK de build tamponnée sur l'export par défaut (`sdk`), vérifiée au chargement.
+1. **The jar declares its bundle.** `api.getEditorBundles().register(EditorBundleDeclaration
+   .fromResource(loader, "artisan-editor/ui.js", sdk))` (`@Beta`, API 2.3.0) from
+   `onEnable`. Presence announces it in `installed_modules[].editor_bundle`
+   (`{sdk, hash, size}`); the hub serves it on `GET /api/v1/servers/:server/modules/:module/ui.js`,
+   relayed to the server (`editor_bundle_fetch`, protocol 1.2), checked against the
+   announced SHA-256 and kept in memory by hash. Plugin detail: `modules.md` §4.6.
+2. **Versioned SDK.** `@artisan/editor-sdk` carries `SDK_VERSION` (1.2.0). Same
+   discipline as the Java API: major = an export changes meaning or disappears, minor =
+   an addition. A bundle is loaded if its major is the editor's and its minor ≤ the
+   editor's; otherwise it is refused before download (`older-editor`: update Artisan;
+   `older-bundle`: update the module) and the editor falls back to the built-in copy if
+   it has one.
+3. **No import map, rewritten shared modules.** A bundle is **a single ES module**. Its
+   only allowed imports are `react`, `react-dom`, `react/jsx-runtime` and
+   `@artisan/editor-sdk` (`distribution/sharedModules.ts`): a single instance of React
+   and of the SDK in the page, otherwise hooks break and the module registers in a
+   registry the editor does not read. An import map can no longer be added once the
+   editor has started, so the editor rewrites each specifier (`es-module-lexer`, asm.js
+   build without WebAssembly) to a small module that re-exports its own instance, then
+   imports the bundle from a `blob:` URL. Any other import (relative chunk, unshared
+   package) is refused. *Rejected:* dynamic import map (not supported everywhere),
+   isolated iframe (a module's JS has no more power than its jar, already installed by
+   the admin).
+4. **The SDK exposes the host, never its internals.** A view reads and writes through
+   the SDK: `useProject`, `useContentLang`, `useUiLang`, `updateDocument` (Document +
+   texts in a single undo step), `newTextKey`, `textValue`, `fieldText`, `projectLangs`,
+   `notify`, and since 1.1 two editor widgets, `ActionChainEditor` (action chain in the
+   file format) and `MaterialInput` (item palette), rendered by the host
+   (`EditorHost.components`, `distribution/hostComponents.tsx`).
+   The editor installs the implementation at startup (`lib/editorHost.ts`). A module
+   carries its labels (`createModuleI18n`, a kind's `labels` per language) and its
+   styles (`injectModuleStyles`, prefixed classes, colors through `var(--token)`): a
+   bundle has not been scanned by the editor's Tailwind, it only relies on the design
+   system classes (`.btn`, `.input`, `.select`, `.field-label`…).
+5. **The bundle wins.** `modulesStore.integrate` loads the announced bundle (it matches
+   the installed plugin exactly), otherwise the entry of `modules.manifest.ts` if there
+   is one (a module compiled into the editor, like the shop); a module shipped by its
+   jar has none. A module's failure only costs its view. `origins` and `refused` say
+   where each view comes from and why a bundle was discarded.
+6. **A kind registered after a Project is read loses nothing.** The view arrives with
+   Presence, sometimes after the Project is read: its folder is then kept as is in
+   `moduleData[<dir>].__files` (re-exported identically), then `adoptLateDocuments`
+   reads it through the kind's codec as soon as the modules are ready.
+7. **Building a bundle.** `artisanModuleBundle({ entry })` (`@artisan/editor-sdk/bundle`)
+   gives the Vite config: ES lib, shared modules as externals, everything else inlined,
+   and the build SDK version stamped on the default export (`sdk`), checked at load.
 
-## Conséquences
+## Consequences
 
-- Artisan ne détient pas la vue d'un module livré par son jar : la vue des quêtes (kind
-  `quest_group`, id de Presence `msquests`) vit dans le dépôt MSQuests (`editor/`), qui
-  construit `ui.js` dans les ressources de son jar. Sans bundle servi, l'éditeur n'a pas de
-  vue pour ce module. `modules.manifest.ts` ne garde que les modules compilés dans l'éditeur.
-- Un module hors du dépôt dépend du SDK par son archive (`npm pack` de
-  `editor/packages/editor-sdk`) tant que `@artisan/editor-sdk` n'est pas publié sur npm.
-- Changer `SHARED_MODULES` ou le contrat de `EditorHost` est un changement du SDK : mineure
-  pour un ajout, majeure sinon.
-- Hors périmètre : nœud de groupe contenant ses quêtes sur la planche, compteur d'instances
-  en cours (live), récompenses en chaînes Artisan (L3).
+- Artisan does not own the view of a module shipped by its jar: the quests view (kind
+  `quest_group`, Presence id `msquests`) lives in the MSQuests repository (`editor/`),
+  which builds `ui.js` into its jar's resources. With no bundle served, the editor has
+  no view for that module. `modules.manifest.ts` only keeps the modules compiled into
+  the editor.
+- A module outside the repository depends on the SDK through its archive (`npm pack` of
+  `editor/packages/editor-sdk`) as long as `@artisan/editor-sdk` is not published on npm.
+- Changing `SHARED_MODULES` or the `EditorHost` contract is a change to the SDK: minor
+  for an addition, major otherwise.
+- Out of scope: a group node containing its quests on the board, a counter of running
+  instances (live), rewards as Artisan chains (L3).

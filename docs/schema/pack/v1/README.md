@@ -1,139 +1,139 @@
 # Artisan — Pack schema v1
 
-Format d'un **pack** Artisan : unité d'organisation dans le workspace de l'admin, et format d'export/import partageable. Une archive `.itfz` (zip) avec un manifeste à la racine + menus + templates + commandes + translations + assets référencés.
+Format of an Artisan **pack**: organization unit in the admin's workspace, and shareable export/import format. A `.itfz` archive (zip) with a manifest at the root + menus + templates + commands + translations + referenced assets.
 
-## Vocabulaire à ne pas confondre
+## Vocabulary not to be confused
 
-| Terme | Sens |
+| Term | Meaning |
 |---|---|
-| **Pack** | Unité d'organisation dans le workspace (ex. "mon Shop System", "Daily Quests acheté"). Aussi : format d'export partageable .itfz. |
-| **Bundle** | Artefact runtime signé (config + resource pack) que le plugin télécharge depuis le CDN. Opaque pour l'admin. |
-| **Menu** | Une entité ouvrable via `/menu open`. Vit à l'intérieur d'un pack. |
-| **Command** | Une commande custom enregistrée par Artisan. Vit à l'intérieur d'un pack, au même niveau qu'un menu. |
-| **Template** | Composant nommé réutilisable (façon Symbol Figma). Peut vivre dans un pack ou globalement. |
-| **Asset** | Image custom uploadée. Peut vivre dans un pack ou globalement. |
-| **Translation** | Clé i18n + valeurs par langue. Scoped au workspace mais embarquable dans un pack à l'export (sous-set des clés référencées). |
+| **Pack** | Organization unit in the workspace (e.g. "my Shop System", "Daily Quests purchased"). Also: shareable .itfz export format. |
+| **Bundle** | Signed runtime artifact (config + resource pack) that the plugin downloads from the CDN. Opaque to the admin. |
+| **Menu** | An entity openable via `/menu open`. Lives inside a pack. |
+| **Command** | A custom command registered by Artisan. Lives inside a pack, at the same level as a menu. |
+| **Template** | Named reusable component (Figma Symbol style). Can live in a pack or globally. |
+| **Asset** | Uploaded custom image. Can live in a pack or globally. |
+| **Translation** | i18n key + values per language. Scoped to the workspace but embeddable in a pack on export (subset of the referenced keys). |
 
-## Fichiers
+## Files
 
-| Fichier | Rôle |
+| File | Role |
 |---|---|
-| `schema.json` | JSON Schema Draft 2020-12 du manifeste, validable par machine |
-| `types.ts` | Types TypeScript pour l'éditeur et le futur MCP |
-| `example-manifest.json` | Exemple de manifeste valide |
+| `schema.json` | JSON Schema Draft 2020-12 of the manifest, machine-validatable |
+| `types.ts` | TypeScript types for the editor and the future MCP |
+| `example-manifest.json` | Example of a valid manifest |
 
-## Layout de l'archive .itfz
+## .itfz archive layout
 
 ```
-manifest.json          ← obligatoire, à la racine
+manifest.json          ← required, at the root
 menus/
-  shop_main.json       ← un fichier par menu listé dans manifest.menus
+  shop_main.json       ← one file per menu listed in manifest.menus
   shop_premium.json
 templates/
-  bouton_acheter.json  ← un fichier par template listé dans manifest.templates
+  bouton_acheter.json  ← one file per template listed in manifest.templates
 commands/
-  shop_open.json       ← un fichier par commande listée dans manifest.commands
-translations.json      ← optionnel, conforme à translations/v1, sous-set des clés référencées
+  shop_open.json       ← one file per command listed in manifest.commands
+translations.json      ← optional, conforms to translations/v1, subset of the referenced keys
 assets/
-  shop_bg.png          ← un fichier par asset listé dans manifest.assets
+  shop_bg.png          ← one file per asset listed in manifest.assets
   rank_vip_button.png
-preview.png            ← optionnel, si manifest.preview_image est présent
-README.md              ← optionnel, pour les humains qui ouvrent le zip
+preview.png            ← optional, if manifest.preview_image is present
+README.md              ← optional, for humans who open the zip
 ```
 
-L'archive est un .zip standard avec extension renommée en .itfz pour reconnaissance (mime-type `application/x-artisan-pack`).
+The archive is a standard .zip with its extension renamed to .itfz for recognition (mime-type `application/x-artisan-pack`).
 
-## Workspace : comment les packs vivent côté admin
+## Workspace: how packs live on the admin side
 
-Dans le dashboard, l'admin voit ses packs comme des sections collapsables :
+In the dashboard, the admin sees their packs as collapsible sections:
 
-- **📦 Personal** (auto-créé, `is_default: true`) — pack utilitaire où atterrit tout ce qui n'est pas explicitement assigné.
-- **📦 Shop System** (`source: user_created`) — créé manuellement pour grouper son shop principal + les sous-shops + les templates de boutons d'achat + les commandes `/shop`, `/buy` + les assets shop.
-- **📦 Daily Quests** (`source: imported`, `source_pack_id: creator-x/daily-quests`, version 2.1.0) — acheté/téléchargé.
-- **📦 MCModels Medieval** (`source: imported`) — importé d'un .zip MCModels via l'importer V1.5.
+- **📦 Personal** (auto-created, `is_default: true`) — utility pack where everything not explicitly assigned lands.
+- **📦 Shop System** (`source: user_created`) — created manually to group their main shop + sub-shops + purchase button templates + the `/shop`, `/buy` commands + the shop assets.
+- **📦 Daily Quests** (`source: imported`, `source_pack_id: creator-x/daily-quests`, version 2.1.0) — purchased/downloaded.
+- **📦 MCModels Medieval** (`source: imported`) — imported from an MCModels .zip via the V1.5 importer.
 
-## Modèle d'import : overwrite
+## Import model: overwrite
 
-À la réimport d'un pack qui existe déjà dans le workspace (matché par `source_pack_id`), **on remplace tout son contenu en bloc**. Pas de migration intelligente, pas de three-way merge. Les modifs locales sont perdues.
+When re-importing a pack that already exists in the workspace (matched by `source_pack_id`), **its whole content is replaced in bulk**. No smart migration, no three-way merge. Local changes are lost.
 
-L'admin voit un dialog d'avertissement : *"Ce pack vient de [source]. Le réimport va remplacer son contenu (X menus, Y commandes, Z templates, W traductions, V assets). Pour customiser durablement, utilise plutôt 'Fork' avant de modifier."*
+The admin sees a warning dialog: *"This pack comes from [source]. Re-importing will replace its content (X menus, Y commands, Z templates, W translations, V assets). To customize durably, use 'Fork' before editing."*
 
-## Modèle de fork
+## Fork model
 
-Sur un pack `imported`, le bouton "Fork" duplique le contenu vers un nouveau pack `forked` qui est traité comme `user_created` à toutes fins pratiques : éditable librement, plus jamais écrasé par un réimport. Un pointer `source_pack_id` est conservé en métadonnée pour la traçabilité, mais aucun lien d'upgrade.
+On an `imported` pack, the "Fork" button duplicates the content into a new `forked` pack that is treated as `user_created` for all practical purposes: freely editable, never overwritten by a re-import again. A `source_pack_id` pointer is kept as metadata for traceability, but there is no upgrade link.
 
-Pattern standard (Steam Workshop, Notion templates, Figma communauté). Compris des utilisateurs sans documentation.
+Standard pattern (Steam Workshop, Notion templates, Figma community). Understood by users without documentation.
 
-## Conflits à l'import
+## Import conflicts
 
-Quand on importe, on détecte cinq classes de conflits :
+On import, we detect five classes of conflicts:
 
-**1. Conflit d'id de pack.** Un pack avec ce `manifest.id` existe déjà :
-- Si même `source_pack_id` (réimport) → overwrite après confirmation.
-- Si différent (ou null = pack user-créé localement) → l'admin choisit : renommer le pack importé, ou skip.
+**1. Pack id conflict.** A pack with this `manifest.id` already exists:
+- If same `source_pack_id` (re-import) → overwrite after confirmation.
+- If different (or null = locally user-created pack) → the admin chooses: rename the imported pack, or skip.
 
-**2. Conflit d'id de menu.** Un menu avec un id du pack importé existe déjà ailleurs (rappel : les menus ont un namespace global au sein d'un serveur, pour permettre `/menu open shop_main`) :
-- Dialog : "Le pack contient un menu `shop_main` qui existe déjà dans ton pack X. Renommer en `shop_main_2` ? Skip ce menu ?"
+**2. Menu id conflict.** A menu with an id from the imported pack already exists elsewhere (reminder: menus have a global namespace within a server, to allow `/menu open shop_main`):
+- Dialog: "The pack contains a menu `shop_main` that already exists in your pack X. Rename to `shop_main_2`? Skip this menu?"
 
-**3. Conflit de nom de commande.** Une commande importée a un `name` ou un `alias` qui existe déjà sur le serveur cible (autre commande Artisan, vanilla, ou plugin tiers) :
-- Warning visible mais pas bloquant à l'import. Au publish, l'admin doit renommer ou désactiver la commande conflictuelle.
+**3. Command name conflict.** An imported command has a `name` or an `alias` that already exists on the target server (another Artisan command, vanilla, or third-party plugin):
+- Visible but non-blocking warning at import. At publish, the admin must rename or disable the conflicting command.
 
-**4. Conflit de clés i18n.** Une clé du pack existe déjà dans le workspace cible mais avec une valeur différente :
-- Dialog avec 3 options : *Garder local* (skip la clé importée, peut être surprenant si sémantiquement différent), *Écraser avec l'import* (la valeur locale est remplacée pour tous les usages), *Renommer la clé importée* (auto-prefix avec `pack.id`, les menus/commandes du pack sont rewrités à l'import). Default = renommer.
+**4. i18n key conflict.** A key of the pack already exists in the target workspace but with a different value:
+- Dialog with 3 options: *Keep local* (skip the imported key, may be surprising if semantically different), *Overwrite with the import* (the local value is replaced for all usages), *Rename the imported key* (auto-prefix with `pack.id`, the pack's menus/commands are rewritten on import). Default = rename.
 
-**5. Plugins requis manquants.** L'admin n'a pas LuckPerms installé mais le pack le requiert :
-- Warning visible mais pas bloquant ; les menus et commandes concernés sont importés en draft mais grisés (dégradation gracieuse, comme sec. 12.6 du main-spec).
+**5. Missing required plugins.** The admin does not have LuckPerms installed but the pack requires it:
+- Visible but non-blocking warning; the affected menus and commands are imported as drafts but greyed out (graceful degradation, like sec. 12.6 of the main spec).
 
 ## Cross-pack references — soft boundary
 
-Un menu dans pack A peut référencer un template défini dans pack B sans erreur. L'éditeur affiche un warning *à l'export* du pack A : "Ce pack référence le template `bouton_acheter` qui vit dans le pack B. Inclure pack B dans l'archive ?". Si oui, B est embarqué ; sinon, l'export note la dépendance externe et l'import alerte si B est absent du workspace cible.
+A menu in pack A can reference a template defined in pack B without error. The editor shows a warning *on export* of pack A: "This pack references the template `bouton_acheter` which lives in pack B. Include pack B in the archive?". If yes, B is embedded; otherwise, the export notes the external dependency and the import alerts if B is absent from the target workspace.
 
-Pareil pour une commande dans pack A qui ouvre un menu vivant dans pack B : warning à l'export, possibilité d'embarquer B ou de le déclarer en dépendance externe.
+Same for a command in pack A that opens a menu living in pack B: warning on export, with the option to embed B or declare it as an external dependency.
 
-Pour les **clés i18n**, c'est plus simple : à l'export du pack, on calcule récursivement l'union des clés référencées (`extractI18nRefsDeep`) sur les menus + commandes du pack et on embarque ce sous-set, peu importe leur "appartenance" conceptuelle (les clés vivent au workspace, pas par pack).
+For **i18n keys**, it is simpler: on pack export, we recursively compute the union of the referenced keys (`extractI18nRefsDeep`) over the pack's menus + commands and embed that subset, regardless of their conceptual "ownership" (keys live at the workspace level, not per pack).
 
-C'est plus permissif que des modules stricts et c'est ce que veulent les admins en pratique.
+This is more permissive than strict modules, and it is what admins want in practice.
 
-## Champs du manifeste
+## Manifest fields
 
-Le manifeste suit le schéma `pack/v1` (voir `schema.json`). Champs notables :
+The manifest follows the `pack/v1` schema (see `schema.json`). Notable fields:
 
-- **`id`** : slug stable. Pour V1 (pas encore de marketplace), unique par auteur. Pour V3 marketplace, l'id complet sera namespacé `auteur/pack-id`.
-- **`version`** : semver (`X.Y.Z`). Bump à chaque export pour permettre la détection d'updates.
-- **`requires_plugins`** : calculé automatiquement à l'export depuis l'union des `menu.metadata.uses_plugins` et `command.metadata.uses_plugins`.
-- **`menus`/`templates`/`commands`/`assets`** : listes des ids/chemins inclus. L'import vérifie que chaque fichier référencé est présent dans l'archive.
-- **`translations`** : objet meta décrivant les traductions embarquées (`file`, `key_count`, `languages`). Calculé à l'export.
-- **`preview_image`** : pour la marketplace V3 ; optionnel.
-- **`license`** : SPDX identifier conseillé. Important pour le marketplace pour clarifier les usages dérivés (revente, modification, etc.).
+- **`id`**: stable slug. For V1 (no marketplace yet), unique per author. For the V3 marketplace, the full id will be namespaced `author/pack-id`.
+- **`version`**: semver (`X.Y.Z`). Bumped on each export to allow update detection.
+- **`requires_plugins`**: computed automatically on export from the union of `menu.metadata.uses_plugins` and `command.metadata.uses_plugins`.
+- **`menus`/`templates`/`commands`/`assets`**: lists of the ids/paths included. The import checks that each referenced file is present in the archive.
+- **`translations`**: meta object describing the embedded translations (`file`, `key_count`, `languages`). Computed on export.
+- **`preview_image`**: for the V3 marketplace; optional.
+- **`license`**: SPDX identifier recommended. Important for the marketplace to clarify derivative uses (resale, modification, etc.).
 
-## Validation à l'import
+## Import validation
 
-Le backend doit vérifier, dans cet ordre :
+The backend must check, in this order:
 
-1. Le manifeste parse et matche `pack/v1`.
-2. Tous les fichiers listés (`menus`, `templates`, `commands`, `assets`, `translations.file`) existent dans l'archive.
-3. Chaque menu parse contre `menu/v1` et passe `validateMenuLayout` (voir menu/v1/types.ts).
-4. Chaque template parse contre `template/v1` (à formaliser).
-5. Chaque commande parse contre `command/v1` et passe `validateCommand` (voir command/v1/types.ts). Les `name`/`aliases` sont vérifiés pour conflits avec les commandes registered du serveur cible (warning, pas bloquant à l'import — l'admin résout au publish).
-6. Le fichier translations parse contre `translations/v1` et passe `validateTranslations`. Les conflits de clés sont remontés au dialog d'import (cf. plus haut).
-7. Les assets sont des PNG valides (magic bytes), taille raisonnable, dimensions cohérentes.
-8. Pas de path traversal (`../`) dans les chemins d'assets.
-9. Les plugins requis sont installés sur le serveur cible (warning sinon).
+1. The manifest parses and matches `pack/v1`.
+2. All listed files (`menus`, `templates`, `commands`, `assets`, `translations.file`) exist in the archive.
+3. Each menu parses against `menu/v1` and passes `validateMenuLayout` (see menu/v1/types.ts).
+4. Each template parses against `template/v1` (to be formalized).
+5. Each command parses against `command/v1` and passes `validateCommand` (see command/v1/types.ts). The `name`/`aliases` are checked for conflicts with the target server's registered commands (warning, not blocking at import — the admin resolves at publish).
+6. The translations file parses against `translations/v1` and passes `validateTranslations`. Key conflicts are surfaced in the import dialog (see above).
+7. Assets are valid PNGs (magic bytes), reasonable size, consistent dimensions.
+8. No path traversal (`../`) in asset paths.
+9. Required plugins are installed on the target server (warning otherwise).
 
-## Limitations connues
+## Known limitations
 
-**Pas de signature en V1.** Les packs ne sont pas signés cryptographiquement. Un pack importé pourrait théoriquement avoir été modifié en transit. Acceptable au MVP. La signature ECDSA (cohérente avec les bundles runtime) arrive en V3 marketplace.
+**No signature in V1.** Packs are not cryptographically signed. An imported pack could theoretically have been modified in transit. Acceptable for the MVP. ECDSA signing (consistent with runtime bundles) arrives in the V3 marketplace.
 
-**Pas de cross-pack assets globaux.** Au V1, chaque asset vit dans un seul pack. Pour le partager, on copie. Plus tard (V1.5+) on pourra avoir des assets "user-global" hors de tout pack.
+**No global cross-pack assets.** In V1, each asset lives in a single pack. To share it, we copy. Later (V1.5+) we may have "user-global" assets outside any pack.
 
-**Pas de migrations entre versions de schéma.** Si un pack est en `pack/v1` et qu'on passe à `pack/v2`, le V1 n'est plus importable directement — il faudra écrire une migration explicite (ou re-exporter depuis l'éditeur d'un user qui a une version récente).
+**No migrations between schema versions.** If a pack is in `pack/v1` and we move to `pack/v2`, V1 is no longer directly importable — an explicit migration will have to be written (or re-export from the editor of a user with a recent version).
 
-**Variables env-specific (permissions, currencies, world names).** Pas résolues au schéma — l'admin importe et adapte à la main, ou utilise le wizard "find & replace" V1.5.
+**Env-specific variables (permissions, currencies, world names).** Not resolved at the schema level — the admin imports and adapts by hand, or uses the V1.5 "find & replace" wizard.
 
 ## Roadmap
 
-| Version | Capacité |
+| Version | Capability |
 |---|---|
-| V1 MVP | Workspace organisé en packs (Personal + user-créés). Menus + commandes + translations en première classe. Export/Import d'un menu seul (.menu.json) ou d'une commande seule (.cmd.json) — pas encore de pack export. |
-| V1.5 | Export/Import d'un pack complet (.itfz) avec menus + commandes + templates + translations + assets. Wizard find-&-replace pour les valeurs env-specific. Importer MCModels. |
-| V3 | Marketplace native : signature, pricing, reviews, discovery. |
+| V1 MVP | Workspace organized into packs (Personal + user-created). Menus + commands + translations as first-class. Export/Import of a single menu (.menu.json) or a single command (.cmd.json) — no pack export yet. |
+| V1.5 | Export/Import of a complete pack (.itfz) with menus + commands + templates + translations + assets. Find-&-replace wizard for env-specific values. MCModels importer. |
+| V3 | Native marketplace: signing, pricing, reviews, discovery. |

@@ -57,8 +57,8 @@ vi.mock("@/features/project/useProjectLoader", () => ({
 }));
 function loadedProject() {
   return {
-    // `failed` : Documents que le serveur n'a pas pu charger (ADR
-    // server-disk-only-storage ③). Aucun ici.
+    // `failed`: Documents the server could not load (ADR
+    // server-disk-only-storage ③). None here.
     failed: [],
     project: {
       id: "p1",

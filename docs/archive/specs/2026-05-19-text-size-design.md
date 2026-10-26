@@ -3,19 +3,19 @@
 **Date:** 2026-05-19
 **Status:** Approved (pending review)
 
-## Problème
+## Problem
 
-Les layers `text` et `textarea` du titre de menu se rendent toujours à la taille vanilla (height 8). L'utilisateur veut pouvoir choisir entre plusieurs tailles fixes (petit / normal / gros / etc.) par layer, pour créer des hiérarchies visuelles (titre + sous-titre, headlines, fine-print).
+The `text` and `textarea` layers of the menu title always render at vanilla size (height 8). The user wants to choose between several fixed sizes (small / normal / large / etc.) per layer, to create visual hierarchies (title + subtitle, headlines, fine print).
 
-## Décisions clés
+## Key decisions
 
-- **Champ `size` par layer**, restreint à l'enum `{4, 8, 12, 16, 20, 24, 32}` (multiples de 4). Default = 8 (= vanilla, backward-compat).
-- **Restriction aux multiples de 4** : les autres valeurs interpolent la PNG vanilla et rendent flou. Le set choisi garantit un rendu net.
-- **Bake systématique** d'une matrice `text_y{Y}_h{H}.json` (Y ∈ [-32, 172] × H ∈ {4, 8, 12, 16, 20, 24, 32}) = 1400 fichiers ~700KB JSON. Coût acceptable, code path simple (pas de bake on-demand).
-- **Scope : vanilla text seulement.** Si le layer a un `fontAssetId` (custom font importée), le champ `size` est masqué — la taille d'une custom font est définie par son import.
-- **Pas de migration.** YAML legacy sans `size` → default 8 → comportement actuel inchangé.
+- **`size` field per layer**, restricted to the enum `{4, 8, 12, 16, 20, 24, 32}` (multiples of 4). Default = 8 (= vanilla, backward-compat).
+- **Restriction to multiples of 4**: other values interpolate the vanilla PNG and render blurry. The chosen set guarantees a sharp render.
+- **Systematic bake** of a `text_y{Y}_h{H}.json` matrix (Y ∈ [-32, 172] × H ∈ {4, 8, 12, 16, 20, 24, 32}) = 1400 files ~700KB JSON. Acceptable cost, simple code path (no on-demand bake).
+- **Scope: vanilla text only.** If the layer has a `fontAssetId` (imported custom font), the `size` field is hidden — the size of a custom font is defined by its import.
+- **No migration.** Legacy YAML without `size` → default 8 → current behavior unchanged.
 
-## Schéma `MenuTitleLayer`
+## `MenuTitleLayer` schema
 
 ```ts
 // editor/src/domain/types.ts
@@ -32,19 +32,19 @@ export type TextSize = 4 | 8 | 12 | 16 | 20 | 24 | 32;
     size?: TextSize }   // default 8
 ```
 
-YAML on-wire mirror : `size: 16` (entier). Omis si égal à 8 (default), pour minimiser le diff sur les packs existants.
+On-wire YAML mirror: `size: 16` (integer). Omitted if equal to 8 (default), to minimize the diff on existing packs.
 
 ## Resource pack
 
-### Renommage `text_y{Y}.json` → `text_y{Y}_h{H}.json`
+### Rename `text_y{Y}.json` → `text_y{Y}_h{H}.json`
 
-Aujourd'hui : `backend/src/lib/resourcePackBuilder.ts` bake `text_y{Y}.json` pour Y ∈ [-32, 172] via `buildTextYFontJson(y)` à `backend/src/lib/fontJsonBuilder.ts:103`. Le plugin (`TitleCompiler.kt`) référence `<font:artisan:text_y${clampedY}>`.
+Today: `backend/src/lib/resourcePackBuilder.ts` bakes `text_y{Y}.json` for Y ∈ [-32, 172] via `buildTextYFontJson(y)` at `backend/src/lib/fontJsonBuilder.ts:103`. The plugin (`TitleCompiler.kt`) references `<font:artisan:text_y${clampedY}>`.
 
-Nouveau : `buildTextYFontJson(y, h)` accepte un height. Pour chaque (Y, H) du produit cartésien, émet `text_y{Y}_h{H}.json`. Le plugin référence `<font:artisan:text_y${Y}_h${H}>` avec H=8 par défaut quand le layer n'a pas de `size`.
+New: `buildTextYFontJson(y, h)` accepts a height. For each (Y, H) of the Cartesian product, emits `text_y{Y}_h{H}.json`. The plugin references `<font:artisan:text_y${Y}_h${H}>` with H=8 by default when the layer has no `size`.
 
-### Échelle de rendu
+### Render scale
 
-Chaque provider bitmap (ASCII, accented, non-latin) a un `height` "naturel" vanilla (`VANILLA_ASCII.height`, etc.). Pour une taille H, on multiplie chaque provider par le scale factor `H / 8` :
+Each bitmap provider (ASCII, accented, non-latin) has a vanilla "natural" `height` (`VANILLA_ASCII.height`, etc.). For a size H, we multiply each provider by the scale factor `H / 8`:
 
 ```ts
 const scale = H / 8;
@@ -57,78 +57,78 @@ const scale = H / 8;
 }
 ```
 
-Pour H ∈ {4, 8, 12, 16, 20, 24, 32}, scale ∈ {0.5, 1, 1.5, 2, 2.5, 3, 4}. Les heights vanilla actuels (probablement tous pairs) × ces scales restent entiers ; si une multiplication produit un float, on `Math.round` (à valider via tests).
+For H ∈ {4, 8, 12, 16, 20, 24, 32}, scale ∈ {0.5, 1, 1.5, 2, 2.5, 3, 4}. The current vanilla heights (probably all even) × these scales stay integers; if a multiplication produces a float, we `Math.round` (to be validated via tests).
 
-L'ascent reste inchangé : le top du glyphe est positionné par ascent uniquement ; height n'étend le glyphe que vers le bas. Le top du texte reste donc à chest-y Y peu importe la taille — comportement intuitif pour l'utilisateur.
+The ascent stays unchanged: the top of the glyph is positioned by ascent only; height only extends the glyph downward. The top of the text therefore stays at chest-y Y regardless of size — intuitive behavior for the user.
 
-### Coût
+### Cost
 
-- **Taille du zip** : +~600KB JSON (vanilla `ascii.png` réutilisée, 0 texture supplémentaire).
-- **Temps de bake** : ×7 sur cette étape (1400 vs 200 fichiers). Négligeable face au reste du build.
+- **Zip size**: +~600KB JSON (vanilla `ascii.png` reused, 0 additional textures).
+- **Bake time**: ×7 on this step (1400 vs 200 files). Negligible compared to the rest of the build.
 
 ## Plugin
 
 ### `TitleCompiler.kt`
 
-- Wrap : `<font:artisan:text_y${clampedY}_h${H}>$colored</font>` (et idem pour textarea). H = `layer.size ?: 8`.
-- Width estimation : multiplier `estimateTextWidth(content)` par `H / 8.0` (Double pour préserver précision sur les scales fractionnaires, puis `.toInt()`).
-- Clamp Y : pas de changement (même range [-32, 172]).
-- Suppression de l'ancien format `text_y${Y}` sans suffixe `_h` : le plugin n'émet plus que la nouvelle forme. Les `text_y{Y}.json` sans size deviennent obsolètes et sont retirés du bake.
+- Wrap: `<font:artisan:text_y${clampedY}_h${H}>$colored</font>` (and likewise for textarea). H = `layer.size ?: 8`.
+- Width estimation: multiply `estimateTextWidth(content)` by `H / 8.0` (Double to preserve precision on fractional scales, then `.toInt()`).
+- Clamp Y: no change (same range [-32, 172]).
+- Removal of the old `text_y${Y}` format without the `_h` suffix: the plugin only emits the new form. The `text_y{Y}.json` files without size become obsolete and are removed from the bake.
 
 ### `MenuTitleParser`
 
-Ajoute `size: Int?` au parsing des layers Text et Textarea ; valide qu'il est ∈ {4, 8, 12, 16, 20, 24, 32} sinon fallback à 8 (lenient, pour absorber un YAML mal formé sans casser le menu entier).
+Adds `size: Int?` to the parsing of Text and Textarea layers; validates that it is ∈ {4, 8, 12, 16, 20, 24, 32}, otherwise falls back to 8 (lenient, to absorb malformed YAML without breaking the whole menu).
 
-## Éditeur
+## Editor
 
 ### `LayerEditForm`
 
-- Pour Text et Textarea : ajouter un dropdown "Taille" avec 7 options :
-  | Valeur | Label |
+- For Text and Textarea: add a "Size" dropdown with 7 options:
+  | Value | Label |
   |---|---|
-  | 4 | Très petit (4) |
+  | 4 | Very small (4) |
   | 8 | Normal (8) |
-  | 12 | Moyen (12) |
-  | 16 | Grand (16) |
-  | 20 | Très grand (20) |
-  | 24 | Énorme (24) |
-  | 32 | Géant (32) |
-- Default sélectionné : Normal (8). Stocké `undefined` dans le layer si = 8 (compactness).
-- Masqué quand `fontAssetId` est défini (avec un texte explicatif court : « La taille suit la font importée »).
+  | 12 | Medium (12) |
+  | 16 | Large (16) |
+  | 20 | Very large (20) |
+  | 24 | Huge (24) |
+  | 32 | Giant (32) |
+- Default selected: Normal (8). Stored as `undefined` in the layer if = 8 (compactness).
+- Hidden when `fontAssetId` is defined (with a short explanatory text: "The size follows the imported font").
 
-### Textarea — bouton "Aligner lineHeight"
+### Textarea — "Align lineHeight" button
 
-Quand l'utilisateur change la `size`, son `lineHeight` ne s'ajuste PAS automatiquement (le user a peut-être réglé un spacing voulu). À côté du champ `lineHeight`, un bouton "Aligner à la taille" qui set `lineHeight = size + 2` en un clic. Pas auto.
+When the user changes the `size`, their `lineHeight` does NOT adjust automatically (the user may have set an intended spacing). Next to the `lineHeight` field, an "Align to size" button that sets `lineHeight = size + 2` in one click. Not automatic.
 
-### Canvas — preview pixel-perfect
+### Canvas — pixel-perfect preview
 
-`VanillaMcText` (et `TextAreaText` pour textarea) acceptent un prop `size: number` (default 8) et multiplient le scale Konva du glyph par `size / 8`. Le word-wrap (textarea, `wrapLine.ts`) recalcule les advances avec le même scale pour rester WYSIWYG avec le plugin.
+`VanillaMcText` (and `TextAreaText` for textarea) accept a `size: number` prop (default 8) and multiply the glyph's Konva scale by `size / 8`. Word-wrap (textarea, `wrapLine.ts`) recomputes the advances with the same scale to stay WYSIWYG with the plugin.
 
 ## Tests
 
-| Fichier | Cas |
+| File | Cases |
 |---|---|
-| `backend/src/lib/fontJsonBuilder.test.ts` | (1) `buildTextYFontJson(0, 8)` retourne le JSON actuel (régression) ; (2) `buildTextYFontJson(0, 16)` double tous les `height` ; (3) `buildTextYFontJson(0, 4)` divise par 2. |
-| `backend/src/lib/resourcePackBuilder.test.ts` | matrice 200 × 7 = 1400 fichiers `text_y{Y}_h{H}.json` ; sample un (Y=10, H=16) et vérifie le contenu. |
-| `plugin/src/test/.../TitleCompilerTest.kt` | (1) text default → `text_y{Y}_h8` ; (2) text size=16 → `text_y{Y}_h16` ; (3) width estimate scale par H/8 ; (4) textarea avec size=12 → toutes les lignes wrappées dans le bon font tag. |
-| `plugin/src/test/.../MenuTitleParserTest.kt` | (1) parse `size: 16` ; (2) size invalide (10) tombe sur fallback 8 ; (3) absence de `size` → null/default. |
-| `editor/src/.../LayerEditForm.test.tsx` | (1) dropdown apparaît pour text + textarea ; (2) sélection écrit `size` ; (3) masqué si `fontAssetId` set ; (4) bouton "Aligner lineHeight" set `lineHeight = size + 2`. |
-| `editor/src/.../VanillaMcText.test.tsx` | preview scale par size/8. |
-| `editor/src/.../wrapLine.test.ts` | wrap recalcule les advances scaled. |
-| `editor/src/features/export/transform.test.ts` | YAML émet `size: N` si ≠ 8 ; omet sinon. |
-| `backend/src/lib/packImport.test.ts` | YAML avec `size` → field présent ; sans → undefined. |
+| `backend/src/lib/fontJsonBuilder.test.ts` | (1) `buildTextYFontJson(0, 8)` returns the current JSON (regression); (2) `buildTextYFontJson(0, 16)` doubles all `height`s; (3) `buildTextYFontJson(0, 4)` halves them. |
+| `backend/src/lib/resourcePackBuilder.test.ts` | 200 × 7 = 1400 `text_y{Y}_h{H}.json` file matrix; sample one (Y=10, H=16) and check the content. |
+| `plugin/src/test/.../TitleCompilerTest.kt` | (1) default text → `text_y{Y}_h8`; (2) text size=16 → `text_y{Y}_h16`; (3) width estimate scales by H/8; (4) textarea with size=12 → all lines wrapped in the right font tag. |
+| `plugin/src/test/.../MenuTitleParserTest.kt` | (1) parse `size: 16`; (2) invalid size (10) falls back to 8; (3) absent `size` → null/default. |
+| `editor/src/.../LayerEditForm.test.tsx` | (1) dropdown appears for text + textarea; (2) selection writes `size`; (3) hidden if `fontAssetId` set; (4) "Align lineHeight" button sets `lineHeight = size + 2`. |
+| `editor/src/.../VanillaMcText.test.tsx` | preview scales by size/8. |
+| `editor/src/.../wrapLine.test.ts` | wrap recomputes scaled advances. |
+| `editor/src/features/export/transform.test.ts` | YAML emits `size: N` if ≠ 8; omits otherwise. |
+| `backend/src/lib/packImport.test.ts` | YAML with `size` → field present; without → undefined. |
 
-## Risques / limites
+## Risks / limits
 
-- **Scale factor non-entier (0.5, 1.5, 2.5)** : si un provider vanilla a un height impair, le scale produit du float. Solution : `Math.round`. Devra être vérifié en test sur les 3 providers (ASCII, accented, non-latin) — actions correctives au cas par cas si le rounding visuel saute.
-- **Bake size augmente** : ~700KB de JSON. Si plus tard on veut ajouter d'autres axes (ex: ligature, slant), la matrice explose. Pas de problème immédiat.
-- **Sub-pixel positioning** : l'`x` d'un layer reste en pixels chest. Pour une taille H, un texte de N caractères occupe `N × char_advance × H/8` px. La table d'offsets (space provider) reste à granularité 1px — pas de quartier-pixel. Acceptable visuellement.
-- **Compatibility entre versions du resource pack et du plugin** : pendant une transition (vieux plugin, nouveau RP), le plugin tente de référencer `text_y{Y}` (sans `_h`) qui n'existe plus → missing glyph squares. Atténué par le fait qu'on déploie plugin + backend ensemble (workflow `./gradlew deploy` rebuild les deux).
+- **Non-integer scale factor (0.5, 1.5, 2.5)**: if a vanilla provider has an odd height, the scale produces a float. Solution: `Math.round`. To be checked in tests on the 3 providers (ASCII, accented, non-latin) — corrective actions case by case if the visual rounding breaks.
+- **Bake size grows**: ~700KB of JSON. If later we want to add other axes (e.g. ligature, slant), the matrix explodes. No immediate problem.
+- **Sub-pixel positioning**: a layer's `x` stays in chest pixels. For a size H, a text of N characters occupies `N × char_advance × H/8` px. The offsets table (space provider) stays at 1px granularity — no quarter-pixel. Visually acceptable.
+- **Compatibility between resource pack and plugin versions**: during a transition (old plugin, new RP), the plugin tries to reference `text_y{Y}` (without `_h`) which no longer exists → missing glyph squares. Mitigated by deploying plugin + backend together (the `./gradlew deploy` workflow rebuilds both).
 
-## Hors scope
+## Out of scope
 
-- Size sur `fontAssetId` custom fonts.
+- Size on `fontAssetId` custom fonts.
 - Non-uniform scaling (width ≠ height).
-- Sizes < 4, > 32, ou non-multiples de 4.
-- Editeur "manage sizes" globalement / par-pack — pas de presets utilisateur, le set est codé en dur.
-- Application aux Element titles/lores dans l'inventaire (scope = title layers uniquement).
+- Sizes < 4, > 32, or non-multiples of 4.
+- "Manage sizes" editor globally / per pack — no user presets, the set is hardcoded.
+- Application to Element titles/lores in the inventory (scope = title layers only).

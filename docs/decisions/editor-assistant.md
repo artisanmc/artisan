@@ -1,62 +1,62 @@
-# L'assistant de l'éditeur, sur la clé de l'admin
+# The editor's assistant, on the admin's key
 
-**Statut :** accepté (2026-10-26), jalon 1, derrière la section `ai` d'`environment.yml` (absente :
-pas d'assistant). Suite de `mcp-server`.
+**Status:** accepted (2026-10-26), milestone 1, behind the `ai` section of `environment.yml` (absent:
+no assistant). Follows `mcp-server`.
 
-## Contexte
+## Context
 
-Le jalon 0 (`mcp-server`) ouvre Artisan aux clients d'IA que les joueurs ont déjà. Il reste
-l'usage le plus direct : demander, depuis l'éditeur ouvert sur un Project, « fais-moi un menu VIP »,
-sans installer de client ni se connecter ailleurs. La proposition prévoit deux façons de payer le
-modèle : un service cloud d'Artisan (portefeuille par serveur), ou le fournisseur et la clé de
-l'admin. Le cloud demande une infrastructure et une facturation ; la clé de l'admin, rien de plus
-que le hub. Un seul utilisateur d'Artisan à cette date : la clé de l'admin d'abord.
+Milestone 0 (`mcp-server`) opens Artisan to the AI clients players already have. The most direct
+use remains: asking, from the editor open on a Project, "make me a VIP menu",
+without installing a client or signing in elsewhere. The proposal plans two ways to pay for the
+model: an Artisan cloud service (a wallet per server), or the admin's provider and
+key. The cloud needs infrastructure and billing; the admin's key, nothing more
+than the hub. One single Artisan user at this date: the admin's key first.
 
-## Décisions
+## Decisions
 
-1. **Le hub fait tourner la boucle.** `POST /api/v1/ai/conversations/:id/messages` : le hub appelle
-   le modèle, exécute ses appels d'outils, renvoie les résultats, jusqu'à la fin du tour. La clé
-   reste dans le hub, jamais dans le navigateur ni dans l'éditeur. L'éditeur lit les événements
-   (`user`, `text`, `tool`, `notice`, `error`, `done`, numérotés) par sondage, en ne demandant que
-   les nouveaux (`?after=`) ; pas de flux à tenir ouvert à travers le tunnel.
-2. **Les mêmes outils que `/mcp`, le même périmètre.** L'assistant reçoit les sept outils de
-   `McpTools` (`invoke`, partagé avec `McpRoutes`) et agit comme le joueur de la session, moins
-   `publish` et `config`. Il écrit des brouillons vérifiés par le serveur, il ne déploie pas. Un
-   brouillon qu'il crée se propose dans le panneau : « Ouvrir dans Brouillons ».
-3. **Un fournisseur derrière une interface.** `AiProvider` / `AiConversation` : chaque fournisseur
-   garde l'historique dans ses propres types. Premier fournisseur : Anthropic, par le SDK Java
-   officiel (`com.anthropic:anthropic-java`, embarqué sans relocalisation : il charge des classes par leur nom ; okhttp et Jackson partagés, eux relocalisés).
-   Historique en ajout seul (les réponses repartent telles quelles, blocs de réflexion compris),
-   outils et prompt système fixes par conversation, cache de prompt automatique, `effort`
-   configurable (défaut `medium`), repli côté serveur sur refus d'un classifieur pour les modèles
-   qui l'acceptent, et seulement vers l'API d'Anthropic (pas derrière `base-url`).
-4. **Configuration** (`environment.yml`, hub seul, jamais envoyée à l'éditeur) : `ai.provider`
-   (`anthropic`), `ai.api-key` (`${ANTHROPIC_API_KEY}` conseillé), `ai.model` (défaut
-   `claude-opus-5-5`), `ai.effort`, `ai.max-steps` (appels au modèle par message, 25), `ai.base-url`.
-5. **Garde-fous de coût.** Un tour par conversation à la fois (`ai_busy`), `max-steps` appels par
-   message, 16 000 jetons de sortie par appel, 10 conversations par joueur, oubliées après 6 h
-   sans activité. Les jetons consommés sont comptés par conversation et montrés à la fin du tour.
-6. **Conversations en mémoire.** Un redémarrage les termine (les brouillons écrits restent) ; le
-   message suivant en commence une autre. Chaque conversation appartient à son joueur : un autre
-   reçoit 404.
-7. **Qui y a droit : `artisan.editor.edit`**, comme `/mcp`. `GET /api/v1/ai` dit à l'éditeur s'il y
-   a un assistant et si le joueur peut s'en servir ; sinon le bouton n'apparaît pas.
+1. **The hub runs the loop.** `POST /api/v1/ai/conversations/:id/messages`: the hub calls
+   the model, runs its tool calls, sends back the results, until the end of the turn. The key
+   stays in the hub, never in the browser nor in the editor. The editor reads the events
+   (`user`, `text`, `tool`, `notice`, `error`, `done`, numbered) by polling, asking only for
+   the new ones (`?after=`); no stream to keep open through the tunnel.
+2. **The same tools as `/mcp`, the same scope.** The assistant gets the seven tools of
+   `McpTools` (`invoke`, shared with `McpRoutes`) and acts as the session's player, minus
+   `publish` and `config`. It writes drafts checked by the server, it does not deploy. A
+   draft it creates is offered in the panel: "Open in Drafts".
+3. **A provider behind an interface.** `AiProvider` / `AiConversation`: each provider
+   keeps the history in its own types. First provider: Anthropic, through the official Java
+   SDK (`com.anthropic:anthropic-java`, bundled without relocation: it loads classes by name; okhttp and Jackson shared, those relocated).
+   Append-only history (responses go back as they are, thinking blocks included),
+   tools and system prompt fixed per conversation, automatic prompt caching, configurable `effort`
+   (default `medium`), server-side fallback when a classifier refuses, for the models
+   that accept it, and only towards Anthropic's API (not behind `base-url`).
+4. **Configuration** (`environment.yml`, hub only, never sent to the editor): `ai.provider`
+   (`anthropic`), `ai.api-key` (`${ANTHROPIC_API_KEY}` advised), `ai.model` (default
+   `claude-opus-5-5`), `ai.effort`, `ai.max-steps` (model calls per message, 25), `ai.base-url`.
+5. **Cost guards.** One turn per conversation at a time (`ai_busy`), `max-steps` calls per
+   message, 16,000 output tokens per call, 10 conversations per player, forgotten after 6 h
+   without activity. The tokens used are counted per conversation and shown at the end of the turn.
+6. **Conversations in memory.** A restart ends them (the drafts written stay); the
+   next message starts another one. Each conversation belongs to its player: anyone else
+   gets 404.
+7. **Who may use it: `artisan.editor.edit`**, like `/mcp`. `GET /api/v1/ai` tells the editor whether there
+   is an assistant and whether the player can use it; otherwise the button does not show.
 
-## Conséquences
+## Consequences
 
-- L'admin paie chaque message de tout joueur qui a `edit`. Pas de quota par joueur ni de
-  permission dédiée au jalon 1.
-- Le jar grossit du SDK d'Anthropic (paquet `com.anthropic` tel quel) et de son générateur de schémas ; Jackson passe de
-  2.17.2 à 2.18.3.
-- Ce que l'assistant écrit passe la même vérification que `write_document`, puis la même revue et
-  le même `DocumentCheck` au déploiement.
+- The admin pays for every message of every player who has `edit`. No per-player quota nor
+  dedicated permission in milestone 1.
+- The jar grows by Anthropic's SDK (the `com.anthropic` package as is) and its schema generator; Jackson goes from
+  2.17.2 to 2.18.3.
+- What the assistant writes goes through the same check as `write_document`, then the same review and
+  the same `DocumentCheck` on deploy.
 
-## Reporté
+## Deferred
 
-- Le service cloud d'Artisan et le portefeuille par serveur, derrière le même relais.
-- D'autres fournisseurs (API compatibles OpenAI : Mistral, OpenRouter, Ollama) : une implémentation
-  d'`AiProvider` de plus.
-- Une permission `artisan.editor.ai` et un quota par joueur, si d'autres que l'admin s'en servent.
-- Les conversations en base (survivre à un redémarrage, reprendre sur un autre appareil).
-- Le texte en flux continu et les notes de progression du modèle entre deux outils
+- Artisan's cloud service and the per-server wallet, behind the same relay.
+- Other providers (OpenAI-compatible APIs: Mistral, OpenRouter, Ollama): one more implementation
+  of `AiProvider`.
+- An `artisan.editor.ai` permission and a per-player quota, if others than the admin use it.
+- Conversations in the database (surviving a restart, resuming on another device).
+- Streamed text and the model's progress notes between two tools
   (`display: "updates"`).

@@ -30,7 +30,7 @@ This spec covers the **discovery** of available placeholders inside text fields 
 
 | Question | Choice |
 |---|---|
-| Pain point | "Je ne sais pas QUOI taper" → discovery-first |
+| Pain point | "I don't know WHAT to type" → discovery-first |
 | Surfacing pattern | Autocomplete inline triggered by `{` |
 | Trigger char(s) | `{` only |
 | Discoverability hint | Inline hint line under each text field |
@@ -130,7 +130,7 @@ Entries returned in stable order:
 1. By `origin`: `context` → `iteration` → `pagination` → `source` (when sources surface directly, which is rare since they're usually accessed via inputs).
 2. Within each origin, alphabetic by `path`.
 
-The dropdown renders one small grey group label per origin (`Contexte`, `Itération (quest)`, `Pagination`). Inside a group, rows are alpha.
+The dropdown renders one small grey group label per origin (`Context`, `Iteration (quest)`, `Pagination`). Inside a group, rows are alpha.
 
 ## PlaceholderInput
 
@@ -190,13 +190,13 @@ Substring, case-insensitive. Good enough for v1. Sort comes from the catalog, no
 
 ### Empty state
 
-If `filtered.length === 0`, render a single row `Aucune variable ne matche "{query}"` (or `Aucune variable disponible dans ce contexte` if `entries.length === 0` initially). The popup stays open until the user types `}`, presses Esc, or clicks away — they don't get the "I typed `{` and nothing happened" effect.
+If `filtered.length === 0`, render a single row `No variable matches "{query}"` (or `No variable available in this context` if `entries.length === 0` initially). The popup stays open until the user types `}`, presses Esc, or clicks away — they don't get the "I typed `{` and nothing happened" effect.
 
 ### Hint
 
 Below the input, a `text-[11px] text-[var(--ink-faint)]` line:
 
-> Tape `{` pour insérer une variable
+> Type "{" to insert a variable
 
 Renders only when `showHint && entries.length > 0`. Hidden when popup is open (avoids redundant noise).
 
