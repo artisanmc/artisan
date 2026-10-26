@@ -22,7 +22,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The MCP endpoint end to end (ADR `mcp-server`): OAuth, the six tools, and what they never do. */
+/** The MCP endpoint end to end (ADR `mcp-server`): OAuth, the seven tools, and what they never do. */
 class McpTest {
     private val mapper = ObjectMapper()
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
@@ -132,14 +132,14 @@ class McpTest {
     }
 
     @Test
-    fun `a client the player approved lists six tools, none of which deploys`() {
+    fun `a client the player approved lists seven tools, none of which deploys`() {
         val (access, _) = tokens()
         val init = rpc(access, "initialize", mapOf("protocolVersion" to "2025-06-18", "capabilities" to emptyMap<String, Any>(), "clientInfo" to mapOf("name" to "t", "version" to "1")))
         assertEquals("2025-06-18", init.body!!["result"]["protocolVersion"].asText())
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "start_draft", "write_document"), names)
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it })
         // The kind guide is prose for the model to read, the schema outlined rather than dumped.
         val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
@@ -153,6 +153,12 @@ class McpTest {
         assertTrue("## Texts and languages\n" in text && "title: { fr: Boutique, en: Shop }" in text)
         val full = tool(access, "get_kind_guide", "kind" to "menu", "detail" to "schema")["content"][0]["text"].asText()
         assertTrue("```json\n{\"\$schema\"" in full)
+        // The docs of this release, shipped in the jar: a list, then a page without its front matter.
+        val docs = tool(access, "read_docs")["content"][0]["text"].asText()
+        assertTrue("- editor/expressions: Expressions — " in docs, docs)
+        val page = tool(access, "read_docs", "page" to "editor/expressions")["content"][0]["text"].asText()
+        assertTrue(page.startsWith("# Expressions\n\n") && "description:" !in page.substringBefore("\n## "), page.take(300))
+        assertTrue(tool(access, "read_docs", "page" to "nope")["isError"].asBoolean())
         assertEquals(-32601, rpc(access, "resources/list").body!!["error"]["code"].asInt())
         assertEquals(405, http("GET", McpRoutes.PATH, headers = mapOf("Authorization" to "Bearer $access")).status)
     }

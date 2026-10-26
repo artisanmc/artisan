@@ -43,10 +43,25 @@ val vanillaIndex by tasks.registering {
     }
 }
 
+// The user docs (`docs/site`), read by the MCP tool `read_docs`: the pages of this release.
+val wikiPages: File = rootDir.resolve("../docs/site").canonicalFile
+val wikiIndex by tasks.registering {
+    val out = layout.buildDirectory.file("generated/wiki/pages.txt")
+    inputs.dir(wikiPages)
+    outputs.file(out)
+    doLast {
+        val pages = wikiPages.walkTopDown().filter { it.extension == "md" && !it.name.startsWith("_") }
+            .map { it.relativeTo(wikiPages).invariantSeparatorsPath.removeSuffix(".md") }.sorted()
+        out.get().asFile.apply { parentFile.mkdirs() }.writeText(pages.joinToString("\n"))
+    }
+}
+
 tasks.processResources {
-    dependsOn(vanillaIndex)
+    dependsOn(vanillaIndex, wikiIndex)
     from(vanillaItems) { include("*.json"); into("vanilla/items") }
     from(layout.buildDirectory.dir("generated/vanilla")) { into("vanilla") }
+    from(wikiPages) { include("**/*.md"); exclude("**/_*"); into("wiki") }
+    from(layout.buildDirectory.dir("generated/wiki")) { into("wiki") }
 }
 
 if (providers.gradleProperty("withEditor").isPresent) {

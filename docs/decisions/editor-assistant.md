@@ -19,7 +19,7 @@ que le hub. Un seul utilisateur d'Artisan à cette date : la clé de l'admin d'a
    reste dans le hub, jamais dans le navigateur ni dans l'éditeur. L'éditeur lit les événements
    (`user`, `text`, `tool`, `notice`, `error`, `done`, numérotés) par sondage, en ne demandant que
    les nouveaux (`?after=`) ; pas de flux à tenir ouvert à travers le tunnel.
-2. **Les mêmes outils que `/mcp`, le même périmètre.** L'assistant reçoit les six outils de
+2. **Les mêmes outils que `/mcp`, le même périmètre.** L'assistant reçoit les sept outils de
    `McpTools` (`invoke`, partagé avec `McpRoutes`) et agit comme le joueur de la session, moins
    `publish` et `config`. Il écrit des brouillons vérifiés par le serveur, il ne déploie pas. Un
    brouillon qu'il crée se propose dans le panneau : « Ouvrir dans Brouillons ».

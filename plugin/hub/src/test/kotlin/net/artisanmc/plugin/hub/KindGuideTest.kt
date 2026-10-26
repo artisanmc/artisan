@@ -18,6 +18,7 @@ class KindGuideTest {
         assertTrue("no schema ships with Artisan" in text, text)
         assertTrue("- quests:start (module msquests): {quest: id of a quest_group Document, silent?: boolean = false}\n" in text, text)
         assertTrue("This Project's default language is `fr`, with `en`, `de`.\n" in text, text)
-        assertTrue(text.endsWith("## Example: quest_groups/daily.yml\n```yaml\nschema: quest_group/v1\n```\n"), text)
+        assertTrue("## Example: quest_groups/daily.yml\n```yaml\nschema: quest_group/v1\n```\n" in text, text)
+        assertTrue(text.trimEnd().endsWith("read_docs lists Artisan's docs."), text)
     }
 }

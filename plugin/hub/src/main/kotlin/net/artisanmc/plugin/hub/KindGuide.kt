@@ -37,6 +37,7 @@ class KindGuide(
         moduleActions()?.let(::append)
         if (schema == null || schema.path("\$defs").has("LText")) append(languages())
         example?.let { (path, content) -> append("\n## Example: ").append(path).append("\n```yaml\n").append(content.trimEnd()).append("\n```\n") }
+        append("\nFor more (expressions in texts, data sources, translations, images and titles), read_docs lists Artisan's docs.\n")
     }
 
     /** The actions the server declares beyond the schema's: modules' (`guilds:rank_delete`), and Artisan's own extras. */

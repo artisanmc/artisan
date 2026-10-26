@@ -7,7 +7,7 @@ import net.artisanmc.plugin.project.ProjectPathPolicy
 import java.util.UUID
 
 /**
- * The six tools of the MCP endpoint (ADR `mcp-server`). Three read, three prepare a draft;
+ * The seven tools of the MCP endpoint (ADR `mcp-server`). Four read, three prepare a draft;
  * none deploys. A model works in a draft of the player's, which the player opens in the editor,
  * reviews, then deploys with the editor's own button: the only write to the server's disk.
  */
@@ -46,6 +46,14 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
                 required = listOf("kind"),
             ),
             readOnly = true, ::kindGuide,
+        ),
+        Tool(
+            "read_docs", "Read Artisan's docs",
+            "Artisan's user docs, as shipped with this server's release. Without page, the list of pages with their title and " +
+                "description; with page, that page in Markdown. For what get_kind_guide leaves out: expressions in texts, data " +
+                "sources, translations, commands and permissions, images and titles, add-on development.",
+            schema("page" to string("Optional: a page path from the list, e.g. `editor/expressions`."), required = emptyList()),
+            readOnly = true, ::readDocs,
         ),
         Tool(
             "start_draft", "Start a draft",
@@ -162,6 +170,12 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
             DocumentLayout.classify(t.keys, setOf(dir)).documents.firstOrNull()?.let { it.path to t[it.path]!!.take(MAX_EXAMPLE) }
         }
         return KindGuide(name, kind, schema, server.announcement().actions, tree, example).render(full)
+    }
+
+    private fun readDocs(principal: McpPrincipal, args: JsonNode): Any {
+        val path = args.path("page").asText("").ifBlank { return UserDocs.index() }
+        val page = UserDocs.page(path) ?: throw McpRefusal("not_found", "No docs page '$path'. read_docs without page lists them.")
+        return "# ${page.title}\n\n${page.body.trim()}\n"
     }
 
     private fun startDraft(principal: McpPrincipal, args: JsonNode): Any {
