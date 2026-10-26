@@ -62,7 +62,14 @@ describe("assistant", () => {
           ok: true,
           draft: { project: "u-local.shop", id: "d1", name: "IA : VIP" },
         },
-        { seq: 3, type: "tool", name: "write_document", path: "menus/vip.yml", ok: false, problems: 2 },
+        {
+          seq: 3,
+          type: "tool",
+          name: "write_document",
+          path: "menus/vip.yml",
+          ok: false,
+          problems: 2,
+        },
         { seq: 4, type: "text", text: "Le brouillon est prêt." },
         { seq: 5, type: "done", inputTokens: 10, outputTokens: 5 },
       ]),
@@ -97,7 +104,9 @@ describe("assistant", () => {
       .mockResolvedValueOnce(conversation([{ seq: 1, type: "text", text: "Bonjour !" }]));
     render(<AssistantButton projectId="u-local.shop" />);
     fireEvent.click(await screen.findByTestId("open-assistant"));
-    fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), { target: { value: "salut" } });
+    fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), {
+      target: { value: "salut" },
+    });
     fireEvent.keyDown(screen.getByLabelText("Demande à l’assistant…"), { key: "Enter" });
     expect(await screen.findByText("En cours…")).toBeTruthy();
     await act(async () => {
@@ -124,7 +133,9 @@ describe("assistant", () => {
     expect(await screen.findByText(/refuse la clé d’API du serveur/)).toBeTruthy();
 
     api.sendAiMessage.mockRejectedValueOnce(new ApiError("ai_busy", 409));
-    fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), { target: { value: "encore" } });
+    fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), {
+      target: { value: "encore" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
     expect(await screen.findByText("L’assistant répond encore.")).toBeTruthy();
   });
