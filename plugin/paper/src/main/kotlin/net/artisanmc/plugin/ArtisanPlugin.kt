@@ -351,15 +351,6 @@ open class ArtisanPlugin : JavaPlugin() {
         )
     }
 
-    /** `/artisan update`: stages signed releases in the server's update folder, applied at the next start. */
-    internal val updater by lazy {
-        net.artisanmc.plugin.update.ModuleUpdater(server.updateFolderFile, net.artisanmc.plugin.update.ReleaseKeys.TRUSTED)
-    }
-
-    /** The plugins of the suite that name their releases (`artisan-releases`). */
-    internal fun updateSources(): List<net.artisanmc.plugin.update.ModuleUpdater.Source> =
-        suite().mapNotNull(net.artisanmc.plugin.update.ModuleUpdater::sourceOf)
-
     /** The file name of [plugin]'s jar, null when it does not come from one (tests, a dev classpath). */
     private fun jarName(plugin: org.bukkit.plugin.Plugin): String? = runCatching {
         File(plugin.javaClass.protectionDomain.codeSource.location.toURI()).takeIf { it.isFile }?.name

@@ -78,31 +78,6 @@ revision in Coolify (the site is static, stateless).
 
 Locally: `npm ci --prefix docs-site`, then `npm run dev:site --prefix editor`.
 
-## Signed plugin releases
-
-A `v<version>` tag (`git tag v1.0.50 && git push origin v1.0.50`) runs `.github/workflows/release.yml`:
-build with the editor (`-PwithEditor -PartisanVersion=<version>`), then `.github/workflows/sign-release.yml`
-signs the jar with Ed25519 and publishes a GitHub Release with the jar and `release.json`
-(`{plugin, version, sha256, signature}`, signed message `artisan-release\n<plugin>\n<version>\n<sha256>`).
-`/artisan update` checks them against the keys of `ReleaseKeys` before writing to `plugins/update/`.
-
-`sign-release.yml` is shared: every plugin of the suite releases from its own repo, builds its jar,
-uploads it as the `jar` artifact and calls
-`uses: artisanmc/artisan/.github/workflows/sign-release.yml@v2` with `secrets: inherit` and
-`permissions: contents: write`.
-
-Setup, once for the organization:
-
-- Secret `ARTISAN_SIGNING_KEY` (Settings → Secrets and variables → Actions → organization secret,
-  limited to the plugin repos): the PEM private key, `openssl genpkey -algorithm ed25519`. Its public
-  half (`openssl pkey -in key.pem -pubout -outform DER | base64 -w0`) goes into `ReleaseKeys.TRUSTED`.
-- Whoever can push a `v*` tag publishes a release, and whoever can push a workflow to one of these
-  repos can read the secret. With a single maintainer nothing more is needed. With collaborators, add a
-  `v*` tag ruleset restricting creation, update and deletion: org-wide needs GitHub Team (the free plan
-  does not enforce organization rulesets), per repo it is free on public repos. If the free plan keeps
-  the organization secret from private repos, set the same `ARTISAN_SIGNING_KEY` as a repository secret
-  there.
-
 ## Public API and Reposilite
 
 - `.github/workflows/api-version-check.yml` + `deploy/api-version.mjs`: a PR that touches the public API

@@ -45,12 +45,6 @@ class EditorCommandTest {
     }
 
     @Test
-    fun `update without a plugin naming its releases says where to name them`() {
-        val messages = run("update")
-        assertTrue(messages.any { it.contains("artisan-releases") }, "Expected the artisan-releases hint: $messages")
-    }
-
-    @Test
     fun `the console gets a link signed in as Console`() {
         val server = MockBukkit.getMock()!!
         // Any free port: 8765 may be taken by a local server.
