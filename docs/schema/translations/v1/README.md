@@ -65,7 +65,7 @@ elements:                                  shop:
                                                    click: { left: { message: Acheté ! } }
 ```
 
-Les deux formes se lisent indifféremment, y compris mélangées dans un même fichier. Le choix est un mode de projet (`.artisan/editor.yaml` → `i18n_mode`), pas une propriété de champ. Le schéma d'adressage est verrouillé cross-langage par `testdata/i18n-address-conformance.json`. Cf. ADR `files-first-source-of-truth` §4.
+Les deux formes se lisent indifféremment, y compris mélangées dans un même fichier. Ces deux formes sont historiques : depuis l'ADR `field-local-translations` (2026-09-30), l'éditeur écrit les langues au champ, et le mode `i18n_mode` de `.artisan/editor.yaml` n'existe plus (2026-10-26). Le schéma d'adressage est verrouillé cross-langage par `testdata/i18n-address-conformance.json`. Cf. ADR `files-first-source-of-truth` §4.
 
 ## Ordre de résolution à l'exécution
 

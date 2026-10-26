@@ -135,11 +135,6 @@ export function projectToFiles(project: Project): Record<string, string> {
   const editorState: Record<string, unknown> = { schema: "editor-state/v1" };
   const folders = persistedFolderMeta(project);
   if (Object.keys(folders).length) editorState.folders = folders;
-  // The i18n mode is a presentation choice about the file shape, not project
-  // content — it rides in the hash-excluded editor state so flipping it back
-  // and forth doesn't churn the project hash on its own. Only written when it
-  // departs from the default, so `extract` projects keep a clean tree.
-  if (project.i18nMode === "inline") editorState.i18n_mode = "inline";
   if (Object.keys(editorLayout).length > 0) editorState.layout = editorLayout;
   if (Object.keys(editorEdges).length > 0) editorState.edges = editorEdges;
   // Captured item label + display descriptor: editor-only metadata, persisted
