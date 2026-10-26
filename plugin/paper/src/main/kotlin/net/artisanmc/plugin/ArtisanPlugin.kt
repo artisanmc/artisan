@@ -119,6 +119,7 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     override fun onEnable() {
+        HotReloadGuard.reloadedWarning(dependentsOf(name))?.let(logger::severe)
         // Menu contents are only sent as packets: without PacketEvents, windows
         // open empty (clicks and sessions stay active).
         val packets = packetEventsLoaded && runCatching { PacketEvents.getAPI().init() }
@@ -213,11 +214,18 @@ open class ArtisanPlugin : JavaPlugin() {
             @org.bukkit.event.EventHandler
             fun on(event: org.bukkit.event.server.PluginDisableEvent) {
                 if (event.plugin === this@ArtisanPlugin) return
+                warnIfReloaded(event.plugin.name)
+                inventoryChanged(event.plugin.name, disabling = event.plugin.name)
                 api.modules.unregisterLoadedBy(event.plugin.javaClass.classLoader).forEach {
                     logger.log(java.util.logging.Level.WARNING, "[Artisan] ${it.message}", it.cause)
                 }
                 translations.unregisterOwnedBy(event.plugin)
                 releaseListeners(event.plugin)
+            }
+
+            @org.bukkit.event.EventHandler
+            fun on(event: org.bukkit.event.server.PluginEnableEvent) {
+                if (event.plugin !== this@ArtisanPlugin) inventoryChanged(event.plugin.name)
             }
         }, this)
     }
@@ -238,7 +246,35 @@ open class ArtisanPlugin : JavaPlugin() {
         if (left.isNotEmpty()) logger.fine("[Artisan] ${plugin.name} disabled: removed ${left.joinToString()}")
     }
 
+    /**
+     * The plugins that run and depend on [plugin], directly or not ([HotReloadGuard.dependents]).
+     * [disabling] counts as running: its disable event fires before it stops.
+     */
+    private fun dependentsOf(plugin: String, disabling: String? = null): List<String> = HotReloadGuard.dependents(
+        plugin,
+        server.pluginManager.plugins.map {
+            HotReloadGuard.Entry(it.name, it.isEnabled || it.name == disabling, net.artisanmc.plugin.platform.ServerPlatform.dependencies(it))
+        },
+    )
+
+    /** A plugin of the suite (or Artisan) disabling while the server runs: a reload, logged with what it leaves broken. */
+    private fun warnIfReloaded(plugin: String) {
+        if (net.artisanmc.plugin.platform.ServerPlatform.isStopping(server) != false) return
+        if (plugin != name && plugin !in dependentsOf(name, disabling = plugin)) return
+        HotReloadGuard.disabledWarning(plugin, dependentsOf(plugin))?.let {
+            if (plugin == name) logger.severe(it) else logger.warning(it)
+        }
+    }
+
+    /** A plugin of the suite enabled or disabled: the editor's inventory ([suitePlugins]) is announced again. */
+    private fun inventoryChanged(plugin: String, disabling: String? = null) {
+        if (net.artisanmc.plugin.platform.ServerPlatform.isStopping(server) == true) return
+        if (plugin !in dependentsOf(name, disabling)) return
+        (menuProviderOrNull as? SyncedMenuProvider)?.notifyModulesChanged() ?: announcementChanged()
+    }
+
     override fun onDisable() {
+        warnIfReloaded(name)
         localEditorBundles.stop()
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).
@@ -283,6 +319,7 @@ open class ArtisanPlugin : JavaPlugin() {
         modules = api.modules.active().map {
             net.artisanmc.plugin.protocol.ServerAnnouncement.module(
                 it.id, description.version, localEditorBundles.wire(it.id), moduleTemplates.of(it.id).map { t -> t.toWire() },
+                pluginOf(it.javaClass.classLoader)?.name,
             )
         },
         dataSources = net.artisanmc.plugin.ws.DataSourceReport.build(api.dataSources),
@@ -292,7 +329,41 @@ open class ArtisanPlugin : JavaPlugin() {
         documentKinds = api.documentKinds.registered().map { it.toWire() },
         gameEvents = api.gameEvents.registered().map { it.toWire() },
         playerCommands = net.artisanmc.plugin.ws.PlayerCommandReport.build(api.playerCommands),
+        suitePlugins = suitePlugins(),
     )
+
+    /** The plugin whose jar loaded a class of [loader], or null (a class of the server or a library). */
+    private fun pluginOf(loader: ClassLoader?): org.bukkit.plugin.Plugin? =
+        server.pluginManager.plugins.firstOrNull { it.javaClass.classLoader === loader }
+
+    /** Artisan, then every plugin that depends on it directly or not, running or not. */
+    private fun suite(): List<org.bukkit.plugin.Plugin> {
+        val all = server.pluginManager.plugins.toList()
+        val entries = all.map { HotReloadGuard.Entry(it.name, true, net.artisanmc.plugin.platform.ServerPlatform.dependencies(it)) }
+        return (listOf(name) + HotReloadGuard.dependents(name, entries)).mapNotNull { n -> all.firstOrNull { it.name == n } }
+    }
+
+    /** The suite's inventory, as the editor's Plugins section shows it. */
+    private fun suitePlugins(): List<Map<String, Any?>> = suite().map {
+        net.artisanmc.plugin.protocol.ServerAnnouncement.plugin(
+            it.name, it.description.version, jarName(it), it.isEnabled,
+            net.artisanmc.plugin.platform.ServerPlatform.dependencies(it).sorted(),
+        )
+    }
+
+    /** `/artisan update`: stages signed releases in the server's update folder, applied at the next start. */
+    internal val updater by lazy {
+        net.artisanmc.plugin.update.ModuleUpdater(server.updateFolderFile, net.artisanmc.plugin.update.ReleaseKeys.TRUSTED)
+    }
+
+    /** The plugins of the suite that name their releases (`artisan-releases`). */
+    internal fun updateSources(): List<net.artisanmc.plugin.update.ModuleUpdater.Source> =
+        suite().mapNotNull(net.artisanmc.plugin.update.ModuleUpdater::sourceOf)
+
+    /** The file name of [plugin]'s jar, null when it does not come from one (tests, a dev classpath). */
+    private fun jarName(plugin: org.bukkit.plugin.Plugin): String? = runCatching {
+        File(plugin.javaClass.protectionDomain.codeSource.location.toURI()).takeIf { it.isFile }?.name
+    }.getOrNull()
 
     val environmentFile: File get() = File(dataFolder, "environment.yml")
 

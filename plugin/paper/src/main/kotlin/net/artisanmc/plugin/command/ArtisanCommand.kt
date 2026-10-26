@@ -24,12 +24,14 @@ class ArtisanCommand(
         sender: CommandSender, command: Command, label: String, args: Array<out String>
     ): List<String> {
         return when {
-            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "dump-title")
+            args.size == 1 -> listOf("menu", "reload", "sync", "editor", "dump-title", "update")
                 .filter { it.startsWith(args[0].lowercase()) && PERMISSIONS[it]?.let(sender::hasPermission) != false }
             args.size == 2 && args[0].equals("menu", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
             args.size == 2 && args[0].equals("dump-title", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
+            args.size == 2 && args[0].equals("update", ignoreCase = true) && sender.hasPermission("artisan.admin") ->
+                plugin.updateSources().map { it.plugin }.filter { it.startsWith(args[1], ignoreCase = true) }
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
@@ -76,6 +78,7 @@ class ArtisanCommand(
                 "logout" -> logout(sender, args.getOrNull(2))
                 else -> Chat.send(sender, lang.get("artisan.usage_editor", sender))
             }
+            "update" -> update(sender, args.getOrNull(1))
             "dump-title" -> {
                 val menuId = args.getOrNull(1) ?: run {
                     sender.sendMessage("Usage: /artisan dump-title <menu_id> [lang]")
@@ -86,6 +89,34 @@ class ArtisanCommand(
             else -> Chat.send(sender, lang.get("artisan.usage_main", sender))
         }
         return true
+    }
+
+    /**
+     * Without [target]: the latest release of each plugin of the suite that names its releases.
+     * With it: that plugin's release, verified and staged in the update folder (applied at the next
+     * start, never loaded now). The network runs off the main thread.
+     */
+    private fun update(sender: CommandSender, target: String?) {
+        val sources = plugin.updateSources()
+        if (sources.isEmpty()) { Chat.send(sender, lang.get("artisan.update_none", sender)); return }
+        val chosen = if (target == null) sources else sources.filter { it.plugin.equals(target, ignoreCase = true) }
+        if (chosen.isEmpty()) { Chat.send(sender, lang.get("artisan.update_unknown", sender, "plugin" to target.orEmpty())); return }
+        Chat.send(sender, lang.get("artisan.update_checking", sender))
+        plugin.scheduler.async {
+            val outcomes = chosen.map { if (target == null) plugin.updater.check(it) else plugin.updater.stage(it) }
+            plugin.scheduler.global { outcomes.forEach { Chat.send(sender, updateMessage(sender, it)) } }
+        }
+    }
+
+    private fun updateMessage(sender: CommandSender, outcome: net.artisanmc.plugin.update.ModuleUpdater.Outcome) = when (outcome) {
+        is net.artisanmc.plugin.update.ModuleUpdater.Outcome.UpToDate ->
+            lang.get("artisan.update_up_to_date", sender, "plugin" to outcome.plugin, "version" to outcome.version)
+        is net.artisanmc.plugin.update.ModuleUpdater.Outcome.Available ->
+            lang.get("artisan.update_available", sender, "plugin" to outcome.plugin, "installed" to outcome.installed, "latest" to outcome.latest)
+        is net.artisanmc.plugin.update.ModuleUpdater.Outcome.Staged ->
+            lang.get("artisan.update_staged", sender, "plugin" to outcome.plugin, "version" to outcome.version, "file" to outcome.file.name)
+        is net.artisanmc.plugin.update.ModuleUpdater.Outcome.Failed ->
+            lang.get("artisan.update_failed", sender, "plugin" to outcome.plugin, "reason" to lang.getRaw("artisan.update_reason_${outcome.reason}", sender))
     }
 
     /**
@@ -277,6 +308,7 @@ class ArtisanCommand(
             "reload" to "artisan.admin",
             "sync" to "artisan.admin",
             "dump-title" to "artisan.admin",
+            "update" to "artisan.admin",
         )
     }
 }

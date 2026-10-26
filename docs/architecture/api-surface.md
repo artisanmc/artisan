@@ -139,7 +139,7 @@ Manages the set of active modules for a running Artisan instance.
 | `bind(api: ArtisanAPI, onChange: Runnable)` | `@Internal` | `Unit` | Used internally by the plugin to be notified on registry changes (triggers `modules_changed`). DO NOT USE from modules. |
 | `unregisterLoadedBy(loader: ClassLoader)` | `@Internal` | `List<Exception>` | Called by Artisan on `PluginDisableEvent`: unregisters the modules loaded by that plugin's class loader, then the data sources and commands whose callback it loaded. Returns the `onDisable()` failures. |
 
-A plugin that disables (server stop, `/reload`, PlugMan) loses everything it registered before its own `onDisable` runs, so registering the same ids again after a reload works.
+A plugin that disables (server stop, `/reload`, PlugMan) loses everything it registered before its own `onDisable` runs, so registering the same ids again after a reload works. A plugin that other plugins use in Java (`depend`, `join-classpath`) cannot be reloaded alone: they keep its old classes. Artisan logs a warning naming them when a plugin of the suite disables while the server runs, and a SEVERE when Artisan itself is reloaded (`HotReloadGuard`). Updating code means restarting.
 
 Exceptions: `DuplicateModuleException`.
 

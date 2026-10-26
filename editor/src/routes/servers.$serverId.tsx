@@ -8,6 +8,7 @@ import {
 import { RenameProjectButton } from "@/features/projects/RenameProjectButton";
 import { buildModuleList, diskProjectsToSummaries } from "@/features/projects/projectGroups";
 import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection";
+import { SuitePluginsSection } from "@/features/serverPlugins/SuitePluginsSection";
 import { EditorAddressBanner } from "@/features/settings/EditorAddressBanner";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
@@ -358,6 +359,16 @@ function ServerOverview({
             </ul>
           )}
         </section>
+
+        {serverKeyId && !updateRequired && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="eyebrow">{t("suitePlugins.title")}</h2>
+              <span className="h-px flex-1 bg-[var(--border-soft)]" />
+            </div>
+            <SuitePluginsSection serverKeyId={serverKeyId} />
+          </section>
+        )}
 
         {serverKeyId && !updateRequired && (
           <section className="flex flex-col gap-3">

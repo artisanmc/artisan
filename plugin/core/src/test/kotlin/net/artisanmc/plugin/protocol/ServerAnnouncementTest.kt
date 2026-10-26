@@ -11,7 +11,7 @@ class ServerAnnouncementTest {
 
     /** A leaf's `hello` as sent before the type existed (field names are the wire contract, ws-protocol.md). */
     private val hello = """
-        {"type":"hello","protocol_version":"1.4","server_key":"s","proxy_name":"survie","server_uuid":"u-1","database_id":"db",
+        {"type":"hello","protocol_version":"1.5","server_key":"s","proxy_name":"survie","server_uuid":"u-1","database_id":"db",
          "plugin_version":"2.0.0","minecraft_version":"1.21.4",
          "installed_modules":[{"id":"quests","version":"2.0.0","editor_bundle":{"sdk":"1.0","hash":"ab12","size":42}},{"id":"menus","version":"2.0.0"}],
          "data_sources":[{"ref":"shop:items","schema_hint":"id, name"}],
@@ -21,6 +21,7 @@ class ServerAnnouncementTest {
          "document_kinds":[{"kind":"quest","dir":"quests","schema_versions":["quest/v1"],"module_id":"quests"}],
          "declared_game_events":[],
          "player_commands":[{"id":"attribution:open","module_id":"attribution","name":"attribution","children":[]}],
+         "suite_plugins":[{"name":"Artisan","version":"2.0.0","file":"Artisan.jar","enabled":true,"depends":[]},{"name":"MSQuests","version":"1.0","enabled":false,"depends":["Artisan"]}],
          "server_config":{"language":"fr"}}
     """.trimIndent()
 
