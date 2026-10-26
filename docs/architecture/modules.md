@@ -143,6 +143,14 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > nest (steps → objectives). It is the only way to reorder a list in a module view:
 > no more up/down arrow buttons (Shop, MSQuests).
 
+> **Conditions and Document references (since 2026-10-26, SDK 1.11)** — `ConditionsEditor`
+> (host component) edits an `if:` list in the format `api.getConditions()` reads (`{has_permission: …}`,
+> `not:`, `and:`, `or:`; an AND): the one of `if` branches. An entry it cannot show (a module's
+> condition, a `{type: …}` form) is kept as written, after the others. `DocumentRefInput` picks a
+> Document of a kind (`menu`, `quest_group`, `conversation`…): those of the project, and `<project>:<id>`
+> for those of the server's other projects, like an action's `document_ref` argument. `value` is `""`
+> with nothing picked.
+
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the

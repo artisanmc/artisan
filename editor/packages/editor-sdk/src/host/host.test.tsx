@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ActionChainEditor,
+  ConditionsEditor,
+  DocumentRefInput,
   type EditorHost,
   ItemInput,
   MaterialInput,
@@ -18,6 +20,8 @@ describe("host components", () => {
         ActionChainEditor: ({ value }) => createElement("i", null, `chain:${value.length}`),
         MaterialInput: ({ value }) => createElement("b", null, `material:${value}`),
         MiniMessageInput: ({ value }) => createElement("s", null, `mm:${value}`),
+        ConditionsEditor: ({ value }) => createElement("em", null, `if:${value.length}`),
+        DocumentRefInput: ({ kind, value }) => createElement("a", null, `ref:${kind}:${value}`),
         SortableList: ({ ids, children }) =>
           createElement(
             "ol",
@@ -55,11 +59,25 @@ describe("host components", () => {
           (index: number, handle: ReactElement) =>
             createElement("span", null, handle, `row${index}`),
         ),
+        createElement(ConditionsEditor, {
+          key: "c",
+          projectId: "p",
+          value: [{ has_permission: "vip" }, { not: { world_is: "nether" } }],
+          onChange: () => {},
+        }),
+        createElement(DocumentRefInput, {
+          key: "r",
+          projectId: "p",
+          kind: "quest_group",
+          value: "forge",
+          onChange: () => {},
+        }),
       ]),
     );
     expect(html).toBe(
       "<div><i>chain:1</i><b>material:STONE</b><u>item:FISHING_ROD:material,enchants</u><s>mm:&lt;red&gt;Hi</s>" +
-        "<ol><li><span><hr/>row0</span></li><li><span><hr/>row1</span></li></ol></div>",
+        "<ol><li><span><hr/>row0</span></li><li><span><hr/>row1</span></li></ol>" +
+        "<em>if:2</em><a>ref:quest_group:forge</a></div>",
     );
   });
 });

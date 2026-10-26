@@ -1,21 +1,11 @@
 import { MiniMessageField } from "@/components/MiniMessageField";
 import { RevealField } from "@/components/RevealField";
 import { ServerPlaceholderInput as PlaceholderInput } from "@/components/ServerPlaceholderInput";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { usePlaceholderEntries } from "@/components/usePlaceholderEntries";
 import { isLTextNode, normalizeActionArgs, withActionArg } from "@/domain/actionArgs";
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
-import { documentsOf, menusOf } from "@/domain/documents";
+import { menusOf } from "@/domain/documents";
 import { getFirstTitleText } from "@/domain/menuTitle";
 import type {
   Action,
@@ -35,15 +25,14 @@ import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
 import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
-import { getText as libGetText } from "@/lib/i18n";
 import type { FieldLocation, PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useGetText, useTextEdit } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useUiStore } from "@/state/uiStore";
 import { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { UNALLOCATED_LTEXT_KEY } from "../chain/defaults";
 import { FieldLabel } from "../layout";
+import { DocumentRefField } from "./DocumentRefField";
 
 interface ActionEditorProps {
   projectId: ProjectId;
@@ -404,7 +393,15 @@ function ArgInput(p: ArgInputProps) {
         return <AddTextButton onClick={() => onChange({ key: UNALLOCATED_LTEXT_KEY })} />;
       return <JsonValueInput value={value} onChange={onChange} ariaLabel={field.name} />;
     case "document_ref":
-      return <DocumentRefInput {...p} document={type.document} />;
+      return (
+        <DocumentRefField
+          projectId={p.projectId}
+          kind={type.document}
+          value={typeof value === "string" ? value : ""}
+          onChange={(id) => onChange(id === "" ? undefined : id)}
+          aria-label={field.name}
+        />
+      );
     case "map":
       // The context handed to the Document an action opens, keyed by its context inputs.
       if (type.of.kind === "string" && decl.args.some((a) => a.type.kind === "document_ref"))
@@ -821,156 +818,6 @@ function JsonValueInput({
         </p>
       ) : null}
     </div>
-  );
-}
-
-// Document references
-
-function MenuOptionLabel({ id, title }: { id: string; title: string }) {
-  return (
-    <span className="truncate">
-      {id}
-      {title ? (
-        <>
-          {" · "}
-          <MiniMessageInline source={title} />
-        </>
-      ) : null}
-    </span>
-  );
-}
-
-/**
- * A `document_ref` argument (ADR `extensible-document-kinds`, R3): the Documents of that
- * kind in this project and, qualified `project:id`, in the other projects of the server.
- * A menu is picked from a titled dropdown, any other kind from a select.
- */
-function DocumentRefInput(p: ArgInputProps & { document: string }) {
-  if (p.document === "menu") return <MenuRefInput {...p} />;
-  return <KindRefSelect {...p} />;
-}
-
-function MenuRefInput({ projectId, value, onChange }: ArgInputProps) {
-  const { t } = useTranslation();
-  const menuId = (typeof value === "string" ? value : "") as MenuId;
-  const menus = useProjectsStore((s) =>
-    menusOf(s.openProjects.projects.find((p) => p.id === projectId)),
-  );
-  const others = useOtherServerProjects(projectId);
-  const activeLang = useUiStore((s) => s.activeLang);
-  const getText = useGetText(projectId);
-  // A qualified target (`boutique:main`) lives in another project: it is read
-  // from the server index (published state) for its title and inputs.
-  const ref = parseDocRef(menuId);
-  const remote =
-    ref.namespace === null
-      ? null
-      : (others
-          .filter((p) => projectNamespace(p) === ref.namespace)
-          .flatMap((p) =>
-            menusOf(p)
-              .filter((m) => m.id === ref.id)
-              .map((m) => ({ project: p, menu: m })),
-          )[0] ?? null);
-  const targetMenu = remote ? remote.menu : menus.find((m) => m.id === menuId);
-  const targetTitle = remote
-    ? libGetText(remote.project, getFirstTitleText(remote.menu), activeLang)
-    : targetMenu
-      ? getText(getFirstTitleText(targetMenu))
-      : "";
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex w-full items-center gap-1 truncate rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1 text-left font-mono text-xs text-[var(--text)]"
-        >
-          {targetMenu ? (
-            <MenuOptionLabel id={menuId} title={targetTitle} />
-          ) : (
-            t("actionEditor.menuMissing", { id: menuId })
-          )}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
-        <DropdownMenuRadioGroup value={menuId} onValueChange={(v) => onChange(v)}>
-          {menus.map((m) => (
-            <DropdownMenuRadioItem key={m.id} value={m.id} className="font-mono text-xs">
-              <MenuOptionLabel id={m.id} title={getText(getFirstTitleText(m))} />
-            </DropdownMenuRadioItem>
-          ))}
-          {others
-            .filter((p) => menusOf(p).length > 0)
-            .map((p) => (
-              <DropdownMenuGroup key={p.id}>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="field-label !mb-0">{p.name}</DropdownMenuLabel>
-                {menusOf(p).map((m) => (
-                  <DropdownMenuRadioItem
-                    key={m.id}
-                    value={`${projectNamespace(p)}:${m.id}`}
-                    className="font-mono text-xs"
-                  >
-                    <MenuOptionLabel
-                      id={m.id}
-                      title={libGetText(p, getFirstTitleText(m), activeLang)}
-                    />
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuGroup>
-            ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function KindRefSelect({
-  projectId,
-  field,
-  value,
-  onChange,
-  document,
-}: ArgInputProps & { document: string }) {
-  const { t } = useTranslation();
-  const id = typeof value === "string" ? value : "";
-  const local = useProjectsStore((s) =>
-    documentsOf(
-      s.openProjects.projects.find((p) => p.id === projectId),
-      document,
-    ),
-  );
-  const others = useOtherServerProjects(projectId).filter(
-    (p) => documentsOf(p, document).length > 0,
-  );
-  const known =
-    local.some((d) => d.id === id) ||
-    others.some((p) =>
-      documentsOf(p, document).some((d) => `${projectNamespace(p)}:${d.id}` === id),
-    );
-  return (
-    <select
-      value={id}
-      onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value)}
-      className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-xs text-[var(--text)]"
-      aria-label={field.name}
-    >
-      {known ? null : <option value={id}>{id || t("actionEditor.choose")}</option>}
-      {local.map((d) => (
-        <option key={d.id} value={d.id}>
-          {d.id}
-        </option>
-      ))}
-      {others.map((p) => (
-        <optgroup key={p.id} label={p.name}>
-          {documentsOf(p, document).map((d) => (
-            <option key={d.id} value={`${projectNamespace(p)}:${d.id}`}>
-              {d.id}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
   );
 }
 

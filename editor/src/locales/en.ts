@@ -626,6 +626,8 @@ export default {
   },
   conditions: {
     removeCondition: "Remove",
+    keptUnknown_one: "{{count}} condition this editor cannot show is kept as written",
+    keptUnknown_other: "{{count}} conditions this editor cannot show are kept as written",
     alwaysNoCondition: "always (no condition)",
     addFirst: "Add a condition",
     switchOperator: "Click to switch operator",
