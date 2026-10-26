@@ -21,9 +21,12 @@ deployed.
    `Mcp-Session-Id`. `GET`/`DELETE` → 405. Protocol versions: `2025-11-25`, `2025-06-18`,
    `2025-03-26`. No new service, no new network dependency. Tools block on the servers' responses:
    on 4 threads of their own, never Jetty's.
-2. **The AI only writes drafts.** Six tools: `artisan_overview`, `list_documents`, `read_document`,
-   `get_kind_guide` (read), `start_draft`, `write_document` (the player's private draft,
-   `source: "ai"`). No tool deploys, deletes a Project, or copies a template. The only draft actions
+2. **The AI only writes drafts.** Seven tools: `artisan_overview`, `list_documents`, `read_document`,
+   `get_kind_guide`, `read_docs` (read), `start_draft`, `write_document` (the player's private draft,
+   `source: "ai"`). `get_kind_guide` answers in text: an outline of the schema (each field on one
+   line, then each type, actions and conditions one per line, legacy shapes omitted, `SchemaOutline`),
+   the actions the server's modules declare (`declared_actions`), how to write texts per
+   language with the Project's languages, and an example from the Project (`KindGuide`); the full schema only with `detail: "schema"`. `read_docs` reads the release's user docs (`docs/site`, embedded in the jar under `wiki/`, `UserDocs`): without `page`, the list of pages; with one, the page in Markdown. No tool deploys, deletes a Project, or copies a template. The only draft actions
    the MCP code can send are `list`, `read`, `create`, `update` (`McpProjects.DRAFT_ACTIONS`); an
    architecture test (`McpTest`) rejects any other action and any message name that writes to a disk
    in the `Mcp*` sources. The draft shows up in the editor's "Drafts": the player reviews the diff

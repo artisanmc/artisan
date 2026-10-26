@@ -4,6 +4,8 @@
 
 For each versioned schema, the truth is the file `docs/schema/<name>/v1/schema.json` (JSON Schema **2020-12**). Everything else (Kotlin types, TS types, examples, fixtures) must conform to this file.
 
+The `description`s are in **English** and short: `get_kind_guide` (MCP, assistant) shows them to the model, line by line (`SchemaOutline`). A shape kept for reading only carries a description that starts with `Legacy` or `LEGACY` (or a `$defs` named `…Legacy`): the outline leaves it out.
+
 ## Hand-written types
 
 The types are **not generated** — they are **written by hand** in both languages, faithfully modeling the schema's discriminated unions:

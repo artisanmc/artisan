@@ -2,104 +2,104 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://docs.artisanmc.net/schema/pack/v1.json",
   "title": "Artisan Pack Manifest",
-  "description": "Manifeste d'un pack Artisan : unité d'organisation et d'export/import qui groupe des menus, templates, commandes, traductions et assets liés thématiquement. Le manifeste vit à la racine d'une archive .itfz (zip).",
+  "description": "An Artisan pack manifest: a unit of export and import that groups related menus, templates, commands, translations and assets. It sits at the root of a .itfz (zip) archive.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "id", "name", "version"],
   "properties": {
     "schema": {
       "const": "pack/v1",
-      "description": "Version du schéma du manifeste."
+      "description": "Manifest schema version."
     },
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_-]{0,63}$",
-      "description": "Identifiant slug du pack. Lowercase, alphanum, tirets/underscores. Unique par auteur (pas globalement)."
+      "description": "Pack id: lowercase letters, digits, - and _. Unique per author."
     },
     "name": {
       "type": "string",
       "minLength": 1,
       "maxLength": 128,
-      "description": "Nom affiché dans le dashboard et la marketplace."
+      "description": "Name shown in the dashboard and the marketplace."
     },
     "description": {
       "type": "string",
       "maxLength": 2048,
-      "description": "Description courte du pack pour la marketplace et l'import."
+      "description": "Short description for the marketplace and the import."
     },
     "version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-z0-9.]+)?$",
-      "description": "Version semver (X.Y.Z). Bump à chaque export pour distinguer les variantes."
+      "description": "Semver version (X.Y.Z), bumped on each export."
     },
     "author": {
       "type": "string",
       "minLength": 1,
       "maxLength": 64,
-      "description": "Nom d'auteur. En V3 marketplace, lié à un compte vérifié."
+      "description": "Author name."
     },
     "license": {
       "type": "string",
-      "description": "Licence du pack (SPDX identifier conseillé : MIT, CC-BY-NC-4.0, Apache-2.0, etc.)."
+      "description": "The pack's licence (an SPDX id such as MIT, CC-BY-NC-4.0, Apache-2.0)."
     },
     "homepage": {
       "type": "string",
       "format": "uri",
-      "description": "URL optionnelle vers une page de présentation du pack."
+      "description": "Optional URL of a page about the pack."
     },
     "tags": {
       "type": "array",
       "items": { "type": "string", "maxLength": 32 },
       "maxItems": 16,
-      "description": "Tags pour catégorisation et recherche dans le marketplace."
+      "description": "Tags for the marketplace's categories and search."
     },
     "artisan_min_version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Version minimum d'Artisan requise pour utiliser ce pack."
+      "description": "Minimum Artisan version the pack needs."
     },
     "preview_image": {
       "type": "string",
-      "description": "Chemin relatif d'une image de preview dans l'archive (ex. \"preview.png\"). Utilisée par le marketplace."
+      "description": "Path of a preview image in the archive (e.g. \"preview.png\"), for the marketplace."
     },
     "menus": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
       "uniqueItems": true,
-      "description": "Liste des ids de menus inclus dans le pack. Chacun doit avoir un fichier menus/<id>.json dans l'archive."
+      "description": "Ids of the menus in the pack; each has a menus/<id>.json file in the archive."
     },
     "templates": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
       "uniqueItems": true,
-      "description": "Liste des ids de templates inclus. Chacun doit avoir un fichier templates/<id>.json."
+      "description": "Ids of the templates in the pack; each has a templates/<id>.json file."
     },
     "commands": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
       "uniqueItems": true,
-      "description": "Liste des ids de commandes incluses. Chacune doit avoir un fichier commands/<id>.json conforme à command/v1."
+      "description": "Ids of the commands in the pack; each has a commands/<id>.json file following command/v1."
     },
     "translations": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Traductions embarquées dans le pack — sous-set de la table workspace, calculé à l'export comme l'union des clés référencées par les menus et commandes du pack.",
+      "description": "The translations in the pack: the keys its menus and commands reference, computed on export.",
       "properties": {
         "file": {
           "type": "string",
-          "description": "Chemin relatif du fichier translations dans l'archive (par défaut \"translations.json\"), conforme à translations/v1.",
+          "description": "Path of the translations file in the archive (default \"translations.json\"), following translations/v1.",
           "default": "translations.json"
         },
         "key_count": {
           "type": "integer",
           "minimum": 0,
-          "description": "Nombre de clés embarquées (info pour les dialogs d'import)."
+          "description": "Number of keys included (shown on import)."
         },
         "languages": {
           "type": "array",
           "items": { "type": "string", "pattern": "^[a-z]{2,3}(?:_[A-Za-z]{2,4})?$" },
           "uniqueItems": true,
-          "description": "Langues couvertes par les traductions du pack. Permet à l'import d'alerter sur les langues manquantes côté workspace cible."
+          "description": "Languages the pack's translations cover, so the import can warn about missing ones."
         }
       }
     },
@@ -107,13 +107,13 @@
       "type": "array",
       "items": { "type": "string" },
       "uniqueItems": true,
-      "description": "Liste des chemins d'assets inclus (relatifs au dossier assets/ de l'archive)."
+      "description": "Paths of the included assets (relative to the archive's assets/ folder)."
     },
     "requires_plugins": {
       "type": "array",
       "items": { "type": "string" },
       "uniqueItems": true,
-      "description": "Plugins tiers requis pour faire fonctionner ce pack (ex. \"luckperms\", \"vault\", \"questx\"). Calculé automatiquement à l'export depuis l'union des menu.metadata.uses_plugins et command.metadata.uses_plugins."
+      "description": "Third-party plugins the pack needs (e.g. \"luckperms\", \"vault\"). Computed on export."
     },
     "created_at": { "type": "string", "format": "date-time" },
     "updated_at": { "type": "string", "format": "date-time" }

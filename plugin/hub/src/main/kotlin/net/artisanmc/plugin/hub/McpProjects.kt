@@ -84,7 +84,9 @@ class McpProjects(
         // No publication goes through here: a publisher that would be asked is a bug, and says so.
         val publisher = ProjectDrafts.Publisher { _, answer -> answer(mapOf("ok" to false, "error" to "forbidden")) }
         drafts.handle(project.server.id, project.folder, Call.mapper.valueToTree<ObjectNode>(message), publisher) { reply.complete(it) }
-        return reply.get(timeoutSeconds, TimeUnit.SECONDS)
+        // The drafts answer with JSON nodes inside (a draft as stored): plain maps and lists for the tools.
+        @Suppress("UNCHECKED_CAST")
+        return Call.mapper.convertValue(reply.get(timeoutSeconds, TimeUnit.SECONDS), Map::class.java) as Map<String, Any?>
     }
 
     private fun request(server: EditorServer, message: Map<String, Any?>): Map<String, Any?> {
