@@ -6,14 +6,6 @@ export function AuthCard({ title, children }: { title: string; children: ReactNo
   return (
     <div className="card relative z-[1] mx-auto flex w-full max-w-[400px] flex-col gap-5 p-8">
       <div className="flex items-center gap-1">
-        <img
-          src="/logo.svg"
-          alt=""
-          aria-hidden="true"
-          width={28}
-          height={28}
-          className="size-7 shrink-0"
-        />
         <ArtisanWordmark />
       </div>
 

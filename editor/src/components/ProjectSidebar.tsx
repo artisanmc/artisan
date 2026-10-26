@@ -247,14 +247,6 @@ export function ProjectSidebar() {
         onClick={() => useSidebarStore.getState().close()}
         className="flex h-12 shrink-0 items-center gap-1 rounded-[10px] px-1.5 transition-colors hover:bg-[var(--surface-hover)]"
       >
-        <img
-          src="/logo.svg"
-          alt=""
-          aria-hidden="true"
-          width={28}
-          height={28}
-          className="size-7 shrink-0"
-        />
         <ArtisanWordmark />
       </Link>
 

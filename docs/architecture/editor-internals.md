@@ -843,8 +843,8 @@ Enter in the name or description triggers the same submission as "Create".
 An empty name or a creation already in progress blocks submission; "Cancel"
 closes the modal without creating a project.
 
-The provided geometric logo is kept in `editor/public/logo.svg`, shared between the sidebar brands, the authentication/setup/home screens and the SVG favicon declared in `editor/index.html`.
-The brand text of the sidebars and authentication uses `ArtisanWordmark`, an inline version of the provided SVG: Inter 700, tracking -8, color inherited from the theme. The inline SVG allows reusing the font loaded via Bunny Fonts.
+The logo is pixel art (sources and generator in the project's `branding/logo-pixel/`). `editor/public/logo.svg` is the 16×16 crafting-table block: SVG favicon declared in `editor/index.html` and icon-only spots (collapsed navigation button, setup and home screens).
+The brand of the sidebars, authentication and marketing pages is `ArtisanWordmark` alone (no icon next to it, the A of the wordmark is the symbol): `public/wordmark-dark.svg` or `wordmark-light.svg` depending on `useThemeStore`, a 39×8 grid shown ×3 (117×24) with `image-rendering: pixelated`.
 On mobile (<1024 px), the topbar uses a two-row grid, keeps the icon tabs and enforces 44 px touch targets. The Buttons panel temporarily hides the inspector without clearing the selection; a selection change closes Buttons. Panels stay independent on desktop.
 
 The properties also enable `SplitPane.animatePresence` on desktop (`ProjectWorkspacePanels`) and mobile (`CanvasWithInspector`, split always mounted). Changing the selection does not replay the animation: only the panel's presence triggers it.

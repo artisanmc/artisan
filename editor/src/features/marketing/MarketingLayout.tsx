@@ -1,3 +1,4 @@
+import { ArtisanWordmark } from "@/components/ArtisanWordmark";
 import { Button } from "@/components/ui/button";
 import { setSiteLang } from "@/site/i18n";
 import { ChevronDown, Menu, X } from "lucide-react";
@@ -26,8 +27,7 @@ export function MarketingLayout({
       <header className="marketing-header">
         <div className="marketing-container marketing-nav">
           <a className="marketing-logo" href="/" aria-label="Artisan">
-            <img src="/logo.svg" alt="" width="34" height="34" />
-            <span>Artisan</span>
+            <ArtisanWordmark />
           </a>
           <nav className="marketing-desktop-nav" aria-label={t("marketing.nav.menu")}>
             <a href="/#editor">{t("marketing.nav.product")}</a>
@@ -81,8 +81,7 @@ export function MarketingLayout({
         <div className="marketing-footer-top">
           <div>
             <a className="marketing-logo" href="/">
-              <img src="/logo.svg" alt="" width="32" height="32" />
-              <span>Artisan</span>
+              <ArtisanWordmark />
             </a>
             <p>{t("marketing.footer.tagline")}</p>
           </div>
