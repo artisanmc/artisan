@@ -230,6 +230,8 @@ class ProjectRoutes(
                 error == "conflict" -> call.json(
                     mapOf("error" to "conflict", "conflicts" to reply["conflicts"], "disk_files" to reply["disk_files"]), 409,
                 )
+                // Files that would not load (ADR `mcp-server`): each named, with what is wrong.
+                error == "invalid_documents" -> call.json(mapOf("error" to error, "message" to detail, "problems" to reply["problems"]), 422)
                 detail in OPERATION_ERRORS -> call.json(mapOf("error" to detail), 409)
                 error in OPERATION_ERRORS -> call.json(mapOf("error" to error), 409)
                 else -> readError(call, reply)
@@ -396,7 +398,7 @@ class ProjectRoutes(
     }
 
     companion object {
-        private val EXPECTED_DRAFT_ERRORS = setOf("draft_conflict", "conflict", "draft_closed", "draft_not_found", "not_found")
+        private val EXPECTED_DRAFT_ERRORS = setOf("draft_conflict", "conflict", "draft_closed", "draft_not_found", "not_found", "invalid_documents")
         private val OPERATION_ERRORS = setOf("operation_mismatch", "operation_conflict", "operation_expired")
         private val IDENTIFIER = Regex("[a-zA-Z0-9_-]{1,100}")
         private val SHA256 = Regex("[a-f0-9]{64}")

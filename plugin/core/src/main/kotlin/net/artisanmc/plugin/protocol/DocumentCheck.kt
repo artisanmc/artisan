@@ -107,7 +107,8 @@ class DocumentCheck {
         return schema.validate(node)
             .sortedWith(compareBy({ it.instanceLocation.nameCount }, { it.message }))
             .take(MAX_SCHEMA_PROBLEMS)
-            .map { Problem(path, "schema", it.message) }
+            // At the root the location is empty and the message starts with ": ".
+            .map { Problem(path, "schema", it.message.removePrefix(": ")) }
     }
 
     /** The engine's own read, on a temporary copy: what it skips among [paths], with its reason. */

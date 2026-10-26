@@ -1615,6 +1615,25 @@
               }
             }
           }
+        },
+        {
+          "description": "Action déclarée sur le serveur, hors cœur : celle d'un module, toujours préfixée de son espace de noms (`guilds:rank_delete`), ou l'une de celles qu'Artisan déclare lui-même sans préfixe (`module_command`, `cancel_event`). Ses arguments sont ceux de sa déclaration, que le schéma ne connaît pas.",
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "propertyNames": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$"
+              },
+              {
+                "enum": [
+                  "module_command",
+                  "cancel_event"
+                ]
+              }
+            ]
+          }
         }
       ]
     },

@@ -76,7 +76,8 @@ session suffit partout, et aucun quota ne s'applique.
 ## Flux non évidents
 
 - **Publier** passe par le brouillon (`POST …/drafts/:draft/publish`) ; `PUT …/files` reste la
-  publication directe (`project_write`, `create: true` pour un Project neuf). Les deux finissent en CAS contre le disque.
+  publication directe (`project_write`, `create: true` pour un Project neuf). Les deux finissent en CAS contre le disque,
+  après `DocumentCheck` : un Document qui ne chargerait pas → 422 `invalid_documents` `{error, message, problems}`, rien d'écrit.
 - **Après publication**, l'éditeur reconstruit le pack dans le navigateur
   (`editor/src/lib/pack/buildServerPack.ts`) puis le `PUT` au hub : le serveur ne calcule rien.
 - **Feuille** : la même route sert un serveur distant ; seul le transport change

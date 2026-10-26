@@ -78,7 +78,7 @@ le message est ignoré (`EditorRequest.parse` rend `null`).
 |---|---|---|
 | `project_list` | `project_list_result` | `{project_ids, project_roots:[{project_id, identity: "folder"\|"addon", module_id?}], resource_inventory}` — ce que le serveur a chargé (instantané), pas un scan disque. |
 | `project_read` | `project_read_result` | Requête `{project_id, if_hash?}`. Réponse `{hash, files:[{path, content}], failed:[{path, reason}], binaries:[{path, hash, size}]}`, ou `{unchanged: true, hash}` si `if_hash` égale l'empreinte. Binaires annoncés, pas portés. Plafond 8 MiB de texte (`too_large`). Chemins invisibles exclus (cf. `invariants.md`). |
-| `project_write` | `project_write_result` | `{project_id, operation_id, files:[{path, content, base_hash}], deletes:[{path, base_hash}], renames:[{from, to, base_hash}], binaries?:[{path, content_base64\|null, base_hash}], create?}`. CAS par fichier, tout ou rien ; conflit : `{error: "conflict", conflicts:[{path, disk}], disk_files}`. `create` crée le dossier d'un Project neuf. Un `operation_id` rejoué rend la réponse déjà donnée. |
+| `project_write` | `project_write_result` | `{project_id, operation_id, files:[{path, content, base_hash}], deletes:[{path, base_hash}], renames:[{from, to, base_hash}], binaries?:[{path, content_base64\|null, base_hash}], create?}`. CAS par fichier, tout ou rien ; conflit : `{error: "conflict", conflicts:[{path, disk}], disk_files}`. L'arbre qui serait écrit passe d'abord `DocumentCheck` (comme `documents_check`) : échec → `{error: "invalid_documents", message, problems:[{path, stage, message}]}`, rien d'écrit. `create` crée le dossier d'un Project neuf. Un `operation_id` rejoué rend la réponse déjà donnée. |
 | `project_history` | `project_history_result` | `{project_id, path}` → `versions:[{at, content}]`, plus récente d'abord, lues dans `.artisan/history/<path>/`. Rien n'alimente plus ce dossier (`ProjectPublisher.withHistory` est l'identité) : seules les archives antérieures restent lisibles. |
 | `asset_read` | `asset_read_result` | `{project_id, path}` → `{content_base64, hash}`, lu sur le disque à la demande. |
 | `project_draft_publish` | `project_draft_publish_result` | Publication d'un brouillon gardé par le hub, cf. ci-dessous. |
@@ -124,7 +124,7 @@ un brouillon existant exige `expected_revision`. Les blobs vont dans `artisan_co
 Seule la publication va au serveur : `project_draft_publish` `{project_id, operation_id, draft,
 blobs: {hash: base64}, author_id, author_name}` (les binaires que le brouillon change).
 `DraftPublication` (`core`) vérifie chaque fichier contre le disque (compare-and-swap), écrit tout
-en un commit avec son reçu (`.artisan/transactions/`), répond `{ok, wrote}` ou `conflict`, **puis**
+en un commit avec son reçu (`.artisan/transactions/`), répond `{ok, wrote}`, `conflict` ou `invalid_documents` (l'arbre du brouillon passe `DocumentCheck` avant le CAS, comme `project_write`), **puis**
 recharge. Le hub ne marque le brouillon publié qu'après cette réponse ; une réponse perdue se
 rejoue sous le même `operation_id`, que le serveur reconnaît.
 

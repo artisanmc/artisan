@@ -57,11 +57,23 @@ qu'il est déployé.
    reçoivent pas de session : le cookie n'agit jamais pour un autre site. Depuis l'éditeur lui-même
    (même origine), `/mcp` accepte la session : ce sera la porte de l'assistant intégré.
 7. **Désactivé par défaut** (`web.mcp: false`) tant que c'est un aperçu.
+8. **Déployer passe par la même vérification** (2026-10-26). `project_write` et
+   `project_draft_publish` lancent `DocumentCheck` sur l'arbre qu'ils écriraient (renommages et
+   suppressions compris, fichiers `.artisan*` exclus) avant tout compare-and-swap ; un échec répond
+   `invalid_documents` (`message` : une ligne `chemin: problème` par problème, `problems` en liste),
+   rien n'est écrit. Le hub le rend en 422 ; l'éditeur affiche les lignes dans la fenêtre d'échec de
+   Déployer. Pour que les add-ons passent, le schéma accepte les actions qu'un serveur déclare : un nom
+   préfixé (`guilds:rank_delete`) ou `module_command`/`cancel_event`, arguments non vérifiés. Un
+   nom du cœur mal écrit reste refusé ; un nom préfixé mal écrit passe. Mesure préalable : les documents livrés avec
+   MSGuilds, artisan-auctions et artisan-attribution passent tous (MSGuilds en comptait 90 avant la
+   branche « déclarée », attribution 15). Un seul utilisateur d'Artisan à cette date : bloquer tout
+   de suite plutôt qu'une phase d'avertissements.
 
 ## Conséquences
 
 - Un joueur qui a `edit` peut confier ses brouillons à une IA ; le pire qu'elle fasse est un
   brouillon faux, qu'il ne déploie pas.
+- Un déploiement qui écrirait un Document que le serveur ne chargerait pas est refusé en entier.
 - Le protocole passe en 1.4. Une feuille plus ancienne ignore `documents_check` : `write_document`
   refuse sur ses Projects avec `plugin_update_required`.
 - Le jar embarque `networknt/json-schema-validator` (relocalisé, SLF4J fourni par le serveur) et les
@@ -72,11 +84,9 @@ qu'il est déployé.
 
 ## Reporté
 
-- **La vérification dans Déployer.** Brancher `DocumentCheck` sur `project_draft_publish` refuserait
-  des déploiements acceptés aujourd'hui : les schémas sont plus stricts que le lecteur, et aucun
-  relevé ne dit combien de Projects existants y échouent. D'abord mesurer (vérifier les Projects
-  chargés au démarrage, journaliser), puis afficher les problèmes dans le diff de Déployer comme
-  avertissements, puis seulement bloquer.
+- Vérifier les actions préfixées et leurs arguments contre ce que le serveur déclare réellement
+  (`guilds:rank_delet` passe aujourd'hui le schéma).
+- Afficher les problèmes dans le diff de la revue de Déployer, avant le clic, plutôt qu'après.
 - L'assistant cloud intégré, le portefeuille par serveur et le mode « fournisseur + clé de l'admin »
   (relais `/ai` du hub) : jalons suivants de la proposition.
 - La détection de réutilisation d'un jeton de rafraîchissement (révoquer l'autorisation entière) :

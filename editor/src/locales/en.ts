@@ -1434,6 +1434,8 @@ export default {
     copied: "Details copied",
     copyFailed: "Could not copy — select the text to copy it manually.",
     errors: {
+      invalid_documents:
+        "Nothing was deployed: these documents would not load on the server. Fix them, then deploy again.",
       server_offline: "The Minecraft server is offline.",
       network_error: "The connection to the backend failed.",
       fetch_timeout: "The server did not respond in time. Check its state before retrying.",

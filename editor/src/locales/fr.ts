@@ -1456,6 +1456,8 @@ const fr: typeof en = {
     copied: "Détails copiés",
     copyFailed: "Copie impossible — sélectionne le texte pour le copier.",
     errors: {
+      invalid_documents:
+        "Rien n’a été déployé : ces documents ne se chargeraient pas sur le serveur. Corrige-les, puis redéploie.",
       server_offline: "Le serveur Minecraft est hors ligne.",
       network_error: "La connexion au backend a échoué.",
       fetch_timeout: "Le serveur n’a pas répondu à temps. Vérifie son état avant de réessayer.",

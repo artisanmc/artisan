@@ -38,7 +38,8 @@ class CoreActionSchemaConformanceTest {
 
     /** `{ name: spec }` of every core `$defs.Action` alternative. */
     private fun actions(): Map<String, JsonNode> =
-        schema()["\$defs"]["Action"]["oneOf"].associate { alt ->
+        // Without `required`: the branch for actions modules declare at runtime, named by pattern.
+        schema()["\$defs"]["Action"]["oneOf"].filter { it.has("required") }.associate { alt ->
             val name = alt["required"][0].asText()
             name to alt["properties"][name]
         }.filterKeys { it !in moduleActions }
