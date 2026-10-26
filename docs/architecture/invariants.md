@@ -84,7 +84,7 @@ d'identité. Un `.artisan` plus profond (`data/.artisan/x`) est du contenu ordin
 seule fois, `project/ProjectMetadataPaths` (core) ; tous les appelants y délèguent, sauf
 `EditorScreenRegistry` (module `api`, sans accès au core) qui applique la même règle.
 
-L'éditeur **possède** `.artisan/editor.yaml` (layout du board, `i18n_mode`) et doit pouvoir
+L'éditeur **possède** `.artisan/editor.yaml` (layout du board) et doit pouvoir
 l'écrire. La règle de `project_read` / `project_write` (`EditorPaths`) est donc plus fine que
 l'exclusion hash — et symétrique : **ce que l'éditeur ne voit pas en lecture, il ne peut pas
 l'écrire**. Restent invisibles et interdits : `.artisan/history/`, `.artisan/drafts/`,

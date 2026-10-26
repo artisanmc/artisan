@@ -168,15 +168,6 @@ export interface Project {
   /** Manifest `escape_goes_back`: ESC in a menu reopens the previous screen instead of closing. */
   escapeGoesBack?: boolean;
   /**
-   * How texts land on disk (ADR `files-first-source-of-truth` §4). `extract`
-   * (default, and what absent means) keeps `{i18n:key}` refs in the documents
-   * with every language in `lang/`; `inline` writes the default language's
-   * literal where it is read and keeps only the other languages in `lang/`,
-   * addressed by key site. Editor-only choice, persisted in
-   * `.artisan/editor.yaml` — both shapes are valid input for the plugin.
-   */
-  i18nMode?: "extract" | "inline";
-  /**
    * Board position of each document, keyed by `<kind>/<id>` (`docKey`): an id is unique
    * within its kind only.
    */

@@ -72,7 +72,7 @@ it("flushes pending edits and preserves draft identity while rebinding a renamed
   });
   renderHook(() => useDraftSync());
   act(() => {
-    useProjectsStore.getState().setProjectI18nMode({ projectId: project.id, mode: "inline" });
+    useProjectsStore.getState().addLanguage({ projectId: project.id, lang: "de" });
     onProjectRenamed({
       serverKeyId: "server",
       projectId: project.id,
