@@ -173,7 +173,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - **One action shape in the editor** (ADR `extensible-document-kinds`, W4): a domain action is `{ name, value }` — the wire name and its canonical value, texts as `LText` nodes — for Artisan's actions and a module's alike; the typed `Action` union and `{ type: "module" }` are gone. Every reader goes through the action's declaration (`domain/actionArgs.ts`): the action form is rendered from the declaration table (`CORE_ACTIONS` from `testdata/core-actions.json`, plus the server's `declared_actions`), one input per argument kind with a few per-argument widgets (material, sound, expression, iterating target) and raw JSON for an undeclared action; the board's edges, the clipboard's id rewrite, a Document's rename and the preview contexts read `document_ref` arguments instead of knowing `open_menu`. The canonical form the editor writes (`testdata/action-wire-conformance.json`) always carries a required argument (filled from its default when unset, as the menu/v1 schema requires `{material, count}`), drops an optional one at its default (`play_sound` volume 1), writes a lone primary bare (`show_title: "VIP"`) and `{name: null}` for a declared action with no argument set. Imported projects persisted with the typed shape are folded on read. Adding a core action to the form now means declaring it in `CoreActions.kt` plus two labels.
 - **Every action runs through the action registry** (ADR `extensible-document-kinds`, R1, lot 3): an action is a name and a wire value (`Step.ActionStep`), the parsers no longer know the vocabulary. A module declares its actions with `api.getActionRegistry().register(new ActionDeclaration(name, args, primary, handler))` (`@Beta`): typed arguments (`ModelField`, `ModelFieldType`, with `document_ref(kind)`), the argument the scalar wire binds, and an `ActionHandler(ctx, args, runtime) → ctx`; `ActionRuntime` lends text resolution and nested chains. Artisan's own actions are declared the same way (`CoreActions` schemas in `core`, handlers in `paper`), locked against `docs/schema/menu/v1/schema.json` by `CoreActionSchemaConformanceTest`; a name nobody declares is skipped with one warning instead of failing the compile. The sealed `Action` class and the legacy `ClickHandler.actions` list are gone; the type-tagged (`{type: …}`) and DSL codecs emit keyed steps. Servers report `declared_actions` at Presence (`GET /api/v1/servers/:id/actions`); the editor offers a module's actions in the step picker, renders their form from the declaration (raw JSON without one) and writes them back verbatim (`{ type: "module", name, value }`).
 - **Action texts addressed by schema, module texts translatable** (ADR `extensible-document-kinds`, lot 4): the positional i18n addressing of the legacy Action DSL is driven by each action's schema — `ActionSchema.i18nSlots` names the legacy slot of a text argument (`send_message`/`broadcast` → `message`, `show_title` → `show_title`/`show_subtitle`), any other `ltext` argument is addressed under the action's name (`<prefix>.quests.notify.text`, numbered per occurrence; a `list(ltext)` numbers its entries `_2`, `_3`…) — so `I18nAddresses` holds no action name any more and a module's text arguments are addressed like Artisan's. `testdata/core-actions.json` is generated from `CoreActions` (`CoreActionsVectorTest`, `ARTISAN_WRITE_VECTORS=1`) and the editor imports it as its table of core actions. In the editor a module action's texts are i18n sites: adopted into `LText` nodes at their address once the server's declaration is known (project load, or when Presence reports it later), listed in the Translations panel, edited per language in the action form, written back as field-local text; `testdata/i18n-address-conformance.json` gains keyed-wire and module cases.
-- **Add-on API 2.0.0, in Java** (ADR `extensible-document-kinds`, « Langue de l'API publique »): `plugin/api` is rewritten in Java, with no `kotlin.*` type and no `kotlin-stdlib` in the published POM; the plugin's internals stay Kotlin. Members are Java getters (`ArtisanModule.getId()`, `DataSourceDeclaration.getRef()`), value classes are immutable classes with constructors (`new DataSourceDeclaration(ref, fetcher)`), callbacks are `@FunctionalInterface`s, and `ArtisanAPI` is assembled by Artisan through `ArtisanAPI.builder(...)`. Removed as announced by `@Sunset`: `ModuleMessagesApi` / `api.messages` and `DataSourceDeclaration.schemaHint` (the `data_sources` wire no longer carries `schema_hint`). `MenuClickEvent.hasActions()` replaces `getHasActions()`; `ModuleActionsApi.execute` gains overloads without `args` / `projectId`. Add-ons built on 1.x recompile against 2.0.0.
+- **Add-on API 2.0.0, in Java** (ADR `extensible-document-kinds`, "Public API language"): `plugin/api` is rewritten in Java, with no `kotlin.*` type and no `kotlin-stdlib` in the published POM; the plugin's internals stay Kotlin. Members are Java getters (`ArtisanModule.getId()`, `DataSourceDeclaration.getRef()`), value classes are immutable classes with constructors (`new DataSourceDeclaration(ref, fetcher)`), callbacks are `@FunctionalInterface`s, and `ArtisanAPI` is assembled by Artisan through `ArtisanAPI.builder(...)`. Removed as announced by `@Sunset`: `ModuleMessagesApi` / `api.messages` and `DataSourceDeclaration.schemaHint` (the `data_sources` wire no longer carries `schema_hint`). `MenuClickEvent.hasActions()` replaces `getHasActions()`; `ModuleActionsApi.execute` gains overloads without `args` / `projectId`. Add-ons built on 1.x recompile against 2.0.0.
 - **One container for a project's documents** (ADR `extensible-document-kinds`, decision 10, lot 2): the editor's `Project` and the plugin's `ProjectBundle` hold their menus, commands and dialogs in `documents[kind]`, keyed by a document-kind registry (`domain/documentKinds.ts`, `model/DocumentKinds.kt`: kind, folder, schema versions); the typed accessors (`menusOf(project)`, `bundle.menus`) read that store. Import, export, the resource inventory and the provider's reference tables loop over the registry instead of naming the three kinds; a project file or a stored account from before the change is folded into the container on read.
 - Internal: `testdata/action-wire-conformance.json` pins the structured action wire across the two stacks (`ActionWireConformanceTest` in the plugin, `lib/actions/actionWireConformance.test.ts` in the editor): a hand-written variant and the editor's canonical form compile to the same chain. The editor now reads `give_item: DIAMOND`, `take_item: EMERALD` and `show_title: "text"` as the plugin does (one item, the title alone) instead of an empty material or title. ADR `structured-action-wire` is accepted; ADR `extensible-document-kinds` gains its 2026-10-15 revision (facts checked against the code, open questions R1–R5).
 - **The account store by domain** (issue #46, part 2): `state/accountStore.ts` is the composition of eight slices (`state/account/*Slice.ts`: projects, dialogs, commands, menus, elements, canvas, i18n, data) sharing `helpers.ts` and `types.ts`. `useAccountStore`, its actions and its undo history are unchanged for the editor; the next batches give each slice its own store and migrate its importers.
@@ -329,11 +329,11 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ### Added — Free and Pro editor access
 
-- Artisan Pro est affiché à 9 €/mois ou 70 €/an par Network, avec 38 € d'économie annuelle. Les prix sont visibles avant l'activation du paiement ; seuls les abonnements Stripe actifs aux montants publiés ouvrent le checkout.
-- L'économie annuelle figure directement sur le bouton Annuel ; les lignes de comparaison Free/Pro sont alignées. Docker Compose transmet les clés Stripe au backend pour permettre la création des offres depuis l'administration.
-- L'en-tête tarifaire se limite à « Tarifs ». Pro inclut 500 crédits IA par mois ; l'offre annuelle les attribue chaque mois pendant l'année payée, avec reprise idempotente après redémarrage.
-- Pricing simplifié : promesse de disponibilité en jeu mise en avant, tableau des plafonds Free (10 ressources/serveur, 2 serveurs, 2 collaborateurs) et Pro (250 ressources/serveur, 10 serveurs, collaborateurs illimités). Les ressources des modules sont précisées dans l'aide contextuelle ; l'expiration de Pro reste expliquée dans la FAQ.
-- Vérification transactionnelle des limites de serveurs et collaborateurs par Network, et plafond Pro de 250 ressources personnelles par serveur. Les serveurs et collaborateurs existants restent en place après expiration ; seules les nouvelles créations sont refusées au-delà du plafond Free.
+- Artisan Pro is displayed at €9/month or €70/year per Network, saving €38 a year. Prices are visible before payment is enabled; only active Stripe subscriptions at the published amounts open the checkout.
+- The annual saving appears directly on the Annual button; the Free/Pro comparison rows are aligned. Docker Compose passes the Stripe keys to the backend so offers can be created from the administration.
+- The pricing header is limited to "Pricing". Pro includes 500 AI credits per month; the annual offer grants them every month during the paid year, with idempotent resumption after a restart.
+- Simplified pricing: in-game availability promise highlighted, table of Free limits (10 resources/server, 2 servers, 2 collaborators) and Pro limits (250 resources/server, 10 servers, unlimited collaborators). Module resources are explained in the contextual help; Pro expiry stays explained in the FAQ.
+- Transactional check of server and collaborator limits per Network, and a Pro cap of 250 personal resources per server. Existing servers and collaborators stay in place after expiry; only new creations beyond the Free cap are refused.
 
 - Personal menus, dialogs and commands now have a server-wide free quota, checked against the plugin's live disk inventory on atomic writes. Registered module roots remain exempt; runtime and existing files remain available. The limit is configurable and enforcement starts disabled for a controlled rollout.
 - Pro entitlement follows the Network's confirmed paid period. The admin console can manage the quota and Pro plans, and pricing and project workspace show the corresponding offer and resource count.
@@ -571,493 +571,491 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 - Creating a project now writes its manifest on the connected server before returning success. The entered name is its disk identity; offline servers and existing names return explicit errors instead of creating invisible database entries.
 - Both project dialogs support Enter, display creation errors, and use a localized project placeholder.
 
-### Changed — le panneau d'édition n'apparaît qu'à la sélection
-
-- Le panneau (Édition / Bibliothèque / Assets) était affiché en permanence et mangeait de la place
-  sur le canvas, alors que son contenu dépendait déjà entièrement de la sélection. Sa présence suit
-  désormais la même règle : **il existe ssi quelque chose est sélectionné**. Cliquer le fond du
-  canvas désélectionne et rend tout l'espace à la scène.
-- **Bibliothèque** et **Assets** ne s'affichent plus que s'il y a un menu où déposer un item ou un
-  glyphe (menu ou élément de menu sélectionné) — plus dans une commande ni un dialogue. L'onglet
-  mémorisé est ignoré quand le contexte ne l'offre pas, sans être écrasé.
-- Les **paramètres du projet**, qui ne correspondent à aucune sélection, s'ouvrent depuis trois
-  endroits : une nouvelle ligne racine en tête de l'arbre du projet, le **clic droit sur le fond du
-  canvas** (le geste qui désélectionne est celui après lequel on les cherche) et le **menu ⋮** de la
-  barre du haut.
-- La **création** d'un menu, d'une commande ou d'un dialogue passe de ce panneau à l'arbre du projet
-  (bouton `+` sur la ligne racine) : c'est le registre du projet, et le panneau de droite n'est plus
-  toujours là pour l'héberger. Les dialogues y gagnent une entrée qu'ils n'avaient pas.
-- Le panneau se ferme par une **croix** dans son en-tête, ou en cliquant le fond du canvas.
-- Aucun nouveau geste : cliquer un menu le sélectionnait déjà (et le clic droit aussi), ce qui
-  affiche ses paramètres. L'affordance existait, elle était invisible tant que le panneau était là
-  en permanence.
-
-### Changed — la vue focus d'un menu utilise le canvas de la planche
-
-- La vue individuelle d'un menu montait son propre canvas (`SoloMenuStage`), qui ne réimplémentait
-  qu'une partie de celui de la planche. Elle monte désormais le **même** `Stage`, avec une prop
-  `focus` : la seule différence est la table de layout, synthétique (un Document posé à l'origine)
-  au lieu de l'appartenance à la planche. `SoloMenuStage` est supprimé.
-- Conséquence : un Document **jamais posé sur la planche** est pleinement éditable en focus — le
-  focus ne consulte jamais `canvasLayout`.
-- Les pastilles de liens hors-planche apparaissent en focus et **ouvrent** la cible au lieu de la
-  poser sur la planche : les liens d'un menu redeviennent visibles et navigables.
-- Le fond du canvas se comporte comme sur la planche : glisser en mode select fait un marquee
-  (nouveau en focus), le pan passe par l'outil main / Espace / Alt.
-
-### Fixed — glisser un item depuis la Bibliothèque dans la vue focus ne faisait rien
-
-- La vue focus n'enregistrait aucune cible de dépôt (`setStageDropTarget`) : le glisser-déposer
-  échouait **en silence**. Les raccourcis clavier, la sélection et les guides d'alignement y étaient
-  également absents. Tout revient avec le canvas unifié.
-
-### Added — sources d'import serveur pour l'assistant
-
-- Nouveau endpoint read-only `GET /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/import-sources` : un membre peut lister les fichiers autorisés par l'administrateur du serveur pour les joindre à l'assistant, avec contrôle strict du contexte Network → Server → Project. Le backend relaie uniquement les métadonnées du plugin et ne persiste aucun contenu source.
-- `POST /api/v1/assistant/conversations/:id/messages` accepte désormais `serverAttachments` : le backend valide et lit atomiquement (32 sources / 200 fichiers maximum) les fichiers sélectionnés via le plugin avant le modèle, le transcript et les crédits, puis les expose au tour sous des ids `server:<sourceId>/<path>`. Le contenu reste visible par le modèle pendant le tour, mais le résultat de lecture est remplacé par un marqueur non sensible avant la persistance du transcript.
-
-### Fixed — les menus écrits avant le passage à `display` + `states` redeviennent lisibles
-
-- Un fichier portant encore `appearances:` se lisait en display VIDE depuis le 17 août : items
-  invisibles, template sans contenu, aucun message. La décision « aucun shim » (ADR
-  `element-display-and-states`) reposait sur une prémisse fausse — des menus d'avant vivaient en
-  production, et rien ne les avait réécrits (le bootstrap d'un Add-on ne retouche jamais un project
-  existant, par conception).
-- La LECTURE tolère donc à nouveau l'ancienne liste (display en tête) : côté éditeur (menus et
-  `templates/`) **et côté plugin** — sans quoi le menu s'ouvrait sans ses items EN JEU aussi, ce
-  que le correctif éditeur seul ne pouvait pas réparer. L'écriture reste canonique : le premier enregistrement remet le fichier à
-  l'endroit. Lecteur tolérant, écrivain canonique.
-
-### Added — le plugin annonce ses rechargements (`projects_reloaded`)
-
-- Nouveau message plugin → backend → éditeurs. Une édition faite à la main sur le disque ne compte
-  qu'au reload du plugin ; l'éditeur n'avait aucun moyen d'apprendre que ce moment était arrivé.
-  L'annonce porte l'empreinte de chaque Project, donc celui qui la détient déjà n'a rien à refaire.
-- L'éditeur relit seulement si l'empreinte diffère, et **jamais tant qu'un brouillon est sale** :
-  du travail non enregistré n'existe nulle part ailleurs, et le remplacer sans rien demander serait
-  faire dans le dos de l'admin ce que le bouton Actualiser lui fait confirmer.
-
-### Added — `project_read` sait dire « rien n'a bougé » (protocole, rétrocompatible)
-
-- `project_read` accepte `if_hash`, `project_read_result` porte `hash` et `unchanged`. L'éditeur
-  garde la dernière version connue d'un Project et annonce son empreinte ; si l'instantané du
-  serveur porte la même, l'arbre ne traverse pas le fil. Champs optionnels des deux côtés : un
-  plugin ancien ignore `if_hash` et répond comme avant, un backend ancien ignore `hash`.
-- L'empreinte est calculée par le **plugin seul** (texte + binaires annoncés + documents en échec)
-  et lui est rendue telle quelle : personne d'autre ne la recalcule, donc aucune convention
-  inter-langage à tenir.
-
-### Removed — la table `assets` et les magasins d'assets du backend
-
-- Le disque du serveur est **la seule source** d'assets : liste, lecture, édition, duplication,
-  suppression, aperçu PNG, glyphe de police et construction du resource pack ne lisent plus que lui
-  (ADR `assets-on-server-disk`, P6). Table `assets`, `assetStorage`, `fontStorage`,
-  `codepointAllocator`, `assetDescent` et `POST /api/v1/admin/assets/descend` supprimés.
-- Un échec de lecture disque est désormais **qualifié** (`server_offline` / `read_error` /
-  `not_found`) : un serveur muet répond 503, il ne se lit plus comme une bibliothèque vide. Le
-  resource pack ne se reconstruit pas quand un Project est illisible — le pack précédent tient
-  plutôt que d'en publier un amputé de ses glyphes.
-- Deux correctifs au passage : servir un glyphe de police depuis le disque levait (cache refusant
-  l'empreinte vide, celle de ces PNG), et l'allocateur de codepoints sur disque sortait de la plage
-  réservée (U+F800+ appartient aux providers `space`).
-- La migration `0031` **ne supprime la table que si elle est vide** ; sinon elle la conserve et
-  journalise un WARNING. Elle n'échoue jamais : l'entrypoint du conteneur boucle sur `db:migrate`.
-
-### Changed — un Element porte un display à plat et des `states` (BREAKING sur `menu/v1`)
-
-- `appearances:` disparaît. Le cas nominal — un Element, une apparence — s'écrit **sans emballage** :
-  `material`, `title`, `lore`, `click` sont des clés de l'Element, comme dans les autres plugins de
-  menu. Les alternatives conditionnelles vivent sous **`states`**, essayées dans l'ordre AVANT le
-  display, qui est le repli appliqué quand aucune ne passe.
-- **Un état remplace, il n'hérite pas.** Ce qu'un état n'écrit pas est absent, jamais repris du
-  display — la sémantique que le runtime appliquait déjà. Le merge a été examiné et écarté (ADR
-  `element-display-and-states`). Garde-fou : `material` (ou `head`) obligatoire dans un état, en
-  schéma **et** en WARN au load, parce qu'un état incomplet rendait un bloc de pierre en silence.
-- **Aucun shim de lecture** : `appearances` n'est plus lu nulle part et les menus déployés ont été
-  réécrits — le plugin ne tournait que sur le serveur de test. Un fichier resté à l'ancienne forme
-  rend un élément sans apparence.
-- `menu/v1` est muté sur place plutôt que versionné en `v2`, et `versioning.md` dit désormais la
-  règle réellement appliquée : la version change quand un fichier déployé cesserait d'être lisible,
-  pas quand le schéma change de forme.
-- **Les adresses i18n ne bougent pas** (`default` = display, `stateN` = `states[N-1]`) : aucune clé
-  `lang/` n'est réécrite. La compilation, elle, passe en ordre de résolution — états puis display.
-- Éditeur : « Ajouter un état » crée un état **vide** (le bloc de pierre affiché enseigne le
-  remplacement) ; « Dupliquer » est le geste explicite d'à côté.
+### Changed — the edit panel only appears on selection
+
+- The panel (Edit / Library / Assets) was always displayed and took up space on the canvas, even
+  though its content already depended entirely on the selection. Its presence now follows the same
+  rule: **it exists iff something is selected**. Clicking the canvas background deselects and gives
+  all the space back to the scene.
+- **Library** and **Assets** only show when there is a menu to drop an item or a glyph into (a menu
+  or menu element is selected) — no longer in a command or a dialog. The remembered tab is ignored
+  when the context does not offer it, without being overwritten.
+- The **project settings**, which match no selection, open from three places: a new root row at the
+  top of the project tree, the **right-click on the canvas background** (the gesture that
+  deselects is the one after which people look for them) and the **⋮ menu** of the top bar.
+- **Creating** a menu, a command or a dialog moves from this panel to the project tree (`+` button
+  on the root row): it is the project's registry, and the right panel is no longer always there to
+  host it. Dialogs gain an entry they did not have.
+- The panel closes with a **cross** in its header, or by clicking the canvas background.
+- No new gesture: clicking a menu already selected it (and so did right-click), which shows its
+  settings. The affordance existed, it was invisible as long as the panel was always there.
+
+### Changed — a menu's focus view uses the board's canvas
+
+- A menu's individual view mounted its own canvas (`SoloMenuStage`), which only reimplemented part
+  of the board's. It now mounts the **same** `Stage`, with a `focus` prop: the only difference is
+  the layout table, synthetic (a Document placed at the origin) instead of membership in the board.
+  `SoloMenuStage` is removed.
+- Consequence: a Document **never placed on the board** is fully editable in focus — focus never
+  reads `canvasLayout`.
+- Off-board link badges appear in focus and **open** the target instead of placing it on the board:
+  a menu's links are visible and navigable again.
+- The canvas background behaves as on the board: dragging in select mode makes a marquee (new in
+  focus), panning goes through the hand tool / Space / Alt.
+
+### Fixed — dragging an item from the Library into the focus view did nothing
+
+- The focus view registered no drop target (`setStageDropTarget`): drag-and-drop failed
+  **silently**. Keyboard shortcuts, selection and alignment guides were also missing there.
+  Everything comes back with the unified canvas.
+
+### Added — server import sources for the assistant
+
+- New read-only endpoint `GET /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/import-sources`: a member can list the files the server administrator allows to attach to the assistant, with a strict Network → Server → Project context check. The backend only relays the plugin's metadata and persists no source content.
+- `POST /api/v1/assistant/conversations/:id/messages` now accepts `serverAttachments`: the backend validates and atomically reads (32 sources / 200 files maximum) the selected files through the plugin before the model, the transcript and the credits, then exposes them to the turn under `server:<sourceId>/<path>` ids. The content stays visible to the model during the turn, but the read result is replaced by a non-sensitive marker before the transcript is persisted.
+
+### Fixed — menus written before the switch to `display` + `states` are readable again
+
+- A file still carrying `appearances:` has been read as an EMPTY display since August 17: invisible
+  items, a template with no content, no message. The "no shim" decision (ADR
+  `element-display-and-states`) rested on a false premise — menus from before lived in
+  production, and nothing had rewritten them (an Add-on's bootstrap never touches an existing
+  project, by design).
+- READING therefore tolerates the old list (display first) again: on the editor side (menus and
+  `templates/`) **and on the plugin side** — otherwise the menu opened without its items IN GAME
+  too, which the editor fix alone could not repair. Writing stays canonical: the first save puts the file back
+  right. Tolerant reader, canonical writer.
+
+### Added — the plugin announces its reloads (`projects_reloaded`)
+
+- New plugin → backend → editors message. A hand edit made on disk only counts at the plugin's
+  reload; the editor had no way to learn that this moment had come. The announcement carries each
+  Project's fingerprint, so whoever already holds it has nothing to redo.
+- The editor re-reads only if the fingerprint differs, and **never while a draft is dirty**:
+  unsaved work exists nowhere else, and replacing it without asking would do behind the admin's
+  back what the Refresh button makes them confirm.
+
+### Added — `project_read` can say "nothing moved" (protocol, backward compatible)
+
+- `project_read` accepts `if_hash`, `project_read_result` carries `hash` and `unchanged`. The editor
+  keeps the last known version of a Project and announces its fingerprint; if the server's
+  snapshot carries the same one, the tree does not cross the wire. Optional fields on both sides:
+  an old plugin ignores `if_hash` and answers as before, an old backend ignores `hash`.
+- The fingerprint is computed by the **plugin alone** (text + announced binaries + failed
+  documents) and handed back to it as is: nobody else recomputes it, so there is no
+  cross-language convention to maintain.
+
+### Removed — the `assets` table and the backend's asset stores
+
+- The server's disk is **the only source** of assets: list, read, edit, duplicate, delete, PNG
+  preview, font glyph and resource pack build only read from it now (ADR
+  `assets-on-server-disk`, P6). `assets` table, `assetStorage`, `fontStorage`,
+  `codepointAllocator`, `assetDescent` and `POST /api/v1/admin/assets/descend` removed.
+- A disk read failure is now **qualified** (`server_offline` / `read_error` /
+  `not_found`): a silent server answers 503, it no longer reads as an empty library. The
+  resource pack is not rebuilt when a Project is unreadable — the previous pack holds
+  rather than publishing one cut off from its glyphs.
+- Two fixes along the way: serving a font glyph from disk threw (the cache refused
+  the empty fingerprint, which those PNGs have), and the disk codepoint allocator left the reserved
+  range (U+F800+ belongs to the `space` providers).
+- Migration `0031` **only drops the table if it is empty**; otherwise it keeps it and
+  logs a WARNING. It never fails: the container's entrypoint loops on `db:migrate`.
+
+### Changed — an Element carries a flat display and `states` (BREAKING on `menu/v1`)
+
+- `appearances:` is gone. The nominal case — one Element, one appearance — is written **without a wrapper**:
+  `material`, `title`, `lore`, `click` are keys of the Element, as in the other menu plugins. The
+  conditional alternatives live under **`states`**, tried in order BEFORE the
+  display, which is the fallback applied when none passes.
+- **A state replaces, it does not inherit.** What a state does not write is absent, never taken from the
+  display — the semantics the runtime already applied. Merging was examined and rejected (ADR
+  `element-display-and-states`). Guard rail: `material` (or `head`) is mandatory in a state, in the
+  schema **and** as a WARN at load, because an incomplete state silently rendered a stone block.
+- **No read shim**: `appearances` is no longer read anywhere and the deployed menus were
+  rewritten — the plugin only ran on the test server. A file left in the old form
+  renders an element with no appearance.
+- `menu/v1` is mutated in place rather than versioned as `v2`, and `versioning.md` now states the
+  rule actually applied: the version changes when a deployed file would stop being readable,
+  not when the schema changes shape.
+- **The i18n addresses do not move** (`default` = display, `stateN` = `states[N-1]`): no `lang/` key
+  is rewritten. Compilation, on the other hand, follows resolution order — states then display.
+- Editor: "Add a state" creates an **empty** state (the stone block shown teaches
+  replacement); "Duplicate" is the explicit gesture next to it.
 
-### Fixed — aperçu d'un menu paramétré : le survol montrait le gabarit
+### Fixed — preview of a parameterized menu: hover showed the template
 
-- Un menu paramétré réutilise les mêmes slots d'une catégorie à l'autre (la position 20 porte une clé par catégorie, sur la même page — un seul contexte est vivant à l'exécution). Le survol prenait **le premier** placement de la position : dès que l'aperçu montrait une autre catégorie, aucune ligne ne se liait et l'infobulle affichait `{item.name}` / `{item.lore}` tels quels. Il prend maintenant le placement **dont la clé résout dans le contexte courant** — la règle que le canvas appliquait déjà, désormais partagée (`placementAtSlot`).
-- La **vue unique** ne réagissait pas du tout au survol : l'infobulle est du DOM, hors du canvas Konva, et n'était montée que par le canvas général.
+- A parameterized menu reuses the same slots from one category to the next (position 20 carries one key per category, on the same page — only one context is alive at runtime). Hover took the position's **first** placement: as soon as the preview showed another category, no line bound and the tooltip displayed `{item.name}` / `{item.lore}` as is. It now takes the placement **whose key resolves in the current context** — the rule the canvas already applied, now shared (`placementAtSlot`).
+- The **single view** did not react to hover at all: the tooltip is DOM, outside the Konva canvas, and was only mounted by the general canvas.
 
-### Fixed — un Add-on qui bootstrappe son contenu le déclare
+### Fixed — an Add-on that bootstraps its content declares it
 
-- La Boutique enregistre sa racine **avant** d'y écrire son contenu par défaut : le core reprenait son instantané sur un dossier encore vide, et l'éditeur restait vide jusqu'à un `/artisan reload` tapé à la main. Elle appelle maintenant `api.getProject().reload()` après ses écritures (constaté en prod le 2026-08-17).
+- Boutique registers its root **before** writing its default content into it: the core took its snapshot of a still empty folder, and the editor stayed empty until a hand-typed `/artisan reload`. It now calls `api.getProject().reload()` after its writes (observed in prod on 2026-08-17).
 
-### Added — la descente s'exécute depuis l'admin
+### Added — the descent runs from the admin
 
-- `POST /api/v1/admin/assets/descend[?server=<id>]` : une route plutôt qu'un script, parce que la descente doit s'exécuter là où vivent les connexions WS des plugins — l'instance déployée, pas un poste de dev.
-- Idempotente : un serveur hors ligne est **sauté**, pas mis en échec, donc on rejoue jusqu'à ce que tous soient passés. Ce qui résiste est rendu dans la réponse, jamais tu.
+- `POST /api/v1/admin/assets/descend[?server=<id>]`: a route rather than a script, because the descent must run where the plugins' WS connections live — the deployed instance, not a dev machine.
+- Idempotent: an offline server is **skipped**, not failed, so it is replayed until all have gone through. What resists is returned in the response, never silenced.
 
-### Changed — les polices sont dépliées sur le disque du serveur
+### Changed — fonts are unfolded on the server's disk
 
-- Question ouverte de l'ADR **tranchée par la mesure** : l'ASCII vanilla fait 95 PNG + son descripteur, 26 Ko. On déplie — `assets/fonts/<nom>/font.yaml` + un fichier par glyphe — plutôt que de poser une boîte noire au milieu d'un dossier éditable à la main.
-- Une police est un **dossier** : c'est elle l'asset, pas chacun de ses PNG (sinon la bibliothèque afficherait 95 « glyphes » nommés a, b, c…). Son empreinte est celle de son descripteur ; la supprimer emporte tous ses fichiers.
-- `asset_write` devient **groupé et tout-ou-rien** : 96 écritures séparées, c'est 96 allers-retours et le risque d'une police à moitié posée, qui afficherait des carrés à la place des lettres manquantes.
-- L'URL d'aperçu d'un glyphe de police porte désormais le Project (`/asset-font/<projectId>/<police>/<chemin>`) : l'identité d'une police est son nom de dossier, unique dans son Project et nulle part ailleurs.
+- Open ADR question **settled by measurement**: vanilla ASCII is 95 PNGs + its descriptor, 26 KB. We unfold — `assets/fonts/<name>/font.yaml` + one file per glyph — rather than drop a black box in the middle of a hand-editable folder.
+- A font is a **folder**: it is the asset, not each of its PNGs (otherwise the library would display 95 "glyphs" named a, b, c…). Its fingerprint is its descriptor's; deleting it takes all its files with it.
+- `asset_write` becomes **grouped and all-or-nothing**: 96 separate writes means 96 round trips and the risk of a half-placed font, which would display squares in place of the missing letters.
+- A font glyph's preview URL now carries the Project (`/asset-font/<projectId>/<font>/<path>`): a font's identity is its folder name, unique within its Project and nowhere else.
 
-### Changed — P5 assets : téléverser, renommer, supprimer passent par le serveur
+### Changed — P5 assets: upload, rename, delete go through the server
 
-- Créer, lister, lire, renommer, dupliquer et supprimer un asset (texture ou glyphe) écrit désormais **sur le disque du serveur** : le backend relaie, le plugin reste le seul écrivain. Les routes de l'éditeur ne changent pas de forme — elles résolvent l'ancre pour trouver le serveur et l'id disque.
-- **Serveur hors ligne = pas d'écriture**, comme pour les menus (503). On ne range pas l'image « en attendant » : elle serait invisible du serveur et l'admin la croirait posée. L'aperçu, lui, survit par le cache.
-- Le **codepoint** proposé est le premier libre lu sur le disque ; la garantie d'unicité SQL disparaît, la fusion au build tranche et journalise.
-- **Deux noms = deux fichiers** : la dédup par `contentHash` n'a plus de sens sur un disque, et rendre le premier asset sous un autre nom mentirait sur ce que contient le dossier.
-- `contentHash` devient le SHA-256 des octets, celui que le disque rapporte — sinon la même image avait deux empreintes selon qu'on venait de la créer ou de la lister, et l'URL d'aperçu changeait sans que rien n'ait bougé.
-- Les **polices** restent sur l'ancien chemin : la forme qu'elles prendront sur le disque (zip gardé ou déplié) est une question ouverte de l'ADR, l'inventer ici la figerait.
+- Creating, listing, reading, renaming, duplicating and deleting an asset (texture or glyph) now writes **to the server's disk**: the backend relays, the plugin stays the only writer. The editor's routes keep their shape — they resolve the anchor to find the server and the disk id.
+- **Server offline = no write**, as for menus (503). The image is not stored "in the meantime": it would be invisible to the server and the admin would think it placed. The preview, for its part, survives through the cache.
+- The proposed **codepoint** is the first free one read from the disk; the SQL uniqueness guarantee goes away, the merge at build time settles it and logs.
+- **Two names = two files**: dedup by `contentHash` no longer makes sense on a disk, and returning the first asset under another name would lie about what the folder contains.
+- `contentHash` becomes the SHA-256 of the bytes, the one the disk reports — otherwise the same image had two fingerprints depending on whether it had just been created or listed, and the preview URL changed though nothing had moved.
+- **Fonts** stay on the old path: the shape they will take on disk (zip kept or unfolded) is an open ADR question, and inventing it here would freeze it.
 
-### Changed — P4 assets : le resource pack se construit depuis le disque
+### Changed — P4 assets: the resource pack is built from the disk
 
-- `rebuildResourcePack` lit désormais les assets sur le **disque du serveur** (arbre annoncé + octets par le cache), plus dans la table. Le pack reste construit et hébergé par le backend : c'est un artefact dérivé, servi par URL au client Minecraft, il lui faut un hôte public.
-- Un asset est identifié par son **nom de fichier**, son type par son dossier (`assets/glyphs`, `assets/textures`, `assets/fonts`), et son descripteur frère porte ascent / codepoint / dimensions. Un descripteur illisible ne fait **pas** disparaître l'image — punir l'image pour une faute de frappe punirait la mauvaise chose.
-- **Repli temporaire** sur la table quand un Project n'a rien sur le disque : la descente est une commande qu'on lance, pas un déploiement, et lire le disque seul entre les deux viderait les packs de leurs glyphes. Ce repli part en P6.
+- `rebuildResourcePack` now reads assets from the **server's disk** (announced tree + bytes through the cache), no longer from the table. The pack is still built and hosted by the backend: it is a derived artifact, served by URL to the Minecraft client, it needs a public host.
+- An asset is identified by its **file name**, its type by its folder (`assets/glyphs`, `assets/textures`, `assets/fonts`), and its sibling descriptor carries ascent / codepoint / dimensions. An unreadable descriptor does **not** make the image disappear — punishing the image for a typo would punish the wrong thing.
+- **Temporary fallback** on the table when a Project has nothing on disk: the descent is a command you run, not a deployment, and reading the disk alone in between would empty the packs of their glyphs. This fallback goes away in P6.
 
-### Added — P3 assets : la descente
+### Added — P3 assets: the descent
 
-- `bun run scripts/descend-assets.ts [serverKeyId]` envoie les octets du volume backend sur le disque des serveurs, écrit le descripteur frère (`ascent`, `codepoint`, dimensions) et réécrit les refs des Documents dans la **même** écriture — à moitié appliquée, elle laisserait des menus pointant vers un asset sans descripteur.
-- **Idempotente, pilotée par le hash**, jamais par un drapeau « déjà migré » : un serveur hors ligne au mauvais moment laisse un Project à moitié descendu, et une reprise par curseur repartirait de travers. On rejoue.
-- La réécriture des refs est **textuelle** : reparser pour resérialiser mangerait les commentaires et la mise en forme de l'admin. Les ids sont opaques et uniques, un remplacement ciblé ne peut pas frapper à côté.
-- Rien n'est supprimé côté backend : la table reste jusqu'à P6, ce qui permet de rejouer et de revenir en arrière. Ce qui résiste est **listé**, jamais tu.
+- `bun run scripts/descend-assets.ts [serverKeyId]` sends the backend volume's bytes to the servers' disks, writes the sibling descriptor (`ascent`, `codepoint`, dimensions) and rewrites the Documents' refs in the **same** write — half applied, it would leave menus pointing to an asset with no descriptor.
+- **Idempotent, driven by the hash**, never by an "already migrated" flag: a server offline at the wrong moment leaves a Project half descended, and a cursor-based resume would start wrong. We replay.
+- Rewriting the refs is **textual**: reparsing to reserialize would eat the admin's comments and formatting. The ids are opaque and unique, a targeted replacement cannot hit the wrong place.
+- Nothing is deleted on the backend side: the table stays until P6, which allows replaying and rolling back. What resists is **listed**, never silenced.
 
-### Added — P2 assets : les refs par nom se lisent, des deux côtés
+### Added — P2 assets: refs by name are read, on both sides
 
-- Plugin et éditeur acceptent `asset: <nom>` (et `font: <nom>`) en plus de `asset_id` / `font_asset_id`. Rien ne l'écrit encore : la lecture tolérante se déploie **avant** la descente, pour qu'un Project non migré reste ouvrable et qu'un Project migré s'ouvre dans une version antérieure de l'éditeur.
+- Plugin and editor accept `asset: <name>` (and `font: <name>`) in addition to `asset_id` / `font_asset_id`. Nothing writes it yet: tolerant reading ships **before** the descent, so that an unmigrated Project stays openable and a migrated Project opens in an earlier version of the editor.
 
-### Added — P1 assets : cache backend clé par contenu
+### Added — P1 assets: content-keyed backend cache
 
-- `GET …/projects/:projectId/asset?path=…&hash=…` sert les octets d'un asset : cache d'abord, serveur ensuite. La réponse est `immutable` — l'URL porte le hash du contenu, elle ne peut donc jamais devenir fausse.
-- Le cache est **jetable** et n'invalide rien : un contenu différent est une autre clé. Un hash inconnu va au serveur, il ne sert **jamais** l'image d'à côté ; serveur injoignable et cache vide répondent « indisponible ».
-- Clé par `(serverKeyId, projectId, chemin, hash)` : le hash suffirait à adresser le contenu, mais on ne veut pas qu'un hash deviné donne accès à l'asset d'un autre tenant.
-- `bun run test` isole le cache dans un dossier temporaire neuf : partagé avec le dev, il faisait passer un test sur les octets d'un run précédent.
+- `GET …/projects/:projectId/asset?path=…&hash=…` serves an asset's bytes: cache first, server next. The response is `immutable` — the URL carries the content's hash, so it can never become wrong.
+- The cache is **disposable** and invalidates nothing: different content is another key. An unknown hash goes to the server, it **never** serves the neighbouring image; an unreachable server and an empty cache answer "unavailable".
+- Keyed by `(serverKeyId, projectId, path, hash)`: the hash alone would suffice to address the content, but we do not want a guessed hash to give access to another tenant's asset.
+- `bun run test` isolates the cache in a fresh temporary folder: shared with dev, it made a test pass on the bytes of a previous run.
 
-### Added — P0 assets : le protocole sait transporter un binaire
+### Added — P0 assets: the protocol can carry a binary
 
-- `project_read` **annonce** les binaires (`binaries: [{path, hash, size}]`) sans les porter : l'arbre part entier à chaque ouverture et en UTF-8, donc un PNG y serait à la fois mutilé et encombrant. L'éditeur sait quoi proposer sans rien télécharger.
-- `asset_read` / `asset_write` transportent les octets **un par un, par chemin**, en base64. L'écriture porte le même compare-and-swap que `project_write` (`base_hash` null = « je m'attends à ce qu'il n'existe pas ») et passe par la corbeille ; `content_base64` absent = suppression. Après écriture, l'instantané reprend — sinon l'éditeur téléverserait une image qu'il ne verrait pas.
-- `ProjectFilesReader` classe les binaires par extension et ne les lit plus comme du texte ; `BundleHasher.hashBytes` leur donne la même empreinte SHA-256 que les fichiers texte.
+- `project_read` **announces** the binaries (`binaries: [{path, hash, size}]`) without carrying them: the tree leaves whole at each open and in UTF-8, so a PNG would be both mangled and bulky there. The editor knows what to offer without downloading anything.
+- `asset_read` / `asset_write` carry the bytes **one by one, by path**, in base64. The write carries the same compare-and-swap as `project_write` (`base_hash` null = "I expect it not to exist") and goes through the trash; `content_base64` absent = deletion. After a write, the snapshot is retaken — otherwise the editor would upload an image it could not see.
+- `ProjectFilesReader` classifies binaries by extension and no longer reads them as text; `BundleHasher.hashBytes` gives them the same SHA-256 fingerprint as text files.
 
-### Decided — les assets descendent sur le disque du serveur (ADR, rien d'implémenté)
+### Decided — assets move down to the server's disk (ADR, nothing implemented)
 
-- ADR `assets-on-server-disk` : textures, glyphes et polices deviennent des fichiers du Project sous `assets/`, le backend n'en gardant qu'un **cache jetable** clé par contenu. Achève `server-disk-only-storage` en lui retirant son exception « le backend continue de stocker les assets binaires » : une texture de fond n'est pas plus dérivée qu'un `menus/shop.yaml`, et sans elle la promesse « ta config marche sans nous » est fausse dès qu'un menu a un fond.
-- Conséquences actées : l'identité d'un asset devient son **nom de fichier** (changement de format cassant, migration prévue) ; les binaires ne voyagent **pas** dans l'arbre de Project (`asset_read`/`asset_write` par chemin) ; les codepoints passent dans les fichiers, la fusion existante tranche et journalise ; la table `assets` disparaît.
-- Bug latent documenté en attendant : les assets pendent à la ligne d'ancrage, donc renommer un dossier de Project sur le disque **orpheline silencieusement ses glyphes**.
-- Plan en 7 phases déployables séparément : `docs/superpowers/plans/2026-08-17-assets-on-server-disk.md`.
+- ADR `assets-on-server-disk`: textures, glyphs and fonts become files of the Project under `assets/`, the backend keeping only a content-keyed **disposable cache**. Completes `server-disk-only-storage` by removing its exception "the backend keeps storing binary assets": a background texture is no more derived than a `menus/shop.yaml`, and without it the promise "your config works without us" is false as soon as a menu has a background.
+- Consequences recorded: an asset's identity becomes its **file name** (breaking format change, migration planned); binaries do **not** travel in the Project tree (`asset_read`/`asset_write` by path); codepoints move into the files, the existing merge settles and logs; the `assets` table goes away.
+- Latent bug documented in the meantime: assets hang off the anchor row, so renaming a Project folder on disk **silently orphans its glyphs**.
+- Plan in 7 separately deployable phases: `docs/superpowers/plans/2026-08-17-assets-on-server-disk.md`.
 
-### Fixed — la page réseau listait des Projects qui n'existent plus
+### Fixed — the network page listed Projects that no longer exist
 
-- Sa liste venait de la table `projects`, jamais confrontée au disque. Ces lignes sont des **ancres** (identité, droits, facturation) : elles ne prouvent pas qu'un dossier existe encore. Un dossier renommé ou supprimé sur le serveur laissait la ligne derrière lui, et le lien menait à `unknown_project`. Une liste qui promet des Projects inouvrables est pire que pas de liste.
-- La page interroge désormais le **disque de chaque serveur** (`project_list`, un aller-retour WS par serveur, en parallèle) et n'ancre que ce que le disque porte. C'est la même règle que la page serveur depuis l'ADR `server-disk-only-storage`.
+- Its list came from the `projects` table, never checked against the disk. Those rows are **anchors** (identity, rights, billing): they do not prove that a folder still exists. A folder renamed or deleted on the server left the row behind, and the link led to `unknown_project`. A list that promises unopenable Projects is worse than no list.
+- The page now queries **each server's disk** (`project_list`, one WS round trip per server, in parallel) and only anchors what the disk carries. This is the same rule as the server page since ADR `server-disk-only-storage`.
 
-### Added — état en ligne / hors ligne sur la page réseau
+### Added — online / offline state on the network page
 
-- Chaque carte serveur porte son état (le point de couleur était déjà là, mais la page passait `online: false` en dur). Un serveur hors ligne n'affiche plus « 0 projet » — on ne peut pas savoir combien il en a, c'est son disque qui les porte — mais « hors ligne — ses projets ne sont pas lisibles ».
+- Each server card carries its state (the colour dot was already there, but the page hard-coded `online: false`). An offline server no longer displays "0 projects" — there is no way to know how many it has, its disk carries them — but "offline — its projects are not readable".
 
-### Fixed — un test backend pariait sur la vitesse de la machine
+### Fixed — a backend test bet on the machine's speed
 
-- `hub.test.ts` attendait les persistances *fire-and-forget* de `hello` / `modules_changed` avec des `setTimeout` fixes (50 / 150 ms). Ça passait en local et pas sur le runner CI, qui a rougi sur `declared_models` alors que le commit poussé ne touchait que le plugin. Les attentes deviennent des **sondages** avec échéance franche : vrai dès que c'est vrai, échec net si ça ne vient pas. La seule attente fixe conservée est celle d'une assertion négative, où sonder ne prouverait rien.
+- `hub.test.ts` waited for the *fire-and-forget* persistence of `hello` / `modules_changed` with fixed `setTimeout`s (50 / 150 ms). It passed locally and not on the CI runner, which went red on `declared_models` while the pushed commit only touched the plugin. The waits become **polls** with a hard deadline: true as soon as it is true, a clean failure if it never comes. The only fixed wait kept is that of a negative assertion, where polling would prove nothing.
 
-### Fixed — un Add-on qui écrit son disque peut le déclarer (`api.project.reload()`)
+### Fixed — an Add-on that writes to its disk can declare it (`api.project.reload()`)
 
-- Depuis la sémantique de reload, l'instantané est pris au chargement : une écriture faite par un Add-on dans **sa propre racine** (`/boutiqueadmin additem`) restait invisible au serveur qui tourne **et** à l'éditeur jusqu'à ce que quelqu'un tape `/artisan reload`. L'admin capturait un item, ne le voyait nulle part, et concluait que la commande était cassée.
-- Nouvelle méthode `@Stable ProjectContentApi.reload()` : reprend l'instantané puis prévient les modules — le même chemin que `/artisan reload`. Ce n'est pas un retour de la surveillance disque : c'est une déclaration explicite, faite par l'auteur de l'écriture, au moment où il l'a faite.
+- Since the reload semantics, the snapshot is taken at load: a write made by an Add-on in **its own root** (`/boutiqueadmin additem`) stayed invisible to the running server **and** to the editor until someone typed `/artisan reload`. The admin captured an item, saw it nowhere, and concluded the command was broken.
+- New method `@Stable ProjectContentApi.reload()`: retakes the snapshot then notifies the modules — the same path as `/artisan reload`. This is not a return of disk watching: it is an explicit declaration, made by the author of the write, at the moment they made it.
 
-### Fixed — le build éditeur ne compilait plus
+### Fixed — the editor build no longer compiled
 
-- `npm run build` (donc la CI) échouait sur deux restes du monde d'avant : `withoutId` exigeait un `{ id: string }` que les sérialiseurs de commandes et de dialogues ne déclarent plus, et quatre écrans lisaient `documentCount` sur `ProjectSummary`, disparu avec le contenu côté backend.
-- Le compteur de Documents des listes de projects est **retiré** : le backend ne détient plus les fichiers, il ne peut donc plus le connaître sans interroger le disque du serveur, et un compteur figé aurait menti. La sidebar d'un Project ouvert garde le sien — il se compte sur l'état chargé.
+- `npm run build` (hence CI) failed on two leftovers from the world before: `withoutId` required an `{ id: string }` that the command and dialog serializers no longer declare, and four screens read `documentCount` on `ProjectSummary`, which disappeared with the content on the backend side.
+- The Documents counter in project lists is **removed**: the backend no longer holds the files, so it can no longer know it without querying the server's disk, and a frozen counter would have lied. The sidebar of an open Project keeps its own — it is counted on the loaded state.
 
-### Changed — le brouillon est repris, plus proposé par un bandeau
+### Changed — the draft is resumed, no longer offered by a banner
 
-- Rouvrir un Project **retrouve** le travail non enregistré, comme dans n'importe quel éditeur. Le bandeau « reprendre mon travail / jeter » disparaît : il occupait l'écran en permanence pour dire ce qu'un mot suffit à dire.
-- Ce qui empêche de confondre son brouillon avec l'état du serveur, c'est le **bouton Enregistrer lui-même** : actif s'il y a quelque chose à écrire, inactif sinon. À côté, **Annuler** jette le brouillon et repart de l'état du serveur. Le principe (« ne jamais laisser croire qu'on regarde le serveur ») est conservé ; c'est sa présentation qui a fondu — bandeau, puis mention « non enregistré », un bouton mort le dit déjà.
-- La fenêtre d'apaisement du brouillon passe de 800 ms à 200 ms : c'est lui qui répond « y a-t-il du travail ? », donc tout retard s'y traduit par un bouton Enregistrer inactif juste après une frappe.
-- La **base** reste celle du serveur même quand l'arbre vient du brouillon : c'est elle que le compare-and-swap doit présenter, sinon on écraserait sans le savoir ce qui a changé depuis.
+- Reopening a Project **restores** unsaved work, as in any editor. The "resume my work / discard" banner is gone: it took up the screen permanently to say what one word is enough to say.
+- What keeps you from confusing your draft with the server's state is the **Save button itself**: active if there is something to write, inactive otherwise. Next to it, **Cancel** discards the draft and starts again from the server's state. The principle ("never let anyone believe they are looking at the server") is kept; only its presentation melted away — banner, then an "unsaved" mention, a dead button already says it.
+- The draft's settling window goes from 800 ms to 200 ms: it is what answers "is there any work?", so any delay shows up as an inactive Save button right after a keystroke.
+- The **base** stays the server's even when the tree comes from the draft: it is what the compare-and-swap must present, otherwise we would unknowingly overwrite what has changed since.
 
-### Fixed — « travail non enregistré » sur un Project qu'on vient d'ouvrir
+### Fixed — "unsaved work" on a Project just opened
 
-- `isDirty` comparait l'arbre courant aux **octets du serveur**. Or ouvrir un Project applique des transformations — injection des models déclarés, abandon d'une source legacy, mise en forme canonique d'un fichier écrit à la main — qui font légitimement différer les deux **sans que personne n'ait rien touché**. Le brouillon garde désormais l'arbre **tel qu'il était juste après le chargement**, et c'est à lui qu'on compare : « as-tu modifié quelque chose ? » et non « le disque est-il canonique ? ».
-- L'âge d'un brouillon s'affichait en heures pleines, d'où « basé sur l'état d'il y a 0 h » pour dix minutes — une phrase qui ne veut rien dire et donne l'impression d'un compteur cassé. Il se dit maintenant en minutes, heures ou jours selon l'échelle, et « à l'instant » en deçà d'une minute.
+- `isDirty` compared the current tree to the **server's bytes**. But opening a Project applies transformations — injection of declared models, dropping a legacy source, canonical formatting of a hand-written file — that legitimately make the two differ **without anyone touching anything**. The draft now keeps the tree **as it was right after loading**, and that is what we compare to: "did you change something?" and not "is the disk canonical?".
+- A draft's age was displayed in whole hours, hence "based on the state from 0 h ago" for ten minutes — a sentence that means nothing and looks like a broken counter. It is now given in minutes, hours or days depending on scale, and "just now" under a minute.
 
-### Changed — plus de bandeau « serveur hors ligne » en pleine largeur
+### Changed — no more full-width "server offline" banner
 
-- Le bandeau répétait une information **déjà présente** : le badge serveur de la topbar affiche « Hors ligne » avec un point rouge. Il coûtait une bande d'écran permanente pour ça.
-- Il promettait en plus quelque chose d'inexact — « Enregistrer sera possible au retour du serveur » — alors que le bouton n'est pas désactivé : il tente, échoue, et le dit clairement au moment du geste (« Serveur hors ligne — l'enregistrement est impossible »). Un retour à l'instant de l'action vaut mieux qu'une barre permanente.
-- Le principe qui l'avait motivé tient toujours : un brouillon ne s'affiche jamais en silence. Il est porté par le badge de la topbar et par le bandeau **actionnable** « reprendre mon travail / jeter », qui lui disparaît dès qu'on a choisi.
+- The banner repeated information that was **already there**: the topbar's server badge shows "Offline" with a red dot. It cost a permanent strip of screen for that.
+- It also promised something inaccurate — "Saving will be possible when the server comes back" — whereas the button is not disabled: it tries, fails, and says so clearly at the moment of the gesture ("Server offline — saving is impossible"). Feedback at the moment of the action beats a permanent bar.
+- The principle that motivated it still holds: a draft is never displayed silently. It is carried by the topbar badge and by the **actionable** "resume my work / discard" banner, which disappears as soon as a choice is made.
 
-### Fixed — le Project d'un Add-on répondait `unknown_project`
+### Fixed — an Add-on's Project answered `unknown_project`
 
-- **Régression de la phase ③.** L'instantané est pris pendant le `load()` d'Artisan ; or un Add-on n'enregistre sa racine qu'à **sa propre** activation — 9 secondes plus tard en conditions réelles (Artisan 12:57:47, Boutique 12:57:56). Le Project de l'Add-on n'était donc jamais dans l'instantané : `project_list` ne le listait pas et `project_read` répondait `unknown_project`, définitivement.
-- Avant l'instantané, `project_read` résolvait `roots.dirFor()` en direct et une racine tardive fonctionnait. J'avais réintroduit une dépendance à l'ordre de chargement sans la voir — c'est exactement ce que `recheckLocalChanges`, retiré en P3b, couvrait pour l'ancien mécanisme.
-- `ProjectRoots` notifie désormais l'enregistrement d'une racine, et le provider reprend son instantané. Coût assumé : un rechargement par Add-on au démarrage — quelques dizaines de millisecondes sur des arbres de cette taille.
+- **Phase ③ regression.** The snapshot is taken during Artisan's `load()`; but an Add-on only registers its root at **its own** activation — 9 seconds later in real conditions (Artisan 12:57:47, Boutique 12:57:56). The Add-on's Project was therefore never in the snapshot: `project_list` did not list it and `project_read` answered `unknown_project`, permanently.
+- Before the snapshot, `project_read` resolved `roots.dirFor()` live and a late root worked. I had reintroduced a dependency on load order without seeing it — this is exactly what `recheckLocalChanges`, removed in P3b, covered for the old mechanism.
+- `ProjectRoots` now notifies a root's registration, and the provider retakes its snapshot. Accepted cost: one reload per Add-on at startup — a few tens of milliseconds on trees of this size.
 
-### Changed — renommer un Document depuis l'éditeur est un déplacement
+### Changed — renaming a Document from the editor is a move
 
-- `project_write` accepte `renames: [{from, to, base_hash}]`. L'arbre seul ne distingue pas un renommage d'un « supprimer + créer » : la corbeille archivait donc une suppression qui n'en était pas une, et l'historique du fichier restait orphelin de son nouveau nom. **L'éditeur, lui, sait qu'il a renommé** — il le dit, et le plugin déplace, historique compris.
-- Les trois mutations qui portent l'intention (`setMenuId`, `setCommandId`, `setDialogId`) l'enregistrent. Les renommages sont **chaînés** (a→b puis b→c donne a→c) et **persistés avec le brouillon** : l'arbre porte déjà le nouveau nom, donc perdre l'intention à un rechargement ferait retomber le renommage en suppression+création.
-- Même compare-and-swap que le reste : le `base_hash` porte sur l'**ancien** chemin, et une destination déjà occupée est un conflit — écraser un fichier par un renommage le ferait disparaître sans corbeille ni choix de l'admin. Renommer *et* modifier dans le même enregistrement fonctionne : le déplacement passe d'abord, l'écriture qui suit se base sur le contenu déplacé.
-- **Ce que ça ne règle pas, et ne peut pas régler** : un `mv` fait à la main sur le disque ne laisse aucune trace d'intention. L'éditeur ne peut que constater une disparition et une apparition — d'où l'affichage de `disk_files` dans la modale de conflit, qui rend au moins la situation visible.
+- `project_write` accepts `renames: [{from, to, base_hash}]`. The tree alone does not distinguish a rename from a "delete + create": the trash therefore archived a deletion that was not one, and the file's history stayed orphaned from its new name. **The editor knows it renamed** — it says so, and the plugin moves, history included.
+- The three mutations that carry the intent (`setMenuId`, `setCommandId`, `setDialogId`) record it. Renames are **chained** (a→b then b→c gives a→c) and **persisted with the draft**: the tree already carries the new name, so losing the intent on a reload would turn the rename back into a delete+create.
+- Same compare-and-swap as the rest: the `base_hash` applies to the **old** path, and an occupied destination is a conflict — overwriting a file with a rename would make it disappear without trash or admin choice. Renaming *and* editing in the same save works: the move goes first, the write that follows is based on the moved content.
+- **What this does not fix, and cannot fix**: a hand-made `mv` on disk leaves no trace of intent. The editor can only observe a disappearance and an appearance — hence the display of `disk_files` in the conflict modal, which at least makes the situation visible.
 
-### Fixed — un renommage fait à la main ne peut plus dupliquer un Document en silence
+### Fixed — a hand-made rename can no longer silently duplicate a Document
 
-- Pour le compare-and-swap, renommer `a.yaml` en `b.yaml` sur le disque **est** une suppression de `a.yaml`. Le conflit remontait donc « supprimé sur le serveur », et *garder ma version* recréait `a.yaml` — en laissant `b.yaml` : **deux fichiers pour un seul menu**, sans que rien ne le signale.
-- La réponse de conflit porte désormais `disk_files`, l'état **réel** du dossier au moment du refus. La modale l'affiche pour les fichiers disparus : le fichier apparu est visible avant qu'on choisisse. Le plugin lit déjà le disque à cet instant précis — c'est le seul endroit où cette lecture a un sens, et elle ne coûte rien.
-- Le message de conflit ne laisse plus croire à une action de l'admin : « ces fichiers ont **changé sur le serveur depuis leur chargement** ». Avec la sémantique de reload, l'éditeur affiche l'instantané mais écrit contre le disque — un conflit peut donc désigner un état qui n'a jamais été à l'écran, et il faut le dire.
-- Corrigé au passage : la route `config/read` renvoyait un champ `failed` qui n'appartient qu'à `project_read` — bavure de la phase ③, attrapée par le typecheck.
+- For the compare-and-swap, renaming `a.yaml` to `b.yaml` on disk **is** a deletion of `a.yaml`. The conflict therefore reported "deleted on the server", and *keep my version* recreated `a.yaml` — leaving `b.yaml`: **two files for a single menu**, with nothing signalling it.
+- The conflict response now carries `disk_files`, the folder's **real** state at the moment of the refusal. The modal displays it for the missing files: the file that appeared is visible before you choose. The plugin already reads the disk at that exact moment — it is the only place where this read makes sense, and it costs nothing.
+- The conflict message no longer suggests an admin action: "these files **changed on the server since they were loaded**". With the reload semantics, the editor displays the snapshot but writes against the disk — a conflict can therefore point to a state that was never on screen, and that has to be said.
+- Fixed along the way: the `config/read` route returned a `failed` field that only belongs to `project_read` — a slip from phase ③, caught by the typecheck.
 
-### Added — brouillon persistant dans le navigateur (révise les décisions 3 et 7 de l'ADR)
+### Added — persistent draft in the browser (revises decisions 3 and 7 of the ADR)
 
-- Le navigateur garde par Project la **base** et l'**arbre courant** (`projectDraftStore`, localStorage). Le travail non enregistré survit donc à un rechargement de page, à la fermeture d'un onglet, et à un serveur qui tombe en cours de route.
-- **Pourquoi maintenant** : retirer l'auto-save (P2) a rendu la perte accidentelle bien plus chère — d'un débounce de 2 s à une session entière — sans rien mettre à la place, pas même un garde `beforeunload`. Et le brouillon ne demande aucune machinerie nouvelle : base + compare-and-swap + modale de conflit existent déjà, il les réutilise.
-- **Serveur joignable** : sa version reste la source, le brouillon est **proposé** (« reprendre mon travail » / « jeter »), **jamais appliqué en silence**. L'éditeur montre ce que le serveur exécute ; afficher un brouillon sans le dire recréerait la confusion que la sémantique de reload a supprimée.
-- **Serveur injoignable** : le brouillon s'ouvre en édition, badgé avec son âge, Enregistrer hors de portée. Un Project redevient donc consultable serveur éteint — sur un état **daté et annoncé**, jamais présenté comme la vérité.
-- **Indicateur « non enregistré »** permanent en topbar : rien ne distinguait jusqu'ici un Project propre d'un Project modifié. Il est lu depuis le brouillon (qui porte déjà l'arbre sérialisé) plutôt que recalculé à chaque rendu.
-- Le brouillon est effacé dès que le travail est parti sur le serveur.
-- Deux commentaires périmés corrigés au passage : `accountStore` annonçait un `persist` retiré depuis (de quoi conclure à tort que l'état était sauvegardé), et `__root.tsx` affirmait que le non-enregistré « vit dans la page ».
+- The browser keeps, per Project, the **base** and the **current tree** (`projectDraftStore`, localStorage). Unsaved work therefore survives a page reload, closing a tab, and a server that goes down along the way.
+- **Why now**: removing auto-save (P2) made accidental loss much more expensive — from a 2 s debounce to a whole session — without putting anything in its place, not even a `beforeunload` guard. And the draft needs no new machinery: base + compare-and-swap + conflict modal already exist, it reuses them.
+- **Server reachable**: its version stays the source, the draft is **offered** ("resume my work" / "discard"), **never applied silently**. The editor shows what the server runs; displaying a draft without saying so would recreate the confusion that the reload semantics removed.
+- **Server unreachable**: the draft opens for editing, badged with its age, Save out of reach. A Project is therefore viewable again with the server off — on a **dated and announced** state, never presented as the truth.
+- A permanent **"unsaved" indicator** in the topbar: nothing distinguished a clean Project from a modified one until now. It is read from the draft (which already carries the serialized tree) rather than recomputed on each render.
+- The draft is erased as soon as the work has gone to the server.
+- Two stale comments fixed along the way: `accountStore` announced a `persist` removed since (enough to wrongly conclude the state was saved), and `__root.tsx` claimed that the unsaved state "lives in the page".
 
-### Added — la vue YAML d'un Document, en écriture verbatim
+### Added — a Document's YAML view, with verbatim writing
 
-- Un bouton **YAML** dans la vue d'un menu, d'une commande ou d'un dialog montre son fichier tel quel et permet de l'éditer. C'est la « code mode » demandée à l'origine — celle dont l'ADR files-first dit qu'elle *« devient triviale une fois les fichiers canoniques »*. Elle l'est devenue : l'éditeur détient déjà les octets exacts et écrit par fichier avec compare-and-swap.
-- **L'écriture est verbatim** : ce que tu tapes est ce qui atterrit, commentaires et mise en forme compris. Cela **révise `yaml-assisted-editing`**, qui canonicalisait même depuis l'onglet YAML et réservait le verbatim aux fichiers étrangers — la règle qui a effacé les commentaires de portage d'un admin sur ses propres menus (2026-08-13). Elle avait été écrite quand le fichier était une projection ; il est désormais le seul store.
-- Contrepartie assumée : les deux modes ne produisent plus les mêmes octets pour le même contenu. Toucher l'éditeur visuel régénère le document et le reformate — mais le texte est sous les yeux, donc c'est visible au lieu d'être une surprise.
-- L'écriture verbatim **n'est pas privilégiée** : même compare-and-swap que le reste. Restaurer, éditer en texte ou éditer visuellement empruntent le même chemin d'écriture — il n'y a pas de seconde façon de perdre des données.
+- A **YAML** button in the view of a menu, a command or a dialog shows its file as is and lets you edit it. This is the "code mode" originally requested — the one the files-first ADR says *"becomes trivial once the files are canonical"*. It has become so: the editor already holds the exact bytes and writes per file with compare-and-swap.
+- **Writing is verbatim**: what you type is what lands, comments and formatting included. This **revises `yaml-assisted-editing`**, which canonicalized even from the YAML tab and reserved verbatim for foreign files — the rule that erased an admin's porting comments on their own menus (2026-08-13). It was written when the file was a projection; it is now the only store.
+- Accepted trade-off: the two modes no longer produce the same bytes for the same content. Touching the visual editor regenerates the document and reformats it — but the text is in plain sight, so it is visible rather than a surprise.
+- Verbatim writing **is not privileged**: same compare-and-swap as the rest. Restoring, editing as text or editing visually take the same write path — there is no second way to lose data.
 
-### Changed — sémantique de reload : l'éditeur montre ce que le serveur exécute (BREAKING)
+### Changed — reload semantics: the editor shows what the server runs (BREAKING)
 
-- Le plugin garde un **instantané** — les octets bruts lus au dernier chargement — servi par `project_read` et `project_list`. Une édition faite à la main ne s'applique qu'à **`/artisan reload`**, comme pour tout autre plugin Minecraft.
-- **Pourquoi** : l'état précédent payait le coût de la surveillance sans le bénéfice. Le serveur rechargeait tout seul (surprenant), et l'éditeur ne voyait rien avant un rechargement de page (donc pas live non plus). Le pire des deux mondes.
-- **Des octets bruts, pas un modèle** : le compare-and-swap compare des octets. Un modèle re-sérialisé donnerait les mêmes idées et d'autres octets — `base_hash` faux, donc conflits sur des fichiers intacts ou écrasements silencieux.
-- **L'écriture reste en CAS contre le disque**, pas contre l'instantané : c'est ce qui rattrape une édition hors éditeur au moment où on enregistre.
-- **Un Document illisible reste éditable** : l'instantané est pris avant le parsing, donc il y figure. `project_read_result.failed` porte son chemin et la raison, et l'éditeur l'affiche. Avant, un YAML cassé disparaissait en silence **des deux côtés** — le serveur ne l'exécutait pas, l'éditeur ne l'affichait pas, et rien ne l'expliquait.
-- `SyncScanner` et la spec `poll-first-disk-sync` sont retirés. Renoncement assumé : « un agent édite les fichiers et c'est live » devient « …puis `/artisan reload` ».
+- The plugin keeps a **snapshot** — the raw bytes read at the last load — served by `project_read` and `project_list`. A hand edit only applies at **`/artisan reload`**, as with any other Minecraft plugin.
+- **Why**: the previous state paid the cost of watching without the benefit. The server reloaded by itself (surprising), and the editor saw nothing before a page reload (so not live either). The worst of both worlds.
+- **Raw bytes, not a model**: the compare-and-swap compares bytes. A re-serialized model would give the same ideas and other bytes — wrong `base_hash`, hence conflicts on intact files or silent overwrites.
+- **Writing stays CAS against the disk**, not against the snapshot: that is what catches an edit made outside the editor at the moment of saving.
+- **An unreadable Document stays editable**: the snapshot is taken before parsing, so it is in there. `project_read_result.failed` carries its path and the reason, and the editor displays it. Before, a broken YAML disappeared silently **on both sides** — the server did not run it, the editor did not display it, and nothing explained it.
+- `SyncScanner` and the `poll-first-disk-sync` spec are removed. Accepted give-up: "an agent edits the files and it's live" becomes "…then `/artisan reload`".
 
-### Changed — les Documents se découvrent par scan, le bloc `files:` du manifest disparaît
+### Changed — Documents are discovered by scan, the manifest's `files:` block goes away
 
-- `manifest.files.{menus,commands,dialogs}` recopiait à la main le contenu des dossiers du même nom. Vérifié sur un vrai project : 4 menus, 12 commandes, 1 dialog — exactement les fichiers présents, **aucun ordre de chargement, aucune exclusion**. Un index dont le seul effet possible était de se désynchroniser, dans un format censé s'éditer à la main.
-- Les Documents sont désormais découverts par **scan** de `menus/`, `commands/`, `dialogs/` — comme l'étaient déjà les data sources et les models. Tri alphabétique, donc stable d'un chargement à l'autre.
-- Un bloc legacy encore présent est **fusionné, jamais soustrait** : il ne peut plus rendre invisible un fichier bien réel. C'était le piège exact que ce bloc tendait.
-- Le manifest se réduit à ce qui n'est pas déductible : `schema`, `project_id`, `module`, `default_lang`, `languages`.
+- `manifest.files.{menus,commands,dialogs}` copied by hand the content of the folders of the same name. Checked on a real project: 4 menus, 12 commands, 1 dialog — exactly the files present, **no load order, no exclusion**. An index whose only possible effect was to desynchronize, in a format meant to be edited by hand.
+- Documents are now discovered by **scanning** `menus/`, `commands/`, `dialogs/` — as data sources and models already were. Alphabetical sort, so stable from one load to the next.
+- A legacy block still present is **merged, never subtracted**: it can no longer make a perfectly real file invisible. That was the exact trap this block set.
+- The manifest shrinks to what cannot be deduced: `schema`, `project_id`, `module`, `default_lang`, `languages`.
 
-### Changed — l'identité d'un Document est le nom de son fichier (BREAKING format)
+### Changed — a Document's identity is its file name (BREAKING format)
 
-- Menus, commandes et dialogs tiraient leur id d'un champ `id:` **interne**, alors que le fichier portait déjà ce nom. Deux sources pour une seule vérité — et elles divergent : constaté le 2026-08-14, un `project_id: pack_ac4c8b884658` dans un dossier renommé `projet_test`.
-- Le produit y était déjà à moitié : un **template** prend son `nameWithoutExtension` quand son `id` est vide, et **data sources** comme **models** n'ont pas de champ `id` du tout. Ce changement finit la convergence au lieu de l'inventer.
-- **Une seule règle : le fichier gagne.** Un `id:` divergent est ignoré et signalé par un WARN nommant les deux (« retire ce champ, et renomme le fichier si tu voulais l'autre nom »). Deux règles — « le fichier, sauf si un id est présent » — perpétueraient l'ambiguïté qu'on supprime.
-- Le champ n'est plus **écrit** ; il reste **lu** et toléré pour les projects antérieurs. `id` sort des `required` des schémas `menu/v1`, `command/v1` et `dialog/v1`, et y est documenté comme legacy.
-- Les sérialiseurs le conservent en mémoire : l'assistant IA reçoit les Documents sur le fil, où aucun nom de fichier ne peut porter l'identité. Le retrait se fait à l'émission du fichier (`withoutId`).
+- Menus, commands and dialogs took their id from an **internal** `id:` field, while the file already carried that name. Two sources for a single truth — and they diverge: observed on 2026-08-14, a `project_id: pack_ac4c8b884658` in a folder renamed `projet_test`.
+- The product was already halfway there: a **template** takes its `nameWithoutExtension` when its `id` is empty, and **data sources** and **models** have no `id` field at all. This change finishes the convergence instead of inventing it.
+- **A single rule: the file wins.** A diverging `id:` is ignored and flagged by a WARN naming both ("remove this field, and rename the file if you wanted the other name"). Two rules — "the file, unless an id is present" — would perpetuate the ambiguity we are removing.
+- The field is no longer **written**; it is still **read** and tolerated for earlier projects. `id` leaves the `required` of the `menu/v1`, `command/v1` and `dialog/v1` schemas, and is documented there as legacy.
+- The serializers keep it in memory: the AI assistant receives Documents over the wire, where no file name can carry the identity. The removal happens when the file is emitted (`withoutId`).
 
-### Changed — la liste des Projects se demande au disque, elle ne se mémorise plus
+### Changed — the Projects list is asked of the disk, no longer remembered
 
-- Un dossier renommé ou supprimé ne se voyait pas dans l'éditeur : la table `projects` était devenue **append-only** (elle apprenait au `hello`, n'oubliait jamais) depuis que `project_hashes` / `deleted_project_ids` avaient disparu. Resynchroniser ce miroir aurait rejoué exactement ce que l'ADR `server-disk-only-storage` a supprimé.
-- Nouveau couple WS `project_list` / `project_list_result` + `GET …/servers/:serverId/projects`. **Le nom du dossier EST l'identité** du Project : le renommer le renomme dans l'éditeur, sans réconciliation ni élagage.
-- Les lignes `projects` subsistent, mais changent de rôle : elles n'inventorient plus, elles **ancrent** ce que le backend possède vraiment (assets — FK cascade —, resource pack, conversations d'assistant, autorisation). Une ligne périmée cesse simplement de compter ; rien à supprimer.
-- L'ouverture d'un dossier neuf ou renommé crée son ancrage à la volée — **mais uniquement si le plugin le liste**. Une référence mal tapée reste un 404 : c'est le disque qui décide de ce qui existe, jamais l'URL.
-- Le badge de nombre de Documents ne s'affiche plus que pour les Projects réellement ouverts : le `documentCount` calculé côté backend est mort avec la copie des fichiers.
+- A renamed or deleted folder was not seen in the editor: the `projects` table had become **append-only** (it learned at `hello`, never forgot) since `project_hashes` / `deleted_project_ids` had disappeared. Resynchronizing this mirror would have replayed exactly what ADR `server-disk-only-storage` removed.
+- New WS pair `project_list` / `project_list_result` + `GET …/servers/:serverId/projects`. **The folder name IS the Project's identity**: renaming it renames it in the editor, with no reconciliation or pruning.
+- The `projects` rows remain, but change role: they no longer inventory, they **anchor** what the backend really owns (assets — FK cascade —, resource pack, assistant conversations, authorization). A stale row simply stops counting; nothing to delete.
+- Opening a new or renamed folder creates its anchor on the fly — **but only if the plugin lists it**. A mistyped reference stays a 404: the disk decides what exists, never the URL.
+- The Documents count badge now only shows for Projects actually open: the `documentCount` computed on the backend side died with the copy of the files.
 
-### Fixed — tout échec de chargement d'un Project se voit
+### Fixed — every Project load failure is visible
 
-- Le correctif précédent ne couvrait que `server_offline` : un `unknown_project`, un `read_error`, un `fetch_timeout` ou un throw du fetch d'identité laissaient `offline` à faux, et la route retombait sur `if (!project) return null` — page vide, indiscernable d'un chargement sans fin. C'était la même erreur, à un cas près. La route affiche désormais un état pour **toute** erreur, avec le code en clair.
-- **Cas rencontré sur devstack** : son serveur tournait un plugin antérieur à l'épopée (11 août), qui ne connaît ni `project_read` ni `project_write` — le relais expirait en `fetch_timeout`, pas en `server_offline`. Un plugin périmé rend donc les Projects de son serveur illisibles ; c'est attendu (le contenu ne vit plus que sur son disque, et lui seul sait le lire), mais ça doit se dire au lieu d'afficher du vide.
+- The previous fix only covered `server_offline`: an `unknown_project`, a `read_error`, a `fetch_timeout` or a throw of the identity fetch left `offline` false, and the route fell back on `if (!project) return null` — an empty page, indistinguishable from an endless load. It was the same error, with one case left out. The route now shows a state for **any** error, with the code in plain sight.
+- **Case met on devstack**: its server ran a plugin older than the epic (August 11), which knows neither `project_read` nor `project_write` — the relay timed out as `fetch_timeout`, not `server_offline`. A stale plugin therefore makes its server's Projects unreadable; that is expected (the content only lives on its disk now, and only it knows how to read it), but it has to be said instead of displaying nothing.
 
-### Fixed — le module Boutique avait disparu de la sidebar
+### Fixed — the Boutique module had disappeared from the sidebar
 
-- **Régression P3b.** Le regroupement « Modules installés » se fait sur `ProjectSummary.ownerModule`, que le backend lisait dans le `manifest.module` de sa copie du project. J'ai supprimé ce champ avec la copie, sans voir qu'il portait ce regroupement : le project de l'Add-on retombait dans la liste plate et son groupe disparaissait.
-- La propriété se **redérive côté éditeur des écrans déclarés** (`ownerModuleOf`), qui portent déjà le couple `module_id` → `project_id` : c'est le module lui-même qui l'a annoncé au Presence, donc aucune donnée nouvelle sur le fil et aucun aller-retour disque. Le rapprochement se fait sur l'**id disque** (`externalId`), le seul que le module connaisse.
+- **P3b regression.** The "Installed modules" grouping is done on `ProjectSummary.ownerModule`, which the backend read from the `manifest.module` of its copy of the project. I removed this field with the copy, without seeing that it carried this grouping: the Add-on's project fell back into the flat list and its group disappeared.
+- The property is **re-derived on the editor side from the declared screens** (`ownerModuleOf`), which already carry the `module_id` → `project_id` pair: the module itself announced it to Presence, so no new data on the wire and no disk round trip. The matching is done on the **disk id** (`externalId`), the only one the module knows.
 
-### Changed — le popover de la topbar montre le serveur courant, pas le parc
+### Changed — the topbar popover shows the current server, not the fleet
 
-- Il listait tous les serveurs du network. Depuis cette page, la seule question qui compte est l'état du serveur qui **porte** le project ouvert — c'est son disque qui conditionne tout. Le popover n'affiche donc plus que celui-là (état, dernière connexion, IP, version MC).
+- It listed all the network's servers. From this page, the only question that matters is the state of the server that **carries** the open project — its disk conditions everything. The popover therefore only shows that one (state, last connection, IP, MC version).
 
-### Fixed — serveur hors ligne : la page l'annonce au lieu de rester blanche
+### Fixed — server offline: the page announces it instead of staying blank
 
-- La décision 7 de `server-disk-only-storage` dit « Project inouvrable, **annoncé comme tel** ». Le drapeau `offline` était posé par `useProjectLoader` mais **jamais consommé** : la route faisait `if (!project) return null`, donc un serveur injoignable donnait une page blanche indiscernable d'un chargement sans fin. Écran explicite + bouton Réessayer.
-- **Le badge de la topbar annonce désormais l'état du serveur qui porte le project ouvert**, pas l'agrégat du réseau. « 2/3 en ligne » pouvait s'afficher pendant que ce serveur-là était justement celui qui manquait — or c'est son disque qui conditionne tout. Le détail des autres serveurs du network reste dans le menu déroulant, qui garde son utilité.
+- Decision 7 of `server-disk-only-storage` says "unopenable Project, **announced as such**". The `offline` flag was set by `useProjectLoader` but **never consumed**: the route did `if (!project) return null`, so an unreachable server gave a blank page indistinguishable from an endless load. Explicit screen + Retry button.
+- **The topbar badge now announces the state of the server that carries the open project**, not the network aggregate. "2/3 online" could be displayed while that very server was the one missing — and its disk conditions everything. The detail of the network's other servers stays in the dropdown menu, which keeps its usefulness.
 
-### Changed — une clé serveur = un serveur vivant (BREAKING)
+### Changed — one server key = one live server (BREAKING)
 
-- Au `hello`, le backend évince la connexion précédente liée à la même clé (**dernier arrivé gagne**) et lui envoie `session_replaced` ; le plugin évincé logue un WARN explicite au lieu de se croire connecté indéfiniment.
-- **Pourquoi maintenant** : le multi-instance était toléré parce que le backend détenait le contenu — les N instances téléchargeaient le même bundle. Depuis `server-disk-only-storage`, chacune a **son** disque et rien ne les synchronise : le relais lirait un disque et écrirait l'autre, puis basculerait en silence quand la première tombe. On ne retire pas une capacité, on retire une promesse qui ne tenait plus.
-- **Dernier gagne plutôt que premier gagne** : un serveur qui crashe laisse une connexion morte ; « premier gagne » verrouillerait le vrai serveur dehors jusqu'à expiration du keepalive. Un redémarrage se recolle donc tout seul.
-- `instanceCount` disparaît de `…/servers-status` et du sélecteur de serveurs — il ne peut plus valoir que 0 ou 1, `online` suffit.
+- At `hello`, the backend evicts the previous connection bound to the same key (**last one in wins**) and sends it `session_replaced`; the evicted plugin logs an explicit WARN instead of believing it is connected indefinitely.
+- **Why now**: multi-instance was tolerated because the backend held the content — the N instances downloaded the same bundle. Since `server-disk-only-storage`, each has **its** disk and nothing synchronizes them: the relay would read one disk and write the other, then switch silently when the first goes down. We are not removing a capability, we are removing a promise that no longer held.
+- **Last wins rather than first wins**: a server that crashes leaves a dead connection; "first wins" would lock the real server out until the keepalive expires. A restart therefore reattaches by itself.
+- `instanceCount` disappears from `…/servers-status` and from the server selector — it can only be 0 or 1 now, `online` is enough.
 
-### Added — `project_read` : l'éditeur lit un Project sur le disque du serveur (ADR `server-disk-only-storage`, P0)
+### Added — `project_read`: the editor reads a Project from the server's disk (ADR `server-disk-only-storage`, P0)
 
-- Première brique de l'épopée « disque seul » : le backend cessera de stocker le contenu des Projects, le plugin devient le seul écrivain, et l'éditeur lit et écrit les fichiers du serveur par le relais WS. P0 livre **la lecture** ; l'écriture arrive en P1 avec la corbeille et le compare-and-swap par fichier — un chemin d'écriture sans son filet n'a pas sa place, même non branché à l'UI.
-- Nouveau couple WS `project_read` / `project_read_result` (`backend/src/protocol.ts`, relais `requestProjectRead` dans `ws/hub.ts`, handler plugin dans `SyncedMenuProvider`). Généralise `config_read`, qui ne portait qu'une Table d'écran de config.
-- Nouvelle route `GET /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/files`. `:projectId` est l'**id disque** : sans ligne backend à résoudre, c'est le seul id qu'un Project possède sur cette route. Serveur hors ligne → 503, jamais un repli périmé (décision 7 de l'ADR).
-- Plafond de 8 MiB avec `too_large` explicite plutôt que troncature. Dimensionné sur mesure réelle : les deux projects du devstack font 17 et 21 fichiers pour 7,9 Ko et 43 Ko — deux ordres de grandeur de marge, donc pas de découpage.
-- `ProjectFilesReader.readAll` extrait de `readRelative` : une seule traversée du dossier, `readRelative` n'en est plus qu'un filtre. `project_read` inclut `.artisan/editor.yaml` (layout du board, `i18n_mode` — l'éditeur en est propriétaire) mais exclut corbeille et métadonnées de sync.
-- Rien n'est retiré à ce stade : la synchro actuelle (`bundle_available`, `local_push`, divergence) tourne inchangée.
+- First brick of the "disk only" epic: the backend will stop storing Project content, the plugin becomes the only writer, and the editor reads and writes the server's files through the WS relay. P0 delivers **reading**; writing arrives in P1 with the trash and the per-file compare-and-swap — a write path without its safety net has no place, even unconnected to the UI.
+- New WS pair `project_read` / `project_read_result` (`backend/src/protocol.ts`, `requestProjectRead` relay in `ws/hub.ts`, plugin handler in `SyncedMenuProvider`). Generalizes `config_read`, which only carried a config screen's Table.
+- New route `GET /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/files`. `:projectId` is the **disk id**: with no backend row to resolve, it is the only id a Project has on this route. Server offline → 503, never a stale fallback (decision 7 of the ADR).
+- 8 MiB ceiling with an explicit `too_large` rather than truncation. Sized on real measurements: the two devstack projects are 17 and 21 files for 7.9 KB and 43 KB — two orders of magnitude of margin, so no chunking.
+- `ProjectFilesReader.readAll` extracted from `readRelative`: a single traversal of the folder, `readRelative` is now just a filter. `project_read` includes `.artisan/editor.yaml` (board layout, `i18n_mode` — the editor owns it) but excludes the trash and sync metadata.
+- Nothing is removed at this stage: the current sync (`bundle_available`, `local_push`, divergence) runs unchanged.
 
-### Added — `project_write` : le plugin devient un écrivain sûr (ADR `server-disk-only-storage`, P1)
+### Added — `project_write`: the plugin becomes a safe writer (ADR `server-disk-only-storage`, P1)
 
-- Couple WS `project_write` / `project_write_result` + `PUT /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/files`. Le plugin est le seul écrivain, donc les deux garde-fous vivent chez lui.
-- **Compare-and-swap par fichier** : chaque écriture porte le `base_hash` du contenu que l'éditeur avait chargé (`null` = « pas de fichier ici quand j'ai chargé », ce qui couvre d'un seul mécanisme le fichier neuf et le fichier disparu). **Tout ou nothing** : un seul fichier périmé annule l'enregistrement entier — un enregistrement à moitié appliqué laisserait un Project incohérent *en ligne*, et l'éditeur ne saurait plus de quel état repartir. Les conflits remontent avec le **contenu disque attaché**, pour que l'éditeur affiche le diff sans second aller-retour.
-- **Corbeille** `.artisan/history/<rel>/<ms>` : l'ancien contenu est archivé avant tout écrasement ou suppression, en anneau des 20 dernières versions par fichier. Nom = millis sur 13 chiffres, donc l'ordre lexicographique est l'ordre chronologique et la purge n'a pas à parser de dates. Un échec d'archivage n'empêche pas l'écriture — perdre le filet est regrettable, perdre l'enregistrement de l'admin le serait plus. C'est une corbeille **par fichier**, pas un point de restauration du Project (décision 5 de l'ADR).
-- Nouveau garde `isEditorWritablePath`, distinct de `isSafeRelPath` qui refuse tout `.artisan*` : l'éditeur est propriétaire de `.artisan/editor.yaml` et doit pouvoir l'écrire. Règle : ce qu'il ne voit pas en lecture, il ne peut pas l'écrire.
-- `BundleHasher.hashContent` expose le digest existant pour le CAS — une seule primitive de hash dans le plugin, et trivialement reproductible côté éditeur (SHA-256 UTF-8, hex minuscule).
-- Le backend relaie sans arbitrer : il n'a aucune copie avec quoi arbitrer.
+- WS pair `project_write` / `project_write_result` + `PUT /api/v1/networks/:networkId/servers/:serverId/projects/:projectId/files`. The plugin is the only writer, so both safeguards live with it.
+- **Per-file compare-and-swap**: each write carries the `base_hash` of the content the editor had loaded (`null` = "no file here when I loaded", which covers the new file and the vanished file with a single mechanism). **All or nothing**: a single stale file cancels the whole save — a half-applied save would leave a Project inconsistent *online*, and the editor would no longer know which state to start from. Conflicts come back with the **disk content attached**, so the editor shows the diff without a second round trip.
+- **Trash** `.artisan/history/<rel>/<ms>`: the old content is archived before any overwrite or deletion, as a ring of the last 20 versions per file. Name = millis on 13 digits, so lexicographic order is chronological order and purging does not have to parse dates. An archiving failure does not prevent the write — losing the safety net is regrettable, losing the admin's save would be worse. This is a **per-file** trash, not a Project restore point (decision 5 of the ADR).
+- New guard `isEditorWritablePath`, distinct from `isSafeRelPath` which refuses any `.artisan*`: the editor owns `.artisan/editor.yaml` and must be able to write it. Rule: what it does not see when reading, it cannot write.
+- `BundleHasher.hashContent` exposes the existing digest for the CAS — a single hash primitive in the plugin, trivially reproducible on the editor side (SHA-256 UTF-8, lowercase hex).
+- The backend relays without arbitrating: it has no copy to arbitrate with.
 
-### Changed — l'éditeur lit et écrit le disque du serveur, sur geste explicite (ADR `server-disk-only-storage`, P2) (BREAKING UX)
+### Changed — the editor reads and writes the server's disk, on explicit gesture (ADR `server-disk-only-storage`, P2) (BREAKING UX)
 
-- **L'auto-save disparaît.** Plus rien n'est écrit sans que l'admin clique sur **Enregistrer**. Les modifications non enregistrées vivent dans la page — fermer l'onglet les perd, comme dans n'importe quel éditeur. Le débounce de 2 s et `persistProject` sont supprimés.
-- **Un seul geste, une seule destination** : le bouton *Enregistrer* remplace la paire *Déployer* / *Revenir*. Il n'y a plus d'artefact intermédiaire à publier, donc plus rien à « déployer » : enregistrer, c'est écrire les fichiers du serveur.
-- **Chargement depuis le disque** : `useProjectLoader` lit l'arbre via `project_read` ; la réponse backend ne sert plus qu'à l'identité (nom, slug, serveur, network). Serveur hors ligne = Project non ouvrable, annoncé comme tel, **jamais un repli sur une copie périmée**.
-- **Enregistrement différentiel** : l'éditeur garde la *base* (contenu chargé, `projectBaselineStore`), compare, et n'envoie que le delta avec le hash de base de chaque entrée. Un fichier que personne n'a touché n'est jamais réécrit, donc ne peut pas entrer en conflit.
-- **Résolution de conflit par fichier** : une modale liste les fichiers qui ont bougé sur le serveur, avec le choix *garder ma version* / *prendre celle du serveur*. Le mécanisme tient en une idée — **adopter le contenu disque comme base** : « garder ma version » ne bouge que la base (donc le ré-enregistrement porte le bon jeton), « prendre celle du serveur » bouge la base *et* l'arbre. Un fichier sans choix explicite bloque l'enregistrement plutôt que d'être tranché en douce.
-- **L'assistant IA n'écrit plus sur le serveur** : ce qu'il génère atterrit dans l'état de la page comme une édition manuelle. C'était le seul chemin qui touchait le disque sans geste — et le plus surprenant, puisqu'il n'était pas de l'admin.
-- **L'export zip lit le disque** au lieu de la copie backend : il reste ce que le serveur exécute réellement, et il embarque toujours ce que le domaine ne modélise pas (`.artisan/editor.yaml`, fichiers d'une racine Add-on).
+- **Auto-save is gone.** Nothing is written until the admin clicks **Save**. Unsaved changes live in the page — closing the tab loses them, as in any editor. The 2 s debounce and `persistProject` are removed.
+- **One gesture, one destination**: the *Save* button replaces the *Deploy* / *Revert* pair. There is no intermediate artifact to publish any more, so nothing left to "deploy": saving means writing the server's files.
+- **Loading from the disk**: `useProjectLoader` reads the tree via `project_read`; the backend response is now only used for identity (name, slug, server, network). Server offline = Project not openable, announced as such, **never a fallback on a stale copy**.
+- **Differential save**: the editor keeps the *base* (loaded content, `projectBaselineStore`), compares, and only sends the delta with each entry's base hash. A file nobody touched is never rewritten, so it cannot conflict.
+- **Per-file conflict resolution**: a modal lists the files that moved on the server, with the choice *keep my version* / *take the server's*. The mechanism comes down to one idea — **adopt the disk content as the base**: "keep my version" only moves the base (so the re-save carries the right token), "take the server's" moves the base *and* the tree. A file with no explicit choice blocks the save rather than being decided on the sly.
+- **The AI assistant no longer writes to the server**: what it generates lands in the page state like a manual edit. It was the only path that touched the disk without a gesture — and the most surprising, since it was not the admin's.
+- **The zip export reads the disk** instead of the backend copy: it stays what the server actually runs, and it still bundles what the domain does not model (`.artisan/editor.yaml`, files of an Add-on root).
 
-### Removed — l'éditeur ne dépend plus du stockage backend (ADR `server-disk-only-storage`, P3a)
+### Removed — the editor no longer depends on backend storage (ADR `server-disk-only-storage`, P3a)
 
-- Supprimés : `HistoryTab`, `HistoryPanel`, `CommitDialog`, `lib/api/branches`, `DivergenceBanner`, `ProjectConflictBanner`, `divergenceStore`, `projectVersionStore`, `bundlePublisher`, `saveUserProject`, `resolveDivergence`, `useProjectSaver` (déjà sans appelant), et l'onglet **Historique** du workspace.
-- `loadUserProject` ne sert plus qu'à l'**identité** d'un Project (nom, slug, serveur propriétaire, network) : son contenu vient du disque.
-- Le point de santé de la topbar disparaît avec le verrou optimiste qu'il signalait — l'écriture est désormais par fichier, et un conflit s'affiche dans sa modale plutôt que dans une pastille.
-- `project_write` accepte `create: true` pour matérialiser le dossier d'un Project neuf (création, import). **Sans ce drapeau un id inconnu reste une erreur** : on ne sème pas un dossier fantôme sur un id mal tapé. L'éditeur ne l'envoie que lorsqu'il n'a aucune base pour ce Project, c'est-à-dire quand il ne l'a jamais lu sur le disque.
-- Cette passe ne touche ni le plugin ni le stockage backend : la boucle de sync actuelle continue de tourner (elle entretient une copie que plus personne ne lit) et tombera d'un bloc en P3b, pour ne jamais laisser la liaison coupée à moitié.
+- Removed: `HistoryTab`, `HistoryPanel`, `CommitDialog`, `lib/api/branches`, `DivergenceBanner`, `ProjectConflictBanner`, `divergenceStore`, `projectVersionStore`, `bundlePublisher`, `saveUserProject`, `resolveDivergence`, `useProjectSaver` (already without callers), and the workspace's **History** tab.
+- `loadUserProject` is now only used for a Project's **identity** (name, slug, owning server, network): its content comes from the disk.
+- The topbar's health dot goes away with the optimistic lock it signalled — writing is now per file, and a conflict shows in its modal rather than in a dot.
+- `project_write` accepts `create: true` to materialize a new Project's folder (creation, import). **Without this flag an unknown id stays an error**: we do not sow a ghost folder on a mistyped id. The editor only sends it when it has no base for this Project, that is, when it never read it from the disk.
+- This pass touches neither the plugin nor backend storage: the current sync loop keeps running (it maintains a copy nobody reads any more) and will fall in one block in P3b, so the link is never left half cut.
 
-### Added — la corbeille devient consultable (ADR `server-disk-only-storage`, P4)
+### Added — the trash becomes browsable (ADR `server-disk-only-storage`, P4)
 
-- `project_history` / `project_history_result` + `GET …/projects/:projectId/history?path=…` : les versions qu'un fichier a traversées, la plus récente d'abord. Un fichier jamais écrasé rend une liste vide, pas une erreur — c'est un état normal, pas un incident.
-- **Restaurer n'a aucun chemin privilégié** : on remet le contenu choisi dans l'éditeur et on enregistre. C'est une écriture comme une autre, donc soumise au même compare-and-swap — une restauration ne peut pas écraser le travail de quelqu'un d'autre dans son dos.
-- Surface UI : `FileHistory`, branché sous l'éditeur YAML par fichier (`YamlFileEditor`) — la seule surface du produit dont la granularité est le fichier, c'est-à-dire celle de la corbeille.
+- `project_history` / `project_history_result` + `GET …/projects/:projectId/history?path=…`: the versions a file has gone through, most recent first. A file never overwritten returns an empty list, not an error — it is a normal state, not an incident.
+- **Restoring has no privileged path**: the chosen content is put back in the editor and saved. It is a write like any other, so subject to the same compare-and-swap — a restore cannot overwrite someone else's work behind their back.
+- UI surface: `FileHistory`, plugged under the per-file YAML editor (`YamlFileEditor`) — the only surface of the product whose granularity is the file, that is, the trash's.
 
-### Removed — le backend ne stocke plus aucun contenu de Project (ADR `server-disk-only-storage`, P3b) (BREAKING)
+### Removed — the backend no longer stores any Project content (ADR `server-disk-only-storage`, P3b) (BREAKING)
 
-L'aboutissement de l'épopée. Ordre imposé — le plugin cesse d'appeler **avant** que le backend
-supprime ses endpoints — pour ne jamais laisser la liaison coupée à moitié.
+The epic's culmination. Imposed order — the plugin stops calling **before** the backend
+removes its endpoints — so the link is never left half cut.
 
-- **Plugin** : `BundleDownloader`, `LocalPushSender`, `SyncMetadata`, `detectSyncAction`/`SyncAction`, le handler `bundle_available`, le contrôle de synchro du `hello_ack`, l'auto-push et `/artisan pushLocal` ont disparu. `ProjectFilesReader` sort de `BundleUploader` (supprimé) vers son propre fichier. Le `SyncScanner` **reste**, réduit à ce qu'il aurait toujours dû être : un détecteur de changement qui recharge à chaud, sans jamais décider.
-- **Backend** : `projects.files_json`, `projects.hash`, `projects.version`, les tables `project_commits` / `project_branches`, les routes `/api/v1/bundles` et `…/branches`, `commitStorage`, `branchStorage`, `projectJournal`, `divergence`, `hashUtils`, `pushBundleAvailable`, les handlers `local_push` / `sync_divergence` / `boutique_additem`. Migration **0030**.
-- **`hello_ack` maigrit** : plus de `project_hashes`, `needs_sync`, `latest_bundle_hash`, `deleted_project_ids` — le backend n'a plus rien à comparer ni à annoncer. Les `local_project_ids` du `hello` restent utiles : un project présent sur le disque et inconnu du backend y est enregistré, **identité seulement**.
-- **Le hash cesse d'être un invariant inter-langage.** `testdata/project-hash-conformance.json` et son implémentation backend disparaissent : plus personne d'autre ne calcule le hash d'arbre. Il ne reste que deux usages locaux au plugin — la détection de changement du scanner, et `hashContent` pour le compare-and-swap.
-- **`/boutiqueadmin additem` a été réparé dans le repo de l'Add-on** (`CapturedItemWriter`) : la mutation in-game passait par le backend, qui patchait sa copie ; le module écrit désormais dans la racine qu'il possède, et le scan disque recharge à chaud. Le handler backend est retiré.
-- **Perte assumée** : le compte de Documents et le module propriétaire affichés dans la liste des projects se lisaient dans la copie backend. Les recalculer exigerait un aller-retour disque par Project juste pour peupler une liste.
+- **Plugin**: `BundleDownloader`, `LocalPushSender`, `SyncMetadata`, `detectSyncAction`/`SyncAction`, the `bundle_available` handler, the `hello_ack` sync check, auto-push and `/artisan pushLocal` are gone. `ProjectFilesReader` moves out of `BundleUploader` (removed) into its own file. The `SyncScanner` **stays**, reduced to what it should always have been: a change detector that hot-reloads, never deciding.
+- **Backend**: `projects.files_json`, `projects.hash`, `projects.version`, the `project_commits` / `project_branches` tables, the `/api/v1/bundles` and `…/branches` routes, `commitStorage`, `branchStorage`, `projectJournal`, `divergence`, `hashUtils`, `pushBundleAvailable`, the `local_push` / `sync_divergence` / `boutique_additem` handlers. Migration **0030**.
+- **`hello_ack` slims down**: no more `project_hashes`, `needs_sync`, `latest_bundle_hash`, `deleted_project_ids` — the backend has nothing left to compare or announce. The `hello`'s `local_project_ids` stay useful: a project present on disk and unknown to the backend is registered there, **identity only**.
+- **The hash stops being a cross-language invariant.** `testdata/project-hash-conformance.json` and its backend implementation disappear: nobody else computes the tree hash any more. Only two local uses remain in the plugin — the scanner's change detection, and `hashContent` for the compare-and-swap.
+- **`/boutiqueadmin additem` was fixed in the Add-on's repo** (`CapturedItemWriter`): the in-game mutation went through the backend, which patched its copy; the module now writes into the root it owns, and the disk scan hot-reloads. The backend handler is removed.
+- **Accepted loss**: the Documents count and the owning module shown in the projects list were read from the backend copy. Recomputing them would require a disk round trip per Project just to populate a list.
 
-### Fixed — un serveur ne peut plus écrire dans le project d'un autre (SÉCURITÉ)
+### Fixed — a server can no longer write into another's project (SECURITY)
 
-- Les trois points d'ingestion plugin (`local_push`, stub-create du `hello`, `POST /api/v1/bundles/:projectId`) résolvaient le project par **id seul, globalement**, sans vérifier qu'il appartenait à la clé serveur authentifiée. Comme l'add-on Boutique bootstrappe le même id disque `boutique_shop` sur chaque serveur qui l'installe, la poussée d'un serveur atterrissait dans le project d'un **autre tenant** — networks et clients différents inclus. `createProject` étant idempotent sur l'id (garde anti-crash de 2026-07-09), la collision n'échouait pas : elle écrasait en silence. Atteignable par le flow de liaison normal, sans rien faire d'anormal (incident 2026-08-12).
-- Nouveau `projects.external_id` (migration 0029) : l'id **disque / wire**, unique `(server_key_id, external_id)`. L'`id` reste la clé interne globale des FK. Backfill `external_id = id` — pour toute ligne existante les deux coïncident, donc aucun changement observable sur un déploiement en place.
-- Résolution scopée obligatoire côté serveur : `getProjectForServer` / `ensureProjectForServer`. Deux serveurs sans rapport peuvent désormais détenir chacun leur `boutique_shop`.
-- Les émetteurs vers le plugin (`bundle_available`, `project_deleted`, `project_hashes`, URL de bundle) traduisent l'id interne vers l'id disque : le plugin ne connaît jamais que le sien. `computeAllPacksHash` keye aussi sur l'id disque.
+- The three plugin ingestion points (`local_push`, the `hello`'s stub-create, `POST /api/v1/bundles/:projectId`) resolved the project by **id alone, globally**, without checking that it belonged to the authenticated server key. Since the Boutique add-on bootstraps the same disk id `boutique_shop` on every server that installs it, one server's push landed in **another tenant's** project — different networks and customers included. As `createProject` is idempotent on the id (anti-crash guard of 2026-07-09), the collision did not fail: it silently overwrote. Reachable through the normal link flow, without doing anything abnormal (incident 2026-08-12).
+- New `projects.external_id` (migration 0029): the **disk / wire** id, unique `(server_key_id, external_id)`. The `id` stays the global internal key of the FKs. Backfill `external_id = id` — for every existing row the two coincide, so no observable change on an in-place deployment.
+- Scoped resolution mandatory on the server side: `getProjectForServer` / `ensureProjectForServer`. Two unrelated servers can now each hold their own `boutique_shop`.
+- Senders to the plugin (`bundle_available`, `project_deleted`, `project_hashes`, bundle URL) translate the internal id to the disk id: the plugin only ever knows its own. `computeAllPacksHash` also keys on the disk id.
 
-### Changed — la surface `modules.api` n'expose plus aucun type Kotlin (BREAKING)
+### Changed — the `modules.api` surface no longer exposes any Kotlin type (BREAKING)
 
-- Un add-on qui compile contre `artisan-core-api` ne résout plus jamais `kotlin.*`. Il ne l'embarque pas : son classloader allait donc le chercher **chez les autres plugins** du serveur, et si l'un d'eux embarquait sa propre kotlin-stdlib, le premier appel inter-plugins mourait en `LinkageError: loader constraint violation … kotlin.jvm.functions.Function2` (incident 2026-08-08, add-on Boutique désactivé au boot).
-- Les rappels deviennent des `fun interface` du package api — les appelants Kotlin comme Java passent toujours une lambda :
-  - `DataSourceDeclaration.fetcher` : `(Player?, Map) -> List<Map>` → `DataFetcher`
-  - `CommandDeclaration.handler` : `(Player, Map) -> Unit` → `CommandHandler`
-  - `ModuleEventBus.subscribe(type, handler)` : `ModuleEventHandler`. L'`inline fun <reified T> subscribe` et `subscribeRaw` sont **supprimés** (une fonction inline reified n'est appelable que depuis Kotlin et exposait un `Function1` en bytecode).
-  - `SchemaRegistry.loadToCurrent(…, versionOf)` : `SchemaVersionReader<T>`
-  - `ModuleRegistry.bind(api, onChange)` : `Runnable`
-- `FieldKind` et `Stability` passent en **enums Java** : un enum Kotlin expose un `getEntries()` typé `kotlin.enums.EnumEntries`.
-- Migration add-on : remplacer `return kotlin.Unit.INSTANCE;` par une lambda void, et retirer `kotlin-stdlib` des dépendances de compilation (elle ne reste utile qu'en `test`, pour exécuter le code Kotlin du core).
-- `ApiSurfaceIsJavaFriendlyTest` échoue si un type `kotlin.*` réapparaît dans une signature publique.
-- **Non résolu** : le JAR du plugin embarque toujours la kotlin-stdlib sous ses noms d'origine. `relocate("kotlin", …)` a été essayé et retiré — `kotlin-reflect` (tiré par `jackson-module-kotlin`) résout ses built-ins par nom de chaîne et ne survit pas au renommage : tous les projects étaient skippés au load. Artisan peut donc encore servir `kotlin.*` à un plugin tiers qui en chercherait.
+- An add-on that compiles against `artisan-core-api` no longer ever resolves `kotlin.*`. It does not bundle it: its classloader therefore went looking for it **in the server's other plugins**, and if one of them bundled its own kotlin-stdlib, the first cross-plugin call died with `LinkageError: loader constraint violation … kotlin.jvm.functions.Function2` (incident 2026-08-08, Boutique add-on disabled at boot).
+- Callbacks become `fun interface`s of the api package — Kotlin and Java callers still pass a lambda:
+  - `DataSourceDeclaration.fetcher`: `(Player?, Map) -> List<Map>` → `DataFetcher`
+  - `CommandDeclaration.handler`: `(Player, Map) -> Unit` → `CommandHandler`
+  - `ModuleEventBus.subscribe(type, handler)`: `ModuleEventHandler`. The `inline fun <reified T> subscribe` and `subscribeRaw` are **removed** (an inline reified function is only callable from Kotlin and exposed a `Function1` in bytecode).
+  - `SchemaRegistry.loadToCurrent(…, versionOf)`: `SchemaVersionReader<T>`
+  - `ModuleRegistry.bind(api, onChange)`: `Runnable`
+- `FieldKind` and `Stability` become **Java enums**: a Kotlin enum exposes a `getEntries()` typed `kotlin.enums.EnumEntries`.
+- Add-on migration: replace `return kotlin.Unit.INSTANCE;` with a void lambda, and remove `kotlin-stdlib` from the compile dependencies (it is only useful in `test`, to run the core's Kotlin code).
+- `ApiSurfaceIsJavaFriendlyTest` fails if a `kotlin.*` type reappears in a public signature.
+- **Unresolved**: the plugin JAR still bundles the kotlin-stdlib under its original names. `relocate("kotlin", …)` was tried and removed — `kotlin-reflect` (pulled by `jackson-module-kotlin`) resolves its built-ins by string name and does not survive the renaming: all projects were skipped at load. Artisan can therefore still serve `kotlin.*` to a third-party plugin that would look for it.
 
-### Added — mot de passe oublié
-- Lien « Mot de passe oublié ? » sur le formulaire de connexion → `/forgot-password` (saisie email) → email avec un lien `/reset-password?token=…` valable 1 h.
-- Deux endpoints publics : `POST /api/v1/auth/forgot-password` (**toujours 204**, email inconnu compris — le statut ne doit pas révéler l'existence d'un compte) et `POST /api/v1/auth/reset-password` (204, `422 weak_password`, `400 invalid_token`).
-- Nouvelle table `password_reset_tokens` (migration 0028) : seul le SHA-256 du token est stocké, consommation atomique donc single-use. Un reset réussi **déconnecte toutes les sessions** du compte et invalide les autres liens en attente.
-- Un mot de passe refusé (trop court) ne brûle pas le lien — la validation passe avant la consommation du token.
-- Un compte Discord-only peut se définir un mot de passe par ce flux (il garde Discord en plus).
-- Pas de rate-limiting sur `forgot-password` : même dette connue que `invites/accept`.
+### Added — forgot password
+- "Forgot password?" link on the sign-in form → `/forgot-password` (email entry) → email with a `/reset-password?token=…` link valid for 1 h.
+- Two public endpoints: `POST /api/v1/auth/forgot-password` (**always 204**, unknown email included — the status must not reveal whether an account exists) and `POST /api/v1/auth/reset-password` (204, `422 weak_password`, `400 invalid_token`).
+- New `password_reset_tokens` table (migration 0028): only the token's SHA-256 is stored, atomic consumption so single-use. A successful reset **signs out all the account's sessions** and invalidates the other pending links.
+- A refused password (too short) does not burn the link — validation happens before the token is consumed.
+- A Discord-only account can set a password through this flow (it keeps Discord in addition).
+- No rate limiting on `forgot-password`: same known debt as `invites/accept`.
 
-### Removed — l'Item template project-level disparaît : un set d'items appartient à son menu
-- **Une apparence appartient au menu où elle est rendue.** L'`ItemTemplate` était une entité *project-level* partagée : plusieurs menus pouvaient lier le même rendu par ref (`iterates.template` / `places.template`), et l'éditer changeait tous les menus consommateurs à la fois. Supprimé — l'élément porte ses propres `appearances`, comme le faisait déjà `createMenuSet` depuis le 2026-07-26. Les deux modèles cohabitaient depuis, sans que rien ne dise lequel faisait foi.
-- **Supprimé** : `ItemTemplate` / `Project.itemTemplates` / `templateId`, le dossier `templates/` et le schéma `template/v1`, l'onglet « Sets » de la Library, `ItemTemplateEditor` / `ItemTemplatesSection`, le drag depuis la bibliothèque (`tplrow:` / `tplgroup:` / `tplblock:`) et les actions de store associées. Les morts `Project.templates` / `Element.templateRef`, jamais peuplés ni exportés, partent avec.
-- **`menu/v1` est muté, pas versionné** : `iterates.template`, `places.template` et `template_ref` sont retirés du schéma. Le plugin lit toujours les refs legacy, donc aucun arbre sur disque ne casse.
-- **Migration à l'import, sans perte de traduction** : un `templates/<id>.yaml` encore sur disque est inliné dans les éléments qui le référençaient — clone par élément, entrées i18n **dupliquées** (pas déplacées) puis ré-adressées `item_templates.<t>.*` → `menus.<m>.elements.<el>.*`. Sans la duplication, deux éléments partageant un template auraient vu le premier voler la traduction du second. Verrouillé par `templateMigration.test.ts`.
-- Le plugin garde `ProjectReader.resolveTemplates` en lecture de compat le temps que les serveurs déployés soient re-sauvegardés ; plus rien n'écrit ces fichiers.
-- **Perdu volontairement** : la vue « quelles rows de ma source ne sont placées nulle part » qu'offrait la bibliothèque, et la réutilisation d'un rendu entre menus (à refaire par menu).
+### Removed — the project-level Item template goes away: an item set belongs to its menu
+- **An appearance belongs to the menu where it is rendered.** `ItemTemplate` was a shared *project-level* entity: several menus could bind the same rendering by ref (`iterates.template` / `places.template`), and editing it changed all consuming menus at once. Removed — the element carries its own `appearances`, as `createMenuSet` already did since 2026-07-26. The two models had coexisted since, with nothing saying which one was authoritative.
+- **Removed**: `ItemTemplate` / `Project.itemTemplates` / `templateId`, the `templates/` folder and the `template/v1` schema, the Library's "Sets" tab, `ItemTemplateEditor` / `ItemTemplatesSection`, drag from the library (`tplrow:` / `tplgroup:` / `tplblock:`) and the associated store actions. The dead `Project.templates` / `Element.templateRef`, never populated or exported, go with them.
+- **`menu/v1` is mutated, not versioned**: `iterates.template`, `places.template` and `template_ref` are removed from the schema. The plugin still reads the legacy refs, so no tree on disk breaks.
+- **Migration at import, without translation loss**: a `templates/<id>.yaml` still on disk is inlined into the elements that referenced it — one clone per element, i18n entries **duplicated** (not moved) then re-addressed `item_templates.<t>.*` → `menus.<m>.elements.<el>.*`. Without the duplication, two elements sharing a template would have seen the first steal the second's translation. Locked by `templateMigration.test.ts`.
+- The plugin keeps `ProjectReader.resolveTemplates` as compat reading until the deployed servers are re-saved; nothing writes those files any more.
+- **Deliberately lost**: the "which rows of my source are placed nowhere" view the library offered, and reusing a rendering across menus (to be redone per menu).
 
-### Added — le masquage d'une racine de project par un Add-on est signalé
-- Quand un Add-on enregistre une racine pour `<id>` alors que `plugins/Artisan/projects/<id>/` existe déjà, la copie core devient invisible (plus lue, plus hashée, plus synchronisée, plus scannée). `ProjectRoots.register` émet désormais un WARN nommant les deux chemins.
-- Ce n'était pas un déchet inerte : le jour où l'Add-on échoue à démarrer, plus personne n'enregistre la racine, `all()` réexpose l'arbre périmé comme project vivant, et la bannière de divergence — **dont le défaut est « disque »** — propose de le pousser par-dessus le vrai. Constaté sur le serveur de dev : un `boutique_shop` figé au 2026-07-25 avec un `.artisan-sync.yaml` déjà divergent, masqué par `plugins/Boutique/editor/`.
-- Un log, pas un refus : l'Add-on a le droit de posséder sa racine ; c'est la copie orpheline qui doit disparaître, et seul l'admin peut en décider.
+### Added — an Add-on masking a project root is flagged
+- When an Add-on registers a root for `<id>` while `plugins/Artisan/projects/<id>/` already exists, the core copy becomes invisible (no longer read, hashed, synchronized or scanned). `ProjectRoots.register` now emits a WARN naming both paths.
+- It was not inert leftovers: the day the Add-on fails to start, nobody registers the root, `all()` re-exposes the stale tree as a live project, and the divergence banner — **whose default is "disk"** — offers to push it over the real one. Observed on the dev server: a `boutique_shop` frozen at 2026-07-25 with an already diverging `.artisan-sync.yaml`, masked by `plugins/Boutique/editor/`.
+- A log, not a refusal: the Add-on has the right to own its root; it is the orphan copy that must go, and only the admin can decide that.
 
-### Changed — les écritures des Config screens de module sont journalisées
-- **Une racine gérée est une racine versionnée.** Une écriture depuis un écran de config de module part dans l'historique du project comme n'importe quelle autre édition : arbre stocké mis à jour, commit sur `main` (auteur = l'utilisateur connecté), `bundle_available`. Avant, le backend « relayait sans stocker » : le même écran, avec la même UI, éditait tantôt un fichier versionné tantôt un fichier volatil, sans que rien ne le signale.
-- Le broadcast `bundle_available` n'est pas décoratif : il fait rafraîchir `.artisan-sync.yaml` au plugin, sans quoi son scan suivant verrait LOCAL_ONLY et repousserait le même contenu.
-- **Garde-fous** : la journalisation a lieu **après** l'ack du plugin (l'historique ne raconte jamais une écriture qui n'a pas atterri sur le disque) ; un `project_id` qui n'est pas un project Artisan ne journalise rien et **n'est pas créé** — la réponse porte alors `journaled: false` ; une réécriture identique n'ajoute pas d'entrée (`createCommit` dédoublonne par hash de contenu).
-- `POST …/config/write` répond désormais `{ok:true, journaled:boolean}`.
-- **Une seule implémentation** de « persiste l'arbre + commit + avance main » : `lib/projectJournal.ts`, partagée avec les mutations in-game (`/boutique additem`), qui portait jusqu'ici sa propre copie de la séquence.
-- Inchangé : la lecture reste live, l'écran reste grisé hors ligne, l'écriture passe toujours par le plugin.
+### Changed — module Config screen writes are journaled
+- **A managed root is a versioned root.** A write from a module's config screen goes into the project's history like any other edit: stored tree updated, commit on `main` (author = the signed-in user), `bundle_available`. Before, the backend "relayed without storing": the same screen, with the same UI, edited sometimes a versioned file and sometimes a volatile one, with nothing signalling it.
+- The `bundle_available` broadcast is not decorative: it makes the plugin refresh `.artisan-sync.yaml`, without which its next scan would see LOCAL_ONLY and push the same content again.
+- **Safeguards**: journaling happens **after** the plugin's ack (the history never tells of a write that did not land on disk); a `project_id` that is not an Artisan project journals nothing and **is not created** — the response then carries `journaled: false`; an identical rewrite adds no entry (`createCommit` dedups by content hash).
+- `POST …/config/write` now answers `{ok:true, journaled:boolean}`.
+- **A single implementation** of "persist the tree + commit + advance main": `lib/projectJournal.ts`, shared with in-game mutations (`/boutique additem`), which until now carried its own copy of the sequence.
+- Unchanged: reading stays live, the screen stays greyed out offline, writing still goes through the plugin.
 
-### Changed — l'export/import de project est un zip de l'arbre serveur, plus un JSON
-- **L'export télécharge l'arbre de fichiers tel que le serveur le stocke**, zippé — plus une régénération depuis le domaine en mémoire. L'archive porte donc ce que le domaine ne modélise pas (`.artisan/editor.yaml`, les fichiers propres d'une racine Add-on), et se dézippe telle quelle par-dessus `plugins/Artisan/projects/`.
-- **Un export n'est plus conditionné à la validation.** Un project invalide s'exportait en échec ; récupérer ses fichiers ne doit pas dépendre de leur validité — c'est la promesse anti-lock-in. La modale « Impossible d'exporter » disparaît avec elle.
-- L'auto-save en attente est flushé avant l'export, sinon l'archive retardait de la fenêtre de debounce.
-- **L'import accepte un zip** : le nôtre, ou un dossier de project zippé directement depuis le serveur. Les chemins sont re-routés sur `plugins/Artisan/projects/<id>/` quelle que soit la forme reçue (manifest à la racine, dossier de project, emballage supplémentaire) ; l'id vient du `project_id` du manifest, sinon du nom du dossier.
-- **Supprimé** : l'export et l'import JSON (`.artisan.json`). Ils sérialisaient le domaine en mémoire — une seconde représentation du project à côté de l'arbre de fichiers, exactement ce que la démolition d'`editorJson` (P3a) avait retiré du backend.
-- L'export requiert le réseau (pas de repli sur une régénération locale, qui produirait une archive *presque* fidèle sans le dire) : hors ligne, un message le dit.
+### Changed — project export/import is a zip of the server tree, no longer a JSON
+- **The export downloads the file tree as the server stores it**, zipped — no longer a regeneration from the in-memory domain. The archive therefore carries what the domain does not model (`.artisan/editor.yaml`, an Add-on root's own files), and unzips as is over `plugins/Artisan/projects/`.
+- **An export is no longer conditioned on validation.** An invalid project failed to export; getting your files back must not depend on their validity — that is the anti-lock-in promise. The "Cannot export" modal goes away with it.
+- The pending auto-save is flushed before the export, otherwise the archive lagged by the debounce window.
+- **The import accepts a zip**: ours, or a project folder zipped directly from the server. Paths are re-routed onto `plugins/Artisan/projects/<id>/` whatever the received shape (manifest at the root, project folder, extra wrapping); the id comes from the manifest's `project_id`, otherwise from the folder name.
+- **Removed**: JSON export and import (`.artisan.json`). They serialized the in-memory domain — a second representation of the project next to the file tree, exactly what the demolition of `editorJson` (P3a) had removed from the backend.
+- The export requires the network (no fallback on a local regeneration, which would produce an archive *almost* faithful without saying so): offline, a message says it.
 
-### Changed — la détection des éditions disque devient un scan de contenu (spec `2026-07-30-poll-first-disk-sync-design`)
-- **`ProjectWatcher` (inotify) supprimé, remplacé par `SyncScanner`** (tick périodique, 3 s par défaut). Règle de conception : **aucun chemin de correction ne dépend d'un événement du système de fichiers.** Le watcher rendait la correction tributaire d'événements OS jamais délivrés sur bind mount Docker Desktop, NFS ou SMB — le comportement différait entre dev et prod, et les « filets » (check au `hello_ack`, `/artisan pushLocal`) portaient en réalité la correction.
-- **Fix — une édition disque pouvait être perdue silencieusement** : une édition concurrente d'une écriture du plugin était retirée du set des projets sales par la fenêtre de suppression, puis effacée au flush. Pas retardée, perdue, jusqu'au prochain `hello_ack`. La fenêtre de suppression n'existe plus : `BundleDownloader` enregistre le hash qu'il vient d'écrire, donc le tick suivant résout IN_SYNC — « est-ce moi qui ai écrit ça ? » est une question de contenu, pas de timing.
-- **Fix — un arbre en cours d'upload (FTP, `unzip`) ne pouvait plus être poussé du tout** : le debounce se replanifiait à chaque écriture et n'atteignait jamais sa période de silence. Remplacé par une quiescence bornée (2 ticks consécutifs identiques), qui évite aussi de committer un arbre à moitié écrit.
-- Tick : court-circuit `stat` (rien n'est lu si la signature n'a pas bougé), puis vrai hash de contenu un tick sur 10 pour couvrir les FS à granularité mtime grossière.
-- La fenêtre d'écho entre un `local_push` et le `bundle_available` qui l'acquitte est fermée par un dédoublonnage **en mémoire** (`lastPushedHash`), vidé au `hello_ack` et après chaque download : un push perdu en vol est reposté, jamais oublié.
-- Les tests de sync pilotent les ticks à la main — plus aucune dépendance à inotify ni aux `sleep`, donc ils se comportent identiquement sur toutes les plateformes.
+### Changed — disk edit detection becomes a content scan (spec `2026-07-30-poll-first-disk-sync-design`)
+- **`ProjectWatcher` (inotify) removed, replaced by `SyncScanner`** (periodic tick, 3 s by default). Design rule: **no correctness path depends on a filesystem event.** The watcher made correctness depend on OS events never delivered on a Docker Desktop bind mount, NFS or SMB — behaviour differed between dev and prod, and the "safety nets" (check at `hello_ack`, `/artisan pushLocal`) actually carried the correctness.
+- **Fix — a disk edit could be silently lost**: an edit concurrent with a plugin write was removed from the dirty-projects set by the suppression window, then erased at flush. Not delayed, lost, until the next `hello_ack`. The suppression window no longer exists: `BundleDownloader` records the hash it has just written, so the next tick resolves IN_SYNC — "did I write this?" is a content question, not a timing one.
+- **Fix — a tree being uploaded (FTP, `unzip`) could not be pushed at all**: the debounce rescheduled itself at every write and never reached its quiet period. Replaced by bounded quiescence (2 identical consecutive ticks), which also avoids committing a half-written tree.
+- Tick: `stat` short-circuit (nothing is read if the signature has not moved), then a real content hash one tick in 10 to cover FSes with coarse mtime granularity.
+- The echo window between a `local_push` and the `bundle_available` that acknowledges it is closed by an **in-memory** dedup (`lastPushedHash`), cleared at `hello_ack` and after each download: a push lost in flight is re-posted, never forgotten.
+- The sync tests drive the ticks by hand — no more dependency on inotify or `sleep`s, so they behave identically on all platforms.
 
-### Changed — les fichiers `lang/` sont des arborescences YAML
-- **Format disque** : `lang/<code>.yaml` s'écrit désormais en arbre (`menus:` → `<menu_id>:` → `elements:` → …) au lieu d'une clé pointée complète par ligne. Chaque `.` de la clé devient un niveau ; le runtime adresse toujours par clé pointée (`menus.shop.title`), c'est uniquement la forme du fichier qui change.
-- **Lecture tolérante** aux trois formes (arbre, plat legacy, mélange des deux) côté plugin (`LangFlattener`), import éditeur (`projectFromFiles`) et mutation module (`applyBoutiqueAdditem`) — aucun fichier existant à migrer, le premier enregistrement éditeur renest le fichier. Codec verrouillé cross-langage par `testdata/lang-tree-conformance.json`.
-- Une clé bloquée par une feuille (`a.b` **et** `a.b.c` ne peuvent pas coexister en arbre) reste une clé pointée à la racine plutôt que d'être perdue. Valeurs non-string coercées (`1.21` est une traduction, pas un flottant), `null` = sentinelle `""`.
-- **Vue YAML du panneau Traductions** : même arborescence que le fichier disque (commentaires portés par les feuilles), et « Appliquer » accepte aussi un `lang/` collé verbatim. Le commentaire de contexte n'est plus émis quand il répète la clé mot pour mot — depuis que les clés ltext sont des adresses canoniques, c'était le cas partout sauf pour les sets d'items (`set « Armes » · title`) et les clés orphelines (`(unused)`).
-- ⚠️ Un **vieux JAR** de plugin ne lit pas l'arbre : redéployer le plugin en même temps que le premier enregistrement éditeur (mêmes précautions que l'exclusion `.artisan*`).
+### Changed — `lang/` files are YAML trees
+- **Disk format**: `lang/<code>.yaml` is now written as a tree (`menus:` → `<menu_id>:` → `elements:` → …) instead of a full dotted key per line. Each `.` of the key becomes a level; the runtime still addresses by dotted key (`menus.shop.title`), only the file's shape changes.
+- **Reading tolerant** of the three forms (tree, legacy flat, a mix of both) on the plugin side (`LangFlattener`), editor import (`projectFromFiles`) and module mutation (`applyBoutiqueAdditem`) — no existing file to migrate, the first editor save nests the file. Codec locked cross-language by `testdata/lang-tree-conformance.json`.
+- A key blocked by a leaf (`a.b` **and** `a.b.c` cannot coexist in a tree) stays a dotted key at the root rather than being lost. Non-string values coerced (`1.21` is a translation, not a float), `null` = sentinel `""`.
+- **YAML view of the Translations panel**: same tree as the disk file (comments carried by the leaves), and "Apply" also accepts a verbatim pasted `lang/`. The context comment is no longer emitted when it repeats the key word for word — since ltext keys are canonical addresses, that was the case everywhere except for item sets (`set "Weapons" · title`) and orphan keys (`(unused)`).
+- ⚠️ An **old plugin JAR** does not read the tree: redeploy the plugin at the same time as the first editor save (same precautions as the `.artisan*` exclusion).
 
-### Fixed — un fichier de langue illisible ne fait plus sauter tout le project
-- `ProjectReader` lit les `lang/` avec une tolérance **par fichier**, comme les menus / dialogs / sources juste en dessous. Un YAML invalide (ou une racine qui n'est pas un mapping) dégrade en « pas de traduction pour cette langue » — les tags `{i18n:…}` ressortent bruts en jeu — au lieu de propager l'exception jusqu'à `readAll`, qui abandonnait le `ProjectBundle` **entier** : menus, commandes, dialogs et sources du project devenaient tous indisponibles. Cette lecture était la seule des cinq à ne pas être encadrée, et elle est la première, donc une faute de frappe dans un `lang/` éditée à la main coûtait le project. Rien n'était perdu sur le disque, mais le project ne se chargeait pas (constaté en local avant le fix : `skipping project editor: Cannot deserialize value of type java.lang.String from Object value`).
+### Fixed — an unreadable language file no longer takes down the whole project
+- `ProjectReader` reads `lang/` with **per-file** tolerance, like the menus / dialogs / sources just below. An invalid YAML (or a root that is not a mapping) degrades to "no translation for this language" — the `{i18n:…}` tags come out raw in game — instead of propagating the exception up to `readAll`, which abandoned the **whole** `ProjectBundle`: the project's menus, commands, dialogs and sources all became unavailable. This read was the only one of the five not to be fenced in, and it is the first, so a typo in a hand-edited `lang/` cost the project. Nothing was lost on disk, but the project did not load (observed locally before the fix: `skipping project editor: Cannot deserialize value of type java.lang.String from Object value`).
 
-### Added — détails avancés d'item (enchantements, couleur, NBT…)
-- **`menu/v1`** : sept champs additifs optionnels sur `Appearance` — `enchants` (map `{id: level}`), `enchanted` (effet brillant seul), `custom_model_data`, `unbreakable`, `hide` (sections de tooltip masquées), `color` (`#rrggbb`), `nbt` (SNBT brut). `enchanted` et `custom_model_data` étaient déclarés depuis P1.0 mais jamais appliqués : ils le sont désormais.
-- **Plugin** : `net.artisanmc.plugin.render.ItemDetails` applique ces champs dans `MenuRenderer.buildItem`. Lecture tolérante des ids d'enchantement (`sharpness` / `minecraft:sharpness` / legacy `DAMAGE_ALL`), niveaux au-delà du max vanilla autorisés, id inconnu ignoré avec un WARN. Le `nbt` passe en dernier via `Bukkit.getUnsafe().modifyItemStack` — best-effort, un SNBT refusé est loggé sans blanchir l'item.
-- **Éditeur** : section « Paramètres avancés » repliable dans le formulaire d'item (nouveau composant de design system `Collapsible`, spécimen sur `/admin/design`). Les items enchantés portent un marqueur violet sur le canvas et listent leurs enchantements dans le tooltip.
-- **Éditeur** : bouton « Extraire les détails » sur une apparence référençant un item capturé — parse l'ItemStack sérialisé (formes legacy Bukkit **et** components Paper) et éclate la ref `item:<id>` en champs éditables. Le lien vers l'item capturé est perdu, d'où la confirmation.
+### Added — advanced item details (enchantments, colour, NBT…)
+- **`menu/v1`**: seven optional additive fields on `Appearance` — `enchants` (map `{id: level}`), `enchanted` (glint effect only), `custom_model_data`, `unbreakable`, `hide` (hidden tooltip sections), `color` (`#rrggbb`), `nbt` (raw SNBT). `enchanted` and `custom_model_data` had been declared since P1.0 but never applied: they now are.
+- **Plugin**: `net.artisanmc.plugin.render.ItemDetails` applies these fields in `MenuRenderer.buildItem`. Tolerant reading of enchantment ids (`sharpness` / `minecraft:sharpness` / legacy `DAMAGE_ALL`), levels above the vanilla max allowed, unknown id ignored with a WARN. `nbt` goes last via `Bukkit.getUnsafe().modifyItemStack` — best-effort, a refused SNBT is logged without blanking the item.
+- **Editor**: collapsible "Advanced settings" section in the item form (new design system component `Collapsible`, specimen on `/admin/design`). Enchanted items carry a purple marker on the canvas and list their enchantments in the tooltip.
+- **Editor**: "Extract details" button on an appearance referencing a captured item — parses the serialized ItemStack (legacy Bukkit forms **and** Paper components) and breaks the `item:<id>` ref into editable fields. The link to the captured item is lost, hence the confirmation.
 
-### Added — l'éditeur comme éditeur de YAML assisté (ADR `yaml-assisted-editing`)
-- **Onglet YAML** sur les écrans de config de module ET dans le panneau Données du canvas : même fichier, deux modes, canonicalisation à l'enregistrement. Un YAML invalide n'est pas appliqué au domaine mais reste éditable (et, sur un écran de config, enregistrable — c'est le fichier de l'admin).
-- **Le schéma explique les champs** : `label`/`help` deviennent un texte visible sous le champ (fini l'infobulle, le nom technique reste affiché) et un commentaire au-dessus de chaque clé du fichier ; l'en-tête généré dit franchement que les commentaires écrits main sont écrasés.
-- **Le schéma devient optionnel** : un fichier sans model déclaré est éditable (champs littéraux déduits des valeurs) au lieu d'un formulaire vide, et sans schéma résoluble les valeurs/rows voyagent **verbatim** (un enregistrement ne peut plus les réduire à `{}` / `[{}]`).
-- **`api.actions.execute(..., projectId?)`** : une action portée par une source de données peut référencer `@clé`, résolue dans les `lang/` du project (le `langMap` manquait à l'exécution ; la clé ressortait `{i18n:...}` brute).
-- Une **Config typée par un model déclaré** est reconnue comme telle : plus éditable ni supprimable depuis le panneau Données.
+### Added — the editor as an assisted YAML editor (ADR `yaml-assisted-editing`)
+- **YAML tab** on module config screens AND in the canvas's Data panel: same file, two modes, canonicalization on save. An invalid YAML is not applied to the domain but stays editable (and, on a config screen, savable — it is the admin's file).
+- **The schema explains the fields**: `label`/`help` become visible text under the field (no more tooltip, the technical name stays displayed) and a comment above each key of the file; the generated header says plainly that hand-written comments are overwritten.
+- **The schema becomes optional**: a file with no declared model is editable (literal fields inferred from the values) instead of an empty form, and without a resolvable schema the values/rows travel **verbatim** (a save can no longer reduce them to `{}` / `[{}]`).
+- **`api.actions.execute(..., projectId?)`**: an action carried by a data source can reference `@key`, resolved in the project's `lang/` (the `langMap` was missing at execution; the key came out as raw `{i18n:...}`).
+- A **Config typed by a declared model** is recognized as such: no longer editable or deletable from the Data panel.
 
-### Added — Config screens de module : le module déclare ses écrans, le core les génère (ADR `module-config-screens`)
-- **Plugin** : nouvelle API `@Beta` `api.screens.declare(id, label, table, projectId)` (`EditorScreenRegistry`) — déclaration pure, reportée à la présence dans `hello.editor_screens` / `modules_changed` (id namespacé obligatoire, chemin de table validé : pas d'absolu, pas de `..`, pas de `.artisan*`). Nouveaux handlers WS `config_read` / `config_write` : lecture des fichiers d'une Table (cap 1 MiB) et écriture disque encadrée par `beginSuppress`/`endSuppress` + hot-reload + auto-push LOCAL_ONLY par le sync normal.
-- **Backend** : table `server_editor_screens` (migration 0027, upsert + prune miroir `server_declared_models`), `GET …/servers/:sid/screens`, et relais **sans stockage** `POST …/servers/:sid/config/read` (timeout 5 s) / `…/config/write` (timeout 10 s).
-- **Éditeur** : entrées sidebar sous le module (« Éditeur » + un écran par déclaration ; fallback « Données » auto-généré quand le module déclare des models sans écran), page de Config screen live (formulaire core, grisée serveur hors ligne). Le panneau Données du canvas redevient une pure surface de binding : les Tables à model module-déclaré n'y sont plus éditables, remplacées par un lien « Géré par le module X ».
-- **Boutique** : déclare `boutique:catalog` et `boutique:settings`.
+### Added — module Config screens: the module declares its screens, the core generates them (ADR `module-config-screens`)
+- **Plugin**: new `@Beta` API `api.screens.declare(id, label, table, projectId)` (`EditorScreenRegistry`) — pure declaration, reported at Presence in `hello.editor_screens` / `modules_changed` (namespaced id mandatory, table path validated: no absolute path, no `..`, no `.artisan*`). New WS handlers `config_read` / `config_write`: reading a Table's files (1 MiB cap) and disk writing wrapped in `beginSuppress`/`endSuppress` + hot-reload + LOCAL_ONLY auto-push by the normal sync.
+- **Backend**: `server_editor_screens` table (migration 0027, upsert + prune mirroring `server_declared_models`), `GET …/servers/:sid/screens`, and **storage-free** relay `POST …/servers/:sid/config/read` (5 s timeout) / `…/config/write` (10 s timeout).
+- **Editor**: sidebar entries under the module ("Editor" + one screen per declaration; auto-generated "Data" fallback when the module declares models without a screen), live Config screen page (core form, greyed out when the server is offline). The canvas's Data panel goes back to being a pure binding surface: Tables with a module-declared model are no longer editable there, replaced by a "Managed by module X" link.
+- **Boutique**: declares `boutique:catalog` and `boutique:settings`.
 
-### Changed — le set d'items vit au niveau du MENU (révision de l'ADR item-templates)
-- La création d'un set se fait depuis « Données du menu » (panneau d'édition du menu), par liste : **Paginer** (élément itérant auto-seedé depuis le schéma — icône/nom/prix — plage de slots par défaut) ou **Placer 1 à 1**. L'élément créé est auto-suffisant (appearances locales, aucun Item template).
-- Mode placement : nouveau **panneau de rows contextuel** — les items proposés sont ceux du contexte d'aperçu courant (« Preview as… », ex. la catégorie boutique sélectionnée), rendus via l'appearance de l'élément, glissables sur les slots du canvas (plomberie `row:` existante). On change de catégorie, on continue de placer.
-- La section « Sets d'items » disparaît du détail de source (Data tab + sources serveur) — plus aucune création côté données. La Library reste la gestion des Item templates (partage de rendu entre menus, optionnel).
+### Changed — the item set lives at the MENU level (revision of the item-templates ADR)
+- A set is created from "Menu data" (the menu's edit panel), per list: **Paginate** (iterating element auto-seeded from the schema — icon/name/price — default slot range) or **Place 1 by 1**. The created element is self-sufficient (local appearances, no Item template).
+- Placement mode: new **contextual rows panel** — the proposed items are those of the current preview context ("Preview as…", e.g. the selected shop category), rendered via the element's appearance, draggable onto the canvas slots (existing `row:` plumbing). You change category, you keep placing.
+- The "Item sets" section disappears from the source detail (Data tab + server sources) — no more creation on the data side. The Library remains the management of Item templates (rendering shared between menus, optional).
 
-### Changed — fichiers de données NUS : le schéma vit à côté, jamais dedans (ADR `bare-data-files`)
-- Un fichier `data/` peut être **pur valeurs** : mapping YAML = source objet (interpolation), liste = table (id ← filename, `key_field` défaut `id`). Le schéma se résout par précédence inline (legacy, lu à vie) > déclaration JAR > `models/<sourceId>.yaml` (doc complet du model possédé — identité dans le doc — ou ref une-ligne `model:`) > untyped (valeurs littérales, jamais d'erreur). `_source.yaml` devient optionnel (absent → rows triées par filename ; minimal = `name`/`model`/`order`). L'export n'écrit plus **jamais** de `fields:` inline ni de `shape:` (alias legacy lu).
-- **ltext hybride** : sur disque, une valeur ltext est le **littéral de la langue par défaut** ; les autres langues vivent dans `lang/` sous l'adresse key-site canonique, désormais keyée sur l'**id** de la source (renommer une source ne re-adresse plus ses clés). Le plugin résout au walk : clé explicite > adresse > littéral. Serveur mono-langue = zéro clé, zéro `lang/` pour les données.
-- **Commentaires** : les hints `help` du model sont projetés en commentaires YAML générés à chaque export (marqueur `# ──`), et un bloc d'en-tête écrit main est capturé/ré-émis verbatim.
-- La distinction Table/Config est **dérivée du kind racine** au niveau fichier ; le domaine éditeur conserve sa représentation interne (pur refactor différé, aucun delta observable).
-- `/boutiqueadmin additem` écrit des littéraux (plus de minting) ; les rows legacy à clés restent résolues par tolérance.
+### Changed — BARE data files: the schema lives beside, never inside (ADR `bare-data-files`)
+- A `data/` file can be **pure values**: YAML mapping = object source (interpolation), list = table (id ← filename, `key_field` default `id`). The schema resolves by precedence inline (legacy, read for life) > JAR declaration > `models/<sourceId>.yaml` (full document of the owned model — identity in the document — or one-line `model:` ref) > untyped (literal values, never an error). `_source.yaml` becomes optional (absent → rows sorted by filename; minimal = `name`/`model`/`order`). The export **never** writes inline `fields:` or `shape:` any more (legacy alias read).
+- **Hybrid ltext**: on disk, an ltext value is the **default language's literal**; the other languages live in `lang/` under the canonical key-site address, now keyed on the source's **id** (renaming a source no longer re-addresses its keys). The plugin resolves at the walk: explicit key > address > literal. Single-language server = zero keys, zero `lang/` for the data.
+- **Comments**: the model's `help` hints are projected as YAML comments generated at each export (marker `# ──`), and a hand-written header block is captured/re-emitted verbatim.
+- The Table/Config distinction is **derived from the root kind** at file level; the editor domain keeps its internal representation (pure refactor deferred, no observable delta).
+- `/boutiqueadmin additem` writes literals (no more minting); legacy rows with keys stay resolved by tolerance.
 
-### Fixed — le contentHash des commits rejoint le hash canonique unique (auto-push réparé)
-- `commitStorage.computeContentHash` hashait les clés complètes (`plugins/Artisan/projects/<id>/…`) en incluant `.artisan*`, alors que le plugin (`BundleHasher`) et `computeBundleHash` hashent des relPaths en excluant `.artisan*` : `hello_ack.project_hashes` ne matchait donc jamais le hash disque du plugin — `detectSyncAction` ne pouvait jamais classer IN_SYNC/LOCAL_ONLY et l'auto-push files-first était inopérant en conditions réelles. Le contentHash utilise désormais la canonicalisation maison (vecteur de conformance asservi) et le `hello_ack` recalcule depuis le filesJson du head pour self-heal les commits legacy sans backfill.
+### Fixed — commits' contentHash joins the single canonical hash (auto-push repaired)
+- `commitStorage.computeContentHash` hashed the full keys (`plugins/Artisan/projects/<id>/…`) including `.artisan*`, whereas the plugin (`BundleHasher`) and `computeBundleHash` hash relPaths excluding `.artisan*`: `hello_ack.project_hashes` therefore never matched the plugin's disk hash — `detectSyncAction` could never classify IN_SYNC/LOCAL_ONLY and the files-first auto-push was inoperative in real conditions. The contentHash now uses the in-house canonicalization (conformance vector slaved) and the `hello_ack` recomputes from the head's filesJson to self-heal legacy commits without backfill.
 
-### Fixed — `bundle_available` ne peut plus écraser des changements disque locaux
-- Le handler `bundle_available` du plugin passe désormais le même gate `detectSyncAction` que le check du `hello_ack` avant de télécharger : LOCAL_ONLY → auto-push au lieu du download, CONFLICT → `sync_divergence`. Régression réelle : un project migré sur disque au boot (migrator one-shot boutique) était balayé par le `bundle_available` de connexion. Le backend n'outrepasse le gate qu'avec `force: true`, émis uniquement par `resolve-divergence` (l'arbre mergé est l'intention explicite).
+### Fixed — `bundle_available` can no longer overwrite local disk changes
+- The plugin's `bundle_available` handler now passes the same `detectSyncAction` gate as the `hello_ack` check before downloading: LOCAL_ONLY → auto-push instead of the download, CONFLICT → `sync_divergence`. Real regression: a project migrated on disk at boot (one-shot boutique migrator) was swept away by the connection's `bundle_available`. The backend only bypasses the gate with `force: true`, emitted solely by `resolve-divergence` (the merged tree is the explicit intent).
 
-### Changed — composable Data models, slice 4: la Boutique adopte les models déclarés (ADR §8)
-- Le catalogue boutique n'est plus `boutique/shop.yaml` : c'est la Table `data/categories/` (granularité `row`, model déclaré `boutique:category` master-detail + items `boutique:item`, textes = clés ltext dans `lang/`) + le Config `data/shop_settings.yaml`. L'Add-on déclare ses models via `ArtisanAPI.models.declare(...)` à l'`onEnable` ; un migrator one-shot convertit un `shop.yaml` pré-existant au boot (archivé hors project) et le reader legacy couvre l'intervalle.
-- `/boutiqueadmin additem` (backend) détecte le format cible : sur une Table déclarée il upserte la row de catégorie (création avec clé `sources.categories.<cat>.name` si absente) et l'item (clé de nom mintée par position, icône `item:<ci>` capturée, `lang/<default_lang>.yaml` réécrit) ; le chemin `shop.yaml` reste en fallback pré-migration.
-- L'écran boutique de l'éditeur renvoie vers le form généré (source « Catégories », onglet Sources) quand le project est migré ; le form bespoke ne sert plus que le legacy.
+### Changed — composable Data models, slice 4: the Boutique adopts declared models (ADR §8)
+- The boutique catalog is no longer `boutique/shop.yaml`: it is the `data/categories/` Table (`row` granularity, declared model `boutique:category` master-detail + items `boutique:item`, texts = ltext keys in `lang/`) + the `data/shop_settings.yaml` Config. The Add-on declares its models via `ArtisanAPI.models.declare(...)` at `onEnable`; a one-shot migrator converts a pre-existing `shop.yaml` at boot (archived outside the project) and the legacy reader covers the interval.
+- `/boutiqueadmin additem` (backend) detects the target format: on a declared Table it upserts the category row (creation with key `sources.categories.<cat>.name` if absent) and the item (name key minted by position, captured `item:<ci>` icon, `lang/<default_lang>.yaml` rewritten); the `shop.yaml` path stays as a pre-migration fallback.
+- The editor's boutique screen points to the generated form (source "Categories", Sources tab) when the project is migrated; the bespoke form only serves legacy.
 
 ### Added — composable Data models, slice 3: form generator hints, asymmetric validation, master-detail, `conditions` kind (ADR §6/§7)
 - Model fields carry the closed presentation-hint set (`label`, `help`, `section`) and validation vocabulary (`required`, `default`, `min`/`max`, `pattern`, `locked`) — part of the model declaration, invisible to the runtime. The generated form applies them: labels/tooltips/section headers everywhere (table headers, object/config forms, union variant forms), `default` prefills fresh instances (and doubles as the migration `set_default` value), min/max clamp at commit, enum stays a closed select, `locked` renders read-only. Enforcement is **asymmetric**: a hand-edited value that violates a rule is *surfaced* (`aria-invalid`), never rewritten.
@@ -1156,7 +1154,7 @@ supprime ses endpoints — pour ne jamais laisser la liaison coupée à moitié.
 - `POST /api/v1/networks/:nid/servers/:sid/data-sources/preview` — live data source preview relayed to the plugin over the WS (data_source_fetch/-_result, 5 s timeout, typed errors).
 
 ### Added — network access requests (request → owner approval → membership)
-- `network_access_requests` table (`backend/src/lib/accessRequestStorage.ts`) : un non-membre peut demander l'accès à un network (`POST /api/v1/networks/:idOrSlug/access-requests`, `{message?}` cap 500, 409 `already_member`/`already_pending`), un membre `manage_members`-capable liste (`GET .../access-requests`) et résout (`POST .../access-requests/:requestId/approve|deny`) — approve crée la membership (`role: "member"`, tolérant à une membership déjà existante). Email `accessRequestEmail` (bilingue en/fr, `lib/mail/templates.ts`) envoyé fire-and-forget à chaque owner/admin sur une nouvelle demande.
+- `network_access_requests` table (`backend/src/lib/accessRequestStorage.ts`): a non-member can request access to a network (`POST /api/v1/networks/:idOrSlug/access-requests`, `{message?}` cap 500, 409 `already_member`/`already_pending`), a `manage_members`-capable member lists (`GET .../access-requests`) and resolves (`POST .../access-requests/:requestId/approve|deny`) — approve creates the membership (`role: "member"`, tolerant of an already existing membership). `accessRequestEmail` email (bilingual en/fr, `lib/mail/templates.ts`) sent fire-and-forget to each owner/admin on a new request.
 
 ### Added — `server_url` deep link in `hello_ack`
 - `HelloAckMessage.server_url: string` (`backend/src/protocol.ts`) — deep link to this server's page in the editor: `${EDITOR_URL}/networks/${netRow.slug ?? netRow.id}/servers/${skRow.slug ?? skRow.id}`, falling back to plain `EDITOR_URL` when the `server_key`/network row can't be resolved. Plugin (`SyncedMenuProvider.handleMessage`) prefers `server_url`, falling back to the older `editor_url` field for backward compat with older backends. `/artisan editor` now prints this deep link instead of the static editor URL.
@@ -1178,8 +1176,8 @@ supprime ses endpoints — pour ne jamais laisser la liaison coupée à moitié.
 
 ### Added
 - editor reaches user-auth parity: presence, assets, live WS without a plugin session
-- `POST /api/v1/user/ws-ticket` (cookie auth) → `{ ticket }`, a one-shot ticket (TTL 30s, in-memory `wsTickets.ts`) redeemable once at the `GET /ws/editor?ticket=…` upgrade — a second auth path for the editor WS alongside the existing session-token `?token=` path, subscribing to the full `Set<serverKeyId>` across all of the user's networks instead of a single server (Task 4 of the accounts-only cutover, cf. `docs/architecture/ws-protocol.md` § Auth du WS éditeur).
-- User-scoped draft broadcast + project delete: `POST /api/v1/user/projects/:projectId/draft` (broadcasts `draft_update` to other editor connections + the plugin via `broadcastDraftUpdate`; transport en place, producteur client à venir) and `DELETE /api/v1/user/projects/:projectId` (soft-delete via `softDeleteProject` + `pushProjectDeleted`), cookie-auth twins of the session-mode `editor-session/:token/draft` and `…/projects/:projectId` DELETE (Task 3 of the accounts-only cutover, cf. `docs/decisions/accounts-only-editing.md`).
+- `POST /api/v1/user/ws-ticket` (cookie auth) → `{ ticket }`, a one-shot ticket (TTL 30s, in-memory `wsTickets.ts`) redeemable once at the `GET /ws/editor?ticket=…` upgrade — a second auth path for the editor WS alongside the existing session-token `?token=` path, subscribing to the full `Set<serverKeyId>` across all of the user's networks instead of a single server (Task 4 of the accounts-only cutover, cf. `docs/architecture/ws-protocol.md` § editor WS auth).
+- User-scoped draft broadcast + project delete: `POST /api/v1/user/projects/:projectId/draft` (broadcasts `draft_update` to other editor connections + the plugin via `broadcastDraftUpdate`; transport in place, client producer to come) and `DELETE /api/v1/user/projects/:projectId` (soft-delete via `softDeleteProject` + `pushProjectDeleted`), cookie-auth twins of the session-mode `editor-session/:token/draft` and `…/projects/:projectId` DELETE (Task 3 of the accounts-only cutover, cf. `docs/decisions/accounts-only-editing.md`).
 - User-scoped assets CRUD + resource-pack rebuild: `POST|PATCH|DELETE /api/v1/user/projects/:projectId/assets[...]` (+ `:id/duplicate`) and `POST /api/v1/networks/:networkId/servers/:serverId/resource-pack/rebuild`, cookie-auth twins of the session-mode `editor-session/:token/projects/:projectId/assets` and `…/resource-pack/rebuild`. Business logic extracted into shared `handleAsset*` (`assets.ts`) and `handleResourcePackRebuild` (`resourcePack.ts`) functions called by both the session and user routers — zero duplication (Task 2 of the accounts-only cutover, cf. `docs/decisions/accounts-only-editing.md`).
 - User-scoped presence endpoints (modules/data-sources) per server: `GET /api/v1/networks/:networkId/servers/:serverId/modules` and `…/data-sources`, cookie-auth twins of the session-mode `editor-session/:token/modules`/`…/data-sources` (Task 1 of the accounts-only cutover, cf. `docs/decisions/accounts-only-editing.md`).
 - `ArtisanAPI.project` (`ProjectContentApi`, since 1.2.0): read-only access to project files for modules — Add-ons store their content (e.g. `shop/items.yaml`) as standard project resources synced by the existing bundle pipeline.
@@ -1207,7 +1205,7 @@ supprime ses endpoints — pour ne jamais laisser la liaison coupée à moitié.
 - Billing foundation (Stripe): tables `credit_packs`/`subscription_plans`/`network_billing`/`credit_purchases`/`stripe_events`; mockable `StripeGateway`; admin CRUD `GET/POST/PUT /api/v1/admin/billing/{packs,plans}` + `/:id/deactivate` provisioning Stripe products/prices. Checkout/webhooks pending (sub-project B2).
 - Credit buckets (billing foundation): `ai_credit_ledger` gains `bucket` (`subscription`/`rollover`/`topup`), `expires_at`, `period_id`. Balances are per-bucket and expiry-aware; assistant debits walk buckets in order (subscription → rollover → topup, spec 2026-07-03 §4.1); `renewSubscriptionPeriod` handles capped rollover. No Stripe yet (sub-project A of the billing spec).
 - Billing checkout/portal (Stripe hosted): `POST /api/v1/billing/checkout/{pack,subscription}` + `/billing/portal` (membership-gated, persists the network's Stripe customer), read routes `GET /billing/{balance,packs,plans,subscription,purchases}` for the credit indicator + `/credits` page. Reprice now reuses the Stripe product (no orphan). Fulfillment via webhook pending (B2b).
-- **Éditeur : mémorisation pan/zoom de la planche + Échap = retour planche + indicateur du nombre d'éléments.** Quitter la planche pour une vue d'élément puis y revenir restaure exactement la position + le zoom (`uiStore.canvasViewports` indexé par packId, session-only — un reload repart de la vue centrée). Sur la vue d'un élément, **Échap** revient à la planche (guardé : champs de saisie, modales, `defaultPrevented`) et le bouton « Retour au canvas » porte un badge clavier `Esc`. La sidebar, la page détail réseau (cartes serveur `ServerCard`) et la page **Espaces de travail** affichent un badge du nombre d'éléments (menus + commandes + dialogs) par workspace : `GET /api/v1/networks/:id` renvoie désormais `elementCount` par pack ; la sidebar préfère le compte live d'`accountStore` quand le pack est chargé. Correctif i18n : `canvas.newMenu/newCommand/newDialog` (boutons de l'état vide de la planche) n'avaient pas de traduction et affichaient la clé brute.
+- **Editor: board pan/zoom memory + Esc = back to board + element count indicator.** Leaving the board for an element view then coming back restores exactly the position + zoom (`uiStore.canvasViewports` indexed by packId, session-only — a reload starts from the centred view). On an element's view, **Esc** goes back to the board (guarded: input fields, modals, `defaultPrevented`) and the "Back to canvas" button carries an `Esc` keyboard badge. The sidebar, the network detail page (`ServerCard` server cards) and the **Workspaces** page display an element count badge (menus + commands + dialogs) per workspace: `GET /api/v1/networks/:id` now returns `elementCount` per pack; the sidebar prefers `accountStore`'s live count when the pack is loaded. i18n fix: `canvas.newMenu/newCommand/newDialog` (the board's empty-state buttons) had no translation and displayed the raw key.
 - **Plugin core API — P1a** (`net.artisanmc.modules.api`):
   - `ModuleRegistry` (`register`/`active`/`has` `@Stable`; `bind` `@Internal`) — live registry of active modules. Core modules (`menus`, `commands`) are registered at boot; external depend-plugins register at their own `onEnable`.
   - `ArtisanAPI.modules: ModuleRegistry`, `ArtisanAPI.coreVersion: String`, `ArtisanAPI.isCompatibleWith(minVersion)` — external plugins can test compatibility before registering.
@@ -1217,72 +1215,72 @@ supprime ses endpoints — pour ne jamais laisser la liaison coupée à moitié.
   - `hello.installed_modules` is now sourced from the live `ModuleRegistry` via a supplier (not a static list).
   - Published artifact **`net.artisanmc:artisan-core-api`** (filtered `apiJar` containing only `net.artisanmc.modules.api.*`) — available via `./gradlew publishToMavenLocal`; declare as `compileOnly` in external module plugins.
 - Menu inventory types: menus can now be Chest (default), Hopper (5×1), or Dropper (3×3). `menu/v1` gains an optional `inventory_type` field (absent = chest, fully back-compat). Slot-origin constants (`firstSlotX/Y`) for hopper/dropper corrected to the texture's actual grid (hopper 43,19 ; dispenser 61,16) so item overlays sit exactly in their holes.
-- **Éditeur : modes d'interaction canvas + marquee + guides d'alignement** (`uiStore.canvasMode` select/hand persisté, `CanvasToolbar` bas-centre, hotkeys V/H/Espace ; marquee rubber-band en mode select (`useMarqueeSelection` + `marqueeHitTest`, Shift-additif) ; guides d'alignement + snapping au drag des nœuds (`alignmentGuides` pur, `useNodeAlignment`, `alignmentStore`, `AlignmentGuidesOverlay`, Alt désactive). **Mode main (pan) par défaut** désormais (`uiStore` persist `version: 1` migre l'ancien `select` persisté). **Navigation en mode select** : Alt maintenu = pan temporaire (comme Espace), et le **clic-molette** pan partout (`useMiddleClickPan` — Pointer Events en phase capture sur `document` + `setPointerCapture` ; le `mousedown` du bouton du milieu peut être avalé par l'autoscroll/pilote souris, pas le `pointerdown` ; `Konva.dragButtons=[0]`). Curseur main **fermée** (`grabbing`) pendant tout pan actif (clic-molette ou drag en mode main/Espace/Alt), **ouverte** (`grab`) au repos. Un clic (sans drag) sur le vide désélectionne dans **tous** les modes (plus seulement en select).
-- **Éditeur : palette de recherche Cmd+K + panneau toggleable** (`editor/src/features/search/`). `buildSearchIndex` indexe noms de menus/commandes/dialogs, matériaux d'items et textes i18n ; `SearchPalette` (overlay a11y, nav clavier, sélection → vue individuelle + sous-sélection slot) s'ouvre via Cmd/Ctrl+K ou le bouton 🔍 de la topbar. `uiStore.workspacePanelOpen` (persisté) toggle la colonne `WorkspacePanel` desktop via le bouton « Éléments » (mobile garde son drawer). La recherche inline du panneau est supprimée — la palette la remplace.
-- **Éditeur : planche curée + panneau source-de-vérité + vue individuelle** (spec `2026-06-13-workspace-board-curation-design.md`). Le canvas du workspace devient une **planche curée** : un élément n'y apparaît que s'il y est explicitement ajouté (`pack.canvasLayout` = ensemble d'appartenance ; `autoLayout` ne remplit plus la grille). Un nouveau **panneau gauche** (`WorkspacePanel`) liste tous les éléments du pack par catégorie (Menus / Commandes / Dialogs) avec recherche, badge « sur la planche », drag-vers-la-planche et menu contextuel. Cliquer un élément (ou double-cliquer un nœud de la planche) ouvre une **vue individuelle deep-linkable** (`…/workspaces/$id/element/$elementId`) qui réutilise les **mêmes** renderers que la planche (menu via `SoloMenuStage`/`MenuGroup` solo, commande/dialog via `FlowCanvas` centré) — pas d'éditeur forké. Les liens vers une cible hors-planche s'affichent en **chips fantômes cliquables** (clic = ajouter à la planche). Bouton « Tout arranger » pour repeupler la planche d'un coup. Mobile : panneau en drawer gauche. (Supersède et remplace le focus mode reverté du 2026-06-02.)
+- **Editor: canvas interaction modes + marquee + alignment guides** (`uiStore.canvasMode` select/hand persisted, `CanvasToolbar` bottom-centre, hotkeys V/H/Space; rubber-band marquee in select mode (`useMarqueeSelection` + `marqueeHitTest`, Shift-additive); alignment guides + snapping when dragging nodes (pure `alignmentGuides`, `useNodeAlignment`, `alignmentStore`, `AlignmentGuidesOverlay`, Alt disables). **Hand mode (pan) is now the default** (`uiStore` persist `version: 1` migrates the previously persisted `select`). **Navigation in select mode**: holding Alt = temporary pan (like Space), and the **middle-click** pans everywhere (`useMiddleClickPan` — Pointer Events in capture phase on `document` + `setPointerCapture`; the middle button's `mousedown` can be swallowed by autoscroll/mouse drivers, not the `pointerdown`; `Konva.dragButtons=[0]`). **Closed** hand cursor (`grabbing`) during any active pan (middle-click or drag in hand mode/Space/Alt), **open** (`grab`) at rest. A click (without drag) on empty space deselects in **all** modes (no longer only in select).
+- **Editor: Cmd+K search palette + toggleable panel** (`editor/src/features/search/`). `buildSearchIndex` indexes menu/command/dialog names, item materials and i18n texts; `SearchPalette` (a11y overlay, keyboard nav, selection → single view + slot sub-selection) opens via Cmd/Ctrl+K or the topbar's 🔍 button. `uiStore.workspacePanelOpen` (persisted) toggles the desktop `WorkspacePanel` column via the "Elements" button (mobile keeps its drawer). The panel's inline search is removed — the palette replaces it.
+- **Editor: curated board + source-of-truth panel + single view** (spec `2026-06-13-workspace-board-curation-design.md`). The workspace canvas becomes a **curated board**: an element only appears there if explicitly added (`pack.canvasLayout` = membership set; `autoLayout` no longer fills the grid). A new **left panel** (`WorkspacePanel`) lists all the pack's elements by category (Menus / Commands / Dialogs) with search, an "on the board" badge, drag-to-board and a context menu. Clicking an element (or double-clicking a board node) opens a **deep-linkable single view** (`…/workspaces/$id/element/$elementId`) that reuses the **same** renderers as the board (menu via `SoloMenuStage`/solo `MenuGroup`, command/dialog via centred `FlowCanvas`) — no forked editor. Links to an off-board target show as **clickable ghost chips** (click = add to the board). "Arrange all" button to repopulate the board in one go. Mobile: panel as a left drawer. (Supersedes and replaces the reverted focus mode of 2026-06-02.)
 - `Appearance.head` (menu/v1, additive): custom heads from HeadDatabase ids (`hdb:`), base64 textures (`basehead:`), or player names (`playerhead:`, placeholder-aware). New `HeadDatabase` softdepend added to `plugin.yml`.
 - Editor: custom-head section on PLAYER_HEAD states (source select + value input, paste auto-detection); live mc-heads.net previews on canvas slots, drag ghosts, sibling overlays, and state-card icons.
-- **Runtime data-driven des menus — Phase A** (plan `2026-06-11-data-driven-runtime-A-iteration.md`). Le plugin rend désormais les éléments `iterates` : parsing wire (`context_inputs`/`iterates`), auto-binding §15.4 (`ContextBinder` — l'appelant gagne par nom, defaults coercés integer/number/boolean), rendu fenêtré par page (pageSize = nb de slots de l'élément, clamp), `{alias.field}` résolu partout (`ArgResolver`, y compris le `material`), scope d'item par slot au clic (`MenuSession.slotArgs` mergé par `MenuListener`). **Pagination fonctionnelle** : `pagination_next/prev` avancent avec clamp et re-render ; `pagination_at_first/last` réelles (cachent les pagers aux bornes) — l'état voyage dans `ExecutionContext` (`pagination` + `pageInfo`), interface `MenuProvider` inchangée. Éditeur + assistant : `pagination_at_first/last` entrent dans le sous-ensemble (seule `expression` reste hors-vocab) ; guide KB mis à jour (caveat pagination supprimé, caveat iterates réduit à la livraison de données Phase B). Limite assumée : les listes itérées viennent de l'appelant (args/defaults) — connecteurs et `pack:` data sources = Phase B.
-- **Sous-ensemble étendu aux types runtime-OK** (éditeur + assistant). Actions ajoutées au domaine éditeur, à l'UI (ActionEditor/pickers/labels), au convertisseur, au serializer et au vocab assistant : `broadcast` (LText i18n comme send_message), `play_sound`, `give_money`, `give_xp`, `give_level`, `take_item`, `teleport` (coordonnées). Conditions ajoutées : `has_item`, `has_xp`, `has_level`, `world_is`, `time_is` (day/night/ticks), `random_chance`, `cooldown_passed`, `player_in_region` (WorldGuard). Le plugin exécutait déjà tout cela — seul le wire éditeur/assistant manquait. Fiches KB zMenu/DeluxeMenus : `deposit`/`sound`/`broadcast`/`teleport`/`[givemoney]`/`[giveexp]`/`has item`/`has exp` passent de « flag, pas d'équivalent » à mapping direct. Hors sous-ensemble restants : `expression` et `pagination_at_first/last`.
-- Plugin : `time_is` accepte la forme objet `{from_ticks,to_ticks}` du schéma (normalisée en range string).
-- Assistant : **tool `list_dialogs`** — l'éditeur envoie les résumés de dialogs (id + titre résolu) avec chaque tour ; le modèle découvre les `dialog_id` valides au lieu d'inventer des cibles `open_dialog` (consigne ajoutée au guide).
-- **Schéma `dialog/v1` publié** (`docs/schema/dialog/v1/schema.json`) — seul format exporté qui n'avait pas de schéma. Fixture verte : l'export éditeur (`transform` → `dialogs/<id>.yaml`) valide contre le schéma (`editor/src/features/export/dialogV1.schema.test.ts`).
-- Assistant : **envoi avec fichiers seuls** — le bouton Envoyer s'active dès qu'une pièce jointe est présente (texte optionnel) ; la bulle utilisateur affiche « Fichiers envoyés : … » et le titre de la conversation retombe sur les noms de fichiers quand le premier message n'a pas de texte.
-- Éditeur : **wire canonique des context_inputs connecteur** — export `{name, type, source:{ref}}` (l'ancien `{name, ref}` était schema-invalide et cassait le round-trip IA) ; import des deux formes ; types primitifs `list`/`object` acceptés (pattern iterates fourni par l'appelant). L'oracle round-trip vérifie désormais que tout export passe le gate ajv canonique.
-- Assistant IA : support complet des commandes et dialogs (création/édition/suppression via les tools `upsert_command`/`delete_command`/`list_commands`/`get_command` et `upsert_dialog`/`delete_dialog`/`get_dialog`), en plus des menus. La migration d'une config zMenu/DeluxeMenus devient bout-en-bout (menus + commandes + dialogs).
-- **AI model system — plans backend 1–2 de `2026-07-02-ai-model-system-design.md`**. Métering des tours assistant par network : `modelId` par message, 402 `insufficient_credits`, SSE event final `credits {debited, balance}`, erreurs provider loggées non débitées. Routes user `GET /api/v1/ai/models` (+ estimations coût), `GET /api/v1/ai/balance`, `PUT /api/v1/ai/preferred-model`. Analytics admin `GET /api/v1/admin/ai/usage/summary`, `/logs` (+ export CSV), `/users/:userId`. La création de conversation assistant est validée contre le tenant (session server-key ≠ server key du project, ou user sans membership → 403).
-- **Console admin — panel système de modèles IA (éditeur, UI — plan 3 de `2026-07-02-ai-model-system-design.md`)**. Nouvelles routes `/admin/ai` (catalogue + providers + settings), `/admin/ai/usage` (dashboards conso/marge/répartitions), `/admin/ai/usage/logs` (logs filtrables + export CSV) ; onglet AI du profil user (`/account?tab=ai`, vue consommation + grant de crédits). Clients API `editor/src/lib/api/adminModels.ts` + `adminAiUsage.ts`. Trois nouvelles primitives design-system visualisables sur `/admin/design` : `Table` (tableau sortable scrollable), `StatCard` (carte métrique), `HBar` (barre segmentée répartitions). Retrait legacy : `AssistantConfigForm` et `adminConfig` (consolidés en routes `/api/v1/admin/ai/*`).
-- **Éditeur assistant : sélecteur de modèle IA + solde de crédits** (UI plan 4 de `2026-07-02-ai-model-system-design.md`). Sélecteur de modèle avec badges `cheap` / `balanced` / `premium` et estimation de coût (`~50 crédits par tour`), choix mémorisé et changeable en cours de conversation. Pastille de solde dans la barre top du panel, mise à jour immédiatement après chaque tour (SSE event `credits`). État « plus de crédits » (402) avec CTA vers `/credits` (placeholder).
+- **Data-driven menu runtime — Phase A** (plan `2026-06-11-data-driven-runtime-A-iteration.md`). The plugin now renders `iterates` elements: wire parsing (`context_inputs`/`iterates`), §15.4 auto-binding (`ContextBinder` — the caller wins by name, defaults coerced integer/number/boolean), per-page windowed rendering (pageSize = number of the element's slots, clamped), `{alias.field}` resolved everywhere (`ArgResolver`, including the `material`), per-slot item scope on click (`MenuSession.slotArgs` merged by `MenuListener`). **Working pagination**: `pagination_next/prev` advance with clamping and re-render; real `pagination_at_first/last` (hide the pagers at the bounds) — the state travels in `ExecutionContext` (`pagination` + `pageInfo`), `MenuProvider` interface unchanged. Editor + assistant: `pagination_at_first/last` enter the subset (only `expression` stays out of vocab); KB guide updated (pagination caveat removed, iterates caveat reduced to Phase B data delivery). Accepted limit: iterated lists come from the caller (args/defaults) — connectors and `pack:` data sources = Phase B.
+- **Subset extended to runtime-OK types** (editor + assistant). Actions added to the editor domain, the UI (ActionEditor/pickers/labels), the converter, the serializer and the assistant vocab: `broadcast` (i18n LText like send_message), `play_sound`, `give_money`, `give_xp`, `give_level`, `take_item`, `teleport` (coordinates). Conditions added: `has_item`, `has_xp`, `has_level`, `world_is`, `time_is` (day/night/ticks), `random_chance`, `cooldown_passed`, `player_in_region` (WorldGuard). The plugin already executed all of this — only the editor/assistant wire was missing. zMenu/DeluxeMenus KB sheets: `deposit`/`sound`/`broadcast`/`teleport`/`[givemoney]`/`[giveexp]`/`has item`/`has exp` go from "flag, no equivalent" to direct mapping. Remaining outside the subset: `expression` and `pagination_at_first/last`.
+- Plugin: `time_is` accepts the schema's object form `{from_ticks,to_ticks}` (normalized to a range string).
+- Assistant: **`list_dialogs` tool** — the editor sends the dialog summaries (id + resolved title) with each turn; the model discovers the valid `dialog_id`s instead of inventing `open_dialog` targets (instruction added to the guide).
+- **`dialog/v1` schema published** (`docs/schema/dialog/v1/schema.json`) — the only exported format that had no schema. Green fixture: the editor export (`transform` → `dialogs/<id>.yaml`) validates against the schema (`editor/src/features/export/dialogV1.schema.test.ts`).
+- Assistant: **sending with files only** — the Send button enables as soon as an attachment is present (text optional); the user bubble displays "Files sent: …" and the conversation title falls back to the file names when the first message has no text.
+- Editor: **canonical wire for connector context_inputs** — export `{name, type, source:{ref}}` (the old `{name, ref}` was schema-invalid and broke the AI round-trip); import of both forms; primitive types `list`/`object` accepted (iterates pattern supplied by the caller). The round-trip oracle now checks that every export passes the canonical ajv gate.
+- AI assistant: full support for commands and dialogs (creation/editing/deletion via the `upsert_command`/`delete_command`/`list_commands`/`get_command` and `upsert_dialog`/`delete_dialog`/`get_dialog` tools), in addition to menus. Migrating a zMenu/DeluxeMenus config becomes end-to-end (menus + commands + dialogs).
+- **AI model system — backend plans 1–2 of `2026-07-02-ai-model-system-design.md`**. Metering of assistant turns per network: `modelId` per message, 402 `insufficient_credits`, final SSE event `credits {debited, balance}`, provider errors logged not debited. User routes `GET /api/v1/ai/models` (+ cost estimates), `GET /api/v1/ai/balance`, `PUT /api/v1/ai/preferred-model`. Admin analytics `GET /api/v1/admin/ai/usage/summary`, `/logs` (+ CSV export), `/users/:userId`. Assistant conversation creation is validated against the tenant (server-key session ≠ the project's server key, or user without membership → 403).
+- **Admin console — AI model system panel (editor, UI — plan 3 of `2026-07-02-ai-model-system-design.md`)**. New routes `/admin/ai` (catalog + providers + settings), `/admin/ai/usage` (consumption/margin/breakdown dashboards), `/admin/ai/usage/logs` (filterable logs + CSV export); AI tab of the user profile (`/account?tab=ai`, consumption view + credit grant). API clients `editor/src/lib/api/adminModels.ts` + `adminAiUsage.ts`. Three new design-system primitives viewable on `/admin/design`: `Table` (sortable scrollable table), `StatCard` (metric card), `HBar` (segmented breakdown bar). Legacy removal: `AssistantConfigForm` and `adminConfig` (consolidated into `/api/v1/admin/ai/*` routes).
+- **Assistant editor: AI model selector + credit balance** (UI plan 4 of `2026-07-02-ai-model-system-design.md`). Model selector with `cheap` / `balanced` / `premium` badges and cost estimate (`~50 credits per turn`), choice remembered and changeable mid-conversation. Balance pill in the panel's top bar, updated immediately after each turn (SSE event `credits`). "Out of credits" state (402) with a CTA to `/credits` (placeholder).
 
 ### Removed
-- **Merge 3-way + résolution de conflits au niveau branche** (backend `lib/mergeEngine.ts`, endpoints `POST …/branches/:src/merge-into/:dst` + `…/resolve`, client `mergeBranches`/`resolveMerge`, et leurs tests). Bâti de bout en bout mais **jamais câblé en UI** ; le test de suppression était net (la complexité disparaît sans réapparaître). La concurrence d'édition live est déjà gérée par LWW + présence (`decisions/editor-state-model.md`), et le futur flux dev→prod sera *fast-forward only* (`promote`), donc sans divergence à merger. Conservés : commits, history, revert, deploy, `promote` FF-only, et les primitives DAG inertes (`pack_commits.parentId2`, `branchStorage.findLCA`). Décision actée dans ADR `decisions/no-branch-conflict-resolution.md`.
-- **Champ `warp_name` de l'action `teleport`** (schéma menu/v1, types partagés, plugin). Jamais implémenté — aucune intégration warps (Essentials/CMI) n'existe ; le champ était du poids mort qui laissait croire à une fonctionnalité. Le teleport par coordonnées reste.
-- Plugin : **exécution runtime des steps `if` canoniques** (clics de menu **et** commandes). Nouveau modèle `Step` (`Step.ActionStep` / `Step.IfStep` + `IfCase`) + `StepParser` ; `BundleCompiler` / `CommandCompiler` compilent `steps:` en arbre (les clés plates `actions:`/`fallback:` restent le wire legacy) ; `ActionExecutor` exécute le premier case qui matche (`joins` gauche→droite sans précédence, manquant = `and`), sinon `else`. Jusqu'ici les branches `if` étaient silencieusement aplaties (seuls les steps `kind:"action"` top-level s'exécutaient) — aucune logique conditionnelle de clic ne tournait en jeu.
-- Plugin : **runtime `set_arg` / `set_arg_cycle_next` / `set_arg_cycle_prev`** — mutation d'un arg de contexte + re-render du menu courant (`MenuProvider.openMenu`). Le contexte est replié d'action en action : un arg posé plus tôt dans le clic est visible des actions suivantes. Ces types (dans le vocab assistant) faisaient jusqu'ici dropper l'appearance entière au chargement (parser inconnu).
-- Éditeur : **round-trip du champ `notes`** (menu-level, `menu/v1`) — `menuV1ToDomain` le lit, `serializeMenuToV1` l'émet. Les notes écrites par l'assistant (constructs sources non-mappables) ne sont plus perdues à l'apply.
+- **3-way merge + branch-level conflict resolution** (backend `lib/mergeEngine.ts`, endpoints `POST …/branches/:src/merge-into/:dst` + `…/resolve`, client `mergeBranches`/`resolveMerge`, and their tests). Built end to end but **never wired into the UI**; the deletion test was clean (the complexity disappears without reappearing). Concurrent live editing is already handled by LWW + presence (`decisions/editor-state-model.md`), and the future dev→prod flow will be *fast-forward only* (`promote`), so there is no divergence to merge. Kept: commits, history, revert, deploy, FF-only `promote`, and the inert DAG primitives (`pack_commits.parentId2`, `branchStorage.findLCA`). Decision recorded in ADR `decisions/no-branch-conflict-resolution.md`.
+- **`warp_name` field of the `teleport` action** (menu/v1 schema, shared types, plugin). Never implemented — no warps integration (Essentials/CMI) exists; the field was dead weight that suggested a feature. Teleport by coordinates stays.
+- Plugin: **runtime execution of canonical `if` steps** (menu clicks **and** commands). New `Step` model (`Step.ActionStep` / `Step.IfStep` + `IfCase`) + `StepParser`; `BundleCompiler` / `CommandCompiler` compile `steps:` into a tree (the flat `actions:`/`fallback:` keys stay the legacy wire); `ActionExecutor` runs the first matching case (`joins` left→right without precedence, missing = `and`), otherwise `else`. Until now `if` branches were silently flattened (only top-level `kind:"action"` steps ran) — no conditional click logic ran in game.
+- Plugin: **runtime `set_arg` / `set_arg_cycle_next` / `set_arg_cycle_prev`** — mutation of a context arg + re-render of the current menu (`MenuProvider.openMenu`). The context is folded from action to action: an arg set earlier in the click is visible to the following actions. These types (in the assistant vocab) used to make the whole appearance get dropped at load (unknown parser).
+- Editor: **`notes` field round-trip** (menu-level, `menu/v1`) — `menuV1ToDomain` reads it, `serializeMenuToV1` emits it. Notes written by the assistant (non-mappable source constructs) are no longer lost on apply.
 
 ### Fixed
-- **Projets locaux non remontés vers l'éditeur après `/artisan setup`.** Le backend créait bien un stub vide pour chaque `local_project_ids` inconnu au `hello`, mais (a) `commitStorage.computeContentHash({})` renvoyait le SHA-256 de la chaîne vide (`e3b0c4…`) au lieu du sentinel `""`, si bien que la branche auto-push du plugin (`backendHash.isEmpty()` → `local_push`) n'était **jamais** atteignable — le plugin voyait un hash non-vide divergent et traitait le stub comme un conflit (backend écrase le local) ; et (b) le stub fraîchement créé était absent du `project_hashes` du **même** `hello_ack` (map construite avant la création), donc ignoré (`local-only`) à la première connexion. Désormais `computeContentHash` honore le sentinel `""` pour un contenu vide (cohérent avec `BundleHasher`/`computeBundleHash`) et les stubs sont annoncés dans le même ack avec `""` → l'éditeur se remplit des fichiers locaux dès le premier `hello` suivant le setup. Cf. CLAUDE.md § Invariants critiques (Sentinel) et `docs/architecture/ws-protocol.md`.
-- **Setup serveur via `/link` avec création de project.** `POST /api/v1/link/:code/claim` insère désormais la `server_key` avant de créer le nouveau project associé ; PostgreSQL ne renvoie plus `500` sur la contrainte FK quand l'assistant de setup crée network + project en une fois.
-- **Déplacement de sélection cassé sur hopper/dropper.** `moveSelectionByDelta` (drag/flèches multi-slot) et le garde-fou de réduction de lignes (`setMenuField` champ `rows`) hardcodaient une grille **9 colonnes** : sur un hopper (5×1) ou un dropper (3×3) le calcul col/row et les bornes étaient faux (slots hors-grille acceptés — ex. position 5 sur un hopper de 5 slots). Routé via `colsFor`/`rowsFor`/`slotCount` du module géométrie `inventoryTypes` — les dernières constantes 9-cols qui avaient échappé à l'unification des types d'inventaire. Comportement chest inchangé.
-- **`local_push` poussait un hash de pack divergent.** `LocalPushSender` calculait son propre SHA-256 keyé sur le **chemin complet** (`plugins/Artisan/packs/<id>/…`) au lieu du relPath ; le backend stockait ce hash verbatim (`hub.ts` local_push) et le re-broadcastait, si bien qu'après `/artisan pushLocal` le `packs.hash` ne matchait plus le hash relPath calculé partout ailleurs (disque, publish REST) → re-downloads parasites / `bundle_available` superflus. Le hash de pack est désormais une **maison unique** (`BundleHasher` plugin ; `hashUtils.computeBundleHash` backend), avec un seul walk (`PackFilesReader.readRelative`) et un **vecteur de conformité cross-langage** (`testdata/pack-hash-conformance.json`) asservi par `BundleHashConformanceTest` (plugin) **et** `hashUtils.test.ts` (backend). Cf. CLAUDE.md § Invariants critiques.
+- **Local projects not surfaced to the editor after `/artisan setup`.** The backend did create an empty stub for each `local_project_ids` unknown at `hello`, but (a) `commitStorage.computeContentHash({})` returned the SHA-256 of the empty string (`e3b0c4…`) instead of the `""` sentinel, so that the plugin's auto-push branch (`backendHash.isEmpty()` → `local_push`) was **never** reachable — the plugin saw a diverging non-empty hash and treated the stub as a conflict (backend overwrites local); and (b) the freshly created stub was missing from the **same** `hello_ack`'s `project_hashes` (map built before the creation), hence ignored (`local-only`) on first connection. Now `computeContentHash` honours the `""` sentinel for empty content (consistent with `BundleHasher`/`computeBundleHash`) and the stubs are announced in the same ack with `""` → the editor fills with the local files from the first `hello` following setup. See CLAUDE.md § Critical invariants (Sentinel) and `docs/architecture/ws-protocol.md`.
+- **Server setup via `/link` with project creation.** `POST /api/v1/link/:code/claim` now inserts the `server_key` before creating the associated new project; PostgreSQL no longer returns `500` on the FK constraint when the setup wizard creates network + project at once.
+- **Broken selection move on hopper/dropper.** `moveSelectionByDelta` (multi-slot drag/arrows) and the row-reduction guard (`setMenuField` `rows` field) hard-coded a **9-column** grid: on a hopper (5×1) or a dropper (3×3) the col/row computation and bounds were wrong (off-grid slots accepted — e.g. position 5 on a 5-slot hopper). Routed via `colsFor`/`rowsFor`/`slotCount` of the `inventoryTypes` geometry module — the last 9-col constants that had escaped the inventory-type unification. Chest behaviour unchanged.
+- **`local_push` pushed a diverging pack hash.** `LocalPushSender` computed its own SHA-256 keyed on the **full path** (`plugins/Artisan/packs/<id>/…`) instead of the relPath; the backend stored this hash verbatim (`hub.ts` local_push) and rebroadcast it, so that after `/artisan pushLocal` the `packs.hash` no longer matched the relPath hash computed everywhere else (disk, REST publish) → spurious re-downloads / superfluous `bundle_available`. The pack hash is now a **single house** (`BundleHasher` plugin; `hashUtils.computeBundleHash` backend), with a single walk (`PackFilesReader.readRelative`) and a **cross-language conformance vector** (`testdata/pack-hash-conformance.json`) enforced by `BundleHashConformanceTest` (plugin) **and** `hashUtils.test.ts` (backend). See CLAUDE.md § Critical invariants.
 
 ### Changed
-- **Renommage full-stack `pack`/`Workspace` → `Project` (terminé — Phases 1–4).** Le terme domaine canonique est désormais **Project** dans tout l'éditeur, le backend, le plugin, la DB, l'API REST et le wire WS (cf. `CONTEXT.md`). Détail par surface :
-  - **REST** : segments d'URL renommés `/packs` → `/projects` — `/api/v1/user/packs` → `/user/projects`, editor-session `…/packs/:packId/assets` + `…/packs/:packId` (DELETE) → `…/projects/:projectId/…`, `networks/:id/packs/:packId/{branches,commits}` → `…/projects/:projectId/…`, et le paramètre `bundles/:packId` → `bundles/:projectId`. Clés de réponse `packs`→`projects`, `pack`→`project`, `elementCount`→`documentCount`.
-  - **WS** : champs renommés `pack_id`→`project_id`, `pack_hashes`→`project_hashes`, `deleted_pack_ids`→`deleted_project_ids`, `local_pack_ids`→`local_project_ids` ; message-type `pack_deleted`→`project_deleted` (+ `pack_divergence_detected`→`project_divergence_detected`).
-  - **DB** : tables `packs`/`pack_commits`/`pack_branches`/`pack_conflicts` → `projects`/`project_commits`/`project_branches`/`project_conflicts`, colonnes `pack_id`→`project_id`, index `*_pack_*`→`*_project_*` (migration forward-only incluse en Phase 2 ; reset des données dev/test, pas de préservation).
-  - **Disque** : le préfixe `plugins/Artisan/packs/` → `plugins/Artisan/projects/`.
-  - **Terminologie** : Pack / Workspace → **Project** (l'entité), business module → **Add-on**, connecteur/connector (le *fournisseur*) → **data source** (le type de référence côté menu garde son nom `ConnectorBinding`).
-  - Hash de bundle **préservé byte-for-byte** (seuls les symboles autour changent) ; `sync` des items custom et le code resource-pack non touchés.
-- **Éditeur : sidebar d'éléments — toggle « canvas » au lieu du drag-and-drop.** Chaque ligne du `WorkspacePanel` a désormais un bouton flèche à état (`title="Ajouter au canvas"` / `"Retirer du canvas"`, couleur `--brand` = sur la planche) qui remplace l'ancien badge texte « sur la planche » et la poignée de drag (supprimés). Le DnD panneau→planche est entièrement retiré (`PANEL_DRAG_PREFIX`, `handlePanelDrop`, ghost `PanelDragGhost`, état `uiStore.activeDragPanelItem`). Terminologie user-facing « board/planche » → « canvas » (identifiants internes inchangés). Sur la planche, un élément ne peut être que **supprimé du pack** (pas retiré de la planche).
-- Assistant : **gate de vocabulaire dans `upsert_menu`** (`validateMenuV1`) — tout type d'action/condition hors `SUPPORTED_ACTIONS`/`SUPPORTED_CONDITIONS` est rejeté avec erreurs (récursif : `if` d'appearance, composites `not`/`and`/`or`, steps de clic). Les champs top-level `open_requirements`/`open_actions`/`close_actions`/`background` (implémentés nulle part) sont rejetés. Le guide promettait « anything else is rejected » mais seule la validation schéma complet s'appliquait — `give_xp`, `world_is`, etc. passaient puis étaient droppés silencieusement.
-- Assistant : **`expression` retiré du vocab autorisé** (`SUPPORTED_CONDITIONS`) tant que le plugin n'a pas d'évaluateur DSL — une condition `expression` fait dropper l'appearance entière au chargement serveur. Fiches KB (`menu-v1-authoring-guide.md`, `deluxemenus-reference.md`) alignées + section « Runtime caveats » (pagination no-op, iterates/context_inputs éditeur-only pour l'instant).
-- Éditeur : `applyAssistantMenu` retourne la liste des constructs droppés à la conversion (`unsupported`) et `AssistantChat` l'affiche en toast — plus de perte silencieuse.
+- **Full-stack rename `pack`/`Workspace` → `Project` (done — Phases 1–4).** The canonical domain term is now **Project** across the editor, backend, plugin, DB, REST API and WS wire (see `CONTEXT.md`). Detail by surface:
+  - **REST**: URL segments renamed `/packs` → `/projects` — `/api/v1/user/packs` → `/user/projects`, editor-session `…/packs/:packId/assets` + `…/packs/:packId` (DELETE) → `…/projects/:projectId/…`, `networks/:id/packs/:packId/{branches,commits}` → `…/projects/:projectId/…`, and the `bundles/:packId` parameter → `bundles/:projectId`. Response keys `packs`→`projects`, `pack`→`project`, `elementCount`→`documentCount`.
+  - **WS**: fields renamed `pack_id`→`project_id`, `pack_hashes`→`project_hashes`, `deleted_pack_ids`→`deleted_project_ids`, `local_pack_ids`→`local_project_ids`; message type `pack_deleted`→`project_deleted` (+ `pack_divergence_detected`→`project_divergence_detected`).
+  - **DB**: tables `packs`/`pack_commits`/`pack_branches`/`pack_conflicts` → `projects`/`project_commits`/`project_branches`/`project_conflicts`, columns `pack_id`→`project_id`, indexes `*_pack_*`→`*_project_*` (forward-only migration included in Phase 2; dev/test data reset, no preservation).
+  - **Disk**: the prefix `plugins/Artisan/packs/` → `plugins/Artisan/projects/`.
+  - **Terminology**: Pack / Workspace → **Project** (the entity), business module → **Add-on**, connector (the *provider*) → **data source** (the reference type on the menu side keeps its name `ConnectorBinding`).
+  - Bundle hash **preserved byte-for-byte** (only the surrounding symbols change); custom items `sync` and the resource-pack code untouched.
+- **Editor: element sidebar — "canvas" toggle instead of drag-and-drop.** Each `WorkspacePanel` row now has a stateful arrow button (`title="Add to canvas"` / `"Remove from canvas"`, colour `--brand` = on the board) which replaces the old "on the board" text badge and the drag handle (removed). Panel→board DnD is entirely removed (`PANEL_DRAG_PREFIX`, `handlePanelDrop`, `PanelDragGhost` ghost, `uiStore.activeDragPanelItem` state). User-facing terminology "board" → "canvas" (internal identifiers unchanged). On the board, an element can only be **deleted from the pack** (not removed from the board).
+- Assistant: **vocabulary gate in `upsert_menu`** (`validateMenuV1`) — any action/condition type outside `SUPPORTED_ACTIONS`/`SUPPORTED_CONDITIONS` is rejected with errors (recursive: appearance `if`, `not`/`and`/`or` composites, click steps). Top-level fields `open_requirements`/`open_actions`/`close_actions`/`background` (implemented nowhere) are rejected. The guide promised "anything else is rejected" but only full schema validation applied — `give_xp`, `world_is`, etc. passed then were silently dropped.
+- Assistant: **`expression` removed from the allowed vocab** (`SUPPORTED_CONDITIONS`) as long as the plugin has no DSL evaluator — an `expression` condition makes the whole appearance get dropped at server load. KB sheets (`menu-v1-authoring-guide.md`, `deluxemenus-reference.md`) aligned + "Runtime caveats" section (pagination no-op, iterates/context_inputs editor-only for now).
+- Editor: `applyAssistantMenu` returns the list of constructs dropped at conversion (`unsupported`) and `AssistantChat` shows it as a toast — no more silent loss.
 
 ### Fixed
-- Schéma `command/v1` aligné sur `steps` (avec branches `if`), cohérent avec l'éditeur, le backend et le runtime (le champ `actions` plat était obsolète).
+- `command/v1` schema aligned on `steps` (with `if` branches), consistent with the editor, the backend and the runtime (the flat `actions` field was obsolete).
 - Editor: head/skull items rendered a soulsand texture; they now render real mob heads via the `__entity__/` pipeline (`ENTITY_RENDER_MAP` entries for heads, `mcModelRenderer.ts`).
 - gen-icons.ts pre-render pipeline silently failed (file-server routes lacked `/api/v1/` prefix); items.json (1.21.4 + 1.21.11) now ships fully pre-rendered icons.
-- Plugin : test `TitleCompilerTest` obsolète (clé i18n manquante → la prod résout volontairement en `""` au lieu d'échoer la clé brute ; le test attendait encore l'écho) — suite plugin de `main` à nouveau verte.
-- Console admin — onglet **Utilisateurs** : liste des comptes avec recherche (nom/email), vue profil avec champs éditables (nom, email, flag admin) + infos compte (méthode de connexion, date de création, networks et rôles). Backend `backend/src/routes/adminUsers.ts` : `GET /api/v1/admin/users?q=`, `GET /api/v1/admin/users/:id`, `PATCH /api/v1/admin/users/:id` (email unique → 409 `email_taken` ; self-demote interdit → 422 `cannot_demote_self` ; `passwordHash` jamais exposé). Éditeur : routes `/admin/users` + `/admin/users/:userId`, entrée « Utilisateurs » dans la sidebar admin.
-- Édition des networks et serveurs (nom + slug) :
-  - Endpoints REST `PATCH /api/v1/networks/:id` (name/slug) et `PATCH /api/v1/networks/:id/server-keys/:keyId` (label/slug) — membre requis, `:id` réseau accepte id ou slug, slug canonique exigé (422 `invalid_slug`), unicité (409 `slug_taken` ; scope global pour les networks, par network pour les serveurs).
-  - Éditeur : section « Général » (nom + slug) dans les settings réseau (navigation automatique vers la nouvelle URL après changement de slug) ; action « Modifier le serveur… » dans le kebab des cartes serveur (`EditServerModal`, label + slug). Helper `editor/src/lib/slug.ts` (miroir du `slugify` backend) ; clients API `updateNetwork` / `updateServerKey`.
-- Historique des conversations de l'assistant IA — **persistées en DB** (`assistant_conversations`, migration 0007), scopées par workspace (`ownerKey` + `packId`). Le panneau ouvre sur une **liste** (titre auto depuis le 1er message + date) avec « Nouvelle conversation » ; cliquer une conversation **recharge son transcript** et on continue dessus. Backend : repo `conversationRepo.ts` + endpoints `GET /assistant/conversations?packId=` (liste) et `GET /assistant/conversations/:id` (transcript), persistance du transcript après chaque tour SSE. Front : `AssistantBody` (liste ↔ chat), `AssistantConversations` (liste), `AssistantChat` reprend via `conversationId`.
-- Socle console super-admin (plan 1 — `docs/superpowers/plans/2026-06-09-admin-1-access-secrets.md`) :
-  - `users.is_admin` (BOOLEAN, migration 0006) + amorçage env `ADMIN_BOOTSTRAP_EMAILS` (CSV) dans `userAuth` (promotion une fois, guard `!isAdmin`). `GET /me` expose `isAdmin`.
-  - Middleware `requireAdmin()` (`backend/src/middleware/requireAdmin.ts`) — 403 si non-admin (assume `userAuth` en amont ; câblé aux routes en plan 2).
-  - Table générique `app_settings` (`key`/`value` JSON/`updated_at`/`updated_by`, migration 0006) pour les settings plateforme.
+- Plugin: obsolete `TitleCompilerTest` test (missing i18n key → prod deliberately resolves to `""` instead of echoing the raw key; the test still expected the echo) — `main`'s plugin suite green again.
+- Admin console — **Users** tab: list of accounts with search (name/email), profile view with editable fields (name, email, admin flag) + account info (sign-in method, creation date, networks and roles). Backend `backend/src/routes/adminUsers.ts`: `GET /api/v1/admin/users?q=`, `GET /api/v1/admin/users/:id`, `PATCH /api/v1/admin/users/:id` (unique email → 409 `email_taken`; self-demote forbidden → 422 `cannot_demote_self`; `passwordHash` never exposed). Editor: routes `/admin/users` + `/admin/users/:userId`, "Users" entry in the admin sidebar.
+- Editing networks and servers (name + slug):
+  - REST endpoints `PATCH /api/v1/networks/:id` (name/slug) and `PATCH /api/v1/networks/:id/server-keys/:keyId` (label/slug) — membership required, the network `:id` accepts id or slug, canonical slug required (422 `invalid_slug`), uniqueness (409 `slug_taken`; global scope for networks, per network for servers).
+  - Editor: "General" section (name + slug) in the network settings (automatic navigation to the new URL after a slug change); "Edit server…" action in the server cards' kebab (`EditServerModal`, label + slug). Helper `editor/src/lib/slug.ts` (mirror of the backend `slugify`); API clients `updateNetwork` / `updateServerKey`.
+- AI assistant conversation history — **persisted in DB** (`assistant_conversations`, migration 0007), scoped by workspace (`ownerKey` + `packId`). The panel opens on a **list** (auto title from the 1st message + date) with "New conversation"; clicking a conversation **reloads its transcript** and you continue on it. Backend: `conversationRepo.ts` repo + endpoints `GET /assistant/conversations?packId=` (list) and `GET /assistant/conversations/:id` (transcript), transcript persistence after each SSE turn. Front: `AssistantBody` (list ↔ chat), `AssistantConversations` (list), `AssistantChat` resumes via `conversationId`.
+- Super-admin console foundation (plan 1 — `docs/superpowers/plans/2026-06-09-admin-1-access-secrets.md`):
+  - `users.is_admin` (BOOLEAN, migration 0006) + `ADMIN_BOOTSTRAP_EMAILS` env seeding (CSV) in `userAuth` (promotion once, `!isAdmin` guard). `GET /me` exposes `isAdmin`.
+  - `requireAdmin()` middleware (`backend/src/middleware/requireAdmin.ts`) — 403 if not admin (assumes `userAuth` upstream; wired to the routes in plan 2).
+  - Generic `app_settings` table (`key`/`value` JSON/`updated_at`/`updated_by`, migration 0006) for platform settings.
   - `secretBox` (`backend/src/lib/secretBox.ts`) — AES-256-GCM (`CONFIG_ENC_KEY`), `encryptSecret` / `decryptSecret` / `isSecretsConfigured`.
-- Config IA en DB éditable par l'admin (plan 2 — `docs/superpowers/plans/2026-06-09-admin-2-config-backend.md`) :
-  - Store générique `getSetting` / `setSetting` (`backend/src/lib/appSettings.ts`) — clé → valeur JSON dans `app_settings`, upsert avec `updatedBy`.
-  - `loadAssistantProviderConfig()` (`backend/src/modules/assistant/provider/dbConfig.ts`) — lit `app_settings["assistant"]` (clé API déchiffrée via `secretBox`) si présente & utilisable, sinon fallback `resolveProviderConfig(env)` (inchangé). Le moteur SSE (`routes.ts`) résout désormais via ce loader → une modif admin prend effet **sans redeploy**.
-  - Endpoints super-admin `GET` / `PUT` `/api/v1/admin/assistant-config` + `POST /api/v1/admin/assistant-config/test` (`backend/src/modules/assistant/adminRoutes.ts`), gardés `userAuth` + `requireAdmin` (montés sur `/api/v1/admin/*` dans `app.ts`). GET expose `keySet: boolean` (jamais la clé) ; PUT chiffre la clé et la **préserve** quand `apiKey` est vide ; `/test` valide un provider sans persister.
-- UI console admin (plan 3 — `docs/superpowers/plans/2026-06-09-admin-3-ui.md`) :
-  - Route éditeur `/admin` (`editor/src/routes/admin.tsx`) — shell à onglets (v1 = onglet « IA »), gardée côté composant via `authStore` (`isAdmin` du `/me`) : `null` pendant l'hydratation, message « admins only » sinon.
-  - Formulaire de config IA (`editor/src/features/admin/AssistantConfigForm.tsx`) — provider / base URL / model + clé API **write-only** (champ vide = inchangée, placeholder « •••• définie » si `keySet`) + boutons « Tester la connexion » et « Enregistrer ».
-  - Client API admin en **cookie** (`editor/src/lib/api/adminConfig.ts`, `credentials:"include"`) ; `AuthUserDto.isAdmin` ; entrée « Console admin » sur la page compte (visible seulement pour les admins) ; namespace i18n `admin.*` (en + fr).
+- AI config in DB editable by the admin (plan 2 — `docs/superpowers/plans/2026-06-09-admin-2-config-backend.md`):
+  - Generic `getSetting` / `setSetting` store (`backend/src/lib/appSettings.ts`) — key → JSON value in `app_settings`, upsert with `updatedBy`.
+  - `loadAssistantProviderConfig()` (`backend/src/modules/assistant/provider/dbConfig.ts`) — reads `app_settings["assistant"]` (API key decrypted via `secretBox`) if present & usable, otherwise falls back to `resolveProviderConfig(env)` (unchanged). The SSE engine (`routes.ts`) now resolves through this loader → an admin change takes effect **without redeploy**.
+  - Super-admin endpoints `GET` / `PUT` `/api/v1/admin/assistant-config` + `POST /api/v1/admin/assistant-config/test` (`backend/src/modules/assistant/adminRoutes.ts`), guarded by `userAuth` + `requireAdmin` (mounted on `/api/v1/admin/*` in `app.ts`). GET exposes `keySet: boolean` (never the key); PUT encrypts the key and **preserves** it when `apiKey` is empty; `/test` validates a provider without persisting.
+- Admin console UI (plan 3 — `docs/superpowers/plans/2026-06-09-admin-3-ui.md`):
+  - Editor route `/admin` (`editor/src/routes/admin.tsx`) — tabbed shell (v1 = "AI" tab), guarded on the component side via `authStore` (`isAdmin` from `/me`): `null` during hydration, "admins only" message otherwise.
+  - AI config form (`editor/src/features/admin/AssistantConfigForm.tsx`) — provider / base URL / model + **write-only** API key (empty field = unchanged, placeholder "•••• set" if `keySet`) + "Test connection" and "Save" buttons.
+  - **Cookie** admin API client (`editor/src/lib/api/adminConfig.ts`, `credentials:"include"`); `AuthUserDto.isAdmin`; "Admin console" entry on the account page (visible only to admins); `admin.*` i18n namespace (en + fr).
 - Versioning foundations (`docs/architecture/versioning.md`):
   - Stability annotations under `net.artisanmc.modules.api.annotations` — `@Stable`, `@Beta`, `@Internal`, `@Sunset(reason, removeInVersion, replacement)`. (`@Sunset` replaces `@Deprecated` in the spec to avoid clashing with `kotlin.Deprecated`.)
   - Schema migration framework: `SchemaMigration<T>` interface + `SchemaRegistry<T>.loadToCurrent()` chained migrator + `UnsupportedSchemaVersionException` / `CircularMigrationException`. Wired via `ArtisanAPI.schemas`.
@@ -1295,63 +1293,63 @@ supprime ses endpoints — pour ne jamais laisser la liaison coupée à moitié.
   - `DataSourceRegistry`, `CommandRegistry`, `ModuleEventBus` (plugin) + cross-module event bus on editor side via WS `module_event`.
   - `<SchemaForm>` JSON-Schema→React-form generator (`editor/src/components/SchemaForm/`).
   - `menus` and `commands` modules wrap existing engine code without rewrite.
-- Schema canonicalisation P1.0 (`docs/architecture/schemas-codegen.md`) :
-  - `menu/v1` canonicalisé : `title` en tableau de layers, `click` en step-tree, `context_inputs` en snake_case, nouvelles actions `show_title` / `open_dialog` / `close_dialog` / `set_arg*`, nouvelle condition `expression`.
-  - Validateur ajv `menu/v1` (`editor/src/schema/validateMenuV1.ts`) + exemples canoniques (`docs/schema/menu/v1/examples/`) + CI de validation (`.github/workflows/schema.yml`).
-  - Codegen quicktype évalué et écarté (NO-GO — aplatit les unions discriminées en god-objects ; cf. `docs/schema/CODEGEN.md`) → types écrits à la main, `schema.json` source de vérité.
-- Schema canonicalisation P1.1 — conformité éditeur (`docs/architecture/schemas-codegen.md`) :
-  - L'export éditeur (`editor/src/features/export/transform.ts`) émet désormais la forme canonique `menu/v1` : conditions composites en `of` (au lieu de `all`/`any`), `if` d'appearance en tableau `Condition[]`, `title` toujours en tableau de layers (plus de raccourci string plain-only), action `paginate` → `pagination_next` / `pagination_prev`.
-  - Oracle de conformité ajv « golden pack → export → validate » (`editor/src/features/export/canonical.test.ts`).
-  - Miroir de types à la main `docs/schema/menu/v1/types.ts` aligné sur le schéma canonique.
-- Schema canonicalisation P1.2 — conformité plugin (`docs/architecture/schemas-codegen.md`) :
-  - Oracle cross-stack « exemples éditeur compilent dans le plugin » (`plugin/src/test/kotlin/net/artisanmc/plugin/engine/CanonicalConformanceTest.kt`) : parse `docs/schema/menu/v1/examples/canonical-*.json` à travers `BundleCompiler` sans erreur.
-- Convertisseur `menu/v1 → domain` (`editor/src/schema/menuV1ToDomain.ts`) — inverse de l'export domain→menu/v1 (feature IA, sous-plan 1) :
-  - Fonction pure `menuV1ToDomain(src, opts) → { menu, i18nKeys, unsupported }` : pont i18n (littéral → nouvelle clé allouée ; `{i18n:KEY}` → réf + copie de la traduction fournie), un-snake (`asset_id`→`assetId`, `menu_id`→`menuId`, `line_height`→`lineHeight`…), `size`→`rows`, `pagination_*`→`paginate{direction}`. Mappe explicitement le **sous-ensemble domain** du vocab actions/conditions ; tout construct hors domain est listé dans `unsupported` (pas de crash). Aucune mutation de pack — les clés i18n allouées sont retournées.
-  - Oracle round-trip domain↔menu/v1 (`editor/src/schema/menuV1ToDomain.roundtrip.test.ts`) : domain → `transform` → parse YAML → `menuV1ToDomain` → assertions structure + texte résolu.
-- Abstraction `LLMProvider` OpenAI-compatible (feature IA, sous-plan 2a — `backend/src/modules/assistant/provider/`) :
-  - Interface neutre `LlmProvider.streamTurn` (`types.ts`) émettant des `LlmStreamEvent` (`text` / `tool_use` / `usage` / `done`) — indépendante du SDK et du fournisseur.
-  - Adaptateur unique `OpenAICompatibleProvider` (SDK `openai`, client injectable pour les tests) : mapping messages/tools + normalisation du streaming et des tool-calls fragmentés.
-  - Resolver de presets piloté par l'env (`config.ts`) : `openai` (défaut) / `deepseek` / `mistral` / `openrouter` / `local`, avec overrides `ASSISTANT_BASE_URL` / `ASSISTANT_MODEL`. Feature désactivée (renvoie `null`) sans clé sauf base URL locale. Aucun SDK Anthropic — multi-provider via le protocole OpenAI-compatible.
-  - Variables d'environnement `ASSISTANT_PROVIDER` / `ASSISTANT_API_KEY` / `ASSISTANT_BASE_URL` / `ASSISTANT_MODEL` (documentées dans `.env.example`).
-- Cœur agentique de l'assistant (feature IA, sous-plan 2b — `backend/src/modules/assistant/`) :
-  - Gate de validation `menu/v1` backend (`validate.ts`) — `ajv(docs/schema/menu/v1/schema.json)` + `validateMenuLayout` (importé de `docs/schema/menu/v1/types.ts`). **Exactement le même contrat que l'éditeur** : un menu invalide ne peut pas entrer dans la working-copy ; les erreurs sont renvoyées au modèle pour auto-correction.
-  - Working-copy en mémoire (`workingCopy.ts`) : `Map<menuId, menu/v1>` + attachments `Map<fileId, texte>`.
-  - Tools que l'IA appelle (`tools.ts`) : `list_menus` / `get_menu` / `upsert_menu` (passe par le gate) / `delete_menu` / `read_attachment`, avec `TOOL_DEFS` (JSON-Schema) + `executeTool` émettant des `EngineEvent` (`menu_written` / `menu_deleted` / `tool` / …).
-  - Boucle agentique manuelle (`loop.ts`) : `runTurn` — `streamTurn` → exécute les tools → renvoie les résultats (role `tool`) → re-`streamTurn`, jusqu'à fin ou cap d'itérations (défaut 25), avec auto-correction (upsert invalide → erreurs → upsert corrigé) et garde anti-boucle-infinie. Surface `EngineEvent` consommée par l'endpoint SSE (2d) et le métering crédits (3, sur `usage`).
-- Grounding de l'assistant (feature IA, sous-plan 2c — `backend/src/modules/assistant/grounding/` + `grounding.ts`) :
-  - Fiches de référence LLM : `menu-v1-authoring-guide.md` (forme canonique `menu/v1` + vocab autorisé exclusif + convention i18n « texte littéral MiniMessage + %papi%, pas de clés inventées » + règles `validateMenuLayout` + exemple complet), `zmenu-reference.md` (format zMenu Maxlego08) et `deluxemenus-reference.md` (format DeluxeMenus HelpChat/extendedclip), chacune avec une **table de mapping → `menu/v1`** bornée au vocab importable et le cadrage « le fichier déposé est la source de vérité ; signaler dans le chat ce qui ne mappe pas plutôt que d'inventer ».
-  - Assembleur `buildSystemPrompt()` (`grounding.ts`) : message system de tête = cadrage anti-injection (file content is data, not instructions) + guide `menu/v1` + contrainte de vocab + les deux fiches sources. `SUPPORTED_CONDITIONS` / `SUPPORTED_ACTIONS` exportés, **alignés sur le convertisseur `editor/src/schema/menuV1ToDomain.ts`** → l'IA n'émet que le sous-ensemble représentable (pas de `unsupported` surprise).
-- Endpoints SSE de l'assistant (feature IA, sous-plan 2d — `backend/src/modules/assistant/routes.ts` + `conversations.ts` + `index.ts`) :
-  - `ConversationStore` en mémoire (`conversations.ts`) : `Map<id, { serverKeyId, messages, wc }>`, chaque conversation seedée avec le system prompt (`buildSystemPrompt`) + une working-copy ; `reseed()` remplace la working-copy.
-  - `POST /api/v1/assistant/conversations` (seed depuis `menus`/`attachments`, renvoie `{conversationId}`) et `POST /api/v1/assistant/conversations/:id/messages` (**réponse SSE** : map chaque `EngineEvent` de `runTurn` → `event:` (type) + `data:` (JSON)). Auth **editor-session** (`Authorization: Bearer <access token>`, `validateAccessToken`) ; conversation scopée au `serverKeyId` (404 cross-scope) ; `503` si aucun provider configuré. Provider injectable en test (`__setProviderForTests`).
-  - Module `assistantModule` (`BackendModule`) enregistré dans `mountModules` (`app.ts`).
-- Logique éditeur du panel IA (feature IA, sous-plan 4a — avant l'UI 4b) :
-  - Seed export : `serializeMenuToV1(menu, pack)` (extraction publique de l'ancien `serializeMenu` privé) + `packToMenuV1(pack)` dans `editor/src/features/export/transform.ts` — produit les objets canoniques `menu/v1` qui seedent une conversation backend (validés ajv). `transform()` réutilise la fonction exportée (forme wire single-sourcée).
-  - Client SSE `editor/src/lib/api/assistant.ts` : `openConversation(token, body)` + `streamAssistant(token, conversationId, body)` (async generator). L'endpoint étant **POST**, `EventSource` est inutilisable → client `fetch` qui bufferise `response.body` et découpe les frames SSE sur la ligne vide (`\n\n`), parsant chaque paire `event:`/`data:`.
-  - Action store `applyAssistantMenu({ packId, menuV1, lang })` (`editor/src/state/accountStore.ts`) : convertit via `menuV1ToDomain`, merge les clés i18n allouées dans le pack, insert/replace le menu par id. Undoable (zundo capture le `produce`).
-- Panel chat de l'assistant IA (feature IA, sous-plan 4b — l'UI) :
-  - `editor/src/features/assistant/AssistantPanel.tsx` : overlay `Sheet` (droite, mobile-friendly) avec transcript + composer. Drag-drop de fichiers zmenu/DeluxeMenus → `attachments`. Boucle `streamAssistant` (4a) qui rend le texte en flux et applique en live au canvas : `menu_written` → `applyAssistantMenu`, `menu_deleted` → `deleteFromPack`, `error` → toast. Chaque message re-seede la working-copy backend avec `packToMenuV1(pack)` + `attachments` (last-writer).
-  - Flag transitoire `uiStore.assistantPanelOpen` / `setAssistantPanelOpen` (non persisté), bouton top-bar `Sparkles` (`WorkspaceTopBarControls`), montage `<AssistantPanel packId>` dans la route workspace. Namespace i18n `assistant.*` (en + fr). Pas de module sidebar (overlay, pas de route).
+- Schema canonicalization P1.0 (`docs/architecture/schemas-codegen.md`):
+  - `menu/v1` canonicalized: `title` as an array of layers, `click` as a step-tree, `context_inputs` in snake_case, new actions `show_title` / `open_dialog` / `close_dialog` / `set_arg*`, new condition `expression`.
+  - `menu/v1` ajv validator (`editor/src/schema/validateMenuV1.ts`) + canonical examples (`docs/schema/menu/v1/examples/`) + validation CI (`.github/workflows/schema.yml`).
+  - quicktype codegen evaluated and rejected (NO-GO — flattens discriminated unions into god-objects; see `docs/schema/CODEGEN.md`) → hand-written types, `schema.json` source of truth.
+- Schema canonicalization P1.1 — editor conformance (`docs/architecture/schemas-codegen.md`):
+  - The editor export (`editor/src/features/export/transform.ts`) now emits the canonical `menu/v1` form: composite conditions in `of` (instead of `all`/`any`), appearance `if` as a `Condition[]` array, `title` always an array of layers (no more plain-only string shortcut), action `paginate` → `pagination_next` / `pagination_prev`.
+  - ajv conformance oracle "golden pack → export → validate" (`editor/src/features/export/canonical.test.ts`).
+  - Hand-written type mirror `docs/schema/menu/v1/types.ts` aligned on the canonical schema.
+- Schema canonicalization P1.2 — plugin conformance (`docs/architecture/schemas-codegen.md`):
+  - Cross-stack oracle "editor examples compile in the plugin" (`plugin/src/test/kotlin/net/artisanmc/plugin/engine/CanonicalConformanceTest.kt`): parses `docs/schema/menu/v1/examples/canonical-*.json` through `BundleCompiler` without error.
+- `menu/v1 → domain` converter (`editor/src/schema/menuV1ToDomain.ts`) — inverse of the domain→menu/v1 export (AI feature, sub-plan 1):
+  - Pure function `menuV1ToDomain(src, opts) → { menu, i18nKeys, unsupported }`: i18n bridge (literal → newly allocated key; `{i18n:KEY}` → ref + copy of the supplied translation), un-snake (`asset_id`→`assetId`, `menu_id`→`menuId`, `line_height`→`lineHeight`…), `size`→`rows`, `pagination_*`→`paginate{direction}`. Explicitly maps the **domain subset** of the actions/conditions vocab; any construct outside the domain is listed in `unsupported` (no crash). No pack mutation — the allocated i18n keys are returned.
+  - Domain↔menu/v1 round-trip oracle (`editor/src/schema/menuV1ToDomain.roundtrip.test.ts`): domain → `transform` → parse YAML → `menuV1ToDomain` → structure + resolved text assertions.
+- OpenAI-compatible `LLMProvider` abstraction (AI feature, sub-plan 2a — `backend/src/modules/assistant/provider/`):
+  - Neutral interface `LlmProvider.streamTurn` (`types.ts`) emitting `LlmStreamEvent`s (`text` / `tool_use` / `usage` / `done`) — independent of the SDK and the provider.
+  - Single adapter `OpenAICompatibleProvider` (`openai` SDK, injectable client for tests): messages/tools mapping + normalization of streaming and fragmented tool-calls.
+  - Env-driven preset resolver (`config.ts`): `openai` (default) / `deepseek` / `mistral` / `openrouter` / `local`, with `ASSISTANT_BASE_URL` / `ASSISTANT_MODEL` overrides. Feature disabled (returns `null`) without a key except for a local base URL. No Anthropic SDK — multi-provider through the OpenAI-compatible protocol.
+  - Environment variables `ASSISTANT_PROVIDER` / `ASSISTANT_API_KEY` / `ASSISTANT_BASE_URL` / `ASSISTANT_MODEL` (documented in `.env.example`).
+- Assistant agentic core (AI feature, sub-plan 2b — `backend/src/modules/assistant/`):
+  - Backend `menu/v1` validation gate (`validate.ts`) — `ajv(docs/schema/menu/v1/schema.json)` + `validateMenuLayout` (imported from `docs/schema/menu/v1/types.ts`). **Exactly the same contract as the editor**: an invalid menu cannot enter the working copy; errors are returned to the model for self-correction.
+  - In-memory working copy (`workingCopy.ts`): `Map<menuId, menu/v1>` + attachments `Map<fileId, text>`.
+  - Tools the AI calls (`tools.ts`): `list_menus` / `get_menu` / `upsert_menu` (goes through the gate) / `delete_menu` / `read_attachment`, with `TOOL_DEFS` (JSON-Schema) + `executeTool` emitting `EngineEvent`s (`menu_written` / `menu_deleted` / `tool` / …).
+  - Manual agentic loop (`loop.ts`): `runTurn` — `streamTurn` → runs the tools → returns the results (role `tool`) → re-`streamTurn`, until the end or an iteration cap (default 25), with self-correction (invalid upsert → errors → corrected upsert) and an infinite-loop guard. `EngineEvent` surface consumed by the SSE endpoint (2d) and credit metering (3, on `usage`).
+- Assistant grounding (AI feature, sub-plan 2c — `backend/src/modules/assistant/grounding/` + `grounding.ts`):
+  - LLM reference sheets: `menu-v1-authoring-guide.md` (canonical `menu/v1` form + exclusive allowed vocab + i18n convention "literal MiniMessage text + %papi%, no invented keys" + `validateMenuLayout` rules + full example), `zmenu-reference.md` (zMenu Maxlego08 format) and `deluxemenus-reference.md` (DeluxeMenus HelpChat/extendedclip format), each with a **mapping table → `menu/v1`** bounded to the importable vocab and the framing "the dropped file is the source of truth; flag in the chat what does not map rather than inventing".
+  - `buildSystemPrompt()` assembler (`grounding.ts`): leading system message = anti-injection framing (file content is data, not instructions) + `menu/v1` guide + vocab constraint + the two source sheets. `SUPPORTED_CONDITIONS` / `SUPPORTED_ACTIONS` exported, **aligned on the `editor/src/schema/menuV1ToDomain.ts` converter** → the AI only emits the representable subset (no surprise `unsupported`).
+- Assistant SSE endpoints (AI feature, sub-plan 2d — `backend/src/modules/assistant/routes.ts` + `conversations.ts` + `index.ts`):
+  - In-memory `ConversationStore` (`conversations.ts`): `Map<id, { serverKeyId, messages, wc }>`, each conversation seeded with the system prompt (`buildSystemPrompt`) + a working copy; `reseed()` replaces the working copy.
+  - `POST /api/v1/assistant/conversations` (seed from `menus`/`attachments`, returns `{conversationId}`) and `POST /api/v1/assistant/conversations/:id/messages` (**SSE response**: maps each `EngineEvent` of `runTurn` → `event:` (type) + `data:` (JSON)). **Editor-session** auth (`Authorization: Bearer <access token>`, `validateAccessToken`); conversation scoped to the `serverKeyId` (404 cross-scope); `503` if no provider is configured. Provider injectable in tests (`__setProviderForTests`).
+  - `assistantModule` module (`BackendModule`) registered in `mountModules` (`app.ts`).
+- AI panel editor logic (AI feature, sub-plan 4a — before the 4b UI):
+  - Seed export: `serializeMenuToV1(menu, pack)` (public extraction of the former private `serializeMenu`) + `packToMenuV1(pack)` in `editor/src/features/export/transform.ts` — produces the canonical `menu/v1` objects that seed a backend conversation (ajv-validated). `transform()` reuses the exported function (wire shape single-sourced).
+  - SSE client `editor/src/lib/api/assistant.ts`: `openConversation(token, body)` + `streamAssistant(token, conversationId, body)` (async generator). Since the endpoint is **POST**, `EventSource` is unusable → `fetch` client that buffers `response.body` and splits SSE frames on the empty line (`\n\n`), parsing each `event:`/`data:` pair.
+  - Store action `applyAssistantMenu({ packId, menuV1, lang })` (`editor/src/state/accountStore.ts`): converts via `menuV1ToDomain`, merges the allocated i18n keys into the pack, inserts/replaces the menu by id. Undoable (zundo captures the `produce`).
+- AI assistant chat panel (AI feature, sub-plan 4b — the UI):
+  - `editor/src/features/assistant/AssistantPanel.tsx`: `Sheet` overlay (right, mobile-friendly) with transcript + composer. Drag-drop of zmenu/DeluxeMenus files → `attachments`. `streamAssistant` loop (4a) that renders the text as a stream and applies live to the canvas: `menu_written` → `applyAssistantMenu`, `menu_deleted` → `deleteFromPack`, `error` → toast. Each message re-seeds the backend working copy with `packToMenuV1(pack)` + `attachments` (last-writer).
+  - Transient flag `uiStore.assistantPanelOpen` / `setAssistantPanelOpen` (not persisted), `Sparkles` top-bar button (`WorkspaceTopBarControls`), `<AssistantPanel packId>` mounted in the workspace route. `assistant.*` i18n namespace (en + fr). No sidebar module (overlay, no route).
 
 ### Changed
-- Assistant IA : sur desktop (≥lg) le panneau s'ouvre en **pane latéral droit redimensionnable** (réutilise `SplitPane`, largeur persistée `uiStore.assistantPaneWidth`) au lieu d'une modale par-dessus le canvas ; sur mobile il reste un drawer (`Sheet`). Logique chat extraite dans `AssistantChat`, partagée par `AssistantPane` (desktop) et `AssistantPanel` (drawer mobile, gated `!isDesktop`). Le bouton top-bar ✨ devient un toggle.
-- Entrée « Console admin » ajoutée au menu utilisateur (bas-gauche, `UserMenu`), visible seulement si `currentUser.isAdmin` — raccourci vers `/admin` (en plus du lien sur la page compte).
-- `ConditionParser` (plugin) lit `of` pour les conditions composites `and`/`or` (au lieu de `all`/`any`), réalignant le plugin sur la forme `menu/v1` canonique émise par l'éditeur (P1.1). Restaure l'intégration éditeur↔plugin pour les conditions composites.
+- AI assistant: on desktop (≥lg) the panel opens as a **resizable right side pane** (reuses `SplitPane`, persisted width `uiStore.assistantPaneWidth`) instead of a modal over the canvas; on mobile it stays a drawer (`Sheet`). Chat logic extracted into `AssistantChat`, shared by `AssistantPane` (desktop) and `AssistantPanel` (mobile drawer, gated `!isDesktop`). The ✨ top-bar button becomes a toggle.
+- "Admin console" entry added to the user menu (bottom-left, `UserMenu`), visible only if `currentUser.isAdmin` — shortcut to `/admin` (in addition to the link on the account page).
+- `ConditionParser` (plugin) reads `of` for the composite `and`/`or` conditions (instead of `all`/`any`), realigning the plugin with the canonical `menu/v1` form emitted by the editor (P1.1). Restores the editor↔plugin integration for composite conditions.
 - **BREAKING (pre-1.0)** REST API now under `/api/v1/*` instead of `/api/*`. Plugin + editor clients updated in the same release. Legacy `/api/*` paths return 404 — no compatibility alias.
 
 ### Deprecated
 - Nothing yet.
 
 ### Removed
-- `menu/v1` schema: retrait des types `StandardClick` / `ComponentClick` (remplacés par le step-tree de `click`) et de la condition `Cooldown`.
+- `menu/v1` schema: removal of the `StandardClick` / `ComponentClick` types (replaced by `click`'s step-tree) and of the `Cooldown` condition.
 
 ### Fixed
-- Assistant IA : les **fichiers joints étaient invisibles pour le modèle** — il répondait « dépose tes fichiers » alors qu'ils étaient déjà attachés. Le tool `read_attachment` prend un `file_id`, mais rien dans le tour n'annonçait quels ids existaient. `POST /assistant/conversations/:id/messages` injecte désormais un message `system` listant les fichiers joints (file_id = nom exact) avant le message user. Côté UI, le compteur « N fichier(s) joint(s) » est remplacé par une **liste de chips** (nom + taille + bouton retirer) et un bouton **trombone** (file picker) complète le drag-drop — indispensable sur mobile.
-- Assistant IA : un menu généré pouvait être **perdu si on rechargeait dans les ~2 s** (l'auto-save est debounced à 2 s, et un reload avant son déclenchement écrasait le menu non sauvé). Le pack est désormais **persisté immédiatement** après chaque `menu_written` / `menu_deleted` de l'assistant. Logique de sauvegarde extraite dans `editor/src/features/pack/persistPack.ts`, partagée par l'auto-save (`usePackAutoSave`) et l'assistant.
-- Éditeur : bande grise en bas du canvas / panneau d'édition à l'ouverture du pane assistant — `<main>` passait d'un parent flex (où `flex-1` l'étire) au wrapper **bloc** du `SplitPane` (où `flex-1` est inopérant) et retombait à la hauteur du contenu ; `h-full` ajouté pour qu'il remplisse les deux cas.
-- Éditeur : un network inaccessible (403/404 — p. ex. une URL périmée pointant vers le network d'un autre compte) ne boucle plus sur une page cassée. `getNetwork` attache le status HTTP et les routes network/serveur (`networks.$networkId.tsx`, `networks.$networkId.servers.$serverId.tsx`) redirigent vers `/networks` (liste des networks de l'utilisateur).
-- Assistant IA : flux SSE coupé en plein milieu (`ERR_INCOMPLETE_CHUNKED_ENCODING` côté navigateur) dès que le LLM mettait plus de 10 s — l'`idleTimeout` par défaut de Bun (10 s) tuait le stream. Relevé à 255 s (max Bun) dans `backend/src/index.ts` ; chaque écriture SSE réarme l'horloge d'inactivité.
-- Assistant IA injoignable dans l'éditeur web : le panel vit dans la route user-auth (`networks/.../workspaces/$workspaceId`) mais s'authentifiait via le token editor-session (`sessionStore.accessToken`), toujours `null` hors trust-dance plugin → `send()` sortait en silence (clic « Envoyer » sans effet). Le routeur assistant (`backend/src/modules/assistant/routes.ts`) accepte désormais **soit** le Bearer editor-session **soit** le cookie `artisan_user_session` (conversations scopées par `ownerKey` = `sk:<serverKeyId>` ou `user:<userId>`) ; le client front (`editor/src/lib/api/assistant.ts`) envoie `credentials:"include"` et n'ajoute le Bearer que s'il existe ; la garde du panel autorise un token **ou** un utilisateur connecté.
+- AI assistant: **attached files were invisible to the model** — it answered "drop your files" although they were already attached. The `read_attachment` tool takes a `file_id`, but nothing in the turn announced which ids existed. `POST /assistant/conversations/:id/messages` now injects a `system` message listing the attached files (file_id = exact name) before the user message. On the UI side, the "N file(s) attached" counter is replaced by a **list of chips** (name + size + remove button) and a **paperclip** button (file picker) completes drag-drop — essential on mobile.
+- AI assistant: a generated menu could be **lost if you reloaded within ~2 s** (auto-save is debounced at 2 s, and a reload before it fired overwrote the unsaved menu). The pack is now **persisted immediately** after each assistant `menu_written` / `menu_deleted`. Save logic extracted into `editor/src/features/pack/persistPack.ts`, shared by auto-save (`usePackAutoSave`) and the assistant.
+- Editor: grey band at the bottom of the canvas / edit panel when opening the assistant pane — `<main>` went from a flex parent (where `flex-1` stretches it) to the `SplitPane`'s **block** wrapper (where `flex-1` is inoperative) and fell back to the content height; `h-full` added so it fills both cases.
+- Editor: an inaccessible network (403/404 — e.g. a stale URL pointing to another account's network) no longer loops on a broken page. `getNetwork` attaches the HTTP status and the network/server routes (`networks.$networkId.tsx`, `networks.$networkId.servers.$serverId.tsx`) redirect to `/networks` (the user's networks list).
+- AI assistant: SSE stream cut in the middle (`ERR_INCOMPLETE_CHUNKED_ENCODING` on the browser side) as soon as the LLM took more than 10 s — Bun's default `idleTimeout` (10 s) killed the stream. Raised to 255 s (Bun max) in `backend/src/index.ts`; each SSE write rearms the idle clock.
+- AI assistant unreachable in the web editor: the panel lives in the user-auth route (`networks/.../workspaces/$workspaceId`) but authenticated via the editor-session token (`sessionStore.accessToken`), always `null` outside the plugin trust dance → `send()` exited silently (clicking "Send" had no effect). The assistant router (`backend/src/modules/assistant/routes.ts`) now accepts **either** the editor-session Bearer **or** the `artisan_user_session` cookie (conversations scoped by `ownerKey` = `sk:<serverKeyId>` or `user:<userId>`); the front client (`editor/src/lib/api/assistant.ts`) sends `credentials:"include"` and only adds the Bearer if it exists; the panel guard allows a token **or** a signed-in user.
 - Race condition in editor: `/`, `/link`, `/transfer` routes no longer redirect to `/login` before `authStore.hydrate()` completes. `isLoading` now starts `true` and routes gate on it.
 - Admin AI model catalog: `GET/POST/PUT /api/v1/admin/ai/models`, `PUT /api/v1/admin/ai/models/:id/default`, `POST /api/v1/admin/ai/models/:id/test`, `GET/PUT /api/v1/admin/ai/providers[/:slug]`, `GET/PUT /api/v1/admin/ai/settings`, `POST /api/v1/admin/ai/credits/grant`. New tables `ai_models`, `ai_usage_log`, `ai_credit_ledger` (spec 2026-07-02).
 
