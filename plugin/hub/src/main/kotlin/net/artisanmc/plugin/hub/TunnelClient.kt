@@ -49,8 +49,9 @@ class TunnelClient(
     private val connectUrl = connectUrl(server)
     private val threads = Executors.newCachedThreadPool { r -> Thread(r, "artisan-tunnel").apply { isDaemon = true } }
     private val retries: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "artisan-tunnel-retry").apply { isDaemon = true } }
-    private val serverClient = OkHttpClient.Builder().pingInterval(25, TimeUnit.SECONDS).build()
+    private val serverClient = OkHttpClient.Builder().pingInterval(25, TimeUnit.SECONDS).socketFactory(NoDelaySockets).build()
     private val local = OkHttpClient.Builder()
+        .socketFactory(NoDelaySockets)
         .followRedirects(false)
         .followSslRedirects(false)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -338,4 +339,21 @@ class TunnelClient(
         /** 1005, 1006 and 1015 describe a close, they cannot be sent. */
         private fun validCloseCode(code: Int) = if (code in 1000..4999 && code !in setOf(1004, 1005, 1006, 1015)) code else 1000
     }
+}
+
+/**
+ * Sockets that send each write at once. A response goes out as several small frames (head, body,
+ * end): with Nagle's algorithm the second waits for the first one's ACK, which the other end delays
+ * by up to 40 ms. That wait was most of what the tunnel added to a small request.
+ */
+private object NoDelaySockets : javax.net.SocketFactory() {
+    private val system = javax.net.SocketFactory.getDefault()
+    private fun java.net.Socket.noDelay() = apply { tcpNoDelay = true }
+    override fun createSocket(): java.net.Socket = system.createSocket().noDelay()
+    override fun createSocket(host: String, port: Int) = system.createSocket(host, port).noDelay()
+    override fun createSocket(host: String, port: Int, localHost: java.net.InetAddress, localPort: Int) =
+        system.createSocket(host, port, localHost, localPort).noDelay()
+    override fun createSocket(host: java.net.InetAddress, port: Int) = system.createSocket(host, port).noDelay()
+    override fun createSocket(address: java.net.InetAddress, port: Int, localAddress: java.net.InetAddress, localPort: Int) =
+        system.createSocket(address, port, localAddress, localPort).noDelay()
 }
