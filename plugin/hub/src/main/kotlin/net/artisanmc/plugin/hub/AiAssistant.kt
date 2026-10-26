@@ -143,7 +143,7 @@ class AiAssistant(
             "problems" to (body?.get("problems") as? List<*>)?.size?.takeIf { outcome.error },
             "draft" to draftOf(call, body, outcome.error),
         )
-        return AiInput.ToolResult(call.id, Call.mapper.writeValueAsString(outcome.body), outcome.error)
+        return AiInput.ToolResult(call.id, McpTools.resultText(outcome.body, indent = false), outcome.error)
     }
 
     /** The draft a call made or wrote into, so the editor can offer to open it. */

@@ -36,9 +36,14 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
         ),
         Tool(
             "get_kind_guide", "Document kind guide",
-            "How to write a Document of one kind: where it goes (<kind dir>/<id>.yml), the `schema:` label to put first, and the JSON " +
-                "schema every file of that kind is checked against. Pass project to also get an existing Document of that kind as an example.",
-            schema("kind" to string("A Document kind from artisan_overview: menu, command, dialog, trigger…"), "project" to PROJECT_OPTIONAL, required = listOf("kind")),
+            "How to write a Document of one kind: where it goes (<kind dir>/<id>.yml), the `schema:` label to put first, and an outline " +
+                "of its fields, actions and conditions. Pass project to also get an existing Document of that kind as an example. " +
+                "detail: \"schema\" returns the full JSON schema every file is checked against instead of the outline.",
+            schema(
+                "kind" to string("A Document kind from artisan_overview: menu, command, dialog, trigger…"), "project" to PROJECT_OPTIONAL,
+                "detail" to mapOf("type" to "string", "enum" to listOf("outline", "schema"), "description" to "outline (default) or schema."),
+                required = listOf("kind"),
+            ),
             readOnly = true, ::kindGuide,
         ),
         Tool(
@@ -142,6 +147,7 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
 
     private fun kindGuide(principal: McpPrincipal, args: JsonNode): Any {
         val name = text(args, "kind")
+        val full = args.path("detail").asText("") == "schema"
         val projectId = args.path("project").asText("").ifEmpty { null }
         val project = projectId?.let(projects::project)
         val server = project?.server ?: projects.servers().first()
@@ -149,19 +155,26 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
             ?: throw McpRefusal("not_found", "No Document kind '$name' on ${server.label}. artisan_overview lists the kinds.")
         val dir = kind["dir"] as String
         val label = (kind["schema_versions"] as? List<*>)?.firstOrNull()?.toString().orEmpty()
-        val schema = McpTools::class.java.getResourceAsStream("/schema/$label.json")?.use { it.readBytes().toString(Charsets.UTF_8) }
+        val schema = McpTools::class.java.getResourceAsStream("/schema/$label.json")?.use { Call.mapper.readTree(it) }
         val example = project?.let { p ->
             val tree = files(projects.read(p))
-            DocumentLayout.classify(tree.keys, setOf(dir)).documents.firstOrNull()?.let { mapOf("path" to it.path, "content" to tree[it.path]!!.take(MAX_EXAMPLE)) }
+            DocumentLayout.classify(tree.keys, setOf(dir)).documents.firstOrNull()?.let { it.path to tree[it.path]!!.take(MAX_EXAMPLE) }
         }
-        return mapOf(
-            "kind" to name,
-            "path" to "$dir/<id>.yml (or <folders>/$dir/<id>.yml); the file name is the Document's id",
-            "first_line" to "schema: $label",
-            "id_prefix" to kind["id_prefix"],
-            "json_schema" to (schema ?: "This kind comes from a module: no schema ships with Artisan, the server's engine still checks each file."),
-            "example" to example,
-        )
+        return buildString {
+            append("# ").append(name).append(" Documents\n\n")
+            append("File: ").append(dir).append("/<id>.yml (or <folders>/").append(dir).append("/<id>.yml); the file name is the Document's id.\n")
+            append("First line: `schema: ").append(label).append("`\n")
+            (kind["id_prefix"] as? String)?.let { append("Ids start with `").append(it).append("`.\n") }
+            when {
+                schema == null -> append("\nThis kind comes from a module: no schema ships with Artisan. The server's engine still checks each file; ")
+                    .append("follow the example and fix what write_document reports.\n")
+                full -> append("\n## JSON schema\n```json\n").append(Call.mapper.writeValueAsString(schema)).append("\n```\n")
+                else -> append('\n').append(SchemaOutline(schema).render())
+                    .append("\nThe outline leaves out legacy forms, which are still read but never written. ")
+                    .append("get_kind_guide with detail: \"schema\" returns the full JSON schema.\n")
+            }
+            example?.let { (path, content) -> append("\n## Example: ").append(path).append("\n```yaml\n").append(content.trimEnd()).append("\n```\n") }
+        }
     }
 
     private fun startDraft(principal: McpPrincipal, args: JsonNode): Any {
@@ -285,20 +298,24 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
 
     private fun path(args: JsonNode) = text(args, "path").trim().removePrefix("/")
 
-    private companion object {
+    companion object {
+        /** A result as the model reads it: prose as it is, anything else as JSON, indented for an MCP client's reader. */
+        fun resultText(body: Any?, indent: Boolean = true): String = body as? String
+            ?: (if (indent) Call.mapper.writerWithDefaultPrettyPrinter() else Call.mapper.writer()).writeValueAsString(body)
+
         /** What a draft made through the MCP endpoint says it came from: the editor shows it. */
-        const val SOURCE = "ai"
-        const val MAX_FILE = 512 * 1024
-        const val MAX_EXAMPLE = 8000
+        private const val SOURCE = "ai"
+        private const val MAX_FILE = 512 * 1024
+        private const val MAX_EXAMPLE = 8000
 
-        val PROJECT = string("A Project id, `<server id>.<folder>`, from artisan_overview.")
-        val PROJECT_OPTIONAL = string("Optional: a Project id, for an example from it.")
-        val DRAFT_OPTIONAL = string("Optional: a draft id from start_draft, to read the draft instead of what is deployed.")
-        val PATH = string("A path in the Project, e.g. `menus/shop.yml` or `lang/en.yml`.")
+        private val PROJECT = string("A Project id, `<server id>.<folder>`, from artisan_overview.")
+        private val PROJECT_OPTIONAL = string("Optional: a Project id, for an example from it.")
+        private val DRAFT_OPTIONAL = string("Optional: a draft id from start_draft, to read the draft instead of what is deployed.")
+        private val PATH = string("A path in the Project, e.g. `menus/shop.yml` or `lang/en.yml`.")
 
-        fun string(description: String) = mapOf("type" to "string", "description" to description)
+        private fun string(description: String) = mapOf("type" to "string", "description" to description)
 
-        fun schema(vararg properties: Pair<String, Map<String, Any?>>, required: List<String> = properties.map { it.first }.filter { it == "project" }): Map<String, Any?> =
+        private fun schema(vararg properties: Pair<String, Map<String, Any?>>, required: List<String> = properties.map { it.first }.filter { it == "project" }): Map<String, Any?> =
             mapOf("type" to "object", "properties" to properties.toMap(), "required" to required, "additionalProperties" to false)
     }
 }

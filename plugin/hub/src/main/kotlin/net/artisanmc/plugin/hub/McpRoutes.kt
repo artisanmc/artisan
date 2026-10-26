@@ -116,9 +116,12 @@ class McpRoutes(
         return result(id, content(outcome.body, outcome.error))
     }
 
-    /** A tool result: the JSON as text for any client, and as `structuredContent` for those that read it. */
+    /**
+     * A tool result: the JSON as text for any client, and as `structuredContent` for those that read it.
+     * A tool that answers in prose (get_kind_guide) is sent as it is.
+     */
     private fun content(body: Any?, error: Boolean): Map<String, Any?> = buildMap {
-        put("content", listOf(mapOf("type" to "text", "text" to Call.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(body))))
+        put("content", listOf(mapOf("type" to "text", "text" to McpTools.resultText(body))))
         if (body is Map<*, *>) put("structuredContent", body)
         if (error) put("isError", true)
     }

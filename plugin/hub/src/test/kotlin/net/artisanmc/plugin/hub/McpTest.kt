@@ -141,6 +141,14 @@ class McpTest {
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
         assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "start_draft", "write_document"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it })
+        // The kind guide is prose for the model to read, the schema outlined rather than dumped.
+        val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
+        val text = guide["content"][0]["text"].asText()
+        assertFalse(guide.has("structuredContent"))
+        assertTrue(text.startsWith("# menu Documents\n") && "\n## Fields\n" in text && "## Example: menus/shop.yml" in text, text)
+        assertTrue(text.length < 25_000, "${text.length} characters")
+        val full = tool(access, "get_kind_guide", "kind" to "menu", "detail" to "schema")["content"][0]["text"].asText()
+        assertTrue("```json\n{\"\$schema\"" in full)
         assertEquals(-32601, rpc(access, "resources/list").body!!["error"]["code"].asInt())
         assertEquals(405, http("GET", McpRoutes.PATH, headers = mapOf("Authorization" to "Bearer $access")).status)
     }
@@ -167,6 +175,9 @@ class McpTest {
 
         val written = tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/vip.yml", "content" to "schema: menu/v1\n")
         assertFalse(written.has("isError"), written.toString())
+        assertEquals(2, written["structuredContent"]["revision"].asInt())
+        val mine = tool(access, "list_documents", "project" to "u-local.shop")["structuredContent"]["your_drafts"]
+        assertEquals(listOf(draftId to "AI: boutique"), mine.map { it["draft_id"].asText() to it["name"].asText() })
         val tree = mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["tree"]
         assertEquals("schema: menu/v1\n", tree["menus/vip.yml"].asText())
         assertEquals("a: b\n", tree["lang/en.yml"].asText())
