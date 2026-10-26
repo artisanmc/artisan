@@ -578,6 +578,12 @@ body {
     border-color: var(--brand-line);
     box-shadow: var(--ring-brand);
   }
+  /* A value the form flags (pattern, bounds, required) without blocking it. */
+  .input[aria-invalid="true"],
+  .textarea[aria-invalid="true"],
+  .select[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
   .textarea {
     resize: vertical;
     line-height: 1.5;
