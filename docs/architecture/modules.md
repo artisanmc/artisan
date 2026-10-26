@@ -613,8 +613,8 @@ api.getEditorBundles().register(
   place of the jar's bundle, with the latter's SDK version. `LocalEditorBundles` rereads it on each
   change (checked every second) and a leaf sends `modules_changed`; the entry carries
   `editor_bundle.local: true`. Missing or invalid file: the jar's bundle, with a warning.
-- **Loaded** by the editor against the SDK it embeds: `editor-internals.md` § "Runtime module
-  bundles".
+- **Loaded** by the editor against the SDK it embeds: `editor-internals.md` § "Module views
+  loaded at runtime".
 
 ### 4.8 Module templates — API 2.6.0, protocol 1.3
 
