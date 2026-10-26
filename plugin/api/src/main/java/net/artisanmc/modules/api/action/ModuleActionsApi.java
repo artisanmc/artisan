@@ -1,7 +1,7 @@
 package net.artisanmc.modules.api.action;
 
 import java.util.Map;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
  * <p>{@link #run} takes a chain as a module stores it in its own Document (the keyed structured
  * wire, ADR {@code structured-action-wire}), where {@link #execute} takes the legacy DSL string.
  */
-@Beta
+@Stable
 public interface ModuleActionsApi {
     /** Inert default (tests / partial wiring). */
     ModuleActionsApi NOOP = new ModuleActionsApi() {

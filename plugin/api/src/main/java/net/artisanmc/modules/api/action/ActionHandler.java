@@ -1,7 +1,7 @@
 package net.artisanmc.modules.api.action;
 
 import java.util.Map;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 
 /**
  * Executes one declared action (ADR {@code extensible-document-kinds}, R1): the engine dispatches
@@ -12,7 +12,7 @@ import net.artisanmc.modules.api.annotations.Beta;
  *
  * @see ActionDeclaration#normalize
  */
-@Beta
+@Stable
 @FunctionalInterface
 public interface ActionHandler {
     /** Runs the action and returns the context the next action of the chain runs with (usually {@code ctx}). */

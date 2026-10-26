@@ -4,7 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
  * a kind ({@code menu}, {@code dialog}, a module kind): the editor resolves it, renames it,
  * flags a dead ref and draws the edge.
  */
-@Beta
+@Stable
 public final class ModelFieldType {
     private final String kind;
     private final @Nullable ModelFieldType of;

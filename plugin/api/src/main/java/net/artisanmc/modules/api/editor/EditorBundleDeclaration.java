@@ -15,7 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 
 /**
  * The editor view of a module, shipped in its jar (ADR {@code editor-web-server}, runtime module
@@ -24,7 +24,7 @@ import net.artisanmc.modules.api.annotations.Beta;
  * {@code GET /api/v1/servers/:server/modules/:module/ui.js}, the editor loads it against the SDK
  * version it declares. Immutable; the script is UTF-8 text, at most {@link #MAX_SIZE} bytes.
  */
-@Beta
+@Stable
 public final class EditorBundleDeclaration {
     /** 4 MiB: the bundle travels whole in one WebSocket message from a leaf to the hub. */
     public static final int MAX_SIZE = 4 * 1024 * 1024;

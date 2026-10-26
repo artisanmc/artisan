@@ -3,6 +3,7 @@ package net.artisanmc.modules.api.playercommand;
 import java.util.List;
 import java.util.Objects;
 import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -10,10 +11,10 @@ import org.jetbrains.annotations.Nullable;
  * refuses an invalid value with a message in the sender's language; the executor reads the typed
  * value from {@link PlayerCommandContext}.
  */
-@Beta
+@Stable
 public final class CommandArgument {
     /** The value an argument takes. */
-    @Beta
+    @Stable
     public enum Type {
         /** One word. */
         STRING,
@@ -72,6 +73,7 @@ public final class CommandArgument {
      * @throws IllegalStateException on an {@link Type#ENUM} argument
      * @since 2.14.0
      */
+    @Beta
     public CommandArgument suggestions(SuggestionProvider provider) {
         Objects.requireNonNull(provider, "provider");
         if (type == Type.ENUM) throw new IllegalStateException("argument '" + name + "' is a choice: its values are fixed");
@@ -84,6 +86,7 @@ public final class CommandArgument {
     /** The accepted values of an {@link Type#ENUM} argument, empty otherwise. */
     public List<String> getValues() { return values; }
     /** What {@link #suggestions(SuggestionProvider)} set; null: Artisan's own completion. @since 2.14.0 */
+    @Beta
     public @Nullable SuggestionProvider getSuggestions() { return suggestions; }
 
     @Override

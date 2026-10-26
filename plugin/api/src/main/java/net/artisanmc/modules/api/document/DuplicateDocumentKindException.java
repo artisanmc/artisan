@@ -1,9 +1,9 @@
 package net.artisanmc.modules.api.document;
 
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 
 /** Two declarations for the same Document kind id, or two kinds claiming the same project folder. */
-@Beta
+@Stable
 public final class DuplicateDocumentKindException extends IllegalStateException {
     public DuplicateDocumentKindException(String message) {
         super(message);

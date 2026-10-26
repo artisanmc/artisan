@@ -1,14 +1,14 @@
 package net.artisanmc.modules.api.item;
 
 import java.util.Locale;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 
 /**
  * One criterion of {@link ItemStackApi#matches}: a stack matches an item spec when it agrees with
  * the spec's item on every criterion asked. The wire form is {@link #id()} (a module stores
  * {@code match: [material, name]} in its Document).
  */
-@Beta
+@Stable
 public enum ItemComparison {
     /** Same material. */
     MATERIAL,

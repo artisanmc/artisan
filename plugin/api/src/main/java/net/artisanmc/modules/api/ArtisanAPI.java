@@ -175,12 +175,12 @@ public final class ArtisanAPI {
         return projectRoots;
     }
 
-    @Beta
+    @Stable
     public ItemStackApi getItems() {
         return items;
     }
 
-    @Beta
+    @Stable
     public ModuleActionsApi getActions() {
         return actions;
     }
@@ -202,7 +202,7 @@ public final class ArtisanAPI {
      * invoke, core and module alike, dispatched by name. Reported at Presence as
      * {@code declared_actions}.
      */
-    @Beta
+    @Stable
     public ActionRegistry getActionRegistry() {
         return actionRegistry;
     }
@@ -212,7 +212,7 @@ public final class ArtisanAPI {
      * and 11): Artisan's own and the modules'. The core reads a project's folders from it and
      * reports it at Presence as {@code document_kinds}.
      */
-    @Beta
+    @Stable
     public DocumentKindRegistry getDocumentKinds() {
         return documentKinds;
     }
@@ -238,7 +238,7 @@ public final class ArtisanAPI {
      * script per module, reported at Presence on its {@code installed_modules} entry and served
      * to the editor by the hub.
      */
-    @Beta
+    @Stable
     public EditorBundleRegistry getEditorBundles() {
         return editorBundles;
     }
@@ -258,13 +258,13 @@ public final class ArtisanAPI {
      * permission, cooldown and conditions the admin can override. Not {@link #getCommands()},
      * which menus call through {@code run_command}.
      */
-    @Beta
+    @Stable
     public PlayerCommandRegistry getPlayerCommands() {
         return playerCommands;
     }
 
     /** One connection pool per plugin, credentials in {@code environment.yml} (ADR {@code suite-foundation-database}). */
-    @Beta
+    @Stable
     public DatabaseApi getDatabase() {
         return database;
     }
@@ -276,13 +276,13 @@ public final class ArtisanAPI {
     }
 
     /** Artisan's Folia-aware scheduler. */
-    @Beta
+    @Stable
     public SchedulerApi getScheduler() {
         return scheduler;
     }
 
     /** {@code %namespace_key%} placeholders for menus, optionally exposed to PlaceholderAPI. */
-    @Beta
+    @Stable
     public PlaceholderRegistry getPlaceholders() {
         return placeholders;
     }
@@ -294,13 +294,13 @@ public final class ArtisanAPI {
     }
 
     /** System messages of the suite's plugins: the player's language, lang files per namespace. */
-    @Beta
+    @Stable
     public TranslationsApi getTranslations() {
         return translations;
     }
 
     /** Text for players without Adventure types: sent, or as a {@code §} string for Bukkit. Since 2.10.0. */
-    @Beta
+    @Stable
     public TextApi getText() {
         return text;
     }

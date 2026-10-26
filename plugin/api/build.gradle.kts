@@ -52,6 +52,12 @@ val generateApiVersion by tasks.registering {
 
 sourceSets.getByName("main").java.srcDir(generateApiVersion)
 
+// ApiStabilityConsistencyTest reads the @Stable/@Beta placement from the sources (SOURCE retention:
+// the class files do not change when an annotation moves), so they are an input of the tests.
+tasks.test {
+    inputs.dir("src/main/java").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 tasks.jar {
     archiveBaseName.set("artisan-core-api")
 }

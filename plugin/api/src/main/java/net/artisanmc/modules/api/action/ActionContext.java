@@ -1,7 +1,7 @@
 package net.artisanmc.modules.api.action;
 
 import java.util.Map;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,7 +14,7 @@ import org.jetbrains.annotations.Nullable;
  * carrying new bindings ({@link #withArgs}). The runtime's own context (pagination, navigation
  * history) stays internal to Artisan.
  */
-@Beta
+@Stable
 public interface ActionContext {
     Player getPlayer();
 
