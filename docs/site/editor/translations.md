@@ -21,20 +21,27 @@ The panel also lists the description of each command the module declares, and it
 
 ## How the files are written
 
-Your project lives as YAML files on your server, and you can edit them by hand. The **On disk** toggle in the Translations panel decides what a text looks like there:
+Your project lives as YAML files on your server, and you can edit them by hand. The **On disk** toggle in the Translations panel decides what a text looks like there.
 
-**Plain text** — the menu file carries the default language's text, right where you read it:
+**Plain text** — each text sits in the menu file, right where you read it. With one language it is a plain string; once you translate it, it becomes one entry per language, and a translated lore gets a list of lines per language, each with its own number of lines:
 
 ```yaml
 # menus/shop.yml
-title: Shop
+title:
+  en: Shop
+  fr: Boutique
 elements:
   - id: buy
-    title: Sword
-    lore: Sharp and shiny
+    title: Sword                 # not translated yet: one text for every language
+    lore:
+      en: [Sharp and shiny]
+      fr: [Tranchante, et brillante]
+    click:
+      left:
+        - send_message: { en: Bought!, fr: Acheté ! }
 ```
 
-The other languages live in `lang/fr.yml`, `lang/de.yml`… and there is **no file for your default language** — the menu already carries it. A single-language server therefore has no `lang/` folder at all.
+A player reads their own language, falls back to the default language when it is missing, and to any language present after that. A single-language project has no `lang/` folder at all: `lang/` only keeps the few texts that have no place in a menu, such as the units of durations or the texts of data sources.
 
 **Keys** — the menu file carries references instead, and every language, the default one included, lives in `lang/`:
 
@@ -46,10 +53,10 @@ elements:                              shop:
     title: "{i18n:menus.shop.elements.buy.default.title}"
 ```
 
-Both forms work on the server, and you can mix them in the same file — a `{i18n:…}` reference always wins, a plain text is looked up by its position, and failing that it displays as written.
+Both forms work on the server, and you can mix them in the same file: a `{i18n:…}` reference is looked up in `lang/`, any other text is shown as written.
 
 Switching asks for confirmation because it rewrites every menu, command and dialog file at the next save. **No translation is ever lost either way** — only the shape of the files changes, and you can switch back at any time.
 
 :::tip
-Translating from a text editor rather than the browser? **Plain text** is usually the mode you want: the menu reads like a menu, and each language file mirrors the menu's own structure.
+Translating from a text editor rather than the browser? **Plain text** is usually the mode you want: each text and its translations sit together, in the menu that shows them.
 :::

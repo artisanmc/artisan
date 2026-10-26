@@ -210,7 +210,7 @@ const fr: typeof en = {
     fileShapeInline: "Texte en clair",
     fileShapeExtract: "Clés",
     fileShapeInlineHint:
-      "Les fichiers de menu portent le texte {{lang}} tel quel ; les autres langues vivent dans lang/ et aucun lang/{{lang}}.yml n'est écrit.",
+      "Les fichiers de menu portent chaque texte tel quel, avec une entrée par langue une fois traduit ; aucun lang/{{lang}}.yml n'est écrit.",
     fileShapeExtractHint:
       "Les fichiers de menu portent des références {i18n:clé} ; toutes les langues, {{lang}} comprise, vivent dans lang/.",
     fileShapeConfirmInline:
