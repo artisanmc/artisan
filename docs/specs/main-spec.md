@@ -1,288 +1,288 @@
-# Artisan — Plugin Minecraft d'édition de GUIs
+# Artisan — Minecraft GUI Editor Plugin
 
-**Spec produit — document de référence pour le développement et les décisions produit**
-Version : draft 1 (avril 2026)
-
----
-
-## 1. Vision et positionnement
-
-### 1.1 Vision produit
-
-Permettre à n'importe quel admin de serveur Minecraft de créer des interfaces (menus, GUIs) custom de qualité professionnelle, sans compétences en pixel art, sans jongler entre plusieurs plugins, et sans rédiger de YAML.
-
-L'admin compose ses interfaces visuellement à partir d'assets existants — images vanilla, packs achetés sur MCModels, ou images personnelles uploadées — dans un éditeur web drag & drop. Le plugin génère automatiquement le resource pack et la config nécessaires, et tout est exécutable en jeu immédiatement.
-
-### 1.2 Positionnement marché
-
-Le produit n'est pas un concurrent direct de NxMenu. NxMenu cible les designers pixel art capables de créer des assets, et reste un outil de **création artistique**. Notre produit cible les 95% restants : les admins qui veulent de beaux menus mais qui ne savent pas (et ne veulent pas apprendre à) dessiner. C'est un outil de **composition et de configuration**, pas de création graphique.
-
-Face aux solutions existantes du marché :
-
-- **vs zMenu / DeluxeMenus** : alternative moderne où la configuration se fait visuellement au lieu de YAML. Adoption massive visée comme nouveau standard de fait pour les menus de serveurs.
-- **vs Nexo / ItemAdder** : ce ne sont pas des concurrents directs (Nexo et ItemAdder gèrent les items custom du jeu, pas les GUIs spécifiquement). Notre produit cohabite avec eux et peut s'intégrer à leur écosystème en v2.
-- **vs NxMenu** : positionnement complémentaire, pas concurrentiel. NxMenu pour ceux qui dessinent, notre produit pour ceux qui composent.
-
-### 1.3 Différenciation clé
-
-L'admin compose des GUIs sans pixel art, le tout dans un éditeur web moderne avec édition live (la WS pousse les modifications en jeu instantanément). Le freemium permet l'adoption massive ; le payant capture la valeur sur les use cases avancés (custom assets). Démo soignée, vraie communauté, vraie roadmap publique.
+**Product spec — reference document for development and product decisions**
+Version: draft 1 (April 2026)
 
 ---
 
-## 2. Architecture générale
+## 1. Vision and positioning
 
-### 2.1 Pattern architectural
+### 1.1 Product vision
 
-L'architecture repose sur un pattern **hosted-edit / local-runtime** :
+Let any Minecraft server admin create professional-quality custom interfaces (menus, GUIs), without pixel art skills, without juggling several plugins, and without writing YAML.
 
-- **Côté éditeur** : application web hébergée par nous (ex. `editor.artisanmc.net`). C'est là que les admins configurent leurs menus, gèrent leurs assets, organisent leurs équipes.
-- **Côté plugin** : module Spigot/Paper installé sur le serveur Minecraft de l'admin. Il sert les menus aux joueurs, gère les inventaires natifs, exécute les actions au clic. Fonctionne offline-first : aucune dépendance internet en jeu. Si l'éditeur tombe, les serveurs des clients continuent à servir leurs menus normalement.
+The admin composes interfaces visually from existing assets — vanilla images, packs bought on MCModels, or uploaded personal images — in a drag & drop web editor. The plugin automatically generates the required resource pack and config, and everything runs in game immediately.
 
-### 2.2 Flux de données
+### 1.2 Market positioning
+
+The product is not a direct competitor to NxMenu. NxMenu targets pixel art designers who can create assets, and remains a tool for **artistic creation**. Our product targets the remaining 95%: admins who want good-looking menus but can't draw (and don't want to learn). It is a tool for **composition and configuration**, not graphic creation.
+
+Against existing solutions on the market:
+
+- **vs zMenu / DeluxeMenus**: a modern alternative where configuration is done visually instead of in YAML. The goal is mass adoption as the de facto standard for server menus.
+- **vs Nexo / ItemAdder**: these are not direct competitors (Nexo and ItemAdder manage the game's custom items, not GUIs specifically). Our product coexists with them and can integrate with their ecosystem in v2.
+- **vs NxMenu**: complementary positioning, not competitive. NxMenu for those who draw, our product for those who compose.
+
+### 1.3 Key differentiation
+
+The admin composes GUIs without pixel art, all in a modern web editor with live editing (the WS pushes changes in game instantly). The freemium model enables mass adoption; the paid tier captures value on advanced use cases (custom assets). Polished demo, real community, real public roadmap.
+
+---
+
+## 2. General architecture
+
+### 2.1 Architectural pattern
+
+The architecture follows a **hosted-edit / local-runtime** pattern:
+
+- **Editor side**: web application hosted by us (e.g. `editor.artisanmc.net`). This is where admins configure their menus, manage their assets, and organize their teams.
+- **Plugin side**: Spigot/Paper module installed on the admin's Minecraft server. It serves the menus to players, manages native inventories, and runs click actions. It works offline-first: no internet dependency in game. If the editor goes down, customers' servers keep serving their menus normally.
+
+### 2.2 Data flow
 
 ```
 [Admin]
    │
-   │ 1. Édite via web (drag & drop)
+   │ 1. Edits via web (drag & drop)
    ▼
-[Éditeur web hosted] ◄────── 2. WS persistant ──────► [Plugin Minecraft]
+[Hosted web editor] ◄────── 2. Persistent WS ──────► [Minecraft plugin]
    │                                                       │
-   │ 3. Génère bundle (config + resource pack)             │
-   │                                                       │ 4. Sert les menus
+   │ 3. Generates bundle (config + resource pack)          │
+   │                                                       │ 4. Serves menus
    ▼                                                       ▼
-[CDN] ────── 5. Joueurs téléchargent le pack ───────► [Joueur en jeu]
+[CDN] ────── 5. Players download the pack ───────► [Player in game]
 ```
 
-### 2.3 Trois canaux de communication
+### 2.3 Three communication channels
 
-- **WebSocket éditeur ↔ plugin** : connexion sortante du plugin vers l'éditeur (pas de port à ouvrir, fonctionne derrière NAT/firewall). Sert le draft (édition live), la commande "publish", le sync au boot du plugin.
-- **HTTPS éditeur → CDN** : upload des bundles signés générés (resource pack + config).
-- **HTTPS joueur → CDN** : téléchargement du resource pack quand le joueur rejoint le serveur.
+- **Editor ↔ plugin WebSocket**: outbound connection from the plugin to the editor (no port to open, works behind NAT/firewall). Carries the draft (live editing), the "publish" command, and the sync at plugin boot.
+- **HTTPS editor → CDN**: upload of the generated signed bundles (resource pack + config).
+- **HTTPS player → CDN**: resource pack download when the player joins the server.
 
-### 2.4 Modes d'opération côté plugin
+### 2.4 Operating modes on the plugin side
 
-Le plugin maintient deux "flavors" d'un même menu pour permettre l'édition non-disruptive :
+The plugin maintains two "flavors" of the same menu to allow non-disruptive editing:
 
-- **Live (production)** : version actuelle persistée sur disque, servie à tous les joueurs. Indépendante de la WS — si le tunnel tombe, la live continue de fonctionner.
-- **Draft (édition live)** : ce que l'admin est en train de bidouiller dans l'éditeur. Visible uniquement par lui via `/menu preview <id>`. Re-render quasi-instantané à chaque modification via la WS.
+- **Live (production)**: current version persisted on disk, served to all players. Independent of the WS — if the tunnel goes down, the live version keeps working.
+- **Draft (live editing)**: what the admin is currently tinkering with in the editor. Visible only to them via `/menu preview <id>`. Near-instant re-render on every change through the WS.
 
-Un troisième flavor **Staging** (preview gelée accessible à des testeurs invités via `menu.preview.<id>`) est prévu en V1.5 quand les workflows en équipe deviennent un use case réel.
+A third **Staging** flavor (frozen preview available to invited testers via `menu.preview.<id>`) is planned for V1.5, when team workflows become a real use case.
 
 ---
 
-## 3. Modèle business
+## 3. Business model
 
-### 3.1 Philosophie : free utile et complet, Pro pour le hosting de textures
+### 3.1 Philosophy: a useful, complete free tier; Pro for texture hosting
 
-**Le free tier est utile, complet, et perpétuel** — mais nécessite un compte (Discord OAuth en 1 click, ou email/password). L'admin gratuit a accès à **tout l'éditeur visuel et toutes les capacités de design** : live edit + auto-sync, MiniMessage avec preview, i18n, layers, apparences conditionnelles, templates, commandes, data sources et leurs connecteurs, intégration native avec **Nexo, ItemsAdder, Oraxen** pour les items custom existants, asset library. Le plugin Minecraft (.jar) est gratuit sur SpigotMC et Modrinth. C'est **déjà supérieur à zMenu et DeluxeMenus** sur tous les axes (UX visuel + features).
+**The free tier is useful, complete, and perpetual** — but requires an account (Discord OAuth in 1 click, or email/password). The free admin has access to **the whole visual editor and all design capabilities**: live edit + auto-sync, MiniMessage with preview, i18n, layers, conditional appearances, templates, commands, data sources and their connectors, native integration with **Nexo, ItemsAdder, Oraxen** for existing custom items, asset library. The Minecraft plugin (.jar) is free on SpigotMC and Modrinth. This is **already superior to zMenu and DeluxeMenus** on every axis (visual UX + features).
 
-**Un seul tier payant : Pro.** Décision binaire. Pro débloque le **service de hosting et de gestion automatique du resource pack custom** : tu uploades tes PNG dans l'éditeur, on les compile en pack signé, on l'héberge sur notre CDN, le plugin télécharge et applique. Sans Pro, l'admin reste libre d'utiliser des vanilla materials, ses items Nexo/ItemsAdder déjà payés, ou son propre resource pack self-hosté (via la fonctionnalité native Spigot `resource-pack`).
+**A single paid tier: Pro.** A binary decision. Pro unlocks the **hosting and automatic management service for the custom resource pack**: you upload your PNGs in the editor, we compile them into a signed pack, host it on our CDN, and the plugin downloads and applies it. Without Pro, the admin is still free to use vanilla materials, their already-paid Nexo/ItemsAdder items, or their own self-hosted resource pack (via the native Spigot `resource-pack` feature).
 
-**Tu ne factures pas la créativité — tu factures le service de hosting/management** que tu apportes en plus. C'est l'angle le plus honnête possible.
+**You don't charge for creativity — you charge for the hosting/management service** that you provide on top. This is the most honest angle possible.
 
-**Aucune friction artificielle.** Le free user a un produit complet et fonctionnel. Le paywall arrive **quand il veut le service custom textures + CDN** que tu offres en plus :
+**No artificial friction.** The free user has a complete, working product. The paywall appears **when they want the custom textures + CDN service** that you offer on top:
 
-- **Custom textures auto-managées (upload PNG → CDN signé)** : free = ✗, Pro = ✓.
-- **MCModels import (.zip parsing)** : free = ✗, Pro = ✓.
-- **Multi-server** : free = 1 serveur, Pro = 5 serveurs (ou plus moyennant +1 €/mois par serveur supplémentaire).
-- **Storage cloud** : free = 500 MB, Pro = 50 GB.
-- **Cloud version history** : free = 30 jours rolling, Pro = illimité avec rollback à n'importe quelle date.
-- **Assistant IA (V1.5)** : free = ✗, Pro = 50 reqs/mois (ou add-on standalone).
+- **Auto-managed custom textures (PNG upload → signed CDN)**: free = ✗, Pro = ✓.
+- **MCModels import (.zip parsing)**: free = ✗, Pro = ✓.
+- **Multi-server**: free = 1 server, Pro = 5 servers (or more for +€1/month per extra server).
+- **Cloud storage**: free = 500 MB, Pro = 50 GB.
+- **Cloud version history**: free = 30 days rolling, Pro = unlimited with rollback to any date.
+- **AI assistant (V1.5)**: free = ✗, Pro = 50 reqs/month (or standalone add-on).
 
-Cette structure préserve les solo creators comme ambassadeurs (ils stylisent visuellement avec Nexo/ItemsAdder + Artisan free, partagent sur YouTube, recrutent des nouveaux users), et capture le payant sur les signaux de "vrai usage productif" : vouloir le service all-in-one Artisan (custom pack + multi-server + MCModels).
+This structure keeps solo creators as ambassadors (they style visually with Nexo/ItemsAdder + free Artisan, share on YouTube, and recruit new users), and captures revenue on the "real productive use" signals: wanting the all-in-one Artisan service (custom pack + multi-server + MCModels).
 
-### 3.2 Tier Pro
+### 3.2 Pro tier
 
 | | **Free** | **Pro** |
 |---|---|---|
-| Compte requis (Discord ou email) | ✓ | ✓ |
+| Account required (Discord or email) | ✓ | ✓ |
 | Visual editor + live preview | ✓ | ✓ |
-| Live edit + auto-sync (mode cloud) | ✓ | ✓ |
-| Toutes features éditeur (apparences, layers, commandes, i18n, MiniMessage, data sources, templates) | ✓ | ✓ |
+| Live edit + auto-sync (cloud mode) | ✓ | ✓ |
+| All editor features (appearances, layers, commands, i18n, MiniMessage, data sources, templates) | ✓ | ✓ |
 | **Vanilla materials** (DIAMOND, EMERALD, etc.) | ✓ | ✓ |
-| **Intégration Nexo / ItemsAdder / Oraxen** (via material namespace `nexo:item_name`, `itemsadder:item`, etc.) | ✓ | ✓ |
+| **Nexo / ItemsAdder / Oraxen integration** (via material namespace `nexo:item_name`, `itemsadder:item`, etc.) | ✓ | ✓ |
 | Player heads via base64 / HEAD_DATABASE | ✓ | ✓ |
-| Plugin Minecraft (`.jar` gratuit Spigot/Modrinth) | ✓ | ✓ |
-| Mode local (offline, opt-in) | ✓ | ✓ |
+| Minecraft plugin (free `.jar` on Spigot/Modrinth) | ✓ | ✓ |
+| Local mode (offline, opt-in) | ✓ | ✓ |
 | **Custom textures upload + auto CDN pack management** | **✗** | **✓** |
-| **Resource pack auto-hébergé + signature serveur-bound** | **✗** | **✓** |
+| **Self-hosted resource pack + server-bound signature** | **✗** | **✓** |
 | **MCModels import (.zip parsing)** | **✗** | **✓** |
-| **Serveurs liés au compte** | **1** | **5** |
-| Storage cloud (workspace) | 500 MB | 50 GB |
-| Cloud version history, rollback | 30 jours rolling | illimité |
-| Assistant IA (V1.5) | ✗ | 50 reqs/mois |
-| Support priority | community Discord | Discord prioritaire (réponse <24 h) |
-| **Annuel** *(default au checkout)* | — | **30 €/an** |
-| **Lifetime** *(IA non incluse, cf. add-on)* | — | **80 €** |
+| **Servers linked to the account** | **1** | **5** |
+| Cloud storage (workspace) | 500 MB | 50 GB |
+| Cloud version history, rollback | 30 days rolling | unlimited |
+| AI assistant (V1.5) | ✗ | 50 reqs/month |
+| Priority support | community Discord | priority Discord (reply <24 h) |
+| **Annual** *(default at checkout)* | — | **€30/year** |
+| **Lifetime** *(AI not included, see add-on)* | — | **€80** |
 
-Tarifs indicatifs, à recalibrer post-launch selon les conversions observées.
+Indicative prices, to be recalibrated post-launch based on observed conversions.
 
-Au-delà de 5 serveurs, **+1 €/mois par serveur supplémentaire** sur Pro, ou tarif Enterprise négocié pour 10+ serveurs.
+Beyond 5 servers, **+€1/month per extra server** on Pro, or a negotiated Enterprise rate for 10+ servers.
 
-#### Push annuel et lifetime au checkout
+#### Annual and lifetime push at checkout
 
-Au checkout, **deux options uniquement** : annuel à 30 €/an (par défaut) ou lifetime à 80 € (mis en avant comme *"Support the launch — never pay again"*). Pas de mensuel — il fragmente trop le pricing pour le marché MC qui préfère les paiements annuels ou one-time. **30-day money-back guarantee** sur les deux options.
+At checkout, **only two options**: annual at €30/year (default) or lifetime at €80 (highlighted as *"Support the launch — never pay again"*). No monthly plan — it fragments the pricing too much for the MC market, which prefers annual or one-time payments. **30-day money-back guarantee** on both options.
 
-#### Add-on Assistant IA
+#### AI Assistant add-on
 
-Pour les lifetime users qui veulent l'IA, ou les Pro qui dépassent leur quota mensuel, ou les free users qui veulent juste l'IA sans tout Pro :
+For lifetime users who want AI, Pro users who exceed their monthly quota, or free users who just want AI without all of Pro:
 
-- **Pay-as-you-go** : 2 € = 50 credits IA, valides à vie.
-- **Subscription IA standalone** : 3 €/mois = 150 reqs/mois.
+- **Pay-as-you-go**: €2 = 50 AI credits, valid for life.
+- **Standalone AI subscription**: €3/month = 150 reqs/month.
 
-L'IA en lifetime n'est pas incluse parce qu'une request coûte ~0,015 à 0,05 € en API Claude — sur 5+ ans à 50 reqs/mois, le coût marginal dépasse la valeur du lifetime.
+AI is not included in lifetime because a request costs ~€0.015 to €0.05 in Claude API fees — over 5+ years at 50 reqs/month, the marginal cost exceeds the value of the lifetime plan.
 
 #### Founder rate (launch pricing)
 
-Sur les **3 premiers mois post-launch** (extendable de 1 mois si bugs critiques retardent l'adoption) : **-30 % sur Pro, locked-in à vie tant que l'abonnement reste actif**.
+During the **first 3 months post-launch** (extendable by 1 month if critical bugs delay adoption): **-30% on Pro, locked in for life as long as the subscription stays active**.
 
-| Pro founder | Annuel | Lifetime |
+| Pro founder | Annual | Lifetime |
 |---|---|---|
-| | 21 €/an | 56 € |
+| | €21/year | €56 |
 
-Si l'admin annule et resubscribe plus tard, retour au prix plein. Effet : urgence à l'inscription les 3 premiers mois, retention massive ensuite, communauté d'early adopters fidélisés.
+If the admin cancels and resubscribes later, they return to full price. Effect: urgency to sign up in the first 3 months, massive retention afterwards, a community of loyal early adopters.
 
-### 3.3 Pourquoi cette segmentation est honnête et défendable
+### 3.3 Why this segmentation is honest and defensible
 
-L'admin free **n'est jamais bloqué créativement**. Trois voies pour avoir des menus visuellement custom sans payer Pro :
+The free admin is **never creatively blocked**. Three ways to get visually custom menus without paying for Pro:
 
-1. **Vanilla materials** : MC 1.21.4+ propose des centaines de materials, blocks, items vanilla. Largement de quoi faire des menus propres et lisibles.
-2. **Nexo / ItemsAdder / Oraxen** : ces plugins (souvent ~15-20 € one-time) fournissent des items custom illimités. Tu les intègres dans Artisan via `material: "nexo:custom_sword"` — l'éditeur visualise, le plugin résout au runtime. **Cette intégration est gratuite** parce que ce sont leurs items, pas les tiens.
-3. **Resource pack self-hosté** : l'admin compile son propre pack avec OptiFine/MCPatcher/MCModels, l'héberge sur son webserver, et le pousse aux joueurs via la fonctionnalité Spigot `resource-pack` dans `server.properties`. Pas besoin d'Artisan pour ça.
+1. **Vanilla materials**: MC 1.21.4+ offers hundreds of vanilla materials, blocks, and items. More than enough to build clean, readable menus.
+2. **Nexo / ItemsAdder / Oraxen**: these plugins (often ~€15-20 one-time) provide unlimited custom items. You integrate them into Artisan via `material: "nexo:custom_sword"` — the editor visualizes, the plugin resolves at runtime. **This integration is free** because these are their items, not yours.
+3. **Self-hosted resource pack**: the admin compiles their own pack with OptiFine/MCPatcher/MCModels, hosts it on their web server, and pushes it to players via the Spigot `resource-pack` feature in `server.properties`. No need for Artisan for that.
 
-Pro existe pour les admins qui **veulent éviter ces 3 manipulations** et veulent qu'Artisan gère tout en autopilot : upload PNG dans l'éditeur, on compile, signe, héberge, distribue. C'est un **service de productivité**, pas une rétention de feature artificielle.
+Pro exists for admins who **want to avoid these 3 manual steps** and want Artisan to handle everything on autopilot: upload a PNG in the editor, we compile, sign, host, and distribute. It is a **productivity service**, not an artificial feature lock.
 
-### 3.4 Programmes spéciaux
+### 3.4 Special programs
 
-**Creator program** : compte Pro gratuit pour les créateurs vérifiés (>2k subs YouTube ou >5k followers Twitter sur Minecraft content). Les créateurs font des tutos, des reviews, des templates partagés sur Discord.
+**Creator program**: free Pro account for verified creators (>2k YouTube subs or >5k Twitter followers on Minecraft content). Creators make tutorials, reviews, and templates shared on Discord.
 
-**Migration discount** : promo *"Je viens de [zMenu / DeluxeMenus / autre]"* → -50 % les 6 premiers mois. Coupon visible sur la landing page.
+**Migration discount**: promo *"I'm coming from [zMenu / DeluxeMenus / other]"* → -50% for the first 6 months. Coupon visible on the landing page.
 
-**Open source contributors** : compte Pro gratuit pour les contributeurs significatifs sur les libs Artisan publiées en open source (parser MiniMessage, schémas JSON, plugin Minecraft sous MIT).
+**Open source contributors**: free Pro account for significant contributors to the Artisan libs published as open source (MiniMessage parser, JSON schemas, Minecraft plugin under MIT).
 
-**Demo publique sans signup** : `artisanmc.net/playground` — éditeur live qui charge un menu d'exemple, sans login. Drive massif vers le free signup.
+**Public demo without signup**: `artisanmc.net/playground` — a live editor that loads an example menu, without login. Massive driver toward free signup.
 
-### 3.5 Personas servis
+### 3.5 Personas served
 
-- **Free, hobby admin vanilla** (1 serveur, vanilla materials) : reste gratuit, ambassadeur YouTube/Discord. Coût pour nous = ~0.
-- **Free, RPG/medieval avec Nexo/ItemsAdder** (1 serveur, items custom via plugin tiers) : workflow seamless via material namespace. Coût pour nous = ~0 (le pack vient de leur plugin tiers).
-- **Pro, custom textures sans plugin tiers** (1-5 serveurs, veut l'all-in-one Artisan) : **cible cœur**. 30 €/an c'est l'équivalent d'un café tous les 2 mois, et ils ont la gestion auto en plus.
-- **Pro, MCModels import** : ils ont acheté un pack 30 €, +30 €/an (ou 80 € lifetime) pour l'utiliser visuellement avec l'éditeur = trivial.
-- **Pro, multi-server** : networks publics MC avec multiple modes.
-- **Lifetime buyers** : anti-sub. Amortissement vs annuel à ~2,5 ans.
+- **Free, vanilla hobby admin** (1 server, vanilla materials): stays free, YouTube/Discord ambassador. Cost to us = ~0.
+- **Free, RPG/medieval with Nexo/ItemsAdder** (1 server, custom items via third-party plugin): seamless workflow via material namespace. Cost to us = ~0 (the pack comes from their third-party plugin).
+- **Pro, custom textures without a third-party plugin** (1-5 servers, wants the Artisan all-in-one): **core target**. €30/year is the equivalent of a coffee every 2 months, and they get automatic management on top.
+- **Pro, MCModels import**: they bought a €30 pack, +€30/year (or €80 lifetime) to use it visually with the editor = trivial.
+- **Pro, multi-server**: public MC networks with multiple game modes.
+- **Lifetime buyers**: anti-subscription. Break-even vs annual at ~2.5 years.
 
-### 3.6 Conversion triggers concrets
+### 3.6 Concrete conversion triggers
 
-- Free user upload son premier PNG dans l'éditeur → *"Custom textures + auto CDN nécessite Pro (30 €/an ou 80 € lifetime, founder rate -30 % les 3 premiers mois)."*
-- Free user achète un MCModels pack et tente l'import → *"L'import MCModels nécessite Pro."*
-- Free user installe sur un 2ᵉ serveur → *"Pro débloque jusqu'à 5 serveurs."*
-- Free user dépasse 500 MB storage → *"Pro débloque 50 GB."*
-- Free user veut rollback à un menu d'il y a 2 mois → *"Version history > 30 jours nécessite Pro."*
-- Free user veut l'IA assistant (V1.5) → upgrade Pro ou add-on IA standalone.
-- Tier annuel par défaut au checkout : *"Pro annuel : 45 € (économise 15 €/an vs mensuel)"*.
-- Page pricing : option Lifetime mise en avant ("Support the launch — 80 €, never pay again").
+- Free user uploads their first PNG in the editor → *"Custom textures + auto CDN requires Pro (€30/year or €80 lifetime, founder rate -30% for the first 3 months)."*
+- Free user buys an MCModels pack and tries to import it → *"MCModels import requires Pro."*
+- Free user installs on a 2nd server → *"Pro unlocks up to 5 servers."*
+- Free user exceeds 500 MB storage → *"Pro unlocks 50 GB."*
+- Free user wants to roll back to a menu from 2 months ago → *"Version history > 30 days requires Pro."*
+- Free user wants the AI assistant (V1.5) → upgrade to Pro or standalone AI add-on.
+- Annual tier by default at checkout: *"Pro annual: €45 (save €15/year vs monthly)"*.
+- Pricing page: Lifetime option highlighted ("Support the launch — €80, never pay again").
 
-### 3.7 Anti-cracking et partage de comptes
+### 3.7 Anti-cracking and account sharing
 
-Approche minimaliste, alignée avec la philosophie "on facture le service, pas l'usage" :
+Minimalist approach, aligned with the "we charge for the service, not the usage" philosophy:
 
-- **Validation au sync (mode cloud uniquement)** : le plugin pull un bundle, l'éditeur valide la clé serveur, refuse si déjà utilisée par un autre serveur (fingerprint IP+port+motd).
-- **Signature liée au serveur** : chaque bundle Pro contient une signature qui n'est valide que pour la clé serveur cible.
-- **Mode local ne nécessite aucune validation** : c'est gratuit, pas besoin d'anti-crack.
-- **Free → Pro → Free downgrade** : si l'admin annule Pro, son auto-pack est désactivé, ses serveurs supplémentaires (slots 2-5) perdent l'accès à l'éditeur. Mais **les menus existants continuent à fonctionner** (le plugin a déjà téléchargé le bundle, il continue à servir aux joueurs). L'admin peut éditer en free (vanilla + Nexo) ou re-souscrire pour reprendre les custom textures.
+- **Validation at sync (cloud mode only)**: the plugin pulls a bundle, the editor validates the server key and refuses if it is already used by another server (IP+port+motd fingerprint).
+- **Server-bound signature**: each Pro bundle contains a signature that is valid only for the target server key.
+- **Local mode requires no validation**: it is free, no need for anti-crack.
+- **Free → Pro → Free downgrade**: if the admin cancels Pro, their auto-pack is disabled and their extra servers (slots 2-5) lose editor access. But **existing menus keep working** (the plugin has already downloaded the bundle and keeps serving it to players). The admin can edit on free (vanilla + Nexo) or resubscribe to get custom textures back.
 
-**Sur le partage de comptes / multi-comptes pour bypasser le quota** : on **laisse couler en V1**. La friction naturelle (workspaces fragmentés, pas de partage de menus/assets/textures cross-compte, pas de cross-device sur le même workspace, pas de MCModels) rend le bypass plus chiant que de payer. **On observe les données post-launch et on durcit si nécessaire**.
-
----
-
-## 4. Système d'édition (mode unifié à divulgation progressive + JSON)
-
-### 4.1 Principe : un seul mode, complexité progressive
-
-Pas de toggle "Visual / Advanced". Un éditeur unifié qui présente les actions simples au premier plan et expose les capacités avancées via des boutons "+ Ajouter X" et des sections expandables. Inspiration : Notion (slash commands), Linear (filtres et options inline), Figma (panels nested). Interface clean par défaut, tout accessible en un clic.
-
-Bénéfices :
-
-- **Discoverability** : les boutons "+" servent eux-mêmes de docs implicite ("ah, je peux ajouter un cooldown ici").
-- **Pas de friction** : pas de "switcher pour faire X". Workflow fluide pour novices et power users.
-- **Architecture simple** : pas de state de mode à gérer, un seul DOM tree avec sections collapsables.
-
-### 4.2 Hiérarchie de divulgation
-
-Pour chaque slot, le panel de propriétés expose :
-
-- **Toujours visible** : apparence (asset / material, title, lore, count) et click action principale (left click + sa séquence d'actions atomiques).
-- **Visible mais discret (boutons "+ Ajouter X")** : ajouter une condition / un cooldown / un fallback / un autre type de clic / un état conditionnel / des tags. Chaque "+" expose inline le formulaire approprié.
-- **Auto-affiché si pertinent** : section composant tiers (si le slot référence un `component_ref`), section template (si instance), badges d'erreur (asset manquant, composant indisponible, etc.).
-- **Universellement accessible** : variables et placeholders disponibles via autocomplete dans n'importe quel champ texte (titre, lore, message d'action) — pas besoin d'activer un mode.
-
-Les sections expandées sont mémorisées par compte/menu : l'admin qui travaille toujours avec apparences conditionnelles ouverts les retrouve à l'ouverture de l'éditeur.
-
-### 4.3 Extensibilité — JSON Export/Import + IA
-
-Pas d'éditeur de code embarqué dans l'UI. Les power users qui veulent manipuler le format directement passent par trois capacités complémentaires :
-
-- **Export JSON** : télécharge le menu courant en `.json`. Utile pour partage, versionning Git, manipulation externe.
-- **Import JSON** : upload d'un `.json` validé strictement contre le schéma versionné. Remplace le draft courant.
-- **View raw JSON** : modal read-only avec copy-to-clipboard et deep links vers IA externes (V1.5+).
-
-**Philosophie AI-native** : en 2026, l'interface "code" naturelle pour un power user n'est plus un éditeur YAML, c'est une IA. L'admin qui veut une modif complexe décrit son intention à Claude/GPT, copie-colle le JSON résultat. Le schéma JSON est traité comme un asset produit central :
-
-- Versionné (`menu/v1`, `menu/v2`...) avec migrations applicables au load.
-- Documenté en TypeScript types + JSON Schema, publié sur `docs.artisanmc.net/schema`.
-- Exemples annotés pour les patterns courants (shop simple, paginé avec composant tiers, apparences conditionnelles, etc.).
-- Stable et explicite (noms de champs verbeux : `requirements` plutôt que `req`).
-
-Cette approche simplifie massivement l'architecture (pas de sync bidirectionnel à maintenir) et ouvre une roadmap d'intégration IA progressive : assistant IA intégré en V1.5, serveur MCP en V2 pour Claude Desktop / Cursor / etc.
-
-### 4.4 Canvas multi-menu (V1)
-
-En complément de l'éditeur de menu détaillé (zoom in sur un menu), l'éditeur expose un mode **canvas multi-menu** style Figma : un espace infini où chaque menu apparaît comme une carte preview, et les actions `open_menu` se traduisent en flèches automatiques entre les cartes. Permet de visualiser et manipuler la structure de navigation complète d'un serveur en un coup d'œil.
-
-Use cases :
-
-- **Vision d'ensemble** : voir tous les menus d'un serveur, leurs liens, les orphelins (menus non-référencés).
-- **Manipulation directe des liens** : tirer une flèche depuis un bouton vers un menu cible au lieu de taper son `menu_id`.
-- **Spatial memory** : organiser les menus visuellement (shops à gauche, navigation au centre, admin tools en bas).
-- **Synergie IA (V1.5+ pour l'assistant intégré)** : *"ajoute un menu profile et link-le depuis main_menu"* → l'IA crée la donnée, l'éditeur auto-layout la nouvelle carte. L'IA ne fait jamais de placement spatial elle-même — c'est le rôle du layout engine. Le canvas est dispo en V1, l'assistant IA s'y branche en V1.5.
-- **Foundation pour le MCP server (V2)** : la vue canvas et le serveur MCP exposent la même donnée graphe sous deux formes (visuelle vs structurée), aucune duplication.
-
-**Implémentation prévue** : React Flow pour le canvas (standard 2026 pour les éditeurs node-based). Chaque menu = node custom rendu comme aperçu d'inventaire. Chaque `open_menu` action détectée dans n'importe quel Element = edge auto-généré (jamais stocké, toujours dérivé).
-
-**Storage** : la position (x, y) de chaque menu sur le canvas est stockée côté workspace backend (`workspace_layout` table), pas dans le menu JSON. C'est de l'état UX, pas du runtime. Les menus restent portables sans cette info — au pire, l'auto-layout repositionne tout à l'import.
-
-### 4.5 Copy/paste — règles d'identité
-
-Pour les opérations copier-coller dans l'éditeur :
-
-**Element copié dans le même menu** : nouvel `id` auto-généré (suffixe `_2`, `_3`, etc.). Les `cooldown.id` à l'intérieur sont aussi renommés pour ne pas partager les cooldowns avec l'original.
-
-**Element copié dans un autre menu** : on garde l'`id` original sauf si collision avec un Element existant dans la cible. Si collision → auto-rename comme ci-dessus. Les références `pagination_*.element_id` à l'intérieur du contenu copié pointant vers d'autres Elements du *même menu source* deviennent dangling après le paste — l'éditeur warn et propose un fix.
-
-**Element copié sur le canvas vide** : rejeté. Un Element a besoin d'un menu cible. L'orphelin n'existe que dans le clipboard de l'éditeur (state mémoire transitoire), jamais dans la donnée persistée.
-
-**Menu entier copié dans le workspace** : nouveau `menu.id` auto-généré (`shop_main` → `shop_main_2`). Tous les ids d'Elements à l'intérieur sont conservés (scope menu). Les `open_menu` actions *à l'intérieur* du menu copié restent inchangées (l'admin voulait sûrement la même structure de navigation interne). Les `open_menu` actions *des autres menus* qui pointaient vers le menu source ne sont pas auto-redirigées vers la copie.
-
-**Commande copiée dans le workspace** : nouveau `id` auto-généré, et le `name` est suffixé `_2`/`_3` pour éviter le conflit (l'admin renomme avant publish).
-
-### 4.6 Éditeur de commandes
-
-Les commandes (cf. section 15) ont leur propre éditeur dans le dashboard, accessible via l'onglet "Commandes" du pack courant. Pas de canvas slot, pas d'inventaire — juste un formulaire structuré : métadonnées (name, aliases, permission, description), liste d'arguments avec drag-handle pour réordonner, requirements + actions + fallback éditables avec les mêmes widgets que les click handlers de menu (réutilisation du composant React `<ActionsEditor>`).
-
-Le canvas multi-menu (section 4.4) affiche les commandes comme des nœuds distincts (forme et couleur dédiées), avec une flèche vers le menu qu'elles ouvrent (s'il y en a un).
+**On account sharing / multi-accounts to bypass the quota**: we **let it slide in V1**. The natural friction (fragmented workspaces, no menu/asset/texture sharing across accounts, no cross-device on the same workspace, no MCModels) makes bypassing more annoying than paying. **We watch the post-launch data and tighten if necessary**.
 
 ---
 
-## 5. Catalogue d'actions
+## 4. Editing system (unified mode with progressive disclosure + JSON)
 
-### 5.1 Actions atomiques (MVP)
+### 4.1 Principle: a single mode, progressive complexity
 
-15 actions au launch, couvrant ~95% des use cases shop / menu / admin :
+No "Visual / Advanced" toggle. A unified editor that puts simple actions up front and exposes advanced capabilities through "+ Add X" buttons and expandable sections. Inspiration: Notion (slash commands), Linear (inline filters and options), Figma (nested panels). Clean interface by default, everything accessible in one click.
 
-| Action | Paramètres |
+Benefits:
+
+- **Discoverability**: the "+" buttons themselves serve as implicit docs ("oh, I can add a cooldown here").
+- **No friction**: no "switch to do X". Smooth workflow for novices and power users.
+- **Simple architecture**: no mode state to manage, a single DOM tree with collapsible sections.
+
+### 4.2 Disclosure hierarchy
+
+For each slot, the properties panel exposes:
+
+- **Always visible**: appearance (asset / material, title, lore, count) and the main click action (left click + its sequence of atomic actions).
+- **Visible but discreet ("+ Add X" buttons)**: add a condition / a cooldown / a fallback / another click type / a conditional state / tags. Each "+" exposes the appropriate form inline.
+- **Auto-displayed when relevant**: third-party component section (if the slot references a `component_ref`), template section (if it is an instance), error badges (missing asset, unavailable component, etc.).
+- **Universally accessible**: variables and placeholders available via autocomplete in any text field (title, lore, action message) — no need to enable a mode.
+
+Expanded sections are remembered per account/menu: an admin who always works with conditional appearances open finds them open when opening the editor.
+
+### 4.3 Extensibility — JSON Export/Import + AI
+
+No embedded code editor in the UI. Power users who want to manipulate the format directly use three complementary capabilities:
+
+- **JSON export**: downloads the current menu as `.json`. Useful for sharing, Git versioning, external manipulation.
+- **JSON import**: upload of a `.json` strictly validated against the versioned schema. Replaces the current draft.
+- **View raw JSON**: read-only modal with copy-to-clipboard and deep links to external AIs (V1.5+).
+
+**AI-native philosophy**: in 2026, the natural "code" interface for a power user is no longer a YAML editor, it is an AI. An admin who wants a complex change describes their intent to Claude/GPT and copy-pastes the resulting JSON. The JSON schema is treated as a central product asset:
+
+- Versioned (`menu/v1`, `menu/v2`...) with migrations applied at load.
+- Documented as TypeScript types + JSON Schema, published at `docs.artisanmc.net/schema`.
+- Annotated examples for common patterns (simple shop, paginated with third-party component, conditional appearances, etc.).
+- Stable and explicit (verbose field names: `requirements` rather than `req`).
+
+This approach massively simplifies the architecture (no bidirectional sync to maintain) and opens a progressive AI integration roadmap: built-in AI assistant in V1.5, MCP server in V2 for Claude Desktop / Cursor / etc.
+
+### 4.4 Multi-menu canvas (V1)
+
+In addition to the detailed menu editor (zoomed in on one menu), the editor exposes a Figma-style **multi-menu canvas** mode: an infinite space where each menu appears as a preview card, and `open_menu` actions turn into automatic arrows between cards. It lets you see and manipulate a server's whole navigation structure at a glance.
+
+Use cases:
+
+- **Overview**: see all of a server's menus, their links, and orphans (unreferenced menus).
+- **Direct link manipulation**: drag an arrow from a button to a target menu instead of typing its `menu_id`.
+- **Spatial memory**: organize menus visually (shops on the left, navigation in the center, admin tools at the bottom).
+- **AI synergy (V1.5+ for the built-in assistant)**: *"add a profile menu and link it from main_menu"* → the AI creates the data, the editor auto-lays out the new card. The AI never does spatial placement itself — that is the layout engine's job. The canvas is available in V1, the AI assistant plugs into it in V1.5.
+- **Foundation for the MCP server (V2)**: the canvas view and the MCP server expose the same graph data in two forms (visual vs structured), with no duplication.
+
+**Planned implementation**: React Flow for the canvas (the 2026 standard for node-based editors). Each menu = a custom node rendered as an inventory preview. Each `open_menu` action detected in any Element = an auto-generated edge (never stored, always derived).
+
+**Storage**: each menu's (x, y) position on the canvas is stored on the workspace backend side (`workspace_layout` table), not in the menu JSON. It is UX state, not runtime. Menus stay portable without this info — at worst, auto-layout repositions everything on import.
+
+### 4.5 Copy/paste — identity rules
+
+For copy-paste operations in the editor:
+
+**Element copied within the same menu**: new auto-generated `id` (suffix `_2`, `_3`, etc.). The `cooldown.id`s inside are also renamed so they don't share cooldowns with the original.
+
+**Element copied into another menu**: keep the original `id` unless it collides with an existing Element in the target. On collision → auto-rename as above. The `pagination_*.element_id` references inside the copied content that point to other Elements of the *same source menu* become dangling after the paste — the editor warns and offers a fix.
+
+**Element copied onto the empty canvas**: rejected. An Element needs a target menu. The orphan exists only in the editor's clipboard (transient in-memory state), never in persisted data.
+
+**Whole menu copied within the workspace**: new auto-generated `menu.id` (`shop_main` → `shop_main_2`). All Element ids inside are kept (menu scope). The `open_menu` actions *inside* the copied menu stay unchanged (the admin most likely wanted the same internal navigation structure). The `open_menu` actions *from other menus* that pointed to the source menu are not auto-redirected to the copy.
+
+**Command copied within the workspace**: new auto-generated `id`, and the `name` gets a `_2`/`_3` suffix to avoid a conflict (the admin renames before publish).
+
+### 4.6 Command editor
+
+Commands (see section 15) have their own editor in the dashboard, accessible via the "Commands" tab of the current pack. No slot canvas, no inventory — just a structured form: metadata (name, aliases, permission, description), argument list with a drag handle to reorder, requirements + actions + fallback editable with the same widgets as the menu click handlers (reuse of the `<ActionsEditor>` React component).
+
+The multi-menu canvas (section 4.4) shows commands as distinct nodes (dedicated shape and color), with an arrow to the menu they open (if any).
+
+---
+
+## 5. Action catalog
+
+### 5.1 Atomic actions (MVP)
+
+15 actions at launch, covering ~95% of shop / menu / admin use cases:
+
+| Action | Parameters |
 |---|---|
 | `run_command` | command (string), as (`player` / `console`) |
-| `open_menu` | menu_id, optional close_current (bool), optional context (Record<string,string> override de l'auto-binding), optional clear_context (bool — désactive l'auto-binding, cf. §15.4) |
+| `open_menu` | menu_id, optional close_current (bool), optional context (Record<string,string> overriding the auto-binding), optional clear_context (bool — disables the auto-binding, see §15.4) |
 | `close_menu` | — |
 | `give_item` | material, count, optional nbt, optional name, optional lore |
 | `take_item` | material, count, optional nbt match |
@@ -290,14 +290,14 @@ Le canvas multi-menu (section 4.4) affiche les commandes comme des nœuds distin
 | `take_money` | amount, optional currency (Vault) |
 | `give_xp` | amount |
 | `give_level` | amount |
-| `send_message` | text (avec placeholders) |
+| `send_message` | text (with placeholders) |
 | `broadcast` | text (server-wide) |
 | `play_sound` | sound, volume (0-1), pitch (0-2) |
-| `teleport` | location (world + x/y/z + yaw/pitch) ou warp_name |
-| `pagination_next` | optional element_id (auto-bind si une seule liste paginée dans le menu) |
-| `pagination_prev` | optional element_id (auto-bind si une seule liste paginée) |
+| `teleport` | location (world + x/y/z + yaw/pitch) or warp_name |
+| `pagination_next` | optional element_id (auto-bind if there is a single paginated list in the menu) |
+| `pagination_prev` | optional element_id (auto-bind if there is a single paginated list) |
 
-### 5.2 Conditions (couche 2)
+### 5.2 Conditions (layer 2)
 
 | Condition | Description |
 |---|---|
@@ -305,64 +305,64 @@ Le canvas multi-menu (section 4.4) affiche les commandes comme des nœuds distin
 | `has_money` | amount, optional currency |
 | `has_item` | material, count, optional nbt match |
 | `has_xp` | amount |
-| `has_level` | level minimum |
+| `has_level` | minimum level |
 | `placeholder_equals` | placeholder, value |
 | `placeholder_match` | placeholder, regex |
 | `cooldown_passed` | cooldown_id |
 | `world_is` | world name |
-| `time_is` | range (`day`, `night`, ou ticks custom) |
+| `time_is` | range (`day`, `night`, or custom ticks) |
 | `random_chance` | probability (0-1) |
-| `player_in_region` | region (si WorldGuard détecté) |
-| `pagination_at_first` | optional element_id — utile pour griser un bouton "prev" via une apparence conditionnelle |
-| `pagination_at_last` | optional element_id — utile pour griser un bouton "next" via une apparence conditionnelle |
-| `not` | wrappe une condition |
-| `and` / `or` | composition de conditions |
+| `player_in_region` | region (if WorldGuard is detected) |
+| `pagination_at_first` | optional element_id — useful to gray out a "prev" button via a conditional appearance |
+| `pagination_at_last` | optional element_id — useful to gray out a "next" button via a conditional appearance |
+| `not` | wraps a condition |
+| `and` / `or` | condition composition |
 
-### 5.3 Requirements et fallback
+### 5.3 Requirements and fallback
 
-Une chaîne d'actions au clic peut spécifier :
+A click action chain can specify:
 
-- `requirements` : liste de conditions (ANDées par défaut) à vérifier avant exécution.
-- `actions` : à exécuter si toutes les requirements passent.
-- `fallback` : à exécuter si une requirement échoue (par défaut un message "vous ne pouvez pas faire ça").
-- `cooldown` : id + durée + scope + message custom si en cooldown.
+- `requirements`: list of conditions (ANDed by default) to check before execution.
+- `actions`: to run if all requirements pass.
+- `fallback`: to run if a requirement fails (by default a "you can't do that" message).
+- `cooldown`: id + duration + scope + custom message if on cooldown.
 
 ### 5.4 Variables (v2)
 
-Reportées en v2. En attendant, on s'appuie sur PlaceholderAPI et ses extensions pour les use cases compteur / progress dynamique. La structure de la spec ne préempte pas leur ajout : un `set_variable` action et des conditions `variable_equals` / `variable_match` viendront s'ajouter naturellement.
+Deferred to v2. In the meantime, we rely on PlaceholderAPI and its extensions for counter / dynamic progress use cases. The spec structure does not preempt their addition: a `set_variable` action and `variable_equals` / `variable_match` conditions will be added naturally.
 
 ---
 
-## 6. Apparences conditionnelles + Layers
+## 6. Conditional appearances + Layers
 
-### 6.1 Modèle Apparences
+### 6.1 Appearances model
 
-Un Element a une liste d'`appearances`, chacune **complète et auto-suffisante** (pas d'héritage entre elles). Le moteur évalue les apparences dans l'ordre : la première dont `if` matche (ou dont `if` est absent = match implicite) gagne et est rendue. Si **aucune ne matche** → l'Element n'est pas rendu, fall-through au layer en dessous.
+An Element has a list of `appearances`, each **complete and self-sufficient** (no inheritance between them). The engine evaluates appearances in order: the first one whose `if` matches (or whose `if` is absent = implicit match) wins and is rendered. If **none matches** → the Element is not rendered, falling through to the layer below.
 
-Pas de notion de "default vs state" séparée : c'est une liste uniforme de variantes. Une apparence sans `if` sert de fallback (à placer en dernier dans la liste).
+No separate "default vs state" notion: it is a uniform list of variants. An appearance without `if` serves as the fallback (to be placed last in the list).
 
 ### 6.2 Layers
 
-Le menu est organisé en **layers** ordonnés bottom → top. Au render, le moteur parcourt les layers du haut vers le bas pour chaque position : prend le premier Element qui rend quelque chose. Permet le pattern *"bouton conditionnel + déco en dessous"* : si le bouton n'a pas d'apparence qui matche, le layer décoration prend le relais.
+The menu is organized into **layers** ordered bottom → top. At render time, the engine walks the layers from top to bottom for each position: it takes the first Element that renders something. This enables the *"conditional button + decoration underneath"* pattern: if the button has no matching appearance, the decoration layer takes over.
 
-L'éditeur affiche un panel layer (style Photoshop / Figma) avec toggle œil et cadenas par layer (UI-only, n'affecte pas le rendu en jeu). Un menu trivial a un seul layer "default", auto-créé, et le panel layer reste replié — l'admin novice ne voit pas la complexité.
+The editor shows a layer panel (Photoshop / Figma style) with an eye toggle and a lock per layer (UI-only, does not affect in-game rendering). A trivial menu has a single "default" layer, auto-created, and the layer panel stays collapsed — the novice admin doesn't see the complexity.
 
 ### 6.3 Refresh
 
-Les apparences sont ré-évaluées :
+Appearances are re-evaluated:
 
-- À l'ouverture du menu.
-- Après chaque clic dans le menu (pour refléter immédiatement l'état post-action).
+- When the menu opens.
+- After every click in the menu (to immediately reflect the post-action state).
 
-Pas de refresh périodique au MVP (coût CPU). Refresh continu pour progress bars dynamiques sera une feature v2.
+No periodic refresh in the MVP (CPU cost). Continuous refresh for dynamic progress bars will be a v2 feature.
 
-### 6.4 Click dans une apparence
+### 6.4 Click in an appearance
 
-- Apparence avec `click` défini → cliquable selon le ClickMap.
-- Apparence avec `click: null` → explicitement non-cliquable (lisibilité).
-- Apparence sans `click` (undefined) → non-cliquable.
+- Appearance with `click` defined → clickable according to the ClickMap.
+- Appearance with `click: null` → explicitly non-clickable (readability).
+- Appearance without `click` (undefined) → non-clickable.
 
-### 6.5 Exemple
+### 6.5 Example
 
 ```json
 {
@@ -372,30 +372,30 @@ Pas de refresh périodique au MVP (coût CPU). Refresh continu pour progress bar
     {
       "if": [{ "type": "has_permission", "perm": "rank.vip" }],
       "asset": "rank_vip_owned.png",
-      "title": "§6Rank VIP",
-      "lore": ["§aDéjà possédé"],
+      "title": "§6VIP Rank",
+      "lore": ["§aAlready owned"],
       "click": null
     },
     {
       "if": [{ "type": "not", "of": { "type": "has_money", "amount": 500 } }],
       "asset": "rank_vip_disabled.png",
-      "title": "§6Rank VIP",
-      "lore": ["§cIl te manque de l'argent"],
+      "title": "§6VIP Rank",
+      "lore": ["§cYou don't have enough money"],
       "click": null
     },
     {
       "asset": "rank_vip_button.png",
-      "title": "§6Rank VIP",
-      "lore": ["§7Prix: §a500$", "", "§eClique pour acheter"],
+      "title": "§6VIP Rank",
+      "lore": ["§7Price: §a500$", "", "§eClick to buy"],
       "click": {
         "left": {
           "requirements": [{ "type": "has_money", "amount": 500 }],
           "actions": [
             { "type": "take_money", "amount": 500 },
             { "type": "run_command", "command": "lp user %player_name% parent set vip", "as": "console" },
-            { "type": "send_message", "text": "§aRank VIP débloqué !" }
+            { "type": "send_message", "text": "§aVIP Rank unlocked!" }
           ],
-          "fallback": [{ "type": "send_message", "text": "§cPas assez d'argent" }]
+          "fallback": [{ "type": "send_message", "text": "§cNot enough money" }]
         }
       }
     }
@@ -403,19 +403,19 @@ Pas de refresh périodique au MVP (coût CPU). Refresh continu pour progress bar
 }
 ```
 
-Trois apparences évaluées dans l'ordre. La dernière (sans `if`) sert de fallback. JSON un peu plus verbeux qu'un partial override mais chaque apparence est complète et lisible isolément.
+Three appearances evaluated in order. The last one (without `if`) serves as the fallback. The JSON is a bit more verbose than a partial override, but each appearance is complete and readable in isolation.
 
 ---
 
-## 7. Templates user-defined (Symbols)
+## 7. User-defined templates (Symbols)
 
 ### 7.1 Concept
 
-Inspiré de "symbols" dans Figma ou "blocks" dans Wordpress. L'admin sauvegarde un slot configuré sous un nom (ex. `bouton_acheter`). Il peut le réutiliser dans n'importe quel menu, et toute modification du template propage à toutes ses instances (avec confirmation).
+Inspired by "symbols" in Figma or "blocks" in WordPress. The admin saves a configured slot under a name (e.g. `bouton_acheter`). They can reuse it in any menu, and any change to the template propagates to all its instances (with confirmation).
 
-### 7.2 Variables typées dans les templates
+### 7.2 Typed variables in templates
 
-Pour permettre la vraie réutilisation, les templates supportent des variables typées :
+To enable real reuse, templates support typed variables:
 
 ```json
 {
@@ -429,8 +429,8 @@ Pour permettre la vraie réutilisation, les templates supportent des variables t
   "appearances": [
     {
       "asset": "buy_button.png",
-      "title": "Acheter {{item_name}}",
-      "lore": ["§7Prix: §a{{prix}}$"],
+      "title": "Buy {{item_name}}",
+      "lore": ["§7Price: §a{{prix}}$"],
       "click": {
         "left": {
           "requirements": [{ "type": "has_money", "amount": "{{prix}}" }],
@@ -445,39 +445,39 @@ Pour permettre la vraie réutilisation, les templates supportent des variables t
 }
 ```
 
-### 7.3 Override local
+### 7.3 Local override
 
-Quand on instancie un template dans un menu, on fournit les valeurs des variables. On peut aussi, optionnellement, **overrider localement** des champs (ex. lore ajouté pour cette instance uniquement). L'UI distingue clairement :
+When instantiating a template in a menu, you provide the variable values. You can also, optionally, **locally override** fields (e.g. lore added for this instance only). The UI clearly distinguishes:
 
-- "Édition du template" → propage à toutes les instances (avec une confirmation).
-- "Override local" → ne change que cette instance.
+- "Template edit" → propagates to all instances (with a confirmation).
+- "Local override" → changes only this instance.
 
-### 7.4 Détachement
+### 7.4 Detaching
 
-Un admin peut "détacher" une instance d'un template (équivalent du "Detach symbol" Figma). L'instance devient un slot standalone éditable librement, plus aucune propagation depuis le template.
+An admin can "detach" an instance from a template (equivalent to Figma's "Detach symbol"). The instance becomes a standalone slot that can be edited freely, with no more propagation from the template.
 
 ---
 
-## 8. Format intermédiaire (JSON)
+## 8. Intermediate format (JSON)
 
-### 8.1 Principes
+### 8.1 Principles
 
-- **Versionné** dès le départ (`"schema": "menu/v1"`) avec migrations applicables au load.
-- **Source de vérité unique** : tout l'état d'un menu est dans son JSON. Pas de données dérivées séparées.
-- **Lisible humainement** : un power user doit pouvoir comprendre et éditer en mode Code sans documentation.
-- **Layers + Element id-indexés** : un menu contient des Layers (conteneurs ordonnés bottom→top), chacun contient des Elements. Chaque Element a un `id` stable et occupe une ou plusieurs positions Minecraft via `positions`. Au render, le moteur parcourt les layers du haut vers le bas et prend le premier Element visible à chaque position.
-- **Apparences uniformes** : chaque Element a une liste d'`appearances`, chacune complète et auto-suffisante. Première dont `if` matche gagne. Si aucune ne matche → fall-through au layer suivant.
-- Le terme « slot » dans les sections 4–7 réfère informellement à un Element ; le nom formel dans le schéma est **Element**.
+- **Versioned** from the start (`"schema": "menu/v1"`) with migrations applied at load.
+- **Single source of truth**: a menu's whole state is in its JSON. No separate derived data.
+- **Human-readable**: a power user should be able to understand and edit in Code mode without documentation.
+- **Layers + id-indexed Elements**: a menu contains Layers (ordered containers, bottom→top), each containing Elements. Each Element has a stable `id` and occupies one or more Minecraft positions via `positions`. At render time, the engine walks the layers from top to bottom and takes the first visible Element at each position.
+- **Uniform appearances**: each Element has a list of `appearances`, each complete and self-sufficient. The first one whose `if` matches wins. If none matches → fall-through to the next layer.
+- The term "slot" in sections 4–7 informally refers to an Element; the formal name in the schema is **Element**.
 
-> Le schéma complet (JSON Schema Draft 2020-12 + types TypeScript + 5 exemples annotés + README de design) vit dans [`docs/schema/menu/v1/`](../schema/menu/v1/) et est la source de vérité validable. Cette section reste un résumé pour lecture.
+> The full schema (JSON Schema Draft 2020-12 + TypeScript types + 5 annotated examples + design README) lives in [`docs/schema/menu/v1/`](../schema/menu/v1/) and is the validatable source of truth. This section remains a summary for reading.
 
-### 8.2 Schéma top-level d'un menu
+### 8.2 Top-level schema of a menu
 
 ```json
 {
   "schema": "menu/v1",
   "id": "shop_main",
-  "title": "Shop principal",
+  "title": "Main shop",
   "size": 27,
   "permission": "menu.shop.open",
   "background": { "asset": "shop_bg.png" },
@@ -487,7 +487,7 @@ Un admin peut "détacher" une instance d'un template (équivalent du "Detach sym
   "layers": [
     {
       "id": "decoration",
-      "name": "Décoration",
+      "name": "Decoration",
       "elements": [
         { "id": "deco_top_row", "positions": "0-8", "appearances": [...] }
       ]
@@ -506,23 +506,23 @@ Un admin peut "détacher" une instance d'un template (équivalent du "Detach sym
 }
 ```
 
-### 8.3 Schéma d'un Element
+### 8.3 Schema of an Element
 
 ```json
 {
-  "id": "btn_buy",                // requis, unique dans le menu (cross-layer)
-  "positions": "15",               // requis, "15" ou range "10-43"
-  "appearances": [                 // requis, au moins une, première match gagne
+  "id": "btn_buy",                // required, unique within the menu (cross-layer)
+  "positions": "15",               // required, "15" or range "10-43"
+  "appearances": [                 // required, at least one, first match wins
     {
-      "if": [...],                 // optionnel ; si absent = matche toujours (fallback, à placer en dernier)
+      "if": [...],                 // optional; if absent = always matches (fallback, to be placed last)
       "asset": "image.png",        // optional
       "material": "DIAMOND",       // optional
       "count": 1,
-      "title": "Titre",
-      "lore": ["ligne 1", "ligne 2"],
+      "title": "Title",
+      "lore": ["line 1", "line 2"],
       "enchanted": false,
       "custom_model_data": "...",  // CMD string 1.21.4+
-      "component_ref": "questx:quest_button",  // optional, composant tiers
+      "component_ref": "questx:quest_button",  // optional, third-party component
       "click": {
         "left":  { "requirements": [...], "actions": [...], "fallback": [...], "cooldown": {...} },
         "right": { ... },
@@ -532,24 +532,24 @@ Un admin peut "détacher" une instance d'un template (équivalent du "Detach sym
       }
     }
   ],
-  "template_ref": null,           // ou { "id": "...", "vars": {...}, "overrides": {...} }
-  "tags": ["shop", "premium"]     // pour search/filter dans l'éditeur
+  "template_ref": null,           // or { "id": "...", "vars": {...}, "overrides": {...} }
+  "tags": ["shop", "premium"]     // for search/filter in the editor
 }
 ```
 
-### 8.4 Sémantique de rendu
+### 8.4 Render semantics
 
-Pour chaque position 0 à `size-1`, le moteur :
+For each position 0 to `size-1`, the engine:
 
-1. Parcourt les layers de **haut en bas** (`menu.layers` lu en ordre inverse — dernier de la liste = top)
-2. Pour chaque layer, identifie l'Element qui revendique cette position (last-placed-wins en cas d'overlap intra-layer)
-3. Évalue les `appearances` dans l'ordre. Première dont `if` matche → render à cette position, slot terminé
-4. Aucune appearance ne matche → fall-through au layer suivant
-5. Aucun layer ne fournit un Element rendu → render `menu.background` si défini, sinon position vide
+1. Walks the layers from **top to bottom** (`menu.layers` read in reverse order — last in the list = top)
+2. For each layer, identifies the Element that claims this position (last-placed-wins on intra-layer overlap)
+3. Evaluates the `appearances` in order. First one whose `if` matches → render at this position, slot done
+4. No appearance matches → fall-through to the next layer
+5. No layer provides a rendered Element → render `menu.background` if defined, otherwise an empty position
 
 ### 8.5 Migrations
 
-Un fichier `migrations.json` côté plugin liste les migrations applicables. Au load d'un menu :
+A `migrations.json` file on the plugin side lists the applicable migrations. When loading a menu:
 
 ```
 read schema_version
@@ -558,29 +558,29 @@ while schema_version < latest:
   schema_version += 1
 ```
 
-Les migrations sont versionnées et testées. Un menu en v1 reste lisible par un plugin en v3 (les migrations sont appliquées à la volée).
+Migrations are versioned and tested. A v1 menu remains readable by a v3 plugin (migrations are applied on the fly).
 
 ---
 
 ## 9. Resource pack generation
 
-**Note** : la génération automatique du resource pack + son hosting sur le CDN Artisan + sa signature serveur-bound est une **feature gated sur le tier Pro** (cf. section 3). Les free users ont trois alternatives : (1) vanilla materials uniquement, (2) intégration native avec leurs items Nexo/ItemsAdder/Oraxen via material namespace, (3) self-hosting de leur propre resource pack via la fonctionnalité native Spigot `resource-pack`. Tout ce qui suit décrit le pipeline auto-pack Pro.
+**Note**: automatic resource pack generation + its hosting on the Artisan CDN + its server-bound signature is a **feature gated on the Pro tier** (see section 3). Free users have three alternatives: (1) vanilla materials only, (2) native integration with their Nexo/ItemsAdder/Oraxen items via material namespace, (3) self-hosting their own resource pack via the native Spigot `resource-pack` feature. Everything below describes the Pro auto-pack pipeline.
 
-### 9.1 Cible technique
+### 9.1 Technical target
 
-Minecraft **1.21.4+** uniquement. Cette décision permet :
+Minecraft **1.21.4+** only. This decision enables:
 
-- L'usage de `custom_model_data` en string (`"artisan:button_buy"`), évitant tout conflit de namespace avec Nexo, ItemAdder, ou tout autre pack.
-- Le pack stacking (depuis 1.20.3+) qui permet à plusieurs resource packs de coexister. Notre pack généré cohabite sans friction avec ceux des autres plugins.
+- The use of `custom_model_data` as a string (`"artisan:button_buy"`), avoiding any namespace conflict with Nexo, ItemAdder, or any other pack.
+- Pack stacking (since 1.20.3+), which lets several resource packs coexist. Our generated pack coexists without friction with those of other plugins.
 
-### 9.2 Mécanismes de rendu
+### 9.2 Rendering mechanisms
 
-Deux techniques combinées :
+Two techniques combined:
 
-- **Items custom (CMD strings)** : pour chaque slot avec un asset custom, on génère un modèle d'item lié à un CMD string unique. Le slot affiche un item vanilla (paper, stick) avec ce CMD. Le client résout le modèle via le pack.
-- **Polices custom** : pour les éléments décoratifs et backgrounds (qu'on superpose dans le titre du menu), on définit des polices custom nommées (`artisan:menu_overlay`). Chaque caractère est mappé à une image. Cela permet de superposer plusieurs éléments visuels dans une seule zone de titre.
+- **Custom items (CMD strings)**: for each slot with a custom asset, we generate an item model tied to a unique CMD string. The slot displays a vanilla item (paper, stick) with this CMD. The client resolves the model via the pack.
+- **Custom fonts**: for decorative elements and backgrounds (which we overlay in the menu title), we define named custom fonts (`artisan:menu_overlay`). Each character is mapped to an image. This allows several visual elements to be overlaid in a single title area.
 
-### 9.3 Structure du pack généré
+### 9.3 Structure of the generated pack
 
 ```
 pack/
@@ -591,392 +591,392 @@ pack/
         items/<asset_name>.png
         font/<font_glyphs>.png
       models/
-        item/<item_id>.json     # modèle référencé par CMD string
+        item/<item_id>.json     # model referenced by CMD string
       font/
-        menu_overlay.json       # police custom
+        menu_overlay.json       # custom font
         decorations.json
 ```
 
-### 9.4 Pipeline de génération
+### 9.4 Generation pipeline
 
 ```
-1. Asset library de l'admin (uploads + imports MCModels)
+1. Admin's asset library (uploads + MCModels imports)
    ↓
-2. Normalisation (resize au plus proche multiple de 16, popup d'info si non-conforme)
+2. Normalization (resize to the nearest multiple of 16, info popup if non-conforming)
    ↓
-3. Allocation des CMD strings (déterministe : artisan:menu_<menu_id>_<slot_id>)
+3. CMD string allocation (deterministic: artisan:menu_<menu_id>_<slot_id>)
    ↓
-4. Génération des modèles JSON
+4. JSON model generation
    ↓
-5. Génération des polices pour les overlays
+5. Font generation for overlays
    ↓
-6. Packaging .zip + signature serveur
+6. .zip packaging + server signature
    ↓
-7. Upload sur le CDN (URL retournée au plugin)
+7. Upload to the CDN (URL returned to the plugin)
 ```
 
 ### 9.5 Hosting
 
-- **CDN éditeur (par défaut)** : le bundle .zip est uploadé sur notre CDN, le plugin envoie l'URL aux joueurs (`server.send_resource_pack(url)`). Rapide, fiable, pas d'ouverture de port côté serveur de l'admin.
-- **Plugin self-host (fallback)** : option dans `config.yml`. Le plugin sert le pack via un mini serveur HTTP local. Pour les admins qui veulent l'autonomie complète ou qui sont sur des networks d'entreprise. Documenter les considérations de port forwarding / reverse proxy.
+- **Editor CDN (default)**: the .zip bundle is uploaded to our CDN, and the plugin sends the URL to players (`server.send_resource_pack(url)`). Fast, reliable, no port to open on the admin's server.
+- **Plugin self-host (fallback)**: option in `config.yml`. The plugin serves the pack via a small local HTTP server. For admins who want full autonomy or who are on corporate networks. Document the port forwarding / reverse proxy considerations.
 
-### 9.6 Gestion des assets
+### 9.6 Asset management
 
-- **Normalisation auto** : à l'upload, l'image est redimensionnée au plus proche multiple de 16 (16, 32, 64, 128px). Une popup informe l'admin de la transformation, avec preview before/after. Toggle "ne plus afficher" pour les power users.
-- **Validation** : on accepte uniquement PNG. JPG refusé (compression destructive incompatible avec les overlays). Limite par fichier : 256 KB normalisée, 2 MB pré-normalisation.
-- **Limites quotas** par tier (cf. section 3.2).
+- **Auto normalization**: on upload, the image is resized to the nearest multiple of 16 (16, 32, 64, 128px). A popup informs the admin of the transformation, with a before/after preview. "Don't show again" toggle for power users.
+- **Validation**: only PNG is accepted. JPG is refused (destructive compression, incompatible with overlays). Per-file limit: 256 KB normalized, 2 MB pre-normalization.
+- **Quota limits** per tier (see section 3.2).
 
 ---
 
-## 10. Format des textes affichés (MiniMessage + i18n)
+## 10. Displayed text format (MiniMessage + i18n)
 
-Tous les champs texte des menus et commandes (titres, lores, messages, descriptions de commandes, etc.) suivent une convention de contenu unifiée qui combine **MiniMessage** pour le formatage et **i18n** pour la traduction.
+All text fields in menus and commands (titles, lores, messages, command descriptions, etc.) follow a unified content convention that combines **MiniMessage** for formatting and **i18n** for translation.
 
-### 10.1 Format MiniMessage (Adventure / Paper)
+### 10.1 MiniMessage format (Adventure / Paper)
 
-Les champs texte sont stockés et rendus en **MiniMessage**, le format texte standard de Adventure et Paper depuis 2022. Format de tags XML-like, beaucoup plus puissant et lisible que les codes legacy `§a` :
+Text fields are stored and rendered in **MiniMessage**, the standard text format of Adventure and Paper since 2022. An XML-like tag format, much more powerful and readable than legacy `§a` codes:
 
 ```
-<gold><bold>Boutique</bold></gold>
-<gradient:#a8e063:#56ab2f>Bienvenue, %player_name% !</gradient>
-<click:run_command:'/heal'><yellow>Cliquer pour se soigner</yellow></click>
+<gold><bold>Shop</bold></gold>
+<gradient:#a8e063:#56ab2f>Welcome, %player_name%!</gradient>
+<click:run_command:'/heal'><yellow>Click to heal</yellow></click>
 ```
 
-Tags supportés au runtime (par Adventure) : couleurs nommées (`<red>`), couleurs hex (`<color:#ff00aa>`), modifiers (`<bold>`, `<italic>`, `<underlined>`, `<strikethrough>`, `<obfuscated>`), `<reset>`, `<rainbow>`, `<gradient>`, `<click>`, `<hover>`, `<insertion>`, `<keybind>`, `<lang>`, `<font>`, `<newline>`. Documentation : https://docs.advntr.dev/minimessage/format.html
+Tags supported at runtime (by Adventure): named colors (`<red>`), hex colors (`<color:#ff00aa>`), modifiers (`<bold>`, `<italic>`, `<underlined>`, `<strikethrough>`, `<obfuscated>`), `<reset>`, `<rainbow>`, `<gradient>`, `<click>`, `<hover>`, `<insertion>`, `<keybind>`, `<lang>`, `<font>`, `<newline>`. Documentation: https://docs.advntr.dev/minimessage/format.html
 
-**Codes legacy `§a` / `&a`** : acceptés en input (l'admin colle un message d'un autre plugin) mais **convertis en MiniMessage au save** (canonicalisation côté backend, idempotente). Opt-out possible dans les settings workspace pour garder le legacy.
+**Legacy `§a` / `&a` codes**: accepted as input (the admin pastes a message from another plugin) but **converted to MiniMessage on save** (canonicalization on the backend, idempotent). Opt-out available in the workspace settings to keep legacy.
 
-### 10.2 Éditeur MiniMessage avec preview live
+### 10.2 MiniMessage editor with live preview
 
-L'éditeur fournit un composant `<MiniMessageEditor>` réutilisé pour tous les champs texte :
+The editor provides a `<MiniMessageEditor>` component reused for all text fields:
 
-- **Toolbar inline** : B/I/U/S, color picker (palette MC + custom HEX), bouton "gradient", insertion `{i18n:key}`, insertion placeholder PAPI.
-- **Champ d'édition** : textarea avec syntax highlighting léger des tags (couleurs des `<...>` style monospace gris).
-- **Preview live** debounced ~50 ms : rendu HTML + font Minecraft-like (Open Source, ~30 KB), background dark transparent style inventory tooltip. C'est ce que verra le joueur.
-- **Autocomplete tag** au moment où tu tapes `<` : liste filtrée des tags MiniMessage avec doc tooltip.
+- **Inline toolbar**: B/I/U/S, color picker (MC palette + custom HEX), "gradient" button, `{i18n:key}` insertion, PAPI placeholder insertion.
+- **Edit field**: textarea with light syntax highlighting of tags (the `<...>` colored in gray monospace style).
+- **Live preview** debounced ~50 ms: HTML rendering + Minecraft-like font (Open Source, ~30 KB), dark transparent background in inventory tooltip style. This is what the player will see.
+- **Tag autocomplete** when you type `<`: filtered list of MiniMessage tags with a doc tooltip.
 
-Variantes single-line (title) et multi-line (lore = liste de lignes, chaque ligne est un MiniMessageEditor).
+Single-line (title) and multi-line (lore = list of lines, each line is a MiniMessageEditor) variants.
 
-**Implémentation** : composant React natif, parser MiniMessage TS-native (~500 lignes), font Minecraftia ou similaire OSS bundlée. Adventure-webui (PaperMC, MIT) sert de **référence visuelle** mais on n'iframe pas — full intégration avec notre state pour l'autocomplete des i18n keys et placeholders.
+**Implementation**: native React component, TS-native MiniMessage parser (~500 lines), bundled Minecraftia or similar OSS font. Adventure-webui (PaperMC, MIT) serves as a **visual reference** but we don't iframe it — full integration with our state for i18n key and placeholder autocomplete.
 
-### 10.3 Internationalisation (i18n)
+### 10.3 Internationalization (i18n)
 
-**Une clé i18n** = un texte traduisible scoped au workspace de l'admin. Référencée dans n'importe quel champ texte via la syntaxe inline `{i18n:menu.shop.title}` mélangeable librement avec du MiniMessage et des placeholders PAPI.
+**An i18n key** = a translatable text scoped to the admin's workspace. Referenced in any text field via the inline syntax `{i18n:menu.shop.title}`, freely mixable with MiniMessage and PAPI placeholders.
 
 ```json
 "lore": [
   "{i18n:btn_diamond.lore.line1}",
-  "<gray>Prix : <yellow>%vault_eco_balance%</yellow> pièces</gray>",
+  "<gray>Price: <yellow>%vault_eco_balance%</yellow> coins</gray>",
   "{i18n:btn_diamond.lore.warning}"
 ]
 ```
 
-Les clés vivent au niveau **workspace** (pas par pack ni par menu), stockées côté backend et exportées en JSON conforme à `translations/v1`. Schéma complet : `docs/schema/translations/v1/`.
+Keys live at the **workspace** level (not per pack or per menu), stored on the backend and exported as JSON conforming to `translations/v1`. Full schema: `docs/schema/translations/v1/`.
 
-### 10.4 Modèle de clés
+### 10.4 Key model
 
-- Slug hiérarchique avec `.` : `menu.shop_main.btn_buy.title`, `command.profile.description`, `common.errors.no_perm`.
-- Validé par regex : `^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$`.
-- Un map `keys[clé][langue] = valeur MiniMessage` plat, lookup O(1).
-- Une clé doit avoir au minimum la valeur dans la `default_lang` du workspace.
+- Hierarchical slug with `.`: `menu.shop_main.btn_buy.title`, `command.profile.description`, `common.errors.no_perm`.
+- Validated by regex: `^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$`.
+- A flat `keys[key][language] = MiniMessage value` map, O(1) lookup.
+- A key must have at minimum the value in the workspace's `default_lang`.
 
-### 10.5 UX éditeur i18n
+### 10.5 i18n editor UX
 
-Sur tout champ texte, deux entry points pour insérer ou créer une clé sans quitter le contexte :
+On any text field, two entry points to insert or create a key without leaving the context:
 
-- **Touche `{`** déclenche un autocomplete fuzzy sur les clés du workspace. Sélection → insertion `{i18n:key}`.
-- **Bouton `</>`** à droite du champ ouvre une popover avec recherche + bouton "+ Nouvelle clé".
+- **`{` key** triggers a fuzzy autocomplete on the workspace keys. Selection → insertion of `{i18n:key}`.
+- **`</>` button** on the right of the field opens a popover with search + a "+ New key" button.
 
-**Auto-extract du texte existant** : tu tapes "Boutique" dans le champ titre, tu cliques "+ Nouvelle clé". L'éditeur (1) crée la clé `menu.shop_main.title` avec valeur FR = `"Boutique"`, (2) remplace le contenu du champ par `{i18n:menu.shop_main.title}`, (3) ouvre un mini-modal pour ajouter d'autres langues. Aucune navigation vers un autre écran.
+**Auto-extract of existing text**: you type "Boutique" in the title field, you click "+ New key". The editor (1) creates the key `menu.shop_main.title` with FR value = `"Boutique"`, (2) replaces the field content with `{i18n:menu.shop_main.title}`, (3) opens a mini-modal to add other languages. No navigation to another screen.
 
-**Édition d'une clé existante** : click sur la clé surlignée dans le champ → mini-modal avec les valeurs par langue et un live preview MiniMessage à côté.
+**Editing an existing key**: click on the highlighted key in the field → mini-modal with the values per language and a MiniMessage live preview next to it.
 
-**Détachement** : remplace `{i18n:key}` par la valeur courante en clair. La clé reste dans le workspace pour les autres usages.
+**Detaching**: replaces `{i18n:key}` with the current value in plain text. The key stays in the workspace for other uses.
 
-**Validation d'unicité** au moment de la création, indicateur rouge live si collision avec une clé existante.
+**Uniqueness validation** at creation time, live red indicator if it collides with an existing key.
 
-### 10.6 Génération auto des clés candidates
+### 10.6 Auto-generation of candidate keys
 
-L'helper `generateAutoKey(ctx)` (cf. `translations/v1/types.ts`) suggère un slug basé sur le contexte d'édition :
+The `generateAutoKey(ctx)` helper (see `translations/v1/types.ts`) suggests a slug based on the editing context:
 
-| Contexte | Clé candidate |
+| Context | Candidate key |
 |---|---|
-| Titre de menu `shop_main` | `menu.shop_main.title` |
-| Lore ligne 1 du bouton `btn_buy` du menu `shop_main` | `menu.shop_main.btn_buy.lore.1` |
-| Description de commande `profile` | `command.profile.description` |
-| Message de cooldown `heal_cmd` | `cooldown.heal_cmd.message` |
+| Title of menu `shop_main` | `menu.shop_main.title` |
+| Lore line 1 of button `btn_buy` in menu `shop_main` | `menu.shop_main.btn_buy.lore.1` |
+| Description of command `profile` | `command.profile.description` |
+| Cooldown message `heal_cmd` | `cooldown.heal_cmd.message` |
 
-Si la clé existe déjà, suffixe automatique `_2`, `_3`...
+If the key already exists, an automatic `_2`, `_3`... suffix is added.
 
-### 10.7 Détermination de la langue active du joueur
+### 10.7 Determining the player's active language
 
-Trois modes configurables dans `config.yml` côté plugin :
+Three modes configurable in `config.yml` on the plugin side:
 
-| Mode | Comportement |
+| Mode | Behavior |
 |---|---|
-| `server_default` | Tout le serveur parle une langue unique (la `default_lang` du workspace, override config possible). |
-| `per_player_locale` *(recommandé)* | Langue dérivée de `Player#locale()` (locale Minecraft client). Mappée vers la langue workspace la plus proche, fallback `default_lang` si la traduction manque. |
-| `per_player_placeholder` | Langue dérivée d'un placeholder PAPI custom (ex: `%player_lang%` si l'admin a déjà une commande `/lang` via un autre plugin). |
+| `server_default` | The whole server speaks a single language (the workspace's `default_lang`, config override possible). |
+| `per_player_locale` *(recommended)* | Language derived from `Player#locale()` (Minecraft client locale). Mapped to the closest workspace language, falling back to `default_lang` if the translation is missing. |
+| `per_player_placeholder` | Language derived from a custom PAPI placeholder (e.g. `%player_lang%` if the admin already has a `/lang` command via another plugin). |
 
-Le plugin charge toutes les traductions en mémoire au sync (les fichiers `i18n/<lang>.json` du bundle). Cache lookup O(1) à l'ouverture d'un menu.
+The plugin loads all translations into memory at sync (the bundle's `i18n/<lang>.json` files). O(1) lookup cache when a menu opens.
 
-### 10.8 Ordre de résolution à l'exécution
+### 10.8 Resolution order at runtime
 
-Quand un menu s'ouvre ou qu'une commande s'exécute, chaque champ texte traverse la chaîne :
+When a menu opens or a command runs, each text field goes through the chain:
 
-1. **Résolution i18n** : `{i18n:key}` → valeur stockée pour la langue active du joueur. Fallback `default_lang` si manquant. Fallback texte vide + log warning si manquant en default aussi.
-2. **Résolution PAPI** : `%player_name%`, `%vault_eco_balance%`, etc. (placeholders du moteur PlaceholderAPI tiers).
-2bis. **Résolution contextInputs** : `{name}` et `{alias.field}` → valeurs du contexte du menu (cf. §14, §15.4) : args de commande propagés, valeurs passées par le menu parent, items d'iteration courants, données fetchées par les connecteurs.
-3. **Parse MiniMessage** : tags → Component Adventure final envoyé au client via Paper.
+1. **i18n resolution**: `{i18n:key}` → value stored for the player's active language. Fallback to `default_lang` if missing. Fallback to empty text + log warning if also missing in default.
+2. **PAPI resolution**: `%player_name%`, `%vault_eco_balance%`, etc. (placeholders from the third-party PlaceholderAPI engine).
+2bis. **contextInputs resolution**: `{name}` and `{alias.field}` → values from the menu context (see §14, §15.4): propagated command args, values passed by the parent menu, current iteration items, data fetched by connectors.
+3. **MiniMessage parsing**: tags → final Adventure Component sent to the client via Paper.
 
-Conséquence : une **traduction peut elle-même contenir** des placeholders et des tags MiniMessage. Un texte direct (sans `{i18n:...}`) saute juste l'étape 1.
+Consequence: a **translation can itself contain** placeholders and MiniMessage tags. A direct text (without `{i18n:...}`) simply skips step 1.
 
-Limite de profondeur de résolution i18n = 10 (sécurité contre les références circulaires).
+i18n resolution depth limit = 10 (safety against circular references).
 
-### 10.9 Pourquoi pas le `translatable_key` vanilla Minecraft
+### 10.9 Why not vanilla Minecraft's `translatable_key`
 
-Tentant d'utiliser le système de translation natif de Minecraft (`assets/<ns>/lang/<locale>.json` dans le resource pack, résolu côté client). On préfère **server-side** :
+It is tempting to use Minecraft's native translation system (`assets/<ns>/lang/<locale>.json` in the resource pack, resolved client-side). We prefer **server-side**:
 
-- **Choix de la langue** : on peut imposer la langue (`server_default`) ou la dériver d'un placeholder (`per_player_placeholder`), pas seulement de la locale client.
-- **Composition avec PAPI** : les placeholders sont résolus serveur-side avec le contexte joueur. Avec translatable_key vanilla, impossible de mélanger placeholders dynamiques (`%vault_eco_balance%`) avec une traduction.
-- **Debug et logs** : on log les clés manquantes côté serveur, plus simple à diagnostiquer.
-- **Pas de dépendance au reload du resource pack** côté client si on ajoute une langue.
+- **Language choice**: we can force the language (`server_default`) or derive it from a placeholder (`per_player_placeholder`), not only from the client locale.
+- **Composition with PAPI**: placeholders are resolved server-side with the player context. With vanilla translatable_key, it is impossible to mix dynamic placeholders (`%vault_eco_balance%`) with a translation.
+- **Debug and logs**: we log missing keys server-side, easier to diagnose.
+- **No dependency on the resource pack reload** client-side when a language is added.
 
-Trade-off accepté : on perd la traduction natifs des items vanilla (mais on n'en a pas besoin — nos items custom sont des CMD strings qu'on contrôle).
+Accepted trade-off: we lose native translation of vanilla items (but we don't need it — our custom items are CMD strings that we control).
 
-### 10.10 Scope workspace + import de pack
+### 10.10 Workspace scope + pack import
 
-Les clés vivent au niveau workspace. À l'**export** d'un pack `.itfz`, on calcule récursivement (`extractI18nRefsDeep`) l'union des clés référencées par les menus et commandes du pack, et on embarque ce sous-set comme `translations.json` à la racine de l'archive.
+Keys live at the workspace level. On **export** of a `.itfz` pack, we recursively compute (`extractI18nRefsDeep`) the union of the keys referenced by the pack's menus and commands, and embed this subset as `translations.json` at the root of the archive.
 
-À l'**import** dans un autre workspace, on merge avec gestion des conflits (cf. `pack/v1/README.md`) :
+On **import** into another workspace, we merge with conflict handling (see `pack/v1/README.md`):
 
-- Clé absente localement → ajoutée.
-- Clé présente, valeurs identiques → ignorée.
-- Clé présente, valeur différente → conflit, dialog 3-way : *Garder local*, *Écraser*, *Renommer la clé importée* (auto-prefix `pack.id`). Default = renommer.
+- Key absent locally → added.
+- Key present, identical values → ignored.
+- Key present, different value → conflict, 3-way dialog: *Keep local*, *Overwrite*, *Rename the imported key* (auto-prefix `pack.id`). Default = rename.
 
-Pas de partage de clés entre workspaces de différents admins (chaque admin a son namespace isolé).
+No key sharing between workspaces of different admins (each admin has an isolated namespace).
 
 ### 10.11 Pricing
 
-Les clés i18n n'ont **aucun quota** dans aucun tier. Stockage négligeable (~quelques KB par workspace), runtime O(1) côté plugin. Ne fait pas partie des axes payants (cf. section 3).
+i18n keys have **no quota** in any tier. Negligible storage (~a few KB per workspace), O(1) runtime on the plugin side. Not part of the paid axes (see section 3).
 
 ---
 
-## 11. Workflow Live / Draft
+## 11. Live / Draft workflow
 
-**Note** : ce workflow s'applique au **mode cloud** (par défaut, tous tiers Free + Pro). En **mode local** (opt-in, offline, tous tiers), le plugin lit les fichiers JSON depuis `plugins/Artisan/menus/`, et le cycle d'édition se réduit à : éditer dans l'éditeur web → exporter → uploader sur le serveur → `/artisan reload`. Pas de Live/Draft distinction côté plugin (la donnée live = la donnée présente sur disque). L'éditeur web maintient un draft local en navigateur (auto-save), mais aucune notion de "publish to live" n'a de sens sans WebSocket.
+**Note**: this workflow applies to **cloud mode** (the default, all Free + Pro tiers). In **local mode** (opt-in, offline, all tiers), the plugin reads the JSON files from `plugins/Artisan/menus/`, and the editing cycle boils down to: edit in the web editor → export → upload to the server → `/artisan reload`. No Live/Draft distinction on the plugin side (live data = the data present on disk). The web editor keeps a local draft in the browser (auto-save), but no notion of "publish to live" makes sense without a WebSocket.
 
-### 11.1 Cycle d'édition
+### 11.1 Editing cycle
 
 ```
-[Admin ouvre menu existant dans l'éditeur]
+[Admin opens an existing menu in the editor]
               │
               ▼
-[Draft initialisé = miroir de Live]
+[Draft initialized = mirror of Live]
               │
               ▼
-[Admin édite : drag, change asset, ajoute condition...]
+[Admin edits: drag, change asset, add condition...]
               │
-              │  (chaque modif → diff → WS → plugin met à jour le draft)
+              │  (each change → diff → WS → plugin updates the draft)
               ▼
-[Plugin maintient un draft en mémoire, distinct de la live]
-              │
-              ▼
-[Admin teste : /menu preview shop_main → voit le draft en jeu]
+[Plugin keeps a draft in memory, distinct from live]
               │
               ▼
-[Admin satisfait → clique "Publish"]
+[Admin tests: /menu preview shop_main → sees the draft in game]
               │
               ▼
-[Plugin reçoit l'ordre, archive l'ancienne live, écrit le nouveau bundle, bascule]
+[Admin satisfied → clicks "Publish"]
               │
               ▼
-[Joueurs voient la nouvelle version]
+[Plugin receives the order, archives the old live, writes the new bundle, switches over]
+              │
+              ▼
+[Players see the new version]
 ```
 
-### 11.2 Soft-lock multi-admin
+### 11.2 Multi-admin soft-lock
 
-Si deux admins ouvrent le même menu dans l'éditeur en même temps :
+If two admins open the same menu in the editor at the same time:
 
-- Le premier obtient le contrôle (peut éditer).
-- Les autres voient en read-only avec un indicateur "@admin1 en train d'éditer".
-- Bouton "Take over" disponible pour reprendre la main (avec confirmation).
+- The first gets control (can edit).
+- The others see it read-only with an "@admin1 is editing" indicator.
+- "Take over" button available to take control (with confirmation).
 
-Pas d'édition collaborative à la Figma au MVP (operational transforms = projet à part entière). À envisager en v3 si la demande est forte.
+No Figma-style collaborative editing in the MVP (operational transforms = a project in its own right). To be considered in v3 if demand is strong.
 
-### 11.3 Archive et rollback
+### 11.3 Archive and rollback
 
-Chaque publish archive automatiquement l'ancienne live. On garde les **5 dernières versions** par menu. Bouton "Rollback" dans l'éditeur, accessible depuis l'historique du menu. Rollback = re-publish d'une version archivée (sans perte des versions intermédiaires, qui restent dans l'historique).
+Each publish automatically archives the old live. We keep the **last 5 versions** per menu. "Rollback" button in the editor, accessible from the menu history. Rollback = re-publish of an archived version (without losing the intermediate versions, which stay in the history).
 
-### 11.4 Persistance du draft
+### 11.4 Draft persistence
 
-- **Côté éditeur web** : autosave dans le serveur éditeur toutes les 10 secondes après modification, plus localStorage browser comme backup. Si le navigateur crashe, l'admin retrouve son draft.
-- **Côté plugin** : si la WS tombe pendant que le draft est actif, le plugin garde son draft en mémoire pendant N minutes (configurable, défaut 30 min) puis le purge. La live n'est jamais affectée.
+- **Web editor side**: autosave to the editor server every 10 seconds after a change, plus browser localStorage as a backup. If the browser crashes, the admin gets their draft back.
+- **Plugin side**: if the WS goes down while the draft is active, the plugin keeps its draft in memory for N minutes (configurable, default 30 min) then purges it. Live is never affected.
 
-### 11.5 Reconnexion WS
+### 11.5 WS reconnection
 
-Le plugin maintient une WS sortante vers l'éditeur. En cas de coupure :
+The plugin maintains an outbound WS to the editor. On disconnect:
 
-- Reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s).
-- À la reconnexion, handshake qui inclut le hash du dernier bundle reçu. Si l'éditeur a un bundle plus récent, sync automatique.
-- Tant que la WS est down : la live continue de servir, le draft reste en mémoire (pour la durée configurée), pas de panique côté admin.
+- Exponential reconnection (1s, 2s, 4s, 8s, 16s, max 60s).
+- On reconnect, a handshake that includes the hash of the last bundle received. If the editor has a more recent bundle, automatic sync.
+- While the WS is down: live keeps serving, the draft stays in memory (for the configured duration), no panic on the admin side.
 
 ---
 
-## 12. Bibliothèque (assets, menus, commandes, templates) et organisation en packs
+## 12. Library (assets, menus, commands, templates) and organization into packs
 
-### 12.1 Sources d'assets
+### 12.1 Asset sources
 
-- **Mes uploads** : ce que l'admin a uploadé manuellement. Drag & drop multiple supporté.
-- **Importé** : ce qu'on a extrait de packs externes. Drag & drop d'un .zip MCModels → l'éditeur parse, extrait les images, les organise dans un folder tagué `MCModels: <NomDuPack>`.
-- **Marketplace** (v2) : assets/menus achetés via la marketplace native, importés en un clic.
+- **My uploads**: what the admin uploaded manually. Multiple drag & drop supported.
+- **Imported**: what we extracted from external packs. Drag & drop an MCModels .zip → the editor parses it, extracts the images, and organizes them in a folder tagged `MCModels: <PackName>`.
+- **Marketplace** (v2): assets/menus bought via the native marketplace, imported in one click.
 
-### 12.2 Organisation
+### 12.2 Organization
 
-- **Folders user-created** (ex. `/shop`, `/quests`, `/lobby`).
+- **User-created folders** (e.g. `/shop`, `/quests`, `/lobby`).
 - **Tags** (`button`, `icon`, `background`, `decoration`, `premium`...).
-- **Search** par nom + tag avec filtre combinable.
-- **Preview en grid** avec filtres (taille, date, used in / unused).
-- **Métadonnées** : dimensions, date d'upload, nombre d'utilisations dans des menus.
+- **Search** by name + tag with combinable filters.
+- **Grid preview** with filters (size, date, used in / unused).
+- **Metadata**: dimensions, upload date, number of uses in menus.
 
-### 12.3 Drag & drop dans les menus
+### 12.3 Drag & drop in menus
 
-Depuis l'asset library, l'admin glisse un asset directement sur un slot de l'éditeur de menu. L'asset est lié au slot par référence (path), pas copié. Une modification de l'asset propage à tous les slots qui l'utilisent.
+From the asset library, the admin drags an asset directly onto a slot of the menu editor. The asset is linked to the slot by reference (path), not copied. A change to the asset propagates to all slots that use it.
 
-### 12.4 Détection de doublons
+### 12.4 Duplicate detection
 
-À l'upload, hash MD5 calculé. Si l'asset est déjà présent (même hash), on demande à l'admin s'il veut écraser, dupliquer, ou ignorer. Évite l'accumulation de copies.
+On upload, an MD5 hash is computed. If the asset is already present (same hash), we ask the admin whether to overwrite, duplicate, or ignore. Avoids the accumulation of copies.
 
-### 12.5 Cleanup d'assets non-utilisés
+### 12.5 Cleanup of unused assets
 
-Vue "Unused assets" qui liste les assets jamais référencés dans aucun menu. Bouton "Delete unused" (avec confirmation). Aide à rester sous quota de stockage.
+"Unused assets" view that lists assets never referenced in any menu. "Delete unused" button (with confirmation). Helps stay under the storage quota.
 
-### 12.6 Workspace et packs
+### 12.6 Workspace and packs
 
-Le workspace de l'admin est organisé en **packs** : groupes thématiques qui contiennent ensemble des menus + commandes + templates + assets liés. Un pack répond à la question *"qu'est-ce qui va ensemble ?"* — typiquement, le système de shop tient dans un pack (avec ses commandes `/shop`, `/buy`), les menus de navigation principaux dans un autre, un pack acheté chez un créateur dans un troisième.
+The admin's workspace is organized into **packs**: thematic groups that together contain menus + commands + templates + related assets. A pack answers the question *"what goes together?"* — typically, the shop system fits in one pack (with its `/shop`, `/buy` commands), the main navigation menus in another, a pack bought from a creator in a third.
 
-Chaque admin a un pack par défaut **Personal**, auto-créé, où atterrit tout ce qu'il crée tant qu'il n'assigne pas explicitement à un autre pack. Il peut créer autant de packs supplémentaires que besoin, chacun avec son propre nom et sa propre description.
+Each admin has a default **Personal** pack, auto-created, where everything they create lands until they explicitly assign it to another pack. They can create as many additional packs as needed, each with its own name and description.
 
-Le dashboard affiche les packs comme des sections collapsables. Le contenu y est imbriqué par catégorie : `📦 Shop System (5 menus, 2 commandes)`, `📦 Daily Quests — acheté de @creator-x v2.1.0 (8 menus, 1 commande)`, etc. Créer un nouveau menu ou une nouvelle commande demande à l'admin dans quel pack le placer.
+The dashboard shows packs as collapsible sections. Content is nested inside by category: `📦 Shop System (5 menus, 2 commands)`, `📦 Daily Quests — bought from @creator-x v2.1.0 (8 menus, 1 command)`, etc. Creating a new menu or command asks the admin which pack to put it in.
 
-### 12.7 Source d'un pack : user-created, imported, forked
+### 12.7 Pack source: user-created, imported, forked
 
-Chaque pack a une `source` qui détermine son comportement vis-à-vis des updates :
+Each pack has a `source` that determines its behavior regarding updates:
 
-- **user_created** : créé localement par l'admin. Édition libre, jamais écrasé.
-- **imported** : importé d'une archive `.itfz` (achat, partage Discord, MCModels). Lié à un `source_pack_id` et une `source_version`. Réimporter le même pack source **écrase tout son contenu en bloc** — pas de migration, pas de merge, pas de three-way. Les modifs locales sont perdues. L'admin voit un dialog d'avertissement clair.
-- **forked** : pack imported que l'admin a forké pour le customiser durablement. À partir du fork, comportement identique à user_created (jamais écrasé) mais on garde le `source_pack_id` en métadonnée pour la traçabilité.
+- **user_created**: created locally by the admin. Free editing, never overwritten.
+- **imported**: imported from a `.itfz` archive (purchase, Discord share, MCModels). Linked to a `source_pack_id` and a `source_version`. Re-importing the same source pack **overwrites all its content in bulk** — no migration, no merge, no three-way. Local changes are lost. The admin sees a clear warning dialog.
+- **forked**: an imported pack that the admin forked to customize durably. From the fork on, behavior is identical to user_created (never overwritten) but we keep the `source_pack_id` as metadata for traceability.
 
-Le pattern est volontairement simple. Forker = "je prends, je customise, je perds le lien d'upgrade". Importer = "je veux suivre les updates de la source, peu importe mes changements". Connu de Steam Workshop, Notion templates, Figma communauté.
+The pattern is deliberately simple. Fork = "I take it, I customize it, I lose the upgrade link". Import = "I want to follow the source's updates, whatever my changes". Familiar from Steam Workshop, Notion templates, Figma community.
 
-### 12.8 Format pack (export/import) — schéma `pack/v1`
+### 12.8 Pack format (export/import) — `pack/v1` schema
 
-Format d'export d'un pack : archive `.itfz` (zip avec extension renommée) contenant un `manifest.json` à la racine + dossiers `menus/`, `templates/`, `assets/` + optionnellement `preview.png` et `README.md`. Le manifeste suit le schéma `pack/v1` (cf. `docs/schema/pack/v1/`) qui décrit name, version semver, author, license, contenu listé, plugins requis, etc.
+Export format of a pack: a `.itfz` archive (zip with a renamed extension) containing a `manifest.json` at the root + `menus/`, `templates/`, `assets/` folders + optionally `preview.png` and `README.md`. The manifest follows the `pack/v1` schema (see `docs/schema/pack/v1/`) which describes name, semver version, author, license, listed content, required plugins, etc.
 
-`requires_plugins` est calculé automatiquement à l'export depuis l'union des `metadata.uses_plugins` de chaque menu — pas saisi à la main.
+`requires_plugins` is computed automatically on export from the union of each menu's `metadata.uses_plugins` — not entered by hand.
 
-À l'import, le backend :
+On import, the backend:
 
-1. Valide le manifeste contre `pack/v1`.
-2. Vérifie que tous les fichiers listés sont dans l'archive.
-3. Valide chaque menu contre `menu/v1` (et applique migrations si version antérieure).
-4. Détecte les conflits : id de pack déjà présent (réimport ou rename), id de menu déjà présent ailleurs dans le workspace (conflit de namespace global, dialog rename/skip), plugins requis manquants (warning non-bloquant).
-5. Vérifie que le tier de l'admin couvre les assets custom (sinon, propose d'importer en remplaçant les assets par des items vanilla).
-6. Importe en draft, jamais directement en live — l'admin doit publish manuellement.
+1. Validates the manifest against `pack/v1`.
+2. Checks that all listed files are in the archive.
+3. Validates each menu against `menu/v1` (and applies migrations if an earlier version).
+4. Detects conflicts: pack id already present (re-import or rename), menu id already present elsewhere in the workspace (global namespace conflict, rename/skip dialog), missing required plugins (non-blocking warning).
+5. Checks that the admin's tier covers the custom assets (otherwise, offers to import by replacing the assets with vanilla items).
+6. Imports as a draft, never directly to live — the admin must publish manually.
 
 ### 12.9 Cross-pack references — soft boundary
 
-Un menu dans pack A peut référencer un template défini dans pack B sans erreur. À l'export du pack A, l'éditeur affiche un warning *"Ce pack référence le template `bouton_acheter` qui vit dans le pack B. Inclure pack B dans l'export ?"*. Si oui, B est embarqué dans la même archive ; sinon, l'export note la dépendance externe et l'import alerte si B est absent du workspace cible.
+A menu in pack A can reference a template defined in pack B without error. On export of pack A, the editor shows a warning *"This pack references the template `bouton_acheter` which lives in pack B. Include pack B in the export?"*. If yes, B is embedded in the same archive; otherwise, the export notes the external dependency and the import warns if B is absent from the target workspace.
 
-Modèle volontairement permissif (pas des modules stricts à la JS), pour ne pas friquer les workflows admins en pratique.
+Deliberately permissive model (not strict JS-style modules), so as not to get in the way of admins' workflows in practice.
 
-### 12.10 Vocabulaire à ne pas confondre
+### 12.10 Vocabulary not to be confused
 
-| Terme | Sens |
+| Term | Meaning |
 |---|---|
-| **Pack** | Unité d'organisation dans le workspace (groupe de menus + templates + assets). Aussi : format d'export `.itfz`. |
-| **Bundle** | Artefact runtime signé (config + resource pack) que le plugin télécharge depuis le CDN. Concept distinct, généré automatiquement par le backend, opaque pour l'admin. |
-| **Menu** | Une entité ouvrable via `/menu open`. Vit à l'intérieur d'un pack. |
+| **Pack** | Organization unit in the workspace (group of menus + templates + assets). Also: the `.itfz` export format. |
+| **Bundle** | Signed runtime artifact (config + resource pack) that the plugin downloads from the CDN. A distinct concept, generated automatically by the backend, opaque to the admin. |
+| **Menu** | An entity openable via `/menu open`. Lives inside a pack. |
 
-L'admin pense en packs ; le plugin reçoit des bundles ; les deux concepts ne se croisent jamais dans l'UI.
+The admin thinks in packs; the plugin receives bundles; the two concepts never cross in the UI.
 
-### 12.11 Redirections de menu (V2)
+### 12.11 Menu redirects (V2)
 
-Quand un plugin tiers fournit un menu (cf. section 13.13), l'admin peut vouloir le **remplacer par un fork customisé** sans casser le fait que d'autres plugins/commandes ouvrent le menu original par son id namespace. Solution : table de redirections au niveau workspace.
+When a third-party plugin provides a menu (see section 13.13), the admin may want to **replace it with a customized fork** without breaking the fact that other plugins/commands open the original menu by its namespaced id. Solution: a redirect table at the workspace level.
 
 ```ts
 WorkspaceMenuRedirect {
-  source_menu_id: string;  // ex. "questx:quest_list"  ← l'id officiel du plugin
-  target_menu_id: string;  // ex. "my_quests"          ← un menu user-owned du workspace
+  source_menu_id: string;  // e.g. "questx:quest_list"  ← the plugin's official id
+  target_menu_id: string;  // e.g. "my_quests"          ← a user-owned menu of the workspace
 }
 ```
 
-À l'exécution, Artisan intercepte les `openMenu(menuId)` et applique la redirection avant de résoudre. Une seule redirection active par source. Les autres forks coexistent dans le workspace, accessibles par leur id direct (`/menu open my_quests_v2`) mais aucun call indirect ne les vise par défaut.
+At runtime, Artisan intercepts `openMenu(menuId)` calls and applies the redirect before resolving. Only one active redirect per source. Other forks coexist in the workspace, reachable by their direct id (`/menu open my_quests_v2`) but no indirect call targets them by default.
 
-UX dans le canvas (cf. section 4.4) : la carte du menu plugin affiche un badge *"Redirigé vers `my_quests`"* si l'admin a setup une redirection. Click pour changer la cible (sélection parmi les forks du workspace) ou supprimer la redirection (revert au menu plugin original).
+UX in the canvas (see section 4.4): the plugin menu's card shows a badge *"Redirected to `my_quests`"* if the admin has set up a redirect. Click to change the target (selection among the workspace's forks) or remove the redirect (revert to the original plugin menu).
 
-### 12.12 Mode slim vs full pour l'export pack
+### 12.12 Slim vs full mode for pack export
 
-L'export d'un pack offre deux modes :
+Pack export offers two modes:
 
-| Mode | Contenu du `.itfz` | Taille typique | Use case |
+| Mode | Content of the `.itfz` | Typical size | Use case |
 |---|---|---|---|
-| **Slim** | Manifest + menus + templates + manifest. **Assets référencés par URL CDN** (ex. `https://cdn.artisanmc.net/u/iban/quest_btn.png`). | 10-100 KB | Embarqué dans un JAR plugin (cf. section 13.13). |
-| **Full** | Manifest + menus + templates + assets binaires inclus | 1-50 MB | Marketplace V3, archive, partage offline-first. |
+| **Slim** | Manifest + menus + templates + manifest. **Assets referenced by CDN URL** (e.g. `https://cdn.artisanmc.net/u/iban/quest_btn.png`). | 10-100 KB | Embedded in a plugin JAR (see section 13.13). |
+| **Full** | Manifest + menus + templates + binary assets included | 1-50 MB | Marketplace V3, archive, offline-first sharing. |
 
-Les paths d'assets dans le menu JSON acceptent à la fois des chemins relatifs (résolus contre le dossier `assets/` du pack en mode full) ou des URLs HTTPS absolues (mode slim). Le moteur runtime pull les assets depuis l'URL et les sert via le resource pack côté joueur — le serveur lui-même n'a pas besoin de les avoir localement.
+Asset paths in the menu JSON accept both relative paths (resolved against the pack's `assets/` folder in full mode) or absolute HTTPS URLs (slim mode). The runtime engine pulls the assets from the URL and serves them via the resource pack on the player side — the server itself does not need to have them locally.
 
-**Persistance des assets distribués via plugin** : pour les comptes qui ont publié leurs assets via un plugin (détecté à `registerMenuPack`), les assets sur le CDN restent **read-only à perpétuité** même si le compte est désactivé. Garantit la stabilité de l'écosystème plugin. À mentionner dans les ToS.
+**Persistence of assets distributed via plugin**: for accounts that have published their assets via a plugin (detected at `registerMenuPack`), the assets on the CDN stay **read-only in perpetuity** even if the account is deactivated. Guarantees the stability of the plugin ecosystem. To be mentioned in the ToS.
 
 ---
 
-## 13. API d'intégration plugins tiers
+## 13. Third-party plugin integration API
 
-### 13.1 Concept et enjeu stratégique
+### 13.1 Concept and strategic stakes
 
-Permettre à des plugins externes (Quests, BetonQuest, ShopGUIPlus, Aurelium Skills, MMOCore, Jobs, LobbyCosmetics...) de **fournir des composants** (boutons single ou paginables, placeholders, actions custom) que l'admin peut utiliser dans ses propres menus. Le plugin tiers met aussi à disposition un ou plusieurs **layouts suggérés** qui servent de point de départ optionnel.
+Let external plugins (Quests, BetonQuest, ShopGUIPlus, Aurelium Skills, MMOCore, Jobs, LobbyCosmetics...) **provide components** (single or paginable buttons, placeholders, custom actions) that the admin can use in their own menus. The third-party plugin also provides one or more **suggested layouts** that serve as an optional starting point.
 
-L'admin reste maître de sa composition : il décide où placer les composants, comment les styliser, et peut les mélanger librement avec ses propres slots et actions natives. Le plugin lui donne des outils ; il fait le menu.
+The admin remains in control of their composition: they decide where to place the components, how to style them, and can freely mix them with their own slots and native actions. The plugin gives them tools; they make the menu.
 
-Sans cette intégration, les serveurs RPG/quest qui dépendent de ces plugins ne peuvent pas migrer depuis zMenu/DeluxeMenus. Avec elle, on devient le standard de fait dès qu'un ou deux gros plugins (BetonQuest, ShopGUIPlus) intègrent l'API. C'est un effet de réseau classique de plateforme : chaque plugin qui intègre rend le produit incontournable pour ses utilisateurs.
+Without this integration, RPG/quest servers that depend on these plugins cannot migrate from zMenu/DeluxeMenus. With it, we become the de facto standard as soon as one or two big plugins (BetonQuest, ShopGUIPlus) integrate the API. It is a classic platform network effect: every plugin that integrates makes the product indispensable for its users.
 
-### 13.2 API Java côté plugin tiers
+### 13.2 Java API on the third-party plugin side
 
 ```java
 ArtisanAPI.register(
   PluginIntegration.builder("questx")
 
-    // ----- Composants disponibles dans la palette de l'éditeur -----
+    // ----- Components available in the editor palette -----
     .addComponent(
       Component.builder("quest_button")
-        .displayName("Bouton quête")
+        .displayName("Quest button")
         .icon("paper")
-        .paginable()                              // peut occuper plusieurs slots
+        .paginable()                              // can occupy several slots
         .placeholder("quest_name", ctx -> ctx.getQuest().getName())
         .placeholder("quest_progress", ctx -> ctx.getQuest().getProgressPercent())
         .placeholder("quest_price", ctx -> ctx.getQuest().getPrice())
         .defaultClickAction(new StartQuestAction())
         .defaultAsset("quest_btn.png")
-        .defaultLore("§7{{quest_name}}", "§ePrix: §a{{quest_price}}$")
+        .defaultLore("§7{{quest_name}}", "§ePrice: §a{{quest_price}}$")
     )
     .addComponent(
       Component.builder("pagination_prev")
-        .displayName("Page précédente")
+        .displayName("Previous page")
         .single()
         .defaultClickAction(new PrevPageAction())
     )
     .addComponent(
       Component.builder("pagination_next")
-        .displayName("Page suivante")
+        .displayName("Next page")
         .single()
         .defaultClickAction(new NextPageAction())
     )
 
-    // ----- Layout suggéré (point de départ optionnel pour l'admin) -----
+    // ----- Suggested layout (optional starting point for the admin) -----
     .suggestedLayout("main", layout -> layout
-      .title("Quêtes disponibles")
+      .title("Available quests")
       .size(54)
-      .place("questx:quest_button", slots(10, 43))    // paginé sur cette range
+      .place("questx:quest_button", slots(10, 43))    // paginated over this range
       .place("questx:pagination_prev", 45)
       .place("questx:pagination_next", 53)
     )
@@ -984,28 +984,28 @@ ArtisanAPI.register(
 );
 ```
 
-Trois primitives clés :
+Three key primitives:
 
-- **Composants** (`Component`) : briques que l'admin pourra placer dans son menu. Mode `single` ou `paginable`. Chaque composant expose ses placeholders et son action par défaut au clic.
-- **Placeholders** : variables résolues au rendu côté plugin tiers, utilisables dans les titles/lores des slots qui utilisent ce composant.
-- **Layouts suggérés** : menus pré-remplis (combinaisons de composants placés à des positions données) qui servent de point de départ pour l'admin. Purement indicatif — l'admin peut les ignorer ou les modifier librement.
+- **Components** (`Component`): building blocks that the admin can place in their menu. `single` or `paginable` mode. Each component exposes its placeholders and its default click action.
+- **Placeholders**: variables resolved at render time on the third-party plugin side, usable in the titles/lores of slots that use this component.
+- **Suggested layouts**: pre-filled menus (combinations of components placed at given positions) that serve as a starting point for the admin. Purely indicative — the admin can ignore or freely modify them.
 
-### 13.3 Modèle d'intégration
+### 13.3 Integration model
 
-Le plugin tiers fournit deux choses à l'éditeur :
+The third-party plugin provides two things to the editor:
 
-- **Une palette de composants** que l'admin peut utiliser dans n'importe quel menu, n'importe où.
-- **Un ou plusieurs layouts suggérés** servant de point de départ optionnel.
+- **A palette of components** that the admin can use in any menu, anywhere.
+- **One or more suggested layouts** serving as an optional starting point.
 
-L'admin construit son menu librement, en mélangeant composants du plugin tiers et briques natives (assets custom, actions natives). Pas de slots verrouillés, pas de zones réservées, pas de "delta sur base vivante" : c'est son menu, il en fait ce qu'il veut.
+The admin builds their menu freely, mixing third-party plugin components and native building blocks (custom assets, native actions). No locked slots, no reserved zones, no "delta on a live base": it is their menu, they do what they want with it.
 
-Conséquence importante : un menu qui utilise des composants tiers est un **menu standard** dans notre format. Certains slots référencent simplement un composant externe via `component_ref`, qui sera résolu au rendu par le plugin. Chaque menu est un artefact indépendant après création.
+Important consequence: a menu that uses third-party components is a **standard menu** in our format. Some slots simply reference an external component via `component_ref`, which will be resolved at render time by the plugin. Each menu is an independent artifact after creation.
 
 ```json
 {
   "schema": "menu/v1",
   "id": "my_quests_menu",
-  "title": "Mes quêtes",
+  "title": "My quests",
   "size": 54,
   "background": { "asset": "bg.png" },
   "layers": [
@@ -1016,7 +1016,7 @@ Conséquence importante : un menu qui utilise des composants tiers est un **menu
         {
           "id": "header",
           "positions": "4",
-          "appearances": [{ "asset": "header.png", "title": "§6QUÊTES" }]
+          "appearances": [{ "asset": "header.png", "title": "§6QUESTS" }]
         },
         {
           "id": "quests_list",
@@ -1025,7 +1025,7 @@ Conséquence importante : un menu qui utilise des composants tiers est un **menu
             {
               "component_ref": "questx:quest_button",
               "asset": "quest_btn.png",
-              "lore": ["§7{{questx:quest_name}}", "§ePrix: §a{{questx:quest_price}}$"]
+              "lore": ["§7{{questx:quest_name}}", "§ePrice: §a{{questx:quest_price}}$"]
             }
           ]
         },
@@ -1056,127 +1056,127 @@ Conséquence importante : un menu qui utilise des composants tiers est un **menu
 }
 ```
 
-Au rendu : le plugin résout chaque `component_ref` vers la déclaration courante du composant côté plugin tiers, applique les placeholders avec le contexte du joueur, et exécute l'action par défaut au clic (ou l'override si l'admin l'a remplacée). Le champ `metadata.uses_plugins` est calculé automatiquement par l'éditeur, utilisé pour les warnings au publish (cf. section 13.9).
+At render time: the plugin resolves each `component_ref` to the component's current declaration on the third-party plugin side, applies the placeholders with the player's context, and runs the default click action (or the override if the admin replaced it). The `metadata.uses_plugins` field is computed automatically by the editor and used for warnings at publish (see section 13.9).
 
-### 13.4 Composants fournis par le plugin
+### 13.4 Components provided by the plugin
 
-Chaque composant déclaré par un plugin tiers expose :
+Each component declared by a third-party plugin exposes:
 
-- **ID namespacé** (`questx:quest_button`) — référence unique, non collisionnable.
-- **Métadonnées** : displayName, icône, description (utilisés dans la palette de l'éditeur).
-- **Mode** : `single` (un slot) ou `paginable` (rangée de slots, le moteur génère N instances pour les N éléments à afficher dynamiquement).
-- **Placeholders** : variables dynamiques résolues au rendu (`{{questx:quest_name}}`, `{{questx:quest_progress}}`).
-- **Action par défaut au clic** : ce qui se passe quand l'admin n'a pas overridé (ex. `start_quest`).
-- **Defaults d'apparence** : asset, lore, title proposés par défaut. L'admin peut les overrider individuellement.
+- **Namespaced ID** (`questx:quest_button`) — unique reference, collision-proof.
+- **Metadata**: displayName, icon, description (used in the editor palette).
+- **Mode**: `single` (one slot) or `paginable` (row of slots, the engine generates N instances for the N elements to display dynamically).
+- **Placeholders**: dynamic variables resolved at render time (`{{questx:quest_name}}`, `{{questx:quest_progress}}`).
+- **Default click action**: what happens when the admin hasn't overridden it (e.g. `start_quest`).
+- **Appearance defaults**: asset, lore, title proposed by default. The admin can override them individually.
 
-L'admin utilise les composants comme des briques, librement :
+The admin uses components as building blocks, freely:
 
-- **Drag & drop depuis la palette** vers un slot (ou une rangée de slots, pour un paginable).
-- **Modification de l'apparence** : asset, lore, title — tout est éditable par-dessus les defaults du composant.
-- **Modification du click** :
-  - Garder le default du composant : `use_component_default: true`.
-  - Override complet : définir ses propres `actions` (le default n'est pas exécuté).
-  - Composition : exécuter le default puis ses propres actions (`{ "use_component_default": true, "then_actions": [...] }`).
-- **Choix d'utiliser ou non** : l'admin peut faire un menu sans utiliser tel composant disponible, ou réutiliser le même composant à plusieurs endroits.
+- **Drag & drop from the palette** onto a slot (or a row of slots, for a paginable).
+- **Appearance modification**: asset, lore, title — everything is editable on top of the component's defaults.
+- **Click modification**:
+  - Keep the component's default: `use_component_default: true`.
+  - Full override: define their own `actions` (the default is not run).
+  - Composition: run the default then their own actions (`{ "use_component_default": true, "then_actions": [...] }`).
+- **Choice to use or not**: the admin can build a menu without using a given available component, or reuse the same component in several places.
 
-Pour les composants paginables, l'admin sélectionne une rangée de slots (ex. `"10-43"`), assigne un composant paginable, et le moteur génère automatiquement les instances pour les N éléments à afficher selon le contexte du joueur. Les boutons `pagination_prev` et `pagination_next` (composants `single`) sont placés où l'admin veut, indépendamment de la rangée paginée.
+For paginable components, the admin selects a row of slots (e.g. `"10-43"`), assigns a paginable component, and the engine automatically generates the instances for the N elements to display according to the player's context. The `pagination_prev` and `pagination_next` buttons (`single` components) are placed wherever the admin wants, independently of the paginated row.
 
-### 13.5 Layouts suggérés : point de départ optionnel
+### 13.5 Suggested layouts: optional starting point
 
-Le plugin tiers déclare un ou plusieurs **layouts suggérés** : des menus pré-remplis prêts à l'emploi, montrant des combinaisons utiles de ses composants. C'est purement indicatif.
+The third-party plugin declares one or more **suggested layouts**: ready-to-use pre-filled menus, showing useful combinations of its components. This is purely indicative.
 
-Dans l'éditeur :
+In the editor:
 
-- **Spawn from suggested** : l'admin clique pour créer un nouveau menu pré-rempli avec un layout suggéré. Il en hérite comme point de départ et le modifie ensuite à sa guise. Le menu créé est ensuite indépendant — il n'a plus aucun lien automatique avec le layout suggéré.
-- **Voir les layouts suggérés** : preview en read-only des layouts courants du plugin, utile si l'admin veut comprendre les recommandations sans repartir de zéro.
-- **Comparer avec un suggéré** : diff visuel entre le menu courant et un layout suggéré, purement informatif.
+- **Spawn from suggested**: the admin clicks to create a new menu pre-filled with a suggested layout. They inherit it as a starting point and then modify it as they like. The created menu is then independent — it has no more automatic link with the suggested layout.
+- **View suggested layouts**: read-only preview of the plugin's current layouts, useful if the admin wants to understand the recommendations without starting from scratch.
+- **Compare with a suggested one**: visual diff between the current menu and a suggested layout, purely informative.
 
-Pas de mécanisme de re-sync ou de "reset partiel" sur les composants. Un menu, une fois créé, est la propriété de l'admin. Si le plugin update et propose de nouveaux layouts suggérés, ils apparaissent simplement dans la liste des "Spawn from suggested" disponibles, sans impact sur les menus existants. L'admin peut spawn un nouveau menu à partir du nouveau suggéré et migrer manuellement ce qu'il veut conserver.
+No re-sync or "partial reset" mechanism on components. A menu, once created, is the admin's property. If the plugin updates and offers new suggested layouts, they simply appear in the list of available "Spawn from suggested" entries, with no impact on existing menus. The admin can spawn a new menu from the new suggested layout and manually migrate whatever they want to keep.
 
-Cette simplicité est délibérée : on traite les menus comme des artefacts indépendants après création, pas comme des "instances vivantes" du plugin tiers.
+This simplicity is deliberate: we treat menus as independent artifacts after creation, not as "live instances" of the third-party plugin.
 
-### 13.6 Cycle de vie des updates plugin
+### 13.6 Plugin update lifecycle
 
-Le principe directeur est la **transparence** : quand le plugin tiers passe en nouvelle version, l'admin n'est pas notifié, rien ne s'arrête. Le système se débrouille pour rester cohérent.
+The guiding principle is **transparency**: when the third-party plugin moves to a new version, the admin is not notified, nothing stops. The system manages to stay consistent.
 
-Concrètement :
+Concretely:
 
-- **Nouveaux composants ou placeholders** : ils deviennent simplement disponibles dans l'éditeur (palette de composants, autocomplete des placeholders). L'admin les découvre quand il édite, peut les utiliser s'il veut. Aucune notification, aucune popup.
-- **Layouts suggérés modifiés ou ajoutés** : ils apparaissent dans la liste des "Spawn from suggested". Aucun impact sur les menus existants.
-- **Composant renommé ou supprimé** : si un menu de l'admin référence un `component_ref` qui n'existe plus, le slot concerné est ignoré silencieusement au rendu. L'admin le découvre quand il rouvre l'éditeur (le slot apparaît grisé avec un libellé "indisponible") et peut le supprimer ou le remplacer.
-- **Placeholder renommé ou supprimé** : si un placeholder n'est plus fourni, son rendu retourne une chaîne vide. Pas d'erreur en jeu, juste un blanc visible que l'admin corrigera quand il le verra.
+- **New components or placeholders**: they simply become available in the editor (component palette, placeholder autocomplete). The admin discovers them when editing and can use them if they want. No notification, no popup.
+- **Suggested layouts modified or added**: they appear in the "Spawn from suggested" list. No impact on existing menus.
+- **Component renamed or removed**: if an admin's menu references a `component_ref` that no longer exists, the affected slot is silently ignored at render time. The admin discovers it when reopening the editor (the slot appears grayed out with an "unavailable" label) and can delete or replace it.
+- **Placeholder renamed or removed**: if a placeholder is no longer provided, its rendering returns an empty string. No in-game error, just a visible blank that the admin will fix when they see it.
 
-La règle : **le menu de l'admin est la source de vérité**, le plugin tiers fournit ce qu'il fournit, on combine au rendu, on ignore ce qui manque. Cette approche assume une qualité minimale des plugins tiers (ils ne suppriment pas des composants tous les 2 jours), mais accepte que des incohérences ponctuelles soient gérées passivement plutôt que par des wizards intrusifs.
+The rule: **the admin's menu is the source of truth**, the third-party plugin provides what it provides, we combine at render time, we ignore what is missing. This approach assumes a minimum quality from third-party plugins (they don't remove components every 2 days), but accepts that occasional inconsistencies are handled passively rather than by intrusive wizards.
 
-### 13.7 Découverte des plugins disponibles
+### 13.7 Discovery of available plugins
 
-Pull simple via le WebSocket : au boot du plugin (ou à chaque `/menu reload`), il transmet à l'éditeur la liste des plugins tiers détectés, leurs MenuTemplates, et leurs versions. L'éditeur affiche dans le compte de l'admin uniquement les plugins effectivement installés sur le serveur connecté.
+Simple pull via the WebSocket: at plugin boot (or on each `/menu reload`), it sends the editor the list of detected third-party plugins, their MenuTemplates, and their versions. The editor shows in the admin's account only the plugins actually installed on the connected server.
 
-Conséquences :
+Consequences:
 
-- Toujours synchro avec la réalité du serveur.
-- Pas de registry cloud à maintenir, pas de coordination avec les auteurs de plugins.
-- Compromis : si l'admin a plusieurs serveurs (network), un plugin installé sur le serveur A n'apparaît pas dans l'éditeur quand il est connecté au serveur B. À documenter clairement.
+- Always in sync with the server's reality.
+- No cloud registry to maintain, no coordination with plugin authors.
+- Trade-off: if the admin has several servers (network), a plugin installed on server A does not appear in the editor when connected to server B. To be documented clearly.
 
-Pour les serveurs dev/staging : l'admin doit installer le plugin tiers aussi sur son environnement de dev pour pouvoir l'éditer. Friction acceptable, équivalente à ce qui existe avec zMenu/DeluxeMenus aujourd'hui.
+For dev/staging servers: the admin must install the third-party plugin on their dev environment too in order to edit it. Acceptable friction, equivalent to what exists with zMenu/DeluxeMenus today.
 
-### 13.8 Conflit de namespace et collisions
+### 13.8 Namespace conflicts and collisions
 
-- Tout slot type, placeholder, action est **obligatoirement préfixé** par le namespace du plugin (`questx:quest_button`, pas `quest_button` seul).
-- Au registration, l'API rejette les déclarations qui violent cette règle avec un message clair pour le dev.
-- Deux plugins peuvent avoir le même nom local s'ils ont des namespaces différents : `questx:main` et `betonquest:main` coexistent sans souci.
+- Every slot type, placeholder, and action is **mandatorily prefixed** by the plugin's namespace (`questx:quest_button`, not `quest_button` alone).
+- At registration, the API rejects declarations that violate this rule with a clear message for the dev.
+- Two plugins can have the same local name if they have different namespaces: `questx:main` and `betonquest:main` coexist without issue.
 
 ### 13.9 Edge cases
 
-- **Plugin désinstallé** : le menu reste dans le compte de l'admin (côté éditeur), mais devient "orphelin" et ne peut plus être publié. Notification : "QuestX désinstallé. Le menu est en pause. Réinstalle pour continuer." Le delta est conservé pour reprendre si l'admin réinstalle.
-- **Plugin présent en prod, absent en dev** : l'admin voit le menu sur le serveur de prod mais pas sur le dev. Il doit installer le plugin sur dev pour éditer.
-- **Versions différentes entre serveurs d'un network** : si serveur A est en QuestX 2.0 et serveur B en 1.5, et qu'un menu utilise un composant introduit en 2.0 (`questx:quest_filter`), le composant sera ignoré silencieusement au rendu sur le serveur B. Au publish, l'éditeur détecte la situation grâce à `metadata.uses_plugins` et peut warn (info, pas blocant) : "Ce menu utilise QuestX 2.0+, mais serverB a QuestX 1.5. Certains composants seront ignorés." L'admin choisit de publier quand même, ou d'updater le plugin sur serverB.
-- **Plugin tiers buggué** : si le plugin tiers crash au registration, l'éditeur n'a pas accès aux MenuTemplates. Les menus existants restent en lecture seule, l'admin est notifié. Pas d'impact sur les autres plugins.
+- **Plugin uninstalled**: the menu stays in the admin's account (editor side), but becomes "orphaned" and can no longer be published. Notification: "QuestX uninstalled. The menu is paused. Reinstall to continue." The delta is kept so the admin can resume if they reinstall.
+- **Plugin present in prod, absent in dev**: the admin sees the menu on the prod server but not on dev. They must install the plugin on dev to edit.
+- **Different versions across the servers of a network**: if server A runs QuestX 2.0 and server B runs 1.5, and a menu uses a component introduced in 2.0 (`questx:quest_filter`), the component will be silently ignored at render time on server B. At publish, the editor detects the situation thanks to `metadata.uses_plugins` and can warn (info, not blocking): "This menu uses QuestX 2.0+, but serverB has QuestX 1.5. Some components will be ignored." The admin chooses to publish anyway, or to update the plugin on serverB.
+- **Buggy third-party plugin**: if the third-party plugin crashes at registration, the editor has no access to the MenuTemplates. Existing menus stay read-only, the admin is notified. No impact on other plugins.
 
-### 13.10 Use cases populaires à valider
+### 13.10 Popular use cases to validate
 
-L'API doit supporter les patterns suivants, validés contre les plugins majeurs du marché :
+The API must support the following patterns, validated against the market's major plugins:
 
-| Plugin | Pattern central |
+| Plugin | Core pattern |
 |---|---|
-| Quests, BetonQuest | Liste paginée de quêtes + détail par quête + actions accept/abandon/claim |
-| ShopGUIPlus, EconomyShopGUI | Catégories → items paginés + actions buy/sell + variations de prix |
-| Jobs, EcoJobs | Liste de jobs + leveling display + xp progress |
-| MMOCore, MMOItems | Skill trees + inventory custom + class selection |
+| Quests, BetonQuest | Paginated quest list + per-quest detail + accept/abandon/claim actions |
+| ShopGUIPlus, EconomyShopGUI | Categories → paginated items + buy/sell actions + price variations |
+| Jobs, EcoJobs | Job list + leveling display + xp progress |
+| MMOCore, MMOItems | Skill trees + custom inventory + class selection |
 | Aurelium Skills | Skill display + leaderboards + reward menus |
-| LobbyCosmetics | Catégories de cosmétiques + preview + équiper/déséquiper |
+| LobbyCosmetics | Cosmetic categories + preview + equip/unequip |
 | LuckPerms (admin) | Browse permissions + assign/remove tracks + group management |
 
-Chaque plugin a ses spécificités, mais le pattern de base "liste paginée + détail + actions custom" couvre 80% des cas. L'API supporte ce pattern via les composants en mode `paginable` (rangée de slots dynamiques).
+Each plugin has its specifics, but the base pattern "paginated list + detail + custom actions" covers 80% of cases. The API supports this pattern via components in `paginable` mode (row of dynamic slots).
 
-### 13.11 Intégrations natives Nexo / ItemAdder (V1.5)
+### 13.11 Native Nexo / ItemAdder integrations (V1.5)
 
-Killer feature post-MVP : les items et textures custom déclarés dans Nexo ou ItemAdder apparaissent directement dans la palette de l'éditeur, sans aucune duplication ni re-upload.
+Post-MVP killer feature: the custom items and textures declared in Nexo or ItemAdder appear directly in the editor palette, with no duplication or re-upload.
 
-**Use case typique** : un admin a un serveur Survival/RPG avec 200 items custom dans Nexo (épées, armures, ressources). Pour faire son shop, il drag-and-drop ses items Nexo directement dans les slots du menu. Fini la duplication d'assets entre plugins, fini la maintenance en double.
+**Typical use case**: an admin has a Survival/RPG server with 200 custom items in Nexo (swords, armor, resources). To build their shop, they drag-and-drop their Nexo items directly into the menu slots. No more asset duplication between plugins, no more double maintenance.
 
-**Deux modes d'intégration** :
+**Two integration modes**:
 
-- **Mode item** (recommandé) : l'admin pose un item Nexo sur un slot. Le format stocke `material: "nexo:custom_sword"`. Le rendu en jeu utilise directement l'item Nexo (sa texture, son CMD, son comportement, son lore Nexo). Aucune duplication côté nous. Cohabitation native grâce au pack stacking 1.21.4+ — notre pack et celui de Nexo coexistent sans conflit.
-- **Mode texture seule** : pour les usages décoratifs (header de menu, séparateur, ornement), l'admin peut drag une texture Nexo qui est copiée dans notre pack et indexée comme un asset standard. L'attribution est gardée en metadata (utile pour la traçabilité).
+- **Item mode** (recommended): the admin places a Nexo item on a slot. The format stores `material: "nexo:custom_sword"`. In-game rendering uses the Nexo item directly (its texture, its CMD, its behavior, its Nexo lore). No duplication on our side. Native coexistence thanks to 1.21.4+ pack stacking — our pack and Nexo's coexist without conflict.
+- **Texture-only mode**: for decorative uses (menu header, separator, ornament), the admin can drag a Nexo texture that is copied into our pack and indexed as a standard asset. Attribution is kept in metadata (useful for traceability).
 
-**Découverte côté plugin** :
+**Plugin-side discovery**:
 
-Au boot et à chaque `/menu reload`, le plugin scanne :
+At boot and on each `/menu reload`, the plugin scans:
 
-- **Nexo** : via l'API publique (`NexoItems.entries()`) si disponible, sinon par lecture des configs (`plugins/Nexo/items/*.yml`).
-- **ItemAdder** : via l'API publique si disponible, sinon par lecture des configs (`plugins/ItemsAdder/contents/*/configs/*.yml`).
+- **Nexo**: via the public API (`NexoItems.entries()`) if available, otherwise by reading the configs (`plugins/Nexo/items/*.yml`).
+- **ItemAdder**: via the public API if available, otherwise by reading the configs (`plugins/ItemsAdder/contents/*/configs/*.yml`).
 
-La liste (items + textures + métadonnées : namespace, catégorie, displayname, lore par défaut, CMD) est pushée à l'éditeur via WS. L'asset library affiche deux sources dédiées :
+The list (items + textures + metadata: namespace, category, displayname, default lore, CMD) is pushed to the editor via WS. The asset library shows two dedicated sources:
 
-- **Nexo** : organisée par catégorie déclarée dans Nexo (weapons, armors, resources, blocks...).
-- **ItemAdder** : organisée par namespace ItemAdder.
+- **Nexo**: organized by the category declared in Nexo (weapons, armors, resources, blocks...).
+- **ItemAdder**: organized by ItemAdder namespace.
 
-Sources read-only avec preview en grid, search, drag-drop direct vers un slot. Refresh automatique quand l'admin ajoute un item à Nexo/ItemAdder et fait `/menu reload`.
+Read-only sources with grid preview, search, direct drag-drop onto a slot. Automatic refresh when the admin adds an item to Nexo/ItemAdder and runs `/menu reload`.
 
-**Format intermédiaire** :
+**Intermediate format**:
 
-Le champ `material` d'un Element accepte les IDs namespacés sans changement de structure :
+An Element's `material` field accepts namespaced IDs without any structure change:
 
 ```json
 {
@@ -1185,8 +1185,8 @@ Le champ `material` d'un Element accepte les IDs namespacés sans changement de 
   "appearances": [
     {
       "material": "nexo:custom_sword",
-      "title": "Épée légendaire",
-      "lore": ["§7Lame mythique forgée", "§ePrix: §a5000$"],
+      "title": "Legendary Sword",
+      "lore": ["§7Mythical forged blade", "§ePrice: §a5000$"],
       "click": {
         "left": {
           "requirements": [{ "type": "has_money", "amount": 5000 }],
@@ -1201,125 +1201,125 @@ Le champ `material` d'un Element accepte les IDs namespacés sans changement de 
 }
 ```
 
-Résolution au rendu : prefix `nexo:` → résolution via Nexo, prefix `itemadder:` → résolution via ItemAdder, sinon vanilla. Si le plugin source est désinstallé ou l'item supprimé, l'Element affiche "indisponible" (dégradation gracieuse, même pattern qu'en section 13.6).
+Resolution at render time: `nexo:` prefix → resolved via Nexo, `itemadder:` prefix → resolved via ItemAdder, otherwise vanilla. If the source plugin is uninstalled or the item removed, the Element shows "unavailable" (graceful degradation, same pattern as in section 13.6).
 
-L'action `give_item` accepte également les materials namespacés, ce qui rend les flows shop / récompense de quête transparents avec Nexo/ItemAdder.
+The `give_item` action also accepts namespaced materials, which makes shop / quest reward flows transparent with Nexo/ItemAdder.
 
-**Pourquoi V1.5 et pas MVP ?**
+**Why V1.5 and not the MVP?**
 
-- Permet de ship plus vite le core editor et de valider l'adoption avant d'investir dans une intégration profonde.
-- Permet d'observer la distribution réelle des admins dans la base d'utilisateurs (% qui utilisent Nexo, % ItemAdder, % ni l'un ni l'autre) avant de calibrer.
-- Mais à prioriser dès la stabilisation MVP : la majorité de l'écosystème RPG/Survival passe par ces plugins, c'est un argument de vente massif pour ce segment.
+- Lets us ship the core editor faster and validate adoption before investing in a deep integration.
+- Lets us observe the real distribution of admins in the user base (% who use Nexo, % ItemAdder, % neither) before calibrating.
+- But to be prioritized as soon as the MVP stabilizes: most of the RPG/Survival ecosystem goes through these plugins, it is a massive selling point for this segment.
 
-**Effet stratégique** :
+**Strategic effect**:
 
-Cette intégration capture le segment RPG/Survival, qui représente une fraction très significative du marché des serveurs sérieux. Sans elle, ces admins doivent jongler entre Nexo/ItemAdder pour leurs items et un autre plugin pour leurs menus, avec re-upload manuel des textures. Avec elle, notre plugin devient leur front-end de menus naturel pour tout leur contenu existant — plus aucune raison de rester sur zMenu/DeluxeMenus.
+This integration captures the RPG/Survival segment, which represents a very significant fraction of the serious server market. Without it, these admins have to juggle Nexo/ItemAdder for their items and another plugin for their menus, with manual re-upload of textures. With it, our plugin becomes their natural menu front-end for all their existing content — no more reason to stay on zMenu/DeluxeMenus.
 
-### 13.12 Stratégie d'adoption
+### 13.12 Adoption strategy
 
-L'API ne sert à rien si aucun plugin tiers ne l'intègre. Plan d'adoption :
+The API is useless if no third-party plugin integrates it. Adoption plan:
 
-- **Documentation et SDK** : Java + Kotlin examples, tutoriel "intégrer ton plugin en 30 minutes", javadoc complète.
-- **Reference implementations** : forker un ou deux plugins open source connus et y intégrer l'API en exemple. Idéalement avec leur accord, sinon en guides séparés.
-- **Outreach direct aux auteurs majeurs** : contacter les maintainers de BetonQuest, ShopGUIPlus, MMOCore en amont du launch, leur offrir un accès premium gratuit à vie en échange d'une intégration dans les 3 mois post-launch.
-- **Discord développeurs** : canal dédié pour les questions API, support prioritaire.
-- **Showcase sur le site** : page "Plugins compatibles" qui liste les intégrations et leur niveau de maturité.
+- **Documentation and SDK**: Java + Kotlin examples, "integrate your plugin in 30 minutes" tutorial, full javadoc.
+- **Reference implementations**: fork one or two well-known open source plugins and integrate the API into them as an example. Ideally with their agreement, otherwise as separate guides.
+- **Direct outreach to major authors**: contact the maintainers of BetonQuest, ShopGUIPlus, MMOCore ahead of launch, offer them free lifetime premium access in exchange for an integration within 3 months post-launch.
+- **Developer Discord**: dedicated channel for API questions, priority support.
+- **Showcase on the site**: "Compatible plugins" page that lists the integrations and their maturity level.
 
-### 13.13 Plugins enregistrent des menus complets (V2)
+### 13.13 Plugins register full menus (V2)
 
-En V1, les plugins fournissent des **composants** (boutons single ou paginables) que l'admin compose dans ses propres menus. En V2, l'API tierce s'élargit : les plugins peuvent enregistrer des **menus complets** dans le workspace de l'admin via :
+In V1, plugins provide **components** (single or paginable buttons) that the admin composes in their own menus. In V2, the third-party API widens: plugins can register **full menus** in the admin's workspace via:
 
 ```java
 artisan.registerMenuPack(byte[] packArchive);
 ```
 
-Le plugin lit son `.itfz` embarqué dans son JAR (typiquement `resources/artisan-pack.itfz`), passe les bytes à l'API au `onEnable`. Artisan parse l'archive, valide contre `pack/v1`, et enregistre les menus sous le **namespace du plugin appelant** (auto-dérivé via `Plugin.getName()` côté Bukkit) — `questx:quest_list`, `questx:quest_detail`, etc. Aucun namespace à déclarer manuellement.
+The plugin reads its `.itfz` embedded in its JAR (typically `resources/artisan-pack.itfz`) and passes the bytes to the API in `onEnable`. Artisan parses the archive, validates against `pack/v1`, and registers the menus under the **calling plugin's namespace** (auto-derived via `Plugin.getName()` on the Bukkit side) — `questx:quest_list`, `questx:quest_detail`, etc. No namespace to declare manually.
 
-**Workflow plugin dev :**
+**Plugin dev workflow:**
 
-1. Sign up sur `editor.artisanmc.net` (compte free OK)
-2. Designe ses menus dans l'éditeur visuellement, comme n'importe quel admin
-3. Upload ses assets custom (vont sur le CDN R2 sous son compte)
-4. Exporte le pack en mode **slim** (cf. 12.12) — JSON only, assets référencés par URL CDN. Taille typique : 30-100 KB.
-5. Embarque le `.itfz` dans son JAR
-6. Code Java minimal : lire les bytes, appeler `registerMenuPack`. Le plugin n'a plus à écrire un seul ligne de YAML/JSON manuel pour ses menus.
+1. Sign up on `editor.artisanmc.net` (free account is fine)
+2. Design their menus visually in the editor, like any admin
+3. Upload their custom assets (they go to the R2 CDN under their account)
+4. Export the pack in **slim** mode (see 12.12) — JSON only, assets referenced by CDN URL. Typical size: 30-100 KB.
+5. Embed the `.itfz` in their JAR
+6. Minimal Java code: read the bytes, call `registerMenuPack`. The plugin no longer has to write a single line of manual YAML/JSON for its menus.
 
-**Côté admin :**
+**Admin side:**
 
-- Les menus enregistrés par les plugins apparaissent sur le canvas (cf. 4.4) avec un styling distinct (bordure colorée, badge "fourni par questx").
-- L'admin peut **fork** un menu plugin pour le customiser, créant un menu user-owned dans son workspace. Le fork perd le lien d'upgrade avec la source.
-- L'admin peut **rediriger** : *"quand quelque chose ouvre `questx:quest_list`, ouvre `my_quests` à la place"* (cf. 12.11).
-- L'admin **ne peut pas éditer** un menu plugin non-forké directement — le plugin a la main dessus.
+- Menus registered by plugins appear on the canvas (see 4.4) with a distinct styling (colored border, "provided by questx" badge).
+- The admin can **fork** a plugin menu to customize it, creating a user-owned menu in their workspace. The fork loses the upgrade link with the source.
+- The admin can **redirect**: *"when something opens `questx:quest_list`, open `my_quests` instead"* (see 12.11).
+- The admin **cannot edit** a non-forked plugin menu directly — the plugin has control over it.
 
-**Bénéfices stratégiques :**
+**Strategic benefits:**
 
-- Les plugin devs deviennent users d'Artisan (eat your own dogfood, multiplier l'adoption).
-- Plus de YAML hardcodé dans les plugins → meilleure UX pour eux.
-- Les assets des plugins remplissent le CDN d'Artisan → effet de réseau (admins découvrent des assets gratuitement).
-- Networks d'admins voient leur graphe de menus complet (leurs propres menus + les menus plugins) sur un seul canvas.
+- Plugin devs become Artisan users (eat your own dogfood, multiply adoption).
+- No more YAML hardcoded in plugins → better UX for them.
+- Plugin assets fill Artisan's CDN → network effect (admins discover assets for free).
+- Admin networks see their full menu graph (their own menus + plugin menus) on a single canvas.
 
-À documenter en V2 dans la section dédiée plugin dev de `docs.artisanmc.net`.
+To be documented in V2 in the dedicated plugin dev section of `docs.artisanmc.net`.
 
-### 13.14 Plugins enregistrent leurs propres data sources (V2)
+### 13.14 Plugins register their own data sources (V2)
 
-Pendant que `registerComponent` (section 13.4) couvre les composants UI au layout owned by plugin, et que les **data sources homemade** (section 14) couvrent les plugins populaires avant qu'ils intègrent, V2 ajoute le pattern complémentaire : `registerDataSource(...)`. Un plugin author peut shipper son propre connecteur officiel, qui override notre homemade.
+While `registerComponent` (section 13.4) covers UI components with a plugin-owned layout, and **homemade data sources** (section 14) cover popular plugins before they integrate, V2 adds the complementary pattern: `registerDataSource(...)`. A plugin author can ship their own official connector, which overrides our homemade one.
 
 ```java
-// V2 — exemple d'API côté plugin tier
+// V2 — example of the third-party plugin-side API
 ArtisanAPI.registerDataSource(DataSource.builder()
-    .ref("chestshop:items")              // override notre homemade
-    .schema(ItemDTO.class)               // shape des objets retournés
+    .ref("chestshop:items")              // overrides our homemade
+    .schema(ItemDTO.class)               // shape of the returned objects
     .fetcher((server, params) -> {
         return chestShop.getAllItems().stream()
             .filter(matches(params))
             .map(this::toDTO)
             .toList();
     })
-    .suggestedLayout("templates/shop_grid.json")  // optionnel
+    .suggestedLayout("templates/shop_grid.json")  // optional
     .build());
 ```
 
-Bénéfices pour l'auteur : contrôle de la shape (le schéma exposé est exactement ce qu'il veut), perf optimisée (accès direct à ses internals plutôt que via API publique), layout suggéré qu'il contrôle, sa marque visible dans la palette éditeur ("Officiel : ChestShop").
+Benefits for the author: control of the shape (the exposed schema is exactly what they want), optimized performance (direct access to their internals rather than via a public API), a suggested layout they control, their brand visible in the editor palette ("Official: ChestShop").
 
 
 ---
 
-## 14. Data sources et contexte du menu
+## 14. Data sources and menu context
 
-L'API plugins tiers (section 13) couvre le cas où un plugin **veut intégrer Artisan** : il appelle `registerComponent`, livre son layout et son comportement. Mais ça suppose que le plugin author a fait l'effort. Pour Artisan à V1, on ne peut pas attendre que QuestX, ChestShop ou EssentialsX prennent le temps d'intégrer.
+The third-party plugin API (section 13) covers the case where a plugin **wants to integrate Artisan**: it calls `registerComponent`, delivers its layout and its behavior. But that assumes the plugin author has made the effort. For Artisan at V1, we can't wait for QuestX, ChestShop, or EssentialsX to take the time to integrate.
 
-**La solution** : on retourne le modèle. Au lieu d'attendre que les plugins poussent leur data, **on l'aspire** via des connecteurs custom qu'on écrit nous-mêmes pour les plugins populaires. L'admin de ChestShop ouvre Artisan, sélectionne *"Bind to ChestShop items"*, design son shop visuellement — sans que ChestShop ait fait quoi que ce soit. Quand le plugin author voudra prendre la main, il pourra (V2 via `registerDataSource`).
+**The solution**: we flip the model. Instead of waiting for plugins to push their data, **we pull it** via custom connectors that we write ourselves for popular plugins. The ChestShop admin opens Artisan, selects *"Bind to ChestShop items"*, and designs their shop visually — without ChestShop having done anything. When the plugin author wants to take over, they can (V2 via `registerDataSource`).
 
-### 14.1 Modèle : `contextInputs` du menu
+### 14.1 Model: the menu's `contextInputs`
 
-Tout flux de données entrant dans un menu — qu'il vienne de l'appelant ou d'un connecteur — passe par `Menu.contextInputs`. Un `ContextInput` est une **slot nommée et typée** que le menu déclare ; sa valeur peut venir de trois sources, choisies par champ :
+Every data flow entering a menu — whether it comes from the caller or from a connector — goes through `Menu.contextInputs`. A `ContextInput` is a **named, typed slot** that the menu declares; its value can come from three sources, chosen per field:
 
-- **Appelant** : la commande (cf. §15) ou le menu parent passe la valeur à l'ouverture (auto-binding par nom, cf. §15.4).
-- **Connecteur** : l'input porte un `source: ConnectorBinding` ; le moteur appelle le connecteur référencé et stocke le résultat dans la slot.
-- **Default** : valeur littérale fallback si l'appelant n'a rien fourni et qu'aucun connecteur n'est attaché.
+- **Caller**: the command (see §15) or the parent menu passes the value on open (auto-binding by name, see §15.4).
+- **Connector**: the input carries a `source: ConnectorBinding`; the engine calls the referenced connector and stores the result in the slot.
+- **Default**: literal fallback value if the caller provided nothing and no connector is attached.
 
 ```ts
 ContextInput = {
-  name: string,                    // slug de la slot, exposé comme {name} dans les champs
+  name: string,                    // slug of the slot, exposed as {name} in fields
   type: "player" | "string" | "integer" | "number" | "boolean" | "list" | "object",
-  default?: string,                // fallback littéral
-  source?: ConnectorBinding        // optionnel, mutuellement exclusif avec un appelant qui passerait la valeur
+  default?: string,                // literal fallback
+  source?: ConnectorBinding        // optional, mutually exclusive with a caller that would pass the value
 }
 
 ConnectorBinding = {
   ref: string,                     // "chestshop:items", "essentials:warps"
-  params?: Record<string, string>, // config spécifique connecteur, supporte {name} interpolation
-  filter?: Record<string, string>, // where-clauses sur les champs retournés, supporte {name}
+  params?: Record<string, string>, // connector-specific config, supports {name} interpolation
+  filter?: Record<string, string>, // where-clauses on the returned fields, supports {name}
   sort?: { by: string, direction?: "asc" | "desc" },
-  limit?: number                   // default = nombre de positions de l'Element qui itère cette slot, max 1000
+  limit?: number                   // default = number of positions of the Element iterating this slot, max 1000
 }
 ```
 
-`source` est valide sur `type: "list"` (le connecteur retourne une liste d'objets) et `type: "object"` (le connecteur retourne un objet unique).
+`source` is valid on `type: "list"` (the connector returns a list of objects) and `type: "object"` (the connector returns a single object).
 
 ### 14.2 Iteration
 
-Un Element devient itératif via `iterates: { source, alias }`. `source` est le `name` d'un `ContextInput` de type `"list"` (peu importe que la liste vienne de l'appelant ou d'un connecteur — la slot est opaque). `alias` est le nom local que prend chaque item dans la scope de l'Element : ses champs (title, lore, material, click, conditions) accèdent aux champs de l'item via `{alias.field}`.
+An Element becomes iterative via `iterates: { source, alias }`. `source` is the `name` of a `ContextInput` of type `"list"` (it doesn't matter whether the list comes from the caller or a connector — the slot is opaque). `alias` is the local name each item takes in the Element's scope: its fields (title, lore, material, click, conditions) access the item's fields via `{alias.field}`.
 
 ```json
 {
@@ -1348,7 +1348,7 @@ Un Element devient itératif via `iterates: { source, alias }`. `source` est le 
           "if": [{ "type": "placeholder_equals", "placeholder": "{shop.rarity}", "value": "legendary" }],
           "material": "{shop.material}",
           "title": "<gold><bold>{shop.name}</bold></gold>",
-          "lore": ["<yellow>Prix : {shop.price} pièces</yellow>"],
+          "lore": ["<yellow>Price: {shop.price} coins</yellow>"],
           "enchanted": true,
           "click": {
             "left": { "actions": [{ "type": "run_command", "command": "cs buy {shop.id}" }] }
@@ -1357,7 +1357,7 @@ Un Element devient itératif via `iterates: { source, alias }`. `source` est le 
         {
           "material": "{shop.material}",
           "title": "<white>{shop.name}</white>",
-          "lore": ["<yellow>Prix : {shop.price} pièces</yellow>"],
+          "lore": ["<yellow>Price: {shop.price} coins</yellow>"],
           "click": {
             "left": { "actions": [{ "type": "run_command", "command": "cs buy {shop.id}" }] }
           }
@@ -1368,26 +1368,26 @@ Un Element devient itératif via `iterates: { source, alias }`. `source` est le 
 }
 ```
 
-Pour chaque item retourné par le connecteur, le moteur évalue les appearances dans l'ordre. Les conditions sur les champs de l'item utilisent `placeholder_equals` / `placeholder_match` avec `{alias.field}` ; les conditions joueur (`has_money`, `has_permission`, etc.) restent évaluées avec le contexte joueur normal.
+For each item returned by the connector, the engine evaluates the appearances in order. Conditions on the item's fields use `placeholder_equals` / `placeholder_match` with `{alias.field}`; player conditions (`has_money`, `has_permission`, etc.) are still evaluated with the normal player context.
 
-### 14.3 Trois patterns coexistants pour un Element
+### 14.3 Three coexisting patterns for an Element
 
 | Pattern | Layout | Data | Use case |
 |---|---|---|---|
-| **`iterates` sur un input avec `source: ConnectorBinding`** | Admin (via Artisan) | Plugin (via connecteur) | Connecteur Artisan pour ChestShop, EssentialsX warps, etc. L'admin design son shop comme il veut. |
-| **`iterates` sur un input passé par l'appelant** | Admin | Caller (commande / menu parent) | Liste passée explicitement, ex. la commande `/shop <category>` passe `shops: [...]` après filtre côté commande. Rarement utilisé mais permis. |
-| **`appearance.component_ref` (plugin registered)** | Plugin author | Plugin | QuestX livre son bouton de quête avec son layout par défaut, l'admin peut juste override le click ou le title. |
-| **Element statique** | Admin | Admin | Bouton qui run une commande, sans data dynamique. |
+| **`iterates` on an input with `source: ConnectorBinding`** | Admin (via Artisan) | Plugin (via connector) | Artisan connector for ChestShop, EssentialsX warps, etc. The admin designs their shop as they want. |
+| **`iterates` on an input passed by the caller** | Admin | Caller (command / parent menu) | List passed explicitly, e.g. the `/shop <category>` command passes `shops: [...]` after filtering on the command side. Rarely used but allowed. |
+| **`appearance.component_ref` (plugin registered)** | Plugin author | Plugin | QuestX ships its quest button with its default layout, the admin can just override the click or the title. |
+| **Static Element** | Admin | Admin | Button that runs a command, with no dynamic data. |
 
-Tous cohabitent dans le même menu. Un menu peut mélanger un grid bindé à `chestshop:items` avec un bouton statique "Acheter de la monnaie" et un component `essentials:warp_button` paginable.
+All coexist in the same menu. A menu can mix a grid bound to `chestshop:items` with a static "Buy currency" button and a paginable `essentials:warp_button` component.
 
-`iterates` et `component_ref` **ne peuvent pas coexister sur un même Element** — `validateMenuLayout` flag les erreurs.
+`iterates` and `component_ref` **cannot coexist on the same Element** — `validateMenuLayout` flags the errors.
 
-### 14.4 Connecteurs au launch (V1)
+### 14.4 Connectors at launch (V1)
 
-Cinq connecteurs **homemade Artisan** qui couvrent ~80 % des serveurs Minecraft modernes :
+Five **homemade Artisan** connectors that cover ~80% of modern Minecraft servers:
 
-| Plugin | Data sources exposées |
+| Plugin | Exposed data sources |
 |---|---|
 | **EssentialsX** | `essentials:warps`, `essentials:kits`, `essentials:jails` |
 | **ChestShop** | `chestshop:items`, `chestshop:categories` |
@@ -1395,240 +1395,240 @@ Cinq connecteurs **homemade Artisan** qui couvrent ~80 % des serveurs Minecraft 
 | **LuckPerms** | `luckperms:groups`, `luckperms:tracks` |
 | **Quests** | `quests:active`, `quests:completed`, `quests:available` |
 
-Pour chaque connecteur, on documente le **schéma des objets retournés** (champs `id`, `name`, `material`, etc.) sur `docs.artisanmc.net/connectors`. Le code Java côté plugin Artisan fetch les data via l'API publique du plugin source (ex: `EssentialsX#getWarps()`).
+For each connector, we document the **schema of the returned objects** (`id`, `name`, `material`, etc. fields) at `docs.artisanmc.net/connectors`. The Java code on the Artisan plugin side fetches the data via the source plugin's public API (e.g. `EssentialsX#getWarps()`).
 
-V1.5+ : on étend le catalogue (ShopGUIPlus, mcMMO, BetonQuest, WorldGuard regions, Vault, etc.) selon la demande Discord/Reddit.
+V1.5+: we extend the catalog (ShopGUIPlus, mcMMO, BetonQuest, WorldGuard regions, Vault, etc.) based on Discord/Reddit demand.
 
-### 14.5 Connecteurs : qui les écrit, comment
+### 14.5 Connectors: who writes them, how
 
-**V1 — homemade Artisan** : on écrit les connecteurs nous-mêmes en Java, packagés dans le plugin Artisan. Ils dépendent des plugins sources via `softdepend` dans `paper-plugin.yml` (chargement conditionnel — pas de crash si EssentialsX absent).
+**V1 — Artisan homemade**: we write the connectors ourselves in Java, packaged in the Artisan plugin. They depend on the source plugins via `softdepend` in `paper-plugin.yml` (conditional loading — no crash if EssentialsX is absent).
 
-**V2 — registerDataSource (plugin author)** : un plugin author peut shipper son propre connecteur officiel via une nouvelle API `ArtisanAPI.registerDataSource(...)` (parallèle au `registerComponent` actuel). Override system : si un plugin officiel s'enregistre pour `chestshop:items`, il remplace notre homemade. Bénéfices pour l'auteur : contrôle de la shape, perf optimisée, layout suggéré par défaut.
+**V2 — registerDataSource (plugin author)**: a plugin author can ship their own official connector via a new `ArtisanAPI.registerDataSource(...)` API (parallel to the current `registerComponent`). Override system: if an official plugin registers for `chestshop:items`, it replaces our homemade one. Benefits for the author: control of the shape, optimized performance, default suggested layout.
 
-**V2.5+ — user-defined connectors** : un admin power user pourra définir ses propres connecteurs via un DSL YAML simple ("ce fichier de config plugin, lis ces clés, expose ces champs"). Permet de support des plugins de niche sans qu'on les ajoute officiellement.
+**V2.5+ — user-defined connectors**: a power-user admin will be able to define their own connectors via a simple YAML DSL ("this plugin config file, read these keys, expose these fields"). Allows supporting niche plugins without us adding them officially.
 
-### 14.6 Maintenance des connecteurs homemade
+### 14.6 Maintenance of homemade connectors
 
-Risque réel : chaque update majeure d'EssentialsX/ChestShop/etc. peut casser notre connecteur. Mitigation :
+Real risk: every major update of EssentialsX/ChestShop/etc. can break our connector. Mitigation:
 
-- **Tests d'intégration CI** : on spin un Paper avec EssentialsX dans Docker et on vérifie que `essentials:warps` retourne la bonne liste.
-- **Pin des versions supportées** : chaque connecteur déclare la version minimum/maximum supportée dans son metadata.
-- **Pression naturelle vers V2** : un plugin author qui voit son connecteur populaire chez les admins a une motivation à shipper l'officiel et reprendre le contrôle.
-- **Effort estimé** : ~2-4h/mois de maintenance par connecteur sur le long terme. Pour 5 connecteurs au launch, c'est 10-20h/mois — acceptable en solo dev.
+- **CI integration tests**: we spin up a Paper with EssentialsX in Docker and check that `essentials:warps` returns the right list.
+- **Pinning supported versions**: each connector declares the minimum/maximum supported version in its metadata.
+- **Natural pressure toward V2**: a plugin author who sees their connector is popular with admins has a motivation to ship the official one and take back control.
+- **Estimated effort**: ~2-4h/month of maintenance per connector in the long run. For 5 connectors at launch, that is 10-20h/month — acceptable for a solo dev.
 
-### 14.7 UX éditeur
+### 14.7 Editor UX
 
-Le binding connecteur s'édite **au niveau du menu**, dans le panel `MenuProperties` à côté de la liste des `contextInputs` :
+The connector binding is edited **at the menu level**, in the `MenuProperties` panel next to the `contextInputs` list:
 
-- Sur un input de type `"list"` ou `"object"`, un sélecteur **"Source"** propose deux choix : *"passé par l'appelant"* (default) ou *"connecteur"*.
-- Mode *connecteur* : dropdown listant les connecteurs disponibles (filtré selon les plugins détectés sur le serveur connecté). Hover sur un connecteur affiche le schéma des objets retournés (champs disponibles).
-- **Filtres / sort / limit** : UI typée selon les champs du connecteur sélectionné. Les valeurs supportent `{name}` pour interpoler les autres `contextInputs` du menu (ex. `filter: { category: "{category}" }`).
-- **Auto-completion `{alias.field}`** : dans tous les champs texte d'un Element qui a `iterates: { source: input, alias }`, l'autocomplete propose les champs de l'objet du connecteur (ou de la liste passée par l'appelant) en plus des placeholders PAPI et i18n.
-- **Preview live** : si un `sampleContext` est fourni, la preview de l'éditeur l'utilise tel quel ; sinon, en mode connecteur, l'éditeur peut appeler le connecteur (via API mock du backend) pour render 3-5 items exemples.
+- On an input of type `"list"` or `"object"`, a **"Source"** selector offers two choices: *"passed by the caller"* (default) or *"connector"*.
+- *Connector* mode: dropdown listing the available connectors (filtered according to the plugins detected on the connected server). Hovering a connector shows the schema of the returned objects (available fields).
+- **Filters / sort / limit**: UI typed according to the selected connector's fields. Values support `{name}` to interpolate the menu's other `contextInputs` (e.g. `filter: { category: "{category}" }`).
+- **`{alias.field}` auto-completion**: in all text fields of an Element that has `iterates: { source: input, alias }`, autocomplete suggests the fields of the connector's object (or of the list passed by the caller) in addition to PAPI and i18n placeholders.
+- **Live preview**: if a `sampleContext` is provided, the editor preview uses it as is; otherwise, in connector mode, the editor can call the connector (via the backend's mock API) to render 3-5 example items.
 
-### 14.8 Synergie avec le MCP server (V2)
+### 14.8 Synergy with the MCP server (V2)
 
-Le MCP server `artisan-mcp` expose nativement les connecteurs au LLM client (Claude Desktop / Cursor) sous forme de **tools MCP standardisés** : *"liste-moi tous les warps Essentials de ce serveur"*, *"crée un menu qui itère les items ChestShop sous 100 €"*. Aucun travail supplémentaire au-dessus du modèle `ConnectorBinding` — un connecteur enregistré devient un tool MCP automatiquement.
+The `artisan-mcp` MCP server natively exposes the connectors to the client LLM (Claude Desktop / Cursor) as **standardized MCP tools**: *"list all Essentials warps on this server"*, *"create a menu that iterates the ChestShop items under €100"*. No additional work on top of the `ConnectorBinding` model — a registered connector automatically becomes an MCP tool.
 
-### 14.9 Limites V1
+### 14.9 V1 limits
 
-- Pas de **join/lookup cross-source** (ex: "items ChestShop dont le crafter est dans le top 10 LuckPerms"). Un input = une source. À V2 si la demande émerge.
-- Pas de **mutations** via connecteurs (ils sont read-only). Pour modifier la data d'un plugin, on passe par `run_command` ou par un `component_ref` qui exécute une action.
-- Pas de **caching cross-player** : le connecteur est appelé par opening de menu. Si la data est lourde à fetch, le connecteur lui-même implémente son cache. Documentation claire sur les bonnes pratiques cache pour les connecteurs.
-- **Limit max 1000 items** par `ConnectorBinding` pour éviter les abus runtime. En pratique, les inventaires Minecraft cap à 54 slots, donc cette limite n'est jamais atteinte légitimement.
-- **Pas de cycle entre `contextInputs`** : un `filter` qui interpole `{name}` ne peut référencer qu'un input dont la valeur est résoluble en amont (appelant ou connecteur sans dépendance circulaire). L'éditeur calcule un ordre topologique et flag les cycles.
+- No **cross-source join/lookup** (e.g. "ChestShop items whose crafter is in the LuckPerms top 10"). One input = one source. In V2 if demand emerges.
+- No **mutations** via connectors (they are read-only). To modify a plugin's data, go through `run_command` or a `component_ref` that runs an action.
+- No **cross-player caching**: the connector is called per menu opening. If the data is expensive to fetch, the connector itself implements its cache. Clear documentation on cache best practices for connectors.
+- **Max limit 1000 items** per `ConnectorBinding` to avoid runtime abuse. In practice, Minecraft inventories cap at 54 slots, so this limit is never legitimately reached.
+- **No cycle between `contextInputs`**: a `filter` that interpolates `{name}` can only reference an input whose value is resolvable upstream (caller or connector with no circular dependency). The editor computes a topological order and flags cycles.
 
 ---
 
-## 15. Commandes
+## 15. Commands
 
-Artisan permet à l'admin de **créer ses propres commandes** depuis l'éditeur, au même niveau qu'un menu. Une commande est une entité de premier ordre : elle a son id, son nom, ses arguments, ses actions, et vit dans le même workspace que les menus (et le même pack `.itfz` à l'export).
+Artisan lets the admin **create their own commands** from the editor, at the same level as a menu. A command is a first-class entity: it has its id, name, arguments, actions, and lives in the same workspace as menus (and the same `.itfz` pack on export).
 
-Concept analogue à un `commands.yml` ou à un plugin de commandes custom (CommandPanels, etc.), mais avec :
+A concept analogous to a `commands.yml` or a custom commands plugin (CommandPanels, etc.), but with:
 
-- Le **catalogue d'actions du menu** réutilisé tel quel (cf. section 5).
-- Un **système d'arguments typés** avec tab-completion automatique.
-- Les **valeurs d'arguments** auto-bindées par nom aux `contextInputs` des menus ouverts (cf. §15.4).
-- L'éditeur visuel : pas de YAML à taper, validation live, hints de placeholders.
+- The **menu action catalog** reused as is (see section 5).
+- A **typed argument system** with automatic tab-completion.
+- **Argument values** auto-bound by name to the `contextInputs` of the menus opened (see §15.4).
+- The visual editor: no YAML to type, live validation, placeholder hints.
 
-### 15.1 Modèle
+### 15.1 Model
 
-Une commande contient :
+A command contains:
 
-- **Métadonnées** : `id` (slug interne), `name` (tapé en jeu sans slash), `aliases[]`, `permission`, `description` (visible joueur), `notes` (interne admin).
-- **Arguments** : liste ordonnée d'arguments positionnels typés.
-- **Requirements** : conditions ANDées avant exécution (mêmes types qu'en menu).
-- **Actions** : la séquence à exécuter (mêmes 15 types qu'en menu).
-- **Fallback** : actions exécutées si requirements échouent.
-- **Cooldown** : optionnel, scope `player` ou `server`.
+- **Metadata**: `id` (internal slug), `name` (typed in game without the slash), `aliases[]`, `permission`, `description` (player-visible), `notes` (admin-internal).
+- **Arguments**: ordered list of typed positional arguments.
+- **Requirements**: conditions ANDed before execution (same types as in menus).
+- **Actions**: the sequence to run (same 15 types as in menus).
+- **Fallback**: actions run if requirements fail.
+- **Cooldown**: optional, scope `player` or `server`.
 
-Schéma complet : `docs/schema/command/v1/`.
+Full schema: `docs/schema/command/v1/`.
 
-### 15.2 Types d'arguments (V1)
+### 15.2 Argument types (V1)
 
-8 types initiaux, suffisants pour les use cases courants :
+8 initial types, enough for common use cases:
 
-| Type | Sens | Tab-completion |
+| Type | Meaning | Tab-completion |
 |---|---|---|
-| `player` | nom de joueur (online ou offline, résolu via UUID) | online + connus du serveur |
-| `online_player` | nom de joueur connecté | online uniquement |
-| `string` | texte libre | aucune |
-| `integer` | entier | aucune |
-| `number` | nombre flottant | aucune |
+| `player` | player name (online or offline, resolved via UUID) | online + known to the server |
+| `online_player` | name of a connected player | online only |
+| `string` | free text | none |
+| `integer` | integer | none |
+| `number` | floating-point number | none |
 | `boolean` | true/false | true, false |
-| `world` | nom d'un monde chargé | mondes chargés |
-| `enum` | valeur dans une liste fixée par l'admin | valeurs de la liste |
+| `world` | name of a loaded world | loaded worlds |
+| `enum` | value from a list set by the admin | values of the list |
 
-Chaque argument a un nom (slug), un flag `required` (par défaut true), et optionnellement un `default` qui supporte les placeholders (utile pour `%player_name%` quand l'admin veut cibler l'auteur de la commande par défaut).
+Each argument has a name (slug), a `required` flag (true by default), and optionally a `default` that supports placeholders (useful for `%player_name%` when the admin wants to target the command's author by default).
 
-Règle d'ordre : les `required` doivent précéder les optionnels. L'éditeur l'applique au drag-and-drop.
+Ordering rule: `required` arguments must precede optional ones. The editor enforces this on drag-and-drop.
 
-V2+ ajoutera : `item_material`, `enchantment`, `entity_type`, `region` (depuis WorldGuard), suggestions custom via placeholders dynamiques.
+V2+ will add: `item_material`, `enchantment`, `entity_type`, `region` (from WorldGuard), custom suggestions via dynamic placeholders.
 
-### 15.3 Arguments et contexte
+### 15.3 Arguments and context
 
-Quand la commande s'exécute, les arguments sont parsés selon leur type. Un échec de parse (joueur introuvable, monde non chargé, valeur enum invalide) envoie un message d'erreur typé au joueur et la commande n'est **pas exécutée** (pas de fallback, c'est de l'input invalide, pas un requirement raté).
+When the command runs, the arguments are parsed according to their type. A parse failure (player not found, world not loaded, invalid enum value) sends a typed error message to the player and the command is **not run** (no fallback, it is invalid input, not a failed requirement).
 
-Une fois parsés, les arguments deviennent des **valeurs nommées dans la scope de la commande**, identifiées par leur nom d'argument. Quand la commande exécute un `open_menu`, ces valeurs sont passées au menu cible via l'auto-binding par nom (cf. §15.4) : un argument nommé `target` arrive automatiquement dans un `contextInput` `target` du menu ouvert.
+Once parsed, the arguments become **named values in the command's scope**, identified by their argument name. When the command runs an `open_menu`, these values are passed to the target menu via auto-binding by name (see §15.4): an argument named `target` automatically arrives in a `target` `contextInput` of the opened menu.
 
-Pour les types complexes (`player`, `online_player`), la valeur est un objet exposant des champs dérivés accessibles via `{<name>.<champ>}` dans tout champ texte du menu :
+For complex types (`player`, `online_player`), the value is an object exposing derived fields accessible via `{<name>.<field>}` in any text field of the menu:
 
-| Type | Champs exposés |
+| Type | Exposed fields |
 |---|---|
 | `player` / `online_player` | `name` (string), `uuid` (string), `displayname` (string) |
 
-Dans les `actions`, `fallback` et `requirements` de la commande **elle-même** (avant qu'un menu ne soit ouvert), les arguments sont accessibles directement par leur nom via `{<name>}` et `{<name>.<champ>}` — la même syntaxe que dans les menus, pour rester uniforme.
+In the `actions`, `fallback`, and `requirements` of the command **itself** (before a menu is opened), arguments are accessible directly by name via `{<name>}` and `{<name>.<field>}` — the same syntax as in menus, to stay uniform.
 
-### 15.4 Propagation du contexte (auto-binding par nom)
+### 15.4 Context propagation (auto-binding by name)
 
-Quand un `open_menu` est exécuté (depuis une commande, un click handler de menu, ou un autre `open_menu`), le moteur peuple les `contextInputs` du menu cible en deux passes :
+When an `open_menu` is run (from a command, a menu click handler, or another `open_menu`), the engine populates the target menu's `contextInputs` in two passes:
 
-1. **Auto-binding par nom** : pour chaque `contextInput` du menu cible, si une valeur du même nom existe dans la scope courante (arguments de commande, `contextInputs` du menu appelant, alias d'iteration courant si l'`open_menu` est dans une boucle), elle est passée. Le typage doit matcher — sinon l'éditeur warn au design-time et le runtime ignore.
-2. **Override explicite** via `OpenMenuAction.context: Record<string, string>` : chaque entrée surcharge l'auto-binding. La valeur peut interpoler des placeholders de la scope courante (ex. `{ "shop": "{currentItem}" }` pour mapper sur un nom différent).
+1. **Auto-binding by name**: for each `contextInput` of the target menu, if a value of the same name exists in the current scope (command arguments, the calling menu's `contextInputs`, current iteration alias if the `open_menu` is inside a loop), it is passed. Typing must match — otherwise the editor warns at design time and the runtime ignores it.
+2. **Explicit override** via `OpenMenuAction.context: Record<string, string>`: each entry overrides the auto-binding. The value can interpolate placeholders from the current scope (e.g. `{ "shop": "{currentItem}" }` to map onto a different name).
 
 ```jsonc
 // shop_menu.contextInputs : [{ name: "category" }, { name: "shops", type: "list", source: {...} }]
 // shop_menu Element : iterates: { source: "shops", alias: "shop" }
 
-// Click handler dans shop_menu, target = item_detail (déclare contextInput "shop") :
+// Click handler in shop_menu, target = item_detail (declares contextInput "shop") :
 { "type": "open_menu", "menu_id": "item_detail" }
-// → auto-bind "shop" depuis l'alias d'iteration courant. Aucun mapping nécessaire.
+// → auto-bind "shop" from the current iteration alias. No mapping needed.
 
-// Si le menu cible déclare "item" au lieu de "shop", on mappe explicitement :
+// If the target menu declares "item" instead of "shop", map explicitly:
 { "type": "open_menu", "menu_id": "item_detail", "context": { "item": "{shop}" } }
 ```
 
-**`clear_context: true`** : coupe l'auto-binding (l'override explicite reste actif). Utile pour les boutons "Retour à l'accueil" qui ne doivent pas hériter d'un target spécifique. Si le menu cible déclare des `contextInputs` sans `default` ni `source: ConnectorBinding`, l'ouverture échoue avec un message au joueur.
+**`clear_context: true`**: cuts the auto-binding (the explicit override stays active). Useful for "Back to home" buttons that must not inherit a specific target. If the target menu declares `contextInputs` with neither a `default` nor a `source: ConnectorBinding`, opening fails with a message to the player.
 
 ```json
 { "type": "open_menu", "menu_id": "main_menu", "clear_context": true }
 ```
 
-Decision : auto-binding par défaut, override explicite quand les noms divergent, `clear_context` pour les ruptures intentionnelles. Ce modèle remplace la propagation implicite de `%args_*%` du proto initial — plus explicite, contractualisé via `Menu.contextInputs`, vérifiable au design-time.
+Decision: auto-binding by default, explicit override when names diverge, `clear_context` for intentional breaks. This model replaces the implicit `%args_*%` propagation of the initial prototype — more explicit, contractualized via `Menu.contextInputs`, verifiable at design time.
 
-### 15.5 Use cases couverts
+### 15.5 Use cases covered
 
-Avec ce modèle, l'admin peut couvrir sans plugin tiers :
+With this model, the admin can cover without a third-party plugin:
 
-- `/heal` → actions directes, pas de menu (`give_xp`, `play_sound`, `send_message`).
-- `/profile [target]` → ouvre `profile_menu` avec contexte.
-- `/shop` → ouvre `shop_menu` (alias court, équivalent à `/menu open shop`).
+- `/heal` → direct actions, no menu (`give_xp`, `play_sound`, `send_message`).
+- `/profile [target]` → opens `profile_menu` with context.
+- `/shop` → opens `shop_menu` (short alias, equivalent to `/menu open shop`).
 - `/pay <player> <amount>` → take_money + run_command (eco) + send_message.
-- `/warp <name>` avec `name` typé `enum` → liste de warps autocomplétée.
-- `/admin-give <player> <material>` (perm admin) → give_item au joueur cible.
+- `/warp <name>` with `name` typed `enum` → autocompleted list of warps.
+- `/admin-give <player> <material>` (admin perm) → give_item to the target player.
 
-### 15.6 Conflits de noms
+### 15.6 Name conflicts
 
-Au démarrage, le plugin détecte les conflits avec les commandes déjà enregistrées sur le serveur :
+At startup, the plugin detects conflicts with commands already registered on the server:
 
-- **Vanilla** (`heal`, `tp`, etc. natives ou via `commands.yml`) : Artisan refuse de les overrider, log un warning, demande à l'admin de renommer.
-- **Autre plugin** : pareil, refus + warning visible dans les logs.
-- **Conflit interne** entre deux commandes Artisan (même nom dans deux packs activés) : dernier chargé perd, log un warning, l'admin est notifié dans l'éditeur.
+- **Vanilla** (`heal`, `tp`, etc. native or via `commands.yml`): Artisan refuses to override them, logs a warning, and asks the admin to rename.
+- **Another plugin**: same, refusal + warning visible in the logs.
+- **Internal conflict** between two Artisan commands (same name in two enabled packs): last loaded loses, a warning is logged, the admin is notified in the editor.
 
-Pas d'override silencieux jamais — un admin doit toujours savoir quelle commande est active pour quel nom.
+Never a silent override — an admin must always know which command is active for which name.
 
 ### 15.7 Pricing
 
-Les commandes **n'ont pas de quota** dans aucun tier. Une commande coûte ~1 KB de stockage et zéro runtime (pas de rendu, pas de WS persistant). Les quotas Artisan sont sur les serveurs liés et les seats d'équipe, pas sur les ressources de contenu (cf. section 3).
+Commands have **no quota** in any tier. A command costs ~1 KB of storage and zero runtime (no rendering, no persistent WS). Artisan quotas are on linked servers and team seats, not on content resources (see section 3).
 
-### 15.8 Workspace et packs
+### 15.8 Workspace and packs
 
-Les commandes apparaissent dans le dashboard à côté des menus, avec leur propre onglet/filtre. Sur le canvas multi-menu (cf. section 4.4), une commande est représentée comme un nœud distinct (forme/couleur dédiée), avec une flèche vers le menu qu'elle ouvre (s'il y en a un — sinon nœud "feuille").
+Commands appear in the dashboard next to menus, with their own tab/filter. On the multi-menu canvas (see section 4.4), a command is represented as a distinct node (dedicated shape/color), with an arrow to the menu it opens (if any — otherwise a "leaf" node).
 
-À l'export `.itfz`, le manifest pack inclut une section `commands[]` à côté de `menus[]`. Cf. `docs/schema/pack/v1/`.
+On `.itfz` export, the pack manifest includes a `commands[]` section next to `menus[]`. See `docs/schema/pack/v1/`.
 
-### 15.9 Limites V1
+### 15.9 V1 limits
 
-- Pas d'arguments **variadic** (ex: `/say <message...>`). Le dernier `string` capture tous les tokens restants par convention si on en a besoin, mais pas de syntaxe spéciale en V1.
-- Pas de **subcommands** branchées (ex: `/admin give|kick|ban`). À traiter via plusieurs commandes nommées (`/admin-give`, `/admin-kick`) ou un menu d'admin.
-- Pas de **suggestions custom** dynamiques au-delà de `enum`. À ajouter en V1.5+.
-- Pas de **commands chaînées** (une commande qui appelle une autre commande). Possible via `run_command` mais ça repasse par le parser texte, pas idéal.
+- No **variadic** arguments (e.g. `/say <message...>`). By convention the last `string` captures all remaining tokens if needed, but no special syntax in V1.
+- No branched **subcommands** (e.g. `/admin give|kick|ban`). To be handled via several named commands (`/admin-give`, `/admin-kick`) or an admin menu.
+- No dynamic **custom suggestions** beyond `enum`. To be added in V1.5+.
+- No **chained commands** (a command that calls another command). Possible via `run_command` but it goes back through the text parser, not ideal.
 
 ---
-## 16. Authentification et équipes
+## 16. Authentication and teams
 
 ### 16.1 Login
 
-**Deux méthodes d'authentification** disponibles dès V1, **compte requis dès le free tier** :
+**Two authentication methods** available from V1, **account required from the free tier**:
 
-- **Discord OAuth** (primary, recommandée) : 1 click, ~3 secondes. Choix culturellement aligné — 99 % des admins Minecraft sont déjà sur Discord. SSO natif, 2FA via Discord built-in, identité stable.
-- **Email + password** : universel, fallback pour qui n'a pas de Discord. Vérification email obligatoire pour activer le compte. ~30 secondes au signup.
+- **Discord OAuth** (primary, recommended): 1 click, ~3 seconds. A culturally aligned choice — 99% of Minecraft admins are already on Discord. Native SSO, built-in Discord 2FA, stable identity.
+- **Email + password**: universal, fallback for those without Discord. Mandatory email verification to activate the account. ~30 seconds at signup.
 
-Implémentation côté backend : **Lucia Auth** (lib légère pour Fastify, gère sessions, refresh tokens, account linking). Hashing argon2id pour les passwords email.
+Backend implementation: **Lucia Auth** (lightweight lib for Fastify, handles sessions, refresh tokens, account linking). argon2id hashing for email passwords.
 
-**Account linking** : un email = un compte. L'admin peut linker un Discord OAuth en plus pour SSO, mais l'email reste l'identifiant canonique. Évite les emmerdes type "j'ai signé avec Discord puis j'ai changé de Discord, j'ai perdu mon compte".
+**Account linking**: one email = one account. The admin can additionally link a Discord OAuth for SSO, but the email remains the canonical identifier. Avoids the "I signed up with Discord then changed my Discord, I lost my account" kind of hassle.
 
-**Pourquoi pas de workspace anonyme** : on a évalué et écarté un flow `/artisan editor` qui authentifierait via un token in-game sans compte. Trois raisons :
-1. **Sécurité** : un token affiché en clair dans le chat MC peut être lu par un autre OP, par les logs serveur, ou par tout plugin qui hooke le chat. Un attaquant qui intercepte le link en a 5 minutes pour le claim avant l'admin légitime.
-2. **Conversion** : sans compte, pas d'email pour le remarketing, pas de session cross-device, pas de tier abstraction qui groupe N serveurs. Le free anonymous bloquerait toute conversion vers Pro.
-3. **Operations** : pas de billing possible sans compte, pas de support, pas de recovery.
+**Why no anonymous workspace**: we evaluated and ruled out an `/artisan editor` flow that would authenticate via an in-game token without an account. Three reasons:
+1. **Security**: a token displayed in plain text in MC chat can be read by another OP, by server logs, or by any plugin that hooks the chat. An attacker who intercepts the link has 5 minutes to claim it before the legitimate admin.
+2. **Conversion**: without an account, no email for remarketing, no cross-device session, no tier abstraction that groups N servers. Anonymous free would block any conversion to Pro.
+3. **Operations**: no billing possible without an account, no support, no recovery.
 
-Le compte requis n'est pas une friction — Discord OAuth = 3 secondes, et la sécurité gagnée vaut largement le micro-effort de signup.
+Requiring an account is not friction — Discord OAuth = 3 seconds, and the security gained is well worth the micro-effort of signing up.
 
-### 16.2 `/artisan editor` — shortcut authenticated
+### 16.2 `/artisan editor` — authenticated shortcut
 
-La commande `/artisan editor` reste dans le plugin comme **deeplink shortcut** vers le workspace courant, pas comme bypass d'auth :
+The `/artisan editor` command stays in the plugin as a **deeplink shortcut** to the current workspace, not as an auth bypass:
 
-1. Admin déjà signé sur Artisan, pose le plugin sur un serveur lié à son compte.
-2. Sur le serveur, il tape `/artisan editor`.
-3. Plugin affiche : *"Open editor: https://editor.artisanmc.net/server/<id>"*.
-4. Click → browser ouvre l'éditeur, **session existante détectée via JWT cookie** → arrive direct sur le bon workspace avec context serveur pré-rempli. Si pas de session active dans le browser → redirige vers le login normal (Discord/email).
+1. Admin already signed in to Artisan, puts the plugin on a server linked to their account.
+2. On the server, they type `/artisan editor`.
+3. Plugin displays: *"Open editor: https://editor.artisanmc.net/server/<id>"*.
+4. Click → browser opens the editor, **existing session detected via JWT cookie** → lands directly on the right workspace with the server context pre-filled. If there is no active session in the browser → redirects to the normal login (Discord/email).
 
-C'est un raccourci utile (skip la navigation manuelle "ouvrir editor → choisir le bon serveur"), pas un mécanisme d'auth séparé. Le compte reste roi.
+It is a useful shortcut (skips the manual "open editor → pick the right server" navigation), not a separate auth mechanism. The account remains king.
 
 
 ### 16.3 Recovery email
 
-À la création du compte, l'admin lie un email (non-Discord) de récupération. En cas de perte d'accès Discord (ban, compte suspendu), procédure manuelle de support :
+At account creation, the admin links a (non-Discord) recovery email. If Discord access is lost (ban, suspended account), manual support procedure:
 
-1. L'admin contacte le support depuis l'email de récupération.
-2. Vérification d'identité (preuve d'ownership des serveurs Minecraft : commande sur les serveurs liés, screenshot, etc.).
-3. Re-binding manuel sur un nouveau compte Discord.
+1. The admin contacts support from the recovery email.
+2. Identity verification (proof of ownership of the Minecraft servers: command on the linked servers, screenshot, etc.).
+3. Manual re-binding to a new Discord account.
 
-### 16.4 Multi-utilisateur (équipes)
+### 16.4 Multi-user (teams)
 
-Dans la spec V1, deux niveaux :
+In the V1 spec, two levels:
 
-- **Compte solo** : un seul utilisateur, tier Free ou Pro.
-- **Compte team** : plusieurs membres, possible sur tous les tiers payants. Les membres sont identifiés via Discord :
-  - **Méthode 1** : invitation par username Discord.
-  - **Méthode 2** (élégante) : "tous les membres avec le rôle @admin sur mon serveur Discord" — l'éditeur écoute les changements de rôle Discord.
+- **Solo account**: a single user, Free or Pro tier.
+- **Team account**: several members, possible on all paid tiers. Members are identified via Discord:
+  - **Method 1**: invitation by Discord username.
+  - **Method 2** (elegant): "all members with the @admin role on my Discord server" — the editor listens to Discord role changes.
 
-Permissions internes au compte : Owner (tout), Admin (édite et publie), Editor (édite, ne peut pas publier), Viewer (read-only).
+Permissions within the account: Owner (everything), Admin (edits and publishes), Editor (edits, cannot publish), Viewer (read-only).
 
 ### 16.5 Sessions
 
-JWT avec rotation. Session valide 7 jours, refresh transparent. Si la connexion Discord est révoquée (ban), la session expire à la prochaine validation.
+JWT with rotation. Session valid for 7 days, transparent refresh. If the Discord connection is revoked (ban), the session expires at the next validation.
 
 ---
 
-## 17. Protocole WebSocket
+## 17. WebSocket protocol
 
-**Note** : le WebSocket persistant est actif en **mode cloud** (le défaut, disponible à tous les tiers Free + Pro). En **mode local** (opt-in pour offline/self-hosted strict), aucune connexion sortante n'est ouverte. Tout ce qui suit décrit le mode cloud.
+**Note**: the persistent WebSocket is active in **cloud mode** (the default, available to all Free + Pro tiers). In **local mode** (opt-in for strict offline/self-hosted), no outbound connection is opened. Everything below describes cloud mode.
 
 ### 17.1 Handshake
 
-Connexion sortante du plugin vers `wss://api.artisanmc.net/ws/plugin` (l'hôte du backend — `editor.artisanmc.net` ne sert que le SPA éditeur et ne proxifie ni `/ws` ni `/api`). Authentification via :
+Outbound connection from the plugin to `wss://api.artisanmc.net/ws/plugin` (the backend host — `editor.artisanmc.net` only serves the editor SPA and proxies neither `/ws` nor `/api`). Authentication via:
 
 ```json
 {
@@ -1640,7 +1640,7 @@ Connexion sortante du plugin vers `wss://api.artisanmc.net/ws/plugin` (l'hôte d
 }
 ```
 
-L'éditeur valide la `server_key`, vérifie l'unicité d'usage (fingerprint serveur), et répond :
+The editor validates the `server_key`, checks usage uniqueness (server fingerprint), and replies:
 
 ```json
 {
@@ -1653,275 +1653,275 @@ L'éditeur valide la `server_key`, vérifie l'unicité d'usage (fingerprint serv
 }
 ```
 
-### 17.2 Messages éditeur → plugin
+### 17.2 Editor → plugin messages
 
 | Message | Description |
 |---|---|
-| `bundle_available` | Nouveau bundle prêt sur le CDN, URL fournie + signature |
-| `draft_update` | Mise à jour incrementielle du draft d'un menu |
-| `publish` | Promouvoir un draft en live |
-| `rollback` | Revenir à une version archivée |
-| `placeholder_query` | Demande la liste des placeholders PAPI installés |
-| `permission_query` | Demande la liste des permissions disponibles (LuckPerms, Vault) |
-| `material_query` | Demande la liste des matériaux/items du serveur |
+| `bundle_available` | New bundle ready on the CDN, URL provided + signature |
+| `draft_update` | Incremental update of a menu's draft |
+| `publish` | Promote a draft to live |
+| `rollback` | Revert to an archived version |
+| `placeholder_query` | Request the list of installed PAPI placeholders |
+| `permission_query` | Request the list of available permissions (LuckPerms, Vault) |
+| `material_query` | Request the list of the server's materials/items |
 
-### 17.3 Messages plugin → éditeur
+### 17.3 Plugin → editor messages
 
 | Message | Description |
 |---|---|
-| `sync_complete` | Bundle reçu et activé |
-| `sync_failed` | Erreur, raison |
-| `placeholder_response` | Liste des placeholders disponibles |
-| `permission_response` | Liste des permissions |
-| `material_response` | Liste des matériaux |
-| `event_menu_opened` | Métriques (qui a ouvert quel menu, quand) |
-| `event_action_executed` | Métriques (action déclenchée, succès/échec) |
+| `sync_complete` | Bundle received and activated |
+| `sync_failed` | Error, reason |
+| `placeholder_response` | List of available placeholders |
+| `permission_response` | List of permissions |
+| `material_response` | List of materials |
+| `event_menu_opened` | Metrics (who opened which menu, when) |
+| `event_action_executed` | Metrics (action triggered, success/failure) |
 
-### 17.4 Reconnexion
+### 17.4 Reconnection
 
-Côté plugin : reconnexion exponentielle (1s, 2s, 4s, 8s, 16s, max 60s). À la reconnexion, le handshake inclut `current_bundle_hash` ; si l'éditeur a une version plus récente, push de `bundle_available`.
+Plugin side: exponential reconnection (1s, 2s, 4s, 8s, 16s, max 60s). On reconnect, the handshake includes `current_bundle_hash`; if the editor has a more recent version, it pushes `bundle_available`.
 
-### 17.5 Robustesse
+### 17.5 Robustness
 
-- Messages idempotents quand possible (un `live_publish` re-reçu ne casse rien).
-- Heartbeat (`ping`/`pong`) toutes les 30 secondes.
-- Buffer des messages côté éditeur si le plugin est déconnecté (max 100 messages, dropped sinon avec un fallback "fait un sync complet").
+- Idempotent messages when possible (a re-received `live_publish` breaks nothing).
+- Heartbeat (`ping`/`pong`) every 30 seconds.
+- Message buffer on the editor side if the plugin is disconnected (max 100 messages, dropped otherwise with a "do a full sync" fallback).
 
 ---
 
-## 18. Stack technique
+## 18. Tech stack
 
-### 18.1 Plugin Minecraft
+### 18.1 Minecraft plugin
 
-**Architecture interne** : le plugin a deux providers de menus, **disponibles dans tous les tiers** :
-- `CloudMenuProvider` (défaut, tous tiers) : maintient le WebSocket vers `wss://api.artisanmc.net/ws/plugin`, pull les bundles depuis le CDN. Active dès qu'une `server_key` valide est configurée.
-- `FilesystemMenuProvider` (opt-in, offline) : lit `plugins/Artisan/menus/*.{json,yaml}` depuis le disque, watch les fichiers pour reload automatique optionnel. Pour les admins qui ne veulent aucune dépendance cloud (souveraineté, environnements air-gapped).
+**Internal architecture**: the plugin has two menu providers, **available in all tiers**:
+- `CloudMenuProvider` (default, all tiers): maintains the WebSocket to `wss://api.artisanmc.net/ws/plugin`, pulls bundles from the CDN. Active as soon as a valid `server_key` is configured.
+- `FilesystemMenuProvider` (opt-in, offline): reads `plugins/Artisan/menus/*.{json,yaml}` from disk, watches the files for optional automatic reload. For admins who want no cloud dependency (sovereignty, air-gapped environments).
 
-Le moteur de rendu (parse menu/v1, evaluate appearances, génère l'inventaire Bukkit) est commun aux deux providers — c'est juste la source des données qui diffère. Le mode par défaut est cloud ; le mode local s'active via `config.yml` (`mode: local`).
+The rendering engine (parse menu/v1, evaluate appearances, generate the Bukkit inventory) is shared by both providers — only the data source differs. The default mode is cloud; local mode is enabled via `config.yml` (`mode: local`).
 
 
-- **API** : Paper API (depuis 1.21.4), avec compatibilité Spigot. Préférer Paper pour les events plus riches et la perf.
-- **Langage** : Java 21 (LTS, requis par 1.21+) ou Kotlin (moderne, concis).
-- **Build** : Gradle, plugin paper-userdev pour le mojmap.
-- **Dépendances clés** :
-  - Vault (économie, optionnelle au load)
-  - PlaceholderAPI (placeholders, optionnelle au load)
-  - WorldGuard (régions, optionnelle)
-  - LuckPerms (permissions, optionnelle)
-- **Persistence** : H2 ou SQLite embedded pour les cooldowns, métadonnées de bundles. Config `.yml` minimal (server_key, port HTTP local, tier override pour debug).
+- **API**: Paper API (since 1.21.4), with Spigot compatibility. Prefer Paper for the richer events and performance.
+- **Language**: Java 21 (LTS, required by 1.21+) or Kotlin (modern, concise).
+- **Build**: Gradle, paper-userdev plugin for mojmap.
+- **Key dependencies**:
+  - Vault (economy, optional at load)
+  - PlaceholderAPI (placeholders, optional at load)
+  - WorldGuard (regions, optional)
+  - LuckPerms (permissions, optional)
+- **Persistence**: embedded H2 or SQLite for cooldowns and bundle metadata. Minimal `.yml` config (server_key, local HTTP port, tier override for debug).
 
-### 18.2 Éditeur web
+### 18.2 Web editor
 
-- **Frontend** : React 18+ avec Vite. TypeScript strict.
-- **Drag & drop** : `@dnd-kit/core` (performant, accessible, moderne).
-- **State** : Zustand ou Jotai (léger, suffisant). Redux écarté (overkill).
-- **UI components** : shadcn/ui ou Mantine (esthétique soignée nécessaire pour le positionnement).
-- **WebSocket client** : connection management custom + auto-reconnect.
+- **Frontend**: React 18+ with Vite. Strict TypeScript.
+- **Drag & drop**: `@dnd-kit/core` (performant, accessible, modern).
+- **State**: Zustand or Jotai (lightweight, sufficient). Redux ruled out (overkill).
+- **UI components**: shadcn/ui or Mantine (polished aesthetics needed for the positioning).
+- **WebSocket client**: custom connection management + auto-reconnect.
 
-### 18.3 Backend éditeur
+### 18.3 Editor backend
 
-- **Runtime** : Node.js 20+ avec TypeScript.
-- **Framework** : Fastify (perf et type-safe) ou Hono (moderne, edge-ready).
-- **DB** : PostgreSQL pour les comptes, bundles, métadonnées. Redis pour les sessions et le state WebSocket.
-- **Storage assets** : S3-compatible (Cloudflare R2 conseillé pour les coûts, pas de fees egress).
-- **CDN** : Cloudflare devant le storage (cache agressif, réseau global).
-- **Auth** : Discord OAuth via NextAuth ou implémentation custom légère.
-- **Paiement** : Stripe Subscriptions.
-- **Génération de packs** : workers Node + librairie sharp pour le redimensionnement, archiver pour le .zip.
+- **Runtime**: Node.js 20+ with TypeScript.
+- **Framework**: Fastify (performance and type-safe) or Hono (modern, edge-ready).
+- **DB**: PostgreSQL for accounts, bundles, metadata. Redis for sessions and WebSocket state.
+- **Asset storage**: S3-compatible (Cloudflare R2 recommended for cost, no egress fees).
+- **CDN**: Cloudflare in front of the storage (aggressive caching, global network).
+- **Auth**: Discord OAuth via NextAuth or a lightweight custom implementation.
+- **Payment**: Stripe Subscriptions.
+- **Pack generation**: Node workers + the sharp library for resizing, archiver for the .zip.
 
 ### 18.4 Infra
 
-- **Hosting** : Fly.io ou Railway pour le backend (simple, scalable, multi-région).
-- **DB managée** : Supabase (PostgreSQL + auth assist) ou Neon (serverless Postgres).
-- **CDN** : Cloudflare.
-- **Monitoring** : Sentry (errors), Plausible ou PostHog (analytics produit).
-- **CI/CD** : GitHub Actions.
+- **Hosting**: Fly.io or Railway for the backend (simple, scalable, multi-region).
+- **Managed DB**: Supabase (PostgreSQL + auth assist) or Neon (serverless Postgres).
+- **CDN**: Cloudflare.
+- **Monitoring**: Sentry (errors), Plausible or PostHog (product analytics).
+- **CI/CD**: GitHub Actions.
 
-### 18.5 Sécurité
+### 18.5 Security
 
-- Tous les tokens en HttpOnly cookies (jamais localStorage).
-- Server keys hashed côté backend (Argon2).
-- Bundles signés avec ECDSA P-256.
-- Rate limiting sur l'API (par compte et par IP).
-- Validation stricte des uploads (PNG only, magic bytes check, taille).
-- Sandbox des assets parsing (parser MCModels en worker isolé).
+- All tokens in HttpOnly cookies (never localStorage).
+- Server keys hashed on the backend (Argon2).
+- Bundles signed with ECDSA P-256.
+- Rate limiting on the API (per account and per IP).
+- Strict upload validation (PNG only, magic bytes check, size).
+- Sandboxed asset parsing (MCModels parser in an isolated worker).
 
 ---
 
 ## 19. Distribution / GTM
 
-### 19.1 Plugin gratuit (vanilla)
+### 19.1 Free plugin (vanilla)
 
-Distribué partout pour maximiser l'adoption :
+Distributed everywhere to maximize adoption:
 
-- **SpigotMC** : la plus grande audience (~250k+ admins actifs). Distribuer ici en priorité.
-- **Modrinth** : moderne, en croissance, public Paper-friendly. Bon complément.
-- **Page de téléchargement directe** sur le site (pour SEO et pour ceux qui ne passent pas par les hubs).
+- **SpigotMC**: the largest audience (~250k+ active admins). Distribute here first.
+- **Modrinth**: modern, growing, Paper-friendly audience. A good complement.
+- **Direct download page** on the site (for SEO and for those who don't go through the hubs).
 
-Note : SpigotMC interdit les modèles d'abonnement. La version premium ne peut pas y être listée ; seule la version vanilla l'est.
+Note: SpigotMC forbids subscription models. The premium version cannot be listed there; only the vanilla version is.
 
 ### 19.2 Premium (subscription)
 
-Distribué uniquement via :
+Distributed only via:
 
-- **Compte éditeur** : l'admin upgrade depuis son dashboard, paiement Stripe.
-- **Page de pricing** sur le site.
-- **Bouton "Upgrade"** intégré dans l'éditeur, déclenché dès qu'on essaye d'utiliser un asset custom en mode gratuit.
+- **Editor account**: the admin upgrades from their dashboard, Stripe payment.
+- **Pricing page** on the site.
+- **"Upgrade" button** built into the editor, triggered as soon as someone tries to use a custom asset in free mode.
 
-Possibilité future :
+Possible future:
 
-- **BuiltByBit** : pour vendre des packs de menus prêts (une fois la marketplace opérationnelle). Audience qualifiée.
-- **Polymart** : alternative possible, moins prioritaire.
+- **BuiltByBit**: to sell ready-made menu packs (once the marketplace is operational). Qualified audience.
+- **Polymart**: possible alternative, lower priority.
 
-### 19.3 Marketing au launch
+### 19.3 Launch marketing
 
-- **Démo serveur public** : `mc.artisanmc.net`. N'importe qui peut se connecter et tester le plugin en action. Le manque de démo de NxMenu est un avantage concurrentiel concret.
-- **Vidéo showcase** (2-3 minutes) : édition live (la WS est un feature visuel imbattable), construction d'un menu shop en 5 minutes, démo de cohabitation avec Nexo.
-- **Discord communautaire** : support, feedback, partage de configs entre utilisateurs (germe de communauté avant la marketplace).
-- **Présence Reddit** : `r/admincraft`, `r/Minecraft` — post de release puis showcases hebdomadaires.
-- **Outreach YouTubers Minecraft** : créateurs de tuto serveurs (français et anglophones), envoi du plugin gratuit + accès premium pour test.
-- **Blog technique** : 1-2 articles initiaux ("comment on a résolu la cohabitation avec Nexo", "pourquoi on a choisi 1.21.4+"). SEO + crédibilité dev.
+- **Public demo server**: `mc.artisanmc.net`. Anyone can connect and test the plugin in action. NxMenu's lack of a demo is a concrete competitive advantage.
+- **Showcase video** (2-3 minutes): live editing (the WS is an unbeatable visual feature), building a shop menu in 5 minutes, a demo of coexistence with Nexo.
+- **Community Discord**: support, feedback, sharing configs between users (seed of a community before the marketplace).
+- **Reddit presence**: `r/admincraft`, `r/Minecraft` — release post then weekly showcases.
+- **Minecraft YouTuber outreach**: server tutorial creators (French and English-speaking), send the free plugin + premium access for testing.
+- **Technical blog**: 1-2 initial articles ("how we solved coexistence with Nexo", "why we chose 1.21.4+"). SEO + dev credibility.
 
-### 19.4 Métriques de succès post-launch
+### 19.4 Post-launch success metrics
 
-- **Adoption (mois 1)** : >1000 téléchargements vanilla.
-- **Adoption (mois 3)** : >5000 serveurs actifs (plugin chargé et utilisé).
-- **Conversion premium (mois 3)** : >5% des serveurs actifs upgradent.
-- **Churn premium** : < 10% mensuel à 6 mois.
-- **NPS éditeur** : > 40.
+- **Adoption (month 1)**: >1000 vanilla downloads.
+- **Adoption (month 3)**: >5000 active servers (plugin loaded and used).
+- **Premium conversion (month 3)**: >5% of active servers upgrade.
+- **Premium churn**: < 10% monthly at 6 months.
+- **Editor NPS**: > 40.
 
 ---
 
-## 20. Scope MVP explicite
+## 20. Explicit MVP scope
 
-### 20.1 Inclus dans le MVP (V1)
+### 20.1 Included in the MVP (V1)
 
-Toute la fondation du produit décrite ci-dessus :
+The whole foundation of the product described above:
 
-- Éditeur web complet (mode unifié à divulgation progressive + Export/Import JSON).
-- Schéma JSON versionné, documenté, AI-ready (TypeScript types + JSON Schema publiés).
-- WebSocket persistant avec édition live.
-- Workflow Live / Draft avec rollback.
-- **Workspace organisé en packs** (Personal auto-créé + packs user-created), avec assignation des menus/commandes/templates/assets à un pack. Pas encore d'export/import de pack en V1 — uniquement export d'un menu seul (.menu.json) ou d'une commande seule (.cmd.json).
-- **Canvas multi-menu** (cf. section 4.4) : vue Figma-like avec cartes des menus et flèches `open_menu` auto-dérivées. Toggle "List/Canvas" dans la toolbar du dashboard. React Flow comme librairie de canvas. Implémentation cadrée parce que le code est généré par AI assist — quelques heures à quelques jours de plus que la List view.
-- **Commandes custom** (cf. section 15) : entité de premier ordre alongside les menus. Arguments typés avec tab-completion (8 types initiaux), requirements + fallback + cooldown, valeurs d'arguments auto-bindées par nom aux `contextInputs` des menus ouverts (cf. §15.4). Pas de quota — illimitées dans tous les tiers.
-- **Format texte unifié MiniMessage + i18n** (cf. section 10) : tous les champs texte (titres, lores, messages, descriptions de commandes) sont en MiniMessage avec preview live dans l'éditeur. Système d'i18n inline `{i18n:key}` scoped au workspace, avec création/édition de clés sans quitter le contexte d'édition (touche `{` pour autocomplete, "+ Nouvelle clé" pour créer avec auto-extract du texte courant). Modes serveur : langue unique, locale joueur (recommandé), ou placeholder PAPI. Pas de quota sur les clés, illimitées dans tous les tiers.
-- 15 actions atomiques.
+- Full web editor (unified mode with progressive disclosure + JSON Export/Import).
+- Versioned, documented, AI-ready JSON schema (TypeScript types + JSON Schema published).
+- Persistent WebSocket with live editing.
+- Live / Draft workflow with rollback.
+- **Workspace organized into packs** (auto-created Personal + user-created packs), with assignment of menus/commands/templates/assets to a pack. No pack export/import yet in V1 — only export of a single menu (.menu.json) or a single command (.cmd.json).
+- **Multi-menu canvas** (see section 4.4): Figma-like view with menu cards and auto-derived `open_menu` arrows. "List/Canvas" toggle in the dashboard toolbar. React Flow as the canvas library. Implementation is bounded because the code is generated with AI assist — a few hours to a few days more than the List view.
+- **Custom commands** (see section 15): first-class entity alongside menus. Typed arguments with tab-completion (8 initial types), requirements + fallback + cooldown, argument values auto-bound by name to the `contextInputs` of opened menus (see §15.4). No quota — unlimited in all tiers.
+- **Unified MiniMessage + i18n text format** (see section 10): all text fields (titles, lores, messages, command descriptions) are in MiniMessage with live preview in the editor. Inline `{i18n:key}` i18n system scoped to the workspace, with key creation/editing without leaving the editing context (`{` key for autocomplete, "+ New key" to create with auto-extract of the current text). Server modes: single language, player locale (recommended), or PAPI placeholder. No quota on keys, unlimited in all tiers.
+- 15 atomic actions.
 - Conditions, requirements, fallback, cooldowns.
-- Apparences conditionnelles (variantes par condition) + Layers (organisation top→bottom avec fall-through).
-- Templates user-defined avec variables.
-- Asset library avec uploads, imports MCModels (.zip), folders, tags, search.
-- Resource pack generation (CMD strings 1.21.4+, polices custom, CDN hosting).
-- **API d'intégration plugins tiers** (registerComponent single/paginable, placeholders, actions par défaut, layouts suggérés, palette dans l'éditeur, sync via WS, dégradation passive sur composants manquants).
-- **Data sources via connecteurs** (cf. section 14) : `Menu.contextInputs` peuvent porter un `source: ConnectorBinding` qui auto-fetche une liste/objet depuis un plugin tiers ; les Elements iterent dessus via `iterates: { source, alias }` avec layout owned par l'admin. **5 connecteurs homemade au launch** : EssentialsX (warps, kits, jails), ChestShop (items, categories), JobsReborn (list, player_progress), LuckPerms (groups, tracks), Quests (active, completed, available). Couvre ~80 % des serveurs Minecraft modernes dès le jour 1.
-- Authentification : Discord OAuth + Email/password (Lucia Auth côté Fastify), account linking via email canonique.
-- Multi-utilisateur (équipes) basique.
-- Soft-lock multi-admin.
-- **Modèle free perpétuel + Pro pour le hosting de textures** : compte requis (Discord OAuth ou email/password). Free = éditeur visuel complet + live edit + toutes features de design + vanilla materials + intégration Nexo/ItemsAdder/Oraxen, 1 serveur. Pro = 30 €/an ou 80 € lifetime — débloque l'upload PNG + auto CDN pack management + signature serveur, MCModels import, multi-server (5), IA 50/mois (V1.5), version history illimité, 50 GB storage. Single tier payant. Annuel par défaut au checkout, push lifetime au launch. Founder rate -30 % locked-in les 3 premiers mois.
-- Anti-crack léger (signature au sync).
-- Distribution multi-canal (SpigotMC, Modrinth, site, Stripe).
-- Documentation API tierce (Javadoc + tutoriel + 1-2 reference implementations).
+- Conditional appearances (variants by condition) + Layers (top→bottom organization with fall-through).
+- User-defined templates with variables.
+- Asset library with uploads, MCModels imports (.zip), folders, tags, search.
+- Resource pack generation (CMD strings 1.21.4+, custom fonts, CDN hosting).
+- **Third-party plugin integration API** (registerComponent single/paginable, placeholders, default actions, suggested layouts, palette in the editor, sync via WS, passive degradation on missing components).
+- **Data sources via connectors** (see section 14): `Menu.contextInputs` can carry a `source: ConnectorBinding` that auto-fetches a list/object from a third-party plugin; Elements iterate over it via `iterates: { source, alias }` with a layout owned by the admin. **5 homemade connectors at launch**: EssentialsX (warps, kits, jails), ChestShop (items, categories), JobsReborn (list, player_progress), LuckPerms (groups, tracks), Quests (active, completed, available). Covers ~80% of modern Minecraft servers from day 1.
+- Authentication: Discord OAuth + Email/password (Lucia Auth on Fastify), account linking via canonical email.
+- Basic multi-user (teams).
+- Multi-admin soft-lock.
+- **Perpetual free + Pro model for texture hosting**: account required (Discord OAuth or email/password). Free = full visual editor + live edit + all design features + vanilla materials + Nexo/ItemsAdder/Oraxen integration, 1 server. Pro = €30/year or €80 lifetime — unlocks PNG upload + auto CDN pack management + server signature, MCModels import, multi-server (5), AI 50/month (V1.5), unlimited version history, 50 GB storage. Single paid tier. Annual by default at checkout, lifetime push at launch. Founder rate -30% locked-in for the first 3 months.
+- Light anti-crack (signature at sync).
+- Multi-channel distribution (SpigotMC, Modrinth, site, Stripe).
+- Third-party API documentation (Javadoc + tutorial + 1-2 reference implementations).
 
-### 20.2 Explicitement hors scope MVP (V2+)
+### 20.2 Explicitly out of MVP scope (V2+)
 
-- **Variables natives** (player/server/session scopes). PlaceholderAPI suffit pour démarrer.
-- **Auto-convert** depuis configs zMenu / DeluxeMenus. À évaluer selon la demande.
-- **Marketplace native** de packs/menus. À envisager après validation d'une base d'utilisateurs significative ; entre temps, intégration MCModels.
-- **Édition collaborative temps réel** à la Figma. Soft-lock suffit au MVP.
-- **Environnement Staging** (preview gelée accessible aux testeurs invités). Reportée en V1.5 quand les workflows en équipe deviennent un use case réel ; en attendant, seul le draft personnel + le publish vers live sont supportés.
-- **Export/Import de packs complets** (.itfz). En V1, seul l'export/import d'un menu seul est disponible. L'export/import de pack avec wizard find-&-replace pour les valeurs env-specific arrive en V1.5 (cohérent avec l'arrivée de l'importer MCModels).
-- **Marketplace native de packs**. V3 (signature, pricing, reviews, discovery).
-- **Refresh continu des apparences conditionnelles** (pour progress bars dynamiques temps réel).
-- **Intégration native Nexo / ItemAdder** : reportée en **V1.5** (killer feature post-stabilisation MVP — voir section 13.11). Permettra le drag-and-drop direct des items et textures Nexo/ItemAdder dans l'éditeur.
-- **Support Bedrock** (Geyser).
-- **Mode framework HTML/CSS** ou systèmes de design avancés.
-- **Actions économiques alternatives** (PlayerPoints, CoinsEngine, etc.). Vault couvre 80% au MVP.
-- **Actions queues / BungeeCord / Velocity** (`send_to_server`). À ajouter dès que le besoin networks émerge.
-- **Actions persistance / quêtes** (intégration Quests, BetonQuest). V2 selon les RPG servers.
-- **Actions `play_particle` et `set_placeholder`**. Reportées.
+- **Native variables** (player/server/session scopes). PlaceholderAPI is enough to start.
+- **Auto-convert** from zMenu / DeluxeMenus configs. To be evaluated based on demand.
+- **Native marketplace** for packs/menus. To be considered after validating a significant user base; in the meantime, MCModels integration.
+- **Real-time collaborative editing** Figma-style. Soft-lock is enough for the MVP.
+- **Staging environment** (frozen preview available to invited testers). Postponed to V1.5 when team workflows become a real use case; in the meantime, only the personal draft + publish to live are supported.
+- **Export/Import of full packs** (.itfz). In V1, only export/import of a single menu is available. Pack export/import with a find-&-replace wizard for env-specific values arrives in V1.5 (consistent with the arrival of the MCModels importer).
+- **Native pack marketplace**. V3 (signature, pricing, reviews, discovery).
+- **Continuous refresh of conditional appearances** (for real-time dynamic progress bars).
+- **Native Nexo / ItemAdder integration**: postponed to **V1.5** (post-MVP-stabilization killer feature — see section 13.11). Will allow direct drag-and-drop of Nexo/ItemAdder items and textures in the editor.
+- **Bedrock support** (Geyser).
+- **HTML/CSS framework mode** or advanced design systems.
+- **Alternative economy actions** (PlayerPoints, CoinsEngine, etc.). Vault covers 80% at the MVP.
+- **Queue / BungeeCord / Velocity actions** (`send_to_server`). To be added as soon as the network need emerges.
+- **Persistence / quest actions** (Quests, BetonQuest integration). V2 depending on RPG servers.
+- **`play_particle` and `set_placeholder` actions**. Postponed.
 
 ---
 
 ## 21. Roadmap V2+ (indicative)
 
-| Version | Features | Cible (post-launch) |
+| Version | Features | Target (post-launch) |
 |---|---|---|
-| V1.1 | Quality-of-life éditeur, fix bugs, optimisations perf, premières intégrations API par plugins partenaires | M+1 à M+3 |
-| V1.5 | **Killer feature 1 : intégration native Nexo / ItemAdder** (items et textures drag-and-drop dans la palette, mode item + mode texture, dégradation gracieuse). **Killer feature 2 : assistant IA intégré** (bouton "Ask AI" qui prend du langage naturel et applique des mutations sur le JSON via Claude API ; se branche aussi sur le canvas V1 pour créer/lier des menus visuellement). Plus : environnement **Staging**, **export/import de packs complets** (.itfz) avec wizard find-&-replace, mode **slim** pour distribution plugin (cf. 12.12), importer MCModels en .itfz, `play_particle`, `set_placeholder`, actions économies alt. (PlayerPoints, etc.), API tierce enrichie (events, hooks, complex actions). Doc dev publique avec schéma JSON. | M+4 à M+6 |
-| V2 | **Killer feature 1 : serveur MCP `artisan-mcp`** (Claude Desktop / Cursor / autres clients MCP peuvent lister, lire, muter les menus depuis leur outil). **Killer feature 2 : plugins peuvent enregistrer des menus complets** (cf. section 13.13 — `registerMenuPack` API, namespace auto-dérivé, fork + redirections workspace-level). Plus : variables natives (player/server/session) + refresh continu apparences conditionnelles + actions Bungee/Velocity + édition multi-serveur synchronisée | M+6 à M+9 |
-| V2.5 | Auto-convert zMenu/DeluxeMenus + intégration approfondie Nexo/ItemAdder (édition cross-plugin : créer un item Nexo depuis notre éditeur) + registry cloud des intégrations populaires | M+9 à M+12 |
-| V3 | Marketplace native (assets + menus + intégrations tierces) + édition collaborative (Figma-like) + support Bedrock | M+12+ |
+| V1.1 | Editor quality-of-life, bug fixes, performance optimizations, first API integrations by partner plugins | M+1 to M+3 |
+| V1.5 | **Killer feature 1: native Nexo / ItemAdder integration** (items and textures drag-and-drop in the palette, item mode + texture mode, graceful degradation). **Killer feature 2: built-in AI assistant** ("Ask AI" button that takes natural language and applies mutations to the JSON via the Claude API; also plugs into the V1 canvas to create/link menus visually). Plus: **Staging** environment, **export/import of full packs** (.itfz) with find-&-replace wizard, **slim** mode for plugin distribution (see 12.12), MCModels importer to .itfz, `play_particle`, `set_placeholder`, alt economy actions (PlayerPoints, etc.), enriched third-party API (events, hooks, complex actions). Public dev doc with JSON schema. | M+4 to M+6 |
+| V2 | **Killer feature 1: `artisan-mcp` MCP server** (Claude Desktop / Cursor / other MCP clients can list, read, mutate menus from their tool). **Killer feature 2: plugins can register full menus** (see section 13.13 — `registerMenuPack` API, auto-derived namespace, fork + workspace-level redirects). Plus: native variables (player/server/session) + continuous refresh of conditional appearances + Bungee/Velocity actions + synchronized multi-server editing | M+6 to M+9 |
+| V2.5 | zMenu/DeluxeMenus auto-convert + deep Nexo/ItemAdder integration (cross-plugin editing: create a Nexo item from our editor) + cloud registry of popular integrations | M+9 to M+12 |
+| V3 | Native marketplace (assets + menus + third-party integrations) + collaborative editing (Figma-like) + Bedrock support | M+12+ |
 
 ---
 
-## 22. Risques et mitigations
+## 22. Risks and mitigations
 
-| Risque | Probabilité | Impact | Mitigation |
+| Risk | Probability | Impact | Mitigation |
 |---|---|---|---|
-| Cracking massif du premium | Élevée | Moyen | Signature liée serveur ; communiquer "produit éthique" pour limiter les cracks ; itération rapide pour rendre le payant supérieur en valeur perçue |
-| Adoption lente face à zMenu/DeluxeMenus établis | Moyenne | Élevé | Killer features : édition live + asset library + import MCModels ; vidéo showcase forte ; auto-convert en V2 |
-| Coûts CDN qui explosent | Faible | Moyen | Quotas par tier ; cache agressif ; option self-host plugin pour les très gros |
-| Conflit avec Nexo/ItemAdder en pratique | Faible | Élevé | 1.21.4+ et CMD strings éliminent le risque par design ; testbed dès le début avec Nexo installé |
-| Discord ban d'un client clé | Faible | Élevé | Email recovery obligatoire ; procédure de support documentée |
-| Subscription rejetée culturellement | Moyenne | Élevé | Communiquer "tu peux annuler quand tu veux, tes menus existants restent" ; pas de re-validation périodique ; témoignages |
-| Surcharge éditeur (WS, génération packs) | Moyenne | Moyen | Workers de génération ; rate limiting ; queue Redis pour les jobs lourds |
-| Couverture insuffisante des plugins économiques | Moyenne | Moyen | V1 = Vault uniquement (couvre la majorité) ; V1.5 = ajouts selon demande |
+| Mass cracking of premium | High | Medium | Server-bound signature; communicate an "ethical product" to limit cracks; fast iteration to make the paid tier superior in perceived value |
+| Slow adoption against established zMenu/DeluxeMenus | Medium | High | Killer features: live editing + asset library + MCModels import; strong showcase video; auto-convert in V2 |
+| Exploding CDN costs | Low | Medium | Quotas per tier; aggressive caching; plugin self-host option for the very large |
+| Conflict with Nexo/ItemAdder in practice | Low | High | 1.21.4+ and CMD strings eliminate the risk by design; testbed from the start with Nexo installed |
+| Discord ban of a key customer | Low | High | Mandatory email recovery; documented support procedure |
+| Subscription culturally rejected | Medium | High | Communicate "you can cancel anytime, your existing menus stay"; no periodic re-validation; testimonials |
+| Editor overload (WS, pack generation) | Medium | Medium | Generation workers; rate limiting; Redis queue for heavy jobs |
+| Insufficient coverage of economy plugins | Medium | Medium | V1 = Vault only (covers the majority); V1.5 = additions based on demand |
 
 ---
 
-## 23. Glossaire
+## 23. Glossary
 
-| Terme | Définition |
+| Term | Definition |
 |---|---|
-| **Bundle** | Artefact runtime : .zip signé (config + resource pack) téléchargé par le plugin depuis le CDN. Opaque pour l'admin, généré automatiquement par le backend. |
-| **Pack** | Unité d'organisation dans le workspace (groupe de menus + commandes + templates + assets liés thématiquement). Aussi : format d'export/import partageable `.itfz` (cf. schéma `pack/v1`). |
-| **Command** | Commande custom Artisan, entité de premier ordre alongside les menus (cf. section 15). Schéma `command/v1`. Réutilise les actions et conditions du catalogue menu, plus un système d'arguments typés. |
-| **Argument** | Paramètre positionnel typé d'une commande (`player`, `online_player`, `string`, `integer`, `number`, `boolean`, `world`, `enum` en V1). Tab-completion automatique selon le type. |
-| **Contexte du menu** | Slots nommées et typées que le menu déclare via `Menu.contextInputs`. Chaque slot est peuplée à l'ouverture par auto-binding par nom (depuis l'appelant : args de commande, contextInputs du menu parent, alias d'iteration courant) ou par un connecteur attaché via `source: ConnectorBinding`. Override explicite via `OpenMenuAction.context`. Cf. §15.4. |
-| **ContextInput** | Une slot du contexte du menu. `{ name, type, default?, source? }`. Le `name` est exposé comme `{name}` dans tout champ texte du menu. |
-| **ConnectorBinding** | Configuration d'un connecteur attaché à un `ContextInput` : `{ ref, params?, filter?, sort?, limit? }`. Les valeurs de `params` et `filter` peuvent interpoler `{name}` pour référencer d'autres `contextInputs` du menu. Cf. §14. |
-| **Auto-binding par nom** | À l'ouverture d'un menu via `open_menu`, chaque `contextInput` du menu cible est peuplé depuis une valeur de même nom dans la scope courante (args de commande, contextInputs du menu appelant, alias d'iteration). Surchargeable par `OpenMenuAction.context`, désactivable par `clear_context: true`. Cf. §15.4. |
-| **Workspace** | L'espace de travail d'un admin, contenant ses packs (Personal + user-created + imported + forked). |
-| **Canvas** | Vue multi-menu de l'éditeur (V1), espace infini Figma-like où chaque menu est une carte preview, et les `open_menu` actions deviennent des flèches auto-dérivées. Toggle List/Canvas dans la toolbar. |
-| **Slim pack** | Mode d'export d'un pack : manifest + JSONs only, assets référencés par URL CDN. ~10-100 KB. Conçu pour embarquage dans un JAR plugin. |
-| **Full pack** | Mode d'export d'un pack : manifest + JSONs + assets binaires. Self-contained. Pour marketplace ou archive. |
-| **Menu redirection (V2)** | Mapping workspace-level qui redirige les `openMenu(source_id)` vers un menu différent. Permet de remplacer un menu plugin par un fork sans casser les call sites. |
-| **registerMenuPack (V2)** | API plugin tier qui permet à un plugin de fournir des menus complets au workspace de l'admin via un slim pack embarqué. Namespace auto-dérivé du plugin appelant. |
-| **Server key** | Clé unique liant un serveur Minecraft à un compte éditeur |
-| **Live** | Version d'un menu actuellement servie aux joueurs |
-| **Draft** | Version en cours d'édition par un admin, visible uniquement par lui via `/menu preview <id>` |
-| **Staging** *(V1.5)* | Version preview d'un menu, gelée et accessible aux testeurs invités avant publication. Hors scope MVP. |
-| **Template** | Composant nommé réutilisable (façon Symbol Figma) |
-| **Appearance** | Variante visuelle d'un Element. Évaluée dans l'ordre, première dont le `if` matche gagne. Si aucune ne matche → fall-through au layer en dessous. |
-| **Layer** | Conteneur qui groupe des Elements dans un menu. Les layers sont ordonnés bottom→top, render top→bottom avec fall-through. |
-| **CMD** | `custom_model_data`, mécanisme Minecraft pour assigner un modèle alternatif à un item |
-| **CMD string** | Variante de CMD introduite en 1.21.4, utilisant un namespace string au lieu d'un int |
-| **Pack stacking** | Capacité Minecraft (depuis 1.20.3) à empiler plusieurs resource packs sans conflit |
-| **MiniMessage** | Format texte standard de Adventure / Paper. Tags XML-like (`<color>`, `<bold>`, `<gradient>`, `<click>`, `<hover>`...). Utilisé pour TOUS les champs texte des menus et commandes. Documentation : https://docs.advntr.dev/minimessage/format.html |
-| **Clé i18n** | Identifiant slug hiérarchique (`menu.shop_main.btn_buy.title`) référencé via `{i18n:key}` dans n'importe quel champ texte. Scoped au workspace de l'admin. Schéma `translations/v1`. |
-| **Translation** | Valeur d'une clé i18n pour une langue donnée. Format MiniMessage. Peut contenir des placeholders PAPI et d'autres références i18n. |
-| **default_lang** | Langue de référence du workspace, garantie pour toute clé i18n. Fallback ultime si une autre langue manque à l'exécution. |
-| **Schéma JSON** | Format intermédiaire versionné (`menu/v1`, `menu/v2`...) publié comme asset produit avec types TypeScript et JSON Schema |
-| **MCP server** | Serveur Model Context Protocol (`artisan-mcp`) qui expose les opérations sur les menus aux clients IA (Claude Desktop, Cursor, etc.). Roadmap V2 |
-| **PluginIntegration** | Enregistrement d'un plugin tiers auprès de l'éditeur (palette de composants + layouts suggérés) |
-| **Component** | Composant fourni par un plugin tiers (bouton single ou paginable, avec placeholders et action par défaut) |
-| **Composant paginable** | Composant qui occupe une rangée de slots et génère N instances dynamiquement |
-| **Layout suggéré** | Menu pré-rempli proposé par un plugin tiers comme point de départ (purement indicatif) |
-| **component_ref** | Référence dans le JSON d'un menu vers un composant tiers (ex. `questx:quest_button`) |
-| **Connecteur** | Code qui implémente un binding vers un plugin tiers : interroge le plugin, expose une liste (ou un objet unique) d'objets typés. Référencé par `namespace:source` (ex. `chestshop:items`) depuis un `ContextInput.source`. Homemade Artisan à V1, registered par plugin author en V2. |
-| **Iteration** | Mécanisme par lequel un Element rend un slot par item d'un `ContextInput` de type `"list"`, via `iterates: { source, alias }`. L'`alias` est le nom local de l'item courant, accessible dans les champs de l'Element via `{alias.field}`. |
-| **Pro** | Tier d'abonnement payant unique d'Artisan (30 €/an ou 80 € lifetime) : débloque le service de hosting de resource pack custom (upload PNG → CDN signé), MCModels import, multi-server (5), IA 50/mois (V1.5), version history illimité, 50 GB storage, priority Discord support. Free reste utilisable avec vanilla materials + intégration Nexo/ItemsAdder/Oraxen + resource pack self-hosté. |
-| **Founder rate** | Promo locked-in à vie pour les early adopters : -30 % sur Pro pendant les 3 premiers mois post-launch (extendable de 1 mois si bugs critiques). Pro founder = 21 €/an ou 56 € lifetime. |
-| **Mode cloud** | Mode de fonctionnement par défaut du plugin (tous tiers) : connecté à Artisan via WebSocket, sync live, bundle pull depuis le CDN, signatures serveur-bound. Activé dès qu'une `server_key` valide est configurée. |
-| **Mode local** | Mode opt-in offline du plugin (tous tiers) : lit `plugins/Artisan/menus/*.{json,yaml}` depuis le disque, reload manuel ou file-watch. Pour les admins qui refusent toute dépendance cloud. |
-| **`/artisan editor`** | Commande in-game qui agit comme deeplink shortcut vers le workspace courant : ouvre l'éditeur web sur le bon contexte serveur, en utilisant la session active du browser. Pas un mécanisme d'auth séparé — le compte reste requis (Discord ou email). |
+| **Bundle** | Runtime artifact: signed .zip (config + resource pack) downloaded by the plugin from the CDN. Opaque to the admin, generated automatically by the backend. |
+| **Pack** | Organization unit in the workspace (group of thematically linked menus + commands + templates + assets). Also: shareable export/import format `.itfz` (see `pack/v1` schema). |
+| **Command** | Custom Artisan command, first-class entity alongside menus (see section 15). `command/v1` schema. Reuses the menu catalog's actions and conditions, plus a typed argument system. |
+| **Argument** | Typed positional parameter of a command (`player`, `online_player`, `string`, `integer`, `number`, `boolean`, `world`, `enum` in V1). Automatic tab-completion according to the type. |
+| **Menu context** | Named, typed slots that the menu declares via `Menu.contextInputs`. Each slot is populated at open time by auto-binding by name (from the caller: command args, parent menu's contextInputs, current iteration alias) or by a connector attached via `source: ConnectorBinding`. Explicit override via `OpenMenuAction.context`. See §15.4. |
+| **ContextInput** | A slot of the menu context. `{ name, type, default?, source? }`. The `name` is exposed as `{name}` in any text field of the menu. |
+| **ConnectorBinding** | Configuration of a connector attached to a `ContextInput`: `{ ref, params?, filter?, sort?, limit? }`. The `params` and `filter` values can interpolate `{name}` to reference other `contextInputs` of the menu. See §14. |
+| **Auto-binding by name** | When a menu is opened via `open_menu`, each `contextInput` of the target menu is populated from a value of the same name in the current scope (command args, calling menu's contextInputs, iteration alias). Overridable by `OpenMenuAction.context`, disableable by `clear_context: true`. See §15.4. |
+| **Workspace** | An admin's work space, containing their packs (Personal + user-created + imported + forked). |
+| **Canvas** | The editor's multi-menu view (V1), a Figma-like infinite space where each menu is a preview card, and `open_menu` actions become auto-derived arrows. List/Canvas toggle in the toolbar. |
+| **Slim pack** | Pack export mode: manifest + JSONs only, assets referenced by CDN URL. ~10-100 KB. Designed for embedding in a plugin JAR. |
+| **Full pack** | Pack export mode: manifest + JSONs + binary assets. Self-contained. For marketplace or archive. |
+| **Menu redirection (V2)** | Workspace-level mapping that redirects `openMenu(source_id)` to a different menu. Allows replacing a plugin menu with a fork without breaking call sites. |
+| **registerMenuPack (V2)** | Third-party plugin API that lets a plugin provide full menus to the admin's workspace via an embedded slim pack. Namespace auto-derived from the calling plugin. |
+| **Server key** | Unique key linking a Minecraft server to an editor account |
+| **Live** | Version of a menu currently served to players |
+| **Draft** | Version being edited by an admin, visible only to them via `/menu preview <id>` |
+| **Staging** *(V1.5)* | Preview version of a menu, frozen and accessible to invited testers before publication. Out of MVP scope. |
+| **Template** | Reusable named component (Figma Symbol style) |
+| **Appearance** | Visual variant of an Element. Evaluated in order, the first whose `if` matches wins. If none matches → fall-through to the layer below. |
+| **Layer** | Container that groups Elements in a menu. Layers are ordered bottom→top, rendered top→bottom with fall-through. |
+| **CMD** | `custom_model_data`, Minecraft mechanism to assign an alternative model to an item |
+| **CMD string** | Variant of CMD introduced in 1.21.4, using a string namespace instead of an int |
+| **Pack stacking** | Minecraft capability (since 1.20.3) to stack several resource packs without conflict |
+| **MiniMessage** | Standard text format of Adventure / Paper. XML-like tags (`<color>`, `<bold>`, `<gradient>`, `<click>`, `<hover>`...). Used for ALL text fields of menus and commands. Documentation: https://docs.advntr.dev/minimessage/format.html |
+| **i18n key** | Hierarchical slug identifier (`menu.shop_main.btn_buy.title`) referenced via `{i18n:key}` in any text field. Scoped to the admin's workspace. `translations/v1` schema. |
+| **Translation** | Value of an i18n key for a given language. MiniMessage format. Can contain PAPI placeholders and other i18n references. |
+| **default_lang** | The workspace's reference language, guaranteed for every i18n key. Ultimate fallback if another language is missing at runtime. |
+| **JSON schema** | Versioned intermediate format (`menu/v1`, `menu/v2`...) published as a product asset with TypeScript types and JSON Schema |
+| **MCP server** | Model Context Protocol server (`artisan-mcp`) that exposes menu operations to AI clients (Claude Desktop, Cursor, etc.). V2 roadmap |
+| **PluginIntegration** | Registration of a third-party plugin with the editor (component palette + suggested layouts) |
+| **Component** | Component provided by a third-party plugin (single or paginable button, with placeholders and default action) |
+| **Paginable component** | Component that occupies a row of slots and generates N instances dynamically |
+| **Suggested layout** | Pre-filled menu offered by a third-party plugin as a starting point (purely indicative) |
+| **component_ref** | Reference in a menu's JSON to a third-party component (e.g. `questx:quest_button`) |
+| **Connector** | Code that implements a binding to a third-party plugin: queries the plugin, exposes a list (or a single object) of typed objects. Referenced by `namespace:source` (e.g. `chestshop:items`) from a `ContextInput.source`. Artisan homemade at V1, registered by the plugin author in V2. |
+| **Iteration** | Mechanism by which an Element renders one slot per item of a `ContextInput` of type `"list"`, via `iterates: { source, alias }`. The `alias` is the local name of the current item, accessible in the Element's fields via `{alias.field}`. |
+| **Pro** | Artisan's single paid subscription tier (€30/year or €80 lifetime): unlocks the custom resource pack hosting service (PNG upload → signed CDN), MCModels import, multi-server (5), AI 50/month (V1.5), unlimited version history, 50 GB storage, priority Discord support. Free remains usable with vanilla materials + Nexo/ItemsAdder/Oraxen integration + self-hosted resource pack. |
+| **Founder rate** | Lifetime locked-in promo for early adopters: -30% on Pro during the first 3 months post-launch (extendable by 1 month if critical bugs). Pro founder = €21/year or €56 lifetime. |
+| **Cloud mode** | The plugin's default operating mode (all tiers): connected to Artisan via WebSocket, live sync, bundle pull from the CDN, server-bound signatures. Enabled as soon as a valid `server_key` is configured. |
+| **Local mode** | The plugin's opt-in offline mode (all tiers): reads `plugins/Artisan/menus/*.{json,yaml}` from disk, manual reload or file-watch. For admins who refuse any cloud dependency. |
+| **`/artisan editor`** | In-game command that acts as a deeplink shortcut to the current workspace: opens the web editor on the right server context, using the browser's active session. Not a separate auth mechanism — an account remains required (Discord or email). |
 
 ---
 
-## 24. Prochaines étapes
+## 24. Next steps
 
-1. **Valider cette spec** avec l'équipe / les early users / les YouTubers ciblés.
-2. **Calibrer les prix** de Pro via une mini-survey ou benchmark.
-3. **Prototype d'éditeur** (1-2 semaines) pour valider l'UX drag & drop + édition live.
-4. **POC plugin** (1 semaine) pour valider la pipeline resource pack 1.21.4+ avec Nexo installé en parallèle.
-5. **Ouverture d'une closed beta** (50-100 admins triagés) pour le run-in avant launch public.
+1. **Validate this spec** with the team / early users / targeted YouTubers.
+2. **Calibrate Pro prices** via a mini-survey or benchmark.
+3. **Editor prototype** (1-2 weeks) to validate drag & drop UX + live editing.
+4. **Plugin POC** (1 week) to validate the 1.21.4+ resource pack pipeline with Nexo installed in parallel.
+5. **Open a closed beta** (50-100 triaged admins) for the run-in before public launch.
