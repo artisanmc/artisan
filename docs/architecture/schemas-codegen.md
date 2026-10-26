@@ -4,6 +4,8 @@
 
 Pour chaque schéma versionné, la vérité est le fichier `docs/schema/<name>/v1/schema.json` (JSON Schema **2020-12**). Tout le reste (types Kotlin, types TS, exemples, fixtures) doit se conformer à ce fichier.
 
+Les `description` sont en **anglais** et courtes : `get_kind_guide` (MCP, assistant) les montre au modèle, ligne par ligne (`SchemaOutline`). Une forme gardée pour la lecture seule porte une description qui commence par `Legacy` ou `LEGACY` (ou un `$defs` nommé `…Legacy`) : le plan la laisse de côté.
+
 ## Types écrits à la main
 
 Les types ne sont **pas générés** — ils sont **écrits à la main** dans les deux langages, en modélisant fidèlement les unions discriminées du schéma :

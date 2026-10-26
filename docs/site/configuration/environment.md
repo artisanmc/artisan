@@ -47,6 +47,21 @@ connect to the hub. The name is a label: the server is identified by the id in
 
 On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no port.
 
+## `ai`
+
+Preview. The editor's assistant, on your own model account. Read by the hub only, never sent to
+the editor. Without this section (or with an empty `provider` or `api-key`), the editor shows no
+assistant. See [The editor's assistant](../web-server/#the-editors-assistant-preview).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `ai.provider` | `""` | `"anthropic"`. Empty: no assistant. |
+| `ai.api-key` | `""` | The provider's API key. Write `"${ANTHROPIC_API_KEY}"` to read it from the environment instead of the file. Every message of every player who uses the assistant is billed to it. |
+| `ai.model` | `"claude-opus-5-5"` | The model the assistant runs on. |
+| `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. |
+| `ai.max-steps` | `25` | Model calls one message may make (1 to 100). The assistant stops there and says so; the next message lets it go on. |
+| `ai.base-url` | `""` | Another address for the provider's API (a proxy). Empty: its own. |
+
 ## `database`
 
 The database Artisan lends to the plugins of its suite (add-ons that ask for it).

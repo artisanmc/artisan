@@ -19,10 +19,11 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { ProjectId } from "@/domain/types";
 import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
 import { PersistedDraftControls } from "@/features/project/PersistedDraftControls";
+import { OPEN_DRAFTS } from "@/features/project/assistant/AssistantPanel";
 import { copyText } from "@/lib/clipboard";
 import { cn } from "@/lib/cx";
 import { ChevronDown, Play } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ConflictResolutionDialog } from "./ConflictResolutionDialog";
@@ -48,6 +49,12 @@ export function SaveControls({
   const flow = usePublishFlow(projectId, offline);
   const { state, draftSession, dirty, canSave, draftBusy, draftSaved, draftNeedsAttention } = flow;
   const [draftsOpen, setDraftsOpen] = useState(false);
+  // The assistant's "Open in Drafts": the list where its draft waits for review.
+  useEffect(() => {
+    const open = () => setDraftsOpen(true);
+    window.addEventListener(OPEN_DRAFTS, open);
+    return () => window.removeEventListener(OPEN_DRAFTS, open);
+  }, []);
 
   return (
     <>

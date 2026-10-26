@@ -21,9 +21,12 @@ qu'il est déployé.
    pas de `Mcp-Session-Id`. `GET`/`DELETE` → 405. Versions du protocole : `2025-11-25`,
    `2025-06-18`, `2025-03-26`. Aucun nouveau service, aucune nouvelle dépendance réseau. Les outils
    bloquent sur les réponses des serveurs : sur 4 threads à eux, jamais ceux de Jetty.
-2. **L'IA n'écrit que des brouillons.** Six outils : `artisan_overview`, `list_documents`,
-   `read_document`, `get_kind_guide` (lecture), `start_draft`, `write_document` (brouillon privé du
-   joueur, `source: "ai"`). Aucun outil ne déploie, ne supprime de Project, ne copie de modèle. Les
+2. **L'IA n'écrit que des brouillons.** Sept outils : `artisan_overview`, `list_documents`,
+   `read_document`, `get_kind_guide`, `read_docs` (lecture), `start_draft`, `write_document` (brouillon privé du
+   joueur, `source: "ai"`). `get_kind_guide` répond en texte : un plan du schéma (chaque champ sur une
+   ligne, puis chaque type, actions et conditions une par ligne, formes legacy omises, `SchemaOutline`),
+   les actions que déclarent les modules du serveur (`declared_actions`), l'écriture des textes par
+   langue avec les langues du Project, et un exemple du Project (`KindGuide`) ; le schéma complet seulement avec `detail: "schema"`. `read_docs` lit la doc utilisateur de la release (`docs/site`, embarquée dans le jar sous `wiki/`, `UserDocs`) : sans `page`, la liste des pages ; avec, la page en Markdown. Aucun outil ne déploie, ne supprime de Project, ne copie de modèle. Les
    seules actions de brouillon que le code MCP peut envoyer sont `list`, `read`, `create`, `update`
    (`McpProjects.DRAFT_ACTIONS`) ; un test d'architecture (`McpTest`) refuse toute autre action et
    tout nom de message qui écrit un disque dans les sources `Mcp*`. Le brouillon apparaît dans
