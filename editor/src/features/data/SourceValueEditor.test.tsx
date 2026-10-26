@@ -700,7 +700,8 @@ describe("ConfigValueForm — settings layout", () => {
     });
   }
   const auctions = () =>
-    (project().dataSources[0] as { value: { auctions: Record<string, unknown> } }).value.auctions;
+    (project().dataSources[0] as unknown as { value: { auctions: Record<string, unknown> } }).value
+      .auctions;
   // Re-renders from the store, as the screen does.
   function Live() {
     const p = useProjectsStore((s) => s.openProjects.projects[0]) as Project;
