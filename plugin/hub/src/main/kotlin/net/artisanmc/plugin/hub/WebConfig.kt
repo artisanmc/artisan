@@ -29,6 +29,8 @@ data class WebConfig(
      * ChatGPT…) write drafts for a player who approved them. Off unless set.
      */
     val mcp: Boolean = false,
+    /** The editor's assistant on the admin's model and key (ADR `editor-assistant`): the `ai` section. */
+    val ai: AiConfig = AiConfig(),
 ) {
     val leaf: Boolean get() = hubUrl.isNotBlank()
 

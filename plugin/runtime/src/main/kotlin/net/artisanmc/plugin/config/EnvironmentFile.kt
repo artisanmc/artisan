@@ -62,6 +62,22 @@ object EnvironmentFile {
         |  tunnel: "connect.artisanmc.app"
         |  tunnel-access: ""
         |
+        |# The editor's assistant, on your own model account (hub only). Players with
+        |# artisan.editor.edit chat with it in the editor; it reads the Projects and writes
+        |# drafts, which they review and deploy. Its calls are billed to this key.
+        |# Changes apply after a restart.
+        |#   provider  : "anthropic"; empty turns the assistant off
+        |#   api-key   : e.g. "${'$'}{ANTHROPIC_API_KEY}", to keep the key out of this file
+        |#   model     : empty is claude-opus-5-5
+        |#   effort    : low, medium, high, xhigh or max: how hard the model thinks, and what it costs
+        |#   max-steps : model calls one message may make (1 to 100)
+        |# ai:
+        |#   provider: "anthropic"
+        |#   api-key: "${'$'}{ANTHROPIC_API_KEY}"
+        |#   model: ""
+        |#   effort: "medium"
+        |#   max-steps: 25
+        |
         |# Database shared by the plugins of the suite. Changes apply after a restart.
         |#   type      : h2      a single file, plugins/Artisan/database/suite.mv.db, nothing to set up
         |#               mysql   MySQL 8+

@@ -1,4 +1,5 @@
 import { actionCatalogFr } from "./actionCatalog";
+import { aiFr } from "./ai";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import type en from "./en";
@@ -1558,6 +1559,7 @@ const fr: typeof en = {
     emptyContext: "Aucune variable disponible dans ce contexte",
   },
   mcp: mcpFr,
+  ai: aiFr,
   editorAddress: {
     title: "Adresse de l'éditeur",
     help: "Donne un nom à l'adresse de l'éditeur sur le tunnel. L'adresse actuelle continue de marcher.",

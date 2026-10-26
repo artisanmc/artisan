@@ -64,6 +64,18 @@ class McpTools(private val projects: McpProjects, private val editorUrl: () -> S
 
     fun find(name: String): Tool? = tools.firstOrNull { it.name == name }
 
+    /** A tool call's answer as a model reads it: the MCP endpoint and the editor's assistant both hand it on. */
+    class Outcome(val body: Any?, val error: Boolean)
+
+    fun invoke(principal: McpPrincipal, tool: Tool, args: JsonNode): Outcome = try {
+        when (val out = tool.run(principal, args)) {
+            is Refused -> Outcome(out.body, error = true)
+            else -> Outcome(out, error = false)
+        }
+    } catch (e: McpRefusal) {
+        Outcome(mapOf("error" to e.code, "message" to e.message), error = true)
+    }
+
     private fun overview(principal: McpPrincipal, args: JsonNode): Any {
         val servers = projects.servers().map { server ->
             val announcement = runCatching { server.announcement() }.getOrNull()

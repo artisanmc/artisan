@@ -2,7 +2,6 @@ package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.protocol.ServerLink
 import java.io.File
 import java.net.URI
 import java.net.URLDecoder
@@ -12,7 +11,6 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.Collections
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
 import java.util.logging.Logger
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -28,58 +26,9 @@ import kotlin.test.assertTrue
 class McpTest {
     private val mapper = ObjectMapper()
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
-    private val server = object : EditorServer {
-        override val id = "u-local"
-        override val online = true
-        override val link = ServerLink { message ->
-            sent += message
-            val reply = when (message["type"]) {
-                "project_list" -> mapOf("ok" to true, "project_ids" to listOf("shop"))
-                "project_read" -> mapOf(
-                    "ok" to true, "hash" to "h1",
-                    "files" to listOf(mapOf("path" to "menus/shop.yml", "content" to "schema: menu/v1\n"), mapOf("path" to "lang/en.yml", "content" to "a: b\n")),
-                    "failed" to emptyList<Any>(), "binaries" to emptyList<Any>(),
-                )
-                // The server's check: a file saying `bad` does not load.
-                "documents_check" -> {
-                    @Suppress("UNCHECKED_CAST")
-                    val files = message["files"] as List<Map<String, String>>
-                    mapOf("ok" to true, "problems" to files.filter { "bad" in it.getValue("content") }
-                        .map { mapOf("path" to it["path"], "stage" to "schema", "message" to "\$.bad: is not defined in the schema") })
-                }
-                else -> mapOf("ok" to false, "error" to "unexpected")
-            }
-            CompletableFuture.completedFuture(mapOf("type" to "${message["type"]}_result") + reply)
-        }
-        override val label = "Survie"
-        override val minecraftVersion = "1.21.7"
-        override val pluginVersion = "2.0.0"
-        override fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
-            documentKinds = listOf(mapOf("kind" to "menu", "dir" to "menus", "schema_versions" to listOf("menu/v1"))),
-        )
-        override fun serverConfig() = emptyMap<String, Any?>()
-        override fun customItems() = emptyList<Map<String, String>>()
-        override fun applyResourcePack(hash: String, path: String) = Unit
-    }
+    private val server = McpFixtures.server(sent)
 
-    /** Drafts as the suite database keeps them: rows by id, receipts by operation. */
-    private class Drafts : DraftStorage {
-        val rows = java.util.concurrent.ConcurrentHashMap<String, String>()
-        private val receipts = java.util.concurrent.ConcurrentHashMap<String, DraftReceipt>()
-        override fun knownProject(server: String, folder: String) = true
-        override fun drafts(server: String, folder: String, owner: String) = rows.values.toList()
-        override fun draft(server: String, folder: String, id: String) = rows[id]
-        override fun receipt(operationId: String) = receipts[operationId]
-        override fun commit(server: String, folder: String, commit: DraftCommit): Boolean {
-            rows[commit.draftId] = commit.body
-            receipts[commit.receipt.operationId] = commit.receipt
-            return true
-        }
-        override fun content(hash: String): ByteArray? = null
-        override fun putContent(hash: String, bytes: ByteArray) = Unit
-    }
-
-    private val drafts = Drafts()
+    private val drafts = McpFixtures.Drafts()
     private val sessions = Sessions()
     private val grants = McpGrants()
     private val player = UUID.randomUUID()
@@ -239,10 +188,10 @@ class McpTest {
         for (action in listOf("publish", "discard", "write_blob")) {
             assertFailsWith<IllegalArgumentException> { projects.draft(principal, ProjectRef(server, "shop"), action) }
         }
-        // No MCP source names a message that writes to a server's disk.
+        // No MCP or assistant source names a message that writes to a server's disk.
         val dir = listOf("src/main/kotlin/net/artisanmc/plugin/hub", "hub/src/main/kotlin/net/artisanmc/plugin/hub").map(::File).first { it.isDirectory }
-        val sources = dir.listFiles { f -> f.name.startsWith("Mcp") }!!
-        assertTrue(sources.size >= 4)
+        val sources = dir.listFiles { f -> f.name.startsWith("Mcp") || f.name.startsWith("Ai") || f.name.startsWith("Anthropic") }!!
+        assertTrue(sources.size >= 8)
         for (file in sources) {
             val text = file.readText()
             for (forbidden in listOf("project_write", "project_draft_publish", "\"publish\"", "template_copy", "project_delete", "project_rename")) {

@@ -180,6 +180,26 @@ The endpoint needs an HTTPS address the AI provider can reach: the tunnel server
 default), or `web.url` behind a reverse proxy. A reverse proxy must pass `/mcp`, `/oauth/` and
 `/.well-known/` to the editor, with `X-Forwarded-Proto` and `Host`.
 
+## The editor's assistant (preview)
+
+With an [`ai` section](../environment/#ai) in the hub's `environment.yml`, the editor's top bar
+shows an Assistant button (✦) on a Project. Players with `artisan.editor.edit` describe what they
+want (a menu, a command, a change to a dialog), and the assistant does it in a draft:
+
+- It runs on **your** model account: `ai.api-key` pays for every message of every player who
+  uses it. The key stays on the hub; the browser never sees it.
+- It uses the same tools as [AI clients](#ai-clients-mcp-preview): it reads the Projects, starts
+  a draft and writes files into it, each file checked by the Project's server first. It cannot
+  deploy: the panel offers to open the draft in Drafts, where the player reviews it and deploys.
+- A message runs at most `ai.max-steps` model calls; the assistant then stops and says so.
+- Conversations live in the hub's memory: a restart ends them (the drafts stay).
+
+```yaml
+ai:
+  provider: "anthropic"
+  api-key: "${ANTHROPIC_API_KEY}"
+```
+
 ## Networks and `/ws/plugin`
 
 **Servers that share a MySQL or MariaDB database find each other**, with nothing to set:

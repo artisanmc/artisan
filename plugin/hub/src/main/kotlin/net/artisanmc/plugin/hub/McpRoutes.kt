@@ -112,14 +112,8 @@ class McpRoutes(
         val tool = tools.find(name) ?: return error(id, INVALID_PARAMS, "Unknown tool: $name")
         val args = params.path("arguments").takeIf { it.isObject } ?: Call.mapper.createObjectNode()
         if (!tool.readOnly) logger?.info("[Artisan] MCP ${principal.clientName ?: "editor"} for ${principal.playerName}: $name ${args.path("path").asText("")}".trimEnd())
-        return try {
-            when (val out = tool.run(principal, args)) {
-                is McpTools.Refused -> result(id, content(out.body, error = true))
-                else -> result(id, content(out, error = false))
-            }
-        } catch (e: McpRefusal) {
-            result(id, content(mapOf("error" to e.code, "message" to e.message), error = true))
-        }
+        val outcome = tools.invoke(principal, tool, args)
+        return result(id, content(outcome.body, outcome.error))
     }
 
     /** A tool result: the JSON as text for any client, and as `structuredContent` for those that read it. */

@@ -10,6 +10,7 @@ dependencies {
     // Tunnel to an editor tunnel server (ADR `editor-tunnel`); bundled and relocated by `paper`, like its WsClient.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
+    implementation("com.anthropic:anthropic-java:2.34.0")
     compileOnly("org.eclipse.jetty:jetty-server:$jetty")
     compileOnly("org.eclipse.jetty.websocket:jetty-websocket-jetty-server:$jetty")
     testImplementation("org.eclipse.jetty:jetty-server:$jetty")
