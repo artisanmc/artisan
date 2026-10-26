@@ -96,9 +96,12 @@ Setup, once for the organization:
 - Secret `ARTISAN_SIGNING_KEY` (Settings → Secrets and variables → Actions → organization secret,
   limited to the plugin repos): the PEM private key, `openssl genpkey -algorithm ed25519`. Its public
   half (`openssl pkey -in key.pem -pubout -outform DER | base64 -w0`) goes into `ReleaseKeys.TRUSTED`.
-- A tag ruleset (Settings → Rules → Rulesets) on `v*` for every repo, restricting creation, update
-  and deletion, with only the maintainer as bypass: it decides who publishes. Anyone who can push a
-  workflow to one of these repos can still read the secret.
+- Whoever can push a `v*` tag publishes a release, and whoever can push a workflow to one of these
+  repos can read the secret. With a single maintainer nothing more is needed. With collaborators, add a
+  `v*` tag ruleset restricting creation, update and deletion: org-wide needs GitHub Team (the free plan
+  does not enforce organization rulesets), per repo it is free on public repos. If the free plan keeps
+  the organization secret from private repos, set the same `ARTISAN_SIGNING_KEY` as a repository secret
+  there.
 
 ## Public API and Reposilite
 
