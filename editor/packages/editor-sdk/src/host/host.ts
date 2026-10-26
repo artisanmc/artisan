@@ -118,7 +118,35 @@ export interface SortableListProps {
   handleLabel?: string;
 }
 
-/** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`). */
+/**
+ * A condition list as a Document file carries it: the keyed wire `api.getConditions()` reads
+ * (`{has_permission: vip.use}`, `{not: …}`, `{or: [...]}`…), an AND.
+ */
+export type ConditionsWire = unknown[];
+
+export interface ConditionsEditorProps {
+  projectId: string;
+  /** The list; a single condition is read as a list of one. */
+  value: ConditionsWire;
+  onChange: (conditions: ConditionsWire) => void;
+  /** Shown above the list. */
+  label?: string;
+  /** Shown when the list is empty (default: the editor's "always"). */
+  emptyHint?: string;
+}
+
+export interface DocumentRefInputProps {
+  projectId: string;
+  /** The Document kind referenced: `menu`, or a module's (`quest_group`, `conversation`…). */
+  kind: string;
+  /** The Document's id, `<project>:<id>` for another project's; "" for none. */
+  value: string;
+  /** The picked reference; "" when cleared. */
+  onChange: (id: string) => void;
+  "aria-label"?: string;
+}
+
+/** The editor widgets behind the SDK's components (`ActionChainEditor`, `MaterialInput`, `ItemInput`, `MiniMessageInput`, `SortableList`, `ConditionsEditor`, `DocumentRefInput`). */
 export interface HostComponents {
   ActionChainEditor: ComponentType<ActionChainEditorProps>;
   MaterialInput: ComponentType<MaterialInputProps>;
@@ -128,6 +156,10 @@ export interface HostComponents {
   MiniMessageInput: ComponentType<MiniMessageInputProps>;
   /** SDK 1.10. */
   SortableList: ComponentType<SortableListProps>;
+  /** SDK 1.11. */
+  ConditionsEditor: ComponentType<ConditionsEditorProps>;
+  /** SDK 1.11. */
+  DocumentRefInput: ComponentType<DocumentRefInputProps>;
 }
 
 /** One text written with a Document: the node's key, a language, a value. */
@@ -207,5 +239,25 @@ export function MiniMessageInput(props: MiniMessageInputProps): ReactElement {
  */
 export function SortableList(props: SortableListProps): ReactElement {
   const Impl = current().components.SortableList;
+  return createElement(Impl, props);
+}
+
+/**
+ * The editor's condition list (the one of `if` branches and Triggers) on a controlled value in
+ * keyed wire: Artisan's conditions with their forms, `not` / `and` / `or` groups. An entry it
+ * cannot edit (a module's condition) is kept as written, after the others (SDK 1.11).
+ */
+export function ConditionsEditor(props: ConditionsEditorProps): ReactElement {
+  const Impl = current().components.ConditionsEditor;
+  return createElement(Impl, props);
+}
+
+/**
+ * A reference to a Document of `kind`: the project's Documents of that kind and, qualified
+ * `<project>:<id>`, those of the server's other projects, the way an action's `document_ref`
+ * argument is picked. A menu shows its title (SDK 1.11).
+ */
+export function DocumentRefInput(props: DocumentRefInputProps): ReactElement {
+  const Impl = current().components.DocumentRefInput;
   return createElement(Impl, props);
 }

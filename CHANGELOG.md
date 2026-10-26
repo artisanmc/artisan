@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Added**: module views can embed the editor's condition list and Document picker (editor SDK 1.11). `ConditionsEditor` edits an `if:` list in the keyed wire `api.getConditions()` reads, with the same forms as an `if` branch or a Trigger. It keeps a condition it cannot show (a module's, a type-tagged one) as written, after the others. `DocumentRefInput` picks a Document of a kind, from this project or qualified `<project>:<id>` from another, the way an action's `document_ref` argument is picked. A bundle built against 1.11 is refused by a 1.10 editor (update Artisan).
 - **Changed**: a collection's page shows each Document as a card with its first parts (a shop category's articles with their icon, a quest group's quests in order with their first objective), then "+N more"; a filter appears from 7 Documents, and an empty collection offers to create the first one. A board left empty because a folder's content is in a collection (a quests module) leads to that collection. `BoardItem.caption` is back in the editor SDK's types (1.7, dropped by mistake): the cards show it.
 - **Fixed**: a collection's page opened from a link or a reload said "This collection does not exist in this project" until the module's editor view had loaded, and stayed so: it now waits for the modules.
 - **Fixed**: a module's labels in the editor (its kinds, its collections) followed the browser's language instead of the editor language saved in the player's profile.

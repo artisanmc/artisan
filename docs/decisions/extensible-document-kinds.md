@@ -336,3 +336,12 @@ Le SDK expose `SortableList`, composant hôte (dnd-kit dans l'éditeur, rien d'e
 : une vue de module réordonne ses listes par une poignée de glisser, au pointeur ou au clavier, avec
 le même geste que la sidebar. Raison : les boutons flèches monter/descendre coûtaient un clic par
 place et chaque module les redessinait ; le geste vit maintenant à un seul endroit.
+
+## Amendement 2026-10-26 : conditions et références de Document (SDK 1.11)
+
+Le SDK expose `ConditionsEditor` et `DocumentRefInput`, composants hôtes. Une vue de module édite ses
+conditions (les prérequis d'une quête, la condition d'un choix de conversation) avec la liste de
+conditions de l'éditeur, au format fichier que lit `api.getConditions()`, et désigne un autre Document
+avec le sélecteur des arguments `document_ref`. Raison : sans eux, chaque module redessinait un champ
+texte ou YAML pour ces deux besoins (MSQuests, ArtisanConversations). Une condition que l'éditeur ne
+décode pas est gardée telle quelle, jamais perdue à l'édition.

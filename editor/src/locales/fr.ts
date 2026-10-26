@@ -647,6 +647,8 @@ const fr: typeof en = {
   },
   conditions: {
     removeCondition: "Supprimer",
+    keptUnknown_one: "{{count}} condition non affichable ici, conservée telle quelle",
+    keptUnknown_other: "{{count}} conditions non affichables ici, conservées telles quelles",
     alwaysNoCondition: "toujours (sans condition)",
     addFirst: "Ajouter une condition",
     switchOperator: "Cliquer pour changer l'opérateur",

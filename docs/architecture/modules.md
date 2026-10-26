@@ -143,6 +143,13 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > s'imbriquent (étapes → objectifs). C'est la seule façon de réordonner une liste dans une vue de
 > module : plus de boutons flèches monter/descendre (Boutique, MSQuests).
 
+> **Conditions et références de Document (depuis 2026-10-26, SDK 1.11)** — `ConditionsEditor`
+> (composant hôte) édite une liste `if:` au format que lit `api.getConditions()` (`{has_permission: …}`,
+> `not:`, `and:`, `or:` ; un ET) : celui des branches `if`. Une entrée qu'il ne sait pas afficher (condition
+> de module, forme `{type: …}`) est gardée telle quelle, après les autres. `DocumentRefInput` choisit un
+> Document d'un kind (`menu`, `quest_group`, `conversation`…) : ceux du projet, et `<projet>:<id>` pour ceux
+> des autres projets du serveur, comme l'argument `document_ref` d'une action. `value` vaut `""` sans choix.
+
 > **Dossier du module (depuis 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > donne au module `plugins/Artisan/modules/<folder>/`, enregistré comme une racine d'add-on (clé
 > `addon:<folder>`, non renommable). L'ancienne racine (`legacyDir`) y est déplacée une fois ; le

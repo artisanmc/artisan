@@ -200,6 +200,38 @@ export function conditionFromStructured(raw: unknown): Condition | null {
   return decodeCondition(raw);
 }
 
+const CONDITION_NAMES = new Set<string>([
+  "has_permission",
+  "has_money",
+  "has_item",
+  "has_xp",
+  "has_level",
+  "world_is",
+  "random_chance",
+  "cooldown_passed",
+  "player_in_region",
+  "time_is",
+  "placeholder_equals",
+  "placeholder_match",
+  "pagination_at_first",
+  "pagination_at_last",
+  "expression",
+]);
+
+/**
+ * True when the editor decodes a keyed condition whole: its name and every nested one are
+ * Artisan's (`not:` / `and:` / `or:` included). A module's condition, a type-tagged entry or a
+ * malformed group is false, and must be kept as read rather than decoded (which drops it).
+ */
+export function isDecodableCondition(raw: unknown): boolean {
+  const m = oneName(argsMap(raw));
+  if (!m) return false;
+  if (m.name === "not") return isDecodableCondition(m.value);
+  if (m.name === "and" || m.name === "or")
+    return Array.isArray(m.value) && m.value.every(isDecodableCondition);
+  return CONDITION_NAMES.has(m.name);
+}
+
 function decodeCondition(raw: unknown): Condition | null {
   const m = oneName(argsMap(raw));
   const name = m?.name ?? "";

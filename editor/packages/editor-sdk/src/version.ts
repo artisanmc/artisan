@@ -5,7 +5,7 @@
  * declares the version it was built with; the editor loads it when the majors are equal
  * and its own minor is at least the bundle's.
  */
-export const SDK_VERSION = "1.10.0";
+export const SDK_VERSION = "1.11.0";
 
 const VERSION = /^(\d+)\.(\d+)(?:\.(\d+))?$/;
 
