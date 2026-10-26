@@ -86,6 +86,14 @@ export class TunnelObject extends DurableObject<Env> {
     return this.plugins().length;
   }
 
+  /**
+   * Where this object's first plugin connected from, and how many plugins hold it now: the Worker
+   * reads it to move an address that never moved, which has no `loc:<id>` in KV.
+   */
+  async home(): Promise<{ continent: string | null; connected: number }> {
+    return { continent: (await this.ctx.storage.get<string>("continent")) ?? null, connected: this.plugins().length };
+  }
+
   /** Every plugin of this address learns its address again: a name was taken or freed. */
   async hello(): Promise<void> {
     const plugins = this.plugins();
@@ -123,7 +131,9 @@ export class TunnelObject extends DurableObject<Env> {
     };
     this.ctx.acceptWebSocket(server, ["plugin"]);
     server.serializeAttachment(tag);
+    const continent = request.headers.get(`${INTERNAL}continent`);
     this.ctx.waitUntil((async () => {
+      if (continent && (await this.ctx.storage.get("continent")) === undefined) await this.ctx.storage.put("continent", continent);
       await this.hello();
       await this.names().seen(id);
       if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + DAY);
