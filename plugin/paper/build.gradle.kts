@@ -83,6 +83,9 @@ tasks.shadowJar {
     relocate("okio", "net.artisanmc.shaded.okio")
     // Document checks against the JSON schemas (ADR `mcp-server`) and its date/time parser.
     relocate("com.networknt", "net.artisanmc.shaded.networknt")
+    // The editor's assistant (ADR `editor-assistant`). Anthropic's SDK is NOT relocated: it
+    // looks classes up by name (`com.anthropic.core.JsonField`), which the relocator leaves as is.
+    relocate("com.github.victools", "net.artisanmc.shaded.victools")
     relocate("com.ethlo", "net.artisanmc.shaded.ethlo")
     relocate("com.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.api")
     relocate("io.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.impl")

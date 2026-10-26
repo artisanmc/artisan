@@ -1,190 +1,190 @@
 # Trusted Editor — Design
 
 **Date:** 2026-05-08  
-**Scope:** Sécurisation des sessions éditeur via refresh tokens + trust in-game + IP binding
+**Scope:** Securing editor sessions via refresh tokens + in-game trust + IP binding
 
 ---
 
-## Problème
+## Problem
 
-Le token de session éditeur actuel est un token unique 30 min présent dans l'URL. Si ce token est partagé accidentellement ou volé, n'importe qui peut déclencher un deploy sur le serveur Minecraft sans autre vérification.
-
----
-
-## Objectifs
-
-1. Sessions longues (7 jours) sans sacrifier la sécurité
-2. L'URL de l'éditeur est one-time — inutilisable après la première visite
-3. Le deploy requiert une confirmation in-game (`/artisan trusteditor`) même avec un token valide
-4. Un changement d'IP re-déclenche la confirmation in-game (sans invalider la session)
+The current editor session token is a single 30-min token in the URL. If this token is accidentally shared or stolen, anyone can trigger a deploy on the Minecraft server with no other check.
 
 ---
 
-## Architecture des tokens
+## Goals
 
-### Avant
+1. Long sessions (7 days) without sacrificing security
+2. The editor URL is one-time — unusable after the first visit
+3. Deploy requires in-game confirmation (`/artisan trusteditor`) even with a valid token
+4. An IP change re-triggers the in-game confirmation (without invalidating the session)
+
+---
+
+## Token architecture
+
+### Before
 ```
-url_token (30 min) → utilisé pour tous les appels API
+url_token (30 min) → used for all API calls
 ```
 
-### Après
+### After
 ```
-url_token (one-time) → échangé à la 1ère visite
+url_token (one-time) → exchanged on the 1st visit
     ↓
-access_token (5 min, mémoire JS) → appels API
-refresh_token (7 jours, HttpOnly cookie) → renouvelle l'access token
+access_token (5 min, JS memory) → API calls
+refresh_token (7 days, HttpOnly cookie) → renews the access token
 ```
 
 ---
 
-## Schema DB — `editor_sessions` (colonnes ajoutées)
+## DB schema — `editor_sessions` (added columns)
 
-| Colonne | Type | Description |
+| Column | Type | Description |
 |---|---|---|
-| `exchanged_at` | timestamp nullable | Posé lors de l'échange du url_token — bloque toute réutilisation |
-| `refresh_token` | text nullable | Token de refresh (HttpOnly cookie, 7 jours) |
-| `access_token` | text nullable | Access token courant (5 min) |
-| `access_expires_at` | timestamp nullable | Expiry de l'access token |
-| `trust_code` | text nullable | Code 6 chars généré à la création, affiché dans l'éditeur |
-| `trusted_at` | timestamp nullable | Posé quand `/artisan trusteditor` est tapé |
-| `trusted_ip` | text nullable | IP capturée au moment du trust |
+| `exchanged_at` | timestamp nullable | Set when the url_token is exchanged — blocks any reuse |
+| `refresh_token` | text nullable | Refresh token (HttpOnly cookie, 7 days) |
+| `access_token` | text nullable | Current access token (5 min) |
+| `access_expires_at` | timestamp nullable | Access token expiry |
+| `trust_code` | text nullable | 6-char code generated at creation, shown in the editor |
+| `trusted_at` | timestamp nullable | Set when `/artisan trusteditor` is typed |
+| `trusted_ip` | text nullable | IP captured at the time of trust |
 
-`expires_at` passe de 30 min à **7 jours**.
+`expires_at` goes from 30 min to **7 days**.
 
 ---
 
 ## Flows
 
-### A. Exchange (visite initiale)
+### A. Exchange (initial visit)
 
 ```
 /artisan editor
-    → backend crée session : url_token + trust_code (6 chars), expires_at = now + 7j
-    → éditorSessionReadyMessage inclut trust_code
+    → backend creates session: url_token + trust_code (6 chars), expires_at = now + 7d
+    → editorSessionReadyMessage includes trust_code
 
-Editor charge /session?token=<url_token>
+Editor loads /session?token=<url_token>
     → POST /api/editor-session/exchange { url_token }
-    → SI exchanged_at IS NOT NULL → 401 { error: "already_used" }
-    → SI token expiré ou inexistant → 401
-    → pose exchanged_at, génère access_token (5 min) + refresh_token (7j)
-    → retourne { access_token, expires_in: 300, trust_code }
+    → IF exchanged_at IS NOT NULL → 401 { error: "already_used" }
+    → IF token expired or nonexistent → 401
+    → sets exchanged_at, generates access_token (5 min) + refresh_token (7d)
+    → returns { access_token, expires_in: 300, trust_code }
     → Set-Cookie: refresh=<refresh_token>; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
 ```
 
-### B. Refresh (toutes les 4 min, silencieux)
+### B. Refresh (every 4 min, silent)
 
 ```
 POST /api/editor-session/refresh
-    → lit le cookie refresh_token
-    → SI introuvable ou révoqué → 401 { error: "session_expired" }
-    → invalide l'ancien refresh_token (rotation)
-    → génère nouveau access_token (5 min) + nouveau refresh_token (7j)
-    → retourne { access_token, expires_in: 300 }
-    → Set-Cookie: refresh=<nouveau_refresh_token>; HttpOnly; ...
+    → reads the refresh_token cookie
+    → IF not found or revoked → 401 { error: "session_expired" }
+    → invalidates the old refresh_token (rotation)
+    → generates new access_token (5 min) + new refresh_token (7d)
+    → returns { access_token, expires_in: 300 }
+    → Set-Cookie: refresh=<new_refresh_token>; HttpOnly; ...
 ```
 
-### C. Trust in-game
+### C. In-game trust
 
 ```
-Editor affiche banner : "Tapez /artisan trusteditor <trust_code> en jeu"
+Editor shows banner: "Type /artisan trusteditor <trust_code> in game"
 
 Admin → /artisan trusteditor <code>
-    → plugin envoie WS : editor_trust_request { trust_code }
-    → backend : cherche session par trust_code
-    → capture IP depuis editorTokenToIp[session.access_token]
-    → pose trusted_at + trusted_ip en DB
-    → pousse WS éditeur : session_trusted {}
+    → plugin sends WS: editor_trust_request { trust_code }
+    → backend: looks up session by trust_code
+    → captures IP from editorTokenToIp[session.access_token]
+    → sets trusted_at + trusted_ip in DB
+    → pushes editor WS: session_trusted {}
 
-Editor : banner disparaît, deploy débloqué
+Editor: banner disappears, deploy unblocked
 ```
 
-### D. Re-trust sur changement d'IP
+### D. Re-trust on IP change
 
 ```
 POST /:token/packs/:packId/deploy
-    → SI trusted_ip ≠ request_ip → 403 { error: "session_not_trusted" }
+    → IF trusted_ip ≠ request_ip → 403 { error: "session_not_trusted" }
 
-Editor : réaffiche le banner trust (même flow que C)
-Admin retape /artisan trusteditor → trusted_ip mis à jour
+Editor: shows the trust banner again (same flow as C)
+Admin retypes /artisan trusteditor → trusted_ip updated
 ```
 
 ---
 
-## Endpoints modifiés / ajoutés
+## Modified / added endpoints
 
-| Endpoint | Changement |
+| Endpoint | Change |
 |---|---|
-| `POST /api/editor-session/:url_token/exchange` | **Nouveau** — échange url_token → access + refresh. `:url_token` est le token one-time de l'URL. |
-| `POST /api/editor-session/refresh` | **Nouveau** (path fixe, sans token) — lit cookie HttpOnly, rotate refresh token |
-| `POST /api/editor-session/:token/refresh` | **Supprimé** — remplacé par la route `/refresh` ci-dessus |
-| `GET /api/editor-session/:token` | **Modifié** — accepte access_token, retourne `{ server_key_id, trusted, trust_code }` |
-| `POST /:token/packs/:packId/deploy` | **Modifié** — vérifie trusted_at + trusted_ip |
-| Tous les `/:token/...` (hors exchange) | **Modifié** — token dans le path est maintenant l'access_token |
+| `POST /api/editor-session/:url_token/exchange` | **New** — exchanges url_token → access + refresh. `:url_token` is the one-time token from the URL. |
+| `POST /api/editor-session/refresh` | **New** (fixed path, no token) — reads HttpOnly cookie, rotates the refresh token |
+| `POST /api/editor-session/:token/refresh` | **Removed** — replaced by the `/refresh` route above |
+| `GET /api/editor-session/:token` | **Modified** — accepts access_token, returns `{ server_key_id, trusted, trust_code }` |
+| `POST /:token/packs/:packId/deploy` | **Modified** — checks trusted_at + trusted_ip |
+| All `/:token/...` (except exchange) | **Modified** — the token in the path is now the access_token |
 
 ---
 
 ## IP capture
 
-Le hub maintient `editorTokenToIp: Map<string, string>` (access_token → IP). Alimenté par deux sources :
-1. **HTTP** : `trackEditorIp(access_token, ip)` appelé dans `validateEditorToken` à chaque appel authentifié
-2. **WS** : lors du `onOpen` de `/ws/editor`, l'IP est lue depuis les headers HTTP de l'upgrade et stockée dans la map (fallback si aucun appel HTTP encore reçu)
+The hub maintains `editorTokenToIp: Map<string, string>` (access_token → IP). Fed by two sources:
+1. **HTTP**: `trackEditorIp(access_token, ip)` called in `validateEditorToken` on every authenticated call
+2. **WS**: on `onOpen` of `/ws/editor`, the IP is read from the HTTP headers of the upgrade and stored in the map (fallback if no HTTP call has been received yet)
 
-Lors du trust request, le backend résout `session.access_token` → `editorTokenToIp.get(access_token)` pour obtenir l'IP à persister. Si la map ne contient pas encore l'IP (cas extrêmement rare), le trust est refusé avec `{ error: "editor_not_connected" }`.
+On the trust request, the backend resolves `session.access_token` → `editorTokenToIp.get(access_token)` to get the IP to persist. If the map does not yet contain the IP (extremely rare case), trust is refused with `{ error: "editor_not_connected" }`.
 
-Le `trust_code` est valide pour toute la durée de la session (7 jours). Il n'a pas d'expiry propre. "Code invalide" dans le feedback plugin signifie : session introuvable, déjà révoquée, ou code ne correspondant à aucune session active.
+The `trust_code` is valid for the whole session duration (7 days). It has no expiry of its own. "Invalid code" in the plugin feedback means: session not found, already revoked, or code not matching any active session.
 
 ---
 
-## Protocole WS — nouveaux messages
+## WS protocol — new messages
 
-| Message | Sens | Champs |
+| Message | Direction | Fields |
 |---|---|---|
 | `editor_trust_request` | plugin → backend | `trust_code: string` |
-| `session_trusted` | backend → éditeur WS | `{}` |
+| `session_trusted` | backend → editor WS | `{}` |
 
-`EditorSessionReadyMessage` (backend → plugin) : ajout du champ `trust_code: string`.
-
----
-
-## Éditeur — changements UX
-
-- **Exchange au chargement** de `/session?token=...` : POST exchange → `access_token` en mémoire Zustand
-- **Error states** :
-  - `already_used` → page "Ce lien a déjà été utilisé — relancez `/artisan editor`"
-  - refresh 401 → "Session expirée — relancez `/artisan editor`"
-- **Banner trust** : affiché si `trusted: false` à la validation, ou sur 403 `session_not_trusted` après un deploy
-- **WS `session_trusted`** → banner disparaît
-- **Refresh silencieux** : `setInterval` 4 min, rotation transparente
+`EditorSessionReadyMessage` (backend → plugin): added `trust_code: string` field.
 
 ---
 
-## Plugin — changements
+## Editor — UX changes
 
-- `/artisan trusteditor <code>` : nouveau subcommand
-- Envoie `editor_trust_request { trust_code }` via WS principal
-- Feedback : "Session éditeur autorisée." / "Code invalide ou expiré."
-- Tab-complete sur `trusteditor`
-- `EditorSessionReadyMessage` : champ `trust_code` lu et stocké pour affichage en jeu si besoin
+- **Exchange on load** of `/session?token=...`: POST exchange → `access_token` in Zustand memory
+- **Error states**:
+  - `already_used` → page "This link has already been used — rerun `/artisan editor`"
+  - refresh 401 → "Session expired — rerun `/artisan editor`"
+- **Trust banner**: shown if `trusted: false` at validation, or on 403 `session_not_trusted` after a deploy
+- **WS `session_trusted`** → banner disappears
+- **Silent refresh**: `setInterval` 4 min, transparent rotation
 
 ---
 
-## Couverture de sécurité
+## Plugin — changes
 
-| Scénario | Protection |
+- `/artisan trusteditor <code>`: new subcommand
+- Sends `editor_trust_request { trust_code }` via the main WS
+- Feedback: "Session éditeur autorisée." / "Code invalide ou expiré."
+- Tab-complete on `trusteditor`
+- `EditorSessionReadyMessage`: `trust_code` field read and stored for in-game display if needed
+
+---
+
+## Security coverage
+
+| Scenario | Protection |
 |---|---|
-| URL partagée accidentellement | ✅ One-time token, inutilisable après 1ère visite |
-| Access token volé, session non trustée | ✅ Deploy bloqué (trusted_at null) |
-| Access token volé, session trustée, même IP | ⚠️ Fenêtre 5 min (acceptable) |
-| Refresh token volé (autre machine = autre IP) | ✅ Re-trust requis, impossible sans accès serveur Minecraft |
-| IP change légitime (VPN, 4G) | ✅ Session intacte, re-trust suffit |
+| URL accidentally shared | ✅ One-time token, unusable after the 1st visit |
+| Access token stolen, session not trusted | ✅ Deploy blocked (trusted_at null) |
+| Access token stolen, session trusted, same IP | ⚠️ 5-min window (acceptable) |
+| Refresh token stolen (other machine = other IP) | ✅ Re-trust required, impossible without Minecraft server access |
+| Legitimate IP change (VPN, 4G) | ✅ Session intact, re-trust is enough |
 
 ---
 
-## Tests à écrire
+## Tests to write
 
-| Scope | Cas |
+| Scope | Cases |
 |---|---|
-| Backend unit | exchange consomme le token (2ème appel → 401), refresh rotate le cookie, trust pose trusted_ip, deploy bloqué si non-trusted, deploy bloqué si IP mismatch |
-| Backend intégration | flow complet exchange → trust → deploy |
-| Editor unit | sessionStore exchange flow, banner trust affiché/masqué, refresh silencieux |
-| Plugin unit | commande trusteditor envoie le bon message WS |
+| Backend unit | exchange consumes the token (2nd call → 401), refresh rotates the cookie, trust sets trusted_ip, deploy blocked if not trusted, deploy blocked on IP mismatch |
+| Backend integration | full flow exchange → trust → deploy |
+| Editor unit | sessionStore exchange flow, trust banner shown/hidden, silent refresh |
+| Plugin unit | trusteditor command sends the right WS message |

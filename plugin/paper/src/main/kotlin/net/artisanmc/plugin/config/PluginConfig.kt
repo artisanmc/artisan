@@ -1,5 +1,6 @@
 package net.artisanmc.plugin.config
 
+import net.artisanmc.plugin.hub.AiConfig
 import net.artisanmc.plugin.hub.WebConfig
 import org.bukkit.configuration.file.FileConfiguration
 
@@ -71,9 +72,17 @@ data class PluginConfig(
                     hubUrl = hubWebSocketUrl(EnvironmentFile.string(environment, "web.hub", "")),
                     secret = EnvironmentFile.string(environment, "web.secret", ""),
                     sessionDays = environment.getInt("web.session-days", 7).coerceAtLeast(1),
-                    tunnel = EnvironmentFile.string(environment, "web.tunnel", WebConfig.DEFAULT_TUNNEL).trim(),
+                    tunnel = EnvironmentFile.string(environment, "web.tunnel", System.getProperty(WebConfig.TUNNEL_PROPERTY, WebConfig.DEFAULT_TUNNEL)).trim(),
                     tunnelAccess = EnvironmentFile.string(environment, "web.tunnel-access", ""),
                     mcp = environment.getBoolean("web.mcp", false),
+                    ai = AiConfig(
+                        provider = EnvironmentFile.string(environment, "ai.provider", "").trim().lowercase(),
+                        apiKey = EnvironmentFile.string(environment, "ai.api-key", "").trim(),
+                        model = EnvironmentFile.string(environment, "ai.model", "").trim().ifEmpty { AiConfig.DEFAULT_MODEL },
+                        effort = EnvironmentFile.string(environment, "ai.effort", "").trim().lowercase().ifEmpty { "medium" },
+                        maxSteps = environment.getInt("ai.max-steps", 25).coerceIn(1, 100),
+                        baseUrl = EnvironmentFile.string(environment, "ai.base-url", "").trim().trimEnd('/'),
+                    ),
                 ),
                 devEditorBundles = environment.getConfigurationSection("dev.editor-bundles")?.let { section ->
                     section.getKeys(false)

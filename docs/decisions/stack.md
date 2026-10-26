@@ -1,65 +1,65 @@
-# Artisan — Stack technique
+# Artisan — Technical stack
 
-Décisions consolidées sur la stack du produit, avec rationale et alternatives écartées. Document vivant : à mettre à jour quand on revisite un choix.
+Consolidated decisions on the product's stack, with rationale and rejected alternatives. Living document: update it when a choice is revisited.
 
-Dernière révision : 2026-06-19.
+Last revision: 2026-06-19.
 
-> **Phase F (2026-10)** : le backend (Bun, Hono, Drizzle, PostgreSQL), les e-mails, Google/Discord et l'hébergement OVH/Coolify sont supprimés. L'éditeur est servi par le plugin avec Jetty 12 (ADR [editor-web-server](editor-web-server.md)) ; le pack se construit dans le navigateur. Les lignes correspondantes ci-dessous sont historiques.
+> **Phase F (2026-10)**: the backend (Bun, Hono, Drizzle, PostgreSQL), emails, Google/Discord and OVH/Coolify hosting are removed. The editor is served by the plugin with Jetty 12 (ADR [editor-web-server](editor-web-server.md)); the pack is built in the browser. The corresponding lines below are historical.
 
 ---
 
-## Résumé en une table
+## Summary in a table
 
-| Couche | Choix | Alternative écartée | Pourquoi |
+| Layer | Choice | Rejected alternative | Why |
 |---|---|---|---|
-| **Plugin Minecraft** | Kotlin 2.0 + Paper API + Gradle | Java 21 | Kotlin offre null-safety, data classes et coroutines — moins de boilerplate pour les modèles de domaine complexes. |
-| **Backend runtime** | Bun 1.x | Node 22, Deno | Startup rapide, TypeScript natif sans transpilation, `bun:sqlite` intégré. Suffisant pour le MVP et la prod à faible concurrence. |
-| **Backend framework** | Hono 4 | Fastify, Express | Léger, TypeScript-first, WebSocket via `hono/bun`. Zéro config. Pour le MVP, Fastify n'apporte rien de concret. |
-| **ORM** | Drizzle | Sequelize, Prisma | TS-native, types parfaits, proche du SQL, pas de codegen ni de moteur séparé. Dialecte swappable (SQLite → PostgreSQL en changeant 3 lignes). |
-| **DB** | PostgreSQL 16 (`drizzle-orm/postgres-js`) | SQLite (`bun:sqlite`) | SaaS multi-tenant : visualisation données, backups, requêtes ad-hoc, préparation multi-instance. Drizzle abstrait le dialecte — le switch depuis SQLite n'a nécessité que 3 lignes de config. |
-| **Canvas éditeur** | Konva + react-konva | React Flow | Un seul canvas Konva avec inventaires inlines. React Flow (node-based) ne correspond pas au modèle visuel : les menus ne sont pas des nœuds connectés, ce sont des compositions d'items dans une grille. |
-| **WS client (éditeur)** | Custom `pluginBridge.ts` (~60 LOC) | partysocket, socket.io | On contrôle le protocole JSON. partysocket n'est utile que si on veut le reconnect auto sans l'écrire — 60 lignes suffisent. *Supprimé depuis (issue #44) : `pluginBridge.ts` n'avait plus d'importeur une fois l'éditeur servi par le plugin ; `lib/editorWs.ts` porte la socket `/ws/editor`.* |
-| **WS client (plugin)** | OkHttp 4 WebSocket | socket.io, Ktor | OkHttp est déjà la dépendance HTTP du plugin (bundle download). Un seul client HTTP+WS. Reconnect exponential backoff inclus. |
-| **Frontend framework** | React 19 + TypeScript strict | Vue, Svelte, Solid | Écosystème (@dnd-kit, shadcn, training data LLMs). |
-| **Build** | Vite 6 | webpack, Parcel, Turbopack | Standard 2026. HMR rapide, config minimale. |
-| **Router** | TanStack Router | React Router v7 | Routes/params type-safe. |
-| **State client** | Zustand + Zundo | Jotai, Redux Toolkit | Store clair pour un éditeur avec gros graphe de state. Zundo = undo/redo gratis. |
-| **UI components** | shadcn/ui + Tailwind v4 | Mantine, Chakra UI | On possède le code. Customisation libre, design soigné. |
-| **Drag & drop** | @dnd-kit/core | react-beautiful-dnd | Performant, accessible, maintenu. |
-| **MiniMessage** | Custom TS parser (~500 LOC) | npm @minecraft-js/minimessage, adventure-webui | Zéro dépendance, intégration native avec l'autocomplete i18n/PAPI. adventure-webui sert de référence visuelle (MIT). |
-| **Tests backend** | `bun:test` | Vitest, Jest | Natif Bun, zero config. |
+| **Minecraft plugin** | Kotlin 2.0 + Paper API + Gradle | Java 21 | Kotlin offers null-safety, data classes and coroutines — less boilerplate for complex domain models. |
+| **Backend runtime** | Bun 1.x | Node 22, Deno | Fast startup, native TypeScript without transpilation, built-in `bun:sqlite`. Enough for the MVP and prod at low concurrency. |
+| **Backend framework** | Hono 4 | Fastify, Express | Lightweight, TypeScript-first, WebSocket via `hono/bun`. Zero config. For the MVP, Fastify brings nothing concrete. |
+| **ORM** | Drizzle | Sequelize, Prisma | TS-native, perfect types, close to SQL, no codegen nor separate engine. Swappable dialect (SQLite → PostgreSQL by changing 3 lines). |
+| **DB** | PostgreSQL 16 (`drizzle-orm/postgres-js`) | SQLite (`bun:sqlite`) | Multi-tenant SaaS: data visualization, backups, ad-hoc queries, multi-instance preparation. Drizzle abstracts the dialect — the switch from SQLite only needed 3 lines of config. |
+| **Editor canvas** | Konva + react-konva | React Flow | A single Konva canvas with inline inventories. React Flow (node-based) does not match the visual model: menus are not connected nodes, they are compositions of items in a grid. |
+| **WS client (editor)** | Custom `pluginBridge.ts` (~60 LOC) | partysocket, socket.io | We control the JSON protocol. partysocket is only useful if you want auto-reconnect without writing it — 60 lines are enough. *Removed since (issue #44): `pluginBridge.ts` had no importer left once the editor was served by the plugin; `lib/editorWs.ts` carries the `/ws/editor` socket.* |
+| **WS client (plugin)** | OkHttp 4 WebSocket | socket.io, Ktor | OkHttp is already the plugin's HTTP dependency (bundle download). A single HTTP+WS client. Exponential backoff reconnect included. |
+| **Frontend framework** | React 19 + strict TypeScript | Vue, Svelte, Solid | Ecosystem (@dnd-kit, shadcn, LLM training data). |
+| **Build** | Vite 6 | webpack, Parcel, Turbopack | 2026 standard. Fast HMR, minimal config. |
+| **Router** | TanStack Router | React Router v7 | Type-safe routes/params. |
+| **Client state** | Zustand + Zundo | Jotai, Redux Toolkit | Clear store for an editor with a large state graph. Zundo = free undo/redo. |
+| **UI components** | shadcn/ui + Tailwind v4 | Mantine, Chakra UI | We own the code. Free customization, polished design. |
+| **Drag & drop** | @dnd-kit/core | react-beautiful-dnd | Performant, accessible, maintained. |
+| **MiniMessage** | Custom TS parser (~500 LOC) | npm @minecraft-js/minimessage, adventure-webui | Zero dependencies, native integration with i18n/PAPI autocomplete. adventure-webui serves as a visual reference (MIT). |
+| **Backend tests** | `bun:test` | Vitest, Jest | Bun-native, zero config. |
 | **PNG button resizing** | `pngjs` 7 | Native image processing dependency | Pure JS PNG decode/encode on Bun, nearest-neighbour scaling and transparent padding for multi-slot buttons; no native binary installation. |
-| **Pack de ressources (éditeur)** | `fflate` 0.8.2 + PNG/deflate maison (`editor/src/lib/pack/`) | `pngjs`, `crypto.subtle` | Le pack se construit aussi dans le navigateur. `pngjs` dépend de Node, `crypto.subtle` exige HTTPS : PNG, deflate Z_RLE et SHA-1 en JS pur, octet pour octet identiques à `pngjs` + zlib côté backend. |
+| **Resource pack (editor)** | `fflate` 0.8.2 + in-house PNG/deflate (`editor/src/lib/pack/`) | `pngjs`, `crypto.subtle` | The pack is also built in the browser. `pngjs` depends on Node, `crypto.subtle` requires HTTPS: PNG, deflate Z_RLE and SHA-1 in pure JS, byte-for-byte identical to `pngjs` + zlib on the backend side. |
 | **Google ID tokens** | `jose` 6 (RS256 + cached remote Google JWKS) | Hand-written JWT/signature verification | Standard verification of issuer, audience and expiry on Bun; Google authorization-code flow additionally binds state, nonce and PKCE. |
-| **Tests editor** | Vitest + Playwright | Jest, Cypress | Vitest s'intègre à Vite. Playwright > Cypress en 2026. |
-| **Tests plugin** | JUnit 5 + MockBukkit + MockWebServer | - | Standards Paper/Bukkit. MockWebServer (OkHttp) pour simuler le backend en intégration. |
-| **Lint / format** | Biome (editor) | ESLint + Prettier | Un binaire, plus rapide. |
-| **Hosting production** | OVH VPS 4 vCPU/8 Go, Ubuntu 26.04, Coolify, PostgreSQL 16 privé, nginx, Cloudflare Tunnel + Access, livraison GitHub Actions gated | Hébergement managé réparti | Une stack regroupée réduit la fragmentation opérationnelle tout en restant exploitable par une seule personne. Le Tunnel masque l'origine et évite d'exposer des ports web entrants. |
-| **Emails transactionnels** | Scaleway TEM via SMTP (nodemailer) — 2026-07-11 | API HTTP dédiée | SMTP suffit pour un volume transactionnel faible (welcome, notifications) ; nodemailer est zero-config sur `createTransport`, pas de SDK propriétaire supplémentaire. |
+| **Editor tests** | Vitest + Playwright | Jest, Cypress | Vitest integrates with Vite. Playwright > Cypress in 2026. |
+| **Plugin tests** | JUnit 5 + MockBukkit + MockWebServer | - | Paper/Bukkit standards. MockWebServer (OkHttp) to simulate the backend in integration. |
+| **Lint / format** | Biome (editor) | ESLint + Prettier | A single binary, faster. |
+| **Production hosting** | OVH VPS 4 vCPU/8 GB, Ubuntu 26.04, Coolify, private PostgreSQL 16, nginx, Cloudflare Tunnel + Access, gated GitHub Actions delivery | Managed hosting spread across providers | A consolidated stack reduces operational fragmentation while staying operable by a single person. The Tunnel hides the origin and avoids exposing inbound web ports. |
+| **Transactional emails** | Scaleway TEM via SMTP (nodemailer) — 2026-07-11 | Dedicated HTTP API | SMTP is enough for a low transactional volume (welcome, notifications); nodemailer is zero-config on `createTransport`, no additional proprietary SDK. |
 
 ---
 
-## Pivots depuis la spec initiale (avril 2026)
+## Pivots since the initial spec (April 2026)
 
-La spec initiale documentait Node 22 + Fastify + PostgreSQL + React Flow. L'implémentation a divergé sur quatre points — décisions actées en mai 2026 lors du scaffolding :
+The initial spec documented Node 22 + Fastify + PostgreSQL + React Flow. The implementation diverged on four points — decisions made in May 2026 during scaffolding:
 
-| Spec initiale | Implémenté | Raison du pivot |
+| Initial spec | Implemented | Reason for the pivot |
 |---|---|---|
-| Java 21 | **Kotlin 2.0** | Null-safety et data classes réduisent le boilerplate sur les modèles de domaine. |
-| Node 22 + Fastify | **Bun + Hono** | MVP : Bun simplifie le toolchain (pas de transpilation). Fastify n'apporte rien de concret à cette échelle. |
-| React Flow | **Konva** | Le modèle visuel est un canvas d'inventaires Minecraft, pas un graphe de nœuds. Konva donne le contrôle pixel-perfect nécessaire. |
-| Projets uniquement sur disque Minecraft | **Deux adaptateurs, volume hébergé durable + disque Minecraft** | Préparer un projet sans serveur ; mêmes CAS/brouillons, autorité unique et sauvegarde SQL + volume. ADR `project-storage-modes`. |
-| Hébergement managé réparti entre plusieurs fournisseurs | **OVH + Coolify + PostgreSQL privé + nginx + Cloudflare Tunnel/Access** | Moins de fragmentation opérationnelle et une exploitation solo plus pratique, avec des releases toujours conditionnées par la CI GitHub Actions. |
+| Java 21 | **Kotlin 2.0** | Null-safety and data classes reduce boilerplate on domain models. |
+| Node 22 + Fastify | **Bun + Hono** | MVP: Bun simplifies the toolchain (no transpilation). Fastify brings nothing concrete at this scale. |
+| React Flow | **Konva** | The visual model is a canvas of Minecraft inventories, not a node graph. Konva gives the pixel-perfect control needed. |
+| Projects only on the Minecraft disk | **Two adapters, durable hosted volume + Minecraft disk** | Prepare a project without a server; same CAS/drafts, single authority and SQL + volume backup. ADR `project-storage-modes`. |
+| Managed hosting spread across several providers | **OVH + Coolify + private PostgreSQL + nginx + Cloudflare Tunnel/Access** | Less operational fragmentation and more practical solo operation, with releases still gated by GitHub Actions CI. |
 
-**Condition de migration vers Fastify :** si on a besoin de la validation JSON Schema intégrée sur les routes bundle upload (quand le schéma menu v2 arrive), ou si on atteint les limites de Hono en production.
+**Condition for migrating to Fastify:** if we need the JSON Schema validation built into the bundle upload routes (when the menu v2 schema arrives), or if we hit Hono's limits in production.
 
 ---
 
-## Backend — détails
+## Backend — details
 
 ### Bun + Hono
 
-Bun exécute TypeScript natif, expose `bun:sqlite` sans dépendance, et `Bun.serve` gère HTTP + WebSocket dans le même process. Hono est un framework HTTP ultra-léger avec une API proche d'Express — `createBunWebSocket()` intègre le WS upgrade proprement.
+Bun runs native TypeScript, exposes `bun:sqlite` without a dependency, and `Bun.serve` handles HTTP + WebSocket in the same process. Hono is an ultra-light HTTP framework with an API close to Express — `createBunWebSocket()` integrates the WS upgrade cleanly.
 
 ```ts
 const { upgradeWebSocket, websocket } = createBunWebSocket();
@@ -78,68 +78,68 @@ const client = postgres(process.env.DATABASE_URL ?? "postgresql://postgres:postg
 export const db = drizzle(client, { schema });
 ```
 
-Le switch depuis SQLite n'a nécessité que : remplacer `drizzle-orm/bun-sqlite` par `drizzle-orm/postgres-js`, changer le dialecte dans `drizzle.config.ts`, et `sqliteTable` → `pgTable` dans le schéma. Les requêtes Drizzle n'ont pas changé.
+The switch from SQLite only required: replacing `drizzle-orm/bun-sqlite` with `drizzle-orm/postgres-js`, changing the dialect in `drizzle.config.ts`, and `sqliteTable` → `pgTable` in the schema. The Drizzle queries did not change.
 
-### Sessions WS
+### WS sessions
 
-Les sessions sont en mémoire (`activeSessions`, `sessionSenders` dans `hub.ts`). C'est suffisant pour un backend single-instance. Si on passe multi-instance, il faudra une couche partagée (Redis ou table PostgreSQL).
+Sessions are in memory (`activeSessions`, `sessionSenders` in `hub.ts`). This is enough for a single-instance backend. If we go multi-instance, a shared layer will be needed (Redis or a PostgreSQL table).
 
 ---
 
-## Frontend — détails
+## Frontend — details
 
 ### Konva
 
-Le canvas est un `<Stage>` Konva unique. Les menus sont des `<Group>` positionnés avec `menuLayout.ts`, les items des `<Rect>` + `<Image>`, le texte en MiniMessage rendu en police bitmap MC par `VanillaMcText.tsx` (ou `McFontText.tsx` pour une police importée). Pan/zoom géré par `usePanZoom.ts`.
+The canvas is a single Konva `<Stage>`. Menus are `<Group>`s positioned with `menuLayout.ts`, items are `<Rect>` + `<Image>`, MiniMessage text rendered in MC bitmap font by `VanillaMcText.tsx` (or `McFontText.tsx` for an imported font). Pan/zoom handled by `usePanZoom.ts`.
 
-Pas de React Flow : les menus Artisan ne sont pas des nœuds dans un graphe. Ce sont des compositions d'items dans une grille. Les "edges" visuelles entre menus (actions `open_menu`) sont rendues custom avec `deriveEdges.ts`.
+No React Flow: Artisan menus are not nodes in a graph. They are compositions of items in a grid. The visual "edges" between menus (`open_menu` actions) are rendered custom with `deriveEdges.ts`.
 
 ### Zustand + Zundo
 
-`accountStore.ts` est le store principal — ses mutations vivent par domaine dans `state/account/*Slice.ts` (projets, dialogues, commandes, menus, éléments, canvas, i18n, données), composées sous Zundo pour l'undo/redo (issue #46). `uiStore.ts` porte l'état UI pur (onglet actif, langue, dimensions). `wsStore.ts` portait la connexion WS et la fonction `publish()` ; supprimé avec `pluginBridge.ts` (issue #44).
+`accountStore.ts` is the main store — its mutations live by domain in `state/account/*Slice.ts` (projects, dialogs, commands, menus, elements, canvas, i18n, data), composed under Zundo for undo/redo (issue #46). `uiStore.ts` carries pure UI state (active tab, language, dimensions). `wsStore.ts` used to carry the WS connection and the `publish()` function; removed with `pluginBridge.ts` (issue #44).
 
-TanStack Query n'est pas utilisé (pas de data fetching server-side côté editor dans le MVP — l'état vit en localStorage).
+TanStack Query is not used (no server-side data fetching on the editor side in the MVP — state lives in localStorage).
 
 ---
 
-## Plugin — détails
+## Plugin — details
 
 ### Kotlin 2.0 + OkHttp
 
-`WsClient.kt` gère la connexion WS avec reconnect exponentiel. Le téléchargement de bundles (`BundleDownloader.kt`) s'exécute sur `httpClient.dispatcher.executorService` pour ne pas bloquer le thread WS callback d'OkHttp.
+`WsClient.kt` handles the WS connection with exponential reconnect. The bundle download (`BundleDownloader.kt`) runs on `httpClient.dispatcher.executorService` so as not to block OkHttp's WS callback thread.
 
-`SyncedMenuProvider.kt` est le point d'entrée unique : charge les menus depuis le disque, ouvre le WS si `server_key` est configuré, gère le live-reload sur `bundle_available`.
+`SyncedMenuProvider.kt` is the single entry point: loads menus from disk, opens the WS if `server_key` is configured, handles live-reload on `bundle_available`.
 
-### Hash déterministe
+### Deterministic hash
 
-`BundleHasher.kt` et `hashUtils.ts` doivent produire le même hash pour les mêmes fichiers. Invariant critique : **tri byte-order** (`<`/`>` natif Kotlin/JS), pas `localeCompare` ni `compareTo` locale-aware. L'empty string `""` est le sentinel universel pour "pas de contenu".
-
----
-
-## Hosting (cible production)
-
-- **Plugin** : distribué aux admins, pas hosté par nous.
-- **Hôte** : VPS OVH 4 vCPU / 8 Go sous Ubuntu 26.04, administré par Coolify.
-- **Backend** : image Docker Bun gérée par Coolify, volume persistant `/app/data`.
-- **Editor + vitrine + wiki** : une image Docker multi-stage, fichiers statiques servis par nginx. Astro Starlight compile le wiki sous `/wiki/` ; les routes React restent à la racine. Le build éditeur inclut les guides et l'index Pagefind, sans service supplémentaire en production.
-- **Données** : PostgreSQL 16 privé sur le réseau Coolify ; assets et bundles sur `/app/data` sauvegardé hors hôte.
-- **Entrée web** : Cloudflare Tunnel nommé pour `api.artisanmc.net`, `editor.artisanmc.net` et `coolify.artisanmc.net`; Cloudflare Access protège Coolify.
-- **Livraison** : GitHub Actions déploie uniquement la révision `main` validée par CI ; l'auto-deploy direct de Coolify est désactivé.
-- **Auth** : Discord OAuth custom (pas NextAuth — bound à Next.js).
-- **Paiement** : Stripe Subscriptions.
+`BundleHasher.kt` and `hashUtils.ts` must produce the same hash for the same files. Critical invariant: **byte-order sort** (native Kotlin/JS `<`/`>`), not `localeCompare` nor locale-aware `compareTo`. The empty string `""` is the universal sentinel for "no content".
 
 ---
 
-## Rendu Markdown de l'assistant
+## Hosting (production target)
 
-L'éditeur utilise `react-markdown` et `remark-gfm` pour afficher les réponses IA
-(CommonMark et tableaux GFM) dans le chat et le suivi des tâches. Le rendu produit
-des éléments React, ignore le HTML brut et conserve le filtrage des URL par défaut.
+- **Plugin**: distributed to admins, not hosted by us.
+- **Host**: OVH VPS 4 vCPU / 8 GB on Ubuntu 26.04, administered by Coolify.
+- **Backend**: Bun Docker image managed by Coolify, persistent volume `/app/data`.
+- **Editor + showcase + wiki**: a multi-stage Docker image, static files served by nginx. Astro Starlight compiles the wiki under `/wiki/`; the React routes stay at the root. The editor build includes the guides and the Pagefind index, with no additional service in production.
+- **Data**: private PostgreSQL 16 on the Coolify network; assets and bundles on `/app/data` backed up off-host.
+- **Web entry**: named Cloudflare Tunnel for `api.artisanmc.net`, `editor.artisanmc.net` and `coolify.artisanmc.net`; Cloudflare Access protects Coolify.
+- **Delivery**: GitHub Actions deploys only the `main` revision validated by CI; Coolify's direct auto-deploy is disabled.
+- **Auth**: custom Discord OAuth (not NextAuth — bound to Next.js).
+- **Payment**: Stripe Subscriptions.
 
-## Choses encore ouvertes
+---
 
-- **Signature des bundles** : champ `signature` présent dans le protocole, non implémenté. ECDSA P-256 prévu.
-- **Auth** : non implémentée. `server_key` manuel pour l'instant. Deux providers prévus : Discord OAuth + email/password (bcrypt + JWT). `server_key` reste le vecteur d'auth plugin → backend (ne change pas).
-- **TanStack Query** : non utilisé. À introduire si on ajoute du data fetching server-side (billing, équipes).
-- **Migration JSON menu v1 → v2** : moteur côté plugin uniquement, côté backend, ou les deux ? À trancher en V1.5.
-- **PlaceholderAPI** : intégration directe pour V1, abstraction si auto-completion riche nécessaire.
+## Assistant Markdown rendering
+
+The editor uses `react-markdown` and `remark-gfm` to display AI responses
+(CommonMark and GFM tables) in the chat and the task tracking. The rendering produces
+React elements, ignores raw HTML and keeps the default URL filtering.
+
+## Still-open items
+
+- **Bundle signing**: `signature` field present in the protocol, not implemented. ECDSA P-256 planned.
+- **Auth**: not implemented. Manual `server_key` for now. Two providers planned: Discord OAuth + email/password (bcrypt + JWT). `server_key` remains the plugin → backend auth vector (does not change).
+- **TanStack Query**: not used. To be introduced if we add server-side data fetching (billing, teams).
+- **Menu JSON migration v1 → v2**: engine on the plugin side only, on the backend side, or both? To be settled in V1.5.
+- **PlaceholderAPI**: direct integration for V1, abstraction if rich auto-completion is needed.

@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.model.ModelField;
 import org.jetbrains.annotations.Nullable;
 
@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
  * value, ...}}. {@link #normalize} folds the three into the argument map, {@link #bind} adds the defaults a handler receives;
  * {@link #canonical} is the inverse the editor writes.
  */
-@Beta
+@Stable
 public final class ActionDeclaration {
     private static final Pattern NAME = Pattern.compile("^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$");
 

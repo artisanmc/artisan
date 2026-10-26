@@ -1,67 +1,64 @@
-# Références de Document qualifiées par project — `project:id`
+# Project-qualified Document references — `project:id`
 
 **Status:** accepted (2026-10-02)
 
-## Contexte
+## Context
 
-Le plugin rangeait menus et dialogs dans une table unique indexée par id nu, sans
-notion de project : deux projects définissant `main`, le dernier chargé gagnait en
-silence, et un `open_menu main` ouvrait l'un ou l'autre selon l'ordre de
-chargement. L'éditeur, lui, refusait de deviner (lien « ambigu » non dessiné sur la
-planche générale). Les deux côtés ne voyaient donc pas le même graphe, et rien ne
-permettait de viser explicitement le menu d'un autre project.
+The plugin stored menus and dialogs in a single table indexed by bare id, with no
+notion of project: with two projects defining `main`, the last one loaded silently won,
+and an `open_menu main` opened one or the other depending on load order. The editor, for
+its part, refused to guess (an "ambiguous" link not drawn on the general board). The two
+sides therefore did not see the same graph, and nothing made it possible to explicitly
+target another project's menu.
 
-L'éditeur reste organisé **par project** (brouillon, conflits, publication) ; il lit
-désormais tous les projects du serveur (index serveur). Un project garde un sens
-propre — namespace, langue par défaut, traductions — : ce n'est pas qu'un dossier.
+The editor stays organized **by project** (draft, conflicts, publication); it now reads
+all the server's projects (server index). A project keeps a meaning of its own —
+namespace, default language, translations: it is not just a folder.
 
-## Décision
+## Decision
 
-1. **Le namespace d'un project est son dossier sur le disque du serveur.** Une
-   référence qualifiée s'écrit `<dossier>:<id>` (`boutique:main`). `:` ne peut
-   apparaître ni dans un nom de dossier de project (refusé par le plugin) ni dans
-   un nom de fichier sous Windows.
-2. **Résolution lexicale d'un id nu** : d'abord dans le project du Document qui
-   référence (menu cliqué, commande, dialog), puis sur le serveur s'il n'y est
-   défini qu'une fois. Aucun fichier existant ne change : tous les liens d'avant
-   sont locaux ou uniques.
-3. **Ambiguïté** (id nu absent du project, défini par plusieurs autres) : le
-   plugin ouvre **le dernier chargé**, exactement comme avant, et le dit une fois
-   dans le log ; l'éditeur ne dessine pas le lien et la revue de déploiement
-   avertit. Aucun menu qui s'ouvrait ne cesse de s'ouvrir.
-4. **Le project voyage avec l'exécution** : `ExecutionContext.projectId`, posé par
-   la commande (`PackCommand`), par l'ouverture d'un menu ou d'un dialog (les
-   clics s'y résolvent dans *son* project) et par les actions de module.
-   L'historique de navigation rouvre `projectId:id`, jamais un homonyme.
-5. **Un seul algorithme, deux implémentations** : `resolveDocRef`
-   (`editor/src/domain/docRef.ts`) et `DocumentTable` (plugin), verrouillés par
+1. **A project's namespace is its folder on the server's disk.** A qualified reference
+   is written `<folder>:<id>` (`boutique:main`). `:` can appear neither in a project
+   folder name (refused by the plugin) nor in a file name on Windows.
+2. **Lexical resolution of a bare id**: first in the project of the referencing
+   Document (clicked menu, command, dialog), then on the server if it is defined only
+   once there. No existing file changes: all earlier links are local or unique.
+3. **Ambiguity** (bare id absent from the project, defined by several others): the
+   plugin opens **the last one loaded**, exactly as before, and says so once in the log;
+   the editor does not draw the link and the deploy review warns. No menu that opened
+   stops opening.
+4. **The project travels with execution**: `ExecutionContext.projectId`, set by the
+   command (`PackCommand`), by the opening of a menu or dialog (clicks resolve in *its*
+   project) and by module actions. The navigation history reopens `projectId:id`, never
+   a namesake.
+5. **One algorithm, two implementations**: `resolveDocRef`
+   (`editor/src/domain/docRef.ts`) and `DocumentTable` (plugin), locked by
    `testdata/doc-ref-conformance.json`.
 
-## Hors périmètre
+## Out of scope
 
-- **Noms de commandes** : enregistrés par Bukkit à l'échelle du serveur, ils ne
-  sont pas des références de Document. Deux projects qui revendiquent `/craft`
-  restent en conflit ; la revue de déploiement l'affiche.
-- ~~**DSL texte** (`action-dsl`) : sa grammaire n'accepte pas `:` dans un
-  identifiant et n'est pas étendue.~~ Depuis 2026-10 le lexer lit
-  `<dossier>:<id>` comme un seul mot (`open_menu boutique:main`, dossier avec
-  tiret ou chiffres compris), des deux côtés et dans
-  `testdata/action-dsl-conformance.json`. L'éditeur écrit toujours le format
-  structuré (`structured-action-wire`), où `open_menu: boutique:main` est une
-  simple chaîne.
-## Éditeur
+- **Command names**: registered by Bukkit server-wide, they are not Document
+  references. Two projects claiming `/craft` remain in conflict; the deploy review
+  shows it.
+- ~~**Text DSL** (`action-dsl`): its grammar does not accept `:` in an identifier and
+  is not extended.~~ Since 2026-10 the lexer reads `<folder>:<id>` as a single word
+  (`open_menu boutique:main`, folder with hyphens or digits included), on both sides and
+  in `testdata/action-dsl-conformance.json`. The editor always writes the structured
+  format (`structured-action-wire`), where `open_menu: boutique:main` is a plain
+  string.
+## Editor
 
-- Les sélecteurs de cible d'`open_menu` / `open_dialog` listent, sous le nom de
-  chaque autre project du serveur (index serveur, état publié), ses menus et
-  dialogs ; les choisir écrit la forme qualifiée. Une cible qualifiée s'affiche
-  avec son titre et propose les entrées de contexte du menu distant.
-- Suivre une référence qualifiée (pastille de lien en vue focus) ouvre le project
-  qu'elle nomme (`documentDestination`).
+- The target selectors of `open_menu` / `open_dialog` list, under the name of each
+  other project of the server (server index, published state), its menus and dialogs;
+  choosing them writes the qualified form. A qualified target is displayed with its
+  title and offers the remote menu's context inputs.
+- Following a qualified reference (link badge in focus view) opens the project it names
+  (`documentDestination`).
 
-## Conséquences
+## Consequences
 
-- Les doublons d'id entre projects ne changent plus ce qui s'ouvre depuis le
-  project qui définit l'id ; ils restent signalés, car un appel *sans* project
-  (`/artisan menu main`, API) reste ambigu.
-- `/artisan menu boutique:main` et `MenuProvider.findMenu(ref, fromProject)`
-  acceptent la forme qualifiée.
+- Id duplicates between projects no longer change what opens from the project that
+  defines the id; they are still reported, since a call *without* a project
+  (`/artisan menu main`, API) remains ambiguous.
+- `/artisan menu boutique:main` and `MenuProvider.findMenu(ref, fromProject)` accept
+  the qualified form.

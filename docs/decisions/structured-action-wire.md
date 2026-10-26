@@ -1,62 +1,58 @@
-# Wire d'action structuré — YAML keyed par nom, DSL éliminé
+# Structured action wire — YAML keyed by name, DSL eliminated
 
-**Status:** accepted (2026-10-15) — proposé le 2026-09-30. Le wire est en production des
-deux côtés : l'éditeur écrit keyed (`features/export/transform.ts`, `lib/actions/structuredSteps.ts`),
-le plugin lit keyed (`engine/KeyedStepParser.kt` via `ActionChainCompiler`), le schéma
-`menu/v1` `$defs.Action` décrit la map à une clé. Verrou cross-stack :
-`testdata/action-wire-conformance.json`. Restent à faire, hors chemin critique : le retrait du
-codec DSL (décision 5 — il ne sert plus qu'à lire les fichiers d'avant) et le retrait des adresses
-d'action (décision 7, `assignI18nAddresses` survit pour le mode inline des anciens fichiers).
+**Status:** accepted (2026-10-15) — proposed on 2026-09-30. The wire is in production on
+both sides: the editor writes keyed (`features/export/transform.ts`, `lib/actions/structuredSteps.ts`),
+the plugin reads keyed (`engine/KeyedStepParser.kt` via `ActionChainCompiler`), the `menu/v1`
+schema `$defs.Action` describes the single-key map. Cross-stack lock:
+`testdata/action-wire-conformance.json`. Still to do, off the critical path: removing the DSL
+codec (decision 5 — it now only serves to read older files) and removing action addresses
+(decision 7, `assignI18nAddresses` survives for the inline mode of older files).
 
-## Contexte
+## Context
 
-L'ADR `action-dsl` (2026-07-21) a fait de la **string DSL** la sérialisation
-canonique d'une chaîne d'actions (`Step[]`), pour rendre un fichier data éditable
-à la main. Les handlers de menu/commande/dialog sont donc un **scalaire** DSL
-(`click.left: 'send_message "…"'`), où un texte est `"littéral"` ou `@clé`.
+The ADR `action-dsl` (2026-07-21) made the **DSL string** the canonical serialization of an
+action chain (`Step[]`), to make a data file hand-editable. Menu/command/dialog handlers are
+therefore a DSL **scalar** (`click.left: 'send_message "…"'`), where a text is `"literal"` or
+`@key`.
 
-L'ADR `field-local-translations` (2026-09-30) a rendu les textes **structurels**
-auto-contenus : un slot porte soit une string (valeur de `defaultLang`), soit une
-map `{ <lang>: texte }`. Mais **un scalaire DSL ne peut pas contenir de map** :
-les textes d'action sont restés en `@clé` vers `lang/<lang>.yaml`, donc un
-document copié n'emporte pas ses messages d'action. La forme spéciale du DSL
-contredit aussi le modèle field-local (string nue = `defaultLang`).
+The ADR `field-local-translations` (2026-09-30) made **structural** texts self-contained: a
+slot carries either a string (the `defaultLang` value) or a map `{ <lang>: text }`. But **a DSL
+scalar cannot contain a map**: action texts stayed as `@key` pointing to `lang/<lang>.yaml`, so
+a copied document does not carry its action messages. The DSL's special form also contradicts
+the field-local model (bare string = `defaultLang`).
 
-Options pesées : **A** statu quo (actions globales) — gap assumé ; **B** table
-`translations:` document-locale — indirection que le reste du modèle n'a pas ;
-**E** étendre la grammaire DSL avec un littéral-map inline — syntaxe inventée,
-deux parseurs, lignes géantes ; **D** wire structuré — le seul qui donne au texte
-d'action la même forme que le structurel. Retenu : **D**, et le DSL lui-même est
-**éliminé** (il n'était qu'un format de stockage spécialisé ; le structuré keyed
-le remplace avantageusement).
+Options weighed: **A** status quo (global actions) — accepted gap; **B** document-local
+`translations:` table — an indirection the rest of the model does not have; **E** extend the DSL
+grammar with an inline map literal — invented syntax, two parsers, giant lines; **D** structured
+wire — the only one that gives the action text the same form as the structural one. Chosen:
+**D**, and the DSL itself is **eliminated** (it was only a specialized storage format; the keyed
+structured form replaces it advantageously).
 
-## Décision
+## Decision
 
-1. **La sérialisation canonique d'une chaîne d'actions est structurée (YAML),
-   keyed par nom.** Révise la décision 1 de `action-dsl` et supersede sa cible
-   Phase 2.
+1. **The canonical serialization of an action chain is structured (YAML), keyed by name.**
+   Revises decision 1 of `action-dsl` and supersedes its Phase 2 target.
 
-2. **Une action = map à une clé : le nom de l'action.**
+2. **An action = a single-key map: the action's name.**
 
    ```yaml
-   - send_message: "Bienvenue !"                          # 1 arg texte
+   - send_message: "Bienvenue !"                          # 1 text arg
    - send_message: { en: "Welcome!", fr: "Bienvenue !" }  # 1 arg, field-local
-   - close_menu:                                          # 0 arg (valeur nulle)
-   - give_money: 100                                      # 1 arg nombre
+   - close_menu:                                          # 0 args (null value)
+   - give_money: 100                                      # 1 number arg
    - run_command: { command: "say hi", as: console }      # 2 args
    - open_menu: { menu_id: shop_category, context: { category: "{cat.id}" } }
    - show_title: { title: "VIP", subtitle: "§7bienvenue" }
    ```
 
-   - **1 seul argument** → la valeur EST cet argument.
-   - **0 argument** → valeur nulle (`- close_menu:`), ou **string nue en entrée de
-     liste** (`- close_menu`) ; les deux formes sont lues, l'éditeur écrit la nue.
-   - **plusieurs arguments** → une map `{ arg: valeur }`.
+   - **1 single argument** → the value IS that argument.
+   - **0 arguments** → null value (`- close_menu:`), or a **bare string as a list entry**
+     (`- close_menu`); both forms are read, the editor writes the bare one.
+   - **several arguments** → a map `{ arg: value }`.
 
-3. **Une condition = map à une clé : le nom de la condition.** Le `if:` porte une
-   **liste = AND implicite** ; `or:` / `and:` / `not:` sont des nœuds explicites
-   (`or:`/`and:` prennent une liste, `not:` une condition). Le `joins` plat est
-   retiré.
+3. **A condition = a single-key map: the condition's name.** The `if:` carries a
+   **list = implicit AND**; `or:` / `and:` / `not:` are explicit nodes (`or:`/`and:` take a
+   list, `not:` a condition). The flat `joins` is removed.
 
    ```yaml
    - if:
@@ -76,54 +72,47 @@ le remplace avantageusement).
            - send_message: { en: "You need VIP.", fr: "Il faut être VIP." }
    ```
 
-   `else if` = un `if` **en tête du `else`** (récursion), pas de `cases`.
-   *Rejeté :* `anyOf`/`allOf`/`oneOf` — c'est le vocabulaire JSON Schema qui
-   valide déjà ces fichiers ; `oneOf` = XOR (faux ami), `anyOf`/`allOf` créent une
-   collision de vocabulaire dans le même écosystème.
+   `else if` = an `if` **at the head of the `else`** (recursion), no `cases`.
+   *Rejected:* `anyOf`/`allOf`/`oneOf` — that is the JSON Schema vocabulary that already
+   validates these files; `oneOf` = XOR (false friend), `anyOf`/`allOf` create a vocabulary
+   collision in the same ecosystem.
 
-4. **Un texte d'action est un `LocalizedText`** : string nue (= valeur du
-   `defaultLang`, même sémantique que le structurel) ou map `{ <lang>: texte }`.
-   `{i18n:key}` reste une **valeur** possible (clé partagée), résolue avec le repli
-   habituel. Templates `{player}`, `%papi%`, MiniMessage restent (accolades
-   réservées).
+4. **An action text is a `LocalizedText`**: bare string (= the `defaultLang` value, same
+   semantics as the structural one) or map `{ <lang>: text }`. `{i18n:key}` remains a possible
+   **value** (shared key), resolved with the usual fallback. `{player}` templates, `%papi%`,
+   MiniMessage remain (curly braces reserved).
 
-5. **Le DSL est éliminé.** Le wire structuré est l'unique représentation stockée
-   et échangée. Le codec `actiondsl` (lexer/parser/printer/`DslToEngine`, TS **et**
-   Kotlin) et les fixtures `action-dsl-fixtures.json` sont retirés ; l'ambition
-   « DSL portable dans Artisan Core » (`action-dsl` §Portability) tombe. L'édition
-   des steps passe par un **éditeur structuré** (formulaire : ajouter une action/
-   condition → choisir le type → champs ; arbre if/else). L'**évaluateur de
-   `expression`** reste — il n'est pas le DSL d'actions.
+5. **The DSL is eliminated.** The structured wire is the only stored and exchanged
+   representation. The `actiondsl` codec (lexer/parser/printer/`DslToEngine`, TS **and**
+   Kotlin) and the `action-dsl-fixtures.json` fixtures are removed; the "portable DSL in Artisan
+   Core" ambition (`action-dsl` §Portability) falls. Step editing goes through a **structured
+   editor** (form: add an action/condition → choose the type → fields; if/else tree). The
+   **`expression` evaluator** stays — it is not the action DSL.
 
-6. **Discrimination par type (lecture tolérante).** Un handler est une **string**
-   → ancien DSL legacy ; une **map** → un step unique ; une **liste** → des steps
-   (entrée string = action sans argument). Le plugin accepte les deux formes
-   pendant la migration ; l'éditeur écrit le structuré. Migration **paresseuse** :
-   un ancien fichier DSL se lit et se ré-écrit structuré au premier save.
+6. **Discrimination by type (tolerant reading).** A handler is a **string** → legacy old DSL;
+   a **map** → a single step; a **list** → steps (string entry = action without arguments). The
+   plugin accepts both forms during the migration; the editor writes the structured one.
+   **Lazy** migration: an old DSL file is read and rewritten structured at the first save.
 
-7. **Le sous-système d'adresses d'action est retiré** (`assignI18nAddresses`, les
-   champs `i18n`/`i18nTitle`/`i18nSubtitle`). Le texte d'action est
-   inline/field-local.
+7. **The action address subsystem is removed** (`assignI18nAddresses`, the
+   `i18n`/`i18nTitle`/`i18nSubtitle` fields). The action text is inline/field-local.
 
-8. **Portée.** Menus, commandes, dialogs **et** les champs `actions` des data
-   sources (kind `actions`, ADR `yaml-assisted-editing`) : un seul wire partout.
+8. **Scope.** Menus, commands, dialogs **and** the `actions` fields of data sources (kind
+   `actions`, ADR `yaml-assisted-editing`): a single wire everywhere.
 
-## Conséquences
+## Consequences
 
-- Uniformité : tout texte (structurel **et** action) est un `LocalizedText` sur le
-  disque. `lang/` ne porte plus que les clés sans site (`artisan.duration.*`) et
-  les adresses des data sources.
-- **Nouveau chantier UI** : un éditeur de steps structuré remplace
-  `ControlledStepsEditor` (DSL). Le plus gros morceau côté éditeur.
-- **Changement de wire** : migration de tous les menus/commands/dialogs, du
-  compilateur plugin, des outils assistant, et des vecteurs de conformité
-  (`menuV1.test`, `canonical.test`, `menuV1ToDomain.roundtrip`).
-- Schéma : les defs `Action`/`Condition` `type:`-tagged laissent place à la forme
-  **keyed** ; `ActionParser`/`ConditionParser`/`StepParser` plugin réécrits.
-  `menu/v1` évolue **en place** (pas de v2) — la lecture tolérante du DSL couvre
-  les fichiers déjà en prod.
-- Suppression : codec `actiondsl` (deux stacks), `DslToEngine`, fixtures DSL,
-  portabilité du DSL dans le core. Le leaf evaluator d'`expression` survit.
-- **Supersede** `action-dsl` en quasi-totalité (décision 1, cible Phase 2,
-  portabilité) ; ses décisions sur l'expression runtime (6) restent pour
-  `expression`.
+- Uniformity: every text (structural **and** action) is a `LocalizedText` on disk. `lang/` only
+  carries keys without a site (`artisan.duration.*`) and the data sources' addresses.
+- **New UI work**: a structured steps editor replaces `ControlledStepsEditor` (DSL). The biggest
+  piece on the editor side.
+- **Wire change**: migration of all menus/commands/dialogs, of the plugin compiler, of the
+  assistant tools, and of the conformance vectors (`menuV1.test`, `canonical.test`,
+  `menuV1ToDomain.roundtrip`).
+- Schema: the `type:`-tagged `Action`/`Condition` defs give way to the **keyed** form;
+  plugin `ActionParser`/`ConditionParser`/`StepParser` rewritten. `menu/v1` evolves **in place**
+  (no v2) — the tolerant reading of the DSL covers files already in prod.
+- Removal: `actiondsl` codec (two stacks), `DslToEngine`, DSL fixtures, DSL portability in the
+  core. The `expression` leaf evaluator survives.
+- **Supersedes** `action-dsl` almost entirely (decision 1, Phase 2 target, portability); its
+  decisions on the runtime expression (6) remain for `expression`.

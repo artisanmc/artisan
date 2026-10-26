@@ -1,28 +1,28 @@
 # Workspace Shell + Settings Page Design
 
-> Spec brainstormée le 2026-05-27. Étend `docs/superpowers/specs/2026-05-26-ui-information-architecture-design.md` §3 — le Workspace passe de "canvas plein écran sans onglets" à "shell à onglets avec Overview par défaut + Translations + Data Sources built-in". Aligne le Workspace sur le Module hub (même structure).
+> Spec brainstormed on 2026-05-27. Extends `docs/superpowers/specs/2026-05-26-ui-information-architecture-design.md` §3 — the Workspace goes from "full-screen canvas without tabs" to "tabbed shell with Overview by default + built-in Translations + Data Sources". Aligns the Workspace with the Module hub (same structure).
 
-**Goal** — Désencombrer le top bar du canvas (trop de boutons pour l'utilisateur), unifier Workspace et Module derrière le même shell à onglets, et créer une page Settings dédiée pour héberger les préférences UI (langue éditeur en V1, autres sections futures).
+**Goal** — Declutter the canvas top bar (too many buttons for the user), unify Workspace and Module behind the same tabbed shell, and create a dedicated Settings page to host UI preferences (editor language in V1, other sections later).
 
-**Statut** — Spec validée le 2026-05-27. Implémentation V1 ci-dessous.
+**Status** — Spec validated on 2026-05-27. V1 implementation below.
 
 ---
 
-## 1. Décisions capturées
+## 1. Captured decisions
 
-Réponses utilisateur au brainstorming :
+User answers to the brainstorming:
 
-1. **Pivot architectural** — Workspace devient un shell à onglets (comme le Module). **OK**.
-2. **Storage langue éditeur** — localStorage + sync backend si logged-in (`B`).
-3. **Settings** — page dédiée `/settings` à sections (`C`), pas un popover.
-4. **Dropdown kebab top bar** — Import + Export + Delete pack (`B`).
-5. **PatternsGallery** — déplacée dans le kebab (`B`).
+1. **Architectural pivot** — Workspace becomes a tabbed shell (like the Module). **OK**.
+2. **Editor language storage** — localStorage + backend sync if logged in (`B`).
+3. **Settings** — dedicated `/settings` page with sections (`C`), not a popover.
+4. **Top bar kebab dropdown** — Import + Export + Delete pack (`B`).
+5. **PatternsGallery** — moved into the kebab (`B`).
 
 ---
 
 ## 2. Workspace shell
 
-**Lexique** — "shell" désigne ici la structure interne de la route `/workspace/$workspaceId` (top bar + tab strip + content). C'est différent de la `WorkspaceSidebar` globale (montée dans `__root.tsx`, à gauche de l'`Outlet`) qui reste inchangée hors ajout du bouton Settings §4.1.
+**Lexicon** — "shell" here means the internal structure of the `/workspace/$workspaceId` route (top bar + tab strip + content). It is different from the global `WorkspaceSidebar` (mounted in `__root.tsx`, to the left of the `Outlet`) which stays unchanged apart from the addition of the Settings button §4.1.
 
 ### 2.1 Layout
 
@@ -30,196 +30,196 @@ Réponses utilisateur au brainstorming :
 ┌─────────────────────────────────────────────────────────────┐
 │ [Pack name]  [Pack lang ▾]  [Undo Redo]  [Deploy]  [⋮]      │  ← top bar
 ├─────────────────────────────────────────────────────────────┤
-│ [Overview *]  [Translations]  [Data Sources]                │  ← tabs full-page
+│ [Overview *]  [Translations]  [Data Sources]                │  ← full-page tabs
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  (Onglet actif : canvas Konva, ou Translations, ou DS)      │
+│  (Active tab: Konva canvas, or Translations, or DS)         │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Onglets built-in
+### 2.2 Built-in tabs
 
-| Onglet | Contenu | Source |
+| Tab | Content | Source |
 |---|---|---|
-| **Overview** (default) | Le canvas Konva actuel (menus/commands/dialogs inline). Pas de changement de comportement. | Existant : `Stage` + `EditorPane` dans `SplitPane`. |
-| **Translations** | La page Translations en plein écran. Remplace l'overlay déclenché aujourd'hui par le bouton `Languages` du top bar. | Adapter `TranslationPanel` pour s'afficher en page (pas modal). |
-| **Data Sources** | Idem, plein écran. | Adapter `DataSourcesPanel`. |
+| **Overview** (default) | The current Konva canvas (menus/commands/dialogs inline). No behavior change. | Existing: `Stage` + `EditorPane` in `SplitPane`. |
+| **Translations** | The Translations page full-screen. Replaces the overlay triggered today by the top bar's `Languages` button. | Adapt `TranslationPanel` to display as a page (not modal). |
+| **Data Sources** | Same, full-screen. | Adapt `DataSourcesPanel`. |
 
-### 2.3 Extension Modules (V1.5+, hors scope d'impl V1)
+### 2.3 Modules extension (V1.5+, out of V1 impl scope)
 
-Le Module hub (déjà specifié dans le spec d'hier §4) garde la même structure. Les onglets built-in (Overview / Translations / Data Sources) sont communs Workspace + Module ; le Module ajoute ses tabs (Data, Categories…) déclarés par le plugin via son `FrontendModule.tabs[]`.
+The Module hub (already specified in yesterday's spec §4) keeps the same structure. The built-in tabs (Overview / Translations / Data Sources) are common to Workspace + Module; the Module adds its tabs (Data, Categories…) declared by the plugin via its `FrontendModule.tabs[]`.
 
-### 2.4 Navigation entre onglets
+### 2.4 Navigation between tabs
 
-Param de query `?tab=overview|translations|data-sources` sur `/workspace/$workspaceId`. Default `overview`. Switching = `useNavigate({ search: { tab: "translations" } })`. Permet deeplink + back/forward propre.
+Query param `?tab=overview|translations|data-sources` on `/workspace/$workspaceId`. Default `overview`. Switching = `useNavigate({ search: { tab: "translations" } })`. Allows deeplinks + clean back/forward.
 
 ---
 
-## 3. Top bar simplifié
+## 3. Simplified top bar
 
-### 3.1 Composition après refactor
+### 3.1 Composition after refactor
 
-De gauche à droite :
+From left to right:
 
 1. **Pack name** (display)
-2. **`LangSwitcher`** — sélecteur de langue du **contenu** du pack (controle ce que le canvas affiche en preview)
+2. **`LangSwitcher`** — language selector for the pack's **content** (controls what the canvas shows in preview)
 3. **`UndoRedoButtons`**
 4. **`DeployButtons`**
 5. **Kebab `⋮`** — dropdown
 
-### 3.2 Contenu du kebab dropdown
+### 3.2 Kebab dropdown content
 
 ```
 ┌─────────────────────────┐
-│ Importer un pack        │
-│ Exporter le pack        │
+│ Import a pack           │
+│ Export the pack         │
 │ Patterns gallery        │
 │ ─────────────────────── │
-│ Supprimer ce workspace  │  ← rouge, en bas, séparé
+│ Delete this workspace   │  ← red, at the bottom, separated
 └─────────────────────────┘
 ```
 
-Le séparateur isole l'action destructive.
+The separator isolates the destructive action.
 
-### 3.3 Éléments supprimés du top bar
+### 3.3 Elements removed from the top bar
 
-- `EditorLangSwitcher` → déplacé vers `/settings` §4
-- Bouton Translations (icon `Languages` + badge) → remplacé par l'onglet
-- Bouton Data Sources (icon `Database`) → remplacé par l'onglet
-- Bouton Patterns gallery (icon `BookOpen`) → dans le kebab
-- Bouton Delete pack (rouge) → dans le kebab
-- `PackIOButtons` (import + export) → dans le kebab
+- `EditorLangSwitcher` → moved to `/settings` §4
+- Translations button (`Languages` icon + badge) → replaced by the tab
+- Data Sources button (`Database` icon) → replaced by the tab
+- Patterns gallery button (`BookOpen` icon) → in the kebab
+- Delete pack button (red) → in the kebab
+- `PackIOButtons` (import + export) → in the kebab
 
-### 3.4 Badge "translations missing"
+### 3.4 "Translations missing" badge
 
-Le badge numérique sur le bouton Translations actuel (count des keys non traduites) — à porter sur l'onglet "Translations" lui-même quand `totalMissing(pack) > 0`.
+The numeric badge on the current Translations button (count of untranslated keys) — to carry over onto the "Translations" tab itself when `totalMissing(pack) > 0`.
 
 ---
 
-## 4. Sidebar Settings + Page `/settings`
+## 4. Settings sidebar + `/settings` page
 
-### 4.1 Bouton dans la sidebar
+### 4.1 Button in the sidebar
 
-`WorkspaceSidebar` gagne un **bouton Settings en bas** (sticky bottom de la sidebar, sous la section Modules) :
+`WorkspaceSidebar` gains a **Settings button at the bottom** (sticky bottom of the sidebar, under the Modules section):
 
 ```
 ┌─────────────────────────┐
 │ [Network Dropdown ▾]    │
 ├─────────────────────────┤
-│ MES WORKSPACES          │
-│  • Menu principal       │
+│ MY WORKSPACES           │
+│  • Main menu            │
 │  • Lobby                │
-│  • + Nouveau workspace  │
+│  • + New workspace      │
 │                         │
-│ MODULES INSTALLÉS       │
-│  Aucun module installé. │
+│ INSTALLED MODULES       │
+│  No module installed.   │
 ├─────────────────────────┤
 │ ⚙ Settings              │  ← sticky bottom
 └─────────────────────────┘
 ```
 
-Layout : la sidebar passe en `flex flex-col`, la zone scrollable du milieu prend `flex-1`, le bouton Settings est en bas.
+Layout: the sidebar becomes `flex flex-col`, the scrollable middle area takes `flex-1`, the Settings button is at the bottom.
 
-### 4.2 Route `/settings`
+### 4.2 `/settings` route
 
-Nouvelle route `editor/src/routes/settings.tsx`. Layout interne : sidebar de sections à gauche, contenu à droite.
+New route `editor/src/routes/settings.tsx`. Internal layout: sections sidebar on the left, content on the right.
 
 ```
 ┌───────────────────┬─────────────────────────────────┐
-│ Apparence *       │  Apparence                      │
-│ (futur : Compte)  │  ┌────────────────────────────┐ │
-│                   │  │ Langue de l'éditeur :      │ │
+│ Appearance *      │  Appearance                     │
+│ (future: Account) │  ┌────────────────────────────┐ │
+│                   │  │ Editor language:           │ │
 │                   │  │ [EditorLangSwitcher]       │ │
 │                   │  └────────────────────────────┘ │
 └───────────────────┴─────────────────────────────────┘
 ```
 
-V1 ship uniquement la section **Apparence**. Stubs pour Compte / Notifications restent pour les itérations futures.
+V1 only ships the **Appearance** section. Stubs for Account / Notifications remain for future iterations.
 
 ---
 
-## 5. Storage de la langue éditeur
+## 5. Editor language storage
 
 ### 5.1 Architecture
 
-- **Source de vérité côté client** : `localStorage["i18nextLng"]` (clé déjà utilisée par react-i18next).
-- **Si user logged-in** : aussi persistée côté backend sur `users.editor_language` (nouvelle colonne TEXT nullable).
-- **Anonymous** : localStorage uniquement.
+- **Client-side source of truth**: `localStorage["i18nextLng"]` (key already used by react-i18next).
+- **If the user is logged in**: also persisted on the backend in `users.editor_language` (new nullable TEXT column).
+- **Anonymous**: localStorage only.
 
 ### 5.2 Sync flow
 
 | Trigger | Action |
 |---|---|
-| **Au boot (hydrate)** | `getMe()` retourne le user avec `editor_language?`. Si présent et différent de `localStorage["i18nextLng"]` → écrase localStorage + `i18n.changeLanguage(serverValue)`. |
-| **Au changement (user clique EditorLangSwitcher dans /settings)** | Update localStorage + `i18n.changeLanguage(newValue)` immédiat. Si logged-in : `PATCH /api/v1/auth/me { editor_language: newValue }` async (fire-and-forget, pas de blocking). |
-| **Au login** | Idem boot — fetch `editor_language` du user, sync localStorage. |
-| **Au logout** | Garde localStorage tel quel (l'user anonyme conserve sa préférence dans son browser). |
+| **At boot (hydrate)** | `getMe()` returns the user with `editor_language?`. If present and different from `localStorage["i18nextLng"]` → overwrite localStorage + `i18n.changeLanguage(serverValue)`. |
+| **On change (user clicks EditorLangSwitcher in /settings)** | Update localStorage + `i18n.changeLanguage(newValue)` immediately. If logged in: `PATCH /api/v1/auth/me { editor_language: newValue }` async (fire-and-forget, non-blocking). |
+| **On login** | Same as boot — fetch the user's `editor_language`, sync localStorage. |
+| **On logout** | Keep localStorage as is (the anonymous user keeps their preference in their browser). |
 
 ### 5.3 Backend changes
 
-- **Schema** : nouvelle colonne `users.editor_language` (TEXT nullable, default NULL).
-- **Migration Drizzle** : `backend/drizzle/000X_add_user_editor_language.sql`.
-- **Endpoint** : `PATCH /api/v1/auth/me` body `{ editor_language?: string }` → update `users.editor_language` du user de la session cookie. Retourne `{ user: AuthUserDto }`.
-- **Endpoint étendu** : `GET /api/v1/auth/me` retourne désormais `editor_language` dans le `user` DTO.
+- **Schema**: new column `users.editor_language` (nullable TEXT, default NULL).
+- **Drizzle migration**: `backend/drizzle/000X_add_user_editor_language.sql`.
+- **Endpoint**: `PATCH /api/v1/auth/me` body `{ editor_language?: string }` → updates the session-cookie user's `users.editor_language`. Returns `{ user: AuthUserDto }`.
+- **Extended endpoint**: `GET /api/v1/auth/me` now returns `editor_language` in the `user` DTO.
 
 ### 5.4 Edge cases
 
-- **Backend down** au moment du changement : localStorage est update direct, le PATCH échoue silencieusement (log warn console). Au prochain reload, si l'user re-fetch via `getMe()`, le backend retourne la vieille valeur — mais localStorage a la nouvelle. Conflict ? On reste sur la STRATEGIE backend = source de vérité pour logged-in : si backend retourne une valeur, écrase localStorage. **Conséquence pratique** : si l'user change la langue offline (backend down), le changement est local seulement et sera écrasé au prochain getMe(). Acceptable comme limitation V1.
-- **Anonymous → login transition** : si l'user anonyme a "fr" en localStorage et login sur un compte qui a "en" backend → écrase localStorage avec "en". Si on veut préserver le choix anonyme : ajouter un step "voulez-vous garder votre langue préférée ?" — pas critique V1, default = backend wins.
+- **Backend down** at the time of the change: localStorage is updated directly, the PATCH fails silently (console warn log). At the next reload, if the user re-fetches via `getMe()`, the backend returns the old value — but localStorage has the new one. Conflict? We stay on the STRATEGY backend = source of truth for logged-in: if the backend returns a value, overwrite localStorage. **Practical consequence**: if the user changes the language offline (backend down), the change is local only and will be overwritten at the next getMe(). Acceptable as a V1 limitation.
+- **Anonymous → login transition**: if the anonymous user has "fr" in localStorage and logs into an account that has "en" on the backend → overwrite localStorage with "en". If we want to preserve the anonymous choice: add a step "do you want to keep your preferred language?" — not critical V1, default = backend wins.
 
 ---
 
-## 6. Scope V1
+## 6. V1 scope
 
 ### 6.1 In scope
 
-| Item | Détail |
+| Item | Detail |
 |---|---|
-| `WorkspaceShell` component | Onglets en haut. Default `?tab=overview`. Switching via URL param. |
-| Tab routes / state | Param de query, pas de file-based subroutes (overkill). |
-| Workspace tab : Overview | Le canvas existant (Stage + EditorPane). Pas de changement fonctionnel. |
-| Workspace tab : Translations | Adapter `TranslationPanel` pour s'afficher en page (pas modal). |
-| Workspace tab : Data Sources | Adapter `DataSourcesPanel`. |
-| Top bar refactor | Suppression des items déplacés, ajout du kebab dropdown. |
+| `WorkspaceShell` component | Tabs at the top. Default `?tab=overview`. Switching via URL param. |
+| Tab routes / state | Query param, no file-based subroutes (overkill). |
+| Workspace tab: Overview | The existing canvas (Stage + EditorPane). No functional change. |
+| Workspace tab: Translations | Adapt `TranslationPanel` to display as a page (not modal). |
+| Workspace tab: Data Sources | Adapt `DataSourcesPanel`. |
+| Top bar refactor | Removal of the moved items, addition of the kebab dropdown. |
 | Kebab dropdown component | Import / Export / Patterns / ─── / Delete pack. |
-| Badge translations missing | Sur l'onglet "Translations" (replace badge du bouton supprimé). |
-| Sidebar Settings button | Sticky bottom, lien vers `/settings`. |
-| `/settings` route + sidebar de sections | Layout split. Section Apparence visible. |
-| Section Apparence | Contient `EditorLangSwitcher` adapté. |
-| Backend `users.editor_language` | Migration + endpoint PATCH + GET étendu. |
-| Sync flow login/change | Code dans `authStore.hydrate` + `EditorLangSwitcher` onChange. |
+| Translations missing badge | On the "Translations" tab (replaces the badge of the removed button). |
+| Sidebar Settings button | Sticky bottom, link to `/settings`. |
+| `/settings` route + sections sidebar | Split layout. Appearance section visible. |
+| Appearance section | Contains the adapted `EditorLangSwitcher`. |
+| Backend `users.editor_language` | Migration + PATCH endpoint + extended GET. |
+| Login/change sync flow | Code in `authStore.hydrate` + `EditorLangSwitcher` onChange. |
 
-### 6.2 Out of scope (différé V1.5 ou plus tard)
+### 6.2 Out of scope (deferred V1.5 or later)
 
-- Rapatriement de `/account` dans `/settings` (page Compte sera ajoutée plus tard)
-- Sections Settings autres qu'Apparence (Notifications, Workspaces defaults, etc.)
-- Refonte du contenu de Patterns gallery (juste déplacée)
-- Module-injected tabs (déjà spécifié dans le spec d'hier §4, pas affecté ici)
-- Restructure interne du `TranslationPanel` au-delà du minimum pour qu'il s'affiche en page
+- Moving `/account` into `/settings` (Account page will be added later)
+- Settings sections other than Appearance (Notifications, Workspaces defaults, etc.)
+- Rework of the Patterns gallery content (just moved)
+- Module-injected tabs (already specified in yesterday's spec §4, not affected here)
+- Internal restructure of `TranslationPanel` beyond the minimum for it to display as a page
 
 ---
 
 ## 7. Migration / breaking notes
 
-- Le composant `TranslationPanel` aujourd'hui s'attend à être rendu dans un overlay/modal contrôlé par `translationsOpen` state. Nouveau usage : rendu inline sur la page d'onglet. Pas de breaking API mais ajustements de layout.
-- Idem `DataSourcesPanel`.
-- Le `EditorLangSwitcher` actuel est un button-component dans le top bar. Migré tel quel dans `/settings` (juste un déplacement de mount point), le composant lui-même est minimalement adapté pour appeler le sync backend en plus de `i18n.changeLanguage`.
+- The `TranslationPanel` component today expects to be rendered in an overlay/modal controlled by `translationsOpen` state. New usage: rendered inline on the tab page. No API breaking but layout adjustments.
+- Same for `DataSourcesPanel`.
+- The current `EditorLangSwitcher` is a button component in the top bar. Migrated as is into `/settings` (just a mount point move), the component itself is minimally adapted to call the backend sync in addition to `i18n.changeLanguage`.
 
 ---
 
-## 8. Edge cases UI
+## 8. UI edge cases
 
-- **Switching de tab avec changements unsaved** : autosave existe déjà (`usePackAutoSave` 2s debounce). En théorie pas d'unsaved. Edge à valider en QA.
-- **Deeplink `/workspace/$id?tab=translations`** : page charge directement sur cet onglet. Browser back/forward fonctionne.
-- **Tab Translations / Data Sources rendu sans pack chargé** : afficher un état "Pack en cours de chargement…" cohérent avec le canvas.
-- **Pack supprimé pendant que l'utilisateur est sur un tab non-Overview** : navigate to `/` (même comportement qu'aujourd'hui sur le canvas).
+- **Tab switching with unsaved changes**: autosave already exists (`usePackAutoSave` 2s debounce). In theory no unsaved changes. Edge to validate in QA.
+- **Deeplink `/workspace/$id?tab=translations`**: page loads directly on this tab. Browser back/forward works.
+- **Translations / Data Sources tab rendered without a loaded pack**: show a "Pack loading…" state consistent with the canvas.
+- **Pack deleted while the user is on a non-Overview tab**: navigate to `/` (same behavior as today on the canvas).
 
 ---
 
-## 9. Non-décisions reportées
+## 9. Deferred non-decisions
 
-À creuser quand le besoin émerge :
-- **Pack content LangSwitcher position** : reste dans le top bar pour V1 (controle le canvas). Pourrait migrer en tête de l'onglet Translations en V2 si l'utilisateur ne l'utilise que là.
-- **Settings sidebar de sections : tabs vs liste** : à arbitrer au moment d'ajouter la 2ᵉ section. V1 = liste verticale fixée à gauche, 1 section visible.
-- **Mobile UX** : V1 = le top bar et les tabs scroll horizontalement si overflow. Pas de design mobile-spécifique. À itérer.
+To dig into when the need emerges:
+- **Pack content LangSwitcher position**: stays in the top bar for V1 (controls the canvas). Could migrate to the head of the Translations tab in V2 if the user only uses it there.
+- **Settings sections sidebar: tabs vs list**: to decide when adding the 2nd section. V1 = vertical list fixed on the left, 1 visible section.
+- **Mobile UX**: V1 = the top bar and tabs scroll horizontally on overflow. No mobile-specific design. To iterate.

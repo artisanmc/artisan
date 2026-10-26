@@ -4,7 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import net.artisanmc.modules.api.action.ActionDeclaration;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -16,7 +16,7 @@ import org.jetbrains.annotations.Nullable;
  * a Data model ({@link ModelDeclaration}); the editor renders the form from it and validates the
  * value there (blocking in the form, tolerant at runtime).
  */
-@Beta
+@Stable
 public final class ModelField {
     private final String name;
     private final ModelFieldType type;

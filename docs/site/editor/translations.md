@@ -1,6 +1,6 @@
 ---
 title: Translations
-description: Translate your menus, and choose whether the files hold plain text or translation keys.
+description: Translate your menus, and see how the translations are written to disk.
 sidebar:
   order: 10
 ---
@@ -11,7 +11,9 @@ Every text your players read — menu titles, item names and lores, chat message
 
 Pick a language in the left column; the badge tells you how many texts are still missing in it. The language marked `src` is your **default language**: it holds the original text, and any language that lacks a translation falls back to it in game.
 
-**Add a language** creates a new column — nothing else changes until you fill it in. **Remove N unused** deletes texts no longer attached to anything (leftovers from a deleted button, say).
+**Add a language** creates a new column — nothing else changes until you fill it in.
+
+**Remove N unused** deletes the texts of menus, commands, dialogs and data sources that no longer exist (leftovers from a deleted button, say), unless another text still points to them with `{i18n:…}`. Texts marked `(lang/ only)` are never removed: no document holds them, but something else reads them, such as an add-on's own messages (`auctions.messages.*`) or the duration units (`artisan.duration.*`). Removing is undoable until you publish.
 
 An empty source value is valid: it means that a title, lore, or other text should stay blank. It is not counted as a missing translation, and an empty target is only missing when the source contains text. The empty value is still written to disk so the game renders nothing instead of showing the translation key.
 
@@ -21,35 +23,19 @@ The panel also lists the description of each command the module declares, and it
 
 ## How the files are written
 
-Your project lives as YAML files on your server, and you can edit them by hand. The **On disk** toggle in the Translations panel decides what a text looks like there:
-
-**Plain text** — the menu file carries the default language's text, right where you read it:
+Your project lives as YAML files on your server, and you can edit them by hand. A text carries its languages right where you read it: a plain string when only the default language has a value, a map with one entry per language otherwise.
 
 ```yaml
 # menus/shop.yml
-title: Shop
+title: { en: Shop, fr: Boutique }
 elements:
   - id: buy
-    title: Sword
-    lore: Sharp and shiny
+    title: Sword                     # only the default language so far
+    lore:
+      en: [Sharp, and shiny]
+      fr: [Tranchante, et brillante]
 ```
 
-The other languages live in `lang/fr.yml`, `lang/de.yml`… and there is **no file for your default language** — the menu already carries it. A single-language server therefore has no `lang/` folder at all.
+A text can also point to a shared key with `{i18n:common.close}`; the key then lives in `lang/<code>.yml`. The `lang/` folder also holds what no document carries: an add-on's messages, the duration units, and the other languages of your data sources.
 
-**Keys** — the menu file carries references instead, and every language, the default one included, lives in `lang/`:
-
-```yaml
-# menus/shop.yml                     # lang/en.yml
-title: "{i18n:menus.shop.title}"     menus:
-elements:                              shop:
-  - id: buy                              title: Shop
-    title: "{i18n:menus.shop.elements.buy.default.title}"
-```
-
-Both forms work on the server, and you can mix them in the same file — a `{i18n:…}` reference always wins, a plain text is looked up by its position, and failing that it displays as written.
-
-Switching asks for confirmation because it rewrites every menu, command and dialog file at the next save. **No translation is ever lost either way** — only the shape of the files changes, and you can switch back at any time.
-
-:::tip
-Translating from a text editor rather than the browser? **Plain text** is usually the mode you want: the menu reads like a menu, and each language file mirrors the menu's own structure.
-:::
+Projects written in the older shapes (`{i18n:…}` references everywhere, or plain text with the other languages in `lang/`) still read the same; the editor writes the form above at the next publish, and no translation is lost.

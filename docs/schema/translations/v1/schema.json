@@ -2,25 +2,25 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://docs.artisanmc.net/schema/translations/v1.json",
   "title": "Artisan Translations",
-  "description": "Format intermédiaire des traductions d'un workspace. Une clé = un texte traduisible, scoped au workspace (pas de partage entre admins). Référencée depuis les menus et commandes via {i18n:<key>}. Le contenu de chaque traduction est du MiniMessage (cf. https://docs.advntr.dev/minimessage/).",
+  "description": "The translations of a workspace: one key per translatable text, referenced from menus and commands as {i18n:<key>}. Each translation is MiniMessage (https://docs.advntr.dev/minimessage/).",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "default_lang", "languages", "keys"],
   "properties": {
     "schema": {
       "const": "translations/v1",
-      "description": "Version du schéma. Verrouillée pour permettre les migrations applicables au load."
+      "description": "Schema version. Fixed, so that migrations can apply on load."
     },
     "default_lang": {
       "$ref": "#/$defs/LangCode",
-      "description": "Code de la langue de référence du workspace. Toute clé doit avoir au minimum cette langue. Fallback ultime si une autre langue manque."
+      "description": "The workspace's reference language. Every key has it; it is the last fallback."
     },
     "languages": {
       "type": "array",
       "items": { "$ref": "#/$defs/LangCode" },
       "minItems": 1,
       "uniqueItems": true,
-      "description": "Liste des langues supportées par le workspace. Doit contenir default_lang. Une langue listée mais sans valeur pour une clé donnée → fallback à default_lang à l'exécution (warning dans l'éditeur)."
+      "description": "The workspace's languages, including default_lang. A listed language missing a key falls back to default_lang (with a warning in the editor)."
     },
     "keys": {
       "type": "object",
@@ -31,21 +31,21 @@
             "^[a-z]{2,3}(?:_[A-Za-z]{2,4})?$": {
               "type": "string",
               "maxLength": 4096,
-              "description": "Valeur de la clé pour cette langue. Format MiniMessage. Peut contenir des placeholders PAPI (%player_name%) et d'autres références i18n ({i18n:autre.cle})."
+              "description": "The key's text in this language, in MiniMessage. May contain PlaceholderAPI placeholders (%player_name%) and other {i18n:other.key} references."
             }
           },
           "additionalProperties": false,
           "minProperties": 1,
-          "description": "Map langue → valeur pour cette clé. Doit contenir au minimum la default_lang."
+          "description": "Language → text for this key. Contains at least default_lang."
         }
       },
       "additionalProperties": false,
-      "description": "Toutes les clés du workspace, chacune avec un map de traductions par langue. Le pattern de clé impose un slug hiérarchique avec '.' (ex: menu.shop_main.btn_buy.title)."
+      "description": "Every key of the workspace with its translations. Keys are dotted slugs (e.g. menu.shop_main.btn_buy.title)."
     },
     "metadata": {
       "type": "object",
       "additionalProperties": true,
-      "description": "Métadonnées calculées par le backend. Non éditées manuellement.",
+      "description": "Computed metadata. Not edited by hand.",
       "properties": {
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" },
@@ -57,7 +57,7 @@
     "LangCode": {
       "type": "string",
       "pattern": "^[a-z]{2,3}(?:_[A-Za-z]{2,4})?$",
-      "description": "Code de langue style ISO 639-1/3 avec optional region (BCP-47-like). Exemples : fr, en, en_US, en_GB, de, es, pt_BR, zh_CN, fil. Lowercase pour la lang, optional underscore + region (any case)."
+      "description": "A language code (ISO 639-1/3) with an optional region: fr, en, en_US, pt_BR, zh_CN, fil. Lowercase language, optional underscore and region."
     }
   }
 }

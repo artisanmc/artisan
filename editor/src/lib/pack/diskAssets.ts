@@ -84,7 +84,7 @@ export function diskAssetsFromTree(
     const dir = descriptor.slice(0, -(FONT_STEM.length + 1));
     const name = dir.slice(dir.lastIndexOf("/") + 1);
     const meta = fontFromDisk(f.content);
-    if (!meta) continue; // descripteur illisible : on n'invente pas de police
+    if (!meta) continue; // unreadable descriptor: do not invent a font
     const now = new Date();
     out.push({
       path: f.path,

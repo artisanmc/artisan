@@ -78,7 +78,6 @@ const I18N = {
   "menus.shop.elements.btn.default.click.left.message": { en: "Bought!", fr: "Acheté !" },
 } as Project["i18nKeys"];
 
-/** i18nMode is a legacy flag; structural text is field-local regardless. */
 const project = (overrides: Partial<Project> = {}): Project =>
   makeProject({ documents: { menu: [shopMenu()] }, i18nKeys: { ...I18N }, ...overrides });
 
@@ -245,12 +244,5 @@ describe("field-local — round-trip through the file tree", () => {
     const twice = projectToFiles(back);
     for (const path of Object.keys(once)) expect([path, twice[path]]).toEqual([path, once[path]]);
     expect(Object.keys(twice).sort()).toEqual(Object.keys(once).sort());
-  });
-});
-
-describe("legacy i18n_mode marker", () => {
-  it("keeps the inline marker so a re-import round-trips it", () => {
-    const files = projectToFiles(project({ i18nMode: "inline" }));
-    expect(parse(files[`${BASE}/.artisan/editor.yaml`]!).i18n_mode).toBe("inline");
   });
 });

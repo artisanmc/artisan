@@ -25,16 +25,10 @@ export interface I18nSlice {
   /** Remove a language and all its translations. No-op on `defaultLang`. */
   removeLanguage: (input: { projectId: ProjectId; lang: string }) => void;
   /**
-   * Choose how texts are written on disk: `inline` (the document carries the
-   * default language's literal, other languages travel in `lang/` by address)
-   * or `extract` (`{i18n:key}` refs everywhere). Pure file shape — no
-   * translation is touched. Cf. ADR `files-first-source-of-truth` §4.
-   */
-  setProjectI18nMode: (input: { projectId: ProjectId; mode: "extract" | "inline" }) => void;
-  /**
-   * Drop every i18n key that's no longer referenced anywhere in the project
-   * (stale leftovers from deleted elements / re-imports). Returns nothing;
-   * undoable. See {@link findUnusedI18nKeys}.
+   * Drop every i18n key the editor can prove unused: no longer referenced
+   * anywhere in the project, at an address only the editor derives (stale
+   * leftovers from deleted elements / re-imports). Keys read by an add-on's
+   * code stay. Returns nothing; undoable. See {@link findUnusedI18nKeys}.
    */
   removeUnusedI18nKeys: (input: { projectId: ProjectId }) => void;
   /** Change the project's default language (the fallback when a key has no entry in the active lang). */
@@ -70,13 +64,6 @@ export const createI18nSlice = ({ mutateProject }: ProjectsSliceContext): I18nSl
       }
     });
   },
-  setProjectI18nMode: ({ projectId: pId, mode }) =>
-    mutateProject(pId, (project) => {
-      // `extract` is the default and leaves no marker — on disk as here,
-      // so a project that never touched the toggle stays clean.
-      if (mode === "inline") project.i18nMode = "inline";
-      else Reflect.deleteProperty(project, "i18nMode");
-    }),
   removeLanguage: ({ projectId: pId, lang }) =>
     mutateProject(pId, (project) => {
       if (lang === project.defaultLang) return false; // refuse to drop the default

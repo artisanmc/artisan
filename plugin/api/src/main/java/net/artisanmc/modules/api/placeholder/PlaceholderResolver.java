@@ -1,6 +1,6 @@
 package net.artisanmc.modules.api.placeholder;
 
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
  * read from memory, never block. {@code player} is null only when PlaceholderAPI asks for an
  * offline player. Return null for an unknown key: the token then stays as written.
  */
-@Beta
+@Stable
 @FunctionalInterface
 public interface PlaceholderResolver {
     @Nullable String resolve(@Nullable Player player, String key);

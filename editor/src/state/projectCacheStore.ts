@@ -39,7 +39,7 @@ export interface CachedProject {
    * knows ids. Hence this field.
    */
   serverKeyId?: string | null;
-  /** L'arbre rel-keyed, tel que le serveur l'a rendu. */
+  /** The rel-keyed tree, as the server returned it. */
   tree: Record<string, string>;
   binaries?: { path: string; hash: string; size: number }[];
   /**

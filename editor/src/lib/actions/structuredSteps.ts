@@ -25,7 +25,7 @@ export type FieldText = string | Record<string, string>;
 /** Wire step, untrusted (YAML/JSON). */
 export type StructuredStep = string | Record<string, unknown>;
 
-/** Texte d'action : domaine `LText` ⇄ wire `FieldText`. */
+/** Action text: `LText` domain ⇄ `FieldText` wire. */
 export interface ActionTextCodec {
   toWire: (key: I18nKey) => FieldText;
   fromWire: (raw: FieldText) => LText;

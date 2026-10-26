@@ -17,7 +17,7 @@ patches for review.
    ```
    If no main branch exists or the user names another base, use that.
 
-2. **Load the map.** Read `.Codex/skills/sync-docs/doc-impact-map.yaml`.
+2. **Load the map.** Read `.agents/skills/sync-docs/doc-impact-map.yaml`.
 
 3. **Match.** For each mapping, check if any `touches` glob matches any
    changed file (minimatch semantics: `**` = recursive, `*` = single

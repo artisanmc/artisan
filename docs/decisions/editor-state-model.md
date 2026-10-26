@@ -1,36 +1,36 @@
 # Editor state model — backend-authoritative with broadcast collaboration
 
-**Statut : remplacé (phase F, 2026-10)** — plus de backend autoritaire : le disque du serveur fait foi, l'éditeur publie par compare-and-swap. Voir [editor-web-server](editor-web-server.md).
+**Status: superseded (phase F, 2026-10)** — no more authoritative backend: the server's disk is the source of truth, the editor publishes by compare-and-swap. See [editor-web-server](editor-web-server.md).
 
-**Status :** accepted (2026-04-29)
+**Status:** accepted (2026-04-29)
 
-## Décision
+## Decision
 
-Le **backend est autoritaire** sur l'état d'un menu en édition. Chaque mutation effectuée dans un client (browser) est envoyée via WebSocket au backend, validée contre l'état canonique, appliquée, puis rebroadcastée à **tous les clients connectés** sur ce menu — autres browsers admin **et** plugin Minecraft.
+The **backend is authoritative** over the state of a menu being edited. Every mutation made in a client (browser) is sent over WebSocket to the backend, validated against the canonical state, applied, then rebroadcast to **all clients connected** to that menu — other admin browsers **and** the Minecraft plugin.
 
-Architecture :
+Architecture:
 
-- **Browser** : Zustand store en optimistic update à l'émission, réconcilié avec l'état canonique reçu en broadcast. zundo pour undo/redo local.
-- **localStorage** : write synchrone à chaque mutation locale. Filet de récupération si tab crash entre la mutation et son ack backend (rare ; le RTT WS est ~30 ms).
-- **Backend** : tient l'état canonique en mémoire par menu actif. Applique les mutations dans l'ordre d'arrivée (last-writer-wins). Rejette les mutations syntaxiquement invalides ou cibles disparues (ex. `element.delete` sur un id déjà supprimé) avec un message d'erreur au client originant uniquement.
-- **Persistance DB** : le backend snapshot l'état canonique sur Postgres toutes les 10s en debounce d'idle. Pas de write-per-mutation.
-- **Plugin** : abonné comme un client de plus. Reçoit les mêmes mutations que les browsers, les applique aux inventaires ouverts.
+- **Browser**: Zustand store with optimistic update on emission, reconciled with the canonical state received in the broadcast. zundo for local undo/redo.
+- **localStorage**: synchronous write on every local mutation. Recovery net if the tab crashes between the mutation and its backend ack (rare; the WS RTT is ~30 ms).
+- **Backend**: holds the canonical state in memory per active menu. Applies mutations in arrival order (last-writer-wins). Rejects syntactically invalid mutations or vanished targets (e.g. `element.delete` on an already deleted id) with an error message to the originating client only.
+- **DB persistence**: the backend snapshots the canonical state to Postgres every 10 s on idle debounce. No write-per-mutation.
+- **Plugin**: subscribed like one more client. Receives the same mutations as the browsers, applies them to open inventories.
 
-**Pas de soft-lock, pas de "Take Over"** — la spec en avait, on s'en débarrasse. Un **indicateur de présence** affiche qui d'autre est connecté sur le menu (avatar Discord + statut). En cas d'édition simultanée à deux admins (rare au MVP : compte solo majoritaire), LWW + présence visible suffit. Si ça devient un vrai problème en V2, on ajoute un mode "édition exclusive" à toggler.
+**No soft-lock, no "Take Over"** — the spec had some, we get rid of it. A **presence indicator** shows who else is connected to the menu (Discord avatar + status). In case of simultaneous editing by two admins (rare at MVP: mostly solo accounts), LWW + visible presence is enough. If it becomes a real problem in V2, we add an "exclusive editing" mode to toggle.
 
-## Pourquoi ce revirement
+## Why this reversal
 
-L'alternative initialement choisie (browser-canonical + lock TTL/heartbeat/take-over) coûtait à peu près autant à construire que la version broadcast — endpoint de lock, heartbeat client, expiration server-side, notification WS à la prise/relâche, UX de Take Over. Mais seule la version broadcast est **vendable comme feature** : voir son co-admin déplacer un slot en temps réel est l'effet "wow" qui se démontre en 5s en démo. La verison lock se contente d'éviter les conflits — bénéfice invisible.
+The alternative initially chosen (browser-canonical + lock TTL/heartbeat/take-over) cost about as much to build as the broadcast version — lock endpoint, client heartbeat, server-side expiry, WS notification on take/release, Take Over UX. But only the broadcast version is **sellable as a feature**: seeing your co-admin move a slot in real time is the "wow" effect that demos in 5 s. The lock version just avoids conflicts — an invisible benefit.
 
-## Trade-offs acceptés
+## Accepted trade-offs
 
-- **Backend stateful.** Une instance Fly doit héberger l'état canonique d'un menu actif. Implique sticky session par `menu_id` (header ou cookie de routing), eviction après N min d'idle, reconstruction depuis DB au cold start. Coût d'infra modéré, géré par Fly's session affinity.
-- **LWW peut écraser du travail.** Si deux admins éditent le même slot en même temps, le dernier gagne sans warning. Mitigation : présence visible. À surveiller en feedback utilisateur post-launch ; si vrai problème, ajout d'un mode exclusif.
-- **Reconnexion mid-édit.** Le client qui se reconnecte reçoit un full snapshot du menu canonique, jette son state local en cas de divergence (avec prompt si localStorage timestamp > snapshot timestamp).
-- **Crash backend.** Les mutations buffered côté browser depuis la dernière persistance (≤10s) sont rejouées à la reconnexion. État canonique reconstruit depuis DB + replay (limité aux 10 dernières secondes côté clients).
+- **Stateful backend.** A Fly instance must host the canonical state of an active menu. Implies sticky session per `menu_id` (routing header or cookie), eviction after N min idle, rebuild from DB at cold start. Moderate infra cost, handled by Fly's session affinity.
+- **LWW can overwrite work.** If two admins edit the same slot at the same time, the last one wins without warning. Mitigation: visible presence. To watch in post-launch user feedback; if a real problem, add an exclusive mode.
+- **Reconnection mid-edit.** A reconnecting client receives a full snapshot of the canonical menu, discards its local state on divergence (with a prompt if the localStorage timestamp > snapshot timestamp).
+- **Backend crash.** Mutations buffered browser-side since the last persistence (≤10 s) are replayed on reconnection. Canonical state rebuilt from DB + replay (limited to the last 10 seconds on the clients).
 
-## Conséquences sur le reste de l'archi
+## Consequences for the rest of the architecture
 
-- Le canal WS browser→backend→plugin n'est plus juste un push unidirectionnel ; c'est un bus de mutations bidirectionnel. Le plugin est un subscriber comme un autre.
-- Le format des mutations doit être un **événement de domaine** (cf. ADR à venir sur la taxonomie des mutations) pour rester lisible en log et trivial à appliquer côté plugin Java.
-- L'API HTTP `PUT /menus/:id/draft` côté client disparaît (la persistance est interne au backend). Reste les endpoints REST pour les opérations non-temps-réel : list, create, fork, publish, history fetch.
+- The browser→backend→plugin WS channel is no longer just a one-way push; it is a bidirectional mutation bus. The plugin is a subscriber like any other.
+- The mutation format must be a **domain event** (see the upcoming ADR on mutation taxonomy) to stay readable in logs and trivial to apply on the Java plugin side.
+- The client-side HTTP API `PUT /menus/:id/draft` disappears (persistence is internal to the backend). The REST endpoints remain for non-real-time operations: list, create, fork, publish, history fetch.

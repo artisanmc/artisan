@@ -29,11 +29,15 @@ data class WebConfig(
      * ChatGPT…) write drafts for a player who approved them. Off unless set.
      */
     val mcp: Boolean = false,
+    /** The editor's assistant on the admin's model and key (ADR `editor-assistant`): the `ai` section. */
+    val ai: AiConfig = AiConfig(),
 ) {
     val leaf: Boolean get() = hubUrl.isNotBlank()
 
     companion object {
         /** `web.tunnel` when environment.yml does not set it: no port to open by default. */
         const val DEFAULT_TUNNEL = "connect.artisanmc.app"
+        /** Replaces [DEFAULT_TUNNEL] when set: the Gradle tests set it empty, so no test opens a real tunnel. */
+        const val TUNNEL_PROPERTY = "artisan.web.tunnel"
     }
 }

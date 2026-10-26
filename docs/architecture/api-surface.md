@@ -19,7 +19,7 @@ Note : we use `@Sunset` rather than `@Deprecated`: the schedule-aware annotation
 
 ## 2.0.0 — the surface is Java
 
-`plugin/api` is written in Java since 2.0.0 (ADR `extensible-document-kinds`, « Langue de l'API publique »): interfaces, immutable final classes, enums, `@FunctionalInterface` callbacks, nothing from `kotlin.*` and no `kotlin-stdlib` in the POM. The internals of the plugin (`core`, `database`, `hub`, `paper`) stay Kotlin and implement these interfaces.
+`plugin/api` is written in Java since 2.0.0 (ADR `extensible-document-kinds`, "Public API language"): interfaces, immutable final classes, enums, `@FunctionalInterface` callbacks, nothing from `kotlin.*` and no `kotlin-stdlib` in the POM. The internals of the plugin (`core`, `database`, `hub`, `paper`) stay Kotlin and implement these interfaces.
 
 - A property `x` of the 1.x tables below is the Java getter `getX()` (`ArtisanModule.getId()`, `DataSourceDeclaration.getRef()`, `api.getDataSources()`). Kotlin callers keep writing `module.id` and `api.dataSources`; a Kotlin implementor writes `override fun getId() = "shop"`. Boolean flags read as `MenuClickEvent.hasActions()`.
 - Value classes (`DataSourceDeclaration`, `DataSourceField`, `CommandDeclaration`, `RegisteredDataSource`, `MenuRef`, `DeclaredModel`, `EditorScreenDeclaration`, `DataReloadEvent`, `ConfigReloadEvent`) are final classes with constructors, getters, `equals`/`hashCode`/`toString`. Kotlin's named arguments and `copy` are gone: `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)` or `(ref, fetcher, schema, stability, keyField)`.
@@ -42,6 +42,31 @@ Note : we use `@Sunset` rather than `@Deprecated`: the schedule-aware annotation
 | `ModelRegistry.declare(ModelDeclaration)`, `declare(id, keyField, fields)`; `declare(Map)` `@Sunset` | | 2.0.0 |
 
 An add-on built against 1.x recompiles against 2.0.0: the getters keep their JVM names, the imports of the moved types, the removed members and the `DataSourceDeclaration` constructors are the source changes to expect.
+
+## 2.18.0 — promotions to `@Stable`
+
+The surfaces that at least two add-ons of the suite call, and whose signatures have not changed in a way that breaks a caller since they appeared, are `@Stable`: SemVer now covers them, a minor version only adds to them. Audit of 2026-10-26 (consumers: ArtisanQuests, ArtisanGuilds, ArtisanAttribution, ArtisanAuctions, ArtisanDailyRewards, ArtisanStore). Nothing changes in the bytecode: the annotations have `SOURCE` retention.
+
+| Member | Type | Since |
+|---|---|---|
+| `api.action` (`ActionRegistry`, `ActionDeclaration`, `ActionHandler`, `ActionContext`, `ActionRuntime`, `RegisteredAction`, `ModuleActionsApi`, `DuplicateActionException`), `getActionRegistry()`, `getActions()` `@Stable` | | 2.18.0 |
+| `ModelField`, `ModelFieldType`, `UnionVariant` `@Stable` (the field vocabulary of the `@Stable` `DataSourceField` and `ActionDeclaration`); the rest of `api.model` stays `@Beta` | | 2.18.0 |
+| `api.database` (`DatabaseApi`, `DatabaseDialect`), `getDatabase()` `@Stable` | | 2.18.0 |
+| `api.scheduler` (`SchedulerApi`, `TaskScheduler`), `getScheduler()` `@Stable` | | 2.18.0 |
+| `api.placeholder` (`PlaceholderRegistry`, `PlaceholderResolver`), `getPlaceholders()` `@Stable` | | 2.18.0 |
+| `api.translation` (`TranslationsApi`, `MessageBundle`, `MessageBundleDeclaration`, `MessageSource`), `getTranslations()` `@Stable`; `inFolder`/`getFolder` (2.17.0) stay `@Beta` | | 2.18.0 |
+| `api.text` (`TextApi`), `getText()` `@Stable` | | 2.18.0 |
+| `api.playercommand`, `getPlayerCommands()` `@Stable`; the completion suggestions (2.14.0: `SuggestionProvider`, `SuggestionContext`, `CommandArgument.suggestions`/`getSuggestions`) stay `@Beta` | | 2.18.0 |
+| `api.item` (`ItemStackApi`, `ItemComparison`), `getItems()` `@Stable` | | 2.18.0 |
+| `api.document` (`DocumentKindRegistry`, `DocumentKindDeclaration`, `RegisteredDocumentKind`, `DuplicateDocumentKindException`), `getDocumentKinds()` `@Stable` | | 2.18.0 |
+| `api.editor` (`EditorBundleRegistry`, `EditorBundleDeclaration`, `DuplicateEditorBundleException`), `getEditorBundles()` `@Stable` | | 2.18.0 |
+
+What `@Stable` promises on an interface depends on who implements it:
+
+- **Artisan implements it** (every registry, every `*Api`, `ActionRuntime`, `TaskScheduler`, `MessageBundle`): a minor may add abstract methods. An add-on calls it and does not implement it; a test double starts from the inert constant (`DatabaseApi.NONE`, `TaskScheduler.DIRECT`, `PlaceholderRegistry.NOOP`, `TranslationsApi.NOOP`, `TextApi.NOOP`, `ModuleActionsApi.NOOP`), which Artisan keeps up to date.
+- **The add-on implements it** (`ArtisanModule`, the `@FunctionalInterface` callbacks `ActionHandler`, `PlaceholderResolver`, `PlayerCommandExecutor`, `MessageSource`, `DataFetcher`): a minor never adds an abstract method, only default ones.
+
+Promotion rule, for the next ones: two add-ons or more call the surface, no change breaking a caller since it appeared, and no `@Stable` signature exposes a `@Beta` or `@Internal` type. `ApiStabilityConsistencyTest` checks the last point: a `@Stable` member whose parameter or return type is `@Beta` fails the build (it found `DataSourceField(String, ModelFieldType)`, `@Stable` over a `@Beta` `ModelFieldType`), unless the member itself is marked `@Beta`. The same test requires a stability annotation on every public top-level type.
 
 ## Stable APIs
 
@@ -87,17 +112,17 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `apiVersion` | `String` | 1.8.0 |
 | `isCompatibleWith` compares `apiVersion` | | 1.8.0 |
 | `messages` removed; built through `ArtisanAPI.builder(...)` | | 2.0.0 |
-| `actionRegistry` (`getActionRegistry()`, `@Beta`) | `ActionRegistry` | 2.0.0 |
-| `documentKinds` (`getDocumentKinds()`, `@Beta`) | `DocumentKindRegistry` | 2.1.0 |
+| `actionRegistry` (`getActionRegistry()`, `@Stable` since 2.18.0) | `ActionRegistry` | 2.0.0 |
+| `documentKinds` (`getDocumentKinds()`, `@Stable` since 2.18.0) | `DocumentKindRegistry` | 2.1.0 |
 | `conditions` (`getConditions()`, `@Beta`) | `ConditionsApi` | 2.2.0 |
-| `editorBundles` (`getEditorBundles()`, `@Beta`) | `EditorBundleRegistry` | 2.3.0 |
-| `translations` (`getTranslations()`, `@Beta`) | `TranslationsApi` | 2.5.0 |
+| `editorBundles` (`getEditorBundles()`, `@Stable` since 2.18.0) | `EditorBundleRegistry` | 2.3.0 |
+| `translations` (`getTranslations()`, `@Stable` since 2.18.0) | `TranslationsApi` | 2.5.0 |
 | `templates` (`getTemplates()`, `@Beta`) | `TemplateRegistry` | 2.6.0 |
-| `playerCommands` (`getPlayerCommands()`, `@Beta`) | `PlayerCommandRegistry` | 2.7.0 |
-| `text` (`getText()`, `@Beta`) | `TextApi` | 2.10.0 |
+| `playerCommands` (`getPlayerCommands()`, `@Stable` since 2.18.0) | `PlayerCommandRegistry` | 2.7.0 |
+| `text` (`getText()`, `@Stable` since 2.18.0) | `TextApi` | 2.10.0 |
 | `network` (`getNetwork()`, `@Beta`) | `NetworkApi` | 2.13.0 |
 | `gameEvents` (`getGameEvents()`, `@Beta`) | `GameEventRegistry` | 2.16.0 |
-| `cooldowns` (`getCooldowns()`, `@Beta`) | `CooldownApi` : `isActive(id, player)`, `start(id, player, seconds)`, `inMemory()` (tests) ; le store des cooldowns de menus et de commandes, gardé dans `artisan_cooldowns` | 2.16.0 |
+| `cooldowns` (`getCooldowns()`, `@Beta`) | `CooldownApi`: `isActive(id, player)`, `start(id, player, seconds)`, `inMemory()` (tests); the store of menu and command cooldowns, kept in `artisan_cooldowns` | 2.16.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -149,19 +174,19 @@ Constructing a `Stability.STATIC` declaration without a non-blank `keyField` thr
 
 Constructors (2.0.0): `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)`, `(ref, fetcher, schema, stability, keyField)`; `DataSourceField(name, type)`, `(name, type, description)` with a `ModelFieldType` (or, `@Sunset`, a `FieldKind`); `PlayerRequiredException()`, `(message)`. Before 2.0.0 the same overloads came from `@JvmOverloads` on Kotlin constructors with default arguments (since 1.8.0).
 
-### Aucun type Kotlin ne traverse la frontière (1.5.0, api en Java depuis 2.0.0)
+### No Kotlin type crosses the boundary (1.5.0, api in Java since 2.0.0)
 
-Une lambda Kotlin se compile en `kotlin.jvm.functions.FunctionN`, et une fonction
-Kotlin sans valeur de retour en `kotlin.Unit`. Tant que ces types apparaissaient
-dans les signatures publiques, un add-on devait résoudre `kotlin.*` — et comme il
-ne l'embarque pas, son classloader allait le chercher chez **les autres plugins**
-du serveur. Le 2026-08-08, ça a donné un `LinkageError` fatal : le loader de
-Boutique récupérait le `Function2` d'un autre plugin Kotlin, celui d'Artisan
-définissait le sien, contrainte de loader violée au premier appel inter-plugins.
+A Kotlin lambda compiles to `kotlin.jvm.functions.FunctionN`, and a Kotlin
+function with no return value to `kotlin.Unit`. As long as these types appeared
+in the public signatures, an add-on had to resolve `kotlin.*` — and since it
+does not bundle it, its classloader went looking for it in **the server's other
+plugins**. On 2026-08-08, that gave a fatal `LinkageError`: Boutique's loader
+picked up another Kotlin plugin's `Function2`, Artisan's
+defined its own, loader constraint violated on the first cross-plugin call.
 
-La surface n'expose donc plus que des types Java :
+The surface therefore only exposes Java types:
 
-| Rappel | Type | Remplace |
+| Callback | Type | Replaces |
 |---|---|---|
 | `DataFetcher` | `fetch(Player?, Map): List<Map>` | `(Player?, Map) -> List<Map>` |
 | `CommandHandler` | `handle(Player, Map)` | `(Player, Map) -> Unit` |
@@ -169,23 +194,23 @@ La surface n'expose donc plus que des types Java :
 | `SchemaVersionReader<T>` | `versionOf(T): String` | `(T) -> String` |
 | `ModuleRegistry.bind` | `Runnable` | `() -> Unit` |
 
-Ce sont des `fun interface` : côté Kotlin comme côté Java, on passe toujours une
-lambda. `FieldKind` et `Stability` sont déclarés **en Java** — un enum Kotlin
-expose un `getEntries()` typé `kotlin.enums.EnumEntries`.
+These are `fun interface`s: on the Kotlin side as on the Java side, a lambda is always
+passed. `FieldKind` and `Stability` are declared **in Java** — a Kotlin enum
+exposes a `getEntries()` typed `kotlin.enums.EnumEntries`.
 
-Depuis 2.0.0 la surface entière est écrite en Java (section « 2.0.0 » ci-dessus) :
-`ApiSurfaceIsJavaFriendlyTest` échoue si une classe Kotlin apparaît dans `plugin/api/src/main`
-ou si un type `kotlin.*` réapparaît dans une signature. L'implémentation (`core`, `paper`…)
-reste en Kotlin.
+Since 2.0.0 the entire surface is written in Java ("2.0.0" section above):
+`ApiSurfaceIsJavaFriendlyTest` fails if a Kotlin class appears in `plugin/api/src/main`
+or if a `kotlin.*` type reappears in a signature. The implementation (`core`, `paper`…)
+stays in Kotlin.
 
-**Ce que ça ne fait pas** : le JAR du plugin embarque toujours la kotlin-stdlib
-sous ses noms d'origine. Elle ne peut pas être relocalisée — `kotlin-reflect`
-(tiré par `jackson-module-kotlin`, qui lit les data classes YAML) résout ses
-built-ins par nom de chaîne et ne survit pas au renommage. Artisan reste donc un
-fournisseur possible de `kotlin.*` pour un plugin tiers qui en chercherait ; ce
-qui est corrigé, c'est qu'aucun add-on Artisan n'a plus de raison d'en chercher.
+**What this does not do**: the plugin JAR still bundles the kotlin-stdlib
+under its original names. It cannot be relocated — `kotlin-reflect`
+(pulled in by `jackson-module-kotlin`, which reads the YAML data classes) resolves its
+built-ins by string name and does not survive renaming. Artisan therefore remains a
+possible provider of `kotlin.*` for a third-party plugin that went looking for it; what
+is fixed is that no Artisan add-on has any reason to look for it any more.
 
-### `net.artisanmc.modules.api.item.ItemStackApi` (`@Beta`)
+### `net.artisanmc.modules.api.item.ItemStackApi` (`@Stable` since 2.18.0)
 
 Captured-item helpers for modules (`api.items`): `serialize(stack)` — canonical wrapped YAML (what a project stores under `items/<id>.yml`) — and `describe(stack)` — the generic display descriptor (material enriched to a recognized custom ref, head_texture, enchanted, count, name). Since 1.4.0.
 
@@ -201,7 +226,7 @@ Since 2.4.0, an **item spec** — a map with the fields of a menu button's appea
 
 Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 2.0.0. Without a receiver since the editor moved into the plugin (phase F, 2026-10), `@Sunset` since 1.8.0, removed in 2.0.0 with no replacement. A module that wants to change its own project files writes them itself and calls `api.project.reload()` (ADR `server-disk-only-storage`).
 
-### `net.artisanmc.modules.api.action.ModuleActionsApi` (`@Beta`)
+### `net.artisanmc.modules.api.action.ModuleActionsApi` (`@Stable` since 2.18.0)
 
 `api.actions.execute(player, actions, args, projectId?)` (Java overloads without `args` and `projectId` since 2.0.0) — runs an Action DSL string (`parseActionDsl` → `dslToEngineSteps`) through the core `ActionExecutor`. Main-thread (dispatched if needed); `args` become `{name}` placeholder bindings (`player` is implicit); a malformed string is skipped with a WARN. Used by the boutique to run an item's purchase actions after payment. `projectId` (since 1.6.0, optional) puts that Project's `lang/` in scope so an action may carry `@key` (ADR `yaml-assisted-editing` ④); without it, action text stays literal. Since 1.4.0.
 
@@ -221,7 +246,7 @@ Fire-and-forget module messages (`api.messages.send(type, payload)`), 1.4.0 → 
 | `ConditionsApi.validate(conditions)` | `List<String>` | 2.2.0 |
 | `ConditionsApi.NOOP`, `ArtisanAPI.Builder.conditions(conditions)` (`@Internal`) | | 2.2.0 |
 
-### `net.artisanmc.modules.api.translation.TranslationsApi` (`@Beta`, 2.5.0)
+### `net.artisanmc.modules.api.translation.TranslationsApi` (2.5.0, `@Stable` since 2.18.0)
 
 The system messages (commands, statuses, errors) of the suite's plugins: one rule for a player's language, one loader and one renderer, each plugin keeping its lang files under its own namespace. Artisan's own messages are the bundle `artisan`. The texts of a Project (`ltext`, `{i18n:key}`) are not here: actions read them with `ActionRuntime.text`.
 
@@ -234,14 +259,14 @@ The system messages (commands, statuses, errors) of the suite's plugins: one rul
 | `TranslationsApi.getDefaultLang()`, `langOf(sender)` | `String` | 2.5.0 |
 | `TranslationsApi.register(declaration)`, `unregister(namespace)`, `bundle(namespace)`, `namespaces()` | | 2.5.0 |
 | `MessageBundleDeclaration.files(owner, namespace, bundledLangs...)`, `of(owner, namespace, source)`, `withDefaultLang(lang)` | `MessageBundleDeclaration` | 2.5.0 |
-| `MessageBundleDeclaration.inFolder(folder)`, `getFolder()` (nullable): the server's `lang/<code>.yml` of a `files` bundle are read from `folder/lang/`, the module's folder, instead of the data folder: published, versioned, shown in Translations, read again when the projects reload. The data folder's `lang/*.yml` move there once at `register`, a language the folder already has staying and logged. `IllegalStateException` on a bundle made with `of` | `MessageBundleDeclaration` | 2.17.0 |
+| `MessageBundleDeclaration.inFolder(folder)`, `getFolder()` (nullable, `@Beta`): the server's `lang/<code>.yml` of a `files` bundle are read from `folder/lang/`, the module's folder, instead of the data folder: published, versioned, shown in Translations, read again when the projects reload. The data folder's `lang/*.yml` move there once at `register`, a language the folder already has staying and logged. `IllegalStateException` on a bundle made with `of` | `MessageBundleDeclaration` | 2.17.0 |
 | `MessageSource.load()` (`@FunctionalInterface`) | `Map<String, Map<String, String>>` | 2.5.0 |
 | `MessageBundle.getNamespace()`, `getLanguages()`, `getDefaultLang()`, `langOf(viewer)`, `find`, `raw`, `format`, `get`, `reload()` | | 2.5.0 |
 | `TranslationsApi.NOOP`, `ArtisanAPI.Builder.translations(translations)` (`@Internal`) | | 2.5.0 |
 | `MessageBundle.send(viewer, key)`, `send(viewer, key, placeholders)` | `void` | 2.10.0 |
 | `MessageBundle.legacy(lang, key, placeholders)`, `legacy(viewer, key, placeholders)` | `String` | 2.10.0 |
 
-### `net.artisanmc.modules.api.text.TextApi` (`@Beta`, 2.10.0)
+### `net.artisanmc.modules.api.text.TextApi` (2.10.0, `@Stable` since 2.18.0)
 
 Text for players without Adventure types, so a plugin runs on Paper and Spigot alike. Input is MiniMessage, `§` codes accepted; malformed text degrades to plain text, never throws. Any thread.
 
@@ -275,7 +300,7 @@ The servers that share the suite's MySQL/MariaDB database are one network (ADR `
 | `NetworkApi.NOOP`, `NetworkPresence.NOOP`, `ArtisanAPI.Builder.network(network)` (`@Internal`) | | 2.13.0 |
 | `tablePrefix("network")` refused: `network` is a first segment of Artisan's tables | | 2.13.0 |
 
-### `net.artisanmc.modules.api.action.ActionRegistry` and the action contract (`@Beta`, 2.0.0)
+### `net.artisanmc.modules.api.action.ActionRegistry` and the action contract (2.0.0, `@Stable` since 2.18.0)
 
 Every action of a chain, Artisan's own included, runs through this registry (ADR `extensible-document-kinds`, R1). A module registers its actions from `onEnable`; they are removed with the module. Names: `^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`, a module's namespaced (`quests:start`).
 
@@ -296,7 +321,7 @@ Every action of a chain, Artisan's own included, runs through this registry (ADR
 
 The three wire forms (`- name`, `- name: value`, `- name: {args}`) bind to one argument map: the scalar form binds `primary` (the only argument when there is exactly one, unless given). The runtime is tolerant (an unknown key is kept, an unknown name is skipped with a warning); the editor's form is strict.
 
-### `net.artisanmc.modules.api.document.DocumentKindRegistry` and the document-kind contract (`@Beta`, 2.1.0)
+### `net.artisanmc.modules.api.document.DocumentKindRegistry` and the document-kind contract (2.1.0, `@Stable` since 2.18.0)
 
 Every kind of Document a project folder holds, Artisan's own (menu, command, dialog) included, is declared here (ADR `extensible-document-kinds`, decisions 1 and 10, W6). A module declares its kinds from `onEnable`; they are removed with the module. The folder is what tells a Document's kind on disk, so two kinds may not share a kind id or a folder. Kind ids: `^[a-z][a-z0-9_]*$`; folders: `^[a-z][a-z0-9_-]*$`.
 
@@ -345,7 +370,7 @@ if (api.getGameEvents().isObserved("quests:completed")) {
 | `RegisteredGameEvent.getDeclaration()`, `getModuleId()`, `toWire()` (+ `module_id?`) ; `DuplicateGameEventException` (extends `IllegalStateException`) | | 2.16.0 |
 | `ArtisanAPI.Builder.gameEvents(registry)`, `GameEventRegistry.bindWarnings(warn)` (`@Internal`) | | 2.16.0 |
 
-### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (`@Beta`, 2.3.0)
+### `net.artisanmc.modules.api.editor.EditorBundleRegistry` and the editor bundle contract (2.3.0, `@Stable` since 2.18.0)
 
 A module may ship its **editor view** in its own jar (runtime module bundles, level 3; `modules.md` §4.6): one ES module script built against `@artisan/editor-sdk`, registered from `onEnable` and removed with the module. The bundle is reported at Presence on the module's `installed_modules` entry (`editor_bundle: {sdk, hash, size}`, protocol 1.2), served by the hub at `GET /api/v1/servers/:server/modules/:module/ui.js` and loaded by the editor against its SDK.
 
@@ -383,7 +408,7 @@ api.getTemplates().register(TemplateDeclaration
     .build());
 ```
 
-### `net.artisanmc.modules.api.playercommand.PlayerCommandRegistry` and the player command contract (`@Beta`, 2.7.0)
+### `net.artisanmc.modules.api.playercommand.PlayerCommandRegistry` and the player command contract (2.7.0, `@Stable` since 2.18.0)
 
 A module declares the commands players type: each root becomes a `command/v1` file of the module's first folder, `commands/<name>.yaml`, kept there as a system element (template `player_commands`, generated by Artisan) and edited by the admin like any command (name and aliases, permission, description, cooldown, requirements and fallback, `enabled`, actions). Artisan registers it in the command map and refreshes the players' completion when it changes; a module without a folder has its commands registered as generated, in memory. The id `<module>:<name>` never changes; the command is reachable as `/<module>:<name>` while no other command holds that form, and a short name already taken (by an admin's `command/v1`, another module, another plugin) leaves only that form, with a warning. Distinct from `CommandRegistry`, which menus call through `run_command`. Design: `design-framework-commandes.md` (project files).
 
@@ -396,7 +421,7 @@ A module declares the commands players type: each root becomes a `command/v1` fi
 | `PlayerCommandContext`: `getCommandId()`, `getSender()`, `getPlayer()` (null for the console), `getLanguage()`, `getArguments()`, `get(name, type)` | | 2.7.0 |
 | `PlayerCommandRegistry.onChange(callback)`, `ArtisanAPI.Builder.playerCommands(registry)` (`@Internal`) | | 2.7.0 |
 | `PlayerCommandDeclaration.Builder.opensMenu(menuRef)`, `getOpensMenu()`: the command opens that menu (Action DSL ref, `folder:menu` or a bare id resolved server-wide) instead of running an executor, its arguments as the menu's context; player-only. `build()` refuses an executor and a menu together, and a menu with `consoleAllowed(true)` (`IllegalArgumentException`). The editor draws the link on the board | | 2.11.0 |
-| `CommandArgument.suggestions(provider)`, `getSuggestions()` (nullable); `SuggestionProvider.suggest(SuggestionContext)`, `SuggestionContext`: `getSender()`, `getPreviousArguments()` (the arguments typed before, unparsed), `getInput()`. The values completed in place of Artisan's own (online players, worlds), computed at completion: kept by prefix ignoring case, without duplicates, 100 at most. Parsing is unchanged. Runs on the thread Bukkit completes on, so it must be cheap and thread-safe (memory, never the database); one that throws is logged and offers nothing. Not on a `choice` (`IllegalStateException`). Not announced in `player_commands` | | 2.14.0 |
+| `CommandArgument.suggestions(provider)`, `getSuggestions()` (nullable); `SuggestionProvider.suggest(SuggestionContext)`, (all `@Beta`) `SuggestionContext`: `getSender()`, `getPreviousArguments()` (the arguments typed before, unparsed), `getInput()`. The values completed in place of Artisan's own (online players, worlds), computed at completion: kept by prefix ignoring case, without duplicates, 100 at most. Parsing is unchanged. Runs on the thread Bukkit completes on, so it must be cheap and thread-safe (memory, never the database); one that throws is logged and offers nothing. Not on a `choice` (`IllegalStateException`). Not announced in `player_commands` | | 2.14.0 |
 
 ```java
 api.getPlayerCommands().register(PlayerCommandDeclaration.builder("attribution:open")
@@ -409,7 +434,7 @@ api.getPlayerCommands().register(PlayerCommandDeclaration.builder("attribution:o
 
 The generated file's actions are `module_command: <id>` (the module's code) or `open_menu: <menuRef>` (a command that opens a menu); each child is a node of `subcommands`, and `console: true` stands for `consoleAllowed`. The admin's edits stay theirs: the file follows the module only while untouched, and Reset puts the module's version back. The action `module_command` (`command`, `args`, owner `artisan` in `api.actionRegistry`) runs the declared command's code: an argument absent from `args` takes the bound value of its name (the command's own, parsed from what was typed), `{name}` alone passes a bound value as is, and a call from elsewhere (a menu button) checks the permissions the command's file sets on the way to it. The console runs a node marked `console: true` whose actions are one `module_command`, when the module allows it. The former `command_override/v1` files are merged once into the commands' files and moved to `.artisan/migrated/overrides-command/`. None of this changes the API: it is the `command/v1` format and the action vocabulary.
 
-### `net.artisanmc.modules.api.model.ModelRegistry` (`@Beta`)
+### `net.artisanmc.modules.api.model.ModelRegistry` (`@Beta`; its field vocabulary `ModelField`, `ModelFieldType`, `UnionVariant` is `@Stable` since 2.18.0)
 
 `api.models.declare(model)` — declares a Data model, typed: a `ModelDeclaration(id, keyField, fields)` (namespaced `id` (`ns:model`), `List<ModelField>`), with `withName`, `withVersion(version[, migrations])` (monotonic version, declarative `ModelMigration(from, to, steps)` whose `MigrationStep`s are `renameField`, `setDefault`, `renameEnumValue`, `renameVariant`, each with an optional `path`) and `withMasterDetail`. Its `toWire()` is the `model/v1` document (`schema`, `id`, `name?`, `key_field`, `fields`, `version?`, `master_detail?`, `migrations?`). Pure passthrough: nothing is interpreted plugin-side — the documents are reported at Presence (`hello.declared_models` / `modules_changed`) and consumed by the editor, which renders the schema-driven form and treats the shape as read-only for the admin (ADR `composable-data-models` §4/§5). Duplicate id or non-namespaced id throws at declare time. `has(id)`, `declared()` (sorted). Since 1.5.0; typed since 2.0.0.
 
@@ -433,11 +458,11 @@ api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
 
 ### `net.artisanmc.modules.api.screen.EditorScreenRegistry` (`@Beta`)
 
-`api.screens.declare(id, label, table, projectId)` — declares a **Config screen**: a named entry in the editor's sidebar under the module, whose core-generated form edits one declared-model Table/Config of the module's owned Project, live over the WS relay (ADR `module-config-screens` §2/§3). `id` must be namespaced (`boutique:catalog`); `table` is a Project-relative path (`data/categories`) — absolute paths, `..` and a first segment starting with `.artisan` are rejected at declare time, as is a duplicate id. Pure passthrough: nothing is interpreted plugin-side — the declarations are reported at Presence (`hello.editor_screens` / `modules_changed`) and the editor mounts the entries. A module that declares models + owns a Project but no screen gets a fallback "Données" screen synthesized by the editor. `declared()` (sorted by id). Since 1.6.0.
+`api.screens.declare(id, label, table, projectId)` — declares a **Config screen**: a named entry in the editor's sidebar under the module, whose core-generated form edits one declared-model Table/Config of the module's owned Project, live over the WS relay (ADR `module-config-screens` §2/§3). `id` must be namespaced (`boutique:catalog`); `table` is a Project-relative path (`data/categories`) — absolute paths, `..` and a first segment starting with `.artisan` are rejected at declare time, as is a duplicate id. Pure passthrough: nothing is interpreted plugin-side — the declarations are reported at Presence (`hello.editor_screens` / `modules_changed`) and the editor mounts the entries. A module that declares models + owns a Project but no screen gets a fallback "Data" screen synthesized by the editor. `declared()` (sorted by id). Since 1.6.0.
 
 `declare(id, label, table, projectId, component)` (2.7.0) names the module's own view of the screen: a key of its `FrontendModule.screens` (`@artisan/editor-sdk` 1.6.0, `^[a-z][a-zA-Z0-9_-]*$`, `IllegalArgumentException` otherwise), reported as `component` in `editor_screens`. The editor renders that view in place of the generated form and keeps the read, Save, the YAML tab and the file's history; a bundle without that key gets the generated form. `EditorScreenDeclaration.getComponent()` (nullable), 2.7.0.
 
-### `net.artisanmc.modules.api.database.DatabaseApi` (`@Beta`)
+### `net.artisanmc.modules.api.database.DatabaseApi` (`@Stable` since 2.18.0)
 
 `api.database.dataSource(plugin)` — the database lent to the plugins of the suite (ADR `suite-foundation-database`): one HikariCP pool **per plugin**, opened on the first call (it checks a connection, so call it from `onEnable`), returned as is afterwards, closed 5 seconds after that plugin is disabled (its `onDisable` can still save; a reloaded plugin gets the same pool back). Credentials are set once by the admin in `plugins/Artisan/environment.yml`; only `javax.sql.DataSource` crosses the boundary, the plugin brings its own access layer and migrations. `dialect` (`DatabaseDialect`: `H2`, `MYSQL`, `MARIADB`, Java enum) lets a plugin branch on the few statements that differ. All plugins share one database (the configured MySQL/MariaDB one, or a single H2 file): a plugin names every table, index and constraint it creates `tablePrefix(module) + name`, where `tablePrefix("quests")` is `database.table-prefix` (`artisan_` by default, `getTablePrefix()`) + `quests_`. `module` is one lower-case word, not a first segment of Artisan's own tables (`servers`, `meta`, `versions`, `drafts`, `editor`…), else `IllegalArgumentException`; an invalid `table-prefix` throws it too. Misconfiguration or an unreachable server throws `IllegalStateException` naming the plugin and the file to fix. Default `DatabaseApi.NONE` throws on every call. Since 1.7.0; a single shared H2 file since 1.7.1 (1.7.0 kept one file per plugin).
 
@@ -478,7 +503,7 @@ api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
 | `MenuCloseEvent.menu`, `.reason` | `MenuRef`, `InventoryCloseEvent.Reason` | 1.8.0 |
 | `MenuCloseEvent.closeReason`, constructor `(player, menu, MenuCloseReason)`; `MenuCloseReason` (Paper's names, `UNKNOWN` on Spigot, `named(name)`) | `MenuCloseReason` | 2.10.0 |
 
-### `net.artisanmc.modules.api.scheduler.SchedulerApi` (`@Beta`)
+### `net.artisanmc.modules.api.scheduler.SchedulerApi` (`@Stable` since 2.18.0)
 
 `api.scheduler.forPlugin(owner)` — a `TaskScheduler` backed by the core `Scheduler` port (`RegionizedScheduler` on Paper/Folia/Leaf, `BukkitTaskScheduler` otherwise), whose tasks belong to `owner`. Global, region (`Location`), entity (skipped if removed) and async threads, each immediate or delayed (ticks; 0 = as soon as possible); `isOwnedByCurrentThread(entity)`, `isGlobalThread()`. No cancellation handle, no repeating tasks — Paper's schedulers remain available for those. `DIRECT` runs everything inline (tests).
 
@@ -489,7 +514,7 @@ api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
 | `TaskScheduler.runGlobal`, `runGlobalLater`, `runAt`, `runAtLater`, `runFor`, `runForLater`, `runAsync`, `runAsyncLater` | `Unit` | 1.8.0 |
 | `TaskScheduler.isOwnedByCurrentThread(entity)`, `isGlobalThread()` | `Boolean` | 1.8.0 |
 
-### `net.artisanmc.modules.api.placeholder.PlaceholderRegistry` (`@Beta`)
+### `net.artisanmc.modules.api.placeholder.PlaceholderRegistry` (`@Stable` since 2.18.0)
 
 `api.placeholders.register(namespace, resolver[, exposeToPapi])` — every `%<namespace>_<key>%` in menu text, action text and conditions asks the `PlaceholderResolver` (`resolve(player: Player?, key): String?`; null leaves the token as written). Resolved in Artisan's own `%…%` step (the `PapiProvider` the renderer, executor and condition evaluator use) before PlaceholderAPI, so it works without PlaceholderAPI. `exposeToPapi = true` with PlaceholderAPI enabled also registers an expansion of that identifier. Namespace `[a-z][a-z0-9]*` (`IllegalArgumentException`), unique (`IllegalStateException`). `unregister`, `namespaces()`, `resolve(player, text)`. Not yet reported to the editor's placeholder autocompletion.
 
@@ -654,7 +679,20 @@ Registering reloads the projects on the next server tick, once the caller's `onE
 
 ## Beta APIs (may change)
 
-None at this time.
+`@Beta` after 2.18.0, with the reason it stays there:
+
+| Surface | Why it stays `@Beta` |
+|---|---|
+| `api.condition` (`ConditionsApi`, 2.2.0) | one add-on calls it (ArtisanQuests) |
+| `api.template` (`TemplateRegistry`, 2.6.0) | four changes in six days (system templates kept in the module's folder, three-way merge, `.yml`) |
+| `api.screen` (`EditorScreenRegistry`) | the declaration changed in 2.7.0 (module view, configuration roots) |
+| `api.menu` (`MenuApi`, menu events) | `MenuCloseEvent` changed in 2.10.0 (Spigot); the Bedrock menus are coming |
+| `api.model`: `ModelRegistry`, `ModelDeclaration`, `ModelMigration`, `MigrationStep`, `DeclaredModel` | the declared migrations and master-detail are recent; the field vocabulary is `@Stable` |
+| `api.network` (2.13.0) | one add-on (ArtisanGuilds), two days old |
+| `api.gameevent`, `api.cooldown` (2.16.0) | no add-on yet |
+| `CommandArgument.suggestions`, `SuggestionProvider`, `SuggestionContext` (2.14.0) | one add-on (ArtisanGuilds) |
+| `MessageBundleDeclaration.inFolder`, `getFolder` (2.17.0) | one version old |
+| `ProjectContentApi.documents`, `ProjectRootRegistry.registerConfig`, `moduleFolder` | members of `@Stable` types, marked `@Beta` on their own |
 
 ## Deprecated APIs
 
@@ -700,7 +738,7 @@ The artifact contains only the `net.artisanmc.modules.api.*` packages filtered t
 
 ## Protocol surfaces
 
-- **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.3"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
-- **REST API** : versioned under `/api/v1/*`, served by the hub to the editor shipped in the same jar. See `versioning.md` §5.
-- **YAML schemas** : `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `ProjectReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
-- **Database** : each suite plugin migrates its own tables through `DatabaseApi`, named with `tablePrefix(module)`. See `versioning.md` §6.
+- **WebSocket**: the hub ↔ server protocol carries `protocol_version` (`"1.3"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
+- **REST API**: versioned under `/api/v1/*`, served by the hub to the editor shipped in the same jar. See `versioning.md` §5.
+- **YAML schemas**: `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `ProjectReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
+- **Database**: each suite plugin migrates its own tables through `DatabaseApi`, named with `tablePrefix(module)`. See `versioning.md` §6.
