@@ -1,7 +1,7 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ModelFieldsEditor } from "./ModelFieldsEditor";
 import { ConfigValueForm, SourceRowsTable } from "./SourceValueEditor";
@@ -661,5 +661,87 @@ describe("field hints in the form", () => {
     );
     expect(screen.getByText("Remise globale")).toBeInTheDocument();
     expect(screen.getByText("whole_shop_discount")).toBeInTheDocument();
+  });
+});
+
+// A module's Settings screen: panels per group, switches, tags, chips
+
+describe("ConfigValueForm — settings layout", () => {
+  function seedSettings() {
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
+      p.dataModels = [];
+      p.dataSources = [
+        {
+          id: "config" as never,
+          name: "config",
+          shape: "config",
+          fields: [
+            {
+              name: "auctions",
+              label: "Auctions",
+              type: {
+                kind: "object",
+                fields: [
+                  { name: "enabled", type: { kind: "boolean" } },
+                  { name: "durations", type: { kind: "list", of: { kind: "string" } } },
+                  {
+                    name: "include",
+                    type: { kind: "list", of: { kind: "enum", values: ["sale", "auction"] } },
+                  },
+                ],
+              },
+            },
+          ],
+          value: { auctions: { enabled: true, durations: ["1h", "6h"], include: ["sale"] } },
+        },
+      ] as never;
+      return s;
+    });
+  }
+  const auctions = () =>
+    (project().dataSources[0] as unknown as { value: { auctions: Record<string, unknown> } }).value
+      .auctions;
+  // Re-renders from the store, as the screen does.
+  function Live() {
+    const p = useProjectsStore((s) => s.openProjects.projects[0]) as Project;
+    return <ConfigValueForm projectId={PID} project={p} source={p.dataSources[0] as never} />;
+  }
+  const renderForm = () => render(<Live />);
+
+  it("gives each top-level group its own titled panel", () => {
+    seedSettings();
+    renderForm();
+    const panel = screen.getByTestId("settings-section-auctions");
+    expect(within(panel).getByRole("heading", { name: "Auctions" })).toBeInTheDocument();
+  });
+
+  it("edits a boolean with a switch", () => {
+    seedSettings();
+    renderForm();
+    fireEvent.click(screen.getByRole("switch", { name: "enabled" }));
+    expect(auctions().enabled).toBe(false);
+  });
+
+  it("edits a list of words as tags", () => {
+    seedSettings();
+    renderForm();
+    const field = screen.getByRole("textbox", { name: /add a value|ajouter une valeur/i });
+    fireEvent.change(field, { target: { value: "24h" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(auctions().durations).toEqual(["1h", "6h", "24h"]);
+    fireEvent.click(screen.getByRole("button", { name: /remove 1h|retirer 1h/i }));
+    expect(auctions().durations).toEqual(["6h", "24h"]);
+  });
+
+  it("picks a subset of a closed set with toggle chips", () => {
+    seedSettings();
+    renderForm();
+    const auction = screen.getByRole("button", { name: "auction" });
+    expect(auction).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(auction);
+    expect(auctions().include).toEqual(["sale", "auction"]);
+    fireEvent.click(screen.getByRole("button", { name: "sale" }));
+    expect(auctions().include).toEqual(["auction"]);
   });
 });

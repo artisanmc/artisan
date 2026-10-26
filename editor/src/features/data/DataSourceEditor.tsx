@@ -214,7 +214,12 @@ export function DataSourceEditor({ projectId, source }: DataSourceEditorProps) {
             {source.shape === "table" ? (
               <SourceRowsTable projectId={projectId} project={project} source={source} />
             ) : (
-              <ConfigValueForm projectId={projectId} project={project} source={source} />
+              <ConfigValueForm
+                projectId={projectId}
+                project={project}
+                source={source}
+                layout="compact"
+              />
             )}
           </section>
 

@@ -1,6 +1,6 @@
 package net.artisanmc.modules.api.text;
 
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.command.CommandSender;
 
 /**
@@ -10,7 +10,7 @@ import org.bukkit.command.CommandSender;
  *
  * @since 2.10.0
  */
-@Beta
+@Stable
 public interface TextApi {
     /** Inert default (tests / partial wiring): sends and returns the text as given. */
     TextApi NOOP = new TextApi() {

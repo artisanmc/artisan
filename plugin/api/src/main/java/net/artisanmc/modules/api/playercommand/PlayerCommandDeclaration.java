@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -36,7 +36,7 @@ import org.jetbrains.annotations.Nullable;
  * an executor: Artisan opens it (the arguments bind to the menu's context inputs of the same name)
  * and the editor draws the link on the board.
  */
-@Beta
+@Stable
 public final class PlayerCommandDeclaration {
     private static final Pattern ID = Pattern.compile("[a-z0-9_]+:[a-z0-9_.-]+");
     private static final Pattern NAME = Pattern.compile("[a-z0-9_.-]+");
@@ -128,7 +128,7 @@ public final class PlayerCommandDeclaration {
      * The menu this command opens instead of running an executor, as the Action DSL names it
      * ({@code boutique_addon:shop_main}, or a bare id resolved server-wide); null otherwise.
      */
-    @Beta
+    @Stable
     public @Nullable String getOpensMenu() { return opensMenu; }
 
     /** Whether the console may run it; a player-only command refuses the console with a message. */
@@ -141,7 +141,7 @@ public final class PlayerCommandDeclaration {
         return "PlayerCommandDeclaration(" + id + ")";
     }
 
-    @Beta
+    @Stable
     public static final class Builder {
         private final String id;
         private @Nullable String name;
@@ -183,7 +183,7 @@ public final class PlayerCommandDeclaration {
          * arguments become the menu's context. Qualify the ref with the module's folder
          * ({@code boutique_addon:shop_main}) so that another folder's menu of the same id is not taken.
          */
-        @Beta
+        @Stable
         public Builder opensMenu(String menuRef) {
             if (menuRef.isBlank()) throw new IllegalArgumentException("menu ref is blank");
             this.opensMenu = menuRef.trim();

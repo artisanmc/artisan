@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.artisanmc.modules.api.OwnedRegistry;
 import net.artisanmc.modules.api.action.ActionRegistry;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.annotations.Internal;
 import net.artisanmc.modules.api.datasource.DataSourceRegistry;
 import org.jetbrains.annotations.Nullable;
@@ -18,7 +18,7 @@ import org.jetbrains.annotations.Nullable;
  * {@code onEnable} is owned by it and leaves with it. Registration order is kept: the core kinds,
  * registered first, come first.
  */
-@Beta
+@Stable
 public final class DocumentKindRegistry implements OwnedRegistry {
     private final List<RegisteredDocumentKind> kinds = new ArrayList<>();
 
@@ -35,7 +35,7 @@ public final class DocumentKindRegistry implements OwnedRegistry {
      * Registers {@code decl}; throws {@link DuplicateDocumentKindException} if its kind id or its
      * folder is taken.
      */
-    @Beta
+    @Stable
     public synchronized void register(DocumentKindDeclaration decl) {
         for (RegisteredDocumentKind other : kinds) {
             DocumentKindDeclaration d = other.getDeclaration();
@@ -46,7 +46,7 @@ public final class DocumentKindRegistry implements OwnedRegistry {
     }
 
     /** Removes the kind {@code kind}; false if none was registered. */
-    @Beta
+    @Stable
     public synchronized boolean unregister(String kind) {
         return kinds.removeIf(r -> r.getDeclaration().getKind().equals(kind));
     }
@@ -58,7 +58,7 @@ public final class DocumentKindRegistry implements OwnedRegistry {
     }
 
     /** The declaration of {@code kind}, or null. */
-    @Beta
+    @Stable
     public synchronized @Nullable DocumentKindDeclaration find(String kind) {
         for (RegisteredDocumentKind r : kinds) {
             if (r.getDeclaration().getKind().equals(kind)) return r.getDeclaration();
@@ -67,7 +67,7 @@ public final class DocumentKindRegistry implements OwnedRegistry {
     }
 
     /** The kind whose project folder is {@code dir} ({@code menus} → menu), or null. */
-    @Beta
+    @Stable
     public synchronized @Nullable DocumentKindDeclaration byDir(String dir) {
         for (RegisteredDocumentKind r : kinds) {
             if (r.getDeclaration().getDir().equals(dir)) return r.getDeclaration();
@@ -75,19 +75,19 @@ public final class DocumentKindRegistry implements OwnedRegistry {
         return null;
     }
 
-    @Beta
+    @Stable
     public boolean has(String kind) {
         return find(kind) != null;
     }
 
     /** The declarations, in registration order. */
-    @Beta
+    @Stable
     public synchronized List<DocumentKindDeclaration> declarations() {
         return kinds.stream().map(RegisteredDocumentKind::getDeclaration).toList();
     }
 
     /** Declarations with their owning module id, in registration order. */
-    @Beta
+    @Stable
     public synchronized List<RegisteredDocumentKind> registered() {
         return List.copyOf(kinds);
     }

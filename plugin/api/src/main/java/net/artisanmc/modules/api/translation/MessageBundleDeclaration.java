@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.List;
 import java.util.Objects;
 import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,7 +23,7 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>The bundle goes away when {@code owner} disables.
  */
-@Beta
+@Stable
 public final class MessageBundleDeclaration {
     private final Plugin owner;
     private final String namespace;
@@ -81,6 +82,7 @@ public final class MessageBundleDeclaration {
      *
      * @throws IllegalStateException for a declaration made with {@link #of}
      */
+    @Beta
     public MessageBundleDeclaration inFolder(File folder) {
         if (source != null) throw new IllegalStateException("inFolder is for files(): this bundle reads its own source");
         return new MessageBundleDeclaration(owner, namespace, null, bundledLangs, defaultLang,
@@ -111,6 +113,7 @@ public final class MessageBundleDeclaration {
     }
 
     /** The folder whose {@code lang/} holds the server's files ({@link #inFolder}); null: the plugin's data folder. */
+    @Beta
     public @Nullable File getFolder() {
         return folder;
     }

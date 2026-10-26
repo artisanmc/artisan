@@ -87,8 +87,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       error: null,
     });
     if (user?.editorLanguage) {
-      const { default: i18n } = await import("@/i18n");
+      const { default: i18n, isSupportedLang } = await import("@/i18n");
       await i18n.changeLanguage(user.editorLanguage);
+      // Modules label their kinds and collections in `editorLang`: it follows the profile
+      // too, set directly so the profile is not written back.
+      if (isSupportedLang(user.editorLanguage)) {
+        const { useUiStore } = await import("./uiStore");
+        useUiStore.setState({ editorLang: user.editorLanguage });
+      }
     }
     // Apply server-side theme preference only if the user hasn't made a
     // local choice yet. localStorage wins (checked by detectInitialTheme).

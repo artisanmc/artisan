@@ -61,6 +61,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Switch } from "@/components/ui/switch";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TagInput } from "@/components/ui/tag-input";
 import { Tooltip } from "@/components/ui/tooltip";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
@@ -610,6 +611,7 @@ export function DesignSystemPage() {
             </p>
           </div>
           <SwitchSpecimen />
+          <TagInputSpecimen />
           <CheckboxSpecimen />
           <SortableListSpecimen />
           <div className="flex max-w-sm flex-col gap-2">
@@ -1030,6 +1032,29 @@ function SwitchSpecimen() {
       <p className="text-[11.5px] text-[var(--text-faint)]">
         {t("adminDesign.specimens.switchHint")}
       </p>
+    </div>
+  );
+}
+
+function TagInputSpecimen() {
+  const { t } = useTranslation();
+  const [values, setValues] = useState(["1h", "6h", "24h"]);
+  return (
+    <div className="flex max-w-sm flex-col gap-2">
+      <span className="mono text-[11px] text-[var(--text-faint)]">
+        {"<TagInput values onAdd onRemove label removeLabel>"}
+      </span>
+      <TagInput
+        values={values}
+        label={t("dataSources.addValue")}
+        placeholder={t("dataSources.addValuePlaceholder")}
+        removeLabel={(v) => t("dataSources.removeValue", { value: v })}
+        onAdd={(v) => {
+          setValues((prev) => [...prev, v]);
+          return true;
+        }}
+        onRemove={(i) => setValues((prev) => prev.filter((_, j) => j !== i))}
+      />
     </div>
   );
 }

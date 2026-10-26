@@ -1,6 +1,6 @@
 package net.artisanmc.modules.api.database;
 
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.datasource.FieldKind;
 
 /**
@@ -11,7 +11,7 @@ import net.artisanmc.modules.api.datasource.FieldKind;
  * <p>Java for the same reason as {@link FieldKind}: a Kotlin enum would expose
  * {@code kotlin.enums.EnumEntries} in the public surface.
  */
-@Beta
+@Stable
 public enum DatabaseDialect {
     H2, MYSQL, MARIADB
 }

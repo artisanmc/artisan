@@ -122,7 +122,13 @@ Le core charge ce registry au boot, monte les routes, register les WS handlers, 
 > planche (`boardGraph` les retire ; les liens gardent le graphe entier), une entrée unique dans la
 > sidebar (`CollectionNode` : nom → page, `+` → création, pas de renommage ni de suppression) et une
 > page `projects/$projectId/$collectionDir` (`CollectionView`), au nom du dossier du kind
-> (`…/boutique_addon/catalogue`) : l'écran de config `screen` en tête s'il est déclaré, une carte par Document, le bouton de création. Les Documents restent à la racine :
+> (`…/boutique_addon/catalogue`) : l'écran de config `screen` en tête s'il est déclaré, une carte par Document, le bouton de création. Une carte montre `board.summary` et les
+> cinq premières lignes de `board.items` (rang `marker`, `icon` d'item, `label`, `caption`,
+> `detail`), puis « +N autres » ; un filtre apparaît à partir de 7 Documents. La route attend que
+> les modules soient montés avant de conclure qu'un dossier n'est pas une collection (lien direct,
+> rechargement). Une planche vide dans un dossier qui a une collection non vide y mène
+> (`BoardChrome`). Les quêtes (ArtisanQuests, `quest_group`) en sont une, dans leur dossier de
+> module `quests`. Les Documents restent à la racine :
 > `moveToFolder` refuse de les ranger dans un dossier et `useCollectionsAtRoot` ramène à la racine
 > ceux qu'un brouillon a dans un dossier (déplacement dans le brouillon, écrit par Déployer). Un
 > Document s'ouvre sur sa page (`document/$documentId`), jamais sur une planche : son formulaire
@@ -1021,6 +1027,7 @@ L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update 
 - Interface `ArtisanModule`
 - Registries publics (`DataSourceRegistry`, `CommandRegistry`, `SchemaRegistry`, `ModuleRegistry`)
 - Classes `DataSourceDeclaration`, `CommandDeclaration`
+- Depuis l'API 2.18.0 : actions (`ActionRegistry`, `ModuleActionsApi`), base de données (`DatabaseApi`), scheduler, placeholders, traductions (`TranslationsApi`), `TextApi`, commandes joueur (`PlayerCommandRegistry`), items (`ItemStackApi`), types de Document, bundles éditeur, et le vocabulaire de champs `ModelField`/`ModelFieldType`. Le reste (`ConditionsApi`, templates, écrans, menus, registre des modèles, réseau, Game events, cooldowns) reste `@Beta` : liste et raisons dans `api-surface.md` § Beta APIs
 - Schemas versionnés (`menu/v1`, `command/v1`, `shop/v1`, etc.)
 - Events publics : bus `ModuleEventBus` (`ConfigReloadEvent`, `DataReloadEvent`) ; événements Bukkit de menu `MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent` (`@Beta`, API 1.8.0)
 
@@ -1031,7 +1038,7 @@ L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update 
 - Threading internals
 - Classes marquées `@Internal` ou dans des packages `internal`
 
-Documentation claire dans `docs/architecture/api-surface.md` (à créer V1) qui liste explicitement ce qui est public stable vs interne.
+Documentation dans `docs/architecture/api-surface.md`, qui liste explicitement ce qui est public stable vs interne.
 
 ### 13.5 Communication aux admins
 

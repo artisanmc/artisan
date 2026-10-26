@@ -4,10 +4,18 @@
  * creating a Document "here". The focus view mounts none of it.
  */
 import { EmptyState } from "@/components/ui/empty-state";
+import { IconTile } from "@/components/ui/icon-tile";
+import { documentsOf } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
+import { collectionLabel, projectCollections } from "@/lib/documentCollections";
+import { kindAppearance } from "@/lib/documentKindAppearance";
+import { collectionDestination } from "@/lib/projectNavigation";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { useUiStore } from "@/state/uiStore";
+import { documentKindContribution } from "@artisan/editor-sdk";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layer } from "react-konva";
@@ -87,6 +95,11 @@ export function BoardChrome({
   const { t } = useTranslation();
   const minimapVisible = useUiStore((s) => s.minimapVisible);
   const origin = { x: 40, y: 40 };
+  // A folder holding only a collection's Documents (a quests module) has an empty board:
+  // the empty state leads to them.
+  const collections = projectCollections(project).filter(
+    (c) => documentsOf(project, c.kind).length > 0,
+  );
   return (
     <>
       {!folder && Object.keys(layout).length === 0 && !board?.groups?.length && (
@@ -95,30 +108,35 @@ export function BoardChrome({
         // buttons opt back into pointer events.
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <EmptyState
-            title={t("projectPanel.empty")}
+            title={t(collections.length > 0 ? "projectPanel.emptyBoard" : "projectPanel.empty")}
             action={
-              <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => onCreateAt("menu", origin)}
-                >
-                  {t("canvas.newMenu")}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={() => onCreateAt("command", origin)}
-                >
-                  {t("canvas.newCommand")}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={() => onCreateAt("dialog", origin)}
-                >
-                  {t("canvas.newDialog")}
-                </button>
+              <div className="pointer-events-auto flex flex-col items-center gap-4">
+                {collections.length > 0 && (
+                  <CollectionLinks project={project} kinds={collections.map((c) => c.kind)} />
+                )}
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => onCreateAt("menu", origin)}
+                  >
+                    {t("canvas.newMenu")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => onCreateAt("command", origin)}
+                  >
+                    {t("canvas.newCommand")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => onCreateAt("dialog", origin)}
+                  >
+                    {t("canvas.newDialog")}
+                  </button>
+                </div>
               </div>
             }
           />
@@ -187,5 +205,37 @@ export function BoardGroupsLayer({
         }
       />
     </Layer>
+  );
+}
+
+/** The folder's collections, one card each: their Documents are on their page, not here. */
+function CollectionLinks({ project, kinds }: { project: Project; kinds: string[] }) {
+  const navigate = useNavigate();
+  const { serverId } = useParams({ strict: false }) as { serverId?: string };
+  const uiLang = useUiStore((s) => s.editorLang);
+  if (!serverId) return null;
+  return (
+    <ul className="flex flex-wrap justify-center gap-2">
+      {kinds.map((kind) => {
+        const look = kindAppearance(kind);
+        const contribution = documentKindContribution(kind);
+        return (
+          <li key={kind}>
+            <button
+              type="button"
+              className="card flex min-w-56 items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
+              onClick={() => navigate(collectionDestination(project, serverId, kind))}
+            >
+              <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="md" />
+              <span className="flex-1 text-[13px] font-medium text-[var(--text)]">
+                {collectionLabel(contribution, kind, uiLang)}
+              </span>
+              <span className="badge">{documentsOf(project, kind).length}</span>
+              <ChevronRight className="size-4 text-[var(--text-faint)]" aria-hidden />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

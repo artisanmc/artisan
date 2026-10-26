@@ -1,7 +1,7 @@
 package net.artisanmc.modules.api.database;
 
 import javax.sql.DataSource;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.plugin.Plugin;
 
 /**
@@ -9,7 +9,7 @@ import org.bukkit.plugin.Plugin;
  * The plugin brings its own access layer and migrations, and names every table, index and
  * constraint it creates with {@link #tablePrefix(String)}: {@code tablePrefix("quests") + "quest"}.
  */
-@Beta
+@Stable
 public interface DatabaseApi {
     /** Default when Artisan is not running: every call throws {@link IllegalStateException}. */
     DatabaseApi NONE = new DatabaseApi() {
