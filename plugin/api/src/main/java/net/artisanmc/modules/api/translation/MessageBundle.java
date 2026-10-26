@@ -2,7 +2,7 @@ package net.artisanmc.modules.api.translation;
 
 import java.util.Map;
 import java.util.Set;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.Nullable;
@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
  * are escaped, so a player-typed value cannot inject a click or a color. Names absent from the
  * map are left alone (a PlaceholderAPI {@code %x%} stays for PlaceholderAPI).
  */
-@Beta
+@Stable
 public interface MessageBundle {
     String getNamespace();
 

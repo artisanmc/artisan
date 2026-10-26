@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.project.ProjectContentApi;
 import org.jetbrains.annotations.Nullable;
 
@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
  * file name), listed in the resource inventory, resolvable by reference, and handed to the module
  * through {@link ProjectContentApi#documents}; what it <em>does</em> is the module's business.
  */
-@Beta
+@Stable
 public final class DocumentKindDeclaration {
     private static final Pattern KIND = Pattern.compile("^[a-z][a-z0-9_]*$");
     private static final Pattern DIR = Pattern.compile("^[a-z][a-z0-9_-]*$");

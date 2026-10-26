@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.artisanmc.modules.api.OwnedRegistry;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import net.artisanmc.modules.api.annotations.Internal;
 import net.artisanmc.modules.api.command.CommandRegistry;
 import net.artisanmc.modules.api.datasource.DataSourceRegistry;
@@ -18,7 +18,7 @@ import org.jetbrains.annotations.Nullable;
  * {@link DataSourceRegistry} and {@link CommandRegistry}: a registration from a module's
  * {@code onEnable} is owned by it and leaves with it.
  */
-@Beta
+@Stable
 public final class ActionRegistry implements OwnedRegistry {
     private final ConcurrentHashMap<String, RegisteredAction> actions = new ConcurrentHashMap<>();
 
@@ -32,7 +32,7 @@ public final class ActionRegistry implements OwnedRegistry {
     }
 
     /** Registers {@code decl}; throws {@link DuplicateActionException} if its name is taken. */
-    @Beta
+    @Stable
     public void register(ActionDeclaration decl) {
         if (actions.putIfAbsent(decl.getName(), new RegisteredAction(decl, currentOwner)) != null) {
             throw new DuplicateActionException(decl.getName());
@@ -40,7 +40,7 @@ public final class ActionRegistry implements OwnedRegistry {
     }
 
     /** Removes the action {@code name}; false if none was registered. */
-    @Beta
+    @Stable
     public boolean unregister(String name) {
         return actions.remove(name) != null;
     }
@@ -58,25 +58,25 @@ public final class ActionRegistry implements OwnedRegistry {
     }
 
     /** The declaration of {@code name}, or null. */
-    @Beta
+    @Stable
     public @Nullable ActionDeclaration find(String name) {
         RegisteredAction entry = actions.get(name);
         return entry == null ? null : entry.getDeclaration();
     }
 
-    @Beta
+    @Stable
     public boolean has(String name) {
         return actions.containsKey(name);
     }
 
     /** A snapshot of the registered names. */
-    @Beta
+    @Stable
     public Set<String> names() {
         return Set.copyOf(actions.keySet());
     }
 
     /** The declarations, sorted by name. */
-    @Beta
+    @Stable
     public List<ActionDeclaration> declarations() {
         return actions.values().stream()
             .map(RegisteredAction::getDeclaration)
@@ -85,7 +85,7 @@ public final class ActionRegistry implements OwnedRegistry {
     }
 
     /** Declarations with their owning module id, sorted by name. */
-    @Beta
+    @Stable
     public List<RegisteredAction> registered() {
         return actions.values().stream()
             .sorted(Comparator.comparing(r -> r.getDeclaration().getName()))

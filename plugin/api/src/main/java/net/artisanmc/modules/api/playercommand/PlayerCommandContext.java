@@ -1,13 +1,13 @@
 package net.artisanmc.modules.api.playercommand;
 
 import java.util.Map;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
 /** One execution of a player command: who typed it and the parsed arguments. Built by Artisan. */
-@Beta
+@Stable
 public interface PlayerCommandContext {
     /** The declared id of the command that runs ({@code attribution:open}), whatever the admin named it. */
     String getCommandId();

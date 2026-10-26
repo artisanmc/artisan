@@ -1,7 +1,7 @@
 package net.artisanmc.modules.api.translation;
 
 import java.util.Map;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 
 /**
  * Reads a bundle's translations ({@link MessageBundleDeclaration#of}): one flat table per
@@ -11,7 +11,7 @@ import net.artisanmc.modules.api.annotations.Beta;
  * <p>Called by {@link TranslationsApi#register} and by each {@link MessageBundle#reload()}, on
  * the calling thread. A source that throws leaves the bundle's previous translations in place.
  */
-@Beta
+@Stable
 @FunctionalInterface
 public interface MessageSource {
     Map<String, Map<String, String>> load() throws Exception;

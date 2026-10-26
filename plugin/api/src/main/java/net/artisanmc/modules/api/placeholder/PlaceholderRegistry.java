@@ -1,7 +1,7 @@
 package net.artisanmc.modules.api.placeholder;
 
 import java.util.Set;
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.entity.Player;
 
 /**
@@ -10,7 +10,7 @@ import org.bukkit.entity.Player;
  * PlaceholderAPI. Artisan resolves its own namespaces first, then hands the text to
  * PlaceholderAPI when it is installed.
  */
-@Beta
+@Stable
 public interface PlaceholderRegistry {
     /** Inert default (tests / partial wiring). */
     PlaceholderRegistry NOOP = new PlaceholderRegistry() {

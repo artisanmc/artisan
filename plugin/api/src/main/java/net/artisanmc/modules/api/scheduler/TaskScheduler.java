@@ -1,6 +1,6 @@
 package net.artisanmc.modules.api.scheduler;
 
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 
@@ -8,7 +8,7 @@ import org.bukkit.entity.Entity;
  * Delays are in ticks (20 per second); 0 runs as soon as possible. Tasks cannot be
  * cancelled once scheduled: check your own state when they run.
  */
-@Beta
+@Stable
 public interface TaskScheduler {
     /** Runs every task at once on the calling thread. */
     TaskScheduler DIRECT = new TaskScheduler() {

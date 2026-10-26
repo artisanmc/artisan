@@ -1027,6 +1027,7 @@ L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update 
 - Interface `ArtisanModule`
 - Registries publics (`DataSourceRegistry`, `CommandRegistry`, `SchemaRegistry`, `ModuleRegistry`)
 - Classes `DataSourceDeclaration`, `CommandDeclaration`
+- Depuis l'API 2.18.0 : actions (`ActionRegistry`, `ModuleActionsApi`), base de données (`DatabaseApi`), scheduler, placeholders, traductions (`TranslationsApi`), `TextApi`, commandes joueur (`PlayerCommandRegistry`), items (`ItemStackApi`), types de Document, bundles éditeur, et le vocabulaire de champs `ModelField`/`ModelFieldType`. Le reste (`ConditionsApi`, templates, écrans, menus, registre des modèles, réseau, Game events, cooldowns) reste `@Beta` : liste et raisons dans `api-surface.md` § Beta APIs
 - Schemas versionnés (`menu/v1`, `command/v1`, `shop/v1`, etc.)
 - Events publics : bus `ModuleEventBus` (`ConfigReloadEvent`, `DataReloadEvent`) ; événements Bukkit de menu `MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent` (`@Beta`, API 1.8.0)
 
@@ -1037,7 +1038,7 @@ L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update 
 - Threading internals
 - Classes marquées `@Internal` ou dans des packages `internal`
 
-Documentation claire dans `docs/architecture/api-surface.md` (à créer V1) qui liste explicitement ce qui est public stable vs interne.
+Documentation dans `docs/architecture/api-surface.md`, qui liste explicitement ce qui est public stable vs interne.
 
 ### 13.5 Communication aux admins
 

@@ -1,6 +1,6 @@
 package net.artisanmc.modules.api.action;
 
-import net.artisanmc.modules.api.annotations.Beta;
+import net.artisanmc.modules.api.annotations.Stable;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
  * nested chain. A handler that only touches the game ({@code give_item}, {@code quests:start})
  * needs none of it.
  */
-@Beta
+@Stable
 public interface ActionRuntime {
     /**
      * Resolves an {@code ltext} argument for the player: picks the language of a {@code {lang:
