@@ -1,40 +1,40 @@
-# Artisan — Versioning et stabilité d'API
+# Artisan — API versioning and stability
 
-Manuel de référence pour faire évoluer Artisan sans casser les serveurs et modules existants. Couvre les 6 surfaces de versioning, les patterns de migration, la politique de dépréciation, la discipline CHANGELOG.
+Reference manual for evolving Artisan without breaking existing servers and modules. Covers the 6 versioning surfaces, the migration patterns, the deprecation policy, the CHANGELOG discipline.
 
-**Statut** : architecture cible — V1 implémente le minimum nécessaire, le reste s'ajoute organiquement.
+**Status**: target architecture — V1 implements the necessary minimum, the rest is added organically.
 
 ---
 
-## 1. Les 6 surfaces de versioning
+## 1. The 6 versioning surfaces
 
-Artisan a 6 contrats distincts à gérer. Chacun a sa propre discipline.
+Artisan has 6 distinct contracts to manage. Each has its own discipline.
 
-| Surface | Concerne | Stratégie |
+| Surface | Concerns | Strategy |
 |---|---|---|
-| **1. Schemas de données** | `menu/v1`, `command/v1`, `shop/v1`, ... | Versioning explicite + migration framework |
-| **2. API Java publique** | `ArtisanAPI` + classes exposées aux modules | SemVer strict + `@Stable`/`@Beta`/`@Internal` |
-| **3. Protocol WebSocket** | Messages hub ↔ serveur (`/ws/plugin`) | `protocol_version` majeur.mineur au `hello` ; majeure différente = serveur non servi |
-| **4. REST API** | Routes du hub ↔ éditeur | URL versioning `/api/v1/*` ; éditeur et hub livrés dans le même jar |
-| **5. Database schema** | Tables des plugins de la suite (H2, MySQL, MariaDB) | Chaque plugin migre ses propres tables ; Artisan n'en a aucune |
-| **6. Resource pack format** | CMD strings, fonts, asset structure | `pack_format` + asset registry versionné |
+| **1. Data schemas** | `menu/v1`, `command/v1`, `shop/v1`, ... | Explicit versioning + migration framework |
+| **2. Public Java API** | `ArtisanAPI` + classes exposed to modules | Strict SemVer + `@Stable`/`@Beta`/`@Internal` |
+| **3. WebSocket protocol** | Hub ↔ server messages (`/ws/plugin`) | `protocol_version` major.minor at `hello`; different major = server not served |
+| **4. REST API** | Hub ↔ editor routes | URL versioning `/api/v1/*`; editor and hub shipped in the same jar |
+| **5. Database schema** | Tables of the suite's plugins (H2, MySQL, MariaDB) | Each plugin migrates its own tables; Artisan has none |
+| **6. Resource pack format** | CMD strings, fonts, asset structure | `pack_format` + versioned asset registry |
 
-Toutes ces surfaces doivent rester **backward compatible** dans une même major version.
+All these surfaces must stay **backward compatible** within a single major version.
 
 ---
 
-## 2. Schemas de données
+## 2. Data schemas
 
-### 2.1 Pattern de nommage
+### 2.1 Naming pattern
 
-Chaque schema vit dans `/docs/schema/{name}/v{N}/` avec :
+Each schema lives in `/docs/schema/{name}/v{N}/` with:
 
 - `schema.json` (JSON Schema Draft 2020-12)
-- `types.ts` (TypeScript miroir)
-- `README.md` (doc design + use cases)
-- `examples/*.json` (cas de test)
+- `types.ts` (mirror TypeScript)
+- `README.md` (design doc + use cases)
+- `examples/*.json` (test cases)
 
-Le `"schema"` field discrimine la version :
+The `"schema"` field discriminates the version:
 
 ```json
 {
@@ -44,45 +44,45 @@ Le `"schema"` field discrimine la version :
 }
 ```
 
-### 2.2 Règles d'évolution
+### 2.2 Evolution rules
 
-**Au sein d'une même version (menu/v1 → menu/v1)** :
+**Within a single version (menu/v1 → menu/v1)**:
 
-- ✅ Ajouter des champs **optionnels** (backward compat)
-- ✅ Élargir des constraints (`maxLength` plus permissif, `enum` avec plus de valeurs)
-- ✅ Ajouter des `$defs` ou patterns
-- ✅ Améliorer descriptions, examples, error messages
-- ❌ Ajouter un champ **required** (force tous les producers à le fournir)
-- ❌ Resserrer des constraints (`maxLength` plus restrictif, `enum` avec moins de valeurs)
-- ❌ Renommer un champ existant
-- ❌ Supprimer un champ existant
-- ❌ Changer le type d'un champ existant
+- ✅ Add **optional** fields (backward compat)
+- ✅ Loosen constraints (more permissive `maxLength`, `enum` with more values)
+- ✅ Add `$defs` or patterns
+- ✅ Improve descriptions, examples, error messages
+- ❌ Add a **required** field (forces all producers to provide it)
+- ❌ Tighten constraints (more restrictive `maxLength`, `enum` with fewer values)
+- ❌ Rename an existing field
+- ❌ Remove an existing field
+- ❌ Change the type of an existing field
 
-**Pour les changements interdits** : tu fais une nouvelle version (`shop/v2`).
+**For forbidden changes**: you make a new version (`shop/v2`).
 
-**Exception files-first — le renommage intra-version.** Les trois interdits de
-renommage/suppression/retypage sont calqués sur des surfaces où le **producteur
-est un tiers**. Pour les schémas de Document, le producteur est notre writer
-canonique et le consommateur lit du disque. La règle réellement appliquée est
-donc : *un renommage ou une suppression de champ est permis dans la version tant
-qu'aucun fichier existant ne cesse d'être lisible* — soit parce que le reader
-reste tolérant à l'ancienne forme, soit parce qu'on sait que ces fichiers
-n'existent pas ailleurs que chez nous. **La version change quand un fichier
-déployé cesserait d'être lisible**, pas quand le schéma change de forme.
+**Files-first exception — intra-version renaming.** The three bans on
+renaming/removing/retyping are modeled on surfaces where the **producer
+is a third party**. For Document schemas, the producer is our canonical
+writer and the consumer reads from disk. The rule actually applied is
+therefore: *renaming or removing a field is allowed within the version as long
+as no existing file stops being readable* — either because the reader
+stays tolerant of the old form, or because we know these files
+exist nowhere but with us. **The version changes when a deployed file
+would stop being readable**, not when the schema changes shape.
 
-Appliqué quatre fois sur `menu/v1` : `steps` → `actions`, l'aplatissement
-`layers` → `elements`, le retrait de `appearances` au profit de
-display + `states` (ADR `element-display-and-states`), et le repli de
-`menu/v2`/`menu/v3` (2026-09-17, cf. `schemas-codegen.md`) — deux versions
-n'ayant transformé aucune donnée, dont les étiquettes restent acceptées en
-lecture pour les fichiers déjà écrits.
+Applied four times on `menu/v1`: `steps` → `actions`, the flattening
+`layers` → `elements`, the removal of `appearances` in favor of
+display + `states` (ADR `element-display-and-states`), and the fold of
+`menu/v2`/`menu/v3` (2026-09-17, see `schemas-codegen.md`) — two versions
+that transformed no data, whose labels remain accepted on
+read for files already written.
 
 ### 2.3 Migration framework
 
-Quand tu introduis une v2, tu écris une **migration** v1 → v2. Elle n'a de
-raison d'être que si elle **transforme** des données : une migration qui se
-contente de réécrire le champ `schema` signale une version qui n'aurait pas dû
-naître (c'est ce qui est arrivé à `menu/v2` et `menu/v3`, repliés depuis).
+When you introduce a v2, you write a v1 → v2 **migration**. It only has a
+reason to exist if it **transforms** data: a migration that merely
+rewrites the `schema` field signals a version that should not have been
+born (this is what happened to `menu/v2` and `menu/v3`, folded since).
 
 ```kotlin
 // /plugin/src/main/kotlin/net/artisanmc/core/schemas/migrations/ShopV1ToV2.kt
@@ -91,7 +91,7 @@ class ShopV1ToV2 : SchemaMigration<JsonObject> {
     override val to = "shop/v2"
     
     override fun migrate(data: JsonObject): JsonObject {
-        // Migration logic : rename "size" → "dimensions", split layers...
+        // Migration logic: rename "size" → "dimensions", split layers...
         val result = data.deepCopy()
         result["schema"] = JsonPrimitive("shop/v2")
         result["dimensions"] = jsonObject {
@@ -104,9 +104,9 @@ class ShopV1ToV2 : SchemaMigration<JsonObject> {
 }
 ```
 
-### 2.4 Registry et runtime
+### 2.4 Registry and runtime
 
-Le plugin core enregistre toutes les migrations connues. Au load d'un menu :
+The core plugin registers all known migrations. When a menu loads:
 
 ```kotlin
 class SchemaRegistry {
@@ -135,26 +135,26 @@ class SchemaRegistry {
 }
 ```
 
-Les migrations sont **chaînées automatiquement** : un menu `menu/v1` peut traverser v1 → v2 → v3 au load sans intervention.
+Migrations are **chained automatically**: a `menu/v1` menu can go through v1 → v2 → v3 at load with no intervention.
 
-### 2.5 Règles d'or
+### 2.5 Golden rules
 
-- Une migration est **write-once** : tu ne la modifies jamais après ship. Si bug, tu écris une migration v2 → v2.1.
-- Une migration est **idempotente** : la lancer 2x sur la même donnée = même résultat.
-- Une migration est **pure** : pas de side effects, pas de network calls, pas de DB writes. Juste data → data.
-- **Tests obligatoires** : chaque migration a un test unitaire avec input v1 + expected output v2.
+- A migration is **write-once**: you never modify it after shipping. If there is a bug, you write a v2 → v2.1 migration.
+- A migration is **idempotent**: running it twice on the same data = same result.
+- A migration is **pure**: no side effects, no network calls, no DB writes. Just data → data.
+- **Tests required**: each migration has a unit test with v1 input + expected v2 output.
 
-### 2.6 Sunset des anciennes versions
+### 2.6 Sunsetting old versions
 
-Une version `menu/v1` reste **supportée indéfiniment via migration** tant que le plugin tourne. La migration est gratuite à maintenir une fois écrite.
+A `menu/v1` version stays **supported indefinitely via migration** as long as the plugin runs. The migration is free to maintain once written.
 
-**Tu ne supprimes JAMAIS** une migration. Elle est nécessaire pour les serveurs qui chargent du legacy data.
+**You NEVER delete** a migration. It is needed for servers that load legacy data.
 
 ---
 
-## 3. API Java publique
+## 3. Public Java API
 
-### 3.1 Séparation des packages
+### 3.1 Package separation
 
 ```
 net.artisanmc.core
@@ -177,84 +177,84 @@ net.artisanmc.core
 │       ├── Beta.kt
 │       ├── Internal.kt
 │       └── Deprecated.kt
-└── internal/                     ← Internals, peuvent changer sans préavis
+└── internal/                     ← Internals, may change without notice
     ├── engine/
     ├── sync/
     ├── storage/
     └── impl/
 ```
 
-**Règle absolue** : les modules **N'IMPORTENT** que depuis `net.artisanmc.api.*`. Jamais depuis `net.artisanmc.internal.*`.
+**Absolute rule**: modules **ONLY IMPORT** from `net.artisanmc.api.*`. Never from `net.artisanmc.internal.*`.
 
-### 3.2 Annotations de stabilité
+### 3.2 Stability annotations
 
-`plugin/api` est écrite **en Java** depuis l'API 2.0.0 (ADR `extensible-document-kinds`, « Langue de
-l'API publique ») : interfaces, classes immuables, enums, callbacks `@FunctionalInterface`, aucun type
-`kotlin.*` et pas de `kotlin-stdlib` dans le POM. Les annotations vivent dans
-`net.artisanmc.modules.api.annotations` :
+`plugin/api` has been written **in Java** since API 2.0.0 (ADR `extensible-document-kinds`, "Language of
+the public API"): interfaces, immutable classes, enums, `@FunctionalInterface` callbacks, no
+`kotlin.*` type and no `kotlin-stdlib` in the POM. The annotations live in
+`net.artisanmc.modules.api.annotations`:
 
 ```java
-@Retention(RetentionPolicy.SOURCE) public @interface Stable {}    // couverte par SemVer
-@Retention(RetentionPolicy.SOURCE) public @interface Beta {}      // peut changer en mineure
-@Retention(RetentionPolicy.SOURCE) public @interface Internal {}  // interdit aux modules
+@Retention(RetentionPolicy.SOURCE) public @interface Stable {}    // covered by SemVer
+@Retention(RetentionPolicy.SOURCE) public @interface Beta {}      // may change in a minor
+@Retention(RetentionPolicy.SOURCE) public @interface Internal {}  // forbidden to modules
 
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Sunset {                 // dépréciation datée, remplace @Deprecated
+public @interface Sunset {                 // dated deprecation, replaces @Deprecated
     String reason();
     String removeInVersion();
     String replacement() default "";
 }
 ```
 
-`ApiSurfaceIsJavaFriendlyTest` échoue si une classe Kotlin apparaît dans `plugin/api/src/main` ou si
-un type `kotlin.*` traverse une signature publique.
+`ApiSurfaceIsJavaFriendlyTest` fails if a Kotlin class appears in `plugin/api/src/main` or if
+a `kotlin.*` type crosses a public signature.
 
-### 3.3 SemVer strict
+### 3.3 Strict SemVer
 
-L'API publique du core suit **SemVer strict** :
+The core's public API follows **strict SemVer**:
 
-- **Patch (1.0.0 → 1.0.1)** : zero changement de signature. Bug fixes internes uniquement.
-- **Minor (1.0.0 → 1.1.0)** : ajouts de méthodes, classes, fields OK. Pas de retrait, pas de changement de signature existante.
-- **Major (1.0.0 → 2.0.0)** : retrait, breaking changes OK. Éviter au max.
+- **Patch (1.0.0 → 1.0.1)**: zero signature change. Internal bug fixes only.
+- **Minor (1.0.0 → 1.1.0)**: additions of methods, classes, fields OK. No removal, no change to an existing signature.
+- **Major (1.0.0 → 2.0.0)**: removal, breaking changes OK. Avoid as much as possible.
 
-La version publiée est la plus haute valeur `Since` d'`api-surface.md` : la monter dans la PR suffit à publier la release au merge (`publish-api.yml`, détail dans `api-surface.md` § Published artifact).
+The published version is the highest `Since` value in `api-surface.md`: raising it in the PR is enough to publish the release at merge (`publish-api.yml`, details in `api-surface.md` § Published artifact).
 
 ### 3.4 Deprecation flow
 
-Quand tu veux retirer une API en major :
+When you want to remove an API in a major:
 
-1. **N mois avant la major (où N ≥ 3)** : marque `@Sunset(reason=..., removeInVersion="3.0.0", replacement="newMethod()")`.
-2. Le compileur warn les modules qui l'utilisent.
-3. `@Sunset` apparaît dans le CHANGELOG.
-4. **Au release de la major** : la méthode est supprimée.
-5. Les modules incompatibles fail gracefully (cf. modules.md section 13).
+1. **N months before the major (where N ≥ 3)**: mark `@Sunset(reason=..., removeInVersion="3.0.0", replacement="newMethod()")`.
+2. The compiler warns the modules that use it.
+3. `@Sunset` appears in the CHANGELOG.
+4. **At the major's release**: the method is removed.
+5. Incompatible modules fail gracefully (see modules.md section 13).
 
 ### 3.5 Bytecode compatibility
 
-Au-delà de la source compatibility, **veille à la binary compatibility** :
+Beyond source compatibility, **watch binary compatibility**:
 
-- Ne change pas la signature d'une méthode publique (paramètres, types de retour, exceptions)
-- N'ajoute pas un paramètre required à une méthode existante (ajoute une surcharge Java)
-- N'enlève pas un constructor public
-- Ne réordonne pas les éléments d'une enum
+- Do not change the signature of a public method (parameters, return types, exceptions)
+- Do not add a required parameter to an existing method (add a Java overload)
+- Do not remove a public constructor
+- Do not reorder the elements of an enum
 
-Outil : `japicmp` en CI pour catch les regressions binary compat avant release.
+Tool: `japicmp` in CI to catch binary compat regressions before release.
 
 ---
 
-## 4. Protocol WebSocket
+## 4. WebSocket protocol
 
-Depuis la phase F (2026-10), le protocole relie le hub (serveur web de l'éditeur) aux serveurs
-du réseau ; il n'y a plus de backend ni de plugins d'âges différents face à un service central.
-Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des moments différents.
+Since phase F (2026-10), the protocol links the hub (the editor's web server) to the network's
+servers; there is no more backend, nor plugins of different ages facing a central service.
+The risk remains: hub and leaves are distinct jars, updated at different times.
 
-### 4.1 Version dans le handshake
+### 4.1 Version in the handshake
 
 ```json
 {
   "type": "hello",
   "protocol_version": "1.5",
-  "server_key": "<secret du réseau>",
+  "server_key": "<network secret>",
   "proxy_name": "survie2",
   "plugin_version": "1.0.42",
   "minecraft_version": "1.21.7",
@@ -264,40 +264,40 @@ Le risque reste : hub et feuilles sont des jars distincts, mis à jour à des mo
 
 `ProtocolVersion.CURRENT` (`plugin/core/…/protocol/ProtocolVersion.kt`) :
 
-- **Majeure** : change quand un message existant change de sens. Majeure différente de celle du
-  hub → serveur listé « mise à jour requise » (`updateRequired`), le hub ne lui envoie plus rien,
-  toute route qui le vise répond 503 `plugin_update_required`.
-- **Mineure** : ajoute des champs ou des messages, que l'autre côté ignore. Une route qui envoie un
-  message ajouté vérifie la mineure du serveur visé et répond 501 `plugin_update_required` au lieu
-  d'attendre un timeout (`1.1` : `project_create`, `project_delete`, `project_rename`). `1.2`
-  (`EDITOR_BUNDLES`) ajoute `editor_bundle` aux `installed_modules` et `editor_bundle_fetch` ; une
-  feuille plus ancienne n'annonce aucun bundle, la route `ui.js` rend 404 sans rien lui envoyer.
-  `1.3` (`TEMPLATES`) ajoute `templates` aux `installed_modules`, `template_fetch`, `template_copy` et
-  `project_origins_fetch` ; une feuille plus ancienne reçoit 501 sur ces trois routes. `1.4`
-  (`DOCUMENT_CHECKS`) ajoute `documents_check` (ADR `mcp-server`) ; l'outil MCP `write_document`
-  refuse d'écrire dans un brouillon d'un Project dont le serveur est plus ancien. `1.5`
-  (`SUITE_PLUGINS`) ajoute `suite_plugins` à l'annonce et `plugin` aux `installed_modules` ; une
-  feuille plus ancienne annonce une liste vide.
-- **Une release = un numéro** pour tous les jars ; mettre à jour hub et feuilles ensemble.
+- **Major**: changes when an existing message changes meaning. Major different from the
+  hub's → server listed "update required" (`updateRequired`), the hub sends it nothing more,
+  every route that targets it answers 503 `plugin_update_required`.
+- **Minor**: adds fields or messages, which the other side ignores. A route that sends an
+  added message checks the target server's minor and answers 501 `plugin_update_required` instead of
+  waiting for a timeout (`1.1`: `project_create`, `project_delete`, `project_rename`). `1.2`
+  (`EDITOR_BUNDLES`) adds `editor_bundle` to `installed_modules` and `editor_bundle_fetch`; an
+  older leaf advertises no bundle, the `ui.js` route returns 404 without sending it anything.
+  `1.3` (`TEMPLATES`) adds `templates` to `installed_modules`, `template_fetch`, `template_copy` and
+  `project_origins_fetch`; an older leaf gets 501 on these three routes. `1.4`
+  (`DOCUMENT_CHECKS`) adds `documents_check` (ADR `mcp-server`); the MCP tool `write_document`
+  refuses to write into a draft of a Project whose server is older. `1.5` (`SUITE_PLUGINS`) adds
+  `suite_plugins` to the announcement and `plugin` to `installed_modules`; an older leaf announces an
+  empty list.
+- **One release = one number** for all jars; update hub and leaves together.
 
-Le serveur qui héberge le hub lui parle en process (`LocalServerLink`) : jamais d'écart de version.
+The server that hosts the hub talks to it in process (`LocalServerLink`): never a version gap.
 
-### 4.2 Messages non reconnus
+### 4.2 Unrecognized messages
 
-Un message au `type` inconnu ou sans champ obligatoire **n'est jamais une erreur fatale** :
-`EditorRequest.parse` rend `null` côté serveur, `RemoteServer.receive` ignore côté hub.
+A message with an unknown `type` or without a required field **is never a fatal error**:
+`EditorRequest.parse` returns `null` on the server side, `RemoteServer.receive` ignores it on the hub side.
 
-### 4.3 Évolution d'un message
+### 4.3 Evolving a message
 
-Ajouter un champ optionnel : mineure. Renommer, retirer ou changer le sens d'un champ : majeure.
-`server_key` (secret du réseau) et `proxy_name` (nom du serveur) gardent leurs noms hérités du
-backend pour cette raison.
+Adding an optional field: minor. Renaming, removing or changing the meaning of a field: major.
+`server_key` (network secret) and `proxy_name` (server name) keep their names inherited from the
+backend for this reason.
 
 ---
 
 ## 5. REST API
 
-Depuis la phase F, l'API est servie par le hub et consommée par l'éditeur embarqué dans le même jar : un changement d'API et l'éditeur qui en dépend partent ensemble. Le préfixe `/api/v1/` reste, les règles ci-dessous ne valent que si un client externe apparaît.
+Since phase F, the API is served by the hub and consumed by the editor embedded in the same jar: an API change and the editor that depends on it ship together. The `/api/v1/` prefix remains, the rules below only apply if an external client appears.
 
 ### 5.1 URL versioning
 
@@ -308,26 +308,26 @@ Depuis la phase F, l'API est servie par le hub et consommée par l'éditeur emba
 /api/v1/modules/shop/items     ← module-scoped
 ```
 
-Pas de version dans les headers — toujours dans l'URL. Plus simple, plus visible, plus debuggable.
+No version in headers — always in the URL. Simpler, more visible, easier to debug.
 
-### 5.2 Évolution dans v1
+### 5.2 Evolution within v1
 
-**Au sein de v1**, tu peux :
+**Within v1**, you can:
 
-- ✅ Ajouter de nouveaux endpoints
-- ✅ Ajouter des fields optionnels à la réponse
-- ✅ Accepter des nouveaux params optionnels
-- ❌ Changer le type d'un field existant dans la réponse
-- ❌ Retirer un field de la réponse
-- ❌ Rendre required un param qui était optionnel
+- ✅ Add new endpoints
+- ✅ Add optional fields to the response
+- ✅ Accept new optional params
+- ❌ Change the type of an existing field in the response
+- ❌ Remove a field from the response
+- ❌ Make a param required that was optional
 
-### 5.3 Bump vers v2
+### 5.3 Bump to v2
 
-Quand un changement nécessite v2 :
+When a change requires v2:
 
-1. **Tu copies les routes v1 → v2**.
-2. **Tu modifies v2** avec les breaking changes.
-3. **Tu marques v1 endpoints comme deprecated** :
+1. **You copy the v1 → v2 routes**.
+2. **You modify v2** with the breaking changes.
+3. **You mark v1 endpoints as deprecated**:
 
 ```typescript
 fastify.get("/api/v1/menus/:id", async (req, reply) => {
@@ -338,35 +338,35 @@ fastify.get("/api/v1/menus/:id", async (req, reply) => {
 });
 ```
 
-4. **Tu maintiens les 2 versions en parallèle pendant 6-12 mois**.
-5. **Tu sunset v1** à la date annoncée.
+4. **You maintain both versions in parallel for 6-12 months**.
+5. **You sunset v1** on the announced date.
 
 ### 5.4 Compatibility check editor
 
-Sans objet tant que l'éditeur voyage dans le même jar que le hub qui sert l'API.
+Not applicable as long as the editor ships in the same jar as the hub that serves the API.
 
 ---
 
 ## 6. Database schema
 
-Plus de PostgreSQL ni de migrations Drizzle depuis la phase F (2026-10) : l'historique des 66
-migrations est au commit `ccade092` (branche `v2`).
+No more PostgreSQL or Drizzle migrations since phase F (2026-10): the history of the 66
+migrations is at commit `ccade092` (branch `v2`).
 
-Artisan prête une base à la suite (`environment.yml` → `database.type: h2 | mysql | mariadb`,
-`DatabaseApi`, ADR `suite-foundation-database`) mais **n'y crée aucune table**. Chaque plugin de
-la suite préfixe ses tables et apporte ses migrations ; la règle forward-only (ajouter, relâcher,
-jamais détruire de données sans période de dépréciation) s'applique à chacun.
+Artisan lends a database to the suite (`environment.yml` → `database.type: h2 | mysql | mariadb`,
+`DatabaseApi`, ADR `suite-foundation-database`) but **creates no table in it**. Each plugin of
+the suite prefixes its tables and brings its migrations; the forward-only rule (add, loosen,
+never destroy data without a deprecation period) applies to each.
 
-Ce qu'Artisan persiste vit sur disque (Projects, brouillons, `config.yml`, `environment.yml`,
-cf. `entities.md`) : ses formats évoluent par les schémas versionnés (§2), pas par migration SQL.
+What Artisan persists lives on disk (Projects, drafts, `config.yml`, `environment.yml`,
+see `entities.md`): its formats evolve through the versioned schemas (§2), not through SQL migration.
 
 ---
 
 ## 7. Resource pack format
 
-### 7.1 `pack.mcmeta` Minecraft
+### 7.1 Minecraft `pack.mcmeta`
 
-Le pack généré par Artisan inclut un `pack.mcmeta` standard :
+The pack generated by Artisan includes a standard `pack.mcmeta`:
 
 ```json
 {
@@ -377,11 +377,11 @@ Le pack généré par Artisan inclut un `pack.mcmeta` standard :
 }
 ```
 
-`pack_format` 22 = Minecraft 1.21+. Si tu supportes plusieurs versions MC, tu peux ship des packs spécifiques par version (multi-pack approach).
+`pack_format` 22 = Minecraft 1.21+. If you support several MC versions, you can ship version-specific packs (multi-pack approach).
 
-### 7.2 Asset registry interne
+### 7.2 Internal asset registry
 
-À la racine du pack, un fichier `artisan-assets/manifest.json` :
+At the pack root, an `artisan-assets/manifest.json` file:
 
 ```json
 {
@@ -402,16 +402,16 @@ Le pack généré par Artisan inclut un `pack.mcmeta` standard :
 }
 ```
 
-Le `cmd_string` est stable pour un asset donné. Une fois assigné, **tu ne le changes JAMAIS** — sinon tous les bundles déployés deviennent incohérents.
+The `cmd_string` is stable for a given asset. Once assigned, **you NEVER change it** — otherwise all deployed bundles become inconsistent.
 
-### 7.3 Stabilité des CMD strings
+### 7.3 CMD string stability
 
-Règle d'or :
+Golden rule:
 
-- Asset upload → CMD string assigné déterministiquement (basé sur asset id + hash)
-- Asset id stable pour la vie de l'asset
-- Si l'admin renomme l'asset, le id reste, le CMD reste, juste le label change
-- Si l'admin supprime puis recrée, c'est un nouvel asset id, nouveau CMD
+- Asset upload → CMD string assigned deterministically (based on asset id + hash)
+- Asset id stable for the life of the asset
+- If the admin renames the asset, the id stays, the CMD stays, only the label changes
+- If the admin deletes then recreates, it is a new asset id, new CMD
 
 ---
 
@@ -419,7 +419,7 @@ Règle d'or :
 
 ### 8.1 Format Keep a Changelog
 
-`/CHANGELOG.md` au root du repo. Format standard :
+`/CHANGELOG.md` at the repo root. Standard format:
 
 ```markdown
 # Changelog
@@ -463,30 +463,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI migration from zMenu.
 ```
 
-### 8.2 Règles
+### 8.2 Rules
 
-- **Chaque PR qui change l'API publique ajoute une entrée** dans `[Unreleased]`.
-- À release time, `[Unreleased]` devient `[X.Y.Z] - YYYY-MM-DD`.
-- Catégories : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
-- **Breaking changes** signalés en gras dans la catégorie pertinente.
-- Lien GitHub du commit/PR pour chaque entry (optionnel mais utile).
+- **Every PR that changes the public API adds an entry** in `[Unreleased]`.
+- At release time, `[Unreleased]` becomes `[X.Y.Z] - YYYY-MM-DD`.
+- Categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
+- **Breaking changes** flagged in bold in the relevant category.
+- GitHub link to the commit/PR for each entry (optional but useful).
 
-### 8.3 Un CHANGELOG par release artifact
+### 8.3 One CHANGELOG per release artifact
 
-- `/CHANGELOG.md` pour le core
-- `/modules/shop/CHANGELOG.md` pour le shop plugin (V1.5+)
-- `/modules/quests/CHANGELOG.md` pour le quests plugin (V2+)
+- `/CHANGELOG.md` for the core
+- `/modules/shop/CHANGELOG.md` for the shop plugin (V1.5+)
+- `/modules/quests/CHANGELOG.md` for the quests plugin (V2+)
 - etc.
 
-Chaque .jar shippé sur SpigotMC/BBV a son propre CHANGELOG.
+Each .jar shipped on SpigotMC/BBV has its own CHANGELOG.
 
 ---
 
 ## 9. API surface documentation
 
-`/docs/architecture/api-surface.md` — manuel de référence pour les plugin authors.
+`/docs/architecture/api-surface.md` — reference manual for plugin authors.
 
-### 9.1 Structure proposée
+### 9.1 Proposed structure
 
 ```markdown
 # Artisan Public API Surface (v1.x)
@@ -531,129 +531,129 @@ The main entry point exposed to modules.
 - Use `ArtisanAPI.menus.get()` instead.
 ```
 
-### 9.2 Auto-génération
+### 9.2 Auto-generation
 
-À terme, tu peux auto-générer cette doc depuis les sources Kotlin avec un plugin Gradle qui inspect les annotations `@Stable`, `@Beta`, `@Deprecated`. Pas critique V1.
+Eventually, you can auto-generate this doc from the Kotlin sources with a Gradle plugin that inspects the `@Stable`, `@Beta`, `@Deprecated` annotations. Not critical for V1.
 
 ---
 
 ## 10. Deprecation policy
 
-### 10.1 Lifecycle d'une API
+### 10.1 Lifecycle of an API
 
 ```
 @Stable → @Deprecated → removed (in next major)
    ↑           ↓
-   |     (3-6 mois minimum)
+   |     (3-6 months minimum)
    |           ↓
-   |     Communication users
+   |     User communication
 ```
 
-### 10.2 Steps pour deprecation
+### 10.2 Deprecation steps
 
 1. Mark `@Deprecated(reason, removeInVersion, replacement)`.
-2. Ajouter `### Deprecated` entry au CHANGELOG.
-3. Annonce Discord + SpigotMC + roadmap publique.
-4. Logger `WARN` quand un module appelle l'API deprecated.
-5. **Attendre 3-6 mois minimum**.
-6. **Major version bump** + retrait effectif.
-7. Modules incompatibles fail gracefully (cf. modules.md section 13).
+2. Add a `### Deprecated` entry to the CHANGELOG.
+3. Announce on Discord + SpigotMC + public roadmap.
+4. Log `WARN` when a module calls the deprecated API.
+5. **Wait 3-6 months minimum**.
+6. **Major version bump** + actual removal.
+7. Incompatible modules fail gracefully (see modules.md section 13).
 
-### 10.3 Cas spéciaux
+### 10.3 Special cases
 
-- **Security issue dans une API stable** : tu peux la modifier en patch si la fix ne change pas la signature. Si elle doit changer, tu fais un security advisory + major rapide.
-- **API jamais utilisée par personne** : si tu sais qu'aucun module n'a appelé cette API (zero usage analytics), tu peux retirer en minor avec mention au CHANGELOG. Risque acceptable.
+- **Security issue in a stable API**: you can modify it in a patch if the fix does not change the signature. If it must change, you issue a security advisory + a quick major.
+- **API never used by anyone**: if you know no module has called this API (zero usage analytics), you can remove it in a minor with a mention in the CHANGELOG. Acceptable risk.
 
 ---
 
 ## 11. Release checklist
 
-Pour chaque release du core ou d'un module :
+For each release of the core or a module:
 
 ### 11.1 Pre-release
 
-- [ ] Tous les tests passent (unit + integration)
-- [ ] `japicmp` check sans regression binary compat
-- [ ] CHANGELOG.md mis à jour, `[Unreleased]` devient `[X.Y.Z] - YYYY-MM-DD`
-- [ ] Version bumpée dans `build.gradle.kts` + `plugin.yml`
-- [ ] Si nouvelle API : `docs/architecture/api-surface.md` mis à jour
-- [ ] Si nouveau schema : `/docs/schema/{name}/v{N}/` créé avec types.ts + examples
-- [ ] Si migration nécessaire : code de migration + test unitaire
-- [ ] Si breaking change : annonce Discord faite 3+ mois avant
-- [ ] Si Minecraft ou PacketEvents a changé : checklist « Menus en paquets » passée en jeu (`testing.md`)
+- [ ] All tests pass (unit + integration)
+- [ ] `japicmp` check with no binary compat regression
+- [ ] CHANGELOG.md updated, `[Unreleased]` becomes `[X.Y.Z] - YYYY-MM-DD`
+- [ ] Version bumped in `build.gradle.kts` + `plugin.yml`
+- [ ] If new API: `docs/architecture/api-surface.md` updated
+- [ ] If new schema: `/docs/schema/{name}/v{N}/` created with types.ts + examples
+- [ ] If migration needed: migration code + unit test
+- [ ] If breaking change: Discord announcement made 3+ months before
+- [ ] If Minecraft or PacketEvents changed: "Packet menus" checklist run in game (`testing.md`)
 
 ### 11.2 Release
 
-- [ ] Git tag `v{X.Y.Z}` sur le commit de release
-- [ ] GitHub Release créée avec les CHANGELOG entries
-- [ ] `.jar` uploadé sur :
+- [ ] Git tag `v{X.Y.Z}` on the release commit
+- [ ] GitHub Release created with the CHANGELOG entries
+- [ ] `.jar` uploaded to:
   - GitHub Releases
-  - SpigotMC resource (free core) ou Premium Resources (modules)
+  - SpigotMC resource (free core) or Premium Resources (modules)
   - Modrinth (core)
   - BBV / Polymart (modules premium)
-- [ ] Le jar embarque l'éditeur (`./gradlew shadowJar -PwithEditor`)
-- [ ] `artisan-api` publié (`maven-publish`)
+- [ ] The jar embeds the editor (`./gradlew shadowJar -PwithEditor`)
+- [ ] `artisan-api` published (`maven-publish`)
 
 ### 11.3 Post-release
 
-- [ ] Annonce Discord channel `#announcements`
-- [ ] Tweet / Reddit r/admincraft si major release
-- [ ] Email aux Pro users si update concerne leur tier
-- [ ] Monitor errors / Sentry pendant 24-48h
+- [ ] Announcement in the Discord channel `#announcements`
+- [ ] Tweet / Reddit r/admincraft if major release
+- [ ] Email to Pro users if the update concerns their tier
+- [ ] Monitor errors / Sentry for 24-48h
 
 ---
 
-## 12. Implementation V1 : ce que tu fais maintenant
+## 12. V1 implementation: what you do now
 
-### 12.1 Investments concrets V1 (5-6 jours total)
+### 12.1 Concrete V1 investments (5-6 days total)
 
 | Item | Effort |
 |---|---|
-| Package `api/` vs `internal/` séparation côté plugin | 1 jour (refactor) |
-| Annotations `@Stable`, `@Beta`, `@Internal`, `@Deprecated` | 0,5 jour |
-| `SchemaRegistry` avec migration framework | 1-2 jours |
-| Protocol version + dispatch dans le hub WS | 1 jour |
-| URL versioning `/api/v1/*` | 0,5 jour |
-| `CHANGELOG.md` initial + règle de commit dans contribution.md | 0,1 jour |
-| `docs/architecture/api-surface.md` v1 | 0,5 jour |
+| `api/` vs `internal/` package separation on the plugin side | 1 day (refactor) |
+| `@Stable`, `@Beta`, `@Internal`, `@Deprecated` annotations | 0.5 day |
+| `SchemaRegistry` with migration framework | 1-2 days |
+| Protocol version + dispatch in the WS hub | 1 day |
+| URL versioning `/api/v1/*` | 0.5 day |
+| Initial `CHANGELOG.md` + commit rule in contribution.md | 0.1 day |
+| `docs/architecture/api-surface.md` v1 | 0.5 day |
 
-### 12.2 Ne PAS sur-investir au V1
+### 12.2 Do NOT over-invest in V1
 
-Au V1 launch tu n'as **PAS** :
+At V1 launch you do **NOT** have:
 
-- Multiple versions en parallèle (juste v1 partout)
-- `japicmp` en CI (à mettre quand tu as un premier module externe)
-- Deprecations à gérer (tout est neuf)
-- Doc auto-générée
+- Multiple versions in parallel (just v1 everywhere)
+- `japicmp` in CI (to add when you have a first external module)
+- Deprecations to manage (everything is new)
+- Auto-generated docs
 
-Tu mets juste **les fondations**. Le reste vient organiquement quand tu en as besoin.
+You only put in **the foundations**. The rest comes organically when you need it.
 
-### 12.3 La discipline qui paye plus tard
+### 12.3 The discipline that pays off later
 
-- **Chaque commit qui touche `net.artisanmc.api.*` doit mettre à jour CHANGELOG**.
-- **Chaque nouveau schema version est créé dans un dossier séparé**, jamais en modifiant un existant.
-- **Chaque changement de sens d'un message WS bumpe la majeure de `ProtocolVersion`** (hub et feuilles se mettent à jour ensemble).
-- **Chaque endpoint REST a un URL versionné**.
+- **Every commit that touches `net.artisanmc.api.*` must update the CHANGELOG**.
+- **Every new schema version is created in a separate folder**, never by modifying an existing one.
+- **Every change in the meaning of a WS message bumps the major of `ProtocolVersion`** (hub and leaves update together).
+- **Every REST endpoint has a versioned URL**.
 
-Ces 4 disciplines suffisent à t'éviter 90 % des emmerdes de versioning futures.
-
----
-
-## 13. Quand tu casses ces règles
-
-Spoiler : tu vas les casser, en particulier au début.
-
-**Comment t'en sortir** :
-
-- Pour un schema field renommé inadvertently : tu écris une migration v1.0 → v1.0 (idempotent) qui renomme. Pas idéal mais ça marche.
-- Pour une signature de méthode publique changée : tu rends l'ancienne `@Deprecated` et tu en ajoutes une nouvelle. Tu maintiens les deux.
-- Pour une colonne DB supprimée trop tôt : tu la recrées avec un DEFAULT NULL et tu marques le `@Deprecated`.
-
-**La pire chose à faire** : ignorer le problème et hoper que personne ne s'en aperçoive. Documente-le toujours dans le CHANGELOG `### Fixed` avec "fixed inadvertent API break introduced in 1.2.0".
+These 4 disciplines are enough to spare you 90% of future versioning headaches.
 
 ---
 
-## Annexe : ressources externes
+## 13. When you break these rules
+
+Spoiler: you will break them, especially at the beginning.
+
+**How to get out of it**:
+
+- For a schema field renamed inadvertently: you write a v1.0 → v1.0 migration (idempotent) that renames. Not ideal but it works.
+- For a public method signature that changed: you make the old one `@Deprecated` and add a new one. You maintain both.
+- For a DB column removed too early: you recreate it with DEFAULT NULL and mark it `@Deprecated`.
+
+**The worst thing to do**: ignore the problem and hope nobody notices. Always document it in the CHANGELOG `### Fixed` with "fixed inadvertent API break introduced in 1.2.0".
+
+---
+
+## Appendix: external resources
 
 - [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 - [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)

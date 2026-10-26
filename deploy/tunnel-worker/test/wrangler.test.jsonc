@@ -1,0 +1,22 @@
+// Local runs only (`npm run dev:test`): `<id>.tunnel.test` over plain HTTP, as the Kotlin suite's
+// tunnel server, so TunnelWorkerConformanceTest can drive the real TunnelClient against it.
+{
+  "name": "artisan-tunnel-local",
+  "main": "../src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "TUNNELS", "class_name": "TunnelObject" },
+      { "name": "NAMES", "class_name": "NamesObject" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TunnelObject", "NamesObject"] }],
+  "kv_namespaces": [{ "binding": "KV", "id": "local" }],
+  "vars": {
+    "TUNNEL_DOMAIN": "tunnel.test",
+    "TUNNEL_PUBLIC_SCHEME": "http",
+    "TUNNEL_ACCESS_CODE": "letmein",
+    "TUNNEL_ADMIN_TOKEN": "admin-token",
+    "TUNNEL_REQUESTS_PER_MINUTE": "50"
+  }
+}

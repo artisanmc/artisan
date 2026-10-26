@@ -1,118 +1,109 @@
-# Miroir d'instantané, brouillons et Versions côté backend pour les projets serveur
+# Snapshot mirror, drafts and Versions on the backend for server projects
 
-**Statut : remplacé (phase F, 2026-10)** — le backend, son miroir, ses brouillons et ses Versions sont supprimés ; les brouillons sont revenus sur le disque du serveur. Voir [editor-web-server](editor-web-server.md).
+**Status: superseded (phase F, 2026-10)** — the backend, its mirror, its drafts and its Versions are removed; drafts are back on the server's disk. See [editor-web-server](editor-web-server.md).
 
-**Status :** accepted (2026-09-26) — étapes 1 à 4 implémentées le 2026-09-27 (miroir et liste des Projects, Versions, brouillons backend avec conflits à l'ouverture, ouverture serveur éteint). L'épopée « Servers non reliés » reste à faire. Révise
-[server-disk-only-storage](server-disk-only-storage.md) (décisions 1, 5 et 7) et
-[project-storage-modes](project-storage-modes.md) (brouillons serveur dans
-`.artisan/drafts/`) pour les projets serveur uniquement.
+**Status:** accepted (2026-09-26) — steps 1 to 4 implemented on 2026-09-27 (mirror and Projects list, Versions, backend drafts with conflicts on open, opening with the server off). The "Unlinked Servers" epic remains to be done. Revises
+[server-disk-only-storage](server-disk-only-storage.md) (decisions 1, 5 and 7) and
+[project-storage-modes](project-storage-modes.md) (server drafts in
+`.artisan/drafts/`) for server projects only.
 
-## Contexte
+## Context
 
-**Le moteur est la cohérence produit à long terme, pas la performance** (le
-propriétaire, 2026-09-26). Le partage visé : le serveur Minecraft possède ce qui
-est **publié**, puisque c'est ce qu'il exécute ; le backend possède tout ce qui
-relève du **travail** — brouillons, historique restaurable « à la git », accès au
-Project serveur éteint, et à terme des Servers non reliés qui remplacent les
-projets hébergés. Mettre le travail privé sur le disque d'un serveur qui n'en fait
-rien avant publication était l'incohérence.
+**The engine is long-term product coherence, not performance** (the owner,
+2026-09-26). The intended split: the Minecraft server owns what is **published**,
+since that is what it runs; the backend owns everything that is **work** — drafts,
+restorable "git-like" history, access to the Project with the server off, and
+eventually unlinked Servers that replace hosted projects. Putting private work on
+the disk of a server that does nothing with it before publication was the
+incoherence.
 
-`server-disk-only-storage` avait écarté « garder la copie backend en cache
-dérivé » parce qu'elle ne servait que l'historique et l'édition hors ligne, alors
-jugés non essentiels. Le propriétaire les réclame désormais. Les lectures plus
-rapides (au moins trois allers-retours WS vers le plugin à chaque ouverture
-aujourd'hui) sont un bénéfice de bord.
+`server-disk-only-storage` had ruled out "keeping the backend copy as a derived
+cache" because it only served history and offline editing, then judged non-essential.
+The owner now asks for them. Faster reads (at least three WS round trips to the plugin
+on each open today) are a side benefit.
 
-## Décisions
+## Decisions
 
-1. **Miroir d'instantané.** Le backend conserve, par `(server_key_id, dossier)`,
-   l'instantané du plugin (**Snapshot** au glossaire) : les octets chargés au
-   dernier démarrage ou `/artisan reload`, c'est-à-dire ce que le serveur exécute.
-   « Miroir » désigne la copie backend, qui peut être en retard ; c'est un terme
-   d'implémentation, absent du glossaire. Pas le disque en
-   continu : une édition à la main n'y entre qu'au reload (sémantique inchangée
-   depuis le retrait du `SyncScanner`).
+1. **Snapshot mirror.** The backend keeps, per `(server_key_id, folder)`, the
+   plugin's snapshot (**Snapshot** in the glossary): the bytes loaded at the last
+   startup or `/artisan reload`, that is, what the server runs.
+   "Mirror" designates the backend copy, which may be behind; it is an implementation
+   term, absent from the glossary. Not the disk continuously: a manual edit only enters
+   it at reload (semantics unchanged since the removal of the `SyncScanner`).
 
-2. **Valide seulement si son hash égale le dernier hash annoncé.** Le `hello`
-   porte le hash d'instantané de chaque Project (capacité `snapshot_mirror_v1`) ;
-   `projects_reloaded` reste le signal en cours de session. Un écart déclenche la
-   récupération des seuls fichiers changés. Tant que les hashes concordent, les
-   lectures sont servies sans aller-retour. Une écriture éditeur attend l'ack
-   (qui porte le nouveau hash) avant de répondre. Un plugin sans la capacité
-   garde le chemin actuel : le miroir est ignoré, jamais cru.
+2. **Valid only if its hash equals the last announced hash.** The `hello` carries each
+   Project's snapshot hash (capability `snapshot_mirror_v1`); `projects_reloaded`
+   remains the in-session signal. A mismatch triggers retrieval of the changed files
+   only. As long as the hashes match, reads are served without a round trip. An editor
+   write waits for the ack (which carries the new hash) before answering. A plugin
+   without the capability keeps the current path: the mirror is ignored, never trusted.
 
-3. **Le miroir est jetable.** Il n'est jamais une autorité ni une base de
-   compare-and-swap : la publication reste un CAS par fichier contre le disque.
-   Vider la table ne perd rien.
+3. **The mirror is disposable.** It is never an authority nor a compare-and-swap base:
+   publication remains a per-file CAS against the disk. Emptying the table loses
+   nothing.
 
-4. **Les brouillons des projets serveur reviennent en source de vérité backend.**
-   Un brouillon est un travail privé non publié ; le serveur n'en fait rien avant
-   publication. La migration inverse celle du 2026-09-13 avec le même protocole
-   (gel, copie, vérification, puis retrait de `.artisan/drafts/`).
+4. **Server project drafts return as a backend source of truth.** A draft is private,
+   unpublished work; the server does nothing with it before publication. The migration
+   reverses that of 2026-09-13 with the same protocol (freeze, copy, verification, then
+   removal of `.artisan/drafts/`).
 
-5. **Résolution de conflits par fichier, à l'ouverture du brouillon.** On compare
-   la base du brouillon au miroir courant. Fichier modifié seulement côté serveur :
-   le brouillon prend la version serveur et sa base avance, en silence. Modifié
-   des deux côtés : conflit sur ce fichier, choix explicite. Même calcul quand
-   l'éditeur ouvert reçoit `projects_reloaded`. Grain = fichier, y compris
-   `lang/*.yaml` et `.artisan/editor.yaml` : les faux conflits sur ces fichiers
-   partagés sont un coût accepté, à revoir sur usage.
+5. **Per-file conflict resolution, when the draft is opened.** The draft's base is
+   compared to the current mirror. File modified only on the server side: the draft
+   takes the server version and its base advances, silently. Modified on both sides:
+   conflict on that file, explicit choice. Same computation when the open editor
+   receives `projects_reloaded`. Grain = file, including `lang/*.yaml` and
+   `.artisan/editor.yaml`: false conflicts on these shared files are an accepted cost,
+   to be reviewed on usage.
 
-6. **Versions en base, la corbeille disque disparaît.** Chaque instantané reçu qui
-   diffère du précédent devient une Version (date, auteur : l'utilisateur qui a
-   publié ou le serveur après édition à la main, hash). Stockage adressé par
-   contenu : manifeste chemin → hash, chaque contenu stocké une fois. Vues par
-   fichier et par Project. **Restaurer ne publie rien** : la Version va dans le
-   brouillon, publié ensuite normalement. `.artisan/history/` n'est plus alimenté
-   et son contenu n'est pas importé. Plusieurs éditions à la main entre deux
-   reloads ne forment qu'une Version.
+6. **Versions in the database, the disk trash disappears.** Each received snapshot
+   that differs from the previous one becomes a Version (date, author: the user who
+   published or the server after a manual edit, hash). Content-addressed storage:
+   path → hash manifest, each content stored once. Views per file and per Project.
+   **Restoring publishes nothing**: the Version goes into the draft, published
+   normally afterwards. `.artisan/history/` is no longer fed and its content is not
+   imported. Several manual edits between two reloads form only one Version.
 
-7. **Serveur éteint : le Project s'ouvre.** Depuis le miroir, badgé avec la date
-   du dernier instantané. Le brouillon reste éditable. Publication, données live,
-   capture en jeu restent indisponibles. Rien n'est purgé pour un serveur qui ne
-   revient pas : miroir, brouillons et Versions vivent tant que la server key
-   existe.
+7. **Server off: the Project opens.** From the mirror, badged with the date of the last
+   snapshot. The draft stays editable. Publication, live data, in-game capture remain
+   unavailable. Nothing is purged for a server that does not come back: mirror, drafts
+   and Versions live as long as the server key exists.
 
-## Conséquences
+## Consequences
 
-- **L'historique ne vit que dans le backend.** Perdre la base perd les Versions,
-  jamais le contenu publié. Les sauvegardes PostgreSQL deviennent porteuses de
-  valeur utilisateur.
-- **Le cache navigateur `projectCacheStore` perd sa raison d'être** et peut être
-  retiré une fois le miroir en place. Le secours local du brouillon
-  (`projectDraftStore`) reste.
-- **`no-branch-conflict-resolution` tient** : aucune fusion de contenu, un choix
-  par fichier.
-- **Projets hébergés hors périmètre.** Ils gardent leur volume et leurs révisions ;
-  l'éditeur présente la même vue Versions pour les deux modes derrière
-  `ProjectStorage`.
+- **History lives only in the backend.** Losing the database loses the Versions, never
+  the published content. PostgreSQL backups become carriers of user value.
+- **The browser cache `projectCacheStore` loses its reason to exist** and can be
+  removed once the mirror is in place. The draft's local fallback (`projectDraftStore`)
+  stays.
+- **`no-branch-conflict-resolution` holds**: no content merge, one choice per file.
+- **Hosted projects out of scope.** They keep their volume and their revisions; the
+  editor presents the same Versions view for both modes behind `ProjectStorage`.
 
-## Direction décidée, épopée suivante
+## Decided direction, next epic
 
-*Tranchée le 2026-09-27 : [server-only-projects](server-only-projects.md) (démo jetable, pas de rattachement).*
+*Settled on 2026-09-27: [server-only-projects](server-only-projects.md) (disposable demo, no attachment).*
 
-Les projets hébergés n'ont plus lieu d'exister : un **Server non relié** (clé
-créée, jamais `/artisan link`) porte des Projects faits de brouillons seuls, et
-la publication crée les fichiers au premier link (CAS base `null`). Ordre :
-(1) cet ADR, (2) Server non relié porteur de brouillons, (3) migration des projets
-hébergés existants, sort de la démo, puis retrait du mode hébergé. Démo et
-migration des hébergés restent à trancher.
+Hosted projects have no reason to exist any more: an **unlinked Server** (key
+created, never `/artisan link`) carries Projects made of drafts alone, and
+publication creates the files at first link (CAS base `null`). Order:
+(1) this ADR, (2) unlinked Server carrying drafts, (3) migration of existing hosted
+projects, fate of the demo, then removal of the hosted mode. Demo and migration of
+hosted projects remain to be settled.
 
-## Mesure (2026-09-26, stack locale, `projet_test`)
+## Measurement (2026-09-26, local stack, `projet_test`)
 
-| Requête isolée | Durée |
+| Isolated request | Duration |
 |---|---|
-| `GET …/drafts` (liste, via plugin) | **2,4–2,8 s** (4,6 s à froid) |
-| `GET …/drafts/:id` (un brouillon) | 154 ms |
-| `GET …/files?if_hash=` (arbre, via plugin) | 23–43 ms |
-| `GET …/items` (backend seul) | 26 ms |
+| `GET …/drafts` (list, via plugin) | **2.4–2.8 s** (4.6 s cold) |
+| `GET …/drafts/:id` (one draft) | 154 ms |
+| `GET …/files?if_hash=` (tree, via plugin) | 23–43 ms |
+| `GET …/items` (backend alone) | 26 ms |
 
-La liste des brouillons domine. Le plugin relit et parse **tous** les
-`draft.json` du Project (21 brouillons, dont 20 publiés conservés, ~140 Ko
-chacun, 3 Mo), puis renvoie les brouillons actifs **avec leur instantané
-complet** (142 Ko pour une liste). Le disque local est un bind mount Windows,
-plus lent que la prod ; en prod, chaque requête via plugin paie en plus l'aller-
-retour réseau backend ↔ serveur Minecraft, que le miroir supprime.
+The drafts list dominates. The plugin re-reads and parses **all** the Project's
+`draft.json` files (21 drafts, 20 of them published and kept, ~140 KB each, 3 MB), then
+returns the active drafts **with their full snapshot** (142 KB for a list). The local
+disk is a Windows bind mount, slower than prod; in prod, each request via plugin also
+pays the backend ↔ Minecraft server network round trip, which the mirror removes.
 
-Pas de correctif provisoire côté plugin : le code serait jeté avec le retour des
-brouillons côté backend.
+No provisional fix on the plugin side: the code would be thrown away with the return of
+drafts to the backend side.

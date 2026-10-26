@@ -1,8 +1,8 @@
-# Validation deep link + access request — manuel
+# Deep link + access request validation — manual
 
-1. /artisan editor → lien vers /networks/<slug>/servers/<slug> exact.
-2. Anonyme clique → login (next) → atterrit sur la page serveur après connexion.
-3. Compte SANS membership ouvre le lien → panneau « Demander l'accès » (pas de rebond) → envoie une demande (message optionnel).
-4. Owner : email reçu (si SMTP) + demande visible dans Members → Approve → le demandeur voit le network au rechargement.
-5. Re-demande pendant pending → « déjà en attente » ; après deny → nouvelle demande possible.
-6. 404 réel (network supprimé) → rebond /networks conservé.
+1. /artisan editor → link to the exact /networks/<slug>/servers/<slug>.
+2. Anonymous clicks → login (next) → lands on the server page after signing in.
+3. Account WITHOUT membership opens the link → "Request access" panel (no bounce) → sends a request (optional message).
+4. Owner: email received (if SMTP) + request visible in Members → Approve → the requester sees the network on reload.
+5. Re-request while pending → "already pending"; after deny → new request possible.
+6. Real 404 (deleted network) → /networks bounce kept.

@@ -23,14 +23,6 @@ cd plugin
 A jar built without `-PwithEditor` runs, but its web server only answers
 `This Artisan build does not embed the editor.`
 
-### Updating
-
-`/artisan update` lists Artisan and the plugins built on it that publish signed releases, with
-the latest version of each. `/artisan update <plugin>` downloads that release, checks its signature
-and puts it in `plugins/update/`: the server applies it at its next restart. Never reload Artisan or
-its plugins with a plugin reloader (PlugMan…): the plugins that use them keep their old code, and
-Artisan logs which ones until the restart.
-
 ## 2. Start the server
 
 On first start Artisan creates its folder:
@@ -76,3 +68,9 @@ Stop the server, replace the jar, start it again. Projects, `config.yml` and
 `environment.yml` are kept. In a network, update every server together: a server
 whose protocol differs from the hub's cannot be edited (see
 [Protocol versions](../../network/concepts/#protocol-versions)).
+
+`/artisan update` lists Artisan and the plugins built on it that publish signed releases, with
+the latest version of each. `/artisan update <plugin>` downloads that release, checks its signature
+and puts it in `plugins/update/`: the server applies it at its next restart. Never reload Artisan or
+its plugins with a plugin reloader (PlugMan…): the plugins that use them keep their old code, and
+Artisan logs which ones until the restart.

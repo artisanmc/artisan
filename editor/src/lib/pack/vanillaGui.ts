@@ -81,7 +81,7 @@ function textureScale(png: RgbaImage): number | null {
 }
 
 /**
- * The project image `projet:image` names (server `config.yml`,
+ * The project image `project:image` names (server `config.yml`,
  * `resource-pack.container-textures.*`) when its file has the vanilla layout;
  * undefined → the vanilla texture.
  */

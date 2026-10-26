@@ -85,8 +85,8 @@ export function ProjectTopBarControls({
   offlineSince,
   unpublished,
 }: ProjectTopBarControlsProps) {
-  // La prop `project` vient de `useProjectLoader`, figée au chargement : tout ce
-  // qui reflète une édition (pastille Traductions, langues) lit le store vivant.
+  // The `project` prop comes from `useProjectLoader`, frozen at load time: anything
+  // that reflects an edit (Translations badge, languages) reads the live store.
   const liveProject = useProjectsStore((s) =>
     s.openProjects.projects.find((p) => p.id === projectId),
   );

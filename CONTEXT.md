@@ -171,7 +171,7 @@ editor's sidebar that edits one of the module's files, **live against the
 connected Server** (greyed out while the Server is offline). Declared as data
 alongside the module's models and data sources — never coded; a module may
 declare several (e.g. one per data type), and a module that declares models
-without declaring screens gets a default "Données" screen. A screen offers two
+without declaring screens gets a default "Data" screen. A screen offers two
 modes over the same file — a generated **form** and the **raw YAML** — and a
 declared schema is **optional**: without one the file is still editable, its
 keys shown as literal fields (cf. ADR `yaml-assisted-editing`; the schema buys
@@ -474,7 +474,7 @@ An item set is **not an entity**: it is an Element carrying `iterates` (paginati
 or `places` (hand-pinned rows) plus its own display and states. It therefore
 belongs to the Menu that renders it — two Menus showing the same source each own
 their look, and editing one cannot silently change the other. Created from
-« Données du menu » (`createMenuSet`), which seeds the display from the source's
+"Data" (`createMenuSet`), which seeds the display from the source's
 schema.
 
 Non-examples:

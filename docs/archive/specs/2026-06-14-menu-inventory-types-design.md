@@ -1,37 +1,37 @@
-# Types d'inventaire de menu (chest / hopper / dropper) — Design
+# Menu inventory types (chest / hopper / dropper) — Design
 
-> Spec brainstormée le 2026-06-14. Permet à un menu GUI d'utiliser un type de conteneur autre que le coffre. **Scope V1 : grilles d'affichage uniquement — Chest, Hopper, Dropper/Dispenser.** Les types fonctionnels (four, table de craft, enclume…) sont hors scope (slots à comportement spécial). Source de vérité pour le plan d'implémentation.
+> Spec brainstormed on 2026-06-14. Lets a GUI menu use a container type other than the chest. **V1 scope: display grids only — Chest, Hopper, Dropper/Dispenser.** Functional types (furnace, crafting table, anvil…) are out of scope (slots with special behavior). Source of truth for the implementation plan.
 
-**Statut** — Spec validée en brainstorming, à transformer en plan d'implémentation.
+**Status** — Spec validated in brainstorming, to be turned into an implementation plan.
 
 ---
 
-## 1. Objectif & scope
+## 1. Goal & scope
 
-Aujourd'hui un menu = **toujours un coffre** : `Menu.rows: 1|2|3|4|5|6`, grille **9 colonnes**, fond `generic_54.png`, `size = rows×9` (9–54). On veut choisir le **type d'inventaire**.
+Today a menu = **always a chest**: `Menu.rows: 1|2|3|4|5|6`, **9-column** grid, `generic_54.png` background, `size = rows×9` (9–54). We want to choose the **inventory type**.
 
-**V1 — types « grille d'affichage » uniquement** (slots cliquables, aucun comportement spécial) :
+**V1 — "display grid" types only** (clickable slots, no special behavior):
 
-| Type | Colonnes | Lignes | Slots | Texture GUI | Bukkit `InventoryType` |
+| Type | Columns | Rows | Slots | GUI texture | Bukkit `InventoryType` |
 |---|---|---|---|---|---|
-| `chest` (défaut) | 9 | 1–6 (variable) | rows×9 (9–54) | `generic_54.png` (existant) | `CHEST` (via taille) |
-| `hopper` | 5 | 1 (fixe) | 5 | `hopper.png` (à ajouter) | `HOPPER` |
-| `dropper` | 3 | 3 (fixe) | 9 | `dispenser.png` (à ajouter) | `DROPPER` (ou `DISPENSER`) |
+| `chest` (default) | 9 | 1–6 (variable) | rows×9 (9–54) | `generic_54.png` (existing) | `CHEST` (via size) |
+| `hopper` | 5 | 1 (fixed) | 5 | `hopper.png` (to add) | `HOPPER` |
+| `dropper` | 3 | 3 (fixed) | 9 | `dispenser.png` (to add) | `DROPPER` (or `DISPENSER`) |
 
-**Hors scope (V2+)** : four/`FURNACE`, table de craft/`WORKBENCH`, enclume/`ANVIL`, brewing, enchanting… — leurs slots sont fonctionnels (smelting/craft, slots de résultat, consommation d'items) et ne se comportent pas comme des menus statiques. Décidé en brainstorm.
+**Out of scope (V2+)**: furnace/`FURNACE`, crafting table/`WORKBENCH`, anvil/`ANVIL`, brewing, enchanting… — their slots are functional (smelting/crafting, result slots, item consumption) and do not behave like static menus. Decided in brainstorm.
 
-## 2. Principe : une table de géométrie unique
+## 2. Principle: a single geometry table
 
-Toute la logique (éditeur, plugin, validation, export) dérive d'**une seule table** décrivant chaque type. Côté éditeur (`editor/src/features/canvas/inventoryTypes.ts`, nouveau) :
+All the logic (editor, plugin, validation, export) derives from **a single table** describing each type. On the editor side (`editor/src/features/canvas/inventoryTypes.ts`, new):
 
 ```ts
 export type InventoryType = "chest" | "hopper" | "dropper";
 
 interface InventoryGeometry {
-  cols: number;                       // colonnes de la grille
-  fixedRows?: number;                 // lignes fixes (hopper=1, dropper=3) ; chest = variable
+  cols: number;                       // grid columns
+  fixedRows?: number;                 // fixed rows (hopper=1, dropper=3); chest = variable
   slotsFor: (rows: number) => number; // chest: rows*9 ; hopper: 5 ; dropper: 9
-  textureKey: string;                 // asset du fond GUI
+  textureKey: string;                 // GUI background asset
 }
 
 export const INVENTORY_TYPES: Record<InventoryType, InventoryGeometry> = {
@@ -41,73 +41,73 @@ export const INVENTORY_TYPES: Record<InventoryType, InventoryGeometry> = {
 };
 ```
 
-Helpers dérivés : `colsFor(type)`, `rowsFor(type, menu.rows)` (= `fixedRows ?? rows`), `slotCount(type, rows)`, `slotXY(i, type)` (utilise `cols`). Côté plugin, table miroir `type → InventoryType`.
+Derived helpers: `colsFor(type)`, `rowsFor(type, menu.rows)` (= `fixedRows ?? rows`), `slotCount(type, rows)`, `slotXY(i, type)` (uses `cols`). On the plugin side, a mirror table `type → InventoryType`.
 
-## 3. Modèle de données
+## 3. Data model
 
-### 3.1 Domaine (`editor/src/domain/types.ts`)
-- Ajouter `Menu.inventoryType?: InventoryType` (optionnel, défaut `"chest"` à la lecture). `rows` reste, **significatif pour chest uniquement** ; pour hopper/dropper il est ignoré (lignes fixes via la table).
-- `Element.positions` (string "0-8") **inchangé** : toujours des indices 0-based, simplement bornés par `slotCount(type, rows)`.
+### 3.1 Domain (`editor/src/domain/types.ts`)
+- Add `Menu.inventoryType?: InventoryType` (optional, defaults to `"chest"` on read). `rows` stays, **meaningful for chest only**; for hopper/dropper it is ignored (fixed rows via the table).
+- `Element.positions` (string "0-8") **unchanged**: still 0-based indices, simply bounded by `slotCount(type, rows)`.
 
-### 3.2 Schéma `menu/v1` (`docs/schema/menu/v1/schema.json`)
-- **Ajout d'un champ OPTIONNEL** `inventory_type` (enum `["chest","hopper","dropper"]`, défaut `chest`). **Changement additif rétro-compatible** : un menu existant sans le champ = chest, reste valide. → reste en **menu/v1** (pas de v2 ; la règle « new version = new folder » vise les changements *cassants*, ce qui n'est pas le cas ici).
-- `size` (compte de slots) **conservé** mais l'enum est élargi : `[5, 9, 18, 27, 36, 45, 54]` (5 = hopper, 9 = dropper *ou* chest 1 ligne).
-- **Validation croisée** `inventory_type` ↔ `size` (ajv + `validateMenuV1`) : `chest` ⇒ size ∈ {9,18,27,36,45,54} ; `hopper` ⇒ size = 5 ; `dropper` ⇒ size = 9. Mettre à jour les fixtures/exemples + `docs/architecture/schemas-codegen.md`.
+### 3.2 `menu/v1` schema (`docs/schema/menu/v1/schema.json`)
+- **Addition of an OPTIONAL field** `inventory_type` (enum `["chest","hopper","dropper"]`, default `chest`). **Backward-compatible additive change**: an existing menu without the field = chest, stays valid. → stays in **menu/v1** (no v2; the "new version = new folder" rule targets *breaking* changes, which this is not).
+- `size` (slot count) **kept** but the enum is widened: `[5, 9, 18, 27, 36, 45, 54]` (5 = hopper, 9 = dropper *or* 1-row chest).
+- **Cross validation** `inventory_type` ↔ `size` (ajv + `validateMenuV1`): `chest` ⇒ size ∈ {9,18,27,36,45,54}; `hopper` ⇒ size = 5; `dropper` ⇒ size = 9. Update the fixtures/examples + `docs/architecture/schemas-codegen.md`.
 
-## 4. Éditeur — géométrie & rendu
+## 4. Editor — geometry & rendering
 
 ### 4.1 `menuLayout.ts`
-Aujourd'hui `COLS = 9` est constant et `slotXY(i)` fait `i % 9` / `i / 9` ; `menuBoxSize(rows)` et les crops texture sont chest-only. Paramétrer par type :
+Today `COLS = 9` is constant and `slotXY(i)` does `i % 9` / `i / 9`; `menuBoxSize(rows)` and the texture crops are chest-only. Parameterize by type:
 - `COLS` → `colsFor(type)`.
 - `slotXY(i, type)` → `col = i % cols`, `row = floor(i / cols)`.
-- `menuBoxSize(type, rows)` → largeur/hauteur selon la texture du type (chest 176px ; hopper/dropper plus étroits).
-- Le slicing texture (`topPieceCrop`/`bottomPieceCrop`, spécifique `generic_54.png`) → sélection par `textureKey` ; chaque type a ses dimensions de fond. Les hopper/dropper ont un fond fixe (pas de slicing par lignes).
-- `nodeBox(pack, id, layout)` (utilisé par Edges/GhostChips) → tient compte du type pour la taille du menu sur la planche.
+- `menuBoxSize(type, rows)` → width/height according to the type's texture (chest 176px; hopper/dropper narrower).
+- Texture slicing (`topPieceCrop`/`bottomPieceCrop`, specific to `generic_54.png`) → selection by `textureKey`; each type has its own background dimensions. Hopper/dropper have a fixed background (no slicing by rows).
+- `nodeBox(pack, id, layout)` (used by Edges/GhostChips) → accounts for the type for the menu size on the board.
 
 ### 4.2 Textures
-Ajouter les fonds GUI vanilla **hopper** et **dispenser** au pipeline d'assets éditeur (à côté de `generic_54.png`). Source : textures GUI vanilla Minecraft (mêmes que celles déjà récupérées par `gen-items`/assets MC). Documenter dans `editor-internals.md`.
+Add the vanilla **hopper** and **dispenser** GUI backgrounds to the editor asset pipeline (next to `generic_54.png`). Source: vanilla Minecraft GUI textures (the same ones already fetched by `gen-items`/MC assets). Document in `editor-internals.md`.
 
-### 4.3 Rendu (`MenuGroup` + `SoloMenuStage`)
-`MenuGroup` lit `menu.inventoryType`, choisit la texture de fond + la géométrie de slots via la table. Le **même** composant rend les 3 types (pas de fork). Title composer : tous ces conteneurs ont une barre de titre — le rendu titre s'applique. ⚠️ **Complexité notable** : le pipeline de pixel-offsets du title composer suppose la largeur chest (`contentWidth`/176). Hopper/dropper sont plus étroits → passer une **largeur de contenu par type** au composer. (Le titre fonctionne dans tous les cas ; seuls les offsets pixel-perfect dépendent de la largeur.)
+### 4.3 Rendering (`MenuGroup` + `SoloMenuStage`)
+`MenuGroup` reads `menu.inventoryType`, chooses the background texture + the slot geometry via the table. The **same** component renders the 3 types (no fork). Title composer: all these containers have a title bar — title rendering applies. ⚠️ **Notable complexity**: the title composer's pixel-offsets pipeline assumes the chest width (`contentWidth`/176). Hopper/dropper are narrower → pass a **content width per type** to the composer. (The title works in all cases; only the pixel-perfect offsets depend on the width.)
 
-## 5. Éditeur — UX
+## 5. Editor — UX
 
-### 5.1 Sélecteur de type (`MenuProperties`)
-Ajouter un sélecteur **« Type d'inventaire »** (Chest / Hopper / Dropper), via le design system (`components/ui` — Select/SegmentedControl ou DropdownMenu). Quand `chest` → afficher le sélecteur de **lignes (1–6)** existant ; sinon le masquer (lignes fixes).
+### 5.1 Type selector (`MenuProperties`)
+Add an **"Inventory type"** selector (Chest / Hopper / Dropper), via the design system (`components/ui` — Select/SegmentedControl or DropdownMenu). When `chest` → show the existing **rows (1–6)** selector; otherwise hide it (fixed rows).
 
-### 5.2 Changement de type avec items hors-bornes
-Passer d'un grand type à un plus petit (ex. chest 54 → hopper 5) peut laisser des éléments dont `positions` dépasse le nouveau `slotCount`. **Comportement : conserver les données + afficher un avertissement** (chip « N éléments hors de l'inventaire ») dans `MenuProperties` ; **ne pas supprimer** silencieusement. (Alternative rejetée : auto-drop.) Le rendu canvas n'affiche que les slots in-range ; l'export filtre déjà les positions hors-bornes côté plugin (`parsePositions … filter { it in 0 until size }`).
+### 5.2 Type change with out-of-bounds items
+Going from a big type to a smaller one (e.g. chest 54 → hopper 5) can leave elements whose `positions` exceed the new `slotCount`. **Behavior: keep the data + show a warning** ("N elements outside the inventory" chip) in `MenuProperties`; **do not delete** silently. (Rejected alternative: auto-drop.) The canvas rendering only shows the in-range slots; the export already filters out-of-bounds positions on the plugin side (`parsePositions … filter { it in 0 until size }`).
 
-### 5.3 Création
-`NewMenuDialog` crée un **chest** par défaut ; le type se change ensuite dans `MenuProperties` (création simple, pas de picker supplémentaire à la création).
+### 5.3 Creation
+`NewMenuDialog` creates a **chest** by default; the type is changed afterwards in `MenuProperties` (simple creation, no extra picker at creation).
 
 ## 6. Plugin (Kotlin)
 
-- `MenuYaml` (`PackBundle.kt`) : ajouter `@JsonProperty("inventory_type") val inventoryType: String = "chest"`.
-- `MenuRenderer.kt` : si `inventoryType != "chest"`, créer via `Bukkit.createInventory(holder, InventoryType.HOPPER|DROPPER, title)` ; sinon garder l'appel par taille (`createInventory(holder, size, title)`). Table `type → InventoryType` côté plugin. Le fallback legacy (titre `String`) est conservé pour les deux chemins.
-- Population des slots **inchangée** : `parsePositions(positions, size)` borne déjà à `0 until size` ; pour hopper `size=5`, dropper `size=9`.
-- Tests plugin : ouverture hopper/dropper crée le bon `InventoryType` + taille ; un menu sans `inventory_type` reste un coffre.
+- `MenuYaml` (`PackBundle.kt`): add `@JsonProperty("inventory_type") val inventoryType: String = "chest"`.
+- `MenuRenderer.kt`: if `inventoryType != "chest"`, create via `Bukkit.createInventory(holder, InventoryType.HOPPER|DROPPER, title)`; otherwise keep the size-based call (`createInventory(holder, size, title)`). `type → InventoryType` table on the plugin side. The legacy fallback (`String` title) is kept for both paths.
+- Slot population **unchanged**: `parsePositions(positions, size)` already bounds to `0 until size`; for hopper `size=5`, dropper `size=9`.
+- Plugin tests: opening a hopper/dropper creates the right `InventoryType` + size; a menu without `inventory_type` stays a chest.
 
 ## 7. Export / import / migration
 
-- `transform.ts` `serializeMenuToV1` : émettre `inventory_type` **seulement si ≠ chest** (rétro-compat propre) ; `size = slotCount(type, rows)` (chest rows×9, hopper 5, dropper 9).
-- `menuV1ToDomain.ts` : lire `inventory_type` (défaut `chest`) ; pour chest, `rows = size/9` (inchangé) ; pour hopper/dropper, `rows` non pertinent (la table fixe la géométrie).
-- **Migration** : aucune migration de données — un menu existant sans `inventory_type` est traité comme chest partout (défaut). Les packs sur disque restent valides.
+- `transform.ts` `serializeMenuToV1`: emit `inventory_type` **only if ≠ chest** (clean backward compat); `size = slotCount(type, rows)` (chest rows×9, hopper 5, dropper 9).
+- `menuV1ToDomain.ts`: read `inventory_type` (default `chest`); for chest, `rows = size/9` (unchanged); for hopper/dropper, `rows` is irrelevant (the table fixes the geometry).
+- **Migration**: no data migration — an existing menu without `inventory_type` is treated as chest everywhere (default). Packs on disk stay valid.
 
 ## 8. Tests
 
-| Couche | Couverture |
+| Layer | Coverage |
 |---|---|
-| `inventoryTypes.ts` | table + `colsFor`/`slotCount`/`slotXY` par type (hopper 5×1, dropper 3×3, chest 9×rows). |
-| `menuLayout` | `slotXY(i, type)` correct par type ; `menuBoxSize` par type. |
-| Schéma | `validateMenuV1` : validation croisée size↔type (hopper⇒5, dropper⇒9, chest⇒multiple de 9) ; menu sans `inventory_type` = valide (chest). |
-| Export/import | round-trip domaine→v1→domaine pour les 3 types ; back-compat (v1 sans champ → chest). |
-| Éditeur UX | sélecteur de type ; rows caché hors chest ; warning items hors-bornes au switch. |
-| Plugin | `MenuRenderer` crée le bon `InventoryType`/taille ; menu sans champ = coffre ; slots hors-bornes ignorés. |
+| `inventoryTypes.ts` | table + `colsFor`/`slotCount`/`slotXY` per type (hopper 5×1, dropper 3×3, chest 9×rows). |
+| `menuLayout` | `slotXY(i, type)` correct per type; `menuBoxSize` per type. |
+| Schema | `validateMenuV1`: cross validation size↔type (hopper⇒5, dropper⇒9, chest⇒multiple of 9); menu without `inventory_type` = valid (chest). |
+| Export/import | domain→v1→domain round-trip for the 3 types; back-compat (v1 without the field → chest). |
+| Editor UX | type selector; rows hidden outside chest; out-of-bounds items warning on switch. |
+| Plugin | `MenuRenderer` creates the right `InventoryType`/size; menu without the field = chest; out-of-bounds slots ignored. |
 
 ## 9. Non-goals (V1)
 
-- Types fonctionnels (four, craft, enclume, brewing, enchanting, beacon, grindstone…) — slots à comportement spécial, reportés.
-- Layouts custom / colonnes arbitraires hors des types Minecraft réels.
-- Édition du type à la création (création = chest ; changement en properties).
-- Title composer pixel-perfect avancé sur hopper/dropper : la largeur par type est câblée, mais si une fonctionnalité titre s'avère trop couplée à la largeur chest, elle peut être gated chest-only en V1 (à confirmer à l'implémentation).
+- Functional types (furnace, crafting, anvil, brewing, enchanting, beacon, grindstone…) — slots with special behavior, postponed.
+- Custom layouts / arbitrary columns outside real Minecraft types.
+- Editing the type at creation (creation = chest; change in properties).
+- Advanced pixel-perfect title composer on hopper/dropper: the per-type width is wired, but if a title feature turns out to be too coupled to the chest width, it may be gated chest-only in V1 (to confirm at implementation).

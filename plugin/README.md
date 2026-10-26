@@ -1,23 +1,23 @@
-# Plugin Artisan
+# Artisan plugin
 
-| Module | Rôle | Interdit |
+| Module | Role | Forbidden |
 |---|---|---|
-| `api` | Surface publique des add-ons, **en Java** (API 2.0.0), publiée comme `net.artisanmc:artisan-core-api`. | Dépendre d'un autre module ; une classe Kotlin dans `src/main`. |
-| `core` | Domaine : projets, modèle, langage d'actions, expressions, parseurs. | Bukkit, JDBC, HTTP. |
-| `database` | Pools de connexions par plugin (H2, MySQL, MariaDB). | Bukkit. |
-| `hub` | Serveur web de l'éditeur (Jetty) : fichiers de l'éditeur, API, sessions ouvertes par `/artisan editor`. | Bukkit. |
-| `tunnel` | Fil du tunnel de l'éditeur (`Frame`), partagé par le client du hub et le serveur de tunnel (ADR `editor-tunnel`). | Tout code réseau, toute plateforme. |
-| `tunnel-server` | Serveur de tunnel autonome (Jetty), hors du jar du plugin ; déployé depuis `deploy/tunnel-server/`. | Dépendre de `core`, `hub` ou `paper` (hors tests). |
-| `runtime` | Ce qui exécute le contenu d'un Project sur Paper sans l'éditeur : moteur d'actions et actions core, conditions, items (vanilla, custom, capturés), textes, traductions, schedulers, pool de la base. Consommé par `paper`, pas publié (ADR `runtime-library`). | Le rendu des menus, la présence, le hub. |
-| `paper` | Intégration Paper : listeners, commandes, rendu des menus et dialogs, WebSocket, pack de ressources. Racine de composition dans `ArtisanPlugin.onEnable`, qui assemble `ArtisanApiFactory` (API des add-ons), `SuiteDatabase` (base de la suite, Versions), `EditorHost` (éditeur ou lien au hub) et `RuntimeAssembly` (ce que `/artisan reload` reconstruit). Produit le jar. | — |
+| `api` | Public add-on surface, **in Java** (API 2.0.0), published as `net.artisanmc:artisan-core-api`. | Depending on another module; a Kotlin class in `src/main`. |
+| `core` | Domain: projects, model, action language, expressions, parsers. | Bukkit, JDBC, HTTP. |
+| `database` | Per-plugin connection pools (H2, MySQL, MariaDB). | Bukkit. |
+| `hub` | The editor's web server (Jetty): editor files, API, sessions opened by `/artisan editor`. | Bukkit. |
+| `tunnel` | The editor tunnel's wire (`Frame`), shared by the hub's client and the tunnel server (ADR `editor-tunnel`). | Any network code, any platform. |
+| `tunnel-server` | Standalone tunnel server (Jetty), outside the plugin jar; deployed from `deploy/tunnel-server/`. | Depending on `core`, `hub` or `paper` (outside tests). |
+| `runtime` | What runs a Project's content on Paper without the editor: action engine and core actions, conditions, items (vanilla, custom, captured), texts, translations, schedulers, database pool. Consumed by `paper`, not published (ADR `runtime-library`). | Menu rendering, presence, the hub. |
+| `paper` | Paper integration: listeners, commands, menu and dialog rendering, WebSocket, resource pack. Composition root in `ArtisanPlugin.onEnable`, which assembles `ArtisanApiFactory` (add-on API), `SuiteDatabase` (suite database, Versions), `EditorHost` (editor or link to the hub) and `RuntimeAssembly` (what `/artisan reload` rebuilds). Produces the jar. | — |
 
 ```bash
-./gradlew test        # tous les modules
+./gradlew test        # every module
 ./gradlew shadowJar   # → paper/build/libs/artisan-plugin-<version>-all.jar
-./gradlew shadowJar -PwithEditor   # avec l'éditeur servi par le plugin (npm run build:self-hosted)
+./gradlew shadowJar -PwithEditor   # with the editor served by the plugin (npm run build:self-hosted)
 ```
 
-Threads : le plugin tourne sur Paper, Folia et Leaf. Planifier passe par le port `Scheduler`,
-jamais par `Bukkit.getScheduler()` (voir `docs/architecture/invariants.md`, section Threads).
+Threads: the plugin runs on Paper, Folia and Leaf. Scheduling goes through the `Scheduler` port,
+never through `Bukkit.getScheduler()` (see `docs/architecture/invariants.md`, Threads section).
 
-Décision et contexte : `docs/decisions/plugin-gradle-modules.md`, `docs/decisions/runtime-library.md`.
+Decision and context: `docs/decisions/plugin-gradle-modules.md`, `docs/decisions/runtime-library.md`.

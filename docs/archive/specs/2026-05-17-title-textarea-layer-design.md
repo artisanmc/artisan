@@ -207,7 +207,7 @@ Sibling sub-form alongside `TextLayerForm` / `ImageLayerForm`. Fields:
 - **Preview** — `MiniMessageInline` rendering each line (non-pixel-perfect
   text fallback, sufficient for content preview).
 - **Y-overflow warning** — if `y + (lines-1)*lineHeight > 140`, show inline
-  warn icon + tooltip "Les lignes dépassent la zone rendable".
+  warn icon + tooltip "Some lines go past the renderable area (Y > 140) and will be cut off.".
 
 ### `LayerListItem`
 
@@ -363,5 +363,5 @@ of scope (same as any new layer kind).
 **Docs:**
 
 - `CLAUDE.md` — section "Format menu YAML — champ `title`" : add `textarea`
-  example. Remove the stale "limitation : `y` non utilisé" note (already
+  example. Remove the stale "limitation: `y` not used" note (already
   shipped via `text_y{Y}` fonts).

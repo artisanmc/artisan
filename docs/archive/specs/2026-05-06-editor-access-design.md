@@ -1,32 +1,32 @@
 # Editor Access & Real-Time Collaboration — Design
 
-> **Date :** 2026-05-06
-> **Scope :** `/artisan editor` command, session tokens, WebSocket editor channel, menu-level real-time collaboration, security hardening.
-> **Prérequis :** server linking (B1/B2) implémenté — le plugin a un `server_key` et une WS authentifiée vers le backend.
+> **Date:** 2026-05-06
+> **Scope:** `/artisan editor` command, session tokens, WebSocket editor channel, menu-level real-time collaboration, security hardening.
+> **Prerequisite:** server linking (B1/B2) implemented — the plugin has a `server_key` and an authenticated WS to the backend.
 
 ---
 
-## 1. Principe directeur
+## 1. Guiding principle
 
-Pas de compte requis pour utiliser l'éditeur. Le modèle est celui de LuckPerms : `/artisan editor` génère une URL temporaire, l'admin l'ouvre dans son navigateur, accès complet immédiat. Un compte Pro sera introduit plus tard pour les features avancées — ce n'est pas dans le scope de ce design.
+No account required to use the editor. The model is that of LuckPerms: `/artisan editor` generates a temporary URL, the admin opens it in their browser, full access immediately. A Pro account will be introduced later for advanced features — that is not in the scope of this design.
 
 ---
 
-## 2. Commande `/artisan editor`
+## 2. `/artisan editor` command
 
 ### Usage
 
 ```
-/artisan editor          # génère une session et affiche l'URL
-/artisan editor revoke   # révoque toutes les sessions actives du serveur
+/artisan editor          # generates a session and shows the URL
+/artisan editor revoke   # revokes all active sessions of the server
 ```
 
 ### Permissions
 
-- Gardée par le nœud de permission `artisan.editor` (configurable via LuckPerms, etc.)
-- Option `editor.console_only: true` dans `config.yml` → refuse si le sender n'est pas la console
+- Guarded by the `artisan.editor` permission node (configurable via LuckPerms, etc.)
+- `editor.console_only: true` option in `config.yml` → refuses if the sender is not the console
 
-### Config plugin
+### Plugin config
 
 ```yaml
 # plugins/Artisan/config.yml
@@ -39,187 +39,187 @@ editor:
 ### Flow
 
 ```
-Admin tape /artisan editor
+Admin types /artisan editor
         │
-        ▼  (sur la WS authentifiée existante)
+        ▼  (over the existing authenticated WS)
 Plugin → backend : { type: "editor_session_request", sender: "PlayerName|CONSOLE" }
         │
         ▼
-Backend génère token (30 chars crypto-random), insère dans editor_sessions
+Backend generates token (30 chars crypto-random), inserts into editor_sessions
 (server_key_id, expires_at = now + 30 min)
         │
         ▼
 Backend → plugin : { type: "editor_session_ready", url: "...", expires_at: "..." }
         │
         ▼
-Plugin affiche dans le chat / console :
-  [Artisan] Éditeur → https://editor.artisanmc.net/session?token=XXXXX
-  (expire dans 30 min d'inactivité)
+Plugin shows in chat / console:
+  [Artisan] Editor → https://editor.artisanmc.net/session?token=XXXXX
+  (expires after 30 min of inactivity)
         │
         ▼
-Admin ouvre l'URL → éditeur charge, valide le token via GET /api/editor-session/:token,
-ouvre WS /ws/editor, accès complet aux packs du serveur
+Admin opens the URL → editor loads, validates the token via GET /api/editor-session/:token,
+opens WS /ws/editor, full access to the server's packs
 ```
 
 ---
 
 ## 3. Backend
 
-### Table `editor_sessions`
+### `editor_sessions` table
 
 ```sql
 editor_sessions (
   token          text      PRIMARY KEY,        -- 30 chars crypto-random
   server_key_id  text      NOT NULL,           -- FK → server_keys.id
-  created_by     text      NOT NULL,           -- "PlayerName" ou "CONSOLE"
+  created_by     text      NOT NULL,           -- "PlayerName" or "CONSOLE"
   created_at     timestamp NOT NULL,
-  expires_at     timestamp NOT NULL,           -- reset à chaque activité
+  expires_at     timestamp NOT NULL,           -- reset on each activity
   revoked_at     timestamp                     -- nullable
 )
 ```
 
-### Nouveaux messages WS plugin ↔ backend
+### New plugin ↔ backend WS messages
 
 ```ts
-// Plugin → backend (sur WS authentifiée)
+// Plugin → backend (over authenticated WS)
 { type: "editor_session_request"; sender: string }
-{ type: "editor_session_revoke" }   // déclenché par /artisan editor revoke
+{ type: "editor_session_revoke" }   // triggered by /artisan editor revoke
 
 // Backend → plugin
 { type: "editor_session_ready"; url: string; expires_at: string }
 ```
 
-### Nouveaux endpoints REST
+### New REST endpoints
 
-| Méthode | Route | Auth | Usage |
+| Method | Route | Auth | Usage |
 |---|---|---|---|
-| `GET` | `/api/editor-session/:token` | token | Valide le token, retourne `{ server_key_id }` — appelé à l'ouverture de l'éditeur |
-| `POST` | `/api/editor-session/:token/refresh` | token | Extend `expires_at` de 30 min — appelé toutes les 10 min par l'éditeur actif |
-| `DELETE` | `/api/editor-session` | token | Révoque la session courante (appelé par l'éditeur sur logout explicite — optionnel) |
+| `GET` | `/api/editor-session/:token` | token | Validates the token, returns `{ server_key_id }` — called when the editor opens |
+| `POST` | `/api/editor-session/:token/refresh` | token | Extends `expires_at` by 30 min — called every 10 min by the active editor |
+| `DELETE` | `/api/editor-session` | token | Revokes the current session (called by the editor on explicit logout — optional) |
 
-Tous les autres appels API de l'éditeur (lire/écrire packs, publier) passent `Authorization: Bearer <token>`. Le backend valide le token et scope systématiquement toutes les réponses au `server_key_id` associé.
+All other editor API calls (read/write packs, publish) pass `Authorization: Bearer <token>`. The backend validates the token and systematically scopes all responses to the associated `server_key_id`.
 
-### WebSocket éditeur
+### Editor WebSocket
 
 ```
 GET /ws/editor?token=<token>
 ```
 
-- Validé au moment de l'upgrade HTTP → WS (token invalide = 401, connexion refusée)
-- Le backend enregistre le sender dans `editorSenders: Map<server_key_id, Set<sendFn>>`
-- Utilisé pour : push `session_expired`, broadcast `draft_update` (collaboration), futures notifications
+- Validated at the HTTP → WS upgrade (invalid token = 401, connection refused)
+- The backend registers the sender in `editorSenders: Map<server_key_id, Set<sendFn>>`
+- Used for: pushing `session_expired`, broadcasting `draft_update` (collaboration), future notifications
 
-### Messages WS editor ↔ backend
+### Editor ↔ backend WS messages
 
 ```ts
-// Backend → éditeur (push)
+// Backend → editor (push)
 { type: "session_expired" }
 { type: "draft_update"; menu_id: string; menu_yaml: string; updated_by: string }
 
-// Éditeur → backend (futur, V1.5+)
-// Les saves restent en REST pour l'instant
+// Editor → backend (future, V1.5+)
+// Saves stay on REST for now
 ```
 
 ---
 
-## 4. Collaboration temps réel (menu-level)
+## 4. Real-time collaboration (menu-level)
 
-### Principe
+### Principle
 
-Lorsqu'un admin sauvegarde un menu, le backend broadcaste le nouveau `menu_yaml` à tous les éditeurs actifs du même serveur (sauf l'émetteur).
+When an admin saves a menu, the backend broadcasts the new `menu_yaml` to all active editors of the same server (except the sender).
 
-### Comportement côté éditeur
+### Editor-side behavior
 
-| Situation | Comportement |
+| Situation | Behavior |
 |---|---|
-| Menu reçu = menu fermé (pas ouvert dans l'éditeur) | Mise à jour silencieuse du store |
-| Menu reçu = menu actuellement ouvert | Notification : "Admin X a modifié ce menu — recharger ?" (ne s'applique pas automatiquement) |
+| Received menu = closed menu (not open in the editor) | Silent store update |
+| Received menu = menu currently open | Notification: "Admin X modified this menu — reload?" (not applied automatically) |
 
-### Pas de OT/CRDT
+### No OT/CRDT
 
-Last write wins si deux admins sauvegardent le même menu simultanément. La notification "en train d'éditer" limite ce cas en pratique. OT/CRDT est explicitement hors scope (V2+).
+Last write wins if two admins save the same menu at the same time. The "currently editing" notification limits this case in practice. OT/CRDT is explicitly out of scope (V2+).
 
-### Présence (V1.5)
+### Presence (V1.5)
 
-Un curseur/badge "Admin X est sur ce menu" dans la sidebar — alimenté par un message WS `editor_presence { menu_id }` envoyé quand un éditeur ouvre un menu. Pas dans le scope V1 — la notification "en train d'éditer" est suffisante pour éviter les conflits en pratique.
+A cursor/badge "Admin X is on this menu" in the sidebar — fed by an `editor_presence { menu_id }` WS message sent when an editor opens a menu. Not in V1 scope — the "currently editing" notification is enough to avoid conflicts in practice.
 
 ---
 
-## 5. Sécurité
+## 5. Security
 
 ### Token
 
-- 30 caractères, alphabet 62 chars (A-Z a-z 0-9), `crypto.getRandomValues` → ~178 bits d'entropie
-- Stocké en clair en DB (c'est un bearer token, pas un secret persistant — expire vite)
-- Opaque : le backend répond identiquement à "inexistant", "expiré" et "révoqué" → `401 Unauthorized`
-- Supprimé du URL dès le chargement de l'éditeur via `history.replaceState` (ne traîne pas dans l'historique navigateur)
+- 30 characters, 62-char alphabet (A-Z a-z 0-9), `crypto.getRandomValues` → ~178 bits of entropy
+- Stored in clear in the DB (it is a bearer token, not a persistent secret — it expires quickly)
+- Opaque: the backend answers identically to "nonexistent", "expired" and "revoked" → `401 Unauthorized`
+- Removed from the URL as soon as the editor loads via `history.replaceState` (does not linger in browser history)
 
 ### Transport
 
-- HTTPS obligatoire en production (le token est en clair dans l'URL au premier chargement — TLS protège ce transit)
-- Header `Authorization: Bearer <token>` pour tous les appels API suivants → immunisé CSRF (pas de cookies)
-- OkHttp vérifie le certificat TLS du backend par défaut (côté plugin)
+- HTTPS mandatory in production (the token is in clear in the URL on first load — TLS protects this transit)
+- `Authorization: Bearer <token>` header for all subsequent API calls → CSRF-immune (no cookies)
+- OkHttp verifies the backend's TLS certificate by default (plugin side)
 
-### Sessions multiples
+### Multiple sessions
 
-- Plusieurs tokens actifs simultanément = OK (pas de révocation automatique à la génération)
-- Un admin peut travailler depuis 1h sans craindre qu'un collègue lui coupe sa session
-- `/artisan editor revoke` = seul kill-switch explicite, affiche la liste des sessions actives avant confirmation
+- Several tokens active at the same time = OK (no automatic revocation on generation)
+- An admin can work for 1h without fearing that a colleague cuts their session
+- `/artisan editor revoke` = the only explicit kill switch, shows the list of active sessions before confirmation
 
 ### Rate limiting
 
-| Endpoint / message | Limite |
+| Endpoint / message | Limit |
 |---|---|
-| `GET /api/editor-session/:token` | 20 req/min par IP → 429 |
-| `POST /api/link` | 5 req/min par IP |
-| `editor_session_request` WS | 1 par 30s par connexion |
+| `GET /api/editor-session/:token` | 20 req/min per IP → 429 |
+| `POST /api/link` | 5 req/min per IP |
+| `editor_session_request` WS | 1 per 30s per connection |
 
-### Scope strict
+### Strict scope
 
-Chaque token est lié à un `server_key_id`. Le backend refuse toute réponse hors de ce scope, même avec un token valide d'un autre serveur.
+Each token is tied to a `server_key_id`. The backend refuses any response outside this scope, even with a valid token from another server.
 
 ### Audit
 
-Chaque génération de session logge : username Minecraft + UUID (ou "CONSOLE"), timestamp, IP du backend (via WS). Donne à l'admin de la visibilité sur qui a ouvert l'éditeur.
+Each session generation logs: Minecraft username + UUID (or "CONSOLE"), timestamp, backend IP (via WS). Gives the admin visibility on who opened the editor.
 
 ---
 
-## 6. Route éditeur `/session`
+## 6. `/session` editor route
 
 ```tsx
 // editor/src/routes/session.tsx
-// Chargement :
-// 1. GET /api/editor-session/:token → valide, récupère server_key_id
-// 2. Ouvre WS /ws/editor?token=...
-// 3. Charge les packs du serveur
-// 4. history.replaceState → retire le token de l'URL
-// 5. Lance POST /api/editor-session/:token/refresh toutes les 10 min
+// Loading:
+// 1. GET /api/editor-session/:token → validates, gets server_key_id
+// 2. Opens WS /ws/editor?token=...
+// 3. Loads the server's packs
+// 4. history.replaceState → removes the token from the URL
+// 5. Starts POST /api/editor-session/:token/refresh every 10 min
 ```
 
 ---
 
-## 7. Nouveaux fichiers
+## 7. New files
 
-**Backend :**
-- `backend/src/db/schema.ts` — table `editor_sessions`
+**Backend:**
+- `backend/src/db/schema.ts` — `editor_sessions` table
 - `backend/src/routes/editorSession.ts` — REST endpoints
 - `backend/src/ws/hub.ts` — `editorSenders` map, handle `editor_session_request`, broadcast `draft_update`
-- `backend/src/protocol.ts` — nouveaux types WS
+- `backend/src/protocol.ts` — new WS types
 
-**Plugin :**
-- `plugin/.../command/ArtisanCommand.kt` — ajout `editor` et `editor revoke` subcommands
-- `plugin/.../config/PluginConfig.kt` — ajout `editor.console_only`
+**Plugin:**
+- `plugin/.../command/ArtisanCommand.kt` — add `editor` and `editor revoke` subcommands
+- `plugin/.../config/PluginConfig.kt` — add `editor.console_only`
 
-**Editor :**
-- `editor/src/routes/session.tsx` — route `/session`
-- `editor/src/lib/editorSession.ts` — helpers REST (validate, refresh)
-- `editor/src/lib/editorWs.ts` — WS editor (connect, handle draft_update, session_expired)
+**Editor:**
+- `editor/src/routes/session.tsx` — `/session` route
+- `editor/src/lib/editorSession.ts` — REST helpers (validate, refresh)
+- `editor/src/lib/editorWs.ts` — editor WS (connect, handle draft_update, session_expired)
 
 ---
 
-## 8. Ce qui est hors scope (notes pour plus tard)
+## 8. Out of scope (notes for later)
 
-- **Compte Pro / billing** : design séparé — pas de dépendance avec ce plan
-- **OT/CRDT** : collaboration field-level (même menu, même moment) — V2+
-- **Présence avancée** : "Admin X est en train de taper sur le slot 14" — V2+
-- **MCModels import** : feature Pro, design séparé
+- **Pro account / billing**: separate design — no dependency on this plan
+- **OT/CRDT**: field-level collaboration (same menu, same moment) — V2+
+- **Advanced presence**: "Admin X is typing in slot 14" — V2+
+- **MCModels import**: Pro feature, separate design

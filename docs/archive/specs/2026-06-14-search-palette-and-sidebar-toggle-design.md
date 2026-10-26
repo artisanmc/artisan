@@ -1,82 +1,82 @@
-# Palette de recherche Cmd+K + sidebar toggleable — Design
+# Cmd+K search palette + toggleable sidebar — Design
 
-> Spec brainstormée le 2026-06-14. Fait suite à [`2026-06-13-workspace-board-curation-design.md`](./2026-06-13-workspace-board-curation-design.md) : le `WorkspacePanel` (panneau d'éléments) y a été introduit avec une recherche inline. Cette spec déplace la recherche vers une **palette de commande globale (type GitBook)** et rend le panneau **toggleable**.
+> Spec brainstormed on 2026-06-14. Follows [`2026-06-13-workspace-board-curation-design.md`](./2026-06-13-workspace-board-curation-design.md): the `WorkspacePanel` (elements panel) was introduced there with an inline search. This spec moves the search to a **global command palette (GitBook-style)** and makes the panel **toggleable**.
 
-**Statut** — Spec validée en brainstorming, à transformer en plan d'implémentation.
+**Status** — Spec validated in brainstorming, to be turned into an implementation plan.
 
-> ⚠️ **Dépendance de branche** — au moment du brainstorm, des correctifs UX du panneau vivent sur la branche `fix/workspace-board-polish` (non mergée) et touchent `WorkspacePanel.tsx`, `uiStore.ts`, la route overview et les locales — les **mêmes fichiers** que cette feature. **Merger `fix/workspace-board-polish` dans `main` avant** d'implémenter cette spec, sinon divergence/conflits.
+> ⚠️ **Branch dependency** — at brainstorm time, UX fixes of the panel live on the `fix/workspace-board-polish` branch (not merged) and touch `WorkspacePanel.tsx`, `uiStore.ts`, the overview route and the locales — the **same files** as this feature. **Merge `fix/workspace-board-polish` into `main` before** implementing this spec, otherwise divergence/conflicts.
 
 ---
 
-## 1. Problème
+## 1. Problem
 
-Le `WorkspacePanel` (gauche) reste ouvert en permanence et porte un champ de recherche inline qui ne filtre que la **liste des éléments par leur label** (noms/titres). Deux limites :
+The `WorkspacePanel` (left) stays permanently open and carries an inline search field that only filters the **element list by their label** (names/titles). Two limits:
 
-1. Le panneau occupe de la place en permanence ; l'utilisateur veut pouvoir le **masquer**.
-2. La recherche est **superficielle** (labels seulement) et **enfouie** dans le panneau. L'utilisateur veut une recherche **rapide (raccourci clavier), globale (topbar), multi-niveaux** — capable de trouver non seulement les menus/commandes/dialogs mais aussi **leur contenu** (items posés, titres, lore, corps de dialogue).
+1. The panel permanently takes up space; the user wants to be able to **hide** it.
+2. The search is **shallow** (labels only) and **buried** in the panel. The user wants a **fast (keyboard shortcut), global (topbar), multi-level** search — able to find not only menus/commands/dialogs but also **their content** (placed items, titles, lore, dialog body).
 
-## 2. Direction validée
+## 2. Validated direction
 
-Séparer **trouver** de **organiser**, façon GitBook :
+Separate **finding** from **organizing**, GitBook-style:
 
-- **Palette de recherche** (`SearchPalette`) — overlay flottant éphémère, ouvert au **Cmd/Ctrl+K** ou via un **bouton 🔍 dans la topbar**. Cherche tout (éléments + contenu), navigable aux flèches, fermable via Esc. Sélectionner un résultat ouvre la **vue individuelle** de l'élément (et sélectionne le sous-élément si le match est un slot/texte).
-- **Sidebar (`WorkspacePanel`) toggleable** — garde son rôle d'**organisation** (liste catégorisée, badges on-board, drag-to-board, création, menu contextuel). On **retire son champ de recherche inline** : la palette est désormais la seule recherche (« pierre deux coups »).
+- **Search palette** (`SearchPalette`) — ephemeral floating overlay, opened with **Cmd/Ctrl+K** or via a **🔍 button in the topbar**. Searches everything (elements + content), arrow-key navigable, closable with Esc. Selecting a result opens the element's **individual view** (and selects the sub-element if the match is a slot/text).
+- **Toggleable sidebar (`WorkspacePanel`)** — keeps its **organizing** role (categorized list, on-board badges, drag-to-board, creation, context menu). We **remove its inline search field**: the palette is now the only search ("two birds with one stone").
 
-**Principe** : la palette *trouve* (rapide, profond, éphémère) ; la sidebar *parcourt/organise* (drag, création). Pas de redondance — un seul moteur de recherche.
+**Principle**: the palette *finds* (fast, deep, ephemeral); the sidebar *browses/organizes* (drag, creation). No redundancy — a single search engine.
 
-## 3. Sidebar toggleable (`WorkspacePanel`)
+## 3. Toggleable sidebar (`WorkspacePanel`)
 
-### 3.1 Toggle non-ambigu
-Il y a **deux** panneaux à gauche en desktop : l'**app nav** (`WorkspaceSidebar` : marque, workspaces, modules, compte — toujours visible en desktop) et l'**elements panel** (`WorkspacePanel`). Pour qu'on sache que le toggle contrôle le panneau d'éléments (et pas l'app nav) :
+### 3.1 Unambiguous toggle
+There are **two** panels on the left on desktop: the **app nav** (`WorkspaceSidebar`: brand, workspaces, modules, account — always visible on desktop) and the **elements panel** (`WorkspacePanel`). So that it is clear that the toggle controls the elements panel (and not the app nav):
 
-- Un **bouton dédié dans la topbar workspace**, à gauche (aligné au-dessus du panneau), avec :
-  - une **icône qui représente un panneau latéral** (`PanelLeft` / état ouvert vs fermé via `PanelLeftClose`/`PanelLeftOpen`) — **pas** un hamburger générique (qui évoquerait l'app nav) ;
-  - le **label « Éléments »** à côté de l'icône.
-- L'icône **reflète l'état** (ouvert/fermé) pour feedback immédiat.
+- A **dedicated button in the workspace topbar**, on the left (aligned above the panel), with:
+  - an **icon representing a side panel** (`PanelLeft` / open vs closed state via `PanelLeftClose`/`PanelLeftOpen`) — **not** a generic hamburger (which would evoke the app nav);
+  - the **"Elements" label** next to the icon.
+- The icon **reflects the state** (open/closed) for immediate feedback.
 
-### 3.2 État & persistance
-- Nouveau flag `uiStore.workspacePanelOpen: boolean` (+ `setWorkspacePanelOpen` / toggle), **persisté** (le `uiStore` est déjà `persist`).
-- **Défaut** : ouvert au premier chargement, puis **mémorise le choix** (si l'utilisateur le ferme, il reste fermé aux sessions suivantes).
-- **Desktop** : la colonne 240px du panneau n'est rendue que si `workspacePanelOpen` ; sinon board + éditeur récupèrent l'espace.
-- **Mobile** : inchangé — le panneau est déjà un `Sheet` drawer (cf. board-curation §9) ; le bouton « Éléments » de la topbar en est le déclencheur.
+### 3.2 State & persistence
+- New flag `uiStore.workspacePanelOpen: boolean` (+ `setWorkspacePanelOpen` / toggle), **persisted** (`uiStore` is already `persist`).
+- **Default**: open on first load, then **remembers the choice** (if the user closes it, it stays closed in later sessions).
+- **Desktop**: the panel's 240px column is only rendered if `workspacePanelOpen`; otherwise board + editor reclaim the space.
+- **Mobile**: unchanged — the panel is already a `Sheet` drawer (cf. board-curation §9); the topbar's "Elements" button is its trigger.
 
-### 3.3 Retrait de la recherche inline
-Supprimer le `<Input>` de recherche en haut de `WorkspacePanel` et l'état `q`/filtrage associé. Le panneau liste désormais tous les éléments (groupés), sans filtre local. (La palette couvre la recherche.)
+### 3.3 Removal of the inline search
+Remove the search `<Input>` at the top of `WorkspacePanel` and the associated `q`/filtering state. The panel now lists all elements (grouped), without local filter. (The palette covers the search.)
 
-## 4. Palette de recherche (`SearchPalette`)
+## 4. Search palette (`SearchPalette`)
 
 ### 4.1 UI
-- Overlay centré (réutiliser le `Dialog`/`DialogContent` du design system, ou un conteneur dédié type command-palette), largeur ~560px, ancré haut-centre.
-- En haut : un `<input>` de recherche (autofocus). En dessous : la liste de résultats, **groupés par type** (Menus / Commandes / Dialogs / Contenu).
-- Chaque résultat : icône de type + **label** + **contexte** du match. Exemples :
+- Centered overlay (reuse the design system's `Dialog`/`DialogContent`, or a dedicated command-palette-style container), ~560px wide, anchored top-center.
+- At the top: a search `<input>` (autofocus). Below: the results list, **grouped by type** (Menus / Commands / Dialogs / Content).
+- Each result: type icon + **label** + match **context**. Examples:
   - `hub` — menu
-  - `/heal` — commande
+  - `/heal` — command
   - `confirm_delete` — dialog
-  - `DIAMOND — dans shop` (item dans un menu)
-  - `« Bienvenue » — titre de hub` (texte)
-  - `« Clique pour acheter » — lore, shop` (texte d'item)
+  - `DIAMOND — in shop` (item in a menu)
+  - `"Welcome" — title of hub` (text)
+  - `"Click to buy" — lore, shop` (item text)
 
-### 4.2 Ouverture / fermeture
-- **Cmd/Ctrl+K** (global, quand un workspace est ouvert) ouvre la palette — **y compris depuis un champ de saisie** (`preventDefault` ; c'est un raccourci global standard). No-op si la palette est déjà ouverte.
-- Un **bouton 🔍 « Rechercher » dans la topbar** (avec hint `⌘K`) l'ouvre aussi (découvrabilité).
-- **Esc** ferme ; clic hors palette ferme.
-- État : `uiStore.searchOpen: boolean` (+ setter). Non persisté (transitoire, comme `assistantPanelOpen`).
+### 4.2 Open / close
+- **Cmd/Ctrl+K** (global, when a workspace is open) opens the palette — **including from an input field** (`preventDefault`; it is a standard global shortcut). No-op if the palette is already open.
+- A **🔍 "Search" button in the topbar** (with the `⌘K` hint) also opens it (discoverability).
+- **Esc** closes; click outside the palette closes.
+- State: `uiStore.searchOpen: boolean` (+ setter). Not persisted (transient, like `assistantPanelOpen`).
 
-### 4.3 Navigation clavier
-- **↑ / ↓** déplacent la sélection à travers la liste aplatie de résultats (en sautant les en-têtes de groupe).
-- **Entrée** active le résultat sélectionné.
-- Survol souris met aussi en surbrillance ; clic active.
+### 4.3 Keyboard navigation
+- **↑ / ↓** move the selection through the flattened list of results (skipping group headers).
+- **Enter** activates the selected result.
+- Mouse hover also highlights; click activates.
 
-### 4.4 Action de sélection
-À l'activation d'un résultat :
-- **Élément (menu/commande/dialog)** → `navigate` vers la vue individuelle `…/element/$elementId`.
-- **Item / texte à l'intérieur d'un menu** → `navigate` vers la vue individuelle du **menu propriétaire**, puis sélectionner le **slot/élément** concerné (`selectionStore.set([elementId], slot?)`) pour que l'éditeur le focalise.
-- **Texte de dialog (corps/bouton)** → vue individuelle du dialog propriétaire (pas de sous-sélection fine en V1 ; le flux dialog est centré).
-- Fermer la palette après activation.
+### 4.4 Selection action
+On activating a result:
+- **Element (menu/command/dialog)** → `navigate` to the individual view `…/element/$elementId`.
+- **Item / text inside a menu** → `navigate` to the individual view of the **owner menu**, then select the relevant **slot/element** (`selectionStore.set([elementId], slot?)`) so the editor focuses it.
+- **Dialog text (body/button)** → individual view of the owner dialog (no fine sub-selection in V1; the dialog flow is centered).
+- Close the palette after activation.
 
-## 5. Index de recherche (`searchIndex.ts`, pur)
+## 5. Search index (`searchIndex.ts`, pure)
 
-`buildSearchIndex(pack, activeLang): SearchEntry[]` — produit une liste **plate** d'entrées indexables. Types d'entrées :
+`buildSearchIndex(pack, activeLang): SearchEntry[]` — produces a **flat** list of indexable entries. Entry types:
 
 ```ts
 type SearchEntry =
@@ -87,42 +87,42 @@ type SearchEntry =
   | { kind: "text"; ownerType: "menu" | "dialog"; ownerId: string; elementId?: ElementId; field: "menuTitle" | "itemTitle" | "itemLore" | "dialogBody" | "dialogButton"; text: string };
 ```
 
-**Périmètre indexé** (décidé en brainstorm) :
-- **Noms & titres** des menus (titre résolu), commandes (`/name`), dialogs (id/titre).
-- **Items des menus** : matériau (DIAMOND…), custom item / head, par slot/élément.
-- **Textes i18n** (langue active) : titres + lore des items, corps + labels de boutons des dialogs, titres de menus.
+**Indexed scope** (decided in brainstorm):
+- **Names & titles** of menus (resolved title), commands (`/name`), dialogs (id/title).
+- **Menu items**: material (DIAMOND…), custom item / head, per slot/element.
+- **i18n texts** (active language): item titles + lore, dialog body + button labels, menu titles.
 
-**Hors périmètre V1** : triggers/alias/permissions des commandes, cibles d'actions (« ouvre menu X »). *(Reporté — les edges/chips du canvas couvrent déjà la visibilité des liens.)*
+**Out of scope V1**: command triggers/aliases/permissions, action targets ("opens menu X"). *(Postponed — the canvas edges/chips already cover link visibility.)*
 
-`searchQuery(entries, q): RankedResult[]` — match **substring insensible à la casse**. Classement simple :
-1. match exact > préfixe > sous-chaîne ;
-2. niveau élément (menu/commande/dialog) > niveau contenu (item/texte) à score égal.
-Mémoïsé par `(pack, activeLang)` ; recomputé sur la requête. Packs petits → coût négligeable, pas de persistance/worker.
+`searchQuery(entries, q): RankedResult[]` — **case-insensitive substring** match. Simple ranking:
+1. exact match > prefix > substring;
+2. element level (menu/command/dialog) > content level (item/text) at equal score.
+Memoized by `(pack, activeLang)`; recomputed on the query. Small packs → negligible cost, no persistence/worker.
 
-## 6. Fichiers
+## 6. Files
 
-**Créés**
-- `editor/src/features/search/searchIndex.ts` — `buildSearchIndex` + `searchQuery` (purs).
-- `editor/src/features/search/SearchPalette.tsx` — overlay UI + navigation clavier + action de sélection.
-- `editor/src/features/search/useGlobalSearchShortcut.ts` *(ou inline dans la route)* — listener Cmd/Ctrl+K → `setSearchOpen(true)`.
+**Created**
+- `editor/src/features/search/searchIndex.ts` — `buildSearchIndex` + `searchQuery` (pure).
+- `editor/src/features/search/SearchPalette.tsx` — overlay UI + keyboard navigation + selection action.
+- `editor/src/features/search/useGlobalSearchShortcut.ts` *(or inline in the route)* — Cmd/Ctrl+K listener → `setSearchOpen(true)`.
 
-**Modifiés**
-- `editor/src/features/workspace/WorkspacePanel.tsx` — retirer l'`<Input>` de recherche + l'état `q`.
-- `editor/src/routes/networks.$networkId.servers.$serverId.workspaces.$workspaceId.tsx` — bouton toggle « Éléments » (topbar) + bouton 🔍 « Rechercher » ; rendu conditionnel de la colonne panneau selon `workspacePanelOpen` ; montage de `<SearchPalette>` ; câblage Cmd+K.
-- `editor/src/components/WorkspaceTopBarControls.tsx` *(si la topbar y vit)* — héberger les deux boutons (toggle + recherche). À vérifier : où vivent les contrôles topbar.
-- `editor/src/state/uiStore.ts` — `workspacePanelOpen` (persisté) + `searchOpen` (transitoire) + setters.
-- `editor/src/locales/en.ts` + `fr.ts` — clés : `search.placeholder`, `search.open` (« Rechercher »), `workspacePanel.toggle` (« Éléments »), en-têtes de groupes, libellés de contexte.
+**Modified**
+- `editor/src/features/workspace/WorkspacePanel.tsx` — remove the search `<Input>` + the `q` state.
+- `editor/src/routes/networks.$networkId.servers.$serverId.workspaces.$workspaceId.tsx` — "Elements" toggle button (topbar) + 🔍 "Search" button; conditional rendering of the panel column according to `workspacePanelOpen`; mount of `<SearchPalette>`; Cmd+K wiring.
+- `editor/src/components/WorkspaceTopBarControls.tsx` *(if the topbar lives there)* — host the two buttons (toggle + search). To check: where the topbar controls live.
+- `editor/src/state/uiStore.ts` — `workspacePanelOpen` (persisted) + `searchOpen` (transient) + setters.
+- `editor/src/locales/en.ts` + `fr.ts` — keys: `search.placeholder`, `search.open` ("Search"), `workspacePanel.toggle` ("Elements"), group headers, context labels.
 
 ## 7. Tests
 
-- **`searchIndex`** (unit) : construit des entrées pour noms/items/textes ; `searchQuery` matche et classe correctement ; un match de contenu (item/texte) référence le bon propriétaire (`ownerMenuId`/`elementId`).
-- **`SearchPalette`** : taper filtre les résultats ; ↑/↓ déplacent la sélection (sautent les en-têtes) ; Entrée navigue (et sous-sélectionne pour un item) ; Esc ferme. Mocker `useNavigate` + `selectionStore`.
-- **Toggle sidebar** : le bouton « Éléments » bascule `uiStore.workspacePanelOpen` ; masqué → la colonne panneau n'est pas rendue. Mettre à jour le test existant de `WorkspacePanel` qui vérifiait le filtrage par recherche inline (la recherche a déménagé).
-- **Cmd+K** : le raccourci ouvre la palette même depuis un input (preventDefault) ; no-op si déjà ouverte.
+- **`searchIndex`** (unit): builds entries for names/items/texts; `searchQuery` matches and ranks correctly; a content match (item/text) references the right owner (`ownerMenuId`/`elementId`).
+- **`SearchPalette`**: typing filters the results; ↑/↓ move the selection (skip headers); Enter navigates (and sub-selects for an item); Esc closes. Mock `useNavigate` + `selectionStore`.
+- **Sidebar toggle**: the "Elements" button toggles `uiStore.workspacePanelOpen`; hidden → the panel column is not rendered. Update the existing `WorkspacePanel` test that verified filtering by inline search (the search moved).
+- **Cmd+K**: the shortcut opens the palette even from an input (preventDefault); no-op if already open.
 
 ## 8. Non-goals
 
-- Recherche **logique/liens** (triggers, alias, permissions, cibles d'actions) — V2.
-- Recherche **cross-pack / cross-workspace** — périmètre = pack courant.
-- Indexation persistante / worker — inutile vu la taille des packs.
-- Actions dans la palette autres que « ouvrir » (pas de create/delete/add-to-board depuis la palette en V1 — ça reste dans la sidebar/canvas).
+- **Logic/links** search (triggers, aliases, permissions, action targets) — V2.
+- **Cross-pack / cross-workspace** search — scope = current pack.
+- Persistent indexing / worker — unnecessary given the size of packs.
+- Actions in the palette other than "open" (no create/delete/add-to-board from the palette in V1 — that stays in the sidebar/canvas).

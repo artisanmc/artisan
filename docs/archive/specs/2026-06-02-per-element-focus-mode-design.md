@@ -1,34 +1,34 @@
 # Per-Element Focus Mode — Design
 
-> ⚠️ **SUPERSEDED (2026-06-13)** par [`2026-06-13-workspace-board-curation-design.md`](./2026-06-13-workspace-board-curation-design.md). Le focus mode décrit ici a été **construit puis reverté** : sa cause d'échec était deux surfaces d'édition parallèles (canvas + éditeurs `MenuEditor`/`CommandEditor`/`DialogEditor` distincts) qui **divergeaient**. La nouvelle spec garde la vue par élément mais (1) impose un **rendu unique partagé** planche↔vue individuelle (pas de réécriture d'éditeur), et (2) remplace « le canvas garde tout » par une **planche curée + panneau source-de-vérité**. Conservé pour ses designs d'éditeurs par type (Menu/Command/Dialog), réutilisables comme contenu de la vue individuelle.
+> ⚠️ **SUPERSEDED (2026-06-13)** by [`2026-06-13-workspace-board-curation-design.md`](./2026-06-13-workspace-board-curation-design.md). The focus mode described here was **built and then reverted**: it failed because of two parallel editing surfaces (the canvas + separate `MenuEditor`/`CommandEditor`/`DialogEditor` editors) that **diverged**. The new spec keeps the per-element view but (1) enforces a **single shared rendering** board↔individual view (no editor rewrite), and (2) replaces "the canvas keeps everything" with a **curated board + source-of-truth panel**. Kept for its per-type editor designs (Menu/Command/Dialog), reusable as the content of the individual view.
 
-> Spec brainstormée le 2026-06-02 pour éclaircir l'éditeur quand on travaille sur UN élément, tout en gardant le canvas multi-éléments comme overview principal.
+> Spec brainstormed on 2026-06-02 to declutter the editor when working on ONE element, while keeping the multi-element canvas as the main overview.
 
-**Statut** — Superseded (voir bandeau ci-dessus). Jamais shippé (reverté).
+**Status** — Superseded (see banner above). Never shipped (reverted).
 
 ---
 
 ## 1. Goal
 
-Aujourd'hui le workspace = un canvas Konva unifié qui mélange menus, commandes et dialogs sur la même surface, avec un panneau properties à droite (~280 px) pour éditer le détail de l'élément sélectionné. Le canvas est précieux pour visualiser les relations inter-éléments via les edges, mais coince les commandes et les dialogs dans un espace d'édition trop étroit. Quand un module HUD arrivera, la situation va empirer.
+Today the workspace = a unified Konva canvas that mixes menus, commands and dialogs on the same surface, with a properties panel on the right (~280 px) to edit the details of the selected element. The canvas is valuable for visualizing inter-element relations through edges, but it squeezes commands and dialogs into an editing space that is too narrow. When a HUD module arrives, the situation will get worse.
 
-**Cette spec ne remplace pas le canvas** — il garde sa valeur d'overview unique. À la place, on ajoute :
+**This spec does not replace the canvas** — it keeps its value as the single overview. Instead, we add:
 
-1. **Un refactor de propreté** : `MenuGroup.tsx` (1066 lignes) et `Stage.tsx` (528 lignes) sont éclatés en composants à responsabilité unique (~200 lignes max). Préalable obligatoire — on n'ajoute pas de nouveau code sur des fichiers de cette taille.
-2. **Un focus mode** : nouvelle route `/workspace/$id/element/$elementId` qui rend tout l'écran à UN élément avec un éditeur adapté à son type. Accessible par double-click sur le canvas ou bouton dédié dans le panneau properties. Fermable par `Esc` ou bouton retour.
+1. **A cleanliness refactor**: `MenuGroup.tsx` (1066 lines) and `Stage.tsx` (528 lines) are split into single-responsibility components (~200 lines max). Mandatory prerequisite — we do not add new code on files of this size.
+2. **A focus mode**: a new route `/workspace/$id/element/$elementId` that gives the whole screen to ONE element, with an editor suited to its type. Reachable by double-click on the canvas or a dedicated button in the properties panel. Closable with `Esc` or a back button.
 
 ## 2. Non-goals (explicit out-of-scope)
 
-Ces éléments ont été discutés en brainstorming et sont **délibérément reportés** :
+These items were discussed in brainstorming and are **deliberately postponed**:
 
-| Item | Raison du skip |
+| Item | Reason for skipping |
 |---|---|
-| Cross-element navigation (jumps forward "Opens menu X" + reverse links "Used by /shop" + backstack) | Les edges du canvas suffisent en V1. À ajouter quand un manque concret émerge. |
-| Sidebar drill-in (qui basculerait sur la liste d'éléments en mode focus) | La sidebar workspace reste stable partout — moins de complexité de navigation. |
-| Dialog preview Minecraft natif | Demande un renderer de dialog 1.21+ ; slot prévu en V2. V1 = form + actions chain comme une commande. |
-| Replacement complet du canvas par le focus mode | Le canvas a une valeur d'overview qu'on ne retrouve nulle part ailleurs. Le focus mode l'augmente, ne le remplace pas. |
-| Suppression de `canvasLayout` persisté sur le Pack | Reste utilisé par le canvas. |
-| Nouveau flow de création d'élément (sidebar `+` avec type picker) | La création reste sur le canvas via les composants existants `NewMenuDialog` / `NewCommandDialog` / `NewDialogDialog`. Cohérent avec "le canvas reste la vue principale". |
+| Cross-element navigation (forward jumps "Opens menu X" + reverse links "Used by /shop" + backstack) | The canvas edges are enough in V1. To add when a concrete gap emerges. |
+| Sidebar drill-in (which would switch to the element list in focus mode) | The workspace sidebar stays stable everywhere — less navigation complexity. |
+| Native Minecraft dialog preview | Requires a 1.21+ dialog renderer; slot planned for V2. V1 = form + actions chain like a command. |
+| Full replacement of the canvas by the focus mode | The canvas has an overview value that exists nowhere else. The focus mode augments it, it does not replace it. |
+| Removal of the persisted `canvasLayout` on the Pack | Still used by the canvas. |
+| New element creation flow (sidebar `+` with type picker) | Creation stays on the canvas via the existing `NewMenuDialog` / `NewCommandDialog` / `NewDialogDialog` components. Consistent with "the canvas stays the main view". |
 
 ## 3. Architecture
 
@@ -44,15 +44,15 @@ Ces éléments ont été discutés en brainstorming et sont **délibérément re
 │  │  - MenuGroup × N                     │  - Edit / Library │    │
 │  │  - CommandGroup × N                  │  - Assets         │    │
 │  │  - DialogGroup × N                   │                   │    │
-│  │  - Edges                             │  + bouton "Focus" │    │
+│  │  - Edges                             │  + "Focus" button │    │
 │  └──────────────────────────────────────┴──────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
-        │  double-click un element              ↓ bouton Focus
+        │  double-click an element              ↓ Focus button
         ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │         /workspace/$workspaceId/element/$elementId              │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │ ← Retour | 📋 elem name | lang | undo/redo | ... deploy │    │
+│  │ ← Back | 📋 elem name | lang | undo/redo | ... deploy   │    │
 │  ├─────────────────────────────────────────────────────────┤    │
 │  │                                                          │   │
 │  │              ElementEditor (router)                      │   │
@@ -65,47 +65,47 @@ Ces éléments ont été discutés en brainstorming et sont **délibérément re
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Workspace tabs **disparaissent** en focus mode (le focus est un sous-écran d'`overview`). Toutes les actions workspace-scope (lang, undo, branch, deploy, kebab) **persistent** dans le top bar focus.
+The workspace tabs **disappear** in focus mode (focus is a sub-screen of `overview`). All workspace-scope actions (lang, undo, branch, deploy, kebab) **persist** in the focus top bar.
 
 ## 4. Refactor split (Phase 1 + 2)
 
-Préalable à toute nouvelle UX. Aucun changement comportemental — split de fichier uniquement.
+Prerequisite to any new UX. No behavior change — file split only.
 
-### 4.1 `MenuGroup.tsx` (1066 → ~6 fichiers)
+### 4.1 `MenuGroup.tsx` (1066 → ~6 files)
 
-| Fichier (nouveau) | Responsabilité |
+| File (new) | Responsibility |
 |---|---|
-| `MenuGroupContainer.tsx` | Orchestrateur : position canvas, drag du menu entier, état sélection, plumb props vers enfants |
-| `MenuBackground.tsx` | Rendering bg image custom ou vanilla chest |
-| `MenuSlots.tsx` | Grille de slots, click handlers (open SlotEditor), drag-drop targets pour Library items |
-| `MenuTitle.tsx` | Composition titre (intégration avec `title/composer/` existant) |
-| `MenuGroupInteractions.tsx` | Event handlers globaux du menu (rightclick context menu, double-click → focus mode entry) |
-| `menuGeometry.ts` | Helpers purs (coordinate math : slot position from row/col, hit-test, etc.) |
+| `MenuGroupContainer.tsx` | Orchestrator: canvas position, drag of the whole menu, selection state, plumbs props to children |
+| `MenuBackground.tsx` | Rendering of the custom bg image or vanilla chest |
+| `MenuSlots.tsx` | Slot grid, click handlers (open SlotEditor), drag-drop targets for Library items |
+| `MenuTitle.tsx` | Title composition (integration with the existing `title/composer/`) |
+| `MenuGroupInteractions.tsx` | Global menu event handlers (right-click context menu, double-click → focus mode entry) |
+| `menuGeometry.ts` | Pure helpers (coordinate math: slot position from row/col, hit-test, etc.) |
 
-Le test suite existant (`MenuGroup.test.tsx`) reste — il doit passer après split sans modification de comportement. On peut ajouter quelques tests unitaires sur `menuGeometry.ts` (math pure facile à tester).
+The existing test suite (`MenuGroup.test.tsx`) stays — it must pass after the split with no behavior change. We can add a few unit tests on `menuGeometry.ts` (pure math, easy to test).
 
-### 4.2 `Stage.tsx` (528 → ~4 fichiers)
+### 4.2 `Stage.tsx` (528 → ~4 files)
 
-| Fichier (nouveau) | Responsabilité |
+| File (new) | Responsibility |
 |---|---|
-| `StageContainer.tsx` | Konva Stage + Layer setup + viewport, render des children groups |
+| `StageContainer.tsx` | Konva Stage + Layer setup + viewport, rendering of the child groups |
 | `StageZoomPan.tsx` | Wheel/pinch zoom + drag pan + bounds |
-| `StageDropTarget.tsx` | Hit-test depuis dnd-kit (étend `stageDropTarget.ts` existant) |
+| `StageDropTarget.tsx` | Hit-test from dnd-kit (extends the existing `stageDropTarget.ts`) |
 | `StageSelection.tsx` | Marquee selection rect, multi-select state + interactions |
 
-`CommandGroup.tsx` (83 lignes) et `DialogGroup.tsx` (83 lignes) restent intacts.
+`CommandGroup.tsx` (83 lines) and `DialogGroup.tsx` (83 lines) stay untouched.
 
-### 4.3 Critère de validation
+### 4.3 Validation criterion
 
-Un fichier qu'on ne peut pas tenir en tête en une lecture est trop gros. Cible ≤ 200 lignes par fichier. Test suite passe → split réussi.
+A file you cannot hold in your head in one read is too big. Target ≤ 200 lines per file. Test suite passes → split succeeded.
 
 ## 5. Focus mode route + dispatch (Phase 3)
 
-### 5.1 Nouvelle route TanStack
+### 5.1 New TanStack route
 
-`editor/src/routes/workspace.$workspaceId.element.$elementId.tsx` — file route TanStack créée à côté de `workspace.$workspaceId.tsx`.
+`editor/src/routes/workspace.$workspaceId.element.$elementId.tsx` — TanStack file route created next to `workspace.$workspaceId.tsx`.
 
-Charge le pack via le loader existant (`usePackLoader` ou `accountStore.packs.find(...)`), résout l'élément via :
+Loads the pack through the existing loader (`usePackLoader` or `accountStore.packs.find(...)`), resolves the element via:
 
 ```ts
 const element =
@@ -114,11 +114,11 @@ const element =
   pack.dialogs.find(d => d.id === elementId);
 ```
 
-Si introuvable → render empty state `"Cet élément n'existe plus"` + bouton retour vers `/workspace/$workspaceId`.
+If not found → render an empty state `"This element no longer exists"` + a back button to `/workspace/$workspaceId`.
 
 ### 5.2 `ElementEditor` dispatcher
 
-Composant racine de la route. Lit le type résolu et délègue :
+Root component of the route. Reads the resolved type and delegates:
 
 ```ts
 function ElementEditor({ pack, element }: Props) {
@@ -131,33 +131,33 @@ function ElementEditor({ pack, element }: Props) {
 }
 ```
 
-### 5.3 Top bar focus mode
+### 5.3 Focus mode top bar
 
-Remplace le top bar canvas par :
+Replaces the canvas top bar with:
 
 ```
-← Retour | 📋 shop_menu | [lang ▾] [↶][↷] [Branch ▾] ... [Deploy] [⋮]
+← Back | 📋 shop_menu | [lang ▾] [↶][↷] [Branch ▾] ... [Deploy] [⋮]
 ```
 
-- `← Retour` → `navigate({ to: "/workspace/$workspaceId", params })`
-- Type icon (📋 menu / ⌨ command / 💬 dialog) + nom de l'élément (i18n-aware)
-- LangSwitcher, UndoRedoButtons, BranchSwitcher / DirtyBadge / Commit / Promote / Merge, DeployButtons, TopBarKebabMenu : extraits dans un composant partagé `WorkspaceTopBarControls` (refactor mineur de `workspace.$workspaceId.tsx`) puis montés à l'identique dans le top bar focus. Pas de duplication.
-- Pour `MenuEditor` uniquement : deux boutons supplémentaires "📚 Library" et "🎨 Assets" qui ouvrent les panneaux flottants (cf. §6)
+- `← Back` → `navigate({ to: "/workspace/$workspaceId", params })`
+- Type icon (📋 menu / ⌨ command / 💬 dialog) + element name (i18n-aware)
+- LangSwitcher, UndoRedoButtons, BranchSwitcher / DirtyBadge / Commit / Promote / Merge, DeployButtons, TopBarKebabMenu: extracted into a shared `WorkspaceTopBarControls` component (minor refactor of `workspace.$workspaceId.tsx`) then mounted identically in the focus top bar. No duplication.
+- For `MenuEditor` only: two extra buttons "📚 Library" and "🎨 Assets" that open the floating panels (see §6)
 
-### 5.4 Workspace tabs en focus mode
+### 5.4 Workspace tabs in focus mode
 
-Les tabs `overview / translations / data-sources / servers` **ne sont pas rendues** en focus mode. Le focus est un sous-écran d'`overview` ; les autres vues sont workspace-globales et n'ont pas de sens à l'échelle d'un élément.
+The `overview / translations / data-sources / servers` tabs are **not rendered** in focus mode. Focus is a sub-screen of `overview`; the other views are workspace-global and make no sense at the scale of one element.
 
 ### 5.5 Keyboard
 
-- `Esc` → équivalent du bouton ← Retour. Capturé au niveau du composant route, non destructif (ne ferme pas si un input est focusé en cours d'édition — comportement standard).
-- `Ctrl/⌘ + Z / Y` → undo/redo, fonctionne en focus mode identiquement au canvas (mêmes stores temporels).
+- `Esc` → equivalent to the ← Back button. Captured at the route component level, non-destructive (does not close if an input is focused during editing — standard behavior).
+- `Ctrl/⌘ + Z / Y` → undo/redo, works in focus mode identically to the canvas (same temporal stores).
 
 ## 6. `MenuEditor` (Phase 4)
 
-### 6.1 Layout desktop (≥ lg)
+### 6.1 Desktop layout (≥ lg)
 
-3 colonnes — héritage direct du Title Composer v3 mais isolé à un seul menu :
+3 columns — direct heritage of Title Composer v3 but isolated to a single menu:
 
 ```
 ┌────────────────────────────┬──────────────┬──────────────┐
@@ -169,30 +169,30 @@ Les tabs `overview / translations / data-sources / servers` **ne sont pas rendue
 └────────────────────────────┴──────────────┴──────────────┘
 ```
 
-Composants réutilisés :
-- `MenuGroupContainer` + sous-composants (issus du split P1)
-- `MenuProperties` (extrait de `pack.$packId.tsx` historique, déjà composant indépendant)
-- `LayersPanel` + sous-composants (`LayerListItem`, `LayerEditForm`, `AddLayerControls`, `ResizeHandles`, `TitleRender`)
+Reused components:
+- `MenuGroupContainer` + sub-components (from the P1 split)
+- `MenuProperties` (extracted from the historical `pack.$packId.tsx`, already an independent component)
+- `LayersPanel` + sub-components (`LayerListItem`, `LayerEditForm`, `AddLayerControls`, `ResizeHandles`, `TitleRender`)
 
-### 6.2 Library / Assets en panneaux flottants
+### 6.2 Library / Assets as floating panels
 
-Un seul menu n'a pas besoin de la Library en permanence comme l'écran multi-menus actuel. À la place :
-- Bouton "📚 Library" dans top bar focus → ouvre un panneau drawer ancré à droite, dismissable (Esc ou click hors panneau)
-- Bouton "🎨 Assets" → idem avec le contenu `AssetsTab`
+A single menu does not need the Library permanently like the current multi-menu screen. Instead:
+- "📚 Library" button in the focus top bar → opens a drawer panel anchored to the right, dismissable (Esc or click outside the panel)
+- "🎨 Assets" button → same with the `AssetsTab` content
 
-Le drawer réutilise les composants existants `Library` et `AssetsTab`, juste hosted dans un wrapper drawer.
+The drawer reuses the existing `Library` and `AssetsTab` components, just hosted in a drawer wrapper.
 
 ### 6.3 Mobile (< lg)
 
-Single column avec tabs `Canvas / Properties / Layers / Library / Assets`, pattern `WorkspaceTabs` réutilisé. Le canvas est rendu à largeur viewport, properties et layers en bas via tabs.
+Single column with `Canvas / Properties / Layers / Library / Assets` tabs, `WorkspaceTabs` pattern reused. The canvas is rendered at viewport width, properties and layers below via tabs.
 
 ## 7. `CommandEditor` (Phase 5)
 
-### 7.1 Layout desktop (≥ lg) — Two-col 42/58
+### 7.1 Desktop layout (≥ lg) — Two-col 42/58
 
 ```
 ┌──────────────────────┬───────────────────────────────────┐
-│ Meta (fixe, ~42%)    │ Actions chain (scrollable)        │
+│ Meta (fixed, ~42%)   │ Actions chain (scrollable)        │
 │ - trigger            │ ┌───────────────────────────────┐ │
 │ - aliases (chips)    │ │ 1. IF player.balance ≥ 100    │ │
 │ - permission         │ ├───────────────────────────────┤ │
@@ -200,44 +200,44 @@ Single column avec tabs `Canvas / Properties / Layers / Library / Assets`, patte
 │ - argParser config   │ ├───────────────────────────────┤ │
 │                      │ │ 3. ELSE send_message          │ │
 │                      │ └───────────────────────────────┘ │
-│                      │ + Ajouter une action              │
+│                      │ + Add an action                   │
 └──────────────────────┴───────────────────────────────────┘
 ```
 
-### 7.2 Layout mobile (< lg)
+### 7.2 Mobile layout (< lg)
 
-Single column, sections empilées dans l'ordre : meta → actions.
+Single column, sections stacked in order: meta → actions.
 
 ### 7.3 Actions chain — rendering
 
-**Liste indentée style pseudo-code** (respect [[editor-ux-prefer-pseudocode]] — "indented text beats flow cards for nested logic"). Pas de FlowCanvas, pas de cards-and-arrows visuels.
+**Indented pseudo-code style list** (respecting [[editor-ux-prefer-pseudocode]] — "indented text beats flow cards for nested logic"). No FlowCanvas, no visual cards-and-arrows.
 
-Chaque action = un bloc card avec :
-- Header type (`open_menu`, `IF`, `ELSE`, `send_message`, etc.)
-- Indentation visuelle pour les blocs imbriqués (children d'un `IF`, par exemple)
-- Body initialement compact (résumé sur 1 ligne, ex. `open_menu → shop_menu`) ; click n'importe où dans le bloc bascule en mode édition, le bloc se déplie pour montrer son form spécifique au type d'action ; click ailleurs ou `Esc` referme
-- Drag handle pour réordonner (dnd-kit)
-- Bouton `+` à la fin de la chaîne pour append, ou inline entre deux blocs pour insérer
+Each action = a card block with:
+- Type header (`open_menu`, `IF`, `ELSE`, `send_message`, etc.)
+- Visual indentation for nested blocks (children of an `IF`, for example)
+- Body initially compact (1-line summary, e.g. `open_menu → shop_menu`); a click anywhere in the block switches to edit mode, the block expands to show its action-type-specific form; a click elsewhere or `Esc` closes it
+- Drag handle to reorder (dnd-kit)
+- `+` button at the end of the chain to append, or inline between two blocks to insert
 
-L'action `open_menu` (et autres avec un targetId) affiche le nom de la cible **en texte plain** — pas de click jump en V1 (cross-nav skip). Le nom est résolu via `pack.menus.find(...)?.name ?? targetId`.
+The `open_menu` action (and others with a targetId) shows the target name as **plain text** — no click jump in V1 (cross-nav skipped). The name is resolved via `pack.menus.find(...)?.name ?? targetId`.
 
 ### 7.4 Data model
 
-Aucun changement de modèle. Lit/écrit `pack.commands[i].actions[]` via les selectors existants d'`accountStore`. Les mutations passent par les actions store existantes (`updateCommandAction`, `addCommandAction`, etc. — créer si absents).
+No model change. Reads/writes `pack.commands[i].actions[]` through the existing `accountStore` selectors. Mutations go through the existing store actions (`updateCommandAction`, `addCommandAction`, etc. — create if missing).
 
 ## 8. `DialogEditor` (Phase 6)
 
-Même shape que `CommandEditor` (two-col desktop / single-col mobile).
+Same shape as `CommandEditor` (two-col desktop / single-col mobile).
 
-Meta : title (i18n), body (textarea i18n), liste de boutons. Chaque bouton = label (i18n) + actions chain propre (mini-éditeur identique à celui des commandes, factorisé en `ActionsChainEditor` partagé).
+Meta: title (i18n), body (i18n textarea), list of buttons. Each button = label (i18n) + its own actions chain (mini-editor identical to the one for commands, factored into a shared `ActionsChainEditor`).
 
-Pas de preview Minecraft V1. Slot prévu pour V2 quand un renderer dialog 1.21+ existe — placeholder `<DialogPreview />` rendu vide en V1, switchable plus tard.
+No Minecraft preview in V1. Slot planned for V2 when a 1.21+ dialog renderer exists — `<DialogPreview />` placeholder rendered empty in V1, switchable later.
 
 ## 9. Entry points (Phase 7)
 
-### 9.1 Double-click sur le canvas
+### 9.1 Double-click on the canvas
 
-Dans `MenuGroupInteractions` (et équivalents Command/Dialog), capture du double-click :
+In `MenuGroupInteractions` (and the Command/Dialog equivalents), capture the double-click:
 
 ```ts
 onDblClick={() => navigate({
@@ -246,73 +246,73 @@ onDblClick={() => navigate({
 })}
 ```
 
-Click simple → comportement existant (sélection). Drag → drag du nœud sur le canvas (existant). Pas de conflit : Konva distingue click / dblclick / dragstart.
+Single click → existing behavior (selection). Drag → drag of the node on the canvas (existing). No conflict: Konva distinguishes click / dblclick / dragstart.
 
-### 9.2 Bouton "Focus" dans le panneau properties
+### 9.2 "Focus" button in the properties panel
 
-Dans l'`EditorPane` du canvas, quand exactement UN élément est sélectionné, ajouter un bouton "Focus / Éditer en grand" en haut du panneau properties. Click → même `navigate` que double-click. Plus découvrable pour les nouveaux users.
+In the canvas `EditorPane`, when exactly ONE element is selected, add a "Focus / Edit full-size" button at the top of the properties panel. Click → same `navigate` as the double-click. More discoverable for new users.
 
-### 9.3 Boucle complète
+### 9.3 Full loop
 
 ```
-canvas → dblclick element → focus mode → édition → Esc / ← Retour → canvas (sélection préservée)
+canvas → dblclick element → focus mode → editing → Esc / ← Back → canvas (selection preserved)
 ```
 
-À la sortie du focus mode, la sélection de l'élément quitté reste active sur le canvas (la sélection est dans `selectionStore`, traversal de route ne la reset pas).
+On leaving focus mode, the selection of the element left stays active on the canvas (the selection lives in `selectionStore`, route traversal does not reset it).
 
 ## 10. Testing strategy
 
 ### 10.1 Refactor split (P1 + P2)
 
-- Tests existants `MenuGroup.test.tsx` (~150 cas) et tests Stage (smoke E2E `smoke.spec.ts`) doivent passer **sans modification** après split. Tout fail = bug de refactor.
-- Tests unitaires ciblés à ajouter pour `menuGeometry.ts` (math pure, ~10-15 cas pour les helpers de slot position / hit-test).
+- Existing `MenuGroup.test.tsx` tests (~150 cases) and Stage tests (E2E smoke `smoke.spec.ts`) must pass **without modification** after the split. Any failure = refactor bug.
+- Targeted unit tests to add for `menuGeometry.ts` (pure math, ~10-15 cases for the slot position / hit-test helpers).
 
 ### 10.2 Focus mode (P3-P7)
 
-| Niveau | Couverture |
+| Level | Coverage |
 |---|---|
-| Route | Test d'intégration : navigation directe par URL, empty state si elementId introuvable, navigate retour fonctionne |
-| `ElementEditor` dispatcher | Tests unitaires : dispatch correct par type, fallback `UnknownTypeFallback` |
-| `MenuEditor` | Reuse des tests existants du Title Composer v3 + 1 test "render isolé sans canvas multi-menus" + tests boutons Library/Assets ouvrant les drawers flottants |
-| `CommandEditor` | Tests responsive (two-col ≥ lg, single < lg), édition inline d'une action, ajout/suppression/réorder, indentation pseudo-code pour `IF`/`ELSE`/nested |
-| `DialogEditor` | Idem CommandEditor + tests sur les boutons multiples avec chaque action chain isolée |
-| Entry points | Test dblclick sur MenuGroup → navigate, bouton Focus dans properties → navigate, Esc → retour |
+| Route | Integration test: direct navigation by URL, empty state if elementId not found, back navigate works |
+| `ElementEditor` dispatcher | Unit tests: correct dispatch by type, `UnknownTypeFallback` fallback |
+| `MenuEditor` | Reuse of the existing Title Composer v3 tests + 1 test "isolated render without multi-menu canvas" + tests for the Library/Assets buttons opening the floating drawers |
+| `CommandEditor` | Responsive tests (two-col ≥ lg, single < lg), inline editing of an action, add/remove/reorder, pseudo-code indentation for `IF`/`ELSE`/nested |
+| `DialogEditor` | Same as CommandEditor + tests on multiple buttons with each action chain isolated |
+| Entry points | Test dblclick on MenuGroup → navigate, Focus button in properties → navigate, Esc → back |
 
-Pas de tests E2E nouveaux. `smoke.spec.ts` actuel couvre l'overview canvas ; il n'a pas besoin d'extension pour le focus mode (testé en intégration React).
+No new E2E tests. The current `smoke.spec.ts` covers the overview canvas; it does not need extending for the focus mode (tested by React integration).
 
 ## 11. Phasing / implementation order
 
-7 phases, chaque phase shippable indépendamment sans casser le canvas existant. Possibilité d'arrêter à n'importe quelle phase si priorités changent.
+7 phases, each independently shippable without breaking the existing canvas. Possible to stop at any phase if priorities change.
 
-| Phase | Scope | UX visible ? | Risque |
+| Phase | Scope | Visible UX? | Risk |
 |---|---|---|---|
-| **P1** | Split `MenuGroup.tsx` → 6 fichiers | Non — refactor pur | Bas (test suite gate) |
-| **P2** | Split `Stage.tsx` → 4 fichiers | Non — refactor pur | Bas (smoke E2E gate) |
-| **P3** | Nouvelle route + `ElementEditor` dispatch + empty state + top bar focus | Oui — accessible par URL directe | Bas (nouveau code isolé) |
-| **P4** | `MenuEditor` 3-col + flottants Library/Assets | Oui — utilisable | Moyen (composition de 4-5 composants existants) |
-| **P5** | `CommandEditor` two-col + actions inline pseudo-code | Oui — utilisable | Moyen (nouveau editor + interactions inline) |
-| **P6** | `DialogEditor` (factorise `ActionsChainEditor` partagé avec Command) | Oui — utilisable | Bas (clone de Command) |
-| **P7** | Entry points : double-click canvas + bouton "Focus" dans properties + `Esc` | Oui — discovery complète | Bas (event handlers ajoutés) |
+| **P1** | Split `MenuGroup.tsx` → 6 files | No — pure refactor | Low (test suite gate) |
+| **P2** | Split `Stage.tsx` → 4 files | No — pure refactor | Low (E2E smoke gate) |
+| **P3** | New route + `ElementEditor` dispatch + empty state + focus top bar | Yes — reachable by direct URL | Low (new isolated code) |
+| **P4** | 3-col `MenuEditor` + floating Library/Assets | Yes — usable | Medium (composition of 4-5 existing components) |
+| **P5** | Two-col `CommandEditor` + inline pseudo-code actions | Yes — usable | Medium (new editor + inline interactions) |
+| **P6** | `DialogEditor` (factors out `ActionsChainEditor` shared with Command) | Yes — usable | Low (clone of Command) |
+| **P7** | Entry points: canvas double-click + "Focus" button in properties + `Esc` | Yes — full discovery | Low (added event handlers) |
 
-À P3, l'URL focus existe mais ressemble juste au canvas embarqué — pas d'utilité user. À P4-P6, les éditeurs sont fonctionnels mais seulement accessibles par URL directe. P7 ferme la boucle UX.
+At P3, the focus URL exists but just looks like the embedded canvas — no user value. At P4-P6, the editors are functional but only reachable by direct URL. P7 closes the UX loop.
 
-Estimation grossière (à affiner dans le plan d'implémentation) :
-- P1 + P2 : 1 jour chacune (refactor mécanique gardé par les tests)
-- P3 : ½ journée (route + dispatch + empty state)
-- P4 : 1 journée (composition + flottants)
-- P5 : 2 jours (le plus de logique nouvelle — actions inline editor)
-- P6 : ½ journée (clone de Command + factorize)
-- P7 : ½ journée (event handlers + Esc)
+Rough estimate (to refine in the implementation plan):
+- P1 + P2: 1 day each (mechanical refactor guarded by tests)
+- P3: ½ day (route + dispatch + empty state)
+- P4: 1 day (composition + floating panels)
+- P5: 2 days (the most new logic — inline actions editor)
+- P6: ½ day (clone of Command + factoring)
+- P7: ½ day (event handlers + Esc)
 
 ## 12. Future considerations (V2+)
 
-**Cross-element navigation** — quand le focus mode est utilisé en pratique et qu'un manque concret de "voir qui ouvre ce menu" émerge, ajouter :
-- Forward links : actions avec `targetId` deviennent cliquables → navigate vers le target
-- Reverse links : panneau "Used by" dans chaque éditeur listant les éléments qui référencent celui-ci (selector dérivé `useReferenceMap(elementId)`)
-- Backstack : store léger qui track la chaîne de navigation focus → focus, bouton ← qui défile
+**Cross-element navigation** — when the focus mode is used in practice and a concrete gap of "seeing who opens this menu" emerges, add:
+- Forward links: actions with `targetId` become clickable → navigate to the target
+- Reverse links: "Used by" panel in each editor listing the elements that reference this one (derived selector `useReferenceMap(elementId)`)
+- Backstack: lightweight store that tracks the focus → focus navigation chain, ← button that pops it
 
-**Dialog preview Minecraft** — quand un renderer dialog vanilla 1.21+ existe côté éditeur, remplir le `<DialogPreview />` placeholder du DialogEditor.
+**Minecraft dialog preview** — when a vanilla 1.21+ dialog renderer exists on the editor side, fill the `<DialogPreview />` placeholder of the DialogEditor.
 
-**HUD module** — éditeur dédié style preview in-game Minecraft. Hors scope ; ce sera son propre module quand il arrivera, suivant le pattern modular monolith (`editor/src/modules/hud/`). Le focus mode décrit ici est extensible à ce type : ajouter `<HudEditor />` au dispatcher d'`ElementEditor` quand le module sera scaffolded.
+**HUD module** — dedicated editor in the style of an in-game Minecraft preview. Out of scope; it will be its own module when it arrives, following the modular monolith pattern (`editor/src/modules/hud/`). The focus mode described here is extensible to this type: add `<HudEditor />` to the `ElementEditor` dispatcher when the module is scaffolded.
 
-**Replacement complet du canvas** — pourrait être reconsidéré si le focus mode prend toute la valeur d'usage et que le canvas devient un détour. À ce moment-là, la sidebar drill-in (rejetée en V1) redevient pertinente. Reporté tant que le canvas reste utilisé.
+**Full replacement of the canvas** — could be reconsidered if the focus mode takes all the usage value and the canvas becomes a detour. At that point, the sidebar drill-in (rejected in V1) becomes relevant again. Postponed as long as the canvas stays in use.

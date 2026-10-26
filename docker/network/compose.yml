@@ -1,8 +1,8 @@
-# Deux serveurs Paper en réseau, sans backend : le hub sert l'éditeur, la feuille s'y relie.
-# Depuis la racine du dépôt :
+# Two Paper servers on a network, no backend: the hub serves the editor, the leaf links to it.
+# From the repository root:
 #   (cd plugin && ./gradlew shadowJar -PwithEditor)
 #   docker compose -f docker/network/compose.yml up
-# Éditeur : http://localhost:8765, lien donné par /artisan editor sur l'un ou l'autre serveur.
+# Editor: http://localhost:8765, link given by /artisan editor on either server.
 services:
   hub:
     image: itzg/minecraft-server:java25

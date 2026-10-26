@@ -394,12 +394,12 @@ describe("ProjectTopBarControls — Enregistrer", () => {
 });
 
 /**
- * Régression : la pastille de l'onglet Traductions comptait les manquants sur
- * la prop `project` figée au chargement — elle ne bougeait qu'au rechargement
- * de la page, même une fois toutes les traductions remplies.
+ * Regression: the Translations tab badge counted missing entries on the
+ * `project` prop frozen at load time, so it only moved on page reload, even
+ * once every translation was filled in.
  */
-describe("ProjectTopBarControls — pastille Traductions", () => {
-  it("se met à jour en direct quand une traduction est remplie", () => {
+describe("ProjectTopBarControls — Translations badge", () => {
+  it("updates live when a translation is filled in", () => {
     const key = "k1" as I18nKey;
     const stale: Project = { ...baseProject("trad"), i18nKeys: { [key]: { en: "Hi", fr: "" } } };
     useProjectsStore.setState({
