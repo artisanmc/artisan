@@ -1524,6 +1524,18 @@ const fr: typeof en = {
     server: "Serveur",
     draft: "Brouillon",
     confirm: "Déployer sur le serveur",
+    documents: {
+      title: "Vérification du serveur",
+      pending: "Le serveur vérifie les fichiers modifiés…",
+      none: "Chaque fichier modifié se charge sur le serveur.",
+      problems_one:
+        "{{count}} problème : le serveur refuserait ce déploiement. Corrigez-le, puis déployez.",
+      problems_other:
+        "{{count}} problèmes : le serveur refuserait ce déploiement. Corrigez-les, puis déployez.",
+      unavailable:
+        "Le serveur n’a pas pu vérifier les fichiers ({{code}}) : il les vérifiera au déploiement.",
+      blocked: "Corrigez d’abord les problèmes trouvés par le serveur.",
+    },
     checks: {
       title: "Contrôles entre projets",
       none: "Aucun conflit avec les autres projets.",

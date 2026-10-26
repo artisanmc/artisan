@@ -122,3 +122,54 @@ describe("DeployReviewDialog — cross-project checks", () => {
     expect(screen.getByRole("button", { name: "Déployer sur le serveur" })).toBeEnabled();
   });
 });
+
+describe("DeployReviewDialog — server check of the files", () => {
+  const edited = {
+    before: { "menus/shop.yml": "title: Shop\n" },
+    after: { "menus/shop.yml": "tittle: Shop\n" },
+  };
+
+  it("says when the server is still checking", () => {
+    render(
+      <DeployReviewDialog
+        changes={edited}
+        documents={{ status: "pending" }}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(screen.getByText("Le serveur vérifie les fichiers modifiés…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Déployer sur le serveur" })).toBeEnabled();
+  });
+
+  it("shows each problem on its file and blocks the deployment", () => {
+    render(
+      <DeployReviewDialog
+        changes={edited}
+        documents={{
+          status: "ready",
+          problems: [{ path: "menus/shop.yml", stage: "schema", message: "tittle is not allowed" }],
+        }}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(screen.getByText("schema: tittle is not allowed")).toBeInTheDocument();
+    expect(screen.getByText("1 problème")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Déployer sur le serveur" })).toBeDisabled();
+  });
+
+  it("confirms explicitly when every file loads", () => {
+    render(
+      <DeployReviewDialog
+        changes={edited}
+        documents={{ status: "ready", problems: [] }}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(
+      screen.getByText("Chaque fichier modifié se charge sur le serveur."),
+    ).toBeInTheDocument();
+  });
+});

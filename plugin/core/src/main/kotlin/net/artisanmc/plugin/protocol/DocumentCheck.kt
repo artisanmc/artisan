@@ -21,18 +21,23 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Would this server load these files? The check a Document goes through before an AI client may
- * put it in a draft (ADR `mcp-server`), in four stages, each reported under its name:
+ * put it in a draft (ADR `mcp-server`), in five stages, each reported under its name:
  *
  * 1. `layout`: the path is a Document's place (`<folders…>/<kind dir>/<id>.yml`);
  * 2. `yaml`: the file parses;
  * 3. `schema`: it matches the JSON schema of its `schema:` label, when the jar ships one
  *    (`docs/schema`, under `schema/<label>.json`);
- * 4. `engine`: the server's own reader loads it, on a copy of the Project with the files applied.
+ * 4. `actions`: each module action it names is one this server declares, with declared arguments
+ *    ([ActionCheck]), when the server declares any;
+ * 5. `engine`: the server's own reader loads it, on a copy of the Project with the files applied.
  *
  * The engine's reader skips what it does not know; the schema does not. A typo in a field name
  * passes stage 4 and fails stage 3, which is why both run.
  */
-class DocumentCheck {
+class DocumentCheck(
+    /** The server's `declared_actions` ([ServerAnnouncement.actions]); empty: the `actions` stage is skipped. */
+    private val actions: () -> List<Map<String, Any?>> = { emptyList() },
+) {
     data class Problem(val path: String, val stage: String, val message: String)
 
     private val yaml = ObjectMapper(YAMLFactory())
@@ -63,6 +68,7 @@ class DocumentCheck {
     ): List<Problem> {
         val project = tree - deletes.toSet() + files
         val problems = mutableListOf<Problem>()
+        val actionCheck = ActionCheck(actions())
         val layout = DocumentLayout.classify(project.keys, DocumentKinds.all().map { it.dir }.toSet())
         val documents = layout.documents.associateBy { it.path }
         for (path in paths) {
@@ -90,6 +96,7 @@ class DocumentCheck {
                 continue
             }
             problems += schemaProblems(path, label, node)
+            problems += actionCheck.problems(node).map { Problem(path, "actions", it) }
         }
         if (problems.none { it.stage == "yaml" || it.stage == "layout" }) problems += engineProblems(projectId, project, paths.toSet())
         return problems

@@ -253,6 +253,18 @@ class EditorApiTest {
     }
 
     @Test
+    fun `the deploy review checks files on the server without writing`() {
+        answer = { mapOf("ok" to true, "problems" to listOf(mapOf("path" to "menus/shop.yml", "stage" to "schema", "message" to "tittle is not allowed"))) }
+        val (status, body) = call("POST", "/api/v1/projects/u-local.shop/check", mapOf("files" to listOf(mapOf("path" to "menus/shop.yml", "content" to "a")), "deletes" to listOf("menus/old.yml")))
+        assertEquals(200, status)
+        assertEquals("schema", body!!["problems"][0]["stage"].asText())
+        val message = sent.last()
+        assertEquals("documents_check", message["type"])
+        assertEquals("shop", message["project_id"])
+        assertEquals(422, call("POST", "/api/v1/projects/u-local.shop/check", mapOf("deletes" to emptyList<Any>())).first)
+    }
+
+    @Test
     fun `drafts belong to the signed-in player`() {
         answer = { mapOf("ok" to true, "draft" to mapOf("id" to "d1", "revision" to 1)) }
         val (status, body) = call("POST", "/api/v1/user/projects/u-local.shop/drafts", mapOf("id" to "d1", "name" to "x", "snapshot" to mapOf("tree" to emptyMap<String, Any>())))

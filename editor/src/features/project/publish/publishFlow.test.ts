@@ -78,6 +78,33 @@ describe("publishReducer", () => {
     expect(state.review).toBeNull();
   });
 
+  it("keeps the server check only for the review it answers", () => {
+    const changes = { before: {}, after: { "menus/a.yml": "x" } };
+    let state = publishReducer(initialPublishState, {
+      type: "reviewOpened",
+      changes,
+      checks: undefined,
+    });
+    const stale = { before: {}, after: {} };
+    state = publishReducer(state, {
+      type: "documentsChecked",
+      changes: stale,
+      documents: { status: "pending" },
+    });
+    expect(state.review?.documents).toBeUndefined();
+    state = publishReducer(state, {
+      type: "documentsChecked",
+      changes,
+      documents: { status: "ready", problems: [] },
+    });
+    expect(state.review?.documents).toEqual({ status: "ready", problems: [] });
+    state = publishReducer(state, { type: "reviewClosed" });
+    expect(
+      publishReducer(state, { type: "documentsChecked", changes, documents: { status: "pending" } })
+        .review,
+    ).toBeNull();
+  });
+
   it("tracks the explicit draft save", () => {
     const busy = publishReducer(initialPublishState, { type: "draftSaveStarted" });
     expect(busy.savingDraft).toBe(true);

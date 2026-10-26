@@ -72,4 +72,55 @@ class DocumentCheckTest {
         val broken = tree + ("menus/old.yml" to "schema: menu/v1\nsize: nope\n")
         assertEquals(emptyList(), check.check("shop", broken, mapOf("menus/boutique.yml" to menu)))
     }
+
+    private val declared = listOf(
+        mapOf(
+            "name" to "guilds:rank_delete", "primary" to "rank",
+            "args" to listOf(mapOf("name" to "rank", "type" to mapOf("kind" to "string"), "required" to true)),
+        ),
+        mapOf(
+            "name" to "guilds:rank_move",
+            "args" to listOf(
+                mapOf("name" to "rank", "type" to mapOf("kind" to "string"), "required" to true),
+                mapOf("name" to "direction", "type" to mapOf("kind" to "enum", "values" to listOf("up", "down")), "required" to true),
+            ),
+        ),
+        mapOf("name" to "quests:action_bar", "primary" to "text", "args" to listOf(mapOf("name" to "text", "type" to mapOf("kind" to "ltext"), "required" to true))),
+    )
+    private val withActions = DocumentCheck { declared }
+
+    private fun clicked(vararg steps: String) = menu + "\n        click:\n          left:\n" +
+        steps.joinToString("\n") { "            - $it" }
+
+    @Test
+    fun `declared module actions with their arguments pass`() {
+        val file = clicked("guilds:rank_delete: officer", "guilds:rank_move: {rank: officer, direction: up}", "quests:action_bar: {fr: Salut, en: Hi}")
+        assertEquals(emptyList(), withActions.check("shop", tree, mapOf("menus/boutique.yml" to file)))
+    }
+
+    @Test
+    fun `a module action the server does not declare is reported, with the closest name`() {
+        val problems = withActions.check("shop", tree, mapOf("menus/boutique.yml" to clicked("guilds:rank_delet: officer")))
+        assertEquals(listOf("actions"), problems.map { it.stage }, problems.toString())
+        assertTrue("Did you mean `guilds:rank_delete`?" in problems.single().message, problems.toString())
+    }
+
+    @Test
+    fun `an unknown or missing argument of a declared action is reported`() {
+        val problems = withActions.check("shop", tree, mapOf("menus/boutique.yml" to clicked("guilds:rank_move: {rank: officer, way: up}")))
+        val messages = problems.filter { it.stage == "actions" }.map { it.message }
+        assertTrue(messages.any { "unknown argument `way`" in it }, messages.toString())
+        assertTrue(messages.any { "missing `direction`" in it }, messages.toString())
+    }
+
+    @Test
+    fun `without declared actions the stage is skipped`() {
+        assertEquals(emptyList(), check.check("shop", tree, mapOf("menus/boutique.yml" to clicked("guilds:rank_delet: officer"))).filter { it.stage == "actions" })
+    }
+
+    @Test
+    fun `a namespaced condition is not taken for an action`() {
+        val file = clicked("if: [{quests:done: x}]\n              do: [{guilds:rank_delete: officer}]")
+        assertEquals(emptyList(), withActions.check("shop", tree, mapOf("menus/boutique.yml" to file)).filter { it.stage == "actions" })
+    }
 }
