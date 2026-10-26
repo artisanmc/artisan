@@ -9,6 +9,8 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Fixed**: "Remove N unused" in Translations deleted the texts a module reads from its own code (ArtisanAuctions' `auctions.messages.*`, a `MessageBundle` kept in the module's folder, `artisan.duration.*`) and those another text points to with `{i18n:…}`. It now removes only the texts of deleted menus, commands, dialogs and data sources that nothing points to; the others are listed as `(lang/ only)`.
+- **Removed**: the "On disk: Keys / Plain text" switch of Translations. Since field-local translations (2026-09-30) it no longer changed the files, only an `i18n_mode` marker the plugin never read; the marker is ignored and dropped at the next save.
 - **Changed**: a collection's page shows each Document as a card with its first parts (a shop category's articles with their icon, a quest group's quests in order with their first objective), then "+N more"; a filter appears from 7 Documents, and an empty collection offers to create the first one. A board left empty because a folder's content is in a collection (a quests module) leads to that collection. `BoardItem.caption` is back in the editor SDK's types (1.7, dropped by mistake): the cards show it.
 - **Fixed**: a collection's page opened from a link or a reload said "This collection does not exist in this project" until the module's editor view had loaded, and stayed so: it now waits for the modules.
 - **Fixed**: a module's labels in the editor (its kinds, its collections) followed the browser's language instead of the editor language saved in the player's profile.
