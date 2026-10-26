@@ -8,6 +8,7 @@ import net.artisanmc.plugin.provider.MenuProvider
 import net.artisanmc.plugin.render.LenientText
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.title.Title
+import java.math.BigDecimal
 import java.time.Duration
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -186,8 +187,8 @@ class ActionExecutor(
                     }
                 }
             }
-            is Action.GiveMoney -> deps.vault?.deposit(player, action.amount)
-            is Action.TakeMoney -> deps.vault?.withdraw(player, action.amount)
+            is Action.GiveMoney -> moveMoney(player, action.currency, action.amount, deposit = true)
+            is Action.TakeMoney -> moveMoney(player, action.currency, action.amount, deposit = false)
             is Action.GiveXp    -> player.giveExp(action.amount)
             is Action.GiveLevel -> player.giveExpLevels(action.amount)
             is Action.SendMessage  -> player.sendMessage(LenientText.parse(resolveText(action.text, ctx, action.i18n)))
@@ -218,6 +219,22 @@ class ActionExecutor(
             }
         }
         return ctx
+    }
+
+    /**
+     * Une devise inconnue n'est jamais remplacée par la devise par défaut : débiter
+     * Vault à la place des tokens demandés serait pire que ne rien faire.
+     */
+    private fun moveMoney(player: Player, currency: String?, amount: Double, deposit: Boolean) {
+        val provider = deps.economy.get(currency) ?: run {
+            Bukkit.getLogger().warning(
+                "[Artisan] ${if (deposit) "give_money" else "take_money"}: unknown currency " +
+                    "'${currency ?: deps.economy.defaultCurrency}'",
+            )
+            return
+        }
+        val value = BigDecimal.valueOf(amount)
+        if (deposit) provider.deposit(player, value) else provider.withdraw(player, value)
     }
 
     /**

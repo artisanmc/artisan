@@ -74,6 +74,8 @@ object MenuRenderer {
         dataSources: DataSourceRegistry? = null,
         projectData: ProjectDataResolver? = null,
         windows: MenuWindows? = null,
+        /** true : réécrit la fenêtre ouverte de ce menu au lieu d'en rouvrir une. */
+        repaint: Boolean = false,
     ): MenuSession {
         // Deterministic fallback chain: requested lang → project defaultLang → empty.
         // Previously fell back to `langMaps.values.firstOrNull()` which is map-
@@ -170,30 +172,6 @@ object MenuRenderer {
             interpolate = interpolate,
             defaultLang = menu.defaultLang,
         )
-        // MockBukkit n'implémente pas l'overload Component de createInventory —
-        // fallback legacy uniquement dans ce cas (la prod garde le Component,
-        // indispensable aux titres pixel-perfect à base de fonts).
-        // Branche sur inventory_type : hopper/dropper créent un container du bon
-        // TYPE (un dropper a 9 slots comme un chest 1-row mais un type distinct),
-        // donc on ne peut pas se reposer sur size. Chest garde le createInventory
-        // basé sur size.
-        val inv = if (invType != null) {
-            runCatching { Bukkit.createInventory(ArtisanMenuHolder(), invType, title) }
-                .getOrElse {
-                    Bukkit.createInventory(
-                        ArtisanMenuHolder(), invType,
-                        LegacyComponentSerializer.legacySection().serialize(title),
-                    )
-                }
-        } else {
-            runCatching { Bukkit.createInventory(ArtisanMenuHolder(), menu.yaml.size, title) }
-                .getOrElse {
-                    Bukkit.createInventory(
-                        ArtisanMenuHolder(), menu.yaml.size,
-                        LegacyComponentSerializer.legacySection().serialize(title),
-                    )
-                }
-        }
         val activeClicks = mutableMapOf<Int, Map<ClickType, ClickHandler>>()
         val slotArgs = mutableMapOf<Int, Map<String, Any>>()
         for (element in menu.yaml.allElements) {
@@ -270,13 +248,48 @@ object MenuRenderer {
             }
         }
 
+        // Repaint : la fenêtre déjà ouverte reçoit le nouveau contenu, sans
+        // rouvrir l'inventaire (le curseur ne bouge pas). Le titre, lui, reste
+        // celui de l'ouverture.
+        val current = if (repaint) windows?.get(player.uniqueId) else null
+        if (current != null && player.openInventory.topInventory === current.anchor && current.slots.sameShape(content)) {
+            current.slots.replaceWith(content)
+            return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs, current.slots,
+                menu.escapeGoesBack, menu.yaml.refreshInterval)
+        }
+
+        // MockBukkit n'implémente pas l'overload Component de createInventory —
+        // fallback legacy uniquement dans ce cas (la prod garde le Component,
+        // indispensable aux titres pixel-perfect à base de fonts).
+        // Branche sur inventory_type : hopper/dropper créent un container du bon
+        // TYPE (un dropper a 9 slots comme un chest 1-row mais un type distinct),
+        // donc on ne peut pas se reposer sur size. Chest garde le createInventory
+        // basé sur size.
+        val inv = if (invType != null) {
+            runCatching { Bukkit.createInventory(ArtisanMenuHolder(), invType, title) }
+                .getOrElse {
+                    Bukkit.createInventory(
+                        ArtisanMenuHolder(), invType,
+                        LegacyComponentSerializer.legacySection().serialize(title),
+                    )
+                }
+        } else {
+            runCatching { Bukkit.createInventory(ArtisanMenuHolder(), menu.yaml.size, title) }
+                .getOrElse {
+                    Bukkit.createInventory(
+                        ArtisanMenuHolder(), menu.yaml.size,
+                        LegacyComponentSerializer.legacySection().serialize(title),
+                    )
+                }
+        }
         // Ancre vide : le contenu part par paquets. Enregistrée avant l'ouverture,
         // dont les paquets doivent déjà être réécrits ; retirée si un autre
         // plugin a annulé l'ouverture (sinon sa prochaine fenêtre serait prise).
         windows?.open(player, inv, content, menu.yaml.vanillaTexture)
         player.openInventory(inv)
         if (player.openInventory.topInventory !== inv) windows?.release(player, inv)
-        return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs, content, menu.escapeGoesBack)
+        return MenuSession(menu.id, renderCtx.copy(lang = lang, langMap = langMap), activeClicks, slotArgs, content,
+            menu.escapeGoesBack, menu.yaml.refreshInterval)
     }
 
     private fun buildImageHitItem(app: AppearanceYaml, langMap: Map<String, String>, ctx: ExecutionContext,

@@ -34,6 +34,8 @@ export interface Menu {
   player_inventory?: "visible" | "hidden";
   /** Absent/true = texture vanilla. false : fenêtre transparente (coffre, entonnoir, dropper), cf. schema.json. */
   vanilla_texture?: boolean;
+  /** Secondes entre deux repaints du menu ouvert (même fenêtre, titre inchangé). Absent/0 = jamais. */
+  refresh_interval?: number;
   permission?: string;
   /** Notes internes de l'admin (jamais rendues aux joueurs). Round-trip-safe JSON ↔ YAML. */
   notes?: string;

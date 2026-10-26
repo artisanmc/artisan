@@ -42,7 +42,7 @@ class MenuRendererLoreWrapTest {
 
     private fun lore(width: Int, line: String, args: Map<String, Any> = emptyMap()) = run {
         val deps = SoftDepRegistry(
-            vault = null, papi = null, worldGuard = null,
+            economy = net.artisanmc.modules.api.EconomyRegistry(), papi = null, worldGuard = null,
             nexoItems = null, oraxenItems = null, itemsAdderItems = null, hdbHeads = null,
         )
         val p = MockBukkit.getMock()!!.addPlayer()

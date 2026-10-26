@@ -370,8 +370,14 @@ interface AccountState {
   setMenuField: (input: {
     projectId: ProjectId;
     menuId: MenuId;
-    field: "permission" | "rows" | "inventoryType" | "playerInventory" | "vanillaTexture";
-    value: string | MenuRows | boolean;
+    field:
+      | "permission"
+      | "rows"
+      | "inventoryType"
+      | "playerInventory"
+      | "vanillaTexture"
+      | "refreshInterval";
+    value: string | MenuRows | boolean | number;
   }) => void;
   /** Update the menu's title in the given language. Writes into the first text layer (or prepends one). */
   setMenuTitle: (input: {
@@ -2242,11 +2248,15 @@ export const useAccountStore = create<AccountState>()(
               );
             }
             shiftPlayerPositions(menu, oldSize, slotCount(type, value));
-            menu.rows = value;
+            menu.rows = value as MenuRows;
           } else if (field === "playerInventory") {
             menu.playerInventory = value === "hidden" ? "hidden" : undefined;
           } else if (field === "vanillaTexture") {
             menu.vanillaTexture = value === false ? false : undefined;
+          } else if (field === "refreshInterval") {
+            if (typeof value !== "number" || !Number.isFinite(value)) return;
+            const seconds = Math.min(3600, Math.max(0, Math.floor(value)));
+            menu.refreshInterval = seconds > 0 ? seconds : undefined;
           } else if (field === "inventoryType") {
             if (typeof value !== "string") return;
             shiftPlayerPositions(

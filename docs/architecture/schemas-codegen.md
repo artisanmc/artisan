@@ -193,6 +193,15 @@ transparente en jeu (coffre, entonnoir ou dropper), le menu apporte sa texture p
 `MenuYaml.vanillaTexture`. Effets hors du menu (pack + réinjection sur les autres coffres) :
 `invariants.md` « Conteneurs transparents ».
 
+### `refresh_interval` (repaint périodique, 2026-10-19)
+
+Entier **additif optionnel**, secondes, `0..3600`, **défaut `0`** (jamais). Le menu ouvert est
+redessiné dans la même fenêtre (sources relues, placeholders et conditions réévalués, args et
+pages conservés, titre inchangé). Domaine éditeur `Menu.refreshInterval?: number` (stocké seulement
+si `> 0`, borné à 3600 à l'import), export émis seulement si `> 0`, plugin
+`MenuYaml.refreshInterval` → `MenuSession.refreshInterval`, lu chaque seconde par `MenuRefresher`
+(qui sert aussi `api.menus`).
+
 ## Statut / phasage
 
 | Phase | Portée | Statut |

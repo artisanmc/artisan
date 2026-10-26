@@ -398,7 +398,13 @@ class SyncedMenuProvider(
     override fun listMenuIds(): List<String> = (menuTable.ids + draftMenus.keys).distinct().sorted()
     override fun allBundles(): List<ProjectBundle> = bundles
 
-    override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) {
+    override fun openMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) =
+        showMenu(player, menuId, lang, ctx, repaint = false)
+
+    override fun repaintMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext) =
+        showMenu(player, menuId, lang, ctx, repaint = true)
+
+    private fun showMenu(player: Player, menuId: String, lang: String, ctx: ExecutionContext, repaint: Boolean) {
         val menu = findMenu(menuId, ctx.projectId) ?: run {
             player.sendMessage(langManager?.get("cmd.menu_not_found", player, "id" to menuId)
                 ?: net.kyori.adventure.text.Component.text("Menu '$menuId' not found."))
@@ -419,7 +425,7 @@ class SyncedMenuProvider(
         )
         val session = MenuRenderer.open(
             player, menu, lang, decorateNavigation(player, opened), evaluator, lookupAsset, offsetEncoderProvider(),
-            dataSources, projectDataResolver, menuWindows,
+            dataSources, projectDataResolver, menuWindows, repaint,
         )
         sessions?.set(player, session)
         logger?.info("[ART-DEBUG] openMenu: ${player.name} → $menuId, clickSlots=${session.activeClicks.size}, sessions=${if (sessions != null) "set" else "null"}")

@@ -76,6 +76,19 @@ class MenuSlots(val topSize: Int, val playerInventory: PlayerInventoryMode = Pla
         client?.allChanged()
     }
 
+    /** Même géométrie que [other] : la même fenêtre peut afficher son contenu. */
+    fun sameShape(other: MenuSlots): Boolean = topSize == other.topSize && playerInventory == other.playerInventory
+
+    /** Reprend tout le contenu de [other] (même forme) et renvoie la fenêtre en un paquet. */
+    fun replaceWith(other: MenuSlots) {
+        require(sameShape(other)) { "slot shapes differ" }
+        for (i in 0 until size) {
+            items[i] = other.items[i]
+            kinds[i] = other.kinds[i]
+        }
+        client?.allChanged()
+    }
+
     companion object {
         const val PLAYER_SLOTS = 36
 

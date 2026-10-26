@@ -343,6 +343,8 @@ Un menu est un coffre (défaut), un hopper (5×1) ou un dropper (3×3). La **sin
 
 **Texture par défaut (`vanilla_texture`, 2026-09-25)** : en mode titre composé, `VanillaTextureLayer` est la première ligne fixe de `LayersPanel` (non déplaçable, non supprimable) avec un `Switch` (`components/ui/switch.tsx`, spécimen `/admin/design`) — l'œil des layers reste un masquage d'aperçu, le `Switch` un réglage enregistré qui change le jeu. Désactivée (tous types de conteneur), `MenuGroup` ne dessine plus la texture mais `transparentOutline(type, rows)` : cadre pointillé (garde une forme de hit pour le drag) et cellules de slot en traits légers, menu **et** 36 slots joueur, selon la géométrie du type. Repasser en titre vanilla réactive la texture.
 
+**Rafraîchissement (`refresh_interval`, 2026-10-19)** : champ numérique de `MenuProperties` → `setMenuField("refreshInterval")`, entier borné `0..3600`, stocké seulement si `> 0` (vide = jamais).
+
 **Switch de type = keep+warn** : `MenuProperties` expose un sélecteur de type (Chest / Hopper / Dropper) ; le sélecteur de rows n'apparaît que pour le chest. Passer à un conteneur plus petit **conserve** les éléments hors-plage et affiche un chip d'avertissement — jamais de suppression silencieuse (`setMenuField` keep+warn).
 
 ## Canvas edges (liens entre nœuds)
