@@ -926,6 +926,10 @@ export default {
     noRows: "No rows yet.",
     addItem: "+ Item",
     removeItem: "Remove item",
+    addListItem: "Add",
+    addValue: "Add a value",
+    addValuePlaceholder: "Add…",
+    removeValue: "Remove {{value}}",
     kind: {
       string: "text",
       ltext: "localized text",

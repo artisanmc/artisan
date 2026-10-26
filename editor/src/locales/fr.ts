@@ -945,6 +945,10 @@ const fr: typeof en = {
     noRows: "Aucune row pour l'instant.",
     addItem: "+ Élément",
     removeItem: "Supprimer l'élément",
+    addListItem: "Ajouter",
+    addValue: "Ajouter une valeur",
+    addValuePlaceholder: "Ajouter…",
+    removeValue: "Retirer {{value}}",
     kind: {
       string: "texte",
       ltext: "texte localisé",
