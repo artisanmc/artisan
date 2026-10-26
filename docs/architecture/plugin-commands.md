@@ -1,49 +1,49 @@
-# Commandes plugin `/artisan`
+# Plugin `/artisan` commands
 
-Détail dev-facing. Source de vérité : `plugin/paper/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`.
-La table user-facing (EN) vit dans `docs/site/getting-started/install-admin.md` —
-les deux doivent bouger ensemble.
+Dev-facing detail. Source of truth: `plugin/paper/src/main/kotlin/net/artisanmc/plugin/command/ArtisanCommand.kt`.
+The user-facing table (EN) lives in `docs/site/getting-started/install-admin.md` —
+the two must change together.
 
-| Sous-commande | Effet |
+| Subcommand | Effect |
 |---|---|
-| `menu <menu_id>` | Permission `artisan.menu`. Ouvre un menu. Joueurs uniquement (`in_game_only` sinon). Résout la langue via `lang.playerLang(sender)`. |
-| `reload` | Permission `artisan.admin`. `reinit(loadPluginConfig())`, qui recrée le provider et le charge : une seule relecture du disque. Reprend `language` / `per_player_language` et les éditions faites à la main sur le disque. Ne redémarre pas le serveur web : `web.*` demande un redémarrage. |
-| `sync status` | Message fixe renvoyant aux logs (vestige de la synchro cloud). |
-| `sync reject` | Permission `artisan.admin`. `menuProvider.unload()/load()` — recharge depuis le disque et, sur une feuille, reconnecte au hub. |
-| `editor` | Lien de connexion à l'éditeur. Cf. ci-dessous. |
-| `dump-title <menu_id> [lang]` | Permission `artisan.admin`. **Diagnostic**, non documenté côté user. Compile le titre du menu et imprime chaque étape : le MiniMessage exact émis, les advances d'offset, et le curseur X MC à chaque frontière de layer. À utiliser quand la position en jeu diffère de l'aperçu éditeur. |
+| `menu <menu_id>` | Permission `artisan.menu`. Opens a menu. Players only (`in_game_only` otherwise). Resolves the language via `lang.playerLang(sender)`. |
+| `reload` | Permission `artisan.admin`. `reinit(loadPluginConfig())`, which recreates the provider and loads it: a single read from disk. Picks up `language` / `per_player_language` and hand edits made on disk. Does not restart the web server: `web.*` needs a restart. |
+| `sync status` | Fixed message pointing to the logs (leftover of cloud sync). |
+| `sync reject` | Permission `artisan.admin`. `menuProvider.unload()/load()` — reloads from disk and, on a leaf, reconnects to the hub. |
+| `editor` | Editor login link. See below. |
+| `dump-title <menu_id> [lang]` | Permission `artisan.admin`. **Diagnostic**, not documented user-side. Compiles the menu title and prints each step: the exact MiniMessage emitted, the offset advances, and the MC X cursor at each layer boundary. Use it when the in-game position differs from the editor preview. |
 
-Supprimés en phase F : `link <code>` (liaison au cloud), `member add <email>` (accès console),
-et avec eux `editor.access_mode` / `editor.console_only`.
+Removed in phase F: `link <code>` (cloud linking), `member add <email>` (console access),
+and with them `editor.access_mode` / `editor.console_only`.
 
 ## `editor`
 
-Sans `artisan.editor.view` : refus. Depuis la console : identité **Console** partagée
-(`ArtisanCommand.CONSOLE_ID`, UUID nul, nom `Console`), avec les permissions de la console,
-et le lien imprimé en clair (`editor_link_console`, rien à cliquer). Sans `web.url`, l'adresse
-est `server-ip`, sinon `localhost`. La relecture des permissions ne touche jamais cette session
-(elle ne lit que les joueurs en ligne) : elle vit jusqu'à expiration ou `editor logout`.
+Without `artisan.editor.view`: refused. From the console: a shared **Console** identity
+(`ArtisanCommand.CONSOLE_ID`, nil UUID, name `Console`), with the console's permissions,
+and the link printed in plain text (`editor_link_console`, nothing to click). Without `web.url`, the address
+is `server-ip`, otherwise `localhost`. The permission refresh never touches this session
+(it only reads online players): it lives until it expires or `editor logout`.
 
-**Serveur seul ou hub** (`web.hub` vide, serveur web démarré) : imprime un lien
-`<base>/login/<jeton>` à usage unique, valable 60 s, un par joueur et par minute
-(`hub/Sessions.kt`). `<base>` vaut `web.url`, sinon `http://<adresse rejointe par le joueur>:<port>`.
-La session ouverte porte l'UUID du joueur et ses permissions `artisan.editor.view|edit|publish|config`
-au moment de la demande (`artisan.editor` les donne toutes). Serveur web absent (`web.enabled: false`,
-port pris, Jetty non téléchargé) : `editor_disabled`.
+**Standalone server or hub** (`web.hub` empty, web server started): prints a single-use
+`<base>/login/<token>` link, valid for 60 s, one per player per minute
+(`hub/Sessions.kt`). `<base>` is `web.url`, otherwise `http://<address the player joined on>:<port>`.
+The opened session carries the player's UUID and their `artisan.editor.view|edit|publish|config` permissions
+at the time of the request (`artisan.editor` grants them all). Web server absent (`web.enabled: false`,
+port taken, Jetty not downloaded): `editor_disabled`.
 
-**Feuille du réseau** (`web.hub` renseigné) : le serveur lit les mêmes permissions et demande le lien
-au hub par `/ws/plugin` (`editor_link`, réponse `editor_link_result`). Le hub ne consulte aucune
-permission lui-même. `<base>` vaut le `web.url` du hub, sinon l'adresse rejointe par le joueur avec
-le port du hub. Hub injoignable : `editor_hub_offline`.
+**Network leaf** (`web.hub` set): the server reads the same permissions and asks the hub for the link
+over `/ws/plugin` (`editor_link`, reply `editor_link_result`). The hub checks no
+permission itself. `<base>` is the hub's `web.url`, otherwise the address the player joined on, with
+the hub's port. Hub unreachable: `editor_hub_offline`.
 
-**Permissions relues** : chaque minute, le serveur envoie au hub les permissions éditeur de ses
-joueurs en ligne (`editor_permissions` depuis une feuille, appel direct sur le hub). Elles
-remplacent celles des sessions que **ce serveur** a émises (colonne `origin` = server id) ; sans
-`artisan.editor.view`, ces sessions sont fermées. Un autre serveur ne touche pas aux sessions
-qu'il n'a pas émises (permissions LuckPerms par serveur).
+**Permission refresh**: every minute, the server sends the hub the editor permissions of its
+online players (`editor_permissions` from a leaf, direct call on the hub). They
+replace those of the sessions **this server** issued (column `origin` = server id); without
+`artisan.editor.view`, those sessions are closed. Another server does not touch sessions
+it did not issue (LuckPerms permissions are per server).
 
-## `editor logout [joueur]`
+## `editor logout [player]`
 
-Ferme toutes les sessions éditeur d'un joueur, quel que soit le serveur d'origine. Sans argument :
-soi-même (en jeu), Console (depuis la console). `Console` se nomme comme un joueur. Avec un joueur (en ligne ou connu du serveur) : `artisan.admin`, console comprise.
-Sur une feuille, passe par le hub (`editor_logout` → `editor_logout_result {ok, closed}`).
+Closes all of a player's editor sessions, whatever the origin server. Without an argument:
+yourself (in game), Console (from the console). `Console` is named like a player. With a player (online or known to the server): `artisan.admin`, console included.
+On a leaf, goes through the hub (`editor_logout` → `editor_logout_result {ok, closed}`).
