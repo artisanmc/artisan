@@ -1,114 +1,119 @@
-# Le runtime d'Artisan est une librairie — un module de la suite démarre sans le plugin
+# Artisan's runtime is a library — a suite module starts without the plugin
 
-**Statut :** accepté (2026-10-18) pour ① et ② ; ③, ④ et ⑤ **retirés** le même jour (voir
-l'amendement en fin de document). Le module Gradle `runtime` reste, consommé par `paper` ; il
-n'est pas publié et aucun plugin de la suite n'en porte de copie.
+**Status:** accepted (2026-10-18) for ① and ②; ③, ④ and ⑤ **withdrawn** the same day (see
+the amendment at the end of the document). The Gradle module `runtime` stays, consumed by
+`paper`; it is not published and no suite plugin carries a copy of it.
 
-## Contexte
+## Context
 
-Chaque plugin de la suite (Quests, Guilds, Lands, Boosts, Warps) déclare Artisan en dépendance
-requise et tient de son `ArtisanAPI` le moteur d'actions (récompenses), les conditions
-(prérequis), la comparaison d'items (objectifs), les traductions et, pour certains, la base de
-données. Si le plugin Artisan ne démarre pas, aucun d'eux ne démarre : un serveur sans quêtes, sans
-guildes, sans terrains, pour un problème d'éditeur.
+Each plugin of the suite (Quests, Guilds, Lands, Boosts, Warps) declares Artisan as a
+required dependency and gets from its `ArtisanAPI` the action engine (rewards), the
+conditions (prerequisites), item comparison (objectives), translations and, for some, the
+database. If the Artisan plugin does not start, none of them starts: a server without
+quests, without guilds, without lands, because of an editor problem.
 
-Ce que ces plugins tirent d'Artisan se range en deux catégories :
+What these plugins draw from Artisan falls into two categories:
 
-- **du code pur** — parser et exécuter une chaîne, évaluer une condition, bâtir ou comparer un
-  item, charger un bundle de messages, ouvrir un pool : une copie par plugin ne gêne personne ;
-- **de l'état partagé** — les registres (actions, sources de données, kinds de Documents, modèles),
-  la présence vers l'éditeur, le rendu des menus et dialogs, le pack de ressources : il faut
-  exactement un propriétaire dans la JVM.
+- **pure code** — parse and run a chain, evaluate a condition, build or compare an item,
+  load a message bundle, open a pool: one copy per plugin bothers nobody;
+- **shared state** — the registries (actions, data sources, Document kinds, models),
+  presence towards the editor, rendering of menus and dialogs, the resource pack: there
+  must be exactly one owner in the JVM.
 
-Une librairie règle la première catégorie et ne peut rien pour la seconde. L'option « tout en
-librairie, menus compris » a été écartée : N moteurs de menus de versions différentes face à un
-seul éditeur, et la fin des références et des sources de données entre modules.
+A library solves the first category and can do nothing for the second. The "everything
+in a library, menus included" option was ruled out: N menu engines of different versions
+facing a single editor, and the end of references and data sources between modules.
 
-## Décisions
+## Decisions
 
-**① Un module Gradle `runtime`, entre `core` et `paper`.** Il contient ce qui exécute le contenu
-d'un Project sur un serveur Paper sans l'éditeur : `engine/` (`ActionExecutor`,
-`ConditionEvaluator`, `ContextBinder`, `TemplateScope`, les actions core et leur table
-`CoreActionHandlers`, `MenuProvider` et `MenuSessionStore` comme interfaces et stores),
-`session/` (historique de navigation), `integrations/` (Vault, PlaceholderAPI, WorldGuard,
-HeadDatabase), `customitems/` (Nexo, Oraxen, ItemsAdder), `items/` (specs, items capturés,
-`ItemDetails`), `text/`, `scheduling/`, `lang/` (bundles et `TranslationsApi`), `database/`
-(`PooledDatabase`) et `config/EnvironmentFile`. Il dépend de `api`, `core`, `database` et de
-`paper-api` en `compileOnly`. Les packages ne changent pas (règle ② de `plugin-gradle-modules`).
+**① A Gradle module `runtime`, between `core` and `paper`.** It contains what runs a
+Project's content on a Paper server without the editor: `engine/` (`ActionExecutor`,
+`ConditionEvaluator`, `ContextBinder`, `TemplateScope`, the core actions and their table
+`CoreActionHandlers`, `MenuProvider` and `MenuSessionStore` as interfaces and stores),
+`session/` (navigation history), `integrations/` (Vault, PlaceholderAPI, WorldGuard,
+HeadDatabase), `customitems/` (Nexo, Oraxen, ItemsAdder), `items/` (specs, captured
+items, `ItemDetails`), `text/`, `scheduling/`, `lang/` (bundles and `TranslationsApi`),
+`database/` (`PooledDatabase`) and `config/EnvironmentFile`. It depends on `api`, `core`,
+`database` and on `paper-api` as `compileOnly`. Packages do not change (rule ② of
+`plugin-gradle-modules`).
 
-**② `paper` garde l'état partagé** : `SyncedMenuProvider` et le rendu, les listeners, les
-paquets, la présence et le hub, le pack de ressources, les commandes `/artisan`, la racine de
-composition. Il dépend de `runtime` et l'utilise tel quel : un seul moteur, une seule
-implémentation des actions core, le jar d'Artisan est le même qu'avant.
+**② `paper` keeps the shared state**: `SyncedMenuProvider` and rendering, the listeners,
+the packets, presence and the hub, the resource pack, the `/artisan` commands, the
+composition root. It depends on `runtime` and uses it as is: one engine, one
+implementation of the core actions, Artisan's jar is the same as before.
 
-**③ `artisan-runtime` est publié** sur `repo.artisanmc.net`, versionné avec le plugin
-(`-PartisanVersion`), un jar qui embarque `artisan-core`, `artisan-database` et Jackson sans
-relocation, avec `artisan-core-api` en `provided` dans son POM. Un consommateur le **shade
-relocalisé** (`net.artisanmc.plugin` et `com.fasterxml.jackson` au moins) : chaque plugin sa
-copie, aucune trouvée par la recherche de classes inter-plugins de Bukkit. `artisan-core-api`
-reste `compileOnly`, jamais shadé : `ServicesManager.load(ArtisanAPI.class)` compare des
-identités de classe.
-Le jar porte aussi `kotlin-stdlib` et `kotlin-reflect`, non relocalisés comme dans le jar
-d'Artisan (relocaliser `kotlin` casse `kotlin-reflect`) : chaque plugin charge sa copie avant la
-recherche globale, et aucun type Kotlin ne traverse l'API, qui est Java.
+**③ `artisan-runtime` is published** on `repo.artisanmc.net`, versioned with the plugin
+(`-PartisanVersion`), a jar that embeds `artisan-core`, `artisan-database` and Jackson
+without relocation, with `artisan-core-api` as `provided` in its POM. A consumer **shades
+it relocated** (`net.artisanmc.plugin` and `com.fasterxml.jackson` at least): each plugin
+its own copy, none found by Bukkit's cross-plugin class lookup. `artisan-core-api` stays
+`compileOnly`, never shaded: `ServicesManager.load(ArtisanAPI.class)` compares class
+identities.
+The jar also carries `kotlin-stdlib` and `kotlin-reflect`, not relocated as in Artisan's
+jar (relocating `kotlin` breaks `kotlin-reflect`): each plugin loads its copy before the
+global lookup, and no Kotlin type crosses the API, which is Java.
 
-*Rejeté :* une librairie shadée **sans** relocation. Le classloader Bukkit résout les classes à
-travers les plugins : la version chargée en premier gagnerait pour tous, sans que personne l'ait
-choisi — pire qu'un plugin de dépendance.
+*Rejected:* a shaded library **without** relocation. Bukkit's classloader resolves
+classes across plugins: the version loaded first would win for everyone, without anyone
+having chosen it — worse than a dependency plugin.
 
-**④ Un module de la suite passe en dépendance optionnelle d'Artisan.** Avec Artisan, il s'y
-enregistre comme aujourd'hui (actions, sources, kinds, écran d'éditeur) et exécute ses chaînes par
-`api.getActions()`. Sans Artisan, il instancie le runtime de sa copie : les actions core
-(`give_item`, `send_message`, `run_command`, …) s'exécutent, une action d'un autre module est
-absente du registre local, journalisée une fois et sautée ; les conditions s'évaluent en local ;
-les Documents de ses kinds sont lus depuis le disque par `artisan-core`, rechargés par sa
-propre commande ; ses menus répondent « interface indisponible ». Le choix se fait une fois, à
-`onEnable`. Le gameplay et la persistance ne dépendent plus d'Artisan ; les menus, les actions
-inter-modules et le rechargement poussé par l'éditeur, oui.
+**④ A suite module becomes an optional dependency of Artisan.** With Artisan, it
+registers there as today (actions, sources, kinds, editor screen) and runs its chains
+through `api.getActions()`. Without Artisan, it instantiates the runtime from its copy:
+the core actions (`give_item`, `send_message`, `run_command`, …) run, an action of
+another module is absent from the local registry, logged once and skipped; conditions are
+evaluated locally; the Documents of its kinds are read from disk by `artisan-core`,
+reloaded by its own command; its menus answer "interface unavailable". The choice is made
+once, at `onEnable`. Gameplay and persistence no longer depend on Artisan; menus,
+cross-module actions and editor-pushed reloading do.
 
-**⑤ La base de données suit la même règle** (amendement de `suite-foundation-database`,
-`ModuleDatabase` dans le runtime) : un module ouvre son pool par la librairie. Au démarrage, si
-`plugins/Artisan/environment.yml` existe, sa section `database` est lue, jamais écrite ; sinon le
-module écrit une section par défaut (H2) dans sa propre config et l'utilise ; `database.own: true`
-chez le module garde sa section quoi qu'il y ait chez Artisan, et le log dit laquelle des deux est
-lue. Rien n'est créé sous `plugins/Artisan/`. En H2, un fichier par module ; une seule base en
-MySQL/MariaDB, les tables préfixées comme aujourd'hui.
+**⑤ The database follows the same rule** (amendment of `suite-foundation-database`,
+`ModuleDatabase` in the runtime): a module opens its pool through the library. At
+startup, if `plugins/Artisan/environment.yml` exists, its `database` section is read,
+never written; otherwise the module writes a default section (H2) in its own config and
+uses it; `database.own: true` on the module's side keeps its section whatever Artisan has,
+and the log says which of the two is read. Nothing is created under `plugins/Artisan/`.
+With H2, one file per module; a single database with MySQL/MariaDB, tables prefixed as
+today.
 
-## Conséquences
+## Consequences
 
-- `ActionExecutor` prend déjà le registre en paramètre ; l'étape ① est un déplacement de fichiers
-  et trois visibilités `internal` ouvertes (`ItemSpecs`, `ContextBinder.shape/interpolateValues`,
-  `MenuSlots.Client`), lues par `paper` depuis un autre module.
-- Les tests suivent leur code : ceux qui chargent `ArtisanPlugin` par MockBukkit restent dans
-  `paper`, les autres vont dans `runtime` (MockBukkit y est une dépendance de test).
-- `RuntimePackageCyclesTest` garde le DAG des packages du runtime, comme `core` et `paper`.
-- Un consommateur en mode dégradé reste à écrire plugin par plugin (ArtisanQuests en pilote) ;
-  ce que ça exige du runtime (un `MenuProvider` qui ne trouve rien et le dit) viendra avec lui.
+- `ActionExecutor` already takes the registry as a parameter; step ① is a file move and
+  three opened `internal` visibilities (`ItemSpecs`, `ContextBinder.shape/interpolateValues`,
+  `MenuSlots.Client`), read by `paper` from another module.
+- Tests follow their code: those that load `ArtisanPlugin` through MockBukkit stay in
+  `paper`, the others go to `runtime` (MockBukkit is a test dependency there).
+- `RuntimePackageCyclesTest` guards the runtime's package DAG, like `core` and `paper`.
+- A consumer in degraded mode remains to be written plugin by plugin (ArtisanQuests as
+  pilot); what this requires of the runtime (a `MenuProvider` that finds nothing and says
+  so) will come with it.
 
-## Amendement 2026-10-18 — pas de copie du runtime : le plugin Artisan reste requis
+## Amendment 2026-10-18 — no copy of the runtime: the Artisan plugin stays required
 
-Le pilote ArtisanQuests (PR msquests#23, fermée sans merge) a montré ce que ③ et ④ coûtent :
-l'API doit être embarquée **relocalisée** à côté du runtime (sans le plugin Artisan ses classes
-n'existent pas, et `ModuleDatabase` comme le moteur les référencent, ce que ③ n'avait pas vu),
-donc deux copies des mêmes classes dans la JVM et un pont de conversion entre elles ; un
-aiguillage « Artisan présent ou absent » et un adaptateur par service dans chaque plugin ; une
-passe de relocalisation supplémentaire pour les descripteurs JVM que `@kotlin.Metadata` garde en
-texte ; 13 Mo de runtime par plugin. Le mettre dans la librairie (une façade qui rend
-l'`ArtisanAPI` du plugin ou une locale) exigeait de découpler les 28 fichiers du runtime qui
-importent le package API. Un jar bibliothèque passif partagé règle tout cela mais revient à un
-jar dont tous dépendent, ce que le propriétaire refuse.
+The ArtisanQuests pilot (PR msquests#23, closed without merge) showed what ③ and ④ cost:
+the API must be embedded **relocated** next to the runtime (without the Artisan plugin
+its classes do not exist, and `ModuleDatabase` as well as the engine reference them,
+which ③ had not seen), hence two copies of the same classes in the JVM and a conversion
+bridge between them; an "Artisan present or absent" switch and one adapter per service in
+each plugin; an additional relocation pass for the JVM descriptors that `@kotlin.Metadata`
+keeps as text; 13 MB of runtime per plugin. Putting it in the library (a facade returning
+the plugin's `ArtisanAPI` or a local one) required decoupling the 28 runtime files that
+import the API package. A passive shared library jar solves all of this but amounts to a
+jar that everyone depends on, which the owner refuses.
 
-Ce que ④ visait, c'est qu'un problème d'Artisan n'immobilise pas quêtes, guildes et terrains. Or
-la copie n'y change rien : un bug du moteur est le même dans la copie, et ce qui casse un
-plugin actif (hub, port, base, paquets, synchronisation) est déjà hors du chemin des
-dépendants. `ArtisanPlugin.onEnable` construit et enregistre l'API avant toute étape qui peut
-échouer ; l'échec de PacketEvents, de la base de la suite et de l'éditeur est attrapé ; et
-depuis cet amendement la commande, le listener des menus et tout le côté jeu sont en place
-avant le démarrage de l'éditeur, lui-même sous une garde qui journalise en SEVERE et laisse le
-plugin activé (`ArtisanPluginEnableResilienceTest`). Il reste deux cas où tout tombe : le jar
-Artisan absent ou refusé au chargement, et un bug du moteur, qu'une copie n'aurait pas évités.
+What ④ aimed at was that an Artisan problem should not immobilize quests, guilds and
+lands. Yet the copy changes nothing there: an engine bug is the same in the copy, and what
+breaks an active plugin (hub, port, database, packets, sync) is already off the
+dependents' path. `ArtisanPlugin.onEnable` builds and registers the API before any step
+that can fail; the failure of PacketEvents, the suite's database and the editor is caught;
+and since this amendment the command, the menu listener and the whole game side are in
+place before the editor starts, which is itself under a guard that logs at SEVERE and
+leaves the plugin enabled (`ArtisanPluginEnableResilienceTest`). Two cases remain where
+everything falls: the Artisan jar absent or refused at load, and an engine bug, which a
+copy would not have avoided.
 
-Décisions retirées : ③ (publication de `artisan-runtime`, `ModuleDatabase`), ④ (dépendance
-optionnelle et mode dégradé), ⑤ (pool ouvert par le module ; l'amendement de
-`suite-foundation-database` est retiré avec lui, `api.database` reste la voie). Les plugins de
-la suite déclarent Artisan `required: true` et prennent tout de son `ArtisanAPI`.
+Withdrawn decisions: ③ (publication of `artisan-runtime`, `ModuleDatabase`), ④ (optional
+dependency and degraded mode), ⑤ (pool opened by the module; the amendment of
+`suite-foundation-database` is withdrawn with it, `api.database` remains the way). The
+suite's plugins declare Artisan `required: true` and take everything from its
+`ArtisanAPI`.

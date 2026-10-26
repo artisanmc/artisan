@@ -2,7 +2,7 @@ package net.artisanmc.plugin.project
 
 /**
  * The `.artisan*` metadata rule of a Project (docs/architecture/invariants.md,
- * « Exclusion `.artisan*` universelle »), in one place.
+ * "Universal `.artisan*` exclusion"), in one place.
  *
  * A path relative to the Project's folder whose **first segment** starts with
  * `.artisan` is metadata: out of the hash, invisible to the content scan, out of

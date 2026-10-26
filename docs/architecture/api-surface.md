@@ -19,7 +19,7 @@ Note : we use `@Sunset` rather than `@Deprecated`: the schedule-aware annotation
 
 ## 2.0.0 — the surface is Java
 
-`plugin/api` is written in Java since 2.0.0 (ADR `extensible-document-kinds`, « Langue de l'API publique »): interfaces, immutable final classes, enums, `@FunctionalInterface` callbacks, nothing from `kotlin.*` and no `kotlin-stdlib` in the POM. The internals of the plugin (`core`, `database`, `hub`, `paper`) stay Kotlin and implement these interfaces.
+`plugin/api` is written in Java since 2.0.0 (ADR `extensible-document-kinds`, "Public API language"): interfaces, immutable final classes, enums, `@FunctionalInterface` callbacks, nothing from `kotlin.*` and no `kotlin-stdlib` in the POM. The internals of the plugin (`core`, `database`, `hub`, `paper`) stay Kotlin and implement these interfaces.
 
 - A property `x` of the 1.x tables below is the Java getter `getX()` (`ArtisanModule.getId()`, `DataSourceDeclaration.getRef()`, `api.getDataSources()`). Kotlin callers keep writing `module.id` and `api.dataSources`; a Kotlin implementor writes `override fun getId() = "shop"`. Boolean flags read as `MenuClickEvent.hasActions()`.
 - Value classes (`DataSourceDeclaration`, `DataSourceField`, `CommandDeclaration`, `RegisteredDataSource`, `MenuRef`, `DeclaredModel`, `EditorScreenDeclaration`, `DataReloadEvent`, `ConfigReloadEvent`) are final classes with constructors, getters, `equals`/`hashCode`/`toString`. Kotlin's named arguments and `copy` are gone: `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)` or `(ref, fetcher, schema, stability, keyField)`.
@@ -122,7 +122,7 @@ if (api == null) throw new IllegalStateException("Artisan not loaded");
 | `text` (`getText()`, `@Stable` since 2.18.0) | `TextApi` | 2.10.0 |
 | `network` (`getNetwork()`, `@Beta`) | `NetworkApi` | 2.13.0 |
 | `gameEvents` (`getGameEvents()`, `@Beta`) | `GameEventRegistry` | 2.16.0 |
-| `cooldowns` (`getCooldowns()`, `@Beta`) | `CooldownApi` : `isActive(id, player)`, `start(id, player, seconds)`, `inMemory()` (tests) ; le store des cooldowns de menus et de commandes, gardé dans `artisan_cooldowns` | 2.16.0 |
+| `cooldowns` (`getCooldowns()`, `@Beta`) | `CooldownApi`: `isActive(id, player)`, `start(id, player, seconds)`, `inMemory()` (tests); the store of menu and command cooldowns, kept in `artisan_cooldowns` | 2.16.0 |
 
 `coreVersion` is the Artisan plugin version (`plugin.yml`, `1.0.<build>`), unrelated to the API numbering. `apiVersion` is this API's version, generated at build time from this document (highest `Since`, the `generateApiVersion` task of `plugin/api`). `isCompatibleWith(min)` is true when `apiVersion` has the same major as `min` and is greater or equal (`SemVer.satisfies`); before 1.8.0 it compared `coreVersion`, so `isCompatibleWith("1.7.0")` was false on every server.
 
@@ -174,19 +174,19 @@ Constructing a `Stability.STATIC` declaration without a non-blank `keyField` thr
 
 Constructors (2.0.0): `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)`, `(ref, fetcher, schema, stability, keyField)`; `DataSourceField(name, type)`, `(name, type, description)` with a `ModelFieldType` (or, `@Sunset`, a `FieldKind`); `PlayerRequiredException()`, `(message)`. Before 2.0.0 the same overloads came from `@JvmOverloads` on Kotlin constructors with default arguments (since 1.8.0).
 
-### Aucun type Kotlin ne traverse la frontière (1.5.0, api en Java depuis 2.0.0)
+### No Kotlin type crosses the boundary (1.5.0, api in Java since 2.0.0)
 
-Une lambda Kotlin se compile en `kotlin.jvm.functions.FunctionN`, et une fonction
-Kotlin sans valeur de retour en `kotlin.Unit`. Tant que ces types apparaissaient
-dans les signatures publiques, un add-on devait résoudre `kotlin.*` — et comme il
-ne l'embarque pas, son classloader allait le chercher chez **les autres plugins**
-du serveur. Le 2026-08-08, ça a donné un `LinkageError` fatal : le loader de
-Boutique récupérait le `Function2` d'un autre plugin Kotlin, celui d'Artisan
-définissait le sien, contrainte de loader violée au premier appel inter-plugins.
+A Kotlin lambda compiles to `kotlin.jvm.functions.FunctionN`, and a Kotlin
+function with no return value to `kotlin.Unit`. As long as these types appeared
+in the public signatures, an add-on had to resolve `kotlin.*` — and since it
+does not bundle it, its classloader went looking for it in **the server's other
+plugins**. On 2026-08-08, that gave a fatal `LinkageError`: Boutique's loader
+picked up another Kotlin plugin's `Function2`, Artisan's
+defined its own, loader constraint violated on the first cross-plugin call.
 
-La surface n'expose donc plus que des types Java :
+The surface therefore only exposes Java types:
 
-| Rappel | Type | Remplace |
+| Callback | Type | Replaces |
 |---|---|---|
 | `DataFetcher` | `fetch(Player?, Map): List<Map>` | `(Player?, Map) -> List<Map>` |
 | `CommandHandler` | `handle(Player, Map)` | `(Player, Map) -> Unit` |
@@ -194,21 +194,21 @@ La surface n'expose donc plus que des types Java :
 | `SchemaVersionReader<T>` | `versionOf(T): String` | `(T) -> String` |
 | `ModuleRegistry.bind` | `Runnable` | `() -> Unit` |
 
-Ce sont des `fun interface` : côté Kotlin comme côté Java, on passe toujours une
-lambda. `FieldKind` et `Stability` sont déclarés **en Java** — un enum Kotlin
-expose un `getEntries()` typé `kotlin.enums.EnumEntries`.
+These are `fun interface`s: on the Kotlin side as on the Java side, a lambda is always
+passed. `FieldKind` and `Stability` are declared **in Java** — a Kotlin enum
+exposes a `getEntries()` typed `kotlin.enums.EnumEntries`.
 
-Depuis 2.0.0 la surface entière est écrite en Java (section « 2.0.0 » ci-dessus) :
-`ApiSurfaceIsJavaFriendlyTest` échoue si une classe Kotlin apparaît dans `plugin/api/src/main`
-ou si un type `kotlin.*` réapparaît dans une signature. L'implémentation (`core`, `paper`…)
-reste en Kotlin.
+Since 2.0.0 the entire surface is written in Java ("2.0.0" section above):
+`ApiSurfaceIsJavaFriendlyTest` fails if a Kotlin class appears in `plugin/api/src/main`
+or if a `kotlin.*` type reappears in a signature. The implementation (`core`, `paper`…)
+stays in Kotlin.
 
-**Ce que ça ne fait pas** : le JAR du plugin embarque toujours la kotlin-stdlib
-sous ses noms d'origine. Elle ne peut pas être relocalisée — `kotlin-reflect`
-(tiré par `jackson-module-kotlin`, qui lit les data classes YAML) résout ses
-built-ins par nom de chaîne et ne survit pas au renommage. Artisan reste donc un
-fournisseur possible de `kotlin.*` pour un plugin tiers qui en chercherait ; ce
-qui est corrigé, c'est qu'aucun add-on Artisan n'a plus de raison d'en chercher.
+**What this does not do**: the plugin JAR still bundles the kotlin-stdlib
+under its original names. It cannot be relocated — `kotlin-reflect`
+(pulled in by `jackson-module-kotlin`, which reads the YAML data classes) resolves its
+built-ins by string name and does not survive renaming. Artisan therefore remains a
+possible provider of `kotlin.*` for a third-party plugin that went looking for it; what
+is fixed is that no Artisan add-on has any reason to look for it any more.
 
 ### `net.artisanmc.modules.api.item.ItemStackApi` (`@Stable` since 2.18.0)
 
@@ -458,7 +458,7 @@ api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
 
 ### `net.artisanmc.modules.api.screen.EditorScreenRegistry` (`@Beta`)
 
-`api.screens.declare(id, label, table, projectId)` — declares a **Config screen**: a named entry in the editor's sidebar under the module, whose core-generated form edits one declared-model Table/Config of the module's owned Project, live over the WS relay (ADR `module-config-screens` §2/§3). `id` must be namespaced (`boutique:catalog`); `table` is a Project-relative path (`data/categories`) — absolute paths, `..` and a first segment starting with `.artisan` are rejected at declare time, as is a duplicate id. Pure passthrough: nothing is interpreted plugin-side — the declarations are reported at Presence (`hello.editor_screens` / `modules_changed`) and the editor mounts the entries. A module that declares models + owns a Project but no screen gets a fallback "Données" screen synthesized by the editor. `declared()` (sorted by id). Since 1.6.0.
+`api.screens.declare(id, label, table, projectId)` — declares a **Config screen**: a named entry in the editor's sidebar under the module, whose core-generated form edits one declared-model Table/Config of the module's owned Project, live over the WS relay (ADR `module-config-screens` §2/§3). `id` must be namespaced (`boutique:catalog`); `table` is a Project-relative path (`data/categories`) — absolute paths, `..` and a first segment starting with `.artisan` are rejected at declare time, as is a duplicate id. Pure passthrough: nothing is interpreted plugin-side — the declarations are reported at Presence (`hello.editor_screens` / `modules_changed`) and the editor mounts the entries. A module that declares models + owns a Project but no screen gets a fallback "Data" screen synthesized by the editor. `declared()` (sorted by id). Since 1.6.0.
 
 `declare(id, label, table, projectId, component)` (2.7.0) names the module's own view of the screen: a key of its `FrontendModule.screens` (`@artisan/editor-sdk` 1.6.0, `^[a-z][a-zA-Z0-9_-]*$`, `IllegalArgumentException` otherwise), reported as `component` in `editor_screens`. The editor renders that view in place of the generated form and keeps the read, Save, the YAML tab and the file's history; a bundle without that key gets the generated form. `EditorScreenDeclaration.getComponent()` (nullable), 2.7.0.
 
@@ -738,7 +738,7 @@ The artifact contains only the `net.artisanmc.modules.api.*` packages filtered t
 
 ## Protocol surfaces
 
-- **WebSocket** : the hub ↔ server protocol carries `protocol_version` (`"1.3"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
-- **REST API** : versioned under `/api/v1/*`, served by the hub to the editor shipped in the same jar. See `versioning.md` §5.
-- **YAML schemas** : `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `ProjectReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
-- **Database** : each suite plugin migrates its own tables through `DatabaseApi`, named with `tablePrefix(module)`. See `versioning.md` §6.
+- **WebSocket**: the hub ↔ server protocol carries `protocol_version` (`"1.3"`, major.minor) in the hello message; a different major is refused, unknown message types are ignored. See `versioning.md` §4 and `ws-protocol.md`.
+- **REST API**: versioned under `/api/v1/*`, served by the hub to the editor shipped in the same jar. See `versioning.md` §5.
+- **YAML schemas**: `manifest/v1`, `menu/v1`, `command/v1`, `dialog/v1`. Plugin `ProjectReader` rejects unsupported versions; the schema migration framework brings legacy data forward when newer versions ship.
+- **Database**: each suite plugin migrates its own tables through `DatabaseApi`, named with `tablePrefix(module)`. See `versioning.md` §6.

@@ -1,154 +1,140 @@
-# L'éditeur comme éditeur de YAML assisté — le schéma est une option, pas un péage
+# The editor as an assisted YAML editor — the schema is an option, not a toll
 
-**Statut :** accepté (2026-07-27) — **implémenté (2026-07-28/29)** : hints
-visibles + commentaires par clé (⑥⑨), Config typée par model déclaré, onglet
-YAML sur les écrans de config **et** dans le panneau Données (⑦⑧), `@clé` dans
-les actions de data source (④, plugin + contrat éditeur verrouillé par test).
-Restent non faits : l'onglet YAML sur les documents du canvas (⑧, suite
-annoncée) et les cercles ②③ (fichiers de plugins tiers). Révise `module-config-screens` §2, `bare-data-files` ⑦ et
-`action-dsl` (texte des actions de data source) ; livre partiellement le
-« code mode » déféré par `files-first-source-of-truth`.
+**Status:** accepted (2026-07-27) — **implemented (2026-07-28/29)**: visible hints
++ per-key comments (⑥⑨), Config typed by declared model, YAML tab on the config
+screens **and** in the Data panel (⑦⑧), `@key` in data source actions (④, plugin +
+editor contract locked by test). Not done: the YAML tab on canvas documents (⑧,
+announced follow-up) and circles ②③ (third-party plugin files). Revises
+`module-config-screens` §2, `bare-data-files` ⑦ and `action-dsl` (text of data source
+actions); partially delivers the "code mode" deferred by `files-first-source-of-truth`.
 
-## Contexte
+## Context
 
-Les Config screens ont été construits sur la prémisse « un écran édite une
-Table/Config **à model déclaré** ». À l'usage immédiat, deux frictions :
+The Config screens were built on the premise "a screen edits a Table/Config **with a
+declared model**". In immediate use, two frictions:
 
-- Un fichier de réglages sans model déclaré donnait un **formulaire vide** —
-  et pire, une sauvegarde le **vidait** (le writer sérialise contre la liste de
-  champs du model ; liste vide ⇒ `{}`). Incident réel le 2026-07-27,
-  `shop_settings.yaml` réduit à `{}` ; même piège latent sur une table dont le
-  model déclaré n'est pas encore livré par la Presence (rows réduites à `[{}]`).
-- Le propriétaire veut pouvoir **commenter ses champs** et **basculer entre le
-  YAML et le formulaire**, constatant que « c'est toujours plus intuitif de
-  passer par de la config » — une config, elle, *montre* ses explications.
+- A settings file without a declared model gave an **empty form** — and worse, a save
+  **emptied** it (the writer serializes against the model's field list; empty list ⇒
+  `{}`). Real incident on 2026-07-27, `shop_settings.yaml` reduced to `{}`; same latent
+  trap on a table whose declared model is not yet delivered by Presence (rows reduced
+  to `[{}]`).
+- The owner wants to be able to **comment their fields** and **switch between YAML and
+  the form**, noting that "it is always more intuitive to go through config" — a config
+  *shows* its explanations.
 
-D'où le renversement d'accent proposé : ce qu'on édite, ce sont des **fichiers
-YAML** ; le schéma n'est qu'une couche d'assistance posée dessus.
+Hence the proposed shift of emphasis: what we edit are **YAML files**; the schema is
+only a layer of assistance laid on top.
 
-## Décisions
+## Decisions
 
-**① Le schéma est une amélioration progressive.** Le travail minimum d'un
-développeur pour rendre sa config éditable est d'**exposer son fichier** ; il
-peut ensuite déclarer un schéma pour gagner libellés, descriptions et
-contraintes. Un fichier sans schéma est éditable, jamais une impasse : ses
-clés apparaissent comme **champs littéraux** typés d'après les valeurs
-stockées. *Révise `module-config-screens` §2* (« une Table/Config à model
-déclaré » n'est plus un prérequis). *Rejeté :* exiger un model — c'est un péage
-qui interdit précisément le cas d'entrée de gamme visé.
+**① The schema is a progressive enhancement.** A developer's minimum work to make their
+config editable is to **expose their file**; they can then declare a schema to gain
+labels, descriptions and constraints. A file without a schema is editable, never a dead
+end: its keys appear as **literal fields** typed from the stored values. *Revises
+`module-config-screens` §2* ("a Table/Config with a declared model" is no longer a
+prerequisite). *Rejected:* requiring a model — it is a toll that forbids precisely the
+entry-level case aimed at.
 
-**② Sans schéma résoluble, les valeurs voyagent verbatim.** La sérialisation
-pilotée par les champs ne s'applique que si des champs existent. C'est la
-correction de l'incident ci-dessus, hissée au rang de règle : *les valeurs
-sont la donnée de l'utilisateur, le schéma n'est qu'une lecture d'icelles.*
+**② Without a resolvable schema, values travel verbatim.** Field-driven serialization
+only applies if fields exist. This is the fix of the incident above, raised to the rank
+of a rule: *the values are the user's data, the schema is only a reading of them.*
 
-**③ La localisation du fichier décide de ses garanties.** Pas de réglage par
-fichier : dans une racine de project ⇒ versionné, historique, éditable hors
-ligne, divergence résolue ; hors project ⇒ live-only, sans filet. Le
-développeur choisit **où poser son fichier**, les garanties suivent — et
-`addon-owned-project-roots` lui permet de placer sa racine de project **chez
-lui** (`plugins/Boutique/editor/`), donc sans arbitrer entre « mon dossier » et
-« le dossier d'Artisan ». L'asymétrie est **affichée** dans l'écran : c'est une
-propriété choisie, pas un détail d'implémentation.
+**③ The file's location decides its guarantees.** No per-file setting: in a project
+root ⇒ versioned, history, editable offline, divergence resolved; outside a project ⇒
+live-only, no safety net. The developer chooses **where to put their file**, the
+guarantees follow — and `addon-owned-project-roots` lets them place their project root
+**at home** (`plugins/Boutique/editor/`), so without arbitrating between "my folder" and
+"Artisan's folder". The asymmetry is **displayed** in the screen: it is a chosen
+property, not an implementation detail.
 
-**④ L'i18n suit le consommateur, pas le fichier.** Un contenu consommé par le
-runtime d'Artisan (menus, dialogs, sources bindées) vit dans une racine de
-project et se traduit via ses `lang/<code>.yaml`, au même endroit. Un fichier
-consommé par son propre plugin (son `config.yml`) est du texte littéral pour
-nous : sa traduction est l'affaire de son propriétaire, et nous n'écrivons
-jamais de clés dans le dossier d'autrui. *Rejeté :* un scope de langue global
-`plugins/Artisan/lang/` pour le contenu des autres — traductions et fichier
-traduit se retrouveraient dans deux dossiers différents, incohérent et
-lock-in.
-> Corollaire qui **révise `action-dsl`** : une action de data source **peut**
-> porter `@clé` (le mécanisme existe déjà de bout en bout —
-> `DslText.Ref` → `{i18n:clé}` → `ActionExecutor.resolveText`), *parce que*
-> ces sources sont consommées par Artisan. Manque uniquement le passage du
-> `langMap` du project à `api.actions.execute`, qui construit aujourd'hui un
-> `ExecutionContext` sans langue. La clé reste **explicite** (jamais dérivée
-> d'une position dans la chaîne — la fragilité déjà refusée par `files-first` ④).
+**④ i18n follows the consumer, not the file.** Content consumed by Artisan's runtime
+(menus, dialogs, bound sources) lives in a project root and is translated through its
+`lang/<code>.yaml`, in the same place. A file consumed by its own plugin (its
+`config.yml`) is literal text for us: its translation is its owner's business, and we
+never write keys into someone else's folder. *Rejected:* a global language scope
+`plugins/Artisan/lang/` for the content of others — translations and translated file
+would end up in two different folders, incoherent and lock-in.
+> Corollary that **revises `action-dsl`**: a data source action **may** carry `@key`
+> (the mechanism already exists end to end — `DslText.Ref` → `{i18n:key}` →
+> `ActionExecutor.resolveText`), *because* these sources are consumed by Artisan. The
+> only thing missing is passing the project's `langMap` to `api.actions.execute`, which
+> today builds an `ExecutionContext` without a language. The key stays **explicit**
+> (never derived from a position in the chain — the fragility already refused by
+> `files-first` ④).
 
-**⑤ Deux sortes de racines, comme une rampe.** Racine simple (« expose ton
-yml, tu as un éditeur ») → racine de project (« adopte la structure, tu gagnes
-historique et hors-ligne »). Le cercle ③ de `module-config-screens` (fichiers
-de plugins tiers) n'est ouvert **qu'aux modules consentants** qui déclarent
-leur fichier ; jamais sur un plugin non-consentant sans `reload_command`
-déclaré.
+**⑤ Two kinds of roots, like a ramp.** Simple root ("expose your yml, you have an
+editor") → project root ("adopt the structure, you gain history and offline"). Circle ③
+of `module-config-screens` (third-party plugin files) is open **only to consenting
+modules** that declare their file; never on a non-consenting plugin without a declared
+`reload_command`.
 
-**⑥ On ne se bat pas avec les commentaires — on les génère.** Les commentaires
-utilisateur ne sont **pas** préservés ; les `label`/`description` du schéma
-sont projetés en commentaires **au-dessus de chaque clé** (application de
-`bare-data-files` ⑦ tel qu'écrit — le code les regroupait en bloc d'en-tête) et
-régénérés à chaque écriture. L'en-tête généré **dit franchement** que les
-commentaires écrits main sont écrasés. *Rejeté après examen :* l'écriture
-préservante par patch chirurgical (CST) — le domaine ne retient pas la forme
-écrite (`positionsSpec` réduit `[1,2,3]` et `"1-3"` à la même chaîne, un
-`title:` string devient des layers, les templates sont résolus à l'import),
-donc la préserver exigerait soit la provenance de chaque sucre dans le domaine
-(la double représentation démolie par `files-first`), soit un appariement
-d'identité par type de document. Écarté pour un bénéfice discutable : qui
-commente un menu à la main ?
+**⑥ We do not fight comments — we generate them.** User comments are **not** preserved;
+the schema's `label`/`description` are projected as comments **above each key**
+(application of `bare-data-files` ⑦ as written — the code grouped them in a header
+block) and regenerated at each write. The generated header **says frankly** that
+hand-written comments are overwritten. *Rejected after examination:* preserving writing
+by surgical patch (CST) — the domain does not retain the written form (`positionsSpec`
+reduces `[1,2,3]` and `"1-3"` to the same string, a string `title:` becomes layers,
+templates are resolved at import), so preserving it would require either the provenance
+of each sugar in the domain (the double representation demolished by `files-first`), or
+an identity matching per document type. Ruled out for a debatable benefit: who comments
+a menu by hand?
 
-**⑦ Deux modes, une seule vérité par fichier.**
-- Nos fichiers : formulaire **et** onglet YAML, les deux écrivant en
-  **canonique** (canonicalisation immédiate, y compris depuis l'onglet YAML).
-- Fichier étranger : onglet YAML **seul**, écriture **verbatim** (le texte vu
-  est le texte envoyé) ; le formulaire, s'il existe grâce à un schéma déclaré,
-  est en **lecture seule** et ne peut pas enregistrer — sinon la
-  canonicalisation détruirait la config de son propriétaire.
-- **YAML invalide** ⇒ l'onglet Formulaire devient indisponible (erreur + ligne),
-  l'onglet Code reste éditable, et **l'enregistrement reste possible** : c'est
-  ton fichier. Transposition du pattern déjà validé dans `ActionFieldEditor`
-  (Visuel/Code sur la même chaîne, repli sur le texte si le parse échoue).
-  *Rejeté :* bloquer l'enregistrement (l'éditeur se ferait gardien de ce qui ne
-  lui appartient pas) et figer le formulaire sur la dernière version valide
-  (afficher une donnée périmée à côté du texte réel — la dualité qui a produit
-  l'incident du jour).
+**⑦ Two modes, a single truth per file.**
+- Our files: form **and** YAML tab, both writing **canonical** (immediate
+  canonicalization, including from the YAML tab).
+- Foreign file: **only** the YAML tab, **verbatim** writing (the text seen is the text
+  sent); the form, if it exists thanks to a declared schema, is **read-only** and cannot
+  save — otherwise canonicalization would destroy its owner's config.
+- **Invalid YAML** ⇒ the Form tab becomes unavailable (error + line), the Code tab stays
+  editable, and **saving remains possible**: it is your file. Transposition of the
+  pattern already validated in `ActionFieldEditor` (Visual/Code on the same chain,
+  fallback to text if the parse fails). *Rejected:* blocking the save (the editor would
+  make itself the guardian of what does not belong to it) and freezing the form on the
+  last valid version (displaying stale data next to the real text — the duality that
+  produced the incident of the day).
 
-  > **Révisé le 2026-08-14 — l'onglet YAML d'un document Artisan écrit lui aussi
-  > verbatim** (ADR `server-disk-only-storage` ④). La canonicalisation immédiate
-  > depuis cet onglet a été décidée quand l'éditeur web était la surface
-  > principale et le fichier une projection : effacer commentaires et mise en
-  > forme coûtait peu. Depuis, le disque est le **seul** store et l'édition à la
-  > main un chemin de plein droit — un admin a perdu ses commentaires de portage
-  > sur ses propres menus en enregistrant depuis l'éditeur (2026-08-13).
+  > **Revised 2026-08-14 — the YAML tab of an Artisan document also writes
+  > verbatim** (ADR `server-disk-only-storage` ④). Immediate canonicalization from
+  > this tab was decided when the web editor was the main surface and the file a
+  > projection: erasing comments and formatting cost little. Since then, the disk is
+  > the **only** store and hand editing a full-fledged path — an admin lost their
+  > porting comments on their own menus by saving from the editor (2026-08-13).
   >
-  > Ce que tu tapes dans l'onglet YAML est ce qui atterrit. La canonicalisation
-  > ne se déclenche que si l'éditeur **visuel** touche le document, qui le
-  > régénère. Contrepartie assumée : les deux modes ne produisent plus les mêmes
-  > octets pour le même contenu — mais le texte est sous les yeux, donc le
-  > reformatage devient visible au lieu d'être une surprise après coup.
+  > What you type in the YAML tab is what lands. Canonicalization only triggers if
+  > the **visual** editor touches the document, which regenerates it. Accepted
+  > trade-off: the two modes no longer produce the same bytes for the same content —
+  > but the text is before your eyes, so the reformatting becomes visible instead of
+  > being a surprise afterwards.
   >
-  > L'écriture verbatim n'est **pas** une écriture privilégiée : elle passe par le
-  > même compare-and-swap par fichier que le reste.
+  > Verbatim writing is **not** a privileged write: it goes through the same per-file
+  > compare-and-swap as the rest.
 
-**⑧ Portée de l'onglet YAML** : écrans de config de module **et** panneau
-Données du canvas — le même fichier édité par deux surfaces ne peut pas avoir
-deux comportements. Les documents du canvas (menus, dialogs, commandes) sont
-la suite naturelle, ouverte sur demande d'usage.
+**⑧ Scope of the YAML tab**: module config screens **and** the canvas Data panel — the
+same file edited by two surfaces cannot have two behaviors. Canvas documents (menus,
+dialogs, commands) are the natural follow-up, opened on usage demand.
 
-**⑨ Le libellé n'efface pas la clé.** Dans le formulaire, la description
-devient **visible sous le champ** (fini l'infobulle), et le **nom technique
-reste affiché** à côté du libellé : c'est la clé réelle du fichier, celle qu'on
-cherche en SSH. Un seul vocabulaire entre l'écran et le disque.
+**⑨ The label does not erase the key.** In the form, the description becomes **visible
+under the field** (no more tooltip), and the **technical name stays displayed** next to
+the label: it is the file's real key, the one you look for over SSH. A single vocabulary
+between the screen and the disk.
 
-## Conséquences
+## Consequences
 
-- L'incident « fichier vidé à `{}` » devient structurellement impossible : sans
-  schéma, rien n'est filtré.
-- Le cercle ② (formulaire read-only sur config tierce) et une forme utile du
-  cercle ③ (édition verbatim par l'onglet YAML) deviennent atteignables **sans**
-  écriture préservante — c'était le prérequis annoncé par
-  `module-config-screens` ④, ici contourné plutôt que payé.
-- Un menu écrit à la main perd ses commentaires à la première sauvegarde depuis
-  le canvas. C'était déjà vrai ; ça devient une règle explicite.
-- Question ouverte inchangée : « live-only généralisé au canvas » (le serveur
-  comme seul store) reste à griller séparément.
+- The "file emptied to `{}`" incident becomes structurally impossible: without a schema,
+  nothing is filtered.
+- Circle ② (read-only form on third-party config) and a useful form of circle ③ (verbatim
+  editing through the YAML tab) become reachable **without** preserving writing — this was
+  the prerequisite announced by `module-config-screens` ④, bypassed here rather than paid.
+- A hand-written menu loses its comments at the first save from the canvas. This was
+  already true; it becomes an explicit rule.
+- Open question unchanged: "live-only generalized to the canvas" (the server as the only
+  store) remains to be grilled separately.
 
-## Alternatives rejetées à la racine
+## Alternatives rejected at the root
 
-- **Le texte du fichier comme copie de travail permanente** (patch chirurgical
-  partout) : envisagé et retenu en début de session, puis abandonné avec
-  l'abandon des commentaires utilisateur — le coût n'avait plus de contrepartie.
-- **Interdire l'édition hors project** : cohérent mais ferme la trajectoire
-  « brancher Artisan sur l'existant », qui est la raison d'être du dispositif.
+- **The file's text as a permanent working copy** (surgical patch everywhere):
+  considered and retained at the start of the session, then abandoned with the
+  abandonment of user comments — the cost no longer had a counterpart.
+- **Forbidding editing outside a project**: coherent but closes the "plug Artisan onto
+  what exists" trajectory, which is the reason the mechanism exists.

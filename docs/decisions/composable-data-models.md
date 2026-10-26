@@ -31,10 +31,10 @@ substrate: files are the canonical, hand-editable truth.
    a "document" shape (concept overlap + glossary collision with Document).
 
 3. **Runtime stays model-blind; inline schema is the runtime contract.**
-   > **Révisé par l'ADR `bare-data-files` (2026-07-26)** : le contrat runtime
-   > devient « schéma sur le même disque ou dans le même JAR », plus « inline
-   > dans le fichier » — le plugin résout la déclaration JAR ou `models/` au
-   > load ; l'inline reste lu à vie mais n'est plus écrit.
+   > **Revised by the `bare-data-files` ADR (2026-07-26)**: the runtime contract
+   > becomes "schema on the same disk or in the same JAR", no longer "inline in
+   > the file" — the plugin resolves the JAR declaration or `models/` at load;
+   > inline is still read for life but no longer written.
    `data/v1` gains the new kinds in its **inline, denormalized** `fields`
    vocabulary (variants inlined under their tag); the plugin walks value +
    inline schema together (ltext localization inside unions/maps included) and
@@ -73,12 +73,14 @@ substrate: files are the canonical, hand-editable truth.
 
 7. **Form generation derives from the model; hints and validation are part of
    it.**
-   > **Révisé par l'ADR `module-config-screens` (2026-07-27)** : le formulaire
-   > généré pour un model *module-déclaré* vit dans les **Config screens** du
-   > module (entrées sidebar déclarées via presence, édition live par WS),
-   > plus dans le panneau Données du canvas — celui-ci redevient une pure
-   > surface de binding. Le form generator lui-même (hints, master-detail,
-   > validation) reste tel que décrit ici. No separate ui-schema artifact: fields carry a closed set of
+   > **Revised by the `module-config-screens` ADR (2026-07-27)**: the form
+   > generated for a *module-declared* model lives in the module's **Config
+   > screens** (sidebar entries declared via presence, live editing over WS),
+   > no longer in the canvas Data panel — which goes back to being a pure binding
+   > surface. The form generator itself (hints, master-detail, validation) stays
+   > as described here.
+
+   No separate ui-schema artifact: fields carry a closed set of
    presentation hints (label, help, widget, section, **master-detail**) and a
    closed validation vocabulary (`required`, `default`, `min`/`max`,
    `pattern`, `locked`). Enforcement is **asymmetric**: blocking inside the

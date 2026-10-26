@@ -72,8 +72,6 @@ interface EditorStateYaml {
   edges?: Record<string, unknown>;
   /** Captured item label + display descriptor, keyed by item id. */
   items?: Record<string, { name?: string; display?: Record<string, unknown> }>;
-  /** `"inline"` when the documents carry the default language's literal text. */
-  i18n_mode?: string;
 }
 
 // Helpers
@@ -972,7 +970,6 @@ export function projectFromFiles(
     defaultLang,
     ...(manifest.lore_max_width ? { loreMaxWidth: manifest.lore_max_width } : {}),
     ...(manifest.escape_goes_back === true ? { escapeGoesBack: true } : {}),
-    ...(editorState.i18n_mode === "inline" ? { i18nMode: "inline" as const } : {}),
     canvasLayout: parseEditorLayout(editorState.layout, documents),
     ...(Object.keys(folders).length ? { folders } : {}),
     ...(Object.keys(canvasEdges).length > 0 ? { canvasEdges } : {}),

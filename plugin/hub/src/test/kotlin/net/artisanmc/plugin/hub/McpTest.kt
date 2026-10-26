@@ -2,7 +2,6 @@ package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import net.artisanmc.plugin.protocol.ServerLink
 import java.io.File
 import java.net.URI
 import java.net.URLDecoder
@@ -12,7 +11,6 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.Collections
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
 import java.util.logging.Logger
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -24,62 +22,13 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The MCP endpoint end to end (ADR `mcp-server`): OAuth, the six tools, and what they never do. */
+/** The MCP endpoint end to end (ADR `mcp-server`): OAuth, the seven tools, and what they never do. */
 class McpTest {
     private val mapper = ObjectMapper()
     private val sent: MutableList<Map<String, Any?>> = Collections.synchronizedList(mutableListOf())
-    private val server = object : EditorServer {
-        override val id = "u-local"
-        override val online = true
-        override val link = ServerLink { message ->
-            sent += message
-            val reply = when (message["type"]) {
-                "project_list" -> mapOf("ok" to true, "project_ids" to listOf("shop"))
-                "project_read" -> mapOf(
-                    "ok" to true, "hash" to "h1",
-                    "files" to listOf(mapOf("path" to "menus/shop.yml", "content" to "schema: menu/v1\n"), mapOf("path" to "lang/en.yml", "content" to "a: b\n")),
-                    "failed" to emptyList<Any>(), "binaries" to emptyList<Any>(),
-                )
-                // The server's check: a file saying `bad` does not load.
-                "documents_check" -> {
-                    @Suppress("UNCHECKED_CAST")
-                    val files = message["files"] as List<Map<String, String>>
-                    mapOf("ok" to true, "problems" to files.filter { "bad" in it.getValue("content") }
-                        .map { mapOf("path" to it["path"], "stage" to "schema", "message" to "\$.bad: is not defined in the schema") })
-                }
-                else -> mapOf("ok" to false, "error" to "unexpected")
-            }
-            CompletableFuture.completedFuture(mapOf("type" to "${message["type"]}_result") + reply)
-        }
-        override val label = "Survie"
-        override val minecraftVersion = "1.21.7"
-        override val pluginVersion = "2.0.0"
-        override fun announcement() = net.artisanmc.plugin.protocol.ServerAnnouncement(
-            documentKinds = listOf(mapOf("kind" to "menu", "dir" to "menus", "schema_versions" to listOf("menu/v1"))),
-        )
-        override fun serverConfig() = emptyMap<String, Any?>()
-        override fun customItems() = emptyList<Map<String, String>>()
-        override fun applyResourcePack(hash: String, path: String) = Unit
-    }
+    private val server = McpFixtures.server(sent)
 
-    /** Drafts as the suite database keeps them: rows by id, receipts by operation. */
-    private class Drafts : DraftStorage {
-        val rows = java.util.concurrent.ConcurrentHashMap<String, String>()
-        private val receipts = java.util.concurrent.ConcurrentHashMap<String, DraftReceipt>()
-        override fun knownProject(server: String, folder: String) = true
-        override fun drafts(server: String, folder: String, owner: String) = rows.values.toList()
-        override fun draft(server: String, folder: String, id: String) = rows[id]
-        override fun receipt(operationId: String) = receipts[operationId]
-        override fun commit(server: String, folder: String, commit: DraftCommit): Boolean {
-            rows[commit.draftId] = commit.body
-            receipts[commit.receipt.operationId] = commit.receipt
-            return true
-        }
-        override fun content(hash: String): ByteArray? = null
-        override fun putContent(hash: String, bytes: ByteArray) = Unit
-    }
-
-    private val drafts = Drafts()
+    private val drafts = McpFixtures.Drafts()
     private val sessions = Sessions()
     private val grants = McpGrants()
     private val player = UUID.randomUUID()
@@ -183,15 +132,33 @@ class McpTest {
     }
 
     @Test
-    fun `a client the player approved lists six tools, none of which deploys`() {
+    fun `a client the player approved lists seven tools, none of which deploys`() {
         val (access, _) = tokens()
         val init = rpc(access, "initialize", mapOf("protocolVersion" to "2025-06-18", "capabilities" to emptyMap<String, Any>(), "clientInfo" to mapOf("name" to "t", "version" to "1")))
         assertEquals("2025-06-18", init.body!!["result"]["protocolVersion"].asText())
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "start_draft", "write_document"), names)
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it })
+        // The kind guide is prose for the model to read, the schema outlined rather than dumped.
+        val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
+        val text = guide["content"][0]["text"].asText()
+        assertFalse(guide.has("structuredContent"))
+        assertTrue(text.startsWith("# menu Documents\n") && "\n## Fields\n" in text && "## Example: menus/shop.yml" in text, text)
+        assertTrue(text.length < 25_000, "${text.length} characters")
+        // The schema knows the core's actions; the server adds its modules', each once.
+        assertTrue("- guilds:rank_delete (module guilds): {rank: string}; primary: rank\n  - rank: The rank to delete." in text, text)
+        assertFalse("- open_menu (module" in text || "\n- open_menu: no arguments" in text)
+        assertTrue("## Texts and languages\n" in text && "title: { fr: Boutique, en: Shop }" in text)
+        val full = tool(access, "get_kind_guide", "kind" to "menu", "detail" to "schema")["content"][0]["text"].asText()
+        assertTrue("```json\n{\"\$schema\"" in full)
+        // The docs of this release, shipped in the jar: a list, then a page without its front matter.
+        val docs = tool(access, "read_docs")["content"][0]["text"].asText()
+        assertTrue("- editor/expressions: Expressions — " in docs, docs)
+        val page = tool(access, "read_docs", "page" to "editor/expressions")["content"][0]["text"].asText()
+        assertTrue(page.startsWith("# Expressions\n\n") && "description:" !in page.substringBefore("\n## "), page.take(300))
+        assertTrue(tool(access, "read_docs", "page" to "nope")["isError"].asBoolean())
         assertEquals(-32601, rpc(access, "resources/list").body!!["error"]["code"].asInt())
         assertEquals(405, http("GET", McpRoutes.PATH, headers = mapOf("Authorization" to "Bearer $access")).status)
     }
@@ -218,6 +185,9 @@ class McpTest {
 
         val written = tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/vip.yml", "content" to "schema: menu/v1\n")
         assertFalse(written.has("isError"), written.toString())
+        assertEquals(2, written["structuredContent"]["revision"].asInt())
+        val mine = tool(access, "list_documents", "project" to "u-local.shop")["structuredContent"]["your_drafts"]
+        assertEquals(listOf(draftId to "AI: boutique"), mine.map { it["draft_id"].asText() to it["name"].asText() })
         val tree = mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["tree"]
         assertEquals("schema: menu/v1\n", tree["menus/vip.yml"].asText())
         assertEquals("a: b\n", tree["lang/en.yml"].asText())
@@ -239,10 +209,10 @@ class McpTest {
         for (action in listOf("publish", "discard", "write_blob")) {
             assertFailsWith<IllegalArgumentException> { projects.draft(principal, ProjectRef(server, "shop"), action) }
         }
-        // No MCP source names a message that writes to a server's disk.
+        // No MCP or assistant source names a message that writes to a server's disk.
         val dir = listOf("src/main/kotlin/net/artisanmc/plugin/hub", "hub/src/main/kotlin/net/artisanmc/plugin/hub").map(::File).first { it.isDirectory }
-        val sources = dir.listFiles { f -> f.name.startsWith("Mcp") }!!
-        assertTrue(sources.size >= 4)
+        val sources = dir.listFiles { f -> f.name.startsWith("Mcp") || f.name.startsWith("Ai") || f.name.startsWith("Anthropic") }!!
+        assertTrue(sources.size >= 8)
         for (file in sources) {
             val text = file.readText()
             for (forbidden in listOf("project_write", "project_draft_publish", "\"publish\"", "template_copy", "project_delete", "project_rename")) {

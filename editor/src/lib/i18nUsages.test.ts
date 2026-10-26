@@ -329,6 +329,56 @@ describe("findUnusedI18nKeys", () => {
   });
 });
 
+describe("findUnusedI18nKeys — keys read outside the documents", () => {
+  const withKeys = (
+    keys: Record<string, Record<string, string>>,
+    overrides: Partial<Project> = {},
+  ) => project({ i18nKeys: keys as Project["i18nKeys"], ...overrides });
+
+  it("keeps an add-on's messages, a moved MessageBundle and the presentation keys", () => {
+    const p = withKeys({
+      "auctions.messages.no_item": { fr: "Tenez en main l'objet à vendre." },
+      "guilds.created": { en: "Guild created" },
+      "artisan.duration.hours": { en: "{n}h" },
+      "menus.gone.title": { en: "Deleted menu" },
+    });
+    expect(findUnusedI18nKeys(p)).toEqual([k("menus.gone.title")]);
+    const rows = buildTranslationRows(p, "en");
+    expect(rows.find((r) => r.key === "auctions.messages.no_item")?.context).toBe("(lang/ only)");
+    expect(rows.find((r) => r.key === "menus.gone.title")?.context).toBe("(unused)");
+  });
+
+  it("keeps a key another text points to with {i18n:key} or @key", () => {
+    const p = withKeys({
+      "menus.gone.title": { en: "Shared title" },
+      "dialogs.gone.title": { en: "Shared too" },
+      lt_reused: { en: "Shared lore" },
+      lt_alone: { en: "Orphan" },
+      "artisan.other": { en: "see {i18n:menus.gone.title} and {i18n:lt_reused}" },
+    });
+    p.dataSources = [
+      {
+        id: "rewards",
+        shape: "object",
+        fields: [],
+        value: { action: "send_message @dialogs.gone.title" },
+      },
+    ] as unknown as Project["dataSources"];
+    expect(findUnusedI18nKeys(p)).toEqual([k("lt_alone")]);
+  });
+
+  it("keeps the keys of a data source that still exists, even with no site yet", () => {
+    const p = withKeys({
+      "sources.rewards.vip.name": { en: "VIP" },
+      "sources.removed.vip.name": { en: "Gone" },
+    });
+    p.dataSources = [
+      { id: "rewards", shape: "table", modelId: "unknown_yet", rows: [{ id: "vip" }] },
+    ] as unknown as Project["dataSources"];
+    expect(findUnusedI18nKeys(p)).toEqual([k("sources.removed.vip.name")]);
+  });
+});
+
 describe("validActiveLang", () => {
   it("keeps a language the project still has", () => {
     const p = project({ defaultLang: "fr", i18nKeys: { [k("a")]: { fr: "A", en: "A" } } });

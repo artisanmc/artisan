@@ -1,181 +1,181 @@
-# Registre serveur et canvas dérivé
+# Server registry and derived canvas
 
-**Status :** draft — révisé le 2026-09-25. Tranches 1 à 3 implémentées sur la branche
-`feat/server-canvas` (non commitée), plus l'arrangement automatique appliqué aux planches de
-project (cf. « État d'avancement »). Rien sur `main`.
+**Status:** draft — revised on 2026-09-25. Slices 1 to 3 implemented on the branch
+`feat/server-canvas` (uncommitted), plus the automatic arrangement applied to project
+boards (see "Progress"). Nothing on `main`.
 
-## Historique
+## History
 
-- **2026-09-22** — spec initiale.
-- **2026-09-23 → 24** — plan confié à Codex. Il a élargi le périmètre à un socle « serveur logique
-  + autorité backend », puis tout implémenté en un seul lot (P0A → P10, 341 fichiers, routes
-  existantes remplacées). Résultat jugé médiocre : **abandonné**. Le travail est conservé pour
-  référence sur la branche `codex/server-registry-derived-canvas` (commit `011fd3fa`).
-  ⚠️ Ce commit embarque aussi du WIP sans rapport (billing, auth, docs-site, CI…).
-- **Leçon retenue** : pas de big-bang. La cible reste la même, mais on la construit **à côté**
-  de l'existant et on ne bascule qu'une fois validé (cf. Stratégie de livraison).
+- **2026-09-22** — initial spec.
+- **2026-09-23 → 24** — plan handed to Codex. It widened the scope to a "logical server
+  + backend authority" foundation, then implemented everything in a single batch (P0A → P10, 341 files, existing
+  routes replaced). Result judged mediocre: **abandoned**. The work is kept
+  for reference on the branch `codex/server-registry-derived-canvas` (commit `011fd3fa`).
+  ⚠️ This commit also carries unrelated WIP (billing, auth, docs-site, CI…).
+- **Lesson learned**: no big bang. The target stays the same, but we build it **alongside**
+  the existing code and only switch over once validated (see Delivery strategy).
 
-## En bref
+## In short
 
-**La cible** : une planche unique par serveur, arrangée automatiquement ; un registre serveur qui
-groupe tous les Documents par project, avec son onglet plein écran ; recherche, traductions,
-données et ressources globales au serveur. La vue par project ne disparaît pas : elle survit comme
-**filtre**.
+**The target**: a single board per server, arranged automatically; a server registry that
+groups all Documents by project, with its full-screen tab; search, translations,
+data and resources global to the server. The per-project view does not disappear: it survives as a
+**filter**.
 
-> **La portée de la vue est le serveur. La portée du stockage reste le project.**
+> **The scope of the view is the server. The scope of storage stays the project.**
 
-`Project` n'est supprimé nulle part : il reste le dossier, l'unité de hash, de publication, d'i18n
-et de transport. Il cesse seulement d'être un **lieu où l'on entre**.
+`Project` is not removed anywhere: it remains the folder, the unit of hash, publication, i18n
+and transport. It only stops being a **place you enter**.
 
-**La livraison** : on construit la cible sur une **URL séparée**, sans modifier les vues actuelles.
-Première tranche visible = la planche générale **en lecture seule**. La bascule (nouvelle vue par
-défaut, anciennes vues retirées) est la toute dernière tranche.
+**The delivery**: we build the target on a **separate URL**, without changing the current views.
+First visible slice = the general board **read-only**. The switchover (new default view,
+old views removed) is the very last slice.
 
-## Hors périmètre : serveur logique et autorité backend
+## Out of scope: logical server and backend authority
 
-Piste **séparée, reportée à plus tard**. Elle recouvre :
+A **separate track, postponed**. It covers:
 
-- un **serveur logique** qui existe sans serveur Minecraft, qui porte les projects et qui unifie les
-  cas personnel / partagé / démo ;
-- l'**autorité backend** sur les contenus, brouillons et révisions, Minecraft n'exécutant qu'une
-  copie déployée ;
-- le **déploiement explicite** et l'import explicite des modifications locales.
+- a **logical server** that exists without a Minecraft server, that carries the projects and that unifies the
+  personal / shared / demo cases;
+- **backend authority** over contents, drafts and revisions, Minecraft only running
+  a deployed copy;
+- **explicit deployment** and explicit import of local changes.
 
-**Pourquoi la séparer** : c'est le morceau le plus gros et le plus risqué, et il renverse
-`server-disk-only-storage`. Surtout, la planche générale n'en a pas besoin : elle ne fait que
-*lire* les projects d'un serveur, ce que les endpoints actuels savent déjà faire.
+**Why separate it**: it is the biggest and riskiest piece, and it overturns
+`server-disk-only-storage`. Above all, the general board does not need it: it only
+*reads* a server's projects, which the current endpoints already know how to do.
 
-Référence pour plus tard : `docs/superpowers/plans/2026-09-23-backend-authority-and-logical-servers.md`
-(rédigé pendant la tentative Codex, **non validé**). Le moment venu, il faudra le reprendre sous
-forme de spec propre.
+Reference for later: `docs/superpowers/plans/2026-09-23-backend-authority-and-logical-servers.md`
+(written during the Codex attempt, **not validated**). When the time comes, it will have to be taken up
+again as a proper spec.
 
-**Conséquence pour cette spec** : le stockage reste celui d'aujourd'hui. Les projects serveur vivent
-sur le disque Minecraft, les projects hébergés et de démo dans le backend. Tout ce qui supposerait
-une autorité unique est soit conçu contre ce stockage-là, soit reporté.
+**Consequence for this spec**: storage stays what it is today. Server projects live
+on the Minecraft disk, hosted and demo projects in the backend. Everything that would assume
+a single authority is either designed against this storage, or postponed.
 
-## Vocabulaire
+## Vocabulary
 
-⚠️ **Aucun de ces termes n'est dans `CONTEXT.md`.** Ils viennent d'une session de design du
-2026-09-05, qui n'a laissé qu'une note de mémoire et aucun ADR dans le dépôt. Dette à lever au
-passage en ADR.
+⚠️ **None of these terms is in `CONTEXT.md`.** They come from a design session of
+2026-09-05, which left only a memory note and no ADR in the repo. Debt to clear
+by turning them into an ADR.
 
-| Terme | Ce que c'est |
+| Term | What it is |
 |---|---|
-| **Registre** | Le panneau qui liste les Documents. Aujourd'hui c'est le rail de droite, avec ses sections `MENUS` et `COMMANDES`, scopé au project. Dans la cible, il devient **serveur-scopé et groupé par project**. |
-| **Focus** | La vue d'un seul Document (`…/document/$documentId`). C'est sa **maison obligatoire** : la vue complète, où tout est éditable. |
-| **Planche** (canvas) | La vue graphe, avec les inventaires rendus et les flèches de navigation. Dans la cible, elle devient **dérivée** et serveur-scopée. |
-| **Gouttière** | La zone de la planche où atterrissent les Documents qui n'ont aucune arête. C'est une zone de première classe, pas un bac à rebut. |
+| **Registry** | The panel that lists the Documents. Today it is the right rail, with its `MENUS` and `COMMANDS` sections, scoped to the project. In the target, it becomes **server-scoped and grouped by project**. |
+| **Focus** | The view of a single Document (`…/document/$documentId`). It is its **mandatory home**: the full view, where everything is editable. |
+| **Board** (canvas) | The graph view, with the rendered inventories and the navigation arrows. In the target, it becomes **derived** and server-scoped. |
+| **Gutter** | The area of the board where the Documents that have no edge land. It is a first-class zone, not a dumping ground. |
 
-## Le problème
+## The problem
 
-Aujourd'hui, ouvrir un project place la planche au centre de l'écran. Elle est **créée vide avec le
-project**, et l'utilisateur est libre d'y poser ou non ses Documents. Deux conséquences :
+Today, opening a project puts the board in the middle of the screen. It is **created empty with the
+project**, and the user is free to place their Documents on it or not. Two consequences:
 
-- Une planche vide qui attend, c'est une pièce à meubler : elle raconte que le project est inachevé
-  tant qu'on n'a rien posé dessus. La pression à utiliser la planche vient de sa structure, pas d'un
-  choix de l'utilisateur.
-- La curation manuelle est **toujours incomplète**. La preuve est déjà dans le code :
-  `offBoardLinks.ts` et `GhostChips.tsx` existent uniquement pour afficher « ceci pointe vers un
-  Document que tu n'as pas posé ».
+- An empty board waiting is a room to furnish: it says that the project is unfinished
+  as long as nothing has been placed on it. The pressure to use the board comes from its structure, not from a
+  user choice.
+- Manual curation is **always incomplete**. The proof is already in the code:
+  `offBoardLinks.ts` and `GhostChips.tsx` exist only to display "this points to a
+  Document you haven't placed".
 
-Et le constat qui tranche : personne ne va délibérément construire une planche à la main pour
-visualiser des menus qu'il connaît déjà par cœur.
+And the finding that settles it: nobody will deliberately build a board by hand to
+visualize menus they already know by heart.
 
-## Décisions
+## Decisions
 
-### 1. `Project` reste l'unité, mais cesse d'être un lieu
+### 1. `Project` remains the unit, but stops being a place
 
-`Project` reste le dossier, l'unité de hash et de publication, le namespace i18n, le périmètre des
-assets, templates, models et items capturés, et l'unité de transport (`projectCopies.ts`,
-`networkTransfers.ts`, export zip). Rien de tout ça ne bouge. Il devient un badge de provenance et un
-axe de groupement du registre.
+`Project` remains the folder, the unit of hash and publication, the i18n namespace, the scope of
+assets, templates, models and captured items, and the unit of transport (`projectCopies.ts`,
+`networkTransfers.ts`, zip export). None of this moves. It becomes a provenance badge and a
+grouping axis of the registry.
 
-**Pourquoi le garder** : un Add-on bootstrappe son propre project (par exemple `boutique_shop`), cf.
-le commentaire de `diskId` dans `editor/src/domain/types.ts`. Sans project, l'Add-on déverserait ses
-fichiers dans le pot commun de l'utilisateur.
+**Why keep it**: an Add-on bootstraps its own project (for example `boutique_shop`), see
+the `diskId` comment in `editor/src/domain/types.ts`. Without a project, the Add-on would pour its
+files into the user's common pot.
 
-### 2. Le registre est serveur-scopé, le focus est la maison
+### 2. The registry is server-scoped, the focus is the home
 
-Le registre liste tous les Documents du serveur, groupés et filtrables par project. Le focus reste
-la maison obligatoire de chaque Document. Dans la cible, le landing n'est plus la planche.
+The registry lists all the server's Documents, groupable and filterable by project. The focus remains
+the mandatory home of each Document. In the target, the landing is no longer the board.
 
-### 3. La planche est une vue dérivée, pas une composition
+### 3. The board is a derived view, not a composition
 
-Le graphe est **déjà** dérivé : `deriveEdges(project)`
-(`editor/src/features/canvas/deriveEdges.ts`) parcourt le project entier. Aujourd'hui, seules
-l'appartenance et la position sont manuelles. On supprime l'appartenance : la planche montre
-**tout ce qui existe** et l'arrange automatiquement. Elle ne peut donc plus être vide, ni mentir.
+The graph is **already** derived: `deriveEdges(project)`
+(`editor/src/features/canvas/deriveEdges.ts`) walks the entire project. Today, only
+membership and position are manual. We remove membership: the board shows
+**everything that exists** and arranges it automatically. It can therefore no longer be empty, nor lie.
 
-`canvasLayout` cesse d'être la liste des membres et devient une **carte creuse de positions
-fixées** : seuls les nœuds que l'utilisateur a délibérément placés y figurent.
+`canvasLayout` stops being the list of members and becomes a **sparse map of
+pinned positions**: only the nodes that the user deliberately placed appear in it.
 
-`offBoardLinks` et `GhostChips` retrouvent un vrai rôle : ils ne se déclenchent plus que lorsqu'un
-**filtre** masque une cible, donc après un choix délibéré.
+`offBoardLinks` and `GhostChips` regain a real role: they only trigger when a
+**filter** hides a target, hence after a deliberate choice.
 
-**Édition directe conservée sur la planche** (confirmé le 2026-09-23). Le focus reste la vue
-complète. La v0 en lecture seule n'est qu'une étape de livraison, pas la cible.
+**Direct editing kept on the board** (confirmed 2026-09-23). The focus remains the full
+view. The read-only v0 is only a delivery step, not the target.
 
-### 4. Une planche par serveur, filtrable
+### 4. One board per server, filterable
 
-Pas une planche par project, et pas de boards à construire à la main.
+Not one board per project, and no boards to build by hand.
 
-- **Pas une par project** : ça casse le graphe exactement là où il devient intéressant. Un menu du
-  core qui ouvre un menu de la Boutique serait une pastille fantôme d'un côté, un orphelin de l'autre.
-- **Pas de boards à créer** : personne ne le fera.
-- **« Une par project » survit sous forme de filtre**, dérivé, sans rien stocker.
+- **Not one per project**: it breaks the graph exactly where it gets interesting. A core
+  menu that opens a Shop menu would be a ghost chip on one side, an orphan on the other.
+- **No boards to create**: nobody will do it.
+- **"One per project" survives as a filter**, derived, storing nothing.
 
-Axes de filtre : project, type, texte. Leur état vit dans l'URL, pour qu'une vue filtrée se
-partage. Les vues sauvegardées (des filtres nommés) sont une v2 bon marché, hors de ce chantier.
+Filter axes: project, type, text. Their state lives in the URL, so that a filtered view can be
+shared. Saved views (named filters) are a cheap v2, outside this effort.
 
-### 5. Arrangement automatique de la planche
+### 5. Automatic board arrangement
 
-Un layout force-directed (d3-force, ressorts) disperse les nœuds dans tous les sens. Il les fait se
-chevaucher, parce qu'il raisonne sur des points alors qu'un inventaire rendu fait jusqu'à
-352×444 px. Et il change à chaque ouverture. On utilise donc un layout **par couches**
-(Sugiyama) : il est déterministe, il tient compte de la taille réelle de chaque nœud, et il lit
-naturellement dans le sens de la navigation (commande → menu → sous-menu).
+A force-directed layout (d3-force, springs) scatters nodes in all directions. It makes them
+overlap, because it reasons on points whereas a rendered inventory is up to
+352×444 px. And it changes on every open. We therefore use a **layered** layout
+(Sugiyama): it is deterministic, it takes the real size of each node into account, and it reads
+naturally in the direction of navigation (command → menu → submenu).
 
-#### Ce qui existe déjà et qu'on réutilise
+#### What already exists and what we reuse
 
-- **Tailles des nœuds** : `editor/src/features/canvas/menuLayout.ts`. Un menu fait `TEX_W` =
-  **352 px** de large, et `34 + rangées × 36 + 194` px de haut, soit 336 px pour un coffre de 3
-  rangées et 444 px pour 6 rangées. Les types à hauteur fixe (entonnoir, distributeur) passent par
-  `INVENTORY_TYPES[type].boxHeight`. `COMMAND_BOX` mesure 140×48, `DIALOG_BOX` 140×60. `nodeBox`
-  y est déjà partagé par `Edges.tsx` et `GhostChips.tsx`. **L'arrangement doit lire ces mêmes
-  fonctions.** Une seconde source de tailles garantirait des chevauchements dès qu'elle
-  divergerait du rendu.
-- **Format de sortie** : `Record<id, { x, y }>`, avec `x, y` = **coin haut-gauche** du nœud. C'est
-  ce que `Stage` consomme aujourd'hui via `autoLayout(project)`, et ce que lit `nodeBox`. dagre
-  renvoie des **centres** : il faut donc convertir (`x = cx − w/2`, `y = cy − h/2`), sinon tout
-  est décalé d'une demi-boîte.
-- **Tracé des flèches** : `routeEdges` (`edgeRouting.ts`) trace une courbe de Bézier d'une boîte à
-  l'autre. Il gère aussi les ancres forcées par l'utilisateur (`canvasEdges`) et l'espacement des
-  ancres sur un même côté. **On le garde tel quel** et on n'utilise pas les points de passage
-  calculés par dagre. Limite assumée : une flèche longue peut traverser un inventaire. L'ordre
-  anti-croisements limite ce cas. On pourra plus tard faire passer les courbes par les points de
-  dagre.
-- **Ce qui disparaît** : `autoLayout` (qui ne fait aujourd'hui que renvoyer `canvasLayout`) et
-  `gridArrange` (le bouton « Tout arranger », une grille de 4 colonnes).
+- **Node sizes**: `editor/src/features/canvas/menuLayout.ts`. A menu is `TEX_W` =
+  **352 px** wide, and `34 + rows × 36 + 194` px tall, i.e. 336 px for a 3-row
+  chest and 444 px for 6 rows. Fixed-height types (hopper, dispenser) go through
+  `INVENTORY_TYPES[type].boxHeight`. `COMMAND_BOX` measures 140×48, `DIALOG_BOX` 140×60. `nodeBox`
+  is already shared there by `Edges.tsx` and `GhostChips.tsx`. **The arrangement must read these same
+  functions.** A second source of sizes would guarantee overlaps as soon as it
+  diverged from the rendering.
+- **Output format**: `Record<id, { x, y }>`, with `x, y` = **top-left corner** of the node. This is
+  what `Stage` consumes today via `autoLayout(project)`, and what `nodeBox` reads. dagre
+  returns **centers**: we must therefore convert (`x = cx − w/2`, `y = cy − h/2`), otherwise everything
+  is off by half a box.
+- **Arrow routing**: `routeEdges` (`edgeRouting.ts`) draws a Bézier curve from one box
+  to the other. It also handles user-forced anchors (`canvasEdges`) and the spacing of
+  anchors on the same side. **We keep it as is** and do not use the waypoints
+  computed by dagre. Accepted limitation: a long arrow may cross an inventory. The
+  crossing-minimizing order limits this case. Later we could route the curves through the dagre
+  points.
+- **What goes away**: `autoLayout` (which today only returns `canvasLayout`) and
+  `gridArrange` (the "Arrange all" button, a 4-column grid).
 
-#### Ce que dagre fait, et ce qu'il ne fait pas
+#### What dagre does, and what it does not
 
-`@dagrejs/dagre` calcule les **couches** (network-simplex par défaut), l'**ordre** dans chaque
-couche pour limiter les croisements, et les **coordonnées** en respectant les tailles réelles.
+`@dagrejs/dagre` computes the **layers** (network-simplex by default), the **order** within each
+layer to limit crossings, and the **coordinates** while respecting real sizes.
 
-Il ne sait **pas** :
+It does **not** know how to:
 
-- tenir compte de **positions fixées** : il n'accepte aucune coordonnée imposée ;
-- ~~partir d'un ordre imposé~~ — **faux** : dagre 3 accepte des contraintes d'ordre dans une
-  couche (`layout(g, { constraints: [{ left, right }] })`, vérifié le 2026-09-25). Reprendre
-  l'ordre de l'arrangement précédent est donc possible, si la stabilité l'exige ;
-- casser les cycles comme on le souhaite : il le fait, mais de façon arbitraire ;
-- ranger proprement des composantes déconnectées.
+- take **pinned positions** into account: it accepts no imposed coordinate;
+- ~~start from an imposed order~~ — **wrong**: dagre 3 accepts order constraints within a
+  layer (`layout(g, { constraints: [{ left, right }] })`, verified 2026-09-25). Reusing
+  the order of the previous arrangement is therefore possible, if stability requires it;
+- break cycles the way we want: it does, but arbitrarily;
+- neatly lay out disconnected components.
 
-Tout ça est à notre charge, dans le pipeline ci-dessous.
+All of this is on us, in the pipeline below.
 
-#### Le pipeline
+#### The pipeline
 
-Une fonction pure, testable sans rendu :
+A pure function, testable without rendering:
 
 ```ts
 arrangeBoard(input: {
@@ -185,22 +185,22 @@ arrangeBoard(input: {
 }): Record<string, { x: number; y: number }>
 ```
 
-**Étape 1 — Nœuds.** Les Documents du périmètre, triés par id qualifié, avec leurs tailles tirées
-de `menuLayout.ts`. Les arêtes vers un Document inexistant sont exclues : elles restent des
-pastilles accrochées à leur source.
+**Step 1 — Nodes.** The Documents in scope, sorted by qualified id, with their sizes taken
+from `menuLayout.ts`. Edges to a nonexistent Document are excluded: they remain
+chips attached to their source.
 
-**Étape 2 — Partition.** On calcule les composantes connexes sans tenir compte du sens des arêtes.
-Les nœuds sans aucune arête partent en gouttière (étape 6). Chaque autre composante passe
-**séparément** dans dagre.
+**Step 2 — Partition.** We compute the connected components ignoring edge direction.
+Nodes with no edge at all go to the gutter (step 6). Each other component goes
+**separately** through dagre.
 
-**Étape 3 — Arêtes retour.** On fait un DFS depuis les racines de la composante, c'est-à-dire les
-nœuds que rien ne cible, triés par id. Une commande n'est jamais ciblée, donc c'est toujours une
-racine. Dans une composante sans racine (un cycle pur), on part du plus petit id. Une arête dont
-la cible est déjà sur la pile du DFS est une arête retour : **on ne la donne pas à dagre**.
-`routeEdges` la dessine quand même. Ainsi, un bouton « retour au menu principal » ne repousse
-jamais le menu principal d'une couche.
+**Step 3 — Back edges.** We run a DFS from the roots of the component, that is the
+nodes that nothing targets, sorted by id. A command is never targeted, so it is always
+a root. In a component without a root (a pure cycle), we start from the smallest id. An edge whose
+target is already on the DFS stack is a back edge: **we do not give it to dagre**.
+`routeEdges` draws it anyway. This way, a "back to main menu" button never
+pushes the main menu back by a layer.
 
-**Étape 4 — dagre, composante par composante.**
+**Step 4 — dagre, component by component.**
 
 ```ts
 const g = new dagre.graphlib.Graph();
@@ -209,264 +209,264 @@ g.setDefaultEdgeLabel(() => ({}));
 for (const n of sortedNodes) g.setNode(n.id, { width: n.width, height: n.height });
 for (const e of dagEdges) g.setEdge(e.source, e.target);
 dagre.layout(g);
-// dagre donne des centres → coin haut-gauche
+// dagre gives centers → top-left corner
 const pos = (id) => { const n = g.node(id); return { x: n.x - n.width / 2, y: n.y - n.height / 2 }; };
 ```
 
-Couches en colonnes de gauche à droite : les commandes forment la première colonne, et chaque
-niveau de navigation en ajoute une. `ranksep: 160` laisse aux courbes la place de passer entre
-deux colonnes de 352 px de large. Les deux valeurs seront réglées sur de vraies données à la
-tranche 3.
+Layers as columns from left to right: commands form the first column, and each
+navigation level adds one. `ranksep: 160` leaves room for the curves to pass between
+two 352 px-wide columns. Both values will be tuned on real data in
+slice 3.
 
-**Étape 5 — Une composante par ligne** (décidé le 2026-09-25). Composantes triées par nombre de
-nœuds décroissant, puis par plus petit id, et empilées verticalement à partir de (40, 40) avec
-120 px d'écart. Chaque ligne est un parcours qui se lit de gauche à droite depuis son point
-d'entrée (`/menu`, `/dailyq`…). Remplace un rangement en étagères sur 2 400 px, qui posait
-des parcours sans rapport côte à côte.
+**Step 5 — One component per row** (decided 2026-09-25). Components sorted by number of
+nodes descending, then by smallest id, and stacked vertically from (40, 40) with
+a 120 px gap. Each row is a journey read from left to right from its
+entry point (`/menu`, `/dailyq`…). Replaces a shelf layout over 2,400 px, which placed
+unrelated journeys side by side.
 
-**Étape 6 — Gouttière.** 160 px sous tout le reste, sans intitulé. Les
-Documents y sont posés en rangées, triés par type (menus, dialogs, commandes) puis par id, avec
-un retour à la ligne à 2 400 px.
+**Step 6 — Gutter.** 160 px below everything else, with no heading. The
+Documents are laid out in rows, sorted by type (menus, dialogs, commands) then by id, with
+a line wrap at 2,400 px.
 
-**Étape 7 — Positions fixées.** Un nœud fixé **reste dans le calcul de dagre** : ses arêtes
-continuent de structurer les couches de ses voisins. Il est ensuite posé à sa coordonnée fixée,
-et **fixer un nœud là où il était déjà ne déplace rien** (testé). Dernière passe : dans l'ordre
-de leur position (haut vers bas), les nœuds automatiques qui chevauchent un nœud fixé ou un nœud
-déjà traité descendent jusqu'à trouver de la place. Implémenté sans rebouchage : la place que
-dagre donnait au nœud fixé reste vide. Un nœud fixé ne bouge jamais. Deux
-nœuds fixés peuvent se chevaucher (décision confirmée, cf. décision 6).
+**Step 7 — Pinned positions.** A pinned node **stays in the dagre computation**: its edges
+keep structuring the layers of its neighbors. It is then placed at its pinned coordinate,
+and **pinning a node where it already was moves nothing** (tested). Last pass: in the order
+of their position (top to bottom), the automatic nodes that overlap a pinned node or an
+already processed node move down until they find room. Implemented without backfilling: the room
+that dagre gave the pinned node stays empty. A pinned node never moves. Two
+pinned nodes may overlap (confirmed decision, see decision 6).
 
-#### Stabilité : la planche ne bouge pas toute seule
+#### Stability: the board does not move on its own
 
-**Le problème.** dagre optimise *globalement*. Ajouter un seul nœud puis relancer le calcul peut
-réordonner des colonnes entières. Si on insère localement pendant la session (décision 9) mais
-qu'on recalcule tout au rechargement, la planche **saute à chaque actualisation**. C'est
-exactement la perte de repères qu'on cherche à éviter.
+**The problem.** dagre optimizes *globally*. Adding a single node then rerunning the computation can
+reorder entire columns. If we insert locally during the session (decision 9) but
+recompute everything on reload, the board **jumps on every refresh**. This is
+exactly the loss of bearings we are trying to avoid.
 
-**La règle.** Le calcul complet ne tourne que dans deux cas : **quand aucun arrangement précédent
-n'existe**, ou quand l'utilisateur clique sur **« Réarranger »**. Le reste du temps, la planche
-affiche l'arrangement précédent, corrigé localement :
+**The rule.** The full computation only runs in two cases: **when no previous arrangement
+exists**, or when the user clicks **"Rearrange"**. The rest of the time, the board
+shows the previous arrangement, corrected locally:
 
-| Changement | Effet sur la planche |
+| Change | Effect on the board |
 |---|---|
-| Nouveau Document relié | Insertion locale à côté de sa source (décision 9) |
-| Nouveau Document non relié | Ajouté à la fin de la gouttière |
-| Document qui gagne sa première arête | Il quitte la gouttière pour une insertion locale |
-| Document supprimé | Il laisse un trou, rebouché seulement par « Réarranger » |
-| Nouvelle arête entre deux Documents déjà placés | Rien ne bouge, la flèche est simplement tracée |
-| Changement de taille (nombre de rangées) | Les nœuds situés en dessous, dans la même colonne, sont poussés si besoin |
+| New linked Document | Local insertion next to its source (decision 9) |
+| New unlinked Document | Appended to the end of the gutter |
+| Document that gains its first edge | It leaves the gutter for a local insertion |
+| Deleted Document | It leaves a hole, only backfilled by "Rearrange" |
+| New edge between two already placed Documents | Nothing moves, the arrow is simply drawn |
+| Size change (number of rows) | The nodes below, in the same column, are pushed if needed |
 
-**Où vit l'arrangement précédent.** Dans un **cache par utilisateur** (`localStorage`, indexé par
-serveur), et jamais dans les fichiers du project. Ce cache est jetable : s'il est perdu, un calcul
-complet refait une planche correcte. Il ne décide pas de *ce qui existe*, seulement de *l'endroit
-où c'est affiché*. Il ne peut donc pas mentir comme le faisait la liste des membres.
+**Where the previous arrangement lives.** In a **per-user cache** (`localStorage`, keyed by
+server), and never in the project files. This cache is disposable: if it is lost, a full
+computation rebuilds a correct board. It does not decide *what exists*, only *where
+it is displayed*. It therefore cannot lie the way the member list did.
 
-Contrepartie : deux collaborateurs peuvent voir des arrangements différents, jusqu'à ce que l'un
-d'eux clique sur « Réarranger ». Pour un arrangement qui doit être partagé, l'outil est la
-position fixée, qui vit dans les fichiers. *À valider, cf. Questions ouvertes.*
+Trade-off: two collaborators may see different arrangements, until one
+of them clicks "Rearrange". For an arrangement that must be shared, the tool is the
+pinned position, which lives in the files. *To be validated, see Open questions.*
 
-#### Garanties, et comment les tester
+#### Guarantees, and how to test them
 
-| Garantie | Test |
+| Guarantee | Test |
 |---|---|
-| Déterminisme sans cache : même entrée → mêmes coordonnées | calculer deux fois, en mélangeant l'ordre d'entrée |
-| Aucun chevauchement entre nœuds automatiques, ni avec un nœud fixé | intersection de rectangles deux à deux, sur des fixtures jusqu'à 500 nœuds |
-| Une arête retour ne modifie pas l'arrangement | ajouter une arête « retour » laisse les positions identiques |
-| Les orphelins sont en gouttière, sous tout le reste | fixture avec des nœuds isolés |
-| Un nœud fixé n'est jamais déplacé | fixture avec des nœuds fixés au milieu d'une colonne |
-| Les coordonnées sont des coins haut-gauche | `nodeBox(pos)` recouvre bien le rectangle attendu |
+| Determinism without cache: same input → same coordinates | compute twice, shuffling the input order |
+| No overlap between automatic nodes, nor with a pinned node | pairwise rectangle intersection, on fixtures up to 500 nodes |
+| A back edge does not modify the arrangement | adding a "back" edge leaves positions identical |
+| Orphans are in the gutter, below everything else | fixture with isolated nodes |
+| A pinned node is never moved | fixture with pinned nodes in the middle of a column |
+| Coordinates are top-left corners | `nodeBox(pos)` does cover the expected rectangle |
 
-**Coût** : la tentative Codex a mesuré 9 ms pour 50 Documents, 11 ms pour 200 et 22 ms pour 500,
-à froid. Ici, le calcul complet ne tourne qu'à la première ouverture ou sur « Réarranger ».
+**Cost**: the Codex attempt measured 9 ms for 50 Documents, 11 ms for 200 and 22 ms for 500,
+cold. Here, the full computation only runs on first open or on "Rearrange".
 
-**Bibliothèque** : `@dagrejs/dagre` (~100 Ko). `elkjs` (~1,5 Mo, avec web worker) ne sert de
-porte de sortie que si la qualité ne suffit pas. Il accepte, lui, un ordre imposé et le routage
-des flèches.
+**Library**: `@dagrejs/dagre` (~100 KB). `elkjs` (~1.5 MB, with web worker) is only an
+escape hatch if quality is not enough. It does accept an imposed order and arrow
+routing.
 
-### 6. On ne persiste que les positions fixées
+### 6. We only persist pinned positions
 
-Les fichiers du project ne reçoivent **que les positions fixées**. Les positions calculées ne sont
-jamais écrites dans les fichiers : au mieux, elles vivent dans le cache jetable de l'utilisateur,
-qui sert à la stabilité de l'affichage (cf. décision 5, « Stabilité »).
+The project files receive **only pinned positions**. Computed positions
+are never written to the files: at most, they live in the user's disposable cache,
+which serves display stability (see decision 5, "Stability").
 
-- **Emplacement** : dans le `.artisan/editor.yaml` du project **propriétaire du Document**, indexé
-  par Document. Désinstaller un Add-on emporte donc aussi ses positions.
-- **Reprise de l'existant** (confirmé) : les anciennes positions de `canvasLayout` sont conservées
-  **à l'identique** et deviennent des positions fixées, que l'utilisateur peut libérer. Deux
-  anciennes planches peuvent apporter des positions qui se chevauchent : on ne les déplace pas en
-  silence, on propose de les libérer. L'absence de chevauchement est garantie pour les nœuds
-  automatiques, pas entre deux positions imposées par l'utilisateur.
+- **Location**: in the `.artisan/editor.yaml` of the project **that owns the Document**, keyed
+  by Document. Uninstalling an Add-on therefore also takes its positions with it.
+- **Carrying over existing data** (confirmed): the old `canvasLayout` positions are kept
+  **as is** and become pinned positions, which the user can release. Two
+  old boards may bring overlapping positions: we do not move them silently, we offer to
+  release them. The absence of overlap is guaranteed for automatic nodes, not between two
+  user-imposed positions.
 
-### 7. Brouillon et déploiement : regroupés à l'écran, séparés par project à l'enregistrement
+### 7. Draft and deploy: grouped on screen, separate per project on save
 
-L'indicateur de brouillon et le bouton « Déployer » deviennent **serveur-scopés à l'écran**. Le
-diff est découpé par project, et on peut ne déployer qu'un seul project. Côté stockage, chaque
-project garde son brouillon et son compare-and-swap. L'indicateur du serveur est une **somme**, pas
-une transaction : un conflit dans un project ne bloque pas les autres.
+The draft indicator and the "Deploy" button become **server-scoped on screen**. The
+diff is split by project, and a single project can be deployed on its own. On the storage side, each
+project keeps its draft and its compare-and-swap. The server indicator is a **sum**, not
+a transaction: a conflict in one project does not block the others.
 
-### 8. Création : deux points d'entrée équivalents, aucun ordre imposé
+### 8. Creation: two equivalent entry points, no imposed order
 
-« Créer à cet endroit » **perd son sens** dès que le layout est dérivé. Et « créer depuis une
-arête » ne peut pas le remplacer : une arête est la *conséquence* d'un bouton qui pointe déjà
-quelque part, et un menu a N boutons qui pourraient tous ouvrir le futur menu. On a donc deux
-points d'entrée, sans hiérarchie :
+"Create at this spot" **loses its meaning** once the layout is derived. And "create from an
+edge" cannot replace it: an edge is the *consequence* of a button that already points
+somewhere, and a menu has N buttons that could all open the future menu. So we have two
+entry points, with no hierarchy:
 
-- **Le registre** : on crée un menu, une commande ou un dialog sans le relier à rien. Chaque groupe
-  de project a son « + », donc le propriétaire est toujours explicite.
-- **Le sélecteur de cible d'une action** : « + Créer un nouveau menu » dans le choix de cible d'un
-  `open_menu` ou d'un `open_dialog`. `ActionEditor.tsx` connaît déjà `projectId`, `menuId`,
-  `elementId` et `clickType`, donc le propriétaire et le lien sont établis dans le même geste.
+- **The registry**: we create a menu, a command or a dialog without linking it to anything. Each project
+  group has its "+", so the owner is always explicit.
+- **An action's target picker**: "+ Create a new menu" in the target choice of an
+  `open_menu` or `open_dialog`. `ActionEditor.tsx` already knows `projectId`, `menuId`,
+  `elementId` and `clickType`, so the owner and the link are established in the same gesture.
 
-À cela s'ajoute la **réparation** : quand un `open_menu` vise un id inexistant, la pastille fantôme
-propose de créer la cible.
+To this is added **repair**: when an `open_menu` targets a nonexistent id, the ghost chip
+offers to create the target.
 
-**Pourquoi aucun ordre n'est imposé** : les données autorisent déjà les deux demi-états (une
-référence qui pointe vers rien, un menu que rien n'ouvre). Une UI qui imposerait un sens de
-construction contredirait sa propre couche de données. Conséquence : quelqu'un qui commence par
-créer ses menus aura, pendant un moment, *tous* ses menus en gouttière. C'est un état normal.
+**Why no order is imposed**: the data already allows both half-states (a
+reference that points to nothing, a menu that nothing opens). A UI that imposed a direction of
+construction would contradict its own data layer. Consequence: someone who starts by
+creating their menus will have, for a while, *all* their menus in the gutter. This is a normal state.
 
-**Le rattachement n'est pas un champ.** Le project d'un Document **est** son emplacement sur disque
-(`projects/<diskId>/menus/<id>.yaml`). Changer un Document de project revient donc à déplacer des
-fichiers, avec toutes leurs dépendances. C'est hors périmètre, comme l'export sélectif.
+**Attachment is not a field.** A Document's project **is** its location on disk
+(`projects/<diskId>/menus/<id>.yaml`). Moving a Document to another project therefore amounts to moving
+files, with all their dependencies. This is out of scope, like selective export.
 
-**Ids** (confirmé le 2026-09-23) :
+**Ids** (confirmed 2026-09-23):
 
-- les ids de Documents sont **uniques dans le serveur** ;
-- les nouveaux Documents reçoivent un **préfixe automatique** `menu_`, `cmd_` ou `dialog_`. Le
-  dialogue affiche le préfixe fixe et on saisit le suffixe. Le préfixe porte sur l'id du fichier,
-  pas sur le libellé ni sur le texte de la commande : `commands/cmd_boutique.yaml` peut déclarer
-  `/boutique` ;
-- les ids existants sont conservés, et une collision est signalée sans renommage implicite ;
-- les boutons restent identifiés dans leur menu, avec un préfixe `btn_` facultatif.
+- Document ids are **unique within the server**;
+- new Documents receive an **automatic prefix** `menu_`, `cmd_` or `dialog_`. The
+  dialog shows the fixed prefix and we type the suffix. The prefix applies to the file id,
+  not to the label nor to the command text: `commands/cmd_boutique.yaml` can declare
+  `/boutique`;
+- existing ids are kept, and a collision is reported without implicit renaming;
+- buttons remain identified within their menu, with an optional `btn_` prefix.
 
-**Après la création** : ouverture du **focus** sur le nouveau Document (confirmé).
+**After creation**: the **focus** opens on the new Document (confirmed).
 
-### 9. En direct : insertion locale, jamais de recalcul complet
+### 9. Live: local insertion, never a full recomputation
 
-Une édition déclenche une correction locale de l'arrangement (cf. le tableau « Stabilité » de la
-décision 5), animée sur ~250 ms. Pour un nouveau Document relié, on calcule `rang(source) + 1` et on
-le pose dans le premier espace libre de cette colonne, ou à la fin de celle-ci. Seuls les nœuds
-situés en dessous sont poussés. La vue se déplace
-doucement en gardant la source visible, sans recentrage ni zoom. Un bouton **« Réarranger »**
-**libère toutes les positions fixées** et relance le calcul complet (décision d'Iban le
-2026-09-25 : réarranger doit vraiment tout réarranger ; Ctrl+Z restaure les positions).
+An edit triggers a local correction of the arrangement (see the "Stability" table of
+decision 5), animated over ~250 ms. For a new linked Document, we compute `rank(source) + 1` and
+place it in the first free space of that column, or at the end of it. Only the nodes
+below are pushed. The view moves
+smoothly keeping the source visible, with no recentering or zoom. A **"Rearrange"** button
+**releases all pinned positions** and reruns the full computation (Iban's decision on
+2026-09-25: rearranging must really rearrange everything; Ctrl+Z restores the positions).
 
-### 10. Onglet Registre plein écran, un seul hôte
+### 10. Full-screen Registry tab, a single host
 
-Le rail de ~250 px ne peut pas porter le groupement, les filtres, l'état et les actions groupées.
-Il faut donc un **onglet « Registre »**, qui deviendra le landing après la bascule. Mais surtout pas
-deux implémentations : le dépôt s'est fait avoir deux fois, avec le premier mode focus annulé, puis
-`SoloMenuStage` le 2026-09-05. La règle qui en est sortie est **« un rendu par type de Document, et
-autant d'hôtes que de sémantiques distinctes, pas un de plus »**. Le rail et l'onglet font la même
-chose, donc c'est **un seul hôte** avec une prop de densité. Le rail sera replié par défaut, et
-Cmd+K couvre la navigation rapide. La liste « MES PROJECTS » de la sidebar gauche devient alors un
-filtre du registre ; la création, le renommage, l'import/export et la suppression de projects
-restent disponibles dans le registre.
+The ~250 px rail cannot carry the grouping, the filters, the status and the bulk actions.
+We therefore need a **"Registry" tab**, which will become the landing after the switchover. But above all not
+two implementations: the repo got burned twice, with the first focus mode reverted, then
+`SoloMenuStage` on 2026-09-05. The rule that came out of it is **"one rendering per Document type, and
+as many hosts as there are distinct semantics, not one more"**. The rail and the tab do the same
+thing, so it is **a single host** with a density prop. The rail will be collapsed by default, and
+Cmd+K covers quick navigation. The "MY PROJECTS" list of the left sidebar then becomes a
+registry filter; creating, renaming, importing/exporting and deleting projects
+remain available in the registry.
 
-### 11. Tous les onglets passent au niveau du serveur, le stockage reste par project
+### 11. All tabs move to server level, storage stays per project
 
-| Onglet | Vue serveur | Stockage (inchangé) |
+| Tab | Server view | Storage (unchanged) |
 |---|---|---|
-| Recherche (Cmd+K) | index sur tous les projects | `searchIndex.ts` : `Project` → `Project[]` |
-| Traductions | toutes les clés, groupées par project | `lang/<lang>.yaml` par project |
-| Données | Project sources + sources des modules | `data/<id>.yaml` par project |
-| Ressources | tous les assets, groupés par project | sous le project propriétaire |
-| Assistant IA | reste sur un **project cible explicite** ; l'écriture dans plusieurs projects fera l'objet d'une autre spec | — |
+| Search (Cmd+K) | index over all projects | `searchIndex.ts`: `Project` → `Project[]` |
+| Translations | all keys, grouped by project | `lang/<lang>.yaml` per project |
+| Data | Project sources + module sources | `data/<id>.yaml` per project |
+| Resources | all assets, grouped by project | under the owning project |
+| AI Assistant | stays on an **explicit target project**; writing to several projects will be the subject of another spec | — |
 
-Chaque ligne affiche **sa provenance**, et chaque écriture est rattachée à un project propriétaire.
+Each row shows **its provenance**, and each write is attached to an owning project.
 
-### 12. Un project par défaut
+### 12. A default project
 
-Un nouveau serveur reçoit un project `default` **une seule fois**. Tous les projects sont
-supprimables, même le dernier, et `default` n'est jamais recréé. Un serveur vide propose « Créer
-un projet » (confirmé le 2026-09-23). Tant qu'il n'y a qu'un project, le registre n'affiche aucun
-en-tête de groupe.
+A new server receives a `default` project **only once**. All projects can be
+deleted, even the last one, and `default` is never recreated. An empty server offers "Create
+a project" (confirmed 2026-09-23). As long as there is only one project, the registry shows no
+group header.
 
-Où a lieu ce bootstrap ? Plugin, backend, ou selon le type de project ? La réponse dépend de la
-piste stockage : **reporté** avec elle.
+Where does this bootstrap happen? Plugin, backend, or depending on the project type? The answer depends on the
+storage track: **postponed** with it.
 
-## État d'avancement (2026-09-25, branche `feat/server-canvas`, non commitée)
+## Progress (2026-09-25, branch `feat/server-canvas`, uncommitted)
 
-- **Tranche 1** — `features/canvas/serverGraph.ts` : graphe de tout le serveur, cibles résolues
-  sur tout le serveur comme la table unique du plugin (`menus[menuId]`), id introuvable ou porté
-  par deux projects signalé comme lien non résolu.
-- **Tranche 2** — `features/canvas/arrangeBoard.ts` : étapes 1 à 7 (positions fixées comprises).
-- **Tranche 3** — planche générale en lecture seule, `…/servers/$serverId/canvas`
-  (`features/serverCanvas/`), filtres dans l'URL, lien sur la page du serveur. Pas de pastilles
-  fantômes : les liens non résolus sont comptés dans la barre d'état.
-- **Hors plan « à côté »**, à la demande d'Iban : l'arrangement automatique remplace la curation
-  sur **les planches de project** existantes (`projectBoard` dans `autoLayout.ts`), avec le bouton
-  « Réarranger ». Les anciennes positions sont conservées comme positions fixées.
-- Pas encore fait : insertion locale et cache de stabilité (la planche recalcule à chaque
-  changement de graphe), rebouchage des trous laissés par les positions fixées, libération d'une
-  seule position.
+- **Slice 1** — `features/canvas/serverGraph.ts`: graph of the whole server, targets resolved
+  across the whole server like the plugin's single table (`menus[menuId]`), an id not found or carried
+  by two projects reported as an unresolved link.
+- **Slice 2** — `features/canvas/arrangeBoard.ts`: steps 1 to 7 (pinned positions included).
+- **Slice 3** — general read-only board, `…/servers/$serverId/canvas`
+  (`features/serverCanvas/`), filters in the URL, link on the server page. No ghost
+  chips: unresolved links are counted in the status bar.
+- **Outside the "alongside" plan**, at Iban's request: the automatic arrangement replaces curation
+  on the existing **project boards** (`projectBoard` in `autoLayout.ts`), with the
+  "Rearrange" button. The old positions are kept as pinned positions.
+- Not done yet: local insertion and stability cache (the board recomputes on every
+  graph change), backfilling the holes left by pinned positions, releasing a
+  single position.
 
-## Stratégie de livraison
+## Delivery strategy
 
-**Principe : à côté, pas à la place.** Chaque tranche est livrée séparément, et les vues
-existantes ne changent pas jusqu'à la bascule finale. Les tranches 1 et 2 sont pures : elles ne
-touchent à aucune UI.
+**Principle: alongside, not instead.** Each slice is delivered separately, and the
+existing views do not change until the final switchover. Slices 1 and 2 are pure: they
+touch no UI.
 
-1. **Graphe multi-projects.** Identité qualifiée des Documents, et `deriveEdges` sur `Project[]` en
-   gardant la signature actuelle. Tests : dédoublonnage des arêtes, cibles inexistantes non
-   converties en nœuds, pas de collision entre projects.
-2. **Module d'arrangement.** `arrangeBoard`, une fonction pure qui porte les étapes 1 à 7 de la
-   décision 5, avec les tailles tirées de `menuLayout.ts`. Tests : le tableau « Garanties » de la
-   décision 5. Les corrections locales de la section « Stabilité » viennent à la tranche 5.
-3. **Planche générale en lecture seule, sur une nouvelle URL** (par exemple
-   `…/servers/$serverId/canvas`). Elle charge tous les projects du serveur via les endpoints
-   existants. Elle réutilise `Stage` avec une prop de lecture seule : pas de second hôte. Un clic
-   sur un nœud ouvre le focus existant dans son project. Filtres par project, type et texte.
-   Point dur : `Stage`, `nodeBox` et `Edges` sont **mono-project** aujourd'hui (ils cherchent un id
-   dans un seul `project`). Ils doivent accepter un ensemble de projects et des ids qualifiés, sans
-   changer de comportement pour les vues existantes.
-   **Aucune vue existante n'est modifiée. C'est le premier livrable visible, à valider sur de vraies
-   données.**
-4. **Positions fixées.** Déplacer un nœud écrit dans le `.artisan/editor.yaml` du project
-   propriétaire. Reprise des anciennes positions. C'est la première écriture de la nouvelle vue.
-5. **Édition sur la planche générale.** Édition directe, création par le registre et par
-   `ActionEditor`, insertion locale, bouton « Réarranger ».
-6. **Registre serveur et onglet Registre** : un seul hôte, avec une prop de densité, monté sur la
-   nouvelle vue.
-7. **Onglets globaux** avec provenance, puis **brouillon et déploiement regroupés**.
-8. **Bascule.** La nouvelle vue devient le landing et les anciennes vues par project sont retirées.
-   Seulement après une validation **en jeu**.
+1. **Multi-project graph.** Qualified identity of Documents, and `deriveEdges` on `Project[]` while
+   keeping the current signature. Tests: edge deduplication, nonexistent targets not
+   converted into nodes, no collision between projects.
+2. **Arrangement module.** `arrangeBoard`, a pure function that carries steps 1 to 7 of
+   decision 5, with sizes taken from `menuLayout.ts`. Tests: the "Guarantees" table of
+   decision 5. The local corrections of the "Stability" section come in slice 5.
+3. **General read-only board, on a new URL** (for example
+   `…/servers/$serverId/canvas`). It loads all of the server's projects via the existing
+   endpoints. It reuses `Stage` with a read-only prop: no second host. A click
+   on a node opens the existing focus in its project. Filters by project, type and text.
+   Hard point: `Stage`, `nodeBox` and `Edges` are **single-project** today (they look up an id
+   in a single `project`). They must accept a set of projects and qualified ids, without
+   changing behavior for the existing views.
+   **No existing view is modified. This is the first visible deliverable, to be validated on real
+   data.**
+4. **Pinned positions.** Moving a node writes into the `.artisan/editor.yaml` of the owning
+   project. Carrying over the old positions. This is the first write of the new view.
+5. **Editing on the general board.** Direct editing, creation via the registry and via
+   `ActionEditor`, local insertion, "Rearrange" button.
+6. **Server registry and Registry tab**: a single host, with a density prop, mounted on the
+   new view.
+7. **Global tabs** with provenance, then **grouped draft and deploy**.
+8. **Switchover.** The new view becomes the landing and the old per-project views are removed.
+   Only after validation **in game**.
 
-## Ce qui ne change pas
+## What does not change
 
-- `lang/` et les assets restent **par project** : les adresses i18n sont dérivées par project et
-  verrouillées par `I18nAddresses.kt` et `testdata/i18n-address-conformance.json`.
-- L'export et l'import restent de project à project.
-- Le stockage actuel (cf. Hors périmètre).
+- `lang/` and assets remain **per project**: i18n addresses are derived per project and
+  locked by `I18nAddresses.kt` and `testdata/i18n-address-conformance.json`.
+- Export and import remain project to project.
+- The current storage (see Out of scope).
 
-## Questions ouvertes
+## Open questions
 
-- **Cache d'arrangement par utilisateur** (décision 5, « Stabilité »). La planche ne bouge pas
-  toute seule, mais deux collaborateurs peuvent voir des arrangements différents tant que personne
-  n'a cliqué sur « Réarranger ». Alternative : recalculer à chaque chargement, au prix d'une
-  planche qui peut sauter à chaque actualisation.
-- **Création dans le project d'un Add-on.** Proposition issue de la tentative Codex : masquer le
-  « + » tant qu'aucune garantie de conservation n'existe. L'Add-on réécrit ses propres fichiers,
-  puis appelle `api.project.reload()`.
-- **Nom de la nouvelle URL**, et comment on y accède tant que la bascule n'est pas faite.
-- **Création globale** quand plusieurs projects sont candidats : le project du filtre ? le dernier
-  utilisé ? `default` ?
-- **Export sélectif / déplacement de Documents** : c'est un calcul de fermeture transitive.
-  Reporté.
-- **Vues sauvegardées** et **vue écran** (HUD, bossbar, scoreboard) : hors de ce chantier.
+- **Per-user arrangement cache** (decision 5, "Stability"). The board does not move
+  on its own, but two collaborators may see different arrangements as long as nobody
+  has clicked "Rearrange". Alternative: recompute on every load, at the cost of a
+  board that may jump on every refresh.
+- **Creation in an Add-on's project.** Proposal from the Codex attempt: hide the
+  "+" as long as no retention guarantee exists. The Add-on rewrites its own files,
+  then calls `api.project.reload()`.
+- **Name of the new URL**, and how to reach it until the switchover is done.
+- **Global creation** when several projects are candidates: the filter's project? the last
+  one used? `default`?
+- **Selective export / moving Documents**: it is a transitive closure computation.
+  Postponed.
+- **Saved views** and **screen view** (HUD, bossbar, scoreboard): outside this effort.
 
-## Points de code touchés
+## Code touchpoints
 
-| Fichier | Nature du changement | Tranche |
+| File | Nature of the change | Slice |
 |---|---|---|
-| `editor/src/features/canvas/deriveEdges.ts` | variante `Project[]` avec ids qualifiés, signature actuelle conservée | 1 |
-| nouveau module `arrangeBoard` (`features/canvas/`) | étapes 1 à 7, fonction pure + ajout de la dépendance `@dagrejs/dagre` | 2 |
-| `editor/src/features/canvas/menuLayout.ts` | seule source des tailles de nœuds, réutilisée telle quelle | 2 |
-| `editor/src/features/canvas/edgeRouting.ts` | inchangé : les courbes restent calculées de boîte à boîte | — |
-| `editor/src/features/canvas/autoLayout.ts` | `autoLayout` et `gridArrange` remplacés par `arrangeBoard` à la bascule | 8 |
-| `editor/src/features/canvas/Stage.tsx` | prop de lecture seule ; pas de second hôte | 3 |
-| nouvelle route `…/servers/$serverId/canvas` | planche générale | 3 |
-| `editor/src/features/canvas/offBoardLinks.ts`, `GhostChips.tsx` | ne se déclenchent que sur filtre | 3 |
-| `editor/src/domain/types.ts` (`canvasLayout`) | liste des membres → positions fixées | 4 |
-| `editor/src/features/canvas/properties/ActionEditor.tsx` | « + Créer » dans le sélecteur de cible | 5 |
+| `editor/src/features/canvas/deriveEdges.ts` | `Project[]` variant with qualified ids, current signature kept | 1 |
+| new `arrangeBoard` module (`features/canvas/`) | steps 1 to 7, pure function + adding the `@dagrejs/dagre` dependency | 2 |
+| `editor/src/features/canvas/menuLayout.ts` | sole source of node sizes, reused as is | 2 |
+| `editor/src/features/canvas/edgeRouting.ts` | unchanged: curves remain computed from box to box | — |
+| `editor/src/features/canvas/autoLayout.ts` | `autoLayout` and `gridArrange` replaced by `arrangeBoard` at switchover | 8 |
+| `editor/src/features/canvas/Stage.tsx` | read-only prop; no second host | 3 |
+| new route `…/servers/$serverId/canvas` | general board | 3 |
+| `editor/src/features/canvas/offBoardLinks.ts`, `GhostChips.tsx` | only trigger on filter | 3 |
+| `editor/src/domain/types.ts` (`canvasLayout`) | member list → pinned positions | 4 |
+| `editor/src/features/canvas/properties/ActionEditor.tsx` | "+ Create" in the target picker | 5 |
 | `editor/src/features/search/searchIndex.ts` | `Project` → `Project[]` | 7 |

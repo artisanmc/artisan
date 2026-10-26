@@ -1,96 +1,97 @@
-# Le tunnel de l'éditeur : un serveur sans port ouvert
+# The editor tunnel: a server with no open port
 
-**Statut :** proposé (2026-10-20), prototype. Suite de `editor-web-server`.
+**Status:** proposed (2026-10-20), prototype. Follows `editor-web-server`.
 
-## Contexte
+## Context
 
-Le hub sert l'éditeur sur `web.port`. Beaucoup d'hébergeurs ne donnent qu'un port, ou le font
-payer, et sans HTTPS le navigateur n'expose pas `crypto.subtle`. Un éditeur hébergé en cloud
-réglerait l'accès, mais rouvrirait ce que l'auto-hébergement a fermé : un éditeur d'une
-version face aux moteurs de toutes les versions installées (`content-version-negotiation`),
-du stockage, des comptes. Analyse : `cloud-ou-auto-hebergement.md` (fichiers du projet).
+The hub serves the editor on `web.port`. Many hosts only give one port, or charge for
+it, and without HTTPS the browser does not expose `crypto.subtle`. A cloud-hosted editor
+would solve access, but would reopen what self-hosting closed: a one-version editor
+facing the engines of all installed versions (`content-version-negotiation`),
+storage, accounts. Analysis: `cloud-ou-auto-hebergement.md` (project files).
 
-## Décisions
+## Decisions
 
-1. **Le tunnel par défaut, rien de plus.** Sans `web.url`, le hub ouvre un WebSocket **sortant**
-   vers `/tunnel` sur `web.tunnel` (défaut `connect.artisanmc.app`, `""` pour s'en passer), qui
-   lui donne une adresse `https://<id>.artisanmc.app`. Aucun port à ouvrir pour une installation
-   sans configuration. Chaque requête HTTP et chaque WebSocket du navigateur
-   passent par ce WebSocket et sont rejoués tels quels sur le port web local du hub
-   (`TunnelClient`, module `hub`). Une feuille ignore `web.tunnel`.
-2. **Le serveur de tunnel ne comprend rien.** Il ne sert pas l'éditeur, ne stocke que les noms
-   d'adresse (décision 8) et ne
-   lit ni le protocole de l'éditeur ni ses formats. Il passe les en-têtes du navigateur,
-   `Host` et `Origin` compris : le contrôle de même origine et les cookies du hub
-   s'appliquent sans changement. L'éditeur servi reste celui du jar : aucun nouvel axe de
-   version entre l'éditeur et le moteur. Seul le fil du tunnel est versionné
-   (`X-Artisan-Tunnel-Version`, majeure différente = refus).
-3. **Fil binaire minimal** (`plugin/tunnel`, `Frame`) : `[type][flux][charge]`, un flux par
-   requête ou par WebSocket du navigateur, corps découpés en morceaux de 256 Kio. Le corps
-   d'une requête est gardé en entier côté plugin avant d'être rejoué (100 Mio au plus, la
-   limite du pack du hub) ; la réponse revient en flux.
-4. **L'identité vient d'un secret.** Le plugin génère `plugins/Artisan/tunnel-secret` une fois ;
-   `<id>` en est dérivé (SHA-256, base32, 16 caractères). L'adresse est stable d'un redémarrage
-   à l'autre, personne ne peut la prendre sans le secret, et le serveur de tunnel n'a besoin
-   d'aucune base. Plusieurs connexions du même secret coexistent : la dernière répond, la
-   précédente reprend si elle part (serveurs d'un réseau, ADR `peer-servers`).
-5. **Les joueurs ne passent jamais par le tunnel.** Ils reçoivent le pack d'un plugin de pack
-   (Nexo, Oraxen, ItemsAdder), jamais du serveur web de l'éditeur : la bande passante croît avec
-   les sessions d'édition et les mises à jour du pack, jamais avec les connexions de joueurs.
-   Rien n'est bloqué par défaut (`TUNNEL_BLOCKED_PATHS` reste disponible).
-6. **Une feuille sans port joint son hub par le tunnel.** `web.hub: "https://<id>.artisanmc.app"` :
-   `/ws/plugin` et le téléchargement du pack passent par le tunnel du hub, aucun des deux
-   serveurs n'écoute. Le réseau reste porté par le hub et la base de la suite ; le serveur de
-   tunnel ne connaît pas les réseaux.
-7. **Serveur privé possible.** `TUNNEL_ACCESS_CODE` côté serveur, `web.tunnel-access` côté plugin :
-   un code refusé ferme le tunnel avec la raison (code 4003), que le plugin écrit dans sa console.
-8. **Un nom pour l'adresse** (2026-10-21). Le serveur de tunnel garde, dans un fichier JSON
-   (`NameRegistry`, `TUNNEL_NAMES_FILE`), des noms que des adresses ont pris :
-   `survie.artisanmc.app` répond comme `<id>.artisanmc.app`, qui reste valable. Un admin le
-   choisit dans les réglages de l'éditeur ; le plugin le demande par sa connexion de tunnel
-   (trames `NAME`/`NAME_RESULT`), déjà signée de son secret : aucune page ni aucun compte à part
-   pour prouver qui détient l'adresse. Le serveur de tunnel renvoie `HELLO` à chaque tunnel de
-   l'adresse avec le nouveau nom, donc à tous les serveurs d'un réseau ; la base du plugin ne
-   garde rien. Un nom par adresse, premier arrivé premier servi, rendu après 90 jours sans
-   connexion, au plus 3 changements par adresse et 10 par IP de plugin et par jour. Refusés :
-   les noms du serveur de tunnel et du projet, ceux qui contiennent une marque où l'on se
-   connecte ou un mot d'hameçonnage, et ceux qui ont la forme d'un `<id>`. Chaque nom pris part
-   à un webhook Discord (`TUNNEL_NAMES_WEBHOOK`) ; `/admin/names` (jeton `TUNNEL_ADMIN_TOKEN`)
-   libère ou bannit un nom. La session reste sur l'ancienne adresse (cookie `__Host-`) : le hub
-   rend un lien de connexion pour la nouvelle (`Sessions.handOff`).
-9. **Serveur autonome** dans le dépôt (`plugin/tunnel-server`, Jetty, `deploy/tunnel-server/`), déployé
-   comme un conteneur derrière un proxy TLS qui couvre `*.<domaine>`.
-10. **Un relais près du serveur Minecraft** (2026-10-26). Un seul serveur de tunnel en France
-    fait faire deux fois la distance à un admin et un serveur loin de la France (Vietnam : ~400-500 ms
-    par requête). Le même fil est servi par un Cloudflare Worker (`deploy/tunnel-worker/`) : un Durable
-    Object par adresse, créé près du premier plugin qui s'y connecte, les noms dans un Durable Object
-    unique et lus depuis KV. Le plugin ne change pas, les adresses non plus. Le serveur Kotlin reste la
-    référence et le secours : route en « fail open » et requêtes rejouées sur l'origine quand le Worker
-    ne peut pas servir. En production sur `*.artisanmc.app` depuis le 2026-10-26 (route retirable pour
-    revenir au serveur Kotlin), essai sur `*-test.artisanmc.app`. Étude : `tunnel-latence-regions-2026-10-26.md` (fichiers du projet).
+1. **The tunnel by default, nothing more.** Without `web.url`, the hub opens an **outbound**
+   WebSocket to `/tunnel` on `web.tunnel` (default `connect.artisanmc.app`, `""` to opt out),
+   which gives it an address `https://<id>.artisanmc.app`. No port to open for an
+   installation with no configuration. Every HTTP request and every browser WebSocket
+   goes through this WebSocket and is replayed as is on the hub's local web port
+   (`TunnelClient`, `hub` module). A leaf ignores `web.tunnel`.
+2. **The tunnel server understands nothing.** It does not serve the editor, only stores address
+   names (decision 8) and
+   reads neither the editor's protocol nor its formats. It passes the browser's headers,
+   `Host` and `Origin` included: the same-origin check and the hub's cookies
+   apply unchanged. The served editor stays the one in the jar: no new version axis
+   between editor and engine. Only the tunnel wire is versioned
+   (`X-Artisan-Tunnel-Version`, different major = refusal).
+3. **Minimal binary wire** (`plugin/tunnel`, `Frame`): `[type][stream][payload]`, one stream per
+   browser request or WebSocket, bodies split in 256 KiB chunks. A request body
+   is kept whole plugin-side before being replayed (100 MiB at most, the limit of the hub's
+   pack); the response comes back as a stream.
+4. **Identity comes from a secret.** The plugin generates `plugins/Artisan/tunnel-secret` once;
+   `<id>` is derived from it (SHA-256, base32, 16 characters). The address is stable across
+   restarts, nobody can take it without the secret, and the tunnel server needs
+   no database. Several connections with the same secret coexist: the last one answers, the
+   previous one takes over if it leaves (servers of a network, ADR `peer-servers`).
+5. **Players never go through the tunnel.** They receive the pack from a pack plugin
+   (Nexo, Oraxen, ItemsAdder), never from the editor's web server: bandwidth grows with
+   editing sessions and pack updates, never with player connections.
+   Nothing is blocked by default (`TUNNEL_BLOCKED_PATHS` remains available).
+6. **A leaf with no port reaches its hub through the tunnel.** `web.hub: "https://<id>.artisanmc.app"`:
+   `/ws/plugin` and the pack download go through the hub's tunnel, neither
+   server listens. The network stays carried by the hub and the follow-up database; the tunnel
+   server does not know about networks.
+7. **Private server possible.** `TUNNEL_ACCESS_CODE` server-side, `web.tunnel-access` plugin-side:
+   a refused code closes the tunnel with the reason (code 4003), which the plugin writes to its console.
+8. **A name for the address** (2026-10-21). The tunnel server keeps, in a JSON file
+   (`NameRegistry`, `TUNNEL_NAMES_FILE`), names that addresses have taken:
+   `survie.artisanmc.app` answers like `<id>.artisanmc.app`, which stays valid. An admin
+   picks it in the editor settings; the plugin requests it through its tunnel connection
+   (`NAME`/`NAME_RESULT` frames), already signed with its secret: no separate page or account
+   to prove who holds the address. The tunnel server sends `HELLO` back to each tunnel of
+   the address with the new name, so to all servers of a network; the plugin's database
+   keeps nothing. One name per address, first come first served, released after 90 days without
+   connection, at most 3 changes per address and 10 per plugin IP per day. Refused:
+   the names of the tunnel server and of the project, those containing a brand where people log in
+   or a phishing word, and those shaped like an `<id>`. Each name taken goes
+   to a Discord webhook (`TUNNEL_NAMES_WEBHOOK`); `/admin/names` (token `TUNNEL_ADMIN_TOKEN`)
+   frees or bans a name. The session stays on the old address (`__Host-` cookie): the hub
+   returns a login link for the new one (`Sessions.handOff`).
+9. **Standalone server** in the repository (`plugin/tunnel-server`, Jetty, `deploy/tunnel-server/`), deployed
+   as a container behind a TLS proxy that covers `*.<domain>`.
+10. **A relay next to the Minecraft server** (2026-10-26). A single tunnel server in France makes an
+    admin and a server both far from France pay the distance twice (Vietnam: ~400-500 ms per
+    request). The same wire is served by a Cloudflare Worker (`deploy/tunnel-worker/`): one Durable
+    Object per address, created next to the first plugin that connects to it, names in a single
+    Durable Object and read from KV. Neither the plugin nor the addresses change. The Kotlin server stays
+    the reference and the fallback: the route "fails open" and a request the Worker cannot serve is
+    replayed on the origin. In production on `*.artisanmc.app` since 2026-10-26 (removing the route
+    goes back to the Kotlin server), trials on `*-test.artisanmc.app`. Study:
+    `tunnel-latence-regions-2026-10-26.md` (project files).
 
-*Rejeté :* éditeur hébergé appelant le plugin (contenu mixte HTTPS → HTTP bloqué, et retour de
-l'axe éditeur ↔ moteur) ; hub hébergé (multi-tenant avec état, une version de hub face à toutes
-les feuilles) ; stockage en ligne et récupération par commande, à la NxMenu (comptes, stockage,
-éditeur central) ; routage par chemin `/t/<id>/` (tous les serveurs partageraient une origine,
-donc leurs cookies).
+*Rejected:* hosted editor calling the plugin (mixed content HTTPS → HTTP blocked, and the return of the
+editor ↔ engine axis); hosted hub (stateful multi-tenant, one hub version facing all
+leaves); online storage and retrieval by command, NxMenu style (accounts, storage,
+central editor); path routing `/t/<id>/` (all servers would share an origin,
+hence their cookies).
 
-## Conséquences
+## Consequences
 
-- Le serveur de tunnel voit le trafic en clair (TLS terminé chez lui) : cookies de session et
-  contenu des projets. À dire aux utilisateurs ; le mode direct reste le défaut.
-- Un plugin modifié peut servir n'importe quelle page sous `*.<domaine>`. Avec des identifiants
-  aléatoires l'hameçonnage est peu crédible. Les tunnels vivent donc sur un domaine dédié,
-  `artisanmc.app`, séparé du site `artisanmc.net` : un abus ne touche pas sa réputation et une page
-  de tunnel ne peut pas poser de cookies sur le site.
-- Limites par tunnel, en mémoire (`TunnelLimits`) : requêtes par minute et volume par jour
-  (429 au-delà), débit ralenti, tunnels simultanés par adresse.
-- Derrière le tunnel le hub voit `X-Forwarded-Proto: https` et pose `__Host-artisan_session`
-  (`Secure`) : une page d'un autre sous-domaine ne peut ni le lire ni l'écraser. Le hub lit ce
-  cookie avant `artisan_session`.
-- `web.url` garde la priorité : un admin avec son propre proxy n'est pas concerné.
-- Un nom lisible rend l'hameçonnage plus crédible qu'un `<id>` : d'où le filtre de mots, le
-  webhook et la révocation. Une adresse `<id>` ne se coupe pas encore ; à faire avant une
-  ouverture large, avec une page d'abus.
-- Le fichier des noms est le seul état du serveur de tunnel : il vit sur un volume
-  (`tunnel-data`). Le perdre rend tous les noms, les adresses `<id>` restent.
+- The tunnel server sees the traffic in clear (TLS terminated at its end): session cookies and
+  project content. To tell users; direct mode remains the default.
+- A modified plugin can serve any page under `*.<domain>`. With random identifiers
+  phishing is not very credible. So tunnels live on a dedicated domain,
+  `artisanmc.app`, separate from the `artisanmc.net` site: an abuse does not affect its reputation and a tunnel
+  page cannot set cookies on the site.
+- Per-tunnel limits, in memory (`TunnelLimits`): requests per minute and volume per day
+  (429 beyond), throttled throughput, simultaneous tunnels per address.
+- Behind the tunnel the hub sees `X-Forwarded-Proto: https` and sets `__Host-artisan_session`
+  (`Secure`): a page on another subdomain can neither read nor overwrite it. The hub reads this
+  cookie before `artisan_session`.
+- `web.url` keeps priority: an admin with their own proxy is not concerned.
+- A readable name makes phishing more credible than an `<id>`: hence the word filter, the
+  webhook and the revocation. An `<id>` address cannot be cut off yet; to do before a wide
+  opening, with an abuse page.
+- The names file is the tunnel server's only state: it lives on a volume
+  (`tunnel-data`). Losing it releases all names, the `<id>` addresses remain.

@@ -1,213 +1,209 @@
-# Sync disque poll-first — le watcher devient une optimisation
+# Poll-first disk sync — the watcher becomes an optimization
 
-**Statut :** **implémenté le 2026-07-30** — révise l'ADR
-`files-first-source-of-truth` #6. `ProjectWatcher` supprimé, `SyncScanner`
-(`plugin/.../sync/SyncScanner.kt`) le remplace ; suite plugin verte (786 tests).
+**Status:** **implemented on 2026-07-30** — revises ADR
+`files-first-source-of-truth` #6. `ProjectWatcher` removed, `SyncScanner`
+(`plugin/.../sync/SyncScanner.kt`) replaces it; plugin suite green (786 tests).
 
-## Problème
+## Problem
 
-L'ADR `files-first-source-of-truth` #6 a fait du `ProjectWatcher` (WatchService
-récursif, debounce 1,5 s, fenêtre de suppression) le mécanisme de détection des
-éditions disque. C'est une **heuristique employée comme mécanisme de
-correction**, et elle fuit par six endroits.
+ADR `files-first-source-of-truth` #6 made `ProjectWatcher` (recursive
+WatchService, 1.5 s debounce, suppression window) the mechanism for detecting
+disk edits. It is a **heuristic used as a correctness mechanism**, and it leaks in
+six places.
 
-### 1. Perte silencieuse d'édition (bug livrable aujourd'hui)
+### 1. Silent loss of an edit (shippable bug today)
 
-`ProjectWatcher.handleEvent` refuse d'ajouter au set `dirty` quand le projet est
-suppressé (`ProjectWatcher.kt:143`), et `flush` re-filtre puis **vide** le set
-(l.180-182).
+`ProjectWatcher.handleEvent` refuses to add to the `dirty` set when the project is
+suppressed (`ProjectWatcher.kt:143`), and `flush` re-filters then **empties** the
+set (l.180-182).
 
-> Admin édite à T → un download de bundle démarre à T+0,5 s (`beginSuppress`) →
-> flush à T+1,5 s : l'id est filtré **et effacé**. L'édition n'est pas retardée,
-> elle est perdue jusqu'au prochain `hello_ack`.
+> Admin edits at T → a bundle download starts at T+0.5 s (`beginSuppress`) →
+> flush at T+1.5 s: the id is filtered **and erased**. The edit is not delayed,
+> it is lost until the next `hello_ack`.
 
-C'est le chemin nominal d'une édition disque concurrente d'un push éditeur.
+This is the nominal path of a disk edit concurrent with an editor push.
 
-### 2. La fenêtre de suppression est une course temporelle
+### 2. The suppression window is a timing race
 
-`endSuppress(graceMs = 2000)` (l.82) parie que l'OS a fini de délivrer ses
-événements en 2 s. Trop court → boucle push/download (l'invariant anti-boucle de
-`CLAUDE.md`). Trop long → défaut 1. Aucune valeur n'est correcte.
+`endSuppress(graceMs = 2000)` (l.82) bets that the OS has finished delivering its
+events within 2 s. Too short → push/download loop (the anti-loop invariant of
+`CLAUDE.md`). Too long → flaw 1. No value is correct.
 
-### 3. Debounce sans plafond → famine
+### 3. Debounce without a cap → starvation
 
-`scheduleFlush` annule et replanifie à chaque événement (l.169). Un flux continu
-d'écritures (upload FTP d'un gros projet, `unzip`, plugin tiers qui écrit
-périodiquement) n'atteint jamais 1,5 s de silence : **le flush ne part jamais**.
+`scheduleFlush` cancels and reschedules on every event (l.169). A continuous
+stream of writes (FTP upload of a large project, `unzip`, a third-party plugin
+that writes periodically) never reaches 1.5 s of silence: **the flush never fires**.
 
-### 4. Commit d'un arbre à moitié écrit
+### 4. Commit of a half-written tree
 
-Symétriquement, un creux réseau au milieu d'un upload FTP crée un silence de
-1,5 s et pousse un arbre partiel. Les événements FS ne portent aucun signal
-d'atomicité.
+Symmetrically, a network gap in the middle of an FTP upload creates a 1.5 s
+silence and pushes a partial tree. FS events carry no atomicity signal.
 
-### 5. `OVERFLOW` perd deux fois
+### 5. `OVERFLOW` loses twice
 
-La reprise sur débordement marque tout sale **sauf les suppressés** (l.118) :
-les événements déjà perdus le sont une seconde fois.
+Recovery on overflow marks everything dirty **except the suppressed ones** (l.118):
+events already lost are lost a second time.
 
-### 6. Dépendance à inotify → dev ≠ prod
+### 6. Dependence on inotify → dev ≠ prod
 
-`FileSystems.getDefault().newWatchService()` (l.47) ne délivre rien sur les bind
-mounts Docker Desktop, ni sur NFS/SMB (hébergeurs à panel FTP). Sans erreur ni
-log. Le comportement diffère selon l'environnement — incident réel du
-2026-07-25.
+`FileSystems.getDefault().newWatchService()` (l.47) delivers nothing on Docker
+Desktop bind mounts, nor on NFS/SMB (FTP-panel hosts). No error, no log. The
+behavior differs depending on the environment — real incident of 2026-07-25.
 
-Les « filets » documentés (check au `hello_ack`, `/artisan pushLocal`) sont
-l'aveu : la correction repose déjà, en pratique, sur la reconnexion et sur une
-commande manuelle.
+The documented "safety nets" (check at `hello_ack`, `/artisan pushLocal`) are
+the admission: correctness already rests, in practice, on reconnection and on a
+manual command.
 
-## Décision
+## Decision
 
-**Inverser les rôles.** Le scan périodique par hash devient la vérité ; le
-watcher devient une optimisation de latence, supprimable sans changer la
-correction.
+**Invert the roles.** The periodic hash scan becomes the truth; the watcher
+becomes a latency optimization, removable without changing correctness.
 
-Formulé comme invariant :
+Stated as an invariant:
 
-> Aucun chemin de correction ne dépend d'un événement du système de fichiers.
-> Toute divergence disque est détectée par comparaison de contenu, au pire au
-> tick suivant.
+> No correctness path depends on a filesystem event.
+> Any disk divergence is detected by content comparison, at worst at the next
+> tick.
 
-### Pourquoi c'est peu coûteux ici
+### Why it is cheap here
 
-Toutes les pièces existent et sont déjà testées :
+All the pieces exist and are already tested:
 
-| Pièce | Où |
+| Piece | Where |
 |---|---|
-| Hash canonique de l'arbre | `BundleHasher.hash(projectDir)` |
-| État de référence | `SyncMetadata` (`syncedHash` / `backendHash`) |
-| Décision | `detectSyncAction(diskHash, syncedHash, backendHash)` — `SyncedMenuProvider.kt:43` |
+| Canonical tree hash | `BundleHasher.hash(projectDir)` |
+| Reference state | `SyncMetadata` (`syncedHash` / `backendHash`) |
+| Decision | `detectSyncAction(diskHash, syncedHash, backendHash)` — `SyncedMenuProvider.kt:43` |
 | Dispatch | `onWatchedChange` (`SyncedMenuProvider.kt:289`) |
 
-Le chemin `hello_ack` (`SyncedMenuProvider.kt:373`) **est déjà un poll** : il
-exécute exactement cette comparaison à la reconnexion. « Poller toutes les N
-secondes » = appeler du code existant sur un timer.
+The `hello_ack` path (`SyncedMenuProvider.kt:373`) **is already a poll**: it
+performs exactly this comparison at reconnection. "Poll every N seconds" =
+calling existing code on a timer.
 
-## Mécanisme
+## Mechanism
 
-`SyncScanner` — un scheduler daemon, un tick toutes les `scanIntervalMs`
-(défaut **15 s**), pour chaque racine de project :
+`SyncScanner` — a daemon scheduler, one tick every `scanIntervalMs`
+(default **15 s**), for each project root:
 
-1. **Court-circuit `stat`.** Walk de l'arbre en ne lisant que `mtime` + `size` +
-   chemin ; agrège une *signature de scan*. Si elle est identique au tick
-   précédent → rien à faire, aucun fichier lu. `stat` fonctionne partout, y
-   compris sur les bind mounts.
-2. **Quiescence.** Si la signature a bougé, ne rien faire ce tick — attendre
-   qu'elle soit **stable sur deux ticks consécutifs**. C'est l'équivalent poll du
-   debounce, mais borné (au plus 2 ticks) et sans famine possible. Traite le
-   défaut 4 sans réintroduire le défaut 3.
-3. **Hash + décision.** Signature stable et différente de la dernière hashée →
-   `BundleHasher.hash(projectDir)` → `detectSyncAction(...)` → le dispatch actuel
-   (`IN_SYNC`/`AUTO_SYNC` : rien ; `LOCAL_ONLY` : hot-reload + `local_push` ;
-   `CONFLICT` : hot-reload + `sync_divergence`).
+1. **`stat` short-circuit.** Walk the tree reading only `mtime` + `size` +
+   path; aggregate a *scan signature*. If it is identical to the previous tick
+   → nothing to do, no file read. `stat` works everywhere, including on bind
+   mounts.
+2. **Quiescence.** If the signature moved, do nothing this tick — wait until it is
+   **stable over two consecutive ticks**. This is the poll equivalent of the
+   debounce, but bounded (at most 2 ticks) and with no possible starvation. Handles
+   flaw 4 without reintroducing flaw 3.
+3. **Hash + decision.** Stable signature different from the last hashed one →
+   `BundleHasher.hash(projectDir)` → `detectSyncAction(...)` → the current dispatch
+   (`IN_SYNC`/`AUTO_SYNC`: nothing; `LOCAL_ONLY`: hot-reload + `local_push`;
+   `CONFLICT`: hot-reload + `sync_divergence`).
 
-Exclusions `.artisan*` (premier segment) inchangées, au niveau du walk `stat`.
+`.artisan*` exclusions (first segment) unchanged, at the `stat` walk level.
 
-### La fenêtre de suppression disparaît
+### The suppression window disappears
 
-« Est-ce moi qui ai écrit ça ? » cesse d'être une question de *timing* et
-redevient une question de *contenu*. `BundleDownloader.kt:102` fait déjà, après
-écriture :
+"Did I write this myself?" stops being a question of *timing* and becomes
+a question of *content* again. `BundleDownloader.kt:102` already does, after
+writing:
 
 ```kotlin
 SyncMetadata.recordSync(projectDir, syncedHash = BundleHasher.hash(projectDir), backendHash = backendHash)
 ```
 
-Le scan suivant recalcule le même hash → `IN_SYNC` (ou `AUTO_SYNC`) → aucun
-push. Un self-write ne peut structurellement pas produire de push, quelle que
-soit la latence.
+The next scan recomputes the same hash → `IN_SYNC` (or `AUTO_SYNC`) → no
+push. A self-write structurally cannot produce a push, whatever the
+latency.
 
-**Supprimés** : `beginSuppress` / `endSuppress` / `suppressedUntil` et leurs 3
-call sites (`SyncedMenuProvider.kt:496,736,829`), le debounce, l'invariant
-anti-boucle de `CLAUDE.md`. Défauts 1, 2, 3, 5 éliminés par construction.
+**Removed**: `beginSuppress` / `endSuppress` / `suppressedUntil` and their 3
+call sites (`SyncedMenuProvider.kt:496,736,829`), the debounce, the anti-loop
+invariant of `CLAUDE.md`. Flaws 1, 2, 3, 5 eliminated by construction.
 
-### La fenêtre d'écho après un `local_push` — résolu autrement
+### The echo window after a `local_push` — solved differently
 
-Après un `local_push`, `syncedHash` n'est rafraîchi qu'au retour du
-`bundle_available` écho (« still download to refresh SyncMetadata »). Entre les
-deux, plusieurs déclencheurs peuvent observer le même arbre `LOCAL_ONLY` (un
-`config_write` puis le scan un tick plus tard) et re-pousser le même contenu.
+After a `local_push`, `syncedHash` is only refreshed when the echoed
+`bundle_available` comes back ("still download to refresh SyncMetadata"). In
+between, several triggers can observe the same `LOCAL_ONLY` tree (a
+`config_write` then the scan one tick later) and re-push the same content.
 
-La proposition initiale — écrire `recordSync(syncedHash = pushedHash)` à l'envoi
-— **a été rejetée à l'implémentation** : si le push part mais n'est jamais
-appliqué (connexion coupée en vol), le disque affirme « synchronisé », et au
-reconnect `detectSyncAction` répond `AUTO_SYNC` → on attend un
-`bundle_available` qui écrase l'édition locale. Perte de données.
+The initial proposal — writing `recordSync(syncedHash = pushedHash)` at send
+time — **was rejected at implementation**: if the push leaves but is never
+applied (connection cut in flight), the disk claims "synchronized", and at
+reconnect `detectSyncAction` answers `AUTO_SYNC` → we wait for a
+`bundle_available` that overwrites the local edit. Data loss.
 
-Retenu : `lastPushedHash` (`ConcurrentHashMap`, **en mémoire uniquement**) —
-« ce hash disque a déjà été auto-poussé dans cette session ». Vidé au
-`hello_ack` et après chaque download, donc un push perdu en vol est reposté au
-reconnect au lieu d'être oublié. Le pire cas après un restart est un push en
-double, jamais une perte. Les trois déclencheurs automatiques (scan,
-`bundle_available` LOCAL_ONLY, `config_write`) passent par `autoPush(...)` ;
-`pushLocalProject` reste le chemin manuel/forcé, non dédoublonné.
+Retained: `lastPushedHash` (`ConcurrentHashMap`, **in memory only**) —
+"this disk hash has already been auto-pushed in this session". Cleared at
+`hello_ack` and after each download, so a push lost in flight is re-posted at
+reconnect instead of being forgotten. The worst case after a restart is a
+duplicate push, never a loss. The three automatic triggers (scan,
+`bundle_available` LOCAL_ONLY, `config_write`) go through `autoPush(...)`;
+`pushLocalProject` stays the manual/forced path, not deduplicated.
 
-### Le watcher
+### The watcher
 
-Supprimé (`ProjectWatcher.kt` + `ProjectWatcherTest.kt`), pas conservé en
-fast path : la latence passe de ~1,5 s à ~3-6 s (intervalle 3 s × quiescence 2),
-ce qui est sans conséquence pour de l'édition de config, et garder inotify
-aurait signifié maintenir deux chemins dont un seul fonctionne selon l'hôte.
-`SyncScanner.scanNow()` reste exposé (`internal`) — un fast path FS-event peut
-revenir plus tard en s'y branchant, comme optimisation pure.
+Removed (`ProjectWatcher.kt` + `ProjectWatcherTest.kt`), not kept as a
+fast path: latency goes from ~1.5 s to ~3-6 s (3 s interval × quiescence 2),
+which is inconsequential for config editing, and keeping inotify
+would have meant maintaining two paths of which only one works depending on the host.
+`SyncScanner.scanNow()` stays exposed (`internal`) — an FS-event fast path can
+come back later by plugging into it, as a pure optimization.
 
-## Paramètres
+## Parameters
 
-| Nom | Défaut | Note |
+| Name | Default | Note |
 |---|---|---|
-| `scanIntervalMs` | 3 000 | Latence effective 3-6 s. Pas encore exposé dans `config.yml` — à faire si un serveur à très nombreux roots le demande |
-| `quiescentTicks` | 2 | Un upload doit être calme sur 2 ticks avant d'être poussé |
-| `deepTickEvery` | 10 | Un tick sur 10 compare le vrai hash de contenu (filet mtime grossier) |
+| `scanIntervalMs` | 3,000 | Effective latency 3-6 s. Not yet exposed in `config.yml` — to do if a server with very many roots asks for it |
+| `quiescentTicks` | 2 | An upload must be calm over 2 ticks before being pushed |
+| `deepTickEvery` | 10 | One tick in 10 compares the real content hash (coarse mtime safety net) |
 
-## Ce que ça débloque
+## What this unlocks
 
-L'extension à des racines de plugins tiers (cf. discussion « géré ⇒ versionné »)
-devient tenable : le scan passe à l'échelle sur N racines grâce au court-circuit
-`stat`, et surtout « ce plugin réécrit son propre fichier » redevient une
-question de **contenu** — comparaison au dernier hash synchronisé, plus règles
-d'`ignore`/normalisation par racine appliquées au moment du hash — au lieu d'une
-question d'événement impossible à attribuer.
+Extending to third-party plugin roots (cf. the "managed ⇒ versioned" discussion)
+becomes tenable: the scan scales to N roots thanks to the `stat` short-circuit,
+and above all "this plugin rewrites its own file" becomes a question of
+**content** again — comparison to the last synchronized hash, plus per-root
+`ignore`/normalization rules applied at hash time — instead of a question of
+an event impossible to attribute.
 
-## Implémentation livrée
+## Delivered implementation
 
-- `plugin/.../sync/SyncScanner.kt` — nouveau. `plugin/.../sync/ProjectWatcher.kt`
-  — supprimé.
-- `SyncedMenuProvider` : `watchDebounceMs` → `scanIntervalMs` (3 000),
+- `plugin/.../sync/SyncScanner.kt` — new. `plugin/.../sync/ProjectWatcher.kt`
+  — removed.
+- `SyncedMenuProvider`: `watchDebounceMs` → `scanIntervalMs` (3,000),
   `startWatcher()` → `startScanner()`, `onWatchedChange` → `onScanChanged`
-  (corps inchangé), `autoPush(...)` + `lastPushedHash`, et les **trois** call
-  sites `beginSuppress`/`endSuppress` retirés (download de bundle,
+  (body unchanged), `autoPush(...)` + `lastPushedHash`, and the **three**
+  `beginSuppress`/`endSuppress` call sites removed (bundle download,
   `config_write`, move-to-trash).
-- `SyncScannerTest` (8 tests) remplace `ProjectWatcherTest`.
+- `SyncScannerTest` (8 tests) replaces `ProjectWatcherTest`.
   `WatcherAutoPushIntegrationTest` → `ScanAutoPushIntegrationTest`.
-- Suite plugin complète : **786 tests, 0 échec**.
+- Full plugin suite: **786 tests, 0 failures**.
 
-Les tests du scanner pilotent les ticks à la main (intervalle du scheduler placé
-hors de la durée du test) : aucune dépendance à inotify, aucun `sleep`, aucun
-comportement dépendant de l'hôte. C'était l'un des buts — les bugs de sync se
-reproduisent désormais en test sur n'importe quelle plateforme.
+The scanner tests drive the ticks by hand (scheduler interval set outside the
+test duration): no dependency on inotify, no `sleep`, no host-dependent
+behavior. That was one of the goals — sync bugs can now be
+reproduced in tests on any platform.
 
-### Reste à faire
+### Remaining to do
 
-- Exposer `scanIntervalMs` dans `config.yml` si le besoin apparaît.
-- Mesurer le coût du walk `stat` sur un serveur à nombreuses racines avant
-  d'étendre le scan à des dossiers de plugins tiers.
+- Expose `scanIntervalMs` in `config.yml` if the need appears.
+- Measure the cost of the `stat` walk on a server with many roots before
+  extending the scan to third-party plugin folders.
 
-## Docs à mettre à jour à l'implémentation
+## Docs to update at implementation
 
-- ADR `files-first-source-of-truth` #6 — révision (watcher → poll-first).
-- `CLAUDE.md` : section « Watcher disque + auto-push (P3b) » — retirer
-  l'invariant anti-boucle et la note « bind mounts Docker Desktop », qui
-  cessent d'exister.
-- `docs/architecture/ws-protocol.md` si la cadence de `local_push` change.
+- ADR `files-first-source-of-truth` #6 — revision (watcher → poll-first).
+- `CLAUDE.md`: section "Disk watcher + auto-push (P3b)" — remove the anti-loop
+  invariant and the "Docker Desktop bind mounts" note, which cease to exist.
+- `docs/architecture/ws-protocol.md` if the `local_push` cadence changes.
 
-## Rejetés
+## Rejected
 
-- **Garder le watcher et allonger la grâce.** Déplace le curseur entre défaut 1
-  et défaut 2 sans en supprimer aucun.
-- **Watcher + poll en filet long (5 min).** C'est l'état actuel déguisé : la
-  correction dépend toujours d'inotify sur le chemin rapide, donc dev ≠ prod
-  persiste et les bugs ne se reproduisent pas en test.
-- **Détection uniquement sur événements explicites** (boot, `/artisan reload`,
-  connexion éditeur). Plus simple, mais rate l'édition FTP jamais suivie d'un
-  reload — précisément le cas d'usage « les fichiers sont la surface d'édition ».
+- **Keep the watcher and lengthen the grace.** Moves the cursor between flaw 1
+  and flaw 2 without removing either.
+- **Watcher + long safety-net poll (5 min).** This is the current state in disguise:
+  correctness still depends on inotify on the fast path, so dev ≠ prod
+  persists and the bugs do not reproduce in tests.
+- **Detection only on explicit events** (boot, `/artisan reload`,
+  editor connection). Simpler, but misses the FTP edit never followed by a
+  reload — precisely the "files are the editing surface" use case.

@@ -1,56 +1,63 @@
-# Serveurs égaux sur une même base : un réseau sans hub désigné
+# Equal servers on one database: a network without a designated hub
 
-**Statut :** proposé (2026-10-20). Suite de `editor-web-server` et `editor-tunnel`.
+**Status:** proposed (2026-10-20). Follows `editor-web-server` and `editor-tunnel`.
 
-## Contexte
+## Context
 
-Un réseau a un hub (`web.hub` vide) et des feuilles (`web.hub` renseigné) reliées à
-son `/ws/plugin`. Il faut donc configurer chaque feuille, garder un chemin réseau feuille → hub,
-et le hub est le seul accès à l'éditeur : s'il tombe, plus personne n'édite. Avec le tunnel par
-défaut (`editor-tunnel`), chaque serveur a déjà son propre lien `https://<id>.artisanmc.app`, et
-les serveurs d'un réseau partagent déjà une base MySQL/MariaDB (`server-identity-and-versions`).
+A network has a hub (`web.hub` empty) and leaves (`web.hub` set) connected to its
+`/ws/plugin`. So each leaf must be configured, a leaf → hub network path must be kept,
+and the hub is the only access to the editor: if it goes down, nobody edits. With the
+default tunnel (`editor-tunnel`), each server already has its own link
+`https://<id>.artisanmc.app`, and the servers of a network already share a MySQL/MariaDB
+database (`server-identity-and-versions`).
 
-## Décisions
+## Decisions
 
-1. **La base partagée fait le réseau.** Deux serveurs sur la même base (même `database_id`) sont
-   pairs ; aucun `web.hub`. Chaque serveur qui sert son éditeur annonce dans `artisan_servers`
-   où répond son `/ws/plugin` : `editor_url` (son adresse publique, tunnel ou `web.url`) et
-   `internal_url` (`ws://<web.bind ou adresse de la machine>:<port>/ws/plugin`).
-2. **Chacun est hub pour son lien, feuille pour les autres.** Toutes les 30 s, un serveur relit
-   les pairs en marche vus depuis moins de 3 minutes (`ServerRegistry.peers`) et rejoint chacun
-   comme une feuille, avec le protocole `/ws/plugin` existant : d'abord l'adresse interne, puis
-   l'adresse publique (`HubLink.alternates`). Depuis n'importe quel lien on voit et publie sur
-   tous les serveurs ; un serveur arrêté ne coupe que son propre lien.
-3. **Le secret vient de la base.** `network_secret` dans `artisan_meta`, généré par le premier
-   serveur qui le demande. Qui lit la base contrôle déjà le réseau ; le secret écarte seulement
-   les inconnus de `/ws/plugin`. Le hub l'accepte en plus de son secret configuré.
-4. **Les réponses reviennent à qui a demandé.** Un serveur garde l'origine de chaque requête
-   (`request_id`) et y répond ; ses annonces (`modules_changed`, `projects_reloaded`…) vont à
-   tous ses hubs. Un pair ne lui impose pas le pack qu'il a en mémoire à la connexion : seul un
-   `resource_pack_updated` le change, téléchargé chez le pair qui l'envoie.
-5. **Une adresse pour le réseau.** Sur une base partagée, le secret du tunnel est dérivé du
-   `network_secret` (`TunnelClient.networkSecret`) : tous les serveurs ouvrent leur tunnel sur la
-   même adresse, et chacun s'y nomme (`X-Artisan-Tunnel-Member`, son server id). Le serveur de
-   tunnel envoie les navigateurs au dernier connecté, les autres prennent le relais s'il part ;
-   une requête qui nomme un serveur va à lui seul, c'est ainsi que les pairs se joignent par
-   l'adresse commune. Les liens de `/artisan editor` sont rangés en base comme les sessions
-   (`Sessions`, clé `link:`), et chaque serveur relit en base une session gardée en mémoire au
-   plus toutes les 30 s : un lien créé sur un serveur s'ouvre sur un autre, et une session
-   fermée ou des permissions retirées ailleurs s'appliquent partout.
-6. **Le hub configuré reste.** `web.hub` garde son sens (feuille d'un hub choisi) ; une feuille
-   n'a pas de lien propre et ne s'annonce pas comme pair. H2 n'a pas de pairs.
+1. **The shared database makes the network.** Two servers on the same database (same
+   `database_id`) are peers; no `web.hub`. Each server that serves its editor announces in
+   `artisan_servers` where its `/ws/plugin` answers: `editor_url` (its public address,
+   tunnel or `web.url`) and `internal_url` (`ws://<web.bind or the machine's
+   address>:<port>/ws/plugin`).
+2. **Each is a hub for its link, a leaf for the others.** Every 30 s, a server re-reads
+   the running peers seen less than 3 minutes ago (`ServerRegistry.peers`) and joins each
+   one as a leaf, with the existing `/ws/plugin` protocol: internal address first, then
+   public address (`HubLink.alternates`). From any link you see and publish on all
+   servers; a stopped server only cuts its own link.
+3. **The secret comes from the database.** `network_secret` in `artisan_meta`, generated
+   by the first server that asks for it. Whoever reads the database already controls the
+   network; the secret only keeps strangers out of `/ws/plugin`. The hub accepts it in
+   addition to its configured secret.
+4. **Responses go back to whoever asked.** A server keeps the origin of each request
+   (`request_id`) and answers it; its announcements (`modules_changed`,
+   `projects_reloaded`…) go to all its hubs. A peer does not impose on it the pack it
+   holds in memory at connection: only a `resource_pack_updated` changes it, downloaded
+   from the peer that sends it.
+5. **One address for the network.** On a shared database, the tunnel secret is derived
+   from `network_secret` (`TunnelClient.networkSecret`): all servers open their tunnel on
+   the same address, and each names itself there (`X-Artisan-Tunnel-Member`, its server
+   id). The tunnel server sends browsers to the last one connected, the others take over
+   if it leaves; a request that names a server goes to that one alone, which is how peers
+   reach each other through the common address. The `/artisan editor` links are stored in
+   the database like sessions (`Sessions`, key `link:`), and each server re-reads from
+   the database a session held in memory at most every 30 s: a link created on one server
+   opens on another, and a session closed or permissions removed elsewhere apply
+   everywhere.
+6. **The configured hub stays.** `web.hub` keeps its meaning (leaf of a chosen hub); a
+   leaf has no link of its own and does not announce itself as a peer. H2 has no peers.
 
-## Conséquences
+## Consequences
 
-- Une seule adresse par réseau, qui survit à l'arrêt de n'importe quel serveur. Tout le trafic
-  d'édition passe par un serveur à la fois ; une bascule reconnecte l'éditeur ouvert.
-- Une base indisponible plus de 30 s déconnecte les sessions déjà relues en base.
-- Aucun port à ouvrir : tunnel sortant, connexion sortante vers le tunnel du pair, base sortante.
-- N serveurs font N×(N-1) liens. Négligeable jusqu'à une vingtaine ; non mesuré au-delà.
-- Pas de présence entre liens : un admin sur A ne voit pas en direct celui qui édite sur B. Le
-  compare-and-swap de publication refuse le second publish au lieu d'écraser.
-- Chaque lien sert son propre éditeur : des serveurs de versions différentes montrent chacun le
-  leur, comme un hub face à des feuilles d'autres versions aujourd'hui.
-- Une adresse interne fausse (machines différentes) est essayée puis abandonnée pour l'adresse
-  publique ; une adresse qui répond mais mène à un autre serveur est refusée par `/ws/plugin`
-  (server id, `database_id`, secret).
+- A single address per network, which survives the stop of any server. All editing traffic
+  goes through one server at a time; a switch reconnects the open editor.
+- A database unavailable for more than 30 s disconnects the sessions already re-read from
+  the database.
+- No port to open: outgoing tunnel, outgoing connection to the peer's tunnel, outgoing
+  database.
+- N servers make N×(N-1) links. Negligible up to about twenty; not measured beyond.
+- No presence between links: an admin on A does not see live who is editing on B. The
+  publish compare-and-swap refuses the second publish instead of overwriting.
+- Each link serves its own editor: servers of different versions each show their own,
+  like a hub facing leaves of other versions today.
+- A wrong internal address (different machines) is tried then dropped for the public
+  address; an address that answers but leads to another server is refused by
+  `/ws/plugin` (server id, `database_id`, secret).

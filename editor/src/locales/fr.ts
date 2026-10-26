@@ -1,4 +1,5 @@
 import { actionCatalogFr } from "./actionCatalog";
+import { aiFr } from "./ai";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import type en from "./en";
@@ -199,23 +200,12 @@ const fr: typeof en = {
     statComplete: "complet",
     removeUnused: "Supprimer {{count}} inutilisées",
     removeUnusedHint:
-      "Supprimer les clés de traduction qui ne sont plus référencées dans ce projet",
+      "Supprimer les clés des menus, commandes, dialogs et sources de données supprimés. Les clés lues par le code d'un module (lang/ only) restent.",
     removedUnused_one: "{{count}} clé de traduction inutilisée supprimée",
     removedUnused_other: "{{count}} clés de traduction inutilisées supprimées",
     onDefaultWarning:
       "Vous éditez la langue par défaut ({{lang}}). Passez à une autre langue depuis le menu de langues pour traduire ; cette vue affiche directement les valeurs sources.",
     addLanguage: "Ajouter une langue",
-    fileShape: "Sur le disque",
-    fileShapeInline: "Texte en clair",
-    fileShapeExtract: "Clés",
-    fileShapeInlineHint:
-      "Les fichiers de menu portent le texte {{lang}} tel quel ; les autres langues vivent dans lang/ et aucun lang/{{lang}}.yml n'est écrit.",
-    fileShapeExtractHint:
-      "Les fichiers de menu portent des références {i18n:clé} ; toutes les langues, {{lang}} comprise, vivent dans lang/.",
-    fileShapeConfirmInline:
-      "Réécrire tous les fichiers de menu, commande et dialog avec le texte {{lang}} en clair, et supprimer lang/{{lang}}.yml ? Les traductions sont conservées — seule la forme des fichiers change, et le retour est possible.",
-    fileShapeConfirmExtract:
-      "Réécrire tous les fichiers de menu, commande et dialog avec des références {i18n:clé} au lieu du texte en clair ? Les traductions sont conservées — seule la forme des fichiers change.",
     modeVisual: "Visuel",
     modeYaml: "YAML",
     filterMissing: "Manquantes",
@@ -1563,6 +1553,7 @@ const fr: typeof en = {
     emptyContext: "Aucune variable disponible dans ce contexte",
   },
   mcp: mcpFr,
+  ai: aiFr,
   editorAddress: {
     title: "Adresse de l'éditeur",
     help: "Donne un nom à l'adresse de l'éditeur sur le tunnel. L'adresse actuelle continue de marcher.",

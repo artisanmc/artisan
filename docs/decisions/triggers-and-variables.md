@@ -1,84 +1,83 @@
-# Triggers et variables — réagir aux événements de jeu, retenir des valeurs
+# Triggers and variables — reacting to game events, remembering values
 
-**Status:** accepted (2026-10-24). Lots 3 (registre, kind Trigger, catalogue core, effets) et 5
-(éditeur) livrés en premier, à la demande d'Iban ; les lots 1, 2 et 4 (type `location`, Variables,
-`chat_button`) restent à faire. Écarts de l'implémentation, voir « Implémentation » en fin de texte.
+**Status:** accepted (2026-10-24). Batches 3 (registry, Trigger kind, core catalog, effects) and 5
+(editor) delivered first, at Iban's request; batches 1, 2 and 4 (`location` type, Variables,
+`chat_button`) remain to be done. Deviations of the implementation, see "Implementation" at the end.
 
-**Nommage (Iban, 2026-10-24)** : le kind s'appelle **Trigger** (et non « Automation »). L'événement
-qu'il écoute s'appelle donc **Game event**, pour ne pas dire « trigger » deux fois. C'est cohérent avec
-`extensible-document-kinds` (décision 8), où un trigger est un slot de chaîne point d'entrée : un
-Trigger est le Document dont le seul slot est ce point d'entrée. `api.events` (`ModuleEventBus`) reste
-le bus des événements entre modules, distinct des Game events.
+**Naming (Iban, 2026-10-24)**: the kind is called **Trigger** (not "Automation"). The event it
+listens to is therefore called **Game event**, so as not to say "trigger" twice. This is consistent
+with `extensible-document-kinds` (decision 8), where a trigger is an entry-point chain slot: a
+Trigger is the Document whose only slot is that entry point. `api.events` (`ModuleEventBus`)
+remains the bus for events between modules, distinct from Game events.
 
-## Contexte
+## Context
 
-Une **Action chain** ne s'exécute aujourd'hui que sur quatre déclencheurs : le clic sur un
-**Element**, l'invocation d'une **Command**, un bouton de **Dialog** et `run_actions` sur un champ
-`actions` de **Data source**. Tous viennent d'un geste du joueur dans une interface Artisan. Le
-moteur ne sait ni réagir à ce qui se passe dans le jeu (une mort, une connexion), ni retenir une
-valeur au-delà d'une session de menu (`set_arg`) ou d'un cooldown.
+An **Action chain** today only runs on four triggers: the click on an **Element**, the invocation
+of a **Command**, a **Dialog** button and `run_actions` on an `actions` field of a **Data source**.
+All come from a player gesture in an Artisan interface. The engine can neither react to what
+happens in the game (a death, a login), nor remember a value beyond a menu session (`set_arg`) or
+a cooldown.
 
-Demande de référence (Iban, 2026-10-24) : *quand un joueur meurt, sauvegarder sa position, lui
-envoyer un message avec cette position et un bouton pour s'y téléporter contre une somme d'argent.*
-Décomposée sur `v2` :
+Reference request (Iban, 2026-10-24): *when a player dies, save their position, send them a message
+with that position and a button to teleport there for a sum of money.* Broken down on `v2`:
 
-| Besoin | État sur `v2` |
+| Need | State on `v2` |
 |---|---|
-| Réagir à la mort | absent : aucun déclencheur d'événement |
-| Sauvegarder la position | absent : aucune valeur persistante par joueur |
-| Message avec la position | présent (`send_message`, MiniMessage, templates), dès qu'un contexte d'événement existe |
-| Bouton cliquable dans le chat | partiel : `<click:run_command:…>` marche, mais la commande est publique, tapable et réutilisable |
-| Payer | présent (`has_money`, `take_money`) |
-| Téléporter à la position sauvée | partiel : `teleport` lit `x/y/z` comme des nombres (`Args.double` caste un `Number`), un template `"{var.x}"` devient **0 sans avertissement** |
+| React to death | absent: no event trigger |
+| Save the position | absent: no persistent per-player value |
+| Message with the position | present (`send_message`, MiniMessage, templates), as soon as an event context exists |
+| Clickable button in chat | partial: `<click:run_command:…>` works, but the command is public, typeable and reusable |
+| Pay | present (`has_money`, `take_money`) |
+| Teleport to the saved position | partial: `teleport` reads `x/y/z` as numbers (`Args.double` casts a `Number`), a `"{var.x}"` template becomes **0 without warning** |
 
-C'est aussi le prérequis d'une génération de contenu par IA (étude du 2026-10-24) : une IA ne peut
-pas produire ce que le vocabulaire ne sait pas exprimer, et elle ne doit pas le contourner par du
-`run_command` ou du code.
+It is also the prerequisite for AI content generation (study of 2026-10-24): an AI cannot produce
+what the vocabulary cannot express, and it must not work around it with `run_command` or code.
 
-Les fondations existent : `DocumentKindRegistry` et les **slots de chaînes** côté éditeur
-(`extensible-document-kinds`, décisions 1 et 8, W5/W6), `ActionRegistry` (lot 3),
-`ModuleActionsApi.run`, la base de la suite (`suite-foundation-database`) et le modèle de
-`CooldownSync` (mémoire d'abord, un seul écrivain, relecture à la connexion).
+The foundations exist: `DocumentKindRegistry` and the **chain slots** on the editor side
+(`extensible-document-kinds`, decisions 1 and 8, W5/W6), `ActionRegistry` (batch 3),
+`ModuleActionsApi.run`, the suite's database (`suite-foundation-database`) and the model of
+`CooldownSync` (memory first, a single writer, re-read at login).
 
-## Décision
+## Decision
 
-### 1. Un kind **Trigger** : un événement, une chaîne
+### 1. A **Trigger** kind: one event, one chain
 
-Un **Trigger** est un Document (`triggers/<id>.yml`, `schema: trigger/v1`) qui associe
-un **Game event** à une Action chain. Il est déclaré par un module core `triggers`
-via `DocumentKindRegistry`, comme menus, commands et dialogs.
+A **Trigger** is a Document (`triggers/<id>.yml`, `schema: trigger/v1`) that associates a
+**Game event** with an Action chain. It is declared by a core module `triggers` through
+`DocumentKindRegistry`, like menus, commands and dialogs.
 
 ```yaml
 schema: trigger/v1
-on: player_death            # nom d'un événement déclaré (§2)
-if:                         # optionnel : mêmes conditions qu'un `if:` de chaîne, AND implicite
+on: player_death            # name of a declared event (§2)
+if:                         # optional: same conditions as a chain `if:`, implicit AND
   - not: { world_is: arene }
-cooldown: 30s               # optionnel : par joueur, même store que `cooldown_passed`
-enabled: true               # optionnel, true par défaut
+cooldown: 30s               # optional: per player, same store as `cooldown_passed`
+enabled: true               # optional, true by default
 do:
   - send_message: "Mort en {event.location.x} {event.location.y} {event.location.z}"
 ```
 
-- Côté éditeur, `do` est le **slot de chaîne** du kind (`chainSlots`), donc le trigger devient un
-  nœud-source sur la planche et les arêtes sortent des arguments `document_ref` sans code dédié.
-- Côté plugin, le module `triggers` écoute les événements, filtre (`if`, `cooldown`, `enabled`)
-  avec `ConditionsApi`, puis exécute `do` par le runtime d'actions, avec le contexte de l'événement
-  lié sous `event` (§3).
-- Plusieurs Triggers peuvent écouter le même événement ; ils s'exécutent dans l'ordre
-  alphabétique de leur id qualifié, et l'échec de l'un n'empêche pas les autres.
+- On the editor side, `do` is the kind's **chain slot** (`chainSlots`), so the trigger becomes a
+  source node on the board and edges leave from the `document_ref` arguments with no dedicated
+  code.
+- On the plugin side, the `triggers` module listens to events, filters (`if`, `cooldown`,
+  `enabled`) with `ConditionsApi`, then runs `do` through the action runtime, with the event's
+  context bound under `event` (§3).
+- Several Triggers can listen to the same event; they run in alphabetical order of their
+  qualified id, and the failure of one does not prevent the others.
 
-### 2. Les Game events sont **déclarés**, comme les actions
+### 2. Game events are **declared**, like actions
 
-Un Game event est une déclaration `GameEventDeclaration(name, context:
-ModelField[])` (`@Beta`) dans un nouveau registre `api.getGameEvents()`, avec la même sémantique
-d'ownership que `ActionRegistry` : nom core nu (`player_death`), nom de module namespacé
-(`quests:completed`, `guilds:joined`), collision = erreur à l'enregistrement, retrait avec le
-module. Un module **déclenche** son événement par `api.getGameEvents().fire(name, player, context)`.
-La Presence rapporte `declared_game_events` (hello, `modules_changed`), comme `declared_actions` ;
-l'éditeur en tire le sélecteur de `on:` et le formulaire du contexte disponible.
+A Game event is a declaration `GameEventDeclaration(name, context: ModelField[])` (`@Beta`) in a
+new registry `api.getGameEvents()`, with the same ownership semantics as `ActionRegistry`: bare
+core name (`player_death`), namespaced module name (`quests:completed`, `guilds:joined`),
+collision = error at registration, removed with the module. A module **fires** its event with
+`api.getGameEvents().fire(name, player, context)`. Presence reports `declared_game_events` (hello,
+`modules_changed`), like `declared_actions`; the editor derives from it the `on:` selector and the
+form of the available context.
 
-Un événement Bukkit entre au catalogue par une **déclaration d'une ligne**, côté core (forme
-indicative, l'API se fixe au lot 3) :
+A Bukkit event enters the catalog through a **one-line declaration**, on the core side
+(indicative form, the API is fixed in batch 3):
 
 ```kotlin
 gameEvent<PlayerDeathEvent>("player_death", Frequency.RARE,
@@ -87,51 +86,51 @@ gameEvent<PlayerDeathEvent>("player_death", Frequency.RARE,
     effects = { message("death_message", it::deathMessage); bool("keep_inventory", it::setKeepInventory) })
 ```
 
-**Règles d'admission**, vérifiées par un test sur tout le catalogue :
+**Admission rules**, checked by a test over the whole catalog:
 
-1. l'événement est **synchrone** et tiré sur le thread qui possède le joueur (principal sur Paper,
-   région du joueur sur Folia) ; un événement asynchrone est refusé ;
-2. il concerne **un joueur**, que la déclaration sait extraire ;
-3. il est **discret** : classe `RARE` (connexion, mort) ou `NORMAL` (un clic, un bloc cassé).
-   La classe `HIGH` (mouvement, physique des blocs, chargement de chunks, chaque tick) est refusée ;
-4. son contexte et ses effets (§3 bis) sont **nommés et typés** dans la déclaration, jamais lus par
-   réflexion ;
-5. il existe sur Paper et Spigot, ou la déclaration dit sur quelle plateforme il manque (l'éditeur
-   le grise alors).
+1. the event is **synchronous** and fired on the thread that owns the player (main on Paper, the
+   player's region on Folia); an asynchronous event is refused;
+2. it concerns **a player**, which the declaration knows how to extract;
+3. it is **discrete**: class `RARE` (login, death) or `NORMAL` (a click, a broken block). Class
+   `HIGH` (movement, block physics, chunk loading, every tick) is refused;
+4. its context and its effects (§3 bis) are **named and typed** in the declaration, never read by
+   reflection;
+5. it exists on Paper and Spigot, or the declaration says on which platform it is missing (the
+   editor then greys it out).
 
-Catalogue core du premier lot, à titre indicatif (le test d'admission fait foi) :
+Core catalog of the first batch, for information (the admission test is authoritative):
 
-| Domaine | Événements | Effets déclarés |
+| Domain | Events | Declared effects |
 |---|---|---|
-| Connexion | `player_join`, `player_first_join`, `player_quit`, `player_kick` | message de connexion, de départ, raison du kick ; annuler le kick |
-| Vie | `player_death`, `player_respawn`, `player_damage`, `player_food_change` | message de mort, garder l'inventaire et les niveaux, vider les drops, xp lâchée ; point de réapparition ; annuler les dégâts, la faim |
-| Monde | `player_change_world`, `player_teleport`, `player_portal`, `player_bed_enter`, `player_gamemode_change`, `player_toggle_flight` | annuler (sauf changement de monde) |
-| Blocs | `block_break`, `block_place`, `player_interact`, `player_interact_entity` | annuler ; xp et drops du bloc cassé |
-| Objets | `player_drop_item`, `player_pickup_item`, `player_consume_item`, `player_fish`, `craft_item`, `enchant_item`, `player_item_break` | annuler (sauf objet cassé) |
-| Combat | `player_kill_entity`, `player_kill_player` | xp lâchée, vider les drops |
+| Connection | `player_join`, `player_first_join`, `player_quit`, `player_kick` | join message, quit message, kick reason; cancel the kick |
+| Life | `player_death`, `player_respawn`, `player_damage`, `player_food_change` | death message, keep inventory and levels, clear drops, dropped xp; respawn point; cancel damage, hunger |
+| World | `player_change_world`, `player_teleport`, `player_portal`, `player_bed_enter`, `player_gamemode_change`, `player_toggle_flight` | cancel (except world change) |
+| Blocks | `block_break`, `block_place`, `player_interact`, `player_interact_entity` | cancel; xp and drops of the broken block |
+| Items | `player_drop_item`, `player_pickup_item`, `player_consume_item`, `player_fish`, `craft_item`, `enchant_item`, `player_item_break` | cancel (except broken item) |
+| Combat | `player_kill_entity`, `player_kill_player` | dropped xp, clear drops |
 | Progression | `player_level_change`, `player_advancement_done` | — |
-| Commandes | `player_command` | annuler |
+| Commands | `player_command` | cancel |
 
-Le chat (`AsyncChatEvent`) est asynchrone : hors catalogue v1 (Q5).
+Chat (`AsyncChatEvent`) is asynchronous: outside the v1 catalog (Q5).
 
-Écarté : **exposer tous les événements Bukkit par réflexion**. Environ 300 événements, dont une partie
-se déclenche des milliers de fois par seconde (`PlayerMoveEvent`, `BlockPhysicsEvent`), d'autres
-asynchrones (appeler l'API Bukkit y casse le serveur, Folia ajoute ses régions), beaucoup sans
-joueur ; un contexte lu par réflexion n'est pas typé (ni l'éditeur ni une IA ne savent quels champs
-existent) et un renommage de Paper casse les configs en silence. La déclaration d'une ligne garde
-le coût d'ajout d'un événement à quelques minutes.
+Rejected: **exposing all Bukkit events by reflection**. About 300 events, some of which fire
+thousands of times per second (`PlayerMoveEvent`, `BlockPhysicsEvent`), others asynchronous
+(calling the Bukkit API there breaks the server, Folia adds its regions), many without a player; a
+context read by reflection is not typed (neither the editor nor an AI knows which fields exist)
+and a Paper rename silently breaks configs. The one-line declaration keeps the cost of adding an
+event to a few minutes.
 
-### 3. Le contexte d'événement est une liaison typée, en lecture seule
+### 3. The event context is a typed, read-only binding
 
-Le contexte est lié comme une liaison de template sous `event` (`{event.location.x}`,
-`{event.cause}`), au même titre que les arguments d'une Command. Il est typé par la déclaration
-(`ModelField[]`), ce qui permet à l'éditeur de proposer les champs et de signaler une référence à
-un champ inexistant. `{event.cancelled}` est toujours lié pour un événement annulable.
+The context is bound like a template binding under `event` (`{event.location.x}`,
+`{event.cause}`), in the same way as a Command's arguments. It is typed by the declaration
+(`ModelField[]`), which lets the editor offer the fields and flag a reference to a nonexistent
+field. `{event.cancelled}` is always bound for a cancellable event.
 
-### 3 bis. Effets déclarés : annuler, modifier un champ
+### 3 bis. Declared effects: cancel, modify a field
 
-Un événement déclare ses **effets** : les seules choses qu'une chaîne peut changer sur lui. Deux
-actions, valides uniquement dans la chaîne d'un Trigger dont l'événement déclare l'effet :
+An event declares its **effects**: the only things a chain may change on it. Two actions, valid
+only in the chain of a Trigger whose event declares the effect:
 
 ```yaml
 on: player_join
@@ -145,74 +144,73 @@ do:
   - send_message: "<red>Tu ne peux pas casser ici."
 ```
 
-- `cancel_event` passe l'événement à annulé ; `set_event: { <effet>: valeur }` écrit un effet
-  déclaré, avec la valeur typée et résolue par template (§6).
-- **On ne désannule jamais.** Les listeners Artisan tournent en priorité `HIGH` avec
-  `ignoreCancelled = true` : un événement déjà annulé par une protection (WorldGuard, GriefPrevention,
-  un plugin de claims) ne déclenche aucun Trigger, et aucun effet ne remet `cancelled` à faux.
-  Un Trigger ne peut donc pas contourner une protection.
-- Les effets s'appliquent **pendant** le traitement de l'événement : la chaîne s'exécute en ligne
-  dans le listener (§8). Dans une chaîne différée (`do` d'un `chat_button`), `cancel_event` et
-  `set_event` n'ont plus d'événement à modifier : l'éditeur les refuse à cet endroit, le plugin les
-  ignore avec un avertissement.
-- Plusieurs Triggers sur le même événement s'appliquent dans l'ordre du §1 ; pour un même effet, la
-  dernière écriture gagne. Un plugin en priorité `HIGHEST` ou `MONITOR` (EssentialsX pour les messages
-  de connexion, selon sa config) passe après Artisan : c'est documenté, pas contourné.
-- Pas de setter générique ni de modification par réflexion : un effet absent de la déclaration
-  n'existe pas.
+- `cancel_event` sets the event to cancelled; `set_event: { <effect>: value }` writes a declared
+  effect, with the value typed and resolved by template (§6).
+- **We never uncancel.** Artisan listeners run at priority `HIGH` with `ignoreCancelled = true`:
+  an event already cancelled by a protection (WorldGuard, GriefPrevention, a claims plugin)
+  triggers no Trigger, and no effect puts `cancelled` back to false. A Trigger therefore cannot
+  bypass a protection.
+- Effects apply **during** the event's processing: the chain runs inline in the listener (§8). In
+  a deferred chain (`do` of a `chat_button`), `cancel_event` and `set_event` no longer have an
+  event to modify: the editor refuses them there, the plugin ignores them with a warning.
+- Several Triggers on the same event apply in the order of §1; for the same effect, the last write
+  wins. A plugin at priority `HIGHEST` or `MONITOR` (EssentialsX for join messages, depending on
+  its config) runs after Artisan: this is documented, not worked around.
+- No generic setter nor modification by reflection: an effect absent from the declaration does not
+  exist.
 
-### 4. Un nouveau type de champ `location`
+### 4. A new field type `location`
 
-`ModelFieldType.location()` : `{ world, x, y, z, yaw?, pitch? }`. Il sert au contexte
-(`event.location`), aux variables (§5) et à `teleport`, qui gagne un argument primaire `location`.
-Les arguments `world/x/y/z/yaw/pitch` restent lus (compatibilité du wire) ; l'éditeur écrit
-`location`. La forme scalaire `teleport: "{var.derniere_mort}"` est donc valide.
+`ModelFieldType.location()`: `{ world, x, y, z, yaw?, pitch? }`. It serves the context
+(`event.location`), variables (§5) and `teleport`, which gains a primary argument `location`. The
+arguments `world/x/y/z/yaw/pitch` are still read (wire compatibility); the editor writes
+`location`. The scalar form `teleport: "{var.derniere_mort}"` is therefore valid.
 
-### 5. Variables : déclarées, typées, persistantes
+### 5. Variables: declared, typed, persistent
 
-Une **Variable** est un Document (`variables/<id>.yml`, `schema: variable/v1`) qui déclare une
-valeur nommée :
+A **Variable** is a Document (`variables/<id>.yml`, `schema: variable/v1`) that declares a named
+value:
 
 ```yaml
 schema: variable/v1
 scope: player          # player | server
 type: location         # string | number | boolean | location
-default: null          # optionnel
-expires: 10m           # optionnel : durée de vie après la dernière écriture
+default: null          # optional
+expires: 10m           # optional: lifetime after the last write
 ```
 
-- **Déclarée plutôt qu'implicite** : une faute de frappe dans un nom est une référence morte
-  détectée par l'éditeur, le renommage repointe les usages, et la planche dessine la variable comme
-  un nœud relié à ses écrivains et à ses lecteurs (arêtes `document_ref`).
-- **Actions** (module core `variables`) : `set_var { var, value }`, `add_var { var, amount }`
-  (type `number` seulement), `clear_var: <var>`. L'argument `var` est un `document_ref(variable)`.
-- **Lecture** : liaison `{var.<id>}` dans les templates et les `expression`, résolue
-  paresseusement. Condition `has_var: <var>` (valeur présente et non expirée). Namespace de
-  placeholders `artisan_var` exposé à PlaceholderAPI pour les scoreboards.
-- **Stockage** : table `artisan_vars` de la base de la suite (`scope`, `owner` = UUID ou `server`,
-  `name` = ref qualifiée `project/id`, `value` JSON, `expires_at`). Même schéma d'accès que
-  `CooldownSync` : la mémoire décide, l'écriture part sur l'écrivain unique, les valeurs d'un joueur
-  sont lues à sa connexion. Sans base, mémoire seule (perdue au redémarrage, avertissement au
-  démarrage). Un réseau partage donc les variables joueur.
-- Une valeur qui ne correspond plus au type déclaré (type changé dans l'éditeur) est lue comme
-  absente et signalée une fois dans les logs, jamais convertie en silence.
+- **Declared rather than implicit**: a typo in a name is a dead reference detected by the editor,
+  renaming repoints the usages, and the board draws the variable as a node linked to its writers
+  and readers (`document_ref` edges).
+- **Actions** (core module `variables`): `set_var { var, value }`, `add_var { var, amount }`
+  (`number` type only), `clear_var: <var>`. The `var` argument is a `document_ref(variable)`.
+- **Reading**: binding `{var.<id>}` in templates and `expression`s, resolved lazily. Condition
+  `has_var: <var>` (value present and not expired). `artisan_var` placeholder namespace exposed to
+  PlaceholderAPI for scoreboards.
+- **Storage**: table `artisan_vars` of the suite's database (`scope`, `owner` = UUID or `server`,
+  `name` = qualified ref `project/id`, `value` JSON, `expires_at`). Same access scheme as
+  `CooldownSync`: memory decides, the write goes to the single writer, a player's values are read
+  at login. Without a database, memory only (lost at restart, warning at startup). A network
+  therefore shares player variables.
+- A value that no longer matches the declared type (type changed in the editor) is read as absent
+  and reported once in the logs, never silently converted.
 
-### 6. Arguments résolus par template, échec explicite
+### 6. Arguments resolved by template, explicit failure
 
-Tout argument typé (`number`, `integer`, `boolean`, `location`) accepte une chaîne template.
-`ActionDeclaration.bind` la résout puis la convertit **avant** le handler. Une valeur non résolue
-ou non convertible **saute l'action** avec un avertissement qui nomme l'action, l'argument et le
-Document. Un repli silencieux sur la valeur par défaut (cas de `teleport` aujourd'hui) n'est plus
-permis. Les handlers continuent de recevoir des valeurs déjà typées.
+Every typed argument (`number`, `integer`, `boolean`, `location`) accepts a template string.
+`ActionDeclaration.bind` resolves it then converts it **before** the handler. A value that is
+unresolved or not convertible **skips the action** with a warning naming the action, the argument
+and the Document. A silent fallback to the default value (the case of `teleport` today) is no
+longer allowed. Handlers keep receiving already-typed values.
 
-### 7. `chat_button` : un clic à usage unique, lié au joueur
+### 7. `chat_button`: a single-use click, bound to the player
 
 ```yaml
 - chat_button:
     text: "<gray>Mort en {event.location.x} {event.location.y} {event.location.z}."
     label: "<gold>[Y retourner : 100 $]"
-    uses: 1          # défaut 1
-    expires: 10m     # défaut 5m
+    uses: 1          # default 1
+    expires: 10m     # default 5m
     do:
       - if: [ { has_var: derniere_mort }, { has_money: 100 } ]
         do:
@@ -223,100 +221,97 @@ permis. Les handlers continuent de recevoir des valeurs déjà typées.
           - send_message: "<red>Il te faut 100 $."
 ```
 
-Le bouton porte un jeton aléatoire, lié au joueur, consommé par une commande interne
-(`/artisan:click <jeton>`, sans permission, invisible à la complétion). Un jeton inconnu, expiré,
-épuisé ou présenté par un autre joueur ne fait rien. Les jetons vivent en mémoire et disparaissent
-au redémarrage. La chaîne `do` s'exécute avec les liaisons du moment où le bouton a été envoyé
-(`event` compris).
+The button carries a random token, bound to the player, consumed by an internal command
+(`/artisan:click <token>`, no permission, invisible to completion). A token that is unknown,
+expired, exhausted or presented by another player does nothing. Tokens live in memory and
+disappear at restart. The `do` chain runs with the bindings of the moment the button was sent
+(`event` included).
 
-Écarté : `ClickEvent.callback` d'Adventure, qui fait la même chose mais n'existe pas sur Spigot,
-cible encore supportée ; le jeton marche partout et se teste sans serveur.
+Rejected: Adventure's `ClickEvent.callback`, which does the same thing but does not exist on
+Spigot, a still-supported target; the token works everywhere and is testable without a server.
 
-### 8. Exécution : thread, réentrance, budget
+### 8. Execution: thread, reentrancy, budget
 
-- Une chaîne de Trigger s'exécute **en ligne dans le listener**, sur le thread qui tire
-  l'événement ; la règle d'admission 1 garantit que c'est celui qui possède le joueur (principal sur
-  Paper, région du joueur sur Folia et Leaf). C'est ce qui permet les effets (§3 bis).
-  `player_quit` s'exécute avant que le joueur ne soit retiré.
-- **Réentrance bornée** : une chaîne peut provoquer un autre événement (`teleport` peut provoquer
-  `player_change_world`). Au-delà de 4 niveaux de Triggers imbriqués pour un même joueur, le
-  déclenchement suivant est ignoré avec un avertissement.
-- **Budget** : 1 000 actions au plus par exécution d'une chaîne de Trigger, `run_actions`
-  compris. Au-delà, la chaîne s'arrête avec un avertissement.
+- A Trigger chain runs **inline in the listener**, on the thread that fires the event; admission
+  rule 1 guarantees it is the one that owns the player (main on Paper, the player's region on
+  Folia and Leaf). This is what allows effects (§3 bis). `player_quit` runs before the player is
+  removed.
+- **Bounded reentrancy**: a chain can cause another event (`teleport` can cause
+  `player_change_world`). Beyond 4 levels of nested Triggers for the same player, the next firing
+  is ignored with a warning.
+- **Budget**: at most 1,000 actions per Trigger chain execution, `run_actions` included. Beyond
+  that, the chain stops with a warning.
 
-### 9. La frontière : ce qu'on refuse d'ajouter
+### 9. The boundary: what we refuse to add
 
-Le vocabulaire reste un langage de **règles**, sans boucle et à terminaison garantie. Sont exclus
-de ce chantier, et de tout chantier qui ne rouvre pas cet ADR :
+The vocabulary stays a language of **rules**, without loops and with guaranteed termination. The
+following are excluded from this work, and from any work that does not reopen this ADR:
 
-- les boucles (`for`, `while`, répétition) et les fonctions définies par l'admin au-delà de
-  `run_actions` ;
-- les événements continus ou à haute fréquence (classe `HIGH` : mouvement, chaque tick, physique
-  des blocs) et les événements asynchrones ;
-- les appels réseau sortants depuis une chaîne ;
-- toute modification d'un événement hors de ses effets déclarés, et la désannulation.
+- loops (`for`, `while`, repetition) and admin-defined functions beyond `run_actions`;
+- continuous or high-frequency events (class `HIGH`: movement, every tick, block physics) and
+  asynchronous events;
+- outgoing network calls from a chain;
+- any modification of an event outside its declared effects, and uncancelling.
 
-Un besoin au-delà de cette frontière s'écrit en module (Kotlin ou Java) qui déclare ses propres
-actions et événements (§2). Un besoin récurrent qui tient dans la frontière rejoint le catalogue
-core.
+A need beyond this boundary is written as a module (Kotlin or Java) that declares its own actions
+and events (§2). A recurring need that fits within the boundary joins the core catalog.
 
-## Conséquences
+## Consequences
 
-- **CONTEXT.md** : termes **Trigger**, **Game event** et **Variable** ajoutés ; l'entrée
-  **Action chain** liste le Trigger parmi ses déclencheurs une fois le kind livré.
-- **API** : `GameEventDeclaration`, `GameEventRegistry`, `ModelFieldType.location()`, tous
-  `@Beta`. Version mineure de l'API ; champ de Presence additif, protocole inchangé.
-- **Schémas** : `trigger/v1` et `variable/v1` dans `docs/schema/`, `$defs.Action` gagne
-  `set_var`, `add_var`, `clear_var`, `chat_button`, `cancel_event`, `set_event` et l'argument
-  `location` de `teleport`.
-- **Base** : une migration crée `artisan_vars` ; forward-only comme les autres
+- **CONTEXT.md**: terms **Trigger**, **Game event** and **Variable** added; the **Action chain**
+  entry lists the Trigger among its triggers once the kind is delivered.
+- **API**: `GameEventDeclaration`, `GameEventRegistry`, `ModelFieldType.location()`, all `@Beta`.
+  Minor API version; additive Presence field, protocol unchanged.
+- **Schemas**: `trigger/v1` and `variable/v1` in `docs/schema/`, `$defs.Action` gains `set_var`,
+  `add_var`, `clear_var`, `chat_button`, `cancel_event`, `set_event` and the `location` argument
+  of `teleport`.
+- **Database**: a migration creates `artisan_vars`; forward-only like the others
   (`docs/architecture/versioning.md`).
-- **Transition** : aucune donnée existante ne change. Le seul changement de comportement est §6 :
-  un `teleport` dont un argument ne se résout pas ne téléporte plus en 0,0,0, il ne fait rien et
-  l'écrit dans les logs.
-- **Assistant IA** : quand il revient dans `v2`, il gagne `upsert_trigger` et
-  `upsert_variable` ; ce chantier ne dépend pas de lui.
-- **Test d'acceptation** : la demande de référence, écrite à la main sous la forme ci-dessus
-  (un Trigger `player_death`, une Variable `derniere_mort`), fonctionne en jeu sur Paper et sur
-  Folia, y compris après un redémarrage du serveur pendant la durée de validité de la variable
-  (le bouton, lui, est perdu : attendu).
+- **Transition**: no existing data changes. The only behavior change is §6: a `teleport` with an
+  argument that does not resolve no longer teleports to 0,0,0, it does nothing and writes it in
+  the logs.
+- **AI assistant**: when it comes back in `v2`, it gains `upsert_trigger` and `upsert_variable`;
+  this work does not depend on it.
+- **Acceptance test**: the reference request, written by hand in the form above (a `player_death`
+  Trigger, a `derniere_mort` Variable), works in game on Paper and on Folia, including after a
+  server restart during the variable's validity period (the button, however, is lost: expected).
 
-## Ordre des lots
+## Order of batches
 
-1. Type `location` et résolution des arguments par template (§4, §6), avec le vecteur
-   `action-wire-conformance.json` étendu. Utile seul : corrige `teleport`.
-2. Kind Variable, actions et stockage (§5).
-3. Registre d'événements, kind Trigger, catalogue core avec son test d'admission, effets (§1 à §3 bis, §8).
+1. `location` type and resolution of arguments by template (§4, §6), with the extended
+   `action-wire-conformance.json` vector. Useful alone: fixes `teleport`.
+2. Variable kind, actions and storage (§5).
+3. Event registry, Trigger kind, core catalog with its admission test, effects (§1 to §3 bis, §8).
 4. `chat_button` (§7).
-5. Éditeur : formulaires, sélecteur d'événement, nœuds de planche, champs de contexte proposés.
+5. Editor: forms, event selector, board nodes, offered context fields.
 
-## Questions ouvertes
+## Open questions
 
-| # | Question | Recommandation |
+| # | Question | Recommendation |
 |---|---|---|
-| Q1 | Identité stockée d'une variable : ref qualifiée `project/id` (renommer le Project perd les valeurs) ou id stable généré à la création ? | Ref qualifiée en v1, comme le reste des refs ; un renommage de Project est rare et l'éditeur peut avertir. |
-| Q2 | Déclencheurs sans joueur (`server_start`, horaire) : `ActionContext.getPlayer()` n'est jamais nul aujourd'hui. | Hors v1. Les rouvrir demande un contexte sans joueur et une liste d'actions qui le supportent. |
-| Q3 | Une action `wait` (délai borné avant la suite de la chaîne) ? | Hors v1 : elle casse l'exécution synchrone et pose la question du joueur déconnecté pendant l'attente. |
-| Q4 | Événements `NORMAL` dans les fermes et le minage (`player_kill_entity`, `block_break`) : volume élevé. | Garder ; l'éditeur conseille un `if` ou un `cooldown` sur ces événements ; mesurer avant d'ajouter un plafond global. |
-| Q5 | Le chat, asynchrone, est l'une des demandes les plus probables (filtrer, reformater). | Hors v1. Le rouvrir avec un sous-vocabulaire sans appel à l'API Bukkit (texte, conditions sur des valeurs déjà lues, annulation), exécuté hors du thread principal. |
+| Q1 | Stored identity of a variable: qualified ref `project/id` (renaming the Project loses the values) or a stable id generated at creation? | Qualified ref in v1, like the rest of the refs; a Project rename is rare and the editor can warn. |
+| Q2 | Triggers without a player (`server_start`, scheduled): `ActionContext.getPlayer()` is never null today. | Out of v1. Reopening them requires a player-less context and a list of actions that support it. |
+| Q3 | A `wait` action (bounded delay before the rest of the chain)? | Out of v1: it breaks synchronous execution and raises the question of the player disconnecting during the wait. |
+| Q4 | `NORMAL` events in farms and mining (`player_kill_entity`, `block_break`): high volume. | Keep; the editor advises an `if` or a `cooldown` on these events; measure before adding a global cap. |
+| Q5 | Chat, asynchronous, is one of the most likely requests (filtering, reformatting). | Out of v1. Reopen it with a sub-vocabulary without Bukkit API calls (text, conditions on already-read values, cancellation), run off the main thread. |
 
-## Implémentation (lots 3 et 5, 2026-10-24)
+## Implementation (batches 3 and 5, 2026-10-24)
 
-Ce qui diffère du texte ci-dessus, et pourquoi :
+What differs from the text above, and why:
 
-- **`cooldown_seconds: 30`** (un entier) au lieu de `cooldown: 30s` : pas de parseur de durée à
-  maintenir des deux côtés pour un seul champ. Le délai passe par `api.cooldowns`, le store des
-  cooldowns de menus et de commandes (id `triggers:<project>/<id>`) : gardé dans
-  `artisan_cooldowns`, il survit au redémarrage et suit le joueur sur le réseau.
-- **Budget de 1 000 actions** (§8) : reporté. La réentrance est bornée (4 niveaux, un avertissement
-  par événement) ; le budget demande un compteur dans le moteur d'actions, lot à part.
-- **Textes de `set_event`** : traduisibles comme tout texte affiché au joueur (LText, adresse
-  `…do.set_event.<effet>`). Un message que Bukkit enverrait d'un bloc à tout le monde (connexion,
-  départ, mort) est remplacé par un envoi par joueur, chacun dans sa langue, la console dans la
-  langue par défaut du projet (`EffectText`, `ActionRuntime.textFor`). `broadcast` suit la même règle.
-- **Catalogue** : 29 Game events core en v1 (`CoreGameEvents.kt`), vecteur
-  `testdata/core-game-events.json` partagé avec l'éditeur, qui l'embarque pour que le sélecteur
-  fonctionne sans serveur.
-- **Éditeur** : `cancel_event` / `set_event` ne sont proposés que dans la chaîne d'un Trigger, sous
-  « Cet événement », d'après l'événement choisi ; jamais dans la liste générique d'actions.
-
+- **`cooldown_seconds: 30`** (an integer) instead of `cooldown: 30s`: no duration parser to
+  maintain on both sides for a single field. The delay goes through `api.cooldowns`, the store of
+  menu and command cooldowns (id `triggers:<project>/<id>`): kept in `artisan_cooldowns`, it
+  survives restart and follows the player across the network.
+- **Budget of 1,000 actions** (§8): deferred. Reentrancy is bounded (4 levels, one warning per
+  event); the budget needs a counter in the action engine, a separate batch.
+- **`set_event` texts**: translatable like any text displayed to the player (LText, address
+  `…do.set_event.<effect>`). A message that Bukkit would send as one block to everyone (login,
+  quit, death) is replaced by a per-player send, each in their language, the console in the
+  project's default language (`EffectText`, `ActionRuntime.textFor`). `broadcast` follows the same
+  rule.
+- **Catalog**: 29 core Game events in v1 (`CoreGameEvents.kt`), vector
+  `testdata/core-game-events.json` shared with the editor, which embeds it so the selector works
+  without a server.
+- **Editor**: `cancel_event` / `set_event` are only offered in a Trigger's chain, under "This
+  event", based on the chosen event; never in the generic action list.

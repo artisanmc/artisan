@@ -234,7 +234,7 @@ describe("projectsStore", () => {
     expect(project.i18nKeys[dialog.title.key]!.en).toBe("Hello!");
   });
 
-  it("removeUnusedI18nKeys drops orphaned keys but keeps referenced ones", () => {
+  it("removeUnusedI18nKeys drops orphaned keys but keeps referenced ones and add-on messages", () => {
     const store = useProjectsStore.getState();
     // Seed an orphan: setI18nValue against a key no tree node references.
     store.setI18nValue({
@@ -244,6 +244,14 @@ describe("projectsStore", () => {
       value: "stale",
     });
     const usedKey = "menus.m_shop_main.title" as I18nKey; // referenced by the fixture menu title
+    // Read by an add-on's code (`send_message @auctions.messages.no_item`), held by no document.
+    const moduleKey = "auctions.messages.no_item" as I18nKey;
+    store.setI18nValue({
+      projectId: PERSONAL,
+      lt: { key: moduleKey },
+      lang: "en",
+      value: "Hold it",
+    });
     let project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === PERSONAL)!;
     expect(project.i18nKeys["lt_orphan_xyz" as I18nKey]).toBeTruthy();
     expect(project.i18nKeys[usedKey]).toBeTruthy();
@@ -253,6 +261,7 @@ describe("projectsStore", () => {
     project = useProjectsStore.getState().openProjects.projects.find((p) => p.id === PERSONAL)!;
     expect(project.i18nKeys["lt_orphan_xyz" as I18nKey]).toBeUndefined();
     expect(project.i18nKeys[usedKey]).toBeTruthy();
+    expect(project.i18nKeys[moduleKey]).toBeTruthy();
   });
 
   it("deleteFromProject removes dialog and its canvas position", () => {

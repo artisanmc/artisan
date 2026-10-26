@@ -72,10 +72,10 @@ New component `editor/src/components/LinkedServersDropdown.tsx`:
 
 - **Badge**: `online/total` text + dot (green if `online > 0`, grey otherwise). Built on the design-system `DropdownMenu` / `Badge`.
 - **Dropdown rows** (one per server):
-  - dot · `label` (fallback: short `id`) · "courant" tag when `isCurrent`.
-  - online → "En ligne" (`×N` if `instanceCount > 1`) · IP · MC version.
-  - offline with `lastSeenAt` → "Vu il y a X" (relative) · last IP.
-  - offline with `lastSeenAt === null` → "Jamais connecté".
+  - dot · `label` (fallback: short `id`) · "current" tag when `isCurrent`.
+  - online → "Online" (`×N` if `instanceCount > 1`) · IP · MC version.
+  - offline with `lastSeenAt` → "Last seen X ago" (relative) · last IP.
+  - offline with `lastSeenAt === null` → "Never connected".
 - **Polling**: 15s interval, cleared on unmount (mirrors current `ServerStatusBadge`).
 - API client: `getNetworkServersStatus(networkId, currentServerKeyId)` in `editor/src/lib/api/networks.ts`.
 

@@ -7,23 +7,23 @@
 
 ## TL;DR
 
-Permettre 2 branches d'un même pack de **diverger** (plusieurs commits chacune), puis être **réconciliées** via un merge sémantique **par item top-level** (menu / command / dialog / template / dataSource). Pas de granularité champ-par-champ — on prend l'item entier d'un côté ou de l'autre. Les changements non-collisionnels s'auto-mergent. Les vrais conflits ouvrent un modal où l'user choisit `src` ou `dst` par conflit.
+Let 2 branches of the same pack **diverge** (several commits each), then be **reconciled** via a semantic merge **per top-level item** (menu / command / dialog / template / dataSource). No field-by-field granularity — we take the whole item from one side or the other. Non-colliding changes auto-merge. Real conflicts open a modal where the user chooses `src` or `dst` per conflict.
 
-Le résultat est un **merge commit** avec deux parents (`parentId` + `parentId2`).
+The result is a **merge commit** with two parents (`parentId` + `parentId2`).
 
 ---
 
 ## 1. Goals + non-goals
 
-**Goal :** Workflow type "dev → main avec divergences possibles" qui marche sans force-push. L'user committe sur dev, committe sur main, puis fait "Merge dev → main" qui réconcilie. Pas de perte de travail (sauf choix explicite via la résolution).
+**Goal:** A "dev → main with possible divergences" workflow that works without force-push. The user commits on dev, commits on main, then does "Merge dev → main" which reconciles. No loss of work (except by explicit choice via resolution).
 
-**Non-goals (deferred ou hors scope) :**
-- Merge field-level (champ par champ à l'intérieur d'un item) — deferred Phase 3.5 si un cas d'usage l'impose.
+**Non-goals (deferred or out of scope):**
+- Field-level merge (field by field inside an item) — deferred to Phase 3.5 if a use case demands it.
 - Octopus merge (>2 parents).
 - Rebase / cherry-pick.
-- Auto-resolve heuristics ("le plus récent gagne").
+- Auto-resolve heuristics ("most recent wins").
 - Free-form merge edit (raw YAML).
-- Merge sur le WIP — user doit committer d'abord.
+- Merge on the WIP — user must commit first.
 - Revert.
 - "Reset WIP to branch HEAD".
 
@@ -31,7 +31,7 @@ Le résultat est un **merge commit** avec deux parents (`parentId` + `parentId2`
 
 ## 2. Architecture
 
-3 chunks isolés :
+3 isolated chunks:
 
 ```
 backend/src/lib/mergeEngine.ts            ← diff + merge + conflict detection (pure, no DB)
@@ -43,7 +43,7 @@ editor/src/features/branches/MergeButton.tsx          ← trigger + dialog
 editor/src/features/branches/MergeConflictModal.tsx   ← per-conflict radio picker
 ```
 
-Le plugin ne change pas. Le hub broadcaste `bundle_available` au dst branch après le merge — les server_keys bindés à `(packId, dstBranchName)` re-pull le pack.
+The plugin does not change. The hub broadcasts `bundle_available` to the dst branch after the merge — server_keys bound to `(packId, dstBranchName)` re-pull the pack.
 
 ---
 
@@ -57,13 +57,13 @@ export const packCommits = pgTable("pack_commits", {
 });
 ```
 
-Migration : `ALTER TABLE pack_commits ADD COLUMN parent_id_2 TEXT` via `bun run db:push`. Aucun backfill (existing commits restent `parentId2 = null`).
+Migration: `ALTER TABLE pack_commits ADD COLUMN parent_id_2 TEXT` via `bun run db:push`. No backfill (existing commits stay `parentId2 = null`).
 
 ---
 
 ## 4. LCA algorithm
 
-`findLCA(commitIdA, commitIdB) → string` dans `branchStorage.ts`.
+`findLCA(commitIdA, commitIdB) → string` in `branchStorage.ts`.
 
 ```
 function findLCA(a, b):
@@ -85,10 +85,10 @@ function findLCA(a, b):
   throw "lca walk exhausted"
 ```
 
-Cas spéciaux :
+Special cases:
 - `a === b` → return `a`
-- `a` est ancestor de `b` → BFS depuis `b` trouve `a` avant que BFS depuis `a` trouve rien (queue épuisée) → return `a`
-- Pas d'ancestor commun → throw (théoriquement impossible vu que tous les commits viennent du `Initial commit` racine du pack)
+- `a` is an ancestor of `b` → BFS from `b` finds `a` before BFS from `a` finds anything (queue exhausted) → return `a`
+- No common ancestor → throw (theoretically impossible since all commits come from the pack's root `Initial commit`)
 
 ---
 
@@ -111,23 +111,23 @@ type Conflict = {
 };
 ```
 
-### Collections gérées
+### Collections handled
 
 | Field on Pack | Diff key | Auto-merge | Conflict cases |
 |---|---|---|---|
 | `menus[]` | `menu.id` | yes | modify-modify, delete-modify |
-| `commands[]` | `command.id` | yes | idem |
-| `dialogs[]` | `dialog.id` | yes | idem |
-| `templates[]` | `template.id` | yes | idem |
-| `dataSources[]` | `dataSource.id` | yes | idem |
-| `i18nKeys` | string key | yes | both modified different strings |
+| `commands[]` | `command.id` | yes | same |
+| `dialogs[]` | `dialog.id` | yes | same |
+| `templates[]` | `template.id` | yes | same |
+| `dataSources[]` | `dataSource.id` | yes | same |
+| `i18nKeys` | string key | yes | both modified to different strings |
 | `canvasLayout` | string key (entity id) | yes | both modified to different `(x,y)` |
 | `defaultLang` | scalar | yes | both modified to different lang |
-| `name`, `description` | scalar | yes | idem |
+| `name`, `description` | scalar | yes | same |
 | `assets[]` | (skip — managed via separate API) | n/a | n/a |
 | `importedConnectors[]` | (skip — referenced externally) | n/a | n/a |
 
-### Algo (par collection-by-id)
+### Algo (per collection-by-id)
 
 ```
 For each id in (base.ids ∪ src.ids ∪ dst.ids):
@@ -150,23 +150,23 @@ For each id in (base.ids ∪ src.ids ∪ dst.ids):
   // Default in mergedState during conflict = dst's value (so the state is renderable)
 ```
 
-Pour `i18nKeys` et `canvasLayout` (maps) : même logique, key = string. Pour scalars : `deepEqual(base, src), deepEqual(base, dst)` direct, conflict si changedBoth-different.
+For `i18nKeys` and `canvasLayout` (maps): same logic, key = string. For scalars: `deepEqual(base, src), deepEqual(base, dst)` directly, conflict if both changed to different values.
 
 `deepEqual` = stable JSON stringify comparison (key-sorted).
 
 ### `applyResolutions(mergedState, conflicts, resolutions: Record<conflictKey, "src"|"dst">) → EditorState`
 
-Pour chaque conflit, écrit la valeur choisie (depuis `conflict.srcValue` ou `conflict.dstValue`) dans le `mergedState` à la position correspondante (parsing `conflict.conflictKey` pour retrouver le collection + id). Si la valeur choisie est `null` (deletion), supprime l'entrée. Retourne le state final.
+For each conflict, writes the chosen value (from `conflict.srcValue` or `conflict.dstValue`) into the `mergedState` at the corresponding position (parsing `conflict.conflictKey` to find the collection + id). If the chosen value is `null` (deletion), removes the entry. Returns the final state.
 
 ### Re-derivation `editorJson → filesJson`
 
-Le merge engine produit un `editorJson` (le `EditorState`). Pour le commit, il faut aussi un `filesJson` (YAMLs des menus, dialogs, etc.). Le pipeline `editor → files` existe côté éditeur (`packApi.savePack` envoie les 2 en parallèle). Pour le merge backend-side, on doit :
-- Soit appeler une fonction `derivefilesFromEditor(editorState) → Record<string, string>` (à implémenter ou réutiliser).
-- Soit demander au client de re-derive et de poster le filesJson dans /resolve.
+The merge engine produces an `editorJson` (the `EditorState`). For the commit, we also need a `filesJson` (YAMLs of menus, dialogs, etc.). The `editor → files` pipeline exists on the editor side (`packApi.savePack` sends both in parallel). For the backend-side merge, we must:
+- Either call a `derivefilesFromEditor(editorState) → Record<string, string>` function (to implement or reuse).
+- Or ask the client to re-derive and post the filesJson in /resolve.
 
-**Décision** : backend re-derive. Plan d'impl : extraire la fonction de re-derive depuis l'éditeur (probablement déjà dans un module domaine) vers un module partagé `lib/derivePackFiles.ts` (côté backend, port du code éditeur). **Risque** : si la logique est trop côté React, on fait porter par le client (POST resolve avec `{resolutions, derivedFiles}`).
+**Decision**: backend re-derives. Implementation plan: extract the re-derive function from the editor (probably already in a domain module) to a shared module `lib/derivePackFiles.ts` (backend side, port of the editor code). **Risk**: if the logic is too React-side, we make the client carry it (POST resolve with `{resolutions, derivedFiles}`).
 
-L'arbitrage se fait pendant l'impl du plan — la spec autorise les deux.
+The trade-off is made during plan implementation — the spec allows both.
 
 ---
 
@@ -174,23 +174,23 @@ L'arbitrage se fait pendant l'impl du plan — la spec autorise les deux.
 
 ### `POST /api/networks/:id/packs/:packId/branches/:src/merge-into/:dst`
 
-Body : `{message?: string}` optionnel.
+Body: `{message?: string}` optional.
 
-Logique :
-1. Auth (`requireMember`) + branches `src` et `dst` existent (404 sinon).
+Logic:
+1. Auth (`requireMember`) + branches `src` and `dst` exist (404 otherwise).
 2. `src === dst` → 400 `same_branch`.
 3. `lca = findLCA(src.head, dst.head)`.
 4. `lca === src.head` → 200 `{advanced: false, already_merged: true}` (no-op).
-5. `lca === dst.head` → fast-forward : `advanceBranchHead(packId, dst, src.head)`, broadcast, 200 `{advanced: true, fast_forward: true, head_commit_id: src.head}`.
-6. Sinon 3-way :
+5. `lca === dst.head` → fast-forward: `advanceBranchHead(packId, dst, src.head)`, broadcast, 200 `{advanced: true, fast_forward: true, head_commit_id: src.head}`.
+6. Otherwise 3-way:
    - Load base + src + dst editorJsons.
    - `result = mergeEngine.merge(...)`.
-   - Si `merged` : derive filesJson, `createCommit({parentId: dst.head, parentId2: src.head, ..., message: body.message ?? \`Merge ${src} into ${dst}\`})`. `advanceBranchHead(packId, dst, mergeCommit.id)`. Broadcast. 200 `{advanced: true, fast_forward: false, head_commit_id: mergeCommit.id}`.
-   - Si `conflicts` : 409 `{error: "conflicts", conflicts, lcaCommitId, srcCommitId, dstCommitId}`.
+   - If `merged`: derive filesJson, `createCommit({parentId: dst.head, parentId2: src.head, ..., message: body.message ?? \`Merge ${src} into ${dst}\`})`. `advanceBranchHead(packId, dst, mergeCommit.id)`. Broadcast. 200 `{advanced: true, fast_forward: false, head_commit_id: mergeCommit.id}`.
+   - If `conflicts`: 409 `{error: "conflicts", conflicts, lcaCommitId, srcCommitId, dstCommitId}`.
 
 ### `POST /api/networks/:id/packs/:packId/branches/:src/merge-into/:dst/resolve`
 
-Body :
+Body:
 ```json
 {
   "resolutions": { "menus:menu_abc": "src", "i18nKeys:hello": "dst" },
@@ -199,11 +199,11 @@ Body :
 }
 ```
 
-Logique :
-1. Auth + branches existent.
-2. Validate heads non-stale : `src.head === body.srcCommitId && dst.head === body.dstCommitId`. Sinon 409 `stale_merge`.
+Logic:
+1. Auth + branches exist.
+2. Validate heads not stale: `src.head === body.srcCommitId && dst.head === body.dstCommitId`. Otherwise 409 `stale_merge`.
 3. Re-run `mergeEngine.merge(lca, src, dst)`. Get `mergedState + conflicts`.
-4. Validate `Object.keys(resolutions)` couvre exactement `conflicts.map(c => c.conflictKey)`. Sinon 400 `missing_or_extra_resolutions`.
+4. Validate `Object.keys(resolutions)` covers exactly `conflicts.map(c => c.conflictKey)`. Otherwise 400 `missing_or_extra_resolutions`.
 5. Validate values are `"src"` or `"dst"`.
 6. `finalState = applyResolutions(mergedState, conflicts, resolutions)`.
 7. Derive filesJson, createCommit + advance + broadcast.
@@ -215,28 +215,28 @@ Logique :
 
 ### `MergeButton` (`editor/src/features/branches/MergeButton.tsx`)
 
-Frère de `PromoteButton`. Props : `{ networkId, packId, sourceBranch, allBranches }`.
+Sibling of `PromoteButton`. Props: `{ networkId, packId, sourceBranch, allBranches }`.
 
-Render : `<Button>Merge…</Button>` qui ouvre un dialog.
+Render: `<Button>Merge…</Button>` that opens a dialog.
 
-Dialog :
-- Header : "Merge {sourceBranch} into …"
-- Select "Target branch" (exclut `sourceBranch`).
-- `<Input>` optional commit message.
-- Buttons : "Cancel" / "Start merge".
+Dialog:
+- Header: "Merge {sourceBranch} into …"
+- "Target branch" select (excludes `sourceBranch`).
+- Optional commit message `<Input>`.
+- Buttons: "Cancel" / "Start merge".
 
 Submit → `mergeBranches(networkId, packId, src, dst, message)`.
 
-Branches du flow :
-- 200 `already_merged` → toast neutral "Already up to date".
-- 200 `fast_forward` → toast success "Fast-forwarded".
-- 200 classic merge → toast success "Merged (auto)".
-- 409 conflicts → ouvre `<MergeConflictModal>` avec les conflits + lcaCommitId/srcCommitId/dstCommitId.
-- autre erreur → message d'erreur dans le dialog.
+Flow branches:
+- 200 `already_merged` → neutral toast "Already up to date".
+- 200 `fast_forward` → success toast "Fast-forwarded".
+- 200 classic merge → success toast "Merged (auto)".
+- 409 conflicts → opens `<MergeConflictModal>` with the conflicts + lcaCommitId/srcCommitId/dstCommitId.
+- other error → error message in the dialog.
 
 ### `MergeConflictModal` (`editor/src/features/branches/MergeConflictModal.tsx`)
 
-Props :
+Props:
 ```ts
 {
   networkId, packId, src, dst, conflicts, lcaCommitId, srcCommitId, dstCommitId,
@@ -245,22 +245,22 @@ Props :
 }
 ```
 
-Layout :
-- Header : "Resolve {conflicts.length} conflicts to merge {src} → {dst}"
-- Pour chaque conflit (ordre stable par `conflictKey`) :
-  - Title : human-readable label (e.g. `"Menu shop"` si `collection:"menus"` + on retrouve le name dans srcValue/dstValue ; sinon `"menus: menu_abc"`).
-  - Description : "Both sides modified this menu" / "{src} deleted, {dst} modified" / etc.
-  - Radio :
-    - `[ ] Use {src}'s version` + preview compact (e.g. menu rows count, # of layers).
-    - `[ ] Use {dst}'s version` + preview idem.
-  - (Pas d'option "modify manually" — out of scope.)
-- Footer : "Cancel" (no commit created) / "Confirm merge" (disabled jusqu'à ce que tous les conflits aient une résolution).
+Layout:
+- Header: "Resolve {conflicts.length} conflicts to merge {src} → {dst}"
+- For each conflict (stable order by `conflictKey`):
+  - Title: human-readable label (e.g. `"Menu shop"` if `collection:"menus"` + the name can be found in srcValue/dstValue; otherwise `"menus: menu_abc"`).
+  - Description: "Both sides modified this menu" / "{src} deleted, {dst} modified" / etc.
+  - Radio:
+    - `[ ] Use {src}'s version` + compact preview (e.g. menu rows count, # of layers).
+    - `[ ] Use {dst}'s version` + same preview.
+  - (No "modify manually" option — out of scope.)
+- Footer: "Cancel" (no commit created) / "Confirm merge" (disabled until all conflicts have a resolution).
 
-Submit → POST `/resolve` avec `{resolutions, lcaCommitId, srcCommitId, dstCommitId}`. Sur success → call `onResolved(commit.id)`, close.
+Submit → POST `/resolve` with `{resolutions, lcaCommitId, srcCommitId, dstCommitId}`. On success → call `onResolved(commit.id)`, close.
 
-### Mounting dans `pack.$packId.tsx`
+### Mounting in `pack.$packId.tsx`
 
-À côté de `<PromoteButton>` :
+Next to `<PromoteButton>`:
 
 ```tsx
 <MergeButton
@@ -275,30 +275,30 @@ Submit → POST `/resolve` avec `{resolutions, lcaCommitId, srcCommitId, dstComm
 
 ## 8. Edge cases
 
-| Cas | Comportement |
+| Case | Behavior |
 |---|---|
 | `src === dst` | 400 `same_branch` |
-| LCA = `src.head` (src est ancestor de dst) | 200 `already_merged: true` — no commit created |
-| LCA = `dst.head` (dst est ancestor de src) | 200 `fast_forward: true` — advance head, no merge commit |
-| Modif identique des 2 côtés | Auto-merge, no conflict |
-| Delete des 2 côtés | Auto-merge (item gone), no conflict |
-| Delete sur src + modify sur dst | `delete-modify` conflict |
-| Branche source vidée (delete tous les menus) + main intacte | Massive conflicts list (delete-modify pour chaque item modifié récemment sur main) |
-| Stale heads entre 1er appel et /resolve | 409 `stale_merge`, user retry from scratch |
-| `resolutions` missing un conflict key | 400 `missing_or_extra_resolutions` |
-| `resolutions` value invalide (pas "src"/"dst") | 400 idem |
-| Pack supprimé pendant le merge | 404 sur /resolve |
-| Le user perd ses droits Network entre 1er appel et /resolve | 403 sur /resolve |
-| `assets[]` field divergent | Skip du merge ; dst's assets gardés ; pas un conflit |
-| `importedConnectors[]` field divergent | Skip pareil |
-| Plugin update post-merge | `pushBundleAvailable(packId, dstBranchName, mergeCommit.contentHash)` — broadcast standard |
-| WIP du pack | Pas affecté (le merge ne touche pas `packs.filesJson` / `packs.editorJson` qui sont le WIP buffer Plan 1B/1C) |
+| LCA = `src.head` (src is an ancestor of dst) | 200 `already_merged: true` — no commit created |
+| LCA = `dst.head` (dst is an ancestor of src) | 200 `fast_forward: true` — advance head, no merge commit |
+| Identical change on both sides | Auto-merge, no conflict |
+| Delete on both sides | Auto-merge (item gone), no conflict |
+| Delete on src + modify on dst | `delete-modify` conflict |
+| Source branch emptied (delete all menus) + main intact | Massive conflicts list (delete-modify for each item recently modified on main) |
+| Stale heads between 1st call and /resolve | 409 `stale_merge`, user retries from scratch |
+| `resolutions` missing a conflict key | 400 `missing_or_extra_resolutions` |
+| `resolutions` invalid value (not "src"/"dst") | 400 same |
+| Pack deleted during the merge | 404 on /resolve |
+| The user loses Network rights between 1st call and /resolve | 403 on /resolve |
+| Diverging `assets[]` field | Skipped from the merge; dst's assets kept; not a conflict |
+| Diverging `importedConnectors[]` field | Skipped likewise |
+| Plugin update post-merge | `pushBundleAvailable(packId, dstBranchName, mergeCommit.contentHash)` — standard broadcast |
+| Pack WIP | Not affected (the merge does not touch `packs.filesJson` / `packs.editorJson`, which are the WIP buffer of Plan 1B/1C) |
 
 ---
 
 ## 9. Testing strategy
 
-**Unit `mergeEngine`** (~15 tests) :
+**Unit `mergeEngine`** (~15 tests):
 - 1: Empty diff (base == src == dst)
 - 2: Add on src only
 - 3: Add on dst only
@@ -312,10 +312,10 @@ Submit → POST `/resolve` avec `{resolutions, lcaCommitId, srcCommitId, dstComm
 - 11: `i18nKeys` map (5 patterns)
 - 12: `canvasLayout` map
 - 13: Scalar `defaultLang`
-- 14: Mixed (multiple collections, mix auto + conflicts)
+- 14: Mixed (multiple collections, mix of auto + conflicts)
 - 15: `applyResolutions` correctly writes chosen values
 
-**Unit `findLCA`** (~6 tests) — extension de `branchStorage.test.ts` :
+**Unit `findLCA`** (~6 tests) — extension of `branchStorage.test.ts`:
 - Same commit
 - A ancestor of B
 - B ancestor of A
@@ -323,7 +323,7 @@ Submit → POST `/resolve` avec `{resolutions, lcaCommitId, srcCommitId, dstComm
 - Merge commit in history (parentId2 chasing)
 - No common ancestor (synthetic) → throw
 
-**Integration REST** (`userBranches.test.ts` extension) :
+**REST integration** (`userBranches.test.ts` extension):
 - FF case via merge-into → 200 fast_forward
 - Auto-merge no conflicts → 200 + commit with parentId2 set
 - Conflicts → 409 with conflict list
@@ -332,7 +332,7 @@ Submit → POST `/resolve` avec `{resolutions, lcaCommitId, srcCommitId, dstComm
 - Stale heads → 409 stale_merge
 - 404 / 403 standard auth cases
 
-**UI tests** (`MergeButton.test.tsx` + `MergeConflictModal.test.tsx`) :
+**UI tests** (`MergeButton.test.tsx` + `MergeConflictModal.test.tsx`):
 - MergeButton dialog opens, target picker works
 - MergeButton submits, success toast on 200
 - MergeButton 409 → opens MergeConflictModal with props
@@ -341,30 +341,30 @@ Submit → POST `/resolve` avec `{resolutions, lcaCommitId, srcCommitId, dstComm
 - MergeConflictModal: Cancel → no API call
 - Stale merge → error display + close
 
-**Docker smoke (manual)** :
+**Docker smoke (manual)**:
 1. Create pack on main, branch dev, edit different menus on each, click Merge → auto-merge → both menus present
-2. Both branches edit same menu → conflict modal → resolve → main updated
+2. Both branches edit the same menu → conflict modal → resolve → main updated
 3. Verify plugin gets bundle_available broadcast after merge
 
 ---
 
 ## 10. Out of scope / future work
 
-- **Per-field merge** : pour quand un item conflit a juste 1 champ qui diffère et l'autre est forcé entièrement. Phase 3.5 possible.
-- **Octopus merge** : >2 parents. Pas nécessaire (workflow git classique : sequential merges).
-- **Merge previews** : voir le diff complet avant de cliquer "Confirm merge". Possible future addition.
-- **Reset WIP to branch HEAD** : feature séparée pour refresh le WIP après un merge si l'user veut éditer la version mergée.
-- **`assets[]` cleaning** : ce champ sur `Pack` est probablement redondant avec la table `assets` (Plan 1B). Audit + suppression à voir dans un plan séparé.
-- **Auto-resolve heuristics** : "le plus récent gagne", "fast-forward toujours acceptable même si diverge si pas de conflit", etc. Pour l'instant : user choisit toujours.
+- **Per-field merge**: for when a conflicting item has just 1 field that differs and the other is forced entirely. Possible Phase 3.5.
+- **Octopus merge**: >2 parents. Not necessary (classic git workflow: sequential merges).
+- **Merge previews**: see the full diff before clicking "Confirm merge". Possible future addition.
+- **Reset WIP to branch HEAD**: separate feature to refresh the WIP after a merge if the user wants to edit the merged version.
+- **`assets[]` cleaning**: this field on `Pack` is probably redundant with the `assets` table (Plan 1B). Audit + removal to be seen in a separate plan.
+- **Auto-resolve heuristics**: "most recent wins", "fast-forward always acceptable even if diverged when there is no conflict", etc. For now: user always chooses.
 
 ---
 
-## 11. Open questions tranchées au moment du plan
+## 11. Open questions settled at plan time
 
-- **Re-derive filesJson** : backend port du code éditeur OU client envoie filesJson dans /resolve. Plan tranchera selon la complexité du port.
-- **Naming UI** : "Merge…" vs "Merge into…" vs "Réconcilier…" — détail UX à valider au moment du mockup.
-- **Preview compact des items dans MergeConflictModal** : quelle granularité (just "modified" / "deleted" / inline summary) — à voir avec un mockup.
+- **Re-derive filesJson**: backend port of the editor code OR client sends filesJson in /resolve. The plan will decide depending on the complexity of the port.
+- **UI naming**: "Merge…" vs "Merge into…" vs "Reconcile…" — UX detail to validate at mockup time.
+- **Compact preview of items in MergeConflictModal**: which granularity (just "modified" / "deleted" / inline summary) — to see with a mockup.
 
 ---
 
-**Spec validée. Prochaine étape : `superpowers:writing-plans`.**
+**Spec validated. Next step: `superpowers:writing-plans`.**

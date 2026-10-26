@@ -31,12 +31,12 @@ function setup() {
 }
 
 describe("browser draft retention", () => {
-  it("marks the first file-shape change after saving as dirty, and clears it on revert", () => {
+  it("marks the first change after saving as dirty, and clears it on revert", () => {
     const { project, initialTree } = setup();
     // Saving clears the browser draft but retains the exact saved baseline.
     renderHook(() => useDraftSync());
     act(() => {
-      useProjectsStore.getState().setProjectI18nMode({ projectId: project.id, mode: "inline" });
+      useProjectsStore.getState().setProjectDefaultLang({ projectId: project.id, lang: "de" });
       vi.advanceTimersByTime(250);
     });
     const draft = useProjectDraftStore.getState().get(project.id)!;
@@ -44,7 +44,9 @@ describe("browser draft retention", () => {
     expect(isDirty(draft.initialTree, draft.tree)).toBe(true);
     expect(draft.initialTree).toEqual(initialTree);
     act(() => {
-      useProjectsStore.getState().setProjectI18nMode({ projectId: project.id, mode: "extract" });
+      useProjectsStore
+        .getState()
+        .setProjectDefaultLang({ projectId: project.id, lang: project.defaultLang });
       vi.advanceTimersByTime(250);
     });
     const reverted = useProjectDraftStore.getState().get(project.id)!;

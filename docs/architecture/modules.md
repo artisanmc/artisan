@@ -1,72 +1,72 @@
-# Artisan — Architecture modules
+# Artisan — Modules architecture
 
-Spec d'architecture pour le pattern "modules" qui permet à Artisan d'évoluer de "menu editor" vers "plateforme de configuration web pour plugins Minecraft", incrémentalement, sans refactor big-bang.
+Architecture spec for the "modules" pattern that lets Artisan evolve from "menu editor" to "web configuration platform for Minecraft plugins", incrementally, without a big-bang refactor.
 
-Statut : **architecture cible** — V1 implémente le menu editor comme premier module en suivant ce pattern. V1.5+ ajoute d'autres modules (shop, quests, kits, etc.). V3+ ouvre un SDK pour modules tiers.
+Status: **target architecture** — V1 implements the menu editor as the first module following this pattern. V1.5+ adds other modules (shop, quests, kits, etc.). V3+ opens an SDK for third-party modules.
 
-> **Révision phase F (2026-10)** : plus de backend. Le plugin sert l'éditeur (module Gradle `hub`, ADR `editor-web-server`) ; un module vit en **2 endroits** (plugin + éditeur), livrés dans le même jar. Les passages sur le backend (§3.2, §3.3.5, §10 « Backend », §13.5, §13.8, §14) décrivent l'état cloud, gardé pour l'historique ; état récupérable au commit `ccade092`.
+> **Phase F revision (2026-10)**: no more backend. The plugin serves the editor (Gradle module `hub`, ADR `editor-web-server`); a module lives in **2 places** (plugin + editor), shipped in the same jar. The passages about the backend (§3.2, §3.3.5, §10 "Backend", §13.5, §13.8, §14) describe the cloud state, kept for history; state recoverable at commit `ccade092`.
 
 ---
 
-## 1. Vision et positioning
+## 1. Vision and positioning
 
-À long terme, Artisan n'est pas "un éditeur de menus". C'est **la couche de configuration web unifiée pour les plugins Minecraft modernes**. Le menu editor V1 est juste le **premier module** d'une plateforme plus large qui couvrira progressivement :
+In the long run, Artisan is not "a menu editor". It is **the unified web configuration layer for modern Minecraft plugins**. The V1 menu editor is just the **first module** of a larger platform that will progressively cover:
 
-- Menus (V1) — design visuel des inventaires GUI
-- Commandes (V1) — actions custom configurables
-- Translations / i18n (V1) — multi-langue
-- Shop (V1.5) — items, prix, catégories, stock
-- Quests (V2) — objectives, rewards, chaînes de quêtes
+- Menus (V1) — visual design of GUI inventories
+- Commands (V1) — configurable custom actions
+- Translations / i18n (V1) — multi-language
+- Shop (V1.5) — items, prices, categories, stock
+- Quests (V2) — objectives, rewards, quest chains
 - Kits (V2) — items, cooldowns, permissions
-- Warps / Lobbies (V2) — locations, conditions d'accès
-- Permissions UI (V2) — gestion LuckPerms/PEX via web
-- Économies UI (V2) — gestion Vault custom
+- Warps / Lobbies (V2) — locations, access conditions
+- Permissions UI (V2) — LuckPerms/PEX management via web
+- Economies UI (V2) — custom Vault management
 - etc.
 
-Chaque module est :
+Each module is:
 
-1. **Indépendant** : sa propre logique, sa propre data, sa propre UX dans le web editor.
-2. **Composable** : communique avec les autres modules via des **data sources** et **commands** (patterns universels), pas via couplage direct.
-3. **Versionné** : son propre schema (`shop/v1`, `quest/v1`, ...) avec migrations.
+1. **Independent**: its own logic, its own data, its own UX in the web editor.
+2. **Composable**: communicates with other modules via **data sources** and **commands** (universal patterns), not via direct coupling.
+3. **Versioned**: its own schema (`shop/v1`, `quest/v1`, ...) with migrations.
 
-Le résultat : un admin gère **tous ses plugins compatibles Artisan** depuis une UI unifiée, sans toucher à du YAML. Plus de friction de configuration.
+The result: an admin manages **all their Artisan-compatible plugins** from a unified UI, without touching YAML. No more configuration friction.
 
-## 2. Architecture : modular monolith
+## 2. Architecture: modular monolith
 
-**Une seule app web, un seul plugin Java** (qui sert l'app web). Mais avec des frontières de modules claires dans le code. Pas de microfrontends, pas de Module Federation, pas de plugin SDK dynamic loading. Trop complexe pour zéro ROI tant que tu écris tous les modules toi-même.
+**A single web app, a single Java plugin** (which serves the web app). But with clear module boundaries in the code. No microfrontends, no Module Federation, no dynamic-loading plugin SDK. Too complex for zero ROI as long as you write all the modules yourself.
 
-Modular monolith donne :
+Modular monolith gives:
 
 - Single deployment, single CI, single team
-- Iteration rapide
-- UX cohérente (mêmes primitives, même design system)
-- Architecture qui se prête à un futur SDK 3ᵉ party (V3+) sans refactor
+- Fast iteration
+- Consistent UX (same primitives, same design system)
+- An architecture that lends itself to a future 3rd-party SDK (V3+) without a refactor
 
-**Frontières d'imports de l'éditeur, vérifiées en CI** (`npm run check:boundaries`,
-`editor/scripts/check-boundaries.mjs`) : un package `editor/packages/*` n'importe pas `editor/src/`
-(il passe par `@artisan/editor-sdk`) ; `domain`, `schema`, `lib`, `state` et `components`
-n'importent pas `features/` ; une feature n'importe une autre feature que par un lien déjà connu.
-Les violations existantes sont gelées dans `editor/boundaries-baseline.json`, qui ne peut que
-rétrécir : une nouvelle violation fait échouer la CI, une violation corrigée doit en être retirée.
+**Editor import boundaries, checked in CI** (`npm run check:boundaries`,
+`editor/scripts/check-boundaries.mjs`): a package `editor/packages/*` does not import `editor/src/`
+(it goes through `@artisan/editor-sdk`); `domain`, `schema`, `lib`, `state` and `components`
+do not import `features/`; a feature only imports another feature through an already-known link.
+Existing violations are frozen in `editor/boundaries-baseline.json`, which can only
+shrink: a new violation fails CI, a fixed violation must be removed from it.
 
-**Quand pivoter vers vrai plugin SDK** : seulement quand tu as 3+ modules tiers développés par d'autres et de la demande validée pour un programme officiel. Probablement V3+ ou au-delà.
+**When to pivot to a real plugin SDK**: only when you have 3+ third-party modules developed by others and validated demand for an official program. Probably V3+ or beyond.
 
 ## 3. Module abstraction
 
-Un **module Artisan** vit dans 2 endroits : éditeur web (frontend) et plugin Paper. Les deux parties sont livrées ensemble (le build de l'éditeur est embarqué dans le jar du socle) mais logiquement séparées. Jusqu'à la phase F, une troisième partie vivait dans le backend (§3.2).
+An **Artisan module** lives in 2 places: web editor (frontend) and Paper plugin. The two parts ship together (the editor build is embedded in the foundation jar) but are logically separate. Until phase F, a third part lived in the backend (§3.2).
 
 ### 3.1 Frontend module
 
 ```
 /editor/src/modules/{module_id}/
   index.ts          ← Module registration
-  editor/           ← Composants UI pour configurer ce module
-  preview/          ← Preview du résultat (optionnel)
-  schemas/          ← JSON schemas locaux
-  hooks/            ← Hooks React spécifiques au module
+  editor/           ← UI components to configure this module
+  preview/          ← Preview of the result (optional)
+  schemas/          ← Local JSON schemas
+  hooks/            ← Module-specific React hooks
 ```
 
-**Interface de registration** :
+**Registration interface**:
 
 ```typescript
 export interface FrontendModule {
@@ -90,7 +90,7 @@ export interface FrontendModule {
 }
 ```
 
-**Registration** dans `editor/src/modules/index.ts` :
+**Registration** in `editor/src/modules/index.ts`:
 
 ```typescript
 import menusModule from './menus';
@@ -100,130 +100,130 @@ import shopModule from './shop';  // V1.5+
 export const modules: FrontendModule[] = [menusModule, commandsModule, shopModule];
 ```
 
-Le core charge ce registry au boot, monte les routes, register les WS handlers, ajoute les entrées sidebar.
+The core loads this registry at boot, mounts the routes, registers the WS handlers, adds the sidebar entries.
 
-> **SDK barrel (depuis 2026-06-15)** — le contrat `FrontendModule` + le registre + l'event bus sont exposés via un point d'entrée unique `@artisan/editor-sdk` (alias interne `editor/src/sdk/index.ts`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `@/modules/api/...` en profondeur. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/archive/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands consomment déjà le barrel (dogfooding).
+> **SDK barrel (since 2026-06-15)** — the `FrontendModule` contract + the registry + the event bus are exposed through a single entry point `@artisan/editor-sdk` (internal alias `editor/src/sdk/index.ts`). Modules import **only** from this barrel, never from `@/modules/api/...` in depth. In M1 it is an internal re-export (not yet a published npm package); see `docs/archive/specs/2026-06-15-modules-architecture-design.md`. The core menus/commands modules already consume the barrel (dogfooding).
 
-> **Vue de Config screen (depuis 2026-10-19, SDK 1.6)** — `screens: Record<string, ComponentType<ConfigScreenProps>>`.
-> Un écran déclaré côté plugin avec `component` (`api.getScreens().declare(…, component)`) rend la
-> vue de cette clé à la place du formulaire généré ; l'hôte garde la lecture, l'enregistrement,
-> l'onglet YAML et l'historique. Pour une config singleton (récompenses quotidiennes), la racine est
-> enregistrée par `registerConfig` : versionnée, hors de la liste des Projects (ADR
-> `module-config-screens`, amendement 2026-10-19).
+> **Config screen view (since 2026-10-19, SDK 1.6)** — `screens: Record<string, ComponentType<ConfigScreenProps>>`.
+> A screen declared plugin-side with `component` (`api.getScreens().declare(…, component)`) renders
+> the view for that key in place of the generated form; the host keeps reading, saving,
+> the YAML tab and history. For a singleton config (daily rewards), the root is
+> registered by `registerConfig`: versioned, outside the list of Projects (ADR
+> `module-config-screens`, 2026-10-19 amendment).
 
-> **Kind réservé et icônes de lignes (depuis 2026-10-24, SDK 1.8)** — `DocumentKindContribution.projects`
-> liste les dossiers (ids disque) où le kind peut être créé ; absent, partout. Un fichier du kind
-> ailleurs reste lu et affiché, seule la création est refusée (`kindCreatableIn`). `BoardItem.icon`
-> porte une valeur d'item que l'hôte dessine avant le libellé de la ligne. La boutique s'en sert pour
-> `boutique_category`, réservé à son dossier, dont le nœud liste les articles avec leur icône.
+> **Reserved kind and row icons (since 2026-10-24, SDK 1.8)** — `DocumentKindContribution.projects`
+> lists the folders (disk ids) where the kind can be created; absent, everywhere. A file of the kind
+> elsewhere is still read and displayed, only creation is refused (`kindCreatableIn`). `BoardItem.icon`
+> carries an item value that the host draws before the row's label. The shop uses it for
+> `boutique_category`, reserved to its folder, whose node lists the articles with their icon.
 
-> **Collection (depuis 2026-10-24, SDK 1.9)** — `DocumentKindContribution.collection: { labels, screen? }` :
-> les Documents du kind forment un seul conteneur (le catalogue de la boutique). Pas de nœud sur la
-> planche (`boardGraph` les retire ; les liens gardent le graphe entier), une entrée unique dans la
-> sidebar (`CollectionNode` : nom → page, `+` → création, pas de renommage ni de suppression) et une
-> page `projects/$projectId/$collectionDir` (`CollectionView`), au nom du dossier du kind
-> (`…/boutique_addon/catalogue`) : l'écran de config `screen` en tête s'il est déclaré, une carte par Document, le bouton de création. Une carte montre `board.summary` et les
-> cinq premières lignes de `board.items` (rang `marker`, `icon` d'item, `label`, `caption`,
-> `detail`), puis « +N autres » ; un filtre apparaît à partir de 7 Documents. La route attend que
-> les modules soient montés avant de conclure qu'un dossier n'est pas une collection (lien direct,
-> rechargement). Une planche vide dans un dossier qui a une collection non vide y mène
-> (`BoardChrome`). Les quêtes (ArtisanQuests, `quest_group`) en sont une, dans leur dossier de
-> module `quests`. Les Documents restent à la racine :
-> `moveToFolder` refuse de les ranger dans un dossier et `useCollectionsAtRoot` ramène à la racine
-> ceux qu'un brouillon a dans un dossier (déplacement dans le brouillon, écrit par Déployer). Un
-> Document s'ouvre sur sa page (`document/$documentId`), jamais sur une planche : son formulaire
-> (le `component` du kind) en pleine largeur, depuis la sidebar (`goToDocument`) comme depuis la page de la
-> collection, et son retour mène à la page de la collection (`opensOnStage`, `documentStage.ts`). Aucun
-> fichier propre : la collection est calculée du kind. Pour un kind de donnée, sans lien vers ou
-> depuis d'autres Documents.
+> **Collection (since 2026-10-24, SDK 1.9)** — `DocumentKindContribution.collection: { labels, screen? }`:
+> the kind's Documents form a single container (the shop catalog). No node on the
+> board (`boardGraph` removes them; links keep the whole graph), a single entry in the
+> sidebar (`CollectionNode`: name → page, `+` → creation, no rename nor delete) and a
+> page `projects/$projectId/$collectionDir` (`CollectionView`), named after the kind's folder
+> (`…/boutique_addon/catalogue`): the config screen `screen` at the top if declared, a card per Document, the create button. A card shows `board.summary` and the
+> first five rows of `board.items` (`marker` rank, item `icon`, `label`, `caption`,
+> `detail`), then "+N more"; a filter appears from 7 Documents. The route waits for
+> the modules to be mounted before concluding that a folder is not a collection (direct link,
+> reload). An empty board in a folder that has a non-empty collection leads to it
+> (`BoardChrome`). Quests (ArtisanQuests, `quest_group`) are one, in their
+> `quests` module folder. Documents stay at the root:
+> `moveToFolder` refuses to file them in a folder and `useCollectionsAtRoot` brings back to the root
+> those that a draft has in a folder (move in the draft, written by Deploy). A
+> Document opens on its page (`document/$documentId`), never on a board: its form
+> (the kind's `component`) full width, from the sidebar (`goToDocument`) as from the
+> collection page, and its back leads to the collection page (`opensOnStage`, `documentStage.ts`). No
+> file of its own: the collection is computed from the kind. For a data kind, with no link to or
+> from other Documents.
 
-> **Listes réordonnables (depuis 2026-10-25, SDK 1.10)** — `SortableList` (composant hôte, comme
-> `MaterialInput`) : `ids` stables, `onMove(from, to)` appelé une fois au dépôt, `children(index, handle)`
-> place la poignée dans la ligne. Glisser à la souris ou au clavier (Espace, ↑/↓, Espace) ; les listes
-> s'imbriquent (étapes → objectifs). C'est la seule façon de réordonner une liste dans une vue de
-> module : plus de boutons flèches monter/descendre (Boutique, MSQuests).
+> **Reorderable lists (since 2026-10-25, SDK 1.10)** — `SortableList` (host component, like
+> `MaterialInput`): stable `ids`, `onMove(from, to)` called once on drop, `children(index, handle)`
+> places the handle in the row. Drag with the mouse or the keyboard (Space, ↑/↓, Space); lists
+> nest (steps → objectives). It is the only way to reorder a list in a module view:
+> no more up/down arrow buttons (Shop, MSQuests).
 
-> **Dossier du module (depuis 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
-> donne au module `plugins/Artisan/modules/<folder>/`, enregistré comme une racine d'add-on (clé
-> `addon:<folder>`, non renommable). L'ancienne racine (`legacyDir`) y est déplacée une fois ; le
-> module lit ensuite ses fichiers dans le dossier renvoyé. À appeler dans `onEnable`, avant
-> d'écrire un fichier par défaut.
+> **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
+> gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
+> `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
+> module then reads its files in the returned folder. To be called in `onEnable`, before
+> writing a default file.
 
-> **Kinds de Document (depuis 2026-10-15, lot 5)** — un module contribue ses kinds de Document par
-> `documents: DocumentKindContribution[]` : `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
-> `icon?`, `component` (vue du panneau Propriétés), `title?`, `listByTitle?`, `create`, `parse`,
+> **Document kinds (since 2026-10-15, lot 5)** — a module contributes its Document kinds through
+> `documents: DocumentKindContribution[]`: `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
+> `icon?`, `component` (Properties panel view), `title?`, `listByTitle?`, `create`, `parse`,
 > `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
-> aperçu non interactif, `items` : lignes sélectionnables, SDK 1.2, avec `marker` et `hover` en 1.5 ;
-> `accent`, SDK 1.5). L'hôte l'installe à l'enregistrement (`registerEditorModule`,
-> `lib/moduleDocumentKinds.ts`) dans sa table des kinds, ses codecs et ses visiteurs ; le panneau,
-> les listings, la recherche, la planche, les traductions et les arêtes le lisent par le registre
-> SDK (`documentKindContribution(kind)`). Les kinds core sont déclarés ainsi
-> (`src/modules/{menus,commands,dialogs}/*Kind.tsx`). Un kind contribué par deux modules est refusé.
-> **Ajouter un kind** : écrire la contribution dans `src/modules/{id}/{kind}Kind.tsx`, la lister
-> dans la `FrontendModule`, un test de bout en bout sur le modèle de
-> `lib/moduleDocumentKinds.test.tsx` (kind « quest »). Le plugin ne connaît pas encore les kinds de
-> module (W6, après un pilote) : le dossier n'est pas synchronisé tant que `DocumentKinds.kt` ne le
-> liste pas. Détail : `docs/architecture/editor-internals.md`, « Kinds de Document contribués ».
+> non-interactive preview, `items`: selectable rows, SDK 1.2, with `marker` and `hover` in 1.5;
+> `accent`, SDK 1.5). The host installs it at registration (`registerEditorModule`,
+> `lib/moduleDocumentKinds.ts`) in its kind table, its codecs and its visitors; the panel,
+> listings, search, board, translations and edges read it through the SDK registry
+> (`documentKindContribution(kind)`). Core kinds are declared this way
+> (`src/modules/{menus,commands,dialogs}/*Kind.tsx`). A kind contributed by two modules is refused.
+> **Adding a kind**: write the contribution in `src/modules/{id}/{kind}Kind.tsx`, list it
+> in the `FrontendModule`, an end-to-end test modeled on
+> `lib/moduleDocumentKinds.test.tsx` (the "quest" kind). The plugin does not know module kinds
+> yet (W6, after a pilot): the folder is not synced until `DocumentKinds.kt` lists it.
+> Detail: `docs/architecture/editor-internals.md`, "Document kinds contributed by a module".
 
-### 3.2 Backend module (supprimé en phase F)
+### 3.2 Backend module (removed in phase F)
 
-> Plus de backend : un module n'a plus de routes ni de tables côté serveur web. Ce que le hub sait d'un module vient du `hello` (`installed_modules`, `data_sources`, `declared_models`, `editor_screens`) ou d'un appel direct au plugin. Section gardée pour l'historique.
+> No more backend: a module no longer has routes or tables on the web server side. What the hub knows about a module comes from the `hello` (`installed_modules`, `data_sources`, `declared_models`, `editor_screens`) or from a direct call to the plugin. Section kept for history.
 
 ```
 /backend/src/modules/{module_id}/
   index.ts          ← Module registration
   routes/           ← Fastify route handlers
   schemas/          ← JSON schemas
-  validators/       ← Validation logic au-delà de JSON Schema
-  storage/          ← Drizzle schemas pour les tables du module
+  validators/       ← Validation logic beyond JSON Schema
+  storage/          ← Drizzle schemas for the module's tables
   sync/             ← WebSocket message handlers
 ```
 
-**Interface de registration** :
+**Registration interface**:
 
 ```typescript
 export interface BackendModule {
   id: string;
   schemaVersion: string;
   
-  // REST routes à monter sous /api/modules/{id}/...
+  // REST routes to mount under /api/modules/{id}/...
   registerRoutes(fastify: FastifyInstance): void;
   
-  // Drizzle tables propres au module
+  // Drizzle tables owned by the module
   tables: PgTable[];
   
   // WebSocket message handlers
   wsHandlers?: Record<string, (msg: any, ctx: WsContext) => void>;
   
-  // Data sources exposés par ce module (cf. section 4)
+  // Data sources exposed by this module (see section 4)
   dataSources?: DataSourceDeclaration[];
   
-  // Commands exposés par ce module (cf. section 4)
+  // Commands exposed by this module (see section 4)
   commands?: CommandDeclaration[];
 }
 ```
 
-> **SDK barrel (depuis 2026-06-15)** — le contrat `BackendModule` + l'intégrateur `mountModules` sont exposés via un point d'entrée unique `@artisan/backend-sdk` (path tsconfig interne `backend/src/sdk/index.ts`, résolu nativement par Bun y compris sous `bun test`). Les modules importent **uniquement** depuis ce barrel, jamais depuis `../modules/api/...`. En M1 c'est un re-export interne (pas encore un package npm publié) ; cf. `docs/archive/specs/2026-06-15-modules-architecture-design.md`. Les modules core menus/commands/assistant consomment déjà le barrel (dogfooding).
+> **SDK barrel (since 2026-06-15)** — the `BackendModule` contract + the `mountModules` integrator are exposed through a single entry point `@artisan/backend-sdk` (internal tsconfig path `backend/src/sdk/index.ts`, natively resolved by Bun including under `bun test`). Modules import **only** from this barrel, never from `../modules/api/...`. In M1 it is an internal re-export (not yet a published npm package); see `docs/archive/specs/2026-06-15-modules-architecture-design.md`. The core menus/commands/assistant modules already consume the barrel (dogfooding).
 
-### 3.3 Plugin Paper : architecture multi-plugins
+### 3.3 Paper plugin: multi-plugin architecture
 
-**Important** : côté Minecraft, on **n'a PAS un seul plugin monolithe**. On a un **plugin core** + **un plugin par Add-on** (module distribué séparément). Côté serveur l'admin install ce dont il a besoin :
+**Important**: on the Minecraft side, we **do NOT have a single monolithic plugin**. We have a **core plugin** + **one plugin per Add-on** (a separately distributed module). On the server side the admin installs what they need:
 
-- `artisan` (core) — **obligatoire**, gratuit, contient les modules indissociables du runtime (menus, commands, i18n, asset management, WebSocket sync, registries publics).
-- `artisan-shop` (V1.5+) — premium, dépend du core, ajoute le module shop.
-- `artisan-quests` (V2) — premium, dépend du core.
-- `artisan-kits` (V2) — premium, dépend du core.
+- `artisan` (core) — **required**, free, contains the modules inseparable from the runtime (menus, commands, i18n, asset management, WebSocket sync, public registries).
+- `artisan-shop` (V1.5+) — premium, depends on the core, adds the shop module.
+- `artisan-quests` (V2) — premium, depends on the core.
+- `artisan-kits` (V2) — premium, depends on the core.
 - etc.
 
-C'est le pattern Vault / PlaceholderAPI / WorldGuard — bien connu et accepté du marché MC.
+This is the Vault / PlaceholderAPI / WorldGuard pattern — well known and accepted by the MC market.
 
-Le core prête aussi l'**infrastructure** aux Add-ons : `api.database.dataSource(plugin)` donne
-un pool de connexions propre à l'Add-on, identifiants réglés une fois par l'admin dans
-`plugins/Artisan/environment.yml` (ADR `suite-foundation-database`). Un Add-on n'embarque ni
-driver ni config SQL ; il garde sa couche d'accès et ses migrations, et nomme chaque table,
-index et contrainte `api.database.tablePrefix("<module>") + nom` (`artisan_<module>_…` par défaut).
+The core also lends **infrastructure** to Add-ons: `api.database.dataSource(plugin)` gives
+a connection pool of the Add-on's own, credentials set once by the admin in
+`plugins/Artisan/environment.yml` (ADR `suite-foundation-database`). An Add-on bundles neither
+driver nor SQL config; it keeps its access layer and its migrations, and names each table,
+index and constraint `api.database.tablePrefix("<module>") + name` (`artisan_<module>_…` by default).
 
-#### 3.3.1 Plugin core
+#### 3.3.1 Core plugin
 
 ```
 artisan-core/
@@ -231,7 +231,7 @@ artisan-core/
     ArtisanCorePlugin.kt              ← Main plugin class
     api/
       ArtisanAPI.kt                    ← Public API surface (versioned)
-      ArtisanModule.kt                 ← Interface modules
+      ArtisanModule.kt                 ← Module interface
       DataSourceDeclaration.kt
       CommandDeclaration.kt
     engine/
@@ -245,26 +245,26 @@ artisan-core/
       SchemaRegistry
       ModuleRegistry
     sync/
-      WebSocketClient                     ← Connection au hub du réseau (feuille)
+      WebSocketClient                     ← Connection to the network hub (leaf)
     storage/
       FilesystemMenuProvider
       CloudMenuProvider
     modules/
-      menus/                               ← Module menus interne au core
-      commands/                            ← Module commands interne au core
-      i18n/                                ← Module i18n interne au core
-      dialogs/                             ← Module dialogs interne au core (Paper 1.21+ Dialog API)
+      menus/                               ← Menus module internal to the core
+      commands/                            ← Commands module internal to the core
+      i18n/                                ← i18n module internal to the core
+      dialogs/                             ← Dialogs module internal to the core (Paper 1.21+ Dialog API)
 ```
 
-Les **modules indissociables du runtime** (menus, commands, i18n, dialogs) **vivent dans le core**. Un admin qui install seulement le core a déjà tout pour designer des menus et commandes.
+The **modules inseparable from the runtime** (menus, commands, i18n, dialogs) **live in the core**. An admin who installs only the core already has everything to design menus and commands.
 
-#### 3.3.2 Plugin Add-on (ex: shop)
+#### 3.3.2 Add-on plugin (e.g. shop)
 
 ```
 artisan-shop/
   plugin.yml
     name: ArtisanShop
-    depend: [Artisan]                    ← Bukkit force le chargement du core d'abord
+    depend: [Artisan]                    ← Bukkit forces the core to load first
     api-version: 1.21
     main: net.artisanmc.shop.ShopPlugin
   src/main/kotlin/net/artisanmc/shop/
@@ -272,12 +272,12 @@ artisan-shop/
     ShopModule.kt                          ← implements ArtisanModule
     ShopExecutor.kt                        ← Handles /buy command
     ShopRepo.kt                            ← Items storage
-    bootstrap/                              ← Ressources bundle (cf. section 5)
+    bootstrap/                              ← Resource bundle (see section 5)
       manifest.json
       menus/, commands/, dialogs/, translations/, assets/
 ```
 
-L'`onEnable()` :
+The `onEnable()`:
 
 ```kotlin
 class ShopPlugin : JavaPlugin() {
@@ -299,7 +299,7 @@ class ShopPlugin : JavaPlugin() {
         val module = ShopModule(this, core.api)
         core.api.modules.register(module)
         
-        // Bootstrap si première install sur ce serveur
+        // Bootstrap on first install on this server
         if (!core.api.project.hasContent("shop")) {
             core.api.bootstrap.unpack("shop", loadBootstrapBundle())
         }
@@ -307,7 +307,7 @@ class ShopPlugin : JavaPlugin() {
 }
 ```
 
-#### 3.3.3 Interface module
+#### 3.3.3 Module interface
 
 ```kotlin
 interface ArtisanModule {
@@ -316,25 +316,25 @@ interface ArtisanModule {
     
     fun onEnable(api: ArtisanAPI)         // Register data sources, commands, listeners
     fun onDisable()                         // Cleanup
-    fun onReload()                          // Hot-reload de la config
+    fun onReload()                          // Hot-reload of the config
 }
 ```
 
-Depuis l'API 1.8.0, `onDisable()` est appelé quand le plugin qui a chargé le module se désactive (`PluginDisableEvent`, avant son propre `onDisable`), et tout ce que ce plugin a enregistré (modules, data sources, commandes) est retiré : un rechargement de plugin peut ré-enregistrer les mêmes ids. `ModuleRegistry.unregister(id)` fait la même chose à la demande.
+Since API 1.8.0, `onDisable()` is called when the plugin that loaded the module is disabled (`PluginDisableEvent`, before its own `onDisable`), and everything that plugin registered (modules, data sources, commands) is removed: a plugin reload can re-register the same ids. `ModuleRegistry.unregister(id)` does the same on demand.
 
-#### 3.3.4 Avantages du split plugins
+#### 3.3.4 Advantages of the plugin split
 
-1. **Admin onboarding léger** : install seulement ce dont tu as besoin. Le core gratuit fait beaucoup tout seul.
-2. **Monétisation clean** : chaque Add-on = son propre .jar = sa propre vente (SpigotMC Premium, BBV, Polymart). Pas de license key gating.
-3. **Discoverability** : recherche *"shop plugin"* sur SpigotMC → ton plugin shop apparaît. Pas caché derrière un parent.
-4. **Versioning indépendant** : ship shop 1.5 sans toucher au core.
-5. **Pattern familier** au marché MC (Vault, PlaceholderAPI, WorldGuard).
+1. **Light admin onboarding**: install only what you need. The free core does a lot on its own.
+2. **Clean monetization**: each Add-on = its own .jar = its own sale (SpigotMC Premium, BBV, Polymart). No license key gating.
+3. **Discoverability**: searching *"shop plugin"* on SpigotMC → your shop plugin shows up. Not hidden behind a parent.
+4. **Independent versioning**: ship shop 1.5 without touching the core.
+5. **Pattern familiar** to the MC market (Vault, PlaceholderAPI, WorldGuard).
 
-#### 3.3.5 Backend reste monolithique (historique)
+#### 3.3.5 Backend stays monolithic (historical)
 
-> Depuis la phase F, c'est le hub qui lit `installed_modules` au `hello` (ou directement dans le plugin pour le serveur `local`) et l'éditeur qui filtre son UI selon ces modules.
+> Since phase F, it is the hub that reads `installed_modules` at the `hello` (or directly in the plugin for the `local` server) and the editor that filters its UI according to those modules.
 
-Le backend (Fastify) et l'éditeur web restent **un seul deployment chacun**. Au WebSocket handshake, le plugin core déclare les modules installés sur le serveur :
+The backend (Fastify) and the web editor remain **a single deployment each**. At the WebSocket handshake, the core plugin declares the modules installed on the server:
 
 ```json
 {
@@ -349,53 +349,53 @@ Le backend (Fastify) et l'éditeur web restent **un seul deployment chacun**. Au
 }
 ```
 
-L'éditeur filtre son UI selon ces modules. Les modules non installés sont **affichés en grisé avec un *"Install Artisan Shop to use this module"*** + link vers SpigotMC Premium / BBV.
+The editor filters its UI according to these modules. Modules that are not installed are **shown greyed out with an *"Install Artisan Shop to use this module"*** + link to SpigotMC Premium / BBV.
 
-## 4. Composition : data sources + commands
+## 4. Composition: data sources + commands
 
-Les modules **ne se connaissent pas directement**. Ils communiquent via deux primitives universelles : **data sources** et **commands**.
+Modules **do not know each other directly**. They communicate via two universal primitives: **data sources** and **commands**.
 
 ### 4.1 Data sources
 
-Un data source expose des données typées d'un module à tous les autres. Format : `namespace:source_id`.
+A data source exposes typed data from one module to all the others. Format: `namespace:source_id`.
 
-Exemples :
-- `shop:items` → liste des items du shop
-- `shop:categories` → liste des catégories
-- `quests:available` → liste des quêtes dispos pour un joueur
-- `kits:available` → liste des kits dispos
-- `essentials:warps` → liste des warps (via la data source EssentialsX)
+Examples:
+- `shop:items` → list of the shop's items
+- `shop:categories` → list of categories
+- `quests:available` → list of quests available to a player
+- `kits:available` → list of available kits
+- `essentials:warps` → list of warps (via the EssentialsX data source)
 
-**Le module menus consomme** des data sources via le champ `data_source.ref` de ses Elements (cf. main-spec section 14). Le menus module ne sait pas ce qu'est un "shop item" — il sait juste itérer une liste avec des champs typés.
+**The menus module consumes** data sources through the `data_source.ref` field of its Elements (see main-spec section 14). The menus module does not know what a "shop item" is — it just knows how to iterate a list with typed fields.
 
-**Le module shop expose** son data source via `ArtisanAPI.dataSources.register(...)` :
+**The shop module exposes** its data source via `ArtisanAPI.dataSources.register(...)`:
 
 ```kotlin
 class ShopModule : ArtisanModule {
     override fun onEnable(api: ArtisanAPI) {
         api.dataSources.register(DataSourceDeclaration(
             ref = "shop:items",
-            schema = ShopItemSchema,        // shape des objets retournés
+            schema = ShopItemSchema,        // shape of the returned objects
             fetcher = { player, params -> shopRepo.getItems(player, params) }
         ))
     }
 }
 ```
 
-Le `schema` est une `List<DataSourceField>` dont chaque champ est typé par un `ModelFieldType` (`new DataSourceField("price", ModelFieldType.number())`) : le même vocabulaire que les Data models (`api.getModels().declare(new ModelDeclaration(...))`) et les arguments d'action. `FieldKind` reste accepté, `@Sunset` jusqu'à 3.0.0.
+The `schema` is a `List<DataSourceField>` where each field is typed by a `ModelFieldType` (`new DataSourceField("price", ModelFieldType.number())`): the same vocabulary as Data models (`api.getModels().declare(new ModelDeclaration(...))`) and action arguments. `FieldKind` is still accepted, `@Sunset` until 3.0.0.
 
-Au runtime, quand le module menus rend un Element avec `data_source.ref = "shop:items"`, le `DataSourceRegistry` route la requête au shop module qui retourne la data. Zéro couplage direct.
+At runtime, when the menus module renders an Element with `data_source.ref = "shop:items"`, the `DataSourceRegistry` routes the request to the shop module, which returns the data. Zero direct coupling.
 
 ### 4.2 Commands
 
-Pareil pour les commands. Chaque module expose ses actions invocables.
+Same for commands. Each module exposes its invocable actions.
 
-Exemples :
-- `shop:buy` → acheter un item
-- `quests:complete` → complete une quête
-- `kits:claim` → réclamer un kit
+Examples:
+- `shop:buy` → buy an item
+- `quests:complete` → complete a quest
+- `kits:claim` → claim a kit
 
-**Référencé depuis n'importe quel menu** :
+**Referenced from any menu**:
 
 ```json
 {
@@ -409,7 +409,7 @@ Exemples :
 }
 ```
 
-**Enregistré par le module qui owns** :
+**Registered by the module that owns it**:
 
 ```kotlin
 api.commands.register(CommandDeclaration(
@@ -418,38 +418,38 @@ api.commands.register(CommandDeclaration(
 ))
 ```
 
-### 4.2 bis Commandes joueur (API 2.7.0)
+### 4.2 bis Player commands (API 2.7.0)
 
-Distinctes des commands ci-dessus, que seul un menu appelle : une **commande joueur** est tapée en
-jeu. Le module déclare le comportement avec un id stable ; la commande elle-même est un fichier
-`command/v1` du dossier du module, comme ses menus système (design `commandes-unifiees`).
+Distinct from the commands above, which only a menu calls: a **player command** is typed in
+game. The module declares the behavior with a stable id; the command itself is a `command/v1` file
+in the module's folder, like its system menus (design `commandes-unifiees`).
 
-À chaque démarrage et à l'arrivée d'un module, Artisan génère pour chaque commande racine
-déclarée le fichier `commands/<nom>.yaml` (`ModuleCommandFiles`, au format exact de l'éditeur :
-le vecteur partagé `testdata/module-command-files.json` l'impose aux deux côtés) et le garde dans
-le premier dossier du module comme élément système (template réservé `player_commands`,
-`SystemFiles`) : réécrit tant que l'admin n'y a pas touché, à lui dès qu'il l'édite (la fusion à
-trois voies lui apporte ensuite ce que le module change ailleurs, sous-commandes appariées par
-`name`, voir « Éléments système »), remis à la version du module par Reset. Ses actions appellent le code du module (`module_command: <id>`) ou
-ouvrent le menu déclaré (`open_menu`), chaque sous-commande déclarée est un nœud de
-`subcommands`, `console: true` reprend `consoleAllowed`. L'admin y change tout ce qu'un
-`command/v1` permet : nom, alias, permission, description par langue, cooldown, conditions,
-`enabled`, et les actions autour de `module_command` (ou à sa place).
+At each startup and when a module arrives, Artisan generates for each declared root command
+the file `commands/<name>.yaml` (`ModuleCommandFiles`, in the editor's exact format:
+the shared vector `testdata/module-command-files.json` enforces it on both sides) and keeps it in
+the module's first folder as a system element (reserved template `player_commands`,
+`SystemFiles`): rewritten as long as the admin has not touched it, theirs as soon as they edit it (the
+three-way merge then brings them what the module changes elsewhere, subcommands matched by
+`name`, see "System elements"), reset to the module's version by Reset. Its actions call the module's code (`module_command: <id>`) or
+open the declared menu (`open_menu`), each declared subcommand is a node of
+`subcommands`, `console: true` takes over `consoleAllowed`. The admin changes there everything a
+`command/v1` allows: name, aliases, permission, per-language description, cooldown, conditions,
+`enabled`, and the actions around `module_command` (or in its place).
 
-`module_command` (`command`, `args`, propriétaire `artisan`) lance le code de la commande : sans
-entrée dans `args`, un argument prend la valeur liée de son nom, celle que la commande a analysée.
-Appelée d'ailleurs (un bouton de menu), elle vérifie les permissions que le fichier de la commande
-pose sur le chemin du nœud qui l'appelle seul, sinon la permission déclarée. La console lance un
-nœud `console: true` dont les actions sont un seul `module_command`, si le module le permet.
+`module_command` (`command`, `args`, owner `artisan`) runs the command's code: without an
+entry in `args`, an argument takes the bound value of its name, the one the command parsed.
+Called from elsewhere (a menu button), it checks the permissions that the command's file
+sets on the path of the node that calls it alone, otherwise the declared permission. The console runs a
+`console: true` node whose actions are a single `module_command`, if the module allows it.
 
-Un module sans dossier voit ses commandes enregistrées depuis les fichiers générés, en mémoire ;
-de même tant que le fichier n'est pas encore écrit. Un nœud qui appelle une commande qu'aucun
-module ne déclare (module désactivé) est laissé de côté, la commande entière si c'est la racine.
+A module without a folder sees its commands registered from the generated files, in memory;
+likewise as long as the file is not yet written. A node that calls a command that no
+module declares (disabled module) is left out, the whole command if it is the root.
 
-Les anciens fichiers `command_override/v1` (`overrides/command/`) sont fusionnés une fois dans le
-fichier de la commande (`CommandOverrideMigration`, avant l'écriture des fichiers système), puis
-rangés dans `.artisan/migrated/overrides-command/`. Ceux d'une commande non déclarée, d'un module
-sans dossier, ou dont le fichier est déjà édité restent en place, avec une ligne dans le log.
+The old `command_override/v1` files (`overrides/command/`) are merged once into the
+command's file (`CommandOverrideMigration`, before the system files are written), then
+filed in `.artisan/migrated/overrides-command/`. Those of an undeclared command, of a module
+without a folder, or whose file is already edited stay in place, with a line in the log.
 
 ```java
 api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track")
@@ -459,32 +459,32 @@ api.getPlayerCommands().register(PlayerCommandDeclaration.builder("quests:track"
     .build());
 ```
 
-Un argument se complète avec des valeurs calculées à la frappe (API 2.14.0) :
-`CommandArgument.string("guild").suggestions(ctx -> guilds.names())`. Le fournisseur tourne sur le
-thread de complétion de Bukkit : il lit la mémoire du plugin, jamais la base. Il suit l'argument de
-même position dans le fichier de la commande, que l'admin l'ait renommé ou non.
+An argument is completed with values computed as you type (API 2.14.0):
+`CommandArgument.string("guild").suggestions(ctx -> guilds.names())`. The provider runs on
+Bukkit's completion thread: it reads the plugin's memory, never the database. It follows the argument of the
+same position in the command's file, whether the admin renamed it or not.
 
-`CommandRegistrar` enregistre les `command/v1` des dossiers des admins, puis ceux des dossiers de
-modules (préfixe `/<module>:`), puis les commandes en mémoire ; un nom déjà pris laisse
-`/<préfixe>:<nom>`. Il renvoie l'arbre de commandes aux joueurs connectés quand il change. Contrat
-détaillé : `api-surface.md`.
+`CommandRegistrar` registers the `command/v1` of admins' folders, then those of module
+folders (prefix `/<module>:`), then in-memory commands; a name already taken leaves
+`/<prefix>:<name>`. It sends the command tree back to connected players when it changes. Detailed
+contract: `api-surface.md`.
 
-### 4.3 Avantages du pattern
+### 4.3 Advantages of the pattern
 
-- **Découplage** : le module menus n'a aucune dépendance sur shop, quests, etc.
-- **Extensibilité** : ajouter un module = ajouter ses data sources/commands au registry. Aucun module existant ne doit être modifié.
-- **Testabilité** : chaque module peut être testé isolément en mockant le registry.
-- **Compatibilité plugins tiers (V2+)** : un plugin tiers peut s'enregistrer dans le même registry et devenir une data source / command disponible à tous les modules.
+- **Decoupling**: the menus module has no dependency on shop, quests, etc.
+- **Extensibility**: adding a module = adding its data sources/commands to the registry. No existing module has to be modified.
+- **Testability**: each module can be tested in isolation by mocking the registry.
+- **Third-party plugin compatibility (V2+)**: a third-party plugin can register in the same registry and become a data source / command available to all modules.
 
 ### 4.4 Actions (ADR `extensible-document-kinds`, R1 — API 2.0.0)
 
-Une **action** est un verbe d'une chaîne (`click`, `steps` d'une commande, bouton de dialog) : `- name`,
-`- name: valeur`, `- name: {args}` (ADR `structured-action-wire`). Toute action, celles d'Artisan comprises
-(`open_menu`, `give_item`…), passe par `api.getActionRegistry()` : le step du moteur est un nom et une
-valeur, le registre nomme le handler, la déclaration lie la valeur aux arguments déclarés (défauts
-compris), le handler s'exécute. Un nom que personne ne déclare est ignoré avec un avertissement.
+An **action** is a verb of a chain (`click`, a command's `steps`, a dialog button): `- name`,
+`- name: value`, `- name: {args}` (ADR `structured-action-wire`). Every action, Artisan's own included
+(`open_menu`, `give_item`…), goes through `api.getActionRegistry()`: the engine's step is a name and a
+value, the registry names the handler, the declaration binds the value to the declared arguments (defaults
+included), the handler runs. A name that nobody declares is ignored with a warning.
 
-**Déclaré par le module qui owns** (dans `onEnable`, retiré avec le module) :
+**Declared by the module that owns it** (in `onEnable`, removed with the module):
 
 ```java
 api.getActionRegistry().register(new ActionDeclaration(
@@ -492,74 +492,74 @@ api.getActionRegistry().register(new ActionDeclaration(
     List.of(
         new ModelField("quest", ModelFieldType.documentRef("quest"), true),
         new ModelField("silent", ModelFieldType.bool()).withDefault(false)),
-    "quest",                                   // `- quests:start: intro` lie `quest`
+    "quest",                                   // `- quests:start: intro` binds `quest`
     (ctx, args, runtime) -> {
         quests.start(ctx.getPlayer(), (String) args.get("quest"), Boolean.TRUE.equals(args.get("silent")));
-        return ctx;                            // ou ctx.withArgs(Map.of("quest_started", ...)) pour la suite de la chaîne
+        return ctx;                            // or ctx.withArgs(Map.of("quest_started", ...)) for the rest of the chain
     }));
 ```
 
-`ActionRuntime` prête au handler ce que le moteur sait faire : `text(ctx, ltext)` (langue du joueur,
-`{i18n:key}`, placeholders, PlaceholderAPI), `run(ctx, chaîne)` (un argument `actions`), `warn`.
-Les arguments sont des `ModelField` typés (`ModelFieldType`, dont `document_ref(kind)`) : l'éditeur en
-rend le formulaire et les propose dans le sélecteur de step dès que le serveur les a rapportés
-(`declared_actions` à la Presence, `GET …/actions`). Les actions core sont déclarées de la même façon
-(`CoreActions` dans `core`, handlers dans `paper`), verrouillées sur `docs/schema/menu/v1/schema.json`.
+`ActionRuntime` lends the handler what the engine can do: `text(ctx, ltext)` (player language,
+`{i18n:key}`, placeholders, PlaceholderAPI), `run(ctx, chain)` (an `actions` argument), `warn`.
+Arguments are typed `ModelField`s (`ModelFieldType`, including `document_ref(kind)`): the editor
+renders the form from them and offers them in the step picker as soon as the server has reported them
+(`declared_actions` at Presence, `GET …/actions`). Core actions are declared the same way
+(`CoreActions` in `core`, handlers in `paper`), locked against `docs/schema/menu/v1/schema.json`.
 
-### 4.5 Kinds de Document (ADR `extensible-document-kinds`, W6 — API 2.1.0)
+### 4.5 Document kinds (ADR `extensible-document-kinds`, W6 — API 2.1.0)
 
-Un module qui possède un **kind** de Document (une quête, une boutique…) le déclare dans `onEnable`,
-par la même porte que ses actions ; le kind est retiré avec le module :
+A module that owns a Document **kind** (a quest, a shop…) declares it in `onEnable`,
+through the same door as its actions; the kind is removed with the module:
 
 ```java
 api.getDocumentKinds().register(new DocumentKindDeclaration(
-    "quest",                 // kind : clé de `documents[kind]`, ^[a-z][a-z0-9_]*$
-    "quests",                // dossier dans un project, ce qui dit le kind d'un fichier sur disque
-    List.of("quest/v1"),     // labels `schema:` lus ; le premier est canonique
-    "quest_"));              // préfixe des ids neufs côté éditeur (optionnel)
+    "quest",                 // kind: key of `documents[kind]`, ^[a-z][a-z0-9_]*$
+    "quests",                // folder in a project, which tells the kind of a file on disk
+    List.of("quest/v1"),     // `schema:` labels read; the first is canonical
+    "quest_"));              // prefix of new ids editor-side (optional)
 ```
 
-Menu, command et dialog sont déclarés de la même façon par le core (`DocumentKinds.coreRegistry()`) :
-un seul registre, un seul chemin. Deux kinds ne partagent ni id ni dossier
+Menu, command and dialog are declared the same way by the core (`DocumentKinds.coreRegistry()`):
+one registry, one path. Two kinds share neither id nor folder
 (`DuplicateDocumentKindException`).
 
-Ce qu'Artisan fait d'un kind déclaré : lire ses fichiers au chargement du project comme **documents
-bruts** (le mapping YAML tel quel, le nom du fichier pour `id`, `schema:` vérifié contre les labels
-déclarés — un label inconnu est une erreur de rechargement, comme pour un kind core), les lister dans
-l'inventaire de ressources, les rapporter à la Presence (`document_kinds`, `GET …/document-kinds`) et les
-rendre au module par `api.getProject().documents(projectId, "quest")` (`List<Map<String, Object>>`,
-instantané du dernier chargement — à relire dans `onReload()`). Ce qu'un Document de ce kind **fait**
-reste au module : Artisan ne dispatch rien pour lui, le module lit ses maps et agit (ses actions
-`quests:start`, ses commandes, ses listeners).
+What Artisan does with a declared kind: read its files at project load as **raw
+documents** (the YAML mapping as is, the file name for `id`, `schema:` checked against the declared
+labels — an unknown label is a reload error, as for a core kind), list them in the
+resource inventory, report them at Presence (`document_kinds`, `GET …/document-kinds`) and
+hand them back to the module through `api.getProject().documents(projectId, "quest")` (`List<Map<String, Object>>`,
+snapshot of the last load — to be reread in `onReload()`). What a Document of this kind **does**
+is up to the module: Artisan dispatches nothing for it, the module reads its maps and acts (its actions
+`quests:start`, its commands, its listeners).
 
-Côté éditeur, le module jumeau contribue le même kind (`FrontendModule.documents`, §3.1 et
-`editor-internals.md`). Les deux déclarations sont indépendantes : l'éditeur signale un kind que le
-serveur actif ne liste pas (le fichier serait écrit dans un dossier que rien ne lit là-bas) dans
-l'arbre du project et au moment de créer un Document de ce kind.
+Editor-side, the twin module contributes the same kind (`FrontendModule.documents`, §3.1 and
+`editor-internals.md`). The two declarations are independent: the editor flags a kind that the
+active server does not list (the file would be written in a folder that nothing reads there) in
+the project tree and when creating a Document of this kind.
 
-Une chaîne stockée dans un Document du module (récompenses d'une quête) s'exécute sous sa forme
-keyed par `api.getActions().run(player, chain, args, projectId)` (API 2.2.0) ; `execute` reste pour
-la chaîne DSL legacy.
+A chain stored in a module Document (a quest's rewards) runs in its keyed form
+through `api.getActions().run(player, chain, args, projectId)` (API 2.2.0); `execute` remains for
+the legacy DSL chain.
 
-### 4.6 Conditions hors chaîne (API 2.2.0)
+### 4.6 Conditions outside a chain (API 2.2.0)
 
-Un module qui a ses propres prérequis (une quête démarrable sous condition) les écrit dans le
-vocabulaire des conditions d'Artisan et les évalue sans chaîne :
+A module that has its own prerequisites (a quest startable under conditions) writes them in
+Artisan's condition vocabulary and evaluates them without a chain:
 
 ```java
 List<?> requirements = (List<?>) quest.get("requirements");   // [{has_level: 10}, {has_permission: quests.vip}]
-List<String> problems = api.getConditions().validate(requirements);   // au chargement : à journaliser
+List<String> problems = api.getConditions().validate(requirements);   // at load: to be logged
 boolean ok = api.getConditions().test(player, requirements, Map.of("completed", done));
 ```
 
-Même évaluateur que `if:`, lecture **stricte** : une condition inconnue ou mal formée rend `test`
-faux (avertissement unique) au lieu d'être ignorée comme dans un menu. À appeler sur le thread qui
-possède le joueur (`IllegalStateException` sinon). Détail : `api-surface.md`.
+Same evaluator as `if:`, **strict** reading: an unknown or malformed condition makes `test`
+false (single warning) instead of being ignored as in a menu. To be called on the thread that
+owns the player (`IllegalStateException` otherwise). Detail: `api-surface.md`.
 
-### 4.6 bis Messages système traduits (API 2.5.0)
+### 4.6 bis Translated system messages (API 2.5.0)
 
-Un plugin de la suite ne refait pas son système de lang : il enregistre ses fichiers sous son
-namespace et Artisan choisit la langue du joueur, gère les replis et rend le MiniMessage :
+A suite plugin does not redo its lang system: it registers its files under its
+namespace and Artisan picks the player's language, handles fallbacks and renders the MiniMessage:
 
 ```java
 MessageBundle messages = api.getTranslations().register(
@@ -567,60 +567,60 @@ MessageBundle messages = api.getTranslations().register(
 player.sendMessage(messages.get(player, "quest.tracked", Map.of("quest_name", name)));
 ```
 
-Les valeurs des placeholders (`<name>`, `{name}`, `%name%`) sont insérées comme du texte. Un plugin
-qui garde ses propres fichiers passe un `MessageSource` (`MessageBundleDeclaration.of`). Détail :
+Placeholder values (`<name>`, `{name}`, `%name%`) are inserted as text. A plugin
+that keeps its own files passes a `MessageSource` (`MessageBundleDeclaration.of`). Detail:
 `api-surface.md`.
 
-### 4.6 ter Réseau entre serveurs (API 2.13.0)
+### 4.6 ter Network between servers (API 2.13.0)
 
-Les serveurs qui partagent la base MySQL/MariaDB de la suite forment le réseau : un plugin de la
-suite y publie des messages, voit les joueurs de tous les serveurs et téléporte d'un serveur à
-l'autre, sans MSCore ni Redis :
+Servers that share the suite's MySQL/MariaDB database form the network: a suite plugin
+publishes messages there, sees the players of all servers and teleports from one server to
+another, without MSCore or Redis:
 
 ```java
 NetworkApi network = api.getNetwork();
 network.subscribe(this, "guilds:sync", msg -> reload(UUID.fromString(msg.getPayload())));
 network.publish("guilds:sync", guild.getId().toString());
-network.getPresence().find("Alice");                           // NetworkPlayer(id, name, server) ou null
+network.getPresence().find("Alice");                           // NetworkPlayer(id, name, server) or null
 network.teleport(player, NetworkLocation.of("survie", home), 3); // CompletableFuture<TeleportResult>
 ```
 
-Transport par la base (`artisan_network_messages`, lue toutes les 100 ms, gardée une minute),
-présence dans `artisan_network_players`, changement de serveur par le canal `BungeeCord` du proxy.
-Sur H2, un serveur est un réseau à lui seul. Détail : `api-surface.md`.
+Transport through the database (`artisan_network_messages`, read every 100 ms, kept for a minute),
+presence in `artisan_network_players`, server switching through the proxy's `BungeeCord` channel.
+On H2, a server is a network of its own. Detail: `api-surface.md`.
 
-### 4.7 Module editor bundle (level 3) — API 2.3.0, protocole 1.2
+### 4.7 Module editor bundle (level 3) — API 2.3.0, protocol 1.2
 
-Un add-on (ArtisanQuests…) peut livrer la **vue éditeur** de son module dans son propre jar, au lieu
-d'attendre une release de l'éditeur : un script ES module construit contre `@artisan/editor-sdk`.
-Il l'enregistre dans `onEnable`, un seul par module, retiré avec le module :
+An add-on (ArtisanQuests…) can ship its module's **editor view** in its own jar, instead of
+waiting for an editor release: an ES module script built against `@artisan/editor-sdk`.
+It registers it in `onEnable`, one per module, removed with the module:
 
 ```java
 api.getEditorBundles().register(
     EditorBundleDeclaration.fromResource(getClass().getClassLoader(), "artisan-editor/ui.js", "1.0"));
 ```
 
-- `EditorBundleDeclaration(script, sdk)` : script UTF-8 non vide, ≤ 4 MiB ; `sdk` = version du SDK
-  visée, `MAJOR.MINOR[.PATCH]` ; `getHash()` = SHA-256 hex. Hors `onEnable` : `IllegalStateException` ;
-  un second bundle pour le même module : `DuplicateEditorBundleException`.
-- **Presence** : l'entrée `installed_modules` du module porte `editor_bundle: {sdk, hash, size}`
-  (`ws-protocol.md`) ; un bundle enregistré ou retiré après le `hello` part au `modules_changed` suivant.
-- **Servi** par le hub : `GET /api/v1/servers/:server/modules/:module/ui.js?v=<hash>`
-  (`rest-endpoints.md`) ; le hub va le chercher au serveur (`editor_bundle_fetch`), vérifie le hash,
-  le garde en mémoire par hash, et le sert `immutable` quand `v` égale le hash.
-- **Développement** : `dev.editor-bundles.<module>: <chemin de ui.js>` dans `environment.yml` (jamais
-  écrit par l'éditeur : personne ne peut lui faire servir un fichier du serveur) sert ce fichier à la
-  place du bundle du jar, avec la version SDK de ce dernier. `LocalEditorBundles` le relit à chaque
-  changement (vérifié chaque seconde) et une feuille envoie `modules_changed` ; l'entrée porte
-  `editor_bundle.local: true`. Fichier absent ou invalide : bundle du jar, avec un avertissement.
-- **Chargé** par l'éditeur contre le SDK qu'il embarque : `editor-internals.md` §« Runtime module
-  bundles ».
+- `EditorBundleDeclaration(script, sdk)`: non-empty UTF-8 script, ≤ 4 MiB; `sdk` = targeted SDK
+  version, `MAJOR.MINOR[.PATCH]`; `getHash()` = SHA-256 hex. Outside `onEnable`: `IllegalStateException`;
+  a second bundle for the same module: `DuplicateEditorBundleException`.
+- **Presence**: the module's `installed_modules` entry carries `editor_bundle: {sdk, hash, size}`
+  (`ws-protocol.md`); a bundle registered or removed after the `hello` goes out with the next `modules_changed`.
+- **Served** by the hub: `GET /api/v1/servers/:server/modules/:module/ui.js?v=<hash>`
+  (`rest-endpoints.md`); the hub fetches it from the server (`editor_bundle_fetch`), checks the hash,
+  keeps it in memory by hash, and serves it `immutable` when `v` equals the hash.
+- **Development**: `dev.editor-bundles.<module>: <path to ui.js>` in `environment.yml` (never
+  written by the editor: nobody can make it serve a file from the server) serves that file in
+  place of the jar's bundle, with the latter's SDK version. `LocalEditorBundles` rereads it on each
+  change (checked every second) and a leaf sends `modules_changed`; the entry carries
+  `editor_bundle.local: true`. Missing or invalid file: the jar's bundle, with a warning.
+- **Loaded** by the editor against the SDK it embeds: `editor-internals.md` § "Module views
+  loaded at runtime".
 
-### 4.8 Modèles de module — API 2.6.0, protocole 1.3
+### 4.8 Module templates — API 2.6.0, protocol 1.3
 
-Un module livre du **contenu d'exemple** copiable dans n'importe quel Project (ADR `module-templates`) :
-un modèle = des fichiers de Project (Documents, menus, `lang/`… jamais le fichier de module, propre à chaque Project) lus dans son jar, une version qu'il
-monte à chaque changement, un Project d'amorçage facultatif.
+A module ships **example content** that can be copied into any Project (ADR `module-templates`):
+a template = Project files (Documents, menus, `lang/`… never the module file, specific to each Project) read from its jar, a version it
+bumps on each change, an optional seed Project.
 
 ```java
 api.getTemplates().register(TemplateDeclaration
@@ -631,42 +631,42 @@ api.getTemplates().register(TemplateDeclaration
     .build());
 ```
 
-- **Presence** : `installed_modules[].templates` = `[{id, title, version, seed_project?, files:[{path, hash, size}]}]`, sans contenu.
-- **Lire** (version par défaut, lecture seule) : `GET SERVER/modules/:module/templates/:template` (`template_fetch`).
-- **Copier** : `POST …/projects/:project/templates` `{module, template, paths?, replace}` (`template_copy`) ;
-  un fichier déjà présent au contenu différent n'est jamais écrasé sans `replace` (409 `conflict` + `conflicts`).
-  Chaque fichier copié est tracé dans `.artisan/origins.yaml` ; `GET …/projects/:project/origins` les lit.
-- **Amorçage** : un modèle avec `seed(projectId)` est copié une seule fois dans un nouveau Project de ce
-  nom (`.artisan-seeds.yaml` à la racine core), avec un manifest dans la langue du serveur, jamais
-  recréé si le propriétaire le supprime. Si ce nom est le dossier du module lui-même
-  (`moduleFolder`, créé vide), les fichiers y sont copiés, avec le manifest s'il manque, sans
-  écraser ce qui s'y trouve.
-- **Éléments système** (API 2.12.0, design `framework-commandes` §3.8) : un modèle `.system()` porte
-  les menus et dialogues que le code du module ouvre par id. Pas d'amorçage : à chaque démarrage et à
-  l'arrivée du module, `SystemFiles` les garde dans le premier dossier du module par nom. Un fichier
-  absent est réécrit (sauf si un fichier du même nom vit sous le même dossier de type ailleurs dans le
-  module : déplacé), une copie intacte d'une version plus ancienne est remplacée, un fichier que le
-  module ne livre plus est supprimé s'il est intact, gardé s'il a été modifié, une copie modifiée
-  reste celle de l'admin et reçoit la nouvelle version par une fusion à trois voies
-  (`ThreeWayMerge`, design `commandes-unifiees` §5) : base = la version d'où vient le fichier,
-  gardée dans `.artisan/bases/<hash>` (privé, hors de tout scan, supprimé quand plus aucune origine
-  ne le nomme). Clé par clé ; une liste de maps qui portent toutes un `id` (sinon un `name`) se
-  fusionne élément par élément (calques, éléments, sous-commandes, arguments), toute autre liste est
-  une valeur. Un ajout du module se place après ce qui le précède chez lui. Sans conflit, le fichier
-  est réécrit au format de l'éditeur (`EditorYaml`) et son origine passe à la nouvelle version ;
-  une valeur changée des deux côtés garde celle de l'admin, et l'origine reste sur la version
-  copiée (l'éditeur signale la nouvelle version, Reset la prend), avec une ligne dans le log. Un
-  fichier non YAML, ou sans base gardée (modifié avant cette version d'Artisan alors que le module
-  livrait déjà une autre version que celle copiée), reste tel quel jusqu'à Reset.
-  Un fichier présent avant que le module en fasse un élément système compte comme modifié. Copier un
-  modèle système ailleurs que dans le dossier du module est refusé (`system_template`) : dans ce
-  dossier, c'est une réinitialisation. L'éditeur ne le propose pas à la copie.
-  Dans l'éditeur, Reset d'un élément système remet le fichier livré (lu par
-  `GET …/modules/:module/templates/:template`) **dans le brouillon**, comme toute édition :
-  Déployer le publie, Abandonner l'annule, et un brouillon en cours ne le bloque pas. Le badge
-  « modifié » compare le fichier publié au fichier livré une fois tous deux réécrits au format
-  de l'éditeur (`sameAsShipped`) : un fichier déployé depuis l'éditeur, identique sur le fond,
-  reste la version du module.
+- **Presence**: `installed_modules[].templates` = `[{id, title, version, seed_project?, files:[{path, hash, size}]}]`, without content.
+- **Read** (default version, read-only): `GET SERVER/modules/:module/templates/:template` (`template_fetch`).
+- **Copy**: `POST …/projects/:project/templates` `{module, template, paths?, replace}` (`template_copy`);
+  a file already present with different content is never overwritten without `replace` (409 `conflict` + `conflicts`).
+  Each copied file is tracked in `.artisan/origins.yaml`; `GET …/projects/:project/origins` reads them.
+- **Seeding**: a template with `seed(projectId)` is copied once into a new Project of that
+  name (`.artisan-seeds.yaml` at the core root), with a manifest in the server's language, never
+  recreated if the owner deletes it. If that name is the module's own folder
+  (`moduleFolder`, created empty), the files are copied there, with the manifest if missing, without
+  overwriting what is there.
+- **System elements** (API 2.12.0, design `framework-commandes` §3.8): a `.system()` template carries
+  the menus and dialogs that the module's code opens by id. No seeding: at each startup and when
+  the module arrives, `SystemFiles` keeps them in the module's first folder by name. A missing
+  file is rewritten (unless a file of the same name lives under the same type folder elsewhere in the
+  module: moved), an intact copy of an older version is replaced, a file the
+  module no longer ships is deleted if intact, kept if modified, a modified copy
+  stays the admin's and receives the new version through a three-way merge
+  (`ThreeWayMerge`, design `commandes-unifiees` §5): base = the version the file came from,
+  kept in `.artisan/bases/<hash>` (private, outside any scan, deleted when no origin
+  names it any more). Key by key; a list of maps that all carry an `id` (otherwise a `name`) is
+  merged element by element (layers, elements, subcommands, arguments), any other list is
+  a value. An addition by the module is placed after what precedes it in its version. Without conflict, the file
+  is rewritten in the editor's format (`EditorYaml`) and its origin moves to the new version;
+  a value changed on both sides keeps the admin's, and the origin stays on the copied
+  version (the editor flags the new version, Reset takes it), with a line in the log. A
+  non-YAML file, or one without a kept base (modified before this Artisan version while the module
+  already shipped a version other than the one copied), stays as is until Reset.
+  A file present before the module made it a system element counts as modified. Copying a
+  system template anywhere but the module's folder is refused (`system_template`): in that
+  folder, it is a reset. The editor does not offer it for copying.
+  In the editor, Reset of a system element puts the shipped file (read through
+  `GET …/modules/:module/templates/:template`) **into the draft**, like any edit:
+  Deploy publishes it, "Discard changes" cancels it, and a draft in progress does not block it. The
+  "edited" badge compares the published file with the shipped file once both are rewritten in the
+  editor's format (`sameAsShipped`): a file deployed from the editor, identical in substance,
+  remains the module's version.
 
 ```java
 api.getTemplates().register(TemplateDeclaration
@@ -676,34 +676,34 @@ api.getTemplates().register(TemplateDeclaration
     .build());
 ```
 
-## 5. Module bootstrap : content bundles
+## 5. Module bootstrap: content bundles
 
-> Vision d'origine. Réalisée par les modèles de module (§4.8) : pas de dialogue à l'installation,
-> un amorçage unique et un catalogue dans l'éditeur ; le reste de cette section n'est pas implémenté tel quel.
+> Original vision. Realized by module templates (§4.8): no dialog at install,
+> a single seeding and a catalog in the editor; the rest of this section is not implemented as is.
 
-Chaque module non-trivial **ship un bundle de contenu par défaut** qui sert de bootstrap quand l'admin installe le module pour la première fois. Ce bundle n'est PAS juste un menu — c'est un set complet de **toutes les ressources** dont le module a besoin pour fonctionner out-of-the-box.
+Each non-trivial module **ships a default content bundle** that serves as bootstrap when the admin installs the module for the first time. This bundle is NOT just a menu — it is a complete set of **all the resources** the module needs to work out-of-the-box.
 
-### 5.1 Composition d'un bundle bootstrap
+### 5.1 Composition of a bootstrap bundle
 
-Un bundle peut inclure :
+A bundle can include:
 
-| Type | Schema | Exemple pour shop module |
+| Type | Schema | Example for shop module |
 |---|---|---|
 | **Menus** | `menu/v1` | `shop_main`, `shop_category_tools`, `shop_confirm_buy` |
-| **Commands** | `command/v1` | `/shop` (ouvre `shop_main`), `/buy <item>` (achète directement) |
-| **Dialogs** | `dialog/v1` | Confirmation d'achat, messages d'erreur (Paper 1.21+ Dialog API) |
-| **Translations** | `translations/v1` | Clés `shop.title`, `shop.bought_success`, `shop.not_enough_money`, ... en FR + EN par défaut |
-| **Templates** | `template/v1` | Bouton d'achat réutilisable, header de catégorie standard |
-| **Assets** | PNG/JSON | Icônes par défaut, textures optionnelles |
-| **Default config** | `{module}/v1` | Quelques items exemples pour démarrer (diamant à 100, apple à 5...) |
+| **Commands** | `command/v1` | `/shop` (opens `shop_main`), `/buy <item>` (buys directly) |
+| **Dialogs** | `dialog/v1` | Purchase confirmation, error messages (Paper 1.21+ Dialog API) |
+| **Translations** | `translations/v1` | Keys `shop.title`, `shop.bought_success`, `shop.not_enough_money`, ... in FR + EN by default |
+| **Templates** | `template/v1` | Reusable buy button, standard category header |
+| **Assets** | PNG/JSON | Default icons, optional textures |
+| **Default config** | `{module}/v1` | A few example items to get started (diamond at 100, apple at 5...) |
 
-### 5.2 Format du bundle
+### 5.2 Bundle format
 
-Bundle = un dossier dans `/plugin/resources/modules/{module_id}/bootstrap/` packagé avec le `.jar` :
+Bundle = a folder in `/plugin/resources/modules/{module_id}/bootstrap/` packaged with the `.jar`:
 
 ```
 plugin/src/main/resources/modules/shop/bootstrap/
-  manifest.json              ← Liste des resources, dependencies
+  manifest.json              ← List of resources, dependencies
   menus/
     shop_main.json
     shop_confirm_buy.json
@@ -713,16 +713,16 @@ plugin/src/main/resources/modules/shop/bootstrap/
   dialogs/
     confirm_purchase.json
   translations/
-    shop_keys.json           ← Clés i18n avec valeurs FR + EN
+    shop_keys.json           ← i18n keys with FR + EN values
   templates/
     buy_button.json
   assets/
     shop_icon.png
   config/
-    sample_items.json        ← Items démo
+    sample_items.json        ← Demo items
 ```
 
-### 5.3 Manifest du bundle
+### 5.3 Bundle manifest
 
 ```json
 {
@@ -740,34 +740,34 @@ plugin/src/main/resources/modules/shop/bootstrap/
 }
 ```
 
-### 5.4 Flow d'installation
+### 5.4 Installation flow
 
-Quand l'admin install le shop module (V1.5+) :
+When the admin installs the shop module (V1.5+):
 
-1. Le module détecte qu'il n'y a pas encore de config shop dans le project.
-2. Il propose un dialog *"Welcome to Shop module. We'll create some sample content to get you started — you can customize or delete it anytime. [Create] [Skip and configure from scratch]"*.
-3. Click **Create** → le bundle bootstrap est unpacké dans le project :
-   - Les menus arrivent dans `/menus/` (éditables via le module menus)
-   - Les commandes arrivent dans `/commands/` (éditables via le module commands)
-   - Les dialogs arrivent dans `/dialogs/` (éditables via le module dialogs)
-   - Les clés i18n sont mergées dans `translations.json` du project
-   - Les templates et assets sont ajoutés à la library
-   - Les items exemples sont créés dans la config shop
-4. L'admin a immédiatement un shop fonctionnel qu'il peut éditer pièce par pièce.
+1. The module detects that there is no shop config yet in the project.
+2. It offers a dialog *"Welcome to Shop module. We'll create some sample content to get you started — you can customize or delete it anytime. [Create] [Skip and configure from scratch]"*.
+3. Click **Create** → the bootstrap bundle is unpacked into the project:
+   - Menus arrive in `/menus/` (editable via the menus module)
+   - Commands arrive in `/commands/` (editable via the commands module)
+   - Dialogs arrive in `/dialogs/` (editable via the dialogs module)
+   - i18n keys are merged into the project's `translations.json`
+   - Templates and assets are added to the library
+   - Example items are created in the shop config
+4. The admin immediately has a working shop that they can edit piece by piece.
 
-### 5.5 Édition post-bootstrap
+### 5.5 Post-bootstrap editing
 
-**Une fois unpackées, ces resources sont des entités standard du project.** Le menu `shop_main` est un menu comme un autre, éditable dans le module menus. La commande `/shop` est éditable dans le module commands. Les translations sont éditables dans la section i18n.
+**Once unpacked, these resources are standard project entities.** The `shop_main` menu is a menu like any other, editable in the menus module. The `/shop` command is editable in the commands module. Translations are editable in the i18n section.
 
-Le shop module **continue à fonctionner même si l'admin renomme/modifie/supprime ces resources** — il référence par id (qui peut être remappé dans la config du module).
+The shop module **keeps working even if the admin renames/modifies/deletes these resources** — it references by id (which can be remapped in the module's config).
 
-### 5.6 Re-bootstrap et resets
+### 5.6 Re-bootstrap and resets
 
-Bouton *"Reset to default"* dans la UI du shop module : re-ship le bundle bootstrap par-dessus l'existant (avec confirmation). Utile si l'admin a tout cassé.
+*"Reset to default"* button in the shop module's UI: re-ships the bootstrap bundle over the existing one (with confirmation). Useful if the admin broke everything.
 
 ### 5.7 Cross-module dependencies
 
-Un module peut **dépendre des resources d'autres modules** lors du bootstrap. Exemple : le module quests pourrait dépendre de `translations/common` (clés génériques comme "Yes", "No", "Cancel"). Déclaré dans le manifest :
+A module can **depend on other modules' resources** during bootstrap. Example: the quests module could depend on `translations/common` (generic keys like "Yes", "No", "Cancel"). Declared in the manifest:
 
 ```json
 {
@@ -777,37 +777,37 @@ Un module peut **dépendre des resources d'autres modules** lors du bootstrap. E
 }
 ```
 
-Le bootstrap résout les dépendances et utilise les keys existantes plutôt que de les dupliquer.
+The bootstrap resolves the dependencies and uses the existing keys rather than duplicating them.
 
-## 6. Cross-module navigation et UX
+## 6. Cross-module navigation and UX
 
-L'éditeur web a une sidebar globale avec une entrée par module. À l'intérieur de chaque module, l'UX est **owned par le module** :
+The web editor has a global sidebar with one entry per module. Inside each module, the UX is **owned by the module**:
 
-- **menus** : sidebar des menus + canvas multi-menu (toggle) + focused editor avec layers
-- **commands** : table des commandes + form-based editor
-- **shop** (V1.5) : table des items + form-based editor + section "Menus using this shop"
-- **quests** (V2) : graph/timeline editor pour les chaînes de quêtes
-- **kits** (V2) : table des kits + form-based editor
+- **menus**: menus sidebar + multi-menu canvas (toggle) + focused editor with layers
+- **commands**: commands table + form-based editor
+- **shop** (V1.5): items table + form-based editor + "Menus using this shop" section
+- **quests** (V2): graph/timeline editor for quest chains
+- **kits** (V2): kits table + form-based editor
 
-Les modules **se référencent mutuellement via des deeplinks** :
+Modules **reference each other via deeplinks**:
 
-- Dans le shop module : *"Edit shop menu →"* link vers `/menus/{shop_main_menu_id}`
-- Dans le quest module : *"Edit quest list menu →"* link vers `/menus/{quest_list_menu_id}`
-- Dans le menus module, quand un Element a `data_source: shop:items`, un small badge *"Data from Shop module — Configure →"* link vers `/shop`
+- In the shop module: *"Edit shop menu →"* link to `/menus/{shop_main_menu_id}`
+- In the quest module: *"Edit quest list menu →"* link to `/menus/{quest_list_menu_id}`
+- In the menus module, when an Element has `data_source: shop:items`, a small badge *"Data from Shop module — Configure →"* linking to `/shop`
 
-Cross-linking, pas embedding. Chaque module reste owner de sa propre UX.
+Cross-linking, not embedding. Each module remains owner of its own UX.
 
-## 7. Versioning et migrations
+## 7. Versioning and migrations
 
-Chaque module a son schema versionné indépendamment :
+Each module has its schema versioned independently:
 
 - `shop/v1` → `shop/v2` (breaking change)
 - `quests/v1` → `quests/v2`
 
-`menu` en est resté à `v1` : `menu/v2` et `menu/v3` ont existé six jours sans
-transformer une seule donnée et ont été repliés (cf. `schemas-codegen.md`).
+`menu` stayed at `v1`: `menu/v2` and `menu/v3` existed for six days without
+transforming a single piece of data and were folded back (see `schemas-codegen.md`).
 
-Le **plugin Paper et le web editor migrent au load** d'un schema antérieur vers le current. Pattern :
+The **Paper plugin and the web editor migrate at load** from an earlier schema to the current one. Pattern:
 
 ```kotlin
 class ShopModule : ArtisanModule {
@@ -824,13 +824,13 @@ class ShopModule : ArtisanModule {
 }
 ```
 
-Les migrations sont write-once, jamais modifiées après ship. Forward-compatibility garantie.
+Migrations are write-once, never modified after shipping. Forward compatibility guaranteed.
 
-## 8. Form generator from schema (le multiplicateur)
+## 8. Form generator from schema (the multiplier)
 
-Pour la majorité des modules, l'UI de config est **form-based** : des champs typés, des dropdowns, des listes, des inputs avec validation. Pas besoin de réinventer ça pour chaque module.
+For most modules, the config UI is **form-based**: typed fields, dropdowns, lists, inputs with validation. No need to reinvent that for each module.
 
-Le core fournit `<SchemaForm>` qui prend un JSON Schema et génère automatiquement un formulaire React fonctionnel :
+The core provides `<SchemaForm>` which takes a JSON Schema and automatically generates a working React form:
 
 ```tsx
 import { SchemaForm } from '@/core/ui';
@@ -840,7 +840,7 @@ import shopItemSchema from '@/modules/shop/schemas/item.v1.json';
   schema={shopItemSchema}
   value={item}
   onChange={updateItem}
-  // Custom widgets pour types spéciaux
+  // Custom widgets for special types
   widgets={{
     material: MaterialPicker,
     price: PriceInput,
@@ -849,142 +849,142 @@ import shopItemSchema from '@/modules/shop/schemas/item.v1.json';
 />
 ```
 
-**Implémentation** : soit `@rjsf/core` (React JSON Schema Form), soit ton propre générateur (~500-1000 lignes, mieux intégré au design system).
+**Implementation**: either `@rjsf/core` (React JSON Schema Form), or your own generator (~500-1000 lines, better integrated with the design system).
 
-**Custom widgets** : pour les types qui méritent un widget visuel (color picker, asset picker, MiniMessage editor, item material selector, etc.), tu register des widgets custom une fois et tous les modules en bénéficient.
+**Custom widgets**: for types that deserve a visual widget (color picker, asset picker, MiniMessage editor, item material selector, etc.), you register custom widgets once and all modules benefit.
 
-**80 % des modules** seront codés en quelques heures grâce à ce pattern : tu déclares ton schema, le form est généré, tu register tes data sources / commands, fin.
+**80% of modules** will be coded in a few hours thanks to this pattern: you declare your schema, the form is generated, you register your data sources / commands, done.
 
-**20 % des modules** auront besoin d'UX custom (le menus module avec son canvas, le quest module avec son graph editor, etc.). Là tu écris du React custom dans `/modules/{id}/editor/`.
+**20% of modules** will need custom UX (the menus module with its canvas, the quest module with its graph editor, etc.). There you write custom React in `/modules/{id}/editor/`.
 
 ## 9. Phasing V1 → V3
 
-### V1 (launch, semaines 3-8)
+### V1 (launch, weeks 3-8)
 
-Modules livrés :
-- `menus` — menu editor visuel (le focus principal)
-- `commands` — éditeur de commandes
-- `translations` — i18n keys (intégré dans menus + commands)
+Modules delivered:
+- `menus` — visual menu editor (the main focus)
+- `commands` — command editor
+- `translations` — i18n keys (integrated into menus + commands)
 
-Pattern d'architecture en place :
-- `ArtisanModule` interface (Java depuis l'API 2.0.0) côté plugin
-- `BackendModule` / `FrontendModule` interfaces côté web
-- `DataSourceRegistry` + `CommandRegistry` opérationnels
-- 5 data sources homemade (EssentialsX, ChestShop, JobsReborn, LuckPerms, Quests) — ce sont déjà des modules read-only en pratique
+Architecture pattern in place:
+- `ArtisanModule` interface (Java since API 2.0.0) on the plugin side
+- `BackendModule` / `FrontendModule` interfaces on the web side
+- `DataSourceRegistry` + `CommandRegistry` operational
+- 5 homemade data sources (EssentialsX, ChestShop, JobsReborn, LuckPerms, Quests) — these are already read-only modules in practice
 
-### V1.5 (M+2 à M+4)
+### V1.5 (M+2 to M+4)
 
-Premier Add-on : **boutique** (nom final du module `shop` de la spec — livré, cf. §15).
-- Schema `boutique/v1` avec items, categories, prices
-- Plugin externe (repo séparé, dépend du core) — pas de backend Fastify/Drizzle dédié : le catalogue vit dans `boutique/shop.yaml`, synced comme n'importe quel fichier de project
-- Frontend `@artisan/boutique-editor` form-based (presence-gated `/m/boutique`)
-- Templates menus `shop_main` / `shop_category` bootstrappés
+First Add-on: **boutique** (final name of the spec's `shop` module — delivered, see §15).
+- Schema `boutique/v1` with items, categories, prices
+- External plugin (separate repo, depends on the core) — no dedicated Fastify/Drizzle backend: the catalog lives in `boutique/shop.yaml`, synced like any project file
+- Form-based `@artisan/boutique-editor` frontend (presence-gated `/m/boutique`)
+- `shop_main` / `shop_category` menu templates bootstrapped
 - Data sources `boutique:categories` / `boutique:items`, command `boutique:buy`
-- Ce module boutique est **le proof of concept livré** du pattern modulaire en plus du menu editor — avec des écarts vs la spec, documentés en §15.
+- This boutique module is **the delivered proof of concept** of the modular pattern besides the menu editor — with deviations from the spec, documented in §15.
 
-### V2 (M+4 à M+8)
+### V2 (M+4 to M+8)
 
-Ajout des modules :
-- `quests` — chaînes de quêtes, objectives, rewards
+Adding the modules:
+- `quests` — quest chains, objectives, rewards
 - `kits` — items, cooldowns, permissions
 - `warps` — locations
 - `profiles` — player profile menus
 
-Each module = ~1-2 semaines de dev grâce au pattern bien établi.
+Each module = ~1-2 weeks of dev thanks to the well-established pattern.
 
 ### V3+ (M+9+)
 
-Ouverture du **SDK pour modules tiers** :
-- Documentation publique du pattern `ArtisanModule`
-- NPM package `@artisan/sdk` pour le frontend
-- Maven artifact `net.artisanmc:sdk` pour le plugin
-- Validation et publication via Artisan (review process)
-- Marketplace de modules tiers (commission 15-30 %)
+Opening the **SDK for third-party modules**:
+- Public documentation of the `ArtisanModule` pattern
+- NPM package `@artisan/sdk` for the frontend
+- Maven artifact `net.artisanmc:sdk` for the plugin
+- Validation and publication via Artisan (review process)
+- Third-party module marketplace (15-30% commission)
 
-Le SDK n'est ouvert que quand tu as :
-1. Au moins 5 modules built par toi (validation du pattern)
-2. Demande validée par des 3ᵉ party developers (Discord, Reddit, contacts directs)
-3. Capacité opérationnelle pour reviewer + supporter les modules tiers
+The SDK is only opened when you have:
+1. At least 5 modules built by you (pattern validation)
+2. Demand validated by 3rd-party developers (Discord, Reddit, direct contacts)
+3. Operational capacity to review + support third-party modules
 
-## 10. Implications V1 immédiates
+## 10. Immediate V1 implications
 
-Si tu valides cette architecture, voici les ajouts à intégrer dans les 2-3 semaines V1 :
+If you validate this architecture, here are the additions to integrate in the 2-3 weeks of V1:
 
 ### Plugin (Kotlin)
 
-- Interface `ArtisanModule` (~30 lignes)
-- Classes `DataSourceRegistry` et `CommandRegistry` (~100 lignes chacune)
-- `ArtisanPlugin` charge un registry de modules au `onEnable()`
-- `MenusModule` créé comme premier module (encapsule ce qui existe déjà)
-- `CommandsModule` créé comme second module
-- 5 data sources (EssentialsX, ChestShop, etc.) deviennent des sous-modules de leur namespace, enregistrés dans `DataSourceRegistry`
+- `ArtisanModule` interface (~30 lines)
+- `DataSourceRegistry` and `CommandRegistry` classes (~100 lines each)
+- `ArtisanPlugin` loads a module registry at `onEnable()`
+- `MenusModule` created as the first module (encapsulates what already exists)
+- `CommandsModule` created as the second module
+- 5 data sources (EssentialsX, ChestShop, etc.) become submodules of their namespace, registered in `DataSourceRegistry`
 
-**Effort : ~2-3 jours** de refactor opportuniste. Le code de rendu menus existe déjà — tu le **wrapes** dans la classe `MenusModule`.
+**Effort: ~2-3 days** of opportunistic refactor. The menu rendering code already exists — you **wrap** it in the `MenusModule` class.
 
-### Backend (Fastify) — supprimé en phase F
+### Backend (Fastify) — removed in phase F
 
-- Interface `BackendModule` (~30 lignes)
-- Module registry au boot
-- Refactor des routes existantes en `/api/modules/menus/*` (à terme — tu peux garder `/api/menus/*` pour V1 et migrer plus tard si tu veux)
+- `BackendModule` interface (~30 lines)
+- Module registry at boot
+- Refactor of existing routes into `/api/modules/menus/*` (eventually — you can keep `/api/menus/*` for V1 and migrate later if you want)
 
-**Effort : ~1-2 jours** de refactor opportuniste.
+**Effort: ~1-2 days** of opportunistic refactor.
 
 ### Frontend (React)
 
-- Interface `FrontendModule` (~30 lignes)
-- Module registry chargé au boot dans `App.tsx`
-- Sidebar dynamique (lit le registry pour les entrées)
-- Routes dynamiques (charge les routes de chaque module)
-- Composant `<SchemaForm>` (à coder ou intégrer rjsf) — utile dès V1 pour des configs simples, indispensable V1.5+
+- `FrontendModule` interface (~30 lines)
+- Module registry loaded at boot in `App.tsx`
+- Dynamic sidebar (reads the registry for entries)
+- Dynamic routes (loads each module's routes)
+- `<SchemaForm>` component (to code or integrate rjsf) — useful from V1 for simple configs, essential V1.5+
 
-**Effort : ~3-5 jours** dont 2-3 jours sur `<SchemaForm>` qui sera réutilisé pour TOUS les modules futurs.
+**Effort: ~3-5 days** of which 2-3 days on `<SchemaForm>` which will be reused for ALL future modules.
 
 ### Total V1 add
 
-**~6-10 jours de dev supplémentaires** pour mettre l'architecture en place. Compense largement le temps gagné sur tous les modules futurs (chacun gagnera 1-2 semaines grâce au pattern établi).
+**~6-10 extra dev days** to put the architecture in place. More than compensates for the time saved on all future modules (each will gain 1-2 weeks thanks to the established pattern).
 
-## 11. Ce qu'on NE fait PAS en V1
+## 11. What we do NOT do in V1
 
-- Pas de dynamic module loading (les modules sont statiquement linkés)
-- Pas de SDK public pour 3ᵉ party developers
-- Pas de marketplace de modules
-- Pas de isolation runtime (les modules tournent dans le même process Java)
-- Pas de quota / billing per-module
+- No dynamic module loading (modules are statically linked)
+- No public SDK for 3rd-party developers
+- No module marketplace
+- No runtime isolation (modules run in the same Java process)
+- No per-module quota / billing
 
-Ces features arrivent **incrémentalement** quand le besoin émerge.
+These features arrive **incrementally** when the need emerges.
 
-## 12. Risques connus
+## 12. Known risks
 
-- **Over-engineering** : ajouter le pattern modulaire pour 2 modules au launch (`menus`, `commands`) peut sembler overkill. Réponse : c'est ~1 semaine d'effort qui en économise 4+ par module futur. Investment rentable dès le 2ᵉ module ajouté.
-- **Coupling subtil** : malgré la séparation, des modules peuvent finir par dépendre implicitement de la shape des data sources d'autres modules. Mitigation : `DataSourceDeclaration` inclut un JSON Schema typé, et le frontend valide la shape côté éditeur.
-- **Hot-reload cross-module** : si le module shop est rechargé, les menus qui consomment `shop:items` doivent re-fetch. Pattern observer / event bus côté plugin core à implémenter (~1 jour V1).
-- **Plugin version mismatch** : split en plusieurs plugins introduit le risque qu'un admin install core 1.0 + shop 2.0 incompatibles. Mitigation : SemVer strict, graceful failure, communication. Cf. section 13.
+- **Over-engineering**: adding the modular pattern for 2 modules at launch (`menus`, `commands`) can seem overkill. Answer: it is ~1 week of effort that saves 4+ per future module. Investment pays off from the 2nd module added.
+- **Subtle coupling**: despite the separation, modules may end up implicitly depending on the shape of other modules' data sources. Mitigation: `DataSourceDeclaration` includes a typed JSON Schema, and the frontend validates the shape editor-side.
+- **Cross-module hot-reload**: if the shop module is reloaded, the menus that consume `shop:items` must re-fetch. Observer pattern / event bus on the core plugin side to implement (~1 day V1).
+- **Plugin version mismatch**: splitting into several plugins introduces the risk that an admin installs incompatible core 1.0 + shop 2.0. Mitigation: strict SemVer, graceful failure, communication. See section 13.
 
 ---
 
-## 13. Compatibility et versioning multi-plugins
+## 13. Compatibility and multi-plugin versioning
 
-Avec le split core + plugins modules, la **compatibility entre versions** devient une discipline critique. Pattern à respecter :
+With the core + module plugins split, **compatibility between versions** becomes a critical discipline. Pattern to follow:
 
-### 13.1 SemVer strict sur l'API publique
+### 13.1 Strict SemVer on the public API
 
-L'API publique du core (`ArtisanAPI`, `ArtisanModule`, `DataSourceRegistry`, etc.) suit **SemVer strict** :
+The core's public API (`ArtisanAPI`, `ArtisanModule`, `DataSourceRegistry`, etc.) follows **strict SemVer**:
 
-- **Patch (1.0.0 → 1.0.1)** : bug fixes uniquement. Aucun changement d'API. Modules existants continuent à marcher.
-- **Minor (1.0.0 → 1.1.0)** : nouvelles features de l'API, **backward compatible**. Modules existants continuent à marcher.
-- **Major (1.0.0 → 2.0.0)** : breaking changes. Modules peuvent ne plus marcher, doivent être updates.
+- **Patch (1.0.0 → 1.0.1)**: bug fixes only. No API change. Existing modules keep working.
+- **Minor (1.0.0 → 1.1.0)**: new API features, **backward compatible**. Existing modules keep working.
+- **Major (1.0.0 → 2.0.0)**: breaking changes. Modules may stop working, must be updated.
 
-**Règle d'or** : éviter les majors. Une par an max, idéalement aucune. Quand inévitable : annonce 3-6 mois à l'avance, modules updates ship en parallèle de la major core.
+**Golden rule**: avoid majors. One per year max, ideally none. When unavoidable: announce 3-6 months ahead, module updates ship in parallel with the core major.
 
-### 13.2 Module déclare sa compatibilité
+### 13.2 Module declares its compatibility
 
-Chaque plugin module déclare sa contrainte de version du core dans le code :
+Each module plugin declares its core version constraint in code:
 
 ```kotlin
 class ShopPlugin : JavaPlugin() {
     companion object {
         const val MIN_CORE_API_VERSION = "1.0.0"
-        // Tout 1.x.y compatible (semver minor/patch backward compat)
+        // Any 1.x.y compatible (semver minor/patch backward compat)
     }
     
     override fun onEnable() {
@@ -1007,9 +1007,9 @@ class ShopPlugin : JavaPlugin() {
 }
 ```
 
-### 13.3 Comportement en cas de mismatch
+### 13.3 Behavior on mismatch
 
-**Aucune force update automatique.** Le module fail gracefully avec un message explicite :
+**No forced automatic update.** The module fails gracefully with an explicit message:
 
 ```
 [Artisan Shop] ERROR: Artisan Shop 2.0.0 requires Artisan core 2.0.0+.
@@ -1018,96 +1018,96 @@ class ShopPlugin : JavaPlugin() {
 [Artisan Shop] Shop is disabled. Other plugins are not affected.
 ```
 
-L'admin voit l'erreur claire dans les logs, sait quoi faire, a le choix (update core, downgrade module, désactiver). Ses autres plugins ne sont pas affectés. C'est **le même pattern que Bukkit/Spigot** pour les plugins incompatibles avec une version serveur.
+The admin sees the clear error in the logs, knows what to do, has the choice (update core, downgrade module, disable). Their other plugins are not affected. It is **the same pattern as Bukkit/Spigot** for plugins incompatible with a server version.
 
-### 13.4 API publique vs internals
+### 13.4 Public API vs internals
 
-**Stable (covered by SemVer)** :
-- Interface `ArtisanAPI`
-- Interface `ArtisanModule`
-- Registries publics (`DataSourceRegistry`, `CommandRegistry`, `SchemaRegistry`, `ModuleRegistry`)
-- Classes `DataSourceDeclaration`, `CommandDeclaration`
-- Depuis l'API 2.18.0 : actions (`ActionRegistry`, `ModuleActionsApi`), base de données (`DatabaseApi`), scheduler, placeholders, traductions (`TranslationsApi`), `TextApi`, commandes joueur (`PlayerCommandRegistry`), items (`ItemStackApi`), types de Document, bundles éditeur, et le vocabulaire de champs `ModelField`/`ModelFieldType`. Le reste (`ConditionsApi`, templates, écrans, menus, registre des modèles, réseau, Game events, cooldowns) reste `@Beta` : liste et raisons dans `api-surface.md` § Beta APIs
-- Schemas versionnés (`menu/v1`, `command/v1`, `shop/v1`, etc.)
-- Events publics : bus `ModuleEventBus` (`ConfigReloadEvent`, `DataReloadEvent`) ; événements Bukkit de menu `MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent` (`@Beta`, API 1.8.0)
+**Stable (covered by SemVer)**:
+- `ArtisanAPI` interface
+- `ArtisanModule` interface
+- Public registries (`DataSourceRegistry`, `CommandRegistry`, `SchemaRegistry`, `ModuleRegistry`)
+- `DataSourceDeclaration`, `CommandDeclaration` classes
+- Since API 2.18.0: actions (`ActionRegistry`, `ModuleActionsApi`), database (`DatabaseApi`), scheduler, placeholders, translations (`TranslationsApi`), `TextApi`, player commands (`PlayerCommandRegistry`), items (`ItemStackApi`), Document kinds, editor bundles, and the `ModelField`/`ModelFieldType` field vocabulary. The rest (`ConditionsApi`, templates, screens, menus, model registry, network, Game events, cooldowns) stays `@Beta`: list and reasons in `api-surface.md` § Beta APIs
+- Versioned schemas (`menu/v1`, `command/v1`, `shop/v1`, etc.)
+- Public events: `ModuleEventBus` bus (`ConfigReloadEvent`, `DataReloadEvent`); Bukkit menu events `MenuOpenEvent`, `MenuClickEvent`, `MenuCloseEvent` (`@Beta`, API 1.8.0)
 
-**Internals (les modules NE doivent PAS en dépendre)** :
-- Implémentation interne du WebSocket client
-- Parser MiniMessage interne
-- Stratégies de storage
+**Internals (modules MUST NOT depend on them)**:
+- Internal implementation of the WebSocket client
+- Internal MiniMessage parser
+- Storage strategies
 - Threading internals
-- Classes marquées `@Internal` ou dans des packages `internal`
+- Classes marked `@Internal` or in `internal` packages
 
-Documentation dans `docs/architecture/api-surface.md`, qui liste explicitement ce qui est public stable vs interne.
+Documentation in `docs/architecture/api-surface.md`, which explicitly lists what is public stable vs internal.
 
-### 13.5 Communication aux admins
+### 13.5 Communication to admins
 
-**Sur SpigotMC / Modrinth** :
-- Page Artisan Core : changelog clair, breaking changes signalés en gras rouge.
-- Pages des modules premium : *"Compatible avec Artisan core 1.x"* indiqué visiblement.
+**On SpigotMC / Modrinth**:
+- Artisan Core page: clear changelog, breaking changes flagged in bold red.
+- Premium module pages: *"Compatible with Artisan core 1.x"* shown visibly.
 
-**Discord** :
-- Channel `#announcements` pour les updates majeures.
-- Notification quand une major est planifiée 3+ mois à l'avance.
-- Beta access aux modules updates avant la release de la core major.
+**Discord**:
+- `#announcements` channel for major updates.
+- Notification when a major is planned 3+ months ahead.
+- Beta access to module updates before the core major release.
 
-**Backend (artisanmc.net)** (supprimé en phase F ; le hub affiche « mise à jour requise » pour une majeure de protocole différente, cf. `versioning.md` §4) :
-- Détecte les versions installées via WebSocket handshake.
-- Affiche un warning dans l'éditeur web : *"Artisan Shop 1.0.0 is incompatible with Artisan core 2.0.0 (released 3 days ago). Update Shop to 2.0.0."*
-- Email automatique aux Pro users quand un module qu'ils ont a une update disponible.
+**Backend (artisanmc.net)** (removed in phase F; the hub shows "Update required" for a different protocol major, see `versioning.md` §4):
+- Detects installed versions via WebSocket handshake.
+- Shows a warning in the web editor: *"Artisan Shop 1.0.0 is incompatible with Artisan core 2.0.0 (released 3 days ago). Update Shop to 2.0.0."*
+- Automatic email to Pro users when a module they have has an update available.
 
-### 13.6 Stratégie pour les majors
+### 13.6 Strategy for majors
 
-Quand une major core est nécessaire (refactor architecture, breaking change Adventure, etc.) :
+When a core major is needed (architecture refactor, Adventure breaking change, etc.):
 
-1. **3 mois avant** : annonce Discord + SpigotMC + roadmap publique. Spec des breaking changes.
-2. **2 mois avant** : beta des nouvelles versions des modules premium aux Pro users.
-3. **1 mois avant** : RC (release candidate) du core + tous les modules.
-4. **Release day** : core 2.0.0 + tous les modules premium 2.0.0 lancés ensemble. Les admins update tout en bloc.
-5. **3 mois après** : core 1.x reste disponible en téléchargement. Pas de nouveaux bug fixes 1.x sauf critical security.
-6. **6 mois après** : core 1.x archived (téléchargement encore possible mais pas supporté).
+1. **3 months before**: Discord + SpigotMC announcement + public roadmap. Spec of breaking changes.
+2. **2 months before**: beta of the new premium module versions for Pro users.
+3. **1 month before**: RC (release candidate) of the core + all modules.
+4. **Release day**: core 2.0.0 + all premium modules 2.0.0 launched together. Admins update everything in one go.
+5. **3 months after**: core 1.x remains available for download. No new 1.x bug fixes except critical security.
+6. **6 months after**: core 1.x archived (download still possible but not supported).
 
-Tu peux maintenir 2 majors en parallèle pendant 3-6 mois (1.x + 2.x cohabitent), puis sunset 1.x.
+You can maintain 2 majors in parallel for 3-6 months (1.x + 2.x coexist), then sunset 1.x.
 
-### 13.7 Practical reality pour V1-V2
+### 13.7 Practical reality for V1-V2
 
-En pratique pour ton stade de projet :
+In practice for your project's stage:
 
-- **V1 launch** : `artisan-core 1.0.0`. Pas de modules premium encore.
-- **V1.5** : `artisan-core 1.x.y` + `artisan-shop 1.0.0`. Core continue à evolver en minor/patch, shop continue à marcher tant que tu respectes SemVer.
-- **V2** : `artisan-core 1.x.y` + `shop 1.x` + `quests 1.0.0` + `kits 1.0.0`. Toujours sur major 1 du core.
-- **Année 2-3** : peut-être une major 2.0 si tu as accumulé de la dette API. Sinon tu restes en 1.x indéfiniment.
+- **V1 launch**: `artisan-core 1.0.0`. No premium modules yet.
+- **V1.5**: `artisan-core 1.x.y` + `artisan-shop 1.0.0`. Core keeps evolving in minor/patch, shop keeps working as long as you respect SemVer.
+- **V2**: `artisan-core 1.x.y` + `shop 1.x` + `quests 1.0.0` + `kits 1.0.0`. Still on core major 1.
+- **Year 2-3**: maybe a major 2.0 if you have accumulated API debt. Otherwise you stay on 1.x indefinitely.
 
-**Idéalement, tu ne fais jamais de major 2.0.** Tu accumules en mineurs (`1.5`, `1.10`, `1.20`) en gardant le backward compat. C'est ce qu'a fait Bukkit pendant 15 ans.
+**Ideally, you never do a major 2.0.** You accumulate in minors (`1.5`, `1.10`, `1.20`) while keeping backward compat. That is what Bukkit did for 15 years.
 
-### 13.8 Auto-update et marketplace (V3+)
+### 13.8 Auto-update and marketplace (V3+)
 
-> Écarté avec le cloud : sans backend, la mise à jour des jars reste manuelle (releases, marketplaces).
+> Dropped along with the cloud: without a backend, updating jars stays manual (releases, marketplaces).
 
-À terme, artisanmc.net peut offrir un **auto-update système** :
+Eventually, artisanmc.net can offer an **auto-update system**:
 
-- Backend détecte les updates compatibles des modules installés.
-- Notification dans l'éditeur web : *"Artisan Shop 1.0.4 available (bug fix). [Update now] [Later]"*.
-- Click → backend triggere un download du .jar dans le `plugins/` du serveur via SFTP/RCON.
+- Backend detects compatible updates of installed modules.
+- Notification in the web editor: *"Artisan Shop 1.0.4 available (bug fix). [Update now] [Later]"*.
+- Click → backend triggers a download of the .jar into the server's `plugins/` via SFTP/RCON.
 
-Feature V3+, pas critique pour V1.
+V3+ feature, not critical for V1.
 
-### 13.9 Build layout : monorepo Gradle multi-module
+### 13.9 Build layout: Gradle multi-module monorepo
 
-**Décision** : chaque module premium ship comme un JAR séparé, mais tout vit dans le **même repo** via un setup Gradle multi-module.
+**Decision**: each premium module ships as a separate JAR, but everything lives in the **same repo** via a Gradle multi-module setup.
 
-**V1** (un seul JAR — état actuel) :
+**V1** (a single JAR — current state):
 ```
 plugin/
   build.gradle.kts        ← shadowJar → artisan-plugin-X.Y.Z-all.jar
   src/main/kotlin/net/artisanmc/
     plugin/...            (internals)
-    modules/api/...       (@Stable surface, dépendance de tous les modules)
-    modules/menus/...     (statiquement linké)
-    modules/commands/...  (statiquement linké)
+    modules/api/...       (@Stable surface, dependency of all modules)
+    modules/menus/...     (statically linked)
+    modules/commands/...  (statically linked)
 ```
 
-**V1.5+** (multi-module) :
+**V1.5+** (multi-module):
 ```
 plugin/
   settings.gradle.kts     ← include("core", "shop", "quests", …)
@@ -1115,67 +1115,67 @@ plugin/
     build.gradle.kts      ← shadowJar → Artisan.jar
     src/main/kotlin/net/artisanmc/
       plugin/...
-      modules/api/...     (exposé en `api(…)` aux subprojects)
+      modules/api/...     (exposed as `api(…)` to subprojects)
       modules/menus/...
       modules/commands/...
   shop/
     build.gradle.kts      ← shadowJar → ArtisanShop.jar
     src/main/kotlin/net/artisanmc/modules/shop/...
     dependencies {
-        compileOnly(project(":core"))  // résolu depuis modules/api uniquement
+        compileOnly(project(":core"))  // resolved from modules/api only
     }
   quests/...
 ```
 
-**Avantages** :
-- Un seul `./gradlew test` qui run toute la batterie.
-- API breaking change → impossible de compiler les modules → ça pète en CI direct (pas besoin de `japicmp` initialement).
-- Refactor cross-module trivial (renomme un type, IDE update les call sites partout).
-- Pas de friction de release : `./gradlew :shop:shadowJar` produit le JAR, `:core:shadowJar` produit l'autre, on push les deux sur SpigotMC.
+**Advantages**:
+- A single `./gradlew test` that runs the whole battery.
+- API breaking change → impossible to compile the modules → it breaks in CI right away (no need for `japicmp` initially).
+- Trivial cross-module refactor (rename a type, the IDE updates the call sites everywhere).
+- No release friction: `./gradlew :shop:shadowJar` produces the JAR, `:core:shadowJar` produces the other, we push both to SpigotMC.
 
-**Quand bouger** : au moment d'ajouter `shop` en V1.5. Le coût du split à ce moment-là est faible (~1 jour) parce que `modules/menus/` et `modules/commands/` ont déjà la structure attendue.
+**When to move**: when adding `shop` in V1.5. The cost of the split at that point is low (~1 day) because `modules/menus/` and `modules/commands/` already have the expected structure.
 
-**Ce qu'on ne fait PAS** : monorepo séparé par-repo (`artisan-core` + `artisan-shop` repos distincts). Trop de friction pour développer une feature qui touche les 2 (PR croisées, version bumps coordonnés). Le monorepo Gradle gère ça naturellement.
+**What we do NOT do**: a per-repo split monorepo (separate `artisan-core` + `artisan-shop` repos). Too much friction to develop a feature that touches both (cross PRs, coordinated version bumps). The Gradle monorepo handles that naturally.
 
 ---
 
-## 14. Module assistant (feature IA — backend-only, supprimé en phase F)
+## 14. Assistant module (AI feature — backend-only, removed in phase F)
 
-> **Supprimé** avec le backend (2026-10). Le panneau de l'éditeur reste dans le dépôt, hors du build auto-hébergé (`SELF_HOSTED`) ; le moteur décrit ci-dessous est récupérable au commit `ccade092`.
+> **Removed** with the backend (2026-10). The editor panel remains in the repository, outside the self-hosted build (`SELF_HOSTED`); the engine described below is recoverable at commit `ccade092`.
 
-> **Statut** : en cours de construction (sous-plans 2a–2d livrés ; crédits 3 + panel éditeur 4 à venir). Vit pour l'instant sous `backend/src/modules/assistant/` (pas encore les 3 layers symétriques d'un Add-on standard ; le panel éditeur arrive en sous-plan 4).
+> **Status**: under construction (sub-plans 2a–2d delivered; credits 3 + editor panel 4 to come). Lives for now under `backend/src/modules/assistant/` (not yet the 3 symmetric layers of a standard Add-on; the editor panel arrives in sub-plan 4).
 
-L'assistant est l'agent IA qui édite les menus d'un project en langage naturel. Le cœur est **entièrement backend** et **testable sans réseau** (provider mocké). Il s'appuie sur le format canonique `menu/v1` (`docs/schema/menu/v1/`) comme contrat d'écriture.
+The assistant is the AI agent that edits a project's menus in natural language. The core is **entirely backend** and **testable without network** (mocked provider). It relies on the canonical `menu/v1` format (`docs/schema/menu/v1/`) as the writing contract.
 
-### 14.1 Composants (sous-plans 2a–2c)
+### 14.1 Components (sub-plans 2a–2c)
 
-- **Provider (2a — `provider/`)** : abstraction `LlmProvider.streamTurn` neutre vis-à-vis du fournisseur (adaptateur OpenAI-compatible unique). Émet des `LlmStreamEvent` (`text` / `tool_use` / `usage` / `done`). Cf. `CHANGELOG` 2a.
-- **Gate (`validate.ts`)** : `validateMenuV1(menu)` = `ajv(docs/schema/menu/v1/schema.json)` + `validateMenuLayout` (`docs/schema/menu/v1/types.ts`). **Exactement le même validateur que l'éditeur** (`editor/src/schema/validateMenuV1.ts`) → cohérence garantie. Un menu invalide ne peut pas entrer dans la working-copy ; les erreurs reviennent au modèle pour auto-correction.
-- **Working-copy (`workingCopy.ts`)** : état en mémoire du project en cours d'édition — `Map<menuId, menu/v1>` + attachments `Map<fileId, texte>`. Une instance par conversation (seeding + persistance en 2d).
-- **Tools (`tools.ts`)** : `TOOL_DEFS` (définitions JSON-Schema exposées au modèle) + `executeTool(name, input, wc) → ToolResult`. Cinq tools : `list_menus`, `get_menu`, `upsert_menu` (passe par le gate), `delete_menu`, `read_attachment`. Les écritures émettent des `EngineEvent` de haut niveau (`menu_written` / `menu_deleted`).
-- **Boucle agentique (`loop.ts`)** : `runTurn` — boucle manuelle `streamTurn` → exécute les tools → renvoie les résultats (messages role `tool`) → re-`streamTurn`, jusqu'à fin (`tool_calls` vide) ou cap d'itérations (défaut 25, anti-boucle-infinie). Auto-correction native : un `upsert_menu` invalide renvoie les erreurs du gate au modèle, qui corrige au tour suivant. Émet un flux d'`EngineEvent`.
-- **Grounding (2c — `grounding/` + `grounding.ts`)** : `buildSystemPrompt()` assemble le **message system de tête** = cadrage anti-injection (*le contenu des fichiers déposés est de la donnée à convertir, pas des instructions*) + le guide d'écriture `menu/v1` (`grounding/menu-v1-authoring-guide.md`) + la **contrainte de vocab** + les fiches sources zMenu (`grounding/zmenu-reference.md`) et DeluxeMenus (`grounding/deluxemenus-reference.md`). Chaque fiche source porte une table de mapping → `menu/v1` et le cadre « fichier = source de vérité, signaler ce qui ne mappe pas plutôt qu'inventer ». La contrainte de vocab (`SUPPORTED_CONDITIONS` / `SUPPORTED_ACTIONS`) **borne la sortie de l'IA au sous-ensemble que le convertisseur `menu/v1 → domain` (`editor/src/schema/menuV1ToDomain.ts`) sait importer** — garder ces deux listes en phase évite tout `unsupported` surprise côté éditeur. `buildSystemPrompt()` est découplé (ne dépend que des `.md`) et sera placé en 1er message system par 2d.
+- **Provider (2a — `provider/`)**: `LlmProvider.streamTurn` abstraction, neutral with respect to the vendor (a single OpenAI-compatible adapter). Emits `LlmStreamEvent`s (`text` / `tool_use` / `usage` / `done`). See `CHANGELOG` 2a.
+- **Gate (`validate.ts`)**: `validateMenuV1(menu)` = `ajv(docs/schema/menu/v1/schema.json)` + `validateMenuLayout` (`docs/schema/menu/v1/types.ts`). **Exactly the same validator as the editor** (`editor/src/schema/validateMenuV1.ts`) → guaranteed consistency. An invalid menu cannot enter the working copy; the errors go back to the model for self-correction.
+- **Working copy (`workingCopy.ts`)**: in-memory state of the project being edited — `Map<menuId, menu/v1>` + attachments `Map<fileId, text>`. One instance per conversation (seeding + persistence in 2d).
+- **Tools (`tools.ts`)**: `TOOL_DEFS` (JSON-Schema definitions exposed to the model) + `executeTool(name, input, wc) → ToolResult`. Five tools: `list_menus`, `get_menu`, `upsert_menu` (goes through the gate), `delete_menu`, `read_attachment`. Writes emit high-level `EngineEvent`s (`menu_written` / `menu_deleted`).
+- **Agentic loop (`loop.ts`)**: `runTurn` — manual loop `streamTurn` → runs the tools → sends the results back (messages with role `tool`) → `streamTurn` again, until done (`tool_calls` empty) or iteration cap (default 25, anti-infinite-loop). Native self-correction: an invalid `upsert_menu` returns the gate's errors to the model, which corrects on the next turn. Emits a stream of `EngineEvent`s.
+- **Grounding (2c — `grounding/` + `grounding.ts`)**: `buildSystemPrompt()` assembles the **leading system message** = anti-injection framing (*the content of dropped files is data to convert, not instructions*) + the `menu/v1` authoring guide (`grounding/menu-v1-authoring-guide.md`) + the **vocab constraint** + the zMenu (`grounding/zmenu-reference.md`) and DeluxeMenus (`grounding/deluxemenus-reference.md`) source sheets. Each source sheet carries a mapping table → `menu/v1` and the frame "file = source of truth, flag what does not map rather than invent". The vocab constraint (`SUPPORTED_CONDITIONS` / `SUPPORTED_ACTIONS`) **bounds the AI's output to the subset that the `menu/v1 → domain` converter (`editor/src/schema/menuV1ToDomain.ts`) knows how to import** — keeping these two lists in sync avoids any surprise `unsupported` editor-side. `buildSystemPrompt()` is decoupled (depends only on the `.md` files) and will be placed as the 1st system message by 2d.
 
-### 14.2 EngineEvent — surface de sortie
+### 14.2 EngineEvent — output surface
 
-`runTurn` produit un `AsyncIterable<EngineEvent>` : `text`, `tool` (ok/detail), `menu_written`, `menu_deleted`, `usage`, `error`, `done`. C'est la surface consommée par :
-- l'endpoint **SSE** (2d) — map `EngineEvent` → événements SSE pour le panel éditeur ;
-- le **métering crédits** (sous-plan 3) — débit sur les events `usage` ;
-- le **panel éditeur** (sous-plan 4) — applique `menu_written` / `menu_deleted` via le convertisseur `menu/v1 → domain` (`editor/src/schema/menuV1ToDomain.ts`).
+`runTurn` produces an `AsyncIterable<EngineEvent>`: `text`, `tool` (ok/detail), `menu_written`, `menu_deleted`, `usage`, `error`, `done`. It is the surface consumed by:
+- the **SSE** endpoint (2d) — maps `EngineEvent` → SSE events for the editor panel;
+- **credit metering** (sub-plan 3) — debit on `usage` events;
+- the **editor panel** (sub-plan 4) — applies `menu_written` / `menu_deleted` via the `menu/v1 → domain` converter (`editor/src/schema/menuV1ToDomain.ts`).
 
-### 14.3 Endpoints SSE + état conversation (2d — `routes.ts` + `conversations.ts` + `index.ts`)
+### 14.3 SSE endpoints + conversation state (2d — `routes.ts` + `conversations.ts` + `index.ts`)
 
-- **`ConversationStore` (`conversations.ts`)** : état **en mémoire** — `Map<id, { serverKeyId, messages, wc }>`. `create()` alloue un UUID, seede la conversation avec le system prompt (`buildSystemPrompt`, 2c) en 1er message + une `WorkingCopy(menus, attachments)`. `reseed()` remplace la working-copy (le client peut renvoyer l'état du project avant un message). Pas de persistance DB (cf. non-goals spec).
-- **Routes (`routes.ts`)** : sous-routeur Hono monté sous `/api/v1/assistant` via `assistantModule` (`index.ts`, enregistré dans `mountModules` de `app.ts`). Auth **accounts-only** (`resolveOwnerKey`, cookie `artisan_user_session` → `user:<userId>`) ; 401 sinon — cf. `rest-endpoints.md`.
-  - `POST /conversations` → `store.create(...)`, renvoie `{conversationId}`.
-  - `POST /conversations/:id/messages` → 404 si conversation inconnue **ou** d'un autre `serverKeyId` ; re-seed optionnel (`menus` dans le body) ; pousse le message user ; 503 si aucun provider configuré (`resolveProviderConfig` null) ; sinon **réponse SSE** (`streamSSE`) : chaque `EngineEvent` de `runTurn` → `event:` = `ev.type`, `data:` = JSON de l'event.
-- **Provider injectable** : `__setProviderForTests(p)` court-circuite `resolveProviderConfig`/`createProvider` → tests hermétiques sans réseau. En prod, le provider vient de l'env (`ASSISTANT_PROVIDER` / `ASSISTANT_API_KEY` / `ASSISTANT_MODEL`).
+- **`ConversationStore` (`conversations.ts`)**: **in-memory** state — `Map<id, { serverKeyId, messages, wc }>`. `create()` allocates a UUID, seeds the conversation with the system prompt (`buildSystemPrompt`, 2c) as the 1st message + a `WorkingCopy(menus, attachments)`. `reseed()` replaces the working copy (the client can resend the project state before a message). No DB persistence (see spec non-goals).
+- **Routes (`routes.ts`)**: Hono sub-router mounted under `/api/v1/assistant` via `assistantModule` (`index.ts`, registered in `mountModules` of `app.ts`). **Accounts-only** auth (`resolveOwnerKey`, cookie `artisan_user_session` → `user:<userId>`); 401 otherwise — see `rest-endpoints.md`.
+  - `POST /conversations` → `store.create(...)`, returns `{conversationId}`.
+  - `POST /conversations/:id/messages` → 404 if the conversation is unknown **or** belongs to another `serverKeyId`; optional re-seed (`menus` in the body); pushes the user message; 503 if no provider configured (`resolveProviderConfig` null); otherwise **SSE response** (`streamSSE`): each `EngineEvent` of `runTurn` → `event:` = `ev.type`, `data:` = JSON of the event.
+- **Injectable provider**: `__setProviderForTests(p)` bypasses `resolveProviderConfig`/`createProvider` → hermetic tests without network. In prod, the provider comes from the env (`ASSISTANT_PROVIDER` / `ASSISTANT_API_KEY` / `ASSISTANT_MODEL`).
 
-#### Test réel au curl
+#### Real test with curl
 
-> ⚠️ Historique (sub-plan 2d) : l'exemple ci-dessous date d'avant l'accounts-only cutover et utilise le Bearer `editor-session`, **supprimé** (Task 7). L'auth réelle actuelle est cookie `artisan_user_session` (`-b "artisan_user_session=$SID"` après login) — cf. `rest-endpoints.md`.
+> ⚠️ Historical (sub-plan 2d): the example below predates the accounts-only cutover and uses the `editor-session` Bearer, which was **removed** (Task 7). The current real auth is the `artisan_user_session` cookie (`-b "artisan_user_session=$SID"` after login) — see `rest-endpoints.md`.
 
-Avec un provider configuré (`.env` : `ASSISTANT_PROVIDER`, `ASSISTANT_API_KEY`, `ASSISTANT_MODEL`) et un access token editor-session valide (`$ACCESS`) :
+With a configured provider (`.env`: `ASSISTANT_PROVIDER`, `ASSISTANT_API_KEY`, `ASSISTANT_MODEL`) and a valid editor-session access token (`$ACCESS`):
 
 ```bash
 curl -sN -X POST localhost:3001/api/v1/assistant/conversations \
@@ -1185,33 +1185,33 @@ curl -sN -X POST localhost:3001/api/v1/assistant/conversations \
 
 curl -sN -X POST localhost:3001/api/v1/assistant/conversations/$CID/messages \
   -H "Authorization: Bearer $ACCESS" -H 'Content-Type: application/json' \
-  -d '{"text":"Crée un menu shop 3 lignes avec un bouton diamant qui ouvre le menu spawn"}'
-# -> flux SSE: text..., menu_written, done
+  -d '{"text":"Create a 3-row shop menu with a diamond button that opens the spawn menu"}'
+# -> SSE stream: text..., menu_written, done
 ```
 
-### 14.4 À venir
+### 14.4 Coming up
 
-- **3 — crédits** : ledger + débit sur les events `usage` (pré-check avant le tour, blocage à zéro) + octroi admin.
-- **4 — panel éditeur** : chat + file-drop + client SSE → applique `menu_written` / `menu_deleted` via `menuV1ToDomain` + checkpoint/undo.
+- **3 — credits**: ledger + debit on `usage` events (pre-check before the turn, block at zero) + admin grant.
+- **4 — editor panel**: chat + file-drop + SSE client → applies `menu_written` / `menu_deleted` via `menuV1ToDomain` + checkpoint/undo.
 
-## 15. Module boutique (V1.5 — shipped)
+## 15. Boutique module (V1.5 — shipped)
 
-> **Deux évolutions décidées (2026-07-22), toutes deux livrées :**
-> - **Emplacement + ownership (ADR `addon-owned-project-roots`, shippé).** Le project de l'Add-on vit dans son propre dossier plugin (`plugins/Boutique/editor/`) via la capacité core `projectId → root` (les Add-ons enregistrent leur root à l'`onEnable`), et l'éditeur le groupe sous **« Modules installés »** (manifest `module: boutique`).
-> - **Format du catalogue par models déclarés (ADR `composable-data-models` §8, shippé 2026-07-26).** Le catalogue n'est plus `boutique/shop.yaml` : c'est une Table de models déclarés `data/categories/` (granularité `row`, model `boutique:category` master-detail contenant les items `boutique:item` ; depuis l'ADR `bare-data-files`, les fichiers de rows sont **pur valeurs** — name/lore = littéraux de la langue par défaut, `_source.yaml` minimal `name`/`model`/`order`) + la source objet nue `data/shop_settings.yaml` (`whole_shop_discount: 0`, rien d'autre). Le module déclare ses deux models via `ArtisanAPI.models.declare(...)` ; l'éditeur génère le form (master-detail, i18n gratuite, icônes lockées posées par `/boutiqueadmin additem`). Un migrator one-shot (`ShopDataMigrator`) convertit un `shop.yaml` pré-existant au boot (archive `shop.yaml.migrated` hors project) ; le reader legacy couvre l'intervalle.
+> **Two decided evolutions (2026-07-22), both delivered:**
+> - **Location + ownership (ADR `addon-owned-project-roots`, shipped).** The Add-on's project lives in its own plugin folder (`plugins/Boutique/editor/`) through the core `projectId → root` capability (Add-ons register their root at `onEnable`), and the editor groups it under **"Installed modules"** (manifest `module: boutique`).
+> - **Catalog format via declared models (ADR `composable-data-models` §8, shipped 2026-07-26).** The catalog is no longer `boutique/shop.yaml`: it is a Table of declared models `data/categories/` (`row` granularity, `boutique:category` master-detail model containing the `boutique:item` items; since ADR `bare-data-files`, row files are **pure values** — name/lore = literals of the default language, minimal `_source.yaml` `name`/`model`/`order`) + the bare object source `data/shop_settings.yaml` (`whole_shop_discount: 0`, nothing else). The module declares its two models via `ArtisanAPI.models.declare(...)`; the editor generates the form (master-detail, free i18n, locked icons set by `/boutiqueadmin additem`). A one-shot migrator (`ShopDataMigrator`) converts a pre-existing `shop.yaml` at boot (archive `shop.yaml.migrated` outside the project); the legacy reader covers the interval.
 >
-> La description ci-dessous décrit le code livré ; les points marqués *(legacy)* ne subsistent que comme fallback pré-migration.
+> The description below describes the shipped code; points marked *(legacy)* only remain as pre-migration fallback.
 
-Repo séparé (`Boutique`, branche `feat/artisan-addon`, plugin Paper 1.21.4 / Java 21, dépend d'`artisan-core-api`). Premier Add-on tiers réel, POC du pattern modulaire — avec des écarts assumés vs la spec ci-dessus (§3.3.2, §5) documentés ici.
+Separate repo (`Boutique`, branch `feat/artisan-addon`, Paper 1.21.4 / Java 21 plugin, depends on `artisan-core-api`). First real third-party Add-on, POC of the modular pattern — with deliberate deviations from the spec above (§3.3.2, §5) documented here.
 
-- **Data sources** : `boutique:categories` (`{id, name, icon}`) et `boutique:items` (`{id, name, icon, category, price, final_price, lore}`), enregistrées via `ArtisanAPI.dataSources.register(...)` (§4.1). Le catalogue est lu depuis la Table `data/categories/` (`_source.yaml` + un fichier par catégorie, clés ltext résolues via `lang/<default_lang>.yaml`) via `ArtisanAPI.project` — pas de DB dédiée côté plugin. Fallback *(legacy)* : `boutique/shop.yaml` (schema `boutique/v1`) si la Table n'existe pas encore (pré-migration).
-- **Command** : `boutique:buy` (`argv[0]` = item id) enregistrée dans `CommandRegistry`, exécutée par `TransactionManager`. Consommée depuis les menus via une action `run_command` (`"boutique:buy {item.id}"`) — le bridge `run_command → CommandRegistry` est celui du core (Task 1, CHANGELOG `[Unreleased]`), pas le dispatch `command/v1` authoré décrit en §5.
-- **Bootstrap** : **écart vs §5** — il n'existe pas d'`api.bootstrap.unpack(...)`. Le module écrit lui-même `projects/boutique_shop/` (7 fichiers : `manifest.yaml`, 2 menus avec titres en clés `LText`, dialog `confirm_purchase`, commande `boutique`, `lang/fr.yaml`, `boutique/shop.yaml`) de façon atomique (`.boutique_shop.tmp` + rename), gardé par `api.project.hasContent("boutique")`. Le config.yml legacy (`ShopManager`) est migré une fois via snakeyaml brut, uniquement s'il pré-existait à `saveDefaultConfig`. Un seul log WARN indique à l'admin de lancer `/artisan reload` (pas de délai/prompt — cf. philosophie "no theater"). Le fichier écrit EST la vérité : il n'y a rien à pousser (ADR `server-disk-only-storage`).
-- **Éditeur** : `@artisan/boutique-editor`, module presence-gated monté sur `/m/boutique`. Sur un project migré (Table `categories` liée à `boutique:category`), l'écran renvoie vers le **form généré** de la source (onglet Sources, master-detail) — plus de form bespoke. Le form ad-hoc *(legacy)* ne sert que les projects pré-migration (`Project.moduleData.boutique`, dérive `exportFiles()` → `boutique/shop.yaml`).
-- **`/boutiqueadmin additem` (module, sur disque)** : `CapturedItemWriter` (repo Boutique) écrit dans la racine que le module possède — `items/<ci>.yml` verbatim + descripteur dans `.artisan/editor.yaml`, puis upsert de la row de `data/categories/` en **fichiers nus** (name = littéral, `lang/` intact). Sans Table déclarée, il refuse plutôt que d'inventer un format : un catalogue legacy est de toute façon converti au boot par `ShopDataMigrator`. Le backend n'intervient plus (ADR `server-disk-only-storage`).
+- **Data sources**: `boutique:categories` (`{id, name, icon}`) and `boutique:items` (`{id, name, icon, category, price, final_price, lore}`), registered via `ArtisanAPI.dataSources.register(...)` (§4.1). The catalog is read from the `data/categories/` Table (`_source.yaml` + one file per category, ltext keys resolved via `lang/<default_lang>.yaml`) via `ArtisanAPI.project` — no dedicated DB on the plugin side. *(legacy)* fallback: `boutique/shop.yaml` (schema `boutique/v1`) if the Table does not exist yet (pre-migration).
+- **Command**: `boutique:buy` (`argv[0]` = item id) registered in `CommandRegistry`, executed by `TransactionManager`. Consumed from menus via a `run_command` action (`"boutique:buy {item.id}"`) — the `run_command → CommandRegistry` bridge is the core's (Task 1, CHANGELOG `[Unreleased]`), not the authored `command/v1` dispatch described in §5.
+- **Bootstrap**: **deviation from §5** — there is no `api.bootstrap.unpack(...)`. The module itself writes `projects/boutique_shop/` (7 files: `manifest.yaml`, 2 menus with titles as `LText` keys, `confirm_purchase` dialog, `boutique` command, `lang/fr.yaml`, `boutique/shop.yaml`) atomically (`.boutique_shop.tmp` + rename), guarded by `api.project.hasContent("boutique")`. The legacy config.yml (`ShopManager`) is migrated once via raw snakeyaml, only if it pre-existed `saveDefaultConfig`. A single WARN log tells the admin to run `/artisan reload` (no delay/prompt — see the "no theater" philosophy). The written file IS the truth: there is nothing to push (ADR `server-disk-only-storage`).
+- **Editor**: `@artisan/boutique-editor`, presence-gated module mounted on `/m/boutique`. On a migrated project (`categories` Table linked to `boutique:category`), the screen redirects to the source's **generated form** (Sources tab, master-detail) — no more bespoke form. The ad-hoc *(legacy)* form only serves pre-migration projects (`Project.moduleData.boutique`, derives `exportFiles()` → `boutique/shop.yaml`).
+- **`/boutiqueadmin additem` (module, on disk)**: `CapturedItemWriter` (Boutique repo) writes into the root the module owns — `items/<ci>.yml` verbatim + descriptor in `.artisan/editor.yaml`, then upserts the `data/categories/` row as **bare files** (name = literal, `lang/` untouched). Without a declared Table, it refuses rather than invent a format: a legacy catalog is converted at boot anyway by `ShopDataMigrator`. The backend no longer intervenes (ADR `server-disk-only-storage`).
 
-Checklist de validation cross-stack manuelle (Docker) : `docs/archive/specs/2026-07-08-boutique-addon-validation.md`.
+Manual cross-stack validation checklist (Docker): `docs/archive/specs/2026-07-08-boutique-addon-validation.md`.
 
 ---
 
-**Cette architecture est l'étoile polaire d'Artisan.** Tu peux y revenir à chaque décision pour vérifier que ce que tu shipes va dans la bonne direction. Mais tu ne shipes pas tout d'un coup — tu shipes module par module, en respectant le pattern.
+**This architecture is Artisan's north star.** You can come back to it at each decision to check that what you ship goes in the right direction. But you don't ship everything at once — you ship module by module, respecting the pattern.

@@ -1,109 +1,109 @@
-# Canvas : modes d'interaction (toolbar) + guides d'alignement — Design
+# Canvas: interaction modes (toolbar) + alignment guides — Design
 
-> Spec brainstormée le 2026-06-14. Deux features de UX de la planche (canvas Konva) : (A) une toolbar bas-centre avec des modes d'interaction **Sélection / Main (pan)** façon Figma, et (B) des **guides d'alignement + snapping** au drag des nœuds. Indépendantes — shippables en phases. Source de vérité pour le plan.
+> Spec brainstormed on 2026-06-14. Two board (Konva canvas) UX features: (A) a bottom-center toolbar with Figma-style **Select / Hand (pan)** interaction modes, and (B) **alignment guides + snapping** when dragging nodes. Independent — shippable in phases. Source of truth for the plan.
 
-**Statut** — Spec validée en brainstorming, à transformer en plan.
-
----
-
-## 1. Contexte (modèle d'interaction actuel)
-
-- `Stage.tsx` : `<KonvaStage draggable>` → glisser sur le vide **pan** (drag natif Konva), synchronisé via `syncViewportFromStage` → `usePanZoom` (`viewport {x,y,scale}`). `onWheel` = zoom, pinch 2 doigts = zoom (`useStageTouch`).
-- Sélection : **clic seulement** (`onStageClick` : clic sur un nœud sélectionne ; clic sur le vide, garde `e.target === stage`, clear). **Pas de marquee** aujourd'hui. `selectionStore` : `set/add/toggle/clear`, `ids: Set`.
-- Nœuds (`MenuGroup` board / `CommandGroup` / `DialogGroup`) : `draggable`, `onDragStart`=moveToTop, `onDragEnd`→`setCanvasPosition(pack.canvasLayout)`. **Pas de `onDragMove`** sur les nœuds (point d'accroche libre pour B).
-- Géométrie des boîtes : `nodeBox(pack, id, layout)` → `{x,y,width,height}` (menu via `menuBoxSize(rows)`, `COMMAND_BOX`, `DIALOG_BOX`).
-- Layer overlay : `<Layer name="overlay">` (héberge `<Selection>` = Transformer `listening={false}`) → on y dessinera le marquee + les guides.
-- Clavier (`useCanvasKeyboard`) : Ctrl/⌘ Z/Y/C/V/D, Delete, Esc. **V / H / Espace libres** (aucun conflit).
-- Chrome DOM sur le canvas : `ArmedBanner` (top-3, z-20). Le wrapper `stage-bg-dots relative` → une toolbar bas-centre `z-20` ne conflicte pas.
+**Status** — Spec validated in brainstorming, to be turned into a plan.
 
 ---
 
-## A. Modes d'interaction + toolbar
+## 1. Context (current interaction model)
 
-### A.1 État
-- `uiStore.canvasMode: "select" | "hand"` + `setCanvasMode`. **Défaut `"select"`, persisté** (sticky entre sessions ; déjà un store `persist`).
-- État éphémère `spaceHeld` (local au Stage ou uiStore non-persisté) pour la main temporaire à l'espace.
+- `Stage.tsx`: `<KonvaStage draggable>` → dragging on empty space **pans** (native Konva drag), synced via `syncViewportFromStage` → `usePanZoom` (`viewport {x,y,scale}`). `onWheel` = zoom, 2-finger pinch = zoom (`useStageTouch`).
+- Selection: **click only** (`onStageClick`: click on a node selects; click on empty space, guard `e.target === stage`, clears). **No marquee** today. `selectionStore`: `set/add/toggle/clear`, `ids: Set`.
+- Nodes (`MenuGroup` board / `CommandGroup` / `DialogGroup`): `draggable`, `onDragStart`=moveToTop, `onDragEnd`→`setCanvasPosition(pack.canvasLayout)`. **No `onDragMove`** on the nodes (free hook-in point for B).
+- Box geometry: `nodeBox(pack, id, layout)` → `{x,y,width,height}` (menu via `menuBoxSize(rows)`, `COMMAND_BOX`, `DIALOG_BOX`).
+- Overlay layer: `<Layer name="overlay">` (hosts `<Selection>` = Transformer `listening={false}`) → we will draw the marquee + the guides there.
+- Keyboard (`useCanvasKeyboard`): Ctrl/⌘ Z/Y/C/V/D, Delete, Esc. **V / H / Space free** (no conflict).
+- DOM chrome on the canvas: `ArmedBanner` (top-3, z-20). The `stage-bg-dots relative` wrapper → a bottom-center `z-20` toolbar does not conflict.
 
-### A.2 Mode Main (`hand`)
-- Stage `draggable = (canvasMode === "hand") || spaceHeld`. Glisser = pan (comportement actuel). Curseur `grab`/`grabbing`.
-- Les clics ne sélectionnent pas (navigation pure) — `onStageClick` court-circuité en mode hand (sauf placement d'`armedMaterial`, conservé).
+---
 
-### A.3 Mode Sélection (`select`, défaut)
-- Stage **non** `draggable` → le drag sur le vide est disponible pour le **marquee**.
-- **Marquee (nouveau)** : pointerdown sur le vide (target === stage) → démarrer un rectangle ; pointermove → agrandir (dessiné sur le layer overlay, en coords monde via `screenToWorld`) ; pointerup → sélectionner tous les nœuds **on-board** dont la `nodeBox` **intersecte** le rectangle (intersection, pas inclusion totale). **Shift** = ajouter à la sélection existante ; sans Shift = remplacer. Clic simple (sans drag) sur le vide = clear (comportement actuel). Clic/drag sur un nœud = sélection/déplacement (inchangé).
-- Implémentation : hook `useMarqueeSelection({ stageRef, viewport, pack, layout })` (gère pointer down/move/up + hit-test rect∩box) + composant overlay `<MarqueeRect>` (lit l'état du rect). Le hit-test réutilise `nodeBox` pour chaque nœud présent dans `layout`.
+## A. Interaction modes + toolbar
+
+### A.1 State
+- `uiStore.canvasMode: "select" | "hand"` + `setCanvasMode`. **Default `"select"`, persisted** (sticky across sessions; already a `persist` store).
+- Ephemeral `spaceHeld` state (local to the Stage or non-persisted uiStore) for the temporary hand on space.
+
+### A.2 Hand mode (`hand`)
+- Stage `draggable = (canvasMode === "hand") || spaceHeld`. Drag = pan (current behavior). Cursor `grab`/`grabbing`.
+- Clicks do not select (pure navigation) — `onStageClick` short-circuited in hand mode (except `armedMaterial` placement, kept).
+
+### A.3 Select mode (`select`, default)
+- Stage **not** `draggable` → dragging on empty space is available for the **marquee**.
+- **Marquee (new)**: pointerdown on empty space (target === stage) → start a rectangle; pointermove → grow it (drawn on the overlay layer, in world coords via `screenToWorld`); pointerup → select all **on-board** nodes whose `nodeBox` **intersects** the rectangle (intersection, not full inclusion). **Shift** = add to the existing selection; without Shift = replace. Simple click (no drag) on empty space = clear (current behavior). Click/drag on a node = selection/move (unchanged).
+- Implementation: hook `useMarqueeSelection({ stageRef, viewport, pack, layout })` (handles pointer down/move/up + rect∩box hit-test) + overlay component `<MarqueeRect>` (reads the rect state). The hit-test reuses `nodeBox` for each node present in `layout`.
 
 ### A.4 Toolbar (DOM)
-- Overlay DOM bas-centre (`absolute bottom-4 left-1/2 -translate-x-1/2 z-20`), design-system : deux boutons **▣ Sélection** / **✋ Main** (icônes lucide, ex. `MousePointer2` / `Hand`), l'actif mis en avant (`--brand-soft`). Composant `CanvasToolbar.tsx`. i18n pour les labels/tooltips.
-- Tooltips affichent le hotkey (`V` / `H`).
+- Bottom-center DOM overlay (`absolute bottom-4 left-1/2 -translate-x-1/2 z-20`), design-system: two buttons **▣ Select** / **✋ Hand** (lucide icons, e.g. `MousePointer2` / `Hand`), the active one highlighted (`--brand-soft`). `CanvasToolbar.tsx` component. i18n for labels/tooltips.
+- Tooltips show the hotkey (`V` / `H`).
 
-### A.5 Clavier
-- **V** → mode select, **H** → mode hand (dans `useCanvasKeyboard`, ignorés si un input est focusé). **Espace maintenu** → `spaceHeld=true` (main temporaire) ; relâché → revient au mode courant. (keydown/keyup espace ; ignore si saisie en cours.)
+### A.5 Keyboard
+- **V** → select mode, **H** → hand mode (in `useCanvasKeyboard`, ignored if an input is focused). **Space held** → `spaceHeld=true` (temporary hand); released → returns to the current mode. (space keydown/keyup; ignored if typing is in progress.)
 
-### A.6 Tactile
-Inchangé : 1 doigt = pan (`usePanZoom`), tap = sélection, long-press = menu contextuel (`useStageTouch`), 2 doigts = pinch zoom. Les modes + marquee sont **pointeur/desktop**. (Pas de marquee tactile en V1.)
+### A.6 Touch
+Unchanged: 1 finger = pan (`usePanZoom`), tap = selection, long-press = context menu (`useStageTouch`), 2 fingers = pinch zoom. The modes + marquee are **pointer/desktop**. (No touch marquee in V1.)
 
 ---
 
-## B. Guides d'alignement + snapping
+## B. Alignment guides + snapping
 
-### B.1 Déclenchement
-Ajouter `onDragMove` aux nœuds board (`MenuGroup` non-solo, `CommandGroup`, `DialogGroup`) → un hook partagé `useNodeAlignment` appelle la fonction pure `alignmentGuides(dragged, others, threshold)`.
+### B.1 Trigger
+Add `onDragMove` to the board nodes (`MenuGroup` non-solo, `CommandGroup`, `DialogGroup`) → a shared `useNodeAlignment` hook calls the pure function `alignmentGuides(dragged, others, threshold)`.
 
-### B.2 Fonction pure `alignmentGuides.ts`
+### B.2 Pure function `alignmentGuides.ts`
 ```ts
 interface Box { x: number; y: number; width: number; height: number; }
-interface Guide { axis: "x" | "y"; pos: number; from: number; to: number; } // ligne à dessiner
+interface Guide { axis: "x" | "y"; pos: number; from: number; to: number; } // line to draw
 interface AlignResult { snapX?: number; snapY?: number; guides: Guide[]; }
 export function alignmentGuides(dragged: Box, others: Box[], threshold: number): AlignResult;
 ```
-- Références comparées : **left / centerX / right** du nœud déplacé vs left/centerX/right de chaque autre → alignement vertical (même colonne) → candidate `snapX` + guide `axis:"x"`. **top / centerY / bottom** vs ceux des autres → alignement horizontal (même ligne) → candidate `snapY` + guide `axis:"y"`.
-- On retient le meilleur candidat par axe dans le `threshold` (≈ `6 / viewport.scale` px monde). `snapX/snapY` = la coordonnée (x ou y du coin haut-gauche) ajustée pour réaliser l'alignement. `guides` = lignes pleine-étendue couvrant le nœud déplacé + le(s) nœud(s) alignés (from/to = min/max des extrémités concernées).
+- References compared: **left / centerX / right** of the dragged node vs left/centerX/right of each other → vertical alignment (same column) → candidate `snapX` + guide `axis:"x"`. **top / centerY / bottom** vs those of the others → horizontal alignment (same row) → candidate `snapY` + guide `axis:"y"`.
+- We keep the best candidate per axis within the `threshold` (≈ `6 / viewport.scale` world px). `snapX/snapY` = the coordinate (x or y of the top-left corner) adjusted to achieve the alignment. `guides` = full-extent lines covering the dragged node + the aligned node(s) (from/to = min/max of the relevant extremities).
 
 ### B.3 Application (drag)
-- Pendant le drag : le hook calcule `alignmentGuides`, **repositionne le nœud Konva** (`node.x(snapX)`, `node.y(snapY)`) quand un snap existe, et publie les `guides` actifs dans un état léger (store `useAlignmentStore` ou état Stage) lu par `<AlignmentGuides>` (overlay, lignes brand `listening={false}`).
-- **Alt maintenu** → `alignmentGuides` court-circuité (déplacement libre, pas de snap ni guide).
-- À `dragEnd` : persister la position finale (snappée) via `setCanvasPosition` existant ; vider les guides.
+- During the drag: the hook computes `alignmentGuides`, **repositions the Konva node** (`node.x(snapX)`, `node.y(snapY)`) when a snap exists, and publishes the active `guides` into a light state (`useAlignmentStore` store or Stage state) read by `<AlignmentGuides>` (overlay, brand lines `listening={false}`).
+- **Alt held** → `alignmentGuides` short-circuited (free move, no snap or guide).
+- On `dragEnd`: persist the final (snapped) position via the existing `setCanvasPosition`; clear the guides.
 
-### B.4 Données comparées
-`others` = `nodeBox` de tous les nœuds on-board **sauf** celui déplacé. Le `dragged` box = position live du nœud (`node.x()/y()` pendant le drag) + dims `nodeBox`.
-
----
-
-## Fichiers (haut niveau)
-
-**Créés (éditeur)**
-- `editor/src/features/canvas/CanvasToolbar.tsx` — toolbar DOM bas-centre (boutons modes).
-- `editor/src/features/canvas/useMarqueeSelection.ts` + `MarqueeRect.tsx` — rubber-band en mode select.
-- `editor/src/features/canvas/alignmentGuides.ts` (pur) + `useNodeAlignment.ts` + `AlignmentGuides.tsx` (overlay).
-- (option) `editor/src/state/alignmentStore.ts` — guides actifs (ou état local Stage).
-
-**Modifiés**
-- `editor/src/state/uiStore.ts` — `canvasMode` (persisté) + setter ; (éphémère) `spaceHeld` si mis dans le store.
-- `editor/src/features/canvas/Stage.tsx` — `draggable` gaté sur le mode ; curseur par mode ; brancher `useMarqueeSelection` + `<MarqueeRect>` + `<AlignmentGuides>` dans le layer overlay ; monter `<CanvasToolbar>` dans le wrapper ; court-circuiter `onStageClick` en hand.
-- `MenuGroup.tsx` (board) / `CommandGroup.tsx` / `DialogGroup.tsx` — ajouter `onDragMove` → `useNodeAlignment`.
-- `editor/src/features/canvas/useCanvasKeyboard.ts` — hotkeys V / H / Espace.
-- `editor/src/locales/en.ts` + `fr.ts` — labels toolbar (`canvas.modeSelect`, `canvas.modeHand`…).
+### B.4 Compared data
+`others` = `nodeBox` of all on-board nodes **except** the dragged one. The `dragged` box = live position of the node (`node.x()/y()` during the drag) + `nodeBox` dims.
 
 ---
 
-## Phasage
-- **Phase A1** : `canvasMode` + toolbar + stage draggable gaté + curseur + hotkeys V/H/Espace + hand court-circuite les clics. (Pas encore de marquee — le mode select se comporte comme aujourd'hui mais sans pan-au-drag-vide.)
-- **Phase A2** : marquee (`useMarqueeSelection` + `MarqueeRect`) en mode select.
-- **Phase B** : guides d'alignement + snap (indépendant ; peut précéder ou suivre A).
+## Files (high level)
+
+**Created (editor)**
+- `editor/src/features/canvas/CanvasToolbar.tsx` — bottom-center DOM toolbar (mode buttons).
+- `editor/src/features/canvas/useMarqueeSelection.ts` + `MarqueeRect.tsx` — rubber-band in select mode.
+- `editor/src/features/canvas/alignmentGuides.ts` (pure) + `useNodeAlignment.ts` + `AlignmentGuides.tsx` (overlay).
+- (option) `editor/src/state/alignmentStore.ts` — active guides (or local Stage state).
+
+**Modified**
+- `editor/src/state/uiStore.ts` — `canvasMode` (persisted) + setter; (ephemeral) `spaceHeld` if put in the store.
+- `editor/src/features/canvas/Stage.tsx` — `draggable` gated on the mode; cursor per mode; wire `useMarqueeSelection` + `<MarqueeRect>` + `<AlignmentGuides>` in the overlay layer; mount `<CanvasToolbar>` in the wrapper; short-circuit `onStageClick` in hand mode.
+- `MenuGroup.tsx` (board) / `CommandGroup.tsx` / `DialogGroup.tsx` — add `onDragMove` → `useNodeAlignment`.
+- `editor/src/features/canvas/useCanvasKeyboard.ts` — V / H / Space hotkeys.
+- `editor/src/locales/en.ts` + `fr.ts` — toolbar labels (`canvas.modeSelect`, `canvas.modeHand`…).
+
+---
+
+## Phasing
+- **Phase A1**: `canvasMode` + toolbar + gated draggable stage + cursor + V/H/Space hotkeys + hand short-circuits clicks. (No marquee yet — select mode behaves as today but without pan-on-empty-drag.)
+- **Phase A2**: marquee (`useMarqueeSelection` + `MarqueeRect`) in select mode.
+- **Phase B**: alignment guides + snap (independent; can precede or follow A).
 
 ---
 
 ## Tests
-- `alignmentGuides` (pur) : boîtes alignées L/centerX/R/T/centerY/B → guides + snapX/snapY corrects ; rien hors threshold ; Alt = pas de calcul (testé au niveau hook).
-- `useMarqueeSelection` / hit-test : rect ∩ boxes → bons ids ; Shift = additif ; clic sans drag = clear.
-- Modes : `setCanvasMode` ; Stage `draggable` reflète le mode (+ spaceHeld) ; hand court-circuite la sélection au clic.
-- `CanvasToolbar` : rend les 2 modes, l'actif marqué ; clic change le mode ; hotkeys V/H.
-- Non-régression : pan/zoom/pinch, clic-sélection, drag node + `setCanvasPosition` inchangés en mode select.
+- `alignmentGuides` (pure): boxes aligned L/centerX/R/T/centerY/B → correct guides + snapX/snapY; nothing outside the threshold; Alt = no computation (tested at the hook level).
+- `useMarqueeSelection` / hit-test: rect ∩ boxes → right ids; Shift = additive; click without drag = clear.
+- Modes: `setCanvasMode`; Stage `draggable` reflects the mode (+ spaceHeld); hand short-circuits selection on click.
+- `CanvasToolbar`: renders the 2 modes, the active one marked; click changes the mode; V/H hotkeys.
+- Non-regression: pan/zoom/pinch, click-selection, node drag + `setCanvasPosition` unchanged in select mode.
 
 ## Non-goals (V1)
-- Guides de **distribution / espacement égal** (multi-sélection equidistante) — V2.
-- Snap-to-grid global, règles/rulers.
-- Outils rotate/scale.
-- Marquee tactile.
-- Mode « placement/création » dédié (création reste via clic-droit / panneau).
+- **Distribution / equal spacing** guides (equidistant multi-selection) — V2.
+- Global snap-to-grid, rulers.
+- Rotate/scale tools.
+- Touch marquee.
+- Dedicated "placement/creation" mode (creation stays via right-click / panel).

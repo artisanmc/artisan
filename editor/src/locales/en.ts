@@ -1,4 +1,5 @@
 import { actionCatalogEn } from "./actionCatalog";
+import { aiEn } from "./ai";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
 import { mcpEn } from "./mcp";
@@ -193,23 +194,13 @@ export default {
     statMissing: "{{count}} missing",
     statComplete: "complete",
     removeUnused: "Remove {{count}} unused",
-    removeUnusedHint: "Delete translation keys no longer referenced anywhere in this project",
+    removeUnusedHint:
+      "Delete the keys of deleted menus, commands, dialogs and data sources. Keys read by a module's code (lang/ only) stay.",
     removedUnused_one: "Removed {{count}} unused translation key",
     removedUnused_other: "Removed {{count}} unused translation keys",
     onDefaultWarning:
       "You're editing the default language ({{lang}}). Switch to another language from the language menu to translate; this view shows source values directly.",
     addLanguage: "Add a language",
-    fileShape: "On disk",
-    fileShapeInline: "Plain text",
-    fileShapeExtract: "Keys",
-    fileShapeInlineHint:
-      "Menu files carry the {{lang}} text as written; other languages live in lang/ and no lang/{{lang}}.yml is written.",
-    fileShapeExtractHint:
-      "Menu files carry {i18n:key} references; every language, {{lang}} included, lives in lang/.",
-    fileShapeConfirmInline:
-      "Rewrite every menu, command and dialog file with the {{lang}} text in plain, and drop lang/{{lang}}.yml? Translations are kept — only the file shape changes, and you can switch back.",
-    fileShapeConfirmExtract:
-      "Rewrite every menu, command and dialog file with {i18n:key} references instead of plain text? Translations are kept — only the file shape changes.",
     modeVisual: "Visual",
     modeYaml: "YAML",
     filterMissing: "Missing",
@@ -1537,6 +1528,7 @@ export default {
     emptyContext: "No variable available in this context",
   },
   mcp: mcpEn,
+  ai: aiEn,
   editorAddress: {
     title: "Editor address",
     help: "Give the editor's tunnel address a name. The current address keeps working.",

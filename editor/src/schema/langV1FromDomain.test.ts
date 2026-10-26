@@ -34,10 +34,10 @@ const langOf = (files: Record<string, string>, lang: string) =>
 /**
  * Presentation keys (`artisan.duration.*`) belong to the **project**, not to any
  * document site — so unlike a menu title they have nowhere to be inlined, and the
- * lang file is their only home in every i18n mode (ADR `expression-parity` §8).
+ * lang file is their only home (ADR `expression-parity` §8).
  */
 describe("presentation keys in lang files", () => {
-  it("are written out in extract mode with their defaults", () => {
+  it("are written out with their defaults", () => {
     const files = projectToFiles(makeProject());
 
     const lang = langOf(files, "en");
@@ -47,16 +47,8 @@ describe("presentation keys in lang files", () => {
     expect(lang[DURATION_KEYS.seconds]).toBe("{n}s");
   });
 
-  /** The point of writing them out: an admin opening lang/ discovers they exist. */
-  it("survive inline mode, where the default lang file would otherwise not exist", () => {
-    const files = projectToFiles(makeProject({ i18nMode: "inline" }));
-
-    expect(files[`${BASE}/lang/en.yml`]).toBeDefined();
-    expect(langOf(files, "en")[DURATION_KEYS.hours]).toBe("{n}h");
-  });
-
-  it("carry nothing else in inline mode — site-addressed text stays in its document", () => {
-    const files = projectToFiles(makeProject({ i18nMode: "inline" }));
+  it("carry nothing else — site-addressed text stays in its document", () => {
+    const files = projectToFiles(makeProject());
 
     expect(Object.keys(langOf(files, "en")).sort()).toEqual(Object.values(DURATION_KEYS).sort());
   });

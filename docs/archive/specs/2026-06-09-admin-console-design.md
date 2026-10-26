@@ -1,130 +1,130 @@
-# Console super-admin plateforme — config IA (v1), onglets extensibles
+# Platform super-admin console — AI config (v1), extensible tabs
 
-**Statut :** design approuvé, prêt pour le plan d'implémentation
-**Auteur :** brainstorm 2026-06-09
-**Déclencheur :** la config IA (`ASSISTANT_*`) vit en env vars ; besoin d'un espace admin pour l'éditer (et, plus tard, gérer users/logs).
-**Code lié :** `backend/src/db/schema.ts` (users, nouvelle table `app_settings`), `backend/src/middleware/userAuth.ts`, `backend/src/modules/assistant/provider/config.ts` (chargement config), `editor/src/routes/` (route `/admin`).
+**Status:** design approved, ready for the implementation plan
+**Author:** brainstorm 2026-06-09
+**Trigger:** the AI config (`ASSISTANT_*`) lives in env vars; we need an admin space to edit it (and, later, manage users/logs).
+**Related code:** `backend/src/db/schema.ts` (users, new `app_settings` table), `backend/src/middleware/userAuth.ts`, `backend/src/modules/assistant/provider/config.ts` (config loading), `editor/src/routes/` (`/admin` route).
 
-## Contexte
+## Context
 
-- **Auth** : table `users` (login email/Discord) → `AuthUser {id,email,…}` via cookie `artisan_user_session` + middleware `userAuth`. Le rôle `memberships.role` est **au niveau network** (owner/member), **pas** un admin plateforme. → **aucun super-admin aujourd'hui.**
-- **Config IA** : env vars `ASSISTANT_PROVIDER`/`ASSISTANT_BASE_URL`/`ASSISTANT_API_KEY`/`ASSISTANT_MODEL`, lues par `resolveProviderConfig(env)`. Le provider est **global plateforme** (l'admin fournit la clé/crédits) — pas par network.
-- **Audit** : `serverKeyHelloes` (hellos plugin, par serveur) — base d'un futur onglet « logs ».
+- **Auth**: `users` table (email/Discord login) → `AuthUser {id,email,…}` via the `artisan_user_session` cookie + `userAuth` middleware. The `memberships.role` role is **network-level** (owner/member), **not** a platform admin. → **no super-admin today.**
+- **AI config**: env vars `ASSISTANT_PROVIDER`/`ASSISTANT_BASE_URL`/`ASSISTANT_API_KEY`/`ASSISTANT_MODEL`, read by `resolveProviderConfig(env)`. The provider is **platform-global** (the admin supplies the key/credits) — not per network.
+- **Audit**: `serverKeyHelloes` (plugin hellos, per server) — basis of a future "logs" tab.
 
-Ce spec couvre une **console super-admin plateforme** : v1 = un onglet **config IA** ; la structure d'onglets est prête pour `users`/`logs` plus tard (hors v1).
+This spec covers a **platform super-admin console**: v1 = one **AI config** tab; the tab structure is ready for `users`/`logs` later (out of v1).
 
-## Décisions du brainstorm
+## Brainstorm decisions
 
-| Question | Choix |
+| Question | Choice |
 |---|---|
-| Modèle d'accès | **`users.isAdmin` (DB)** + amorçage par env `ADMIN_BOOTSTRAP_EMAILS` (au login). |
-| Stockage config IA | **Une seule table générique `app_settings` (key/value JSON)**. Clé API **chiffrée at-rest** (AES-256-GCM, `CONFIG_ENC_KEY`). Env `ASSISTANT_*` = défaut bootstrap (DB override). |
-| Scope v1 | Shell admin + **onglet IA seulement**. `users`/`logs` = hors-scope, structure prête. |
+| Access model | **`users.isAdmin` (DB)** + bootstrap via env `ADMIN_BOOTSTRAP_EMAILS` (at login). |
+| AI config storage | **A single generic `app_settings` table (key/value JSON)**. API key **encrypted at-rest** (AES-256-GCM, `CONFIG_ENC_KEY`). Env `ASSISTANT_*` = bootstrap default (DB overrides). |
+| v1 scope | Admin shell + **AI tab only**. `users`/`logs` = out of scope, structure ready. |
 
 ## Goals
 
-- Un **espace `/admin`** (éditeur) gardé super-admin, à **onglets extensibles**.
-- Configurer le provider IA (**provider / baseURL / model / clé**) depuis l'UI, sans toucher les env ni redéployer.
-- **Clé jamais exposée** (chiffrée at-rest, jamais renvoyée au client, jamais loggée).
-- Le moteur IA lit la config **DB d'abord, env en fallback**.
+- A **`/admin` space** (editor) guarded by super-admin, with **extensible tabs**.
+- Configure the AI provider (**provider / baseURL / model / key**) from the UI, without touching env or redeploying.
+- **Key never exposed** (encrypted at-rest, never sent back to the client, never logged).
+- The AI engine reads the config **DB first, env as fallback**.
 
 ## Non-goals (v1)
 
-- Onglets **users** (gestion comptes / promotion admin) et **logs** (audit) — structure prête, non construits.
-- RBAC fine / multi-rôles admin (un seul booléen `isAdmin`).
-- Secret manager externe (chiffrement at-rest en DB suffit en v1).
-- Rotation automatique de `CONFIG_ENC_KEY`.
+- **users** tabs (account management / admin promotion) and **logs** (audit) — structure ready, not built.
+- Fine-grained RBAC / multi admin roles (a single `isAdmin` boolean).
+- External secret manager (at-rest encryption in DB is enough in v1).
+- Automatic rotation of `CONFIG_ENC_KEY`.
 
 ## Architecture
 
-### 1. Contrôle d'accès
+### 1. Access control
 
-- **Migration** : colonne `users.isAdmin` (boolean, default false). Générée via `bun run db:generate`, committée.
-- **Amorçage** : au login (route auth), si l'email de l'utilisateur ∈ `ADMIN_BOOTSTRAP_EMAILS` (env, CSV) et `isAdmin` est false → le passer true. Garantit qu'un premier admin existe sans intervention DB manuelle.
-- **Middleware `requireAdmin`** (`backend/src/middleware/`) : applique `userAuth`, puis 403 si `!user?.isAdmin`. Garde tout `/api/v1/admin/*`.
-- **Exposition UI** : `/api/v1/auth/me` (route existante ou ajoutée) renvoie `isAdmin` dans le profil. L'éditeur affiche l'entrée admin **uniquement si** `isAdmin`, et la route `/admin` redirige sinon.
+- **Migration**: `users.isAdmin` column (boolean, default false). Generated via `bun run db:generate`, committed.
+- **Bootstrap**: at login (auth route), if the user's email ∈ `ADMIN_BOOTSTRAP_EMAILS` (env, CSV) and `isAdmin` is false → set it to true. Guarantees a first admin exists without manual DB intervention.
+- **`requireAdmin` middleware** (`backend/src/middleware/`): applies `userAuth`, then 403 if `!user?.isAdmin`. Guards all of `/api/v1/admin/*`.
+- **UI exposure**: `/api/v1/auth/me` (existing or added route) returns `isAdmin` in the profile. The editor shows the admin entry **only if** `isAdmin`, and the `/admin` route redirects otherwise.
 
-### 2. Persistance — table `app_settings` générique
+### 2. Persistence — generic `app_settings` table
 
-- **Table** : `app_settings (key text PK, value text NOT NULL, updatedAt timestamp, updatedBy text → users.id)`. `value` = JSON stringifié (cohérent avec le pattern `filesJson` du repo).
-- **Config IA** : une ligne `key = "assistant"`, `value` = JSON `{ provider, baseUrl, model, apiKeyEncrypted }`. `apiKeyEncrypted` = ciphertext base64 (la clé n'est jamais stockée en clair).
-- **Extensibilité** : un futur réglage global = une nouvelle `key` (pas de migration).
+- **Table**: `app_settings (key text PK, value text NOT NULL, updatedAt timestamp, updatedBy text → users.id)`. `value` = stringified JSON (consistent with the repo's `filesJson` pattern).
+- **AI config**: one row `key = "assistant"`, `value` = JSON `{ provider, baseUrl, model, apiKeyEncrypted }`. `apiKeyEncrypted` = base64 ciphertext (the key is never stored in clear).
+- **Extensibility**: a future global setting = a new `key` (no migration).
 
-### 3. Chiffrement des secrets
+### 3. Secret encryption
 
-- `backend/src/lib/secretBox.ts` : `encryptSecret(plain): string` / `decryptSecret(cipher): string` en **AES-256-GCM** avec `CONFIG_ENC_KEY` (env, 32 bytes hex). Format `iv:tag:ciphertext` base64.
-- Si `CONFIG_ENC_KEY` absent : la **config DB est désactivée** (lecture/écriture de la clé impossible) → le moteur retombe sur les env. (Log WARN au boot.)
+- `backend/src/lib/secretBox.ts`: `encryptSecret(plain): string` / `decryptSecret(cipher): string` in **AES-256-GCM** with `CONFIG_ENC_KEY` (env, 32 bytes hex). Format `iv:tag:ciphertext` base64.
+- If `CONFIG_ENC_KEY` is absent: the **DB config is disabled** (reading/writing the key is impossible) → the engine falls back to env. (WARN log at boot.)
 
-### 4. Chargement de la config par le moteur (DB → env)
+### 4. Config loading by the engine (DB → env)
 
-- Nouveau `loadAssistantProviderConfig(): Promise<ProviderConfig | null>` (dans `provider/config.ts` ou `provider/dbConfig.ts`) :
-  1. lit `app_settings["assistant"]` ; si présent + `CONFIG_ENC_KEY` set → `{ baseURL, model, apiKey: decryptSecret(apiKeyEncrypted) }` (baseURL résolu via preset si `provider` sans baseURL explicite).
-  2. sinon → `resolveProviderConfig(process.env)` (le resolver env sync existant, **inchangé**).
-- Les routes assistant (2d, `resolve()`) appellent ce loader **async** (elles sont déjà async). `resolveProviderConfig(env)` reste tel quel (réutilisé en fallback + tests).
+- New `loadAssistantProviderConfig(): Promise<ProviderConfig | null>` (in `provider/config.ts` or `provider/dbConfig.ts`):
+  1. reads `app_settings["assistant"]`; if present + `CONFIG_ENC_KEY` set → `{ baseURL, model, apiKey: decryptSecret(apiKeyEncrypted) }` (baseURL resolved via preset if `provider` has no explicit baseURL).
+  2. otherwise → `resolveProviderConfig(process.env)` (the existing sync env resolver, **unchanged**).
+- The assistant routes (2d, `resolve()`) call this **async** loader (they are already async). `resolveProviderConfig(env)` stays as is (reused as fallback + in tests).
 
-### 5. Endpoints admin (`/api/v1/admin/*`, `requireAdmin`)
+### 5. Admin endpoints (`/api/v1/admin/*`, `requireAdmin`)
 
-| Méthode | Route | Effet |
+| Method | Route | Effect |
 |---|---|---|
-| `GET` | `/api/v1/admin/assistant-config` | `{ provider, baseUrl, model, keySet: boolean }` — **jamais la clé**. |
-| `PUT` | `/api/v1/admin/assistant-config` | upsert `app_settings["assistant"]` ; si `apiKey` fourni (non vide) → chiffre + stocke ; si vide/absent → garde l'existant. `updatedBy = user.id`. |
-| `POST` | `/api/v1/admin/assistant-config/test` | mini-appel via `OpenAICompatibleProvider` (config courante ou celle du body) → `{ ok, error? }`. |
+| `GET` | `/api/v1/admin/assistant-config` | `{ provider, baseUrl, model, keySet: boolean }` — **never the key**. |
+| `PUT` | `/api/v1/admin/assistant-config` | upsert `app_settings["assistant"]`; if `apiKey` supplied (non-empty) → encrypt + store; if empty/absent → keep the existing one. `updatedBy = user.id`. |
+| `POST` | `/api/v1/admin/assistant-config/test` | mini-call via `OpenAICompatibleProvider` (current config or the body's) → `{ ok, error? }`. |
 
-`/api/v1/auth/me` étendu avec `isAdmin`.
+`/api/v1/auth/me` extended with `isAdmin`.
 
-### 6. UI admin (`editor/`)
+### 6. Admin UI (`editor/`)
 
-- Route **`/admin`** (TanStack Router) = **shell à onglets** : v1 = un onglet **« IA »** ; ajouter un onglet = une entrée + une route enfant (`/admin/users`, `/admin/logs`). Gardée : redirige vers `/networks` si `!isAdmin`.
-- **Onglet IA** : `<select>` provider (presets openai/deepseek/mistral/openrouter/local), inputs baseURL (optionnel) + model, champ clé **write-only** (placeholder « •••• définie » si `keySet`, vide = inchangé), bouton **« Tester la connexion »** (appelle `/test`), bouton Enregistrer (PUT). Toasts succès/erreur. Toutes strings i18n (en+fr, même commit).
-- **Entrée vers `/admin`** : lien dans le menu compte/topbar, visible si `isAdmin`.
+- **`/admin`** route (TanStack Router) = **tabbed shell**: v1 = one **"AI"** tab; adding a tab = one entry + one child route (`/admin/users`, `/admin/logs`). Guarded: redirects to `/networks` if `!isAdmin`.
+- **AI tab**: provider `<select>` (presets openai/deepseek/mistral/openrouter/local), baseURL (optional) + model inputs, **write-only** key field (placeholder "•••• set" if `keySet`, empty = unchanged), **"Test connection"** button (calls `/test`), Save button (PUT). Success/error toasts. All strings i18n (en+fr, same commit).
+- **Entry to `/admin`**: link in the account menu/topbar, visible if `isAdmin`.
 
-## Sécurité
+## Security
 
-- `requireAdmin` sur **tout** `/api/v1/admin/*`.
-- Clé : chiffrée at-rest ; **jamais** renvoyée par `GET` ; jamais loggée (ni dans les erreurs `/test`).
-- `CONFIG_ENC_KEY` requis pour la config DB des secrets ; absent → fallback env + WARN.
-- `isAdmin` non auto-accordé hors `ADMIN_BOOTSTRAP_EMAILS`.
+- `requireAdmin` on **all** of `/api/v1/admin/*`.
+- Key: encrypted at-rest; **never** returned by `GET`; never logged (not even in `/test` errors).
+- `CONFIG_ENC_KEY` required for the DB config of secrets; absent → env fallback + WARN.
+- `isAdmin` not auto-granted outside `ADMIN_BOOTSTRAP_EMAILS`.
 
-## Gestion d'erreurs
+## Error handling
 
-| Cas | Comportement |
+| Case | Behavior |
 |---|---|
-| Non-admin sur `/api/v1/admin/*` | 403. |
-| `/admin` UI sans `isAdmin` | redirect `/networks`. |
-| `CONFIG_ENC_KEY` absent au `PUT` clé | 503 « chiffrement non configuré » ; provider/model éditables quand même. |
-| `/test` échoue (provider) | `{ ok:false, error }` (message provider sans secret). |
-| Config DB absente | moteur = fallback env (assistant désactivé si ni DB ni env). |
+| Non-admin on `/api/v1/admin/*` | 403. |
+| `/admin` UI without `isAdmin` | redirect `/networks`. |
+| `CONFIG_ENC_KEY` absent on key `PUT` | 503 "encryption not configured"; provider/model still editable. |
+| `/test` fails (provider) | `{ ok:false, error }` (provider message without secret). |
+| DB config absent | engine = env fallback (assistant disabled if neither DB nor env). |
 
-## Variables d'environnement (backend)
+## Environment variables (backend)
 
-| Variable | Défaut | Usage |
+| Variable | Default | Usage |
 |---|---|---|
-| `ADMIN_BOOTSTRAP_EMAILS` | (vide) | CSV d'emails promus `isAdmin` au login. |
-| `CONFIG_ENC_KEY` | (vide) | Clé hex 32 bytes pour chiffrer les secrets en DB. Vide → config DB des secrets désactivée (fallback env). |
-| (`ASSISTANT_*` existants) | — | Défaut bootstrap, override par la config DB. |
+| `ADMIN_BOOTSTRAP_EMAILS` | (empty) | CSV of emails promoted `isAdmin` at login. |
+| `CONFIG_ENC_KEY` | (empty) | 32-byte hex key to encrypt secrets in DB. Empty → DB config of secrets disabled (env fallback). |
+| (existing `ASSISTANT_*`) | — | Bootstrap default, overridden by the DB config. |
 
 ## Tests
 
-| Couche | Couverture |
+| Layer | Coverage |
 |---|---|
-| `secretBox` | encrypt→decrypt round-trip ; ciphertext ≠ plain ; déchiffrement échoue sur clé absente/altérée. |
-| `requireAdmin` | 403 anonyme / 403 user non-admin / pass si `isAdmin`. |
-| Bootstrap login | email ∈ `ADMIN_BOOTSTRAP_EMAILS` → `isAdmin` true ; hors liste → inchangé. |
-| `loadAssistantProviderConfig` | DB présent → DB (clé déchiffrée) ; DB absent → env ; `CONFIG_ENC_KEY` absent → env. |
-| Routes config | `GET` masque la clé (`keySet`) ; `PUT` chiffre + upsert + ne pas écraser la clé si vide ; `/test` ok/erreur. |
-| UI | form admin (testing-library) : charge `keySet`, masque la clé, PUT sur Enregistrer, bouton tester ; route `/admin` redirige si non-admin. |
+| `secretBox` | encrypt→decrypt round-trip; ciphertext ≠ plain; decryption fails on missing/tampered key. |
+| `requireAdmin` | 403 anonymous / 403 non-admin user / pass if `isAdmin`. |
+| Login bootstrap | email ∈ `ADMIN_BOOTSTRAP_EMAILS` → `isAdmin` true; not in the list → unchanged. |
+| `loadAssistantProviderConfig` | DB present → DB (key decrypted); DB absent → env; `CONFIG_ENC_KEY` absent → env. |
+| Config routes | `GET` masks the key (`keySet`); `PUT` encrypts + upserts + does not overwrite the key if empty; `/test` ok/error. |
+| UI | admin form (testing-library): loads `keySet`, masks the key, PUT on Save, test button; `/admin` route redirects if non-admin. |
 
-## Docs à mettre à jour
+## Docs to update
 
-- `docs/architecture/entities.md` : table `app_settings` + `users.isAdmin` + migration.
-- `docs/architecture/rest-endpoints.md` : `/api/v1/admin/*`.
-- `.env.example` + `CLAUDE.md` : `ADMIN_BOOTSTRAP_EMAILS`, `CONFIG_ENC_KEY`.
-- `docs-site/.../admin/console.md` (doc admin, créer).
+- `docs/architecture/entities.md`: `app_settings` table + `users.isAdmin` + migration.
+- `docs/architecture/rest-endpoints.md`: `/api/v1/admin/*`.
+- `.env.example` + `CLAUDE.md`: `ADMIN_BOOTSTRAP_EMAILS`, `CONFIG_ENC_KEY`.
+- `docs-site/.../admin/console.md` (admin doc, to create).
 - `CHANGELOG.md` `[Unreleased]`.
 
-## Découpage / suite
+## Breakdown / next
 
-- **Plan 1** : accès (`users.isAdmin` + bootstrap + `requireAdmin` + `auth/me`) + `secretBox` + table `app_settings`. *(socle, testable seul)*
-- **Plan 2** : config IA backend (`loadAssistantProviderConfig` DB→env + endpoints GET/PUT/test + branchement du moteur).
-- **Plan 3** : UI `/admin` (shell onglets + onglet IA + i18n + entrée gardée).
-- **Suite (hors v1)** : onglet **users** (lister/promouvoir, lien vers crédits du sous-plan IA 3), onglet **logs** (audit `serverKeyHelloes` + actions admin), RBAC.
+- **Plan 1**: access (`users.isAdmin` + bootstrap + `requireAdmin` + `auth/me`) + `secretBox` + `app_settings` table. *(foundation, testable on its own)*
+- **Plan 2**: backend AI config (`loadAssistantProviderConfig` DB→env + GET/PUT/test endpoints + wiring the engine).
+- **Plan 3**: `/admin` UI (tabbed shell + AI tab + i18n + guarded entry).
+- **Next (out of v1)**: **users** tab (list/promote, link to the credits of AI sub-plan 3), **logs** tab (`serverKeyHelloes` audit + admin actions), RBAC.
