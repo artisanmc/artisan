@@ -3,7 +3,7 @@ import { RESERVED } from "./protocol";
 export interface Env {
   TUNNELS: DurableObjectNamespace<import("./tunnel").TunnelObject>;
   NAMES: DurableObjectNamespace<import("./names").NamesObject>;
-  /** `name:<name>` → id, `loc:<id>` → {@link Location}: read at the edge on every browser request. */
+  /** `name:<name>` → id, `loc:<id>` → {@link Location} (an address that moved): read at the edge on every browser request. */
   KV: KVNamespace;
   TUNNEL_DOMAIN: string;
   /** Appended to every label: `-test` serves `<id>-test.<domain>`, a trial beside production. */

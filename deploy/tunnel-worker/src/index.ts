@@ -71,6 +71,7 @@ async function acceptTunnel(request: Request, env: Env, cfg: Config): Promise<Re
     headers.set(`${INTERNAL}id`, id);
     headers.set(`${INTERNAL}address`, request.headers.get("CF-Connecting-IP") ?? "");
     headers.set(`${INTERNAL}member`, request.headers.get(MEMBER_HEADER) ?? "");
+    headers.set(`${INTERNAL}continent`, location.continent);
     return await tunnelStub(env, id, location.gen).fetch(new Request(request, { headers }));
   } catch (e) {
     // Out of quota, or Durable Objects down: the plugin connects to the Kotlin tunnel server instead.
@@ -93,31 +94,44 @@ function refuse(reason: string): Response {
  * Which object holds [id]: created where its first plugin connected. Servers that moved to another
  * continent get a new one there, once none of them holds the old one (servers of one network may sit
  * on several continents: the address stays where it is while any of them is connected).
+ *
+ * KV holds `loc:<id>` only for an address that moved, a rare event: no `loc:<id>` means generation 0,
+ * whose object keeps its own continent. A KV write per new address would spend the free plan's
+ * 1,000 writes a day on test runs that open a fresh address per test.
  */
 async function locate(env: Env, id: string, continent: string): Promise<Location> {
   const key = `loc:${id}`;
-  let location = await env.KV.get<Location>(key, "json");
-  if (location === null) {
-    location = { gen: 0, continent };
-    await env.KV.put(key, JSON.stringify(location));
-  } else if (location.continent !== continent) {
-    const held = await tunnelStub(env, id, location.gen).connected().catch(() => 0);
+  const stored = await env.KV.get<Location>(key, "json");
+  let location: Location;
+  if (stored === null) {
+    const home = await tunnelStub(env, id, 0).home();
+    location = { gen: 0, continent: home.continent ?? continent };
+    if (home.connected > 0) return location;
+  } else {
+    location = stored;
+  }
+  if (location.continent !== continent) {
+    const held = stored === null ? 0 : await tunnelStub(env, id, location.gen).connected().catch(() => 0);
     if (held === 0) {
       console.log(`Tunnel ${id} moves from ${location.continent} to ${continent}`);
       location = { gen: location.gen + 1, continent };
       await env.KV.put(key, JSON.stringify(location));
+      cache.set(key, { value: JSON.stringify(location), until: Date.now() + CACHE_MS });
     }
   }
-  cache.set(key, { value: JSON.stringify(location), until: Date.now() + CACHE_MS });
   return location;
+}
+
+/** `loc:<id>` read at the edge; none: generation 0, the address never moved. */
+async function generation(env: Env, id: string): Promise<number> {
+  const raw = await cachedGet(env, `loc:${id}`);
+  return raw ? (JSON.parse(raw) as Location).gen : 0;
 }
 
 async function browser(request: Request, env: Env, ctx: ExecutionContext, host: string, label: string): Promise<Response> {
   const id = looksLikeId(label) ? label : await cachedGet(env, `name:${label}`);
-  const raw = id ? await cachedGet(env, `loc:${id}`) : null;
-  // Never connected here: no object is created for it, a browser does not pick where an address lives.
-  if (!id || !raw || (absent.get(id) ?? 0) > Date.now()) return fallback(request, env, host, "offline");
-  const location = JSON.parse(raw) as Location;
+  if (!id || (absent.get(id) ?? 0) > Date.now()) return fallback(request, env, host, "offline");
+  const gen = await generation(env, id);
   const length = Number(request.headers.get("Content-Length") ?? "0");
   const replay = env.TUNNEL_FALLBACK === "origin" && request.body && length <= REPLAYABLE ? request.clone() : null;
   const headers = new Headers();
@@ -126,7 +140,7 @@ async function browser(request: Request, env: Env, ctx: ExecutionContext, host: 
   headers.set(`${INTERNAL}host`, host);
   let response: Response;
   try {
-    response = await tunnelStub(env, id, location.gen).fetch(new Request(request, { headers }));
+    response = await tunnelStub(env, id, gen).fetch(new Request(request, { headers }));
   } catch (e) {
     console.error(`Tunnel ${id}: ${e}`);
     return fallback(replay ?? request, env, host, "offline");
@@ -181,10 +195,7 @@ async function admin(request: Request, env: Env, url: URL): Promise<Response> {
     const ban = ["1", "true"].includes(url.searchParams.get("ban") ?? "");
     const id = await names.revoke(name, ban);
     cache.delete(`name:${name}`);
-    if (id) {
-      const raw = await env.KV.get(`loc:${id}`);
-      if (raw) await tunnelStub(env, id, (JSON.parse(raw) as Location).gen).hello().catch(() => {});
-    }
+    if (id) await tunnelStub(env, id, await generation(env, id)).hello().catch(() => {});
     return jsonResponse({ name, id, banned: ban });
   }
   if (request.method === "DELETE" && parts.length === 2 && parts[0] === "bans") {
