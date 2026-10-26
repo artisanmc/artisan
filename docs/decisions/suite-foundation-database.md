@@ -1,107 +1,98 @@
-# Artisan prête la base de données à la suite — `environment.yml`, un pool par plugin
+# Artisan lends the database to the suite — `environment.yml`, one pool per plugin
 
-**Status :** accepted (2026-10-11). *Révisé le 2026-10-13 par
-[server-identity-and-versions](server-identity-and-versions.md) : un réseau de plusieurs
-serveurs exige MySQL ou MariaDB (refus au démarrage en H2), Artisan crée ses propres tables
-(`artisan_servers`, Versions, brouillons) avec ses migrations.*
+**Status:** accepted (2026-10-11). *Revised on 2026-10-13 by
+[server-identity-and-versions](server-identity-and-versions.md): a network of several
+servers requires MySQL or MariaDB (refusal at startup on H2), Artisan creates its own tables
+(`artisan_servers`, Versions, drafts) with its migrations.*
 
-## Contexte
+## Context
 
-Artisan devient le socle d'une suite de plugins distribuables séparément (Quests,
-Guilds, Lands, Boosts, Warps…), chacun en `depend: [Artisan]`. Aujourd'hui ces
-plugins tiennent leur base de données d'un autre plugin d'infrastructure (MSCore :
-un pool statique de 5 connexions, driver MySQL en dur, identifiants dans sa config)
-ou de leur propre code (MSQuests : HikariCP + H2/MySQL embarqués). Artisan n'a aucun
-lien avec cet autre plugin : il ne le remplace pas en place, il coexiste avec lui,
-et chaque plugin de la suite passe de l'un à l'autre quand il est prêt.
+Artisan becomes the foundation of a suite of separately distributable plugins (Quests,
+Guilds, Lands, Boosts, Warps…), each with `depend: [Artisan]`. Today these plugins get their
+database from another infrastructure plugin (MSCore: a static pool of 5 connections, hard-coded
+MySQL driver, credentials in its config) or from their own code (MSQuests: embedded HikariCP +
+H2/MySQL). Artisan has no link with that other plugin: it does not replace it in place, it
+coexists with it, and each plugin of the suite moves from one to the other when it is ready.
 
-Deux questions : où vivent les identifiants, et comment une connexion arrive au
-plugin.
+Two questions: where do the credentials live, and how does a connection reach the plugin.
 
-## Décisions
+## Decisions
 
-1. **`environment.yml` remplace `connection.yml`.** Il dit où et qui est ce serveur :
-   le lien backend (`server_key`, `ws_url`, inchangés) et la section `database`.
-   Lu par le plugin Artisan uniquement : jamais rapporté dans `hello`, jamais écrit
-   par l'éditeur (le critère de l'ADR `server-config-from-editor` s'applique
-   tel quel à des identifiants de base), jamais copié d'un serveur à l'autre.
-   *Migration* : au démarrage, un `connection.yml` existant est repris dans
-   `environment.yml` puis supprimé ; les clés d'un `config.yml` pré-split le sont
-   aussi. Un `environment.yml` existant n'est jamais réécrit.
-2. **`${NOM}` dans une valeur** est remplacé par la variable d'environnement NOM
-   (Docker, Pterodactyl), pour ne pas écrire un mot de passe sur le disque. Une
-   variable absente donne une chaîne vide et un avertissement.
-3. **Un pool HikariCP par plugin**, ouvert au premier `api.database.dataSource(plugin)`
-   et fermé à la désactivation de ce plugin. Un plugin qui fuit des connexions
-   n'affame jamais les autres. Taille commune `database.pool-size` (4 par défaut)
-   dans `environment.yml`, avec le reste de la section `database` (révision
-   2026-10-15 : elle était dans `config.yml` pour être modifiable depuis l'éditeur,
-   mais elle ne s'applique qu'au redémarrage et coupait la section en deux fichiers ;
-   une valeur restée dans `config.yml` est encore lue tant qu'`environment.yml` n'en
-   donne pas).
-4. **Seul `javax.sql.DataSource` traverse l'API.** Pas de HikariCP, de JDBI ni de
-   driver dans `modules.api` : aucun conflit de classloader possible. Chaque plugin
-   garde sa couche d'accès et **ses propres migrations** (aucune API de migration
-   imposée : les plugins existants en ont déjà une).
-5. **Dialectes** : `h2` (défaut, aucune installation), `mysql`, `mariadb`.
-   `DatabaseDialect` est un enum Java, comme `FieldKind`. **Une seule base pour
-   toute la suite**, quel que soit le dialecte : chaque plugin préfixe ses tables.
-   En H2, un seul fichier `plugins/Artisan/database/suite` (révision 2026-10-11 :
-   d'abord un fichier par plugin). Raison : les plugins référenceront des tables
-   d'Artisan par clé étrangère (table des serveurs, pour qu'un renommage de
-   serveur soit un seul `UPDATE`), et une clé étrangère ne traverse pas deux
-   fichiers H2. Tous les pools vivent dans la JVM d'Artisan, ce que le mode
-   embarqué de H2 permet.
-6. **HikariCP et les drivers ne sont pas embarqués** : `libraries:` du `plugin.yml`,
-   téléchargés par Paper au démarrage dans le classloader d'Artisan. Le jar reste
-   léger et rien n'est relocalisé. Contrepartie : le premier démarrage a besoin de
-   Maven Central (~7 Mo), y compris sur un serveur qui n'utilise aucun plugin de
-   la suite.
-7. **API `@Beta`** (`ArtisanAPI.database`, depuis 1.7.0) : le réseau (messagerie,
-   présence, téléportation) suivra dans la même facade, avec `server_name` et
-   `redis` dans `environment.yml`.
+1. **`environment.yml` replaces `connection.yml`.** It says where and who this server is:
+   the backend link (`server_key`, `ws_url`, unchanged) and the `database` section.
+   Read by the Artisan plugin only: never reported in `hello`, never written by the editor
+   (the criterion of the ADR `server-config-from-editor` applies as is to database
+   credentials), never copied from one server to another.
+   *Migration*: at startup, an existing `connection.yml` is taken into `environment.yml` then
+   deleted; the keys of a pre-split `config.yml` are too. An existing `environment.yml` is
+   never rewritten.
+2. **`${NAME}` in a value** is replaced by the environment variable NAME (Docker,
+   Pterodactyl), so as not to write a password to disk. A missing variable gives an empty
+   string and a warning.
+3. **One HikariCP pool per plugin**, opened at the first `api.database.dataSource(plugin)`
+   and closed when that plugin is disabled. A plugin that leaks connections never starves the
+   others. Common size `database.pool-size` (4 by default) in `environment.yml`, with the rest
+   of the `database` section (revision 2026-10-15: it was in `config.yml` to be editable from
+   the editor, but it only applies at restart and split the section across two files; a value
+   left in `config.yml` is still read as long as `environment.yml` does not give one).
+4. **Only `javax.sql.DataSource` crosses the API.** No HikariCP, JDBI or driver in
+   `modules.api`: no classloader conflict possible. Each plugin keeps its access layer and
+   **its own migrations** (no migration API imposed: existing plugins already have one).
+5. **Dialects**: `h2` (default, no installation), `mysql`, `mariadb`. `DatabaseDialect` is a
+   Java enum, like `FieldKind`. **A single database for the whole suite**, whatever the
+   dialect: each plugin prefixes its tables. With H2, a single file
+   `plugins/Artisan/database/suite` (revision 2026-10-11: first one file per plugin). Reason:
+   plugins will reference Artisan tables by foreign key (servers table, so that renaming a
+   server is a single `UPDATE`), and a foreign key does not cross two H2 files. All the pools
+   live in Artisan's JVM, which H2's embedded mode allows.
+6. **HikariCP and the drivers are not embedded**: `libraries:` of `plugin.yml`, downloaded by
+   Paper at startup into Artisan's classloader. The jar stays light and nothing is relocated.
+   Trade-off: the first startup needs Maven Central (~7 MB), including on a server that uses
+   no plugin of the suite.
+7. **`@Beta` API** (`ArtisanAPI.database`, since 1.7.0): the network (messaging, presence,
+   teleportation) will follow in the same facade, with `server_name` and `redis` in
+   `environment.yml`.
 
-### Amendement 2026-10-18 — un plugin ouvre son pool lui-même (ADR `runtime-library`) — **retiré**
+### Amendment 2026-10-18 — a plugin opens its pool itself (ADR `runtime-library`) — **withdrawn**
 
-*Retiré le jour même, avec ③ ④ ⑤ de `runtime-library` (voir son amendement) : les plugins de la
-suite gardent Artisan requis et `api.database`. Le texte reste pour l'historique.*
+*Withdrawn the same day, with ③ ④ ⑤ of `runtime-library` (see its amendment): the suite's
+plugins keep Artisan required and `api.database`. The text stays for history.*
 
-Les points 3, 5 et 6 supposaient le plugin Artisan présent : les pools vivaient dans sa JVM,
-derrière `api.database`. Un plugin de la suite doit démarrer sans lui, donc :
+Points 3, 5 and 6 assumed the Artisan plugin present: the pools lived in its JVM, behind
+`api.database`. A suite plugin must start without it, therefore:
 
-- **Chaque plugin ouvre son pool par sa copie du runtime** (`ModuleDatabase`, module
-  `runtime`), avec HikariCP et le driver dans son propre `plugin.yml` (`libraries:`, comme
-  Artisan). `api.database` reste disponible, `@Beta`, mais n'est plus la voie de la suite.
-- **Les identifiants restent en un seul endroit.** Au démarrage du plugin : si
-  `plugins/Artisan/environment.yml` existe, sa section `database` est lue (jamais écrite) ;
-  sinon le plugin écrit une section `database` par défaut (H2) dans sa propre `config.yml` et
-  l'utilise. `database.own: true` dans la config du plugin garde sa section quoi qu'il y ait
-  chez Artisan. Le log dit laquelle des deux est lue. Rien n'est créé sous `plugins/Artisan/`.
-  L'ordre tient : le plugin déclare Artisan en `softdepend`, Artisan a écrit son fichier avant.
-- **En H2, un fichier par plugin**, sous son dossier : deux copies de H2 dans deux
-  classloaders n'ouvrent pas le même fichier. Le fichier unique restait la règle pour les clés
-  étrangères vers `artisan_servers` ; la révision `server-identity-and-versions` exige déjà
-  MySQL ou MariaDB pour un réseau, et c'est là qu'elles comptent. Une seule base en MySQL et
-  MariaDB, chaque plugin préfixant ses tables, comme avant.
+- **Each plugin opens its pool through its copy of the runtime** (`ModuleDatabase`, `runtime`
+  module), with HikariCP and the driver in its own `plugin.yml` (`libraries:`, like Artisan).
+  `api.database` remains available, `@Beta`, but is no longer the suite's way.
+- **Credentials stay in one place.** At the plugin's startup: if
+  `plugins/Artisan/environment.yml` exists, its `database` section is read (never written);
+  otherwise the plugin writes a default `database` section (H2) in its own `config.yml` and
+  uses it. `database.own: true` in the plugin's config keeps its section whatever Artisan has.
+  The log says which of the two is read. Nothing is created under `plugins/Artisan/`. The order
+  holds: the plugin declares Artisan as `softdepend`, Artisan wrote its file before.
+- **With H2, one file per plugin**, under its folder: two copies of H2 in two classloaders do
+  not open the same file. The single file remained the rule for foreign keys towards
+  `artisan_servers`; the `server-identity-and-versions` revision already requires MySQL or
+  MariaDB for a network, and that is where they matter. A single database on MySQL and
+  MariaDB, each plugin prefixing its tables, as before.
 
-### Amendement 2026-10-19 — préfixe de tables configurable
+### Amendment 2026-10-19 — configurable table prefix
 
-`database.table-prefix` (`environment.yml`, `artisan_` par défaut) précède toutes les tables de la
-suite : celles d'Artisan (`{prefix}servers`, noms inchangés par défaut) et celles des plugins, nommées
-`DatabaseApi.tablePrefix(module) + nom` = `{prefix}{module}_{nom}` (API 2.9.0). Le préfixe ne sert
-qu'à loger deux installations distinctes dans une même base ; les collisions entre plugins sont
-évitées par le segment `module` (un mot, refusé s'il est un premier segment des tables d'Artisan).
-Le préfixe utilisé est noté dans `plugins/Artisan/database/table-prefix` : changé sous une base qui
-contient encore les tables de l'ancien, `dataSource()` est refusé à tous les plugins plutôt que de
-repartir sur des tables vides. Un réseau partage un préfixe : une feuille sur un autre préfixe lit un
-autre `{prefix}meta`, donc un autre id de base, et le hub la refuse déjà. Le préfixe est global et
-non par module (un seul endroit à vérifier ; un renommage par module n'apporte rien de plus que le
-préfixe global et ajoute des collisions possibles).
+`database.table-prefix` (`environment.yml`, `artisan_` by default) precedes all the suite's
+tables: Artisan's (`{prefix}servers`, names unchanged by default) and the plugins', named
+`DatabaseApi.tablePrefix(module) + name` = `{prefix}{module}_{name}` (API 2.9.0). The prefix only
+serves to house two distinct installations in the same database; collisions between plugins are
+avoided by the `module` segment (one word, refused if it is a first segment of Artisan's tables).
+The prefix used is noted in `plugins/Artisan/database/table-prefix`: changed under a database
+that still contains the old one's tables, `dataSource()` is refused to all plugins rather than
+starting over on empty tables. A network shares a prefix: a leaf on another prefix reads another
+`{prefix}meta`, hence another database id, and the hub already refuses it. The prefix is global
+and not per module (a single place to check; a per-module rename brings nothing more than the
+global prefix and adds possible collisions).
 
-*Rejeté :* un fichier H2 par plugin (isole les plugins, mais interdit toute
-clé étrangère vers une table d'Artisan et diverge de MySQL) ; un pool partagé
-(une fuite dans un plugin bloque toute la suite) ;
-garder le nom `connection.yml` (le fichier ne contient plus seulement la connexion
-au backend) ; drivers shadés et relocalisés (~7 Mo de plus dans chaque jar
-d'Artisan pour un usage optionnel) ; une API de migration commune (les plugins à
-migrer ont déjà la leur, la remplacer ajoute un risque sans rien apporter).
+*Rejected:* one H2 file per plugin (isolates plugins, but forbids any foreign key towards an
+Artisan table and diverges from MySQL); a shared pool (a leak in one plugin blocks the whole
+suite); keeping the name `connection.yml` (the file no longer only contains the backend
+connection); shaded and relocated drivers (~7 MB more in each Artisan jar for optional use); a
+common migration API (the plugins to migrate already have their own, replacing it adds risk and
+brings nothing).

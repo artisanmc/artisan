@@ -1,7 +1,7 @@
 {
   "schema": "trigger/v1",
   "on": "player_join",
-  "notes": "Remplace le message de connexion vanilla, traduit : chaque joueur le lit dans sa langue.",
+  "notes": "Replaces the vanilla join message, translated: each player reads it in their own language.",
   "do": [
     {
       "if": [

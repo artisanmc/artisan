@@ -23,7 +23,7 @@ services:
       - ./docker/server:/data
     ports:
       - "25565:25565"
-      # Éditeur servi par le plugin (web.port).
+      # Editor served by the plugin (web.port).
       - "8765:8765"
     environment:
       EULA: "TRUE"

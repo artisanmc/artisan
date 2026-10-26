@@ -6,7 +6,7 @@
   ],
   "permission": "artisan.cmd.heal",
   "description": "Restaure votre vie et votre faim.",
-  "notes": "Commande sans menu — exécution directe d'actions.",
+  "notes": "Command without a menu — direct action execution.",
   "cooldown": {
     "id": "heal_cmd",
     "duration_seconds": 30,

@@ -1,43 +1,43 @@
 # Artisan — Translations schema v1
 
-Format des traductions d'un project Artisan. Une **clé** = un texte traduisible scoped au project, référencée depuis les menus et commandes via la syntaxe inline `{i18n:<key>}`.
+Format of the translations of an Artisan project. A **key** = a translatable text scoped to the project, referenced from menus and commands via the inline syntax `{i18n:<key>}`.
 
-## Vocabulaire
+## Vocabulary
 
-| Terme | Sens |
+| Term | Meaning |
 |---|---|
-| **Clé i18n** | Identifiant slug hiérarchique (`menu.shop_main.btn_buy.title`). Stable, unique au sein du project. |
-| **Translation** | Valeur d'une clé pour une langue donnée. Format **MiniMessage** (cf. plus bas). |
-| **default_lang** | Langue de référence du project. Toute clé doit l'avoir. Fallback ultime si une autre langue manque. |
-| **Project scope** | Les clés vivent au niveau project de l'admin, pas par menu. Pas de partage entre admins. |
+| **i18n key** | Hierarchical slug identifier (`menu.shop_main.btn_buy.title`). Stable, unique within the project. |
+| **Translation** | Value of a key for a given language. **MiniMessage** format (see below). |
+| **default_lang** | Reference language of the project. Every key must have it. Ultimate fallback if another language is missing. |
+| **Project scope** | Keys live at the admin's project level, not per menu. No sharing between admins. |
 
-## Fichiers
+## Files
 
-| Fichier | Rôle |
+| File | Role |
 |---|---|
-| `schema.json` | JSON Schema Draft 2020-12, source de vérité validable par machine |
-| `types.ts` | Types TypeScript + helpers (validateTranslations, extractI18nRefs, generateAutoKey, ...) |
-| `examples/minimal.json` | Project 2 langues (fr, en) avec 5 clés. |
-| `examples/full-project.json` | Project 4 langues avec menu shop + commandes traduits. |
+| `schema.json` | JSON Schema Draft 2020-12, machine-validatable source of truth |
+| `types.ts` | TypeScript types + helpers (validateTranslations, extractI18nRefs, generateAutoKey, ...) |
+| `examples/minimal.json` | 2-language project (fr, en) with 5 keys. |
+| `examples/full-project.json` | 4-language project with a translated shop menu + commands. |
 
-## Format de contenu : MiniMessage
+## Content format: MiniMessage
 
-Toutes les valeurs de traduction sont en **MiniMessage** (format texte de Adventure / Paper) :
+All translation values are in **MiniMessage** (Adventure / Paper text format):
 
 ```
 <gold><bold>Boutique</bold></gold>
 <gray>Achète ce <green>diamant</green> pour <yellow>%vault_eco_balance%</yellow> pièces</gray>
 ```
 
-Ressources :
-- Documentation officielle : https://docs.advntr.dev/minimessage/format.html
-- Tester : https://webui.advntr.dev/
+Resources:
+- Official documentation: https://docs.advntr.dev/minimessage/format.html
+- Try it: https://webui.advntr.dev/
 
-Les **codes legacy** (`§a`, `&a`) sont **acceptés en input** pour l'admin qui colle un texte d'un autre plugin, mais sont **convertis en MiniMessage au save** (canonicalisation backend, opt-out possible dans les settings project).
+**Legacy codes** (`§a`, `&a`) are **accepted as input** for the admin who pastes a text from another plugin, but are **converted to MiniMessage on save** (backend canonicalization, opt-out possible in the project settings).
 
-## Référence depuis menus / commandes
+## Referencing from menus / commands
 
-Tout champ texte d'un menu (`title`, `lore[]`, `send_message.text`, `broadcast.text`, `cooldown.message`, etc.) ou d'une commande (`description`, `cooldown.message`, etc.) peut contenir des références `{i18n:key}` mélangées librement avec du texte statique, des codes MiniMessage, et des placeholders PAPI.
+Any text field of a menu (`title`, `lore[]`, `send_message.text`, `broadcast.text`, `cooldown.message`, etc.) or of a command (`description`, `cooldown.message`, etc.) can contain `{i18n:key}` references freely mixed with static text, MiniMessage codes, and PAPI placeholders.
 
 ```json
 {
@@ -49,12 +49,12 @@ Tout champ texte d'un menu (`title`, `lore[]`, `send_message.text`, `broadcast.t
 }
 ```
 
-### Mode `inline` : le littéral EST la référence (depuis 2026-08-03)
+### `inline` mode: the literal IS the reference (since 2026-08-03)
 
-Un projet peut aussi s'écrire sans aucune référence : le champ porte le **texte littéral de la langue par défaut**, et les autres langues vivent dans `lang/<code>.yaml` à l'**adresse canonique** du champ — l'adresse que le plugin redérive de la structure du fichier (`menus.shop.elements.buy.default.title`, `commands.give.message`, `dialogs.confirm.buttons.ok.label`…). Il n'y a alors pas de fichier pour la langue par défaut : le document la porte déjà.
+A project can also be written without any reference: the field carries the **literal text of the default language**, and the other languages live in `lang/<code>.yaml` at the field's **canonical address** — the address the plugin re-derives from the file structure (`menus.shop.elements.buy.default.title`, `commands.give.message`, `dialogs.confirm.buttons.ok.label`…). There is then no file for the default language: the document already carries it.
 
 ```yaml
-# menus/shop.yaml (mode inline)          # lang/fr.yaml
+# menus/shop.yaml (inline mode)          # lang/fr.yaml
 title: Shop                              menus:
 elements:                                  shop:
   - id: buy                                  title: Boutique
@@ -65,38 +65,38 @@ elements:                                  shop:
                                                    click: { left: { message: Acheté ! } }
 ```
 
-Les deux formes se lisent indifféremment, y compris mélangées dans un même fichier. Ces deux formes sont historiques : depuis l'ADR `field-local-translations` (2026-09-30), l'éditeur écrit les langues au champ, et le mode `i18n_mode` de `.artisan/editor.yaml` n'existe plus (2026-10-26). Le schéma d'adressage est verrouillé cross-langage par `testdata/i18n-address-conformance.json`. Cf. ADR `files-first-source-of-truth` §4.
+Both forms are read interchangeably, including mixed within a single file. Both forms are historical: since ADR `field-local-translations` (2026-09-30), the editor writes languages at the field, and the `i18n_mode` of `.artisan/editor.yaml` no longer exists (2026-10-26). The addressing scheme is locked cross-language by `testdata/i18n-address-conformance.json`. See ADR `files-first-source-of-truth` §4.
 
-## Ordre de résolution à l'exécution
+## Resolution order at runtime
 
-Côté plugin Minecraft, quand un menu s'ouvre ou qu'une commande s'exécute, chaque champ texte est résolu dans cet ordre :
+On the Minecraft plugin side, when a menu opens or a command runs, each text field is resolved in this order:
 
-1. **i18n** : `{i18n:key}` → valeur stockée pour la langue active du joueur. À défaut de référence explicite, le **littéral est cherché à l'adresse canonique** de son champ (mode `inline`) ; s'il n'y a rien, il vaut tel qu'écrit. Fallback `default_lang` si manquante. Fallback texte vide + log warning si manquante en default aussi.
-2. **PlaceholderAPI** : `%player_name%`, `%vault_eco_balance%`, `%args_target%`, etc. → résolus via PAPI avec le contexte joueur courant.
-3. **MiniMessage parse** : tags `<color>`, `<bold>`, `<gradient>`, etc. → Component Adventure final envoyé au client.
+1. **i18n**: `{i18n:key}` → value stored for the player's active language. Without an explicit reference, the **literal is looked up at the canonical address** of its field (`inline` mode); if there is nothing, it is taken as written. Fallback to `default_lang` if missing. Fallback to empty text + warning log if also missing in default.
+2. **PlaceholderAPI**: `%player_name%`, `%vault_eco_balance%`, `%args_target%`, etc. → resolved via PAPI with the current player context.
+3. **MiniMessage parse**: tags `<color>`, `<bold>`, `<gradient>`, etc. → final Adventure Component sent to the client.
 
-Conséquence : une **traduction peut elle-même contenir** des placeholders et des tags MiniMessage. Très flexible.
+Consequence: a **translation can itself contain** placeholders and MiniMessage tags. Very flexible.
 
 ```
-Clé "menu.shop.welcome" en FR : "<green>Bienvenue, %player_name% !</green>"
-                       en EN : "<green>Welcome, %player_name%!</green>"
+Key "menu.shop.welcome" in FR: "<green>Bienvenue, %player_name% !</green>"
+                       in EN: "<green>Welcome, %player_name%!</green>"
 ```
 
-## Détermination de la langue active du joueur
+## Determining the player's active language
 
-Trois modes configurables côté plugin (`config.yml`) :
+Three modes configurable on the plugin side (`config.yml`):
 
-| Mode | Comportement |
+| Mode | Behavior |
 |---|---|
-| `server_default` | Tout le serveur parle une langue unique (la default_lang du project, ou override config). |
-| `per_player_locale` *(recommandé)* | Langue dérivée de `Player#locale()` (locale Minecraft client). Mappée vers la langue project la plus proche, fallback default. |
-| `per_player_placeholder` | Langue dérivée d'un placeholder PAPI custom (ex: `%player_lang%` si l'admin a déjà une commande `/lang` via un autre plugin). |
+| `server_default` | The whole server speaks a single language (the project's default_lang, or config override). |
+| `per_player_locale` *(recommended)* | Language derived from `Player#locale()` (Minecraft client locale). Mapped to the closest project language, fallback default. |
+| `per_player_placeholder` | Language derived from a custom PAPI placeholder (e.g. `%player_lang%` if the admin already has a `/lang` command via another plugin). |
 
-Le plugin charge toutes les traductions en mémoire au sync (les fichiers `i18n/<lang>.json` du bundle runtime).
+The plugin loads all translations into memory at sync (the `i18n/<lang>.json` files of the runtime bundle).
 
-## Format des fichiers générés (côté bundle)
+## Generated file format (bundle side)
 
-À chaque sync, le bundle runtime téléchargé par le plugin contient un sous-dossier `i18n/` :
+On each sync, the runtime bundle downloaded by the plugin contains an `i18n/` subfolder:
 
 ```
 bundle.zip
@@ -104,12 +104,12 @@ bundle.zip
 ├── commands/
 ├── assets/
 └── i18n/
-    ├── fr.json         ← langue par langue, format plat
+    ├── fr.json         ← language by language, flat format
     ├── en.json
     └── de.json
 ```
 
-Format de chaque fichier (lookup O(1) côté plugin) :
+Format of each file (O(1) lookup on the plugin side):
 
 ```json
 {
@@ -119,61 +119,61 @@ Format de chaque fichier (lookup O(1) côté plugin) :
 }
 ```
 
-Notes :
-- On n'utilise **pas** le système `translatable_key` vanilla Minecraft (qui passerait par les `lang/<locale>.json` du resource pack côté client). Notre approche serveur-side est plus flexible : on choisit la langue, on compose avec PAPI, on log les clés manquantes.
-- Le bundle inclut **toutes** les clés du project, même celles non référencées par les menus actifs sur ce serveur. Coût de stockage négligeable, simplicité de génération.
+Notes:
+- We do **not** use vanilla Minecraft's `translatable_key` system (which would go through the resource pack's `lang/<locale>.json` on the client side). Our server-side approach is more flexible: we choose the language, compose with PAPI, log missing keys.
+- The bundle includes **all** the project's keys, even those not referenced by the menus active on this server. Negligible storage cost, simple generation.
 
-## UX éditeur
+## Editor UX
 
-Sur tout champ texte du dashboard (titre menu, lore d'un Element, send_message text, command description, etc.) :
+On any text field of the dashboard (menu title, Element lore, send_message text, command description, etc.):
 
-1. **Tape librement** : pas besoin d'utiliser i18n si tu ne veux pas. Le texte direct fonctionne (rendu littéral pour tous les joueurs).
-2. **Insère une clé** : touche `{` déclenche l'autocomplete fuzzy sur les clés du project. Sélection → insertion `{i18n:key}` au curseur. Bouton `</>` à droite ouvre une popover avec recherche + bouton "+ Nouvelle clé".
-3. **Crée une nouvelle clé inline** : "+ Nouvelle clé" extrait automatiquement le texte en cours dans le champ comme valeur par défaut (langue de référence), pré-remplit la clé avec un slug auto-généré basé sur le contexte (`menu.<menu_id>.<element_id>.title`), et permet d'éditer la clé (avec validation d'unicité live).
-4. **Édite une traduction existante** : click sur la clé surlignée dans le champ → mini-modal avec les valeurs par langue et un live preview MiniMessage à côté.
-5. **Détache une clé** : remplace `{i18n:key}` par la valeur courante en clair. La clé reste dans le project pour les autres usages.
+1. **Type freely**: no need to use i18n if you don't want to. Direct text works (rendered literally for all players).
+2. **Insert a key**: the `{` key triggers a fuzzy autocomplete on the project's keys. Selecting inserts `{i18n:key}` at the cursor. The `</>` button on the right opens a popover with search + a "+ New key" button.
+3. **Create a new key inline**: "+ New key" automatically extracts the text currently in the field as the default value (reference language), pre-fills the key with an auto-generated slug based on context (`menu.<menu_id>.<element_id>.title`), and lets you edit the key (with live uniqueness validation).
+4. **Edit an existing translation**: click on the highlighted key in the field → mini-modal with the values per language and a live MiniMessage preview alongside.
+5. **Detach a key**: replaces `{i18n:key}` with the current value in plain text. The key stays in the project for other usages.
 
-## Auto-extract du texte existant
+## Auto-extract of existing text
 
-Workflow le plus naturel : tu tapes "Boutique" dans le champ titre, tu cliques "+ Nouvelle clé", l'éditeur :
+Most natural workflow: you type "Boutique" in the title field, you click "+ New key", the editor:
 
-1. Crée la clé `menu.shop_main.title` avec valeur FR = `"Boutique"`.
-2. Remplace le contenu du champ par `{i18n:menu.shop_main.title}`.
-3. Ouvre le mini-modal pour ajouter d'autres langues (optionnel).
+1. Creates the key `menu.shop_main.title` with FR value = `"Boutique"`.
+2. Replaces the field content with `{i18n:menu.shop_main.title}`.
+3. Opens the mini-modal to add other languages (optional).
 
-Aucune manipulation manuelle du fichier translations.
+No manual manipulation of the translations file.
 
-## Conflits à l'import de pack `.itfz`
+## Conflicts on `.itfz` pack import
 
-Quand un pack importé contient un fichier `translations.json`, l'import merge dans le project cible :
+When an imported pack contains a `translations.json` file, the import merges into the target project:
 
-- **Clé absente** localement → ajoutée.
-- **Clé présente, valeurs identiques** dans toutes les langues → ignorée (no-op).
-- **Clé présente, valeur différente dans au moins une langue** → conflit. L'admin choisit dans un dialog :
-  1. *Garder local* : l'import skippe cette clé. Les menus importés référencent la valeur locale (peut être surprenant si elle est sémantiquement différente).
-  2. *Écraser avec l'import* : la valeur locale est remplacée. Toutes les références existantes hors du pack importé voient le nouveau texte.
-  3. *Renommer la clé importée* : auto-prefix avec le `pack.id` (`questx.menu.shop_main.title`). Les menus du pack sont rewrités à l'import pour pointer vers la nouvelle clé.
+- **Key absent** locally → added.
+- **Key present, identical values** in all languages → ignored (no-op).
+- **Key present, different value in at least one language** → conflict. The admin chooses in a dialog:
+  1. *Keep local*: the import skips this key. Imported menus reference the local value (may be surprising if it is semantically different).
+  2. *Overwrite with the import*: the local value is replaced. All existing references outside the imported pack see the new text.
+  3. *Rename the imported key*: auto-prefix with the `pack.id` (`questx.menu.shop_main.title`). The pack's menus are rewritten on import to point to the new key.
 
-L'option par défaut est **renommer** — la moins destructive.
+The default option is **rename** — the least destructive.
 
 ## Validation
 
-Au save dans le project, le backend vérifie via `validateTranslations` :
+On save in the project, the backend checks via `validateTranslations`:
 
-- `default_lang` est dans `languages[]`.
-- Chaque clé a au minimum la `default_lang`.
-- Les codes de langue respectent BCP-47-light (`fr`, `en_US`, etc.).
-- Les clés respectent le slug hiérarchique (`^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$`).
-- Aucune valeur n'est vide (warning, pas erreur).
+- `default_lang` is in `languages[]`.
+- Each key has at least the `default_lang`.
+- Language codes follow BCP-47-light (`fr`, `en_US`, etc.).
+- Keys follow the hierarchical slug (`^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$`).
+- No value is empty (warning, not error).
 
-Limitations connues (non-exprimables en JSON Schema mais à check au load/build) :
+Known limitations (not expressible in JSON Schema but to be checked at load/build):
 
-- Les clés référencées par les menus/commandes du project doivent toutes exister dans `keys`. Sinon warning éditeur ("Clé `menu.foo.title` référencée par btn_buy mais non définie").
-- Les références circulaires (clé A pointe vers clé B qui pointe vers clé A) doivent être détectées. Limite de profondeur de résolution = 10 par sécurité.
+- Keys referenced by the project's menus/commands must all exist in `keys`. Otherwise editor warning ("Key `menu.foo.title` referenced by btn_buy but not defined").
+- Circular references (key A points to key B which points to key A) must be detected. Resolution depth limit = 10 for safety.
 
-## Comment l'utiliser
+## How to use it
 
-### Côté éditeur (TypeScript)
+### Editor side (TypeScript)
 
 ```ts
 import type { Translations, TranslationKey } from "./schema/translations/v1/types";
@@ -188,11 +188,11 @@ import {
 import schema from "./schema/translations/v1/schema.json";
 ```
 
-### Côté plugin (Java)
+### Plugin side (Java)
 
-Codegen des types depuis `schema.json` (jsonschema2pojo) ou parsing manuel léger (le format est plat). Au sync, le plugin parse chaque `i18n/<lang>.json` et le stocke dans une `Map<String, Map<String, String>>` (key → lang → minimessage). Au moment du rendu d'un menu, résoud `{i18n:...}` puis PAPI puis MiniMessage en chaîne.
+Codegen of the types from `schema.json` (jsonschema2pojo) or light manual parsing (the format is flat). At sync, the plugin parses each `i18n/<lang>.json` and stores it in a `Map<String, Map<String, String>>` (key → lang → minimessage). When rendering a menu, it resolves `{i18n:...}` then PAPI then MiniMessage in a chain.
 
-### Validation locale
+### Local validation
 
 ```bash
 node validate-translations.mjs
@@ -200,9 +200,9 @@ node validate-translations.mjs
 
 ## Roadmap
 
-| Version | Capacité |
+| Version | Capability |
 |---|---|
-| V1 MVP | Format plat, fr + en, 3 modes de détection langue côté plugin, UX inline dans l'éditeur, conflits à l'import géré. |
-| V1.5 | Statistiques de complétion par langue dans le dashboard. Bouton "exporter en .po/.csv pour traducteur externe". Detection auto des clés non utilisées. |
-| V2 | Pluralisation (`<plural:count:zero=...:one=...:other=...>`). Variables typées dans les clés (déclarées par clé, pour plus de sécurité). Glossaire project (forcer un terme cohérent : "Boutique" toujours utilisé pour "Shop" en FR). |
-| V3 | Marketplace de packs i18n (un créateur peut vendre un set de traductions pour des packs populaires). |
+| V1 MVP | Flat format, fr + en, 3 language-detection modes on the plugin side, inline UX in the editor, import conflicts handled. |
+| V1.5 | Per-language completion statistics in the dashboard. "Export as .po/.csv for external translator" button. Automatic detection of unused keys. |
+| V2 | Pluralization (`<plural:count:zero=...:one=...:other=...>`). Typed variables in keys (declared per key, for more safety). Project glossary (force a consistent term: "Boutique" always used for "Shop" in FR). |
+| V3 | Marketplace of i18n packs (a creator can sell a set of translations for popular packs). |

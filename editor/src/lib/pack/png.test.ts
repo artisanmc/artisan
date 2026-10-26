@@ -100,7 +100,7 @@ describe("decodePng", () => {
   });
 
   test("undoes every filter type", () => {
-    // Gris + alpha 8 bits, 2×5 : une ligne par filtre (aucun, sub, up, average, paeth).
+    // 8-bit grey + alpha, 2×5: one row per filter (none, sub, up, average, paeth).
     const lines = [0, 10, 20, 30, 40, 1, 5, 5, 5, 5, 2, 1, 1, 1, 1, 3, 4, 4, 4, 4, 4, 1, 1, 1, 1];
     const image = decodePng(png(2, 5, 8, 4, lines));
     const gray = [...image.data].filter((_, i) => i % 4 === 0);

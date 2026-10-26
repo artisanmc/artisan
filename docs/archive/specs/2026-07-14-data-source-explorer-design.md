@@ -1,29 +1,29 @@
-# Data source explorer, preview live & filtres menu — Design
+# Data source explorer, live preview & menu filters — Design
 
-**Date** : 2026-07-14 · **Statut** : validé (brainstorm avec Iban)
+**Date**: 2026-07-14 · **Status**: validated (brainstorm with Iban)
 
-## Objectif
+## Goal
 
-Rendre les sources de données visibles et exploitables dans l'éditeur :
-1. L'onglet Sources de données montre les sources déclarées par les modules du serveur (schéma + module d'origine + preview des données réelles).
-2. Un menu peut filtrer une source (champ = valeur / `{arg}`, tri, limite) via une UI, au lieu de champs YAML opaques.
-3. Un menu sélectionné expose une section « Données du menu » : ses sources, leurs filtres, et une preview des rows avec filtres appliqués.
+Make data sources visible and usable in the editor:
+1. The Data sources tab shows the sources declared by the server's modules (schema + originating module + preview of the real data).
+2. A menu can filter a source (field = value / `{arg}`, sort, limit) via a UI, instead of opaque YAML fields.
+3. A selected menu exposes a "Menu data" section: its sources, their filters, and a preview of the rows with filters applied.
 
-## Décisions (brainstorm 2026-07-14)
+## Decisions (brainstorm 2026-07-14)
 
-| Question | Décision |
+| Question | Decision |
 |---|---|
-| Données affichées | **Vraies données du serveur** via un nouveau chemin request/response WS (pas de samples statiques). |
-| Contexte joueur du fetch | **`player: Player?`** — `null` = preview ; un module player-dépendant renvoie des données génériques ou lève `PlayerRequiredException`. |
-| Schéma | **Déclaré par le module** (champs typés dans `DataSourceDeclaration`) ; `schemaHint` déprécié `@Sunset`. |
-| Scoping workspace | **Regrouper sans restreindre** : groupement + badge par module d'origine, aucune restriction dure (cohérent avec la philosophie non-hermétique de l'éditeur). Nota : aucun lien projet↔module n'existe dans le modèle (seulement serveur↔module) — la « mise en avant des sources du module lié au projet » est donc reportée hors V1. |
-| Filtres menu | **UI sur le runtime existant** (`filter` égalité + interpolation `{arg}`, `sort`, `limit`) — l'Expression DSL reste une épopée séparée (spec 2026-05-03). |
-| Vue par menu | **Section du panneau propriétés** (pas de données réelles dans le canvas en V1). |
-| Transport preview | **Requête/réponse par-dessus le WS plugin** : REST → message WS corrélé → réponse plugin → REST. Rejeté : push périodique de samples (données périmées, payloads lourds), fetch fire-and-forget via `module_event` (UX asynchrone fragile, événements non consommés client-side). |
+| Displayed data | **Real server data** via a new WS request/response path (no static samples). |
+| Fetch player context | **`player: Player?`** — `null` = preview; a player-dependent module returns generic data or throws `PlayerRequiredException`. |
+| Schema | **Declared by the module** (typed fields in `DataSourceDeclaration`); `schemaHint` deprecated `@Sunset`. |
+| Workspace scoping | **Group without restricting**: grouping + badge by originating module, no hard restriction (consistent with the editor's non-hermetic philosophy). Note: no project↔module link exists in the model (only server↔module) — "highlighting the sources of the module linked to the project" is therefore postponed out of V1. |
+| Menu filters | **UI on the existing runtime** (`filter` equality + `{arg}` interpolation, `sort`, `limit`) — the Expression DSL remains a separate epic (spec 2026-05-03). |
+| Per-menu view | **Properties panel section** (no real data in the canvas in V1). |
+| Preview transport | **Request/response over the plugin WS**: REST → correlated WS message → plugin response → REST. Rejected: periodic push of samples (stale data, heavy payloads), fire-and-forget fetch via `module_event` (fragile asynchronous UX, events not consumed client-side). |
 
-## 1. API plugin — schéma déclaré + ownership module
+## 1. Plugin API — declared schema + module ownership
 
-`net.artisanmc.modules.api.DataSourceDeclaration` (`@Stable` — l'ajout de `schema` est rétro-compatible ; le passage de `fetcher` à `Player?` est un changement source-visible assumé, documenté ci-dessous) :
+`net.artisanmc.modules.api.DataSourceDeclaration` (`@Stable` — adding `schema` is backward compatible; changing `fetcher` to `Player?` is a deliberate source-visible change, documented below):
 
 ```kotlin
 data class DataSourceField(
@@ -42,61 +42,61 @@ data class DataSourceDeclaration(
 class PlayerRequiredException(message: String? = null) : RuntimeException(message)
 ```
 
-- `fetcher` reçoit `player = null` en mode preview. Breaking signature Kotlin (`Player` → `Player?`) : les lambdas existantes compilent telles quelles (paramètre non utilisé ou usage à adapter) ; CHANGELOG `[Unreleased]` + note `api-surface.md`.
-- `DataSourceRegistry` capture le **module propriétaire** au `register(...)` : le handle `ArtisanAPI` remis à chaque module connaît son id de module ; le registry stocke `ref → (declaration, moduleId)`. Aucun nouveau paramètre public.
+- `fetcher` receives `player = null` in preview mode. Kotlin signature break (`Player` → `Player?`): existing lambdas compile as is (unused parameter or usage to adapt); CHANGELOG `[Unreleased]` + `api-surface.md` note.
+- `DataSourceRegistry` captures the **owning module** at `register(...)`: the `ArtisanAPI` handle given to each module knows its module id; the registry stores `ref → (declaration, moduleId)`. No new public parameter.
 
-**Propagation** : payload `hello`/heartbeat `data_sources` passe à `[{ref, module_id, schema: [{name, type, description}]}]` (l'ancien champ `schema_hint` reste envoyé tant que `@Sunset`). Table `server_data_sources` : + colonnes `module_id` (text nullable) et `schema_json` (jsonb/text nullable), migration `db:generate` committée. `GET /api/v1/networks/:nid/servers/:sid/data-sources` renvoie `{ref, module_id, schema, schema_hint}`.
+**Propagation**: the `hello`/heartbeat payload `data_sources` becomes `[{ref, module_id, schema: [{name, type, description}]}]` (the old `schema_hint` field is still sent as long as it is `@Sunset`). `server_data_sources` table: + columns `module_id` (text nullable) and `schema_json` (jsonb/text nullable), `db:generate` migration committed. `GET /api/v1/networks/:nid/servers/:sid/data-sources` returns `{ref, module_id, schema, schema_hint}`.
 
-## 2. Chemin de preview (fetch live)
+## 2. Preview path (live fetch)
 
-`POST /api/v1/networks/:networkId/servers/:serverId/data-sources/preview` (cookie-auth + membership) :
+`POST /api/v1/networks/:networkId/servers/:serverId/data-sources/preview` (cookie-auth + membership):
 
 ```jsonc
 // body
-{ "ref": "boutique:items", "params": {}, "filter": {"category": "armes"}, "sort": {"by": "price", "direction": "asc"}, "limit": 27 }
+{ "ref": "boutique:items", "params": {}, "filter": {"category": "weapons"}, "sort": {"by": "price", "direction": "asc"}, "limit": 27 }
 // 200
 { "rows": [ {…}, … ], "truncated": false }
 ```
 
-Flux :
-1. Backend vérifie que le serveur est connecté au hub — sinon `503 server_offline`.
-2. Backend envoie WS `data_source_fetch` `{request_id, ref, params, filter, sort, limit}` au plugin et enregistre `request_id` dans une map de requêtes en attente. Timeout **5 s** → `504 fetch_timeout` (couvre aussi les plugins anciens qui ignorent le message — forward-compat existante).
-3. Plugin : réception sur le thread WS OkHttp → **bascule main thread Bukkit** (les fetchers touchent l'API Bukkit) → `fetcher(null, params)` → shaping via le code existant de `ContextBinder` (filter/sort/limit — la preview reflète exactement le runtime) → réponse hors main thread : `data_source_fetch_result` `{request_id, ok, rows?, error?}`.
-4. Garde-fous plugin : rows tronquées à **50**, payload ≤ ~256 KB. Erreurs typées : `unknown_source`, `player_required`, `fetch_error` (avec message).
-5. Backend résout la requête en attente et répond au REST.
+Flow:
+1. The backend checks that the server is connected to the hub — otherwise `503 server_offline`.
+2. The backend sends WS `data_source_fetch` `{request_id, ref, params, filter, sort, limit}` to the plugin and records `request_id` in a pending-requests map. **5 s** timeout → `504 fetch_timeout` (also covers old plugins that ignore the message — existing forward-compat).
+3. Plugin: received on the OkHttp WS thread → **switch to the Bukkit main thread** (the fetchers touch the Bukkit API) → `fetcher(null, params)` → shaping via the existing `ContextBinder` code (filter/sort/limit — the preview reflects the runtime exactly) → response off the main thread: `data_source_fetch_result` `{request_id, ok, rows?, error?}`.
+4. Plugin safeguards: rows truncated to **50**, payload ≤ ~256 KB. Typed errors: `unknown_source`, `player_required`, `fetch_error` (with message).
+5. The backend resolves the pending request and answers the REST call.
 
-Docs same-commit : `protocol.ts`, `ws-protocol.md`, `rest-endpoints.md`, CHANGELOG.
+Same-commit docs: `protocol.ts`, `ws-protocol.md`, `rest-endpoints.md`, CHANGELOG.
 
-## 3. Onglet Sources de données — explorateur
+## 3. Data sources tab — explorer
 
-L'onglet conserve « Pack data » et « Connecteurs importés », et gagne une section **« Sources du serveur »** :
+The tab keeps "Pack data" and "Imported connectors", and gains a **"Server sources"** section:
 
-- Rendu du store presence existant (`serverDataSourcesStore`, aujourd'hui fetché mais jamais affiché), **groupé par `module_id`** avec badge du module (groupes triés alphabétiquement, sources core en premier ; `module_id` absent → groupe « Serveur »). Toutes les sources restent utilisables partout.
-- Détail d'une source : table de schéma (nom / type / description), ref copiable, bouton **Prévisualiser** → route §2 sans filtres → table de rows (max 50, mention « tronqué »).
-- États : serveur offline (schémas et badges restent visibles — métadonnées en DB ; preview désactivée avec explication), `player_required`, erreur module, timeout (« plugin à mettre à jour ou serveur injoignable »).
-- Design system : `Card`, `Badge`, `Tabs`, `EmptyState` existants ; nouveau composant **`ui/DataTable`** (table de rows) avec spécimen dans `/admin/design`, réutilisé par §4. i18n en+fr.
+- Rendering of the existing presence store (`serverDataSourcesStore`, fetched but never displayed today), **grouped by `module_id`** with a module badge (groups sorted alphabetically, core sources first; absent `module_id` → "Server" group). All sources stay usable everywhere.
+- Source detail: schema table (name / type / description), copyable ref, **Preview** button → route §2 without filters → rows table (max 50, "truncated" note).
+- States: server offline (schemas and badges stay visible — metadata in DB; preview disabled with explanation), `player_required`, module error, timeout ("plugin to update or server unreachable").
+- Design system: existing `Card`, `Badge`, `Tabs`, `EmptyState`; new **`ui/DataTable`** component (rows table) with a specimen in `/admin/design`, reused by §4. en+fr i18n.
 
-## 4. Côté menu — éditeur de filtres + section « Données du menu »
+## 4. Menu side — filters editor + "Menu data" section
 
-Dans `MenuProperties`, pour chaque `contextInput` de kind `sourceRef` :
+In `MenuProperties`, for each `contextInput` of kind `sourceRef`:
 
-**Éditeur de filtres** (aucun changement runtime — UI sur `filter`/`sort`/`limit` existants) :
-- Lignes « champ = valeur » : champ autocomplété depuis le schéma déclaré (saisie libre si schéma absent) ; valeur littérale ou `{arg}` (autocomplétion des args du menu). Cas nominal « quête courante » : `group = {group}`.
-- Tri (champ + asc/desc), limite (numérique).
-- Les `filter`/`sort`/`limit` importés du YAML (portés opaquement aujourd'hui) deviennent éditables ; round-trip export inchangé.
+**Filters editor** (no runtime change — UI on the existing `filter`/`sort`/`limit`):
+- "field = value" rows: field autocompleted from the declared schema (free input if the schema is absent); literal value or `{arg}` (autocompletion of the menu's args). Nominal case "current quest": `group = {group}`.
+- Sort (field + asc/desc), limit (numeric).
+- The `filter`/`sort`/`limit` imported from the YAML (carried opaquely today) become editable; export round-trip unchanged.
 
-**Section « Données du menu »** : une carte par source consommée — ref + badge module, résumé des filtres actifs, bouton **Prévisualiser** appelant la route §2 **avec les filtres du menu**. Les `{arg}` non résolus : petit formulaire de valeurs d'essai (hint « filtre sur {group} : renseigne une valeur d'essai ») ; non renseigné = le littéral `{arg}` est conservé tel quel côté plugin (comportement runtime existant de `ContextBinder.interpolate` — la preview reflète le runtime). Résultat dans `ui/DataTable`.
+**"Menu data" section**: one card per consumed source — ref + module badge, summary of the active filters, **Preview** button calling route §2 **with the menu's filters**. Unresolved `{arg}`s: small form of test values (hint "filter on {group}: enter a test value"); left empty = the literal `{arg}` is kept as is on the plugin side (existing runtime behavior of `ContextBinder.interpolate` — the preview reflects the runtime). Result in `ui/DataTable`.
 
 ## Tests
 
-- **Backend** : route preview (happy path, membership, 503 offline, 504 timeout, corrélation de deux requêtes concurrentes, propagation d'erreurs typées) ; persistence `module_id`/`schema_json` depuis hello.
-- **Plugin** : handler `data_source_fetch` (exécution main thread, shaping filter/sort/limit, troncature 50/256 KB, `player_required`, `unknown_source`) ; registry capture le module owner ; payload hello enrichi.
-- **Éditeur** : section Sources du serveur (groupement, offline, preview + erreurs), éditeur de filtres (autocomplétion schéma/args, round-trip import), section Données du menu (filtres appliqués, valeurs d'essai).
+- **Backend**: preview route (happy path, membership, 503 offline, 504 timeout, correlation of two concurrent requests, typed error propagation); `module_id`/`schema_json` persistence from hello.
+- **Plugin**: `data_source_fetch` handler (main thread execution, filter/sort/limit shaping, 50/256 KB truncation, `player_required`, `unknown_source`); registry captures the owner module; enriched hello payload.
+- **Editor**: Server sources section (grouping, offline, preview + errors), filters editor (schema/args autocompletion, import round-trip), Menu data section (applied filters, test values).
 
-## Hors scope V1
+## Out of scope V1
 
-- Expression DSL pour les filtres (spec séparée `2026-05-03-expression-dsl-design.md`).
-- Données réelles dans le canvas (slots peuplés par le fetch).
-- Sélecteur de joueur en ligne pour la preview (`player = null` seulement).
-- Restriction dure des sources par workspace (opt-in module éventuel plus tard).
-- Push WS temps réel des changements de sources (le refresh presence existant suffit).
+- Expression DSL for filters (separate spec `2026-05-03-expression-dsl-design.md`).
+- Real data in the canvas (slots populated by the fetch).
+- Online player picker for the preview (`player = null` only).
+- Hard restriction of sources per workspace (possible module opt-in later).
+- Real-time WS push of source changes (the existing presence refresh is enough).

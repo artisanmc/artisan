@@ -1,32 +1,32 @@
-# Document kinds extensibles — design & découpage
+# Extensible Document kinds — design & split
 
-**Status:** draft (2026-10-14, rafraîchi le 2026-10-15) — dérive de l'ADR
-`extensible-document-kinds`. Décisions de la grill (2026-10-14) intégrées ; matière brute pour
-la construction. Le 2026-10-15 la carte `file:line` a été confrontée au code de `v2` (après
-#48–#54) ; les questions R1–R5 de l'ADR (§Révision) sont **ouvertes** et marquées ici.
+**Status:** draft (2026-10-14, refreshed on 2026-10-15) — derives from ADR
+`extensible-document-kinds`. Grill decisions (2026-10-14) integrated; raw material for
+the build. On 2026-10-15 the `file:line` map was checked against the `v2` code (after
+#48–#54); questions R1–R5 of the ADR (§Revision) are **open** and marked here.
 
-## But
+## Goal
 
-Permettre à un module d'ajouter des **Document kinds** au même niveau que
-menus/commands/dialogs, chacun pouvant apporter : son **contenu** (fichiers,
-schéma, vue éditeur, i18n), des **Actions** (`start_quest`, `open_conversation`)
-et des **sources de déclenchement** (interactions d'un NPC, branches d'une
+Let a module add **Document kinds** at the same level as
+menus/commands/dialogs, each able to bring: its **content** (files,
+schema, editor view, i18n), **Actions** (`start_quest`, `open_conversation`)
+and **trigger sources** (interactions of an NPC, branches of a
 Conversation).
 
-## Non-buts
+## Non-goals
 
-- Réintroduire le DSL (éliminé par `structured-action-wire`).
-- Un « kind en data » sans module.
-- **Proximité / zones** : état continu, mécanisme distinct — différé (grill Q8).
-- Le **modèle interne** d'une Quête / d'une Conversation (objectifs, récompenses,
-  nœuds) : grillé avec le pilote, pas ici.
+- Reintroducing the DSL (eliminated by `structured-action-wire`).
+- A "kind in data" without a module.
+- **Proximity / zones**: continuous state, distinct mechanism — deferred (grill Q8).
+- The **internal model** of a Quest / a Conversation (objectives, rewards,
+  nodes): grilled with the pilot, not here.
 
-## Le modèle
+## The model
 
-### Descripteur côté éditeur (`FrontendModule.documents?`)
+### Editor-side descriptor (`FrontendModule.documents?`)
 
-Ajout au contrat `FrontendModule` (`editor/packages/editor-sdk/src/contract/types.ts:14-43`),
-exporté par le barrel `editor/packages/editor-sdk/src/index.ts` :
+Addition to the `FrontendModule` contract (`editor/packages/editor-sdk/src/contract/types.ts:14-43`),
+exported by the barrel `editor/packages/editor-sdk/src/index.ts`:
 
 ```ts
 interface DocumentKindContribution {
@@ -36,46 +36,46 @@ interface DocumentKindContribution {
   label: { en: string; fr: string } | string; // i18n key
   icon: ComponentType;
   idPrefix: string;                // "npc_", "quest_"
-  component: ComponentType;        // la vue d'édition du kind
+  component: ComponentType;        // the kind's editing view
   create(seed?): Document;         // minting + seed
   relPath(id: string): string;     // dir/<id>.yaml
-  parse(file, ctx): Document;      // fichier → domaine
-  serialize(doc, ctx): string;     // domaine → fichier
-  ltextSites(doc): LTextSite[];    // key sites i18n (rekey + GC)
-  chainSlots(doc): ChainSlotSite[]; // où vivent les chaînes (cf. trigger)
-  actions?: ActionDecl[];          // Actions déclarées (typées)
-  board?: { size?; render?; rank? }; // surcharge board — OPTIONNELLE
+  parse(file, ctx): Document;      // file → domain
+  serialize(doc, ctx): string;     // domain → file
+  ltextSites(doc): LTextSite[];    // i18n key sites (rekey + GC)
+  chainSlots(doc): ChainSlotSite[]; // where the chains live (cf. trigger)
+  actions?: ActionDecl[];          // declared Actions (typed)
+  board?: { size?; render?; rank? }; // board override — OPTIONAL
 }
 
-// Une Action déclarée : un nom + des arguments typés. R3 (ADR) : les args sont des
-// `ModelField[]` du field kit existant (`ModelFieldType`), `document_ref(kind)` étant
-// un kind de `ModelFieldType` ajouté — pas un vocabulaire d'arguments à part. C'est
-// `document_ref` qui fait de l'argument une cible résolue → picker + arête,
-// génériquement (aucun code de board), y compris depuis une ligne de data model.
+// A declared Action: a name + typed arguments. R3 (ADR): the args are
+// `ModelField[]` of the existing field kit (`ModelFieldType`), `document_ref(kind)` being
+// a kind of `ModelFieldType` that is added — not a separate argument vocabulary. It is
+// `document_ref` that makes the argument a resolved target → picker + edge,
+// generically (no board code), including from a data model row.
 interface ActionDecl {
   name: string;                    // "start_quest", "open_conversation"
   args: ModelField[];              // field kit + { kind: "document_ref", of: kind }
 }
 
-// Un trigger EST un slot de chaîne nommé qui est un point d'entrée. Le visiteur
-// rend des SITES (comme `LTextSite`) : l'extracteur générique d'arêtes a besoin des
-// steps et du chemin pour garder les triggers que la planche affiche (élément +
-// clickType, bouton de dialog, invocation de commande…).
+// A trigger IS a named chain slot that is an entry point. The visitor
+// yields SITES (like `LTextSite`): the generic edge extractor needs the
+// steps and the path to keep the triggers the board displays (element +
+// clickType, dialog button, command invocation…).
 interface ChainSlotSite {
   name: string;                    // "right_click", "invoke", "click"
   steps: Step[];
-  path: string;                    // chemin dans le document, pour le rename/undo
-  label?: string;                  // ce que l'arête affiche (material, bouton…)
+  path: string;                    // path in the document, for rename/undo
+  label?: string;                  // what the edge displays (material, button…)
 }
 ```
 
-Les kinds core (menus, commands, dialogs) déclarent les leurs via ce même
-contrat → **dogfood**.
+The core kinds (menus, commands, dialogs) declare theirs via this same
+contract → **dogfood**.
 
-### Descripteur côté plugin (nouvelle surface `@Beta`)
+### Plugin-side descriptor (new `@Beta` surface)
 
-Nouveau `DocumentKindRegistry` dans `plugin/api`, calqué sur `ModelRegistry`
-(`plugin/api/.../modules/api/ModelRegistry.kt`) et `EditorScreenRegistry` :
+New `DocumentKindRegistry` in `plugin/api`, modeled on `ModelRegistry`
+(`plugin/api/.../modules/api/ModelRegistry.kt`) and `EditorScreenRegistry`:
 
 ```kotlin
 api.documents.declare(DocumentKindDeclaration(
@@ -83,198 +83,198 @@ api.documents.declare(DocumentKindDeclaration(
     dir = "npcs",
     schemaVersion = "npc/v1",
     acceptedVersions = listOf("npc/v1"),
-    parse = { text, ctx -> ... },                 // fichier → document runtime
+    parse = { text, ctx -> ... },                 // file → runtime document
     actions = listOf(ActionDecl("npcs:spawn") { player, args -> ... }),
     chainSlots = listOf("right_click", "left_click"),
 ))
 ```
 
-Rapporté au `hello` /`modules_changed` sous `document_kinds` (parallèle de
+Reported at `hello` / `modules_changed` under `document_kinds` (parallel of
 `declared_models`, `editor_screens`).
 
-## Stratégie : généraliser d'abord, ouvrir ensuite, prouver au bout
+## Strategy: generalize first, open next, prove at the end
 
-L'ordre est non négociable : **le refactor dogfood est un pur déplacement de
-câblage, verrouillé par les vecteurs existants**. On n'ouvre l'enregistrement
-qu'une fois les kinds core passés par le registre sans changement de
-comportement.
+The order is non-negotiable: **the dogfood refactor is a pure move of
+wiring, locked by the existing vectors**. We only open registration
+once the core kinds have gone through the registry with no
+behavior change.
 
-Ordre des lots (2026-10-15, après R1 et R2) : le **conteneur (W2) d'abord**, c'est la base ;
-puis le **registre d'actions avec dispatch par handler (W1 + W3)** ; puis **`document_ref`
-dans `ModelFieldType` et les arêtes génériques (W4)** ; puis listing/create/rename/i18n (W5) ;
-puis les surfaces d'enregistrement publiques et la présence (W6, `@Beta`) ; enfin un pilote (W7)
-avant tout gel d'API.
+Order of the batches (2026-10-15, after R1 and R2): the **container (W2) first**, it is the base;
+then the **action registry with per-handler dispatch (W1 + W3)**; then **`document_ref`
+in `ModelFieldType` and the generic edges (W4)**; then listing/create/rename/i18n (W5);
+then the public registration surfaces and presence (W6, `@Beta`); finally a pilot (W7)
+before any API freeze.
 
 ## Workstreams
 
-### W0 — ADR + spec (ce document)
+### W0 — ADR + spec (this document)
 
-ADR `extensible-document-kinds` (proposed) + cette spec. Les questions de l'ADR
-sont tranchées en grill (table « Décisions tranchées » de l'ADR).
+ADR `extensible-document-kinds` (proposed) + this spec. The ADR's questions
+are settled in the grill ("Decisions made" table of the ADR).
 
-### W1 — Actions : types, vocabulaire, wire (les deux stacks + schéma)
+### W1 — Actions: types, vocabulary, wire (both stacks + schema)
 
-- **Un seul système de types** : le schéma d'arguments réutilise le field kit réel
-  (`ModelFieldType`, `editor/src/domain/types.ts` : `string, number, integer, boolean,
+- **A single type system**: the argument schema reuses the real field kit
+  (`ModelFieldType`, `editor/src/domain/types.ts`: `string, number, integer, boolean,
   ltext, minimessage, minimessage_multiline, item, actions, conditions, list, object, model,
-  map, enum, union`) **plus** `document_ref(kind)` — le seul type neuf, source générique
-  des arêtes. R3 : l'ajouter **à** `ModelFieldType`, pas à côté.
-- Wire : les noms d'Actions core restent énumérés dans
-  `docs/schema/menu/v1/schema.json` `$defs.Action` (l.975+, validation **stricte**) ;
-  ajouter la **tolérance map-à-clé-inconnue** (Action module, validée au form).
-  **État réel (2026-10-15)** : l'éditeur transforme aujourd'hui une clé inconnue en
-  `run_actions ""` (`structuredSteps.ts` `decodeAction` default — perte silencieuse) et le
-  plugin lève `IllegalArgumentException("Unknown action")` (`KeyedStepParser.parseAction`
-  else). Les deux doivent devenir le passthrough `module(name, args)`.
-- Éditeur : `editor/src/schema/actionV1ToDomain.ts:29-48` (`action()` switch
+  map, enum, union`) **plus** `document_ref(kind)` — the only new type, generic
+  source of edges. R3: add it **to** `ModelFieldType`, not beside it.
+- Wire: the core Action names stay enumerated in
+  `docs/schema/menu/v1/schema.json` `$defs.Action` (l.975+, **strict** validation);
+  add the **unknown-key map tolerance** (module Action, validated at the form).
+  **Actual state (2026-10-15)**: the editor today turns an unknown key into
+  `run_actions ""` (`structuredSteps.ts` `decodeAction` default — silent loss) and the
+  plugin throws `IllegalArgumentException("Unknown action")` (`KeyedStepParser.parseAction`
+  else). Both must become the `module(name, args)` passthrough.
+- Editor: `editor/src/schema/actionV1ToDomain.ts:29-48` (`action()` switch
   `default → pushUnsupported`), `features/flow/defaults.ts:63-86` (`ACTION_TYPES`),
   `docs/schema/menu/v1/types.ts:397-420`, labels/pickers `features/flow/labels.ts:6,44`.
-- **Dogfood** : `open_menu`/`open_dialog`/`close_menu`/`open_previous_menu`
-  sont des **handlers** du module menus/dialogs (R1 tranché : `ActionHandler { name,
-  args: ModelField[], primary?, execute(ctx, args, runtime): ctx }`) ; codec, form, picker,
-  arêtes **et dispatch** pilotés par registre, sealed class `Action` interne au module. Test
-  de complétude : un handler par nom du vocabulaire, schéma coïncidant. Verrou supplémentaire :
-  `i18n-address-conformance.json` — le visiteur i18n des args devient piloté par schéma
-  (`ltext` dans `ModelField[]`, comme `visitModelValueLTexts`) et doit émettre les **mêmes
-  adresses** que `visitStepLTexts` / `I18nAddresses.kt` pour les actions core.
-- `structured-action-wire` est **accepted** (2026-10-15) : le wire keyed est en prod des
-  deux côtés. Le codec DSL (`editor/src/lib/actionDsl/*`, `plugin/core/.../actiondsl/*`)
-  ne sert plus qu'à lire les anciens fichiers ; son retrait est un nettoyage séparé.
-- Vecteur : `testdata/action-wire-conformance.json` (créé le 2026-10-15,
-  `ActionWireConformanceTest` ↔ `lib/actions/actionWireConformance.test.ts`) verrouille
-  le wire keyed ; il gagne un fixture d'Action module (clé inconnue → passthrough) avec le
-  lot qui l'implémente.
+- **Dogfood**: `open_menu`/`open_dialog`/`close_menu`/`open_previous_menu`
+  are **handlers** of the menus/dialogs module (R1 settled: `ActionHandler { name,
+  args: ModelField[], primary?, execute(ctx, args, runtime): ctx }`); codec, form, picker,
+  edges **and dispatch** driven by the registry, `Action` sealed class internal to the module. Completeness test:
+  one handler per name of the vocabulary, matching schema. Additional lock:
+  `i18n-address-conformance.json` — the i18n visitor of the args becomes schema-driven
+  (`ltext` in `ModelField[]`, like `visitModelValueLTexts`) and must emit the **same
+  addresses** as `visitStepLTexts` / `I18nAddresses.kt` for the core actions.
+- `structured-action-wire` is **accepted** (2026-10-15): the keyed wire is in prod on
+  both sides. The DSL codec (`editor/src/lib/actionDsl/*`, `plugin/core/.../actiondsl/*`)
+  now only serves to read the old files; its removal is a separate cleanup.
+- Vector: `testdata/action-wire-conformance.json` (created on 2026-10-15,
+  `ActionWireConformanceTest` ↔ `lib/actions/actionWireConformance.test.ts`) locks
+  the keyed wire; it gains a module Action fixture (unknown key → passthrough) with the
+  batch that implements it.
 
-### W2 — Modèle Project (des deux côtés) — **fait (lot 2, 2026-10-15)**
+### W2 — Project model (both sides) — **done (batch 2, 2026-10-15)**
 
-R2 tranché : **conteneur unique, maintenant, entier**. `project.documents[kind]` (éditeur) et
-`ProjectBundle.documents` (plugin) sont la seule source de vérité ; les champs
-`menus/commands/dialogs` ont disparu des deux modèles. `documentsOf(project, kind)` et les
-accesseurs typés (`menusOf(project)`, `bundle.menus`) sont une **façade de lecture**, jamais un
-second stockage. Le volume n'était pas un argument : tous les sites sont passés.
+R2 settled: **single container, now, whole**. `project.documents[kind]` (editor) and
+`ProjectBundle.documents` (plugin) are the single source of truth; the fields
+`menus/commands/dialogs` have disappeared from both models. `documentsOf(project, kind)` and the
+typed accessors (`menusOf(project)`, `bundle.menus`) are a **read facade**, never a
+second storage. Volume was not an argument: all the sites were converted.
 
-État réel :
+Actual state:
 
-- Éditeur : `domain/documentKinds.ts` (registre `DocumentKindDef {kind, dir, idPrefix?,
-  schemaVersion, rank}`, `register/list/byDir`, les trois kinds core enregistrés au chargement) ;
-  `Project.documents: Record<string, Document[]>` (`domain/types.ts`) ; façade `domain/documents.ts`
+- Editor: `domain/documentKinds.ts` (registry `DocumentKindDef {kind, dir, idPrefix?,
+  schemaVersion, rank}`, `register/list/byDir`, the three core kinds registered at load);
+  `Project.documents: Record<string, Document[]>` (`domain/types.ts`); facade `domain/documents.ts`
   (`documentsOf`, `mutableDocuments`, `menusOf/commandsOf/dialogsOf`, `mutable*`, `allDocuments`,
-  `documentIds`, `findDocument`, `emptyDocuments`) ; codecs par kind `schema/documentCodecs.ts`
-  (`parse`/`serialize`, les trois core enregistrés) : `projectFromFiles` boucle sur
-  `listDocumentKinds()` (préfixes core dérivés des `dir`), `transform` écrit `<dir>/<id>.yaml` par
-  le codec du kind. `lib/projectDocumentsMigration.ts` replie un Project persisté avant le
-  conteneur (`setAccount`, `importProject`). Écriture : `mutableMenus(draft).push(...)` ou
-  `draft.documents.menu = ...` — le conteneur est le store, la façade lit.
-- Plugin : `model/DocumentKinds.kt` (`DocumentKind {kind, dir, schemaVersions}`, registre
-  copy-on-write, `byDir`) ; `ProjectBundle.documents: Map<String, List<BundleDocument>>` avec
-  `menus/commands/dialogs` en getters typés par `documentsOf<T>(kind)` (le seul point de cast) ;
-  `BundleDocument { id }` implémenté par `BundleMenu`, `CommandYaml`, `BundleDialog` ;
-  `ProjectReader` boucle sur `DocumentKinds.all()` avec un lecteur par kind core (un kind
-  enregistré sans lecteur est laissé sur disque) ; `ManifestYaml.files` devient
-  `Map<dir, List<String>>` ; `ResourceInventory` et les tables de `SyncedMenuProvider`
-  (`Map<kind, DocumentTable<BundleDocument>>`) suivent le registre.
-- **Opaque préservé** : un dossier de kind non enregistré round-trip dans `moduleData.__files`
-  côté éditeur et n'est pas lu côté plugin (`DocumentKindsTest`).
-- Reste pour W6 : les descripteurs complets (parse/serialize côté plugin exposés à l'api, kind
-  déclaré par un module) ; la façade garde ses accesseurs typés pour les kinds core.
+  `documentIds`, `findDocument`, `emptyDocuments`); per-kind codecs `schema/documentCodecs.ts`
+  (`parse`/`serialize`, the three core registered): `projectFromFiles` loops over
+  `listDocumentKinds()` (core prefixes derived from the `dir`s), `transform` writes `<dir>/<id>.yaml` through
+  the kind's codec. `lib/projectDocumentsMigration.ts` folds a Project persisted before the
+  container (`setAccount`, `importProject`). Writing: `mutableMenus(draft).push(...)` or
+  `draft.documents.menu = ...` — the container is the store, the facade reads.
+- Plugin: `model/DocumentKinds.kt` (`DocumentKind {kind, dir, schemaVersions}`, copy-on-write
+  registry, `byDir`); `ProjectBundle.documents: Map<String, List<BundleDocument>>` with
+  `menus/commands/dialogs` as getters typed by `documentsOf<T>(kind)` (the only cast point);
+  `BundleDocument { id }` implemented by `BundleMenu`, `CommandYaml`, `BundleDialog`;
+  `ProjectReader` loops over `DocumentKinds.all()` with one reader per core kind (a kind
+  registered without a reader is left on disk); `ManifestYaml.files` becomes
+  `Map<dir, List<String>>`; `ResourceInventory` and the `SyncedMenuProvider` tables
+  (`Map<kind, DocumentTable<BundleDocument>>`) follow the registry.
+- **Opaque preserved**: a folder of an unregistered kind round-trips in `moduleData.__files`
+  on the editor side and is not read on the plugin side (`DocumentKindsTest`).
+- Remaining for W6: the full descriptors (parse/serialize on the plugin side exposed to the api, kind
+  declared by a module); the facade keeps its typed accessors for the core kinds.
 
-### W3 — Ref resolution + runtime « faire »
+### W3 — Ref resolution + runtime "do"
 
-- Réutiliser `DocumentTable<T>` : `SyncedMenuProvider.kt:84-100` devient un
-  `Map<kind, DocumentTable>` ; `resolveRef` (`:102-116`) déjà kind-paramétré.
-- Runtime : `provider/MenuProvider.kt:15-28` → un dispatch par Action kind-
-  enregistrée ; `engine/ActionExecutor.kt:132-166,326-340` → dispatch registre ;
+- Reuse `DocumentTable<T>`: `SyncedMenuProvider.kt:84-100` becomes a
+  `Map<kind, DocumentTable>`; `resolveRef` (`:102-116`) already kind-parameterized.
+- Runtime: `provider/MenuProvider.kt:15-28` → a dispatch per registered
+  Action kind; `engine/ActionExecutor.kt:132-166,326-340` → registry dispatch;
   `engine/NavigationHistoryStore.kt` `Kind` enum → string.
-- `testdata/doc-ref-conformance.json` **inchangé** (algorithme kind-agnostique).
+- `testdata/doc-ref-conformance.json` **unchanged** (kind-agnostic algorithm).
 
 ### W4 — Board / canvas
 
-- `features/canvas/serverGraph.ts:6,54-116` : `DocumentKind` union → `string` +
-  registre ; `addTarget` pour les kinds cibles.
-- **Arêtes génériques** : `deriveEdges.ts:17-105` n'a plus d'extracteurs par kind —
-  on scanne les chaînes (via `chainSlots`) et on émet une arête pour **tout
-  argument `document_ref`**. C'est `document_ref` (W1) qui fait le travail.
-- **Défauts + surcharge** : nœud générique (boîte + label + taille) et rang de
-  gutter par défaut ; `board?` du kind surcharge. `arrangeBoard.ts:43`
+- `features/canvas/serverGraph.ts:6,54-116`: `DocumentKind` union → `string` +
+  registry; `addTarget` for the target kinds.
+- **Generic edges**: `deriveEdges.ts:17-105` no longer has per-kind extractors —
+  we scan the chains (via `chainSlots`) and emit an edge for **every
+  `document_ref` argument**. It is `document_ref` (W1) that does the work.
+- **Defaults + override**: generic node (box + label + size) and default
+  gutter rank; the kind's `board?` overrides. `arrangeBoard.ts:43`
   `GUTTER_KIND_ORDER`, `menuLayout.ts:4,60`, `ServerCanvasPage.tsx:33,177-186,399-430`
-  → registre.
-- Piège cosmétique : nœuds/frames synthétiques forcés `kind: "menu"`
-  (`arrangeBoard.ts:800-807`, `groupedBoard.ts:45-61,110-189`) — kind neutre.
+  → registry.
+- Cosmetic trap: synthetic nodes/frames forced to `kind: "menu"`
+  (`arrangeBoard.ts:800-807`, `groupedBoard.ts:45-61,110-189`) — neutral kind.
 
 ### W5 — Listing / create / rename / delete / i18n
 
-- Éditeur : `useProjectDocuments.ts:8-41`, `ProjectDocumentTree.tsx:24-113`,
+- Editor: `useProjectDocuments.ts:8-41`, `ProjectDocumentTree.tsx:24-113`,
   `ProjectSidebar.tsx:274-280` (`documentCount`), `searchIndex.ts:6,155`,
   `domain/canvasGroups.ts:4-8` (`liveDocumentIds`).
-- Store (découpé par #46 part 2) : `state/account/menusSlice.ts` (`createMenu`,
+- Store (split by #46 part 2): `state/account/menusSlice.ts` (`createMenu`,
   `setMenuId`), `dialogsSlice.ts` (`createDialog`, `setDialogId`), `commandsSlice.ts`
   (`createCommand`, `setCommandId`), `projectsSlice.ts` (`deleteFromProject`), `i18nSlice.ts`
-  (`rekeyProject`) → un slice générique « documents » (create/rename/delete/layout par kind
-  via le registre), les slices de kind gardant leurs actions d'édition propres. R5 : à
-  coordonner avec les lots restants de #46.
-- i18n : `lib/i18nKeys.ts:5-49`, `domain/i18nSites.ts:158-207,544` — le visiteur
-  `ltextSites` du kind (sinon rekey/GC silencieusement cassés) ; `chainSlots` sert
-  aussi au rename des refs dans les chaînes.
-- `domain/ids.ts:28-31` + dialogues `New*Dialog.tsx` → minting par kind.
+  (`rekeyProject`) → a generic "documents" slice (create/rename/delete/layout per kind
+  via the registry), the kind slices keeping their own editing actions. R5: to
+  coordinate with the remaining batches of #46.
+- i18n: `lib/i18nKeys.ts:5-49`, `domain/i18nSites.ts:158-207,544` — the kind's
+  `ltextSites` visitor (otherwise rekey/GC silently broken); `chainSlots` also
+  serves for renaming the refs in the chains.
+- `domain/ids.ts:28-31` + `New*Dialog.tsx` dialogs → per-kind minting.
 
-### W6 — Surfaces d'enregistrement
+### W6 — Registration surfaces
 
-- Plugin : `api.documents.declare(...)` (`DocumentKindRegistry`), hooks
-  `ArtisanModule`, `ArtisanPlugin.defaultModules()` (`:94-96`) dogfood.
-- Éditeur : `FrontendModule.documents`, collection dans
-  `editor/packages/editor-sdk/src/contract/registry.ts:6-32`, dogfood dans
-  `editor/src/modules/menus/index.ts` / `commands/index.ts` + dialogs enregistré
-  dans `main.tsx:9-24`.
-- Presence : `document_kinds` au `hello` et `modules_changed` (`WsClient.kt`,
-  `SyncedMenuProvider.kt` côté serveur) **et** dans la liste des champs que le hub recopie
-  d'une feuille (`plugin/hub/.../RemoteServer.kt`, `modules_changed`) — sinon un kind déclaré
-  sur une feuille est invisible depuis le hub.
+- Plugin: `api.documents.declare(...)` (`DocumentKindRegistry`), `ArtisanModule`
+  hooks, `ArtisanPlugin.defaultModules()` (`:94-96`) dogfood.
+- Editor: `FrontendModule.documents`, collection in
+  `editor/packages/editor-sdk/src/contract/registry.ts:6-32`, dogfood in
+  `editor/src/modules/menus/index.ts` / `commands/index.ts` + dialogs registered
+  in `main.tsx:9-24`.
+- Presence: `document_kinds` at `hello` and `modules_changed` (`WsClient.kt`,
+  `SyncedMenuProvider.kt` server side) **and** in the list of fields the hub copies
+  from a leaf (`plugin/hub/.../RemoteServer.kt`, `modules_changed`) — otherwise a kind declared
+  on a leaf is invisible from the hub.
 
-### W7 — Kinds pilotes
+### W7 — Pilot kinds
 
-R4 (ouvert) : le kind `quest` est déclaré par MSQuests en add-on (recommandé, c'est la lettre
-de l'ADR), donc ce pilote vit dans son dépôt. Note sur l'ordre : Conversation teste navigation et
-arêtes mais son éditeur (arbre) est la plus grosse surface UI ; NPC teste le trigger-source avec
-un formulaire trivial mais son runtime (entité, interaction) est du vrai travail Bukkit. Une
-« Conversation v0 » linéaire (liste de nœuds à choix, sans éditeur graphique) suffit à valider
-la plomberie.
+R4 (open): the `quest` kind is declared by MSQuests as an add-on (recommended, it is the letter
+of the ADR), so this pilot lives in its repo. Note on the order: Conversation tests navigation and
+edges but its editor (tree) is the biggest UI surface; NPC tests the trigger-source with
+a trivial form but its runtime (entity, interaction) is real Bukkit work. A linear
+"Conversation v0" (list of choice nodes, no graphical editor) is enough to validate
+the plumbing.
 
-Dans l'ordre de moindre risque, en add-on, de bout en bout — la validation :
+In order of least risk, as add-ons, end to end — the validation:
 
-1. **Conversation** — kind d'**arbre à choix** (branches gardées par conditions),
-   cible `open_conversation` ; valide la navigation, les arêtes, le visiteur de
-   chaînes. Distinct de `Dialog`.
-2. **Quest** — kind + Actions de domaine (`start_quest`, `complete_quest`) ;
-   valide les Actions déclarées typées et les arêtes vers un non-écran.
-3. **NPC** — **entité à une position**, triggers **discrets** (`right_click`,
-   `left_click`) ouvrant p.ex. une Conversation ; valide la source de
-   déclenchement. **Proximité différée.**
+1. **Conversation** — **choice tree** kind (branches guarded by conditions),
+   `open_conversation` target; validates navigation, edges, the chain
+   visitor. Distinct from `Dialog`.
+2. **Quest** — kind + domain Actions (`start_quest`, `complete_quest`);
+   validates the typed declared Actions and the edges to a non-screen.
+3. **NPC** — **entity at a position**, **discrete** triggers (`right_click`,
+   `left_click`) opening e.g. a Conversation; validates the trigger
+   source. **Proximity deferred.**
 
-Chaque pilote tranche le **modèle interne** de son kind (objectifs, nœuds, etc.).
+Each pilot settles the **internal model** of its kind (objectives, nodes, etc.).
 
 ## Validation
 
-- Vecteurs existants **intacts** après W1–W5 (pur refactor) :
+- Existing vectors **intact** after W1–W5 (pure refactor):
   `action-wire-conformance.json`, `action-dsl-conformance.json`, `doc-ref-conformance.json`,
   `menuV1.test`, `menuV1ToDomain.roundtrip`.
-- Nouveaux tests : round-trip d'un dir de kind inconnu (opaque préservé) ; une
-  Action module keyed → arête dérivée du `document_ref` ; résolution d'une ref de
-  kind module ; exécution d'une Action déclarée.
-- `./gradlew test` (plugin) + `npm test` (éditeur) verts à chaque workstream.
+- New tests: round-trip of an unknown kind dir (opaque preserved); a keyed
+  module Action → edge derived from the `document_ref`; resolution of a
+  module-kind ref; execution of a declared Action.
+- `./gradlew test` (plugin) + `npm test` (editor) green at each workstream.
 
-## Risques
+## Risks
 
-- **Churn immense sur `Project`/`ProjectBundle`** (W2) : le plus profond. À faire
-  en premier, derrière les vecteurs, avant toute ouverture d'API.
-- **Schéma wire statique** : résolu par la tolérance map-à-clé-inconnue (W1) —
-  vérifier que `validateMenuV1` reste strict sur les Actions core.
-- **Module désinstallé** : le test « opaque préservé » est le garde-fou.
-- **Inflation SemVer** : ne figer que le descripteur `@Beta`.
+- **Huge churn on `Project`/`ProjectBundle`** (W2): the deepest. To do
+  first, behind the vectors, before any API opening.
+- **Static wire schema**: resolved by the unknown-key map tolerance (W1) —
+  check that `validateMenuV1` stays strict on the core Actions.
+- **Uninstalled module**: the "opaque preserved" test is the safeguard.
+- **SemVer inflation**: only freeze the `@Beta` descriptor.
 
-## Décisions tranchées (grill 2026-10-14)
+## Decisions made (grill 2026-10-14)
 
-Voir la table homonyme de l'ADR `extensible-document-kinds` : Actions keyed
-déclarées + `document_ref(kind)` seul type neuf ; core dogfood ; `open_menu` non
-spécial ; NPC = entité à une position ; Conversation ≠ Dialog (arbre à choix) ;
-board = défauts + arêtes dérivées des types ; chaînes déclarées par visiteur ;
-proximité non-trigger (différée).
+See the eponymous table of ADR `extensible-document-kinds`: declared keyed
+Actions + `document_ref(kind)` as the only new type; core dogfood; `open_menu` not
+special; NPC = entity at a position; Conversation ≠ Dialog (choice tree);
+board = defaults + edges derived from the types; chains declared by visitor;
+proximity not a trigger (deferred).

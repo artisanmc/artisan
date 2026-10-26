@@ -1,99 +1,95 @@
-# ADR : Fichiers de données nus — le schéma vit à côté, jamais dedans
+# ADR: Bare data files — the schema lives next to them, never inside
 
-**Statut** : accepté (2026-07-26)
-**Contexte amont** : `composable-data-models.md` (décision ③ révisée),
-`project-sources-and-data-models.md` (les deux shapes unifiés),
-`files-first-source-of-truth.md` (P2b « models ignorés plugin » inversé).
+**Status**: accepted (2026-07-26)
+**Upstream context**: `composable-data-models.md` (decision ③ revised),
+`project-sources-and-data-models.md` (the two shapes unified),
+`files-first-source-of-truth.md` (P2b "models ignored by the plugin" reversed).
 
-## Contexte
+## Context
 
-Le format data/v1 mélangeait **définition** (`fields:`) et **valeurs** dans le
-même fichier, minté des clés ltext même en mono-langue, et imposait un header
-(`schema`/`id`/`shape`). Un réglage d'une ligne pesait 9 lignes de cérémonie.
-Pour un écosystème Minecraft où le YAML édité main est la norme culturelle,
-c'est un repoussoir — et l'ancre de confiance « ta config marche sans nous »
-exige que la porte de sortie fichiers soit *agréable*, pas juste possible.
-Constat déclencheur : la déclaration d'un model vit dans le **JAR** de
-l'add-on (pas dans le backend), et `models/<id>.yaml` existe déjà — le contrat
-offline n'a jamais eu besoin du schéma *inline dans le fichier de données*,
-seulement *sur le même disque ou dans le même JAR*.
+The data/v1 format mixed **definition** (`fields:`) and **values** in the same
+file, minted ltext keys even for a single language, and required a header
+(`schema`/`id`/`shape`). A one-line setting weighed 9 lines of ceremony.
+For a Minecraft ecosystem where hand-edited YAML is the cultural norm, that is
+a deterrent — and the trust anchor "your config works without us" demands that
+the file exit door be *pleasant*, not just possible.
+Triggering finding: a model's declaration lives in the add-on's **JAR** (not in
+the backend), and `models/<id>.yaml` already exists — the offline contract never
+needed the schema *inline in the data file*, only *on the same disk or in the
+same JAR*.
 
-## Décisions
+## Decisions
 
-**① Précédence de résolution du schéma** : `fields:` inline > déclaration JAR
-(source d'add-on) > `models/<id>.yaml` (source project-authored) > fallback
-untyped. Premier trouvé gagne, les autres sont ignorés silencieusement (jamais
-d'erreur — philosophie non-hermétique). L'inline n'est **plus jamais écrit**
-par nos outils mais reste lu à vie.
+**① Schema resolution precedence**: inline `fields:` > JAR declaration
+(add-on source) > `models/<id>.yaml` (project-authored source) > untyped
+fallback. First found wins, the others are silently ignored (never an
+error — non-hermetic philosophy). Inline is **never written again** by our
+tools but stays readable for life.
 
-**② Une source = une valeur typée (shapes unifiés)** : la distinction
-Table/Config disparaît. Racine **objet** → interpolation (`{pack:id.champ}`),
-form simple. Racine **liste de model** → itérable, plaçable, cible de Set,
-`key_field` (défaut `id`), master-detail. `key_field`, `granularity` et
-`order` sont des propriétés du **kind liste racine**, plus d'un shape.
-Détection d'un fichier nu : mapping YAML = objet, liste YAML = liste ; le
-schéma résolu ailleurs prime s'il existe. `shape: table|config` = alias legacy
-lu, jamais écrit. L'UI éditeur (spreadsheet vs form) se **dérive** du kind
-racine. Un `iterates.source` vers une source non-liste itère vide, silencieux.
+**② A source = one typed value (shapes unified)**: the Table/Config distinction
+disappears. **Object** root → interpolation (`{pack:id.field}`), simple form.
+**List-of-model** root → iterable, placeable, Set target, `key_field` (default
+`id`), master-detail. `key_field`, `granularity` and `order` are properties of
+the **root list kind**, no longer of a shape. Detecting a bare file: YAML
+mapping = object, YAML list = list; the schema resolved elsewhere takes
+precedence if it exists. `shape: table|config` = legacy alias read, never
+written. The editor UI (spreadsheet vs form) is **derived** from the root kind.
+An `iterates.source` pointing to a non-list source iterates empty, silently.
 
-**③ Header optionnel** : `schema:`/`id:`/`shape:`/`fields:` restent honorés
-s'ils sont présents (un fichier commençant par `schema: data/v1` est la forme
-legacy) ; sinon le fichier est pur valeurs, `id` dérive du filename, `name`
-de l'id. En per-row, `_source.yaml` devient optionnel : absent → rows = tous
-les `.yaml` du dossier triés par filename ; présent → il ne porte plus que
-`order:` (+ overrides).
+**③ Optional header**: `schema:`/`id:`/`shape:`/`fields:` are still honored if
+present (a file starting with `schema: data/v1` is the legacy form); otherwise
+the file is pure values, `id` derives from the filename, `name` from the id.
+In per-row mode, `_source.yaml` becomes optional: absent → rows = all `.yaml`
+files of the folder sorted by filename; present → it only carries `order:`
+(+ overrides).
 
-**④ ltext = contrat hybride, comme les menus** : une valeur ltext sur disque
-est **le texte littéral de la langue par défaut** (`name: "Armes"`). Les
-autres langues vivent dans `lang/<lang>.yaml` sous les clés key-site
-(l'adresse ne change pas). Une valeur qui matche une clé présente dans `lang/`
-se résout encore (tolérance) ; sinon elle est littérale. Mono-langue = zéro
-clé, zéro `lang/`.
+**④ ltext = hybrid contract, like menus**: an ltext value on disk is **the
+literal text of the default language** (`name: "Armes"`). Other languages live
+in `lang/<lang>.yaml` under the key-site keys (the address does not change). A
+value that matches a key present in `lang/` still resolves (tolerance);
+otherwise it is literal. Single language = zero keys, zero `lang/`.
 
-**⑤ L'éditeur n'écrit que la forme nue** : source liée à un model déclaré →
-fichier pur valeurs ; source project-authored → schéma dans `models/<id>.yaml`
-+ fichier data nu (créer une source émet les deux). Un fichier legacy importé
-est re-canonicalisé à la sauvegarde suivante. **Corollaire : le plugin lit
-`models/` au load** pour typer les sources project-authored (walk ltext) —
-même mouvement que la résolution des templates (P2a), toujours offline.
-« Models ignorés par le plugin » (P2b) est révoqué.
+**⑤ The editor only writes the bare form**: source bound to a declared model →
+pure-values file; project-authored source → schema in `models/<id>.yaml` + bare
+data file (creating a source emits both). An imported legacy file is
+re-canonicalized on the next save. **Corollary: the plugin reads `models/` at
+load** to type project-authored sources (ltext walk) — same move as template
+resolution (P2a), still offline. "Models ignored by the plugin" (P2b) is
+revoked.
 
-**⑥ Pas de re-migration de l'existant** : les projects déjà en forme verbeuse
-restent tels quels (readers tolérants à vie) ; la re-canonicalisation arrive
-naturellement à la prochaine sauvegarde éditeur. `ShopDataMigrator` produit la
-forme nue pour les futures migrations `shop.yaml` (et garde `granularity:
-row`, choix boutique).
+**⑥ No re-migration of existing content**: projects already in the verbose form
+stay as they are (tolerant readers for life); re-canonicalization happens
+naturally at the next editor save. `ShopDataMigrator` produces the bare form for
+future `shop.yaml` migrations (and keeps `granularity: row`, a shop choice).
 
-**⑦ Commentaires** : l'export **projette les hints du model en commentaires
-YAML** (`help`/`label` → `# …` au-dessus du champ) + un en-tête généré
-(`# Géré par Artisan — éditable à la main`), régénérés à chaque export (pas de
-préservation nécessaire) ; un **bloc de commentaires d'en-tête écrit main**
-est capturé au parse et ré-émis verbatim. L'aide écrite une fois dans le model
-sert le form (tooltip) et le fichier (commentaire). **Défer** : préservation
-de commentaires arbitraires au milieu des fichiers (AST comment-aware
-généralisé).
-> **Précisé et durci par l'ADR `yaml-assisted-editing` (2026-07-27)** : le
-> défer devient un **refus** — les commentaires écrits main ne sont jamais
-> préservés (le patch chirurgical a été examiné puis rejeté), et l'en-tête
-> généré doit le **dire**. Le placement « au-dessus du champ » décrit ici doit
-> être appliqué tel quel : le code les regroupait en bloc d'en-tête. Côté
-> formulaire, l'aide cesse d'être une infobulle et devient visible sous le
-> champ, le nom technique restant affiché à côté du libellé.
+**⑦ Comments**: the export **projects the model's hints as YAML comments**
+(`help`/`label` → `# …` above the field) + a generated header
+(`# Managed by Artisan — editable by hand`), regenerated at each export (no
+preservation needed); a **hand-written header comment block** is captured at
+parse time and re-emitted verbatim. Help written once in the model serves the
+form (tooltip) and the file (comment). **Deferred**: preserving arbitrary
+comments in the middle of files (generalized comment-aware AST).
+> **Clarified and hardened by the `yaml-assisted-editing` ADR (2026-07-27)**: the
+> deferral becomes a **refusal** — hand-written comments are never preserved
+> (surgical patching was examined then rejected), and the generated header must
+> **say so**. The "above the field" placement described here must be applied
+> as is: the code grouped them in a header block. On the form side, help stops
+> being a tooltip and becomes visible under the field, with the technical name
+> still displayed next to the label.
 
-## Conséquences
+## Consequences
 
-- `data/v1` reste v1 : toute forme existante reste valide, on n'ajoute que
-  des formes plus courtes (relaxation tolérante ; la discipline « nouveau
-  dossier » vise les breaks).
-- `CONTEXT.md` § Data source : « deux shapes » remplacé par « une valeur
-  typée ; racine liste ⇒ itérable/plaçable ».
-- Un `shop_settings.yaml` retombe à `whole_shop_discount: 0` ; un catalogue
-  écrit main redevient aussi simple qu'un `shop.yaml` classique, mais typé,
-  éditable dans le form généré, multi-langue à la demande.
+- `data/v1` stays v1: every existing form stays valid, we only add shorter
+  forms (tolerant relaxation; the "new folder" discipline targets breaks).
+- `CONTEXT.md` § Data source: "two shapes" replaced by "one typed value; list
+  root ⇒ iterable/placeable".
+- A `shop_settings.yaml` falls back to `whole_shop_discount: 0`; a hand-written
+  catalog becomes as simple as a classic `shop.yaml` again, but typed, editable
+  in the generated form, multi-language on demand.
 
-## Alternatives rejetées
+## Rejected alternatives
 
-- **Garder le schéma inline obligatoire** (décision ③ d'origine) : le contrat
-  offline n'en a pas besoin — JAR et `models/` sont sur le même disque.
-- **Re-migrer l'existant en masse** : risque sur données saines, zéro gain.
-- **`data/v2`** : rien ne casse, la tolérance suffit.
+- **Keep the inline schema mandatory** (original decision ③): the offline
+  contract does not need it — JAR and `models/` are on the same disk.
+- **Mass re-migration of existing content**: risk on healthy data, zero gain.
+- **`data/v2`**: nothing breaks, tolerance is enough.

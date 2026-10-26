@@ -1,9 +1,9 @@
-# Validation email — manuel (nécessite un domaine TEM configuré)
+# Email validation — manual (requires a configured TEM domain)
 
-Pré-requis utilisateur : projet Scaleway + domaine TEM validé (SPF/DKIM/DMARC), credentials SMTP.
+User prerequisites: Scaleway project + validated TEM domain (SPF/DKIM/DMARC), SMTP credentials.
 
-1. Renseigner SMTP_HOST=smtp.tem.scw.cloud, SMTP_PORT=587, SMTP_USER, SMTP_PASS, MAIL_FROM dans backend/.env.
-2. `bun backend/scripts/send-test-email.ts <ton adresse>` → mail reçu (vérifier spam), FROM correct, rendu html.
-3. Variante fr : `... <adresse> fr`.
-4. Signup réel sur l'éditeur local → mail de bienvenue reçu ; signup avec SMTP_* vides → aucun envoi, aucun WARN répété (un seul au premier essai).
-5. Coolify prod : ajouter les env vars au service backend avant de compter dessus.
+1. Fill in SMTP_HOST=smtp.tem.scw.cloud, SMTP_PORT=587, SMTP_USER, SMTP_PASS, MAIL_FROM in backend/.env.
+2. `bun backend/scripts/send-test-email.ts <your address>` → mail received (check spam), correct FROM, html rendering.
+3. fr variant: `... <address> fr`.
+4. Real signup on the local editor → welcome mail received; signup with empty SMTP_* → nothing sent, no repeated WARN (a single one on the first attempt).
+5. Coolify prod: add the env vars to the backend service before relying on it.

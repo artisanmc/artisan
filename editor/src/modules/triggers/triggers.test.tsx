@@ -59,8 +59,8 @@ function project(triggers: Trigger[] = []): Project {
 const parse = (src: Record<string, unknown>) =>
   triggerFromFile({ id: "t_x", ...src }, { projectId: PID, lang: "en" });
 
-describe("le catalogue des événements", () => {
-  it("nomme chaque événement du cœur en français et en anglais, dans un domaine connu", () => {
+describe("the Game event catalog", () => {
+  it("names every core event in French and English, in a known domain", () => {
     expect(CORE_GAME_EVENTS.length).toBeGreaterThanOrEqual(29);
     const fr = triggersFr.events as Record<string, { title: string; short: string }>;
     const en = triggersEn.events as Record<string, { title: string; short: string }>;
@@ -74,7 +74,7 @@ describe("le catalogue des événements", () => {
     }
   });
 
-  it("laisse la copie du serveur l'emporter et ajoute les événements d'un module", () => {
+  it("lets the server's copy win and adds a module's events", () => {
     const join = findGameEvent(CORE_GAME_EVENTS, "player_join")!;
     const merged = mergeGameEvents([
       { ...join, frequency: "normal" },
@@ -97,7 +97,7 @@ describe("le catalogue des événements", () => {
     expect(groups.slice(0, 2)).toEqual(["connection", "life"]);
   });
 
-  it("offre les valeurs de l'événement, feuilles comprises, et cancelled s'il est annulable", () => {
+  it("offers the event's values, leaves included, and cancelled if it can be cancelled", () => {
     const death = eventContextEntries(findGameEvent(CORE_GAME_EVENTS, "player_death")!);
     const paths = death.map((e) => e.path);
     expect(paths).toContain("event.location");
@@ -109,7 +109,7 @@ describe("le catalogue des événements", () => {
   });
 });
 
-describe("le format trigger/v1", () => {
+describe("the trigger/v1 format", () => {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   ajv.addSchema(menuSchema);
   const validate = ajv.compile(triggerSchema);
@@ -118,7 +118,7 @@ describe("le format trigger/v1", () => {
     ["death-coordinates", deathExample],
     ["spawn-protection", spawnExample],
     ["welcome", welcomeExample],
-  ])("relit l'exemple %s et le réécrit à l'identique, valide", (_, example) => {
+  ])("reads example %s back and rewrites it identically, valid", (_, example) => {
     const { doc, i18nKeys, unsupported } = parse(example as Record<string, unknown>);
     expect(unsupported).toEqual([]);
     const p = project([doc]);
@@ -129,7 +129,7 @@ describe("le format trigger/v1", () => {
     expect(validate(written), JSON.stringify(validate.errors)).toBe(true);
   });
 
-  it("garde le délai, l'état désactivé et les clés inconnues", () => {
+  it("keeps the delay, the disabled state and unknown keys", () => {
     const { doc } = parse({
       schema: "trigger/v1",
       on: "player_join",
@@ -147,14 +147,14 @@ describe("le format trigger/v1", () => {
     });
   });
 
-  it("accepte un `if` unique et ignore un délai nul", () => {
+  it("accepts a single `if` and ignores a zero delay", () => {
     const { doc } = parse({ on: "player_join", if: { world_is: "lobby" }, cooldown_seconds: 0 });
     expect(doc.conditions).toHaveLength(1);
     expect(doc.cooldownSeconds).toBeUndefined();
   });
 });
 
-describe("un trigger dans le projet", () => {
+describe("a trigger in the project", () => {
   beforeEach(() => {
     registerEditorModule(triggersModule);
     const openProjects: OpenProjects = { projects: [project()], projectOrder: [PID] };
@@ -170,7 +170,7 @@ describe("un trigger dans le projet", () => {
   const trigger = (id: string) =>
     documentsOf(current(), "trigger").find((d) => d.id === id) as Trigger | undefined;
 
-  it("se crée sans événement, actif, et range ses textes sous triggers.<id>.do", () => {
+  it("is created with no event, enabled, and files its texts under triggers.<id>.do", () => {
     useProjectsStore.getState().createDocument({ projectId: PID, kind: "trigger", id: "t_a" });
     expect(trigger("t_a")).toMatchObject({ on: "", enabled: true, steps: [] });
 
@@ -202,7 +202,7 @@ describe("un trigger dans le projet", () => {
     ]);
   });
 
-  it("traduit les textes de set_event comme tout texte affiché au joueur", () => {
+  it("translates set_event texts like any text shown to the player", () => {
     useProjectsStore.getState().createDocument({ projectId: PID, kind: "trigger", id: "t_w" });
     const ops = storeChainOps(
       useProjectsStore.getState,
@@ -231,7 +231,7 @@ describe("un trigger dans le projet", () => {
     ]);
   });
 
-  it("résume son événement et ses étapes sur le tableau", () => {
+  it("summarises its event and steps on the board", () => {
     const { doc } = parse(deathExample as Record<string, unknown>);
     expect(triggerKind.board?.summary?.(doc, { project: project(), lang: "fr" })).toBe(
       i18next.t("triggers.summary", {
@@ -242,7 +242,7 @@ describe("un trigger dans le projet", () => {
   });
 });
 
-describe("la page d'un trigger", () => {
+describe("a trigger's page", () => {
   beforeAll(async () => {
     await i18next.changeLanguage("fr");
   });
@@ -255,7 +255,7 @@ describe("la page d'un trigger", () => {
     resetDocumentCodecs();
   });
 
-  it("dit l'événement comme une phrase et montre ses valeurs", () => {
+  it("states the event as a sentence and shows its values", () => {
     const { doc } = parse(deathExample as Record<string, unknown>);
     useProjectsStore.setState({
       openProjects: { projects: [project([doc])], projectOrder: [PID] },
@@ -266,7 +266,7 @@ describe("la page d'un trigger", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("ouvre le choix de l'événement à la création", () => {
+  it("opens the event picker on creation", () => {
     const { doc } = parse({ on: "" });
     useProjectsStore.setState({
       openProjects: { projects: [project([doc])], projectOrder: [PID] },
@@ -276,7 +276,7 @@ describe("la page d'un trigger", () => {
     expect(screen.getByText("Quand un joueur casse un bloc")).toBeTruthy();
   });
 
-  it("prévient quand le serveur actif ne déclare pas l'événement", () => {
+  it("warns when the active server does not declare the event", () => {
     const { doc } = parse({ on: "quests:completed" });
     useServerGameEventsStore.setState({ events: [], status: "ready" } as never);
     useProjectsStore.setState({

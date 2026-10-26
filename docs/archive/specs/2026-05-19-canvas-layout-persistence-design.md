@@ -3,25 +3,25 @@
 **Date:** 2026-05-19
 **Status:** Approved (pending review)
 
-## Problème
+## Problem
 
-`Pack.canvasLayout` — les positions `{ x, y }` des cartes Menu / Command / Dialog dans le canvas du pack — vit aujourd'hui uniquement dans :
+`Pack.canvasLayout` — the `{ x, y }` positions of the Menu / Command / Dialog cards in the pack canvas — today lives only in:
 
 - `editor/src/state/accountStore.ts` (zustand + localStorage)
-- `packBundles.editorJson` côté backend (écrit par `PUT /api/editor-session/:token/packs/:packId` et `POST .../deploy`)
+- `packBundles.editorJson` on the backend (written by `PUT /api/editor-session/:token/packs/:packId` and `POST .../deploy`)
 
-Elle n'est **pas** sérialisée dans les YAML du pack (`editor/src/features/export/transform.ts:542-555`). Conséquence : si un admin copie `plugins/Artisan/packs/<id>/` d'un serveur A vers un serveur B (file copy hors éditeur), le plugin B republie via `hello` → le backend B reconstruit `editorJson` depuis les fichiers via `importPackFromFiles` → `canvasLayout: {}` à `backend/src/lib/packImport.ts:239`. Les cartes retombent sur le grid auto par défaut.
+It is **not** serialized in the pack's YAML (`editor/src/features/export/transform.ts:542-555`). Consequence: if an admin copies `plugins/Artisan/packs/<id>/` from server A to server B (file copy outside the editor), plugin B republishes via `hello` → backend B rebuilds `editorJson` from the files via `importPackFromFiles` → `canvasLayout: {}` at `backend/src/lib/packImport.ts:239`. The cards fall back to the default auto grid.
 
-But : positions portées par les fichiers eux-mêmes, donc transférables.
+Goal: positions carried by the files themselves, so they are transferable.
 
-## Décisions clés
+## Key decisions
 
-- **Source de vérité = fichiers (`manifest.yaml`).** `editorJson.canvasLayout` est un cache dérivé.
-- **Emplacement = `manifest.yaml`**, dans un champ optionnel `editor_layout`.
-- **Plugin** : aucun changement. Le champ est ignoré (déjà `@JsonIgnoreProperties(ignoreUnknown = true)` sur `ManifestYaml`). Le fichier traverse plugin → bundle → backend intact.
-- **Pas de migration.** Packs existants → `canvasLayout: {}` à l'import → `autoLayout` peuple le grid déterministe. La première mutation persiste les positions dans le manifest.
+- **Source of truth = files (`manifest.yaml`).** `editorJson.canvasLayout` is a derived cache.
+- **Location = `manifest.yaml`**, in an optional `editor_layout` field.
+- **Plugin**: no change. The field is ignored (already `@JsonIgnoreProperties(ignoreUnknown = true)` on `ManifestYaml`). The file goes through plugin → bundle → backend intact.
+- **No migration.** Existing packs → `canvasLayout: {}` at import → `autoLayout` fills the deterministic grid. The first mutation persists the positions in the manifest.
 
-## Schéma `manifest.yaml`
+## `manifest.yaml` schema
 
 ```yaml
 schema: manifest/v1
@@ -32,21 +32,21 @@ files:
   menus: [main, shop]
   commands: [open_shop]
   dialogs: []
-editor_layout:                # ← optionnel, omis si vide
+editor_layout:                # ← optional, omitted if empty
   main:       { x: 40,  y: 40 }
   shop:       { x: 260, y: 40 }
   open_shop:  { x: 480, y: 40 }
 ```
 
-- Clés : `MenuId | CommandId | DialogId` (même espace d'ids que `canvasLayout` aujourd'hui).
-- Valeurs : `{ x: number, y: number }`.
-- Schema version inchangé (`manifest/v1`). Le champ étant optionnel + ignoré par les parseurs tolérants, pas de breaking change.
+- Keys: `MenuId | CommandId | DialogId` (same id space as `canvasLayout` today).
+- Values: `{ x: number, y: number }`.
+- Schema version unchanged (`manifest/v1`). The field being optional + ignored by tolerant parsers, no breaking change.
 
-## Changements par module
+## Changes per module
 
-### Éditeur — `editor/src/features/export/transform.ts`
+### Editor — `editor/src/features/export/transform.ts`
 
-Avant l'écriture de `manifest.yaml`, construire `editor_layout` à partir de `pack.canvasLayout` filtré sur les ids encore vivants :
+Before writing `manifest.yaml`, build `editor_layout` from `pack.canvasLayout` filtered on the ids still alive:
 
 ```ts
 const layoutIds = new Set<string>([
@@ -71,11 +71,11 @@ if (Object.keys(editorLayout).length > 0) {
 files[`${base}/manifest.yaml`] = stringify(manifest, yamlOpts);
 ```
 
-Pourquoi filtrer : éviter que `canvasLayout` contienne des entrées orphelines (id d'un menu supprimé) qui pollueraient le YAML et survivraient à un round-trip.
+Why filter: avoid `canvasLayout` containing orphan entries (id of a deleted menu) that would pollute the YAML and survive a round trip.
 
 ### Backend — `backend/src/lib/packImport.ts`
 
-`importPackFromFiles` lit aujourd'hui le manifest avec `tryParse<ManifestYaml>` puis renvoie `canvasLayout: {}` en dur (ligne 239). Extension :
+`importPackFromFiles` today reads the manifest with `tryParse<ManifestYaml>` then returns a hardcoded `canvasLayout: {}` (line 239). Extension:
 
 ```ts
 interface ManifestYaml {
@@ -100,9 +100,9 @@ function parseEditorLayout(raw: ManifestYaml["editor_layout"]): Record<string, {
 canvasLayout: parseEditorLayout(manifest.editor_layout),
 ```
 
-Tolérant : entrées mal typées silencieusement ignorées (pas d'exception qui ferait planter l'import de tout le pack).
+Tolerant: badly typed entries silently ignored (no exception that would crash the import of the whole pack).
 
-Helper extrait + exporté pour usage côté `bundles.ts` :
+Helper extracted + exported for use on the `bundles.ts` side:
 
 ```ts
 export function readEditorLayoutFromFiles(
@@ -116,7 +116,7 @@ export function readEditorLayoutFromFiles(
 
 ### Backend — `backend/src/routes/bundles.ts` (plugin publish)
 
-Logique actuelle (lignes 19-46) : si un `editorJson` non-stub existe, on le garde tel quel ; sinon on génère depuis les fichiers. Sous "files win", on doit **toujours** synchroniser `canvasLayout` avec ce que dit le manifest :
+Current logic (lines 19-46): if a non-stub `editorJson` exists, we keep it as is; otherwise we generate from the files. Under "files win", we must **always** sync `canvasLayout` with what the manifest says:
 
 ```ts
 const incomingLayout = readEditorLayoutFromFiles(body.files, packId);
@@ -132,14 +132,14 @@ editorJsonObj.canvasLayout = incomingLayout;  // files win
 const keepEditorJson = JSON.stringify(editorJsonObj);
 ```
 
-Effet observable :
+Observable effect:
 
-- File copy serveur A → B avec positions dans manifest → republish plugin → `editorJson.canvasLayout` peuplé. Éditeur ouvert ensuite → positions correctes.
-- File copy serveur A → B **sans** `editor_layout` (cas legacy ou champ retiré) → `canvasLayout: {}` → autoLayout grille par défaut.
+- File copy server A → B with positions in the manifest → plugin republish → `editorJson.canvasLayout` filled. Editor opened afterwards → correct positions.
+- File copy server A → B **without** `editor_layout` (legacy case or field removed) → `canvasLayout: {}` → autoLayout default grid.
 
-### Backend — `backend/src/routes/editorSession.ts` (éditeur PUT/deploy)
+### Backend — `backend/src/routes/editorSession.ts` (editor PUT/deploy)
 
-Le PUT envoie `{ pack, files }`. `pack.canvasLayout` et `files.manifest.yaml.editor_layout` peuvent en théorie diverger (bug éditeur, race…). Application de la même règle "files win" :
+The PUT sends `{ pack, files }`. `pack.canvasLayout` and `files.manifest.yaml.editor_layout` can in theory diverge (editor bug, race…). Same "files win" rule applies:
 
 ```ts
 const incomingLayout = readEditorLayoutFromFiles(body.files, packId);
@@ -148,35 +148,35 @@ packObj.canvasLayout = incomingLayout;
 const editorJson = JSON.stringify(packObj);
 ```
 
-Une seule source à l'écriture, peu importe le chemin (plugin publish ou éditeur PUT).
+A single source at write time, regardless of the path (plugin publish or editor PUT).
 
-### Plugin — aucun changement
+### Plugin — no change
 
-`plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt:14` :
+`plugin/src/main/kotlin/net/artisanmc/plugin/model/PackBundle.kt:14`:
 ```kotlin
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ManifestYaml(...)
 ```
-Le champ `editor_layout` est silencieusement ignoré au parse. Lors du republish via `BundleDownloader`, le fichier `manifest.yaml` est renvoyé tel quel (le plugin ne le sérialise jamais lui-même — il sert le binaire du disque).
+The `editor_layout` field is silently ignored at parse. On republish via `BundleDownloader`, the `manifest.yaml` file is sent back as is (the plugin never serializes it itself — it serves the binary from disk).
 
 ## Tests
 
-| Fichier | Cas |
+| File | Cases |
 |---|---|
-| `editor/src/features/export/transform.test.ts` | (1) manifest contient `editor_layout` quand `canvasLayout` non-vide ; (2) ids fantômes (deleted menu) filtrés ; (3) champ omis dans manifest si `canvasLayout` est `{}`. |
-| `backend/src/lib/packImport.test.ts` (nouveau ou étendu) | (1) `editor_layout` du manifest → `canvasLayout` ; (2) entrées mal typées (`x: "a"`, `null`) silencieusement ignorées ; (3) `editor_layout` absent → `canvasLayout: {}`. |
-| `backend/src/routes/bundles.test.ts` | (1) Plugin republish avec positions → `editorJson.canvasLayout` overwrite ; (2) sans positions → `canvasLayout: {}` même si la DB avait des positions ; (3) stub editorJson → behave comme avant + positions du manifest. |
-| `backend/src/routes/editorSession.test.ts` | PUT avec `pack.canvasLayout` divergent du manifest → le manifest l'emporte côté DB. |
-| Round-trip (nouveau, ex. `backend/src/lib/packRoundTrip.test.ts` ou dans `transform.test.ts`) | `pack.canvasLayout` → `transform` → `importPackFromFiles` → égalité parfaite (modulo filtrage ids fantômes). |
+| `editor/src/features/export/transform.test.ts` | (1) manifest contains `editor_layout` when `canvasLayout` is non-empty; (2) ghost ids (deleted menu) filtered; (3) field omitted from manifest if `canvasLayout` is `{}`. |
+| `backend/src/lib/packImport.test.ts` (new or extended) | (1) manifest's `editor_layout` → `canvasLayout`; (2) badly typed entries (`x: "a"`, `null`) silently ignored; (3) `editor_layout` absent → `canvasLayout: {}`. |
+| `backend/src/routes/bundles.test.ts` | (1) Plugin republish with positions → `editorJson.canvasLayout` overwritten; (2) without positions → `canvasLayout: {}` even if the DB had positions; (3) stub editorJson → behaves as before + manifest positions. |
+| `backend/src/routes/editorSession.test.ts` | PUT with `pack.canvasLayout` diverging from the manifest → the manifest wins on the DB side. |
+| Round-trip (new, e.g. `backend/src/lib/packRoundTrip.test.ts` or in `transform.test.ts`) | `pack.canvasLayout` → `transform` → `importPackFromFiles` → perfect equality (modulo ghost id filtering). |
 
-## Risques / limites
+## Risks / limits
 
-- **Session éditeur ouverte sur server B + republish plugin pendant ce temps** : le `canvasLayout` chargé au démarrage de l'éditeur peut être écrasé. C'est cohérent avec le comportement du reste du bundle aujourd'hui (le plugin republish réécrit les menus/lang aussi). Acceptable.
-- **Collision d'ids `MenuId == CommandId == DialogId`** : possible en théorie (espaces brandés mais pas disjoints au runtime). Le bug existe déjà dans `canvasLayout` aujourd'hui. Hors scope.
-- **Taille du manifest** : un pack avec 100 menus ajoute ~100 lignes au manifest. Négligeable.
+- **Editor session open on server B + plugin republish in the meantime**: the `canvasLayout` loaded at editor startup can be overwritten. This is consistent with the behavior of the rest of the bundle today (the plugin republish rewrites menus/lang too). Acceptable.
+- **Id collision `MenuId == CommandId == DialogId`**: possible in theory (branded spaces but not disjoint at runtime). The bug already exists in `canvasLayout` today. Out of scope.
+- **Manifest size**: a pack with 100 menus adds ~100 lines to the manifest. Negligible.
 
-## Hors scope
+## Out of scope
 
-- Zoom / pan / sélection courante de l'éditeur (état UI, pas du domaine).
-- Ordre des layers d'un menu (déjà persisté ailleurs).
-- Versioning ou historique des positions.
+- Zoom / pan / current selection of the editor (UI state, not domain).
+- Order of a menu's layers (already persisted elsewhere).
+- Versioning or history of positions.

@@ -1,11 +1,11 @@
 # Domain docs
 
-Artisan est un dépôt à contexte unique.
+Artisan is a single-context repository.
 
-## Avant d'explorer
+## Before exploring
 
-- Lire `CONTEXT.md` pour le vocabulaire du domaine.
-- Lire les décisions pertinentes dans `docs/decisions/`.
-- Lire les documents d'architecture pertinents dans `docs/architecture/`.
+- Read `CONTEXT.md` for the domain vocabulary.
+- Read the relevant decisions in `docs/decisions/`.
+- Read the relevant architecture documents in `docs/architecture/`.
 
-Utiliser les termes exacts du glossaire dans les tickets, hypothèses, tests et propositions. Si une proposition contredit une décision existante, signaler explicitement le conflit.
+Use the glossary's exact terms in tickets, hypotheses, tests and proposals. If a proposal contradicts an existing decision, call out the conflict explicitly.

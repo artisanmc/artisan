@@ -1,95 +1,95 @@
-# Le serveur web de l'éditeur auto-hébergé
+# The self-hosted editor web server
 
-**Statut :** accepté (2026-10-12). Phase B du plan d'auto-hébergement.
+**Status:** accepted (2026-10-12). Phase B of the self-hosting plan.
 
-## Contexte
+## Context
 
-Sans backend, le plugin sert lui-même l'éditeur, son API et ses WebSockets. Le plan
-prévoyait Javalin. Javalin 7 est écrit en Kotlin et tire `kotlin-stdlib` 2.2 ; chargé
-par `libraries:`, il cohabiterait avec le Kotlin 2.0 embarqué dans le jar, et tout
-appel qui fait passer un type `kotlin.*` d'un côté à l'autre casse au chargement
-(la famille de `LinkageError` déjà rencontrée, cf. `paper/build.gradle.kts`).
+Without a backend, the plugin itself serves the editor, its API and its WebSockets. The plan
+called for Javalin. Javalin 7 is written in Kotlin and pulls `kotlin-stdlib` 2.2; loaded
+through `libraries:`, it would coexist with the Kotlin 2.0 embedded in the jar, and any
+call that passes a `kotlin.*` type from one side to the other breaks at load
+(the `LinkageError` family already encountered, see `paper/build.gradle.kts`).
 
-## Décisions
+## Decisions
 
-**① Jetty 12, sans surcouche.** Java pur, cinq dépendances (`jetty-server`,
-`jetty-websocket-jetty-server` et leurs transitives, slf4j déjà fourni par Paper).
-Le routage tient dans `hub/Http.kt` : une table de routes `méthode + /segments/:param`.
+**① Jetty 12, no extra layer.** Pure Java, five dependencies (`jetty-server`,
+`jetty-websocket-jetty-server` and their transitives, slf4j already provided by Paper).
+Routing fits in `hub/Http.kt`: a table of `method + /segments/:param` routes.
 
-**② Téléchargé par Paper.** Déclaré dans `libraries:` de `plugin.yml`, comme HikariCP.
-Un serveur sans accès sortant démarre sans éditeur (le `LinkageError` est rattrapé).
+**② Downloaded by Paper.** Declared in `libraries:` of `plugin.yml`, like HikariCP.
+A server without outbound access starts without the editor (the `LinkageError` is caught).
 
-**③ Module `hub`, sans Bukkit.** Il ne voit le jeu qu'à travers les ports de `core`.
-`paper` le construit dans `ArtisanPlugin` et l'arrête dans `onDisable`.
+**③ `hub` module, no Bukkit.** It only sees the game through `core`'s ports.
+`paper` builds it in `ArtisanPlugin` and stops it in `onDisable`.
 
-**④ Configuration dans `environment.yml`** (`web.enabled|port|bind|url`), jamais
-écrite par l'éditeur : une erreur depuis la page de configuration ne doit pas
-couper l'accès à l'éditeur lui-même.
+**④ Configuration in `environment.yml`** (`web.enabled|port|bind|url`), never
+written by the editor: a mistake from the configuration page must not
+cut off access to the editor itself.
 
-**⑤ Connexion par lien en jeu.** `/artisan editor` donne un jeton à usage unique
-(60 s, un par joueur et par minute) ; `/login/<jeton>` ouvre une session (cookie
-`HttpOnly`, `SameSite=Strict`, 12 h). L'identité est l'UUID du joueur, les droits
-sont ses permissions `artisan.editor.*` au moment de la demande. *Révisé le
-2026-10-15* : la console obtient aussi un lien, au nom d'une identité **Console**
-unique (UUID nul) partagée par quiconque l'utilise — mêmes brouillons, même auteur. Toute route de
-l'API exige une session ; une requête qui modifie quelque chose ou ouvre un
-WebSocket doit venir de la même origine que la page.
+**⑤ Login by in-game link.** `/artisan editor` gives a single-use token
+(60 s, one per player per minute); `/login/<token>` opens a session (cookie
+`HttpOnly`, `SameSite=Strict`, 12 h). Identity is the player's UUID, rights
+are their `artisan.editor.*` permissions at the time of the request. *Revised
+2026-10-15*: the console also gets a link, under a single **Console** identity
+(nil UUID) shared by whoever uses it — same drafts, same author. Every API route
+requires a session; a request that modifies something or opens a
+WebSocket must come from the same origin as the page.
 
-**⑥ Mêmes routes que le backend, en attendant l'éditeur réécrit.** Le hub sert le
-sous-ensemble des routes REST que l'éditeur appelle (`AccountRoutes`, `ServerRoutes`,
-`ProjectRoutes`), avec un réseau et un serveur uniques nommés `local` et l'identité
-d'un Project égale au nom de son dossier. Chaque route traduit sa requête en message
-du protocole (`project_read`, `project_write`, `project_draft_request`…) passé par
-`ServerLink` aux gestionnaires existants : aucune logique de Project n'est dupliquée.
-Les brouillons privés restent sur le disque du serveur, un jeu par UUID de joueur.
-Sans équivalent pour l'instant : Versions (vides).
-*Révisé le 2026-10-13 par [server-identity-and-versions](server-identity-and-versions.md) :
-Versions et brouillons dans la base de la suite.*
+**⑥ Same routes as the backend, until the editor is rewritten.** The hub serves the
+subset of REST routes that the editor calls (`AccountRoutes`, `ServerRoutes`,
+`ProjectRoutes`), with a single network and server named `local` and a Project's
+identity equal to its folder name. Each route translates its request into a
+protocol message (`project_read`, `project_write`, `project_draft_request`…) passed by
+`ServerLink` to the existing handlers: no Project logic is duplicated.
+Private drafts stay on the server's disk, one set per player UUID.
+No equivalent for now: Versions (empty).
+*Revised 2026-10-13 by [server-identity-and-versions](server-identity-and-versions.md):
+Versions and drafts in the follow-up database.*
 
-**⑦ Items et textures vanilla sans backend.** Le catalogue d'items (`tools/minecraft-assets/items`)
-voyage dans le jar ; les icônes 3D (`tools/minecraft-assets/icons`) aussi avec `-PwithEditor`. Les
-textures sont extraites du jar client Mojang, téléchargé et vérifié (SHA-1) à la première
-texture demandée, dans `plugins/Artisan/cache/minecraft/<version>/`. Les items custom se
-lisent directement dans `CustomItemsManager` (`ItemRoutes`, `VanillaAssets`).
-*Rejeté :* télécharger les icônes depuis les releases GitHub (dépôt privé).
+**⑦ Vanilla items and textures without a backend.** The item catalog (`tools/minecraft-assets/items`)
+travels in the jar; the 3D icons (`tools/minecraft-assets/icons`) too with `-PwithEditor`. Textures
+are extracted from the Mojang client jar, downloaded and verified (SHA-1) at the first
+requested texture, into `plugins/Artisan/cache/minecraft/<version>/`. Custom items
+are read directly in `CustomItemsManager` (`ItemRoutes`, `VanillaAssets`).
+*Rejected:* downloading the icons from GitHub releases (private repository).
 
-**⑧ Le pack, servi par le serveur.** L'éditeur envoie le zip qu'il construit ; le hub le
-garde sous son SHA-1 (`PackStore`, trois derniers), le sert publiquement sous
-`/resource-pack/<sha1>.zip` et le remet au `ResourcePackManager` avec cette URL. Délégation
-et envoi direct restent tels quels : seul l'émetteur du zip change.
-*Rejeté :* supprimer l'envoi direct (prévu au plan) ; il ne coûte rien et sert les serveurs sans hôte de pack.
+**⑧ The pack, served by the server.** The editor sends the zip it builds; the hub
+keeps it under its SHA-1 (`PackStore`, last three), serves it publicly under
+`/resource-pack/<sha1>.zip` and hands it to the `ResourcePackManager` with that URL. Delegation
+and direct sending stay as they are: only the zip's emitter changes.
+*Rejected:* removing direct sending (planned); it costs nothing and serves servers without a pack host.
 
-**⑨ Le réseau, relié au hub par `/ws/plugin`.** Les autres serveurs gardent leur client du
-backend (`WsClient`, `SyncedMenuProvider`) et le pointent vers le hub. Leur `hello` porte le
-secret partagé en `server_key` et leur nom en `proxy_name` ; le hub garde ce qu'il annonce
-(`RemoteServer`) et relaie chaque requête de l'éditeur par `request_id`. Un serveur déconnecté
-reste listé hors ligne (503 `server_offline`). Un Project hors du serveur du hub s'identifie
-`<serveur>.<dossier>` (`Servers.project`) : deux serveurs peuvent avoir le même dossier.
-Depuis le 2026-10-14 (issue #43, ADR `server-identity-and-versions`), c'est `<server id>.<dossier>`
-sur tout serveur, celui du hub compris.
-*Rejeté :* un identifiant opaque par Project (il faudrait une base pour le retrouver).
+**⑨ The network, connected to the hub through `/ws/plugin`.** The other servers keep their
+backend client (`WsClient`, `SyncedMenuProvider`) and point it at the hub. Their `hello` carries the
+shared secret as `server_key` and their name as `proxy_name`; the hub keeps what it announces
+(`RemoteServer`) and relays each editor request by `request_id`. A disconnected server
+stays listed offline (503 `server_offline`). A Project outside the hub's server is identified
+as `<server>.<folder>` (`Servers.project`): two servers can have the same folder.
+Since 2026-10-14 (issue #43, ADR `server-identity-and-versions`), it is `<server id>.<folder>`
+on every server, the hub's included.
+*Rejected:* an opaque identifier per Project (a database would be needed to find it back).
 
-**⑩ Rôles `hub` et `leaf`.** `web.role: leaf` coupe le serveur web et pointe le client vers
-`web.hub-url` avec le secret du réseau pour clé : `web.secret`, sinon le secret de transfert
-Velocity (`config/paper-global.yml`), sinon celui que le hub génère dans `network-secret`.
-MySQL n'est pas exigé : les brouillons restent sur le disque de chaque serveur et les sessions
-dans la mémoire du hub. Une feuille sur H2 le signale au démarrage, car les données de la
-suite n'y sont pas partagées.
-*Rejeté :* refuser le démarrage sans MySQL (prévu au plan) ; rien du hub n'en a besoin.
-*Amendement 2026-10-13 :* `web.role` est supprimé : un serveur est une feuille exactement quand
-`web.hub` est renseigné, vide il est le hub. `web.hub` (ex-`web.hub-url`) prend `hôte[:port]`
-(port 8765 par défaut, ou une adresse `https://` de proxy) et le plugin en dérive l'URL
-WebSocket `ws(s)://…/ws/plugin`. `web.name` devient la clé racine `name`.
+**⑩ `hub` and `leaf` roles.** `web.role: leaf` turns off the web server and points the client at
+`web.hub-url` with the network secret as key: `web.secret`, otherwise the Velocity forwarding
+secret (`config/paper-global.yml`), otherwise the one the hub generates in `network-secret`.
+MySQL is not required: drafts stay on each server's disk and sessions
+in the hub's memory. A leaf on H2 reports it at startup, because the follow-up data
+is not shared there.
+*Rejected:* refusing to start without MySQL (planned); nothing in the hub needs it.
+*Amendment 2026-10-13:* `web.role` is removed: a server is a leaf exactly when
+`web.hub` is set, empty it is the hub. `web.hub` (formerly `web.hub-url`) takes `host[:port]`
+(port 8765 by default, or an `https://` proxy address) and the plugin derives the WebSocket URL
+`ws(s)://…/ws/plugin` from it. `web.name` becomes the root key `name`.
 
-**⑪ Version du protocole.** Le `hello` porte `ProtocolVersion.CURRENT` (`1.0`). Une majeure
-différente de celle du hub : le serveur reste listé « mise à jour requise » et le hub ne lui
-envoie plus rien (503 `plugin_update_required`). Une mineure différente ne fait qu'ajouter
-des champs. Une release publie tous les jars sous un seul numéro.
+**⑪ Protocol version.** The `hello` carries `ProtocolVersion.CURRENT` (`1.0`). A major
+different from the hub's: the server stays listed as "update required" and the hub no longer
+sends it anything (503 `plugin_update_required`). A different minor only adds
+fields. A release publishes all jars under a single number.
 
-*Rejeté :* Javalin (deux runtimes Kotlin), le serveur HTTP du JDK (pas de
-WebSocket), embarquer Jetty dans le jar (+3 Mo, à relocaliser).
+*Rejected:* Javalin (two Kotlin runtimes), the JDK's HTTP server (no
+WebSocket), embedding Jetty in the jar (+3 MB, to relocate).
 
-## Conséquences
+## Consequences
 
-- Un changement de `web` demande un redémarrage : le serveur web survit à `/artisan reload`.
-- Les sessions vivent en mémoire : un redémarrage demande un nouveau lien.
+- A `web` change requires a restart: the web server survives `/artisan reload`.
+- Sessions live in memory: a restart requires a new link.

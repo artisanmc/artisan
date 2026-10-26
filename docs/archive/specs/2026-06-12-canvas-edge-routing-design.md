@@ -1,76 +1,76 @@
-# Canvas — routage propre des liens entre nœuds
+# Canvas — clean routing of links between nodes
 
-**Date** : 2026-06-12
-**Statut** : validé (brainstorming avec mockups visuels)
+**Date**: 2026-06-12
+**Status**: validated (brainstorming with visual mockups)
 
-## Problème
+## Problem
 
-Les liens entre menus sur le canvas sont brouillons :
+The links between menus on the canvas are messy:
 
-- Tous les liens d'un nœud partent du même point (milieu-droit de la source) et arrivent au même point (milieu-gauche de la cible) — `Edges.tsx` utilise des ancres fixes.
-- Le tracé actuel est un chemin orthogonal déformé par `bezier` + `tension 0.3` → courbes molles, jamais droites.
-- Un aller/retour A↔B produit deux edges (`A->B` et `B->A`) qui se superposent.
-- Une cible située à gauche de sa source génère une boucle vers l'arrière (la sortie est toujours à droite).
-- Aucune flèche : la direction d'un lien est invisible.
+- All the links of a node leave from the same point (middle-right of the source) and arrive at the same point (middle-left of the target) — `Edges.tsx` uses fixed anchors.
+- The current path is an orthogonal path distorted by `bezier` + `tension 0.3` → soft curves, never straight.
+- A back-and-forth A↔B produces two edges (`A->B` and `B->A`) that overlap.
+- A target located to the left of its source generates a loop backwards (the exit is always on the right).
+- No arrow: the direction of a link is invisible.
 
-## Décisions validées
+## Validated decisions
 
-| Question | Décision |
+| Question | Decision |
 |---|---|
-| Style de tracé | **Courbes bézier lisses** style node editor (tangentes horizontales/verticales au bord, comme Blender/React Flow). Choisi contre orthogonal-coudes et lignes droites, sur mockups simple + scène dense. |
-| Édition manuelle | **Poignée libre** : drag de l'extrémité d'un lien le long du bord du nœud, position mémorisée. Choisi contre le modèle "4 ports par côté". |
-| Aller/retour A↔B | Deux courbes séparées, naturellement décalées par la répartition des ancres (pas de fusion en lien bidirectionnel). |
-| Flèches | Tête de flèche côté cible sur chaque lien. |
+| Path style | **Smooth bezier curves** in node-editor style (horizontal/vertical tangents at the edge, like Blender/React Flow). Chosen over orthogonal elbows and straight lines, on simple + dense-scene mockups. |
+| Manual editing | **Free handle**: drag the end of a link along the node's edge, position remembered. Chosen over the "4 ports per side" model. |
+| Back-and-forth A↔B | Two separate curves, naturally offset by the anchor distribution (no merge into a bidirectional link). |
+| Arrows | Arrowhead on the target side of each link. |
 
 ## Design
 
-### 1. Routage automatique (défaut)
+### 1. Automatic routing (default)
 
-Nouveau module pur `editor/src/features/canvas/edgeRouting.ts` :
+New pure module `editor/src/features/canvas/edgeRouting.ts`:
 
-- **Choix du côté** : pour chaque edge, le côté de sortie (source) et d'entrée (cible) est choisi parmi haut/bas/gauche/droite selon la position relative des deux boîtes (angle entre centres). Une cible à gauche → sortie par le côté gauche.
-- **Répartition des ancres** : pour chaque nœud, les edges touchant un même côté sont triés selon la direction du nœud opposé, puis espacés régulièrement le long de ce côté. Conséquences : plus de point de départ unique, et A→B / B→A obtiennent des ancres distinctes → deux courbes parallèles sans chevauchement.
-- **Tracé** : bézier cubique. Tangentes perpendiculaires au côté de sortie/d'entrée, longueur proportionnelle à la distance entre ancres (clampée min/max). Deux nœuds alignés avec ancres en vis-à-vis = ligne droite.
-- Tout est dérivé à chaque render (comme `deriveEdges`) : le drag d'un nœud re-route en temps réel.
+- **Side choice**: for each edge, the exit side (source) and entry side (target) are chosen among top/bottom/left/right according to the relative position of the two boxes (angle between centers). A target on the left → exit by the left side.
+- **Anchor distribution**: for each node, the edges touching the same side are sorted by the direction of the opposite node, then evenly spaced along that side. Consequences: no more single starting point, and A→B / B→A get distinct anchors → two parallel curves without overlap.
+- **Path**: cubic bezier. Tangents perpendicular to the exit/entry side, length proportional to the distance between anchors (clamped min/max). Two aligned nodes with facing anchors = a straight line.
+- Everything is derived on each render (like `deriveEdges`): dragging a node re-routes in real time.
 
-`deriveEdges.ts` (dérivation des edges depuis les actions) ne change pas.
+`deriveEdges.ts` (deriving edges from actions) does not change.
 
-### 2. Édition manuelle des extrémités
+### 2. Manual editing of the ends
 
-- Clic sur un lien → état "edge sélectionné" ; une poignée apparaît à chaque extrémité.
-- Drag d'une poignée : aimantée au périmètre du nœud, repositionnable n'importe où sur le bord.
-- Représentation : `Anchor = { side: "top" | "right" | "bottom" | "left", t: number }` avec `t ∈ [0,1]` ratio le long du côté → survit au redimensionnement du nœud (changement de `rows` d'un menu).
-- Une extrémité overridée est fixe ; l'autre reste automatique tant qu'elle n'est pas touchée. Les ancres automatiques du même côté se répartissent en tenant compte des positions overridées.
-- Reset : double-clic sur la poignée → retour à l'automatique (suppression de l'override).
+- Click on a link → "edge selected" state; a handle appears at each end.
+- Drag of a handle: snapped to the node perimeter, repositionable anywhere on the edge.
+- Representation: `Anchor = { side: "top" | "right" | "bottom" | "left", t: number }` with `t ∈ [0,1]` the ratio along the side → survives node resizing (changing a menu's `rows`).
+- An overridden end is fixed; the other stays automatic as long as it is untouched. The automatic anchors on the same side distribute taking the overridden positions into account.
+- Reset: double-click on the handle → back to automatic (override removed).
 
-### 3. Persistance
+### 3. Persistence
 
-- Nouveau champ domaine : `pack.canvasEdges: Record<string, { from?: Anchor; to?: Anchor }>`, clé = id d'edge existant (`"source->target"`). Miroir exact du pattern `canvasLayout`.
-- Export (`transform.ts`) : bloc `editor_edges` dans `manifest.yaml`, à côté d'`editor_layout`. Seulement les overrides ; filtré sur les ids vivants (mêmes règles de pruning qu'`editor_layout`). Omis si vide.
-- Import : round-trip inverse (`editor_edges` → `pack.canvasEdges`), entrées orphelines ignorées.
-- Store : actions `setEdgeAnchor(packId, edgeId, end, anchor)` / `clearEdgeAnchor(packId, edgeId, end)` dans `accountStore.ts`.
+- New domain field: `pack.canvasEdges: Record<string, { from?: Anchor; to?: Anchor }>`, key = existing edge id (`"source->target"`). Exact mirror of the `canvasLayout` pattern.
+- Export (`transform.ts`): `editor_edges` block in `manifest.yaml`, next to `editor_layout`. Overrides only; filtered on live ids (same pruning rules as `editor_layout`). Omitted if empty.
+- Import: inverse round-trip (`editor_edges` → `pack.canvasEdges`), orphan entries ignored.
+- Store: actions `setEdgeAnchor(packId, edgeId, end, anchor)` / `clearEdgeAnchor(packId, edgeId, end)` in `accountStore.ts`.
 
-### 4. Rendu (`Edges.tsx`)
+### 4. Rendering (`Edges.tsx`)
 
-- Remplace le `Line` orthogonal+tension par le path bézier de `edgeRouting` (Konva `Shape`/`Path` ou `Line` bezier avec les vrais points de contrôle).
-- Tête de flèche à l'arrivée (triangle orienté selon la tangente finale).
-- Conserve : hover (`EdgeTooltip`, `hitStrokeWidth: 12`), highlight sélection (`--brand` / `--border` via `useCssVar` — pas de hex en dur, canvas Konva exempté de la règle tokens mais on garde les CSS vars existantes).
-- Ajoute : sélection d'edge au clic, poignées (cercles draggables) sur l'edge sélectionné.
+- Replaces the orthogonal+tension `Line` with the bezier path from `edgeRouting` (Konva `Shape`/`Path` or bezier `Line` with the real control points).
+- Arrowhead at the arrival (triangle oriented along the final tangent).
+- Keeps: hover (`EdgeTooltip`, `hitStrokeWidth: 12`), selection highlight (`--brand` / `--border` via `useCssVar` — no hard-coded hex, the Konva canvas is exempt from the tokens rule but we keep the existing CSS vars).
+- Adds: edge selection on click, handles (draggable circles) on the selected edge.
 
-## Hors scope
+## Out of scope
 
-- Évitement d'obstacles (un lien peut traverser un nœud non concerné).
-- Fusion visuelle des liens bidirectionnels.
-- Auto-layout des nœuds (inchangé, `autoLayout.ts`).
-- Édition des points intermédiaires du tracé (seules les extrémités sont éditables).
+- Obstacle avoidance (a link may cross an unrelated node).
+- Visual merge of bidirectional links.
+- Node auto-layout (unchanged, `autoLayout.ts`).
+- Editing intermediate points of the path (only the ends are editable).
 
 ## Tests
 
-- `edgeRouting.test.ts` : choix du côté (4 quadrants), répartition multi-edges sur un même côté, stabilité du tri, ancres overridées mélangées aux automatiques, paramétrage `{side, t}` ↔ coordonnées, points de contrôle (alignés = droite).
-- `accountStore.test.ts` : set/clear des anchors, pruning à la suppression de nœud.
-- `transform.test.ts` : round-trip `editor_edges`, omission si vide, filtrage ids morts.
-- Composant : edge sélectionnable, poignées visibles sur sélection, double-clic reset.
+- `edgeRouting.test.ts`: side choice (4 quadrants), multi-edge distribution on the same side, sort stability, overridden anchors mixed with automatic ones, `{side, t}` ↔ coordinates parameterization, control points (aligned = straight).
+- `accountStore.test.ts`: set/clear of anchors, pruning on node deletion.
+- `transform.test.ts`: `editor_edges` round-trip, omission if empty, dead-id filtering.
+- Component: selectable edge, handles visible on selection, double-click reset.
 
-## Docs à mettre à jour
+## Docs to update
 
-- `docs/architecture/editor-internals.md` — section canvas layout (routage, ancres, `canvasEdges`).
+- `docs/architecture/editor-internals.md` — canvas layout section (routing, anchors, `canvasEdges`).

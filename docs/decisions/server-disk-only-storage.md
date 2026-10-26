@@ -1,259 +1,248 @@
-# Le disque du serveur est le seul store — le backend ne stocke plus de contenu de Project
+# The server's disk is the only store — the backend no longer stores any Project content
 
-**Statut : remplacé (phase F, 2026-10)** — le backend n'existe plus ; la décision de fond (le disque du serveur est le seul store, le plugin seul écrivain) tient, servie directement par le hub, brouillons compris. Voir [editor-web-server](editor-web-server.md).
+**Status: superseded (phase F, 2026-10)** — the backend no longer exists; the underlying decision (the server's disk is the only store, the plugin the only writer) stands, served directly by the hub, drafts included. See [editor-web-server](editor-web-server.md).
 
-**Status :** accepted (2026-08-12) — **rien n'est implémenté**. Révise
-`files-first-source-of-truth` (décisions 2 et 6) et répond à la question ouverte
-laissée par `module-config-screens` (« Live-only généralisé au canvas […] Grill
-dédié requis »).
+**Status:** accepted (2026-08-12) — **nothing is implemented**. Revises
+`files-first-source-of-truth` (decisions 2 and 6) and answers the open question
+left by `module-config-screens` ("Live-only generalized to the canvas […] Dedicated
+grill required").
 
-## Contexte
+## Context
 
-**Révision 2026-09-26 — miroir, brouillons et Versions backend** : voir
+**Revision 2026-09-26 — backend mirror, drafts and Versions**: see
 [snapshot-mirror-and-backend-history](snapshot-mirror-and-backend-history.md).
-Pour les projets serveur, le backend garde un miroir jetable de l'instantané,
-les brouillons et un historique de Versions ; décisions 1, 5 et 7 révisées.
+For server projects, the backend keeps a disposable mirror of the snapshot,
+the drafts and a history of Versions; decisions 1, 5 and 7 revised.
 
-**Révision 2026-09-13 — migration des brouillons serveur** : voir
-[project-storage-modes](project-storage-modes.md). Le backend gèle les brouillons
-par Project puis vérifie leur copie dans `.artisan/drafts/` avant de retirer les
-lignes SQL. Un ancien plugin conserve provisoirement l'autorité SQL ; un projet
-migré exige le serveur connecté et ne revient pas à cette copie. Les projets
-hébergés et la démo restent des phases à venir, pas une disponibilité annoncée ici.
+**Revision 2026-09-13 — server draft migration**: see
+[project-storage-modes](project-storage-modes.md). The backend freezes drafts
+per Project then verifies their copy in `.artisan/drafts/` before removing the
+SQL rows. An old plugin provisionally keeps the SQL authority; a migrated
+project requires the connected server and does not go back to that copy. Hosted
+projects and the demo remain phases to come, not an availability announced here.
 
-**Révision 2026-09-11 — brouillons backend** : le contenu publié reste sur le
-disque Minecraft. Le backend conserve désormais des copies de travail nommées
-et privées dans `project_drafts`, avec base et révision. La sauvegarde automatique
-ne publie rien ; la publication explicite réutilise le compare-and-swap du plugin.
-Cela révise l'exclusion des brouillons persistants sans réintroduire de bundle
-publié côté backend. Voir `entities.md` et `rest-endpoints.md` dans `docs/architecture/`.
+**Revision 2026-09-11 — backend drafts**: published content stays on the
+Minecraft disk. The backend now keeps named, private working copies in
+`project_drafts`, with base and revision. Autosave publishes nothing; explicit
+publication reuses the plugin's compare-and-swap. This revises the exclusion of
+persistent drafts without reintroducing a published bundle on the backend side.
+See `entities.md` and `rest-endpoints.md` in `docs/architecture/`.
 
-`files-first-source-of-truth` a fait des fichiers la vérité *de forme* : le
-backend a cessé de stocker une représentation riche (`editorJson` démoli) pour ne
-garder que l'arbre de fichiers (`filesJson`). Mais il gardait cet arbre comme une
-**copie publiée** : le plugin téléchargeait depuis le backend (`bundle_available`
-→ `BundleDownloader`), et l'éditeur écrivait dans le backend. Deux écrivains
-durables sur la même vérité.
+`files-first-source-of-truth` made files the truth *of form*: the backend
+stopped storing a rich representation (`editorJson` demolished) to keep only the
+file tree (`filesJson`). But it kept that tree as a **published copy**: the
+plugin downloaded from the backend (`bundle_available` → `BundleDownloader`),
+and the editor wrote to the backend. Two durable writers on the same truth.
 
-Tout ce qui a coûté cher depuis découle de cette topologie : `syncedHash` et son
-état à trois branches, `detectSyncAction` (LOCAL_ONLY / CONFLICT / `force`),
-`sync_divergence`, le `SyncScanner` comme mécanisme de *correction*, et un hash
-qui devait s'accorder au byte entre deux implémentations (Kotlin / TS) sous peine
-d'inventer des divergences. La note de `module-config-screens` le disait déjà :
-*« la machinerie de sync a été la première source de bugs du projet »*.
+Everything that has been costly since follows from this topology: `syncedHash`
+and its three-branch state, `detectSyncAction` (LOCAL_ONLY / CONFLICT / `force`),
+`sync_divergence`, the `SyncScanner` as a *correction* mechanism, and a hash that
+had to agree to the byte between two implementations (Kotlin / TS) lest it
+invent divergences. The note in `module-config-screens` already said so:
+*"the sync machinery has been the project's first source of bugs"*.
 
-Deux constats ont débloqué la décision :
+Two findings unblocked the decision:
 
-- **Le mécanisme cible existe déjà et tourne en prod, sur une surface.** Les
-  Config screens lisent (`config_read`) et écrivent (`config_write`) les fichiers
-  via le hub WS ; **le plugin écrit le disque**, le backend relaie. Ce qu'on
-  décide ici est la généralisation de ce chemin au canvas.
-- **Le propriétaire a retiré les deux contraintes qui rendaient un store backend
-  obligatoire** (2026-08-12) : l'historique/restauration *« n'est pas le cœur du
-  produit »*, et l'édition serveur éteint *« n'est pas vraiment nécessaire »*. Le
-  cœur énoncé : **configurer facilement ses menus/commandes depuis un éditeur web
-  au lieu de passer par les fichiers.** Sans ces deux contraintes, plus rien
-  n'oblige à stocker le contenu ailleurs que sur le serveur.
+- **The target mechanism already exists and runs in prod, on one surface.** The
+  Config screens read (`config_read`) and write (`config_write`) files through the
+  WS hub; **the plugin writes the disk**, the backend relays. What is decided here
+  is the generalization of this path to the canvas.
+- **The owner removed the two constraints that made a backend store mandatory**
+  (2026-08-12): history/restore *"is not the core of the product"*, and editing
+  with the server off *"is not really necessary"*. The stated core: **easily
+  configure one's menus/commands from a web editor instead of going through
+  files.** Without these two constraints, nothing requires storing the content
+  anywhere other than on the server.
 
-## Décisions
+## Decisions
 
-1. **Le backend ne stocke aucun contenu de Project.** `projects.filesJson`,
-   `project_commits`, `project_branches` et le journal disparaissent. Le backend
-   reste indispensable pour tout le reste — comptes, networks, serveurs et
-   server keys, billing, assistant IA, hébergement de l'éditeur — et il **continue
-   de stocker les assets binaires et les artefacts dérivés** (resource pack,
-   icônes 3D) : ce ne sont pas la vérité de config, et le RP doit être hébergé
-   quelque part pour être servi aux joueurs. Constat qui l'autorise : `filesJson`
-   est un `Record<string, string>`, les binaires n'y ont jamais été.
+1. **The backend stores no Project content.** `projects.filesJson`,
+   `project_commits`, `project_branches` and the journal disappear. The backend
+   remains indispensable for everything else — accounts, networks, servers and
+   server keys, billing, the AI assistant, hosting the editor — and it **keeps
+   storing binary assets and derived artifacts** (resource pack, 3D icons): they
+   are not the config truth, and the RP must be hosted somewhere to be served to
+   players. A finding that allows it: `filesJson` is a `Record<string, string>`,
+   binaries were never in it.
 
-2. **Le disque du serveur est la seule vérité, le plugin son seul écrivain.**
-   L'éditeur lit l'arbre à l'ouverture du Project et écrit à la sauvegarde, par
-   relais WS — `config_read` / `config_write` généralisés. Le backend ne relaie
-   plus que des messages ; il n'a plus d'opinion sur le contenu.
+2. **The server's disk is the only truth, the plugin its only writer.** The
+   editor reads the tree when the Project is opened and writes on save, through
+   the WS relay — `config_read` / `config_write` generalized. The backend only
+   relays messages any more; it no longer has an opinion on the content.
 
-3. **L'écriture se fait sur geste explicite.** « Sauvegarder » est le seul moment
-   où un fichier est écrit. Les modifications non sauvegardées vivent **dans la
-   page**, comme dans n'importe quel éditeur : fermer l'onglet sans sauvegarder
-   les perd. Il n'y a donc **aucun brouillon persistant** — ni backend, ni
-   navigateur, ni disque.
-   *Rejeté :* l'autosave continue (statu quo — un menu à moitié construit part en
-   live à chaque frappe) ; un brouillon persistant côté backend (réintroduit
-   l'état stocké qu'on supprime, pour un besoin que le propriétaire ne
-   revendique pas) ; un brouillon navigateur (per-appareil, per-utilisateur,
-   perdu au vidage du cache — du travail réel dans un endroit fragile).
+3. **Writing happens on explicit gesture.** "Save" is the only moment a file is
+   written. Unsaved changes live **in the page**, like in any editor: closing the
+   tab without saving loses them. There is therefore **no persistent draft** —
+   neither backend, nor browser, nor disk.
+   *Rejected:* continuous autosave (status quo — a half-built menu goes live at
+   every keystroke); a persistent draft on the backend side (reintroduces the
+   stored state we are removing, for a need the owner does not claim); a browser
+   draft (per-device, per-user, lost when the cache is cleared — real work in a
+   fragile place).
 
-4. **Collision : compare-and-swap par fichier.** La sauvegarde présente, pour
-   chaque fichier qu'elle écrit, le hash sur lequel elle se base ; le plugin
-   refuse d'écrire si le fichier a bougé depuis, et l'éditeur ouvre une modale de
-   résolution **sur ce fichier-là seulement**. Un fichier réellement contesté
-   **exige un choix explicite** : pas de défaut silencieux (le `?? "web"` de
-   `mergeDivergence` était une perte de données déguisée en ergonomie).
-   Bénéfice de bord : l'écriture devient **par fichier**, là où la sauvegarde
-   actuelle envoie l'arbre entier sous verrou optimiste — deux admins sur deux
-   menus différents cessent de se donner des 409 mutuels.
+4. **Collision: per-file compare-and-swap.** The save presents, for each file it
+   writes, the hash it is based on; the plugin refuses to write if the file has
+   moved since, and the editor opens a resolution modal **on that file only**. A
+   file that is really contested **requires an explicit choice**: no silent
+   default (the `?? "web"` of `mergeDivergence` was data loss disguised as
+   ergonomics). Side benefit: writing becomes **per file**, where the current
+   save sends the whole tree under an optimistic lock — two admins on two
+   different menus stop giving each other 409s.
 
-5. **L'historique devient une corbeille sur disque.** Avant chaque écriture, le
-   plugin recopie l'ancien contenu dans `.artisan/history/<chemin>/<timestamp>`,
-   en anneau des N dernières versions par fichier (N ≈ 20), purgé
-   automatiquement, lu à la demande via le plugin, **exclu des exports**. Le
-   préfixe `.artisan` fournit gratuitement les bonnes propriétés (hors hash,
-   invisible au scan, déjà documenté comme métadonnée).
-   Limite assumée : c'est un historique **par fichier**. « Remets ce menu comme
-   il était » marche ; « remets tout le Project à hier soir » ne marche pas.
+5. **History becomes a trash on disk.** Before each write, the plugin copies the
+   old content to `.artisan/history/<path>/<timestamp>`, as a ring of the last N
+   versions per file (N ≈ 20), automatically purged, read on demand through the
+   plugin, **excluded from exports**. The `.artisan` prefix provides the right
+   properties for free (outside the hash, invisible to the scan, already
+   documented as metadata).
+   Accepted limit: it is a **per-file** history. "Put this menu back as it was"
+   works; "put the whole Project back to last night" does not.
 
-6. **« Bundle » sort du vocabulaire** (CONTEXT.md, entrée marquée *retired*). Il
-   n'y a plus d'artefact hashé, annoncé, ni téléchargé — les fichiers du Project
-   sur le serveur *sont* le Project. Le mot survit un temps dans le code
-   (`/api/v1/bundles`, `computeBundleHash`, `BundleDownloader`) comme résidu de
-   migration. *Pourquoi le retirer plutôt que le laisser mourir :* un terme qui
-   survit à son mécanisme est une trappe pour la prochaine session — humaine ou
-   agent — qui ira câbler un artefact inexistant.
+6. **"Bundle" leaves the vocabulary** (CONTEXT.md, entry marked *retired*). There
+   is no longer a hashed, announced or downloaded artifact — the Project's files
+   on the server *are* the Project. The word survives for a while in the code
+   (`/api/v1/bundles`, `computeBundleHash`, `BundleDownloader`) as a migration
+   residue. *Why remove it rather than let it die:* a term that outlives its
+   mechanism is a trap for the next session — human or agent — who will go and
+   wire a nonexistent artifact.
 
-7. **Serveur éteint : le Project ne s'ouvre pas.** Pas « en lecture seule » — pas
-   du tout, puisque le contenu vient du plugin. L'éditeur l'annonce comme tel.
-   Corollaire : l'assistant IA et les builds qui ont besoin de l'arbre le
-   demandent au plugin, et sont indisponibles serveur éteint.
+7. **Server off: the Project does not open.** Not "read-only" — not at all, since
+   the content comes from the plugin. The editor announces it as such.
+   Corollary: the AI assistant and the builds that need the tree ask the plugin
+   for it, and are unavailable with the server off.
 
-8. **`boutique_additem` s'inverse.** Le protocole dit aujourd'hui *« Le plugin
-   n'écrit jamais les fichiers projet »* : le backend patchait `filesJson`. Le
-   module écrit désormais son fichier sur disque, et l'éditeur le voit à la
-   prochaine lecture.
+8. **`boutique_additem` is inverted.** The protocol says today *"The plugin never
+   writes project files"*: the backend patched `filesJson`. The module now writes
+   its file to disk, and the editor sees it at the next read.
 
-> **Révisé le 2026-08-14 — sémantique de reload (décisions 2 et 7).** `project_read`
-> servait le **disque**, et le `SyncScanner` rechargeait le serveur à chaque
-> changement de fichier. L'état payait le coût de la surveillance sans le
-> bénéfice : le serveur bougeait sous les pieds de l'admin (contrairement à tout
-> autre plugin Minecraft, où une édition ne s'applique qu'au reload) **et**
-> l'éditeur n'était pas live pour autant — il ne voyait rien avant un
-> rechargement de page. Le pire des deux.
+> **Revised 2026-08-14 — reload semantics (decisions 2 and 7).** `project_read`
+> served the **disk**, and the `SyncScanner` reloaded the server on every file
+> change. The state paid the cost of watching without the benefit: the server
+> moved under the admin's feet (unlike any other Minecraft plugin, where an edit
+> only applies at reload) **and** the editor was not live for all that — it saw
+> nothing before a page reload. The worst of both.
 >
-> Le plugin conserve désormais un **instantané** : les octets bruts lus au dernier
-> chargement. `project_read` et `project_list` le servent, donc l'éditeur montre
-> **ce que le serveur exécute**. Une édition à la main ne s'applique qu'à
-> `/artisan reload`. Le `SyncScanner` et la spec `poll-first-disk-sync` sont
-> retirés.
+> The plugin now keeps a **snapshot**: the raw bytes read at the last load.
+> `project_read` and `project_list` serve it, so the editor shows **what the
+> server runs**. A manual edit only applies at `/artisan reload`. The
+> `SyncScanner` and the `poll-first-disk-sync` spec are removed.
 >
-> Trois précisions qui font tenir le modèle :
-> - **des octets bruts, pas un modèle parsé** — le compare-and-swap compare des
->   octets ; un modèle re-sérialisé donnerait les mêmes idées et d'autres octets,
->   donc des `base_hash` faux (conflits sur des fichiers intacts, ou écrasements
->   silencieux) ;
-> - **l'écriture reste en CAS contre le DISQUE**, pas contre l'instantané : c'est
->   ce qui rattrape une édition faite hors de l'éditeur, au moment où on
->   enregistre, via la modale de conflit ;
-> - **un Document illisible figure dans l'instantané** (il est pris avant le
->   parsing) et remonte dans `project_read_result.failed` avec sa raison. Il
->   s'édite donc encore — sinon une faute de frappe enfermerait l'admin dehors —
->   et l'éditeur dit enfin pourquoi il ne tourne pas, au lieu de le faire
->   disparaître en silence comme le serveur le faisait déjà.
+> Three clarifications that make the model hold:
+> - **raw bytes, not a parsed model** — the compare-and-swap compares bytes; a
+>   re-serialized model would give the same ideas and other bytes, hence wrong
+>   `base_hash`es (conflicts on intact files, or silent overwrites);
+> - **writing stays CAS against the DISK**, not against the snapshot: this is what
+>   catches an edit made outside the editor, at save time, through the conflict
+>   modal;
+> - **an unreadable Document appears in the snapshot** (it is taken before
+>   parsing) and surfaces in `project_read_result.failed` with its reason. It can
+>   therefore still be edited — otherwise a typo would lock the admin out — and
+>   the editor finally says why it does not run, instead of making it vanish
+>   silently as the server already did.
 >
-> *Renoncement assumé :* « un agent édite les fichiers et c'est live » devient
-> « …puis `/artisan reload` ».
+> *Accepted renunciation:* "an agent edits the files and it's live" becomes
+> "…then `/artisan reload`".
 
-> **Révisé le 2026-08-15 — brouillon persistant (décisions 3 et 7).** La
-> décision 3 excluait tout brouillon persistant, la 7 rendait un Project
-> inouvrable serveur éteint. L'argument d'alors portait surtout sur le **coût** :
-> un brouillon aurait demandé de construire la réconciliation. Elle existe
-> désormais — base, compare-and-swap par fichier, modale de conflit — et le
-> brouillon la réutilise telle quelle, sans machinerie nouvelle.
+> **Revised 2026-08-15 — persistent draft (decisions 3 and 7).** Decision 3
+> excluded any persistent draft, 7 made a Project unopenable with the server off.
+> The argument at the time was mostly about **cost**: a draft would have required
+> building the reconciliation. It now exists — base, per-file compare-and-swap,
+> conflict modal — and the draft reuses it as is, with no new machinery.
 >
-> Ce qui a forcé la révision : en retirant l'auto-save (décision 3), on a rendu
-> la perte accidentelle beaucoup plus chère. Avant, fermer un onglet coûtait au
-> pire les 2 s du débounce ; après, une session entière. Ce n'était pas
-> compensé, et il n'y avait même pas de garde `beforeunload`.
+> What forced the revision: by removing autosave (decision 3), we made accidental
+> loss much more expensive. Before, closing a tab cost at worst the 2 s of the
+> debounce; after, a whole session. This was not compensated, and there was not
+> even a `beforeunload` guard.
 >
-> Le navigateur garde donc, par Project, la **base** et l'**arbre courant**
-> (`projectDraftStore`, ~43 Ko pour le plus gros project mesuré) :
-> - **serveur joignable** — le brouillon est **repris** : on retrouve son travail
->   en rouvrant, comme dans n'importe quel éditeur. La base reste celle du
->   serveur (c'est elle que le compare-and-swap présente), seul l'arbre affiché
->   vient du brouillon.
+> The browser therefore keeps, per Project, the **base** and the **current tree**
+> (`projectDraftStore`, ~43 KB for the biggest project measured):
+> - **server reachable** — the draft is **resumed**: you find your work again on
+>   reopening, as in any editor. The base stays the server's (it is what the
+>   compare-and-swap presents), only the displayed tree comes from the draft.
 >
->   *Révisé le 2026-08-16* : il était d'abord **proposé** via un bandeau, au nom
->   de « jamais en silence ». Le principe tient, mais un bandeau pleine largeur
->   le payait trop cher — il occupait l'écran en permanence pour dire ce qu'un
->   bouton suffit à dire. Ce qui empêche de confondre son brouillon avec l'état
->   du serveur, c'est désormais **Enregistrer** lui-même : actif s'il y a
->   quelque chose à écrire, inactif sinon — et le bouton **Annuler** à côté, qui
->   jette le brouillon et repart de ce que le serveur exécute ;
-> - **serveur injoignable** — le brouillon s'ouvre en édition, badgé avec son
->   âge, Enregistrer hors de portée ;
-> - **enregistrement** — inchangé : le CAS par fichier fait le reste, et le
->   brouillon est effacé une fois le travail parti.
+>   *Revised 2026-08-16*: it was first **proposed** via a banner, in the name of
+>   "never silently". The principle holds, but a full-width banner paid too much
+>   for it — it occupied the screen permanently to say what a button is enough to
+>   say. What now prevents confusing your draft with the server's state is
+>   **Save** itself: active if there is something to write, inactive otherwise —
+>   and the **Cancel** button next to it, which discards the draft and starts
+>   again from what the server runs;
+> - **server unreachable** — the draft opens for editing, badged with its age,
+>   Save out of reach;
+> - **saving** — unchanged: the per-file CAS does the rest, and the draft is
+>   erased once the work has left.
 >
-> Un indicateur « non enregistré » permanent accompagne le tout : sans lui, rien
-> ne distingue un Project propre d'un Project modifié.
+> A permanent "unsaved" indicator goes with it: without it, nothing distinguishes
+> a clean Project from a modified one.
 >
-> *Limites assumées :* par-appareil, par-utilisateur, mort avec le cache — mais
-> ce n'est plus une régression, puisque sans lui tout est perdu au rechargement.
-> Et la péremption s'accumule : éditer hors ligne plusieurs jours contre une base
-> ancienne peut produire des conflits sur beaucoup de fichiers d'un coup, d'où
-> l'affichage franc de l'âge du brouillon.
+> *Accepted limits:* per-device, per-user, dies with the cache — but this is no
+> longer a regression, since without it everything is lost on reload. And
+> staleness accumulates: editing offline for several days against an old base can
+> produce conflicts on many files at once, hence the frank display of the draft's
+> age.
 
-> **Précision du 2026-09-07 — résultats de migration de l'assistant.**
-> Le flux reprenable conserve côté backend un manifeste de sources (identifiants,
-> chemins et hashes), les étapes et les propositions dérivées produites par l'IA.
-> Ce sont des checkpoints de l'assistant, pas une copie du Project ni un store
-> faisant autorité. Aucun cache permanent des fichiers zMenu bruts sélectionnés,
-> aucune working copy complète du Project n'est ajouté par ce flux.
+> **Clarification of 2026-09-07 — assistant migration results.**
+> The resumable flow keeps on the backend side a manifest of sources (identifiers,
+> paths and hashes), the steps and the derived proposals produced by the AI.
+> These are the assistant's checkpoints, not a copy of the Project nor an
+> authoritative store. No permanent cache of the raw selected zMenu files, no
+> full working copy of the Project is added by this flow.
 >
-> Les propositions restent liées à leur conversation, propriétaire, Project et
-> serveur ; leur lecture ou leur rejeu ne publie rien. L'utilisateur les applique
-> explicitement à son brouillon, puis **Enregistrer** utilise le chemin existant
-> vers le disque serveur. Une source modifiée exige une nouvelle analyse ; une
-> cible locale modifiée n'est jamais écrasée par l'application d'une proposition.
+> Proposals stay bound to their conversation, owner, Project and server; reading
+> or replaying them publishes nothing. The user applies them explicitly to their
+> draft, then **Save** uses the existing path to the server disk. A modified
+> source requires a new analysis; a modified local target is never overwritten by
+> applying a proposal.
 >
-> Cette extension des [sources d'import serveur](../archive/specs/2026-09-04-assistant-server-import-sources-design.md)
-> autorise des résultats de conversion durables sans modifier l'autorité du disque
-> ni transformer les sources importées en sauvegarde backend.
+> This extension of the [server import sources](../archive/specs/2026-09-04-assistant-server-import-sources-design.md)
+> allows durable conversion results without changing the disk's authority or
+> turning the imported sources into a backend backup.
 
-## Ce qui disparaît
+## What disappears
 
 `projects.filesJson` · `project_commits` / `project_branches` / `projectJournal`
 · `bundlePublisher` / `POST|GET /api/v1/bundles` · `bundle_available` /
-`BundleDownloader` comme canal de synchro · `detectSyncAction` / LOCAL_ONLY /
-CONFLICT / `force` · `sync_divergence` / `divergence.ts` / la bannière de
-divergence · `.artisan-sync.yaml` comme arbitre · le `SyncScanner` comme
-mécanisme de correction · le hash comme invariant inter-langage.
+`BundleDownloader` as a sync channel · `detectSyncAction` / LOCAL_ONLY /
+CONFLICT / `force` · `sync_divergence` / `divergence.ts` / the divergence
+banner · `.artisan-sync.yaml` as arbiter · the `SyncScanner` as a correction
+mechanism · the hash as a cross-language invariant.
 
-Ce qui reste du hash : une comparaison locale de contenu pour le CAS par fichier
-(décision 4). Plus rien n'exige que Kotlin et TS produisent le même hash d'arbre,
-donc le vecteur `project-hash-conformance.json` cesse d'être load-bearing.
+What remains of the hash: a local content comparison for the per-file CAS
+(decision 4). Nothing requires Kotlin and TS to produce the same tree hash any
+more, so the `project-hash-conformance.json` vector stops being load-bearing.
 
-## Conséquences
+## Consequences
 
-- **C'est une épopée de suppression, pas d'ajout.** Le gros du travail est du
-  retrait sur les trois couches, plus le portage du canvas sur le relais WS.
-  Aucune brique nouvelle sauf la corbeille (décision 5) et le CAS par fichier.
-- **Le verrou : plus rien ne marche sans le serveur en ligne.** C'est le prix
-  explicitement accepté. Il faut que l'éditeur le dise clairement au chargement,
-  sinon ça se lit comme une panne.
-- **La promesse anti-lock-in se renforce** : il n'existe plus qu'une copie de la
-  config, et elle est chez l'admin. `files-first-source-of-truth` visait la
-  *forme* des fichiers ; cet ADR en fait aussi le *lieu*.
-- **Migration des données existantes** : les Projects vivant aujourd'hui dans
-  `filesJson` doivent être poussés une dernière fois sur le disque des serveurs
-  concernés avant retrait de la colonne. Un Project dont le serveur ne se
-  reconnecte jamais est perdu — à traiter comme une opération datée, pas comme
-  un effet de bord de déploiement.
-- **`no-branch-conflict-resolution` reste intact** : la résolution par fichier
-  (décision 4) n'est pas un merge 3-way, c'est un choix au niveau fichier.
-- **`module-config-screens` §3 est confirmé et généralisé** ; sa révision du
-  2026-07-30 (« une racine gérée est une racine versionnée », journalisation
-  backend après ack) **tombe** avec le journal.
+- **This is a deletion epic, not an addition one.** Most of the work is removal
+  across the three layers, plus porting the canvas to the WS relay. No new
+  building block except the trash (decision 5) and the per-file CAS.
+- **The catch: nothing works without the server online.** This is the explicitly
+  accepted price. The editor must say so clearly at load, otherwise it reads as
+  an outage.
+- **The anti-lock-in promise is strengthened**: only one copy of the config
+  exists any more, and it is at the admin's. `files-first-source-of-truth`
+  targeted the *form* of the files; this ADR also makes them the *place*.
+- **Migration of existing data**: the Projects living today in `filesJson` must
+  be pushed one last time to the disk of the servers concerned before the column
+  is removed. A Project whose server never reconnects is lost — to be handled as
+  a dated operation, not as a deployment side effect.
+- **`no-branch-conflict-resolution` stays intact**: per-file resolution
+  (decision 4) is not a 3-way merge, it is a choice at file level.
+- **`module-config-screens` §3 is confirmed and generalized**; its 2026-07-30
+  revision ("a managed root is a versioned root", backend journaling after ack)
+  **falls** with the journal.
 
-## Alternatives écartées
+## Rejected alternatives
 
-- **Garder la copie backend en la déclassant en cache dérivé** (single-writer,
-  brouillon partagé, classification sur base au déploiement). C'était la
-  proposition intermédiaire de ce grill, et elle tenait — mais elle ne se
-  justifiait que par l'historique et l'édition hors-ligne, tous deux retirés par
-  le propriétaire. Sans eux, elle garde tout le coût de stockage pour un bénéfice
-  que personne ne réclame.
-- **Lire à la demande mais garder le brouillon dans le navigateur.** Rejeté en
-  décision 3 : per-appareil, per-utilisateur, perdu au vidage du cache.
-- **Un second geste « activer pour les joueurs » distinct de « sauvegarder ».**
-  Écarté : une destination, un geste. À rouvrir seulement si le besoin
-  « préparer une refonte sans l'exposer » apparaît réellement.
-- **Stocker le contenu dans une base opaque** — déjà rejeté à la racine par
-  `files-first-source-of-truth`, et cet ADR s'en éloigne encore.
+- **Keep the backend copy by downgrading it to a derived cache** (single writer,
+  shared draft, classification on a base at deploy). This was the intermediate
+  proposal of this grill, and it held — but it was only justified by history and
+  offline editing, both removed by the owner. Without them, it keeps all the
+  storage cost for a benefit nobody asks for.
+- **Read on demand but keep the draft in the browser.** Rejected in decision 3:
+  per-device, per-user, lost when the cache is cleared.
+- **A second gesture "activate for players" distinct from "save".** Ruled out:
+  one destination, one gesture. To be reopened only if the need "prepare a
+  rework without exposing it" really appears.
+- **Store the content in an opaque database** — already rejected at the root by
+  `files-first-source-of-truth`, and this ADR moves even further away from it.

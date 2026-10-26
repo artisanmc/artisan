@@ -1,11 +1,11 @@
-# Validation cross-stack Boutique — smoke manuel (Docker)
+# Boutique cross-stack validation — manual smoke test (Docker)
 
-Préparation : `./gradlew publishToMavenLocal` (Artisan), `mvn package` (Boutique),
-copier Boutique-2.0.0.jar dans le mount plugins du container minecraft, `docker compose up`.
+Preparation: `./gradlew publishToMavenLocal` (Artisan), `mvn package` (Boutique),
+copy Boutique-2.0.0.jar into the plugins mount of the minecraft container, `docker compose up`.
 
-1. Boot : log Boutique "Contenu Boutique bootstrappé…" au premier démarrage ; `/artisan reload` ; `/artisan pushLocal boutique_shop`.
-2. Éditeur : le module Boutique apparaît dans la sidebar (presence) ; le project boutique_shop liste shop_main/shop_category ; le module Boutique montre le catalogue (migré ou exemple).
-3. In-game : `/boutique` ouvre shop_main ; les catégories viennent de boutique:categories ; clic catégorie → shop_category filtré ; clic item → dialog ; Confirmer → tokens débités, buy_commands exécutées, historique en DB.
-4. Édition : changer un prix dans le module éditeur → Deploy → prix à jour in-game sans restart (onReload).
-5. Round-trip : redéployer depuis l'éditeur n'efface PAS boutique/shop.yaml sur le serveur (exportFiles le régénère).
-6. Solde insuffisant : message d'erreur, pas de débit. Item sans buy_commands : achat refusé.
+1. Boot: Boutique log "Contenu Boutique bootstrappé…" on first start; `/artisan reload`; `/artisan pushLocal boutique_shop`.
+2. Editor: the Boutique module appears in the sidebar (presence); the boutique_shop project lists shop_main/shop_category; the Boutique module shows the catalog (migrated or example).
+3. In-game: `/boutique` opens shop_main; the categories come from boutique:categories; click a category → filtered shop_category; click an item → dialog; Confirm → tokens debited, buy_commands executed, history in DB.
+4. Editing: change a price in the editor module → Deploy → price up to date in-game without restart (onReload).
+5. Round-trip: redeploying from the editor does NOT erase boutique/shop.yaml on the server (exportFiles regenerates it).
+6. Insufficient balance: error message, no debit. Item without buy_commands: purchase refused.

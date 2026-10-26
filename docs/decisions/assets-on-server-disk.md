@@ -1,190 +1,186 @@
-# Les assets vivent sur le disque du serveur, le backend n'en garde qu'un cache
+# Assets live on the server's disk, the backend only keeps a cache
 
-**Statut : remplacé (phase F, 2026-10)** — le backend et son cache sont supprimés ; les assets vivent sous `assets/` du Project et le pack se construit dans le navigateur. Voir [editor-web-server](editor-web-server.md).
+**Status: superseded (phase F, 2026-10)** — the backend and its cache are removed; assets live under the Project's `assets/` and the pack is built in the browser. See [editor-web-server](editor-web-server.md).
 
-**Status :** accepted (2026-08-17) — **implémenté sauf la suppression de la
-table** (P0→P5 + polices dépliées ; P6 attend que la descente ait tourné en
-prod). Achève `server-disk-only-storage` en lui retirant son exception n°1
-(« le backend continue de stocker les assets binaires »), et retire à la ligne
-`projects` la dernière chose qui lui pende vraiment.
+**Status:** accepted (2026-08-17) — **implemented except for dropping the
+table** (P0→P5 + unfolded fonts; P6 waits for the download to have run in
+prod). Completes `server-disk-only-storage` by removing its exception no. 1
+("the backend keeps storing binary assets"), and removes the last thing that
+really hangs off the `projects` row.
 
-## Contexte
+## Context
 
-`server-disk-only-storage` a mis tout le **contenu de config** sur le disque du
-serveur, et s'est arrêté à la frontière des binaires :
+`server-disk-only-storage` put all **config content** on the server's disk, and
+stopped at the border of binaries:
 
-> le backend « continue de stocker les assets binaires et les artefacts dérivés
-> (resource pack, icônes 3D) : ce ne sont pas la vérité de config, et le RP doit
-> être hébergé quelque part pour être servi aux joueurs. Constat qui l'autorise :
-> `filesJson` est un `Record<string, string>`, les binaires n'y ont jamais été. »
+> the backend "keeps storing binary assets and derived artifacts (resource
+> pack, 3D icons): they are not the config truth, and the RP has to be hosted
+> somewhere to be served to players. Finding that allows it: `filesJson` is a
+> `Record<string, string>`, binaries were never in it."
 
-L'argument tenait pour le **resource pack** (un artefact dérivé, à héberger sur
-une URL publique que le client Minecraft télécharge). Il ne tient pas pour les
-**sources** : une texture de fond, un glyphe, une police importée ne sont pas
-plus dérivés qu'un `menus/shop.yaml`. Ce sont des fichiers que l'admin a
-fabriqués, et sans lesquels sa config ne rend rien.
+The argument held for the **resource pack** (a derived artifact, to host at a
+public URL that the Minecraft client downloads). It does not hold for the
+**sources**: a background texture, a glyph, an imported font are no more
+derived than a `menus/shop.yaml`. They are files the admin made, and without
+them their config renders nothing.
 
-Trois constats ont débloqué la décision (2026-08-17) :
+Three findings unblocked the decision (2026-08-17):
 
-- **Les octets ne sont déjà pas en base.** Ils sont sur un volume backend
-  (`data/assets/<projectId>/<assetId>.png`). Ce que Postgres porte, c'est la
-  métadonnée : `type`, `name`, `width/height`, `ascent`, `codepoint`,
-  `contentWidth`, `fontMeta`, `contentHash`. Déplacer le stockage, c'est donc
-  déplacer *un dossier et une table*, pas réécrire un modèle.
-- **L'anti-lock-in est incomplet sans eux.** La promesse de
-  `files-first-source-of-truth` — *« ta config marche sans nous »* — est fausse
-  aujourd'hui pour tout menu qui a un fond ou un glyphe : les fichiers partent,
-  les images restent chez nous.
-- **Le propriétaire l'a demandé** (2026-08-17) : *« tout ce qui est glyph/assets
-  faudrait que ça soit aussi stocké niveau serveur, mais avec un cache
-  backend »*. La deuxième moitié de la phrase est ce qui rend la première
-  tenable : sans cache, chaque aperçu de glyphe serait un aller-retour WS.
+- **The bytes are already not in the database.** They are on a backend volume
+  (`data/assets/<projectId>/<assetId>.png`). What Postgres carries is the
+  metadata: `type`, `name`, `width/height`, `ascent`, `codepoint`,
+  `contentWidth`, `fontMeta`, `contentHash`. Moving the storage therefore means
+  moving *a folder and a table*, not rewriting a model.
+- **Anti-lock-in is incomplete without them.** The promise of
+  `files-first-source-of-truth` — *"your config works without us"* — is false
+  today for any menu that has a background or a glyph: the files leave, the
+  images stay with us.
+- **The owner asked for it** (2026-08-17): *"everything glyph/assets should
+  also be stored on the server side, but with a backend cache"*. The second
+  half of the sentence is what makes the first tenable: without a cache, every
+  glyph preview would be a WS round trip.
 
-Et un bug latent que la question a fait remonter : les assets pendent à
-`projects.id` par une FK en cascade, alors que l'identité d'un Project est
-désormais son **nom de dossier**. Renommer le dossier sur le serveur crée une
-nouvelle ancre : les glyphes de l'ancienne deviennent orphelins, silencieusement.
-Personne ne s'en aperçoit tant qu'il ne renomme pas.
+And a latent bug that the question brought up: assets hang off `projects.id`
+through a cascading FK, while a Project's identity is now its **folder name**.
+Renaming the folder on the server creates a new anchor: the old one's glyphs
+become orphans, silently. Nobody notices until they rename.
 
-## Décisions
+## Decisions
 
-1. **Les assets sont des fichiers du Project.** Ils vivent sous
-   `assets/` dans le dossier du Project, aux côtés de `menus/`, `commands/` et
-   `lang/` :
+1. **Assets are files of the Project.** They live under
+   `assets/` in the Project's folder, next to `menus/`, `commands/` and
+   `lang/`:
 
    ```
    assets/
      textures/fond_boutique.png
      glyphs/icone_diamant.png
-     glyphs/icone_diamant.yaml     # ascent, codepoint, hauteur, largeur de contenu
-     fonts/pixelmix/…              # police importée : le zip déplié
+     glyphs/icone_diamant.yaml     # ascent, codepoint, height, content width
+     fonts/pixelmix/…              # imported font: the unfolded zip
    ```
 
-   Le PNG **est** la source ; le `.yaml` frère porte ce que le PNG ne sait pas
-   dire. Un asset sans `.yaml` reste utilisable avec des défauts (c'est la règle
-   des fichiers data nus, ADR `bare-data-files`) — on ne rend pas une texture
-   inutilisable parce qu'il lui manque un descripteur.
+   The PNG **is** the source; the sibling `.yaml` carries what the PNG cannot
+   say. An asset without a `.yaml` stays usable with defaults (this is the rule
+   of bare data files, ADR `bare-data-files`) — we do not make a texture
+   unusable because it lacks a descriptor.
 
-   *Rejeté :* un seul `assets/index.yaml` listant tout. C'est le bloc `files:` du
-   manifest qu'on vient de supprimer, sous un autre nom : une liste à maintenir à
-   la main, qui se périme au premier fichier déposé.
+   *Rejected:* a single `assets/index.yaml` listing everything. It is the
+   manifest `files:` block we just removed, under another name: a list to
+   maintain by hand, which goes stale at the first dropped file.
 
-2. **L'identité d'un asset est son nom de fichier**, comme pour les Documents
-   (ADR `server-disk-only-storage` décision 8). `asset:<id>` devient
-   `asset:<nom>` — `icone_diamant`, pas `ast_9f3c1a`.
+2. **An asset's identity is its file name**, as for Documents
+   (ADR `server-disk-only-storage` decision 8). `asset:<id>` becomes
+   `asset:<name>` — `icone_diamant`, not `ast_9f3c1a`.
 
-   C'est un **changement de format cassant** : les menus existants référencent
-   des ids opaques générés par le backend, et le plugin les résout par id dans
-   `asset-index.json`. La migration réécrit les deux côtés (§ Migration).
+   This is a **breaking format change**: existing menus reference opaque ids
+   generated by the backend, and the plugin resolves them by id in
+   `asset-index.json`. The migration rewrites both sides (§ Migration).
 
-   *Pourquoi ne pas garder l'id opaque :* il n'a de sens que dans la base qui l'a
-   émis. Sur un disque qu'un humain doit pouvoir lire et éditer, `asset:ast_9f3c1a`
-   est une énigme ; c'est exactement ce qu'on a retiré aux Documents.
+   *Why not keep the opaque id:* it only makes sense in the database that
+   issued it. On a disk a human must be able to read and edit,
+   `asset:ast_9f3c1a` is a riddle; it is exactly what we removed from Documents.
 
-3. **Le backend ne garde qu'un cache, clé par contenu.** Cache par
-   `(serverKeyId, projectDiskId, chemin, contentHash)`, alimenté à la lecture,
-   invalidé par le `contentHash`. Il est **jetable** : le perdre ne perd rien,
-   il se re-remplit au prochain accès. Aucune route ne le traite comme une
-   vérité — s'il est vide et le serveur injoignable, on répond « indisponible »,
-   jamais une version d'avant.
+3. **The backend only keeps a cache, keyed by content.** Cache by
+   `(serverKeyId, projectDiskId, path, contentHash)`, filled on read,
+   invalidated by the `contentHash`. It is **disposable**: losing it loses
+   nothing, it refills on next access. No route treats it as a truth — if it is
+   empty and the server unreachable, we answer "unavailable", never an older
+   version.
 
-   *Ce que le cache achète :* l'aperçu dans l'éditeur (canvas, bibliothèque
-   d'assets) sans un aller-retour WS par image, et la construction du resource
-   pack sans relire tout le disque du serveur à chaque fois.
+   *What the cache buys:* the preview in the editor (canvas, asset library)
+   without a WS round trip per image, and building the resource pack without
+   rereading the whole server disk each time.
 
-4. **Les binaires ne voyagent pas dans l'arbre de Project.** `project_read`
-   renvoie l'arbre entier à l'ouverture, en UTF-8 : y verser des PNG en base64
-   (+33 %) rendrait chaque ouverture énorme pour un contenu dont l'éditeur n'a
-   besoin qu'à l'affichage. Deux messages dédiés, **par chemin** :
-   `asset_read` (un fichier, base64) et `asset_write` (compare-and-swap sur
-   `base_hash`, comme `project_write`).
+4. **Binaries do not travel in the Project tree.** `project_read` returns the
+   whole tree on open, in UTF-8: pouring base64 PNGs into it (+33%) would make
+   every open huge for content the editor only needs at display time. Two
+   dedicated messages, **per path**: `asset_read` (one file, base64) and
+   `asset_write` (compare-and-swap on `base_hash`, like `project_write`).
 
-   L'arbre continue d'annoncer leur **existence** (chemin + hash), pour que
-   l'éditeur sache quoi proposer sans avoir à tout télécharger.
+   The tree keeps announcing their **existence** (path + hash), so the editor
+   knows what to offer without downloading everything.
 
-   *Rejeté :* un canal binaire WS séparé (frames binaires) — la complexité de
-   protocole n'est pas payée par le gain, les assets sont petits (2 Mo max par
-   PNG, 5 Mo par police) et rarement écrits.
+   *Rejected:* a separate binary WS channel (binary frames) — the protocol
+   complexity is not paid for by the gain, assets are small (2 MB max per PNG,
+   5 MB per font) and rarely written.
 
-   *Rejeté :* un upload HTTP direct navigateur → plugin. Le plugin n'est pas
-   exposé publiquement et n'a pas de certificat ; c'est le backend qui relaie,
-   comme pour tout le reste.
+   *Rejected:* a direct HTTP upload browser → plugin. The plugin is not
+   publicly exposed and has no certificate; the backend relays, as for
+   everything else.
 
-5. **Le resource pack reste construit et hébergé par le backend.** C'est un
-   artefact dérivé, servi par URL au client Minecraft du joueur : il lui faut un
-   hôte public. Il se construit désormais depuis le **cache** (donc, in fine,
-   depuis le disque du serveur), et se reconstruit quand un `asset_write` ou un
-   reload change un hash.
+5. **The resource pack stays built and hosted by the backend.** It is a derived
+   artifact, served by URL to the player's Minecraft client: it needs a public
+   host. It is now built from the **cache** (hence, ultimately, from the
+   server's disk), and rebuilt when an `asset_write` or a reload changes a hash.
 
-   *Note de direction, hors périmètre :* le jour où c'est le **plugin** qui
-   construit et sert le pack, la config marche entièrement sans nous, RP compris.
-   C'est la suite logique de cet ADR, pas cet ADR.
+   *Direction note, out of scope:* the day the **plugin** builds and serves the
+   pack, the config works entirely without us, RP included. That is the logical
+   follow-up to this ADR, not this ADR.
 
-6. **Les codepoints sont dans les fichiers.** Aujourd'hui un index unique
-   `(projectId, codepoint)` en base garantit l'unicité, et `allocateCodepoint`
-   attribue. Demain chaque glyphe déclare le sien dans son `.yaml` ; l'éditeur
-   propose le premier libre à la création, et la **fusion inter-projects
-   existante** (`mergeCodepoints`, projet le plus ancien gagne) reste le seul
-   arbitre au moment du build.
+6. **Codepoints are in the files.** Today a unique `(projectId, codepoint)`
+   index in the database guarantees uniqueness, and `allocateCodepoint`
+   assigns. Tomorrow each glyph declares its own in its `.yaml`; the editor
+   offers the first free one at creation, and the **existing cross-project
+   merge** (`mergeCodepoints`, oldest project wins) stays the only arbiter at
+   build time.
 
-   Conséquence assumée : deux glyphes du même Project peuvent porter le même
-   codepoint si quelqu'un édite les fichiers à la main. Le build tranche et
-   **journalise** ; il ne refuse pas de construire. C'est la même philosophie que
-   pour les refs qui pendent dans le vide (ADR `hermetic-invariant-philosophy`).
+   Accepted consequence: two glyphs of the same Project can carry the same
+   codepoint if someone edits the files by hand. The build decides and
+   **logs**; it does not refuse to build. Same philosophy as for refs that
+   dangle (ADR `hermetic-invariant-philosophy`).
 
-7. **La table `assets` disparaît.** Sa métadonnée part dans les `.yaml` frères,
-   ses octets dans le dossier du Project. Ce qui reste au backend :
-   `serverKeys.resourcePackHash` (l'artefact) et le cache.
+7. **The `assets` table goes away.** Its metadata moves into the sibling
+   `.yaml` files, its bytes into the Project's folder. What remains on the
+   backend: `serverKeys.resourcePackHash` (the artifact) and the cache.
 
-   Effet de bord recherché : plus rien de substantiel ne pend à `projects.id`
-   — il ne reste que l'historique de l'assistant IA (`assistant_conversations`,
-   sans FK). Le débat « faut-il encore une table `projects` ? » (soulevé le
-   2026-08-17) devient tranchable ensuite, sans que des binaires ne le bloquent.
+   Intended side effect: nothing substantial hangs off `projects.id` anymore
+   — only the AI assistant's history remains (`assistant_conversations`, no
+   FK). The "do we still need a `projects` table?" debate (raised on
+   2026-08-17) can then be settled, without binaries blocking it.
 
 ## Migration
 
-Il y a des assets en production. Rien de tout ceci ne peut être « simplement
-déployé ».
+There are assets in production. None of this can be "simply deployed".
 
-1. **Descente.** Pour chaque Project ayant des assets : le backend envoie les
-   octets au plugin (`asset_write`), qui les pose sous `assets/`. Le nom de
-   fichier vient du `name` de la ligne, dé-collisionné si besoin.
-2. **Réécriture des refs.** Les `asset_id: ast_…` des menus deviennent
-   `asset: <nom>`. Lecteur tolérant côté plugin **et** éditeur : un `asset_id`
-   opaque encore présent continue d'être résolu par l'ancien index tant que la
-   descente n'a pas eu lieu.
-3. **Bascule du build de pack** sur le cache, puis suppression de la table.
+1. **Download.** For each Project that has assets: the backend sends the bytes
+   to the plugin (`asset_write`), which puts them under `assets/`. The file name
+   comes from the row's `name`, de-collided if needed.
+2. **Ref rewriting.** The menus' `asset_id: ast_…` become
+   `asset: <name>`. Tolerant reader on the plugin **and** editor side: an opaque
+   `asset_id` still present keeps being resolved by the old index until the
+   download has happened.
+3. **Switch the pack build** to the cache, then drop the table.
 
-La descente est **idempotente** et se rejoue : elle est pilotée par le hash, pas
-par un drapeau « déjà migré ».
+The download is **idempotent** and can be replayed: it is driven by the hash,
+not by an "already migrated" flag.
 
-## Ce qu'on accepte de perdre
+## What we accept to lose
 
-- **L'édition d'assets serveur éteint.** On ne peut ni téléverser ni supprimer un
-  glyphe sans le serveur — même règle que pour les menus depuis
-  `server-disk-only-storage`. L'aperçu, lui, survit par le cache.
-- **La garantie SQL d'unicité des codepoints**, remplacée par une fusion qui
-  tranche et journalise (décision 6).
-- **Un aller-retour de plus** au premier affichage d'un asset non caché.
+- **Asset editing with the server off.** You can neither upload nor delete a
+  glyph without the server — same rule as for menus since
+  `server-disk-only-storage`. The preview survives through the cache.
+- **The SQL uniqueness guarantee on codepoints**, replaced by a merge that
+  decides and logs (decision 6).
+- **One more round trip** on first display of an uncached asset.
 
-## Questions ouvertes
+## Open questions
 
-- ~~**Les polices importées**~~ — **tranché le 2026-08-17 : dépliées.** Mesure
-  qui a décidé : l'ASCII vanilla fait 95 PNG plus son descripteur, **26 Ko en
-  tout**. Garder le zip aurait posé une boîte noire au milieu d'un dossier dont
-  tout le reste s'édite à la main, et il aurait fallu dézipper / corriger /
-  rezipper pour toucher un seul glyphe — pour économiser 96 entrées.
+- ~~**Imported fonts**~~ — **settled 2026-08-17: unfolded.** The measurement
+  that decided: vanilla ASCII is 95 PNGs plus its descriptor, **26 KB in
+  total**. Keeping the zip would have put a black box in the middle of a folder
+  where everything else is hand-editable, and would have required unzip / fix /
+  rezip to touch a single glyph — to save 96 entries.
 
-      assets/fonts/<nom>/font.yaml      ← quel caractère, quelle image, ascent
-      assets/fonts/<nom>/<texture>.png  ← un fichier par glyphe
+      assets/fonts/<name>/font.yaml      ← which character, which image, ascent
+      assets/fonts/<name>/<texture>.png  ← one file per glyph
 
-  Conséquences actées : une police est un **dossier**, donc l'asset c'est elle,
-  pas chacun de ses PNG (sinon la bibliothèque afficherait 95 « glyphes »
-  nommés a, b, c…) ; son empreinte est celle de son **descripteur**, qui change
-  dès qu'un glyphe est ajouté, retiré ou déplacé ; la supprimer emporte tous ses
-  fichiers ; et `asset_write` devient **groupé et tout-ou-rien**, une police à
-  moitié posée afficherait des carrés à la place des lettres manquantes.
-- **Les icônes 3D d'items** (`backend/assets-seed/icons-<version>.zip`) ne sont
-  pas des assets de Project — elles sont dérivées de la version du jeu et
-  partagées par tous. Elles restent au backend. À confirmer qu'aucune n'a été
-  traitée comme un asset de Project.
+  Recorded consequences: a font is a **folder**, so the asset is the font, not
+  each of its PNGs (otherwise the library would display 95 "glyphs" named
+  a, b, c…); its fingerprint is that of its **descriptor**, which changes as soon
+  as a glyph is added, removed or moved; deleting it takes all its files with
+  it; and `asset_write` becomes **grouped and all-or-nothing**, a half-written
+  font would display squares in place of the missing letters.
+- **3D item icons** (`backend/assets-seed/icons-<version>.zip`) are not
+  Project assets — they are derived from the game version and shared by all.
+  They stay on the backend. To confirm that none was treated as a Project
+  asset.
