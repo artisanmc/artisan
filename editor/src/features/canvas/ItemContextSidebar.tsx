@@ -7,7 +7,11 @@ import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-export function ItemContextSidebar({ entries }: { entries: PlaceholderEntry[] }) {
+/** `defaultOpen`: false where the example player panel comes first and the list is a reference. */
+export function ItemContextSidebar({
+  entries,
+  defaultOpen = true,
+}: { entries: PlaceholderEntry[]; defaultOpen?: boolean }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
@@ -20,7 +24,7 @@ export function ItemContextSidebar({ entries }: { entries: PlaceholderEntry[] })
   );
   return (
     <details
-      open
+      open={defaultOpen}
       className="max-h-80 min-h-0 min-w-0 shrink-0 overflow-y-auto overscroll-contain border-t border-[var(--border)] pt-4 md:max-h-none md:flex-1 md:[contain:size]"
     >
       <summary className="field-label cursor-pointer">{t("itemContext.title")}</summary>

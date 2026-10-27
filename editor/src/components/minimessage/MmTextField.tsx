@@ -2,10 +2,11 @@ import { cx } from "@/lib/cx";
 import { renderSample } from "@/lib/expr/sampleRender";
 import type { MmProfile } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { MmEditor } from "./MmEditor";
 import { MmPreview } from "./MmPreview";
+import { SimulationPanel } from "./SimulationPanel";
 import type { MmViewMode } from "./mmCodeMirror";
 import { useSimulation } from "./useSimulation";
 
@@ -59,8 +60,10 @@ export function MmTextField({
       aria-label={ariaLabel}
     />
   );
+  const sources = useMemo(() => [value], [value]);
   if (layout === "none") return <div className={className}>{editor}</div>;
-  // The preview shows the text for the example player, its `{…}` evaluated.
+  // The one rendering: the text for the example player, its `{…}` evaluated, the
+  // player set in the panel beside it.
   const shown = renderSample(value, simulation.sampleOf);
   const rendered = preview ? preview(shown) : <MmPreview value={shown} profile={profile} />;
   return (
@@ -73,9 +76,12 @@ export function MmTextField({
       )}
     >
       {editor}
-      <section aria-label={t("mmEditor.previewLabel")} className="min-w-0 overflow-x-auto">
-        {rendered}
-      </section>
+      <div className="flex min-w-0 flex-col gap-3">
+        <section aria-label={t("mmEditor.previewLabel")} className="min-w-0 overflow-x-auto">
+          {rendered}
+        </section>
+        <SimulationPanel sources={sources} simulation={simulation} />
+      </div>
     </div>
   );
 }

@@ -1,7 +1,5 @@
 import { copyText } from "@/lib/clipboard";
 import { cx } from "@/lib/cx";
-import { humanizePath } from "@/lib/expr/sampleRender";
-import { parseMiniMessageSource } from "@/lib/miniMessage";
 import { type Decoration, diffText, rangeHas, toggleDecoration } from "@/lib/mm/edit";
 import { hasLegacyCodes, legacyToMiniMessage } from "@/lib/mm/legacy";
 import type { Palette } from "@/lib/mm/palettes";
@@ -10,9 +8,10 @@ import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { Prec } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type Root, createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
-import { ExpressionCard } from "./ExpressionCard";
+import { ExpressionRules } from "./ExpressionRules";
 import { type MmOp, MmToolbar } from "./MmToolbar";
 import { type ExpressionView, type MmViewMode, mmExtensions, mmInternal } from "./mmCodeMirror";
 import { usePaletteLibrary } from "./usePaletteLibrary";
@@ -33,7 +32,7 @@ export interface MmEditorProps {
   placeholder?: string;
   /** A lore's `lore_max_width`: where each line will wrap is marked, nothing is written. */
   wrapWidth?: number;
-  /** The example player its `{…}` are shown for; shared with a preview drawn elsewhere. */
+  /** The example player whose case is lit in the rules; shared with a preview drawn elsewhere. */
   simulation?: Simulation;
   /** Called when the editor, toolbar included, takes the focus. */
   onFocus?: () => void;
@@ -70,28 +69,51 @@ export function MmEditor({
   const [sel, setSel] = useState({ from: 0, to: 0 });
   const viewRef = useRef<EditorView | null>(null);
   const perLine = profile.lines === "separate";
-  // The expression read in the card (its `{`), and the example player's switches.
-  const [openExpr, setOpenExpr] = useState<number | null>(null);
+  // Each `{…}` is drawn by React into the widget CodeMirror gives it.
   const ownSimulation = useSimulation(entries);
-  const sim = simulation ?? ownSimulation;
-  const { scope, sampleOf } = sim;
+  const { scope } = simulation ?? ownSimulation;
+  const roots = useRef(new Map<HTMLElement, Root>());
+  useEffect(() => {
+    const live = roots.current;
+    return () => {
+      for (const root of live.values()) queueMicrotask(() => root.unmount());
+      live.clear();
+    };
+  }, []);
+  const color = profile.defaults.color;
   const expressions = useMemo<ExpressionView>(
     () => ({
-      preview: (raw) => {
-        const out = sampleOf(raw);
-        return out === null
-          ? null
-          : parseMiniMessageSource(out, perLine).map(({ text, style }) => ({ text, style }));
+      draw: (dom, source, from, kind) => {
+        let root = roots.current.get(dom);
+        if (!root) {
+          root = createRoot(dom);
+          roots.current.set(dom, root);
+        }
+        root.render(
+          <ExpressionRules
+            source={source}
+            kind={kind}
+            scope={scope}
+            color={color}
+            onReplace={(at, literal) =>
+              viewRef.current?.dispatch({
+                changes: { from: from + at.from, to: from + at.to, insert: literal },
+                annotations: mmInternal.of(true),
+                userEvent: "input",
+              })
+            }
+            onDrawn={() => viewRef.current?.requestMeasure()}
+          />,
+        );
       },
-      fallback: (raw) => {
-        const inner = raw.slice(1, -1);
-        return /^[\w.[\]]+$/.test(inner) ? humanizePath(inner) : raw;
+      erase: (dom) => {
+        const root = roots.current.get(dom);
+        roots.current.delete(dom);
+        // Not while React may be rendering: CodeMirror can drop a widget mid-update.
+        if (root) queueMicrotask(() => root.unmount());
       },
-      label: t("mmEditor.expr.pill"),
-      emptyLabel: t("mmEditor.expr.nothing"),
-      open: setOpenExpr,
     }),
-    [sampleOf, perLine, t],
+    [scope, color],
   );
 
   const apply = (op: MmOp) => {
@@ -217,22 +239,6 @@ export function MmEditor({
           minHeight={minHeight}
         />
       </div>
-      {mode === "rich" && openExpr !== null && (
-        <ExpressionCard
-          value={value}
-          from={openExpr}
-          onChange={onChange}
-          scope={scope}
-          overrides={sim.overrides}
-          onOverride={sim.setOverride}
-          onShowCode={() => {
-            setOpenExpr(null);
-            setMode("code");
-          }}
-          onClose={() => setOpenExpr(null)}
-          textColor={profile.defaults.color}
-        />
-      )}
       {diagnostics.length > 0 && (
         <ul className="flex flex-col gap-0.5 border-[var(--border-soft)] border-t px-2.5 py-1.5 text-[11.5px] text-[var(--warning)]">
           {diagnostics.map((d) => (
