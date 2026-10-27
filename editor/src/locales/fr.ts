@@ -104,6 +104,7 @@ const fr: typeof en = {
     open: "Ouvrir la navigation",
     close: "Fermer la navigation",
     dismiss: "Refermer la navigation",
+    resize: "Redimensionner la navigation (double-clic : largeur par défaut)",
   },
   projectLibrary: {
     title: "Boutons",
@@ -813,7 +814,6 @@ const fr: typeof en = {
   },
   projectPanel: {
     relation: { parent: "Ouvre l'élément sélectionné", child: "Ouvert par l'élément sélectionné" },
-    originTag: { modified: "modifié", update: "nouvelle version" },
     systemDocumentHint:
       "Élément interne du module {{module}} : son code l'ouvre. Tu peux le modifier ; il ne se supprime pas, Réinitialiser le remet à la version du module.",
     systemBadge: {
