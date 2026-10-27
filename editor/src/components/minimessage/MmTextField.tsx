@@ -1,5 +1,6 @@
 import { cx } from "@/lib/cx";
 import { renderSample } from "@/lib/expr/sampleRender";
+import { renderLore } from "@/lib/mm/loreLines";
 import type { MmProfile } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { type ReactNode, useMemo } from "react";
@@ -64,7 +65,11 @@ export function MmTextField({
   if (layout === "none") return <div className={className}>{editor}</div>;
   // The one rendering: the text for the example player, its `{…}` evaluated, the
   // player set in the panel beside it.
-  const shown = renderSample(value, simulation.sampleOf);
+  // A lore drops a line whose `{…}` give nothing, as the plugin does.
+  const shown =
+    profile.id === "lore"
+      ? renderLore(value, (line) => renderSample(line, simulation.sampleOf)).join("\n")
+      : renderSample(value, simulation.sampleOf);
   const rendered = preview ? preview(shown) : <MmPreview value={shown} profile={profile} />;
   return (
     <div

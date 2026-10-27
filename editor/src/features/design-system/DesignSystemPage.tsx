@@ -167,7 +167,11 @@ const SAMPLE_LORE =
 // A guild member's card: the case of the "computed text" pill.
 const SAMPLE_MEMBER_LORE = [
   "<gray>Grade : <red>{m.rank}",
-  '{(m.online ? "<green>En ligne" : "<gray>Hors ligne") + (m.can_promote || m.can_demote || m.can_kick ? "\\n" : "") + (m.can_promote ? "\\n<yellow>Clic gauche : promouvoir" : "") + (m.can_demote ? "\\n<yellow>Clic droit : rétrograder" : "") + (m.can_kick ? "\\n<red>Shift + clic droit : exclure" : "")}',
+  '{m.online ? "<green>En ligne" : "<gray>Hors ligne"}',
+  "",
+  '{m.can_promote ? "<yellow>Clic gauche : promouvoir" : ""}',
+  '{m.can_demote ? "<yellow>Clic droit : rétrograder" : ""}',
+  '{m.can_kick ? "<red>Shift + clic droit : exclure" : ""}',
   "<gray>Membre depuis {m.joined.ago()}",
 ].join("\n");
 

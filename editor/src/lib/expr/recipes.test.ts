@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { RECIPES, recipeVariables } from "./recipes";
 import { readExpression } from "./readable";
+import { RECIPES, recipeVariables } from "./recipes";
 
 const recipe = (id: string) => RECIPES.find((r) => r.id === id)!;
 
