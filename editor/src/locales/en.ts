@@ -1360,6 +1360,8 @@ export default {
     },
     mmEditorHint:
       "Rich MiniMessage input: tags hidden, toolbar filtered by the profile (here a lore: no click), Rich / Code switch. MmTextField adds the preview its profile calls for.",
+    mmExprHint:
+      "Placeholders show their example value; a computed text shows a ƒ pill, read as rules on click, with switches for the example player. The preview follows the switches.",
     mcPreviewHint:
       "Presentational in-game previews, drawn with the vanilla font. They take resolved MiniMessage only.",
     popoverHint:

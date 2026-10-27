@@ -1,10 +1,7 @@
 import { copyText } from "@/lib/clipboard";
 import { cx } from "@/lib/cx";
-import { toStringValue } from "@/lib/expr/coercion";
-import { evaluate } from "@/lib/expr/evaluator";
-import { parse } from "@/lib/expr/parser";
-import { sampleScope } from "@/lib/expr/sampleScope";
-import { parseMiniMessage } from "@/lib/miniMessage";
+import { humanizePath } from "@/lib/expr/sampleRender";
+import { parseMiniMessageSource } from "@/lib/miniMessage";
 import { type Decoration, diffText, rangeHas, toggleDecoration } from "@/lib/mm/edit";
 import { hasLegacyCodes, legacyToMiniMessage } from "@/lib/mm/legacy";
 import type { Palette } from "@/lib/mm/palettes";
@@ -19,6 +16,7 @@ import { ExpressionCard } from "./ExpressionCard";
 import { type MmOp, MmToolbar } from "./MmToolbar";
 import { type ExpressionView, type MmViewMode, mmExtensions, mmInternal } from "./mmCodeMirror";
 import { usePaletteLibrary } from "./usePaletteLibrary";
+import { type Simulation, useSimulation } from "./useSimulation";
 
 export interface MmEditorProps {
   value: string;
@@ -35,6 +33,8 @@ export interface MmEditorProps {
   placeholder?: string;
   /** A lore's `lore_max_width`: where each line will wrap is marked, nothing is written. */
   wrapWidth?: number;
+  /** The example player its `{…}` are shown for; shared with a preview drawn elsewhere. */
+  simulation?: Simulation;
   /** Called when the editor, toolbar included, takes the focus. */
   onFocus?: () => void;
   "aria-label"?: string;
@@ -59,6 +59,7 @@ export function MmEditor({
   minHeight = "64px",
   placeholder,
   wrapWidth,
+  simulation,
   onFocus,
   "aria-label": ariaLabel,
   className,
@@ -71,22 +72,26 @@ export function MmEditor({
   const perLine = profile.lines === "separate";
   // The expression read in the card (its `{`), and the example player's switches.
   const [openExpr, setOpenExpr] = useState<number | null>(null);
-  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
-  const scope = useMemo(() => sampleScope(entries, overrides), [entries, overrides]);
+  const ownSimulation = useSimulation(entries);
+  const sim = simulation ?? ownSimulation;
+  const { scope, sampleOf } = sim;
   const expressions = useMemo<ExpressionView>(
     () => ({
       preview: (raw) => {
-        try {
-          return parseMiniMessage(toStringValue(evaluate(parse(raw.slice(1, -1)), scope)));
-        } catch {
-          return null;
-        }
+        const out = sampleOf(raw);
+        return out === null
+          ? null
+          : parseMiniMessageSource(out, perLine).map(({ text, style }) => ({ text, style }));
+      },
+      fallback: (raw) => {
+        const inner = raw.slice(1, -1);
+        return /^[\w.[\]]+$/.test(inner) ? humanizePath(inner) : raw;
       },
       label: t("mmEditor.expr.pill"),
       emptyLabel: t("mmEditor.expr.nothing"),
       open: setOpenExpr,
     }),
-    [scope, t],
+    [sampleOf, perLine, t],
   );
 
   const apply = (op: MmOp) => {
@@ -211,8 +216,8 @@ export function MmEditor({
           from={openExpr}
           onChange={onChange}
           scope={scope}
-          overrides={overrides}
-          onOverride={(path, v) => setOverrides((prev) => ({ ...prev, [path]: v }))}
+          overrides={sim.overrides}
+          onOverride={sim.setOverride}
           onShowCode={() => {
             setOpenExpr(null);
             setMode("code");

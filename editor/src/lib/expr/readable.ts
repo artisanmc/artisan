@@ -16,6 +16,8 @@ export type Part =
 
 export interface Case {
   when: Cond;
+  /** The condition as parsed, to tell which case the example player falls in. */
+  test: AstNode;
   show: Part[];
 }
 
@@ -84,7 +86,11 @@ function choiceOf(node: AstNode & { kind: "ternary" }, src: string) {
   const cases: Case[] = [];
   let rest: AstNode = node;
   while (rest.kind === "ternary") {
-    cases.push({ when: condOf(rest.cond, src), show: partsOf(rest.whenTrue, src) });
+    cases.push({
+      when: condOf(rest.cond, src),
+      test: rest.cond,
+      show: partsOf(rest.whenTrue, src),
+    });
     rest = rest.whenFalse;
   }
   return { cases, otherwise: partsOf(rest, src) };

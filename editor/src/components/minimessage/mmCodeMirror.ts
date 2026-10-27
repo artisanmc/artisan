@@ -81,23 +81,29 @@ class GeneratedWidget extends WidgetType {
   }
 }
 
-/** What the rich view shows of an expression it cannot show as text. */
+/** What the rich view shows of a `{…}`, never shown as text. */
 export interface ExpressionView {
   /** What it gives for the example player, as styled text; null when it cannot be computed. */
   preview: (source: string) => Segment[] | null;
-  /** Hover text and the badge's accessible name. */
+  /** Shown for a placeholder whose value is unknown (`{m.rank}` → "Rank"). */
+  fallback: (source: string) => string;
+  /** Hover text and the badge's accessible name of a computed text. */
   label: string;
-  /** Shown when the expression gives nothing for the example player. */
+  /** Shown when a computed text gives nothing for the example player. */
   emptyLabel: string;
-  /** Opens the expression at `from` (its `{`). */
+  /** Opens the computed text at `from` (its `{`). */
   open: (from: number) => void;
 }
 
-/** An expression as one pill: a badge and what it gives in game, opened on click. */
+/**
+ * A `{…}` as one pill showing what it gives in game. A plain placeholder (`value`) is
+ * just its value; a computed text (`logic`) wears a badge and opens on click.
+ */
 class ExpressionWidget extends WidgetType {
   constructor(
     readonly source: string,
     readonly from: number,
+    readonly kind: "value" | "logic",
     readonly segments: Segment[] | null,
     readonly view: ExpressionView,
   ) {
@@ -112,33 +118,39 @@ class ExpressionWidget extends WidgetType {
   }
   toDOM() {
     const wrap = document.createElement("span");
+    const body = document.createElement("span");
+    body.className = "cm-mm-expr-body";
+    const segs = this.segments;
+    if (segs === null || segs.every((seg) => seg.text.trim() === "")) {
+      body.classList.add("cm-mm-expr-empty");
+      body.textContent =
+        this.kind === "value" || segs === null
+          ? this.view.fallback(this.source)
+          : this.view.emptyLabel;
+    } else {
+      // Kept as written: line breaks show as lines, like the lore in game.
+      for (const seg of segs) {
+        const span = document.createElement("span");
+        span.setAttribute("style", styleCss(seg.style));
+        span.textContent = seg.text;
+        body.appendChild(span);
+      }
+    }
+    if (this.kind === "value") {
+      wrap.className = "cm-mm-val";
+      wrap.title = this.source;
+      wrap.appendChild(body);
+      return wrap;
+    }
     wrap.className = "cm-mm-expr";
     wrap.title = this.view.label;
     wrap.setAttribute("role", "button");
     wrap.setAttribute("tabindex", "0");
-    wrap.setAttribute("aria-label", `${this.view.label}: ${this.source}`);
+    wrap.setAttribute("aria-label", this.view.label);
     const badge = document.createElement("span");
     badge.className = "cm-mm-expr-badge";
     badge.textContent = "ƒ";
-    wrap.appendChild(badge);
-    const body = document.createElement("span");
-    body.className = "cm-mm-expr-body";
-    const segs = this.segments;
-    if (segs === null) {
-      body.textContent = this.source;
-      body.classList.add("cm-mm-expr-raw");
-    } else if (segs.every((seg) => seg.text.trim() === "")) {
-      body.textContent = this.view.emptyLabel;
-      body.classList.add("cm-mm-expr-empty");
-    } else {
-      for (const seg of segs) {
-        const span = document.createElement("span");
-        span.setAttribute("style", styleCss(seg.style));
-        span.textContent = seg.text.replace(/\n/g, " ↵ ");
-        body.appendChild(span);
-      }
-    }
-    wrap.appendChild(body);
+    wrap.append(badge, body);
     const open = (e: Event) => {
       e.preventDefault();
       this.view.open(this.from);
@@ -150,7 +162,7 @@ class ExpressionWidget extends WidgetType {
     return wrap;
   }
   ignoreEvent() {
-    return true;
+    return this.kind === "logic";
   }
 }
 
@@ -201,7 +213,7 @@ function buildRich(state: EditorState, profile: MmProfile, exprView?: Expression
     const raw = src.slice(w.from, w.to);
     const widget =
       w.expr && exprView
-        ? new ExpressionWidget(raw, w.from, exprView.preview(raw), exprView)
+        ? new ExpressionWidget(raw, w.from, w.expr, exprView.preview(raw), exprView)
         : new GeneratedWidget(w.segments, raw);
     const r = Decoration.replace({ widget }).range(w.from, w.to);
     deco.push(r);
@@ -362,9 +374,14 @@ export const MM_THEME = EditorView.theme({
     background: "var(--surface-hover)",
     color: "var(--text-mut)",
   },
+  ".cm-mm-val": {
+    padding: "0 3px",
+    borderRadius: "4px",
+    boxShadow: "inset 0 0 0 1px var(--brand-line)",
+  },
   ".cm-mm-expr": {
     display: "inline-flex",
-    alignItems: "baseline",
+    alignItems: "flex-start",
     gap: "5px",
     maxWidth: "100%",
     padding: "0 6px 0 2px",
@@ -388,7 +405,6 @@ export const MM_THEME = EditorView.theme({
     fontStyle: "normal",
   },
   ".cm-mm-expr-body": { whiteSpace: "pre-wrap", overflowWrap: "anywhere" },
-  ".cm-mm-expr-raw": { color: "var(--text-mut)" },
   ".cm-mm-expr-empty": { color: "var(--text-faint)", fontStyle: "italic" },
   ".cm-mm-obf": { textDecoration: "underline dashed", textDecorationColor: "var(--text-faint)" },
 });

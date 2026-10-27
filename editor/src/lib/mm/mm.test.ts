@@ -97,7 +97,7 @@ describe("richLayout", () => {
         from: 2,
         to: src.length - 2,
         segments: [{ text: src.slice(2, -2), style: {} }],
-        expr: true,
+        expr: "logic",
       },
     ]);
     expect(hidden).toEqual([]);
@@ -105,10 +105,10 @@ describe("richLayout", () => {
     expect(units.filter((u) => u.gen)).toHaveLength(1);
   });
 
-  it("leaves a plain placeholder editable", () => {
-    const { widgets, units } = richLayout("{player.name}");
-    expect(widgets).toEqual([]);
-    expect(units).toHaveLength(13);
+  it("shows a plain placeholder whole too, as a value", () => {
+    const { widgets, units } = richLayout("Hi {player.name}!");
+    expect(widgets).toMatchObject([{ from: 3, to: 16, expr: "value" }]);
+    expect(units).toHaveLength(5);
   });
 
   it("parses each lore line alone", () => {

@@ -1380,6 +1380,8 @@ const fr: typeof en = {
     },
     mmEditorHint:
       "Saisie MiniMessage riche : balises masquées, barre filtrée par le profil (ici un lore : pas de clic), bascule Riche / Code. MmTextField ajoute l'aperçu que demande le profil.",
+    mmExprHint:
+      "Les placeholders montrent leur valeur d'exemple ; un texte calculé devient une pastille ƒ, lue en règles au clic, avec des interrupteurs pour le joueur d'exemple. L'aperçu suit les interrupteurs.",
     mcPreviewHint:
       "Aperçus en jeu présentationnels, dessinés avec la police vanilla. Ils ne prennent que du MiniMessage résolu.",
     popoverHint:

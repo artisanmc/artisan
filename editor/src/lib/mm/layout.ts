@@ -19,9 +19,10 @@ export interface RichLayout {
   marks: { from: number; to: number; style: Style }[];
   /**
    * Tags that show text (`<newline>`, `<key:…>`), with what they show, and the
-   * expressions shown whole (`expr`, their source as the one segment).
+   * `{…}` shown whole (`expr`, their source as the one segment): `value` for a plain
+   * placeholder (`{player.name}`), `logic` for the rest (`{a ? "x" : "y"}`).
    */
-  widgets: { from: number; to: number; segments: Segment[]; expr?: true }[];
+  widgets: { from: number; to: number; segments: Segment[]; expr?: "value" | "logic" }[];
   /** Markup: what the rich view hides. */
   hidden: { from: number; to: number }[];
   units: VisibleUnit[];
@@ -87,7 +88,7 @@ export function richLayout(src: string, perLine = false): RichLayout {
       from: e.from,
       to: e.to,
       segments: [{ text: src.slice(e.from, e.to), style: {} }],
-      expr: true,
+      expr: e.kind,
     });
     units.push({ from: e.from, to: e.to, style: {}, gen: true });
     covered.fill(2, e.from, e.to);
@@ -119,13 +120,17 @@ export function richLayout(src: string, perLine = false): RichLayout {
 }
 
 /**
- * The `{…}` the rich view cannot show as text: those with a space, a quote or a tag
- * (`{a ? "<red>x" : ""}`). A plain placeholder (`{player.name}`) stays editable text.
+ * The `{…}` the rich view shows whole, never as text: what they give is only known in
+ * game, and the tags in their strings are not the text's.
  */
-function opaqueExpressions(src: string): { from: number; to: number }[] {
-  return templateSpans(src).filter(
-    (s) => s.kind === "expression" && /[\s"'<>]/.test(src.slice(s.from + 1, s.to - 1)),
-  );
+function opaqueExpressions(src: string): { from: number; to: number; kind: "value" | "logic" }[] {
+  return templateSpans(src)
+    .filter((s) => s.kind === "expression")
+    .map((s) => ({
+      from: s.from,
+      to: s.to,
+      kind: /^[\w.[\]()]+$/.test(src.slice(s.from + 1, s.to - 1)) ? "value" : "logic",
+    }));
 }
 
 /** Number of units that end at or before `pos`. */

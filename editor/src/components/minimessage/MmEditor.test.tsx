@@ -80,6 +80,25 @@ describe("MmEditor", () => {
     );
   });
 
+  it("shows a placeholder as its example value, and a line break in words", () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.rank", type: "string", sample: "Officier", origin: "context" },
+      { path: "m.kick", type: "boolean", sample: "true", origin: "context" },
+    ];
+    render(
+      <Controlled
+        initial={'Grade : {m.rank} {m.kick ? "\\n<red>Exclure" : ""}'}
+        profile={LORE}
+        entries={entries}
+      />,
+    );
+    expect((document.querySelector(".cm-mm-val") as HTMLElement).textContent).toBe("Officier");
+    expect((document.querySelector(".cm-mm-expr") as HTMLElement).textContent).toBe("ƒ\nExclure");
+    fireEvent.mouseDown(document.querySelector(".cm-mm-expr")!);
+    expect(screen.getByText("nouvelle ligne :")).toBeTruthy();
+    expect(screen.queryByText("Sinon")).toBeNull();
+  });
+
   it("converts legacy codes on request", () => {
     render(<Controlled initial="§6Gold" />);
     fireEvent.click(screen.getByRole("button", { name: "Convertir les codes &" }));
@@ -91,6 +110,18 @@ describe("MmTextField", () => {
   it("shows the preview its profile calls for", () => {
     render(<MmTextField value="<gray>line" onChange={() => {}} profile={LORE} />);
     expect(screen.getByTestId("mc-tooltip")).toBeTruthy();
+  });
+
+  it("previews the text for the example player, its placeholders evaluated", () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.rank", type: "string", sample: "Officier", origin: "context" },
+    ];
+    render(
+      <MmTextField value="Grade : {m.rank}" onChange={() => {}} profile={LORE} entries={entries} />,
+    );
+    const tooltip = screen.getByTestId("mc-tooltip").textContent ?? "";
+    expect(tooltip).toContain("Officier");
+    expect(tooltip).not.toContain("{m.rank}");
   });
 
   it("leaves the preview to the screen with layout none", () => {
