@@ -13,7 +13,7 @@ import type { DocumentChecks } from "@/features/project/publish/publishFlow";
 import type { OtherDrafts } from "@/features/project/publish/useOtherDrafts";
 import { ServerChecksSection } from "@/features/serverIndex/ServerChecksSection";
 import type { ServerChecks } from "@/features/serverIndex/serverChecks";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Last look at what a deployment writes to the server disk, before anything is sent. */
@@ -185,13 +185,16 @@ function PickRow({
   detail?: ReactNode;
   badge?: ReactNode;
 }) {
+  const id = useId();
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[var(--text)] has-[:disabled]:cursor-default">
-      <Checkbox checked={checked} disabled={disabled} onCheckedChange={onChange} />
-      <span className="min-w-0 flex-1 truncate font-semibold">{label}</span>
+    <div className="flex items-center gap-2 text-[13px] text-[var(--text)]">
+      <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={onChange} />
+      <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer truncate font-semibold">
+        {label}
+      </label>
       {badge}
       {detail && <span className="shrink-0 text-[12px] text-[var(--text-faint)]">{detail}</span>}
-    </label>
+    </div>
   );
 }
 
