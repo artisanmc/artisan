@@ -19,13 +19,13 @@ import net.artisanmc.plugin.engine.*
 import net.artisanmc.plugin.lang.LangManager
 import net.artisanmc.plugin.engine.MenuProvider
 import net.artisanmc.plugin.provider.SyncedMenuProvider
-import com.github.retrooper.packetevents.PacketEvents
-import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
 import net.artisanmc.plugin.render.packets.ClientSlotSink
 import net.artisanmc.plugin.listener.MenuListener
 import net.artisanmc.plugin.render.packets.MenuWindows
-import net.artisanmc.plugin.render.packets.PacketEventsMenuPackets
-import net.artisanmc.plugin.render.packets.PacketEventsSlotSink
+import net.artisanmc.plugin.render.packets.MenuPacketInterceptor
+import net.artisanmc.plugin.render.packets.MenuPacketRewriter
+import net.artisanmc.plugin.render.packets.NmsMenuPackets
+import net.artisanmc.plugin.render.packets.PacketSlotSink
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 import net.artisanmc.plugin.integrations.PaperPlaceholders
@@ -51,7 +51,7 @@ open class ArtisanPlugin : JavaPlugin() {
     /** Survives `/artisan reload`: the pack manager is swapped, the players' loaded packs are not. */
     private val packLoads = net.artisanmc.plugin.resourcepack.PackLoadTracker()
     private val openedContainers = net.artisanmc.plugin.render.title.OpenedContainers()
-    private var packetEventsLoaded = false
+    private var menuPackets: MenuPacketInterceptor? = null
     /** Exposed for /artisan dump-title diagnostics. */
     lateinit var assetCatalog: net.artisanmc.plugin.resourcepack.AssetCatalog
         internal set
@@ -109,25 +109,28 @@ open class ArtisanPlugin : JavaPlugin() {
         fun buildApi(plugin: ArtisanPlugin): ArtisanAPI = ArtisanApiFactory.build(plugin)
     }
 
-    /** PacketEvents is bundled in the jar (relocated): loaded here, initialized at the start of [onEnable]. */
-    override fun onLoad() {
-        packetEventsLoaded = runCatching {
-            PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
-            PacketEvents.getAPI().settings.checkForUpdates(false).bStats(false)
-            PacketEvents.getAPI().load()
-        }.onFailure { logger.log(java.util.logging.Level.SEVERE, "PacketEvents failed to load — menus will open empty", it) }.isSuccess
-    }
+    /** Set when this server cannot run Artisan: [onEnable] disables it, [onDisable] has nothing to stop. */
+    private var unsupported = false
 
     override fun onEnable() {
-        // Menu contents are only sent as packets: without PacketEvents, windows
-        // open empty (clicks and sessions stay active).
-        val packets = packetEventsLoaded && runCatching { PacketEvents.getAPI().init() }
-            .onFailure { logger.log(java.util.logging.Level.SEVERE, "PacketEvents failed to start — menus will open empty", it) }
-            .isSuccess
+        val version = net.artisanmc.plugin.platform.ServerPlatform.minecraftVersion(server)
+        if (net.artisanmc.plugin.platform.ServerPlatform.obfuscated(net.artisanmc.plugin.platform.ServerPlatform.paper, version)) {
+            unsupported = true
+            logger.severe("[Artisan] Spigot $version is not supported: Spigot needs 26.1 or newer (or use Paper 1.21+). Artisan is disabled.")
+            server.pluginManager.disablePlugin(this)
+            return
+        }
+        // Menu contents are only sent as packets: without them (classes not found, the
+        // MockBukkit case in tests), windows open empty (clicks and sessions stay active).
+        val codec = runCatching { NmsMenuPackets.resolve(server) }
+            .onFailure { logger.log(java.util.logging.Level.SEVERE, "[Artisan] menu packets unavailable on this server — menus will open empty", it) }
+            .getOrNull()
+        lateinit var interceptor: MenuPacketInterceptor
         menuWindows = MenuWindows(
-            if (packets) PacketEventsSlotSink { menuWindows.get(it.uniqueId)?.stateId ?: 0 } else ClientSlotSink.None,
+            if (codec != null) PacketSlotSink(codec, { player, packet -> interceptor.send(player, packet) }) { menuWindows.get(it.uniqueId)?.stateId ?: 0 }
+            else ClientSlotSink.None,
         )
-        if (packets) {
+        if (codec != null) {
             val chestTexture = net.artisanmc.plugin.render.title.VanillaGuiTitle.Rule(
                 menuWindows,
                 { id, texture ->
@@ -135,7 +138,10 @@ open class ArtisanPlugin : JavaPlugin() {
                 },
                 openedContainers::typeOf,
             )
-            PacketEventsMenuPackets(menuWindows, chestTexture).register()
+            interceptor = MenuPacketInterceptor(codec::channel, MenuPacketRewriter(menuWindows, codec, chestTexture), logger)
+            menuPackets = interceptor
+            server.pluginManager.registerEvents(interceptor, this)
+            server.onlinePlayers.forEach(interceptor::inject)
         }
         server.pluginManager.registerEvents(packLoads, this)
         server.pluginManager.registerEvents(openedContainers, this)
@@ -182,6 +188,8 @@ open class ArtisanPlugin : JavaPlugin() {
             store = suite.editorSessionStore(),
             writer = suite.sessionWriter(),
         )
+        // A session closed here closes its open editor tabs: they go back to sign-in.
+        editorSessions.onClosed(editorHost.editorChannel::disconnect)
         try {
             startEditor(cfg)
         } catch (t: Throwable) {
@@ -239,6 +247,8 @@ open class ArtisanPlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
+        if (unsupported) return
+        menuPackets?.uninjectAll()
         localEditorBundles.stop()
         stopEditor()
         // Modules of add-ons already went with their plugin (registerAddonRelease).
@@ -251,7 +261,6 @@ open class ArtisanPlugin : JavaPlugin() {
         runtime.commandRegistrar.unregisterAll()
         menuProviderOrNull?.shutdown()
         if (!net.artisanmc.plugin.platform.ServerPlatform.paper) runCatching { net.artisanmc.plugin.render.dialog.SpigotDialogRenderer.unregister() }
-        if (packetEventsLoaded) runCatching { PacketEvents.getAPI().terminate() }
         logger.info("Artisan disabled")
     }
 

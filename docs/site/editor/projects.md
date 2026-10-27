@@ -199,11 +199,16 @@ Some modules ship menus and dialogs their code opens by name, such as the shop's
 ## Commands a module provides
 
 The commands a module declares are command files of its folder, like the menus it provides:
-`commands/ah.yml` for `/ah`, with one row per sub-command (`/ah sell`) on the board. You edit
+`commands/ah.yml` for `/ah`, with one row per sub-command (`/ah sell`) on the board: click a row to edit that sub-command,
+hover a link to see which row opens it. You edit
 them as you edit your own commands: name, aliases, permission, description, cooldown,
 requirements, sub-commands turned on or off, and the steps. Their steps start with a
 `module_command` step, which runs the module's code: add steps before or after it, or replace
-it. Untouched, a command follows each new version of the module. Edited, it stays yours and still
+it. The module's code reads the command's arguments by name and type: its Arguments panel says
+so and warns as soon as one is renamed, removed or retyped. The `module_command` step lists the
+arguments the module declares, one field each: leave a field empty to pass what the player typed
+for the argument of that name, or write a value or a `{placeholder}` to pass instead.
+Untouched, a command follows each new version of the module. Edited, it stays yours and still
 takes in what a new version changes elsewhere: rename `/ah` to `/hdv`, and the sub-command the
 module adds next still shows up. Where you and the module changed the same thing, yours stays, and
 **Reset** puts the module's version back.

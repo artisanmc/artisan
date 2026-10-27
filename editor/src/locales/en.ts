@@ -2,6 +2,7 @@ import { actionCatalogEn } from "./actionCatalog";
 import { aiEn } from "./ai";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
+import { editorSessionsEn } from "./editorSessions";
 import { mcpEn } from "./mcp";
 import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
@@ -100,6 +101,7 @@ export default {
     open: "Open navigation",
     close: "Close navigation",
     dismiss: "Dismiss navigation",
+    resize: "Resize navigation (double-click: default width)",
   },
   projectLibrary: {
     title: "Buttons",
@@ -382,6 +384,11 @@ export default {
     contextAdd: "+ add",
     placeholderOrLiteral: "{{tag}} or literal",
     moduleValueLabel: "arguments (JSON)",
+    moduleCommandTyped: "empty: the value typed for {{tag}}",
+    moduleCommandUndeclared: "(not read by the module)",
+    moduleCommandNoArgs: "This command takes no arguments.",
+    moduleCommandUnknown:
+      "No module of the connected server declares this command: its arguments are edited as raw JSON.",
     moduleUnknown:
       "This action is not declared by the connected server: its arguments are edited as raw JSON.",
     moduleAddText: "Add a text",
@@ -667,6 +674,15 @@ export default {
     descriptionPlaceholder: "(none)",
     argumentsLabel: "Arguments",
     argumentsHint: "Declared command args. Reference them as {{tag}} inside step actions.",
+    moduleArg: "module",
+    moduleArgTitle: "Read by the module's code under this name and type",
+    moduleArgsNotice:
+      "The {{module}} module's code ({{command}}) reads these arguments by name. Renaming, removing or retyping one breaks the command, unless its step maps the value.",
+    driftMissing: "{{name}} ({{type}}) is missing: the module receives nothing for it.",
+    driftMissingRequired:
+      "{{name}} ({{type}}) is missing: the module requires it, the command will always fail.",
+    driftType: "{{name}} is {{type}} here, the module expects {{expected}}.",
+    driftExtra: "{{name}} is not read by the module (renamed?).",
     argName: "name",
     addArg: "+ Add arg",
     removeArg: "Remove arg",
@@ -797,8 +813,6 @@ export default {
     },
   },
   projectPanel: {
-    relation: { parent: "Opens the selected element", child: "Opened by the selected element" },
-    originTag: { modified: "edited", update: "new version" },
     systemDocumentHint:
       "Built into the module {{module}}: its code opens it. You can edit it; it cannot be deleted, and Reset puts the module's version back.",
     systemBadge: {
@@ -1346,6 +1360,8 @@ export default {
     },
     mmEditorHint:
       "Rich MiniMessage input: tags hidden, toolbar filtered by the profile (here a lore: no click), Rich / Code switch. MmTextField adds the preview its profile calls for.",
+    mmExprHint:
+      "Placeholders show their example value; a computed text shows a ƒ pill, read as rules on click, with switches for the example player. The preview follows the switches.",
     mcPreviewHint:
       "Presentational in-game previews, drawn with the vanilla font. They take resolved MiniMessage only.",
     popoverHint:
@@ -1542,6 +1558,7 @@ export default {
     emptyContext: "No variable available in this context",
   },
   mcp: mcpEn,
+  editorSessions: editorSessionsEn,
   ai: aiEn,
   editorAddress: {
     title: "Editor address",

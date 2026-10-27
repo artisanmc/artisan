@@ -48,10 +48,14 @@ export function SubcommandTree({
             path.length > 0 &&
             (!/^[a-z][a-z0-9_-]{0,31}$/.test(node.name) || siblingsNamed(path, node.name) > 1);
           return (
+            // The whole row selects its node; the switch and the remove button keep
+            // their click to themselves. The row's button takes the keyboard.
+            // biome-ignore lint/a11y/useKeyWithClickEvents: the row's button handles keys
             <li
               key={path.join(".") || "root"}
+              onClick={() => onSelect(path)}
               className={cx(
-                "flex items-center gap-2 rounded-[var(--r-xs)] border px-2 py-1",
+                "flex cursor-pointer items-center gap-2 rounded-[var(--r-xs)] border px-2 py-1",
                 isSelected
                   ? "border-[var(--kind-command-line)] bg-[var(--kind-command-soft)]"
                   : "border-transparent hover:bg-[var(--surface-hover)]",
@@ -60,9 +64,8 @@ export function SubcommandTree({
             >
               <button
                 type="button"
-                onClick={() => onSelect(path)}
                 className={cx(
-                  "min-w-0 flex-1 truncate text-left font-mono text-[12.5px]",
+                  "min-w-0 flex-1 cursor-pointer truncate text-left font-mono text-[12.5px]",
                   isOff(path) ? "text-[var(--text-faint)] line-through" : "text-[var(--text)]",
                   invalid && "text-[var(--danger)]",
                 )}
@@ -75,19 +78,23 @@ export function SubcommandTree({
                   {t("command.groupBadge")}
                 </span>
               ) : null}
-              <Switch
-                checked={node.enabled !== false}
-                aria-label={t("command.enabledLabel")}
-                title={t("command.enabledLabel")}
-                onCheckedChange={(enabled) =>
-                  setCommandEnabled({ projectId, commandId: command.id, sub: path, enabled })
-                }
-              />
+              {/* biome-ignore lint/a11y/useKeyWithClickEvents: only stops the row's click */}
+              <span className="flex" onClick={(e) => e.stopPropagation()}>
+                <Switch
+                  checked={node.enabled !== false}
+                  aria-label={t("command.enabledLabel")}
+                  title={t("command.enabledLabel")}
+                  onCheckedChange={(enabled) =>
+                    setCommandEnabled({ projectId, commandId: command.id, sub: path, enabled })
+                  }
+                />
+              </span>
               {path.length > 0 ? (
                 <button
                   type="button"
                   title={t("command.removeSubcommand")}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     removeSubcommand({ projectId, commandId: command.id, sub: path });
                     // The selection moves to the removed node's parent.
                     if (selected.length >= path.length && path.every((v, i) => v === selected[i]))

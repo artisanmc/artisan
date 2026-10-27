@@ -12,12 +12,12 @@ server: there is no account, no cloud service and no separate backend to run.
 
 | Requirement | Detail |
 |---|---|
-| Server software | Paper 1.21 or newer. Folia and Leaf (Paper forks) are supported. Spigot and CraftBukkit are not. |
+| Server software | Paper 1.21 or newer, Folia and Leaf (Paper forks), or Spigot 26.1 or newer. Spigot 1.21.x and CraftBukkit are not supported: Artisan refuses to start there. |
 | Java | Java 21 or newer, and at least what your Minecraft version requires. |
 | Outbound internet at first start | Paper downloads the plugin's libraries from Maven Central when Artisan first loads: HikariCP, the H2, MySQL and MariaDB drivers, and Jetty (the editor's web server). If Jetty is missing, the plugin runs without the editor. |
 | One free TCP port | `8765` by default, for the editor. In a network, only the hub opens it (see [Network mode](../../network/concepts/)). |
 
-PacketEvents is bundled in the jar: you do not need to install it for Artisan.
+Artisan has no plugin dependency: nothing else to install.
 
 ## Who needs to reach what
 

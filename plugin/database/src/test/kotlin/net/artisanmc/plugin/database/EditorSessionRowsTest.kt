@@ -54,4 +54,15 @@ class EditorSessionRowsTest {
         assertNull(rows.get("old"))
         assertEquals(emptySet(), rows.get("new")?.permissions)
     }
+
+    @Test
+    fun `a listing reads the open sessions, not the links stored next to them`() {
+        rows.put("open", EditorSessionRow(player, "Iban", setOf("v"), t0.plusSeconds(60), "survie", createdAt = t0))
+        rows.put("link", EditorSessionRow(player, "Iban", setOf("v"), t0.plusSeconds(60), "survie", link = true))
+        rows.put("gone", EditorSessionRow(player, "Iban", setOf("v"), t0))
+        val listed = rows.list(t0)
+        assertEquals(listOf("open"), listed.map { it.first })
+        assertEquals(EditorSessionRow(player, "Iban", setOf("v"), t0.plusSeconds(60), "survie", createdAt = t0), listed.single().second)
+        assertEquals(true, rows.get("link")?.link)
+    }
 }

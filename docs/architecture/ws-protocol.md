@@ -112,6 +112,8 @@ the message is ignored (`EditorRequest.parse` returns `null`).
 | `editor_link` | `{request_id, player_id, player_name, permissions, host?}`: `/artisan editor` typed on a leaf. The hub consults no permission, it takes the ones the leaf read (`artisan.editor.view` required) and answers `editor_link_result` `{ok, url}` or `{error: "too_soon", retry_after}` / `invalid_input`. Leaf timeout 15 s. |
 | `editor_permissions` | `{players: {uuid: [permissions]}}`: every minute, the editor permissions of online players. The hub applies them to the sessions this server issued and closes those of a player without `artisan.editor.view`. No response. |
 | `editor_logout` | `{request_id, player_id}`: `/artisan editor logout` typed on a leaf. The hub closes all the player's sessions and answers `editor_logout_result` `{ok, closed}`. |
+| `editor_sessions` | `{request_id}`: `/artisan editor sessions` typed on a leaf. The hub answers `editor_sessions_result` `{ok, sessions: [{id, player_name, permissions, server, last_active_at, online}]}`, `online` meaning a tab is open on the hub. An older hub does not answer: the leaf says the hub is offline after 15 s. |
+| `editor_revoke` | `{request_id, id}`: `/artisan editor revoke` typed on a leaf. The hub closes the one session whose public id starts with `id` and answers `editor_revoke_result` `{ok, revoked}`. |
 
 ### Private drafts (`project_draft_publish`)
 
@@ -138,8 +140,15 @@ never sends one: no limit applies.
 Browser ← hub WebSocket (`EditorChannel`). Opening: session cookie carrying
 `artisan.editor.view` and an `Origin` header of the same host, otherwise 403. The hub only sends
 `projects_reloaded` `{server_key_id, projects:[{id, hash}]}` (`server_key_id` = server id, the hub's
-included); it reads nothing from the browser.
-The editor opens it directly (`new EditorWs(handlers)`), without a ticket: the cookie is enough.
+included); from the browser it reads nothing but ignores the editor's heartbeat (`ping` every 60 s,
+under the 5 min idle timeout).
+The editor opens it directly (`new EditorWs(handlers)`), without a ticket: the cookie is enough, and
+opens it again when it drops (1 s, doubling up to 30 s).
+Each socket is tied to its session's public id: an open socket is what the Sessions screen calls
+"Editor open" (`EditorChannel.online`, this hub only: ADR `peer-servers` sends one network's
+editing traffic through one server at a time). When a session is closed here (`Sessions.onClosed`:
+revoke, logout, permission loss), its sockets are closed with code **4401** `session_closed`; the
+editor then stops reconnecting and goes back to `/login?expired=1`.
 
 ## Removed in phase F (do not reintroduce without an ADR)
 

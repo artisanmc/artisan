@@ -69,6 +69,7 @@ import { CanvasToolbar } from "@/features/canvas/CanvasToolbar";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { ACTION_FAMILIES, actionAppearance, familyColors } from "@/lib/actions/actionFamily";
 import { LORE } from "@/lib/mm/profiles";
+import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useUiStore } from "@/state/uiStore";
 import { Inbox, LayoutGrid, Pencil, Plus, Search, Sparkles, TerminalSquare } from "lucide-react";
 import { useRef, useState } from "react";
@@ -163,9 +164,26 @@ const BADGE_CLASSES = ["badge-amber", "badge-sage", "badge-terra", "badge-brick"
 const SAMPLE_LORE =
   "<gray>Forged in <gradient:#ff3d00:#ffb300>dragon fire</gradient>.\n<gold>★★★★☆</gold>";
 
+// A guild member's card: the case of the "computed text" pill.
+const SAMPLE_MEMBER_LORE = [
+  "<gray>Grade : <red>{m.rank}",
+  '{(m.online ? "<green>En ligne" : "<gray>Hors ligne") + (m.can_promote || m.can_demote || m.can_kick ? "\\n" : "") + (m.can_promote ? "\\n<yellow>Clic gauche : promouvoir" : "") + (m.can_demote ? "\\n<yellow>Clic droit : rétrograder" : "") + (m.can_kick ? "\\n<red>Shift + clic droit : exclure" : "")}',
+  "<gray>Membre depuis {m.joined.ago()}",
+].join("\n");
+
+const SAMPLE_MEMBER: PlaceholderEntry[] = [
+  { path: "m.rank", type: "string", sample: "Officier", origin: "iteration" },
+  { path: "m.online", type: "boolean", sample: "true", origin: "iteration" },
+  { path: "m.can_promote", type: "boolean", sample: "true", origin: "iteration" },
+  { path: "m.can_demote", type: "boolean", sample: "false", origin: "iteration" },
+  { path: "m.can_kick", type: "boolean", sample: "true", origin: "iteration" },
+  { path: "m.joined.ago()", type: "string", sample: "40 j", origin: "iteration" },
+];
+
 function MiniMessageSpecimens() {
   const { t } = useTranslation();
   const [lore, setLore] = useState(SAMPLE_LORE);
+  const [member, setMember] = useState(SAMPLE_MEMBER_LORE);
   const [color, setColor] = useState("#5ab4ff");
   return (
     <div className="card flex flex-col gap-6 p-5">
@@ -175,6 +193,19 @@ function MiniMessageSpecimens() {
         </span>
         <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.mmEditorHint")}</p>
         <MmTextField value={lore} onChange={setLore} profile={LORE} layout="column" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="mono text-[11px] text-[var(--text-faint)]">
+          {'<MmTextField profile={LORE} entries={…} layout="column">'}
+        </span>
+        <p className="text-[11px] text-[var(--text-faint)]">{t("adminDesign.mmExprHint")}</p>
+        <MmTextField
+          value={member}
+          onChange={setMember}
+          profile={LORE}
+          entries={SAMPLE_MEMBER}
+          layout="column"
+        />
       </div>
       <div className="flex flex-col gap-2">
         <span className="mono text-[11px] text-[var(--text-faint)]">

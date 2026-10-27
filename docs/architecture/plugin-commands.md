@@ -42,6 +42,19 @@ replace those of the sessions **this server** issued (column `origin` = server i
 `artisan.editor.view`, those sessions are closed. Another server does not touch sessions
 it did not issue (LuckPerms permissions are per server).
 
+## `editor sessions` and `editor revoke <id>`
+
+Permission `artisan.editor.config`. `sessions` lists the open sessions of every server of the
+database (`Sessions.list`: the `artisan_editor_sessions` rows of kind `session`, then those this
+hub holds in memory alone), most recently active first: player, origin server's name, last
+activity (`expires_at` minus `web.session-days`, so to the hour), rights, and "editor open"
+when a tab of that session holds `/ws/editor` on this hub (`EditorChannel.online`). Each line
+shows the first 12 characters of the session's public id (SHA-256 of the cookie, the row key)
+with a click that runs `revoke`. `revoke <id>` closes the one session whose id starts with
+`<id>` (at least 8 characters, `Sessions.MIN_PREFIX`); none or several: `editor_session_not_found`.
+The closed session's open tabs receive close code 4401 and go back to sign-in.
+On a leaf, both go through the hub (`editor_sessions`, `editor_revoke`).
+
 ## `editor logout [player]`
 
 Closes all of a player's editor sessions, whatever the origin server. Without an argument:
