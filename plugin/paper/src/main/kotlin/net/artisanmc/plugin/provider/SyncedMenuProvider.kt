@@ -548,6 +548,7 @@ class SyncedMenuProvider(
             var wrote = false
             registry?.registered()?.forEach { (moduleId, list) ->
                 list.forEach { template ->
+                    warnProFeatures(moduleId, template)
                     runCatching { if (seeds.seed(moduleId, template)) wrote = true }
                         .onFailure { logger?.warning("[Artisan] Template '$moduleId/${template.id}' not seeded: ${it.message}") }
                 }
@@ -563,6 +564,19 @@ class SyncedMenuProvider(
             }
             if (wrote) refresh(folders = null, notifyModules = false)
         }
+    }
+
+    /**
+     * A module's shipped files must run on the free jar (`ProFeatures`): a composed title or an
+     * image there shows missing glyphs to every server without Artisan Pro. Said, not refused.
+     */
+    private fun warnProFeatures(moduleId: String, template: net.artisanmc.modules.api.template.TemplateDeclaration) {
+        val usages = net.artisanmc.plugin.project.ProFeatures.scan(template.paths.associateWith { template.getFile(it) ?: ByteArray(0) })
+        if (usages.isEmpty()) return
+        logger?.warning(
+            "[Artisan] Template '$moduleId/${template.id}' uses Artisan Pro features, broken on the free jar: " +
+                usages.joinToString { "${it.path} (${it.feature})" },
+        )
     }
 
     /**

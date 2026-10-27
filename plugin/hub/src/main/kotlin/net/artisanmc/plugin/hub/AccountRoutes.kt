@@ -3,7 +3,12 @@ package net.artisanmc.plugin.hub
 import net.artisanmc.plugin.hub.EditorPermissions.VIEW
 
 /** The signed-in player as the editor's user, and the servers this hub serves. */
-class AccountRoutes(private val servers: Servers, private val sessions: Sessions, private val prefs: PlayerPrefs?) {
+class AccountRoutes(
+    private val servers: Servers,
+    private val sessions: Sessions,
+    private val prefs: PlayerPrefs?,
+    private val edition: Edition = Edition.PRO,
+) {
     fun register(router: Router) {
         router.on("GET", "/api/v1/auth/me", VIEW) { it.json(mapOf("user" to user(it.session!!))) }
         router.on("PATCH", "/api/v1/auth/me", VIEW) { call ->
@@ -30,6 +35,8 @@ class AccountRoutes(private val servers: Servers, private val sessions: Sessions
         "theme" to saved?.theme,
         "editorTour" to if (saved == null) PlayerPrefs.Tour(0, true) else saved.editorTour,
         "permissions" to EditorPermissions.ALL.filter(session::can),
+        // What the session may edit depends on the jar too: the editor hides Pro editing in free.
+        "edition" to edition.wire,
     )
 
     /** A server by its id, with what the editor shows of it: its name, presence and versions. */

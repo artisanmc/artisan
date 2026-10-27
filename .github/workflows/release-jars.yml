@@ -1,0 +1,89 @@
+name: Release jars
+
+# The two plugin jars from one revision (docs/architecture/editions.md): `Artisan-<v>.jar`
+# (free: Modrinth, Hangar, Spigot, free listings) and `Artisan-Pro-<v>.jar` (paid listings on
+# BuiltByBit, Polymart, Voxel). Both embed the editor. A tag `v<version>` makes a draft GitHub
+# Release carrying them; a manual run only keeps them as workflow artifacts.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Plugin version (e.g. 2.0.0)
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-jars-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  jars:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editor/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Resolve version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          VERSION="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$' || { echo "bad version '$VERSION'" >&2; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - run: npm ci
+        working-directory: editor
+      - name: Test
+        working-directory: plugin
+        run: bash ./gradlew test --no-daemon
+      # Two builds of the same revision: only `artisan-edition.properties` and the jar name differ.
+      - name: Build both jars
+        working-directory: plugin
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p ../dist
+          for EDITION in free pro; do
+            bash ./gradlew :artisan-paper:shadowJar -PwithEditor -Pedition="$EDITION" -PartisanVersion="$VERSION" --no-daemon
+          done
+          cp "paper/build/libs/artisan-plugin-$VERSION-free.jar" "../dist/Artisan-$VERSION.jar"
+          cp "paper/build/libs/artisan-plugin-$VERSION-all.jar" "../dist/Artisan-Pro-$VERSION.jar"
+      - name: Check each jar says its edition
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          check() {
+            got="$(unzip -p "$1" artisan-edition.properties | tr -d '\r')"
+            [ "$got" = "edition=$2" ] || { echo "$1: '$got', expected edition=$2" >&2; exit 1; }
+            unzip -l "$1" editor/index.html > /dev/null || { echo "$1 does not embed the editor" >&2; exit 1; }
+          }
+          check "dist/Artisan-$VERSION.jar" free
+          check "dist/Artisan-Pro-$VERSION.jar" pro
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artisan-jars-${{ steps.version.outputs.version }}
+          path: dist/*.jar
+          if-no-files-found: error
+      - name: Draft GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.jar --draft --verify-tag \
+            --title "Artisan $VERSION" \
+            --notes "Artisan-$VERSION.jar: free edition. Artisan-Pro-$VERSION.jar: Pro edition (paid listings only, never public)."

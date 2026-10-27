@@ -1115,6 +1115,12 @@ export default {
       },
     },
   },
+  edition: {
+    pro: "Pro",
+    proOnly: "Artisan Pro feature: available with the Pro jar.",
+    composedReadOnly:
+      "This title was composed with Artisan Pro. It stays as it is and keeps working in game; editing its layers requires Artisan Pro.",
+  },
   layersPanel: {
     vanilla: "Vanilla",
     composed: "Composed (Resource Project)",

@@ -56,8 +56,18 @@ val wikiIndex by tasks.registering {
     }
 }
 
+// The edition this jar is (`-Pedition`, root build): read by `Edition.bundled`.
+val edition = rootProject.extra["artisanEdition"] as String
+val editionFile by tasks.registering {
+    val out = layout.buildDirectory.file("generated/edition/artisan-edition.properties")
+    inputs.property("edition", edition)
+    outputs.file(out)
+    doLast { out.get().asFile.apply { parentFile.mkdirs() }.writeText("edition=$edition\n") }
+}
+
 tasks.processResources {
-    dependsOn(vanillaIndex, wikiIndex)
+    dependsOn(vanillaIndex, wikiIndex, editionFile)
+    from(layout.buildDirectory.dir("generated/edition"))
     from(vanillaItems) { include("*.json"); into("vanilla/items") }
     from(layout.buildDirectory.dir("generated/vanilla")) { into("vanilla") }
     from(wikiPages) { include("**/*.md"); exclude("**/_*"); into("wiki") }

@@ -67,6 +67,9 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveBaseName.set("artisan-plugin")
+    // The free jar sits next to the Pro one: `artisan-plugin-<v>-free.jar`. The Pro jar keeps the
+    // historical `-all` name the deploy task and docker setup use.
+    if (rootProject.extra["artisanEdition"] == "free") archiveClassifier.set("free")
     // NO `relocate("kotlin", …)`: it breaks the runtime. kotlin-reflect (pulled in by
     // jackson-module-kotlin, which reads our data classes) resolves built-ins BY STRING
     // NAME from .kotlin_builtins files the relocator does not rewrite: it looks for

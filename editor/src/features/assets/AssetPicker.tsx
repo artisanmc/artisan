@@ -6,6 +6,7 @@ import { assetUsages } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
 import { patchAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
+import { useIsPro } from "@/lib/edition";
 import { useProjectsStore } from "@/state/projectsStore";
 import { Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -50,6 +51,8 @@ export function AssetPicker({
   const all = useAssetStore((s) => s.assets);
   const [search, setSearch] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
+  // Importing an image is Pro (it goes into the resource pack); picking an existing one is not.
+  const pro = useIsPro();
   const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +121,7 @@ export function AssetPicker({
       <DialogContent className="flex max-h-[80vh] flex-col gap-3 border-[var(--border-soft)] bg-[var(--surface)] p-3 text-[var(--text)]">
         <DialogHeader className="flex-row items-center justify-between gap-2 pr-8">
           <DialogTitle className="text-sm">{title ?? t("resources.choose")}</DialogTitle>
-          {projectId && (
+          {projectId && pro && (
             <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}>
               <Upload className="size-3.5" />
               {t("assetPicker.upload")}
