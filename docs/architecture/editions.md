@@ -17,6 +17,13 @@ of each jar it builds (`plugin.yml`, `release-jars.yml`).
 
 Same plugin name and data folder: switching edition is replacing the jar.
 
+**Early access** (Pro): each push to `v2` or `main` touching the plugin or the editor builds
+`<last v tag>-dev.<run>` and replaces the assets of the GitHub pre-release `dev`
+(`release-jars.yml`). Those jars go to Pro buyers only; the free edition gets tagged releases.
+
+Pro list (Iban, 2026-10-27): title composer, resource pack, image import, early access, priority
+support, advanced expressions (editing only). Bedrock menus are not sold until finished.
+
 ## What the free jar gates
 
 Only **editing**. Rendering is never gated.

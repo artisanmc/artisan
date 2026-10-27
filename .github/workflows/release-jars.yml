@@ -4,9 +4,18 @@ name: Release jars
 # (free: Modrinth, Hangar, Spigot, free listings) and `Artisan-Pro-<v>.jar` (paid listings on
 # BuiltByBit, Polymart, Voxel). Both embed the editor. A tag `v<version>` makes a draft GitHub
 # Release carrying them; a manual run only keeps them as workflow artifacts.
+#
+# Early access (a Pro perk): each push to `v2` or `main` builds `<last tag>-dev.<run>` and
+# replaces the assets of the `dev` pre-release, to hand to Pro buyers. Free users get tags only.
 on:
   push:
     tags: ["v*"]
+    branches: [v2, main]
+    paths:
+      - plugin/**
+      - editor/**
+      - docs/schema/**
+      - .github/workflows/release-jars.yml
   workflow_dispatch:
     inputs:
       version:
@@ -26,6 +35,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -42,7 +54,12 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
-          VERSION="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
+          if [ -n "$INPUT_VERSION" ]; then VERSION="$INPUT_VERSION"
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then VERSION="${GITHUB_REF_NAME#v}"
+          else
+            LAST="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || echo v0.0.0)"
+            VERSION="${LAST#v}-dev.${GITHUB_RUN_NUMBER}"
+          fi
           echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$' || { echo "bad version '$VERSION'" >&2; exit 1; }
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
       - run: npm ci
@@ -87,3 +104,17 @@ jobs:
           gh release create "$GITHUB_REF_NAME" dist/*.jar --draft --verify-tag \
             --title "Artisan $VERSION" \
             --notes "Artisan-$VERSION.jar: free edition. Artisan-Pro-$VERSION.jar: Pro edition (paid listings only, never public)."
+      # One rolling pre-release, never marked latest: only its assets change.
+      - name: Early access build
+        if: github.ref_type == 'branch' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if ! gh release view dev > /dev/null 2>&1; then
+            gh release create dev --prerelease --latest=false --target "$GITHUB_SHA" \
+              --title "Artisan early access" --notes "Development builds for Artisan Pro early access. Not for production."
+          fi
+          for old in $(gh release view dev --json assets --jq '.assets[].name'); do gh release delete-asset dev "$old" --yes; done
+          gh release upload dev dist/*.jar
+          gh release edit dev --title "Artisan early access ($VERSION)" --notes "Built from $GITHUB_SHA on $GITHUB_REF_NAME. Development build for Artisan Pro early access, not for production."
