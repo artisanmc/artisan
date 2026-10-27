@@ -16,7 +16,7 @@ editor — a single server, or the hub of a network — it listens on `web.port`
 | `/api/v1/…` | The editor's API (session cookie required) | The editor |
 | `/ws/editor` | Live updates (WebSocket) | The editor |
 | `/ws/plugin` | Leaf servers of a network (WebSocket, shared secret) | Other Minecraft servers — hub only |
-| `/resource-pack/<sha1>.zip` | The resource pack built by the editor | The servers, to hand it to their pack plugin |
+| `/resource-pack/<sha1>.zip` | The resource pack built by the editor | Players' clients when Artisan sends the pack; the servers, to hand it to their pack plugin |
 
 Settings live under `web` in [environment.yml](../environment/#web)
 and apply after a restart.
@@ -148,8 +148,9 @@ What to know:
   including the session cookie. `tunnel: ""` turns it off: browsers then reach
   `web.port` directly, or `web.url`.
 - The editor itself still comes from your plugin: the tunnel server only passes bytes.
-- Players never download the resource pack from the editor's web server: a
-  [pack plugin](../resource-packs/) (Nexo, Oraxen, ItemsAdder) sends it.
+- Players do not download the resource pack through the tunnel: when Artisan sends it
+  itself, they fetch it from `web.url`, else from `http://<server-ip>:<web.port>`. Set
+  `web.url`, or delegate the pack to a [pack plugin](../resource-packs/).
 - `web.url`, when set, replaces the tunnel: no tunnel is opened.
 - Only the hub of a network opens a tunnel. A leaf with no port to its hub sets
   `web.hub` to the hub's tunnel address, `https://<id>.artisanmc.app`: it reaches
@@ -234,6 +235,7 @@ editor.example.com {
 
 ## Resource packs
 
-Players never download from the editor's web server: the servers fetch the pack
-there and hand it to Nexo, Oraxen or ItemsAdder, which send it. See
+When Artisan sends its pack itself (the default), players' clients download it from
+`/resource-pack/<sha1>.zip`, at `web.url`: that address must be reachable from their
+machine. Delegated to Nexo, Oraxen or ItemsAdder, only the servers fetch it there. See
 [Resource packs](../resource-packs/).

@@ -179,7 +179,7 @@ class TunnelServerTest {
             assertTrue(html.contains("Ce serveur Minecraft est hors ligne"), html)
             assertTrue(html.contains("nobody.tunnel.test"))
         }
-        // Leaves download the pack from their hub; players never do (a pack plugin sends it).
+        // Leaves download the pack from their hub; so do players in direct sending, through web.url.
         call("/resource-pack/abc.zip").use { assertEquals(503, it.code) } // the hub's own answer: no pack store here
         call("/health", host = "tunnel.test").use { assertEquals(200, it.code) }
         call("/health", host = "connect.tunnel.test").use { assertEquals(200, it.code) }

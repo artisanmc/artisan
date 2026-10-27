@@ -36,7 +36,7 @@ connect to the hub. The name is a label: the server is identified by the id in
 | Key | Default | Meaning |
 |---|---|---|
 | `web.enabled` | `true` | Start the editor's web server. `false`: no editor on this server, and `/artisan editor` says the editor is not running. Keep it `true` on leaves too, so `/artisan editor` works there. |
-| `web.port` | `8765` | TCP port of the editor, its API, its WebSockets (`/ws/editor`, `/ws/plugin`) and the resource pack downloads (`/resource-pack/`). |
+| `web.port` | `8765` | TCP port of the editor, its API, its WebSockets (`/ws/editor`, `/ws/plugin`) and the resource pack downloads (`/resource-pack/`, by players when Artisan sends the pack itself). |
 | `web.bind` | `""` | Interface to listen on. Empty: every interface. `"127.0.0.1"` when a reverse proxy on the same machine is the only client. A private address (`"10.0.0.5"`) to stay on an internal network. |
 | `web.url` | `""` | Public address of the editor, without trailing slash, e.g. `"https://editor.example.com"`. Used in `/artisan editor` links. Empty: `http://<address the player joined with>:<port>`. |
 | `web.hub` | `""` | Empty: this server serves its own editor; servers on the same MySQL/MariaDB database find each other and join each other's links (see [Networks](../web-server/#networks-and-wsplugin)). Set: this server is a leaf and connects to the hub at this address, as the leaf sees it: `"10.0.0.5:8765"` (the hub's `web.port`; a bare host takes `8765`), `"hub:8765"` (Docker service), or `"https://editor.example.com"` (TLS reverse proxy, no port added). The plugin adds the `/ws/plugin` path; an explicit `ws://…` or `wss://…` URL is kept as is. See [Network mode](../../network/concepts/). |

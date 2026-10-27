@@ -64,7 +64,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
     private fun editorBase(host: String? = null): String =
         editorUrl.ifEmpty { directBase(host) }
 
-    /** The pack's public address: `web.url`, else the direct one (players get the pack from a pack plugin). */
+    /** The pack's public address, downloaded by players in direct sending: `web.url`, else the direct one. */
     private fun packBase(): String = configuredUrl.ifEmpty { directBase(null) }
 
     private fun directBase(host: String?) = "http://${host ?: server.ip.ifBlank { "localhost" }}:${editor?.port ?: 8765}"

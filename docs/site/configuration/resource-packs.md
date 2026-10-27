@@ -1,6 +1,6 @@
 ---
 title: Resource packs
-description: How Artisan's resource pack reaches players — through Nexo, Oraxen or ItemsAdder.
+description: How Artisan's resource pack reaches players — sent by Artisan, or through Nexo, Oraxen or ItemsAdder.
 sidebar:
   order: 5
 ---
@@ -9,15 +9,47 @@ Custom images, glyphs, fonts and composed titles reach players through a resourc
 pack. The editor builds that pack **in your browser** after each publish and uploads
 it to the server that serves the editor (requires `artisan.editor.publish`).
 
-Artisan never sends a pack to players itself. It writes its pack into the pack of a
-resource-pack plugin — Nexo, Oraxen or ItemsAdder — which merges it into its own and
-sends it to players. Players see one prompt, and never contact the editor's web
-server. You choose where Artisan writes with `resource-pack.delegate-to-dir` in
-[config.yml](../config-yml/).
+Two ways bring it to players, chosen in [config.yml](../config-yml/):
+
+| | Direct sending | Delegation |
+|---|---|---|
+| Set up | nothing (default) | `resource-pack.delegate-to-dir` |
+| Who sends the pack | Artisan | Nexo, Oraxen or ItemsAdder |
+| Prompts | one for Artisan's pack, next to the other plugins' | one, the host's |
+| Players download from | the editor's web server (`web.url`) | the host's pack server |
+
+## Direct sending
+
+Without a delegate folder, Artisan adds its own pack to each player's pack stack
+(1.20.3+), next to any other pack: a pack from Nexo, Oraxen or ItemsAdder stays
+loaded. Players get it when they join, and online players get each new pack as soon
+as it is published; the previous Artisan pack is removed from their client.
+
+```yaml
+resource-pack:
+  enabled: true
+  prompt: ""            # empty: resource_pack.prompt of the player's language
+  required: false       # true: a player who declines is disconnected
+  send-on-join: true
+  send-delay-ticks: 20
+```
+
+Players' clients download the zip from the editor's web server, at
+`/resource-pack/<sha1>.zip`. That address must be reachable from their machine: set
+`web.url` in `environment.yml` to the public address of the web server (see
+[web server](../web-server/)). Without it, Artisan uses `http://<server-ip>:<web.port>`,
+and warns when that address only resolves on the server itself (`localhost`). The
+prompt is translated like any Artisan message: `resource_pack.prompt` in
+`plugins/Artisan/lang/<code>.yml`, in each player's language with
+`per_player_language: true`.
+
+A player whose client already loaded the current pack is not sent it again on
+`/artisan reload` or when the server reconnects to its hub.
 
 ## Delegation to a pack host
 
-Artisan writes its files where the host plugin merges external packs, then runs its
+With `delegate-to-dir` set, Artisan never sends a pack itself: players see a single
+prompt, the host's, and never contact the editor's web server. Artisan writes its files where the host plugin merges external packs, then runs its
 reload command.
 
 ```yaml
@@ -47,7 +79,7 @@ success the log shows:
 The server downloads the pack from the editor's web server: on a leaf, from the HTTP
 address of its `web.hub`.
 
-Each client's answer to the host's pack is logged, which is the quickest way to
+Each client's answer to a pack (Artisan's or the host's) is logged, which is the quickest way to
 diagnose:
 
 ```
@@ -56,24 +88,25 @@ diagnose:
 [resource-pack] Alex: FAILED_DOWNLOAD (pack …)
 ```
 
-## Without a pack host
+## Without either
 
-With `delegate-to-dir` empty, Artisan's textures, glyphs and composed titles reach no
-player. Menus still open, but custom images show as missing characters. Every pack
-update says so in the console:
+With `enabled: false` and `delegate-to-dir` empty, Artisan's textures, glyphs and
+composed titles reach no player. Menus still open, but custom images show as missing
+characters. Every pack update says so in the console:
 
 ```
-[resource-pack] pack <sha1> not applied: set resource-pack.delegate-to-dir to the pack folder of Nexo, Oraxen or ItemsAdder
+[resource-pack] pack <sha1> not applied: resource-pack.enabled is false and resource-pack.delegate-to-dir is empty
 ```
 
-The same happens when the folder cannot be written; Artisan then logs at startup
-`[delegate] delegate-to-dir … is not a writable directory — Artisan's pack will not reach players`.
+A delegate folder that cannot be written falls back to direct sending; Artisan logs at
+startup `[delegate] delegate-to-dir … is not a writable directory — sending the pack to players directly`.
 
 ## In a network
 
-Each server has its own `config.yml` and its own pack host. The pack of a leaf is
-uploaded through the hub, stored by the hub, and the leaf downloads it over the
-internal address of `web.hub` and hands it to its local pack plugin.
+Each server has its own `config.yml`, and chooses its own way. The pack of a leaf is
+uploaded through the hub and stored by the hub. Delegated, the leaf downloads it over
+the internal address of `web.hub` and hands it to its local pack plugin; sent
+directly, players download it from the hub's public address (the hub's `web.url`).
 
 The last applied pack is cached on each server (`plugins/Artisan/cache/`) and
 survives restarts, even while the hub is unreachable.

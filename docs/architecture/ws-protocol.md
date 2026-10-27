@@ -100,7 +100,7 @@ the message is ignored (`EditorRequest.parse` returns `null`).
 | `data_source_fetch` | `data_source_fetch_result` | `{ref, params, filter, sort, limit, args}` → `{rows, truncated}` (50 rows, ≤ 256 KB). `unknown_source`, `player_required`, `fetch_error`. |
 | `nexo_glyphs_list` / `nexo_glyph_read` | `nexo_glyphs_list_result` / `nexo_glyph_read_result` | Nexo glyphs read from `plugins/Nexo/glyphs/` (no Nexo API); `{glyphs:[{id, texture, available}]}` then `{content_base64}`. |
 | `custom_items_request` | `custom_items_bundle` | No `request_id`. The server answers `{hash, data}`, `data = base64(gzip(zip))`, catalog in `items.json`. |
-| `resource_pack_updated` | — | `{url, hash}`: the pack the hub just received for this server, served under `/resource-pack/<sha1>.zip`. The server hands it to its pack plugin (Nexo, Oraxen, ItemsAdder; `ResourcePackManager`, `resource-pack.delegate-to-dir`) which sends it to players; Artisan never sends a pack itself. A leaf downloads it through the hub address it knows (`web.hub`). |
+| `resource_pack_updated` | — | `{url, hash}`: the pack the hub just received for this server, served under `/resource-pack/<sha1>.zip`. The server applies it (`ResourcePackManager`): delegated to its pack plugin (Nexo, Oraxen, ItemsAdder; `resource-pack.delegate-to-dir`), which sends it, or else added by Artisan to each player's pack stack (`resource-pack.enabled`), players downloading it from `url`. A leaf downloads it through the hub address it knows (`web.hub`). |
 
 ### Server → hub (announcements and requests)
 
