@@ -50,7 +50,8 @@ function serializeElement(el: Element, project: Project): Record<string, unknown
     // A single numeric position emits as a bare int (no YAML quoting trap);
     // ranges/comma lists stay strings. No position (an element laid out by
     // `places` alone) is an empty list: the schema rejects an empty string.
-    positions: el.positions === "" ? [] : /^\d+$/.test(el.positions) ? Number(el.positions) : el.positions,
+    positions:
+      el.positions === "" ? [] : /^\d+$/.test(el.positions) ? Number(el.positions) : el.positions,
     // The display is written FLAT on the element (ADR
     // `element-display-and-states`); `serializeAppearance` only ever emits
     // appearance keys, which `elementStructuralKeys` keeps disjoint from ours.

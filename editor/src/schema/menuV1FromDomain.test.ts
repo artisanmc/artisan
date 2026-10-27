@@ -58,7 +58,12 @@ describe("menuV1FromDomain / projectToMenuV1", () => {
       positions: "",
       display: { material: "STONE" },
       states: [],
-      places: { source: "cats", alias: "cat", keyField: "id", placements: [{ key: "a", page: 0, position: 4 }] },
+      places: {
+        source: "cats",
+        alias: "cat",
+        keyField: "id",
+        placements: [{ key: "a", page: 0, position: 4 }],
+      },
     } as (typeof menu.layers)[0]["elements"][0];
     const m = menuV1FromDomain(menu, p);
     expect((m.elements as { positions: unknown }[])[0]!.positions).toEqual([]);
