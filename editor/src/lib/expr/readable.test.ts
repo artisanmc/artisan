@@ -108,3 +108,10 @@ describe("variablesOf", () => {
     expect(variablesOf("{a ? } {b}")).toEqual(["b"]);
   });
 });
+
+describe("quoteText", () => {
+  it("escapes what the lexer reads back", () => {
+    expect(quoteText('a"b\\c\nd')).toBe('"a\\"b\\\\c\\nd"');
+    expect(quoteText("it's", "'")).toBe("'it\\'s'");
+  });
+});
