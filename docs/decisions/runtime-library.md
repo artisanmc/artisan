@@ -105,7 +105,7 @@ What ④ aimed at was that an Artisan problem should not immobilize quests, guil
 lands. Yet the copy changes nothing there: an engine bug is the same in the copy, and what
 breaks an active plugin (hub, port, database, packets, sync) is already off the
 dependents' path. `ArtisanPlugin.onEnable` builds and registers the API before any step
-that can fail; the failure of PacketEvents, the suite's database and the editor is caught;
+that can fail; the failure of the menu packets, the suite's database and the editor is caught;
 and since this amendment the command, the menu listener and the whole game side are in
 place before the editor starts, which is itself under a guard that logs at SEVERE and
 leaves the plugin enabled (`ArtisanPluginEnableResilienceTest`). Two cases remain where

@@ -28,16 +28,10 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.nexomc:nexo:0.9.0")
     compileOnly("io.th0rgal:oraxen:1.189.0")
-    // Menu contents sent as packets (PacketEventsMenuPackets). Bundled and relocated:
-    // every major Minecraft version requires updating it.
-    // Netty is provided by the server, Adventure is bundled above. adventure-nbt is not
-    // (NoClassDefFoundError BinaryTag), nor is examination since Paper 26.x
-    // (ClassNotFoundException Examinable): bundled and relocated.
-    implementation("com.github.retrooper:packetevents-spigot:2.14.0") {
-        exclude("io.netty")
-        exclude("net.kyori", "adventure-api")
-        exclude("net.kyori", "adventure-key")
-    }
+    // Menu contents sent as packets (MenuPacketInterceptor): Netty is the server's.
+    // 4.1.97 is Paper 1.21.1's, the oldest supported; 26.x ships 4.2, same API for this use.
+    compileOnly("io.netty:netty-transport:4.1.97.Final")
+    testImplementation("io.netty:netty-transport:4.1.97.Final")
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.12") {
         exclude("com.google.guava", "guava")
         exclude("com.google.code.gson", "gson")
@@ -90,17 +84,15 @@ tasks.shadowJar {
     // looks classes up by name (`com.anthropic.core.JsonField`), which the relocator leaves as is.
     relocate("com.github.victools", "net.artisanmc.shaded.victools")
     relocate("com.ethlo", "net.artisanmc.shaded.ethlo")
-    relocate("com.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.api")
-    relocate("io.github.retrooper.packetevents", "net.artisanmc.shaded.packetevents.impl")
-    // `adventure.nbt.api` belongs to adventure-api (provided by Paper): not relocated.
-    relocate("net.kyori.adventure.nbt", "net.artisanmc.shaded.adventure.nbt") {
-        exclude("net.kyori.adventure.nbt.api.**")
-    }
+    // Pulled in by the bundled adventure-api; Paper 26.x no longer provides it.
     relocate("net.kyori.examination", "net.artisanmc.shaded.examination")
     // Required: merge service-loader files instead of overwriting them.
     // shadowJar otherwise strips kotlin-reflect's META-INF/services entry,
     // causing "No BuiltInsLoader implementation was found" at runtime.
     mergeServiceFiles()
+    // The jar reaches the server's classes by their Mojang names (NmsMenuPackets): Paper
+    // 1.21.x must not remap it from Spigot's.
+    manifest { attributes("paperweight-mappings-namespace" to "mojang") }
 }
 
 val composeDir: File = rootDir.resolve("..").canonicalFile
