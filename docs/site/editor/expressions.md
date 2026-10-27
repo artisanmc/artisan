@@ -94,6 +94,20 @@ name or lore depending on the player's state.
 Values are truthy except `null`, `false`, `0` and the empty string — so
 `{rewards.length() ? "Rewards:" : "No reward"}` works without an explicit comparison.
 
+### A lore line only some players see
+
+A lore line whose expressions give nothing is left out, so each rule can sit on its own
+line:
+
+```
+{member.can_promote ? "<yellow>Left click: promote" : ""}
+{member.can_kick ? "<red>Shift + right click: kick" : ""}
+```
+
+A player who may not kick does not get an empty line in its place. A line you leave
+empty on purpose (nothing typed on it) stays. In the rich editor, the **Library**
+button builds these lines for you: pick *Show a text if…*, the variable, the text.
+
 :::caution[Arithmetic is limited on purpose]
 Only `+` and `-`. There is no `*` or `/`, and `%` is reserved for PlaceholderAPI.
 There is no leading minus either: write `{0 - price}`, not `{-price}`.

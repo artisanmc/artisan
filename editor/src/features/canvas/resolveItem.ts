@@ -7,6 +7,7 @@ import { parse } from "@/lib/expr/parser";
 import { Scope } from "@/lib/expr/scope";
 import { getText } from "@/lib/i18n";
 import { wrapLore } from "@/lib/loreWrap";
+import { renderLore } from "@/lib/mm/loreLines";
 import { renderPreview } from "./menuPreviewScope";
 
 /** Placeholder rendering the base item's lore where it is written. */
@@ -113,7 +114,9 @@ export function resolveItem(
           legacy ? rawText(line).replaceAll(legacyToken!, BASE_LORE) : line,
         );
         const rendered = tokened
-          .flatMap((line) => text(line, local).split("\n"))
+          .flatMap((line) =>
+            renderLore(rawText(line), (src) => renderPreview(src, local, project, lang)),
+          )
           .flatMap((line) => wrapLore(line, project.loreMaxWidth ?? 0));
         // The base lore stays by default; it only goes on explicit request
         // (`lore_mode: replace`) or when `{base.lore}` places it itself —
