@@ -450,6 +450,8 @@ export function MmToolbar({
         <Eraser className="size-4" />
       </ToolButton>
 
+      {library}
+
       {onConvertLegacy && (
         <Tooltip content={t("mmEditor.toolbar.legacyHint")}>
           <button type="button" className="btn btn-outline btn-sm ml-1" onClick={onConvertLegacy}>
@@ -459,7 +461,6 @@ export function MmToolbar({
       )}
 
       <span className="ml-auto flex items-center gap-1.5">
-        {library}
         <ToolButton
           label={copied ? t("mmEditor.toolbar.copied") : t("mmEditor.toolbar.copy")}
           onClick={() => {

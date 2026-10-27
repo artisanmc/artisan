@@ -10,11 +10,15 @@ import {
   quoteText,
   readExpression,
 } from "@/lib/expr/readable";
+import { matchRecipe, recipeVariables } from "@/lib/expr/recipes";
 import { humanizePath } from "@/lib/expr/sampleRender";
 import type { Scope } from "@/lib/expr/scope";
-import { Pencil } from "lucide-react";
+import { splitIntoLines } from "@/lib/expr/splitLines";
+import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
+import { Pencil, Rows3, Settings2 } from "lucide-react";
 import { type ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { RecipeForm } from "./PlaceholderLibrary";
 
 export interface ExpressionRulesProps {
   /** The expression, braces included. */
@@ -29,6 +33,14 @@ export interface ExpressionRulesProps {
   onReplace: (at: { from: number; to: number }, literal: string) => void;
   /** Called once drawn, its size possibly changed. */
   onDrawn?: () => void;
+  /** Replaces the whole `{…}` (a rule changed in its form, or split into lines). */
+  onSwap?: (source: string) => void;
+  /** The text holds several lines: a glued `{…}` can be split into one rule per line. */
+  multiline?: boolean;
+  /** The variables a rule's form offers. */
+  entries?: PlaceholderEntry[];
+  /** What a source gives for the example player, for a form's preview. */
+  preview?: (source: string) => string;
 }
 
 interface Ctx {
@@ -53,8 +65,13 @@ export function ExpressionRules({
   color,
   onReplace,
   onDrawn,
+  onSwap,
+  multiline,
+  entries = [],
+  preview = (src) => src,
 }: ExpressionRulesProps) {
   const { t } = useTranslation();
+  const [editing, setEditing] = useState(false);
   useEffect(() => onDrawn?.());
   const inner = source.slice(1, -1);
   const read = readExpression(inner);
@@ -83,8 +100,60 @@ export function ExpressionRules({
       </span>
     );
   }
+  const recipe = onSwap ? matchRecipe(inner) : null;
+  const lines = onSwap && multiline ? splitIntoLines(inner) : null;
+  if (editing && recipe && onSwap) {
+    const variables = recipeVariables(recipe.recipe, entries);
+    // The rule's own variable stays offered, known to the catalog or not.
+    if (!variables.some((v) => v.path === recipe.input.path))
+      variables.unshift({
+        path: recipe.input.path,
+        type: "boolean",
+        sample: null,
+        origin: "context",
+      });
+    return (
+      <RecipeForm
+        recipe={recipe.recipe}
+        variables={variables}
+        initial={recipe.input}
+        preview={preview}
+        submitLabel={t("mmEditor.expr.apply")}
+        onBack={() => setEditing(false)}
+        onInsert={(next) => {
+          setEditing(false);
+          onSwap(next);
+        }}
+      />
+    );
+  }
   return (
     <CardCtx.Provider value={ctx}>
+      {(recipe || lines) && (
+        <div className="-mt-1 -mr-1 mb-1 flex justify-end gap-1">
+          {lines && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm h-6 gap-1 px-1.5 text-[11.5px]"
+              title={t("mmEditor.expr.splitHint")}
+              onClick={() => onSwap?.(lines.join("\n"))}
+            >
+              <Rows3 className="size-3.5" />
+              {t("mmEditor.expr.split")}
+            </button>
+          )}
+          {recipe && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm h-6 gap-1 px-1.5 text-[11.5px]"
+              onClick={() => setEditing(true)}
+            >
+              <Settings2 className="size-3.5" />
+              {t("mmEditor.expr.edit")}
+            </button>
+          )}
+        </div>
+      )}
       <ul aria-label={t("mmEditor.expr.title")} className="flex flex-col gap-1">
         {read.parts.map((p, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: parts have no identity but their order

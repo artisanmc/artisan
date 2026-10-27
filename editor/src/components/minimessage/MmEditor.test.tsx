@@ -117,6 +117,31 @@ describe("MmEditor", () => {
     );
   });
 
+  it("splits a glued computed text into one rule per line, and edits a rule in its form", async () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.online", type: "boolean", sample: "true", origin: "iteration" },
+      { path: "m.kick", type: "boolean", sample: "true", origin: "iteration" },
+    ];
+    render(
+      <Controlled
+        initial={'{(m.online ? "En ligne" : "Absent") + (m.kick ? "\\n<red>Exclure" : "")}'}
+        profile={LORE}
+        entries={entries}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /Une règle par ligne/ }));
+    expect(screen.getByTestId("value").textContent).toBe(
+      '{m.online ? "En ligne" : "Absent"}\n{m.kick ? "<red>Exclure" : ""}',
+    );
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Modifier/ }).length).toBe(2));
+    fireEvent.click(screen.getAllByRole("button", { name: /^Modifier$/ })[1]!);
+    fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "<red>Bannir" } });
+    fireEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+    expect(screen.getByTestId("value").textContent).toBe(
+      '{m.online ? "En ligne" : "Absent"}\n{m.kick ? "<red>Bannir" : ""}',
+    );
+  });
+
   it("converts legacy codes on request", () => {
     render(<Controlled initial="§6Gold" />);
     fireEvent.click(screen.getByRole("button", { name: "Convertir les codes &" }));

@@ -1,4 +1,7 @@
 import type { PlaceholderType } from "@/lib/placeholderCatalog";
+import type { AstNode } from "./ast";
+import { parse } from "./parser";
+import { printExpression } from "./print";
 import { quoteText } from "./readable";
 
 /**
@@ -105,3 +108,65 @@ export function recipeVariables<E extends { path: string; type: PlaceholderType 
     return true;
   });
 }
+
+/**
+ * The recipe a `{…}` (inner text) was built from, with what was filled in, so the
+ * form opens again on it; null for anything else.
+ */
+export function matchRecipe(inner: string): { recipe: Recipe; input: RecipeInput } | null {
+  let ast: AstNode;
+  try {
+    ast = parse(inner);
+  } catch {
+    return null;
+  }
+  const found = (id: RecipeId, input: RecipeInput) => ({
+    recipe: RECIPES.find((r) => r.id === id)!,
+    input,
+  });
+  const path = (n: AstNode) => (/^[\w.]+$/.test(printExpression(n)) ? printExpression(n) : null);
+  const str = (n: AstNode) =>
+    n.kind === "literal" && typeof n.value === "string" ? n.value : null;
+  if (ast.kind === "ternary") {
+    const yes = str(ast.whenTrue);
+    const no = str(ast.whenFalse);
+    if (yes === null || no === null) return null;
+    const c = ast.cond;
+    if (c.kind === "binary" && OPS.includes(c.op as CompareOp)) {
+      const p = path(c.left);
+      if (p && c.right.kind === "literal" && typeof c.right.value === "number")
+        return found("byNumber", {
+          path: p,
+          op: c.op as CompareOp,
+          value: c.right.value,
+          text: yes,
+          otherwise: no,
+        });
+      return null;
+    }
+    const negate = c.kind === "unary";
+    const p = path(negate ? (c as AstNode & { kind: "unary" }).operand : c);
+    if (!p) return null;
+    if (no === "") return found("showIf", { path: p, negate, text: yes });
+    if (!negate) return found("yesNo", { path: p, text: yes, otherwise: no });
+    return null;
+  }
+  if (ast.kind === "method") {
+    const p = path(ast.target);
+    if (!p) return null;
+    const ids: Record<string, RecipeId> = {
+      length: "count",
+      join: "join",
+      ago: "timeAgo",
+      until: "timeLeft",
+    };
+    const id = ids[ast.method];
+    if (!id) return null;
+    const sep = ast.args[0] ? str(ast.args[0]) : null;
+    if (id === "join") return sep === null ? null : found("join", { path: p, separator: sep });
+    return ast.args.length === 0 ? found(id, { path: p }) : null;
+  }
+  return null;
+}
+
+const OPS: CompareOp[] = [">=", ">", "<", "<=", "=="];
