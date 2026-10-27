@@ -47,8 +47,12 @@ A hub tries it with `web.pack-cdn: "http://127.0.0.1:8788"` in `environment.yml`
 
 ## Deployment
 
-Not deployed yet. On Iban's Cloudflare account, the zone `artisanmc.net` must be on Cloudflare for the
-custom domain.
+**Production (since 2026-10-27).** Iban's Cloudflare account: Worker `artisan-pack-cdn`, custom domain
+`cdn.artisanmc.net` (zone `artisanmc.net`), bucket `artisan-packs` (ENAM) with the two lifecycle rules
+below, Durable Object `QuotaObject` (migration `v1`). `PACK_ALERT_WEBHOOK` is not set yet, and
+`PACK_ADMIN_TOKEN` is to be replaced by one Iban keeps (Worker → Settings → Variables and Secrets).
+Deployed through the Cloudflare API with the bundle of `npm run build`; with a token, the commands
+below do the same.
 
 ```bash
 npx wrangler r2 bucket create artisan-packs
