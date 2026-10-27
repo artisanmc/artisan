@@ -1,0 +1,16 @@
+{
+  "name": "artisan-promo-video",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render Promo out/artisan-promo.mp4",
+    "still": "remotion still"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.539",
+    "@remotion/tailwind-v4": "4.0.539",
+    "remotion": "4.0.539"
+  }
+}
