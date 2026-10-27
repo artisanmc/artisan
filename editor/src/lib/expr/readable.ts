@@ -1,5 +1,6 @@
 import type { AstNode, BinaryOp } from "./ast";
 import { parse } from "./parser";
+import { templateSpans } from "./template/tokenizer";
 
 /**
  * An expression read as rules a non-coder can follow: a list of parts shown one after
@@ -199,24 +200,51 @@ export function quoteText(text: string, like = '"'): string {
   return `${q}${body}${q}`;
 }
 
-/** Every variable a condition reads as a yes/no, for the "simulated player" switches. */
-export function switchablePaths(parts: Part[]): string[] {
+/**
+ * The variables the `{…}` of a text read, in order, each once: what the "example player"
+ * panel lets the user set. A method's target (`m.joined` of `m.joined.ago()`) is left out,
+ * its value being a date or a list rather than something typed.
+ */
+export function variablesOf(text: string): string[] {
   const out = new Set<string>();
-  const cond = (c: Cond): void => {
-    if (c.kind === "is" && c.value.kind === "var") out.add(c.value.path);
-    else if (c.kind === "not") cond(c.cond);
-    else if (c.kind === "all" || c.kind === "any") c.conds.forEach(cond);
-  };
-  const walk = (ps: Part[]): void => {
-    for (const p of ps) {
-      if (p.kind !== "choice") continue;
-      for (const c of p.cases) {
-        cond(c.when);
-        walk(c.show);
-      }
-      walk(p.otherwise);
+  const walk = (node: AstNode): void => {
+    const path = pathOf(node);
+    if (path !== null) {
+      out.add(path);
+      return;
+    }
+    switch (node.kind) {
+      case "unary":
+        walk(node.operand);
+        break;
+      case "binary":
+        walk(node.left);
+        walk(node.right);
+        break;
+      case "ternary":
+        walk(node.cond);
+        walk(node.whenTrue);
+        walk(node.whenFalse);
+        break;
+      case "method":
+        node.args.forEach(walk);
+        break;
+      case "index":
+        walk(node.target);
+        walk(node.index);
+        break;
+      case "path":
+        walk(node.target);
+        break;
     }
   };
-  walk(parts);
+  for (const span of templateSpans(text)) {
+    if (span.kind !== "expression") continue;
+    try {
+      walk(parse(text.slice(span.from + 1, span.to - 1)));
+    } catch {
+      // An expression that does not parse sets nothing.
+    }
+  }
   return [...out];
 }

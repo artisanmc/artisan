@@ -1,9 +1,7 @@
-import { Switch } from "@/components/ui/switch";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
 import { toBoolean } from "@/lib/expr/coercion";
 import { evaluate } from "@/lib/expr/evaluator";
-import { parse } from "@/lib/expr/parser";
 import {
   type Case,
   type Cond,
@@ -11,30 +9,26 @@ import {
   type Value,
   quoteText,
   readExpression,
-  switchablePaths,
 } from "@/lib/expr/readable";
 import { humanizePath } from "@/lib/expr/sampleRender";
 import type { Scope } from "@/lib/expr/scope";
-import { templateSpans } from "@/lib/expr/template/tokenizer";
-import { Code2, Pencil, X } from "lucide-react";
-import { type ReactNode, createContext, useContext, useState } from "react";
+import { Pencil } from "lucide-react";
+import { type ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-export interface ExpressionCardProps {
-  /** The whole MiniMessage text. */
-  value: string;
-  /** Where the expression's `{` is in `value`. */
-  from: number;
-  onChange: (value: string) => void;
-  /** The example player's values, switches applied. */
+export interface ExpressionRulesProps {
+  /** The expression, braces included. */
+  source: string;
+  /** `value`: a plain placeholder, shown as its name. `logic`: a computed text, read as rules. */
+  kind: "value" | "logic";
+  /** The example player's values: their case is lit. */
   scope: Scope;
-  /** Value of each switch the user flipped, by path. */
-  overrides: Record<string, boolean>;
-  onOverride: (path: string, value: boolean) => void;
-  onShowCode: () => void;
-  onClose: () => void;
   /** The text's colour in game when it sets none (the profile's). */
-  textColor?: string;
+  color?: string;
+  /** Replaces the string literal at `at` (offsets in `source`) with `literal`. */
+  onReplace: (at: { from: number; to: number }, literal: string) => void;
+  /** Called once drawn, its size possibly changed. */
+  onDrawn?: () => void;
 }
 
 interface Ctx {
@@ -47,102 +41,65 @@ const CardCtx = createContext<Ctx | null>(null);
 const useCard = () => useContext(CardCtx)!;
 
 /**
- * A computed text read as sentences: "if Online → En ligne, otherwise → Hors ligne",
- * the case the example player falls in lit, the others faded. Texts are edited in
- * place; the rest is read here and changed in the Code view.
+ * A `{…}` of the rich view, read rather than computed: a placeholder is its name
+ * ("Rank"); a computed text is its rules, "if Online → En ligne, otherwise → Hors
+ * ligne", the case the example player falls in lit. Texts are edited in place; the
+ * rest is changed in the Code view.
  */
-export function ExpressionCard({
-  value,
-  from,
-  onChange,
+export function ExpressionRules({
+  source,
+  kind,
   scope,
-  overrides,
-  onOverride,
-  onShowCode,
-  onClose,
-  textColor,
-}: ExpressionCardProps) {
+  color,
+  onReplace,
+  onDrawn,
+}: ExpressionRulesProps) {
   const { t } = useTranslation();
-  const span = templateSpans(value).find((s) => s.from === from);
-  if (!span) return null;
-  const source = value.slice(span.from + 1, span.to - 1);
-  const read = readExpression(source);
+  useEffect(() => onDrawn?.());
+  const inner = source.slice(1, -1);
+  const read = readExpression(inner);
   // A string's offsets are inside the braces.
-  const base = span.from + 1;
   const onText: Ctx["onText"] = (at, text) => {
-    const quote = value[base + at.from];
-    onChange(value.slice(0, base + at.from) + quoteText(text, quote) + value.slice(base + at.to));
+    const quote = inner[at.from];
+    onReplace({ from: at.from + 1, to: at.to + 1 }, quoteText(text, quote));
   };
-  const switches = read.ok ? switchablePaths(read.parts) : [];
-
+  const ctx = { scope, color, onText };
+  if (kind === "value") {
+    const only = read.ok && read.parts.length === 1 ? read.parts[0] : undefined;
+    return (
+      <CardCtx.Provider value={ctx}>
+        {only?.kind === "value" ? (
+          <ValueView value={only.value} />
+        ) : (
+          <Chip title={source}>{source}</Chip>
+        )}
+      </CardCtx.Provider>
+    );
+  }
+  if (!read.ok) {
+    return (
+      <span className="text-[var(--warning)]" title={read.error}>
+        {t("mmEditor.expr.invalid", { error: read.error })}
+      </span>
+    );
+  }
   return (
-    <section
-      aria-label={t("mmEditor.expr.title")}
-      className="flex flex-col gap-3 border-[var(--fam-logic-line)] border-t bg-[var(--surface-raised)] px-3 py-3 text-[13px] text-[var(--text)]"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col">
-          <span className="font-semibold">{t("mmEditor.expr.title")}</span>
-          <span className="text-[12px] text-[var(--text-mut)]">{t("mmEditor.expr.intro")}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onShowCode}>
-            <Code2 size={14} />
-            {t("mmEditor.expr.showCode")}
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon"
-            aria-label={t("mmEditor.expr.close")}
-            onClick={onClose}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      </div>
-
-      {switches.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-[var(--r-sm)] bg-[var(--surface-inset)] px-2.5 py-2">
-          <span className="text-[12px] text-[var(--text-mut)]">{t("mmEditor.expr.simulate")}</span>
-          {switches.map((path) => (
-            // biome-ignore lint/a11y/noLabelWithoutControl: the switch is a button inside
-            <label key={path} className="flex items-center gap-1.5 text-[12.5px]" title={path}>
-              <Switch
-                checked={overrides[path] ?? sample(path, scope) === true}
-                onCheckedChange={(v) => onOverride(path, v)}
-              />
-              {humanizePath(path)}
-            </label>
-          ))}
-        </div>
-      )}
-
-      {read.ok ? (
-        <CardCtx.Provider value={{ scope, color: textColor, onText }}>
-          <ul className="flex flex-col divide-y divide-[var(--border-soft)]">
-            {read.parts.map((p, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: parts have no identity but their order
-              <li key={i} className="py-2 first:pt-0 last:pb-0">
-                {p.kind === "choice" ? (
-                  <Choice cases={p.cases} otherwise={p.otherwise} />
-                ) : (
-                  <Line keyword={t("mmEditor.expr.always")}>
-                    <Action parts={[p]} />
-                  </Line>
-                )}
-              </li>
-            ))}
-          </ul>
-        </CardCtx.Provider>
-      ) : (
-        <div className="flex flex-col gap-1">
-          <span className="text-[var(--warning)]">
-            {t("mmEditor.expr.invalid", { error: read.error })}
-          </span>
-          <code className="break-all font-mono text-[12px] text-[var(--text-mut)]">{source}</code>
-        </div>
-      )}
-    </section>
+    <CardCtx.Provider value={ctx}>
+      <ul aria-label={t("mmEditor.expr.title")} className="flex flex-col gap-1">
+        {read.parts.map((p, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: parts have no identity but their order
+          <li key={i}>
+            {p.kind === "choice" ? (
+              <Choice cases={p.cases} otherwise={p.otherwise} />
+            ) : (
+              <Line keyword={t("mmEditor.expr.always")}>
+                <Action parts={[p]} />
+              </Line>
+            )}
+          </li>
+        ))}
+      </ul>
+    </CardCtx.Provider>
   );
 }
 
@@ -225,7 +182,8 @@ const LEADING_BREAKS = /^(?:<newline>|<br\/?>|\n)+/i;
 function TextPart({ text, at }: { text: string; at: { from: number; to: number } }) {
   const { t } = useTranslation();
   const { color, onText } = useCard();
-  const [editing, setEditing] = useState(false);
+  // The input keeps its own text while typed: the source catches up a moment later.
+  const [draft, setDraft] = useState<string | null>(null);
   const lead = text.match(LEADING_BREAKS)?.[0] ?? "";
   const breaks = lead.match(/<newline>|<br\/?>|\n/gi)?.length ?? 0;
   const rest = text.slice(lead.length);
@@ -238,7 +196,7 @@ function TextPart({ text, at }: { text: string; at: { from: number; to: number }
       </span>
     );
   if (rest === "") return breakWord;
-  if (editing) {
+  if (draft !== null) {
     return (
       <>
         {breakWord}
@@ -247,11 +205,14 @@ function TextPart({ text, at }: { text: string; at: { from: number; to: number }
           autoFocus
           className="input h-7 min-w-48 flex-1 font-mono text-[12px]"
           aria-label={t("mmEditor.expr.editText")}
-          value={rest}
-          onChange={(e) => onText(at, lead + e.target.value)}
-          onBlur={() => setEditing(false)}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            onText(at, lead + e.target.value);
+          }}
+          onBlur={() => setDraft(null)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === "Escape") setEditing(false);
+            if (e.key === "Enter" || e.key === "Escape") setDraft(null);
           }}
         />
       </>
@@ -263,7 +224,7 @@ function TextPart({ text, at }: { text: string; at: { from: number; to: number }
       <button
         type="button"
         title={t("mmEditor.expr.editText")}
-        onClick={() => setEditing(true)}
+        onClick={() => setDraft(rest)}
         style={{ color }}
         className="group inline-flex max-w-full items-baseline gap-1.5 rounded-[4px] bg-[var(--mc-tooltip-bg)] px-1.5 py-0.5 text-left font-mono text-[12.5px] hover:outline hover:outline-1 hover:outline-[var(--border-strong)]"
       >
@@ -278,7 +239,7 @@ function CondView({ cond }: { cond: Cond }) {
   const { t } = useTranslation();
   switch (cond.kind) {
     case "is":
-      return <ValueView value={cond.value} asCondition />;
+      return <ValueView value={cond.value} />;
     case "not":
       return (
         <span className="inline-flex flex-wrap items-baseline gap-1.5">
@@ -335,14 +296,11 @@ const KNOWN_METHODS = [
   "pluck",
 ];
 
-function ValueView({ value, asCondition }: { value: Value; asCondition?: boolean }) {
+function ValueView({ value }: { value: Value }) {
   const { t } = useTranslation();
-  const { scope } = useCard();
   switch (value.kind) {
     case "var":
-      return (
-        <VarChip path={value.path} sample={asCondition ? undefined : sample(value.path, scope)} />
-      );
+      return <Chip title={value.path}>{humanizePath(value.path)}</Chip>;
     case "papi":
       return <Chip title={`%${value.name}%`}>{humanizePath(value.name)}</Chip>;
     case "text":
@@ -398,19 +356,6 @@ function ValueView({ value, asCondition }: { value: Value; asCondition?: boolean
   }
 }
 
-function VarChip({ path, sample: value }: { path: string; sample?: unknown }) {
-  const shown =
-    value === undefined || value === null || typeof value === "object" || typeof value === "boolean"
-      ? ""
-      : String(value);
-  return (
-    <Chip title={path}>
-      {humanizePath(path)}
-      {shown && <span className="text-[11px] text-[var(--text-faint)]">({shown})</span>}
-    </Chip>
-  );
-}
-
 function Chip({ title, children }: { title: string; children: ReactNode }) {
   return (
     <span
@@ -424,14 +369,6 @@ function Chip({ title, children }: { title: string; children: ReactNode }) {
 
 function Word({ children }: { children: ReactNode }) {
   return <span className="text-[12px] text-[var(--text-mut)]">{children}</span>;
-}
-
-function sample(path: string, scope: Scope): unknown {
-  try {
-    return evaluate(parse(path), scope);
-  } catch {
-    return undefined;
-  }
 }
 
 function truthy(test: Case["test"], scope: Scope): boolean {

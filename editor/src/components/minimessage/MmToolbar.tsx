@@ -54,6 +54,8 @@ export interface MmToolbarProps {
   /** Shown when the text holds legacy codes. */
   onConvertLegacy?: () => void;
   onCopy: () => Promise<void>;
+  /** The variables and expressions library, when the text has placeholders to offer. */
+  library?: ReactNode;
 }
 
 const DECORATIONS: { key: Decoration; icon: typeof Bold }[] = [
@@ -168,6 +170,7 @@ export function MmToolbar({
   onOp,
   onConvertLegacy,
   onCopy,
+  library,
 }: MmToolbarProps) {
   const { t } = useTranslation();
   const has = (f: MmFeature) => profile.features.has(f);
@@ -456,6 +459,7 @@ export function MmToolbar({
       )}
 
       <span className="ml-auto flex items-center gap-1.5">
+        {library}
         <ToolButton
           label={copied ? t("mmEditor.toolbar.copied") : t("mmEditor.toolbar.copy")}
           onClick={() => {
