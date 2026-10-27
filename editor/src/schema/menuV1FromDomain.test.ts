@@ -50,6 +50,20 @@ describe("menuV1FromDomain / projectToMenuV1", () => {
     expect(m.size).toBe(27);
     expect(validateMenuV1(m)).toEqual({ valid: true, errors: [] });
   });
+  it("writes an element without positions (laid out by places) as an empty list", () => {
+    const p = project();
+    const menu = menusOf(p)[0]!;
+    menu.layers[0]!.elements[0] = {
+      id: elementId("grid"),
+      positions: "",
+      display: { material: "STONE" },
+      states: [],
+      places: { source: "cats", alias: "cat", keyField: "id", placements: [{ key: "a", page: 0, position: 4 }] },
+    } as (typeof menu.layers)[0]["elements"][0];
+    const m = menuV1FromDomain(menu, p);
+    expect((m.elements as { positions: unknown }[])[0]!.positions).toEqual([]);
+    expect(validateMenuV1(m)).toEqual({ valid: true, errors: [] });
+  });
   it("projectToMenuV1 returns one object per menu", () => {
     const p = project();
     const arr = projectToMenuV1(p);
