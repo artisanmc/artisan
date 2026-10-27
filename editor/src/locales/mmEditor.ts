@@ -108,6 +108,10 @@ export const mmEditorEn = {
   },
   expr: {
     title: "Computed text",
+    edit: "Edit",
+    apply: "Apply",
+    split: "One rule per line",
+    splitHint: "Put each rule on its own line: a line whose rule gives nothing is left out in game",
     invalid: "This expression cannot be read: {{error}}",
     always: "Always",
     if: "If",
@@ -275,6 +279,11 @@ export const mmEditorFr: typeof mmEditorEn = {
   },
   expr: {
     title: "Texte calculé",
+    edit: "Modifier",
+    apply: "Appliquer",
+    split: "Une règle par ligne",
+    splitHint:
+      "Mettre chaque règle sur sa ligne : en jeu, une ligne dont la règle ne donne rien disparaît",
     invalid: "Cette expression ne peut pas être lue : {{error}}",
     always: "Toujours",
     if: "Si",

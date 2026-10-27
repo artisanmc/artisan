@@ -105,6 +105,16 @@ export function MmEditor({
               })
             }
             onDrawn={() => viewRef.current?.requestMeasure()}
+            onSwap={(next) =>
+              viewRef.current?.dispatch({
+                changes: { from, to: from + source.length, insert: next },
+                annotations: mmInternal.of(true),
+                userEvent: "input",
+              })
+            }
+            multiline={profile.lines === "separate"}
+            entries={entries}
+            preview={(src) => renderSample(src, sampleOf)}
           />,
         );
       },
@@ -115,7 +125,7 @@ export function MmEditor({
         if (root) queueMicrotask(() => root.unmount());
       },
     }),
-    [scope, color],
+    [scope, color, entries, sampleOf, profile.lines],
   );
 
   const apply = (op: MmOp) => {

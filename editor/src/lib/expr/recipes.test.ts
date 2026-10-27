@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readExpression } from "./readable";
-import { RECIPES, recipeVariables } from "./recipes";
+import { RECIPES, matchRecipe, recipeVariables } from "./recipes";
 
 const recipe = (id: string) => RECIPES.find((r) => r.id === id)!;
 
@@ -38,5 +38,30 @@ describe("recipes", () => {
       "m.joined",
       "m.level",
     ]);
+  });
+});
+
+describe("matchRecipe", () => {
+  it("finds the recipe a built expression came from, with its fields", () => {
+    for (const r of RECIPES) {
+      const input = {
+        path: "m.x",
+        negate: r.id === "showIf",
+        text: "<green>a",
+        otherwise: r.id === "showIf" ? "" : "b",
+        op: ">" as const,
+        value: 3,
+        separator: " · ",
+      };
+      const src = r.build(input);
+      const m = matchRecipe(src.slice(1, -1));
+      expect(m?.recipe.id).toBe(r.id);
+      expect(m?.recipe.build(m.input)).toBe(src);
+    }
+  });
+
+  it("leaves anything else alone", () => {
+    expect(matchRecipe('a ? "x" : b ? "y" : "z"')).toBeNull();
+    expect(matchRecipe("a + b")).toBeNull();
   });
 });

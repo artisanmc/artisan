@@ -15,7 +15,7 @@ import {
 import { humanizePath } from "@/lib/expr/sampleRender";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import type { TFunction } from "i18next";
-import { ArrowLeft, BookOpen, ChevronRight, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, Search, Variable } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -46,9 +46,12 @@ export function PlaceholderLibrary({ entries, onInsert, preview }: PlaceholderLi
     <Popover open={open} onOpenChange={setOpen}>
       <Tooltip content={t("mmEditor.library.hint")}>
         <PopoverTrigger asChild>
-          <button type="button" className="btn btn-ghost btn-sm gap-1.5">
-            <BookOpen className="size-4" />
-            {t("mmEditor.library.open")}
+          <button
+            type="button"
+            aria-label={t("mmEditor.library.open")}
+            className="btn btn-ghost btn-icon btn-sm"
+          >
+            <Variable className="size-4" />
           </button>
         </PopoverTrigger>
       </Tooltip>
@@ -210,18 +213,24 @@ function Recipes({
   );
 }
 
-function RecipeForm({
+/** A recipe's form: new from the library, or opened again on a rule of the text. */
+export function RecipeForm({
   recipe,
   variables,
   onBack,
   onInsert,
   preview,
+  initial,
+  submitLabel,
 }: {
   recipe: Recipe;
   variables: PlaceholderEntry[];
   onBack: () => void;
   onInsert: (source: string) => void;
   preview: (source: string) => string;
+  /** What the rule being changed was built with. */
+  initial?: RecipeInput;
+  submitLabel?: string;
 }) {
   const { t } = useTranslation();
   const [input, setInput] = useState<RecipeInput>({
@@ -231,6 +240,7 @@ function RecipeForm({
     separator: ", ",
     text: "",
     otherwise: "",
+    ...initial,
   });
   const set = (patch: Partial<RecipeInput>) => setInput((prev) => ({ ...prev, ...patch }));
   const source = recipe.build(input);
@@ -351,7 +361,7 @@ function RecipeForm({
         disabled={!input.path}
         onClick={() => onInsert(source)}
       >
-        {t("mmEditor.library.insert")}
+        {submitLabel ?? t("mmEditor.library.insert")}
       </button>
     </div>
   );
