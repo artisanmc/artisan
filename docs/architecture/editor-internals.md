@@ -986,9 +986,13 @@ The old pipeline (`applyAssistant*`, SSE client, resumable zMenu migration) left
 (issue #44); the `menuV1ToDomain` / `commandV1ToDomain` / `dialogV1ToDomain` converters remain for
 the `menu/v1 → domain` import above. The current assistant (ADR `editor-assistant`) runs in the hub:
 `AssistantButton` in the Project top bar shows only when `GET /api/v1/ai` says `enabled` and
-`canUse`; `AssistantPanel` is a right `Sheet` whose width the player drags from its left edge
-(`ResizeHandle`, 360–960 px, kept in `state/assistantPanelStore.ts`, double click resets 440). The
-model's replies render through `Markdown` (GFM tables, code, links; raw HTML stays text).
+`canUse`, and toggles `AssistantDock`. The dock is mounted once in `routes/__root.tsx`, after
+`<main>`: on `lg` it sits beside the page (the canvas and the chat stay usable together), below it
+covers the screen. Closed, it stays mounted and hidden, so the conversation survives closing it and
+moving between Projects; a conversation keeps the Project that was open when it started. Its width
+is dragged from its left edge (`ResizeHandle`, 360–960 px, at most 60 vw); open state and width are
+kept in `state/assistantPanelStore.ts`. The model's replies render through `Markdown` (GFM tables,
+code, links; raw HTML stays text).
 
 ## Design system (tokens + components)
 
