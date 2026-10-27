@@ -178,7 +178,10 @@ The editor lists every registered source under **Data → Server sources**,
 grouped by module, with its schema, stability and key field
 ([Exploring sources](../../editor/data-sources/)). **Preview** runs your fetcher
 on the server with `player = null` and the admin's test parameters, then
-applies the menu's filters; results are truncated to 50 rows.
+applies the menu's filters; results are truncated to 50 rows. When the admin
+picks **Preview as** a player, the canvas fetches with that online `Player`
+instead, on their thread, exactly as at render (`player` is not added to
+`params`).
 
 A source registered after the editor connected (a module enabled late) appears
 without a reconnect.

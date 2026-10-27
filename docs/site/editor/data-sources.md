@@ -27,7 +27,8 @@ player: a quest list, someone's homes, a balance. Without a player they come bac
 empty or neutral, and your menu previews blank even though it is correct in game.
 
 Select the menu and fill **Preview as** in its properties with the name of an online
-player. Every source the menu reads is refetched as them, and the canvas shows what
+player, or pick one from the button beside the field, which lists who is connected
+right now. Every source the menu reads is refetched as them, and the canvas shows what
 that player would actually see — their quests, their progress, their icons.
 
 The choice lasts for the session only: it is a lens for checking your work, not a

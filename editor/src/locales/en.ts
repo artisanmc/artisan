@@ -860,6 +860,12 @@ export default {
     failed: "Export failed",
     needsAccount: "Sign in to export — the archive is the tree as stored on the server.",
   },
+  playerPicker: {
+    open: "Online players",
+    loading: "Loading…",
+    noneOnline: "No player online",
+    clear: "No player",
+  },
   capturedItems: {
     sectionTitle: "Captured items",
     emptyHint:
