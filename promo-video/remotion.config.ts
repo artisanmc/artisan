@@ -1,6 +1,8 @@
 import path from "node:path";
 import { Config } from "@remotion/cli/config";
 import { enableTailwind } from "@remotion/tailwind-v4";
+import { webpack } from "@remotion/bundler";
+import textureServer from "./scripts/texture-server.json";
 
 const editor = path.resolve(process.cwd(), "../editor");
 const editorModules = path.join(editor, "node_modules");
@@ -11,6 +13,18 @@ Config.overrideWebpackConfig((config) => {
   const withTailwind = enableTailwind(config);
   return {
     ...withTailwind,
+    module: {
+      ...withTailwind.module,
+      // Le projet de démo (project/) est lu tel quel, comme un projet sur disque.
+      rules: [...(withTailwind.module?.rules ?? []), { test: /\.ya?ml$/, type: "asset/source" }],
+    },
+    plugins: [
+      ...(withTailwind.plugins ?? []),
+      // Textures servies par scripts/texture-server.mjs à la place du backend.
+      new webpack.DefinePlugin({
+        "import.meta.env.VITE_API_URL": JSON.stringify(`http://localhost:${textureServer.port}`),
+      }),
+    ],
     resolve: {
       ...withTailwind.resolve,
       // Les composants viennent de editor/src : mêmes alias que vite.config.ts,

@@ -1,16 +1,25 @@
 import "@/i18n";
 import { Stage } from "@/features/canvas/Stage";
-import { mockAccount } from "@/mock/fixtures";
+import { useTextureStore } from "@/features/canvas/textureStore";
 import { useAccountStore } from "@/state/accountStore";
+import { useSelectionStore } from "@/state/selectionStore";
+import { useUiStore } from "@/state/uiStore";
 import { AbsoluteFill } from "remotion";
+import items from "../../backend/data/items/1.21.4.json";
+import { DEMO_PROJECT_ID, demoProject } from "./project";
 
-const account = mockAccount();
-useAccountStore.setState({ account });
+const project = demoProject();
+useAccountStore.setState({
+  account: { id: "a_demo" as never, projects: [project], projectOrder: [project.id] },
+});
+useTextureStore.getState().setData("1.21.4", items);
+useSelectionStore.getState().set(["shop"]);
+useUiStore.setState({ minimapVisible: false, canvasViewports: { [DEMO_PROJECT_ID]: { x: 360, y: 260, scale: 0.55 } } });
 
 export function Spike() {
   return (
     <AbsoluteFill style={{ background: "var(--surface)" }}>
-      <Stage projectId={account.projects[0].id} />
+      <Stage projectId={DEMO_PROJECT_ID} />
     </AbsoluteFill>
   );
 }

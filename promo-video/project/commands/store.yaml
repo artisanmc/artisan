@@ -1,0 +1,5 @@
+schema: command/v1
+id: store
+aliases: [shop, buy]
+description: Open the store.
+actions: open_menu shop

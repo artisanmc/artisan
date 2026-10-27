@@ -1,0 +1,74 @@
+schema: menu/v1
+id: ranks
+size: 36
+player_inventory: hidden
+title: '<dark_gray>Ranks'
+layers:
+  - id: frame
+    name: Frame
+    elements:
+      - id: border
+        positions: '0-9,17,18,26-35'
+        material: GRAY_STAINED_GLASS_PANE
+        title: ' '
+  - id: ranks
+    name: Ranks
+    elements:
+      - id: vip
+        positions: 11
+        material: IRON_INGOT
+        title: '<green><bold>VIP'
+        lore:
+          - '<gray>• /kit vip every day'
+          - '<gray>• 2 extra homes'
+          - '<gray>• Green chat prefix'
+          - ''
+          - '<white>Price: <gold>5,000 coins'
+          - '<yellow>Click to buy'
+        click:
+          left:
+            steps: open_menu confirm with rank="vip" price="5000"
+        states:
+          - if:
+              - type: has_permission
+                perm: rank.vip
+            material: LIME_DYE
+            title: '<green><bold>VIP'
+            lore: ['<green>✔ You own this rank']
+            click: null
+      - id: hero
+        positions: 13
+        material: GOLD_INGOT
+        title: '<gold><bold>Hero'
+        lore:
+          - '<gray>• Everything in VIP'
+          - '<gray>• /fly in the lobby'
+          - '<gray>• Monthly crate key'
+          - ''
+          - '<white>Price: <gold>15,000 coins'
+          - '<yellow>Click to buy'
+        click:
+          left:
+            steps: open_menu confirm with rank="hero" price="15000"
+      - id: legend
+        positions: 15
+        material: NETHERITE_INGOT
+        enchanted: true
+        title: '<gradient:#a29bfe:#fd79a8><bold>Legend'
+        lore:
+          - '<gray>• Everything in Hero'
+          - '<gray>• Custom join message'
+          - '<gray>• Exclusive pet'
+          - ''
+          - '<white>Price: <gold>40,000 coins'
+          - '<yellow>Click to buy'
+        click:
+          left:
+            steps: open_menu confirm with rank="legend" price="40000"
+      - id: back
+        positions: 31
+        material: ARROW
+        title: '<gray>Back'
+        click:
+          left:
+            steps: open_previous_menu

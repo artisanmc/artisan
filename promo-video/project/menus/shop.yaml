@@ -1,0 +1,59 @@
+schema: menu/v1
+id: shop
+size: 27
+player_inventory: hidden
+title: '<dark_gray>Store'
+layers:
+  - id: frame
+    name: Frame
+    elements:
+      - id: border
+        positions: '0-9,17-26'
+        material: GRAY_STAINED_GLASS_PANE
+        title: ' '
+  - id: categories
+    name: Categories
+    elements:
+      - id: ranks
+        positions: 11
+        material: DIAMOND_CHESTPLATE
+        title: '<aqua><bold>Ranks'
+        hide: [attributes]
+        lore:
+          - '<gray>Perks, kits and a shiny prefix.'
+          - ''
+          - '<yellow>Click to browse'
+        click:
+          left:
+            steps: open_menu ranks
+      - id: keys
+        positions: 13
+        material: TRIPWIRE_HOOK
+        title: '<gold><bold>Crate keys'
+        enchanted: true
+        lore:
+          - '<gray>Open crates at spawn for rare loot.'
+          - ''
+          - '<yellow>Click to browse'
+        click:
+          left:
+            steps: open_menu keys
+      - id: cosmetics
+        positions: 15
+        material: FIREWORK_STAR
+        color: '#fd79a8'
+        title: '<light_purple><bold>Cosmetics'
+        lore:
+          - '<gray>Trails, hats and pets.'
+          - ''
+          - '<yellow>Click to browse'
+        click:
+          left:
+            steps: open_menu cosmetics
+      - id: back
+        positions: 22
+        material: ARROW
+        title: '<gray>Back'
+        click:
+          left:
+            steps: open_previous_menu

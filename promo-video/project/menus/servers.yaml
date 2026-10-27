@@ -1,0 +1,93 @@
+schema: menu/v1
+id: servers
+size: 45
+player_inventory: hidden
+title: '<dark_gray>Choose your adventure'
+open_actions: play_sound block.chest.open vol=0.6 pitch=1.2
+layers:
+  - id: frame
+    name: Frame
+    elements:
+      - id: border
+        positions: '0-8,36-44,9,17,18,26,27,35'
+        material: BLACK_STAINED_GLASS_PANE
+        title: ' '
+      - id: accent
+        positions: '1,7,37,43'
+        material: LIME_STAINED_GLASS_PANE
+        title: ' '
+  - id: servers
+    name: Servers
+    elements:
+      - id: survival
+        positions: 20
+        material: GRASS_BLOCK
+        title: '<gradient:#7bed9f:#2ed573><bold>Survival</bold></gradient>'
+        lore:
+          - '<gray>Classic survival with land claims,'
+          - '<gray>jobs and a player-run economy.'
+          - ''
+          - '<white>%bungee_survival% <gray>players online'
+          - ''
+          - '<green>▶ Click to join'
+        click:
+          left:
+            steps: |
+              play_sound entity.experience_orb.pickup vol=1 pitch=1.4
+              run_command "server survival"
+      - id: skyblock
+        positions: 22
+        material: ELYTRA
+        title: '<gradient:#74b9ff:#a29bfe><bold>Skyblock</bold></gradient>'
+        enchanted: true
+        lore:
+          - '<gray>Start on a floating island'
+          - '<gray>and build your empire.'
+          - ''
+          - '<white>%bungee_skyblock% <gray>players online'
+          - ''
+          - '<green>▶ Click to join'
+        click:
+          left:
+            steps: run_command "server skyblock"
+      - id: creative
+        positions: 24
+        material: BRUSH
+        title: '<gradient:#ffeaa7:#fdcb6e><bold>Creative</bold></gradient>'
+        lore:
+          - '<gray>Unlimited blocks, plot contests'
+          - '<gray>and weekly build themes.'
+          - ''
+          - '<white>%bungee_creative% <gray>players online'
+          - ''
+          - '<green>▶ Click to join'
+        click:
+          left:
+            steps: run_command "server creative"
+      - id: events
+        positions: 31
+        material: FIREWORK_ROCKET
+        title: '<gradient:#fd79a8:#e84393><bold>Events</bold></gradient>'
+        lore:
+          - '<gray>Next event: <white>Boat race'
+          - '<gray>Starts in <yellow>%event_countdown%'
+        click:
+          left:
+            steps: run_command "server events"
+      - id: shop
+        positions: 40
+        material: EMERALD
+        title: '<green><bold>Store'
+        lore:
+          - '<gray>Ranks, keys and cosmetics.'
+        click:
+          left:
+            steps: open_menu shop
+      - id: profile
+        positions: 4
+        material: PLAYER_HEAD
+        head: 'playerhead:%player_name%'
+        title: '<white>%player_name%'
+        lore:
+          - '<gray>Rank: %luckperms_prefix%'
+          - '<gray>Coins: <gold>%vault_eco_balance_formatted%'

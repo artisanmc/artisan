@@ -1,0 +1,41 @@
+schema: menu/v1
+id: confirm
+size: 27
+player_inventory: hidden
+context_inputs:
+  - name: rank
+    type: string
+  - name: price
+    type: integer
+title: '<dark_gray>Confirm purchase'
+layers:
+  - id: choice
+    name: Choice
+    elements:
+      - id: accept
+        positions: '0-2,9-11,18-20'
+        material: LIME_STAINED_GLASS_PANE
+        title: '<green><bold>Confirm'
+        lore: ['<gray>Pay <gold>{price} coins']
+        click:
+          left:
+            steps: |
+              if has_money({price}):
+                take_money {price}
+                run_command "lp user %player_name% parent add {rank}" as console
+                play_sound entity.player.levelup vol=1 pitch=1
+                close_menu
+              else:
+                send_message "<red>You need {price} coins."
+      - id: summary
+        positions: 13
+        material: NAME_TAG
+        title: '<white>Rank <gold>{rank}'
+        lore: ['<gray>Price: <gold>{price} coins']
+      - id: cancel
+        positions: '6-8,15-17,24-26'
+        material: RED_STAINED_GLASS_PANE
+        title: '<red><bold>Cancel'
+        click:
+          left:
+            steps: open_previous_menu

@@ -1,0 +1,4 @@
+schema: manifest/v1
+name: Skyward Network
+default_lang: en
+languages: [en]

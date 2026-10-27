@@ -1,0 +1,43 @@
+schema: menu/v1
+id: cosmetics
+size: 27
+player_inventory: hidden
+title: '<dark_gray>Cosmetics'
+layers:
+  - id: frame
+    name: Frame
+    elements:
+      - id: border
+        positions: '0-9,17-26'
+        material: PINK_STAINED_GLASS_PANE
+        title: ' '
+  - id: cosmetics
+    name: Cosmetics
+    elements:
+      - id: trails
+        positions: 11
+        material: BLAZE_POWDER
+        title: '<gold><bold>Particle trails'
+        lore: ['<gray>12 trails unlocked']
+      - id: hats
+        positions: 12
+        material: CARVED_PUMPKIN
+        title: '<yellow><bold>Hats'
+        lore: ['<gray>4 hats unlocked']
+      - id: pets
+        positions: 14
+        material: BONE
+        title: '<white><bold>Pets'
+        lore: ['<gray>Your companion follows you around.']
+      - id: tags
+        positions: 15
+        material: NAME_TAG
+        title: '<aqua><bold>Chat tags'
+        lore: ['<gray>Show off next to your name.']
+      - id: back
+        positions: 22
+        material: ARROW
+        title: '<gray>Back'
+        click:
+          left:
+            steps: open_previous_menu

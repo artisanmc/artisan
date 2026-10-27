@@ -1,0 +1,47 @@
+schema: menu/v1
+id: keys
+size: 27
+player_inventory: hidden
+title: '<dark_gray>Crate keys'
+layers:
+  - id: frame
+    name: Frame
+    elements:
+      - id: border
+        positions: '0-9,17-26'
+        material: ORANGE_STAINED_GLASS_PANE
+        title: ' '
+  - id: keys
+    name: Keys
+    elements:
+      - id: common
+        positions: 11
+        material: TRIPWIRE_HOOK
+        title: '<white><bold>Common key'
+        lore: ['<gray>Price: <gold>500 coins', '<yellow>Left: buy 1 · Right: buy 5']
+        click:
+          left:
+            steps: |
+              if has_money(500):
+                take_money 500
+                run_command "crates give %player_name% common 1" as console
+              else:
+                send_message "<red>Not enough coins."
+      - id: epic
+        positions: 13
+        material: TRIPWIRE_HOOK
+        enchanted: true
+        title: '<light_purple><bold>Epic key'
+        lore: ['<gray>Price: <gold>2,500 coins', '<yellow>Left: buy 1 · Right: buy 5']
+      - id: mythic
+        positions: 15
+        material: NETHER_STAR
+        title: '<gradient:#fdcb6e:#e17055><bold>Mythic key'
+        lore: ['<gray>Price: <gold>10,000 coins', '<yellow>Left: buy 1']
+      - id: back
+        positions: 22
+        material: ARROW
+        title: '<gray>Back'
+        click:
+          left:
+            steps: open_previous_menu
