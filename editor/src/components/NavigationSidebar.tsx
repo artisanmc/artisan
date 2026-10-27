@@ -1,3 +1,4 @@
+import { ArtisanSymbol } from "@/components/ArtisanWordmark";
 import { Button } from "@/components/ui/button";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { useIsDesktop } from "@/lib/useMediaQuery";
@@ -179,14 +180,7 @@ export function NavigationSidebar({ children }: { children: ReactNode }) {
           aria-label="Artisan"
           className="fixed left-14 top-3.5 z-40 flex size-9 items-center justify-center rounded-[var(--r-md)] hover:bg-[var(--surface-hover)]"
         >
-          <img
-            src="/logo.svg"
-            alt=""
-            aria-hidden="true"
-            width={28}
-            height={28}
-            className="size-7"
-          />
+          <ArtisanSymbol />
         </Link>
       )}
     </>

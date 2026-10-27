@@ -843,7 +843,7 @@ Enter in the name or description triggers the same submission as "Create".
 An empty name or a creation already in progress blocks submission; "Cancel"
 closes the modal without creating a project.
 
-The logo is pixel art (sources and generator in the project's `branding/logo-pixel/`). `editor/public/logo.svg` is the 16×16 crafting-table block: SVG favicon declared in `editor/index.html` and icon-only spots (collapsed navigation button, setup and home screens).
+The logo is pixel art (sources and generator in the project's `branding/logo-pixel/`). `editor/public/logo.svg` is the 16×16 crafting-table block, used only as the SVG favicon declared in `editor/index.html`. Icon-only spots (the home link shown next to the breadcrumb when the navigation is collapsed) use `ArtisanSymbol`: the wordmark's A alone, `public/symbol-dark.svg` or `symbol-light.svg` (9×8 grid shown ×3, 27×24).
 The brand of the sidebars, authentication and marketing pages is `ArtisanWordmark` alone (no icon next to it, the A of the wordmark is the symbol): `public/wordmark-dark.svg` or `wordmark-light.svg` depending on `useThemeStore`, a 39×8 grid shown ×3 (117×24) with `image-rendering: pixelated`.
 On mobile (<1024 px), the topbar uses a two-row grid, keeps the icon tabs and enforces 44 px touch targets. The Buttons panel temporarily hides the inspector without clearing the selection; a selection change closes Buttons. Panels stay independent on desktop.
 
