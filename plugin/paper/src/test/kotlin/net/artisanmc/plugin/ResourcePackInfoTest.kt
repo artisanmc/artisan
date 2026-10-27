@@ -4,6 +4,7 @@ import net.artisanmc.plugin.resourcepack.ResourcePackInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
 
 class ResourcePackInfoTest {
     @Test
@@ -11,6 +12,13 @@ class ResourcePackInfoTest {
         assertFailsWith<IllegalArgumentException> {
             ResourcePackInfo.from("http://x", "tooShort")
         }
+    }
+
+    @Test
+    fun `the pack id depends only on the hash`() {
+        val a = ResourcePackInfo.from("http://a", "f".repeat(40))
+        assertEquals(a.uuid, ResourcePackInfo.from("http://b", "http://c", "f".repeat(40)).uuid)
+        assertNotEquals(a.uuid, ResourcePackInfo.from("http://a", "e".repeat(40)).uuid)
     }
 
     @Test

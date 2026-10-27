@@ -49,7 +49,7 @@ open class ArtisanPlugin : JavaPlugin() {
     internal lateinit var menuWindows: MenuWindows
         private set
     /** Survives `/artisan reload`: the pack manager is swapped, the players' loaded packs are not. */
-    private val packLoads = net.artisanmc.plugin.resourcepack.PackLoadTracker()
+    internal val packLoads = net.artisanmc.plugin.resourcepack.PackLoadTracker()
     private val openedContainers = net.artisanmc.plugin.render.title.OpenedContainers()
     private var menuPackets: MenuPacketInterceptor? = null
     /** Exposed for /artisan dump-title diagnostics. */

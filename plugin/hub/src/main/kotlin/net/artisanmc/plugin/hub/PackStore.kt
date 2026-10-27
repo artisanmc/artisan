@@ -21,6 +21,10 @@ class PackStore(private val dir: File) {
 
     fun get(name: String): ByteArray? = name.takeIf { NAME.matches(it) }?.let { File(dir, it) }?.takeIf { it.isFile }?.readBytes()
 
+    /** The SHA-1 of the packs served, newest first. */
+    fun hashes(): List<String> =
+        dir.listFiles { f -> f.name.matches(NAME) }.orEmpty().sortedByDescending { it.lastModified() }.map { it.name.removeSuffix(".zip") }
+
     companion object {
         private val NAME = Regex("[0-9a-f]{40}\\.zip")
         private const val KEEP = 3

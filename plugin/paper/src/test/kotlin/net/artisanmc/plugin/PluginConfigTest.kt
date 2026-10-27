@@ -64,6 +64,35 @@ class PluginConfigTest {
     }
 
     @Test
+    fun `resource-pack direct sending is parsed`() {
+        val yaml = YamlConfiguration()
+        yaml.loadFromString("""
+            resource-pack:
+              enabled: false
+              prompt: "<gold>Pack</gold>"
+              required: true
+              send-on-join: false
+              send-delay-ticks: 40
+        """.trimIndent())
+        val rp = PluginConfig.from(yaml).resourcePack
+        assertFalse(rp.enabled)
+        assertEquals("<gold>Pack</gold>", rp.prompt)
+        assertTrue(rp.required)
+        assertFalse(rp.sendOnJoin)
+        assertEquals(40L, rp.sendDelayTicks)
+    }
+
+    @Test
+    fun `resource-pack missing block sends directly with the language's prompt`() {
+        val rp = PluginConfig.from(YamlConfiguration().apply { loadFromString("language: \"en\"") }).resourcePack
+        assertTrue(rp.enabled)
+        assertNull(rp.prompt)
+        assertFalse(rp.required)
+        assertTrue(rp.sendOnJoin)
+        assertEquals(20L, rp.sendDelayTicks)
+    }
+
+    @Test
     fun `parses resource-pack delegate-to-dir when set`() {
         val yaml = YamlConfiguration()
         yaml.loadFromString("""

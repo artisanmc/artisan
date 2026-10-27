@@ -17,6 +17,8 @@ object EditorApi {
         version: String = "",
         /** The public ids of the sessions with an editor tab open here ([EditorChannel.online]). */
         online: () -> Set<String> = { emptySet() },
+        /** Artisan's pack host (`web.pack-cdn`); null: players download packs from this server. */
+        packCdn: PackCdn? = null,
     ): Router {
         val router = Router()
         val relay = Relay(logger)
@@ -25,7 +27,7 @@ object EditorApi {
         ServerRoutes(servers, relay).register(router)
         ProjectRoutes(servers, relay, history, loaded, drafts, logger).register(router)
         ItemRoutes(servers, relay, vanilla).register(router)
-        packs?.let { PackRoutes(servers, it).register(router) }
+        packs?.let { PackRoutes(servers, it, packCdn).register(router) }
         AddressRoutes(tunnel, sessions).register(router)
         val tools = McpTools(McpProjects(servers, loaded, drafts))
         if (mcp != null) {

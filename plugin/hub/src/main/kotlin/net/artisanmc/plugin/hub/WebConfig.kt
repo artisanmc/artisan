@@ -25,6 +25,11 @@ data class WebConfig(
     /** The code a private tunnel server asks for; empty: none. */
     val tunnelAccess: String = "",
     /**
+     * Artisan's pack host ([PackCdn]): the hub uploads each pack there, players download it from
+     * there rather than from [url] or the server's port. Empty: none.
+     */
+    val packCdn: String = "",
+    /**
      * The MCP endpoint `/mcp` and its OAuth sign-in (ADR `mcp-server`): AI clients (Claude,
      * ChatGPT…) write drafts for a player who approved them. Off unless set.
      */
