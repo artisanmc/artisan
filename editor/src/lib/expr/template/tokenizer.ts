@@ -20,14 +20,35 @@ const I18N_PREFIX = "i18n:";
  */
 export function tokenizeTemplate(src: string): TemplateSegment[] {
   const out: TemplateSegment[] = [];
-  let i = 0;
   let literalStart = 0;
-
-  const flushLiteral = (end: number) => {
-    if (end > literalStart) {
-      out.push({ kind: "literal", text: src.slice(literalStart, end) });
+  for (const span of templateSpans(src)) {
+    if (span.from > literalStart) {
+      out.push({ kind: "literal", text: src.slice(literalStart, span.from) });
     }
-  };
+    const content = src.slice(span.from + 1, span.to - 1);
+    out.push(
+      span.kind === "i18n"
+        ? { kind: "i18n", text: content.slice(I18N_PREFIX.length) }
+        : { kind: "expression", text: content },
+    );
+    literalStart = span.to;
+  }
+  if (src.length > literalStart) out.push({ kind: "literal", text: src.slice(literalStart) });
+  if (out.length === 0) out.push({ kind: "literal", text: src });
+  return out;
+}
+
+/** Where a `{…}` sits in a template, braces included. */
+export interface TemplateSpan {
+  kind: "expression" | "i18n";
+  from: number;
+  to: number;
+}
+
+/** The `{…}` of a template with their offsets, matched as {@link tokenizeTemplate} does. */
+export function templateSpans(src: string): TemplateSpan[] {
+  const out: TemplateSpan[] = [];
+  let i = 0;
 
   while (i < src.length) {
     if (src[i]! !== "{") {
@@ -63,31 +84,20 @@ export function tokenizeTemplate(src: string): TemplateSegment[] {
 
     if (depth !== 0) {
       // Unmatched brace — treat rest of string as literal.
-      i = src.length;
       break;
     }
 
     const content = src.slice(i + 1, j);
-    if (content.length === 0) {
-      // Empty braces {} — treat as literal.
-      i = j + 1;
-      continue;
+    if (content.length > 0) {
+      // Empty braces {} stay literal.
+      out.push({
+        kind: content.startsWith(I18N_PREFIX) ? "i18n" : "expression",
+        from: i,
+        to: j + 1,
+      });
     }
-
-    flushLiteral(i);
-
-    if (content.startsWith(I18N_PREFIX)) {
-      out.push({ kind: "i18n", text: content.slice(I18N_PREFIX.length) });
-    } else {
-      out.push({ kind: "expression", text: content });
-    }
-
     i = j + 1;
-    literalStart = i;
   }
-
-  flushLiteral(src.length);
-  if (out.length === 0) out.push({ kind: "literal", text: src });
 
   return out;
 }

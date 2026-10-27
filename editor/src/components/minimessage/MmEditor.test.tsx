@@ -1,4 +1,5 @@
 import { CHAT, LORE } from "@/lib/mm/profiles";
+import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -7,11 +8,15 @@ import { describe, expect, it } from "vitest";
 import { MmEditor } from "./MmEditor";
 import { MmTextField } from "./MmTextField";
 
-function Controlled({ initial, profile = CHAT }: { initial: string; profile?: typeof CHAT }) {
+function Controlled({
+  initial,
+  profile = CHAT,
+  entries,
+}: { initial: string; profile?: typeof CHAT; entries?: PlaceholderEntry[] }) {
   const [value, setValue] = useState(initial);
   return (
     <>
-      <MmEditor value={value} onChange={setValue} profile={profile} />
+      <MmEditor value={value} onChange={setValue} profile={profile} entries={entries} />
       <output data-testid="value">{value}</output>
     </>
   );
@@ -46,6 +51,54 @@ describe("MmEditor", () => {
     expect(screen.queryByRole("button", { name: /Action au clic/ })).toBeNull();
   });
 
+  it("shows an expression as what it gives, and reads it as rules on click", () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.online", type: "boolean", sample: "true", origin: "context" },
+    ];
+    render(
+      <Controlled
+        initial={'Statut : {m.online ? "<green>En ligne" : "<gray>Hors ligne"}'}
+        profile={LORE}
+        entries={entries}
+      />,
+    );
+    const pill = document.querySelector(".cm-mm-expr") as HTMLElement;
+    expect(pill.textContent).toBe("ƒEn ligne");
+    fireEvent.mouseDown(pill);
+    expect(screen.getByText("Si")).toBeTruthy();
+    expect(screen.getByText("Sinon")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("switch"));
+    expect((document.querySelector(".cm-mm-expr") as HTMLElement).textContent).toBe("ƒHors ligne");
+
+    fireEvent.click(screen.getAllByTitle("Modifier ce texte")[1]!);
+    fireEvent.change(screen.getByLabelText("Modifier ce texte"), {
+      target: { value: '<red>Absent "loin"' },
+    });
+    expect(screen.getByTestId("value").textContent).toBe(
+      'Statut : {m.online ? "<green>En ligne" : "<red>Absent \\"loin\\""}',
+    );
+  });
+
+  it("shows a placeholder as its example value, and a line break in words", () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.rank", type: "string", sample: "Officier", origin: "context" },
+      { path: "m.kick", type: "boolean", sample: "true", origin: "context" },
+    ];
+    render(
+      <Controlled
+        initial={'Grade : {m.rank} {m.kick ? "\\n<red>Exclure" : ""}'}
+        profile={LORE}
+        entries={entries}
+      />,
+    );
+    expect((document.querySelector(".cm-mm-val") as HTMLElement).textContent).toBe("Officier");
+    expect((document.querySelector(".cm-mm-expr") as HTMLElement).textContent).toBe("ƒ\nExclure");
+    fireEvent.mouseDown(document.querySelector(".cm-mm-expr")!);
+    expect(screen.getByText("nouvelle ligne :")).toBeTruthy();
+    expect(screen.queryByText("Sinon")).toBeNull();
+  });
+
   it("converts legacy codes on request", () => {
     render(<Controlled initial="§6Gold" />);
     fireEvent.click(screen.getByRole("button", { name: "Convertir les codes &" }));
@@ -57,6 +110,18 @@ describe("MmTextField", () => {
   it("shows the preview its profile calls for", () => {
     render(<MmTextField value="<gray>line" onChange={() => {}} profile={LORE} />);
     expect(screen.getByTestId("mc-tooltip")).toBeTruthy();
+  });
+
+  it("previews the text for the example player, its placeholders evaluated", () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.rank", type: "string", sample: "Officier", origin: "context" },
+    ];
+    render(
+      <MmTextField value="Grade : {m.rank}" onChange={() => {}} profile={LORE} entries={entries} />,
+    );
+    const tooltip = screen.getByTestId("mc-tooltip").textContent ?? "";
+    expect(tooltip).toContain("Officier");
+    expect(tooltip).not.toContain("{m.rank}");
   });
 
   it("leaves the preview to the screen with layout none", () => {

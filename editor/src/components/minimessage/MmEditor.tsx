@@ -1,5 +1,7 @@
 import { copyText } from "@/lib/clipboard";
 import { cx } from "@/lib/cx";
+import { humanizePath } from "@/lib/expr/sampleRender";
+import { parseMiniMessageSource } from "@/lib/miniMessage";
 import { type Decoration, diffText, rangeHas, toggleDecoration } from "@/lib/mm/edit";
 import { hasLegacyCodes, legacyToMiniMessage } from "@/lib/mm/legacy";
 import type { Palette } from "@/lib/mm/palettes";
@@ -10,9 +12,11 @@ import { type EditorView, keymap } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ExpressionCard } from "./ExpressionCard";
 import { type MmOp, MmToolbar } from "./MmToolbar";
-import { type MmViewMode, mmExtensions, mmInternal } from "./mmCodeMirror";
+import { type ExpressionView, type MmViewMode, mmExtensions, mmInternal } from "./mmCodeMirror";
 import { usePaletteLibrary } from "./usePaletteLibrary";
+import { type Simulation, useSimulation } from "./useSimulation";
 
 export interface MmEditorProps {
   value: string;
@@ -29,6 +33,8 @@ export interface MmEditorProps {
   placeholder?: string;
   /** A lore's `lore_max_width`: where each line will wrap is marked, nothing is written. */
   wrapWidth?: number;
+  /** The example player its `{…}` are shown for; shared with a preview drawn elsewhere. */
+  simulation?: Simulation;
   /** Called when the editor, toolbar included, takes the focus. */
   onFocus?: () => void;
   "aria-label"?: string;
@@ -53,6 +59,7 @@ export function MmEditor({
   minHeight = "64px",
   placeholder,
   wrapWidth,
+  simulation,
   onFocus,
   "aria-label": ariaLabel,
   className,
@@ -63,6 +70,29 @@ export function MmEditor({
   const [sel, setSel] = useState({ from: 0, to: 0 });
   const viewRef = useRef<EditorView | null>(null);
   const perLine = profile.lines === "separate";
+  // The expression read in the card (its `{`), and the example player's switches.
+  const [openExpr, setOpenExpr] = useState<number | null>(null);
+  const ownSimulation = useSimulation(entries);
+  const sim = simulation ?? ownSimulation;
+  const { scope, sampleOf } = sim;
+  const expressions = useMemo<ExpressionView>(
+    () => ({
+      preview: (raw) => {
+        const out = sampleOf(raw);
+        return out === null
+          ? null
+          : parseMiniMessageSource(out, perLine).map(({ text, style }) => ({ text, style }));
+      },
+      fallback: (raw) => {
+        const inner = raw.slice(1, -1);
+        return /^[\w.[\]]+$/.test(inner) ? humanizePath(inner) : raw;
+      },
+      label: t("mmEditor.expr.pill"),
+      emptyLabel: t("mmEditor.expr.nothing"),
+      open: setOpenExpr,
+    }),
+    [sampleOf, perLine, t],
+  );
 
   const apply = (op: MmOp) => {
     const view = viewRef.current;
@@ -95,6 +125,7 @@ export function MmEditor({
         entries,
         wrapWidth,
         wrapLabel: t("mmEditor.wrapMarker", { width: wrapWidth }),
+        expressions,
       }),
       Prec.high(
         keymap.of([
@@ -104,7 +135,7 @@ export function MmEditor({
         ]),
       ),
     ];
-  }, [mode, profile, entries, wrapWidth, t]);
+  }, [mode, profile, entries, wrapWidth, expressions, t]);
 
   const active = useMemo(() => {
     if (sel.from === sel.to) return {};
@@ -179,6 +210,22 @@ export function MmEditor({
           minHeight={minHeight}
         />
       </div>
+      {mode === "rich" && openExpr !== null && (
+        <ExpressionCard
+          value={value}
+          from={openExpr}
+          onChange={onChange}
+          scope={scope}
+          overrides={sim.overrides}
+          onOverride={sim.setOverride}
+          onShowCode={() => {
+            setOpenExpr(null);
+            setMode("code");
+          }}
+          onClose={() => setOpenExpr(null)}
+          textColor={profile.defaults.color}
+        />
+      )}
       {diagnostics.length > 0 && (
         <ul className="flex flex-col gap-0.5 border-[var(--border-soft)] border-t px-2.5 py-1.5 text-[11.5px] text-[var(--warning)]">
           {diagnostics.map((d) => (

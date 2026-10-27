@@ -1,9 +1,12 @@
-import { MmEditor, MmPreview } from "@/components/minimessage";
+import { MmEditor, MmPreview, useSimulation } from "@/components/minimessage";
 import { Segmented } from "@/components/ui/segmented";
+import { renderSample } from "@/lib/expr/sampleRender";
 import { type MmProfile, mmProfile } from "@/lib/mm/profiles";
+import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+const NO_ENTRIES: PlaceholderEntry[] = [];
 const PROFILE_IDS = ["chat", "item-name", "lore", "title", "actionbar", "motd"] as const;
 type ProfileId = (typeof PROFILE_IDS)[number];
 
@@ -26,6 +29,8 @@ export function TextToolPage() {
   const profile = mmProfile(profileId) as MmProfile;
   const value = texts[profileId];
   const setValue = (v: string) => setTexts((prev) => ({ ...prev, [profileId]: v }));
+  // No context here: the example player only has the switches flipped in a text's card.
+  const simulation = useSimulation(NO_ENTRIES);
 
   return (
     <div className="h-full overflow-auto">
@@ -55,6 +60,7 @@ export function TextToolPage() {
               value={value}
               onChange={setValue}
               profile={profile}
+              simulation={simulation}
               minHeight={profile.lines === "single" ? "40px" : "120px"}
             />
             {profileId === "title" && (
@@ -75,7 +81,7 @@ export function TextToolPage() {
             className="card flex min-w-0 items-start justify-center overflow-x-auto p-4"
           >
             <MmPreview
-              value={value}
+              value={renderSample(value, simulation.sampleOf)}
               profile={profile}
               subtitle={subtitle}
               serverName={t("textTool.serverName")}

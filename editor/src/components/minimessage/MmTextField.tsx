@@ -1,4 +1,5 @@
 import { cx } from "@/lib/cx";
+import { renderSample } from "@/lib/expr/sampleRender";
 import type { MmProfile } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import type { ReactNode } from "react";
@@ -6,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { MmEditor } from "./MmEditor";
 import { MmPreview } from "./MmPreview";
 import type { MmViewMode } from "./mmCodeMirror";
+import { useSimulation } from "./useSimulation";
 
 export interface MmTextFieldProps {
   value: string;
@@ -25,6 +27,8 @@ export interface MmTextFieldProps {
   className?: string;
 }
 
+const NO_ENTRIES: PlaceholderEntry[] = [];
+
 /**
  * What a screen puts where a MiniMessage text is edited: the rich input and the in-game
  * preview its profile calls for, laid out as asked.
@@ -42,19 +46,23 @@ export function MmTextField({
   className,
 }: MmTextFieldProps) {
   const { t } = useTranslation();
+  const simulation = useSimulation(entries ?? NO_ENTRIES);
   const editor = (
     <MmEditor
       value={value}
       onChange={onChange}
       profile={profile}
       entries={entries}
+      simulation={simulation}
       initialMode={initialMode}
       minHeight={minHeight}
       aria-label={ariaLabel}
     />
   );
   if (layout === "none") return <div className={className}>{editor}</div>;
-  const rendered = preview ? preview(value) : <MmPreview value={value} profile={profile} />;
+  // The preview shows the text for the example player, its `{…}` evaluated.
+  const shown = renderSample(value, simulation.sampleOf);
+  const rendered = preview ? preview(shown) : <MmPreview value={shown} profile={profile} />;
   return (
     <div
       className={cx(
