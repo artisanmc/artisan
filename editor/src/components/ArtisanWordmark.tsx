@@ -13,3 +13,18 @@ export function ArtisanWordmark() {
     />
   );
 }
+
+/** The wordmark's A alone (9×8 grid), for icon-only spots; ×3 like the wordmark. */
+export function ArtisanSymbol() {
+  const theme = useThemeStore((s) => s.theme);
+  return (
+    <img
+      src={theme === "light" ? "/symbol-light.svg" : "/symbol-dark.svg"}
+      alt=""
+      aria-hidden="true"
+      width={27}
+      height={24}
+      className="shrink-0 [image-rendering:pixelated]"
+    />
+  );
+}
