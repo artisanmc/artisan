@@ -876,6 +876,12 @@ const fr: typeof en = {
     needsAccount:
       "Connectez-vous pour exporter — l'archive est l'arbre tel qu'il est stocké sur le serveur.",
   },
+  playerPicker: {
+    open: "Joueurs en ligne",
+    loading: "Chargement…",
+    noneOnline: "Aucun joueur en ligne",
+    clear: "Aucun joueur",
+  },
   capturedItems: {
     sectionTitle: "Items capturés",
     emptyHint:

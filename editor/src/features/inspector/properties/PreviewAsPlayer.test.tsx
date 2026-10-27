@@ -107,6 +107,22 @@ describe("preview as player", () => {
     expect(useUiStore.getState().previewPlayer).toBe("SomeoneWhoJustLeft");
   });
 
+  /** Signed in from the console, the admin has no name of their own to type. */
+  it("picks an online player from the button beside the field, fetched again on opening", async () => {
+    renderSection(menuWith([serverSource]));
+    await waitFor(() => expect(listOnlinePlayers).toHaveBeenCalledTimes(1));
+
+    fireEvent.pointerDown(screen.getByTestId("preview-as-player-pick"), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Iban_" }));
+
+    expect(listOnlinePlayers).toHaveBeenCalledTimes(2);
+    expect(useUiStore.getState().previewPlayer).toBe("Iban_");
+    expect((screen.getByTestId("preview-as-player") as HTMLInputElement).value).toBe("Iban_");
+  });
+
   it("stays hidden when the menu reads nothing at all", () => {
     renderSection(menuWith([]));
 
