@@ -25,6 +25,7 @@ The old cloud model (45 tables, 66 Drizzle migrations) is recoverable at commit 
 | **Login link** | Single-use token | Hub memory, 60 s, one per player per minute. |
 | **Editor preferences** | Player UUID | Hub disk: `plugins/Artisan/editor-prefs/<uuid>.json` (`PlayerPrefs`): language, theme, guided tour progress. Atomic write, known keys only. |
 | **Resource pack** | SHA-1 of the zip | Hub disk: `plugins/Artisan/cache/resource-pack/<sha1>.zip` (`PackStore`, last three, one pack per server built by the editor). Last applied pack: `cache/resource-pack.json` on each server. |
+| **Bedrock pack** | SHA-1 of the mcpack | Hub disk: `cache/bedrock-pack-store/<sha1>.mcpack` (`PackStore`, last three). On each server, the current pack: `cache/bedrock-pack/<sha1>.mcpack` (`BedrockPackManager`), which Geyser hands to each Bedrock player when they connect. |
 
 No user: the identity in the editor is the Minecraft player who requested the link,
 their rights are their `artisan.editor.view|edit|publish|config` permissions at the time of the
@@ -43,6 +44,7 @@ request (`artisan.editor` grants them all). Access is given with a permissions p
 | `editor-prefs/<uuid>.json` | A player's editor preferences (`PATCH /api/v1/auth/me`) | The hub. |
 | `cache/minecraft/<version>/` | Vanilla textures extracted from the Mojang client jar (SHA-1 verified) | The hub, at the first texture requested. |
 | `cache/resource-pack/`, `cache/resource-pack.json`, `cache/asset-index.json` | Served packs (hub), last applied pack, asset index | `PackStore`, `ResourcePackManager`, `AssetCatalog`. |
+| `cache/bedrock-pack-store/`, `cache/bedrock-pack/`, `cache/geyser/` | Served Bedrock packs (hub), the server's current Bedrock pack, a copy of the Geyser mapping for a Geyser on the proxy | `PackStore`, `BedrockPackManager`, `GeyserIntegration`. |
 | `database/suite.mv.db` | Default H2 database | The suite's plugins. |
 
 ## The suite database

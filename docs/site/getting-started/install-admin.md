@@ -33,7 +33,7 @@ On first start Artisan creates its folder:
 | `plugins/Artisan/environment.yml` | Where and who this server is: web editor, network, database. Never read nor written by the editor. [Reference](../../configuration/environment/) |
 | `plugins/Artisan/modules/` | Your projects (menus, dialogs, images), one folder each. Servers from before October 2026 had them in `projects/`: Artisan moves them on first start and keeps the old folder as `projects.artisan-migrated/`. |
 | `plugins/Artisan/database/` | The embedded H2 database (`suite.mv.db`), created when a plugin first asks for the database. |
-| `plugins/Artisan/cache/` | Downloaded Minecraft assets, resource packs, asset index. |
+| `plugins/Artisan/cache/` | Downloaded Minecraft assets, resource packs (Java and Bedrock), asset index. |
 | `plugins/Artisan/network-secret` | Only on a network hub with no other secret source. See [the shared secret](../../network/setup/#4-the-shared-secret). |
 | `plugins/Artisan/tunnel-secret` | On the hub, unless `web.url` is set or `web.tunnel` is empty: it decides the editor's address on the tunnel server. Keep it to keep the address; delete it to get a new one. |
 
@@ -50,6 +50,15 @@ Artisan <version> enabled
 | `[Artisan] Editor disabled: web server libraries are missing (…)` | Paper could not download Jetty. Give the server outbound access to Maven Central for one start. |
 | `menu packets unavailable on this server — menus will open empty` | Your Minecraft version is newer than this Artisan. Update Artisan. |
 | `Spigot <version> is not supported` | Spigot before 26.1. Update Spigot, or use Paper. |
+
+### Bedrock players (Geyser)
+
+With Geyser-Spigot on the same server, Artisan hands Bedrock players a pack that redraws the menus
+the editor styled (chests of 3 or 6 rows). On first start next to Geyser, Artisan writes
+`plugins/Geyser-Spigot/custom_mappings/artisan.json` and asks for one more restart so that Geyser
+loads it. With Geyser on your proxy instead, copy `plugins/Artisan/cache/bedrock-pack/<hash>.mcpack`
+into that Geyser's `packs/` and `plugins/Artisan/cache/geyser/custom_mappings/artisan.json` into its
+`custom_mappings/`, and restart the proxy; Bedrock players are recognised by their Floodgate UUID.
 
 ## 3. Nothing to open (or your own address)
 

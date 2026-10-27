@@ -222,6 +222,10 @@ internal class RuntimeAssembly(
         packs.loadFromDisk()
         provider.setResourcePackManager(packs)
         registerResourcePackManager(packs)
+        val bedrockPacks = net.artisanmc.plugin.resourcepack.BedrockPackManager(java.io.File(dataFolder, "cache/bedrock-pack"), logger)
+        bedrockPacks.loadFromDisk()
+        provider.setBedrockPackManager(bedrockPacks)
+        plugin.geyser.follow(bedrockPacks)
         provider.load()
 
         executor = ActionExecutor(plugin, provider, sessions, softDeps, cooldowns, evaluator, api.commands, navigationHistory, api.actionRegistry, plugin.langManager)
@@ -253,6 +257,7 @@ internal class RuntimeAssembly(
         serverConfig = serverConfigAccess,
         editorEvents = { editorChannel.relay(it, serverId.toString()) },
         hub = editorHost.hubLink(cfg.web),
+        isBedrock = plugin.geyser::isBedrock,
         peers = { editorHost.peerLinks },
         menuEvents = menuEvents,
         onSnapshot = suite::recordVersions,

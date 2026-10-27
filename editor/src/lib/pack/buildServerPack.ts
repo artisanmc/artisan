@@ -5,6 +5,8 @@ import { ApiError, apiFetch, apiRequest } from "@/lib/api/client";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { getServerConfig } from "@/lib/api/serverConfig";
 import { projectClient } from "@/lib/projectClient";
+import { type BedrockMenu, bedrockMenusFromProject } from "./bedrock/bedrockMenus";
+import { buildBedrockPack } from "./bedrock/bedrockPack";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { type GlyphPlacement, glyphPlacementsFromMenus } from "./menuGlyphPlacements";
@@ -35,12 +37,18 @@ const VANILLA_TEXTURES: Record<GuiContainer, string> = {
  * In network mode, each server has its own pack, built from its own Projects
  * only; those of a server other than the hub carry the id `<server>.<folder>`.
  */
-export async function buildServerPack(serverId: string): Promise<BuildResult> {
+export interface ServerPacks extends BuildResult {
+  /** The Bedrock pack built from the same Projects (`bedrock/bedrockPack.ts`). */
+  bedrock: { bytes: Uint8Array; hash: string };
+}
+
+export async function buildServerPack(serverId: string): Promise<ServerPacks> {
   const list = await listServerProjects(serverId);
   if (!list.ok) throw new Error(`project_list_failed:${list.error}`);
   const idOf = (folder: string) =>
     list.projects?.find((p) => (p.externalId ?? p.id) === folder)?.id ?? folder;
-  const projectIds = list.projectIds.map(idOf).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const folders = new Map(list.projectIds.map((folder) => [idOf(folder), folder]));
+  const projectIds = [...folders.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   const config = await getServerConfig(serverId);
 
@@ -52,6 +60,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   const imageButtons: ImageButtonPlacement[] = [];
   const transparent = new Set<GuiContainer>();
   const imagesByRef: { ref: string; bytes: Uint8Array }[] = [];
+  const bedrockMenus: BedrockMenu[] = [];
 
   for (const projectId of projectIds) {
     const client = projectClient(projectId);
@@ -63,6 +72,8 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
     glyphPlacements.push(...glyphPlacementsFromMenus(files));
     imageButtons.push(...imageButtonsFromMenus(files));
     for (const c of transparentContainersFromMenus(files)) transparent.add(c);
+    // Keyed by the folder name: the plugin names a menu's Project that way.
+    bedrockMenus.push(...bedrockMenusFromProject(folders.get(projectId) ?? projectId, files));
     const fromDisk: DiskAsset[] = diskAssetsFromTree(projectId, files, tree.binaries ?? []);
 
     contribs.push({
@@ -101,7 +112,7 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
   }
 
   // The plugin serving this editor redraws transparent containers (`vanilla_gui_v1`).
-  return buildResourcePackZip(
+  const java = buildResourcePackZip(
     allAssets,
     glyphPngs,
     fontGlyphPngs,
@@ -110,6 +121,21 @@ export async function buildServerPack(serverId: string): Promise<BuildResult> {
     imageButtons,
     { sources, transparent },
   );
+  // Asset names collide across Projects the same way the Java pack resolves
+  // them: the first Project (by id) wins.
+  const pngsByName = new Map<string, Uint8Array>();
+  for (const a of allAssets) {
+    const bytes = glyphPngs.get(a.id);
+    if (bytes && !pngsByName.has(a.name)) pngsByName.set(a.name, bytes);
+  }
+  const bedrock = buildBedrockPack({
+    serverId,
+    menus: bedrockMenus,
+    pngs: pngsByName,
+    assets: allAssets,
+    chestTexture: sources.chest,
+  });
+  return { ...java, bedrock: { bytes: bedrock.bytes, hash: bedrock.hash } };
 }
 
 /** `resource-pack.container-textures.*` from `config.yml`. */
@@ -150,6 +176,32 @@ export async function uploadResourcePack(
   }
 }
 
+/**
+ * The Bedrock pack goes next to the Java one. A hub without the route (an
+ * older plugin) answers 404: the Java pack is still applied, so that is a
+ * warning, not a failure.
+ */
+export async function uploadBedrockPack(serverId: string, pack: Uint8Array): Promise<void> {
+  try {
+    await apiFetch<{ hash: string }>(`/api/v1/servers/${serverId}/bedrock-pack`, {
+      method: "PUT",
+      contentType: "application/zip",
+      body: pack as BodyInit,
+    });
+  } catch (error) {
+    const failure = ApiError.from(error);
+    if (failure.status === 404) {
+      console.warn("[bedrock-pack] the server does not take a Bedrock pack: update its plugin");
+      return;
+    }
+    throw new ApiError(
+      `bedrock_pack_upload_failed:${failure.status}`,
+      failure.status,
+      failure.body,
+    );
+  }
+}
+
 const running = new Map<string, Promise<void>>();
 const queued = new Map<string, Promise<void>>();
 
@@ -175,8 +227,9 @@ export function requestResourcePackRebuild(serverId: string): Promise<void> {
 
 function start(serverId: string): Promise<void> {
   const run = (async () => {
-    const { zipBytes } = await buildServerPack(serverId);
+    const { zipBytes, bedrock } = await buildServerPack(serverId);
     await uploadResourcePack(serverId, zipBytes);
+    await uploadBedrockPack(serverId, bedrock.bytes);
   })().finally(() => {
     if (running.get(serverId) === run) running.delete(serverId);
   });
