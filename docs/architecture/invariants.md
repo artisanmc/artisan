@@ -244,10 +244,15 @@ is ever erased. Never use it for anything else.
 A menu opens a real `createInventory(ArtisanMenuHolder…)` — **the anchor** — but **empty**. It provides
 the window id, the Bukkit events (click, close, drag) and the player's presence in a menu for
 other plugins. All the content lives in `MenuSlots` (session) and is rewritten in the
-outgoing packets by `PacketEventsMenuPackets` (`OPEN_WINDOW` captures the id, `WINDOW_ITEMS` / `SET_SLOT`
-rewritten, `SET_PLAYER_INVENTORY` too when the bottom is `hidden`). PacketEvents is **bundled in the jar**
-(relocated under `net.artisanmc.shaded.packetevents`): each Minecraft major version requires
-updating it, then going through the manual checklist of `testing.md`.
+outgoing packets by `MenuPacketRewriter` (`OPEN_WINDOW` captures the id, `WINDOW_ITEMS` / `SET_SLOT`
+rewritten, `SET_PLAYER_INVENTORY` too when the bottom is `hidden`). No library: `MenuPacketInterceptor`
+puts one Netty handler in each player's connection, right after `encoder` (it sees the server's packet
+objects, unbundled, before ViaVersion translates the bytes), and `NmsMenuPackets` reads and builds the four
+packets by their **Mojang names**, by reflection, looked up once at enable. Paper (Folia, Leaf) runs with
+those names since 1.20.5, Spigot since 26.1; Spigot 1.21.x is obfuscated and Artisan refuses to start there
+(`ServerPlatform.obfuscated`). The jar declares `paperweight-mappings-namespace: mojang` so Paper 1.21.x does
+not remap it. Each Minecraft major version still requires the manual checklist of `testing.md`: a renamed
+packet or accessor fails `NmsMenuPackets.resolve` with its name, at enable.
 
 - **Single addressing by protocol rawSlot**: `0..size-1` the menu, `size..size+26` the main
   inventory, `size+27..size+35` the hotbar. A position `≥ size` only makes sense with
@@ -261,8 +266,12 @@ updating it, then going through the manual checklist of `testing.md`.
   closes A), then `updateInventory()` on the next tick so the client redisplays the real inventory.
 - **Deposit slots (`SlotKind.INPUT`)**: provided in the contract, not implemented. An `INPUT` slot
   is never rewritten — its real object would live in the anchor. The listener already tests the slot type.
-- Without a working PacketEvents (`load`/`init` failure, logged at SEVERE; the MockBukkit case in
-  tests), menus open **empty**: clicks and sessions stay active.
+- Without the menu packets (`NmsMenuPackets.resolve` failure, logged at SEVERE; the MockBukkit case in
+  tests), menus open **empty**: clicks and sessions stay active. A packet that fails to rewrite goes
+  out as the server sent it (logged once): a wrong menu, never a dropped connection.
+- **Threads**: the handler runs on the player's Netty event loop (Folia and Leaf included), never on a game
+  thread. Our own sends (`PacketSlotSink`) are written from the handler's context, on that event loop, so
+  they skip the rewrite and keep their order with the server's packets.
 
 ## Transparent containers: global on the pack side, reinjected via the title
 
@@ -278,7 +287,7 @@ in `asset-index.json`: `vanilla_gui.transparent_chests|hoppers|dispensers`.
   `dispenser` (176×166) = the full box; `ascent 13` (top at y=0), plus the realignment spaces
   (−8 towards x=0, then back to the title origin, computed on the real width). Codepoints: 1..6
   chest, 7 hopper, 8 dispenser.
-- **The plugin reinjects** (`VanillaGuiTitle`, in `PacketEventsMenuPackets.onOpenWindow`): glyph
+- **The plugin reinjects** (`VanillaGuiTitle`, in `MenuPacketRewriter.onOpenWindow`): glyph
   prefix + original title intact. Chests are recognized by their protocol type `generic_9x1..6`
   (ids 0..5, stable); hoppers and dispensers/droppers by the Bukkit type of the inventory that
   just opened (`OpenedContainers`, `InventoryOpenEvent` right before the packet), their protocol ids
