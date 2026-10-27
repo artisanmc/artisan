@@ -185,6 +185,54 @@ class SessionsTest {
         assertNotNull(here.find(session.id))
     }
 
+    @Test
+    fun `a listing shows the open sessions, stored or in memory, the most recently active first`() {
+        val store = MemoryStore()
+        val sessions = Sessions(clock, store = store)
+        val older = signIn(sessions, origin = "survie")
+        now = now.plus(Duration.ofHours(3))
+        val other = UUID.randomUUID()
+        val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(other, "Steve", setOf(EditorPermissions.VIEW), "lobby"))
+        val newer = assertNotNull(sessions.redeem(link.token))
+        assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(UUID.randomUUID(), "Alex", setOf(EditorPermissions.VIEW)))
+
+        val listed = sessions.list()
+        assertEquals(listOf("Steve", "Iban"), listed.map { it.playerName }, "a link not yet redeemed is no session")
+        assertEquals(listOf(sessions.publicId(newer.id), sessions.publicId(older.id)), listed.map { it.id })
+        assertEquals(now, listed.first().lastActiveAt)
+        assertEquals(now, listed.first().createdAt)
+        assertEquals("lobby", listed.first().origin)
+        assertEquals(listed, Sessions(clock, store = store).list(), "another server of the database lists the same")
+    }
+
+    @Test
+    fun `a session is revoked by its id or a unique prefix of it, and its tabs are told`() {
+        val store = MemoryStore()
+        val sessions = Sessions(clock, store = store)
+        val told = mutableListOf<String>()
+        sessions.onClosed { told += it }
+        val session = signIn(sessions)
+        val id = sessions.publicId(session.id)
+        assertEquals(false, sessions.revoke(id.take(Sessions.MIN_PREFIX - 1)), "too short a prefix")
+        assertEquals(false, sessions.revoke("zzzzzzzz"))
+        assertEquals(true, sessions.revoke(id.take(Sessions.MIN_PREFIX)))
+        assertEquals(listOf(id), told)
+        assertNull(sessions.find(session.id))
+        assertNull(Sessions(clock, store = store).find(session.id), "deleted from the store too")
+        assertEquals(false, sessions.revoke(id))
+    }
+
+    @Test
+    fun `signing a player out everywhere closes their tabs, stored sessions included`() {
+        val store = MemoryStore()
+        val session = signIn(Sessions(clock, store = store))
+        val restarted = Sessions(clock, store = store)
+        val told = mutableListOf<String>()
+        restarted.onClosed { told += it }
+        assertEquals(1, restarted.closeAll(player))
+        assertEquals(listOf(restarted.publicId(session.id)), told)
+    }
+
     private fun signIn(sessions: Sessions, origin: String = ""): EditorSession {
         val link = assertIs<Sessions.LinkResult.Issued>(sessions.issueLink(player, "Iban", setOf(EditorPermissions.VIEW), origin))
         return assertNotNull(sessions.redeem(link.token))
@@ -201,6 +249,7 @@ class SessionsTest {
         override fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>) {
             rows.replaceAll { _, s -> if (s.playerId == playerId && s.origin == origin) s.copy(permissions = permissions) else s }
         }
+        override fun list(now: Instant) = rows.entries.filter { it.value.id != Sessions.LINK && it.value.expiresAt.isAfter(now) }.map { it.key to it.value }
         override fun deletePlayer(playerId: UUID, origin: String?): Int {
             val before = rows.size
             rows.values.removeIf { it.playerId == playerId && (origin == null || it.origin == origin) }

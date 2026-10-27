@@ -15,10 +15,13 @@ object EditorApi {
         /** The model the assistant talks to; null: the one [ai] names. */
         aiProvider: AiProvider? = null,
         version: String = "",
+        /** The public ids of the sessions with an editor tab open here ([EditorChannel.online]). */
+        online: () -> Set<String> = { emptySet() },
     ): Router {
         val router = Router()
         val relay = Relay(logger)
         AccountRoutes(servers, sessions, prefs).register(router)
+        SessionRoutes(servers, sessions, online).register(router)
         ServerRoutes(servers, relay).register(router)
         ProjectRoutes(servers, relay, history, loaded, drafts, logger).register(router)
         ItemRoutes(servers, relay, vanilla).register(router)

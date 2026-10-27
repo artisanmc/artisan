@@ -97,6 +97,12 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
     private fun networkSecret(web: net.artisanmc.plugin.hub.WebConfig): String =
         net.artisanmc.plugin.config.NetworkSecret.resolve(web.secret, File("."), File(dataFolder, "network-secret"), generate = !web.leaf)
 
+    /** The servers this hub serves, once [start] built them: what a session's origin is named after. */
+    @Volatile private var hubServers: net.artisanmc.plugin.hub.Servers? = null
+
+    /** Server id to name, for `/artisan editor sessions`; empty on a leaf. */
+    fun serverLabels(): Map<String, String> = hubServers?.all()?.associate { it.id to it.label }.orEmpty()
+
     fun stop() {
         tunnel?.stop()
         tunnel = null
@@ -121,6 +127,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             val servers = net.artisanmc.plugin.hub.Servers(localServer, suite::knownServers) { id, name ->
                 net.artisanmc.plugin.hub.RemoteServer(id, name, publicUrl = { packBase() })
             }
+            hubServers = servers
             val prefs = net.artisanmc.plugin.hub.PlayerPrefs(File(dataFolder, "editor-prefs"))
             // The suite database may still be opening (issue #42): the routes read it once it is.
             val data = net.artisanmc.plugin.database.LateSuiteData { suite.suiteData }
@@ -131,7 +138,7 @@ internal class EditorHost(private val plugin: ArtisanPlugin, private val suite: 
             } else null
             val router = net.artisanmc.plugin.hub.EditorApi.router(
                 servers, editorSessions, logger, vanilla, packs, prefs, data.history, data.loaded, data.drafts, { tunnel },
-                mcp = mcp, ai = web.ai, version = description.version,
+                mcp = mcp, ai = web.ai, version = description.version, online = editorChannel::online,
             )
             val plugins = net.artisanmc.plugin.hub.PluginChannel(servers, networkSecret(web), editorSessions, editorChannel, ::editorBase, logger, {
                 if (database.dialect == net.artisanmc.modules.api.database.DatabaseDialect.H2) null

@@ -1,12 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { EditorWs } from "./editorWs";
+import { EditorWs, SESSION_CLOSED } from "./editorWs";
 
 class FakeWebSocket {
+  static OPEN = 1;
   static instances: FakeWebSocket[] = [];
   url: string;
+  readyState = 0;
+  sent: string[] = [];
+  onopen: (() => void) | null = null;
+  onclose: ((evt: { code: number }) => void) | null = null;
   onmessage: ((evt: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
   closed = false;
+  send(data: string): void {
+    this.sent.push(data);
+  }
   constructor(url: string) {
     this.url = url;
     FakeWebSocket.instances.push(this);
@@ -62,5 +70,42 @@ describe("EditorWs", () => {
     const ws = new EditorWs({});
     ws.disconnect();
     expect(FakeWebSocket.instances[0]!.closed).toBe(true);
+  });
+
+  it("keeps the socket alive, and opens it again when it drops", () => {
+    vi.useFakeTimers();
+    try {
+      const ws = new EditorWs({});
+      const first = FakeWebSocket.instances[0]!;
+      first.readyState = FakeWebSocket.OPEN;
+      first.onopen?.();
+      vi.advanceTimersByTime(60_000);
+      expect(first.sent).toEqual(["ping"]);
+
+      first.onclose?.({ code: 1006 });
+      vi.advanceTimersByTime(1_000);
+      expect(FakeWebSocket.instances).toHaveLength(2);
+
+      ws.disconnect();
+      FakeWebSocket.instances[1]!.onclose?.({ code: 1000 });
+      vi.advanceTimersByTime(60_000);
+      expect(FakeWebSocket.instances).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports a closed session instead of reconnecting", () => {
+    vi.useFakeTimers();
+    try {
+      const onSessionClosed = vi.fn();
+      new EditorWs({ onSessionClosed });
+      FakeWebSocket.instances[0]!.onclose?.({ code: SESSION_CLOSED });
+      vi.advanceTimersByTime(60_000);
+      expect(onSessionClosed).toHaveBeenCalledOnce();
+      expect(FakeWebSocket.instances).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

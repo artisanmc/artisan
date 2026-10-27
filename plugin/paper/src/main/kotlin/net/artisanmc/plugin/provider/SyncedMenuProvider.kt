@@ -369,6 +369,16 @@ class SyncedMenuProvider(
         wsClient?.request(mapOf("type" to "editor_logout", "player_id" to player.toString()))
             ?: java.util.concurrent.CompletableFuture.completedFuture(null)
 
+    /** On a leaf, the hub's open editor sessions; null if it does not answer. */
+    fun requestEditorSessions() =
+        wsClient?.request(mapOf("type" to "editor_sessions"))
+            ?: java.util.concurrent.CompletableFuture.completedFuture(null)
+
+    /** On a leaf, the hub closes the session [id] names (or starts with); null if it does not answer. */
+    fun requestEditorRevoke(id: String) =
+        wsClient?.request(mapOf("type" to "editor_revoke", "id" to id))
+            ?: java.util.concurrent.CompletableFuture.completedFuture(null)
+
     override fun findMenu(menuId: String): RuntimeMenu? = findMenu(menuId, null)
     override fun findMenu(ref: String, fromProject: String?): RuntimeMenu? =
         resolveRef(menuTable, "Menu", ref, fromProject)

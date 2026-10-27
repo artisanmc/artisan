@@ -28,9 +28,27 @@ data class EditorSession(
     val permissions: Set<String>,
     val expiresAt: Instant,
     val origin: String = "",
+    /** When its link was redeemed; null for a session stored before this was kept. */
+    val createdAt: Instant? = null,
 ) {
     fun can(permission: String) = permission in permissions
 }
+
+/**
+ * An open session as `/artisan editor sessions` and the editor's Sessions screen list it, by its
+ * public [id]: the hash it is stored under, which signs nobody in.
+ */
+data class ActiveSession(
+    val id: String,
+    val playerId: UUID,
+    val playerName: String,
+    val permissions: Set<String>,
+    val origin: String,
+    val createdAt: Instant?,
+    /** Within the hour: a session's end is pushed back, and written, at most once an hour. */
+    val lastActiveAt: Instant,
+    val expiresAt: Instant,
+)
 
 /** Where sessions outlive a restart, keyed by a hash of their id: a leaked row opens nothing. */
 interface SessionStore {
@@ -42,6 +60,8 @@ interface SessionStore {
     fun setPermissions(playerId: UUID, origin: String, permissions: Set<String>)
     /** Every session of [playerId], or only those [origin] issued; the number deleted. */
     fun deletePlayer(playerId: UUID, origin: String?): Int
+    /** The sessions open at [now], by key; the links stored next to them are not sessions. */
+    fun list(now: Instant): List<Pair<String, EditorSession>>
 }
 
 /**
@@ -78,6 +98,7 @@ class Sessions(
     private val reported = ConcurrentHashMap<Pair<String, UUID>, Set<String>>()
     /** Told of each changed report of [refresh]: MCP grants follow the player's permissions too (ADR `mcp-server`). */
     private val listeners = java.util.concurrent.CopyOnWriteArrayList<(origin: String, playerId: UUID, permissions: Set<String>) -> Unit>()
+    private val closeListeners = java.util.concurrent.CopyOnWriteArrayList<(id: String) -> Unit>()
 
     fun onPermissions(listener: (origin: String, playerId: UUID, permissions: Set<String>) -> Unit) {
         listeners += listener
@@ -123,7 +144,7 @@ class Sessions(
         store?.let { s -> writer.execute { s.delete(key(LINK + token)) } }
         val now = clock.instant()
         if (!link.expiresAt.isAfter(now)) return null
-        val session = EditorSession(token(), link.playerId, link.playerName, link.permissions, now.plus(sessionTtl), link.origin)
+        val session = EditorSession(token(), link.playerId, link.playerName, link.permissions, now.plus(sessionTtl), link.origin, now)
         missing.remove(session.id)
         sessions[session.id] = session
         store?.let { s -> writer.execute { s.put(key(session.id), session) } }
@@ -183,10 +204,59 @@ class Sessions(
         checked.remove(id)
         sessions.remove(id)
         store?.let { s -> writer.execute { s.delete(key(id)) } }
+        closed(key(id))
     }
+
+    /**
+     * Every open session, the most recently active first: the stored ones (every server of the
+     * database), then those this server holds in memory alone (opened while the database was not).
+     */
+    fun list(): List<ActiveSession> {
+        val now = clock.instant()
+        val stored = store?.list(now).orEmpty()
+        val keys = stored.mapTo(HashSet()) { it.first }
+        val memory = sessions.values
+            .filter { it.expiresAt.isAfter(now) }
+            .map { key(it.id) to it }
+            .filter { it.first !in keys }
+        return (stored + memory)
+            .map { (key, s) -> ActiveSession(key, s.playerId, s.playerName, s.permissions, s.origin, s.createdAt, s.expiresAt.minus(sessionTtl), s.expiresAt) }
+            .sortedByDescending { it.lastActiveAt }
+    }
+
+    /**
+     * Closes the session listed as [id], or the only one whose id starts with it (at least
+     * [MIN_PREFIX] characters, what `/artisan editor sessions` shows). False: none, or several.
+     * Another server of the database lets it go within [RECHECK].
+     */
+    fun revoke(id: String): Boolean {
+        if (id.length < MIN_PREFIX) return false
+        val key = list().map { it.id }.filter { it.startsWith(id) }.singleOrNull() ?: return false
+        sessions.keys.filter { key(it) == key }.forEach { checked.remove(it); sessions.remove(it) }
+        // Deleted before answering: the list read right after must not show it again.
+        store?.let { s ->
+            val deleted = java.util.concurrent.CompletableFuture<Unit>()
+            writer.execute { runCatching { s.delete(key) }; deleted.complete(Unit) }
+            runCatching { deleted.get(15, java.util.concurrent.TimeUnit.SECONDS) }
+        }
+        closed(key)
+        return true
+    }
+
+    /** The public id of the session [id]: what [list] calls it. */
+    fun publicId(id: String): String = key(id)
+
+    /** Told the public id of each session closed here, so its open editor tabs are closed too. */
+    fun onClosed(listener: (id: String) -> Unit) {
+        closeListeners += listener
+    }
+
+    private fun closed(key: String) = closeListeners.forEach { runCatching { it(key) } }
 
     /** Signs [playerId] out everywhere; the number of sessions closed. */
     fun closeAll(playerId: UUID): Int {
+        // Their open editor tabs are closed too, those of a session only stored included.
+        val ids = list().filter { it.playerId == playerId }.map { it.id }
         val inMemory = sessions.values.count { it.playerId == playerId }
         sessions.values.removeIf { it.playerId == playerId }
         // A session opened before the database was is only in memory; one from before a restart, only stored.
@@ -196,6 +266,8 @@ class Sessions(
             writer.execute { deleted.complete(runCatching { s.deletePlayer(playerId, null) }.getOrDefault(0)) }
             runCatching { deleted.get(15, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(0)
         } ?: 0
+        // Once deleted: a tab that reconnects at once must not find the session stored.
+        ids.forEach(::closed)
         return maxOf(inMemory, stored)
     }
 
@@ -212,6 +284,7 @@ class Sessions(
                 sessions.replaceAll { _, s -> if (mine(s)) s.copy(permissions = permissions) else s }
                 store?.let { s -> writer.execute { s.setPermissions(playerId, origin, permissions) } }
             } else {
+                sessions.values.filter(mine).forEach { closed(key(it.id)) }
                 sessions.values.removeIf(mine)
                 store?.let { s -> writer.execute { s.deletePlayer(playerId, origin) } }
             }
@@ -245,5 +318,7 @@ class Sessions(
          */
         val MISSING_FOR: Duration = Duration.ofSeconds(5)
         const val MISSING_MAX = 4096
+        /** The shortest id prefix [revoke] accepts: 8 hex characters, about four billion values. */
+        const val MIN_PREFIX = 8
     }
 }

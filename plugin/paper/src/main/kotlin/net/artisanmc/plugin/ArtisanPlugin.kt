@@ -182,6 +182,8 @@ open class ArtisanPlugin : JavaPlugin() {
             store = suite.editorSessionStore(),
             writer = suite.sessionWriter(),
         )
+        // A session closed here closes its open editor tabs: they go back to sign-in.
+        editorSessions.onClosed(editorHost.editorChannel::disconnect)
         try {
             startEditor(cfg)
         } catch (t: Throwable) {
