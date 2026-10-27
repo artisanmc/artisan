@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api/client";
+import { ASSISTANT_WIDTH, useAssistantPanelStore } from "@/state/assistantPanelStore";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantButton } from "./AssistantButton";
@@ -95,6 +96,52 @@ describe("assistant", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ouvrir « IA : VIP » dans Brouillons" }));
     expect(opened).toHaveBeenCalledOnce();
     window.removeEventListener(OPEN_DRAFTS, opened);
+  });
+
+  it("renders the model's Markdown: tables, bold, code, and no raw HTML", async () => {
+    api.readAiConversation.mockResolvedValueOnce(
+      conversation([
+        { seq: 0, type: "user", text: "liste les menus" },
+        {
+          seq: 1,
+          type: "text",
+          text: "Les menus de **auctions** :\n\n| id | fichier |\n|---|---|\n| `ah_main` | `menus/ah_main.yml` |\n\n<img src=x onerror=alert(1)>",
+        },
+        { seq: 2, type: "done", inputTokens: 1, outputTokens: 1 },
+      ]),
+    );
+    render(<AssistantButton projectId="u-local.shop" />);
+    fireEvent.click(await screen.findByTestId("open-assistant"));
+    fireEvent.change(screen.getByLabelText("Demande à l’assistant…"), {
+      target: { value: "liste les menus" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+
+    expect(await screen.findByRole("table")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "fichier" })).toBeTruthy();
+    expect(screen.getByText("auctions").tagName).toBe("STRONG");
+    expect(screen.getByText("ah_main").tagName).toBe("CODE");
+    expect(screen.queryByText(/\*\*/)).toBeNull();
+    expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("widens and narrows from its left edge, within bounds, and remembers the width", async () => {
+    useAssistantPanelStore.setState({ width: ASSISTANT_WIDTH.default });
+    render(<AssistantButton projectId="u-local.shop" />);
+    fireEvent.click(await screen.findByTestId("open-assistant"));
+    const handle = screen.getByRole("separator", { name: "Redimensionner l’assistant" });
+
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(useAssistantPanelStore.getState().width).toBe(ASSISTANT_WIDTH.default + 16);
+    fireEvent.keyDown(handle, { key: "ArrowRight", shiftKey: true });
+    expect(useAssistantPanelStore.getState().width).toBe(ASSISTANT_WIDTH.default - 32);
+    fireEvent.keyDown(handle, { key: "End" });
+    expect(useAssistantPanelStore.getState().width).toBe(ASSISTANT_WIDTH.max);
+    useAssistantPanelStore.getState().setWidth(10_000);
+    expect(useAssistantPanelStore.getState().width).toBe(ASSISTANT_WIDTH.max);
+    fireEvent.doubleClick(handle);
+    expect(useAssistantPanelStore.getState().width).toBe(ASSISTANT_WIDTH.default);
+    expect(localStorage.getItem("artisan-assistant-panel")).toContain(`${ASSISTANT_WIDTH.default}`);
   });
 
   it("polls while the assistant works, asking only for new events", async () => {

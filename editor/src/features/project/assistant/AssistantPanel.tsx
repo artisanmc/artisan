@@ -1,7 +1,10 @@
+import { Markdown } from "@/components/ui/markdown";
+import { ResizeHandle } from "@/components/ui/resize-handle";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import type { AiEvent } from "@/lib/api/ai";
 import { cn } from "@/lib/cx";
+import { ASSISTANT_WIDTH, useAssistantPanelStore } from "@/state/assistantPanelStore";
 import {
   AlertTriangle,
   Check,
@@ -11,7 +14,14 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useAiStatus, useAssistant } from "./useAssistant";
 
@@ -35,6 +45,7 @@ export function AssistantPanel({
   const status = useAiStatus();
   const { events, running, failure, send, reset } = useAssistant(projectId);
   const [text, setText] = useState("");
+  const { width, setWidth } = useAssistantPanelStore();
   const end = useRef<HTMLDivElement>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on each new line.
@@ -57,9 +68,20 @@ export function AssistantPanel({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full max-w-md sm:w-[440px]"
+        className="w-full max-w-none sm:w-[var(--assistant-width)] sm:max-w-[calc(100vw-2rem)]"
+        style={{ "--assistant-width": `${width}px` } as CSSProperties}
         aria-describedby={undefined}
       >
+        <ResizeHandle
+          edge="left"
+          value={width}
+          min={ASSISTANT_WIDTH.min}
+          max={ASSISTANT_WIDTH.max}
+          onResize={setWidth}
+          onReset={() => setWidth(ASSISTANT_WIDTH.default)}
+          label={t("ai.resize")}
+          className="hidden sm:block"
+        />
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="size-4" />
@@ -141,11 +163,7 @@ function EventLine({ event }: { event: AiEvent }) {
         </div>
       );
     case "text":
-      return (
-        <div className="mr-4 whitespace-pre-wrap text-[13.5px] leading-relaxed text-[var(--text)]">
-          {event.text}
-        </div>
-      );
+      return <Markdown className="mr-4">{event.text}</Markdown>;
     case "tool":
       return <ToolLine event={event} />;
     case "notice":

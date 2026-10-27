@@ -44,7 +44,7 @@ interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof Dialog
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   SheetContentProps
->(({ className, children, side = "right", hideClose, ...props }, ref) => (
+>(({ className, children, side = "right", hideClose, style, ...props }, ref) => (
   <SheetPortal>
     <SheetOverlay />
     <DialogPrimitive.Content
@@ -54,7 +54,7 @@ const SheetContent = React.forwardRef<
         sideClasses[side],
         className,
       )}
-      style={{ boxShadow: "var(--shadow-lg)" }}
+      style={{ boxShadow: "var(--shadow-lg)", ...style }}
       {...props}
     >
       {children}
