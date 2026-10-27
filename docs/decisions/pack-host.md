@@ -26,7 +26,10 @@ same WebSocket as the editor.
 5. **The tunnel secret counts, it does not authorize.** The hub sends its tunnel secret, the host
    derives the tunnel's `<id>` and never stores the secret. Anyone can generate a secret: per-server
    quotas stop a hub that loops, not an abuser. Abuse is bounded by the quota per IP, a global daily
-   quota, the pack check (4) and `DELETE /admin/resource-pack/<sha1>.zip`. A license check (Pro)
+   quota (5 GB, a Discord alert at half and at the first refusal), the pack check (4) and
+   `DELETE /admin/resource-pack/<sha1>.zip`. Requiring an open tunnel was ruled out: it would couple
+   two services (a plugin on the Kotlin fallback is invisible to the Worker), exclude hubs with
+   `web.url`, and the tunnel protocol is public anyway. A license check (Pro)
    replaces the secret once licenses exist.
 6. **Deleted 30 days after the last write; the hub keeps its packs written.** An R2 lifecycle rule
    deletes `packs/` objects 30 days after their last write (and `incoming/` after a day). The hub

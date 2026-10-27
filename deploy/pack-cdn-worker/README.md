@@ -30,7 +30,8 @@ its tunnel, carries no player download.
 | `PACK_MAX_MB` | `100` | Largest pack. Cloudflare's own limit on a request body is 100 MB on Free and Pro. |
 | `PACK_SERVER_UPLOADS_PER_DAY`, `PACK_SERVER_DAILY_MB` | `50`, `1024` | Per server (touches count as requests). |
 | `PACK_IP_UPLOADS_PER_DAY`, `PACK_IP_DAILY_MB` | `200`, `2048` | Per uploading IP. |
-| `PACK_GLOBAL_DAILY_MB` | `51200` | All hubs together. |
+| `PACK_GLOBAL_DAILY_MB` | `5120` | All hubs together. Caps storage at ~150 GB (30 days), ~2 $/month. |
+| `PACK_ALERT_WEBHOOK` | | Discord webhook (secret): told once a day when the global quota is half used, and once when it refuses an upload. |
 | `PACK_REFRESH_DAYS` | `7` | A touched pack older than this is rewritten, for the lifecycle rule. |
 | `PACK_ADMIN_TOKEN` | | Secret (`wrangler secret put`). Unset: no admin route. |
 
@@ -55,6 +56,7 @@ npx wrangler r2 bucket create artisan-packs
 npx wrangler r2 bucket lifecycle add artisan-packs packs-30d packs/ --expire-days 30
 npx wrangler r2 bucket lifecycle add artisan-packs incoming-1d incoming/ --expire-days 1
 npx wrangler secret put PACK_ADMIN_TOKEN
+npx wrangler secret put PACK_ALERT_WEBHOOK
 npx wrangler deploy     # creates cdn.artisanmc.net as the Worker's custom domain
 curl https://cdn.artisanmc.net/health
 ```

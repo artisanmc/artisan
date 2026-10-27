@@ -1,7 +1,7 @@
 // Resource packs hosted for Artisan hubs (README.md): a hub uploads its pack once per version, players
 // download it from here. Hubs authenticate with their tunnel secret; the bucket never sees a key.
 import { tunnelId } from "../../tunnel-worker/src/protocol";
-import { QuotaObject, secondsToReset, type Limit } from "./quota";
+import { QuotaObject, secondsToReset, type Alert, type Limit } from "./quota";
 import { isResourcePack } from "./zip";
 
 export { QuotaObject };
@@ -17,6 +17,8 @@ export interface Env {
   PACK_IP_UPLOADS_PER_DAY?: string;
   PACK_IP_DAILY_MB?: string;
   PACK_GLOBAL_DAILY_MB?: string;
+  /** A Discord webhook (secret): told when the global quota is half used, then when it refuses an upload. */
+  PACK_ALERT_WEBHOOK?: string;
   /** A pack older than this is rewritten when its hub touches it, so the bucket's lifecycle rule keeps it. */
   PACK_REFRESH_DAYS?: string;
   /** `DELETE /admin/resource-pack/<sha1>.zip` takes a pack down; unset: no admin route. */
@@ -52,9 +54,9 @@ export default {
       case "HEAD":
         return serve(request, env, ctx, hash);
       case "PUT":
-        return upload(request, env, hash);
+        return upload(request, env, ctx, hash);
       case "POST":
-        return touch(request, env, hash);
+        return touch(request, env, ctx, hash);
       default:
         return text(405, "method not allowed", { Allow: "GET, HEAD, PUT, POST" });
     }
@@ -113,22 +115,42 @@ async function hubOf(request: Request): Promise<string | null> {
  * Charges the hub, its address and everyone. A refusal leaves the earlier keys counted: a hub that hits
  * a limit loses one request of its day, which only matters to one already at its limit.
  */
-async function charge(env: Env, id: string, ip: string, bytes: number): Promise<string | null> {
+async function charge(env: Env, ctx: ExecutionContext, id: string, ip: string, bytes: number): Promise<string | null> {
   const server: Limit = { requests: int(env.PACK_SERVER_UPLOADS_PER_DAY, 50), bytes: int(env.PACK_SERVER_DAILY_MB, 1024) * MB };
   const address: Limit = { requests: int(env.PACK_IP_UPLOADS_PER_DAY, 200), bytes: int(env.PACK_IP_DAILY_MB, 2048) * MB };
-  const global: Limit = { requests: Number.MAX_SAFE_INTEGER, bytes: int(env.PACK_GLOBAL_DAILY_MB, 50 * 1024) * MB };
+  const globalBytes = int(env.PACK_GLOBAL_DAILY_MB, 5 * 1024) * MB;
+  const global: Limit = { requests: Number.MAX_SAFE_INTEGER, bytes: globalBytes, alertBytes: globalBytes / 2 };
   const quota = (key: string) => env.QUOTAS.get(env.QUOTAS.idFromName(key));
-  if (!(await quota(`server:${id}`).charge(bytes, server))) return "this server's daily upload quota is used up";
-  if (!(await quota(`ip:${ip}`).charge(bytes, address))) return "this address's daily upload quota is used up";
-  if (!(await quota("global").charge(bytes, global))) return "the pack host's daily upload quota is used up";
+  if (!(await quota(`server:${id}`).charge(bytes, server)).ok) return "this server's daily upload quota is used up";
+  if (!(await quota(`ip:${ip}`).charge(bytes, address)).ok) return "this address's daily upload quota is used up";
+  const total = await quota("global").charge(bytes, global);
+  if (total.alert) ctx.waitUntil(alert(env, total.alert, total.bytes, globalBytes, id, ip));
+  if (!total.ok) return "the pack host's daily upload quota is used up";
   return null;
+}
+
+/** Once a day each: the global quota is half used (by whom, last), then it refuses uploads. */
+async function alert(env: Env, kind: Alert, used: number, limit: number, id: string, ip: string): Promise<void> {
+  const webhook = env.PACK_ALERT_WEBHOOK ?? "";
+  const mb = (n: number) => `${Math.round(n / MB)} MB`;
+  const content = kind === "half"
+    ? `Pack host: ${mb(used)} of ${mb(limit)} uploaded today (last upload: server ${id}, ${ip}).`
+    : `Pack host: daily quota of ${mb(limit)} reached, uploads refused until midnight UTC (refused: server ${id}, ${ip}). Hubs fall back to serving their packs themselves.`;
+  console.warn(content);
+  if (!webhook) return;
+  try {
+    const response = await fetch(webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) });
+    if (!response.ok) console.warn(`Alert webhook: HTTP ${response.status}`);
+  } catch (e) {
+    console.warn(`Alert webhook: ${e}`);
+  }
 }
 
 /**
  * `PUT /resource-pack/<sha1>.zip`: the hub's pack, named by its SHA-1, which R2 checks on write. It lands
  * under `incoming/` first and reaches `packs/`, where players download, only once it reads as a pack.
  */
-async function upload(request: Request, env: Env, hash: string): Promise<Response> {
+async function upload(request: Request, env: Env, ctx: ExecutionContext, hash: string): Promise<Response> {
   const id = await hubOf(request);
   if (!id) return text(401, "missing or short secret");
   const length = Number(request.headers.get("Content-Length") ?? "NaN");
@@ -141,7 +163,7 @@ async function upload(request: Request, env: Env, hash: string): Promise<Respons
     await refresh(env, hash, existing);
     return json(200, { url: publicUrl(env, hash), hash, stored: false });
   }
-  const refusal = await charge(env, id, request.headers.get("CF-Connecting-IP") ?? "", length);
+  const refusal = await charge(env, ctx, id, request.headers.get("CF-Connecting-IP") ?? "", length);
   if (refusal) return text(429, refusal, { "Retry-After": String(secondsToReset()) });
 
   const incoming = `incoming/${hash}-${crypto.randomUUID()}.zip`;
@@ -185,12 +207,12 @@ async function copy(env: Env, from: string, hash: string, id: string): Promise<v
  * `POST /resource-pack/<sha1>.zip`: the hub still serves this pack. 404 asks it to upload; else the pack
  * is rewritten if it is old, since the bucket deletes what was not written for 30 days.
  */
-async function touch(request: Request, env: Env, hash: string): Promise<Response> {
+async function touch(request: Request, env: Env, ctx: ExecutionContext, hash: string): Promise<Response> {
   const id = await hubOf(request);
   if (!id) return text(401, "missing or short secret");
   const existing = await env.PACKS.head(packKey(hash));
   if (!existing) return text(404, "no such pack");
-  const refusal = await charge(env, id, request.headers.get("CF-Connecting-IP") ?? "", 0);
+  const refusal = await charge(env, ctx, id, request.headers.get("CF-Connecting-IP") ?? "", 0);
   if (refusal) return text(429, refusal, { "Retry-After": String(secondsToReset()) });
   await refresh(env, hash, existing);
   return json(200, { url: publicUrl(env, hash), hash, stored: false });

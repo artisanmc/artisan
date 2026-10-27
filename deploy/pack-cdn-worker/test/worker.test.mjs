@@ -1,6 +1,7 @@
 // The Worker on a local bucket (wrangler dev, test/wrangler.test.jsonc): `npm test`. Each run starts
 // from an empty bucket and empty quotas.
 import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,8 +14,16 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const base = "http://127.0.0.1:8788";
 let worker;
 let state;
+/** What the Worker posted to PACK_ALERT_WEBHOOK. */
+const alerts = [];
+const webhook = createServer((req, res) => {
+  let body = "";
+  req.on("data", (d) => { body += d; });
+  req.on("end", () => { alerts.push(JSON.parse(body).content); res.end(); });
+});
 
 before(async () => {
+  await new Promise((r) => webhook.listen(8789, "127.0.0.1", r));
   state = mkdtempSync(join(tmpdir(), "pack-cdn-"));
   worker = spawn("npx", ["wrangler", "dev", "-c", "test/wrangler.test.jsonc", "--ip", "127.0.0.1", "--port", "8788", "--persist-to", state], {
     cwd: root, stdio: ["ignore", "pipe", "pipe"], detached: true,
@@ -32,6 +41,7 @@ before(async () => {
 });
 
 after(() => {
+  webhook.close();
   if (worker) process.kill(-worker.pid, "SIGTERM");
   rmSync(state, { recursive: true, force: true });
 });
@@ -173,3 +183,25 @@ test("an admin takes a pack down", async () => {
   assert.equal((await done.json()).deleted, true);
   assert.equal((await fetch(`${base}/resource-pack/${hash}.zip`)).status, 404);
 });
+
+// Last: it uses up the global quota (PACK_GLOBAL_DAILY_MB is 2 here).
+test("the global quota alerts at half, then when it refuses", async () => {
+  const big = (tag) => zip({ "pack.mcmeta": `{"pack":{"pack_format":46,"description":"${tag}"}}`, "big.bin": randomBytes(1100 * 1024) });
+  assert.equal((await put(big("half"), secret())).status, 201);
+  await waitFor(() => alerts.length >= 1);
+  assert.match(alerts[0], /of 2 MB uploaded today/);
+
+  assert.equal((await put(big("full"), secret())).status, 429);
+  await waitFor(() => alerts.length >= 2);
+  assert.match(alerts[1], /daily quota of 2 MB reached/);
+
+  // Once a day each.
+  assert.equal((await put(big("again"), secret())).status, 429);
+  await new Promise((r) => setTimeout(r, 500));
+  assert.equal(alerts.length, 2);
+});
+
+async function waitFor(condition) {
+  for (let i = 0; i < 50 && !condition(); i++) await new Promise((r) => setTimeout(r, 100));
+  assert.ok(condition(), "timed out");
+}
