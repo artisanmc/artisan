@@ -1,4 +1,5 @@
 import { CHAT, LORE } from "@/lib/mm/profiles";
+import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -7,11 +8,15 @@ import { describe, expect, it } from "vitest";
 import { MmEditor } from "./MmEditor";
 import { MmTextField } from "./MmTextField";
 
-function Controlled({ initial, profile = CHAT }: { initial: string; profile?: typeof CHAT }) {
+function Controlled({
+  initial,
+  profile = CHAT,
+  entries,
+}: { initial: string; profile?: typeof CHAT; entries?: PlaceholderEntry[] }) {
   const [value, setValue] = useState(initial);
   return (
     <>
-      <MmEditor value={value} onChange={setValue} profile={profile} />
+      <MmEditor value={value} onChange={setValue} profile={profile} entries={entries} />
       <output data-testid="value">{value}</output>
     </>
   );
@@ -44,6 +49,35 @@ describe("MmEditor", () => {
   it("offers no click button where the profile forbids it", () => {
     render(<Controlled initial="x" profile={LORE} />);
     expect(screen.queryByRole("button", { name: /Action au clic/ })).toBeNull();
+  });
+
+  it("shows an expression as what it gives, and reads it as rules on click", () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.online", type: "boolean", sample: "true", origin: "context" },
+    ];
+    render(
+      <Controlled
+        initial={'Statut : {m.online ? "<green>En ligne" : "<gray>Hors ligne"}'}
+        profile={LORE}
+        entries={entries}
+      />,
+    );
+    const pill = document.querySelector(".cm-mm-expr") as HTMLElement;
+    expect(pill.textContent).toBe("ƒEn ligne");
+    fireEvent.mouseDown(pill);
+    expect(screen.getByText("Si")).toBeTruthy();
+    expect(screen.getByText("Sinon")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("switch"));
+    expect((document.querySelector(".cm-mm-expr") as HTMLElement).textContent).toBe("ƒHors ligne");
+
+    fireEvent.click(screen.getAllByTitle("Modifier ce texte")[1]!);
+    fireEvent.change(screen.getByLabelText("Modifier ce texte"), {
+      target: { value: '<red>Absent "loin"' },
+    });
+    expect(screen.getByTestId("value").textContent).toBe(
+      'Statut : {m.online ? "<green>En ligne" : "<red>Absent \\"loin\\""}',
+    );
   });
 
   it("converts legacy codes on request", () => {

@@ -1,5 +1,10 @@
 import { copyText } from "@/lib/clipboard";
 import { cx } from "@/lib/cx";
+import { toStringValue } from "@/lib/expr/coercion";
+import { evaluate } from "@/lib/expr/evaluator";
+import { parse } from "@/lib/expr/parser";
+import { sampleScope } from "@/lib/expr/sampleScope";
+import { parseMiniMessage } from "@/lib/miniMessage";
 import { type Decoration, diffText, rangeHas, toggleDecoration } from "@/lib/mm/edit";
 import { hasLegacyCodes, legacyToMiniMessage } from "@/lib/mm/legacy";
 import type { Palette } from "@/lib/mm/palettes";
@@ -10,8 +15,9 @@ import { type EditorView, keymap } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ExpressionCard } from "./ExpressionCard";
 import { type MmOp, MmToolbar } from "./MmToolbar";
-import { type MmViewMode, mmExtensions, mmInternal } from "./mmCodeMirror";
+import { type ExpressionView, type MmViewMode, mmExtensions, mmInternal } from "./mmCodeMirror";
 import { usePaletteLibrary } from "./usePaletteLibrary";
 
 export interface MmEditorProps {
@@ -63,6 +69,25 @@ export function MmEditor({
   const [sel, setSel] = useState({ from: 0, to: 0 });
   const viewRef = useRef<EditorView | null>(null);
   const perLine = profile.lines === "separate";
+  // The expression read in the card (its `{`), and the example player's switches.
+  const [openExpr, setOpenExpr] = useState<number | null>(null);
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const scope = useMemo(() => sampleScope(entries, overrides), [entries, overrides]);
+  const expressions = useMemo<ExpressionView>(
+    () => ({
+      preview: (raw) => {
+        try {
+          return parseMiniMessage(toStringValue(evaluate(parse(raw.slice(1, -1)), scope)));
+        } catch {
+          return null;
+        }
+      },
+      label: t("mmEditor.expr.pill"),
+      emptyLabel: t("mmEditor.expr.nothing"),
+      open: setOpenExpr,
+    }),
+    [scope, t],
+  );
 
   const apply = (op: MmOp) => {
     const view = viewRef.current;
@@ -95,6 +120,7 @@ export function MmEditor({
         entries,
         wrapWidth,
         wrapLabel: t("mmEditor.wrapMarker", { width: wrapWidth }),
+        expressions,
       }),
       Prec.high(
         keymap.of([
@@ -104,7 +130,7 @@ export function MmEditor({
         ]),
       ),
     ];
-  }, [mode, profile, entries, wrapWidth, t]);
+  }, [mode, profile, entries, wrapWidth, expressions, t]);
 
   const active = useMemo(() => {
     if (sel.from === sel.to) return {};
@@ -179,6 +205,22 @@ export function MmEditor({
           minHeight={minHeight}
         />
       </div>
+      {mode === "rich" && openExpr !== null && (
+        <ExpressionCard
+          value={value}
+          from={openExpr}
+          onChange={onChange}
+          scope={scope}
+          overrides={overrides}
+          onOverride={(path, v) => setOverrides((prev) => ({ ...prev, [path]: v }))}
+          onShowCode={() => {
+            setOpenExpr(null);
+            setMode("code");
+          }}
+          onClose={() => setOpenExpr(null)}
+          textColor={profile.defaults.color}
+        />
+      )}
       {diagnostics.length > 0 && (
         <ul className="flex flex-col gap-0.5 border-[var(--border-soft)] border-t px-2.5 py-1.5 text-[11.5px] text-[var(--warning)]">
           {diagnostics.map((d) => (
