@@ -1,5 +1,6 @@
 import { copyText } from "@/lib/clipboard";
 import { cx } from "@/lib/cx";
+import { renderSample } from "@/lib/expr/sampleRender";
 import { type Decoration, diffText, rangeHas, toggleDecoration } from "@/lib/mm/edit";
 import { hasLegacyCodes, legacyToMiniMessage } from "@/lib/mm/legacy";
 import type { Palette } from "@/lib/mm/palettes";
@@ -13,6 +14,7 @@ import { type Root, createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
 import { ExpressionRules } from "./ExpressionRules";
 import { type MmOp, MmToolbar } from "./MmToolbar";
+import { PlaceholderLibrary } from "./PlaceholderLibrary";
 import { type ExpressionView, type MmViewMode, mmExtensions, mmInternal } from "./mmCodeMirror";
 import { usePaletteLibrary } from "./usePaletteLibrary";
 import { type Simulation, useSimulation } from "./useSimulation";
@@ -71,7 +73,7 @@ export function MmEditor({
   const perLine = profile.lines === "separate";
   // Each `{…}` is drawn by React into the widget CodeMirror gives it.
   const ownSimulation = useSimulation(entries);
-  const { scope } = simulation ?? ownSimulation;
+  const { scope, sampleOf } = simulation ?? ownSimulation;
   const roots = useRef(new Map<HTMLElement, Root>());
   useEffect(() => {
     const live = roots.current;
@@ -129,6 +131,24 @@ export function MmEditor({
       selection: { anchor: res.selection.from, head: res.selection.to },
       annotations: mmInternal.of(true),
       userEvent: "input.format",
+    });
+    view.focus();
+  };
+  // From the library: where the caret was, or at the end when the text was never
+  // clicked into; a single-line text keeps to one line.
+  const focused = useRef(false);
+  const insert = (source: string) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const text = profile.lines === "single" ? source.replace(/\\n|\n/g, " ") : source;
+    const { from, to } = focused.current
+      ? view.state.selection.main
+      : { from: view.state.doc.length, to: view.state.doc.length };
+    view.dispatch({
+      changes: { from, to, insert: text },
+      selection: { anchor: from + text.length },
+      annotations: mmInternal.of(true),
+      userEvent: "input",
     });
     view.focus();
   };
@@ -200,6 +220,15 @@ export function MmEditor({
           hasLegacyCodes(value) ? () => onChange(legacyToMiniMessage(value)) : undefined
         }
         onCopy={() => copyText(value)}
+        library={
+          entries.length > 0 ? (
+            <PlaceholderLibrary
+              entries={entries}
+              onInsert={insert}
+              preview={(src) => renderSample(src, sampleOf)}
+            />
+          ) : undefined
+        }
       />
       <div
         style={{
@@ -229,6 +258,7 @@ export function MmEditor({
             viewRef.current = view;
           }}
           onUpdate={(update) => {
+            if (update.focusChanged && update.view.hasFocus) focused.current = true;
             if (update.selectionSet || update.docChanged) {
               const { from, to } = update.state.selection.main;
               setSel((prev) => (prev.from === from && prev.to === to ? prev : { from, to }));

@@ -95,6 +95,28 @@ describe("MmEditor", () => {
     expect(within(box).queryByText("Sinon")).toBeNull();
   });
 
+  it("inserts a variable or a built expression from the library", async () => {
+    const entries: PlaceholderEntry[] = [
+      { path: "m.rank", type: "string", sample: "Officier", origin: "iteration" },
+      { path: "m.online", type: "boolean", sample: "true", origin: "iteration" },
+    ];
+    render(<Controlled initial="Grade : " profile={LORE} entries={entries} />);
+    fireEvent.click(screen.getByRole("button", { name: /Bibliothèque/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Rank/ }));
+    expect(screen.getByTestId("value").textContent).toBe("Grade : {m.rank}");
+
+    fireEvent.click(screen.getByRole("button", { name: /Bibliothèque/ }));
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Expressions" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Un texte pour oui/ }));
+    fireEvent.change(screen.getByLabelText("Texte si oui"), { target: { value: "En ligne" } });
+    fireEvent.change(screen.getByLabelText("Texte si non"), { target: { value: "Absent" } });
+    expect(screen.getByText("En ligne", { selector: "span" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Insérer" }));
+    expect(screen.getByTestId("value").textContent).toBe(
+      'Grade : {m.rank}{m.online ? "En ligne" : "Absent"}',
+    );
+  });
+
   it("converts legacy codes on request", () => {
     render(<Controlled initial="§6Gold" />);
     fireEvent.click(screen.getByRole("button", { name: "Convertir les codes &" }));
