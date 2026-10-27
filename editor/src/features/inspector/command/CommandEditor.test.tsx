@@ -1,9 +1,10 @@
 import { commandNodeAt } from "@/domain/commandNodes";
 import { commandsOf } from "@/domain/documents";
 import type { Command, CommandId, ProjectId } from "@/domain/types";
+import { useCommandNodeStore } from "@/state/commandNodeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { CommandEditor } from "./CommandEditor";
 
@@ -22,6 +23,7 @@ function Live() {
 }
 
 beforeEach(() => {
+  useCommandNodeStore.setState({ id: null, path: [] });
   useProjectsStore.setState({
     openProjects: {
       projects: [
@@ -110,5 +112,23 @@ describe("CommandEditor — sub-commands", () => {
     expect(commandNodeAt(command(), [0])?.enabled).toBe(false);
     fireEvent.click(screen.getAllByTitle("Supprimer la sous-commande")[0]!);
     expect(command().subcommands?.map((s) => s.name)).toEqual(["admin"]);
+  });
+
+  it("selects a sub-command from anywhere on its row, not from its switch", () => {
+    render(<Live />);
+    const row = screen.getByRole("button", { name: "/ah sell" }).closest("li")!;
+    fireEvent.click(row);
+    expect(screen.getByRole("heading", { name: "/ah sell" })).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("switch")[2]!);
+    expect(screen.getByRole("heading", { name: "/ah sell" })).toBeTruthy();
+    expect(commandNodeAt(command(), [1])?.enabled).toBe(false);
+  });
+
+  it("opens on the sub-command a click on the board chose", () => {
+    useCommandNodeStore.getState().select(CID, [1, 0]);
+    render(<Live />);
+    expect(screen.getByRole("heading", { name: "/ah admin reload" })).toBeTruthy();
+    act(() => useCommandNodeStore.getState().select(CID, [0]));
+    expect(screen.getByRole("heading", { name: "/ah sell" })).toBeTruthy();
   });
 });

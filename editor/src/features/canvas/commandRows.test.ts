@@ -3,7 +3,7 @@ import { commandV1ToDomain } from "@/schema/commandV1ToDomain";
 import { describe, expect, it } from "vitest";
 import { deriveEdges } from "./deriveEdges";
 import { COMMAND_BOX, COMMAND_ROWS, commandBox } from "./menuLayout";
-import { commandRowRefs, subCommandAnchors } from "./subCommandAnchors";
+import { commandRowRefs, rowsOpening, subCommandAnchors } from "./subCommandAnchors";
 
 const PID = "auctions" as ProjectId;
 
@@ -60,5 +60,10 @@ describe("a command's sub-commands on the board", () => {
     expect(anchors).toEqual({
       "command/ah->menu/claims": { from: { side: "right", t: rowMid / src.height } },
     });
+  });
+
+  it("finds the rows a hovered link starts from", () => {
+    expect(rowsOpening(board(), ah(), "menu/claims")).toEqual([2]);
+    expect(rowsOpening(board(), ah(), "menu/main")).toEqual([]);
   });
 });

@@ -19,6 +19,19 @@ export function commandRowRefs(command: Command): { root: DocKey[]; rows: DocKey
 }
 
 /**
+ * The sub-command rows (their index under the root, as `commandRowRefs` lists them) whose
+ * steps open [target], an edge's target key: what a hovered link points back to.
+ */
+export function rowsOpening(project: Project, command: Command, target: DocKey): number[] {
+  const opens = (refs: DocKey[]) =>
+    refs.some((r) => {
+      const { kind, id } = parseDocKey(r)!;
+      return docKey(kind, localDocRef(project, id)) === target;
+    });
+  return commandRowRefs(command).rows.flatMap((refs, i) => (opens(refs) ? [i] : []));
+}
+
+/**
  * The source anchors of the links a command's sub-commands draw: a menu only a
  * sub-command opens links from that sub-command's row, on the side facing it. A link the
  * root's own steps draw keeps the node's anchor.
@@ -37,15 +50,14 @@ export function subCommandAnchors(
     const src = boxes[edge.source];
     const tgt = boxes[edge.target];
     if (!command || !src || !tgt) continue;
-    const { root, rows } = commandRowRefs(command);
+    const { root } = commandRowRefs(command);
     const local = (key: DocKey) => {
       const { kind, id } = parseDocKey(key)!;
       return docKey(kind, localDocRef(project, id));
     };
-    const opens = (refs: DocKey[]) => refs.some((r) => local(r) === edge.target);
-    if (rows.length === 0 || opens(root)) continue;
-    const row = rows.findIndex(opens);
-    if (row < 0) continue;
+    if (root.some((r) => local(r) === edge.target)) continue;
+    const row = rowsOpening(project, command, edge.target)[0];
+    if (row === undefined) continue;
     const side = autoSide(src, tgt);
     const horizontal =
       side === "left" || side === "right"
