@@ -32,6 +32,7 @@ Only **editing**. Rendering is never gated.
 |---|---|
 | Title composer (layers, positions, offsets) | Vanilla title only. A composed title is shown on the canvas and in the panel, read-only (`LayersPanel`, `TitleRender`). |
 | Image, font and Nexo import | Buttons disabled with a Pro badge (`AssetsTab`); the picker offers no upload (`AssetPicker`). Existing assets stay pickable. |
+| Advanced expressions (method, `+`/`-`, ternary; `lib/expr/advanced.ts`) | Help only (Iban, 2026-10-27): no readable view (`ExpressionCard` shows a Pro notice and "Show code") and no evaluated preview (`ExpressionPreview`). Typing, saving and publishing them stay free; `{x.y}`, PAPI and comparisons keep all the help. |
 | Resource pack build and upload | The editor does not rebuild after a publish (`resourcePackSync`); the hub answers `PUT …/resource-pack` with 403 `pro_required` (`PackRoutes`). |
 
 The editor learns the edition from `GET /api/v1/auth/me` (`user.edition`, `lib/edition.ts`);
@@ -53,7 +54,6 @@ absent means Pro.
 ## Not done yet
 
 - Glyph preview of a vanilla title with Nexo glyphs (read-only preview in free).
-- Advanced expressions as Pro (editor-only gating, rule 2).
 - A check module repositories can run in their own CI (today: the warning at start).
 - The MCP endpoint and the assistant can still write a composed title in a free jar's draft; no
   pack is built for it.

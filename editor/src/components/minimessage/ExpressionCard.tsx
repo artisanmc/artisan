@@ -1,6 +1,9 @@
+import { ProBadge } from "@/components/ui/pro-badge";
 import { Switch } from "@/components/ui/switch";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { cx } from "@/lib/cx";
+import { useIsPro } from "@/lib/edition";
+import { isAdvancedExpression } from "@/lib/expr/advanced";
 import { toBoolean } from "@/lib/expr/coercion";
 import { evaluate } from "@/lib/expr/evaluator";
 import { parse } from "@/lib/expr/parser";
@@ -63,9 +66,39 @@ export function ExpressionCard({
   textColor,
 }: ExpressionCardProps) {
   const { t } = useTranslation();
+  const pro = useIsPro();
   const span = templateSpans(value).find((s) => s.from === from);
   if (!span) return null;
   const source = value.slice(span.from + 1, span.to - 1);
+  // Free jar: the readable view of an advanced expression is Pro. It still runs and stays
+  // editable as code.
+  if (!pro && isAdvancedExpression(source)) {
+    return (
+      <section
+        aria-label={t("mmEditor.expr.title")}
+        className="flex items-center justify-between gap-3 border-[var(--fam-logic-line)] border-t bg-[var(--surface-raised)] px-3 py-3 text-[12.5px] text-[var(--text-mut)]"
+      >
+        <span className="flex items-center gap-2">
+          <ProBadge />
+          {t("edition.advancedExpression")}
+        </span>
+        <span className="flex shrink-0 items-center gap-1">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onShowCode}>
+            <Code2 size={14} />
+            {t("mmEditor.expr.showCode")}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            aria-label={t("mmEditor.expr.close")}
+            onClick={onClose}
+          >
+            <X size={14} />
+          </button>
+        </span>
+      </section>
+    );
+  }
   const read = readExpression(source);
   // A string's offsets are inside the braces.
   const base = span.from + 1;
