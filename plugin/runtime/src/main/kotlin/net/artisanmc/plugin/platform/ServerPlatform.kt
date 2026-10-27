@@ -35,6 +35,14 @@ object ServerPlatform {
     fun minecraftVersion(server: Server): String =
         if (paper) server.minecraftVersion else server.bukkitVersion.substringBefore('-')
 
+    /**
+     * Spigot before 26.1 runs with obfuscated class names, which Artisan's menu packets
+     * cannot reach (`NmsMenuPackets`): the plugin refuses to start there. Paper runs with
+     * Mojang's names since 1.20.5, Spigot since 26.1.
+     */
+    fun obfuscated(paper: Boolean, minecraftVersion: String): Boolean =
+        !paper && (minecraftVersion.substringBefore('.').toIntOrNull() ?: 0) < 26
+
     /** Spigot keeps `getCommandMap` on its server implementation only. */
     fun commandMap(server: Server): CommandMap =
         if (paper) server.commandMap

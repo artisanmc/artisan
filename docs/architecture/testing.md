@@ -48,8 +48,11 @@ the contract (`MenuSlotsContractTest`, fake `ClientSlotSink`) but not the behavi
 Minecraft client. No automated client bot (Mineflayer ruled out: costly, and unavailable when a
 new Minecraft version ships, precisely when the risk is there).
 
-**Triggers**: a Minecraft or PacketEvents update, any change to
-`PacketEventsMenuPackets.kt` / `MenuWindows.kt` / `MenuSlots.kt`. Also in the release checklist
+`MenuPacketInterceptorTest` covers the Netty handler on an `EmbeddedChannel` with a fake codec
+(placement, rewrite, silent sends, a failing rewrite); the server's classes are only met in game.
+
+**Triggers**: a Minecraft update, any change to `render/packets/` (`NmsMenuPackets.kt`,
+`MenuPacketInterceptor.kt`, `MenuPacketRewriter.kt`, `MenuWindows.kt`) or `MenuSlots.kt`. Also in the release checklist
 (`versioning.md` §11.1).
 
 On `./gradlew deploy`, with a `player_inventory: hidden` menu that puts stone on all
@@ -71,5 +74,6 @@ positions (top and bottom) and a `visible` menu:
 - [ ] Hopper and dropper menus with `vanilla_texture: false`: transparent windows; a real
   hopper, dispenser and dropper keep their texture (re-injected), a real chest is not
   touched as long as no chest menu is transparent.
-- [ ] With the PacketEvents plugin installed alongside (relocated copy + standalone plugin): startup
-  without errors and everything above holds.
+- [ ] With ViaVersion + ViaBackwards and an older client, and with ProtocolLib or PacketEvents installed
+  alongside: startup without errors and everything above holds.
+- [ ] On Paper, Folia, Leaf and Spigot 26.x; Spigot 1.21.x refuses to start with its message.
