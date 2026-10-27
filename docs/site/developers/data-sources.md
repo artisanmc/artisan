@@ -180,8 +180,8 @@ grouped by module, with its schema, stability and key field
 on the server with `player = null` and the admin's test parameters, then
 applies the menu's filters; results are truncated to 50 rows. When the admin
 picks **Preview as** a player, the canvas fetches with that online `Player`
-instead, on their thread, exactly as at render (`player` is not added to
-`params`).
+instead, on their thread, exactly as at render. The name also stays in
+`params.player`, for sources that take a `player` parameter themselves.
 
 A source registered after the editor connected (a module enabled late) appears
 without a reconnect.

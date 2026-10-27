@@ -126,12 +126,13 @@ class ServerQueries(
             request.limit?.let { put("limit", it) }
         }
         // "Preview as": the editor names an online player in `params.player`; the fetcher
-        // gets that Player, on their thread, as it would at render — not a name in its params.
-        val viewerName = (request.params[PREVIEW_PLAYER] as? String)?.takeIf { it.isNotBlank() }
-        val params = request.params - PREVIEW_PLAYER
+        // gets that Player, on their thread, as it would at render. The param stays: a
+        // source may declare `player` itself, as a target (msquests:active). A name that
+        // is not online previews as before, with no player.
+        val params = ContextBinder.interpolateValues(request.params, request.args)
         val run = { viewer: Player? ->
             try {
-                val rows = registry.fetch(ref, viewer, ContextBinder.interpolateValues(params, request.args))
+                val rows = registry.fetch(ref, viewer, params)
                 val shaped = ContextBinder.shape(rows, source, request.args)
                 logger?.fine("[Artisan] data source preview '$ref' as=${viewer?.name} params=$params -> ${shaped.size} rows")
                 val (payloadRows, truncated) = truncateForPreview(shaped)
@@ -144,9 +145,9 @@ class ServerQueries(
             }
         }
         try {
-            if (viewerName == null) return scheduler.global { run(null) }
-            val viewer = Bukkit.getPlayerExact(viewerName) ?: return reply.error("player_not_found", viewerName)
-            scheduler.player(viewer.uniqueId, onGone = { reply.error("player_not_found", viewerName) }) { run(viewer) }
+            val viewer = (params[PREVIEW_PLAYER] as? String)?.takeIf { it.isNotBlank() }?.let(Bukkit::getPlayerExact)
+            if (viewer == null) scheduler.global { run(null) }
+            else scheduler.player(viewer.uniqueId, onGone = { scheduler.global { run(null) } }) { run(viewer) }
         } catch (e: Throwable) {
             reply.failure("fetch_error", "data source preview '$ref' scheduling", e)
         }

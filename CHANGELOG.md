@@ -9,7 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
-- **Fixed**: **Preview as** a player now really previews as them: the server hands that online `Player` to the source's fetcher, on their thread, instead of `player = null` with the name buried in `params.player`. A name that is not online replies `player_not_found`.
+- **Fixed**: **Preview as** a player now really previews as them: the server hands that online `Player` to the source's fetcher, on their thread, instead of `player = null` with the name buried in `params.player`. A name that is not online previews with no player, as before.
 - **Added**: a button beside every player field lists who is online (fetched again on each opening), so an admin signed in from the console can pick a player to preview as.
 - **Fixed**: the menu's Data panel no longer overflows when narrow: sort and limit wrap, "Delete the set" stays on one line.
 - **Fixed**: the toolbar popovers of the rich MiniMessage editor (Library, colour, click, hover) closed the item dialog on the first click and could not scroll: two copies of a Radix dependency did not see each other's layers.

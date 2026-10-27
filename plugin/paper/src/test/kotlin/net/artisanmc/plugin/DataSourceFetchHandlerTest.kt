@@ -77,7 +77,7 @@ class DataSourceFetchHandlerTest {
     }
 
     @Test
-    fun `preview as a player hands that online Player to the fetcher, without the name in params`() {
+    fun `preview as a player hands that online Player to the fetcher, params untouched`() {
         val server = MockBukkit.getMock()!!
         val iban = server.addPlayer("Iban_")
         val registry = DataSourceRegistry()
@@ -85,7 +85,7 @@ class DataSourceFetchHandlerTest {
             "guilds:members",
             { player, params ->
                 assertSame(iban, player)
-                assertFalse(params.containsKey("player"))
+                assertEquals("Iban_", params["player"])
                 listOf(mapOf("name" to player!!.name, "group" to params["group"]))
             },
         ))
@@ -104,9 +104,12 @@ class DataSourceFetchHandlerTest {
     }
 
     @Test
-    fun `preview as a player who is not online replies player_not_found`() {
+    fun `preview as a player who is not online previews with no player, as before`() {
         val registry = DataSourceRegistry()
-        registry.register(DataSourceDeclaration("guilds:members", { _, _ -> throw AssertionError("must not fetch") }))
+        registry.register(DataSourceDeclaration("guilds:members", { player, _ ->
+            assertNull(player)
+            listOf(mapOf("name" to "Steve"))
+        }))
         val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
         val latch = CountDownLatch(1)
         val p = provider(registry, sink, latch)
@@ -115,8 +118,7 @@ class DataSourceFetchHandlerTest {
             "params":{"player":"Nobody"},"filter":{},"sort":null,"limit":null,"args":{}}""")
         await(latch)
 
-        assertEquals(false, sink[0]["ok"])
-        assertEquals("player_not_found", sink[0]["error"])
+        assertEquals(true, sink[0]["ok"])
     }
 
     @Test
