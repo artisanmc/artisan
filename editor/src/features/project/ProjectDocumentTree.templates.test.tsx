@@ -78,6 +78,11 @@ it("marks a Document copied from a template, and a newer version its module ship
   expect(
     await screen.findByRole("img", { name: "quests propose une nouvelle version" }),
   ).toBeInTheDocument();
+  // A discreet asterisk, not a text chip.
+  expect(
+    screen.getByRole("img", { name: "quests propose une nouvelle version" }),
+  ).toHaveTextContent("*");
+  expect(screen.queryByText("nouvelle version")).toBeNull();
 });
 
 function shopProject(): Project {

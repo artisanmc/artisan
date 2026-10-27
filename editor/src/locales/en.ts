@@ -100,6 +100,7 @@ export default {
     open: "Open navigation",
     close: "Close navigation",
     dismiss: "Dismiss navigation",
+    resize: "Resize navigation (double-click: default width)",
   },
   projectLibrary: {
     title: "Buttons",
@@ -382,6 +383,11 @@ export default {
     contextAdd: "+ add",
     placeholderOrLiteral: "{{tag}} or literal",
     moduleValueLabel: "arguments (JSON)",
+    moduleCommandTyped: "empty: the value typed for {{tag}}",
+    moduleCommandUndeclared: "(not read by the module)",
+    moduleCommandNoArgs: "This command takes no arguments.",
+    moduleCommandUnknown:
+      "No module of the connected server declares this command: its arguments are edited as raw JSON.",
     moduleUnknown:
       "This action is not declared by the connected server: its arguments are edited as raw JSON.",
     moduleAddText: "Add a text",
@@ -667,6 +673,15 @@ export default {
     descriptionPlaceholder: "(none)",
     argumentsLabel: "Arguments",
     argumentsHint: "Declared command args. Reference them as {{tag}} inside step actions.",
+    moduleArg: "module",
+    moduleArgTitle: "Read by the module's code under this name and type",
+    moduleArgsNotice:
+      "The {{module}} module's code ({{command}}) reads these arguments by name. Renaming, removing or retyping one breaks the command, unless its step maps the value.",
+    driftMissing: "{{name}} ({{type}}) is missing: the module receives nothing for it.",
+    driftMissingRequired:
+      "{{name}} ({{type}}) is missing: the module requires it, the command will always fail.",
+    driftType: "{{name}} is {{type}} here, the module expects {{expected}}.",
+    driftExtra: "{{name}} is not read by the module (renamed?).",
     argName: "name",
     addArg: "+ Add arg",
     removeArg: "Remove arg",
@@ -798,7 +813,6 @@ export default {
   },
   projectPanel: {
     relation: { parent: "Opens the selected element", child: "Opened by the selected element" },
-    originTag: { modified: "edited", update: "new version" },
     systemDocumentHint:
       "Built into the module {{module}}: its code opens it. You can edit it; it cannot be deleted, and Reset puts the module's version back.",
     systemBadge: {

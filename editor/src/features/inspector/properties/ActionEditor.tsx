@@ -7,6 +7,7 @@ import { isLTextNode, normalizeActionArgs, withActionArg } from "@/domain/action
 import { parseDocRef, projectNamespace } from "@/domain/docRef";
 import { menusOf } from "@/domain/documents";
 import { getFirstTitleText } from "@/domain/menuTitle";
+import { fileArgType, findDeclaredCommand } from "@/domain/moduleCommands";
 import type {
   Action,
   ClickType,
@@ -25,9 +26,11 @@ import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { useDeclaredActionOf } from "@/lib/actions/coreActions";
 import { isEventAction, setEventArgs, useChainEvent } from "@/lib/actions/eventActions";
 import type { DeclaredAction } from "@/lib/api/declaredActions";
+import type { DeclaredCommand } from "@/lib/api/playerCommands";
 import type { FieldLocation, PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { useGetText, useTextEdit } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
 import { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { UNALLOCATED_LTEXT_KEY } from "../chain/defaults";
@@ -367,6 +370,8 @@ const ARG_WIDGETS: Record<string, (p: ArgInputProps) => React.ReactElement> = {
   "run_actions.actions": (p) => <ExpressionInput {...p} placeholder="item.on_buy" />,
   "set_arg_cycle_next.list": (p) => <ExpressionInput {...p} placeholder="categories" />,
   "set_arg_cycle_prev.list": (p) => <ExpressionInput {...p} placeholder="categories" />,
+  "module_command.command": (p) => <ModuleCommandInput {...p} />,
+  "module_command.args": (p) => <ModuleCommandArgsInput {...p} />,
 };
 
 function ArgInput(p: ArgInputProps) {
@@ -958,6 +963,142 @@ function AddContextKey({
       >
         {t("actionEditor.contextAdd")}
       </button>
+    </div>
+  );
+}
+
+/** Every declared command, sub-commands included, with the words players type to reach it. */
+function flattenCommands(
+  commands: DeclaredCommand[],
+  prefix = "",
+): { id: string; typed: string }[] {
+  return commands.flatMap((c) => {
+    const typed = prefix === "" ? `/${c.name}` : `${prefix} ${c.name}`;
+    return [{ id: c.id, typed }, ...flattenCommands(c.children, typed)];
+  });
+}
+
+/** The module command to run: picked among those the server's modules declare. */
+function ModuleCommandInput(p: ArgInputProps) {
+  const { field, value, onChange } = p;
+  const { t } = useTranslation();
+  const commands = useServerPlayerCommandsStore((s) => s.commands);
+  const current = typeof value === "string" ? value : "";
+  // Not loaded (no live server) or a value no module declares: the plain text, kept as is.
+  if (commands.length === 0 || (current !== "" && !findDeclaredCommand(commands, current)))
+    return <ExpressionInput {...p} placeholder="module:command" />;
+  return (
+    <select
+      value={current}
+      onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value)}
+      className="select h-7 w-full py-0 pr-7 pl-2 font-mono text-xs"
+      aria-label={field.name}
+    >
+      <option value="">{t("actionEditor.choose")}</option>
+      {flattenCommands(commands).map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.typed} ({c.id})
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/**
+ * The values a `module_command` hands to the module's code: one row per argument the command
+ * declares. An empty row passes what the player typed for the argument of the same name,
+ * which is why the command's own arguments must keep the module's names.
+ */
+function ModuleCommandArgsInput(p: ArgInputProps) {
+  const { args, value, onChange } = p;
+  const { t } = useTranslation();
+  const entries = useActionEntries();
+  const commands = useServerPlayerCommandsStore((s) => s.commands);
+  const commandId = typeof args.command === "string" ? args.command : "";
+  const declared = commandId === "" ? undefined : findDeclaredCommand(commands, commandId);
+  if (!declared) {
+    return (
+      <div className="flex flex-col gap-1">
+        <JsonValueInput value={value} onChange={onChange} ariaLabel={p.field.name} />
+        <p className="text-[11px] text-[var(--text-faint)]">
+          {t("actionEditor.moduleCommandUnknown")}
+        </p>
+      </div>
+    );
+  }
+  const values: Record<string, string> =
+    typeof value === "object" && value !== null && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, String(v)]))
+      : {};
+  const setValue = (name: string, v: string) => {
+    const next = { ...values };
+    if (v === "") delete next[name];
+    else next[name] = v;
+    onChange(Object.keys(next).length > 0 ? next : undefined);
+  };
+  if (declared.arguments.length === 0 && Object.keys(values).length === 0) {
+    return (
+      <p className="text-[11px] text-[var(--text-faint)]">
+        {t("actionEditor.moduleCommandNoArgs")}
+      </p>
+    );
+  }
+  const undeclared = Object.keys(values).filter(
+    (k) => !declared.arguments.some((a) => a.name === k),
+  );
+  return (
+    <div className="flex flex-col gap-1.5">
+      {declared.arguments.map((arg) => (
+        <div
+          key={arg.name}
+          className="rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] p-1.5"
+        >
+          <div className="mb-1 flex items-center gap-2 font-mono text-[11px]">
+            <span className="text-[var(--brand)]">
+              {arg.name}
+              {arg.required ? " *" : ""}
+            </span>
+            <span className="text-[var(--text-faint)]">
+              : {fileArgType(arg.type)}
+              {arg.values.length > 0 ? ` (${arg.values.join(" | ")})` : ""}
+            </span>
+          </div>
+          <PlaceholderInput
+            value={values[arg.name] ?? ""}
+            placeholder={t("actionEditor.moduleCommandTyped", { tag: `{${arg.name}}` })}
+            onChange={(v) => setValue(arg.name, v)}
+            entries={entries}
+            className="h-7 px-2 py-0 font-mono text-xs"
+          />
+        </div>
+      ))}
+      {undeclared.map((k) => (
+        <div
+          key={k}
+          className="rounded border border-[var(--warning)] bg-[var(--warning-soft)] p-1.5"
+        >
+          <div className="mb-1 flex items-center gap-2 font-mono text-[11px]">
+            <span className="text-[var(--warning)]">{k}</span>
+            <span className="text-[var(--warning)]">
+              {t("actionEditor.moduleCommandUndeclared")}
+            </span>
+            <button
+              type="button"
+              title={t("actionEditor.contextRemoveKey")}
+              onClick={() => setValue(k, "")}
+              className="ml-auto flex h-5 w-5 items-center justify-center rounded text-[12px] text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            >
+              ×
+            </button>
+          </div>
+          <PlaceholderInput
+            value={values[k] ?? ""}
+            onChange={(v) => setValue(k, v)}
+            entries={entries}
+            className="h-7 px-2 py-0 font-mono text-xs"
+          />
+        </div>
+      ))}
     </div>
   );
 }

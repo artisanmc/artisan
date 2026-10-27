@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -756,9 +755,10 @@ async function resetIntoDraft(
 }
 
 /** What a copy's tag says in a word: nothing when it is the module's version as is. */
-const ORIGIN_TAG: Record<TemplateOrigin["tone"], "amber" | "terra" | null> = {
-  update: "amber",
-  modified: "terra",
+/** A template copy that drifted gets an asterisk; its colour says which way. */
+const ORIGIN_MARK: Record<TemplateOrigin["tone"], string | null> = {
+  update: "text-[var(--warning)]",
+  modified: "text-[var(--brand)]",
   identical: null,
 };
 
@@ -846,16 +846,16 @@ function DocumentRow({
             className="size-1.5 shrink-0 rounded-full bg-[var(--warning)]"
           />
         )}
-        {origin && ORIGIN_TAG[origin.tone] ? (
-          <Badge
-            variant={ORIGIN_TAG[origin.tone]}
-            role="img"
-            title={originLabel}
-            aria-label={originLabel}
-            className="shrink-0 !h-[17px] !px-1.5 text-[10.5px]"
-          >
-            {t(`projectPanel.originTag.${origin.tone}`)}
-          </Badge>
+        {origin && ORIGIN_MARK[origin.tone] ? (
+          <Tooltip content={originLabel} side="right">
+            <span
+              role="img"
+              aria-label={originLabel}
+              className={`shrink-0 translate-y-[3px] text-[15px] font-semibold leading-none ${ORIGIN_MARK[origin.tone]}`}
+            >
+              <span aria-hidden>*</span>
+            </span>
+          </Tooltip>
         ) : null}
         {/* A plain copy of a module's template, unchanged: the puzzle says where it comes from. */}
         {origin && !origin.system && origin.tone === "identical" && (
