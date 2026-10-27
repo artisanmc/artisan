@@ -1,0 +1,19 @@
+// Local runs only (`npm run dev:test`): a local bucket on http://127.0.0.1:8788, with quotas small
+// enough for test/worker.test.mjs to hit them, and every touch rewriting its pack.
+{
+  "name": "artisan-pack-cdn-local",
+  "main": "../src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "r2_buckets": [{ "binding": "PACKS", "bucket_name": "artisan-packs-local" }],
+  "durable_objects": {
+    "bindings": [{ "name": "QUOTAS", "class_name": "QuotaObject" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuotaObject"] }],
+  "vars": {
+    "PACK_PUBLIC_URL": "http://127.0.0.1:8788",
+    "PACK_MAX_MB": "8",
+    "PACK_SERVER_UPLOADS_PER_DAY": "6",
+    "PACK_REFRESH_DAYS": "0",
+    "PACK_ADMIN_TOKEN": "admin-token"
+  }
+}

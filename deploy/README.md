@@ -31,6 +31,8 @@ Cloudflare runs the nameservers of `artisanmc.net`. The named Tunnel publishes:
 
 The `artisan-tunnel` Worker (route `*.artisanmc.app/*`, fail open) serves the tunnel ahead of this server, which stays as the fallback; `artisan-tunnel-test` takes `*-test.artisanmc.app` ([`tunnel-worker/`](tunnel-worker/README.md)).
 
+The `artisan-pack-cdn` Worker serves `cdn.artisanmc.net`, where hubs upload their resource packs and players download them, from the R2 bucket `artisan-packs` ([`pack-cdn-worker/`](pack-cdn-worker/README.md), not deployed yet).
+
 No A/AAAA record to the origin; the VPS firewall exposes no inbound web port.
 
 The showcase's Coolify resource (historically "editor", hence `COOLIFY_EDITOR_UUID`) builds

@@ -16,7 +16,7 @@ Two ways bring it to players, chosen in [config.yml](../config-yml/):
 | Set up | nothing (default) | `resource-pack.delegate-to-dir` |
 | Who sends the pack | Artisan | Nexo, Oraxen or ItemsAdder |
 | Prompts | one for Artisan's pack, next to the other plugins' | one, the host's |
-| Players download from | the editor's web server (`web.url`) | the host's pack server |
+| Players download from | Artisan's pack host (`web.pack-cdn`), else the editor's web server | the host's pack server |
 
 ## Direct sending
 
@@ -34,9 +34,17 @@ resource-pack:
   send-delay-ticks: 20
 ```
 
-Players' clients download the zip from the editor's web server, at
-`/resource-pack/<sha1>.zip`. That address must be reachable from their machine: set
-`web.url` in `environment.yml` to the public address of the web server (see
+Players' clients download the zip from Artisan's pack host,
+`https://cdn.artisanmc.net/resource-pack/<sha1>.zip`: the server that serves the editor
+uploads each new pack there once, so neither its port nor its tunnel carries the
+players' downloads, and a server with no open port needs nothing more. Packs there are
+public (whoever has the hash downloads them, as on your own web server) and deleted 30
+days after the server stops using them.
+
+With `web.pack-cdn: ""` in `environment.yml`, or when the host cannot be reached or
+refuses the pack (over 100 MB, daily quota), players download it from the editor's web
+server instead, at `/resource-pack/<sha1>.zip`. That address must be reachable from
+their machine: set `web.url` to the public address of the web server (see
 [web server](../web-server/)). Without it, Artisan uses `http://<server-ip>:<web.port>`,
 and warns when that address only resolves on the server itself (`localhost`). The
 prompt is translated like any Artisan message: `resource_pack.prompt` in
@@ -106,7 +114,8 @@ startup `[delegate] delegate-to-dir … is not a writable directory — sending 
 Each server has its own `config.yml`, and chooses its own way. The pack of a leaf is
 uploaded through the hub and stored by the hub. Delegated, the leaf downloads it over
 the internal address of `web.hub` and hands it to its local pack plugin; sent
-directly, players download it from the hub's public address (the hub's `web.url`).
+directly, players download it from Artisan's pack host, else from the hub's public
+address (the hub's `web.url`). Only the hub's `web.pack-cdn` counts.
 
 The last applied pack is cached on each server (`plugins/Artisan/cache/`) and
 survives restarts, even while the hub is unreachable.

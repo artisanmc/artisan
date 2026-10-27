@@ -43,6 +43,7 @@ connect to the hub. The name is a label: the server is identified by the id in
 | `web.secret` | `""` | Secret shared by the hub and its leaves. Empty: the Velocity forwarding secret, else a secret the hub generates. See [the shared secret](../../network/setup/#4-the-shared-secret). |
 | `web.tunnel` | `"connect.artisanmc.app"` | Preview. The Artisan tunnel server the hub connects out to when `web.url` is empty: it gives the editor an `https://<id>.artisanmc.app` address, used by `/artisan editor` links. No port to open. `""`: no tunnel. Ignored on a leaf. See [Through a tunnel server](../web-server/#through-a-tunnel-server-preview-the-default). |
 | `web.tunnel-access` | `""` | The access code a private tunnel server asks for. |
+| `web.pack-cdn` | `"cdn.artisanmc.net"` | Where the hub uploads the resource pack the editor builds; players download it from there when Artisan sends the pack itself. Public, deleted 30 days after its last use. `""`, or the host unreachable: players download it from `web.url` or `web.port`. Ignored on a leaf. See [Resource packs](../resource-packs/#direct-sending). |
 | `web.mcp` | `false` | Preview. Serves an MCP endpoint at `<editor address>/mcp`, so a player can connect an AI client (Claude, ChatGPT, an IDE) to Artisan: the client reads the Projects and writes drafts, which the player reviews and deploys in the editor. The client cannot deploy. See [AI clients](../web-server/#ai-clients-mcp-preview). |
 
 On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no port.
@@ -108,7 +109,7 @@ database:
 A variable that is not set becomes an empty string. For `database.*` keys the
 console warns: `[database] environment variable NAME is not set (environment.yml)`.
 
-Substitution applies to `name`, `web.bind`, `web.url`, `web.hub`, `web.secret`, `web.tunnel`, `web.tunnel-access`
+Substitution applies to `name`, `web.bind`, `web.url`, `web.hub`, `web.secret`, `web.tunnel`, `web.tunnel-access`, `web.pack-cdn`
 and every `database.*` key. It does not apply to `web.enabled` and `web.port`:
 write those literally.
 

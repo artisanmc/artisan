@@ -31,4 +31,6 @@ interface EditorServer {
     fun customItems(): List<Map<String, String>>
     /** A pack served by the hub under [path] becomes the server's pack. */
     fun applyResourcePack(hash: String, path: String)
+    /** Same, players downloading it from [url] (the pack host, [PackCdn]) when set rather than from the hub. */
+    fun applyResourcePack(hash: String, path: String, url: String?) = applyResourcePack(hash, path)
 }
