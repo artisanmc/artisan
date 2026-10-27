@@ -1531,6 +1531,23 @@ export default {
     server: "Server",
     draft: "Draft",
     confirm: "Deploy to the server",
+    others: {
+      title: "Other drafts",
+      loading: "Looking for your drafts in the other projects…",
+      none: "No other draft with changes.",
+      failedToLoad: "The other projects' drafts could not be listed ({{code}}).",
+      current: "This project",
+      currentNone: "no change",
+      unsynced: "open the project to save its latest edits first",
+      confirm: "Deploy {{count}} projects",
+      elsewhereTitle: "Deploy the changes waiting in other projects",
+      deployed_one: "Deployed: {{names}}",
+      deployed_other: "{{count}} projects deployed: {{names}}",
+      failed:
+        "{{name}} was not deployed: {{reason}}. Deployed: {{deployed}}. Not tried: {{skipped}}.",
+      notTried_one: "The other picked draft was not deployed.",
+      notTried_other: "The {{count}} other picked drafts were not deployed.",
+    },
     documents: {
       title: "Server check",
       pending: "The server is checking the changed files…",

@@ -1,3 +1,4 @@
+import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
 import { ApiError } from "@/lib/api/client";
 import { ASSISTANT_WIDTH, useAssistantPanelStore } from "@/state/assistantPanelStore";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -105,6 +106,15 @@ describe("assistant", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ouvrir « IA : VIP » dans Brouillons" }));
     expect(opened).toHaveBeenCalledOnce();
     window.removeEventListener(OPEN_DRAFTS, opened);
+
+    const review = vi.fn();
+    window.addEventListener(OPEN_DEPLOY_REVIEW, review);
+    fireEvent.click(screen.getByRole("button", { name: "Revoir et déployer son brouillon" }));
+    expect((review.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({
+      projectId: "u-local.shop",
+      preselect: ["d1"],
+    });
+    window.removeEventListener(OPEN_DEPLOY_REVIEW, review);
   });
 
   it("renders the model's Markdown: tables, bold, code, and no raw HTML", async () => {
