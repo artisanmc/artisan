@@ -1,3 +1,4 @@
+import { templateSpans } from "../expr/template/tokenizer";
 import {
   type Segment,
   type SourceSegment,
@@ -16,8 +17,11 @@ export interface VisibleUnit {
 export interface RichLayout {
   /** Styled runs of literal text. */
   marks: { from: number; to: number; style: Style }[];
-  /** Tags that show text (`<newline>`, `<key:…>`), with what they show. */
-  widgets: { from: number; to: number; segments: Segment[] }[];
+  /**
+   * Tags that show text (`<newline>`, `<key:…>`), with what they show, and the
+   * expressions shown whole (`expr`, their source as the one segment).
+   */
+  widgets: { from: number; to: number; segments: Segment[]; expr?: true }[];
   /** Markup: what the rich view hides. */
   hidden: { from: number; to: number }[];
   units: VisibleUnit[];
@@ -28,7 +32,17 @@ export interface RichLayout {
  * to hide, the units the caret moves over. `perLine` parses each line alone (a lore).
  */
 export function richLayout(src: string, perLine = false): RichLayout {
-  const segs: SourceSegment[] = parseMiniMessageSource(src, perLine);
+  // An expression is evaluated before MiniMessage: the tags in its strings are not the
+  // text's. It is parsed as opaque filler, then shown whole, as one widget.
+  const exprs = opaqueExpressions(src);
+  let masked = src;
+  for (const e of exprs) {
+    masked =
+      masked.slice(0, e.from) + src.slice(e.from, e.to).replace(/[^\n]/g, "x") + masked.slice(e.to);
+  }
+  const inExpr = new Uint8Array(src.length);
+  for (const e of exprs) inExpr.fill(1, e.from, e.to);
+  const segs: SourceSegment[] = parseMiniMessageSource(masked, perLine);
   const covered = new Uint8Array(src.length);
   const marks: RichLayout["marks"] = [];
   const widgets: RichLayout["widgets"] = [];
@@ -40,7 +54,10 @@ export function richLayout(src: string, perLine = false): RichLayout {
       if (prev && prev.from === seg.gen.from && prev.to === seg.gen.to) {
         prev.segments.push({ text: seg.text, style: seg.style });
       } else {
-        widgets.push({ ...seg.gen, segments: [{ text: seg.text, style: seg.style }] });
+        widgets.push({
+          ...seg.gen,
+          segments: [{ text: seg.text, style: seg.style }],
+        });
         units.push({ ...seg.gen, style: seg.style, gen: true });
       }
       for (let k = seg.gen.from; k < seg.gen.to; k++) covered[k] = 2;
@@ -53,7 +70,7 @@ export function richLayout(src: string, perLine = false): RichLayout {
       runFrom = -1;
     };
     for (const m of seg.map) {
-      if (m < 0) continue;
+      if (m < 0 || inExpr[m]) continue;
       covered[m] = 1;
       if (m === runTo) runTo = m + 1;
       else {
@@ -65,10 +82,22 @@ export function richLayout(src: string, perLine = false): RichLayout {
     flush();
   }
 
+  for (const e of exprs) {
+    widgets.push({
+      from: e.from,
+      to: e.to,
+      segments: [{ text: src.slice(e.from, e.to), style: {} }],
+      expr: true,
+    });
+    units.push({ from: e.from, to: e.to, style: {}, gen: true });
+    covered.fill(2, e.from, e.to);
+  }
+  widgets.sort((a, b) => a.from - b.from);
+
   for (const seg of segs) {
     if (seg.gen) continue;
     for (const m of seg.map) {
-      if (m < 0) continue;
+      if (m < 0 || inExpr[m]) continue;
       // An escaped character starts at its backslash.
       const from = m > 0 && src[m - 1] === "\\" && covered[m - 1] === 0 ? m - 1 : m;
       units.push({ from, to: m + 1, style: seg.style, gen: false });
@@ -87,6 +116,16 @@ export function richLayout(src: string, perLine = false): RichLayout {
     }
   }
   return { marks, widgets, hidden, units };
+}
+
+/**
+ * The `{…}` the rich view cannot show as text: those with a space, a quote or a tag
+ * (`{a ? "<red>x" : ""}`). A plain placeholder (`{player.name}`) stays editable text.
+ */
+function opaqueExpressions(src: string): { from: number; to: number }[] {
+  return templateSpans(src).filter(
+    (s) => s.kind === "expression" && /[\s"'<>]/.test(src.slice(s.from + 1, s.to - 1)),
+  );
 }
 
 /** Number of units that end at or before `pos`. */

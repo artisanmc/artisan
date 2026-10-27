@@ -89,6 +89,28 @@ describe("richLayout", () => {
     expect(hidden).toEqual([]);
   });
 
+  it("keeps the tags inside an expression's strings out of the text", () => {
+    const src = 'A {on ? "<newline><yellow>Clic" : ""} b';
+    const { widgets, hidden, marks, units } = richLayout(src, true);
+    expect(widgets).toEqual([
+      {
+        from: 2,
+        to: src.length - 2,
+        segments: [{ text: src.slice(2, -2), style: {} }],
+        expr: true,
+      },
+    ]);
+    expect(hidden).toEqual([]);
+    expect(marks.every((m) => m.style.color === undefined)).toBe(true);
+    expect(units.filter((u) => u.gen)).toHaveLength(1);
+  });
+
+  it("leaves a plain placeholder editable", () => {
+    const { widgets, units } = richLayout("{player.name}");
+    expect(widgets).toEqual([]);
+    expect(units).toHaveLength(13);
+  });
+
   it("parses each lore line alone", () => {
     const perLine = richLayout("<red>a\nb", true);
     expect(perLine.marks.find((m) => m.from === 7)?.style.color).toBeUndefined();
