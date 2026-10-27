@@ -2,6 +2,7 @@ import { commandNodeAt } from "@/domain/commandNodes";
 import { commandsOf } from "@/domain/documents";
 import type { Command, CommandId, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
 import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -44,7 +45,9 @@ beforeEach(() => {
                   {
                     name: "sell",
                     arguments: [{ name: "price", type: "integer", required: true }],
-                    steps: [],
+                    steps: [
+                      { kind: "action", action: { name: "module_command", value: "shop:ah.sell" } },
+                    ],
                   },
                   {
                     name: "admin",
@@ -110,5 +113,41 @@ describe("CommandEditor — sub-commands", () => {
     expect(commandNodeAt(command(), [0])?.enabled).toBe(false);
     fireEvent.click(screen.getAllByTitle("Supprimer la sous-commande")[0]!);
     expect(command().subcommands?.map((s) => s.name)).toEqual(["admin"]);
+  });
+});
+
+describe("CommandEditor — a module's arguments", () => {
+  beforeEach(() => {
+    useServerPlayerCommandsStore.setState({
+      commands: [
+        {
+          id: "shop:ah",
+          moduleId: "shop",
+          name: "ah",
+          arguments: [],
+          children: [
+            {
+              id: "shop:ah.sell",
+              moduleId: "shop",
+              name: "sell",
+              arguments: [{ name: "price", type: "int", required: true, values: [] }],
+              children: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("says the module reads them, and warns once one is renamed", () => {
+    render(<Live />);
+    fireEvent.click(screen.getByRole("button", { name: "/ah sell" }));
+    expect(
+      screen.getByText(/Le code du module shop \(shop:ah\.sell\) lit ces arguments/),
+    ).toBeTruthy();
+    expect(screen.getByTitle("Lu par le code du module sous ce nom et ce type")).toBeTruthy();
+    fireEvent.change(screen.getByDisplayValue("price"), { target: { value: "cost" } });
+    expect(screen.getByText(/price \(integer\) manque : le module l'exige/)).toBeTruthy();
+    expect(screen.getByText("cost n'est pas lu par le module (renommé ?).")).toBeTruthy();
   });
 });

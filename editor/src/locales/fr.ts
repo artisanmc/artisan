@@ -393,6 +393,11 @@ const fr: typeof en = {
     contextAdd: "+ ajouter",
     placeholderOrLiteral: "{{tag}} ou littéral",
     moduleValueLabel: "arguments (JSON)",
+    moduleCommandTyped: "vide : la valeur tapée pour {{tag}}",
+    moduleCommandUndeclared: "(non lu par le module)",
+    moduleCommandNoArgs: "Cette commande ne prend pas d'arguments.",
+    moduleCommandUnknown:
+      "Aucun module du serveur connecté ne déclare cette commande : ses arguments s'éditent en JSON brut.",
     moduleUnknown:
       "Cette action n'est pas déclarée par le serveur connecté : ses arguments s'éditent en JSON brut.",
     moduleAddText: "Ajouter un texte",
@@ -681,6 +686,15 @@ const fr: typeof en = {
     argumentsLabel: "Arguments",
     argumentsHint:
       "Arguments déclarés de la commande. Référencez-les via {{tag}} dans les actions des étapes.",
+    moduleArg: "module",
+    moduleArgTitle: "Lu par le code du module sous ce nom et ce type",
+    moduleArgsNotice:
+      "Le code du module {{module}} ({{command}}) lit ces arguments par leur nom. En renommer, retirer ou retyper un casse la commande, sauf si son étape transmet la valeur.",
+    driftMissing: "{{name}} ({{type}}) manque : le module ne reçoit rien pour lui.",
+    driftMissingRequired:
+      "{{name}} ({{type}}) manque : le module l'exige, la commande échouera toujours.",
+    driftType: "{{name}} est {{type}} ici, le module attend {{expected}}.",
+    driftExtra: "{{name}} n'est pas lu par le module (renommé ?).",
     argName: "nom",
     addArg: "+ Ajouter un arg",
     removeArg: "Supprimer l'arg",

@@ -1,6 +1,12 @@
 import { EditorHeader } from "@/components/ui/editor-header";
 import { Input } from "@/components/ui/input";
 import { commandNodeAt } from "@/domain/commandNodes";
+import {
+  type ArgDrift,
+  argDrift,
+  findDeclaredCommand,
+  moduleCommandSteps,
+} from "@/domain/moduleCommands";
 import type {
   Command,
   CommandArg,
@@ -12,6 +18,7 @@ import type {
 import { cx } from "@/lib/cx";
 import { useTextEdit } from "@/lib/useText";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionChainEditor } from "../chain/StepTree";
@@ -339,11 +346,31 @@ function CommandArgsEditor({
     }
   };
 
+  const declaredCommands = useServerPlayerCommandsStore((s) => s.commands);
+  // The module code this node runs reads its arguments by name: say so before any edit.
+  const moduleCalls = moduleCommandSteps(node.steps).flatMap((call) => {
+    const declared = findDeclaredCommand(declaredCommands, call.id);
+    return declared
+      ? [{ declared, drift: argDrift(node.arguments, declared.arguments, call.args) }]
+      : [];
+  });
+  const declaredNames = new Set(
+    moduleCalls.flatMap((c) => c.declared.arguments.map((a) => a.name)),
+  );
+
   return (
     <div className="flex flex-col gap-2">
       <p className="text-[12px] text-[var(--text-faint)]">
         {t("command.argumentsHint", { tag: "{name}" })}
       </p>
+      {moduleCalls.map(({ declared, drift }) => (
+        <ModuleArgsNotice
+          key={declared.id}
+          commandId={declared.id}
+          moduleId={declared.moduleId}
+          drift={drift}
+        />
+      ))}
       {orderError && (
         <div className="rounded-[var(--r-xs)] border border-[var(--warning)] bg-[var(--warning-soft)] px-2 py-1.5 text-[12px] text-[var(--warning)]">
           {orderError}
@@ -404,6 +431,11 @@ function CommandArgsEditor({
                 >
                   {arg.required ? t("command.required") : t("command.optional")}
                 </button>
+                {declaredNames.has(arg.name) ? (
+                  <span className="badge" title={t("command.moduleArgTitle")}>
+                    {t("command.moduleArg")}
+                  </span>
+                ) : null}
                 <button
                   type="button"
                   title={t("command.removeArg")}
@@ -463,4 +495,59 @@ function CommandArgsEditor({
       </button>
     </div>
   );
+}
+
+/**
+ * The arguments of a node whose steps run a module's code (`module_command`): that code reads
+ * them by name, so renaming, removing or retyping one in the file breaks the command. Shown
+ * before any edit, with what already differs from the module's declaration.
+ */
+function ModuleArgsNotice({
+  commandId,
+  moduleId,
+  drift,
+}: {
+  commandId: string;
+  moduleId: string | null;
+  drift: ArgDrift[];
+}) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={cx(
+        "rounded-[var(--r-xs)] border px-2 py-1.5 text-[12px]",
+        drift.length > 0
+          ? "border-[var(--warning)] bg-[var(--warning-soft)] text-[var(--warning)]"
+          : "border-[var(--border-soft)] bg-[var(--surface-raised)] text-[var(--text-mut)]",
+      )}
+    >
+      <p>
+        {t("command.moduleArgsNotice", {
+          module: moduleId ?? commandId.split(":")[0],
+          command: commandId,
+        })}
+      </p>
+      {drift.length > 0 ? (
+        <ul className="mt-1 list-disc pl-4">
+          {drift.map((d) => (
+            <li key={`${d.kind}:${d.name}`}>{driftText(d, t)}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function driftText(d: ArgDrift, t: (key: string, options?: Record<string, unknown>) => string) {
+  switch (d.kind) {
+    case "missing":
+      return t(d.required ? "command.driftMissingRequired" : "command.driftMissing", {
+        name: d.name,
+        type: d.type,
+      });
+    case "type":
+      return t("command.driftType", { name: d.name, type: d.type, expected: d.expected });
+    case "extra":
+      return t("command.driftExtra", { name: d.name });
+  }
 }
