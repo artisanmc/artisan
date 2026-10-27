@@ -620,6 +620,8 @@ function StateCard({
               appearance={appearance}
               inherited={inheritedItem}
               preview={previewItem(appearance, lorePreviewCtx, project, activeLang)}
+              previewScope={lorePreviewCtx}
+              previewFor={(ctx) => previewItem(appearance, ctx, project, activeLang)}
               title={appearance.title ? title : undefined}
               lore={appearance.lore ? loreText : undefined}
               loreMode={appearance.loreMode}

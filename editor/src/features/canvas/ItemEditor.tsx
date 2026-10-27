@@ -1,4 +1,4 @@
-import { MmEditor } from "@/components/minimessage";
+import { MmEditor, SimulationPanel, useSimulation } from "@/components/minimessage";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +20,7 @@ import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { ITEM_NAME, LORE } from "@/lib/mm/profiles";
 import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { ImageIcon, Pencil } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ItemContextSidebar } from "./ItemContextSidebar";
 import { humanizeMaterial } from "./ItemTooltip";
@@ -41,6 +41,10 @@ export interface ItemEditorProps {
   loreLabel?: string;
   inherited: ResolvedItem;
   preview: ResolvedItem;
+  /** The data `preview` was resolved with: the example player starts from it. */
+  previewScope?: Record<string, unknown>;
+  /** Resolves the item again for the example player as the user set it. */
+  previewFor?: (scope: Record<string, unknown>) => ResolvedItem;
   entries?: PlaceholderEntry[];
   /** `"replace"` = the base item's lore is dropped; absent = it is kept. */
   loreMode?: "replace";
@@ -50,6 +54,9 @@ export interface ItemEditorProps {
   onAdvanced: (patch: AdvancedFields) => void;
   onFocus?: () => void;
 }
+
+const NO_ENTRIES: PlaceholderEntry[] = [];
+const ITEM_FIELDS = ["title", "lore", "count", "material"] as const;
 
 /** Same item form in a source cell and a menu state; owners supply persistence. */
 export function ItemEditor({
@@ -62,8 +69,10 @@ export function ItemEditor({
   titleLabel,
   loreLabel,
   inherited,
-  preview,
-  entries = [],
+  preview: resolvedPreview,
+  previewScope,
+  previewFor,
+  entries = NO_ENTRIES,
   loreMode,
   onLoreMode,
   onText,
@@ -74,29 +83,41 @@ export function ItemEditor({
 }: ItemEditorProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
-  const display = project
-    ? resolveDisplayRef(project, preview.material ?? "")
-    : { material: preview.material, head: preview.head };
-  const texture = useTextureUrl(display.material ?? "");
-  const image = useHeadPreviewUrl(preview.head ?? display.head) ?? texture;
   const hasInherited = (field: "title" | "lore" | "count") =>
     field === "lore"
       ? inherited.lore.some((line) => line !== "")
       : field === "title"
         ? Boolean(inherited.title)
         : inherited.count !== undefined;
-  const suggestions: PlaceholderEntry[] = [
-    ...entries,
-    ...["title", "lore", "count", "material"].map((field) => ({
-      path: `base.${field}`,
-      type: field === "count" ? ("integer" as const) : ("string" as const),
-      origin: "context" as const,
-      sample:
-        field === "lore"
-          ? inherited.lore.join("\n")
-          : String(inherited[field as keyof ResolvedItem] ?? ""),
-    })),
-  ];
+  // Kept stable while the base item reads the same: the editors' example player hangs on it.
+  const baseSamples = ITEM_FIELDS.map((field) =>
+    field === "lore"
+      ? inherited.lore.join("\n")
+      : String(inherited[field as keyof ResolvedItem] ?? ""),
+  );
+  const baseKey = JSON.stringify(baseSamples);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: baseKey stands for baseSamples
+  const suggestions = useMemo<PlaceholderEntry[]>(
+    () => [
+      ...entries,
+      ...ITEM_FIELDS.map((field, i) => ({
+        path: `base.${field}`,
+        type: field === "count" ? ("integer" as const) : ("string" as const),
+        origin: "context" as const,
+        sample: baseSamples[i] ?? "",
+      })),
+    ],
+    [entries, baseKey],
+  );
+  // One example player for the name, the lore and the preview: what the panel sets,
+  // all three follow.
+  const simulation = useSimulation(suggestions, previewScope);
+  const preview = previewFor ? previewFor(simulation.data) : resolvedPreview;
+  const display = project
+    ? resolveDisplayRef(project, preview.material ?? "")
+    : { material: preview.material, head: preview.head };
+  const texture = useTextureUrl(display.material ?? "");
+  const image = useHeadPreviewUrl(preview.head ?? display.head) ?? texture;
   const reset = (field: "title" | "lore" | "count", customized: boolean) =>
     customized ? (
       <button
@@ -128,6 +149,7 @@ export function ItemEditor({
           profile={field === "title" ? ITEM_NAME : LORE}
           wrapWidth={field === "lore" ? project?.loreMaxWidth : undefined}
           entries={suggestions}
+          simulation={simulation}
           aria-label={label}
           minHeight={field === "title" ? "36px" : "96px"}
           placeholder={field === "title" ? t("flow.titlePlaceholder") : t("flow.lorePlaceholder")}
@@ -280,7 +302,12 @@ export function ItemEditor({
                 materialName={display.material ? humanizeMaterial(display.material) : undefined}
                 loreMaxWidth={project?.loreMaxWidth}
               />
-              <ItemContextSidebar entries={suggestions} />
+              <SimulationPanel
+                sources={[title ?? "", lore ?? ""]}
+                simulation={simulation}
+                className="border-[var(--border)] border-t pt-4"
+              />
+              <ItemContextSidebar entries={suggestions} defaultOpen={false} />
             </div>
           </div>
           <DialogFooter className="shrink-0">

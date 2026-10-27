@@ -24,7 +24,7 @@ Artisan has no plugin dependency: nothing else to install.
 | Who | Reaches | When |
 |---|---|---|
 | Admins (browser) | The editor port, or the HTTPS address in front of it | Always, to use the editor |
-| Players (Minecraft client) | Nothing beyond the Minecraft port | Always: the pack comes from your pack plugin (see [Resource packs](../../configuration/resource-packs/)) |
+| Players (Minecraft client) | The editor's address (`web.url`), for the resource pack | When Artisan sends its pack itself, the default; nothing beyond the Minecraft port when Nexo, Oraxen or ItemsAdder sends it (see [Resource packs](../../configuration/resource-packs/)) |
 | Other servers of a network | The hub's `/ws/plugin`, on the editor port | Only in [network mode](../../network/concepts/) |
 
 ## Optional plugins

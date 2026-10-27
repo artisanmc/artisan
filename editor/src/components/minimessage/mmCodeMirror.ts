@@ -81,30 +81,23 @@ class GeneratedWidget extends WidgetType {
   }
 }
 
-/** What the rich view shows of a `{…}`, never shown as text. */
+/** What the rich view shows of a `{…}`, never shown as text: drawn by the editor's owner. */
 export interface ExpressionView {
-  /** What it gives for the example player, as styled text; null when it cannot be computed. */
-  preview: (source: string) => Segment[] | null;
-  /** Shown for a placeholder whose value is unknown (`{m.rank}` → "Rank"). */
-  fallback: (source: string) => string;
-  /** Hover text and the badge's accessible name of a computed text. */
-  label: string;
-  /** Shown when a computed text gives nothing for the example player. */
-  emptyLabel: string;
-  /** Opens the computed text at `from` (its `{`). */
-  open: (from: number) => void;
+  /** Draws the `{…}` (braces included) at `from` into `dom`; called again as it changes. */
+  draw: (dom: HTMLElement, source: string, from: number, kind: "value" | "logic") => void;
+  /** Lets go of what `draw` put in `dom`. */
+  erase: (dom: HTMLElement) => void;
 }
 
 /**
- * A `{…}` as one pill showing what it gives in game. A plain placeholder (`value`) is
- * just its value; a computed text (`logic`) wears a badge and opens on click.
+ * A `{…}` as one atomic unit: a plain placeholder (`value`) a named pill, a computed
+ * text (`logic`) a box of rules whose texts are edited in place, so its events are its own.
  */
 class ExpressionWidget extends WidgetType {
   constructor(
     readonly source: string,
     readonly from: number,
     readonly kind: "value" | "logic",
-    readonly segments: Segment[] | null,
     readonly view: ExpressionView,
   ) {
     super();
@@ -113,53 +106,26 @@ class ExpressionWidget extends WidgetType {
     return (
       other.source === this.source &&
       other.from === this.from &&
-      JSON.stringify(other.segments) === JSON.stringify(this.segments)
+      other.kind === this.kind &&
+      other.view === this.view
     );
   }
   toDOM() {
     const wrap = document.createElement("span");
-    const body = document.createElement("span");
-    body.className = "cm-mm-expr-body";
-    const segs = this.segments;
-    if (segs === null || segs.every((seg) => seg.text.trim() === "")) {
-      body.classList.add("cm-mm-expr-empty");
-      body.textContent =
-        this.kind === "value" || segs === null
-          ? this.view.fallback(this.source)
-          : this.view.emptyLabel;
-    } else {
-      // Kept as written: line breaks show as lines, like the lore in game.
-      for (const seg of segs) {
-        const span = document.createElement("span");
-        span.setAttribute("style", styleCss(seg.style));
-        span.textContent = seg.text;
-        body.appendChild(span);
-      }
-    }
-    if (this.kind === "value") {
-      wrap.className = "cm-mm-val";
-      wrap.title = this.source;
-      wrap.appendChild(body);
-      return wrap;
-    }
-    wrap.className = "cm-mm-expr";
-    wrap.title = this.view.label;
-    wrap.setAttribute("role", "button");
-    wrap.setAttribute("tabindex", "0");
-    wrap.setAttribute("aria-label", this.view.label);
-    const badge = document.createElement("span");
-    badge.className = "cm-mm-expr-badge";
-    badge.textContent = "ƒ";
-    wrap.append(badge, body);
-    const open = (e: Event) => {
-      e.preventDefault();
-      this.view.open(this.from);
-    };
-    wrap.addEventListener("mousedown", open);
-    wrap.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") open(e);
-    });
+    wrap.className = this.kind === "value" ? "cm-mm-val" : "cm-mm-expr";
+    wrap.title = this.kind === "value" ? this.source : "";
+    this.view.draw(wrap, this.source, this.from, this.kind);
     return wrap;
+  }
+  // Redrawn in place: an input being typed in keeps its focus.
+  updateDOM(dom: HTMLElement) {
+    if (!dom.classList.contains(this.kind === "value" ? "cm-mm-val" : "cm-mm-expr")) return false;
+    if (this.kind === "value") dom.title = this.source;
+    this.view.draw(dom, this.source, this.from, this.kind);
+    return true;
+  }
+  destroy(dom: HTMLElement) {
+    this.view.erase(dom);
   }
   ignoreEvent() {
     return this.kind === "logic";
@@ -213,7 +179,7 @@ function buildRich(state: EditorState, profile: MmProfile, exprView?: Expression
     const raw = src.slice(w.from, w.to);
     const widget =
       w.expr && exprView
-        ? new ExpressionWidget(raw, w.from, w.expr, exprView.preview(raw), exprView)
+        ? new ExpressionWidget(raw, w.from, w.expr, exprView)
         : new GeneratedWidget(w.segments, raw);
     const r = Decoration.replace({ widget }).range(w.from, w.to);
     deco.push(r);
@@ -325,7 +291,10 @@ function codeField(profile: MmProfile) {
   });
 }
 
-function placeholderCompletion(entries: PlaceholderEntry[]) {
+function placeholderCompletion(
+  entries: PlaceholderEntry[],
+  detailOf: (entry: PlaceholderEntry) => string,
+) {
   return (ctx: CompletionContext) => {
     const word = ctx.matchBefore(/\{[\w.]*$/);
     if (!word || entries.length === 0) return null;
@@ -333,7 +302,7 @@ function placeholderCompletion(entries: PlaceholderEntry[]) {
       from: word.from,
       options: entries.map((e) => ({
         label: `{${e.path}}`,
-        detail: e.sample ?? e.type,
+        detail: detailOf(e),
         apply: `{${e.path}}`,
       })),
       validFor: /^\{[\w.]*$/,
@@ -378,34 +347,69 @@ export const MM_THEME = EditorView.theme({
     padding: "0 3px",
     borderRadius: "4px",
     boxShadow: "inset 0 0 0 1px var(--brand-line)",
-  },
-  ".cm-mm-expr": {
-    display: "inline-flex",
-    alignItems: "flex-start",
-    gap: "5px",
-    maxWidth: "100%",
-    padding: "0 6px 0 2px",
-    borderRadius: "5px",
-    border: "1px solid var(--fam-logic-line)",
-    background: "var(--fam-logic-soft)",
-    cursor: "pointer",
-    verticalAlign: "baseline",
-  },
-  ".cm-mm-expr:hover, .cm-mm-expr:focus-visible": {
-    borderColor: "var(--fam-logic)",
-    outline: "none",
-  },
-  ".cm-mm-expr-badge": {
-    fontWeight: "700",
-    fontSize: "11px",
-    padding: "0 4px",
-    borderRadius: "4px",
-    color: "var(--fam-logic)",
-    background: "var(--surface-inset)",
+    fontFamily: "var(--font-body)",
     fontStyle: "normal",
   },
-  ".cm-mm-expr-body": { whiteSpace: "pre-wrap", overflowWrap: "anywhere" },
-  ".cm-mm-expr-empty": { color: "var(--text-faint)", fontStyle: "italic" },
+  ".cm-mm-val > span": { background: "transparent", padding: "0" },
+  // Rules, not rendered text: the editor's own surface and type, not the game's.
+  ".cm-mm-expr": {
+    display: "inline-block",
+    maxWidth: "100%",
+    margin: "2px 0",
+    padding: "6px 8px",
+    borderRadius: "var(--r-sm)",
+    border: "1px solid var(--fam-logic-line)",
+    background: "var(--surface-raised)",
+    color: "var(--text)",
+    fontFamily: "var(--font-body)",
+    fontStyle: "normal",
+    fontWeight: "400",
+    textDecoration: "none",
+    verticalAlign: "top",
+    whiteSpace: "normal",
+    cursor: "default",
+  },
+  // The `{` completion list: the editor's surfaces, not CodeMirror's light default,
+  // and none of the rich view's in-game styling (colour, italic) leaking in.
+  ".cm-tooltip": {
+    background: "var(--surface-raised)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--r-sm)",
+    boxShadow: "var(--shadow-md)",
+    color: "var(--text)",
+    fontStyle: "normal",
+    overflow: "hidden",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": {
+    fontFamily: "var(--font-mono)",
+    fontSize: "12px",
+    maxHeight: "16em",
+    padding: "4px",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+    display: "flex",
+    alignItems: "baseline",
+    gap: "10px",
+    padding: "3px 8px",
+    borderRadius: "4px",
+    color: "var(--text)",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
+    background: "var(--brand-soft)",
+    color: "var(--text)",
+  },
+  ".cm-completionLabel": { whiteSpace: "nowrap" },
+  ".cm-completionMatchedText": { textDecoration: "none", color: "var(--brand)" },
+  ".cm-completionDetail": {
+    marginLeft: "auto",
+    fontStyle: "normal",
+    fontFamily: "var(--font-body)",
+    color: "var(--text-faint)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    maxWidth: "14em",
+  },
   ".cm-mm-obf": { textDecoration: "underline dashed", textDecorationColor: "var(--text-faint)" },
 });
 
@@ -463,6 +467,8 @@ export interface MmExtensionOptions {
   wrapLabel?: string;
   /** How the rich view shows the expressions it cannot show as text. */
   expressions?: ExpressionView;
+  /** What the `{` completion list says beside a placeholder. */
+  completionDetail?: (entry: PlaceholderEntry) => string;
 }
 
 export function mmExtensions({
@@ -472,6 +478,7 @@ export function mmExtensions({
   wrapWidth,
   wrapLabel = "",
   expressions,
+  completionDetail = (e) => e.sample ?? e.type,
 }: MmExtensionOptions): Extension[] {
   const exts: Extension[] = [MM_THEME, EditorView.lineWrapping];
   if (wrapWidth && wrapWidth > 0 && profile.lines === "separate") {
@@ -480,7 +487,13 @@ export function mmExtensions({
   if (profile.lines === "single") {
     exts.push(Prec.highest(keymap.of([{ key: "Enter", run: () => true }])));
   }
-  if (entries.length) exts.push(autocompletion({ override: [placeholderCompletion(entries)] }));
+  if (entries.length)
+    exts.push(
+      autocompletion({
+        override: [placeholderCompletion(entries, completionDetail)],
+        icons: false,
+      }),
+    );
   if (mode === "rich") {
     const field = richField(profile, expressions);
     exts.push(field, richInputFilter(profile), richKeymap(field));

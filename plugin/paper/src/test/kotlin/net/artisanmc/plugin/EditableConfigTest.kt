@@ -23,7 +23,8 @@ class EditableConfigTest {
     fun `reports every bundled leaf key and never the connection`() {
         val report = editable.report(fileConfig("language: \"fr\"\n"))
         assertEquals("fr", report["language"])
-        assertFalse("resource-pack.enabled" in report)
+        assertEquals(true, report["resource-pack.enabled"])
+        assertEquals(20, report["resource-pack.send-delay-ticks"])
         assertEquals("", report["resource-pack.container-textures.chest"])
         assertFalse("server_key" in report)
         assertFalse("ws_url" in report)
@@ -55,7 +56,9 @@ class EditableConfigTest {
         val cfg = fileConfig()
         assertEquals("per_player_language: invalid_type", editable.apply(cfg, mapOf("per_player_language" to "yes")))
         assertEquals("database.pool-size: unknown_key", editable.apply(cfg, mapOf("database.pool-size" to 8)))
-        assertEquals("resource-pack.send-delay-ticks: unknown_key", editable.apply(cfg, mapOf("resource-pack.send-delay-ticks" to 20)))
+        assertEquals("resource-pack.enabled: invalid_type", editable.apply(cfg, mapOf("resource-pack.enabled" to "yes")))
+        assertEquals("resource-pack.send-delay-ticks: invalid_type", editable.apply(cfg, mapOf("resource-pack.send-delay-ticks" to 1.5)))
+        assertEquals("resource-pack.send-on-join-later: unknown_key", editable.apply(cfg, mapOf("resource-pack.send-on-join-later" to true)))
         assertEquals("resource-pack.container-textures.hopper: invalid_reference", editable.apply(cfg, mapOf("resource-pack.container-textures.hopper" to "menu_items")))
     }
 
