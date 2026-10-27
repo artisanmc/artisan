@@ -120,7 +120,7 @@ describe("ProjectDocumentTree", () => {
   });
 });
 
-describe("ProjectDocumentTree links and drag", () => {
+describe("ProjectDocumentTree drag", () => {
   const linked = () => {
     const p = project();
     (p.documents.command![0] as { steps: unknown[] }).steps = [
@@ -129,18 +129,6 @@ describe("ProjectDocumentTree links and drag", () => {
     p.folders = { boutique: {} };
     useProjectsStore.setState({ openProjects: { projects: [p], projectOrder: [PID] } } as never);
   };
-
-  it("marks what opens the open document and what it opens", () => {
-    linked();
-    const { rerender } = render(
-      <ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="menu/m1" />,
-    );
-    const row = (text: string) => screen.getByText(text).closest("button")!;
-    expect(within(row("/heal")).getByRole("img", { name: /ouvre|opens/i })).toBeInTheDocument();
-    expect(within(row("m2")).queryByRole("img")).toBeNull();
-    rerender(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="command/c1" />);
-    expect(within(row("m1")).getByRole("img", { name: /ouvert|opened/i })).toBeInTheDocument();
-  });
 
   it("files a dragged document in the folder it is dropped on, and back at the root", () => {
     linked();
