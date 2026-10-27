@@ -55,6 +55,16 @@ is online on that server: a change applies within a minute, and removing
 `artisan.editor.view` signs them out. To sign someone out right away, use
 `/artisan editor logout <player>`.
 
+## See who is signed in
+
+With `artisan.editor.config`, **Settings → Sessions** in the editor lists the open sessions
+of every server of the network: the player, the server they asked the link on, when they
+were last active (to the hour), and **Editor open** while they have a tab open. **Close**
+signs that session out at once and sends its open tabs back to sign-in.
+
+In game or from the console, `/artisan editor sessions` prints the same list; click
+**[close]**, or type `/artisan editor revoke <id>` with the id it shows.
+
 | Permission | Allows | Default |
 |---|---|---|
 | `artisan.editor.view` | Open the editor and read projects. Required by `/artisan editor`. | op |

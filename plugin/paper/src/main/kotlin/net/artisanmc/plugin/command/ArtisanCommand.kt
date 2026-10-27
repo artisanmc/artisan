@@ -33,8 +33,8 @@ class ArtisanCommand(
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("editor", ignoreCase = true) ->
-                listOf("logout").filter { it.startsWith(args[1].lowercase()) }
-            args.size == 3 && args[0].equals("editor", ignoreCase = true) && sender.hasPermission("artisan.admin") ->
+                listOf("logout", "sessions", "revoke").filter { it.startsWith(args[1].lowercase()) }
+            args.size == 3 && args[0].equals("editor", ignoreCase = true) && args[1].equals("logout", ignoreCase = true) && sender.hasPermission("artisan.admin") ->
                 plugin.server.onlinePlayers.map { it.name }.filter { it.startsWith(args[2], ignoreCase = true) }
             else -> emptyList()
         }
@@ -74,6 +74,8 @@ class ArtisanCommand(
             "editor" -> when (args.getOrNull(1)?.lowercase()) {
                 null -> editor(sender)
                 "logout" -> logout(sender, args.getOrNull(2))
+                "sessions" -> sessions(sender)
+                "revoke" -> args.getOrNull(2)?.let { revoke(sender, it) } ?: Chat.send(sender, lang.get("artisan.usage_editor", sender))
                 else -> Chat.send(sender, lang.get("artisan.usage_editor", sender))
             }
             "dump-title" -> {
@@ -214,6 +216,83 @@ class ArtisanCommand(
         }
     }
 
+    /** A session as the command lists it, from this server's [Sessions] or the hub's reply. */
+    private data class Listed(val id: String, val player: String, val permissions: Collection<String>, val server: String, val lastActiveAt: java.time.Instant, val online: Boolean)
+
+    /** The open editor sessions of every server of the database, each with a click to close it. */
+    private fun sessions(sender: CommandSender) {
+        val senderLang = lang.playerLang(sender)
+        if (!sender.hasPermission(EditorPermissions.CONFIG)) return Chat.send(sender, lang.get("cmd.no_permission", sender))
+        fun show(listed: List<Listed>?) {
+            if (listed == null) return Chat.send(sender, lang.get("artisan.editor_hub_offline", senderLang))
+            if (listed.isEmpty()) return Chat.send(sender, lang.get("artisan.editor_sessions_empty", senderLang))
+            Chat.send(sender, lang.get("artisan.editor_sessions_header", senderLang, "count" to listed.size.toString()))
+            val now = java.time.Instant.now()
+            for (s in listed) {
+                val idle = java.time.Duration.between(s.lastActiveAt, now)
+                val active = when {
+                    idle.toHours() < 1 -> lang.getRaw("artisan.editor_session_active_recent", sender)
+                    idle.toDays() < 1 -> lang.getRaw("artisan.editor_session_active_hours", sender, "hours" to idle.toHours().toString())
+                    else -> lang.getRaw("artisan.editor_session_active_days", sender, "days" to idle.toDays().toString())
+                }
+                Chat.send(sender, lang.get(
+                    if (s.online) "artisan.editor_session_line_online" else "artisan.editor_session_line", senderLang,
+                    "player" to s.player, "server" to s.server.ifEmpty { "?" }, "active" to active,
+                    "rights" to EditorPermissions.ALL.filter { it in s.permissions }.joinToString(", ") { it.removePrefix("artisan.editor.") },
+                    "id" to s.id.take(SHOWN_ID),
+                ))
+            }
+        }
+        val cfg = plugin.currentConfig()
+        if (!(cfg.web.enabled && cfg.web.leaf)) {
+            val editor = plugin.editor ?: return Chat.send(sender, lang.get("artisan.editor_disabled", senderLang))
+            // The stored sessions are read from the database: off the main thread.
+            plugin.scheduler.async {
+                val online = plugin.editorHost.editorChannel.online()
+                val labels = plugin.editorHost.serverLabels()
+                val listed = plugin.editorSessions.list().map {
+                    Listed(it.id, it.playerName, it.permissions, labels[it.origin] ?: it.origin, it.lastActiveAt, it.id in online)
+                }
+                if (plugin.isEnabled && editor === plugin.editor) plugin.scheduler.global { show(listed) }
+            }
+            return
+        }
+        val provider = plugin.menuProvider as? SyncedMenuProvider ?: return show(null)
+        provider.requestEditorSessions().whenComplete { reply, _ ->
+            if (!plugin.isEnabled) return@whenComplete
+            val listed = reply?.takeIf { it.path("ok").asBoolean() }?.path("sessions")?.mapNotNull { s ->
+                val at = runCatching { java.time.Instant.parse(s.path("last_active_at").asText()) }.getOrNull() ?: return@mapNotNull null
+                Listed(s.path("id").asText(), s.path("player_name").asText(), s.path("permissions").map { it.asText() }, s.path("server").asText(), at, s.path("online").asBoolean())
+            }
+            plugin.scheduler.global { show(listed) }
+        }
+    }
+
+    /** Closes the one session whose id starts with [id], as `/artisan editor sessions` shows it. */
+    private fun revoke(sender: CommandSender, id: String) {
+        val senderLang = lang.playerLang(sender)
+        if (!sender.hasPermission(EditorPermissions.CONFIG)) return Chat.send(sender, lang.get("cmd.no_permission", sender))
+        fun done(revoked: Boolean?) = Chat.send(sender, when (revoked) {
+            null -> lang.get("artisan.editor_hub_offline", senderLang)
+            true -> lang.get("artisan.editor_session_revoked", senderLang)
+            false -> lang.get("artisan.editor_session_not_found", senderLang, "id" to id)
+        })
+        val cfg = plugin.currentConfig()
+        if (!(cfg.web.enabled && cfg.web.leaf)) {
+            if (plugin.editor == null) return Chat.send(sender, lang.get("artisan.editor_disabled", senderLang))
+            plugin.scheduler.async {
+                val revoked = plugin.editorSessions.revoke(id.lowercase())
+                if (plugin.isEnabled) plugin.scheduler.global { done(revoked) }
+            }
+            return
+        }
+        val provider = plugin.menuProvider as? SyncedMenuProvider ?: return done(null)
+        provider.requestEditorRevoke(id.lowercase()).whenComplete { reply, _ ->
+            if (!plugin.isEnabled) return@whenComplete
+            plugin.scheduler.global { done(reply?.takeIf { it.path("ok").asBoolean() }?.path("revoked")?.asBoolean()) }
+        }
+    }
+
     /** Who the editor signs in: the player who asked, or the one shared Console identity. */
     private fun identity(sender: CommandSender): Pair<UUID, String> =
         if (sender is Player) sender.uniqueId to sender.name else CONSOLE_ID to CONSOLE_NAME
@@ -269,6 +348,8 @@ class ArtisanCommand(
     companion object {
         /** The editor identity of the console, shared by whoever runs it: one set of drafts, one author name. */
         val CONSOLE_ID: UUID = UUID(0L, 0L)
+        /** How much of a session id `/artisan editor sessions` shows, and its click types back. */
+        private const val SHOWN_ID = 12
         const val CONSOLE_NAME = "Console"
 
         /** `editor` checks its own rights, finer grained. */

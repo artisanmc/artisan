@@ -187,11 +187,13 @@ internal class SuiteDatabase(private val plugin: ArtisanPlugin) {
         }
 
         override fun put(key: String, session: net.artisanmc.plugin.hub.EditorSession) {
-            safe { it.put(key, net.artisanmc.plugin.database.EditorSessionRow(session.playerId, session.playerName, session.permissions, session.expiresAt, session.origin)) }
+            val link = session.id == net.artisanmc.plugin.hub.Sessions.LINK
+            safe { it.put(key, net.artisanmc.plugin.database.EditorSessionRow(session.playerId, session.playerName, session.permissions, session.expiresAt, session.origin, session.createdAt, link)) }
         }
-        override fun get(key: String) = safe { it.get(key) }?.let {
-            net.artisanmc.plugin.hub.EditorSession("", it.playerId, it.playerName, it.permissions, it.expiresAt, it.origin)
-        }
+        private fun session(row: net.artisanmc.plugin.database.EditorSessionRow) =
+            net.artisanmc.plugin.hub.EditorSession("", row.playerId, row.playerName, row.permissions, row.expiresAt, row.origin, row.createdAt)
+        override fun get(key: String) = safe { it.get(key) }?.let(::session)
+        override fun list(now: java.time.Instant) = safe { it.list(now) }.orEmpty().map { (key, row) -> key to session(row) }
         override fun touch(key: String, expiresAt: java.time.Instant) { safe { it.touch(key, expiresAt) } }
         override fun delete(key: String) { safe { it.delete(key) } }
         override fun purge(now: java.time.Instant) { safe { it.purge(now) } }

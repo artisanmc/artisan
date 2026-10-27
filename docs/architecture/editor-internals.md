@@ -865,12 +865,16 @@ then the list is re-read from that disk.
 
 See `docs/archive/specs/2026-05-27-workspace-shell-and-settings-design.md`.
 
-`/settings` has three sections: **Appearance**, **AI apps** (`features/mcp/McpAppsSection.tsx`,
+`/settings` has four sections: **Appearance**, **AI apps** (`features/mcp/McpAppsSection.tsx`,
 `#ai`: the `/mcp` address to copy, the authorized MCP clients and their revocation; "disabled" when the
 hub answers 404, without `web.mcp`) and, for `artisan.editor.config`, **Editor
 address** (`features/settings/EditorAddressSection.tsx`, `/api/v1/editor-address`): name of the
 address on the tunnel server, checked while typing, then connection link on the
-new address. `#address` opens this section. As long as the address has no name,
+new address. `#address` opens this section. Also for `artisan.editor.config`, **Sessions**
+(`features/settings/EditorSessionsSection.tsx`, `/api/v1/editor-sessions`, `#sessions`): the open
+editor sessions of the network, with "You", "Editor open", last activity (to the hour), origin
+server and rights; **Close** revokes one, one's own after a confirmation, then
+`authStore.sessionClosed()` sends the tab to `/login?expired=1`. As long as the address has no name,
 `EditorAddressBanner` offers it at the top of a server's page; "Later" hides it for
 this browser (`localStorage`).
 

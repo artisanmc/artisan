@@ -45,6 +45,8 @@ class PluginChannel(
                 "editor_link" -> return link(session, message, current.id)
                 "editor_permissions" -> return sessions.refresh(current.id, permissions(message.path("players")))
                 "editor_logout" -> return logout(session, message)
+                "editor_sessions" -> return list(session, message)
+                "editor_revoke" -> return revoke(session, message)
             }
             if (current != null) return current.receive(message, editors)
             if (message.path("type").asText() != "hello") return
@@ -117,6 +119,29 @@ class PluginChannel(
         val reply = mapOf("type" to "editor_logout_result", "request_id" to message.path("request_id").asText(), "ok" to (player != null), "closed" to closed)
         session.sendText(Call.mapper.writeValueAsString(reply), Callback.NOOP)
     }
+
+    /** `/artisan editor sessions` typed on a network server: the hub's list, with who has a tab open on it. */
+    private fun list(session: Session, message: JsonNode) {
+        val online = editors.online()
+        val labels = servers.all().associate { it.id to it.label }
+        val listed = sessions.list().map {
+            mapOf(
+                "id" to it.id, "player_name" to it.playerName, "permissions" to it.permissions.toList(),
+                "server" to (labels[it.origin] ?: it.origin), "last_active_at" to it.lastActiveAt.toString(),
+                "online" to (it.id in online),
+            )
+        }
+        reply(session, mapOf("type" to "editor_sessions_result", "request_id" to message.path("request_id").asText(), "ok" to true, "sessions" to listed))
+    }
+
+    /** `/artisan editor revoke <id>` typed on a network server. */
+    private fun revoke(session: Session, message: JsonNode) {
+        val ok = sessions.revoke(message.path("id").asText(""))
+        reply(session, mapOf("type" to "editor_revoke_result", "request_id" to message.path("request_id").asText(), "ok" to true, "revoked" to ok))
+    }
+
+    private fun reply(session: Session, reply: Map<String, Any?>) =
+        session.sendText(Call.mapper.writeValueAsString(reply), Callback.NOOP)
 
     private fun link(session: Session, message: JsonNode, origin: String) {
         val player = runCatching { UUID.fromString(message.path("player_id").asText()) }.getOrNull()

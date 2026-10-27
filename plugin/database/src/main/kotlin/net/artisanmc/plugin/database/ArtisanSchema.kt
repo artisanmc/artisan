@@ -168,6 +168,10 @@ object ArtisanSchema {
         Migration(29, "CREATE INDEX ${t.mcpGrantsRefreshIndex} ON ${t.mcpGrants} (refresh_hash)") { hasIndex(it, t.mcpGrants, t.mcpGrantsRefreshIndex) },
         Migration(30, "CREATE INDEX ${t.mcpGrantsCodeIndex} ON ${t.mcpGrants} (code_hash)") { hasIndex(it, t.mcpGrants, t.mcpGrantsCodeIndex) },
         Migration(31, "CREATE INDEX ${t.mcpGrantsPlayerIndex} ON ${t.mcpGrants} (player_id)") { hasIndex(it, t.mcpGrants, t.mcpGrantsPlayerIndex) },
+        // When an editor session opened, for `/artisan editor sessions`; rows from before carry none.
+        Migration(32, "ALTER TABLE ${t.editorSessions} ADD COLUMN created_at TIMESTAMP NULL") { hasColumn(it, t.editorSessions, "created_at") },
+        // `link` for a stored sign-in link (`Sessions`, ADR `peer-servers`): a listing shows the sessions alone.
+        Migration(33, "ALTER TABLE ${t.editorSessions} ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'session'") { hasColumn(it, t.editorSessions, "kind") },
     )
 
     fun migrate(dataSource: DataSource, dialect: DatabaseDialect, logger: Logger, t: ArtisanTables = ArtisanTables.DEFAULT) =

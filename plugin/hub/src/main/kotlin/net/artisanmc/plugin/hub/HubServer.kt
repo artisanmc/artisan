@@ -49,7 +49,7 @@ class HubServer(
                 if (session == null || !session.can(EditorPermissions.VIEW) || !sameOrigin(request)) {
                     Response.writeError(request, response, callback, 403)
                     null
-                } else channel.endpoint()
+                } else channel.endpoint(sessions.publicId(session.id))
             }
             if (plugins != null) {
                 container.addMapping("/ws/plugin") { _, _, _ -> plugins.endpoint() }

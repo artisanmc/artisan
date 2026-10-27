@@ -83,6 +83,7 @@ export function RootLayout() {
 
     let cancelled = false;
     const ws = new EditorWs({
+      onSessionClosed: () => useAuthStore.getState().sessionClosed(),
       // The server reloaded: what is shown may have become wrong. The decision to
       // re-read (or to do nothing) is made in `onProjectsReloaded` — in particular,
       // it spares work in progress.

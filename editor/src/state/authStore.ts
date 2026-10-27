@@ -17,6 +17,8 @@ interface AuthState {
   error: string | null;
   hydrate: () => Promise<void>;
   logout: () => Promise<void>;
+  /** The hub closed this session (revoked from the Sessions screen or `/artisan editor`): back to sign-in. */
+  sessionClosed: () => void;
 }
 
 /** Delays between two `/me` calls while the hub is unreachable, then plateau. */
@@ -122,6 +124,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       sessionStatus: "signed-out",
       error: null,
     });
+  },
+  sessionClosed() {
+    set({ currentUser: null, sessionStatus: "signed-out", error: null });
+    // A full load: every store of the closed session goes with it.
+    window.location.assign("/login?expired=1");
   },
 }));
 

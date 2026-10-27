@@ -2,6 +2,7 @@ import { actionCatalogFr } from "./actionCatalog";
 import { aiFr } from "./ai";
 import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
+import { editorSessionsFr } from "./editorSessions";
 import type en from "./en";
 import { mcpFr } from "./mcp";
 import { mmEditorFr, textToolFr } from "./mmEditor";
@@ -1580,6 +1581,7 @@ const fr: typeof en = {
     emptyContext: "Aucune variable disponible dans ce contexte",
   },
   mcp: mcpFr,
+  editorSessions: editorSessionsFr,
   ai: aiFr,
   editorAddress: {
     title: "Adresse de l'éditeur",

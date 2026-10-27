@@ -2,6 +2,7 @@ import { actionCatalogEn } from "./actionCatalog";
 import { aiEn } from "./ai";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
+import { editorSessionsEn } from "./editorSessions";
 import { mcpEn } from "./mcp";
 import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
@@ -1555,6 +1556,7 @@ export default {
     emptyContext: "No variable available in this context",
   },
   mcp: mcpEn,
+  editorSessions: editorSessionsEn,
   ai: aiEn,
   editorAddress: {
     title: "Editor address",

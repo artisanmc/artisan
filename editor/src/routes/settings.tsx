@@ -1,32 +1,50 @@
 import { McpAppsSection } from "@/features/mcp/McpAppsSection";
 import { AppearanceSection } from "@/features/settings/AppearanceSection";
 import { EditorAddressSection } from "@/features/settings/EditorAddressSection";
+import { EditorSessionsSection } from "@/features/settings/EditorSessionsSection";
 import { useAuthStore } from "@/state/authStore";
 import { createFileRoute } from "@tanstack/react-router";
-import { Bot, Globe, Palette } from "lucide-react";
+import { Bot, Globe, Palette, Users } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/settings")({ component: SettingsRoute });
 
-type Section = "appearance" | "address" | "ai";
+type Section = "appearance" | "address" | "sessions" | "ai";
+
+const TITLES: Record<Section, [title: string, help: string]> = {
+  appearance: ["settings.appearance.title", "settingsPage.appearanceHelp"],
+  ai: ["mcp.apps.title", "mcp.apps.help"],
+  address: ["editorAddress.title", "editorAddress.help"],
+  sessions: ["editorSessions.title", "editorSessions.help"],
+};
 
 export function SettingsRoute() {
   const { t } = useTranslation();
-  // The editor's address is the hub's, for those who may configure it.
+  // The editor's address and its sessions are the hub's, for those who may configure it.
   const canConfigure = useAuthStore(
     (s) => s.currentUser?.permissions?.includes("artisan.editor.config") ?? false,
   );
   const [section, setSection] = useState<Section>(() => {
     const hash = typeof window !== "undefined" ? window.location.hash : "";
-    return hash === "#address" ? "address" : hash === "#ai" ? "ai" : "appearance";
+    return hash === "#address"
+      ? "address"
+      : hash === "#sessions"
+        ? "sessions"
+        : hash === "#ai"
+          ? "ai"
+          : "appearance";
   });
-  const current: Section = section === "address" && !canConfigure ? "appearance" : section;
+  const current: Section =
+    (section === "address" || section === "sessions") && !canConfigure ? "appearance" : section;
   const sections: { id: Section; icon: typeof Palette; label: string }[] = [
     { id: "appearance", icon: Palette, label: t("settings.appearance.title") },
     { id: "ai", icon: Bot, label: t("mcp.apps.title") },
     ...(canConfigure
-      ? [{ id: "address" as const, icon: Globe, label: t("editorAddress.title") }]
+      ? [
+          { id: "address" as const, icon: Globe, label: t("editorAddress.title") },
+          { id: "sessions" as const, icon: Users, label: t("editorSessions.title") },
+        ]
       : []),
   ];
   return (
@@ -37,19 +55,9 @@ export function SettingsRoute() {
             className="display text-[32px] tracking-tight text-[var(--text)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            {current === "address"
-              ? t("editorAddress.title")
-              : current === "ai"
-                ? t("mcp.apps.title")
-                : t("settings.appearance.title")}
+            {t(TITLES[current][0])}
           </h1>
-          <p className="text-[13px] text-[var(--text-mut)]">
-            {current === "address"
-              ? t("editorAddress.help")
-              : current === "ai"
-                ? t("mcp.apps.help")
-                : t("settingsPage.appearanceHelp")}
-          </p>
+          <p className="text-[13px] text-[var(--text-mut)]">{t(TITLES[current][1])}</p>
         </header>
         <div className="flex flex-col gap-4 lg:flex-row">
           <nav aria-label="Settings sections" className="card shrink-0 p-3 lg:w-[224px]">
@@ -77,6 +85,8 @@ export function SettingsRoute() {
           <main className="card flex-1 p-6 md:p-8">
             {current === "address" ? (
               <EditorAddressSection />
+            ) : current === "sessions" ? (
+              <EditorSessionsSection />
             ) : current === "ai" ? (
               <McpAppsSection />
             ) : (
