@@ -578,7 +578,7 @@ For each release of the core or a module:
 - [ ] If new schema: `/docs/schema/{name}/v{N}/` created with types.ts + examples
 - [ ] If migration needed: migration code + unit test
 - [ ] If breaking change: Discord announcement made 3+ months before
-- [ ] If Minecraft or PacketEvents changed: "Packet menus" checklist run in game (`testing.md`)
+- [ ] If Minecraft changed: "Packet menus" checklist run in game (`testing.md`)
 
 ### 11.2 Release
 

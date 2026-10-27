@@ -48,7 +48,8 @@ Artisan <version> enabled
 |---|---|
 | `[Artisan] Editor disabled: cannot listen on *:8765 (…)` | The port is taken or refused. Change `web.port` in `environment.yml` and restart. |
 | `[Artisan] Editor disabled: web server libraries are missing (…)` | Paper could not download Jetty. Give the server outbound access to Maven Central for one start. |
-| `PacketEvents failed to load — menus will open empty` | Your Minecraft version is newer than the bundled PacketEvents. Update Artisan. |
+| `menu packets unavailable on this server — menus will open empty` | Your Minecraft version is newer than this Artisan. Update Artisan. |
+| `Spigot <version> is not supported` | Spigot before 26.1. Update Spigot, or use Paper. |
 
 ## 3. Nothing to open (or your own address)
 

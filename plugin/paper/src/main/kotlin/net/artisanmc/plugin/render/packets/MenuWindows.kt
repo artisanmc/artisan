@@ -13,7 +13,7 @@ import net.kyori.adventure.text.Component
  * contents ([MenuSlots]).
  *
  * The contents exist client-side only: the window's outgoing packets are rewritten
- * from the slots (pure routing here, adapter in [PacketEventsMenuPackets]). Nothing is
+ * from the slots (pure routing here, applied by [MenuPacketRewriter]). Nothing is
  * taken from the real inventory: a crash, a death or a disconnect with a menu open
  * loses nothing.
  */
