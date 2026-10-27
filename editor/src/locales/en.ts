@@ -1622,6 +1622,11 @@ export default {
       language: "Language",
       per_player_language: "Per-player language",
       "resource-pack": {
+        enabled: "Send the pack to players (without delegation)",
+        prompt: "Prompt message (empty: the player's language)",
+        required: "Disconnect players who decline the pack",
+        "send-on-join": "Send on join",
+        "send-delay-ticks": "Send delay (ticks)",
         "delegate-to-dir": "Pack folder of Nexo, Oraxen or ItemsAdder (path)",
         "delegate-reload-command": "Reload command after delegation",
         "container-textures": {

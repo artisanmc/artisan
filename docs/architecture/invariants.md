@@ -292,8 +292,8 @@ in `asset-index.json`: `vanilla_gui.transparent_chests|hoppers|dispensers`.
   (ids 0..5, stable); hoppers and dispensers/droppers by the Bukkit type of the inventory that
   just opened (`OpenedContainers`, `InventoryOpenEvent` right before the packet), their protocol ids
   moving from one version to the next. For a player only if `PackLoadTracker` saw them
-  load a pack (the Artisan pack is always merged into a host plugin's: any
-  `SUCCESSFULLY_LOADED` counts) **and** if the current catalog
+  load the Artisan pack (delegated, it is merged into a host plugin's: any
+  `SUCCESSFULLY_LOADED` counts; sent directly, only the id Artisan sent) **and** if the current catalog
   makes this type transparent. Otherwise the glyph would show as a missing character. An Artisan menu
   with `vanilla_texture: false` is not decorated.
 - **Accepted transients**: between a publication and the reload of the new pack, a player may

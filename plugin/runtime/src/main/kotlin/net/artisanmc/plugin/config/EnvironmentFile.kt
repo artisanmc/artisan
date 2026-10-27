@@ -51,6 +51,10 @@ object EnvironmentFile {
         |#   tunnel-access : the code a private tunnel server asks for; empty for none
         |# A server of the network with no port to its hub sets hub to the hub's tunnel address
         |# (https://<id>.artisanmc.app).
+        |# pack-cdn : where the hub uploads the resource pack the editor builds; players download
+        |#            it from there, with no port to open. Artisan's host by default (packs are
+        |#            public, kept 30 days after their last use); "" for none: players then
+        |#            download it from url, or from this server's port
         |web:
         |  enabled: true
         |  port: 8765
@@ -61,6 +65,7 @@ object EnvironmentFile {
         |  secret: ""
         |  tunnel: "connect.artisanmc.app"
         |  tunnel-access: ""
+        |  pack-cdn: "cdn.artisanmc.net"
         |
         |# The editor's assistant, on your own model account (hub only). Players with
         |# artisan.editor.edit chat with it in the editor; it reads the Projects and writes

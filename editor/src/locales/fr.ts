@@ -1648,6 +1648,11 @@ const fr: typeof en = {
       language: "Langue",
       per_player_language: "Langue de chaque joueur",
       "resource-pack": {
+        enabled: "Envoyer le pack aux joueurs (sans délégation)",
+        prompt: "Message de demande (vide : langue du joueur)",
+        required: "Déconnecter les joueurs qui refusent le pack",
+        "send-on-join": "Envoyer à la connexion",
+        "send-delay-ticks": "Délai d'envoi (ticks)",
         "delegate-to-dir": "Dossier du pack de Nexo, Oraxen ou ItemsAdder (chemin)",
         "delegate-reload-command": "Commande de rechargement après délégation",
         "container-textures": {
