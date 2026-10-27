@@ -126,6 +126,13 @@ export function MmEditor({
         wrapWidth,
         wrapLabel: t("mmEditor.wrapMarker", { width: wrapWidth }),
         expressions,
+        // The example value says more than the type; the type when there is none.
+        completionDetail: (e) =>
+          e.type === "boolean" && (e.sample === "true" || e.sample === "false")
+            ? t(e.sample === "true" ? "mmEditor.expr.yes" : "mmEditor.expr.no")
+            : e.sample
+              ? (e.sample.split("\n")[0] ?? "")
+              : t(`itemContext.types.${e.type}`),
       }),
       Prec.high(
         keymap.of([

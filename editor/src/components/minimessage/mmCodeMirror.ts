@@ -325,7 +325,10 @@ function codeField(profile: MmProfile) {
   });
 }
 
-function placeholderCompletion(entries: PlaceholderEntry[]) {
+function placeholderCompletion(
+  entries: PlaceholderEntry[],
+  detailOf: (entry: PlaceholderEntry) => string,
+) {
   return (ctx: CompletionContext) => {
     const word = ctx.matchBefore(/\{[\w.]*$/);
     if (!word || entries.length === 0) return null;
@@ -333,7 +336,7 @@ function placeholderCompletion(entries: PlaceholderEntry[]) {
       from: word.from,
       options: entries.map((e) => ({
         label: `{${e.path}}`,
-        detail: e.sample ?? e.type,
+        detail: detailOf(e),
         apply: `{${e.path}}`,
       })),
       validFor: /^\{[\w.]*$/,
@@ -406,6 +409,47 @@ export const MM_THEME = EditorView.theme({
   },
   ".cm-mm-expr-body": { whiteSpace: "pre-wrap", overflowWrap: "anywhere" },
   ".cm-mm-expr-empty": { color: "var(--text-faint)", fontStyle: "italic" },
+  // The `{` completion list: the editor's surfaces, not CodeMirror's light default,
+  // and none of the rich view's in-game styling (colour, italic) leaking in.
+  ".cm-tooltip": {
+    background: "var(--surface-raised)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--r-sm)",
+    boxShadow: "var(--shadow-md)",
+    color: "var(--text)",
+    fontStyle: "normal",
+    overflow: "hidden",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": {
+    fontFamily: "var(--font-mono)",
+    fontSize: "12px",
+    maxHeight: "16em",
+    padding: "4px",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+    display: "flex",
+    alignItems: "baseline",
+    gap: "10px",
+    padding: "3px 8px",
+    borderRadius: "4px",
+    color: "var(--text)",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
+    background: "var(--brand-soft)",
+    color: "var(--text)",
+  },
+  ".cm-completionLabel": { whiteSpace: "nowrap" },
+  ".cm-completionMatchedText": { textDecoration: "none", color: "var(--brand)" },
+  ".cm-completionDetail": {
+    marginLeft: "auto",
+    fontStyle: "normal",
+    fontFamily: "var(--font-body)",
+    color: "var(--text-faint)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    maxWidth: "14em",
+  },
   ".cm-mm-obf": { textDecoration: "underline dashed", textDecorationColor: "var(--text-faint)" },
 });
 
@@ -463,6 +507,8 @@ export interface MmExtensionOptions {
   wrapLabel?: string;
   /** How the rich view shows the expressions it cannot show as text. */
   expressions?: ExpressionView;
+  /** What the `{` completion list says beside a placeholder. */
+  completionDetail?: (entry: PlaceholderEntry) => string;
 }
 
 export function mmExtensions({
@@ -472,6 +518,7 @@ export function mmExtensions({
   wrapWidth,
   wrapLabel = "",
   expressions,
+  completionDetail = (e) => e.sample ?? e.type,
 }: MmExtensionOptions): Extension[] {
   const exts: Extension[] = [MM_THEME, EditorView.lineWrapping];
   if (wrapWidth && wrapWidth > 0 && profile.lines === "separate") {
@@ -480,7 +527,13 @@ export function mmExtensions({
   if (profile.lines === "single") {
     exts.push(Prec.highest(keymap.of([{ key: "Enter", run: () => true }])));
   }
-  if (entries.length) exts.push(autocompletion({ override: [placeholderCompletion(entries)] }));
+  if (entries.length)
+    exts.push(
+      autocompletion({
+        override: [placeholderCompletion(entries, completionDetail)],
+        icons: false,
+      }),
+    );
   if (mode === "rich") {
     const field = richField(profile, expressions);
     exts.push(field, richInputFilter(profile), richKeymap(field));
