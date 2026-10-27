@@ -17,6 +17,7 @@ import type {
 } from "@/domain/types";
 import { cx } from "@/lib/cx";
 import { useTextEdit } from "@/lib/useText";
+import { useCommandNodeStore } from "@/state/commandNodeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
 import { useEffect, useMemo, useState } from "react";
@@ -82,14 +83,16 @@ export function CommandEditor({ projectId, command }: { projectId: ProjectId; co
   const setCommandAliases = useProjectsStore((s) => s.setCommandAliases);
   const setCommandDescription = useProjectsStore((s) => s.setCommandDescription);
   const { t } = useTranslation();
-  // The node the panels edit: the command, or one of its sub-commands.
-  // Kept with the command it belongs to: another command opens on its root.
-  const [selection, setSelection] = useState<{ id: CommandId; path: CommandNodePath }>({
-    id: command.id,
-    path: [],
-  });
+  // The node the panels edit: the command, or one of its sub-commands. Kept with the
+  // command it belongs to: another command opens on its root, unless a click on one of
+  // its sub-commands on the board chose the node first.
+  const selection = useCommandNodeStore();
+  useEffect(() => {
+    const { id, select } = useCommandNodeStore.getState();
+    if (id !== command.id) select(command.id, []);
+  }, [command.id]);
   const selected = selection.id === command.id ? selection.path : [];
-  const setSelected = (path: CommandNodePath) => setSelection({ id: command.id, path });
+  const setSelected = (path: CommandNodePath) => selection.select(command.id, path);
   const node = commandNodeAt(command, selected) ?? command;
   const sub = node === command ? undefined : selected;
   const words = [command.name, ...wordsTo(command, sub ?? [])];
