@@ -1,14 +1,64 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "baseUrl": ".",
-    "paths": { "@/*": ["../editor/src/*"] }
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "types": [
+      "webpack-env"
+    ],
+    "typeRoots": [
+      "./node_modules/@types",
+      "../editor/node_modules/@types"
+    ],
+    "paths": {
+      "@/*": [
+        "../editor/src/*"
+      ],
+      "@artisan/editor-sdk": [
+        "../editor/packages/editor-sdk/src/index.ts"
+      ],
+      "@artisan/quests-editor": [
+        "../editor/packages/quests-editor/src/index.ts"
+      ],
+      "@artisan/boutique-editor": [
+        "../editor/packages/boutique-editor/src/index.ts"
+      ],
+      "react": [
+        "../editor/node_modules/@types/react"
+      ],
+      "react/*": [
+        "../editor/node_modules/@types/react/*"
+      ],
+      "*": [
+        "./node_modules/*",
+        "../editor/node_modules/*"
+      ],
+      "react-dom": [
+        "../editor/node_modules/@types/react-dom"
+      ],
+      "react-dom/*": [
+        "../editor/node_modules/@types/react-dom/*"
+      ],
+      "three": [
+        "../editor/node_modules/@types/three"
+      ]
+    }
   },
-  "include": ["src", "remotion.config.ts"]
+  "include": [
+    "src",
+    "remotion.config.ts"
+  ]
 }

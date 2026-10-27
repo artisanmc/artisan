@@ -1,2 +1,17 @@
 @import "../../editor/src/styles/globals.css";
 @source "../../editor/src";
+
+/* globals.css nomme « Hanken Grotesque », famille absente de Google Fonts :
+   on vise la police voulue, embarquée par @fontsource/hanken-grotesk. */
+:root {
+  --font-body: "Hanken Grotesk", system-ui, sans-serif;
+}
+
+/* Remotion capture image par image : une transition CSS jouerait en temps
+   réel et figerait des états intermédiaires. Le mouvement vient des scènes. */
+*,
+*::before,
+*::after {
+  transition: none !important;
+  animation: none !important;
+}

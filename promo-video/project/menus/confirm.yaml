@@ -20,8 +20,8 @@ layers:
         click:
           left:
             steps: |
-              if has_money({price}):
-                take_money {price}
+              if %vault_eco_balance% >= price:
+                run_command "eco take %player_name% {price}" as console
                 run_command "lp user %player_name% parent add {rank}" as console
                 play_sound entity.player.levelup vol=1 pitch=1
                 close_menu

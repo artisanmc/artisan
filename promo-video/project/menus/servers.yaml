@@ -34,7 +34,7 @@ layers:
           left:
             steps: |
               play_sound entity.experience_orb.pickup vol=1 pitch=1.4
-              run_command "server survival"
+              run_command "server survival" as player
       - id: skyblock
         positions: 22
         material: ELYTRA
@@ -49,7 +49,7 @@ layers:
           - '<green>▶ Click to join'
         click:
           left:
-            steps: run_command "server skyblock"
+            steps: run_command "server skyblock" as player
       - id: creative
         positions: 24
         material: BRUSH
@@ -63,7 +63,7 @@ layers:
           - '<green>▶ Click to join'
         click:
           left:
-            steps: run_command "server creative"
+            steps: run_command "server creative" as player
       - id: events
         positions: 31
         material: FIREWORK_ROCKET
@@ -73,7 +73,7 @@ layers:
           - '<gray>Starts in <yellow>%event_countdown%'
         click:
           left:
-            steps: run_command "server events"
+            steps: run_command "server events" as player
       - id: shop
         positions: 40
         material: EMERALD

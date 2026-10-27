@@ -5,6 +5,6 @@ layout:
   store: { x: 220, y: 480 }
   shop: { x: 560, y: 120 }
   ranks: { x: 1040, y: -120 }
-  keys: { x: 1040, y: 280 }
-  cosmetics: { x: 1040, y: 560 }
   confirm: { x: 1520, y: -120 }
+  keys: { x: 1040, y: 320 }
+  cosmetics: { x: 1520, y: 320 }
