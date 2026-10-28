@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Fixed**: deploying no longer lists, and rewrites, files nobody edited. A file written by hand or shipped by a module (flow maps, quotes, comments, CRLF line endings from a jar built on Windows) came back in the editor's own format and showed as modified on every first deploy. A YAML file whose value the editor left unchanged now keeps the server's bytes; an edited file is still written in the editor's format.
 - **Fixed**: the project settings button (the gear beside the project name, or the topbar's ⋮) did nothing away from the board. On a Document's own editor or a collection, the settings now open in the Properties column beside it; on a tab (Resources, Translations…), which shows no inspector, it goes back to the board and opens them there.
 - **Changed**: on a module's Settings screen, a map of small objects (the guilds' levels) is a table: one row per entry, one column per field. When its keys are numbers, **Add** appends the next number, copied from the last entry. An untyped file reads numbered entries holding objects the same way. Such keys are saved plain (`2:`), no longer quoted (`"2":`).
 - **Fixed**: **Preview as** a player now really previews as them: the server hands that online `Player` to the source's fetcher, on their thread, instead of `player = null` with the name buried in `params.player`. A name that is not online previews with no player, as before.

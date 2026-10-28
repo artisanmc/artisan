@@ -517,6 +517,10 @@ a `disabled` button does not receive hover and would not show its bubble. Deploy
 its label, preceded by a filled play icon. Draft autosave stays active. Deploy opens
 `DeployReviewDialog`: server base against the live Project's `projectTree`,
 renames and binaries included. Only confirmation calls `saveProjectToDisk`.
+`projectTree` gives a YAML file whose value the editor left as the base holds it
+(`keepEquivalentText`, `lib/yamlEquivalence.ts`: style, quotes, key order, comments and CRLF
+do not count) the base's bytes: a hand-written or module-shipped file is neither listed nor
+rewritten until it is really edited.
 Mutations carry an `operationId` and a snapshot frozen in the local rescue copy
 isolated per owner: after a lost ACK, replay this operation before sending
 the next keystrokes. A definitive 4xx rejection releases this operation; an uncertain
