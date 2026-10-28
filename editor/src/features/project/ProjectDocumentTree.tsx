@@ -63,7 +63,7 @@ import {
   useGlidingRows,
   withDropPreview,
 } from "./documentDrag";
-import { openProjectSettings } from "./projectSettings";
+import { useOpenProjectSettings } from "./projectSettings";
 import { adoptDiskIntoProject } from "./saveProjectToDisk";
 import {
   type DocumentType,
@@ -113,6 +113,7 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [newKind, setNewKind] = useState<string | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const openProjectSettings = useOpenProjectSettings();
   const templates = useProjectTemplates(projectId);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   // A kind may be reserved to its module's own folder (`projects`, SDK 1.8).

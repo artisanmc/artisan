@@ -23,9 +23,9 @@ beforeEach(() => {
   useUiStore.getState().setProjectSettingsOpen(false);
 });
 const projectId = "p1" as ProjectId;
-function workspace(active = true) {
+function workspace(active = true, tabOpen = false) {
   return (
-    <ProjectWorkspacePanels projectId={projectId} active={active}>
+    <ProjectWorkspacePanels projectId={projectId} active={active} tabOpen={tabOpen}>
       <CanvasWithInspector
         projectId={projectId}
         canvas={<div>Canvas</div>}
@@ -72,9 +72,16 @@ it("hides properties on secondary views", () => {
   expect(screen.queryByText("Floating properties")).toBeNull();
 });
 
-it("shows the project settings away from the board too", () => {
+it("shows the project settings beside a Document's page or a collection", () => {
   inspecting = true;
   useUiStore.getState().setProjectSettingsOpen(true);
   render(workspace(false));
   expect(screen.getByText("Selection properties")).toBeInTheDocument();
+});
+
+it("keeps a secondary tab free of the project settings", () => {
+  inspecting = true;
+  useUiStore.getState().setProjectSettingsOpen(true);
+  render(workspace(false, true));
+  expect(screen.queryByText("Selection properties")).toBeNull();
 });

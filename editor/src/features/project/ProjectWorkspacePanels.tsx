@@ -13,21 +13,26 @@ import { useInspector } from "./useInspector";
 export function ProjectWorkspacePanels({
   projectId,
   active,
+  tabOpen = false,
   children,
 }: {
   projectId: ProjectId;
+  /** The board (or a Document shown on a stage) is the view: a selection may be inspected. */
   active: boolean;
+  /** A secondary tab (Resources, Translations…) covers the center: no inspector at all. */
+  tabOpen?: boolean;
   children: ReactNode;
 }) {
   const width = useUiStore((s) => s.editorPaneWidth);
   const setWidth = useUiStore((s) => s.setEditorPaneWidth);
   const { open } = useInspector(projectId);
   // A selection belongs to the board: away from it (a Document's own editor, a
-  // collection, a tab) its properties stay hidden. The project settings belong
-  // to no view and are asked for explicitly (the gear sits in the left bar,
-  // always on screen), so they open the column wherever the user stands.
+  // collection) its properties stay hidden. The project settings belong to no
+  // view and are asked for explicitly (the gear sits in the left bar, always on
+  // screen), so they open the column beside those views too. A tab shows no
+  // inspector: the gear leaves it first (`useOpenProjectSettings`).
   const projectSettingsOpen = useUiStore((s) => s.projectSettingsOpen);
-  const propertiesOpen = open && (active || projectSettingsOpen);
+  const propertiesOpen = open && (active || (projectSettingsOpen && !tabOpen));
   const [availableWidth, setAvailableWidth] = useState(1200);
   const frame = useRef<HTMLDivElement>(null);
   useEffect(() => {
