@@ -68,6 +68,15 @@ What `@Stable` promises on an interface depends on who implements it:
 
 Promotion rule, for the next ones: two add-ons or more call the surface, no change breaking a caller since it appeared, and no `@Stable` signature exposes a `@Beta` or `@Internal` type. `ApiStabilityConsistencyTest` checks the last point: a `@Stable` member whose parameter or return type is `@Beta` fails the build (it found `DataSourceField(String, ModelFieldType)`, `@Stable` over a `@Beta` `ModelFieldType`), unless the member itself is marked `@Beta`. The same test requires a stability annotation on every public top-level type.
 
+## 2.19.0 — where a data source's rows come from
+
+| Member | Type | Since |
+|---|---|---|
+| `Origin` (`RUNTIME`, `CONTENT`, `MIXED`) `@Stable` | enum | 2.19.0 |
+| `DataSourceDeclaration(ref, fetcher, schema, stability, keyField, origin)`, `getOrigin()` | `Origin` | 2.19.0 |
+
+The older constructors declare `RUNTIME`, the behaviour before 2.19.0. A `MIXED` source without a non-blank `keyField` throws, like a `STATIC` one. The `data_sources` wire gains `origin` (`runtime`, `content`, `mixed`); an editor reads its absence as `runtime`. What the editor does with each value: `modules.md`, "Origin".
+
 ## Stable APIs
 
 ### `net.artisanmc.modules.api.ArtisanModule`
@@ -168,11 +177,12 @@ Exceptions: `UnknownDataSourceException`, `DuplicateDataSourceException`, `Playe
 | `schema` | `List<DataSourceField>` | `@Stable` | 1.3.0 |
 | `stability` | `Stability` | `@Stable` | 1.4.0 |
 | `keyField` | `String?` | `@Stable` | 1.4.0 |
+| `origin` | `Origin` | `@Stable` | 2.19.0 |
 | `schemaHint` | `String?` | removed in 2.0.0 | 1.0.0 → 2.0.0 |
 
 Constructing a `Stability.STATIC` declaration without a non-blank `keyField` throws (`require`) — a static source must declare its Row key.
 
-Constructors (2.0.0): `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)`, `(ref, fetcher, schema, stability, keyField)`; `DataSourceField(name, type)`, `(name, type, description)` with a `ModelFieldType` (or, `@Sunset`, a `FieldKind`); `PlayerRequiredException()`, `(message)`. Before 2.0.0 the same overloads came from `@JvmOverloads` on Kotlin constructors with default arguments (since 1.8.0).
+Constructors (2.0.0): `DataSourceDeclaration(ref, fetcher)`, `(ref, fetcher, schema)`, `(ref, fetcher, schema, stability, keyField)`, and since 2.19.0 `(ref, fetcher, schema, stability, keyField, origin)`; `DataSourceField(name, type)`, `(name, type, description)` with a `ModelFieldType` (or, `@Sunset`, a `FieldKind`); `PlayerRequiredException()`, `(message)`. Before 2.0.0 the same overloads came from `@JvmOverloads` on Kotlin constructors with default arguments (since 1.8.0).
 
 ### No Kotlin type crosses the boundary (1.5.0, api in Java since 2.0.0)
 
@@ -532,6 +542,12 @@ api.getModels().declare(new ModelDeclaration("boutique:item", "id", List.of(
 Declared (not inferred) axis of a data source. `STATIC` = a stable, enumerable key-set (`fetcher(null)` returns the authoritative rows, each identified by `keyField`) — placeable in a menu's placement mode. `DYNAMIC` (default) = runtime/player-dependent, unbounded — pagination only.
 
 Values: `STATIC`, `DYNAMIC`.
+
+### `net.artisanmc.modules.api.datasource.Origin`
+
+Declared axis of a data source (2.19.0): where its rows come from, so the editor knows whether a preview should show the draft or the server. `RUNTIME` (default) = server state only; `CONTENT` = derived from the Project's files; `MIXED` = definitions from the files joined to per-player state, requires `keyField`. See `modules.md`, "Origin".
+
+Values: `RUNTIME`, `CONTENT`, `MIXED`.
 
 ### `net.artisanmc.modules.api.datasource.FieldKind` (`@Sunset`, removed in 3.0.0)
 
