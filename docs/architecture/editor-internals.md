@@ -335,8 +335,8 @@ not the immutable internal anchor.
 rebuilding of the offline display. A successful read (including `unchanged`)
 clears `offline` and `stale`; late responses and timers are ignored when
 leaving the Project. A modified draft keeps its compare-and-swap base.
-Since 2026-09-13, a first open waits for a successful server read,
-even with a cache or local draft. A disconnection preserves the already open buffer;
+From 2026-09-13 to 2026-10-28, a first open waited for a successful server read,
+even with a cache or local draft (see below). A disconnection preserves the already open buffer;
 backend transport failures and `fetch_timeout` are also retried.
 Since 2026-10-02, no more banner: the topbar's server badge carries the offline
 state and its tooltip (`downHint` of `LinkedServersDropdown`) gives the exact
@@ -348,6 +348,33 @@ named events `started` / `located` / `opened` / `settled` / `connectionLost` /
 `readFailed` / `loadFailed` / `validated`, tested without React); the read itself
 (`readFromHub` → `readAndOpen`, `resumeDraft`, `settleOffline`) lives outside the hook.
 `projectLoadStatus` says what the workspace shows (`loading | ready | error`).
+
+### Opening from the known version (2026-10-28)
+
+The 2026-09-13 rule (a first open waits for the server) is lifted: it dated from a
+cache keyed without the player, shared by guest demos. The key now carries the
+signed-in player and a sign-out empties it, so the known version shows nothing this
+browser does not already hold. Measured: a switch cost five round trips in a row
+(identity, files, drafts, models, actions), about 420 ms each through the tunnel.
+
+- **Immediate display** (`showKnownVersion`, event `shownKnown`): with a cache entry,
+  the Project shows on the first render, `stale`. It is the in-memory Project when
+  it was built from the same fingerprint (`builtFrom`, edits included), else it is
+  rebuilt from the cache (models and actions included, no network). A first visit of
+  the session takes the cache's tree as its base until the server answers, so an
+  edit made meanwhile reaches the draft. Deploy waits while `stale` (`checking` on
+  `SaveControls`, tooltip `deploy.checking`); a refusal (`readFailed`) closes the
+  version shown.
+- **One round trip**: the files (`if_hash`), the drafts and the server's
+  declarations are asked for together with the identity, on the cached identity's
+  guess (`startReads`); a guess the hub contradicts is dropped and re-asked. An
+  `unchanged` answer whose draft and declarations did not move rebuilds nothing.
+- **Never-opened Projects**: the server index (`loadServerProjects`, already run in
+  the background) keeps each raw read; `useKnownVersionsFromIndex` turns them into
+  cache entries (`seedProjectCache`, one hub identity request per new Project, the
+  open Project left to its loader). A reload announced by the plugin re-reads the
+  index. The persisted cache drops its oldest entries when `localStorage` is full
+  instead of failing the open.
 
 ### Advanced item settings (since 2026-07-29)
 
@@ -986,11 +1013,28 @@ Both directions live side by side, one module per kind and per direction: `<kind
 - **Remaps**: `size`→`rows` (÷9), `pagination_next/prev`→`paginate{direction}`, `context_inputs`→`contextInputs` (`primitive` vs `sourceRef` depending on the presence of `ref`).
 - **Round-trip**: the `menuV1ToDomain.roundtrip.test.ts` oracle exports a rich domain project then re-imports it. Note: an OR-joined appearance `if` does **not** round-trip structurally (the export wraps a pure-OR list into a composite condition `{type:"or", of:[…]}`) — the oracle therefore uses AND-joins.
 
-## AI assistant (removed)
+## AI assistant (`features/project/assistant/`)
 
-The AI application pipeline (`applyAssistant*` in the old `accountStore`, SSE client, chat panel, resumable zMenu migration) was removed with the backend: it no longer exists in the editor (issue #44). The `menuV1ToDomain` / `commandV1ToDomain` / `dialogV1ToDomain` converters remain for the `menu/v1 → domain` import above.
+The old pipeline (`applyAssistant*`, SSE client, resumable zMenu migration) left with the backend
+(issue #44); the `menuV1ToDomain` / `commandV1ToDomain` / `dialogV1ToDomain` converters remain for
+the `menu/v1 → domain` import above. The current assistant (ADR `editor-assistant`) runs in the hub:
+`AssistantButton` in the Project top bar shows only when `GET /api/v1/ai` says `enabled` and
+`canUse`, and toggles `AssistantDock`. The dock is mounted once in `routes/__root.tsx`, after
+`<main>`: on `lg` it sits beside the page (the canvas and the chat stay usable together), below it
+covers the screen. Closed, it stays mounted and hidden, so the conversation survives closing it and
+moving between Projects; a conversation keeps the Project that was open when it started. Its width
+is dragged from its left edge (`ResizeHandle`, 360–960 px, at most 60 vw); open state and width are
+kept in `state/assistantPanelStore.ts`. The model's replies render through `Markdown` (GFM tables,
+code, links; raw HTML stays text).
 
 ## Design system (tokens + components)
+
+`components/ui/markdown.tsx` exports `Markdown`: text written by a model or a person rendered with
+the editor's type and tokens (`react-markdown` + `remark-gfm`; tables reuse `Table`/`TH`/`TD`,
+links open in a new tab, raw HTML is never rendered). `components/ui/resize-handle.tsx` exports
+`ResizeHandle`: the drag strip on a panel edge (`edge: "left" | "right"`, pointer, arrows with
+Shift for 48 px steps, Home/End, double click to reset); the panel is `relative` and owns the
+clamping and persistence.
 
 `components/ui/sortable-list.tsx` exports `SortableList`: a vertical list reordered by a
 handle (`GripVertical`, dnd-kit) that each row places wherever it wants (`children(index, handle)`),

@@ -72,8 +72,8 @@ describe("useProjectLoader — the fresh version always wins", () => {
 
     const { result } = renderHook(() => useProjectLoader("p1"));
 
-    await waitFor(() => expect(result.current.project).not.toBeNull());
-    expect(result.current.stale).toBe(false);
+    await waitFor(() => expect(result.current.stale).toBe(false));
+    expect(result.current.project).not.toBeNull();
 
     const stored = useProjectsStore.getState().openProjects.projects.find((p) => p.id === "p1");
     const menuIds = (menusOf(stored) ?? []).map((m) => m.id);
@@ -86,8 +86,12 @@ describe("useProjectLoader — the fresh version always wins", () => {
    * known version was there: the build from the cache waited for a REST round
    * trip (the server's declared models) before rendering anything. A cache that
    * waits for the network is not a cache.
+   *
+   * The known version is the signed-in player's own (the key carries their id, a
+   * sign-out empties the cache): showing it before the hub answers reveals nothing
+   * this browser does not already hold, and a refusal closes it.
    */
-  it("does not expose a cached project before the network authorizes opening it", async () => {
+  it("shows the known version without waiting for the network", async () => {
     useProjectCacheStore.getState().put(projectCacheKey("p1", undefined, "u1"), {
       identity: IDENTITY,
       diskId: "boutique_shop",
@@ -107,9 +111,11 @@ describe("useProjectLoader — the fresh version always wins", () => {
 
     const { result } = renderHook(() => useProjectLoader("p1"));
 
+    expect(result.current.stale).toBe(true);
+    expect(menusOf(result.current.project).map((m) => m.id)).toContain("connu");
+    // Asked for, but not awaited: the screen did not wait for it.
     await act(async () => {});
-    expect(result.current.project).toBeNull();
-    expect(models).not.toHaveBeenCalled();
+    expect(models).toHaveBeenCalled();
   });
 
   /**

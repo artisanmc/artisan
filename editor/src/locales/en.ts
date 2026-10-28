@@ -1522,6 +1522,7 @@ export default {
     deployTitle: "Review, then write the changes to the server",
     nothing: "Nothing to deploy",
     offline: "The server is offline: publishing waits for its return. Your draft stays editable.",
+    checking: "Showing your last visit, checking with the server… Deploying waits for its answer.",
     cannotDeployTitle: "Unknown server — cannot deploy",
     deployed: "Deployed to the server",
     packFailed: "The resource pack could not be rebuilt; players keep the previous one.",
