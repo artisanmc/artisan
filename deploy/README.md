@@ -48,8 +48,8 @@ Gradle tests and `shadowJar`.
 
 The repository is private: every runner minute counts against the organization's quota (2,000 min/month
 included). So each workflow only starts when its inputs change (`paths`, to be kept up to date when
-a module reads a new directory, see `deploy/ci-workflow.test.mjs`), and only `main` gets a run
-after merge (`deploy.yml` waits for it): a PR to `v2` is already tested on its merge ref.
+a module reads a new directory, see `deploy/ci-workflow.test.mjs`), and a PR is tested on its merge ref;
+`main` also gets a run after merge, which `deploy.yml` waits for.
 
 `.github/workflows/deploy.yml` fires when CI succeeds on `main`: it refuses a SHA that is no longer
 the head of `main`, then `deploy/coolify-deploy.mjs` pins `git_commit_sha` on the resource,

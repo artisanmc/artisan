@@ -5,7 +5,9 @@ sidebar:
   order: 9
 ---
 
-Modules installed on your server (the Boutique Add-on, third-party plugins…) can expose **data sources** — live lists of rows such as shop items or quests. The editor's **Data** tab shows them under **Server sources**, grouped by the module that declares them.
+Modules installed on your server (the Boutique Add-on, third-party plugins…) can expose **data sources** — live lists of rows such as shop items or quests. The server's page lists them under **Data sources**, grouped by the module that declares them. From a menu, the source picker's **See the server's sources** entry takes you there.
+
+The preview on this page reflects the **in-game state**: the rows the module serves right now, that is your last **deployed** version. A draft you have not deployed yet (a product added to the shop catalogue, say) shows up here only after **Deploy**. The canvas may differ: a module can compute its rows from your draft for the menu preview (the shop catalogue does).
 
 ## Explore a source
 
@@ -36,10 +38,10 @@ project setting, and it is never saved into your project.
 
 ## Project sources: your own data
 
-Besides server sources, you can author **your own data** directly in the project — perfect for a ranks menu, a kits list, or project-wide settings. In the Data tab's **Project sources** section, create one of two shapes:
+Besides server sources, you can author **your own data** directly in a module folder — perfect for a ranks menu, a kits list, or project-wide settings. They appear in the sidebar among the folder's elements; create one from the folder's **+** menu, in one of two shapes:
 
-- **Table** — a list of rows (ranks, kits, warps…). Menus can paginate over it, place individual rows on specific slots, and build item Sets from it.
-- **Config** — a single object of settings (currency name, support URL…) you reference in menus as `{settings.currency}`.
+- **Table** (*New data table*) — a list of rows (ranks, kits, warps…). Menus can paginate over it, place individual rows on specific slots, and build item Sets from it.
+- **Config** (*New data sheet*) — a single object of settings (currency name, support URL…) you reference in menus as `{settings.currency}`.
 
 Project source names are lowercase and unique within the project. The editor lowercases typing and pasted text automatically; if a name is already used, the rename is rejected with an inline error.
 
