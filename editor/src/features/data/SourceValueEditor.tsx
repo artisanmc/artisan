@@ -1,6 +1,7 @@
 import { RevealField } from "@/components/RevealField";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { TagInput } from "@/components/ui/tag-input";
 import { defaultValueForModelType, sourceRootFields } from "@/domain/dataModels";
 import type {
@@ -117,6 +118,54 @@ function asRecord(v: unknown): Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v)
     ? (v as Record<string, unknown>)
     : {};
+}
+
+/** Cell kinds a map table edits in place: one short control each. */
+const TABLE_CELL_KINDS = new Set<ModelFieldType["kind"]>([
+  "string",
+  "number",
+  "integer",
+  "boolean",
+  "enum",
+]);
+
+/**
+ * Columns of a map shown as a table on a settings page: a map whose values are
+ * objects of short scalar fields (guild levels, price tiers). One row per
+ * entry instead of one block of stacked rows per entry. null: not tabular.
+ */
+export function mapTableColumns(type: ModelFieldType, models: DataModel[]): ModelField[] | null {
+  if (type.kind !== "map") return null;
+  const fields = resolveObjectFields(type.of, models);
+  if (!fields || fields.length === 0) return null;
+  return fields.every((f) => TABLE_CELL_KINDS.has(f.type.kind)) ? fields : null;
+}
+
+/** A map key that is a level/rank number: `0`, `1`, `12` (no sign, no leading zero). */
+function isIndexKey(key: string): boolean {
+  return /^(0|[1-9]\d*)$/.test(key);
+}
+
+/**
+ * The entry the add button appends to a map keyed by numbers: the next number,
+ * starting from a copy of the last entry (a new level is most often the
+ * previous one, tuned). null when the keys are not all numbers — the admin
+ * names the key.
+ */
+export function nextIndexedEntry(
+  obj: Record<string, unknown>,
+  of: ModelFieldType,
+  models: DataModel[],
+): { key: string; value: unknown } | null {
+  const keys = Object.keys(obj);
+  if (keys.length === 0 || !keys.every(isIndexKey)) return null;
+  const last = keys.reduce((a, b) => (Number(b) > Number(a) ? b : a));
+  const previous = obj[last];
+  const value =
+    typeof previous === "object" && previous !== null && !Array.isArray(previous)
+      ? { ...(previous as Record<string, unknown>) }
+      : defaultValueForModelType(of, models);
+  return { key: String(Number(last) + 1), value };
 }
 
 /** Key input + add button for a map entry (kind=map values). */
@@ -573,6 +622,25 @@ export function ValueEditor({
           ? (value as Record<string, unknown>)
           : {};
       const entries = Object.entries(obj);
+      const columns = settings ? mapTableColumns(type, models) : null;
+      if (columns) {
+        return (
+          <MapTable
+            ctx={{ projectId, sourceId, row, project }}
+            path={path}
+            columns={columns}
+            obj={obj}
+            onAdd={(k, v) => set({ ...obj, [k]: v })}
+            onAddNamed={(k) => set({ ...obj, [k]: defaultValueForModelType(type.of, models) })}
+            onRemove={(k) => {
+              const next = { ...obj };
+              delete next[k];
+              replaceTyped(next);
+            }}
+            next={nextIndexedEntry(obj, type.of, models)}
+          />
+        );
+      }
       if (settings) {
         return (
           <div
@@ -845,6 +913,122 @@ function FieldCaption({ field }: { field: ModelField }) {
 }
 
 /**
+ * A tabular map on a settings page: one row per entry, its key first, one
+ * column per field. The cells use the compact controls; the column header
+ * shows the label and the field's key (ADR yaml-assisted-editing ⑨), the help
+ * on hover.
+ */
+function MapTable({
+  ctx,
+  path,
+  columns,
+  obj,
+  next,
+  onAdd,
+  onAddNamed,
+  onRemove,
+}: {
+  ctx: FormCtx;
+  path: (string | number)[];
+  columns: ModelField[];
+  obj: Record<string, unknown>;
+  next: { key: string; value: unknown } | null;
+  onAdd: (key: string, value: unknown) => void;
+  onAddNamed: (key: string) => void;
+  onRemove: (key: string) => void;
+}) {
+  const { t } = useTranslation();
+  const keys = Object.keys(obj);
+  return (
+    <div className="flex w-full flex-col gap-2" data-testid={`map-table-${path.join(".")}`}>
+      {keys.length > 0 ? (
+        <Table className="w-auto min-w-full">
+          <THead>
+            <TR className="hover:bg-transparent">
+              <TH className="w-px whitespace-nowrap">
+                {next ? "#" : t("dataSources.mapKeyColumn")}
+              </TH>
+              {columns.map((c) => (
+                <TH key={c.name} title={c.help} className="whitespace-nowrap normal-case">
+                  <span className="block">{c.label ?? c.name}</span>
+                  {c.label ? (
+                    <code className="block font-mono text-[10.5px] text-[var(--text-faint)] tracking-normal">
+                      {c.name}
+                    </code>
+                  ) : null}
+                </TH>
+              ))}
+              <TH className="w-px">
+                <span className="sr-only">{t("dataSources.removeItem")}</span>
+              </TH>
+            </TR>
+          </THead>
+          <TBody>
+            <FormLayoutContext.Provider value="compact">
+              {keys.map((k) => {
+                const entry = asRecord(obj[k]);
+                return (
+                  <TR key={k} data-testid={`map-row-${[...path, k].join(".")}`}>
+                    <TD className="py-1.5">
+                      <code className="font-mono text-[12px] text-[var(--text-mut)]">{k}</code>
+                    </TD>
+                    {columns.map((c) => (
+                      <TD key={c.name} className="py-1.5">
+                        <ValueEditor
+                          projectId={ctx.projectId}
+                          sourceId={ctx.sourceId}
+                          row={ctx.row}
+                          path={[...path, k, c.name]}
+                          type={c.type}
+                          value={entry[c.name]}
+                          project={ctx.project}
+                          field={c}
+                        />
+                      </TD>
+                    ))}
+                    <TD className="py-1.5 pr-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onRemove(k)}
+                        className={ICON_BUTTON}
+                        aria-label={t("dataSources.removeMapEntry", { key: k })}
+                      >
+                        <X size={14} />
+                      </button>
+                    </TD>
+                  </TR>
+                );
+              })}
+            </FormLayoutContext.Provider>
+          </TBody>
+        </Table>
+      ) : null}
+      {/* The help is text, not only a tooltip (ADR yaml-assisted-editing ⑨). */}
+      {columns.some((c) => c.help) ? (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[12px] leading-snug">
+          {columns
+            .filter((c) => c.help)
+            .map((c) => (
+              <Fragment key={c.name}>
+                <dt className="text-[var(--text-mut)]">{c.label ?? c.name}</dt>
+                <dd className="text-[var(--text-faint)]">{c.help}</dd>
+              </Fragment>
+            ))}
+        </dl>
+      ) : null}
+      {next ? (
+        <button type="button" onClick={() => onAdd(next.key, next.value)} className={ADD_BUTTON}>
+          <Plus size={13} />
+          {t("dataSources.addMapRow", { key: next.key })}
+        </button>
+      ) : (
+        <MapEntryAdder existing={keys} onAdd={onAddNamed} />
+      )}
+    </div>
+  );
+}
+
+/**
  * The fields of an object as settings rows: label column beside the control
  * once there is room, stacked when the pane is narrow. A nested object opens an
  * indented group whose label column shrinks by the indent, so every control of
@@ -933,11 +1117,17 @@ function SettingsSections({
   obj: Record<string, unknown>;
 }) {
   const models = ctx.project.dataModels ?? [];
-  const groups: ({ field: ModelField; nested: ModelField[] } | { loose: ModelField[] })[] = [];
+  const groups: (
+    | { field: ModelField; nested: ModelField[] }
+    | { field: ModelField; table: true }
+    | { loose: ModelField[] }
+  )[] = [];
   for (const f of fields) {
     const nested = f.locked ? null : resolveObjectFields(f.type, models);
     const last = groups[groups.length - 1];
     if (nested) groups.push({ field: f, nested });
+    // A table needs the panel's width, not the control column beside a caption.
+    else if (!f.locked && mapTableColumns(f.type, models)) groups.push({ field: f, table: true });
     else if (last && "loose" in last) last.loose.push(f);
     else groups.push({ loose: [f] });
   }
@@ -979,16 +1169,31 @@ function SettingsSections({
                 {g.field.help}
               </p>
             ) : null}
-            <div className="mt-1">
-              <FieldRows
-                ctx={ctx}
-                fields={g.nested}
-                obj={asRecord(obj[g.field.name])}
-                path={[g.field.name]}
-                captionRem={CAPTION_REM}
-                divided
-              />
-            </div>
+            {"table" in g ? (
+              <div className="mt-3 pb-4">
+                <ValueEditor
+                  projectId={ctx.projectId}
+                  sourceId={ctx.sourceId}
+                  row={ctx.row}
+                  path={[g.field.name]}
+                  type={g.field.type}
+                  value={obj[g.field.name]}
+                  project={ctx.project}
+                  field={g.field}
+                />
+              </div>
+            ) : (
+              <div className="mt-1">
+                <FieldRows
+                  ctx={ctx}
+                  fields={g.nested}
+                  obj={asRecord(obj[g.field.name])}
+                  path={[g.field.name]}
+                  captionRem={CAPTION_REM}
+                  divided
+                />
+              </div>
+            )}
           </section>
         ),
       )}
@@ -1273,7 +1478,22 @@ function literalType(v: unknown): ModelFieldType {
   if (typeof v === "boolean") return { kind: "boolean" };
   if (Array.isArray(v)) return { kind: "list", of: literalType(v[0]) };
   if (v !== null && typeof v === "object") {
-    return { kind: "object", fields: literalFields(v as Record<string, unknown>) };
+    const obj = v as Record<string, unknown>;
+    // Entries keyed by number holding objects (levels, tiers): a map, so the
+    // form can add and remove entries — the fields are the union of the entries'.
+    const values = Object.values(obj);
+    if (
+      values.length > 0 &&
+      Object.keys(obj).every(isIndexKey) &&
+      values.every((e) => e !== null && typeof e === "object" && !Array.isArray(e))
+    ) {
+      const fields = new Map<string, ModelField>();
+      for (const e of values)
+        for (const f of literalFields(e as Record<string, unknown>))
+          if (!fields.has(f.name)) fields.set(f.name, f);
+      return { kind: "map", of: { kind: "object", fields: [...fields.values()] } };
+    }
+    return { kind: "object", fields: literalFields(obj) };
   }
   return { kind: "string" };
 }

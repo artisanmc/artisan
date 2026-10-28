@@ -931,6 +931,8 @@ const fr: typeof en = {
       "Cette shape est déclarée par l'add-on installé et évolue avec lui - les valeurs restent éditables, pas la shape.",
     mapKeyPlaceholder: "clé",
     addMapEntry: "Ajouter une entrée",
+    addMapRow: "Ajouter {{key}}",
+    mapKeyColumn: "Clé",
     removeMapEntry: "Supprimer l'entrée {{key}}",
     enumValues: "Valeurs admises",
     enumValuesPlaceholder: "valeur1, valeur2, ...",

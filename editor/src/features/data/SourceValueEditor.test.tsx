@@ -745,3 +745,86 @@ describe("ConfigValueForm — settings layout", () => {
     expect(auctions().include).toEqual(["auction"]);
   });
 });
+
+// A map keyed by numbers holding small objects (guild levels): one row per
+// entry, and the next number added in one click.
+
+describe("ConfigValueForm — map as a table", () => {
+  const level = (name: string, label: string) => ({
+    name,
+    label,
+    type: { kind: "integer" },
+    min: 0,
+  });
+  function seedLevels(typed: boolean) {
+    useProjectsStore.setState((s) => {
+      const p = s.openProjects.projects[0]!;
+      p.dataModels = [];
+      p.dataSources = [
+        {
+          id: "settings" as never,
+          name: "settings",
+          shape: "config",
+          fields: typed
+            ? [
+                { name: "language", type: { kind: "string" } },
+                {
+                  name: "levels",
+                  label: "Levels",
+                  type: {
+                    kind: "map",
+                    of: {
+                      kind: "object",
+                      fields: [level("xp", "XP needed"), level("max-members", "Members at most")],
+                    },
+                  },
+                },
+              ]
+            : [],
+          value: {
+            language: "en",
+            levels: { "0": { xp: 0, "max-members": 5 }, "1": { xp: 1, "max-members": 7 } },
+          },
+        },
+      ] as never;
+      return s;
+    });
+  }
+  const levels = () =>
+    (project().dataSources[0] as unknown as { value: { levels: Record<string, unknown> } }).value
+      .levels;
+  function Live() {
+    const p = useProjectsStore((s) => s.openProjects.projects[0]) as Project;
+    return <ConfigValueForm projectId={PID} project={p} source={p.dataSources[0] as never} />;
+  }
+
+  it("shows one row per level with a column per field, in its own panel", () => {
+    seedLevels(true);
+    render(<Live />);
+    const panel = screen.getByTestId("settings-section-levels");
+    const table = within(panel).getByRole("table");
+    expect(within(table).getByRole("columnheader", { name: /XP needed/ })).toBeInTheDocument();
+    expect(within(table).getAllByRole("row")).toHaveLength(3); // header + 2 levels
+    fireEvent.change(within(screen.getByTestId("map-row-levels.1")).getByDisplayValue("7"), {
+      target: { value: "9" },
+    });
+    expect(levels()["1"]).toEqual({ xp: 1, "max-members": 9 });
+  });
+
+  it("adds the next level from the last one, and removes one", () => {
+    seedLevels(true);
+    render(<Live />);
+    fireEvent.click(screen.getByRole("button", { name: /add 2|ajouter 2/i }));
+    expect(levels()["2"]).toEqual({ xp: 1, "max-members": 7 });
+    fireEvent.click(screen.getByRole("button", { name: /remove entry 0|supprimer l'entrée 0/i }));
+    expect(Object.keys(levels())).toEqual(["1", "2"]);
+  });
+
+  it("reads numbered entries of an untyped file as a table too", () => {
+    seedLevels(false);
+    render(<Live />);
+    expect(screen.getByTestId("map-table-levels")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /add 2|ajouter 2/i }));
+    expect(levels()["2"]).toEqual({ xp: 1, "max-members": 7 });
+  });
+});

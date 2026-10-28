@@ -914,6 +914,8 @@ export default {
       "This shape is declared by the installed add-on and updates with it - values stay editable, the shape does not.",
     mapKeyPlaceholder: "key",
     addMapEntry: "Add entry",
+    addMapRow: "Add {{key}}",
+    mapKeyColumn: "Key",
     removeMapEntry: "Remove entry {{key}}",
     enumValues: "Allowed values",
     enumValuesPlaceholder: "value1, value2, ...",
