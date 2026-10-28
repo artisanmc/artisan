@@ -8,6 +8,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectDocumentTree } from "./ProjectDocumentTree";
 import { dropDocument, withDropPreview } from "./documentDrag";
 
+const router = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  params: {} as Record<string, string>,
+}));
+vi.mock("@tanstack/react-router", async () => ({
+  ...(await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router")),
+  useNavigate: () => router.navigate,
+  useParams: () => router.params,
+}));
+
 const PID = "p1" as ProjectId;
 function project(): Project {
   return {
@@ -33,6 +43,8 @@ function project(): Project {
 }
 
 beforeEach(() => {
+  router.navigate.mockReset();
+  router.params = {};
   useProjectsStore.setState({
     openProjects: { projects: [project()], projectOrder: [PID] },
   } as never);
@@ -108,6 +120,25 @@ describe("ProjectDocumentTree", () => {
     fireEvent.click(screen.getByTestId("project-settings"));
     expect(useUiStore.getState().projectSettingsOpen).toBe(true);
     expect(useSelectionStore.getState().ids.size).toBe(0);
+  });
+
+  it("the settings button brings the project's board up from another page", () => {
+    router.params = { serverId: "s1", projectId: PID, collectionDir: "catalogue" };
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("project-settings"));
+    expect(router.navigate).toHaveBeenCalledWith({
+      to: "/servers/$serverId/projects/$projectId",
+      params: { serverId: "s1", projectId: PID },
+    });
+    expect(useUiStore.getState().projectSettingsOpen).toBe(true);
+  });
+
+  it("the settings button stays put on the project's board", () => {
+    router.params = { serverId: "s1", projectId: PID };
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("project-settings"));
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(useUiStore.getState().projectSettingsOpen).toBe(true);
   });
 
   it("offers to create a menu, a command and a dialog", async () => {

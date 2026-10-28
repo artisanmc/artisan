@@ -29,7 +29,8 @@ import {
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
-import { collectionDestination } from "@/lib/projectNavigation";
+import { collectionDestination, projectDestination } from "@/lib/projectNavigation";
+import { projectUrlId } from "@/lib/projectUrlId";
 import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
@@ -115,6 +116,20 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const templates = useProjectTemplates(projectId);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const navigate = useNavigate();
+  const params = useParams({ strict: false }) as Record<string, string | undefined>;
+  // The settings show in the board's inspector: from any other page, or another project,
+  // go to this project's board first.
+  const openSettings = () => {
+    const onBoard =
+      project &&
+      params.projectId === projectUrlId(project) &&
+      !params.collectionDir &&
+      !params.screenId;
+    if (project && params.serverId && !onBoard)
+      void navigate(projectDestination(project, params.serverId));
+    openProjectSettings();
+  };
   // A kind may be reserved to its module's own folder (`projects`, SDK 1.8).
   const moduleKinds = listDocumentKindContributions().filter(
     (c) => !isCoreDocumentType(c.kind) && kindCreatableIn(c, project),
@@ -126,7 +141,7 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
       <button
         type="button"
         data-testid="project-settings"
-        onClick={openProjectSettings}
+        onClick={openSettings}
         aria-label={t("projectProperties.title")}
         title={t("projectProperties.title")}
         className={iconButton}
