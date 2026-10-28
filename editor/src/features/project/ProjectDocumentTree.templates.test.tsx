@@ -20,6 +20,8 @@ vi.mock("@/lib/api/templates", () => api);
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
   useParams: () => ({}),
+  // useOpenProjectSettings: outside a route, the gear opens the settings in place.
+  useRouter: () => null,
 }));
 
 const PID = "srv.shop" as ProjectId;

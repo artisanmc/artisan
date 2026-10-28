@@ -15,6 +15,8 @@ const router = vi.hoisted(() => ({
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => router.navigate,
   useParams: () => router.params,
+  // useOpenProjectSettings: outside a route, the gear opens the settings in place.
+  useRouter: () => null,
 }));
 
 const PID = "p1" as ProjectId;
