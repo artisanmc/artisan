@@ -23,8 +23,10 @@ import { positionCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { parsePositions } from "@/lib/positions";
+import { serverSourcesDestination } from "@/lib/projectNavigation";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { Library as LibraryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -569,6 +571,8 @@ function SourcePickerOptions({
   const hasProjectData = (project.dataSources ?? []).length > 0;
   const serverSources = useServerDataSourcesStore((s) => s.sources);
   const liveSources = serverSources;
+  const navigate = useNavigate();
+  const { serverId } = useParams({ strict: false }) as { serverId?: string };
   return (
     <>
       {hasProjectData ? (
@@ -612,6 +616,15 @@ function SourcePickerOptions({
               ) : null}
             </DropdownMenuItem>
           ))}
+          {serverId ? (
+            <DropdownMenuItem
+              data-testid="see-server-sources"
+              onSelect={() => void navigate(serverSourcesDestination(serverId))}
+              className="cursor-pointer text-[11px] text-[var(--text-mut)] focus:bg-[var(--surface-raised-2)]"
+            >
+              {t("dataSources.seeServerSources")}
+            </DropdownMenuItem>
+          ) : null}
         </>
       ) : null}
       {!hasProjectData && liveSources.length === 0 ? (
