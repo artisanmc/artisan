@@ -33,7 +33,6 @@ import { useSidebarStore } from "@/state/sidebarStore";
 import { useUiStore } from "@/state/uiStore";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
-  Database as DatabaseIcon,
   History as HistoryIcon,
   Images,
   Languages as LanguagesIcon,
@@ -193,7 +192,6 @@ export function ProjectTopBarControls({
 const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof LanguagesIcon }> = {
   overview: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
   translations: { labelKey: "project.tabs.translations", Icon: LanguagesIcon },
-  "data-sources": { labelKey: "project.tabs.dataSources", Icon: DatabaseIcon },
   resources: { labelKey: "project.tabs.resources", Icon: Images },
   history: { labelKey: "project.tabs.history", Icon: HistoryIcon },
 };

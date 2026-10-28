@@ -6,7 +6,7 @@ import { WORKSPACE_VIEW_TABS } from "./workspaceTabs";
 
 /**
  * Minecraft-hotbar-style tab switching: the physical top-row digits (and
- * numpad) 1-5 jump between the workspace views in topbar order — 1 = Canvas,
+ * numpad) 1-4 jump between the workspace views in topbar order — 1 = Canvas,
  * 2 = Translations, … Uses `e.code` (physical key), NOT `e.key`, so it fires
  * without Shift on layouts where the unshifted top-row key isn't a digit
  * (AZERTY), exactly like Minecraft binds its hotbar.
