@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Changed**: a data file a module's screen edits (the conversations' `data/speakers.yml`) no longer has its own row in the folder's tree: the screen's row under the module opens the module's view, where the second row opened the generic form. An old `…/data/<id>` link shows the screen's form.
 - **Fixed**: a Document copied from a module template no longer shows "new version" when the module ships the same content with other formatting or line endings (a jar built on Windows ships CRLF); only system elements were compared that way. A copy that differs now offers **Take the module's version** in its `···` menu, which puts it into the draft. The asterisk's tooltip shows above the row instead of covering its `···`.
 - **Fixed**: deploying no longer lists, and rewrites, files nobody edited. A file written by hand or shipped by a module (flow maps, quotes, comments, CRLF line endings from a jar built on Windows) came back in the editor's own format and showed as modified on every first deploy. A YAML file whose value the editor left unchanged now keeps the server's bytes; an edited file is still written in the editor's format.
 - **Fixed**: the project settings button (the gear beside the project name, or the topbar's ⋮) did nothing away from the board. On a Document's own editor or a collection, the settings now open in the Properties column beside it; on a tab (Resources, Translations…), which shows no inspector, it goes back to the board and opens them there.

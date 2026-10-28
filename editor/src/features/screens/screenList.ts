@@ -1,4 +1,6 @@
-import type { Project } from "@/domain/types";
+import { projectNamespace } from "@/domain/docRef";
+import { ownDataSources } from "@/domain/projectData";
+import type { DataSource, Project } from "@/domain/types";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 
 /**
@@ -68,4 +70,30 @@ export function resolveScreen(
     table: `data/${parsed.sourceId}`,
     projectId: parsed.projectId,
   };
+}
+
+/**
+ * The declared screen that edits this Project's source `sourceId` (its `table` is
+ * `data/<sourceId>`, its `projectId` the Project's disk id), if any.
+ */
+export function screenOfSource(
+  project: Pick<Project, "id" | "diskId">,
+  sourceId: string,
+  screens: ServerEditorScreen[],
+): ServerEditorScreen | undefined {
+  const ns = projectNamespace(project);
+  return screens.find(
+    (s) => !!s.projectId && s.projectId === ns && s.table.replace(/^data\//, "") === sourceId,
+  );
+}
+
+/**
+ * The sources a Project's tree lists: its own, less the ones a module's screen edits. That
+ * screen has its row under the module; a second row would open the generated form instead.
+ */
+export function listedDataSources(
+  project: Pick<Project, "id" | "diskId" | "dataModels" | "dataSources">,
+  screens: ServerEditorScreen[],
+): DataSource[] {
+  return ownDataSources(project).filter((d) => !screenOfSource(project, String(d.id), screens));
 }

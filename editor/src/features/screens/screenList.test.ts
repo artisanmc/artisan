@@ -1,6 +1,12 @@
 import type { Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
-import { fallbackScreensFor, parseFallbackScreenId, resolveScreen } from "./screenList";
+import {
+  fallbackScreensFor,
+  listedDataSources,
+  parseFallbackScreenId,
+  resolveScreen,
+  screenOfSource,
+} from "./screenList";
 
 const localProject = {
   id: "boutique",
@@ -68,5 +74,27 @@ describe("resolveScreen", () => {
 
   it("returns null for an unknown non-fallback id", () => {
     expect(resolveScreen("ghost:screen", [], [localProject])).toBeNull();
+  });
+});
+
+describe("listedDataSources", () => {
+  const speakers = {
+    id: "conversations:speakers",
+    moduleId: "conversations",
+    label: "Speakers",
+    table: "data/notes",
+    projectId: "boutique",
+    component: "speakers",
+  };
+
+  it("leaves out a source a declared screen of the Project edits", () => {
+    expect(screenOfSource(localProject, "notes", [speakers])).toBe(speakers);
+    expect(listedDataSources(localProject, [speakers])).toEqual([]);
+  });
+
+  it("keeps it when the screen edits another Project's file", () => {
+    const elsewhere = { ...speakers, projectId: "other" };
+    expect(screenOfSource(localProject, "notes", [elsewhere])).toBeUndefined();
+    expect(listedDataSources(localProject, [elsewhere]).map((d) => d.id)).toEqual(["notes"]);
   });
 });

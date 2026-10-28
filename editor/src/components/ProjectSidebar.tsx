@@ -1,7 +1,6 @@
 import { ArtisanWordmark } from "@/components/ArtisanWordmark";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
-import { ownDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
 import {
   DocumentGroups,
@@ -10,6 +9,7 @@ import {
 } from "@/features/project/ProjectDocumentTree";
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
+import { listedDataSources } from "@/features/screens/screenList";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
@@ -228,7 +228,7 @@ export function ProjectSidebar() {
   // their published state from the server index, already read in the background to
   // expand them. Before the index is in, a Project never opened shows no badge.
   // Its own data (tables, config sheets) are rows of the tree too: they count.
-  const countOf = (p: Project) => documentCount(p) + ownDataSources(p).length;
+  const countOf = (p: Project) => documentCount(p) + listedDataSources(p, serverScreens).length;
   const liveCount = new Map(localProjects.map((p) => [p.id as string, countOf(p)]));
   // Ids carry their server: another server's index matches none of these rows.
   const indexedCount = new Map(indexedProjects.map((p) => [p.id as string, countOf(p)]));
