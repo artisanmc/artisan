@@ -71,13 +71,6 @@ const fr: typeof en = {
   },
   projectIdentity: projectIdentityFr,
   itemContext: {
-    title: "Contexte disponible",
-    intro:
-      "Copie un placeholder complet pour l’utiliser dans un champ. Les valeurs affichées sont des exemples.",
-    search: "Rechercher un placeholder",
-    empty: "Aucun placeholder correspondant.",
-    copyError: "Copie impossible. Sélectionne le placeholder pour le copier manuellement.",
-    help: "Ouvrir l’aide-mémoire",
     context: "Contexte",
     iteration: "Élément courant",
     pagination: "Pagination",
@@ -876,6 +869,12 @@ const fr: typeof en = {
     needsAccount:
       "Connectez-vous pour exporter — l'archive est l'arbre tel qu'il est stocké sur le serveur.",
   },
+  playerPicker: {
+    open: "Joueurs en ligne",
+    loading: "Chargement…",
+    noneOnline: "Aucun joueur en ligne",
+    clear: "Aucun joueur",
+  },
   capturedItems: {
     sectionTitle: "Items capturés",
     emptyHint:
@@ -932,6 +931,8 @@ const fr: typeof en = {
       "Cette shape est déclarée par l'add-on installé et évolue avec lui - les valeurs restent éditables, pas la shape.",
     mapKeyPlaceholder: "clé",
     addMapEntry: "Ajouter une entrée",
+    addMapRow: "Ajouter {{key}}",
+    mapKeyColumn: "Clé",
     removeMapEntry: "Supprimer l'entrée {{key}}",
     enumValues: "Valeurs admises",
     enumValuesPlaceholder: "valeur1, valeur2, ...",

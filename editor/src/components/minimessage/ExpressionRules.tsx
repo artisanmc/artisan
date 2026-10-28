@@ -366,7 +366,7 @@ const KNOWN_METHODS = [
 ];
 
 function ValueView({ value }: { value: Value }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   switch (value.kind) {
     case "var":
       return <Chip title={value.path}>{humanizePath(value.path)}</Chip>;
@@ -399,7 +399,24 @@ function ValueView({ value }: { value: Value }) {
     case "choice":
       return <Choice cases={value.cases} otherwise={value.otherwise} />;
     case "method": {
-      const target = <ValueView value={value.target} />;
+      // A fixed date (`{1767225600000.ago()}`, from the library) reads as that date.
+      const at =
+        (value.method === "ago" || value.method === "until") &&
+        value.target.kind === "literal" &&
+        typeof value.target.value === "number"
+          ? value.target.value
+          : null;
+      const target =
+        at === null ? (
+          <ValueView value={value.target} />
+        ) : (
+          <Chip title={String(at)}>
+            {new Date(at).toLocaleString(i18n.language, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </Chip>
+        );
       if (!KNOWN_METHODS.includes(value.method)) {
         return (
           <span className="inline-flex items-baseline gap-1">

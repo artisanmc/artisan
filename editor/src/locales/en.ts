@@ -68,12 +68,6 @@ export default {
   },
   projectIdentity: projectIdentityEn,
   itemContext: {
-    title: "Available context",
-    intro: "Copy a complete placeholder to use in a field. Displayed values are examples.",
-    search: "Search placeholders",
-    empty: "No matching placeholders.",
-    copyError: "Could not copy. Select the placeholder to copy it manually.",
-    help: "Open cheat sheet",
     context: "Context",
     iteration: "Current element",
     pagination: "Pagination",
@@ -860,6 +854,12 @@ export default {
     failed: "Export failed",
     needsAccount: "Sign in to export — the archive is the tree as stored on the server.",
   },
+  playerPicker: {
+    open: "Online players",
+    loading: "Loading…",
+    noneOnline: "No player online",
+    clear: "No player",
+  },
   capturedItems: {
     sectionTitle: "Captured items",
     emptyHint:
@@ -914,6 +914,8 @@ export default {
       "This shape is declared by the installed add-on and updates with it - values stay editable, the shape does not.",
     mapKeyPlaceholder: "key",
     addMapEntry: "Add entry",
+    addMapRow: "Add {{key}}",
+    mapKeyColumn: "Key",
     removeMapEntry: "Remove entry {{key}}",
     enumValues: "Allowed values",
     enumValuesPlaceholder: "value1, value2, ...",

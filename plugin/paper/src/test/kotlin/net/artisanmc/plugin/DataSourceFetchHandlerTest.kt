@@ -77,6 +77,51 @@ class DataSourceFetchHandlerTest {
     }
 
     @Test
+    fun `preview as a player hands that online Player to the fetcher, params untouched`() {
+        val server = MockBukkit.getMock()!!
+        val iban = server.addPlayer("Iban_")
+        val registry = DataSourceRegistry()
+        registry.register(DataSourceDeclaration(
+            "guilds:members",
+            { player, params ->
+                assertSame(iban, player)
+                assertEquals("Iban_", params["player"])
+                listOf(mapOf("name" to player!!.name, "group" to params["group"]))
+            },
+        ))
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
+        val latch = CountDownLatch(1)
+        val p = provider(registry, sink, latch)
+
+        p.handleMessageForTesting("""{"type":"data_source_fetch","request_id":"r9","ref":"guilds:members",
+            "params":{"player":"Iban_","group":"daily"},"filter":{},"sort":null,"limit":null,"args":{}}""")
+        await(latch)
+
+        assertEquals(true, sink[0]["ok"])
+        @Suppress("UNCHECKED_CAST")
+        val rows = sink[0]["rows"] as List<Map<String, Any?>>
+        assertEquals(listOf(mapOf("name" to "Iban_", "group" to "daily")), rows)
+    }
+
+    @Test
+    fun `preview as a player who is not online previews with no player, as before`() {
+        val registry = DataSourceRegistry()
+        registry.register(DataSourceDeclaration("guilds:members", { player, _ ->
+            assertNull(player)
+            listOf(mapOf("name" to "Steve"))
+        }))
+        val sink = java.util.Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
+        val latch = CountDownLatch(1)
+        val p = provider(registry, sink, latch)
+
+        p.handleMessageForTesting("""{"type":"data_source_fetch","request_id":"r10","ref":"guilds:members",
+            "params":{"player":"Nobody"},"filter":{},"sort":null,"limit":null,"args":{}}""")
+        await(latch)
+
+        assertEquals(true, sink[0]["ok"])
+    }
+
+    @Test
     fun `interpolates {arg} tokens in filter values from args`() {
         val registry = DataSourceRegistry()
         registry.register(DataSourceDeclaration(

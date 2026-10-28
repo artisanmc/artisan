@@ -107,6 +107,8 @@ line:
 A player who may not kick does not get an empty line in its place. A line you leave
 empty on purpose (nothing typed on it) stays. In the rich editor, the **Library**
 button builds these lines for you: pick *Show a text if…*, the variable, the text.
+A variable missing from its list can be typed by hand (*Another variable…*), and
+*Time since…* / *Time left before…* also take a fixed date.
 
 :::caution[Arithmetic is limited on purpose]
 Only `+` and `-`. There is no `*` or `/`, and `%` is reserved for PlaceholderAPI.
