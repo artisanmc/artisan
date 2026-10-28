@@ -1,6 +1,7 @@
 import { Markdown } from "@/components/ui/markdown";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import { Spinner } from "@/components/ui/spinner";
+import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
 import type { AiEvent } from "@/lib/api/ai";
 import { cn } from "@/lib/cx";
 import { ASSISTANT_WIDTH, useAssistantPanelStore } from "@/state/assistantPanelStore";
@@ -8,6 +9,7 @@ import {
   AlertTriangle,
   Check,
   FileText,
+  Play,
   RotateCcw,
   SendHorizontal,
   Sparkles,
@@ -49,6 +51,11 @@ export function AssistantDock({ projectId }: { projectId: string | null }) {
   }, [events.length, running, open]);
 
   if (!status?.enabled || !status.canUse) return null;
+
+  // The drafts this conversation started: Deploy's review opens with them picked.
+  const drafts = events.flatMap((event) =>
+    event.type === "tool" && event.name === "start_draft" && event.draft ? [event.draft.id] : [],
+  );
 
   const submit = (e?: FormEvent) => {
     e?.preventDefault();
@@ -131,6 +138,22 @@ export function AssistantDock({ projectId }: { projectId: string | null }) {
             <Spinner className="size-3.5" />
             {t("ai.working")}
           </div>
+        )}
+        {projectId && drafts.length > 0 && !running && (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm self-start"
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent(OPEN_DEPLOY_REVIEW, {
+                  detail: { projectId, preselect: [...new Set(drafts)] },
+                }),
+              )
+            }
+          >
+            <Play className="size-3.5" fill="currentColor" aria-hidden />
+            {t("ai.reviewDeploy", { count: new Set(drafts).size })}
+          </button>
         )}
         {failure && (
           <p role="alert" className="text-[13px] text-[var(--danger)]">
