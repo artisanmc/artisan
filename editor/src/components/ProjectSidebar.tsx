@@ -44,6 +44,7 @@ import {
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import type { ProjectSummary, ServerSummary } from "@/lib/api/servers";
+import { useDocumentTitle } from "@/lib/documentTitle";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { urlServerId } from "@/lib/urlIds";
 import { useModulesStore } from "@/state/modulesStore";
@@ -243,6 +244,18 @@ export function ProjectSidebar() {
     !!openProjectId &&
     visibleRows.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId);
 
+  // Browser tab: the active server and, inside a project, its name — live
+  // (follows a rename) when opened, else its row in the list.
+  const activeServerLabel = allServerEntries.find(
+    (e) => e.serverId === activeServerId,
+  )?.serverLabel;
+  const openProjectName = openProjectId
+    ? (localProjects.find((p) => p.id === openProjectId || projectUrlId(p) === openProjectId)
+        ?.name ??
+      visibleRows.find((p) => p.id === openProjectId || projectUrlId(p) === openProjectId)?.name)
+    : undefined;
+  useDocumentTitle(activeServerLabel, openProjectName);
+
   return (
     <nav className="flex h-full flex-col gap-3.5 px-3 py-2">
       <Link
@@ -321,9 +334,7 @@ export function ProjectSidebar() {
         </div>
       </div>
 
-      <UserMenu
-        serverLabel={allServerEntries.find((e) => e.serverId === activeServerId)?.serverLabel}
-      />
+      <UserMenu serverLabel={activeServerLabel} />
     </nav>
   );
 }
