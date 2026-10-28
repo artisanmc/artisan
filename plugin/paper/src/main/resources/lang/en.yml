@@ -43,3 +43,5 @@ artisan:
   editor_session_revoked: "<aqua>[Artisan] </aqua><green>Editor session closed.</green>"
   editor_session_not_found: "<red>[Artisan] No open session starts with {id}, or several do: type more of its id.</red>"
   prefix: "<aqua>[Artisan] </aqua>"
+resource_pack:
+  prompt: "<gold>Artisan pack</gold> <gray>— menus, images and titles of this server.</gray>"

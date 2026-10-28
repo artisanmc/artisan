@@ -31,7 +31,11 @@ import type { ProjectsSliceContext, SourceValueUpdateResult } from "./types";
 
 /** Data sources and data models of a Project. */
 export interface DataSlice {
-  addProjectDataSource: (args: { projectId: ProjectId; shape?: "table" | "config" }) => void;
+  /** Creates an empty table or config sheet; returns its id (null: no such Project). */
+  addProjectDataSource: (args: {
+    projectId: ProjectId;
+    shape?: "table" | "config";
+  }) => DataSourceId | null;
   removeProjectDataSource: (args: { projectId: ProjectId; id: DataSourceId }) => void;
   renameProjectDataSource: (args: {
     projectId: ProjectId;
@@ -127,13 +131,15 @@ export const createDataSlice = ({ get, mutateProject }: ProjectsSliceContext): D
     );
 
   return {
-    addProjectDataSource: ({ projectId, shape = "table" }) =>
+    addProjectDataSource: ({ projectId, shape = "table" }) => {
+      let created: DataSourceId | null = null;
       mutateProject(
         projectId,
         (project) => {
           if (!project.dataSources) project.dataSources = [];
           if (!project.dataModels) project.dataModels = [];
           const id = generateDataSourceId();
+          created = id;
           const name = nextAvailableName(project.dataSources, "new_source");
           if (shape === "config") {
             project.dataSources.push({ id, name, shape: "config", fields: [], value: {} });
@@ -151,7 +157,9 @@ export const createDataSlice = ({ get, mutateProject }: ProjectsSliceContext): D
           project.dataSources.push({ id, name, shape: "table", modelId, rows: [] });
         },
         SOURCES,
-      ),
+      );
+      return created;
+    },
     removeProjectDataSource: ({ projectId, id }) =>
       mutateSource(projectId, id, (ds, project) => {
         releaseLTexts(project, visitDataSourceLTexts(project, ds));

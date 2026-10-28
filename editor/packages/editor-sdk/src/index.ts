@@ -10,6 +10,7 @@ export type {
   ModuleSidebarEntry,
   ModuleRouteDecl,
   ConfigScreenProps,
+  LocalPreviewContext,
   DocumentKindContribution,
   DocumentCollection,
   DocumentEditorProps,

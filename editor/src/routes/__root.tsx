@@ -1,6 +1,7 @@
 import { LocalBundlesNotice } from "@/components/LocalBundlesNotice";
 import { NavigationSidebar } from "@/components/NavigationSidebar";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
+import { AssistantDock } from "@/features/project/assistant/AssistantPanel";
 import { onProjectsReloaded as onProjectsReloadedInEditor } from "@/features/project/onProjectsReloaded";
 import { useDraftSync } from "@/features/project/useDraftSync";
 import { EditorWs } from "@/lib/editorWs";
@@ -15,7 +16,7 @@ import { useServerPapiPlaceholdersStore } from "@/state/serverPapiPlaceholdersSt
 import { useServerPlayerCommandsStore } from "@/state/serverPlayerCommandsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
-import { Outlet, createRootRoute } from "@tanstack/react-router";
+import { Outlet, createRootRoute, useParams } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 export const Route = createRootRoute({
@@ -119,6 +120,13 @@ export function RootLayout() {
         <LocalBundlesNotice />
         <Outlet />
       </main>
+      {user && <RootAssistantDock />}
     </div>
   );
+}
+
+/** The assistant docked beside every page, told which Project is open (none on the server list). */
+function RootAssistantDock() {
+  const params = useParams({ strict: false }) as { projectId?: string };
+  return <AssistantDock projectId={params.projectId ?? null} />;
 }

@@ -43,8 +43,10 @@ import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
+import { Markdown } from "@/components/ui/markdown";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ResetButton } from "@/components/ui/reset-button";
+import { ResizeHandle } from "@/components/ui/resize-handle";
 import { Segmented } from "@/components/ui/segmented";
 import {
   Sheet,
@@ -167,7 +169,11 @@ const SAMPLE_LORE =
 // A guild member's card: the case of the "computed text" pill.
 const SAMPLE_MEMBER_LORE = [
   "<gray>Grade : <red>{m.rank}",
-  '{(m.online ? "<green>En ligne" : "<gray>Hors ligne") + (m.can_promote || m.can_demote || m.can_kick ? "\\n" : "") + (m.can_promote ? "\\n<yellow>Clic gauche : promouvoir" : "") + (m.can_demote ? "\\n<yellow>Clic droit : rétrograder" : "") + (m.can_kick ? "\\n<red>Shift + clic droit : exclure" : "")}',
+  '{m.online ? "<green>En ligne" : "<gray>Hors ligne"}',
+  "",
+  '{m.can_promote ? "<yellow>Clic gauche : promouvoir" : ""}',
+  '{m.can_demote ? "<yellow>Clic droit : rétrograder" : ""}',
+  '{m.can_kick ? "<red>Shift + clic droit : exclure" : ""}',
   "<gray>Membre depuis {m.joined.ago()}",
 ].join("\n");
 
@@ -355,6 +361,18 @@ export function DesignSystemPage() {
           renames={[{ from: "menus/old.yaml", to: "menus/new.yaml" }]}
           problems={{ "menus/shop.yaml": ["schema: price is not allowed"] }}
         />
+      </Section>
+      <Section id="markdown" title="Markdown">
+        <div className="card max-w-xl p-4">
+          <Markdown>
+            {
+              "The **auctions** project has 4 menus:\n\n| id | file |\n|---|---|\n| `ah_main` | `menus/ah_main.yml` |\n| `ah_lot` | `menus/ah_lot.yml` |\n\n- one command, `ah`\n- 7 dialogs\n\n```yaml\ntitle: Auction house\nsize: 54\n```"
+            }
+          </Markdown>
+        </div>
+      </Section>
+      <Section id="resize-handle" title="ResizeHandle">
+        <ResizeHandleSpecimen />
       </Section>
       {/* Rules */}
       <Section id="guidelines" title={t("adminDesign.guidelines.heading")}>
@@ -1109,5 +1127,27 @@ function SearchableMenuSpecimen() {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ResizeHandleSpecimen() {
+  const [width, setWidth] = useState(320);
+  const clamp = (w: number) => Math.round(Math.min(560, Math.max(200, w)));
+  return (
+    <div
+      className="card relative h-28 p-4 pr-5 text-[13px] text-[var(--text-mut)]"
+      style={{ width }}
+    >
+      <ResizeHandle
+        edge="right"
+        value={width}
+        min={200}
+        max={560}
+        onResize={(w) => setWidth(clamp(w))}
+        onReset={() => setWidth(320)}
+        label="Resize"
+      />
+      {width}px
+    </div>
   );
 }

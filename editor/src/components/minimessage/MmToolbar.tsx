@@ -54,6 +54,8 @@ export interface MmToolbarProps {
   /** Shown when the text holds legacy codes. */
   onConvertLegacy?: () => void;
   onCopy: () => Promise<void>;
+  /** The variables and expressions library, when the text has placeholders to offer. */
+  library?: ReactNode;
 }
 
 const DECORATIONS: { key: Decoration; icon: typeof Bold }[] = [
@@ -168,6 +170,7 @@ export function MmToolbar({
   onOp,
   onConvertLegacy,
   onCopy,
+  library,
 }: MmToolbarProps) {
   const { t } = useTranslation();
   const has = (f: MmFeature) => profile.features.has(f);
@@ -446,6 +449,8 @@ export function MmToolbar({
       >
         <Eraser className="size-4" />
       </ToolButton>
+
+      {library}
 
       {onConvertLegacy && (
         <Tooltip content={t("mmEditor.toolbar.legacyHint")}>

@@ -4,19 +4,21 @@ import net.artisanmc.plugin.hub.EditorPermissions.PUBLISH
 import net.artisanmc.plugin.hub.ServerRoutes.Companion.SERVER
 
 /**
- * The pack the editor builds arrives here. The server serves it to players itself
- * (`/resource-pack/<sha1>.zip`, public) and hands it to `ResourcePackManager`:
- * delegation to the pack host or direct push.
+ * The pack the editor builds arrives here. The hub serves it itself (`/resource-pack/<sha1>.zip`,
+ * public) and, with [cdn], uploads it to Artisan's pack host, where players then download it. Either
+ * way it goes to `ResourcePackManager`: delegation to the pack plugin or direct push.
  */
-class PackRoutes(private val servers: Servers, private val store: PackStore) {
+class PackRoutes(private val servers: Servers, private val store: PackStore, private val cdn: PackCdn? = null) {
     fun register(router: Router) {
         router.on("PUT", "$SERVER/resource-pack", PUBLISH) { call ->
             val server = servers.of(call) ?: return@on call.error(404, "not_found")
             val zip = call.bytes(MAX_BYTES) ?: return@on call.error(413, "too_large")
             if (zip.size < 4 || zip[0] != 'P'.code.toByte() || zip[1] != 'K'.code.toByte()) return@on call.error(422, "invalid_zip")
             val hash = store.put(zip)
-            server.applyResourcePack(hash, "${PackStore.PATH}/$hash.zip")
-            call.json(mapOf("hash" to hash))
+            // The host down or refusing: players download from the hub, as without one.
+            val url = cdn?.publish(hash) { zip }
+            server.applyResourcePack(hash, "${PackStore.PATH}/$hash.zip", url)
+            call.json(if (url == null) mapOf("hash" to hash) else mapOf("hash" to hash, "url" to url))
         }
         router.on("GET", "${PackStore.PATH}/:file", null) { call ->
             val zip = store.get(call.params.getValue("file")) ?: return@on call.error(404, "not_found")

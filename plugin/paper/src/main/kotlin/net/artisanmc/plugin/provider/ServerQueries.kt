@@ -22,6 +22,7 @@ import net.artisanmc.plugin.protocol.EditorRequest.ServerConfigWrite
 import net.artisanmc.plugin.protocol.Replies
 import net.artisanmc.plugin.scheduling.Scheduler
 import org.bukkit.Bukkit
+import org.bukkit.entity.Player
 import java.util.Base64
 import java.util.logging.Logger
 
@@ -124,21 +125,29 @@ class ServerQueries(
             if (request.sort.isNotEmpty()) put("sort", request.sort)
             request.limit?.let { put("limit", it) }
         }
-        try {
-            scheduler.global {
-                try {
-                    val rows = registry.fetch(ref, null, ContextBinder.interpolateValues(request.params, request.args))
-                    val shaped = ContextBinder.shape(rows, source, request.args)
-                    logger?.fine("[Artisan] data source preview '$ref' params=${request.params} -> ${shaped.size} rows")
-                    val (payloadRows, truncated) = truncateForPreview(shaped)
-                    reply.ok("rows" to payloadRows, "truncated" to truncated)
-                } catch (e: PlayerRequiredException) {
-                    reply.error("player_required", Replies.describe(e))
-                } catch (e: Throwable) {
-                    // A fetcher touching a player in preview often throws an NPE without a message.
-                    reply.failure("fetch_error", "data source preview '$ref'", e)
-                }
+        // "Preview as": the editor names an online player in `params.player`; the fetcher
+        // gets that Player, on their thread, as it would at render. The param stays: a
+        // source may declare `player` itself, as a target (msquests:active). A name that
+        // is not online previews as before, with no player.
+        val params = ContextBinder.interpolateValues(request.params, request.args)
+        val run = { viewer: Player? ->
+            try {
+                val rows = registry.fetch(ref, viewer, params)
+                val shaped = ContextBinder.shape(rows, source, request.args)
+                logger?.fine("[Artisan] data source preview '$ref' as=${viewer?.name} params=$params -> ${shaped.size} rows")
+                val (payloadRows, truncated) = truncateForPreview(shaped)
+                reply.ok("rows" to payloadRows, "truncated" to truncated)
+            } catch (e: PlayerRequiredException) {
+                reply.error("player_required", Replies.describe(e))
+            } catch (e: Throwable) {
+                // A fetcher touching a player in preview often throws an NPE without a message.
+                reply.failure("fetch_error", "data source preview '$ref'", e)
             }
+        }
+        try {
+            val viewer = (params[PREVIEW_PLAYER] as? String)?.takeIf { it.isNotBlank() }?.let(Bukkit::getPlayerExact)
+            if (viewer == null) scheduler.global { run(null) }
+            else scheduler.player(viewer.uniqueId, onGone = { scheduler.global { run(null) } }) { run(viewer) }
         } catch (e: Throwable) {
             reply.failure("fetch_error", "data source preview '$ref' scheduling", e)
         }
@@ -233,6 +242,8 @@ class ServerQueries(
     }
 
     companion object {
+        /** The `params` key the editor's "Preview as" names its player under. */
+        internal const val PREVIEW_PLAYER = "player"
         internal const val MAX_PREVIEW_ROWS = 50
         internal const val MAX_PREVIEW_BYTES = 256 * 1024
         private const val MAX_BUNDLE_MESSAGE = 12L * 1024 * 1024

@@ -31,6 +31,8 @@ Cloudflare runs the nameservers of `artisanmc.net`. The named Tunnel publishes:
 
 The `artisan-tunnel` Worker (route `*.artisanmc.app/*`, fail open) serves the tunnel ahead of this server, which stays as the fallback; `artisan-tunnel-test` takes `*-test.artisanmc.app` ([`tunnel-worker/`](tunnel-worker/README.md)).
 
+The `artisan-pack-cdn` Worker serves `cdn.artisanmc.net`, where hubs upload their resource packs and players download them, from the R2 bucket `artisan-packs` ([`pack-cdn-worker/`](pack-cdn-worker/README.md), since 2026-10-27).
+
 No A/AAAA record to the origin; the VPS firewall exposes no inbound web port.
 
 The showcase's Coolify resource (historically "editor", hence `COOLIFY_EDITOR_UUID`) builds
@@ -46,8 +48,8 @@ Gradle tests and `shadowJar`.
 
 The repository is private: every runner minute counts against the organization's quota (2,000 min/month
 included). So each workflow only starts when its inputs change (`paths`, to be kept up to date when
-a module reads a new directory, see `deploy/ci-workflow.test.mjs`), and only `main` gets a run
-after merge (`deploy.yml` waits for it): a PR to `v2` is already tested on its merge ref.
+a module reads a new directory, see `deploy/ci-workflow.test.mjs`), and a PR is tested on its merge ref;
+`main` also gets a run after merge, which `deploy.yml` waits for.
 
 `.github/workflows/deploy.yml` fires when CI succeeds on `main`: it refuses a SHA that is no longer
 the head of `main`, then `deploy/coolify-deploy.mjs` pins `git_commit_sha` on the resource,

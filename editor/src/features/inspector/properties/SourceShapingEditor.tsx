@@ -104,54 +104,58 @@ export function SourceShapingEditor({
         {t("menuProperties.filterAdd")}
       </button>
 
-      <div className="flex items-center gap-1.5">
-        <span className="font-mono text-[11px] text-[var(--text-faint)]">
-          {t("menuProperties.sortLabel")}:
-        </span>
-        <Input
-          data-testid="sort-by"
-          value={input.sort?.by ?? ""}
-          list={fieldsListId}
-          placeholder={t("menuProperties.sortNone")}
-          onChange={(e) =>
-            onChange({
-              sort:
-                e.target.value === ""
-                  ? undefined
-                  : { by: e.target.value, direction: input.sort?.direction ?? "asc" },
-            })
-          }
-          className="h-7 w-24! shrink-0 px-2 py-0 font-mono text-xs"
-        />
-        <select
-          data-testid="sort-direction"
-          value={input.sort?.direction ?? "asc"}
-          disabled={!input.sort?.by}
-          onChange={(e) =>
-            input.sort?.by
-              ? onChange({
-                  sort: { by: input.sort.by, direction: e.target.value as "asc" | "desc" },
-                })
-              : undefined
-          }
-          className="h-7 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-xs text-[var(--text)] disabled:opacity-40"
-        >
-          <option value="asc">{t("menuProperties.sortAsc")}</option>
-          <option value="desc">{t("menuProperties.sortDesc")}</option>
-        </select>
-        <span className="ml-2 font-mono text-[11px] text-[var(--text-faint)]">
-          {t("menuProperties.limitLabel")}:
-        </span>
-        <Input
-          data-testid="limit-input"
-          type="number"
-          min={1}
-          value={input.limit ?? ""}
-          onChange={(e) =>
-            onChange({ limit: e.target.value === "" ? undefined : Number(e.target.value) })
-          }
-          className="h-7 w-16! shrink-0 px-2 py-0 font-mono text-xs"
-        />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-[11px] text-[var(--text-faint)]">
+            {t("menuProperties.sortLabel")}:
+          </span>
+          <Input
+            data-testid="sort-by"
+            value={input.sort?.by ?? ""}
+            list={fieldsListId}
+            placeholder={t("menuProperties.sortNone")}
+            onChange={(e) =>
+              onChange({
+                sort:
+                  e.target.value === ""
+                    ? undefined
+                    : { by: e.target.value, direction: input.sort?.direction ?? "asc" },
+              })
+            }
+            className="h-7 w-24! shrink-0 px-2 py-0 font-mono text-xs"
+          />
+          <select
+            data-testid="sort-direction"
+            value={input.sort?.direction ?? "asc"}
+            disabled={!input.sort?.by}
+            onChange={(e) =>
+              input.sort?.by
+                ? onChange({
+                    sort: { by: input.sort.by, direction: e.target.value as "asc" | "desc" },
+                  })
+                : undefined
+            }
+            className="h-7 rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-1.5 font-mono text-xs text-[var(--text)] disabled:opacity-40"
+          >
+            <option value="asc">{t("menuProperties.sortAsc")}</option>
+            <option value="desc">{t("menuProperties.sortDesc")}</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-[11px] text-[var(--text-faint)]">
+            {t("menuProperties.limitLabel")}:
+          </span>
+          <Input
+            data-testid="limit-input"
+            type="number"
+            min={1}
+            value={input.limit ?? ""}
+            onChange={(e) =>
+              onChange({ limit: e.target.value === "" ? undefined : Number(e.target.value) })
+            }
+            className="h-7 w-16! shrink-0 px-2 py-0 font-mono text-xs"
+          />
+        </div>
       </div>
     </div>
   );

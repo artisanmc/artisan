@@ -13,15 +13,28 @@ language: "en"
 per_player_language: false
 
 # Artisan's resource pack (images, glyphs, fonts, composed titles).
-# Artisan never sends a pack to players itself: it writes its pack into the
-# pack of a resource-pack plugin (Nexo, Oraxen, ItemsAdder), which merges it
-# into its own and sends it to players.
+# Two ways to reach players:
+#   - delegation: with `delegate-to-dir` set, Artisan writes its pack into the
+#     pack of a resource-pack plugin (Nexo, Oraxen, ItemsAdder), which merges
+#     it into its own and sends it. Players see a single prompt.
+#   - direct: without a delegate folder, Artisan sends its own pack to each
+#     player, next to any other pack (1.20.3+ pack stack). Players download it
+#     from the editor's web server: `web.url` in environment.yml must be
+#     reachable from their machine (else http://<server-ip>:<web.port>).
 resource-pack:
+  # Direct sending only; ignored when `delegate-to-dir` is set. False: the
+  # pack reaches no player unless delegated.
+  enabled: true
+  # Prompt shown by the client (MiniMessage). Empty: `resource_pack.prompt`
+  # of the player's language (lang/<code>.yml).
+  prompt: ""
+  # True: a player who declines the pack is disconnected.
+  required: false
+  # Send the pack when a player joins, after this many ticks.
+  send-on-join: true
+  send-delay-ticks: 20
   # Where Artisan writes its pack (`assets/artisan/*`), inside the folder the
-  # host plugin merges external packs from.
-  #
-  # Without it, Artisan's textures and glyphs reach no player, and the
-  # console says so on every pack update.
+  # host plugin merges external packs from. Setting it turns delegation on.
   #
   # Output shape depends on the path suffix:
   #   - `<path>.zip`  → single zip file with `assets/artisan/*` and a
@@ -32,7 +45,8 @@ resource-pack:
   #   - `<path>`      → directory; Artisan writes under
   #                     `<path>/assets/artisan/` (wiped before each update).
   #
-  # Path is filesystem-absolute or relative to the server root.
+  # Path is filesystem-absolute or relative to the server root. A folder that
+  # cannot be written falls back to direct sending (if `enabled`).
   #
   # Nexo example:
   #   delegate-to-dir: "plugins/Nexo/pack/external_packs/artisan.zip"

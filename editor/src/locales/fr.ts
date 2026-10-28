@@ -71,13 +71,6 @@ const fr: typeof en = {
   },
   projectIdentity: projectIdentityFr,
   itemContext: {
-    title: "Contexte disponible",
-    intro:
-      "Copie un placeholder complet pour l’utiliser dans un champ. Les valeurs affichées sont des exemples.",
-    search: "Rechercher un placeholder",
-    empty: "Aucun placeholder correspondant.",
-    copyError: "Copie impossible. Sélectionne le placeholder pour le copier manuellement.",
-    help: "Ouvrir l’aide-mémoire",
     context: "Contexte",
     iteration: "Élément courant",
     pagination: "Pagination",
@@ -876,6 +869,12 @@ const fr: typeof en = {
     needsAccount:
       "Connectez-vous pour exporter — l'archive est l'arbre tel qu'il est stocké sur le serveur.",
   },
+  playerPicker: {
+    open: "Joueurs en ligne",
+    loading: "Chargement…",
+    noneOnline: "Aucun joueur en ligne",
+    clear: "Aucun joueur",
+  },
   capturedItems: {
     sectionTitle: "Items capturés",
     emptyHint:
@@ -894,9 +893,15 @@ const fr: typeof en = {
     err_network_error: "Erreur réseau.",
   },
   dataSources: {
-    projectNotFound: "Project introuvable.",
-    selectHint: "Choisis une source dans la sidebar, ou crée-en une.",
-    sectionProject: "Données du projet",
+    selectHint: "Choisis une source pour voir son schéma et un aperçu en direct.",
+    notFound: "Cette donnée n'existe pas (ou plus) dans ce module.",
+    sidebarGroup: "Données",
+    newTable: "Nouvelle table de données",
+    newConfig: "Nouvelle fiche de données",
+    serverSectionTitle: "Sources de données",
+    serverSectionHint:
+      "Déclarées par les modules du serveur, en lecture seule : un menu les lit pour afficher des lignes. Elles reflètent l'état en jeu, c'est-à-dire la dernière version déployée, jamais un brouillon.",
+    seeServerSources: "Voir les sources du serveur →",
     sourceName: "Nom de la source",
     nameRequired: "Le nom de la source est obligatoire.",
     nameDuplicate: "Une source porte déjà ce nom.",
@@ -913,8 +918,6 @@ const fr: typeof en = {
     applyYaml: "Appliquer",
     shapeTable: "Table",
     shapeConfig: "Config",
-    addTable: "+ Table",
-    addConfig: "+ Config",
     modelName: "Modèle",
     keyField: "Clé",
     keyFieldHint:
@@ -932,6 +935,8 @@ const fr: typeof en = {
       "Cette shape est déclarée par l'add-on installé et évolue avec lui - les valeurs restent éditables, pas la shape.",
     mapKeyPlaceholder: "clé",
     addMapEntry: "Ajouter une entrée",
+    addMapRow: "Ajouter {{key}}",
+    mapKeyColumn: "Clé",
     removeMapEntry: "Supprimer l'entrée {{key}}",
     enumValues: "Valeurs admises",
     enumValuesPlaceholder: "valeur1, valeur2, ...",
@@ -983,6 +988,17 @@ const fr: typeof en = {
     viewTable: "Tableau",
     viewYaml: "YAML",
     previewOffline: "Serveur hors ligne — le schéma reste visible, la preview live non.",
+    previewServerState:
+      "Lignes renvoyées par le serveur : la version qu'il fait tourner, sans tes brouillons.",
+    originDraft: "Brouillon",
+    originDraftHint:
+      "Lignes calculées depuis le brouillon : tes modifications non publiées sont visibles.",
+    originDeployed: "Version déployée",
+    originDeployedHint:
+      "Ces lignes viennent des fichiers du projet, mais le module ne sait pas les calculer depuis le brouillon : tu vois la version publiée, sans tes modifications en cours.",
+    originLive: "État en jeu",
+    originLiveHint:
+      "Données qui n'existent que sur le serveur (joueurs, ventes…) : c'est l'état actuel en jeu.",
     errServerOffline: "Serveur hors ligne.",
     errTimeout: "Pas de réponse du plugin — plugin à mettre à jour ou serveur injoignable.",
     errUnknownSource: "Le serveur ne connaît pas cette source.",
@@ -1290,7 +1306,6 @@ const fr: typeof en = {
       translations: "Traductions",
       missingTranslations: "{{count}} traduction manquante",
       missingTranslations_other: "{{count}} traductions manquantes",
-      dataSources: "Données",
       history: "Historique",
     },
   },
@@ -1648,6 +1663,11 @@ const fr: typeof en = {
       language: "Langue",
       per_player_language: "Langue de chaque joueur",
       "resource-pack": {
+        enabled: "Envoyer le pack aux joueurs (sans délégation)",
+        prompt: "Message de demande (vide : langue du joueur)",
+        required: "Déconnecter les joueurs qui refusent le pack",
+        "send-on-join": "Envoyer à la connexion",
+        "send-delay-ticks": "Délai d'envoi (ticks)",
         "delegate-to-dir": "Dossier du pack de Nexo, Oraxen ou ItemsAdder (chemin)",
         "delegate-reload-command": "Commande de rechargement après délégation",
         "container-textures": {

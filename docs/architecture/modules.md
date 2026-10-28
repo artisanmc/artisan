@@ -151,6 +151,11 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > for those of the server's other projects, like an action's `document_ref` argument. `value` is `""`
 > with nothing picked.
 
+> **Server rows for mixed sources (since 2026-10-28, SDK 1.12)** — `localPreviewRows(project, ref, ctx)`
+> receives `ctx.serverRows`, the server's last rows for the ref when the host has them (absent while
+> offline or not fetched yet). A source declared `Origin.MIXED` joins them to the draft by its
+> `keyField`; a `CONTENT` source ignores them. A 1.11 bundle keeps working (it ignores the argument).
+
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the
@@ -393,6 +398,21 @@ class ShopModule : ArtisanModule {
 The `schema` is a `List<DataSourceField>` where each field is typed by a `ModelFieldType` (`new DataSourceField("price", ModelFieldType.number())`): the same vocabulary as Data models (`api.getModels().declare(new ModelDeclaration(...))`) and action arguments. `FieldKind` is still accepted, `@Sunset` until 3.0.0.
 
 At runtime, when the menus module renders an Element with `data_source.ref = "shop:items"`, the `DataSourceRegistry` routes the request to the shop module, which returns the data. Zero direct coupling.
+
+**Origin (API 2.19.0, SDK 1.12)** — a source says where its rows come from with the sixth constructor argument, `Origin`:
+
+| Origin | Rows | What the editor previews |
+|---|---|---|
+| `RUNTIME` (default) | Server state only (sales, guild members, a balance). | The server's rows, badge "In-game state". |
+| `CONTENT` | Derived from the Project's files (a shop's catalogue, quest definitions). | The rows the module's editor view computes from the draft (`FrontendModule.localPreviewRows`), badge "Draft". Without that hook: the server's rows, badge "Deployed version" (pending edits invisible). |
+| `MIXED` | Definitions from the files joined to per-player state (a player's active quests, a rewards calendar with claims). Requires a `keyField`. | `localPreviewRows(project, ref, { serverRows })`: the module starts from the server's rows (fetched with the preview player) and replaces their definition fields with the draft's, matched by `keyField`; a row the draft adds gets the default state, a row it removes disappears. |
+
+```java
+api.getDataSources().register(new DataSourceDeclaration(
+    "boutique:items", fetcher, schema, Stability.STATIC, "id", Origin.CONTENT));
+```
+
+`localPreviewRows` duplicates the fetcher in TypeScript. Keep them in step with shared vectors: `testdata/sources/<ref>/*.json` in the module's repository (the Project files in, the server rows for a mixed source, the expected rows out), read by both the fetcher's test and the hook's test. Design: `design-sources-brouillon.md` (project files, 2026-10-28).
 
 ### 4.2 Commands
 

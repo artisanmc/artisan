@@ -23,8 +23,10 @@ import { positionCount } from "@/features/canvas/inventoryTypes";
 import { LayersPanel } from "@/features/canvas/title/composer/LayersPanel";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
 import { parsePositions } from "@/lib/positions";
+import { serverSourcesDestination } from "@/lib/projectNavigation";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerDataSourcesStore } from "@/state/serverDataSourcesStore";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { Library as LibraryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,6 +35,7 @@ import { MenuAppearanceControls } from "./MenuAppearanceControls";
 import { MenuSetBlock, ObjectParamLists } from "./MenuDataSection";
 import { PreviewContextSection } from "./PreviewContextSection";
 import { PropertyField } from "./PropertyField";
+import { SourceOriginBadge } from "./SourceOriginBadge";
 import { SourceShapingEditor } from "./SourceShapingEditor";
 import { summarizeFieldType } from "./fieldTypeSummary";
 
@@ -255,6 +258,7 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
   const addInput = useProjectsStore((s) => s.addMenuContextInput);
   const setInput = useProjectsStore((s) => s.setMenuContextInput);
   const removeInput = useProjectsStore((s) => s.removeMenuContextInput);
+  const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const inputs = menu.contextInputs ?? [];
   const { t } = useTranslation();
 
@@ -324,6 +328,11 @@ function ContextInputsEditor({ projectId, menu }: { projectId: ProjectId; menu: 
                     onChange={(patch) => update(i, patch)}
                     onRemove={() => removeInput({ projectId, menuId: menu.id, index: i })}
                   />
+                  {input.ref && project ? (
+                    <div className="flex justify-end">
+                      <SourceOriginBadge project={project} sourceRef={String(input.ref)} />
+                    </div>
+                  ) : null}
                   {input.ref ? (
                     <MenuSetBlock projectId={projectId} menu={menu} input={input} />
                   ) : null}
@@ -562,6 +571,8 @@ function SourcePickerOptions({
   const hasProjectData = (project.dataSources ?? []).length > 0;
   const serverSources = useServerDataSourcesStore((s) => s.sources);
   const liveSources = serverSources;
+  const navigate = useNavigate();
+  const { serverId } = useParams({ strict: false }) as { serverId?: string };
   return (
     <>
       {hasProjectData ? (
@@ -605,6 +616,15 @@ function SourcePickerOptions({
               ) : null}
             </DropdownMenuItem>
           ))}
+          {serverId ? (
+            <DropdownMenuItem
+              data-testid="see-server-sources"
+              onSelect={() => void navigate(serverSourcesDestination(serverId))}
+              className="cursor-pointer text-[11px] text-[var(--text-mut)] focus:bg-[var(--surface-raised-2)]"
+            >
+              {t("dataSources.seeServerSources")}
+            </DropdownMenuItem>
+          ) : null}
         </>
       ) : null}
       {!hasProjectData && liveSources.length === 0 ? (

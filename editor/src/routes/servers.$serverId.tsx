@@ -1,4 +1,5 @@
 import { IconTile } from "@/components/ui/icon-tile";
+import { ServerSourcesPanel } from "@/features/data/ServerSourcesPanel";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
 import {
@@ -11,7 +12,7 @@ import { ServerConfigSection } from "@/features/serverConfig/ServerConfigSection
 import { EditorAddressBanner } from "@/features/settings/EditorAddressBanner";
 import { listServerProjects } from "@/lib/api/projectFiles";
 import { type ProjectSummary, listServers } from "@/lib/api/servers";
-import { screenDestination } from "@/lib/projectNavigation";
+import { SERVER_SOURCES_ANCHOR, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { displayServerLabel } from "@/lib/serverLabel";
 import { useAuthStore } from "@/state/authStore";
@@ -358,6 +359,19 @@ function ServerOverview({
             </ul>
           )}
         </section>
+
+        {serverKeyId && !updateRequired && (
+          <section id={SERVER_SOURCES_ANCHOR} className="flex scroll-mt-4 flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="eyebrow">{t("dataSources.serverSectionTitle")}</h2>
+              <span className="h-px flex-1 bg-[var(--border-soft)]" />
+            </div>
+            <p className="text-[12px] text-[var(--text-mut)]">
+              {t("dataSources.serverSectionHint")}
+            </p>
+            <ServerSourcesPanel serverKeyId={serverKeyId} />
+          </section>
+        )}
 
         {serverKeyId && !updateRequired && (
           <section className="flex flex-col gap-3">
