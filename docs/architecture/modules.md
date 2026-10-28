@@ -154,7 +154,8 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > **Server rows for mixed sources (since 2026-10-28, SDK 1.12)** — `localPreviewRows(project, ref, ctx)`
 > receives `ctx.serverRows`, the server's last rows for the ref when the host has them (absent while
 > offline or not fetched yet). A source declared `Origin.MIXED` joins them to the draft by its
-> `keyField`; a `CONTENT` source ignores them. A 1.11 bundle keeps working (it ignores the argument).
+> `keyField`; a `CONTENT` source ignores them. `ctx.params` carries the fetcher params the menu
+> declares on the source input (`group: daily`), which the hook applies like the fetcher does. A 1.11 bundle keeps working (it ignores the argument).
 
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
