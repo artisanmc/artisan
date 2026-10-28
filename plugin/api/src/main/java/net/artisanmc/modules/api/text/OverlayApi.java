@@ -5,16 +5,22 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Pieces of a HUD drawn in the action bar, above the hotbar ({@code api.getOverlay()}), with the
- * fonts of Artisan's resource pack. Every method returns MiniMessage, to concatenate and send
- * with {@code player.sendActionBar}; none needs Adventure types. The pen starts at the action
- * bar's left (the bar is centred on its whole width): {@link #move} shifts it, {@link #raise}
- * draws text above the line, {@link #image} an image of the pack.
+ * A HUD drawn with the fonts of Artisan's resource pack ({@code api.getOverlay()}), in a
+ * {@link Slot} of the player's screen that Artisan owns. A module puts a named layer there
+ * ({@link #show}); Artisan draws every layer of the slot together, keeps them on screen and takes
+ * them away ({@link #hide}). Two modules never overwrite each other.
  *
- * <p>Heights are a rise in px above the top of the action bar's text, 0 to 128. Widths follow
- * the vanilla font (Minecraft 1.21.4 advances, bold + 1 px a character); a player whose client
- * has another font, or a GUI scale that cuts the bar, sees it shifted. Only for a player for
- * whom {@link #hasPack} is true: anyone else sees missing characters.
+ * <p>A layer is MiniMessage built from the pieces below. It is drawn with the pen at the centre
+ * of the slot and must leave it there: x is measured from the centre of the screen, and each
+ * piece that moves the pen is balanced ({@link #image} comes back on its own; text drawn by
+ * {@link #raise} advances by its {@link #width}, so follow it with {@code move(-width)}).
+ *
+ * <p>Heights are a rise in px from the top of the slot's text line: positive goes up, negative
+ * down, {@link #MIN_RISE} to {@link #MAX_RISE}. Widths follow the vanilla font (Minecraft 1.21.4
+ * advances, bold + 1 px a character); a player whose client has another font, or a GUI scale
+ * that cuts the slot, sees it shifted. The server does not know the screen's width: a layer is
+ * placed from the centre, never from a corner. Only for a player for whom {@link #hasPack} is
+ * true: anyone else sees missing characters.
  *
  * <p>Every method may be called from any thread.
  *
@@ -25,8 +31,16 @@ public interface OverlayApi {
 
     /** Highest rise of {@link #raise} and {@link #image}. */
     int MAX_RISE = 128;
+    /** Lowest rise (the deepest drop) of {@link #raise} and {@link #image}. */
+    int MIN_RISE = -166;
 
-    /** Inert default (tests / partial wiring): no pack, nothing moves or rises. */
+    /** Where a layer is drawn. More slots (the boss bar, the sidebar) come on the same contract. */
+    enum Slot {
+        /** Above the hotbar, centred: the action bar's line, which Artisan resends while a layer is shown. */
+        ACTION_BAR
+    }
+
+    /** Inert default (tests / partial wiring): no pack, nothing moves, rises or shows. */
     OverlayApi NONE = new OverlayApi() {
         @Override
         public int width(String miniMessage) {
@@ -52,14 +66,21 @@ public interface OverlayApi {
         public boolean hasPack(Player player) {
             return false;
         }
+
+        @Override
+        public void show(Player player, Slot slot, String layer, int priority, String miniMessage) {}
+
+        @Override
+        public void hide(Player player, Slot slot, String layer) {}
     };
 
     /** How far {@code miniMessage} moves the pen, in px: the sum of its characters' advances. */
     int width(String miniMessage);
 
     /**
-     * {@code miniMessage} drawn {@code rise} px higher (font {@code artisan:text_up<rise>}), same
-     * size and width. A rise out of 0..{@link #MAX_RISE} is clamped.
+     * {@code miniMessage} drawn {@code rise} px higher, or lower when negative (fonts
+     * {@code artisan:text_up<rise>} and {@code artisan:text_y<y>_h8}), same size and width. A
+     * rise out of {@link #MIN_RISE}..{@link #MAX_RISE} is clamped.
      */
     String raise(String miniMessage, int rise);
 
@@ -68,12 +89,24 @@ public interface OverlayApi {
 
     /**
      * The image {@code asset} (a file of a Project's {@code assets/}, as a menu's {@code image.asset})
-     * with its top {@code rise} px above the text's, without shadow; the pen ends where it started.
-     * Null when the pack has no such image at that rise: the module's editor kind declares it
-     * ({@code pack.images}, editor SDK 1.13), and the pack is built again when a Document changes.
+     * with its top {@code rise} px above the text's top (below when negative), without shadow; the
+     * pen ends where it started. Null when the pack has no such image at that rise: the module's
+     * editor kind declares it ({@code pack.images}, editor SDK 1.13), and the pack is built again
+     * when a Document changes.
      */
     @Nullable String image(String asset, int rise);
 
     /** Whether {@code player}'s client has loaded Artisan's resource pack (or the host's that merges it). */
     boolean hasPack(Player player);
+
+    /**
+     * Shows {@code miniMessage} as the layer {@code layer} of {@code slot} for {@code player}, or
+     * replaces it. Name the layer after the module ({@code conversations:hud}). Layers are drawn
+     * by ascending {@code priority}, the highest on top; equal priorities in the order they first
+     * showed. Artisan keeps the slot on screen while one layer is there.
+     */
+    void show(Player player, Slot slot, String layer, int priority, String miniMessage);
+
+    /** Takes the layer away; the slot is cleared once it holds none. Unknown layer: nothing happens. */
+    void hide(Player player, Slot slot, String layer);
 }

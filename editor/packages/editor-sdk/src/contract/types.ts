@@ -122,15 +122,16 @@ export interface DocumentPackContribution {
    * The images a file draws at a height, from the file as parsed YAML (`id` included). The
    * pack gets one glyph per asked (asset, rise), which the plugin hands out through
    * `api.getOverlay().image(asset, rise)`: a HUD drawn in the action bar, above the hotbar.
-   * A file that throws, an unknown asset or a rise out of 0..128 adds nothing.
+   * A file that throws, an unknown asset or a rise out of -166..128 adds nothing.
    */
   images?: (src: Record<string, unknown>) => Iterable<PackImage>;
 }
 
 /**
  * An image of a Project's `assets/` (its file name, like a menu's `image.asset`) drawn
- * `rise` px above the top of the action bar's text, 0..128. Its height is at most 256 px;
- * a wider one is cut into slices of 256 px, joined again by the plugin.
+ * with its top `rise` px above the top of a slot's text line (`OverlayApi`), below it when
+ * negative: -166..128. Its height is at most 256 px; a wider one is cut into slices of 256 px,
+ * joined again by the plugin.
  */
 export interface PackImage {
   asset: string;

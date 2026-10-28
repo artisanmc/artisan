@@ -7,19 +7,22 @@ import { TEXT_UP_MAX } from "./fontJsonBuilder";
 import { bitblt, createImage, decodePng, encodePng } from "./png";
 
 /**
- * Module images drawn at a height in the action bar (`DocumentKindContribution.pack.images`,
- * SDK 1.13): a HUD above the hotbar, under the same rise as `artisan:text_up{R}`.
+ * Module images drawn at a height in a slot of the screen (`DocumentKindContribution.pack.images`,
+ * SDK 1.13): a HUD above the hotbar or under the boss bar, under the same rise as the text
+ * (`artisan:text_up{R}` up, `artisan:text_y{6-R}_h8` down).
  *
  * One font per (asset, rise), `artisan:overlay/<sha256(asset)>_<rise>`. The image keeps its
- * size (scale 1); its top sits `rise` px above the top of the default font's text, so
- * `ascent = 7 + rise`. Minecraft refuses an ascent above the height: a shorter image gets
- * transparent rows under it. The client drops, without a word, a glyph over 256 px (its atlas
+ * size (scale 1); its top sits `rise` px above the top of the default font's text (below
+ * when negative), so `ascent = 7 + rise`. Minecraft refuses an ascent above the height: a
+ * shorter image gets transparent rows under it. The client drops, without a word, a glyph over 256 px (its atlas
  * is 256 px): a wider image is cut into slices of 256 columns, ``, ``…, that the
  * plugin joins again (`OverlayApi.image`). A taller one is left out.
  */
 
 /** Ascent of the vanilla ascii font: a rise of 0 puts the image's top on the text's top. */
 export const OVERLAY_TEXT_ASCENT = 7;
+/** Lowest rise: as deep as the lowest `text_y` font drops text (Y 172, the vanilla title at Y 6). */
+export const OVERLAY_MIN_RISE = -166;
 /** Widest and tallest glyph the client keeps. */
 export const OVERLAY_SLICE = 256;
 
@@ -35,7 +38,7 @@ function valid(image: unknown): image is PackImage {
     typeof asset === "string" &&
     asset.length > 0 &&
     Number.isInteger(rise) &&
-    (rise as number) >= 0 &&
+    (rise as number) >= OVERLAY_MIN_RISE &&
     (rise as number) <= TEXT_UP_MAX
   );
 }

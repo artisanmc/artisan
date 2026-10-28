@@ -63,6 +63,14 @@ class PaperOverlayTest {
     }
 
     @Test
+    fun `a negative rise drops the text through the text_y fonts, clamped to -166`(@TempDir tmp: Path) {
+        val font = { rise: Int -> leaves(mm.deserialize(overlay(tmp).raise("Bruno", rise))).single().second }
+        assertEquals(Key.key("artisan", "text_y26_h8"), font(-20))
+        assertEquals(Key.key("artisan", "text_y172_h8"), font(-500))
+        assertEquals(Key.key("artisan", "text_up0"), font(0))
+    }
+
+    @Test
     fun `an image's slices are joined 256 px apart and the pen comes back`(@TempDir tmp: Path) {
         val parts = leaves(mm.deserialize(overlay(tmp).image("box", 92)!!))
         val glyphs = parts.filter { it.second == Key.key("artisan", PaperOverlay.key("box", 92)) }

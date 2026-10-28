@@ -50,6 +50,7 @@ test("a kind's images are read from its folder only, with the file's id", () => 
       { path: "themes/broken.yaml", content: "hud: { box: panel }" },
       { path: "themes/bad.yaml", content: "hud: [" },
       { path: "themes/high.yaml", content: "hud: { box: panel, rise: 129 }" },
+      { path: "themes/low.yaml", content: "hud: { box: panel, rise: -167 }" },
       { path: "menus/tavern.yaml", content: "hud: { box: other }" },
       { path: "themes/sub/deep.yaml", content: "hud: { box: other }" },
     ],
@@ -69,6 +70,13 @@ test("an image rises with ascent 7 + rise, padded under it when shorter", () => 
   expect(png.data[(6 * 5 + 4) * 4 + 3]).toBe(255);
   expect(png.data[7 * 5 * 4 + 3]).toBe(0);
   expect(index.assets[key]).toMatchObject({ name: "cursor", type: "overlay", slices: [5] });
+});
+
+test("a negative rise puts the image below the text line, its own height kept", () => {
+  const { entries, key } = build({ bar: opaque(182, 5) }, "bar", -20);
+  expect(key.endsWith("_-20")).toBe(true);
+  const font = JSON.parse(strFromU8(entries[`assets/artisan/font/${key}.json`]!));
+  expect(font.providers[0]).toMatchObject({ ascent: -13, height: 5 });
 });
 
 test("an image wider than 256 px is cut into slices of 256 columns", () => {

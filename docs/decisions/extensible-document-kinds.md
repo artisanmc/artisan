@@ -352,3 +352,16 @@ action bar (ArtisanConversations) needs its box and cursor above the hotbar, and
 raise an image there; the builder already reads the menus' files for their glyph placements, and the
 kind is the only one that knows where its files keep their images. The kind reads the parsed file, not
 the Document: the pack is built from the server's files, without the editor's codec.
+
+### Addendum 2026-10-28: Artisan owns the slots, rises are signed
+
+Two changes before 2.20.0 shipped, so that custom HUDs designed in Artisan (a scoreboard at the top
+of the screen, a textured boss bar) use the same pieces. A rise is signed: a HUD under the boss bar
+draws downwards, with the menus' `text_y` fonts for text and a negative ascent for images
+(-166..128). And no module sends the action bar itself: it shows a named layer in a slot
+(`OverlayApi.show`/`hide`, `Slot.ACTION_BAR` first), drawn from the centre of the screen with the
+pen brought back there, and Artisan draws the slot's layers together by priority and resends them.
+Two modules writing the action bar would otherwise erase each other every second. *Rejected:* one
+module per slot, the highest priority hiding the others (a quest goal and a conversation can share
+the bar side by side). Corners of the screen stay out of reach: the server does not know its width,
+and anchoring there takes core shaders in the pack.

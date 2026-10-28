@@ -15,26 +15,24 @@ import org.bukkit.entity.Player
 import java.security.MessageDigest
 
 /**
- * `api.getOverlay()`: a HUD in the action bar with the pack's fonts. Text rises through
- * `artisan:text_up<R>` (always in the pack), images through `artisan:overlay/<sha256(asset)>_<R>`
- * (written for the (asset, rise) a module's kind declares, `overlayImages.ts`), the pen moves
- * with the `space` provider of `artisan:default`. Built as components then written back as
- * MiniMessage, so every tag closes.
+ * `api.getOverlay()`: a HUD with the pack's fonts. Text rises through `artisan:text_up<R>` and
+ * drops through `artisan:text_y<6-R>_h8` (both always in the pack), images through
+ * `artisan:overlay/<sha256(asset)>_<R>` (written for the (asset, rise) a module's kind declares,
+ * `overlayImages.ts`), the pen moves with the `space` provider of `artisan:default`. Built as
+ * components then written back as MiniMessage, so every tag closes. The layers go to [slots].
  *
  * [catalog] is read at call time: it is replaced on `/artisan reload`.
  */
 class PaperOverlay(
     private val catalog: () -> AssetCatalog?,
     private val packs: PackLoadTracker,
+    private val slots: OverlaySlots? = null,
 ) : OverlayApi {
 
     override fun width(miniMessage: String): Int = width(LenientText.parse(miniMessage), false)
 
     override fun raise(miniMessage: String, rise: Int): String =
-        mm.serialize(
-            Component.text().font(Key.key("artisan", "text_up${rise.coerceIn(0, OverlayApi.MAX_RISE)}"))
-                .append(LenientText.parse(miniMessage)).build(),
-        )
+        mm.serialize(Component.text().font(riseFont(rise)).append(LenientText.parse(miniMessage)).build())
 
     override fun move(px: Int): String = mm.serialize(space(px))
 
@@ -59,6 +57,14 @@ class PaperOverlay(
 
     override fun hasPack(player: Player): Boolean = packs.hasLoaded(player.uniqueId)
 
+    override fun show(player: Player, slot: OverlayApi.Slot, layer: String, priority: Int, miniMessage: String) {
+        slots?.show(player.uniqueId, slot, layer, priority, miniMessage)
+    }
+
+    override fun hide(player: Player, slot: OverlayApi.Slot, layer: String) {
+        slots?.hide(player.uniqueId, slot, layer)
+    }
+
     private fun space(px: Int): Component {
         if (px == 0) return Component.empty()
         val encoder = catalog()?.offsetEncoder() ?: OffsetEncoder.EMPTY
@@ -82,6 +88,15 @@ class PaperOverlay(
         /** Columns per glyph of a cut image: the client drops a glyph over 256 px. */
         const val SLICE = 256
         private const val GLYPH = 0xE000
+
+        /**
+         * The font that draws text [rise] px higher, or lower when negative: `text_y<Y>_h8` puts
+         * the top of the text at chest Y, the vanilla title's at Y 6 (`buildTextYFontJson`).
+         */
+        fun riseFont(rise: Int): Key {
+            val r = rise.coerceIn(OverlayApi.MIN_RISE, OverlayApi.MAX_RISE)
+            return if (r >= 0) Key.key("artisan", "text_up$r") else Key.key("artisan", "text_y${6 - r}_h8")
+        }
 
         /** Same key as the editor's `overlayImageKey`. */
         fun key(asset: String, rise: Int): String {
