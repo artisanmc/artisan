@@ -144,7 +144,7 @@ export function ProjectTopBarControls({
           )}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
-          <AssistantButton projectId={projectId} />
+          <AssistantButton />
           <SearchButton />
           <div data-tour="save" className="flex items-center gap-1">
             <SaveControls key={projectId} projectId={projectId} offline={offline} />
