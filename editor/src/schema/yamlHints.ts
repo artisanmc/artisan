@@ -69,7 +69,9 @@ function plainIndexKeys(node: unknown): void {
     node.items.length > 0 &&
     node.items.every(
       (p) =>
-        isScalar(p.key) && typeof p.key.value === "string" && /^(0|[1-9]\d{0,8})$/.test(p.key.value),
+        isScalar(p.key) &&
+        typeof p.key.value === "string" &&
+        /^(0|[1-9]\d{0,8})$/.test(p.key.value),
     );
   for (const pair of node.items) {
     if (indexKeys && isScalar(pair.key)) pair.key.value = Number(pair.key.value);
