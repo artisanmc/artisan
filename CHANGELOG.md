@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Changed**: the editor's **Data** tab is gone. A folder's own tables and config sheets are rows of its sidebar tree, after its menus and commands, created from the folder's **+** menu (*New data table*, *New data sheet*) and edited on their own page (`…/data/<id>`); the folder's count includes them, so a folder holding only data no longer says it is empty. The server's sources are listed on the server's page (**Data sources**, grouped by module, with schema and live preview), reached from a menu's source picker. Nothing changes on disk (`data/<id>.yaml`); an old `?tab=data-sources` link opens the board. The workspace shortcuts become 1 Canvas, 2 Translations, 3 Resources, 4 History.
 - **Added**: the Library's expressions no longer need a listed variable: "Another variable…" takes a path typed by hand (`guild.created_at`), and "Time since/left" also take a fixed date. Every recipe stays usable.
 - **Removed**: the "Available context" panel of the item window; the Library lists the same placeholders.
 - **Fixed**: the item window's scrollbar no longer covers the fields.

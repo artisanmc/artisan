@@ -3,7 +3,6 @@ import { docKey, resolveDocKey } from "@/domain/documents";
 import type { Project, ProjectId } from "@/domain/types";
 import { AssetsTab } from "@/features/assets/AssetsTab";
 import { Stage } from "@/features/canvas/Stage";
-import { DataSourcesPanelContent } from "@/features/data/DataSourcesPanel";
 import { runExportZip } from "@/features/export/runExportZip";
 import { PatternsGallery } from "@/features/help/PatternsGallery";
 import { EditorTour } from "@/features/onboarding/EditorTour";
@@ -46,7 +45,7 @@ import { useSharedIdNotice } from "./useSharedIdNotice";
 import { useWorkspaceDnd } from "./useWorkspaceDnd";
 
 export type ProjectSearch = {
-  tab?: "overview" | "translations" | "data-sources" | "resources" | "history";
+  tab?: "overview" | "translations" | "resources" | "history";
   /**
    * Deep link: center the board on this Document on open (`goToDocument`): its key
    * (`menu/main`), or a bare id (the first Document of that id).
@@ -58,8 +57,9 @@ export type ProjectSearch = {
 
 export const validateProjectSearch = (search: Record<string, unknown>): ProjectSearch => {
   const t = search.tab;
-  if (t === "translations" || t === "data-sources" || t === "resources" || t === "history")
-    return { tab: t };
+  // `data-sources` (the former Data view, whose content moved to the sidebar) falls back to
+  // the board like any unknown tab.
+  if (t === "translations" || t === "resources" || t === "history") return { tab: t };
   const doc = typeof search.doc === "string" && search.doc ? { doc: search.doc } : {};
   const kind = typeof search.kind === "string" && search.kind ? { kind: search.kind } : {};
   return { tab: "overview", ...doc, ...kind };
@@ -71,7 +71,7 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
  * (`?tab=`). URL sync, drag-and-drop and the language fallback are named hooks.
  */
 export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) {
-  const { serverId, projectId, documentId, screenId, collectionDir } = useParams({
+  const { serverId, projectId, documentId, screenId, collectionDir, dataSourceId } = useParams({
     strict: false,
   }) as {
     serverId?: string;
@@ -79,6 +79,7 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
     documentId?: string;
     screenId?: string;
     collectionDir?: string;
+    dataSourceId?: string;
   };
   const loadRef = projectRef ?? projectId;
   // Resolve the public folder/module ID in its complete location scope.
@@ -182,15 +183,6 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
             <TranslationPanelContent projectId={pId} />
           </div>
         </WorkspaceView>
-        <WorkspaceView
-          active={presentedTab === "data-sources"}
-          onExit={exitToCanvas}
-          title={t("project.tabs.dataSources")}
-        >
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            <DataSourcesPanelContent projectId={pId} />
-          </div>
-        </WorkspaceView>
         {runtime?.serverId ? (
           <WorkspaceView
             active={presentedTab === "history"}
@@ -203,9 +195,9 @@ export function ProjectCanvasPage({ projectRef }: { projectRef?: string } = {}) 
       </>
     );
 
-    // A module's screen (`screen/$screenId`) or a collection's page
-    // (`$collectionDir`) opened in the project covers the board.
-    const pageOpen = !!screenId || !!collectionDir;
+    // A module's screen (`screen/$screenId`), a collection's page (`$collectionDir`) or
+    // one of the project's data sources (`data/$dataSourceId`) covers the board.
+    const pageOpen = !!screenId || !!collectionDir || !!dataSourceId;
     // The board, or a Document whose view is a stage: the Properties panel shows beside.
     const focusKey = documentId
       ? docKind

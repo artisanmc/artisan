@@ -17,6 +17,10 @@ const api = vi.hoisted(() => ({
   fetchTemplateFiles: vi.fn(),
 }));
 vi.mock("@/lib/api/templates", () => api);
+vi.mock("@tanstack/react-router", () => ({
+  useNavigate: () => vi.fn(),
+  useParams: () => ({}),
+}));
 
 const PID = "srv.shop" as ProjectId;
 
