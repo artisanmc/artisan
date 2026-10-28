@@ -48,6 +48,12 @@ export interface DocumentKindContribution {
    * (`editor-internals.md`), not part of this contract.
    */
   component: ComponentType<DocumentEditorProps>;
+  /**
+   * `component` draws the Document's header itself (SDK 1.13): the host then leaves out its
+   * own (the kind's tile, its name, the Document's `title`), so the panel shows one header.
+   * Absent = the host draws it above `component`.
+   */
+  ownHeader?: boolean;
   /** A human label for one Document (search, chips, breadcrumb); the id when absent. */
   title?: (doc: unknown, ctx: DocumentLabelContext) => string;
   /** Registry rows show `title` instead of the id (a command's `/name` is its identity). */

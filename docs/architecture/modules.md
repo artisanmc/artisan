@@ -165,7 +165,8 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 
 > **Document kinds (since 2026-10-15, lot 5)** — a module contributes its Document kinds through
 > `documents: DocumentKindContribution[]`: `kind`, `dir`, `schemaVersion`, `idPrefix?`, `label`,
-> `icon?`, `component` (Properties panel view), `title?`, `listByTitle?`, `create`, `parse`,
+> `icon?`, `component` (Properties panel view), `ownHeader?` (SDK 1.13: the view draws the
+> Document's header, the host leaves out its own), `title?`, `listByTitle?`, `create`, `parse`,
 > `serialize`, `ltextSites?`, `chainSlots?`, `board?` (`size`, `summary`, `render` react-konva,
 > non-interactive preview, `items`: selectable rows, SDK 1.2, with `marker` and `hover` in 1.5;
 > `accent`, SDK 1.5). The host installs it at registration (`registerEditorModule`,
