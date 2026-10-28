@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { dataSourceModule } from "@/domain/projectData";
+import { screenOfSource } from "@/domain/projectData";
 import type { ProjectId } from "@/domain/types";
 import { isTypingTarget } from "@/lib/keyboard";
 import { projectDestination } from "@/lib/projectNavigation";
@@ -10,7 +11,6 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ProjectScreenForm } from "../screens/ProjectScreenView";
-import { screenOfSource } from "../screens/screenList";
 import { DataSourceEditor } from "./DataSourceEditor";
 
 /**

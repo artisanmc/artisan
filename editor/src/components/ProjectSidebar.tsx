@@ -1,6 +1,7 @@
 import { ArtisanWordmark } from "@/components/ArtisanWordmark";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
+import { listedDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
 import {
   DocumentGroups,
@@ -9,7 +10,6 @@ import {
 } from "@/features/project/ProjectDocumentTree";
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
-import { listedDataSources } from "@/features/screens/screenList";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";

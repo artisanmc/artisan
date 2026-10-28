@@ -1,12 +1,7 @@
+import { listedDataSources, screenOfSource } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
 import { describe, expect, it } from "vitest";
-import {
-  fallbackScreensFor,
-  listedDataSources,
-  parseFallbackScreenId,
-  resolveScreen,
-  screenOfSource,
-} from "./screenList";
+import { fallbackScreensFor, parseFallbackScreenId, resolveScreen } from "./screenList";
 
 const localProject = {
   id: "boutique",

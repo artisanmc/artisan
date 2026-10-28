@@ -15,13 +15,13 @@ import { DEFAULT_GROUP_COLOR, folderGroups } from "@/domain/canvasGroups";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
 import { docKey, documentCount, findDocumentByKey } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
+import { listedDataSources } from "@/domain/projectData";
 import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
 import { DataSourceRows } from "@/features/data/DataSourceRows";
-import { listedDataSources } from "@/features/screens/screenList";
 import { ModuleTemplatesDialog } from "@/features/templates/ModuleTemplatesDialog";
 import { sameAsShipped } from "@/features/templates/sameAsShipped";
 import {

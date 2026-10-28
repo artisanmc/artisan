@@ -5,8 +5,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IconTile } from "@/components/ui/icon-tile";
+import { listedDataSources } from "@/domain/projectData";
 import type { DataSource, Project } from "@/domain/types";
-import { listedDataSources } from "@/features/screens/screenList";
 import { dataSourceDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useProjectsStore } from "@/state/projectsStore";
