@@ -17,7 +17,8 @@ import {
   DndContext,
   type DragEndEvent,
   type Modifier,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -31,10 +32,9 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-/** Restrict translation to the vertical axis so the workspace card can't be dragged sideways. */
+/** Restrict translation to the vertical axis so a folder can't be dragged sideways. */
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 import { docKey, documentCount, resolveDocKey } from "@/domain/documents";
-import type { ProjectId } from "@/domain/types";
 import {
   type ModuleGroupEntry,
   type PluginModule,
@@ -50,6 +50,7 @@ import { useModulesStore } from "@/state/modulesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
+import { applyOrder, sidebarOrderOf, useSidebarOrderStore } from "@/state/sidebarOrderStore";
 import { useSidebarStore } from "@/state/sidebarStore";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -57,7 +58,6 @@ import {
   ChevronRight,
   Folder,
   FolderOpen,
-  GripVertical,
   Settings,
   Table2,
   type Terminal,
@@ -71,11 +71,11 @@ export function ProjectSidebar() {
   const { t } = useTranslation();
   const localProjects = useProjectsStore((s) => s.openProjects.projects);
   const projectOrder = useProjectsStore((s) => s.openProjects.projectOrder);
-  const reorderProjects = useProjectsStore((s) => s.reorderProjects);
+  const sidebarOrders = useSidebarOrderStore((s) => s.orders);
+  const setSidebarOrder = useSidebarOrderStore((s) => s.setOrder);
   const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   const serverScreens = useServerScreensStore((s) => s.screens);
   const indexedProjects = useServerIndexStore((s) => s.projects);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [serverProjects, setServerProjects] = useState<ProjectSummary[]>([]);
   // Three states, like a server page: reading, read, could not read. An empty
   // list asserted while reading reads as a server without Projects, and the
@@ -206,12 +206,23 @@ export function ProjectSidebar() {
   const finalList = [...ordered, ...remaining];
   // One folder = one module: the plugins' modules with their folders and screens,
   // then the admin's own — same split as a server page, computed once in `buildModuleList`.
-  const { pluginModules, contentModules: projectRows } = buildModuleList({
+  const built = buildModuleList({
     projects: finalList,
     screens: serverScreens,
     mountedModuleIds,
     localProjects,
   });
+  // Both lists in the order the admin dragged them to, on this server.
+  const pluginModules = applyOrder(
+    built.pluginModules,
+    sidebarOrderOf(sidebarOrders, activeServerId, "installed"),
+    (m) => m.id,
+  );
+  const projectRows = applyOrder(
+    built.contentModules,
+    sidebarOrderOf(sidebarOrders, activeServerId, "mine"),
+    (p) => p.id,
+  );
 
   // Document count per Project: live for the ones opened (it follows edits), else
   // their published state from the server index, already read in the background to
@@ -232,16 +243,6 @@ export function ProjectSidebar() {
     !!openProjectId &&
     visibleRows.some((p) => p.id === openProjectId || projectUrlId(p) === openProjectId);
 
-  const onDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const ids = projectRows.map((p) => p.id);
-    const oldIndex = ids.indexOf(active.id as string);
-    const newIndex = ids.indexOf(over.id as string);
-    if (oldIndex === -1 || newIndex === -1) return;
-    reorderProjects(arrayMove(ids, oldIndex, newIndex) as ProjectId[]);
-  };
-
   return (
     <nav className="flex h-full flex-col gap-3.5 px-3 py-2">
       <Link
@@ -261,9 +262,12 @@ export function ProjectSidebar() {
         {pluginModules.length > 0 && (
           <div className="flex flex-col">
             <div className="section-label px-2 pt-0.5 pb-2">{t("sidebar.installedModules")}</div>
-            <ul className="flex flex-col">
+            <SortableFolders
+              ids={pluginModules.map((m) => m.id)}
+              onReorder={(ids) => setSidebarOrder(activeServerId, "installed", ids)}
+            >
               {pluginModules.map((m) => (
-                <PluginModuleItem
+                <SortablePluginModuleItem
                   key={m.id}
                   module={m}
                   countFor={countFor}
@@ -271,7 +275,7 @@ export function ProjectSidebar() {
                   serverIdOf={(p) => urlServerId(allServerEntries, p.serverKeyId) || srvParam}
                 />
               ))}
-            </ul>
+            </SortableFolders>
           </div>
         )}
         <div className={pluginModules.length > 0 ? "mt-4 flex flex-col" : "flex flex-col"}>
@@ -285,25 +289,21 @@ export function ProjectSidebar() {
                   : t("sidebar.projectsUnavailable")}
             </div>
           )}
-          <DndContext sensors={sensors} onDragEnd={onDragEnd} modifiers={[restrictToVerticalAxis]}>
-            <SortableContext
-              items={projectRows.map((p) => p.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <ul className="flex flex-col">
-                {projectRows.map((w) => (
-                  <SortableProjectItem
-                    key={w.id}
-                    id={w.id}
-                    urlId={projectUrlId(w)}
-                    name={w.name}
-                    count={countFor(w)}
-                    serverId={urlServerId(allServerEntries, w.serverKeyId) || srvParam}
-                  />
-                ))}
-              </ul>
-            </SortableContext>
-          </DndContext>
+          <SortableFolders
+            ids={projectRows.map((p) => p.id)}
+            onReorder={(ids) => setSidebarOrder(activeServerId, "mine", ids)}
+          >
+            {projectRows.map((w) => (
+              <SortableProjectItem
+                key={w.id}
+                id={w.id}
+                urlId={projectUrlId(w)}
+                name={w.name}
+                count={countFor(w)}
+                serverId={urlServerId(allServerEntries, w.serverKeyId) || srvParam}
+              />
+            ))}
+          </SortableFolders>
           {projectsStatus === "ready" && (
             <NewProjectDialog
               serverKeyId={activeServerId}
@@ -359,6 +359,8 @@ function ProjectLink({
     <Link
       {...projectDestination(projectId, serverId ?? undefined)}
       onClick={close}
+      // The row is dragged, not the link: the browser's own link drag would cancel it.
+      draggable={false}
       className={className}
     >
       {children}
@@ -555,8 +557,8 @@ function SortableProjectItem(props: ProjectItemProps) {
 
 /**
  * A folder's row: a link that opens it, its Documents under it once open (or on
- * demand, from the published state). [sortable] adds the drag handle of the
- * admin's own list; [children] goes under the row (a plugin module's screens).
+ * demand, from the published state). [sortable] makes the whole row draggable,
+ * without a handle; [children] goes under the row (a plugin module's screens).
  */
 function ProjectItem({
   id,
@@ -573,13 +575,6 @@ function ProjectItem({
   /** Opens the row on mount: the page shown is one of its children. */
   defaultExpanded?: boolean;
 }) {
-  const style = sortable
-    ? {
-        transform: CSS.Transform.toString(sortable.transform),
-        transition: sortable.transition,
-        opacity: sortable.isDragging ? 0.5 : 1,
-      }
-    : undefined;
   const params = useParams({ strict: false }) as { projectId?: string };
   const isActiveProject = params.projectId === id || (!!urlId && params.projectId === urlId);
   const indexed = useIndexedProject(urlId, id);
@@ -592,8 +587,7 @@ function ProjectItem({
 
   return (
     <li
-      ref={sortable?.setNodeRef}
-      style={style}
+      {...sortableItemProps(sortable)}
       className={
         // The open project stands out as one block: its row and its Documents.
         isActiveProject && !collapsed
@@ -601,7 +595,10 @@ function ProjectItem({
           : "flex flex-col"
       }
     >
-      <div className="group flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
+      <div
+        {...sortable?.listeners}
+        className="group flex select-none items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]"
+      >
         {isActiveProject ? (
           <ExpandToggle
             name={name}
@@ -632,18 +629,6 @@ function ProjectItem({
           {count != null && !isActiveProject && <DocumentCount count={count} />}
         </ProjectLink>
         {isActiveProject && <ActiveProjectActions id={id} urlId={urlId} />}
-        {sortable && (
-          <button
-            type="button"
-            aria-label="Reorder project"
-            ref={sortable.setActivatorNodeRef}
-            {...sortable.attributes}
-            {...sortable.listeners}
-            className="flex h-auto w-6 shrink-0 cursor-grab items-center justify-center rounded text-[var(--text-faint)] transition-opacity hover:text-[var(--text-mut)] active:cursor-grabbing lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100"
-          >
-            <GripVertical className="size-3.5" />
-          </button>
-        )}
       </div>
       {isActiveProject && !collapsed && (
         <ActiveProjectDocuments id={id} urlId={urlId} serverId={serverId} />
@@ -674,17 +659,25 @@ function DocumentCount({ count }: { count: number }) {
  * A plugin's module. With one folder, the row is that folder under the module's
  * name; otherwise the module's name heads its folders. Its screens follow.
  */
+interface PluginModuleItemProps {
+  module: PluginModule;
+  countFor: (p: ProjectSummary) => number | null;
+  serverId: string | null;
+  serverIdOf: (p: ProjectSummary) => string | null;
+}
+
+function SortablePluginModuleItem(props: PluginModuleItemProps) {
+  const sortable = useSortable({ id: props.module.id });
+  return <PluginModuleItem {...props} sortable={sortable} />;
+}
+
 function PluginModuleItem({
   module,
   countFor,
   serverId,
   serverIdOf,
-}: {
-  module: PluginModule;
-  countFor: (p: ProjectSummary) => number | null;
-  serverId: string | null;
-  serverIdOf: (p: ProjectSummary) => string | null;
-}) {
+  sortable,
+}: PluginModuleItemProps & { sortable?: ReturnType<typeof useSortable> }) {
   const params = useParams({ strict: false }) as { screenId?: string };
   // The page shown is one of the module's: it opens folded out, so the active row is visible.
   const showsChild = module.entries.some(
@@ -704,14 +697,18 @@ function PluginModuleItem({
         count={countFor(only)}
         serverId={serverIdOf(only)}
         defaultExpanded={showsChild}
+        sortable={sortable}
       >
         {entries}
       </ProjectItem>
     );
   }
   return (
-    <li className="flex flex-col">
-      <div className="flex items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]">
+    <li {...sortableItemProps(sortable)} className="flex flex-col">
+      <div
+        {...sortable?.listeners}
+        className="flex select-none items-stretch gap-0.5 rounded-[10px] hover:bg-[var(--surface-hover)]"
+      >
         <ExpandToggle
           name={module.label}
           expanded={expanded}
@@ -802,4 +799,84 @@ function EntryTile({ icon }: { icon: typeof Terminal }) {
       <IconTile icon={icon} fg="var(--text-mut)" soft="var(--surface-raised-2)" size="xs" />
     </span>
   );
+}
+
+/**
+ * A list of the sidebar's folders that the admin reorders by dragging a row, with
+ * no handle (SortableJS style). A few pixels of mouse movement, or a long press on
+ * touch, before a drag starts: below that, the press stays a click that opens or
+ * folds the folder, and a swipe still scrolls the sidebar.
+ */
+function SortableFolders({
+  ids,
+  onReorder,
+  children,
+}: {
+  ids: string[];
+  onReorder: (ids: string[]) => void;
+  children: ReactNode;
+}) {
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
+  // The press that ends a drag must not open the folder it lands on: dnd-kit stops
+  // the click's propagation, not the link's navigation.
+  const releaseClick = useRef<(() => void) | null>(null);
+  const swallowClicks = () => {
+    releaseClick.current?.();
+    const swallow = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("click", swallow, true);
+    releaseClick.current = () => window.removeEventListener("click", swallow, true);
+  };
+  // The click follows the release in the same task: let it through the swallow first.
+  const allowClicks = () => {
+    const release = releaseClick.current;
+    releaseClick.current = null;
+    if (release) setTimeout(release, 0);
+  };
+  useEffect(() => () => releaseClick.current?.(), []);
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    allowClicks();
+    if (!over || active.id === over.id) return;
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from === -1 || to === -1) return;
+    onReorder(arrayMove(ids, from, to));
+  };
+  return (
+    <DndContext
+      sensors={sensors}
+      modifiers={[restrictToVerticalAxis]}
+      onDragStart={swallowClicks}
+      onDragEnd={onDragEnd}
+      onDragCancel={allowClicks}
+    >
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <ul className="flex flex-col">{children}</ul>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+/** A sortable folder's `<li>`: it follows the pointer, above its neighbours. */
+function sortableItemProps(sortable: ReturnType<typeof useSortable> | undefined) {
+  if (!sortable) return {};
+  return {
+    ref: sortable.setNodeRef,
+    style: {
+      transform: CSS.Transform.toString(sortable.transform),
+      transition: sortable.transition,
+      position: sortable.isDragging ? ("relative" as const) : undefined,
+      zIndex: sortable.isDragging ? 1 : undefined,
+      // Its own surface while it floats, or the rows under it show through.
+      background: sortable.isDragging ? "var(--surface-raised)" : undefined,
+      borderRadius: sortable.isDragging ? 10 : undefined,
+      boxShadow: sortable.isDragging ? "var(--shadow-md)" : undefined,
+    },
+    "data-dragging": sortable.isDragging || undefined,
+  };
 }
