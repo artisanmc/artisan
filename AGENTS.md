@@ -26,6 +26,8 @@ read it, do not guess it.
 - Small update (one or two existing sections, ≲30 lines of doc diff) → **same commit** as the code.
 - Large update, or one needing screenshots / a rewrite → `/sync-docs` skill at the end of the feature, separate commit.
 - Never merge with unlisted doc debt.
+- **Changelog entry = a new file in `changelog.d/`**, never an edit of `CHANGELOG.md` (CI refuses it;
+  format in `changelog.d/README.md`).
 
 Not updating = the next session will not know the code changed.
 

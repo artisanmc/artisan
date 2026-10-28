@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 See `docs/architecture/versioning.md` for the full versioning rules.
 
+**Do not add entries here.** Each PR adds its entry as a new file in `changelog.d/`
+(see `changelog.d/README.md`); a release folds them into this file.
+
 ## [Unreleased]
 
 - **Fixed**: a selected Trigger showed two headers in the Properties panel ("Triggers · welcome" above "Trigger · When a player joins…"). It now shows one: the event's sentence, with the Trigger's id beside it. Editor SDK 1.13: a `DocumentKindContribution` whose view draws its own header sets `ownHeader`, and the host leaves out its own. A 1.12 bundle still loads.
