@@ -15,11 +15,13 @@ import { DEFAULT_GROUP_COLOR, folderGroups } from "@/domain/canvasGroups";
 import { MAX_FOLDER_DEPTH } from "@/domain/documentLayout";
 import { docKey, documentCount, findDocumentByKey } from "@/domain/documents";
 import { childFolders, folderName, listFolders } from "@/domain/folders";
+import { ownDataSources } from "@/domain/projectData";
 import type { Project, ProjectId } from "@/domain/types";
 import { NewCommandDialog } from "@/features/canvas/NewCommandDialog";
 import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
+import { DataSourceRows } from "@/features/data/DataSourceRows";
 import { ModuleTemplatesDialog } from "@/features/templates/ModuleTemplatesDialog";
 import { sameAsShipped } from "@/features/templates/sameAsShipped";
 import {
@@ -29,7 +31,7 @@ import {
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { contributionLabel, kindCreatableIn } from "@/lib/moduleDocumentKinds";
-import { collectionDestination } from "@/lib/projectNavigation";
+import { collectionDestination, dataSourceDestination } from "@/lib/projectNavigation";
 import { shippedKey, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { isKindSyncedOn, useServerDocumentKindsStore } from "@/state/serverDocumentKindsStore";
@@ -116,6 +118,13 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const openProjectSettings = useOpenProjectSettings();
   const templates = useProjectTemplates(projectId);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
+  const navigate = useNavigate();
+  const { serverId } = useParams({ strict: false }) as { serverId?: string };
+  // A Project's own data: created empty, then named and shaped on its page.
+  const newData = (shape: "table" | "config") => {
+    const id = useProjectsStore.getState().addProjectDataSource({ projectId, shape });
+    if (id && serverId) void navigate(dataSourceDestination(project ?? projectId, serverId, id));
+  };
   // A kind may be reserved to its module's own folder (`projects`, SDK 1.8).
   const moduleKinds = listDocumentKindContributions().filter(
     (c) => !isCoreDocumentType(c.kind) && kindCreatableIn(c, project),
@@ -158,6 +167,12 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
               {t("projectProperties.newDocument", { kind: typeLabel(c.kind, t) })}
             </DropdownMenuItem>
           ))}
+          <DropdownMenuItem data-testid="project-create-table" onSelect={() => newData("table")}>
+            {t("dataSources.newTable")}
+          </DropdownMenuItem>
+          <DropdownMenuItem data-testid="project-create-config" onSelect={() => newData("config")}>
+            {t("dataSources.newConfig")}
+          </DropdownMenuItem>
           {templates.status !== "none" && (
             <DropdownMenuItem onSelect={() => setTemplatesOpen(true)}>
               {t("moduleTemplates.fromModule")}
@@ -223,7 +238,10 @@ export function ProjectDocumentTree({
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   if (!project) return null;
 
-  const empty = documentCount(project) === 0 && listFolders(project).length === 0;
+  const empty =
+    documentCount(project) === 0 &&
+    listFolders(project).length === 0 &&
+    ownDataSources(project).length === 0;
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: a named group of navigation lists, not a form — <fieldset> would be wrong.
@@ -355,6 +373,7 @@ export function DocumentGroups({
           </div>
         );
       })}
+      <DataSourceRows project={project} editable={editable} />
     </div>
   );
 }

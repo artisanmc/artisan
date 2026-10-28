@@ -226,7 +226,8 @@ describe("ProjectTopBarControls", () => {
     } as any;
     render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
     expect(screen.getByTestId("open-view-translations")).toBeInTheDocument();
-    expect(screen.getByTestId("open-view-data-sources")).toBeInTheDocument();
+    // The project's data live in the sidebar, the server's sources on the server page.
+    expect(screen.queryByTestId("open-view-data-sources")).toBeNull();
     expect(screen.getByTestId("open-view-resources")).toHaveAccessibleName(/resources|ressources/i);
     expect(screen.getByTestId("open-view-translations")).toHaveTextContent("1");
   });

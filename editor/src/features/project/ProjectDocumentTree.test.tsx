@@ -8,6 +8,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectDocumentTree } from "./ProjectDocumentTree";
 import { dropDocument, withDropPreview } from "./documentDrag";
 
+const router = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  params: { serverId: "srv" } as Record<string, string>,
+}));
+vi.mock("@tanstack/react-router", () => ({
+  useNavigate: () => router.navigate,
+  useParams: () => router.params,
+}));
+
 const PID = "p1" as ProjectId;
 function project(): Project {
   return {
@@ -33,6 +42,8 @@ function project(): Project {
 }
 
 beforeEach(() => {
+  router.navigate.mockReset();
+  router.params = { serverId: "srv" };
   useProjectsStore.setState({
     openProjects: { projects: [project()], projectOrder: [PID] },
   } as never);
@@ -117,6 +128,92 @@ describe("ProjectDocumentTree", () => {
     expect(screen.getByText(/Nouveau menu|New menu/i)).toBeInTheDocument();
     expect(screen.getByText(/Nouvelle commande|New command/i)).toBeInTheDocument();
     expect(screen.getByText(/Nouveau dialogue|New dialog/i)).toBeInTheDocument();
+  });
+});
+
+describe("ProjectDocumentTree data", () => {
+  const withData = () => {
+    const p = project();
+    p.dataModels = [
+      { id: "m_speaker" as never, name: "speaker", keyField: "id", fields: [] },
+      {
+        id: "shop:category" as never,
+        name: "category",
+        keyField: "id",
+        fields: [],
+        provenance: "module",
+      },
+    ];
+    p.dataSources = [
+      { id: "speakers" as never, name: "speakers", shape: "config", fields: [], value: {} },
+      {
+        id: "npcs" as never,
+        name: "npcs",
+        shape: "table",
+        modelId: "m_speaker" as never,
+        rows: [],
+      },
+      {
+        id: "categories" as never,
+        name: "categories",
+        shape: "table",
+        modelId: "shop:category" as never,
+        rows: [],
+      },
+    ];
+    useProjectsStore.setState({ openProjects: { projects: [p], projectOrder: [PID] } } as never);
+  };
+
+  it("lists the project's own tables and config sheets, not a module's data", () => {
+    withData();
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    const data = screen.getByRole("list", { name: /^(Données|Data)$/ });
+    expect(within(data).getByText("speakers")).toBeInTheDocument();
+    expect(within(data).getByText("npcs")).toBeInTheDocument();
+    // Typed by the shop module's model: its module's screen edits it.
+    expect(screen.queryByText("categories")).toBeNull();
+  });
+
+  it("a folder holding only data is not empty", () => {
+    withData();
+    const p = useProjectsStore.getState().openProjects.projects[0]!;
+    useProjectsStore.setState({
+      openProjects: { projects: [{ ...p, documents: {} }], projectOrder: [PID] },
+    } as never);
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    expect(screen.getByText("speakers")).toBeInTheDocument();
+  });
+
+  it("opens a data source on its page", () => {
+    withData();
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    fireEvent.click(screen.getByText("speakers"));
+    expect(router.navigate).toHaveBeenCalledWith({
+      to: "/servers/$serverId/projects/$projectId/data/$dataSourceId",
+      params: { serverId: "srv", projectId: PID, dataSourceId: "speakers" },
+    });
+  });
+
+  it("highlights the data source open in the view", () => {
+    withData();
+    router.params = { serverId: "srv", projectId: PID, dataSourceId: "npcs" };
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    expect(screen.getByText("npcs").closest("button")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("speakers").closest("button")).not.toHaveAttribute("aria-current");
+  });
+
+  it("creates a data table from the + menu and opens it", async () => {
+    const user = userEvent.setup();
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    await user.click(screen.getByTestId("project-create"));
+    await user.click(screen.getByTestId("project-create-table"));
+    const [created] = useProjectsStore.getState().openProjects.projects[0]!.dataSources;
+    expect(created?.shape).toBe("table");
+    expect(router.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: { serverId: "srv", projectId: PID, dataSourceId: String(created!.id) },
+      }),
+    );
   });
 });
 

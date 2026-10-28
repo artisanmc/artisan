@@ -2,8 +2,8 @@ name: CI
 
 # Editor, showcase and wiki. The plugin lives in plugin.yml: each workflow only starts
 # when its own inputs change, since the repository is private and every runner minute
-# counts against the organization's quota. v2 gets no post-merge run: each PR is
-# already tested on its merge ref, and main keeps one because deploy.yml waits on it.
+# counts against the organization's quota. Each PR is tested on its merge ref, and main
+# gets a post-merge run because deploy.yml waits on it.
 # Keep both paths lists (push, pull_request) in sync with what the editor and the deploy
 # tests read.
 on:

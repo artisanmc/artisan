@@ -86,3 +86,24 @@ export function collectionDestination(
     params: { serverId, projectId, collectionDir: documentKindContribution(kind)?.dir ?? kind },
   };
 }
+
+/** The page of one of a Project's own data sources (a table, a config sheet): `…/data/speakers`. */
+export function dataSourceDestination(
+  project: string | ProjectUrlIdentity,
+  serverId: string,
+  dataSourceId: string,
+) {
+  const projectId = typeof project === "string" ? project : projectUrlId(project);
+  return {
+    to: "/servers/$serverId/projects/$projectId/data/$dataSourceId" as const,
+    params: { serverId, projectId, dataSourceId },
+  };
+}
+
+/** The anchor of the data sources section on the server page. */
+export const SERVER_SOURCES_ANCHOR = "data-sources";
+
+/** The server page, scrolled to the data sources its modules declare. */
+export function serverSourcesDestination(serverId: string) {
+  return { to: "/servers/$serverId" as const, params: { serverId }, hash: SERVER_SOURCES_ANCHOR };
+}
