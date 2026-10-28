@@ -51,8 +51,9 @@ On a leaf, `web.port`, `web.bind` and `web.url` are ignored: a leaf opens no por
 ## `ai`
 
 Preview. The editor's assistant, on your own model account. Read by the hub only, never sent to
-the editor. Without this section (or with an empty `provider` or `api-key`), the editor shows no
-assistant. See [The editor's assistant](../web-server/#the-editors-assistant-preview).
+the editor. You can leave it out and set the assistant from the editor instead (**Settings →
+Assistant**), once for the whole network. When this section names a `provider`, it wins: the
+editor shows its values read-only. See [The editor's assistant](../web-server/#the-editors-assistant-preview).
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -61,7 +62,7 @@ assistant. See [The editor's assistant](../web-server/#the-editors-assistant-pre
 | `ai.model` | `"claude-opus-5-5"` | The model the assistant runs on. |
 | `ai.effort` | `"medium"` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the model thinks, and how many tokens it spends. |
 | `ai.max-steps` | `25` | Model calls one message may make (1 to 100). The assistant stops there and says so; the next message lets it go on. |
-| `ai.base-url` | `""` | Another address for the provider's API (a proxy). Empty: its own. |
+| `ai.base-url` | `""` | Another address for the API: a proxy, or another vendor's compatible API (DeepSeek: `https://api.deepseek.com/anthropic`). Empty: Anthropic's. |
 
 ## `database`
 

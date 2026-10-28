@@ -600,17 +600,21 @@ export function DesignSystemPage() {
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <span className="mono text-[11px] text-[var(--text-faint)]">{"<Segmented>"}</span>
-            <Segmented
-              label="Segmented"
-              options={[
-                { value: "chest", label: "Chest" },
-                { value: "hopper", label: "Hopper" },
-                { value: "dropper", label: "Dropper" },
-              ]}
-              value={segValue}
-              onChange={setSegValue}
-            />
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<FormField group label hint><Segmented>"}
+            </span>
+            <FormField group label="Inventory" hint="Hint">
+              <Segmented
+                label="Segmented"
+                options={[
+                  { value: "chest", label: "Chest" },
+                  { value: "hopper", label: "Hopper" },
+                  { value: "dropper", label: "Dropper" },
+                ]}
+                value={segValue}
+                onChange={setSegValue}
+              />
+            </FormField>
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">

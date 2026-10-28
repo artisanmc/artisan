@@ -71,3 +71,49 @@ export async function sendAiMessage(id: string, text: string): Promise<void> {
     json: { text },
   });
 }
+
+/**
+ * The assistant's settings as the hub shows them to `artisan.editor.config` (ADR
+ * `editor-assistant`): the key never comes back, only its last characters.
+ */
+export interface AiSettings {
+  /** `file`: environment.yml sets them, read-only here. `database`: saved from the editor. */
+  source: "file" | "database" | "none";
+  editable: boolean;
+  enabled: boolean;
+  provider: string | null;
+  model: string;
+  effort: string;
+  maxSteps: number;
+  baseUrl: string;
+  keyHint: string | null;
+  providers: string[];
+  efforts: string[];
+  defaultModel: string;
+}
+
+export interface AiSettingsInput {
+  provider: string;
+  model: string;
+  effort: string;
+  maxSteps: number;
+  baseUrl: string;
+  /** Left out: the saved key stays, unless the provider or the address changes. */
+  apiKey?: string;
+}
+
+const CONFIG = "/api/v1/ai/config";
+
+export function getAiSettings(): Promise<AiSettings> {
+  return apiFetch(CONFIG);
+}
+
+/** Applied at once: the hub's assistant restarts on them. */
+export function saveAiSettings(input: AiSettingsInput): Promise<AiSettings> {
+  return apiFetch(CONFIG, { method: "PUT", json: input });
+}
+
+/** Turns the assistant off and forgets the key. */
+export function deleteAiSettings(): Promise<AiSettings> {
+  return apiFetch(CONFIG, { method: "DELETE" });
+}

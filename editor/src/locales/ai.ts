@@ -33,7 +33,7 @@ export const aiEn = {
   },
   errors: {
     ai_key_refused:
-      "The model provider refused the server's API key. Ask an admin to check ai.api-key.",
+      "The model provider refused the server's API key. Ask an admin to check it in Settings → Assistant.",
     ai_rate_limited: "The model provider is limiting requests. Try again in a minute.",
     ai_unreachable: "The server could not reach the model provider.",
     ai_provider_error: "The model provider returned an error. Try again.",
@@ -43,6 +43,49 @@ export const aiEn = {
     forbidden: "Talking to the assistant requires the artisan.editor.edit permission.",
     network_error: "The editor cannot reach the server.",
     unknown: "Something went wrong. Try again.",
+  },
+  settings: {
+    title: "Assistant",
+    help: "The model the editor's assistant runs on, and its key. Saved for every server of the network, applied at once.",
+    loading: "Loading…",
+    unavailable: "The assistant's settings could not be read.",
+    on: "The assistant is on, with {{model}}.",
+    off: "The assistant is off. Fill in a model and a key to turn it on.",
+    fromFile:
+      "These settings come from the ai section of environment.yml, which wins over the editor. Empty it there to set them here.",
+    provider: "API",
+    providerHint: "The protocol the hub speaks.",
+    providers: { anthropic: "Anthropic Messages API" },
+    baseUrl: "Address",
+    baseUrlHint:
+      "Empty: Anthropic. Another vendor with a compatible API, e.g. DeepSeek: https://api.deepseek.com/anthropic",
+    model: "Model",
+    modelHint: "As the vendor names it: claude-opus-5-5, deepseek-chat…",
+    apiKey: "API key",
+    apiKeyHint: "Stored by the hub, never shown again.",
+    apiKeySaved:
+      "A key ending in {{hint}} is saved. Leave empty to keep it; changing the API or the address asks for it again.",
+    effort: "Effort",
+    effortHint: "How hard the model thinks, and how many tokens it spends.",
+    maxSteps: "Steps per message",
+    maxStepsHint:
+      "Model calls one message may make before the assistant stops and says so (1 to 100).",
+    save: "Save",
+    saved: "Saved. The assistant uses it now.",
+    turnOff: "Turn off",
+    turnOffConfirm:
+      "Turn the assistant off and forget its key? Ongoing conversations end; their drafts stay.",
+    errors: {
+      invalid_input: "Check this field: {{field}}.",
+      ai_key_missing: "Enter the API key.",
+      ai_key_required: "The API or the address changed: enter the key again.",
+      ai_config_in_file: "environment.yml sets the assistant: change it there.",
+      database_unavailable:
+        "The suite database cannot be written right now. Try again in a minute.",
+      forbidden: "Configuring the assistant requires the artisan.editor.config permission.",
+      network_error: "The editor cannot reach the server.",
+      unknown: "Something went wrong. Try again.",
+    },
   },
 };
 
@@ -81,7 +124,7 @@ export const aiFr: typeof aiEn = {
   },
   errors: {
     ai_key_refused:
-      "Le fournisseur du modèle refuse la clé d’API du serveur. Demande à un admin de vérifier ai.api-key.",
+      "Le fournisseur du modèle refuse la clé d’API du serveur. Demande à un admin de la vérifier dans Réglages → Assistant.",
     ai_rate_limited: "Le fournisseur du modèle limite les requêtes. Réessaie dans une minute.",
     ai_unreachable: "Le serveur n’arrive pas à joindre le fournisseur du modèle.",
     ai_provider_error: "Le fournisseur du modèle a renvoyé une erreur. Réessaie.",
@@ -91,5 +134,48 @@ export const aiFr: typeof aiEn = {
     forbidden: "Parler à l’assistant demande la permission artisan.editor.edit.",
     network_error: "L’éditeur n’arrive pas à joindre le serveur.",
     unknown: "Quelque chose s’est mal passé. Réessaie.",
+  },
+  settings: {
+    title: "Assistant",
+    help: "Le modèle de l’assistant de l’éditeur, et sa clé. Enregistrés pour tous les serveurs du réseau, appliqués tout de suite.",
+    loading: "Chargement…",
+    unavailable: "Les réglages de l’assistant n’ont pas pu être lus.",
+    on: "L’assistant est actif, avec {{model}}.",
+    off: "L’assistant est désactivé. Renseigne un modèle et une clé pour l’activer.",
+    fromFile:
+      "Ces réglages viennent de la section ai d’environment.yml, qui l’emporte sur l’éditeur. Vide-la pour les régler ici.",
+    provider: "API",
+    providerHint: "Le protocole que parle le hub.",
+    providers: { anthropic: "API Messages d’Anthropic" },
+    baseUrl: "Adresse",
+    baseUrlHint:
+      "Vide : Anthropic. Un autre fournisseur avec une API compatible, par exemple DeepSeek : https://api.deepseek.com/anthropic",
+    model: "Modèle",
+    modelHint: "Tel que le fournisseur le nomme : claude-opus-5-5, deepseek-chat…",
+    apiKey: "Clé d’API",
+    apiKeyHint: "Gardée par le hub, jamais réaffichée.",
+    apiKeySaved:
+      "Une clé finissant par {{hint}} est enregistrée. Laisse vide pour la garder ; changer d’API ou d’adresse la redemande.",
+    effort: "Effort",
+    effortHint: "À quel point le modèle réfléchit, et combien de tokens il dépense.",
+    maxSteps: "Étapes par message",
+    maxStepsHint:
+      "Appels au modèle qu’un message peut faire avant que l’assistant s’arrête et le dise (1 à 100).",
+    save: "Enregistrer",
+    saved: "Enregistré. L’assistant l’utilise dès maintenant.",
+    turnOff: "Désactiver",
+    turnOffConfirm:
+      "Désactiver l’assistant et oublier sa clé ? Les conversations en cours s’arrêtent ; leurs brouillons restent.",
+    errors: {
+      invalid_input: "Vérifie ce champ : {{field}}.",
+      ai_key_missing: "Saisis la clé d’API.",
+      ai_key_required: "L’API ou l’adresse a changé : saisis la clé à nouveau.",
+      ai_config_in_file: "environment.yml règle l’assistant : change-le là-bas.",
+      database_unavailable:
+        "La base de la suite ne peut pas être écrite pour l’instant. Réessaie dans une minute.",
+      forbidden: "Régler l’assistant demande la permission artisan.editor.config.",
+      network_error: "L’éditeur n’arrive pas à joindre le serveur.",
+      unknown: "Quelque chose s’est mal passé. Réessaie.",
+    },
   },
 };

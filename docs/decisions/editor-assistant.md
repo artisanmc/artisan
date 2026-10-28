@@ -30,9 +30,16 @@ than the hub. One single Artisan user at this date: the admin's key first.
    tools and system prompt fixed per conversation, automatic prompt caching, configurable `effort`
    (default `medium`), server-side fallback when a classifier refuses, for the models
    that accept it, and only towards Anthropic's API (not behind `base-url`).
-4. **Configuration** (`environment.yml`, hub only, never sent to the editor): `ai.provider`
-   (`anthropic`), `ai.api-key` (`${ANTHROPIC_API_KEY}` advised), `ai.model` (default
-   `claude-opus-5-5`), `ai.effort`, `ai.max-steps` (model calls per message, 25), `ai.base-url`.
+4. **Configuration**, hub only, the key never sent to the editor: `provider` (`anthropic`, the
+   Messages API, which other vendors such as DeepSeek also serve behind `base-url`), `api-key`,
+   `model` (default `claude-opus-5-5`), `effort`, `max-steps` (model calls per message, 25),
+   `base-url`. Set from the editor (Settings → Assistant, `artisan.editor.config`), stored in
+   `artisan_settings` and applied at once (`AiSetup` rebuilds the assistant; its conversations
+   end): one setting for the whole network instead of one file per server (2026-10-28). The key
+   is write-only: the editor sees its last four characters, and changing the provider or the
+   address asks for it again, so it cannot be sent elsewhere without being known. The `ai`
+   section of `environment.yml` (`${ANTHROPIC_API_KEY}` advised) still works and wins: the editor
+   then shows it read-only.
 5. **Cost guards.** One turn per conversation at a time (`ai_busy`), `max-steps` calls per
    message, 16,000 output tokens per call, 10 conversations per player, forgotten after 6 h
    without activity. The tokens used are counted per conversation and shown at the end of the turn.
