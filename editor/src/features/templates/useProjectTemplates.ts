@@ -81,11 +81,11 @@ export function useProjectTemplates(projectId: string): ProjectTemplates {
     return out;
   }, [states]);
 
-  // A system file that differs may differ only by its formatting: its shipped text says.
+  // A copy that differs may differ only by its formatting (the editor's, or CRLF from a jar
+  // built on Windows): its shipped text says.
   useEffect(() => {
     if (!serverId) return;
     for (const state of states) {
-      if (state.template.system !== true) continue;
       if (!state.files.some((f) => f.status === "modified" || f.updateAvailable)) continue;
       void useProjectTemplatesStore
         .getState()

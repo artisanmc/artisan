@@ -673,7 +673,7 @@ type DocumentOrigin = Omit<TemplateOrigin, "label"> & {
   module: string;
   /** One of the module's system elements: never deleted or moved, reset instead. */
   system: boolean;
-  /** Puts the module's version back into the draft; absent when it already is. */
+  /** Puts the module's version back into the draft; absent when it already is. A system file and a copy alike. */
   reset?: () => void;
 };
 
@@ -688,12 +688,11 @@ function templateOrigin(
   const system = entry.template.template.system === true;
   const moduleId = entry.template.moduleId;
   const templateId = entry.template.template.id;
-  // Deployed from the editor, a system file is rewritten in canonical form: unchanged in
-  // substance, it is still the module's version.
+  // Deployed from the editor, a copy is rewritten in canonical form, and a jar built on
+  // Windows ships it in CRLF: unchanged in substance, it is still the module's version.
   const shipped = templates.shipped(moduleId, templateId)?.[path];
   const published = templates.published[path];
   const formattedOnly =
-    system &&
     (entry.file.status === "modified" || entry.file.updateAvailable) &&
     shipped !== undefined &&
     published !== undefined &&
@@ -706,8 +705,9 @@ function templateOrigin(
         ? "modified"
         : "identical";
   const { serverId } = templates;
+  // A system file is reset; a copy takes the module's version, the one it announces.
   const reset =
-    system && tone !== "identical" && serverId
+    tone !== "identical" && serverId
       ? () => {
           if (!window.confirm(t("projectPanel.systemResetConfirm"))) return;
           void resetIntoDraft(project.id, serverId, moduleId, templateId, path, t);
@@ -717,7 +717,7 @@ function templateOrigin(
 }
 
 /**
- * Puts a system file back as its module ships it, in the draft: the canvas shows it at
+ * Puts a template file back as its module ships it, in the draft: the canvas shows it at
  * once, Deploy publishes it, Discard cancels it, like any edit.
  */
 async function resetIntoDraft(
@@ -831,7 +831,8 @@ function DocumentRow({
           />
         )}
         {origin && ORIGIN_MARK[origin.tone] ? (
-          <Tooltip content={originLabel} side="right">
+          // Above: on the right it covered the row's ⋯, which shows on hover there.
+          <Tooltip content={originLabel} side="top">
             <span
               role="img"
               aria-label={originLabel}
@@ -866,6 +867,7 @@ function DocumentRow({
           system={origin?.system === true}
           fixed={fixed}
           onReset={origin?.reset}
+          module={origin?.module}
         />
       )}
     </div>
@@ -880,6 +882,7 @@ function RowActions({
   system,
   fixed,
   onReset,
+  module,
 }: {
   projectId: ProjectId;
   project: Project;
@@ -890,6 +893,8 @@ function RowActions({
   /** A collection's Document: never filed in a folder. */
   fixed: boolean;
   onReset?: () => void;
+  /** The module a template copy comes from. */
+  module?: string;
 }) {
   const { t } = useTranslation();
   const targets =
@@ -929,15 +934,22 @@ function RowActions({
             {t("projectPanel.systemReset")}
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem
-            onClick={() =>
-              useProjectsStore
-                .getState()
-                .deleteFromProject({ projectId, nodeIds: [docKey(item.type, item.id)] })
-            }
-          >
-            {t("projectPanel.delete")}
-          </DropdownMenuItem>
+          <>
+            {onReset && module && (
+              <DropdownMenuItem title={t("projectPanel.systemResetHint")} onClick={onReset}>
+                {t("projectPanel.takeModuleVersion", { module })}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={() =>
+                useProjectsStore
+                  .getState()
+                  .deleteFromProject({ projectId, nodeIds: [docKey(item.type, item.id)] })
+              }
+            >
+              {t("projectPanel.delete")}
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

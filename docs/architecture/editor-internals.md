@@ -663,7 +663,11 @@ identical, modified, removed, new version), computed from `.artisan/origins.yaml
 
 In the tree, a Document copied from a template carries a discreet mark (`DocumentRow`): a puzzle icon
 when identical, an asterisk otherwise — brand colour (modified) or amber (the module ships a new
-version). No text chip: the tooltip (and accessible name) says which, and names the module.
+version). No text chip: the tooltip (above the row, clear of its `···`) says which, and names the module.
+A copy whose published text has the shipped value (`sameAsShipped`: `sameYamlValue`, else the editor's
+round trip; formatting and CRLF from a jar built on Windows do not count) is identical, system or
+not. A copy that differs gets **Take {module}'s version** in its `···` menu, beside Delete: the
+shipped file goes into the draft (`resetIntoDraft`), like Reset of a system element.
 
 
 **System elements** (`system: true` template, API 2.12.0): absent from `ModuleTemplatesDialog`.
