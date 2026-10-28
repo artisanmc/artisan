@@ -978,11 +978,28 @@ Both directions live side by side, one module per kind and per direction: `<kind
 - **Remaps**: `size`→`rows` (÷9), `pagination_next/prev`→`paginate{direction}`, `context_inputs`→`contextInputs` (`primitive` vs `sourceRef` depending on the presence of `ref`).
 - **Round-trip**: the `menuV1ToDomain.roundtrip.test.ts` oracle exports a rich domain project then re-imports it. Note: an OR-joined appearance `if` does **not** round-trip structurally (the export wraps a pure-OR list into a composite condition `{type:"or", of:[…]}`) — the oracle therefore uses AND-joins.
 
-## AI assistant (removed)
+## AI assistant (`features/project/assistant/`)
 
-The AI application pipeline (`applyAssistant*` in the old `accountStore`, SSE client, chat panel, resumable zMenu migration) was removed with the backend: it no longer exists in the editor (issue #44). The `menuV1ToDomain` / `commandV1ToDomain` / `dialogV1ToDomain` converters remain for the `menu/v1 → domain` import above.
+The old pipeline (`applyAssistant*`, SSE client, resumable zMenu migration) left with the backend
+(issue #44); the `menuV1ToDomain` / `commandV1ToDomain` / `dialogV1ToDomain` converters remain for
+the `menu/v1 → domain` import above. The current assistant (ADR `editor-assistant`) runs in the hub:
+`AssistantButton` in the Project top bar shows only when `GET /api/v1/ai` says `enabled` and
+`canUse`, and toggles `AssistantDock`. The dock is mounted once in `routes/__root.tsx`, after
+`<main>`: on `lg` it sits beside the page (the canvas and the chat stay usable together), below it
+covers the screen. Closed, it stays mounted and hidden, so the conversation survives closing it and
+moving between Projects; a conversation keeps the Project that was open when it started. Its width
+is dragged from its left edge (`ResizeHandle`, 360–960 px, at most 60 vw); open state and width are
+kept in `state/assistantPanelStore.ts`. The model's replies render through `Markdown` (GFM tables,
+code, links; raw HTML stays text).
 
 ## Design system (tokens + components)
+
+`components/ui/markdown.tsx` exports `Markdown`: text written by a model or a person rendered with
+the editor's type and tokens (`react-markdown` + `remark-gfm`; tables reuse `Table`/`TH`/`TD`,
+links open in a new tab, raw HTML is never rendered). `components/ui/resize-handle.tsx` exports
+`ResizeHandle`: the drag strip on a panel edge (`edge: "left" | "right"`, pointer, arrows with
+Shift for 48 px steps, Home/End, double click to reset); the panel is `relative` and owns the
+clamping and persistence.
 
 `components/ui/sortable-list.tsx` exports `SortableList`: a vertical list reordered by a
 handle (`GripVertical`, dnd-kit) that each row places wherever it wants (`children(index, handle)`),
