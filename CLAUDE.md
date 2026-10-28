@@ -83,7 +83,7 @@ jar). Detail: `tools/minecraft-assets/README.md`.
 editor/          React 19 + Vite + Konva — served by the plugin (hub)
 plugin/          Kotlin 2.0 + Paper: api · core · database · hub (Jetty 12) · paper
 docker/          Local Minecraft servers (itzg/minecraft-server), network in docker/network/
-tools/minecraft-assets/  Bun generators for vanilla MC assets (items, 3D icons, glyph widths)
+tools/minecraft-assets/  Bun generators for vanilla MC assets (items, 3D icons, glyph widths, padded fonts)
 docs/site/       Public user docs (EN, Starlight Markdown) — assembled by artisanmc.net
 docs-site/       Astro Starlight build of docs/site/, served at artisanmc.net/wiki
 docs/            architecture/ · archive/ · decisions/ · specs/ · schema/

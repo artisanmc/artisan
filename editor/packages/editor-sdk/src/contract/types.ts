@@ -36,6 +36,11 @@ export interface DocumentKindContribution {
    * Meant for kinds that are data, with no links to or from other Documents.
    */
   collection?: DocumentCollection;
+  /**
+   * What the kind's files add to the server's resource pack (SDK 1.13), read from each
+   * `<dir>/*.yaml` of every project when the pack is built.
+   */
+  pack?: DocumentPackContribution;
   /** The kind's plural name in the registry and the "New …" menu: an i18n key of the host, or a literal. */
   label: string;
   /** The same name per interface language (`{ en, fr }`): a module carries its own; wins over `label`. */
@@ -103,6 +108,27 @@ export interface DocumentCollection {
    * the top of the collection's page: the settings that apply to the whole collection.
    */
   screen?: string;
+}
+
+/** What a kind's files add to the resource pack (`DocumentKindContribution.pack`). */
+export interface DocumentPackContribution {
+  /**
+   * The images a file draws at a height, from the file as parsed YAML (`id` included). The
+   * pack gets one glyph per asked (asset, rise), which the plugin hands out through
+   * `api.getOverlay().image(asset, rise)`: a HUD drawn in the action bar, above the hotbar.
+   * A file that throws, an unknown asset or a rise out of 0..128 adds nothing.
+   */
+  images?: (src: Record<string, unknown>) => Iterable<PackImage>;
+}
+
+/**
+ * An image of a Project's `assets/` (its file name, like a menu's `image.asset`) drawn
+ * `rise` px above the top of the action bar's text, 0..128. Its height is at most 256 px;
+ * a wider one is cut into slices of 256 px, joined again by the plugin.
+ */
+export interface PackImage {
+  asset: string;
+  rise: number;
 }
 
 /** One row of a Document's board node (`board.items`). */

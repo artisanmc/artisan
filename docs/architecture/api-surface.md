@@ -77,6 +77,15 @@ Promotion rule, for the next ones: two add-ons or more call the surface, no chan
 
 The older constructors declare `RUNTIME`, the behaviour before 2.19.0. A `MIXED` source without a non-blank `keyField` throws, like a `STATIC` one. The `data_sources` wire gains `origin` (`runtime`, `content`, `mixed`); an editor reads its absence as `runtime`. What the editor does with each value: `modules.md`, "Origin".
 
+## 2.20.0 — a HUD in the action bar
+
+| Member | Type | Since |
+|---|---|---|
+| `api.text.OverlayApi` `@Beta` (`width`, `raise`, `move`, `image`, `hasPack`, `MAX_RISE`, `NONE`) | interface | 2.20.0 |
+| `getOverlay()` `@Beta` | `OverlayApi` | 2.20.0 |
+
+MiniMessage pieces of a HUD drawn in the action bar, above the hotbar, with the pack's fonts: `raise(text, rise)` puts text in `artisan:text_up<rise>` (0..128 px, always in the pack), `move(px)` shifts the pen with the `space` provider of `artisan:default`, `image(asset, rise)` draws an image of a Project's `assets/` without shadow and brings the pen back (null when the pack lacks that (asset, rise): the module's editor kind declares it, `pack.images`, editor SDK 1.13), `width(text)` is the vanilla advance (1.21.4 tables, bold + 1). `hasPack(player)` is true once the player's client loaded Artisan's pack (or the host plugin's that merges it). Detail: `modules.md`, "HUD in the action bar".
+
 ## Stable APIs
 
 ### `net.artisanmc.modules.api.ArtisanModule`

@@ -28,6 +28,7 @@ import net.artisanmc.modules.api.screen.EditorScreenRegistry;
 import net.artisanmc.modules.api.playercommand.PlayerCommandRegistry;
 import net.artisanmc.modules.api.template.TemplateRegistry;
 import net.artisanmc.modules.api.network.NetworkApi;
+import net.artisanmc.modules.api.text.OverlayApi;
 import net.artisanmc.modules.api.text.TextApi;
 import net.artisanmc.modules.api.translation.TranslationsApi;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -79,6 +80,7 @@ public final class ArtisanAPI {
     private final TranslationsApi translations;
     private final TextApi text;
     private final NetworkApi network;
+    private final OverlayApi overlay;
 
     private ArtisanAPI(Builder b) {
         this.plugin = b.plugin;
@@ -109,6 +111,7 @@ public final class ArtisanAPI {
         this.translations = b.translations;
         this.text = b.text;
         this.network = b.network;
+        this.overlay = b.overlay;
     }
 
     /**
@@ -315,6 +318,16 @@ public final class ArtisanAPI {
         return network;
     }
 
+    /**
+     * A HUD drawn in the action bar with the pack's fonts: text and images at a height.
+     *
+     * @since 2.20.0
+     */
+    @Beta
+    public OverlayApi getOverlay() {
+        return overlay;
+    }
+
     /** Version of this API (the {@code Since} numbering of the published {@code artisan-core-api}). */
     @Stable
     public String getApiVersion() {
@@ -358,6 +371,7 @@ public final class ArtisanAPI {
         private TranslationsApi translations = TranslationsApi.NOOP;
         private TextApi text = TextApi.NOOP;
         private NetworkApi network = NetworkApi.NOOP;
+        private OverlayApi overlay = OverlayApi.NONE;
 
         private Builder(
             JavaPlugin plugin,
@@ -476,6 +490,11 @@ public final class ArtisanAPI {
 
         public Builder network(NetworkApi network) {
             this.network = Objects.requireNonNull(network);
+            return this;
+        }
+
+        public Builder overlay(OverlayApi overlay) {
+            this.overlay = Objects.requireNonNull(overlay);
             return this;
         }
 

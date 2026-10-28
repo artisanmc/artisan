@@ -157,6 +157,18 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `keyField`; a `CONTENT` source ignores them. `ctx.params` carries the fetcher params the menu
 > declares on the source input (`group: daily`), which the hook applies like the fetcher does. A 1.11 bundle keeps working (it ignores the argument).
 
+> **HUD in the action bar (since 2026-10-28, SDK 1.13, API 2.20.0)** — a kind declares the images
+> its files draw at a height: `pack: { images: (src) => [{ asset, rise }] }`, `src` the parsed YAML of
+> each `<dir>/*.yaml` (`id` included), in every project. When the pack is built (`buildServerPack`,
+> `lib/pack/overlayImages.ts`), each (asset, rise) becomes a font `artisan:overlay/<sha256(asset)>_<rise>`:
+> the image at scale 1, `ascent = 7 + rise` (its top `rise` px above the action bar's text), padded with
+> transparent rows when shorter, cut into slices of 256 columns when wider (the client drops a larger
+> glyph without a word); one taller than 256 px is left out. The plugin side is `api.getOverlay()`:
+> `raise(text, rise)` (`artisan:text_up<rise>`, 0..128, always in the pack), `move(px)`, `image(asset, rise)`
+> (the slices joined, pen back at the start, null when the pack lacks it), `width(text)`, `hasPack(player)`.
+> A module renders through it only for a player whose `hasPack` is true and keeps a chat fallback.
+> The images reach the pack once the module's editor bundle is loaded in the editor that builds it.
+
 > **Module folder (since 2026-10-19, API 2.8.0)** — `api.getProjectRoots().moduleFolder(folder, moduleId, legacyDir)`
 > gives the module `plugins/Artisan/modules/<folder>/`, registered as an add-on root (key
 > `addon:<folder>`, not renamable). The old root (`legacyDir`) is moved there once; the

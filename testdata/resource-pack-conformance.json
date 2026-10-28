@@ -26,7 +26,10 @@
         "assets/artisan/font/default.json",
         "assets/artisan/font/pixel.json",
         "assets/artisan/font/vanilla_gui.json",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
         "assets/artisan/textures/font/coin.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
         "assets/artisan/textures/font/pixel/a.png",
         "assets/artisan/textures/font/pixel/b.png",
         "assets/artisan/textures/gui/dispenser.png",
@@ -41,7 +44,8 @@
         "pack.png"
       ],
       "textYFonts": 1072,
-      "sha1": "77e222b6536cdb4c4e43a776cd74c724ce1d9334"
+      "textUpFonts": 129,
+      "sha1": "984b2f4eeacb79d500534f35f4b85ad71d9df4ff"
     },
     {
       "name": "glyph title layers across two projects with a codepoint collision",
@@ -74,8 +78,11 @@
         "assets/artisan/font/default.json",
         "assets/artisan/font/glyph_y30.json",
         "assets/artisan/font/vanilla_gui.json",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
         "assets/artisan/textures/font/coin.png",
         "assets/artisan/textures/font/gem.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
         "assets/artisan/textures/gui/dispenser.png",
         "assets/artisan/textures/gui/generic_9x1.png",
         "assets/artisan/textures/gui/generic_9x2.png",
@@ -88,7 +95,8 @@
         "pack.png"
       ],
       "textYFonts": 1072,
-      "sha1": "1dd08914890e833618a4bab4b7e3b3db19ea6538"
+      "textUpFonts": 129,
+      "sha1": "7be6255aa7d4361d986eb97b0a50c0af53562278"
     },
     {
       "name": "image buttons: fits, offsets, states, hidden inventory, hopper",
@@ -122,6 +130,9 @@
         "assets/artisan/textures/buttons/c3e2d78f3ff335724b4029f06505b511e4f8f01e258828de29849b36b40b55d0_36_18_contain_17.png",
         "assets/artisan/textures/buttons/c3e2d78f3ff335724b4029f06505b511e4f8f01e258828de29849b36b40b55d0_36_36_stretch_17_2_-3.png",
         "assets/artisan/textures/buttons/c3e2d78f3ff335724b4029f06505b511e4f8f01e258828de29849b36b40b55d0_54_18_contain_19.png",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
         "assets/artisan/textures/gui/dispenser.png",
         "assets/artisan/textures/gui/generic_9x1.png",
         "assets/artisan/textures/gui/generic_9x2.png",
@@ -134,7 +145,8 @@
         "pack.png"
       ],
       "textYFonts": 1072,
-      "sha1": "9422d7ca9dad3cbfda5607b1ae646c784ef4c547"
+      "textUpFonts": 129,
+      "sha1": "3baf394a5ac22cb193f35917f981813cbd4ed7a0"
     },
     {
       "name": "transparent containers redrawn, custom chest texture",
@@ -163,7 +175,10 @@
         "assets/artisan/asset-index.json",
         "assets/artisan/font/default.json",
         "assets/artisan/font/vanilla_gui.json",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
         "assets/artisan/textures/font/coin.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
         "assets/artisan/textures/gui/dispenser.png",
         "assets/artisan/textures/gui/generic_9x1.png",
         "assets/artisan/textures/gui/generic_9x2.png",
@@ -178,7 +193,8 @@
         "pack.png"
       ],
       "textYFonts": 1072,
-      "sha1": "3a0d462a8a88ea3f5b67de8efcb8e395634223f7"
+      "textUpFonts": 129,
+      "sha1": "9ff3e49b17839db208a1fb8c1c04ef0e8d1ced7f"
     }
   ]
 }

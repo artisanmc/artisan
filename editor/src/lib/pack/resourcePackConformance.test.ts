@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import vectors from "../../../../testdata/resource-pack-conformance.json";
 import { sha256Hex } from "../sha256";
 import { diskAssetsFromTree } from "./diskAssets";
+import { TEXT_UP_TEXTURES, type TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { type GlyphPlacement, glyphPlacementsFromMenus } from "./menuGlyphPlacements";
 import { type AssetRow, buildResourcePackZip } from "./resourcePackBuilder";
@@ -25,6 +26,7 @@ interface ConformanceCase {
   vanillaGui: boolean;
   entries: string[];
   textYFonts: number;
+  textUpFonts: number;
   sha1: string;
 }
 
@@ -105,18 +107,31 @@ function buildCase(c: ConformanceCase) {
     glyphPlacements,
     imageButtons,
     { sources, transparent: c.vanillaGui ? transparent : new Set<GuiContainer>() },
+    textUp(),
   );
 }
 
+const textUp = () =>
+  Object.fromEntries(
+    TEXT_UP_TEXTURES.map((name) => [
+      name,
+      new Uint8Array(
+        readFileSync(resolve(__dirname, `../../assets/minecraft/font/${name}_up.png`)),
+      ),
+    ]),
+  ) as Record<TextUpTexture, Uint8Array>;
+
 const TEXT_Y = /^assets\/artisan\/font\/text_y-?\d+_h\d+\.json$/;
+const TEXT_UP = /^assets\/artisan\/font\/text_up\d+\.json$/;
 
 describe("resource pack — cross-stack vector (backend builder is the source)", () => {
   for (const c of vectors.cases as ConformanceCase[]) {
     test(c.name, () => {
       const { zipBytes, hash } = buildCase(c);
       const all = Object.keys(unzipSync(zipBytes)).sort();
-      expect(all.filter((e) => !TEXT_Y.test(e))).toEqual(c.entries);
+      expect(all.filter((e) => !TEXT_Y.test(e) && !TEXT_UP.test(e))).toEqual(c.entries);
       expect(all.filter((e) => TEXT_Y.test(e))).toHaveLength(c.textYFonts);
+      expect(all.filter((e) => TEXT_UP.test(e))).toHaveLength(c.textUpFonts);
       expect(hash).toBe(c.sha1);
     });
   }

@@ -55,6 +55,9 @@ open class ArtisanPlugin : JavaPlugin() {
     /** Exposed for /artisan dump-title diagnostics. */
     lateinit var assetCatalog: net.artisanmc.plugin.resourcepack.AssetCatalog
         internal set
+    /** The catalog once the runtime has made it, null before. */
+    internal val assetCatalogOrNull: net.artisanmc.plugin.resourcepack.AssetCatalog?
+        get() = if (::assetCatalog.isInitialized) assetCatalog else null
     lateinit var langManager: LangManager
     /** `api.translations`: survives `/artisan reload`, which [Translations.configure]s it again. */
     val translations by lazy { net.artisanmc.plugin.lang.Translations(logger = logger) }

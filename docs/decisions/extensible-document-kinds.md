@@ -343,3 +343,12 @@ condition list, in the file format `api.getConditions()` reads, and points at an
 the picker of `document_ref` arguments. Reason: without them, each module redrew a text or YAML
 field for these two needs (MSQuests, ArtisanConversations). A condition the editor does not decode is
 kept as written, never lost on edit.
+
+## Amendment 2026-10-28: images in the resource pack (SDK 1.13)
+
+A kind declares the images its files draw at a height (`pack.images`), and the pack builder gives each
+(asset, rise) a font the plugin hands out through `api.getOverlay()` (API 2.20.0). Reason: a HUD in the
+action bar (ArtisanConversations) needs its box and cursor above the hotbar, and only the pack can
+raise an image there; the builder already reads the menus' files for their glyph placements, and the
+kind is the only one that knows where its files keep their images. The kind reads the parsed file, not
+the Document: the pack is built from the server's files, without the editor's codec.
