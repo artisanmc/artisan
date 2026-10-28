@@ -1545,6 +1545,8 @@ const fr: typeof en = {
     nothing: "Rien à déployer",
     offline:
       "Le serveur est hors ligne : la publication attend son retour. Ton brouillon reste modifiable.",
+    checking:
+      "Affichage de ta dernière visite, vérification auprès du serveur… Le déploiement attend sa réponse.",
     cannotDeployTitle: "Serveur inconnu — impossible de déployer",
     deployed: "Déployé sur le serveur",
     packFailed: "Le resource pack n’a pas pu être reconstruit ; les joueurs gardent le précédent.",

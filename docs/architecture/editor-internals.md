@@ -335,8 +335,8 @@ not the immutable internal anchor.
 rebuilding of the offline display. A successful read (including `unchanged`)
 clears `offline` and `stale`; late responses and timers are ignored when
 leaving the Project. A modified draft keeps its compare-and-swap base.
-Since 2026-09-13, a first open waits for a successful server read,
-even with a cache or local draft. A disconnection preserves the already open buffer;
+From 2026-09-13 to 2026-10-28, a first open waited for a successful server read,
+even with a cache or local draft (see below). A disconnection preserves the already open buffer;
 backend transport failures and `fetch_timeout` are also retried.
 Since 2026-10-02, no more banner: the topbar's server badge carries the offline
 state and its tooltip (`downHint` of `LinkedServersDropdown`) gives the exact
@@ -348,6 +348,33 @@ named events `started` / `located` / `opened` / `settled` / `connectionLost` /
 `readFailed` / `loadFailed` / `validated`, tested without React); the read itself
 (`readFromHub` → `readAndOpen`, `resumeDraft`, `settleOffline`) lives outside the hook.
 `projectLoadStatus` says what the workspace shows (`loading | ready | error`).
+
+### Opening from the known version (2026-10-28)
+
+The 2026-09-13 rule (a first open waits for the server) is lifted: it dated from a
+cache keyed without the player, shared by guest demos. The key now carries the
+signed-in player and a sign-out empties it, so the known version shows nothing this
+browser does not already hold. Measured: a switch cost five round trips in a row
+(identity, files, drafts, models, actions), about 420 ms each through the tunnel.
+
+- **Immediate display** (`showKnownVersion`, event `shownKnown`): with a cache entry,
+  the Project shows on the first render, `stale`. It is the in-memory Project when
+  it was built from the same fingerprint (`builtFrom`, edits included), else it is
+  rebuilt from the cache (models and actions included, no network). A first visit of
+  the session takes the cache's tree as its base until the server answers, so an
+  edit made meanwhile reaches the draft. Deploy waits while `stale` (`checking` on
+  `SaveControls`, tooltip `deploy.checking`); a refusal (`readFailed`) closes the
+  version shown.
+- **One round trip**: the files (`if_hash`), the drafts and the server's
+  declarations are asked for together with the identity, on the cached identity's
+  guess (`startReads`); a guess the hub contradicts is dropped and re-asked. An
+  `unchanged` answer whose draft and declarations did not move rebuilds nothing.
+- **Never-opened Projects**: the server index (`loadServerProjects`, already run in
+  the background) keeps each raw read; `useKnownVersionsFromIndex` turns them into
+  cache entries (`seedProjectCache`, one hub identity request per new Project, the
+  open Project left to its loader). A reload announced by the plugin re-reads the
+  index. The persisted cache drops its oldest entries when `localStorage` is full
+  instead of failing the open.
 
 ### Advanced item settings (since 2026-07-29)
 
