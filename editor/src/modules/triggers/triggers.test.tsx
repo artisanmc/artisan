@@ -7,12 +7,14 @@ import "@/i18n";
 import { resetDocumentKinds } from "@/domain/documentKinds";
 import { documentsOf } from "@/domain/documents";
 import type { OpenProjects, Project, ProjectId } from "@/domain/types";
+import { SelectionInspector } from "@/features/inspector/SelectionInspector";
 import { storeChainOps } from "@/features/inspector/chain/chainOps";
 import { defaultAction } from "@/features/inspector/chain/defaults";
 import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { triggersEn, triggersFr } from "@/locales/triggers";
 import { resetDocumentCodecs } from "@/schema/documentCodecs";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useSelectionStore } from "@/state/selectionStore";
 import { useServerGameEventsStore } from "@/state/serverGameEventsStore";
 import { render, screen } from "@testing-library/react";
 import Ajv2020 from "ajv/dist/2020";
@@ -264,6 +266,20 @@ describe("a trigger's page", () => {
     expect(screen.getByRole("heading", { name: "Quand un joueur meurt" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "{event.location.x}" })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("has one header in the Properties panel: the sentence, its id beside it", () => {
+    const { doc } = parse(deathExample as Record<string, unknown>);
+    useProjectsStore.setState({
+      openProjects: { projects: [project([doc])], projectOrder: [PID] },
+    });
+    useSelectionStore.getState().set([`trigger/${doc.id}`]);
+    render(<SelectionInspector projectId={PID} />);
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
+      "Quand un joueur meurt",
+    ]);
+    expect(screen.getByText(doc.id)).toBeTruthy();
+    useSelectionStore.getState().set([]);
   });
 
   it("opens the event picker on creation", () => {

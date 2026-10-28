@@ -98,7 +98,7 @@ export function SaveControls({
             <button
               type="button"
               aria-disabled
-              onClick={offline ? flow.openReview : undefined}
+              onClick={offline ? () => flow.openReview() : undefined}
               className="btn btn-sm btn-primary cursor-default opacity-50"
             >
               <Play className="size-4" fill="currentColor" aria-hidden />
@@ -108,14 +108,16 @@ export function SaveControls({
         ) : (
           <button
             type="button"
-            onClick={flow.openReview}
-            disabled={state.saving || !canSave || !dirty}
+            onClick={() => flow.openReview()}
+            disabled={state.saving || !canSave || !(dirty || flow.pendingElsewhere)}
             title={
               !canSave
                 ? t("deploy.cannotDeployTitle")
                 : dirty
                   ? t("deploy.deployTitle")
-                  : t("deploy.nothing")
+                  : flow.pendingElsewhere
+                    ? t("deploy.others.elsewhereTitle")
+                    : t("deploy.nothing")
             }
             className="btn btn-sm btn-primary"
           >
@@ -176,6 +178,9 @@ export function SaveControls({
         changes={state.review?.changes ?? null}
         checks={state.review?.checks}
         documents={state.review?.documents}
+        current={flow.current}
+        others={flow.others}
+        onToggleOther={flow.toggleOther}
         onCancel={flow.closeReview}
         onConfirm={flow.confirmReview}
       />

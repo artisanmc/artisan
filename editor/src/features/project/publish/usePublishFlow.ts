@@ -37,10 +37,11 @@ import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { formatSaveError, initialPublishState, publishReducer } from "./publishFlow";
+import { deployOtherDrafts, selectedDrafts, useOtherDrafts } from "./useOtherDrafts";
 
 /**
  * Realigns the displayed Project with the draft after a conflict resolution:
@@ -123,20 +124,30 @@ export function usePublishFlow(
   // a lock.
   const draft = useProjectDraftStore((s) => (project ? s.drafts[project.id] : undefined));
   const dirty = draft ? hasDraftChanges(draft) : false;
+  // Work this browser holds in other Projects: Deploy also opens for it, to publish it from here.
+  const pendingElsewhere = useProjectDraftStore((s) =>
+    Object.entries(s.drafts).some(([id, d]) => id !== projectId && hasDraftChanges(d)),
+  );
   const canSave = Boolean(user && project);
+  const others = useOtherDrafts();
+  const [includeCurrent, setIncludeCurrent] = useState(true);
+  const picked = selectedDrafts(others.state);
+  // The open Project's working copy goes out unless a draft of the same Project was picked.
+  const currentPicked =
+    includeCurrent && dirty && !picked.some((other) => other.projectId === projectId);
 
   /**
    * Save = write the server's files. It is the only path through which an edit
    * reaches the disk (ADR `server-disk-only-storage`).
    */
-  const runSave = async (): Promise<void> => {
+  const runSave = async (): Promise<boolean> => {
     if (!project) {
       toast.info(t("deploy.cannotDeployTitle"));
-      return;
+      return false;
     }
     // An unresolved draft conflict is already offered by the modal: do not
     // stack a failure dialog on top of it.
-    if (draftSession?.draftConflict) return;
+    if (draftSession?.draftConflict) return false;
     dispatch({ type: "saveStarted" });
     try {
       const attemptedTree = projectTree(project);
@@ -145,7 +156,7 @@ export function usePublishFlow(
         dispatch({ type: "saveSucceeded" });
         toast.success(res.wrote === 0 ? t("deploy.nothing") : t("deploy.deployed"));
         rebuildServerPackInBackground(t, project.serverKeyId);
-        return;
+        return true;
       }
       if (res.error === "conflict") {
         // Nothing was written: the plugin applies all or nothing. The admin is asked
@@ -157,7 +168,7 @@ export function usePublishFlow(
           conflicts: res.conflicts,
           diskFiles: res.diskFiles,
         });
-        return;
+        return false;
       }
       reportSaveError(res.code ?? res.error, res.status, res.message);
     } catch (error) {
@@ -165,9 +176,11 @@ export function usePublishFlow(
     } finally {
       dispatch({ type: "saveSettled" });
     }
+    return false;
   };
 
-  const openReview = () => {
+  /** Opens the review; [preselect] picks drafts of other Projects (the assistant's). */
+  const openReview = (preselect: string[] = []) => {
     if (!project) return;
     if (offline) {
       toast.error(t("deploy.offline"));
@@ -189,8 +202,15 @@ export function usePublishFlow(
       checks: serverChecksFor(live ?? project, useServerIndexStore.getState()),
       changes,
     });
+    // The other Projects' drafts, and this one's other drafts: listed under it.
+    setIncludeCurrent(true);
+    others.load(current?.remote?.id, preselect);
     // The check Deploy runs before writing, asked now: the problems show in the review.
     const { files, deletes } = deploymentDelta(changes.before, changes.after);
+    if (Object.keys(files).length === 0 && deletes.length === 0) {
+      dispatch({ type: "documentsChecked", changes, documents: { status: "ready", problems: [] } });
+      return;
+    }
     dispatch({ type: "documentsChecked", changes, documents: { status: "pending" } });
     void checkDocuments(projectId, files, deletes).then(
       (problems) =>
@@ -210,16 +230,56 @@ export function usePublishFlow(
   // biome-ignore lint/correctness/useExhaustiveDependencies: `openReview` reads the stores when it runs.
   useEffect(() => {
     const onOpen = (event: Event) => {
-      if ((event as CustomEvent<{ projectId: string }>).detail?.projectId === projectId)
-        openReview();
+      const detail = (event as CustomEvent<{ projectId: string; preselect?: string[] }>).detail;
+      if (detail?.projectId === projectId) openReview(detail.preselect);
     };
     window.addEventListener(OPEN_DEPLOY_REVIEW, onOpen);
     return () => window.removeEventListener(OPEN_DEPLOY_REVIEW, onOpen);
   }, [projectId, project]);
 
-  const confirmReview = () => {
+  /**
+   * The open Project first (its conflicts open the resolution as before), then each picked draft
+   * of another Project, one after the other: the first failure stops the rest. Each Project is
+   * written on its own: one that went out stays out when a later one fails.
+   */
+  const confirmReview = async () => {
+    const queue = picked;
+    const withCurrent = currentPicked;
     dispatch({ type: "reviewClosed" });
-    void runSave();
+    others.close();
+    if (withCurrent && !(await runSave())) {
+      if (queue.length > 0) toast.info(t("deploy.others.notTried", { count: queue.length }));
+      return;
+    }
+    if (queue.length === 0) return;
+    dispatch({ type: "saveStarted" });
+    try {
+      const report = await deployOtherDrafts(queue);
+      for (const serverId of new Set(report.deployed.map((d) => d.serverId)))
+        rebuildServerPackInBackground(t, serverId);
+      const names = (list: typeof queue) => list.map((d) => d.projectName).join(", ");
+      if (!report.failed)
+        toast.success(
+          t("deploy.others.deployed", {
+            count: report.deployed.length,
+            names: names(report.deployed),
+          }),
+        );
+      else
+        toast.error(
+          t("deploy.others.failed", {
+            name: report.failed.draft.projectName,
+            reason: t(`save.errors.${report.failed.code}`, {
+              defaultValue: report.failed.code,
+            }),
+            deployed: report.deployed.length ? names(report.deployed) : "—",
+            skipped: report.skipped.length ? names(report.skipped) : "—",
+          }),
+          { duration: 15_000 },
+        );
+    } finally {
+      dispatch({ type: "saveSettled" });
+    }
   };
 
   const draftSaved = draftSession?.status === "saved";
@@ -308,9 +368,33 @@ export function usePublishFlow(
     draftSaved,
     draftBusy,
     draftNeedsAttention,
+    pendingElsewhere,
     openReview,
-    closeReview: () => dispatch({ type: "reviewClosed" }),
-    confirmReview,
+    closeReview: () => {
+      dispatch({ type: "reviewClosed" });
+      others.close();
+    },
+    confirmReview: () => void confirmReview(),
+    others: others.state,
+    current: {
+      dirty,
+      picked: currentPicked,
+      toggle: () => {
+        if (currentPicked) setIncludeCurrent(false);
+        else {
+          setIncludeCurrent(true);
+          others.unselectProject(projectId);
+        }
+      },
+    },
+    toggleOther: (draftId: string) => {
+      const draft =
+        others.state?.status === "ready"
+          ? others.state.drafts.find((d) => d.draftId === draftId)
+          : undefined;
+      if (draft?.projectId === projectId && !picked.includes(draft)) setIncludeCurrent(false);
+      others.toggle(draftId);
+    },
     saveDraft,
     chooseConflict: (path: string, choice: ConflictChoice) =>
       dispatch({ type: "conflictChosen", path, choice }),

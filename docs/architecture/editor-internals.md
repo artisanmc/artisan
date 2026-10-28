@@ -153,6 +153,21 @@ as a green light). `DeployReviewDialog` lists each problem on its file in the `C
 (`problems` prop: a count on the header, the lines above the diff, the file opened) and
 disables Deploy while there are any. A reply is kept only for the review it was asked for.
 
+**Several Projects in one Deploy.** The review also lists the player's other drafts with
+changes (`otherDrafts.ts`: `listServers` → `listServerProjects` of each online server →
+`listDrafts` of each Project, at most 6 at a time; the open Project's working copy is left
+out, its other drafts are not). Each is a row with a checkbox, unpicked by default; one draft
+per Project can be picked (picking a draft of the open Project unpicks its working copy). A
+picked draft shows its `ChangeList` and is checked by the server like the working copy; a
+draft this browser edited further than the hub's copy is `unsynced` and cannot be picked.
+`useOtherDrafts` holds the list, the picks and the checks. Confirm deploys the open Project
+first (its conflicts open the resolution as before), then each picked draft from the hub's
+copy (`publishDraft`), one after the other, stopping at the first failure; a toast says what
+went out, what failed and what was not tried. Each Project is written on its own: one that
+went out stays out. Deploy is enabled when this browser holds changes in another Project
+(`pendingElsewhere`). The assistant's "Review and deploy" fires `OPEN_DEPLOY_REVIEW` with
+`preselect`: the drafts its conversation started, picked when the review opens.
+
 ## Workspace page (`features/project/ProjectCanvasPage.tsx`)
 
 The page keeps only loading (`useProjectLoader`) and layout (topbar, canvas,
@@ -287,7 +302,7 @@ A domain action is `{ name, value }` (`domain/types.ts`): the wire name and its 
 
 ### Document kinds contributed by a module (`FrontendModule.documents`, batch 5, since 2026-10-15)
 
-A module declares its Document kinds in its `FrontendModule` (`documents: DocumentKindContribution[]`, SDK): `kind`, `dir`, `schemaVersion`, `idPrefix`, `label` (host i18n key or label), `icon`, `component` (the Properties panel view, `{projectId, documentId, document, item?}`), `title(doc, {project, lang})`, `listByTitle`, `create({id, projectId})`, `parse`/`serialize` (the file codec), `ltextSites(doc)` (its texts, for Translations, rekey at deploy and GC), `chainSlots(doc)` (its action chains: `{name, steps, prefix, label?}`, for edges and addressing of action texts), and `board` (`size`, `summary`, `render`, `items`). The core kinds (menus, commands, dialogs, triggers) are declared the same way (`src/modules/{menus,commands,dialogs,triggers}/*Kind.tsx`) — dogfooding; the SDK registry refuses a kind contributed by two modules. `board.accent` accepts a hex or a `var(--kind-…)` token, which `DocumentGroup` resolves (`useCssVar`) to follow the theme.
+A module declares its Document kinds in its `FrontendModule` (`documents: DocumentKindContribution[]`, SDK): `kind`, `dir`, `schemaVersion`, `idPrefix`, `label` (host i18n key or label), `icon`, `component` (the Properties panel view, `{projectId, documentId, document, item?}`), `ownHeader` (SDK 1.13: the view draws the Document's header, so `SelectionInspector` leaves out its `DocumentHeader`; commands, dialogs and triggers set it), `title(doc, {project, lang})`, `listByTitle`, `create({id, projectId})`, `parse`/`serialize` (the file codec), `ltextSites(doc)` (its texts, for Translations, rekey at deploy and GC), `chainSlots(doc)` (its action chains: `{name, steps, prefix, label?}`, for edges and addressing of action texts), and `board` (`size`, `summary`, `render`, `items`). The core kinds (menus, commands, dialogs, triggers) are declared the same way (`src/modules/{menus,commands,dialogs,triggers}/*Kind.tsx`) — dogfooding; the SDK registry refuses a kind contributed by two modules. `board.accent` accepts a hex or a `var(--kind-…)` token, which `DocumentGroup` resolves (`useCssVar`) to follow the theme.
 
 - **Host bridge** — `lib/moduleDocumentKinds.ts`: `registerEditorModule(mod)` is a module's only entry point (`main.tsx` for the core, `modulesStore` / `ConfigScreenPage` for Presence-gated modules): it registers the module in the SDK and pushes each contribution into the registries the host already reads — kinds table (`domain/documentKinds.ts`, rank after the core kinds, folder and schema checked if the kind is already known), file codecs (`schema/documentCodecs.ts`), visitors (`domain/documentKindVisitors.ts`). The domain knows nothing about React: the view, label and board overrides stay on the contribution, read by `documentKindContribution(kind)` (SDK) from the surfaces that render.
 - **Properties panel via registry** — `selectionContext` returns `{ kind: "document", documentKind, id }` for a Document of a non-core kind; `SelectionInspector` resolves `documentKindContribution(kind).component` for menu / command / dialog / document and renders it in an `h-full min-h-0 overflow-y-auto` container; with no registered module (a surface rendered alone, a test), the built-in core editors still answer; without a view, `projectPanel.noEditor`. The YAML button follows: `documentRelPath` = `<kind dir>/<id>.yaml`.
