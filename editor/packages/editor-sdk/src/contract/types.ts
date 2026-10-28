@@ -228,6 +228,12 @@ export interface ConfigScreenProps {
   readOnly: boolean;
 }
 
+/** What the host passes to `FrontendModule.localPreviewRows` beside the project (SDK 1.12). */
+export interface LocalPreviewContext {
+  /** The server's last rows for the ref; absent while unknown (server offline, not fetched yet). */
+  serverRows?: Record<string, unknown>[];
+}
+
 export interface ModuleRouteDecl {
   path: string;
   component: ComponentType;
@@ -262,8 +268,19 @@ export interface FrontendModule {
    * (the host then falls back to the live server snapshot). Must mirror the
    * plugin fetcher's row shape. The host resolves localized values in the
    * project's dataSources before calling this hook, using the preview language.
+   *
+   * SDK 1.12: `ctx.serverRows` carries the server's last rows for the ref when the
+   * host has them (fetched with the preview player). A source the plugin declares
+   * `mixed` (definitions in the project's files, per-player state on the server)
+   * starts from these rows and replaces their definition fields with the draft's,
+   * matched by the declared key field; a row the draft adds gets the default state,
+   * a row the draft removes disappears. A `content` source ignores them.
    */
-  localPreviewRows?: (project: unknown, ref: string) => Record<string, unknown>[] | null;
+  localPreviewRows?: (
+    project: unknown,
+    ref: string,
+    ctx?: LocalPreviewContext,
+  ) => Record<string, unknown>[] | null;
   /** Source ref → declared row model, available independently of server presence. */
   dataSourceModels?: Record<string, string>;
   /** Idempotent, in-memory upgrade after declared models are attached. */

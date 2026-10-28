@@ -25,8 +25,27 @@ describe("fetchServerDataSourcesUser", () => {
         schemaHint: null,
         stability: null,
         keyField: null,
+        origin: null,
       },
     ]);
+  });
+
+  it("reads the declared origin, an unknown value as absent", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data_sources: [
+            { ref: "shop:items", origin: "content" },
+            { ref: "quests:active", origin: "mixed" },
+            { ref: "x:y", origin: "something-newer" },
+          ],
+        }),
+      }),
+    );
+    const result = await fetchServerDataSourcesUser("srv1");
+    expect(result.map((s) => s.origin)).toEqual(["content", "mixed", null]);
   });
 
   it("returns [] on a non-OK response", async () => {
