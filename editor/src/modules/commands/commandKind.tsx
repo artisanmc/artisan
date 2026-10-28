@@ -18,6 +18,7 @@ export const commandKind: DocumentKindContribution = {
   label: "projectPanel.commands",
   icon: TerminalSquare,
   component: CommandView,
+  ownHeader: true,
   title: (doc) => `/${(doc as Command).name}`,
   listByTitle: true,
   create: ({ id, projectId }) =>
