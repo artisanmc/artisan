@@ -22,7 +22,6 @@ import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
 import { ImageIcon, Pencil } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ItemContextSidebar } from "./ItemContextSidebar";
 import { humanizeMaterial } from "./ItemTooltip";
 import { ItemPreviewColumn } from "./item/ItemPreviewColumn";
 import type { ResolvedItem } from "./resolveItem";
@@ -249,7 +248,7 @@ export function ItemEditor({
             <DialogTitle>{t("itemBinding.editItem")}</DialogTitle>
           </DialogHeader>
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
-            <div className="flex min-h-0 min-w-0 shrink-0 flex-col gap-4 md:overflow-y-auto md:overscroll-contain">
+            <div className="flex min-h-0 min-w-0 shrink-0 flex-col gap-4 md:overflow-y-auto md:overscroll-contain md:pr-3 md:[scrollbar-gutter:stable]">
               {source}
               {preview.error && (
                 <p role="alert" className="text-xs text-[var(--danger)]">
@@ -307,7 +306,6 @@ export function ItemEditor({
                 simulation={simulation}
                 className="border-[var(--border)] border-t pt-4"
               />
-              <ItemContextSidebar entries={suggestions} defaultOpen={false} />
             </div>
           </div>
           <DialogFooter className="shrink-0">

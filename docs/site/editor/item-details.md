@@ -31,12 +31,10 @@ Lore written in the editor defaults to white in game when no colour is specified
 Explicit MiniMessage or legacy colours remain unchanged, as does the original lore
 inherited from a referenced item.
 
-Open an item's preview card to edit it. **Available context** lists the placeholders
-in scope, grouped by context, current element, pagination, and sources, with their
-types and example values. Search by name, then use **Copy** beside an entry to copy
-the complete `{placeholder}` syntax into your title or lore. A check replaces the copy
-icon for 1.5 seconds to confirm success. The `base.*` entries
-refer to the source item's title, lore, count, and material.
+Open an item's preview card to edit it. The **Library** button of the title and lore
+toolbars lists the placeholders in scope, grouped by context, current element,
+pagination, and sources, with their example values; a click inserts it. The `base.*`
+entries refer to the source item's title, lore, count, and material.
 
 **Open cheat sheet** opens the existing examples without closing the item editor.
 Close the cheat sheet to resume editing with your changes intact. On narrow screens,
