@@ -64,6 +64,8 @@ export interface ProjectTopBarControlsProps {
   offline?: boolean;
   offlineSince?: string | null;
   unpublished?: boolean;
+  /** The last known version is on screen, the server's answer is awaited: Deploy waits. */
+  checking?: boolean;
 }
 
 /**
@@ -83,6 +85,7 @@ export function ProjectTopBarControls({
   offline = false,
   offlineSince,
   unpublished,
+  checking = false,
 }: ProjectTopBarControlsProps) {
   // The `project` prop comes from `useProjectLoader`, frozen at load time: anything
   // that reflects an edit (Translations badge, languages) reads the live store.
@@ -147,7 +150,12 @@ export function ProjectTopBarControls({
           <AssistantButton />
           <SearchButton />
           <div data-tour="save" className="flex items-center gap-1">
-            <SaveControls key={projectId} projectId={projectId} offline={offline} />
+            <SaveControls
+              key={projectId}
+              projectId={projectId}
+              offline={offline}
+              checking={checking}
+            />
           </div>
           <RefreshProjectButton
             projectId={projectId}

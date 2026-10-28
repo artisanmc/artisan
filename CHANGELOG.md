@@ -9,6 +9,7 @@ See `docs/architecture/versioning.md` for the full versioning rules.
 
 ## [Unreleased]
 
+- **Changed**: switching Projects in the editor no longer shows "Opening the project…" for seconds. A Project already seen (this session, a previous one, or read in the background by the server index) shows at once, marked as being checked, then is revalidated; the files, drafts and server declarations are asked for in one round trip instead of five in a row. Deploy waits for that check (under a second). A full `localStorage` no longer fails an open.
 - **Added**: `FrontendModule.localPreviewRows` also receives `ctx.params`, the fetcher params a menu declares on the source input (`group: daily`), so rows computed from the draft are narrowed like the fetcher narrows them (editor SDK 1.12).
 - **Fixed**: Deploy refused a menu whose element is laid out by `places` alone (the Boutique/Store grids migrated from v1): the editor wrote its missing positions as `positions: ""`, which the menu schema rejects ("string found, array expected"). It now writes `positions: []`.
 - **Changed**: the assistant is docked on the right of the editor, beside the page, instead of a panel over it: the canvas and the chat stay usable together, and the conversation stays when the dock is closed or another Project is opened. Its width is set by dragging its left edge (360 to 960 px, remembered, double click for the default). It renders the model's Markdown (tables, bold, lists, code, links) instead of the raw text. New design-system components `Markdown` and `ResizeHandle`.

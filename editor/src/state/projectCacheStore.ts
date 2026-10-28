@@ -1,15 +1,18 @@
+import type { DeclaredAction } from "@/lib/api/declaredActions";
 import type { FailedDocument } from "@/lib/api/projectFiles";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { type StateStorage, createJSONStorage, persist } from "zustand/middleware";
 
 /**
  * **The last known version** of a Project: the tree the server returned last
  * time, with what is needed to rebuild it without network.
  *
  * Why it exists: the content lives on the server's disk (ADR
- * `server-disk-only-storage`), so opening it takes a round trip to the
- * plugin — several seconds, for content almost always identical to the
- * previous visit. What we had is shown right away, and revalidated behind.
+ * `server-disk-only-storage`), so opening it takes round trips through the
+ * tunnel — about a second, for content almost always identical to the
+ * previous visit. What we had is shown right away (`useProjectLoader`), and
+ * revalidated behind; the server index fills it for the server's other
+ * Projects, so a Project never opened opens just as fast.
  *
  * What this cache is NOT, and must never become:
  *
@@ -50,6 +53,8 @@ export interface CachedProject {
    * visit refreshes them; meanwhile, yesterday's model beats a waiting screen.
    */
   declaredModels?: unknown[];
+  /** The actions declared by the server's modules, kept for the same reason as the models. */
+  declaredActions?: DeclaredAction[];
   /** Documents the server could not load, shown again as is. */
   failed?: FailedDocument[];
   /**
@@ -74,6 +79,40 @@ export function projectCacheKey(
 ): string {
   return JSON.stringify([ownerId, serverRef, projectId]);
 }
+
+/**
+ * `localStorage` holds a few megabytes per origin; a whole server's Projects can go
+ * over. A full storage must never fail an open (`put` would throw from inside the
+ * load): the oldest versions are left out of what is persisted until the rest fits,
+ * and stay in memory for this session.
+ */
+const boundedStorage: StateStorage = {
+  getItem: (name) => localStorage.getItem(name),
+  removeItem: (name) => localStorage.removeItem(name),
+  setItem: (name, value) => {
+    try {
+      localStorage.setItem(name, value);
+      return;
+    } catch {
+      // Quota: trimmed below.
+    }
+    const stored = JSON.parse(value) as { state: { entries: Record<string, CachedProject> } };
+    const byAge = Object.entries(stored.state.entries).sort(([, a], [, b]) =>
+      a.fetchedAt.localeCompare(b.fetchedAt),
+    );
+    while (byAge.length > 0) {
+      byAge.splice(0, Math.max(1, Math.floor(byAge.length / 4)));
+      stored.state.entries = Object.fromEntries(byAge);
+      try {
+        localStorage.setItem(name, JSON.stringify(stored));
+        return;
+      } catch {
+        // Still too big: drop more.
+      }
+    }
+    localStorage.removeItem(name);
+  },
+};
 
 interface ProjectCacheState {
   entries: Record<string, CachedProject>;
@@ -106,6 +145,7 @@ export const useProjectCacheStore = create<ProjectCacheState>()(
     }),
     {
       name: "artisan.project-cache",
+      storage: createJSONStorage(() => boundedStorage),
       // The refresh token is a gesture, not a state: persisting it would trigger a
       // re-read on the next start for a stale reason.
       partialize: (s) => ({ entries: s.entries }),
