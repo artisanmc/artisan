@@ -182,8 +182,8 @@ mappings:
     updates:
       - "docs/architecture/api-surface.md"
       - "docs/architecture/modules.md"
-      - "CHANGELOG.md"
-    reason: "Public module API — affects every module, must hit CHANGELOG + api-surface"
+      - "changelog.d/*.md"
+    reason: "Public module API — affects every module, must hit a changelog.d/ fragment + api-surface"
 
   - touches: "editor/packages/editor-sdk/src/**"
     updates:
@@ -239,7 +239,7 @@ mappings:
     updates:
       - "docs/architecture/ws-protocol.md"
       - "docs/architecture/versioning.md"
-      - "CHANGELOG.md"
+      - "changelog.d/*.md"
     reason: "Protocol version — a major bump stops hub and leaves from talking until both update"
 
   - touches: "plugin/paper/src/main/kotlin/**/ws/WsClient.kt"
@@ -324,7 +324,7 @@ mappings:
   - touches: "docs/schema/**/schema.json"
     updates:
       - "docs/architecture/schemas-codegen.md"
-      - "CHANGELOG.md"
+      - "changelog.d/*.md"
     reason: "Types are hand-aligned (editor types.ts + plugin) and fixtures must stay green; a shipped version is never edited, it gets a new folder"
 
   - touches: "docker-compose.yml"

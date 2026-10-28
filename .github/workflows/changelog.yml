@@ -1,0 +1,32 @@
+name: Changelog
+
+# Entries go in changelog.d/ (one file per PR) so PRs stop conflicting on CHANGELOG.md.
+# This refuses a PR that adds lines to [Unreleased] and checks the fragments' format.
+on:
+  pull_request:
+    paths:
+      - CHANGELOG.md
+      - changelog.d/**
+      - tools/changelog/**
+      - .github/workflows/changelog.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: changelog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fragments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node --test tools/changelog/changelog.test.mjs
+      - run: node tools/changelog/changelog.mjs check --base origin/${{ github.base_ref }}

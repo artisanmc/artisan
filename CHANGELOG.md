@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 See `docs/architecture/versioning.md` for the full versioning rules.
 
+**Do not add entries here.** Each PR adds its entry as a new file in `changelog.d/`
+(see `changelog.d/README.md`); a release folds them into this file.
+
 ## [Unreleased]
 
 - **Added**: Deploy publishes several Projects at once. Its review lists, under the open Project, your other drafts with changes in every Project of the online servers, each with its diff and the server's check once picked (one draft per Project). Deploy writes the open Project first, then each picked draft one after the other, and stops at the first failure: a message says which went out, which failed and which were not tried. Deploy is also enabled when only other Projects have changes. In the assistant, "Review and deploy" opens this review with the drafts of the conversation already picked.
